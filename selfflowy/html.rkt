@@ -189,10 +189,38 @@
 
 ;; ---- tree chrome ----------------------------------------------------------
 
-(define (task->xexpr tk)
+;; anchors: hash id -> task (for resolving mirror sites). May be #f / empty.
+(define (child->xexpr x anchors)
+  (cond
+    [(mirror-ref? x)
+     (mirror->xexpr (mirror-ref-anchor x) anchors)]
+    [(task? x)
+     (task->xexpr x anchors)]
+    [else `(li "???")]))
+
+(define (mirror->xexpr anchor anchors)
+  (define target (and anchors (hash-ref anchors anchor #f)))
+  (define link
+    `(a ((href ,(string-append "#" anchor))
+         (class "shrink-0 text-xs text-violet-600 dark:text-violet-400 hover:underline font-mono")
+         (title ,(string-append "mirror of ^" anchor)))
+        "↗" ,anchor))
+  (cond
+    [(not target)
+     `(li ((class "list-disc ml-5 marker:text-violet-400"))
+          (div ((class "flex items-baseline gap-2 text-zinc-500"))
+               ,link
+               (span ((class "text-sm")) "(unresolved)")))]
+    [else
+     ;; Render the target's body chrome with a mirror glyph; nest its children.
+     (define inner (task->xexpr target anchors #:mirror-of anchor))
+     inner]))
+
+(define (task->xexpr tk anchors #:mirror-of [mirror-of #f])
   (define title (task-title tk))
   (define date (task-date tk))
   (define desc (task-description tk))
+  (define id (task-id tk))
   (define done? (and (task-done tk) #t))
   (define kids (task-children tk))
   (define title-class
@@ -208,9 +236,17 @@
         `(span ((class "shrink-0 text-sm text-zinc-300 dark:text-zinc-600 select-none")
                 (aria-hidden "true"))
                "☐")))
+  (define mirror-glyph
+    (if mirror-of
+        `((a ((href ,(string-append "#" mirror-of))
+              (class "shrink-0 text-xs text-violet-600 dark:text-violet-400 hover:underline font-mono")
+              (title ,(string-append "mirror of ^" mirror-of)))
+             "↗"))
+        '()))
   (define title-row
     `(div ((class "flex flex-wrap items-baseline gap-2 min-w-0"))
           ,checkbox
+          ,@mirror-glyph
           (span ((class ,title-class))
                 ,@(map style-md-xexpr (title->inline-xexprs title)))
           ,@(if date
@@ -228,10 +264,21 @@
     `(div ((class "py-0.5 min-w-0"))
           ,title-row
           ,@desc-el))
+  (define li-attrs
+    (append
+     '((class "list-disc ml-5 marker:text-zinc-400 dark:marker:text-zinc-500"))
+     (if (and id (not mirror-of))
+         `((id ,id))
+         '())))
+  (define li-attrs-parent
+    (append
+     '((class "list-none ml-1"))
+     (if (and id (not mirror-of))
+         `((id ,id))
+         '())))
   (if (null? kids)
-      `(li ((class "list-disc ml-5 marker:text-zinc-400 dark:marker:text-zinc-500"))
-           ,body)
-      `(li ((class "list-none ml-1"))
+      `(li ,li-attrs ,body)
+      `(li ,li-attrs-parent
            (details ((class "group"))
                     (summary
                      ((class "cursor-pointer list-none flex items-start gap-1.5"))
@@ -240,26 +287,26 @@
                      (div ((class "min-w-0 flex-1"))
                           ,body))
                     (ul ((class "ml-3 pl-3 border-l border-zinc-200 dark:border-zinc-700 mt-0.5 space-y-0.5"))
-                        ,@(map task->xexpr kids))))))
+                        ,@(map (λ (c) (child->xexpr c anchors)) kids))))))
 
-;; sections: (listof (cons section-title tasks)) — one section per file when multi.
+;; sections: (listof (list section-title tasks anchors))
 (define (page-xexpr sections page-title)
   (define body-sections
     (match sections
-      [(list (cons _ tasks))
-       ;; Single file: flat tree, no per-file h2.
+      [(list (list _ tasks anchors))
        `((ul ((class "space-y-1"))
-             ,@(map task->xexpr tasks)))]
+             ,@(map (λ (t) (task->xexpr t anchors)) tasks)))]
       [many
        (append*
         (for/list ([sec (in-list many)])
           (define sec-title (car sec))
-          (define tasks (cdr sec))
+          (define tasks (cadr sec))
+          (define anchors (caddr sec))
           `((section ((class "mb-8"))
                      (h2 ((class "text-lg font-semibold tracking-tight mb-3 text-zinc-800 dark:text-zinc-100"))
                          ,sec-title)
                      (ul ((class "space-y-1"))
-                         ,@(map task->xexpr tasks))))))]))
+                         ,@(map (λ (t) (task->xexpr t anchors)) tasks))))))]))
   `(html ((lang "en"))
          (head
           (meta ((charset "utf-8")))
@@ -275,16 +322,21 @@
                                  ,page-title))
                      ,@body-sections))))
 
-(define (tasks->html tasks page-title)
-  (files->html (list (cons page-title tasks)) page-title))
+(define (tasks->html tasks page-title #:anchors [anchors #f])
+  (files->html (list (list page-title tasks (or anchors (hash)))) page-title))
 
-;; file-entries: (listof (cons path-or-label tasks))
-;; Section heading is the basename when path-like, else the label string.
+;; file-entries: (listof (list path-or-label tasks anchors))
+;;   or legacy (cons path tasks) with empty anchors
 (define (files->html file-entries page-title)
   (define sections
     (for/list ([e (in-list file-entries)])
-      (define label
-        (let ([p (car e)])
+      (define-values (label tasks anchors)
+        (match e
+          [(list p t a) (values p t a)]
+          [(cons p t) (values p t (hash))]
+          [_ (error 'files->html "bad entry")]))
+      (define lab
+        (let ([p label])
           (if (path? p)
               (path->string (file-name-from-path p))
               (let ([s (if (string? p) p (format "~a" p))])
@@ -292,7 +344,7 @@
                 (if (path-for-some-system? name)
                     (path->string name)
                     s)))))
-      (cons label (cdr e))))
+      (list lab tasks (or anchors (hash)))))
   (string-append
    "<!DOCTYPE html>\n"
    (xexpr->string (page-xexpr sections page-title))))

@@ -8,11 +8,13 @@
          racket/match
          racket/set
          racket/string
-         selfflowy/lang/outline)
+         selfflowy/lang/outline) ; strip-checkbox-prefix, strip-trailing-anchor
 
 (provide find-title-matches
+         find-anchor-matches
          mark-done-in-text
          undo-done-in-text
+         parse-title-or-anchor
          (struct-out title-match))
 
 ;; line: 1-based outline line of the title
@@ -74,7 +76,24 @@
      (substring content 1)]
     [else
      (define-values (t _f) (strip-checkbox-prefix content))
-     t]))
+     (define-values (t2 _a) (strip-trailing-anchor t))
+     t2]))
+
+(define (line-anchor content)
+  (cond
+    [(regexp-match? #px"^\\\\" content) #f]
+    [(regexp-match? #px"^\\*" content) #f]
+    [else
+     (define-values (t _f) (strip-checkbox-prefix content))
+     (define-values (_t2 a) (strip-trailing-anchor t))
+     a]))
+
+;; 'title | 'anchor
+(define (parse-title-or-anchor s)
+  (cond
+    [(regexp-match #px"^\\^([A-Za-z0-9_-]+)$" (string-trim s))
+     => (λ (m) (cons 'anchor (cadr m)))]
+    [else (cons 'title s)]))
 
 ;; Find all title lines whose effective title equals `title` exactly.
 (define (find-title-matches text title)
@@ -88,9 +107,32 @@
       [else
        (define-values (ind content) (line-indent+content s))
        (when (and (zero? (remainder ind 2))
-                  (title-content? content))
+                  (title-content? content)
+                  (not (regexp-match? #px"^\\*" content)))
          (define eff (effective-title content))
          (when (equal? eff title)
+           (define meta (metadata-indices lines i ind))
+           (define done? (title-already-done? content meta lines))
+           (set! matches
+                 (cons (title-match (add1 i) i ind done?) matches))))]))
+  (reverse matches))
+
+;; Find the title line declaring ^anchor (at most one if file is valid).
+(define (find-anchor-matches text anchor)
+  (define lines (string-split text "\n" #:trim? #f))
+  (define matches '())
+  (for ([i (in-range (length lines))])
+    (define s (list-ref lines i))
+    (cond
+      [(blank-line? s) (void)]
+      [(regexp-match? #px"^#lang\\s" s) (void)]
+      [else
+       (define-values (ind content) (line-indent+content s))
+       (when (and (zero? (remainder ind 2))
+                  (title-content? content)
+                  (not (regexp-match? #px"^\\*" content)))
+         (define a (line-anchor content))
+         (when (equal? a anchor)
            (define meta (metadata-indices lines i ind))
            (define done? (title-already-done? content meta lines))
            (set! matches
@@ -103,23 +145,32 @@
       (if (regexp-match? #px"\n$" body) body (string-append body "\n"))
       body))
 
+(define (resolve-matches text title-or-anchor)
+  (define kind (parse-title-or-anchor title-or-anchor))
+  (match kind
+    [(cons 'anchor a)
+     (values (find-anchor-matches text a) (format "^~a" a))]
+    [(cons 'title t)
+     (values (find-title-matches text t) t)]))
+
 ;; Insert `@done DATE` after the title's metadata. Fails if already done.
+;; title may be a plain title or ^anchor.
 ;; -> (values new-text line-1-based)
 (define (mark-done-in-text text title today)
-  (define matches (find-title-matches text title))
+  (define-values (matches label) (resolve-matches text title))
   (cond
     [(null? matches)
-     (error 'mark-done-in-text "no task titled ~s" title)]
+     (error 'mark-done-in-text "no task matching ~s" label)]
     [(> (length matches) 1)
      (error 'mark-done-in-text
-            "ambiguous title ~s (~a matches)"
-            title (length matches))]
+            "ambiguous title ~s (~a matches); add a ^anchor to disambiguate"
+            label (length matches))]
     [else
      (define m (car matches))
      (when (title-match-already-done? m)
        (error 'mark-done-in-text
               "already done: ~s (line ~a)"
-              title (title-match-line m)))
+              label (title-match-line m)))
      (define lines (string-split text "\n" #:trim? #f))
      (define idx (title-match-index m))
      (define ind (title-match-indent m))
@@ -138,20 +189,20 @@
 ;; Remove done state: strip @done metadata and [x]/[X] title prefix.
 ;; -> (values new-text line-1-based)
 (define (undo-done-in-text text title)
-  (define matches (find-title-matches text title))
+  (define-values (matches label) (resolve-matches text title))
   (cond
     [(null? matches)
-     (error 'undo-done-in-text "no task titled ~s" title)]
+     (error 'undo-done-in-text "no task matching ~s" label)]
     [(> (length matches) 1)
      (error 'undo-done-in-text
-            "ambiguous title ~s (~a matches)"
-            title (length matches))]
+            "ambiguous title ~s (~a matches); add a ^anchor to disambiguate"
+            label (length matches))]
     [else
      (define m (car matches))
      (unless (title-match-already-done? m)
        (error 'undo-done-in-text
               "not done: ~s (line ~a)"
-              title (title-match-line m)))
+              label (title-match-line m)))
      (define lines (string-split text "\n" #:trim? #f))
      (define idx (title-match-index m))
      (define ind (title-match-indent m))
@@ -173,7 +224,6 @@
          1))
      (define title-idx* (- idx removed-before))
      (define title-line (list-ref lines* title-idx*))
-     (define-values (tind tcontent) (line-indent+content title-line))
      (define title-line*
        (cond
          [(regexp-match #px"^( *)\\[[xX]\\] (.*)$" title-line)

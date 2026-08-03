@@ -6,7 +6,7 @@
 (require racket/list
          racket/path
          racket/string
-         (except-in selfflowy/lang/expander #%module-begin)
+         (except-in selfflowy/lang/expander #%module-begin) ; task, mirror-ref
          selfflowy/dates)
 
 (provide (struct-out dated-task)
@@ -22,19 +22,25 @@
 
 ;; #:root — optional string prepended to every breadcrumb (e.g. file basename).
 (define (collect-dated tasks #:root [root #f])
-  (define (walk tk ancestors)
-    (define title (task-title tk))
-    (define path (append ancestors (list title)))
-    (define crumb (string-join path " > "))
-    ;; Done tasks are excluded from the agenda even if they still have a date.
-    (define here
-      (if (and (task-date tk) (not (task-done tk)))
-          (list (dated-task (task-date tk) title crumb))
-          '()))
-    (append here
-            (append*
-             (for/list ([c (in-list (task-children tk))])
-               (walk c path)))))
+  ;; Walk defining sites only — skip mirror-ref children so a mirrored dated
+  ;; task appears once, with the breadcrumb of its defining site.
+  (define (walk x ancestors)
+    (cond
+      [(mirror-ref? x) '()]
+      [(task? x)
+       (define title (task-title x))
+       (define path (append ancestors (list title)))
+       (define crumb (string-join path " > "))
+       ;; Done tasks are excluded from the agenda even if they still have a date.
+       (define here
+         (if (and (task-date x) (not (task-done x)))
+             (list (dated-task (task-date x) title crumb))
+             '()))
+       (append here
+               (append*
+                (for/list ([c (in-list (task-children x))])
+                  (walk c path))))]
+      [else '()]))
   (define start (if root (list root) '()))
   (append*
    (for/list ([tk (in-list tasks)])

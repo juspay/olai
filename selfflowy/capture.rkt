@@ -1,27 +1,38 @@
 #lang racket/base
 
-;; Append a capture task under Inbox in an outline (#lang selfflowy) file.
+;; Append a capture task under Inbox (or an anchored parent) in an outline file.
 ;; Preserves existing content; only inserts new lines at a computed position.
 
 (require racket/list
          racket/match
          racket/path
          racket/port
-         racket/string)
+         racket/string
+         selfflowy/lang/outline)
 
 (provide format-capture-lines
          find-inbox-insert
+         find-parent-insert
          append-capture
          try-git-commit)
 
-;; Lines to insert for a new task under Inbox (indent level 1).
-(define (format-capture-lines title #:date [date #f] #:description [desc #f])
-  (define head (string-append "  " title))
+;; Lines to insert for a new task under a parent at the given child indent.
+(define (format-capture-lines title #:indent [indent 2] #:date [date #f] #:description [desc #f])
+  (define pad (make-string indent #\space))
+  (define mpad (make-string (+ indent 2) #\space))
+  (define head (string-append pad title))
   (define meta
     (append
-     (if desc (list (string-append "    : " desc)) '())
-     (if date (list (string-append "    @date " date)) '())))
+     (if desc (list (string-append mpad ": " desc)) '())
+     (if date (list (string-append mpad "@date " date)) '())))
   (cons head meta))
+
+(define (blank-line? s)
+  (regexp-match? #px"^\\s*$" s))
+
+(define (line-indent+content s)
+  (define m (regexp-match #px"^( *)(.*)$" s))
+  (values (string-length (cadr m)) (caddr m)))
 
 (define (scan-line s)
   (cond
@@ -33,90 +44,131 @@
      (define content (caddr m))
      (define level (quotient ind 2))
      (cond
-       [(and (zero? level)
+       [(and (zero? (remainder ind 2))
              (not (regexp-match? #px"^:" content))
-             (not (regexp-match? #px"^@" content)))
-        (define title
+             (not (regexp-match? #px"^@" content))
+             (not (regexp-match? #px"^\\*" content)))
+        (define raw
           (if (regexp-match? #px"^\\\\" content)
               (substring content 1)
               content))
-        (list 'title 0 title)]
+        (define-values (t0 _f) (strip-checkbox-prefix raw))
+        (define-values (title anchor) (strip-trailing-anchor t0))
+        (list 'title level title anchor)]
        [else (list 'other level content)])]))
 
-;; Returns (values insert-pos has-inbox? task-line-1-based)
-(define (find-inbox-insert text)
+;; Returns (values insert-pos has-parent? task-line-1-based parent-indent)
+;; parent-spec: #f | string title | (cons 'anchor id-string)
+(define (find-parent-insert text parent-spec)
   (define lines (string-split text "\n" #:trim? #f))
-  ;; Drop trailing empty from split quirk only when text ends with \n?
-  ;; string-split "a\n" -> ("a" "") — keep it for offset math
-  (define-values (inbox-line end-line)
-    (let loop ([i 0] [inbox #f] [seen? #f])
+  (define want-title
+    (cond
+      [(not parent-spec) "Inbox"]
+      [(string? parent-spec) parent-spec]
+      [else #f]))
+  (define want-anchor
+    (and (pair? parent-spec) (eq? (car parent-spec) 'anchor) (cdr parent-spec)))
+
+  (define-values (parent-line parent-indent end-line)
+    (let loop ([i 0] [pline #f] [pind 0] [seen? #f])
       (cond
         [(>= i (length lines))
-         (values inbox (length lines))]
+         (values pline pind (length lines))]
         [else
          (match (scan-line (list-ref lines i))
-           [(list 'title 0 title)
+           [(list 'title level title anchor)
+            (define match?
+              (cond
+                [want-anchor (equal? anchor want-anchor)]
+                [else (and (= level 0) (equal? title want-title))]))
             (cond
-              [(and (not seen?) (equal? title "Inbox"))
-               (loop (add1 i) i #t)]
-              [seen?
-               (values inbox i)]
+              [(and (not seen?) match?)
+               (loop (add1 i) i (* level 2) #t)]
+              [(and seen? want-title (zero? level))
+               ;; next top-level ends Inbox-style section
+               (values pline pind i)]
+              [(and seen? want-anchor
+                    (<= level (quotient pind 2)))
+               ;; next sibling-or-above ends anchored section
+               (values pline pind i)]
               [else
-               (loop (add1 i) inbox seen?)])]
-           [_ (loop (add1 i) inbox seen?)])])))
-  ;; Insert after the last non-blank line of the Inbox section (before
-  ;; trailing blanks that precede the next top-level title).
+               (loop (add1 i) pline pind seen?)])]
+           [_ (loop (add1 i) pline pind seen?)])])))
+
   (define insert-line
     (let loop ([e end-line])
       (cond
-        [(or (not inbox-line) (<= e (add1 inbox-line))) e]
+        [(or (not parent-line) (<= e (add1 parent-line))) e]
         [(eq? (scan-line (list-ref lines (sub1 e))) 'blank)
          (loop (sub1 e))]
         [else e])))
   (define (line-start-offset line-idx)
     (for/sum ([j (in-range line-idx)])
-      ;; +1 for the newline after each prior line
       (add1 (string-length (list-ref lines j)))))
   (cond
-    [(not inbox-line)
+    [(not parent-line)
      (values (string-length text) #f
-             (add1 (length (filter (λ (s) (not (string=? s ""))) lines))))]
+             (add1 (length (filter (λ (s) (not (string=? s ""))) lines)))
+             0)]
     [else
-     (values (line-start-offset insert-line) #t (add1 insert-line))]))
+     (values (line-start-offset insert-line) #t (add1 insert-line) parent-indent)]))
+
+(define (find-inbox-insert text)
+  (define-values (pos has? line _ind) (find-parent-insert text #f))
+  (values pos has? line))
 
 (define (ensure-nl s)
   (if (or (string=? s "") (regexp-match? #px"\n$" s)) s (string-append s "\n")))
 
-;; -> (values new-text task-line-number created-inbox?)
-(define (append-capture text title #:date [date #f] #:description [desc #f])
-  (define-values (pos has-inbox? line-no) (find-inbox-insert text))
-  (define body-lines (format-capture-lines title #:date date #:description desc))
+;; parent: #f (Inbox) | string title | "^anchor" | (cons 'anchor id)
+;; -> (values new-text task-line-number created-parent?)
+(define (append-capture text title
+                        #:date [date #f]
+                        #:description [desc #f]
+                        #:parent [parent #f])
+  (define parent-spec
+    (cond
+      [(not parent) #f]
+      [(and (string? parent) (regexp-match #px"^\\^([A-Za-z0-9_-]+)$" parent))
+       => (λ (m) (cons 'anchor (cadr m)))]
+      [(string? parent) parent]
+      [else parent]))
+  (define-values (pos has-parent? line-no parent-indent)
+    (find-parent-insert text parent-spec))
+  (define child-indent
+    (if has-parent? (+ parent-indent 2) 2))
+  (define body-lines
+    (format-capture-lines title #:indent child-indent #:date date #:description desc))
+  (define create-inbox?
+    (and (not has-parent?) (not parent-spec)))
   (define block
-    (if has-inbox?
+    (if has-parent?
         (string-append (string-join body-lines "\n") "\n")
-        (string-append "Inbox\n" (string-join body-lines "\n") "\n")))
+        (if create-inbox?
+            (string-append "Inbox\n" (string-join body-lines "\n") "\n")
+            (error 'append-capture
+                   (if (pair? parent-spec)
+                       (format "no task with anchor ^~a" (cdr parent-spec))
+                       (format "no task titled ~s" parent-spec))))))
   (define prefix (substring text 0 pos))
   (define suffix (substring text pos))
   (define new-text
-    (if has-inbox?
+    (if has-parent?
         (string-append (if (string=? prefix "") "" (ensure-nl prefix))
                        block
                        suffix)
         (string-append (if (string=? text "") "" (ensure-nl text))
                        block)))
   (define actual-line
-    (if has-inbox?
+    (if has-parent?
         line-no
         (let* ([base-text (if (string=? text "") "" (ensure-nl text))]
-               [n (length (string-split base-text "\n" #:trim? #f))]
-               ;; string-split "x\n" gives ("x" ""); count non-final empties carefully
                [lines (string-split base-text "\n" #:trim? #f)]
                [line-count (if (and (pair? lines) (string=? (last lines) ""))
                                (sub1 (length lines))
                                (length lines))])
-          ;; Inbox on next line, task on the one after
           (+ line-count 2))))
-  (values new-text actual-line (not has-inbox?)))
+  (values new-text actual-line create-inbox?))
 
 (define (try-git-commit file-path message)
   (define dir (path-only (path->complete-path file-path)))
