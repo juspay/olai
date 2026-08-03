@@ -333,3 +333,120 @@
        (check-equal? (file->string f)
                      "#lang selfflowy\nDup\nOther\n  Dup\n"))
      (λ () (delete-directory/files dir))))
+
+  (test-case "multi-file check: both ok + one-good-one-bad"
+    (define dir (make-temporary-file "sfmulti~a" 'directory))
+    (define good (build-path dir "good.rkt"))
+    (define bad (build-path dir "bad.rkt"))
+    (dynamic-wind
+     void
+     (λ ()
+       (display-to-file "#lang selfflowy\nA\n" good #:exists 'truncate)
+       (display-to-file "#lang selfflowy\nB\n" (build-path dir "other.rkt")
+                        #:exists 'truncate)
+       (define other (build-path dir "other.rkt"))
+       (define-values (c1 o1 e1)
+         (run-selfflowy
+          (list "check" "--json"
+                (path->string good) (path->string other))))
+       (check-equal? c1 0 (string-append o1 e1))
+       (define j1 (parse-json o1))
+       (check-equal? (hash-ref j1 'ok) #t)
+       (check-true (list? (hash-ref j1 'files)))
+       (check-equal? (length (hash-ref j1 'files)) 2)
+       (define-values (cplain oplain eplain)
+         (run-selfflowy
+          (list "check" (path->string good) (path->string other))))
+       (check-equal? cplain 0 eplain)
+       (check-true (regexp-match? #rx"ok:.*good\\.rkt" oplain) oplain)
+       (check-true (regexp-match? #rx"ok:.*other\\.rkt" oplain) oplain)
+       ;; one bad
+       (display-to-file "#lang selfflowy\nX\n  @date bogus\n" bad
+                        #:exists 'truncate)
+       (define-values (c2 o2 e2)
+         (run-selfflowy
+          (list "check" "--json"
+                (path->string good) (path->string bad))))
+       (check-equal? c2 2)
+       (define j2 (parse-json o2))
+       (check-equal? (hash-ref j2 'ok) #f)
+       (define files (hash-ref j2 'files))
+       (check-equal? (length files) 2)
+       (check-equal? (hash-ref (car files) 'ok) #t)
+       (check-equal? (hash-ref (cadr files) 'ok) #f)
+       (define-values (c3 o3 e3)
+         (run-selfflowy
+          (list "check" (path->string good) (path->string bad))))
+       (check-equal? c3 2)
+       (check-true (regexp-match? #rx"ok:.*good\\.rkt" o3) o3)
+       (check-true (regexp-match? #rx"(?i:fail|date)" e3) e3))
+     (λ () (delete-directory/files dir))))
+
+  (test-case "multi-file tree JSON shape"
+    (define dir (make-temporary-file "sftree2~a" 'directory))
+    (define a (build-path dir "a.rkt"))
+    (define b (build-path dir "b.rkt"))
+    (dynamic-wind
+     void
+     (λ ()
+       (display-to-file "#lang selfflowy\nA\n" a #:exists 'truncate)
+       (display-to-file "#lang selfflowy\nB\n" b #:exists 'truncate)
+       (define-values (code out err)
+         (run-selfflowy
+          (list "tree" (path->string a) (path->string b))))
+       (check-equal? code 0 (string-append out err))
+       (define j (parse-json out))
+       (check-equal? (hash-ref j 'version) 1)
+       (check-true (list? (hash-ref j 'files)))
+       (check-equal? (length (hash-ref j 'files)) 2)
+       (check-false (hash-has-key? j 'tasks)))
+     (λ () (delete-directory/files dir))))
+
+  (test-case "multi-file agenda merges with file-rooted breadcrumbs"
+    (define dir (make-temporary-file "sfag~a" 'directory))
+    (define a (build-path dir "Tasks.rkt"))
+    (define b (build-path dir "Roadmap.rkt"))
+    (dynamic-wind
+     void
+     (λ ()
+       (display-to-file
+        "#lang selfflowy\nMilk\n  @date 2026-07-01\n"
+        a #:exists 'truncate)
+       (display-to-file
+        "#lang selfflowy\nLater\n  @date 2026-12-01\n"
+        b #:exists 'truncate)
+       (define-values (code out err)
+         (run-selfflowy
+          (list "agenda" "--json" (path->string a) (path->string b))))
+       (check-equal? code 0 (string-append out err))
+       (define j (parse-json out))
+       (define ov (car (hash-ref j 'overdue)))
+       (define up (car (hash-ref j 'upcoming)))
+       (check-true (string-contains? (hash-ref ov 'breadcrumb) "Tasks.rkt")
+                   (hash-ref ov 'breadcrumb))
+       (check-true (string-contains? (hash-ref up 'breadcrumb) "Roadmap.rkt")
+                   (hash-ref up 'breadcrumb)))
+     (λ () (delete-directory/files dir))))
+
+  (test-case "multi-file html has per-file sections"
+    (define dir (make-temporary-file "sfhtml2~a" 'directory))
+    (define a (build-path dir "Tasks.rkt"))
+    (define b (build-path dir "Roadmap.rkt"))
+    (define out (build-path dir "out.html"))
+    (dynamic-wind
+     void
+     (λ ()
+       (display-to-file "#lang selfflowy\nMilk\n" a #:exists 'truncate)
+       (display-to-file "#lang selfflowy\nShip\n" b #:exists 'truncate)
+       (define-values (code stdout err)
+         (run-selfflowy
+          (list "html" "--out" (path->string out)
+                (path->string a) (path->string b))))
+       (check-equal? code 0 (string-append stdout err))
+       (define html (file->string out))
+       (check-true (string-contains? html "<h2") html)
+       (check-true (string-contains? html "Tasks.rkt") html)
+       (check-true (string-contains? html "Roadmap.rkt") html)
+       (check-true (string-contains? html "Milk") html)
+       (check-true (string-contains? html "Ship") html))
+     (λ () (delete-directory/files dir))))

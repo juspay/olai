@@ -77,8 +77,7 @@
     [(exn:fail? e) (exn-message e)]
     [else (format "~a" e)]))
 
-(define (resolve-file maybe-path json?)
-  (define p (or maybe-path default-file))
+(define (resolve-path p json?)
   (define path (simple-form-path (path->complete-path p)))
   (unless (file-exists? path)
     (die exit-not-found
@@ -87,21 +86,32 @@
          #:file path))
   path)
 
-(define (load-tasks path json?)
+;; Resolve zero-or-more path args; empty => default Tasks.rkt.
+(define (resolve-files file-args json?)
+  (define raw (if (null? file-args) (list default-file) file-args))
+  (map (λ (p) (resolve-path p json?)) raw))
+
+;; -> (list 'ok tasks) | (list 'error msg src line col)
+(define (try-load-tasks path)
   (with-handlers
       ([exn:fail?
         (λ (e)
           (define-values (src line col) (exn-location e path))
-          (define msg (exn-message* e))
-          (die exit-validation
-               (if json?
-                   msg
-                   (format "failed to load ~a\n~a" path msg))
-               #:json? json?
-               #:file (or src path)
-               #:line line
-               #:col col))])
-    (dynamic-require `(file ,(path->string path)) 'tasks)))
+          (list 'error (exn-message* e) (or src path) line col))])
+    (list 'ok (dynamic-require `(file ,(path->string path)) 'tasks))))
+
+(define (load-tasks path json?)
+  (match (try-load-tasks path)
+    [(list 'ok tasks) tasks]
+    [(list 'error msg src line col)
+     (die exit-validation
+          (if json?
+              msg
+              (format "failed to load ~a\n~a" path msg))
+          #:json? json?
+          #:file src
+          #:line line
+          #:col col)]))
 
 (define (count-tasks tasks)
   (define (count tk)
@@ -112,33 +122,92 @@
 (define (today-iso)
   (today-iso-string))
 
-(define (cmd-check path json?)
-  (define tasks (load-tasks path json?))
-  (define n (count-tasks tasks))
-  (if json?
-      (write-json-stdout
-       (ok-hash 'file (path->string path) 'tasks n))
-      (printf "ok: ~a (~a task~a)\n" path n (if (= n 1) "" "s"))))
+(define (cmd-check paths json?)
+  (define results
+    (for/list ([path (in-list paths)])
+      (match (try-load-tasks path)
+        [(list 'ok tasks)
+         (list 'ok path (count-tasks tasks))]
+        [(list 'error msg src line col)
+         (list 'error path msg src line col)])))
+  (define any-bad? (ormap (λ (r) (eq? (car r) 'error)) results))
+  (cond
+    [json?
+     (if (= (length paths) 1)
+         (match (car results)
+           [(list 'ok path n)
+            (write-json-stdout (ok-hash 'file (path->string path) 'tasks n))]
+           [(list 'error path msg src line col)
+            (die exit-validation msg #:json? #t #:file src #:line line #:col col)])
+         (let ([files
+                (for/list ([r (in-list results)])
+                  (match r
+                    [(list 'ok path n)
+                     (hash 'file (path->string path)
+                           'ok #t
+                           'tasks n)]
+                    [(list 'error path msg src line col)
+                     (hash 'file (path->string path)
+                           'ok #f
+                           'error (hash 'file (nullish (and src
+                                                            (if (path? src)
+                                                                (path->string src)
+                                                                src)))
+                                        'line (nullish line)
+                                        'col (nullish col)
+                                        'message msg))]))])
+           (write-json-stdout
+            (hash 'version json-version
+                  'ok (not any-bad?)
+                  'files files))
+           (when any-bad? (exit exit-validation))))]
+    [else
+     (for ([r (in-list results)])
+       (match r
+         [(list 'ok path n)
+          (printf "ok: ~a (~a task~a)\n" path n (if (= n 1) "" "s"))]
+         [(list 'error path msg src line col)
+          (eprintf "selfflowy: failed to load ~a\n~a\n" path msg)]))
+     (when any-bad? (exit exit-validation))]))
 
 ;; tree is JSON-only (human view is `html`). --json is accepted as a no-op.
-(define (cmd-tree path json?)
-  (define tasks (load-tasks path json?))
-  (write-json-stdout
-   (hash 'version json-version
-         'file (path->string path)
-         'tasks (tasks->jsexpr tasks))))
+(define (cmd-tree paths json?)
+  (define entries
+    (for/list ([path (in-list paths)])
+      (cons path (load-tasks path #t))))
+  (if (= (length entries) 1)
+      (let ([path (car (car entries))]
+            [tasks (cdr (car entries))])
+        (write-json-stdout
+         (hash 'version json-version
+               'file (path->string path)
+               'tasks (tasks->jsexpr tasks))))
+      (write-json-stdout
+       (hash 'version json-version
+             'files
+             (for/list ([e (in-list entries)])
+               (hash 'file (path->string (car e))
+                     'tasks (tasks->jsexpr (cdr e))))))))
 
-(define (cmd-agenda path json?)
-  (define tasks (load-tasks path json?))
+(define (cmd-agenda paths json?)
+  (define entries
+    (for/list ([path (in-list paths)])
+      (cons path (load-tasks path json?))))
   (define today (today-iso))
-  (define groups (agenda-groups tasks today))
+  (define groups (agenda-groups-from-files entries today))
   (if json?
       (write-json-stdout (agenda-groups->jsexpr groups today))
       (displayln (format-agenda groups))))
 
-(define (cmd-html path out-path)
-  (define tasks (load-tasks path #f))
-  (define html (tasks->html tasks (path->string (file-name-from-path path))))
+(define (cmd-html paths out-path)
+  (define entries
+    (for/list ([path (in-list paths)])
+      (cons path (load-tasks path #f))))
+  (define page-title
+    (if (= (length paths) 1)
+        (path->string (file-name-from-path (car paths)))
+        "selfflowy"))
+  (define html (files->html entries page-title))
   (cond
     [out-path
      (display-to-file html out-path #:exists 'truncate/replace)
@@ -300,14 +369,14 @@
   (eprintf "usage: selfflowy <command> [options] ...\n")
   (eprintf "\n")
   (eprintf "commands:\n")
-  (eprintf "  check  [--json] [file]     validate outline (default: ~a)\n" default-file)
-  (eprintf "  tree   [--json] [file]     outline as JSON (human view: html)\n")
-  (eprintf "  agenda [--json] [file]     OVERDUE / TODAY / UPCOMING\n")
-  (eprintf "  html   [--out PATH] [file] interactive HTML tree (stdout default)\n")
+  (eprintf "  check  [--json] [file ...]  validate outline(s) (default: ~a)\n" default-file)
+  (eprintf "  tree   [--json] [file ...]  outline(s) as JSON (human view: html)\n")
+  (eprintf "  agenda [--json] [file ...]  OVERDUE / TODAY / UPCOMING (merged)\n")
+  (eprintf "  html   [--out PATH] [file ...]  interactive HTML (sections if multi)\n")
   (eprintf "  add    [--json] [--file F] [--date ISO] [--description TEXT]\n")
-  (eprintf "         [--no-commit] TITLE...   capture under Inbox\n")
+  (eprintf "         [--no-commit] TITLE...   capture under Inbox (one file)\n")
   (eprintf "  done   [--json] [--file F] [--undo] [--no-commit] TITLE...\n")
-  (eprintf "                                 mark task done (or undo)\n")
+  (eprintf "                                 mark task done (one file)\n")
   (eprintf "\n")
   (eprintf "exit codes: 0 ok | 1 usage | 2 validation/load | 3 not found\n")
   (eprintf "agent contract: docs/cli.md\n"))
@@ -316,63 +385,47 @@
 
 (define (cli-check)
   (define json? #f)
-  (define file-arg #f)
+  (define file-args '())
   (command-line
    #:program "selfflowy check"
    #:once-each
    [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
-   #:args file-args
-   (set! file-arg
-         (match file-args
-           ['() #f]
-           [(list f) f]
-           [_ (die exit-usage "too many arguments" #:json? json?)])))
-  (cmd-check (resolve-file file-arg json?) json?))
+   #:args paths
+   (set! file-args paths))
+  (cmd-check (resolve-files file-args json?) json?))
 
 (define (cli-tree)
   (define json? #t) ; always JSON; flag kept as no-op for agents
-  (define file-arg #f)
+  (define file-args '())
   (command-line
    #:program "selfflowy tree"
    #:once-each
    [("--json") "No-op (tree is always JSON)" (set! json? #t)]
-   #:args file-args
-   (set! file-arg
-         (match file-args
-           ['() #f]
-           [(list f) f]
-           [_ (die exit-usage "too many arguments" #:json? #t)])))
-  (cmd-tree (resolve-file file-arg #t) #t))
+   #:args paths
+   (set! file-args paths))
+  (cmd-tree (resolve-files file-args #t) #t))
 
 (define (cli-agenda)
   (define json? #f)
-  (define file-arg #f)
+  (define file-args '())
   (command-line
    #:program "selfflowy agenda"
    #:once-each
    [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
-   #:args file-args
-   (set! file-arg
-         (match file-args
-           ['() #f]
-           [(list f) f]
-           [_ (die exit-usage "too many arguments" #:json? json?)])))
-  (cmd-agenda (resolve-file file-arg json?) json?))
+   #:args paths
+   (set! file-args paths))
+  (cmd-agenda (resolve-files file-args json?) json?))
 
 (define (cli-html)
   (define out-path #f)
-  (define file-arg #f)
+  (define file-args '())
   (command-line
    #:program "selfflowy html"
    #:once-each
    [("--out") path "Write HTML to path (default: stdout)" (set! out-path path)]
-   #:args file-args
-   (set! file-arg
-         (match file-args
-           ['() #f]
-           [(list f) f]
-           [_ (die exit-usage "too many arguments" #:json? #f)])))
-  (cmd-html (resolve-file file-arg #f) out-path))
+   #:args paths
+   (set! file-args paths))
+  (cmd-html (resolve-files file-args #f) out-path))
 
 (define (cli-add)
   (define json? #f)
