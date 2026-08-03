@@ -17,6 +17,7 @@
           packages = [
             pkgs.racket
             pkgs.just
+            pkgs.watchexec
           ];
           shellHook = ''
             export PLTUSERHOME="''${PLTUSERHOME:-$PWD/.plt-user}"

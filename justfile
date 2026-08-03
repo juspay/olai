@@ -23,6 +23,10 @@ check *args: install
 tree *args: install
     selfflowy tree {{if args == "" { "Tasks.rkt" } else { args }}}
 
+# Re-run `just tree` whenever Tasks.rkt changes (clears the screen each time)
+watch: install
+    watchexec -w Tasks.rkt -c -- just tree
+
 # Run unit tests
 test: install
     raco test -p selfflowy
