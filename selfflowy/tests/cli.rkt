@@ -44,7 +44,7 @@
                     (string-contains? out "Buy milk"))
                 out)
     (check-true (string-contains? out "Quick capture landing zone") out)
-    (check-true (string-contains? out "2% if they have it") out))
+    (check-true (string-contains? out "overdue sample") out))
 
   (test-case "check missing file fails"
     (define-values (code out err)
@@ -52,18 +52,18 @@
     (check-not-equal? code 0)
     (check-regexp-match #rx"not found" err))
 
-  (test-case "check invalid date fails with useful message"
+  (test-case "check invalid outline @date fails with useful message"
     (define tmp (make-temporary-file "sf~a.rkt"))
     (dynamic-wind
      void
      (λ ()
        (display-to-file
-        "#lang selfflowy\n(t \"bad\" #:date \"bogus\")\n"
+        "#lang selfflowy\nbad\n  @date bogus\n"
         tmp #:exists 'truncate)
        (define-values (code out err)
          (run-selfflowy (list "check" (path->string tmp))))
        (check-not-equal? code 0)
        (define combined (string-append out err))
-       (check-true (regexp-match? #rx"(?i:date|invalid|failed|syntax)" combined)
+       (check-true (regexp-match? #rx"(?i:date|invalid|failed|syntax|YYYY)" combined)
                    combined))
      (λ () (delete-file tmp)))))

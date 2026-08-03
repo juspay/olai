@@ -26,9 +26,31 @@ Mirrors fall out of the language for free: a node is a binding,
 referencing it twice is a mirror. define-before-use kills most cycles
 before they exist.
 
+## SYNTAX
+
+Quoteless outline (flagship). Nest with 2 spaces; attach notes and dates
+under a title:
+
+    #lang selfflowy
+
+    Inbox #capture
+      : Quick capture landing zone
+      Buy milk — don't quote me
+        @date 2026-08-04
+
+Inline `#tags` stay in the title; the expander also records them on the
+task. Full rules (and what is deliberately not implemented): `docs/syntax.md`.
+
+Under the hood every outline becomes s-expressions. Same expander:
+
+    #lang selfflowy/sexp
+    (t "Inbox #capture"
+       #:description "Quick capture landing zone"
+       (t "Buy milk" #:date "2026-08-04"))
+
 ## HOW IT WORKS
 
-    ~/tasks/*.rhm-ish files          <- source of truth (#lang selfflowy)
+    ~/tasks/*.rkt                    <- source of truth (#lang selfflowy)
         |
         v
     selfflowy CLI (Racket)           <- validate / query / render / capture
@@ -44,9 +66,9 @@ restructure. Live with it, or open your laptop.
 
 ## STATUS
 
-Phase 0.1 + dates: `#lang selfflowy`, `check` / `tree` / `agenda`.
+Outline `#lang selfflowy` + sexp core + `check` / `tree` / `agenda`.
 (Ancestor: srid/Tend, same idea in Lean. The web layer is why it's
-Racket now.) Classic s-expressions over Rhombus.
+Racket now.)
 
 ## ROADMAP
 

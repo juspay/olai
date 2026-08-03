@@ -1,0 +1,158 @@
+#lang racket/base
+
+(require rackunit
+         racket/file
+         racket/string
+         (except-in selfflowy/lang/expander #%module-begin)
+         selfflowy/lang/outline)
+
+(define (eval-tasks src)
+  (define tmp (make-temporary-file "sf-outline~a.rkt"))
+  (dynamic-wind
+   void
+   (λ ()
+     (display-to-file src tmp #:exists 'truncate)
+     (dynamic-require `(file ,(path->string tmp)) 'tasks))
+   (λ () (delete-file tmp))))
+
+(define (parse-string s)
+  (parse-outline-string 'test s))
+
+(module+ test
+  (test-case "empty outline"
+    (check-equal? (eval-tasks "#lang selfflowy\n") '()))
+
+  (test-case "nested outline with date, description, tags"
+    (define tasks
+      (eval-tasks
+       #<<EOF
+#lang selfflowy
+
+Inbox #capture
+  : Quick capture landing zone
+  Buy milk — don't quote me
+    : 2% "raw" milk is fine
+    @date 2026-01-15
+  Ship phase 0.1 #lang
+    @date 2026-08-03
+EOF
+       ))
+    (check-equal? (length tasks) 1)
+    (define inbox (car tasks))
+    (check-equal? (task-title inbox) "Inbox #capture")
+    (check-equal? (task-tags inbox) '("capture"))
+    (check-equal? (task-description inbox) "Quick capture landing zone")
+    (check-equal? (length (task-children inbox)) 2)
+    (define milk (car (task-children inbox)))
+    (check-equal? (task-title milk) "Buy milk — don't quote me")
+    (check-equal? (task-date milk) "2026-01-15")
+    (check-equal? (task-description milk) "2% \"raw\" milk is fine")
+    (define ship (cadr (task-children inbox)))
+    (check-equal? (task-tags ship) '("lang"))
+    (check-equal? (task-date ship) "2026-08-03"))
+
+  (test-case "multi-line description joins with newline"
+    (define tasks
+      (eval-tasks
+       #<<EOF
+#lang selfflowy
+Parent
+  : line one
+  : line two
+EOF
+       ))
+    (check-equal? (task-description (car tasks)) "line one\nline two"))
+
+  (test-case "backslash escapes sigil titles"
+    (define tasks
+      (eval-tasks
+       #<<EOF
+#lang selfflowy
+\: not a description
+\@date not a field
+\\ still a title
+EOF
+       ))
+    (check-equal? (map task-title tasks)
+                  '(": not a description" "@date not a field" "\\ still a title")))
+
+  (test-case "tab in indentation is a reader error with location"
+    (check-exn
+     (λ (e)
+       (and (exn:fail:read? e)
+            (regexp-match? #rx"(?i:tab)" (exn-message e))))
+     (λ ()
+       (eval-tasks "#lang selfflowy\nRoot\n\tChild\n"))))
+
+  (test-case "indent jump is a reader error"
+    (check-exn
+     (λ (e)
+       (and (exn:fail:read? e)
+            (regexp-match? #rx"(?i:indent|jump)" (exn-message e))))
+     (λ ()
+       (eval-tasks "#lang selfflowy\nRoot\n    Jump\n"))))
+
+  (test-case "metadata without title is a reader error"
+    (check-exn
+     (λ (e)
+       (and (exn:fail:read? e)
+            (regexp-match? #rx"(?i:no title|description)" (exn-message e))))
+     (λ ()
+       (eval-tasks "#lang selfflowy\n  : orphan\n"))))
+
+  (test-case "unknown @field is a reader error"
+    (check-exn
+     (λ (e)
+       (and (exn:fail:read? e)
+            (regexp-match? #rx"(?i:unknown|@layout|@date)" (exn-message e))))
+     (λ ()
+       (eval-tasks "#lang selfflowy\nTask\n  @layout wide\n"))))
+
+  (test-case "trailing junk after @date is a reader error"
+    (check-exn
+     (λ (e)
+       (and (exn:fail:read? e)
+            (regexp-match? #rx"(?i:trailing|junk)" (exn-message e))))
+     (λ ()
+       (eval-tasks "#lang selfflowy\nTask\n  @date 2026-01-01 extra\n"))))
+
+  (test-case "bad @date value reports outline file:line:col via expander"
+    (define tmp (make-temporary-file "sf-baddate~a.rkt"))
+    (dynamic-wind
+     void
+     (λ ()
+       (display-to-file
+        #<<EOF
+#lang selfflowy
+Bad date task
+  @date not-a-date
+EOF
+        tmp #:exists 'truncate)
+       (with-handlers
+           ([exn:fail?
+             (λ (e)
+               (define msg (exn-message e))
+               (check-true (regexp-match? #rx"(?i:date|YYYY-MM-DD)" msg) msg)
+               ;; path and line from the outline file
+               (check-true
+                (or (regexp-match? (regexp (regexp-quote (path->string tmp))) msg)
+                    (and (exn:fail:syntax? e)
+                         (for/or ([s (in-list (exn:fail:syntax-exprs e))])
+                           (equal? (syntax-source s) tmp))))
+                msg)
+               (when (exn:fail:syntax? e)
+                 (define stxs (exn:fail:syntax-exprs e))
+                 (check-true
+                  (for/or ([s (in-list stxs)])
+                    (and (syntax-line s) (>= (syntax-line s) 2)))
+                  "expected srcloc line on syntax error")))])
+         (dynamic-require `(file ,(path->string tmp)) 'tasks)
+         (fail "expected syntax/read error for bad date")))
+     (λ () (delete-file tmp))))
+
+  (test-case "parse-outline-string builds t forms"
+    (define forms
+      (parse-string "A\n  B\n    @date 2026-02-02\n"))
+    (check-equal? (length forms) 1)
+    (define d (syntax->datum (car forms)))
+    (check-equal? d '(t "A" (t "B" #:date "2026-02-02")))))
