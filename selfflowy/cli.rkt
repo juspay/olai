@@ -1,6 +1,6 @@
 #lang racket/base
 
-;; selfflowy CLI — agent-first: check | tree | agenda | add | html
+;; selfflowy CLI — agent-first: check | tree | agenda | add | done | html
 ;; Exit codes: 0 ok, 1 usage, 2 validation/load, 3 not found.
 ;; Arg parsing: racket/cmdline. JSON: json package write-json.
 
@@ -16,6 +16,7 @@
          selfflowy/agenda
          selfflowy/json-out
          selfflowy/capture
+         selfflowy/done
          selfflowy/html
          selfflowy/dates)
 (define exit-ok 0)
@@ -207,6 +208,94 @@
               line
               (if committed? ", committed" ""))))
 
+(define (format-match-lines path matches)
+  (string-join
+   (for/list ([m (in-list matches)])
+     (format "~a:~a" path (title-match-line m)))
+   ", "))
+
+(define (cmd-done json? file-arg undo? no-commit? title-parts)
+  (when (null? title-parts)
+    (die exit-usage "done requires a TITLE" #:json? json?))
+  (define title (string-join title-parts " "))
+  (define path
+    (simple-form-path
+     (path->complete-path (or file-arg default-file))))
+  (unless (file-exists? path)
+    (die exit-not-found
+         (format "file not found: ~a" path)
+         #:json? json?
+         #:file path))
+  (define original (file->string path))
+  (when (regexp-match? #px"(?m:^#lang selfflowy/sexp)" original)
+    (die exit-validation
+         "done only writes outline syntax (#lang selfflowy), not selfflowy/sexp"
+         #:json? json?
+         #:file path))
+  (define matches (find-title-matches original title))
+  (cond
+    [(null? matches)
+     (die exit-validation
+          (format "no task titled ~s in ~a" title path)
+          #:json? json?
+          #:file path)]
+    [(> (length matches) 1)
+     (die exit-validation
+          (format "ambiguous title ~s; matches: ~a"
+                  title (format-match-lines path matches))
+          #:json? json?
+          #:file path)])
+  (define today (today-iso))
+  (define-values (new-text line done-val)
+    (with-handlers
+        ([exn:fail?
+          (λ (e)
+            (die exit-validation (exn-message e) #:json? json? #:file path))])
+      (if undo?
+          (let-values ([(t l) (undo-done-in-text original title)])
+            (values t l (json-null)))
+          (let-values ([(t l) (mark-done-in-text original title today)])
+            (values t l today)))))
+  (define tmp (string->path (string-append (path->string path) ".sf-tmp")))
+  (with-handlers
+      ([exn:fail?
+        (λ (e)
+          (when (file-exists? tmp) (delete-file tmp))
+          (die exit-validation (exn-message e) #:json? json? #:file path))])
+    (display-to-file new-text tmp #:exists 'truncate/replace)
+    (with-handlers
+        ([exn:fail?
+          (λ (e)
+            (when (file-exists? tmp) (delete-file tmp))
+            (define-values (src ln col) (exn-location e path))
+            (die exit-validation
+                 (format "done failed validation: ~a" (exn-message e))
+                 #:json? json?
+                 #:file (or src path)
+                 #:line ln
+                 #:col col))])
+      (dynamic-require `(file ,(path->string tmp)) 'tasks)
+      (rename-file-or-directory tmp path #t)))
+  (define commit-msg
+    (if undo? (format "undone: ~a" title) (format "done: ~a" title)))
+  (define committed?
+    (and (not no-commit?)
+         (try-git-commit path commit-msg)))
+  (if json?
+      (write-json-stdout
+       (ok-hash 'file (path->string path)
+                'title title
+                'line line
+                'done done-val
+                'undone undo?
+                'committed committed?))
+      (printf "~a ~s in ~a (line ~a)~a\n"
+              (if undo? "undone" "done")
+              title
+              path
+              line
+              (if committed? ", committed" ""))))
+
 (define (usage)
   (eprintf "usage: selfflowy <command> [options] ...\n")
   (eprintf "\n")
@@ -217,6 +306,8 @@
   (eprintf "  html   [--out PATH] [file] interactive HTML tree (stdout default)\n")
   (eprintf "  add    [--json] [--file F] [--date ISO] [--description TEXT]\n")
   (eprintf "         [--no-commit] TITLE...   capture under Inbox\n")
+  (eprintf "  done   [--json] [--file F] [--undo] [--no-commit] TITLE...\n")
+  (eprintf "                                 mark task done (or undo)\n")
   (eprintf "\n")
   (eprintf "exit codes: 0 ok | 1 usage | 2 validation/load | 3 not found\n")
   (eprintf "agent contract: docs/cli.md\n"))
@@ -302,6 +393,23 @@
    (set! titles title-words))
   (cmd-add json? file-arg date desc no-commit? titles))
 
+(define (cli-done)
+  (define json? #f)
+  (define file-arg #f)
+  (define undo? #f)
+  (define no-commit? #f)
+  (define titles '())
+  (command-line
+   #:program "selfflowy done"
+   #:once-each
+   [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
+   [("--file") f "Outline file (default: Tasks.rkt)" (set! file-arg f)]
+   [("--undo") "Remove done state instead of marking done" (set! undo? #t)]
+   [("--no-commit") "Do not auto-commit even in a git repo" (set! no-commit? #t)]
+   #:args title-words
+   (set! titles title-words))
+  (cmd-done json? file-arg undo? no-commit? titles))
+
 (define (main)
   (define argv (current-command-line-arguments))
   (cond
@@ -326,6 +434,7 @@
            [("agenda") (cli-agenda)]
            [("html") (cli-html)]
            [("add") (cli-add)]
+           [("done") (cli-done)]
            [else
             (die exit-usage (format "unknown command ~s" cmd) #:json? #f)])))]))
 
