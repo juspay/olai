@@ -2,6 +2,7 @@
 
 (require rackunit
          racket/file
+         racket/list
          racket/string
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/lang/outline)
@@ -129,25 +130,21 @@ Bad date task
 EOF
         tmp #:exists 'truncate)
        (with-handlers
-           ([exn:fail?
+           ([exn:fail:syntax?
              (λ (e)
-               (define msg (exn-message e))
-               (check-true (regexp-match? #rx"(?i:date|YYYY-MM-DD)" msg) msg)
-               ;; path and line from the outline file
-               (check-true
-                (or (regexp-match? (regexp (regexp-quote (path->string tmp))) msg)
-                    (and (exn:fail:syntax? e)
-                         (for/or ([s (in-list (exn:fail:syntax-exprs e))])
-                           (equal? (syntax-source s) tmp))))
-                msg)
-               (when (exn:fail:syntax? e)
-                 (define stxs (exn:fail:syntax-exprs e))
-                 (check-true
-                  (for/or ([s (in-list stxs)])
-                    (and (syntax-line s) (>= (syntax-line s) 2)))
-                  "expected srcloc line on syntax error")))])
+               (define stxs (exn:fail:syntax-exprs e))
+               (define with-src (filter (λ (s) (syntax-source s)) stxs))
+               (check-true (pair? with-src) "expected syntax objects with source")
+               (define s (last with-src))
+               (check-equal? (syntax-source s) tmp)
+               (check-equal? (syntax-line s) 3)
+               (check-true (and (syntax-column s) (>= (syntax-column s) 2))
+                           (format "col was ~a" (syntax-column s)))
+               (check-true (regexp-match? #rx"(?i:date|YYYY-MM-DD)" (exn-message e))))]
+            [exn:fail?
+             (λ (e) (fail (format "expected syntax error, got: ~a" (exn-message e))))])
          (dynamic-require `(file ,(path->string tmp)) 'tasks)
-         (fail "expected syntax/read error for bad date")))
+         (fail "expected syntax error for bad date")))
      (λ () (delete-file tmp))))
 
   (test-case "parse-outline-string builds t forms"

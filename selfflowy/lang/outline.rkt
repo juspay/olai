@@ -12,9 +12,10 @@
          parse-outline-string)
 
 (struct raw-line (n col text indent content) #:transparent)
-;; indent = space count; content = line after indent
 
-(struct node (title date descs children line col span src) #:mutable #:transparent)
+;; descs: list of (list text line col) newest-first
+;; date-info: #f or (list value line col)
+(struct node (title date-info descs children line col span src) #:mutable #:transparent)
 
 (define (reader-error src line col pos msg . args)
   (raise-read-error
@@ -22,8 +23,6 @@
    src line col pos #f))
 
 (define (count-indent s src line)
-  ;; Returns (values space-count content-string col-of-content)
-  ;; col is 0-based for Racket srcloc.
   (define len (string-length s))
   (let loop ([i 0])
     (cond
@@ -38,7 +37,6 @@
 (define (read-raw-lines src in)
   (define lines '())
   (let loop ([n 1])
-    (define loc (cons (file-position in) n))
     (define s (read-line in 'any))
     (cond
       [(eof-object? s) (reverse lines)]
@@ -50,13 +48,10 @@
 (define (blank-content? c)
   (or (string=? c "") (regexp-match? #px"^\\s*$" c)))
 
-;; Classify content (already de-indented). Returns:
-;;  '(title str) | '(desc str) | '(date str) | error
 (define (classify-content content src line col)
   (cond
     [(blank-content? content) 'blank]
     [(regexp-match? #px"^\\\\" content)
-     ;; escape: title is rest of line after one backslash
      `(title ,(substring content 1))]
     [(regexp-match #px"^: (.*)$" content)
      => (λ (m) `(desc ,(cadr m)))]
@@ -65,11 +60,14 @@
                    "description line must start with \": \" (colon + space)")]
     [(regexp-match #px"^@date[ \t]+(\\S+)(.*)$" content)
      => (λ (m)
-          (define rest (cadr (cdr m)))
+          (define rest (caddr m))
           (unless (regexp-match? #px"^[ \t]*$" rest)
             (reader-error src line col #f
                           "trailing junk after @date; expected only a YYYY-MM-DD value"))
-          `(date ,(cadr m)))]
+          ;; column of the date value: after indent + "@date" + spaces
+          (define prefix-m (regexp-match #px"^@date[ \t]+" content))
+          (define val-col (+ col (string-length (car prefix-m))))
+          `(date ,(cadr m) ,val-col))]
     [(regexp-match #px"^@date\\s*$" content)
      (reader-error src line col #f
                    "expected a date after @date (YYYY-MM-DD)")]
@@ -87,45 +85,52 @@
                   indent))
   (quotient indent 2))
 
+(define (loc-vec src line col span)
+  (vector src line col #f span))
+
 (define (node->syntax nd)
   (define src (node-src nd))
   (define line (node-line nd))
   (define col (node-col nd))
   (define span (node-span nd))
   (define title-stx
-    (datum->syntax #f (node-title nd) (vector src line col #f span)))
+    (datum->syntax #f (node-title nd) (loc-vec src line col span)))
   (define date-part
-    (if (node-date nd)
-        (list (datum->syntax #f '#:date (vector src line col #f span))
-              (datum->syntax #f (node-date nd) (vector src line col #f span)))
-        '()))
+    (match (node-date-info nd)
+      [(list d dline dcol)
+       (list (datum->syntax #f '#:date (loc-vec src dline dcol 5))
+             (datum->syntax #f d (loc-vec src dline dcol (string-length d))))]
+      [#f '()]))
   (define desc-part
     (let ([ds (node-descs nd)])
       (if (null? ds)
           '()
-          (list (datum->syntax #f '#:description (vector src line col #f span))
-                (datum->syntax #f (string-join (reverse ds) "\n")
-                              (vector src line col #f span))))))
+          (let* ([texts (map car (reverse ds))]
+                 [joined (string-join texts "\n")]
+                 ;; use first description line for srcloc
+                 [first (last ds)]
+                 [dline (cadr first)]
+                 [dcol (caddr first)])
+            (list (datum->syntax #f '#:description (loc-vec src dline dcol 1))
+                  (datum->syntax #f joined
+                                (loc-vec src dline dcol (string-length joined))))))))
   (define kids (map node->syntax (reverse (node-children nd))))
   (define form
-    (cons (datum->syntax #f 't (vector src line col #f span))
+    (cons (datum->syntax #f 't (loc-vec src line col span))
           (append (list title-stx) date-part desc-part kids)))
-  (datum->syntax #f form (vector src line col #f span)))
+  (datum->syntax #f form (loc-vec src line col span)))
 
 (define (parse-lines src lines)
   (define roots '())
-  ;; stack: list of nodes at increasing depth; stack[i] is open node at level i
   (define stack '())
 
-  (define (current-depth)
-    (length stack))
+  (define (current-depth) (length stack))
 
   (define (last-node-at level)
     (and (< level (length stack))
          (list-ref stack level)))
 
   (define (push-node! nd level)
-    ;; stack should have length == level (parent levels only)
     (when (> level 0)
       (define parent (list-ref stack (sub1 level)))
       (set-node-children! parent (cons nd (node-children parent))))
@@ -153,7 +158,6 @@
             (reader-error src n col #f
                           "indent jumps more than one level (from 0 to ~a); top-level tasks must start at column 0"
                           level))
-          ;; Pop deeper/sibling levels: keep parents only (0 .. level-1)
           (set! stack (take stack level))
           (define nd
             (node title #f '() '() n col (string-length title) src))
@@ -162,25 +166,23 @@
           (when (zero? level)
             (reader-error src n col #f
                           "description line with no title above"))
-          (define parent-level (sub1 level))
-          (define parent (last-node-at parent-level))
+          (define parent (last-node-at (sub1 level)))
           (unless parent
             (reader-error src n col #f
                           "description line with no title above"))
-          (set-node-descs! parent (cons text (node-descs parent)))]
-         [`(date ,d)
+          (set-node-descs! parent (cons (list text n col) (node-descs parent)))]
+         [`(date ,d ,val-col)
           (when (zero? level)
             (reader-error src n col #f
                           "@date with no title above"))
-          (define parent-level (sub1 level))
-          (define parent (last-node-at parent-level))
+          (define parent (last-node-at (sub1 level)))
           (unless parent
             (reader-error src n col #f
                           "@date with no title above"))
-          (when (node-date parent)
+          (when (node-date-info parent)
             (reader-error src n col #f
                           "duplicate @date on this task"))
-          (set-node-date! parent d)])]))
+          (set-node-date-info! parent (list d n val-col))])]))
   (map node->syntax (reverse roots)))
 
 (define (parse-outline-port src in)
