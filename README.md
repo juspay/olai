@@ -71,8 +71,9 @@ restructure. Live with it, or open your laptop.
 ## STATUS
 
 Outline `#lang selfflowy` + sexp core + agent CLI (`check` / `tree` JSON /
-`agenda` / `add` / `done` / `html`). Done status (`@done` / `[x]`) is first
-class. Human view is HTML. (Ancestor: srid/Tend.)
+`agenda` / `add` / `done` / `html`). Done status (`@done` / `[x]`) and in-file
+mirrors (`^anchor` / `*anchor`) are first class. Human view is HTML.
+(Ancestor: srid/Tend.)
 
 ## ROADMAP
 

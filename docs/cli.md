@@ -40,8 +40,11 @@ ok: .../Roadmap.rkt (16 tasks)
 JSON — **single file** keeps the historical shape:
 
 ```json
-{"version":1,"ok":true,"file":".../Example.rkt","tasks":10}
+{"version":1,"ok":true,"file":".../Example.rkt","tasks":10,"anchors":0,"mirrors":0}
 ```
+
+`tasks` counts each defining node once (mirrors do not inflate the count).
+`anchors` / `mirrors` are counts of `^id` declarations and `*id` sites.
 
 **Multiple files**:
 
@@ -76,12 +79,20 @@ Single file:
       "date": null,
       "description": "Quick capture landing zone",
       "done": null,
+      "id": null,
       "tags": ["capture"],
       "children": [ ... ]
     }
-  ]
+  ],
+  "anchors": { "agent": { "title": "Agent work", "id": "agent", "children": [] } },
+  "task_count": 10,
+  "mirror_count": 1,
+  "anchor_count": 1
 }
 ```
+
+Mirror sites in `children` are `{"mirror":"agent"}` — never an inlined subtree.
+The `anchors` object holds each anchored node once (same shape as a task).
 
 Multiple files:
 
@@ -89,15 +100,15 @@ Multiple files:
 {
   "version": 1,
   "files": [
-    {"file":".../Tasks.rkt","tasks":[...]},
-    {"file":".../Roadmap.rkt","tasks":[...]}
+    {"file":".../Tasks.rkt","tasks":[...],"anchors":{...},"task_count":3,"mirror_count":0,"anchor_count":0},
+    {"file":".../Roadmap.rkt","tasks":[...],"anchors":{...},"task_count":16,"mirror_count":0,"anchor_count":0}
   ]
 }
 ```
 
 `date` / `description` are raw strings or `null` (Markdown is not interpreted
 here). `done` is `null` (open), `true` (completed, no timestamp), or an ISO
-timestamp string. `tags` is always an array.
+timestamp string. `id` is `null` or the anchor string. `tags` is always an array.
 
 ## `agenda [--json] [file ...]`
 
@@ -145,13 +156,14 @@ $ selfflowy html --out /tmp/all.html Tasks.rkt examples/Roadmap.rkt
 
 Exit codes same as other read commands (0 / 1 / 2 / 3).
 
-## `add [--json] [--file F] [--date ISO] [--description TEXT] [--no-commit] TITLE...`
+## `add [--json] [--file F] [--date ISO] [--description TEXT] [--parent TITLE|^anchor] [--no-commit] TITLE...`
 
 `--date` accepts `YYYY-MM-DD` or a datetime (`YYYY-MM-DDTHH:MM` / `…:SS`; a space
 instead of `T` is fine).
 
-Capture under a top-level `Inbox` node (created if missing). Writes **outline**
-syntax only. TITLE words join with spaces (no shell quoting required).
+Capture under a parent node: default top-level `Inbox` (created if missing), or
+`--parent ^anchor` / `--parent TITLE`. Writes **outline** syntax only. TITLE
+words join with spaces (no shell quoting required).
 
 - Validates by re-loading after write; on failure restores the prior file.
 - If the file's directory is a git work tree, auto-commits that file with
@@ -181,16 +193,17 @@ JSON stdout:
 }
 ```
 
-## `done [--json] [--file F] [--undo] [--no-commit] TITLE...`
+## `done [--json] [--file F] [--undo] [--no-commit] TITLE...|^anchor`
 
-Mark a task done by exact title match (or undo). **One file only** (`--file`).
-Writes **outline** syntax only — same safety as `add`: write temp → re-validate
-→ rename; restore on failure.
+Mark a task done by exact title match or `^anchor` (or undo). **One file only**
+(`--file`). Writes **outline** syntax only — same safety as `add`: write temp →
+re-validate → rename; restore on failure.
 
-- Exact title match across the file (checkbox prefix is not part of the title).
+- Exact title match across the file (checkbox / `^anchor` prefix are not part of
+  the matched title), or a single `^id` addressing the defining site.
 - **0 matches** → exit 2.
-- **>1 matches** → exit 2; message lists each `file:line` so an agent can
-  disambiguate (future: anchors).
+- **>1 matches** → exit 2; message lists each `file:line` and suggests
+  `add a ^anchor to disambiguate`.
 - On success: inserts `@done YYYY-MM-DD` (today) after the task's metadata,
   preserving the rest of the file. Rejects tasks already done.
 - `--undo`: remove `@done` metadata and strip a leading `[x] ` / `[X] ` prefix.

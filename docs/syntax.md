@@ -31,6 +31,8 @@ Selfflowy roadmap #project
 | Escape | Line starting with `\` (after indent) is a title beginning with the rest (so titles may start with `:`, `@`, or `\`). |
 | Blank lines | Insignificant. |
 | Inline `#tags` | In titles: `#` + `[A-Za-z0-9_-]+`. Title stays verbatim; expander fills `task-tags` (no `#`, first-seen order, deduped). Works for both langs. |
+| Anchor | Title-trailing `^anchor` (`[A-Za-z0-9_-]+`). Stripped from the stored title; becomes `#:id`. Unique per file. |
+| Mirror | Line that is only `*anchor` → `(mirror "anchor")`. Same node as the `^anchor` declaration (DAG, not a copy). Escape with `\` if a title should start with `*`. |
 
 ### Inline formatting (Markdown)
 
@@ -46,24 +48,39 @@ parses Markdown (via the `markdown` package → xexprs).
 **Ambiguity rules**
 
 - `#word` is a **tag**, never an ATX heading. Block Markdown is not parsed in titles; tags are recognized in text nodes after Markdown parse, **except inside `` `code` `` spans** (code wins — a `#tag` inside backticks stays plain code text, not a pill).
-- Future mirror sigil `*anchor` is **line-initial** on its own outline line, so it will not collide with inline `*italic*`.
+- Mirror sigil `*anchor` is **line-initial** on its own outline line, so it does not collide with inline `*italic*`.
 - Raw HTML in titles/notes is **not** trusted: unknown tags are stripped after parse (no `<script>` injection).
 
 **Designed, not implemented**
 
 - `@layout code` — whole node rendered as a code block
 - Strikethrough (`~~x~~`) — not in the default `markdown` package grammar we use; do not invent it yet
+- Cross-file mirrors (in-file only today)
 
 ### Not implemented (designed, deferred)
 
 Mark these clearly so agents do not invent them:
 
-- `^anchor` / `*anchor` — mirrors / references
 - `@layout` and other `@` fields beyond `@date` / `@done`
 - Sidecar UI state (collapse, zoom, focus) — not in the outline file
 - Interactive check-off in `html` (0.6 micro-edits); rendering of done is already checked/strikethrough
 
 Unknown `@field` is a **reader error** today (names the known fields: `@date`, `@done`).
+
+### Mirrors (in-file)
+
+A mirror is the **same node**, not a copy: shared title/fields/children. One
+node, multiple parents (DAG). Expander validates at compile time:
+
+- Duplicate `^id` → error (first declaration location named).
+- Unknown `*id` → error (lists anchors in the file).
+- Cycle (direct or via other anchors) → error with path, e.g.
+  `agent -> week -> agent`.
+
+JSON tree sites emit `{"mirror":"id"}` (never inline the subtree). An
+`anchors` object holds each anchored node once. Agenda counts a dated node
+once (defining breadcrumb). HTML: defining site gets `id="anchor"`; mirror
+sites render with a ↗ link to `#anchor`.
 
 ## `#lang selfflowy/sexp` — s-expression core
 
@@ -76,10 +93,12 @@ prefer sexps.
 (t "Inbox #capture"
    #:description "landing"
    (t "Buy milk" #:date "2026-01-15")
+   (t "Agent work" #:id "agent")
+   (t "This week" (mirror "agent"))
    (t "Shipped" #:done "2026-08-03"))
 ```
 
-Keywords `#:date`, `#:description`, and `#:done` are optional, any order, at
-most once each. `#:done` may be bare (`#:done` → completed) or take an ISO
-date/datetime string. Children must themselves be `(t ...)` forms (closed
-grammar).
+Keywords `#:id`, `#:date`, `#:description`, and `#:done` are optional, any
+order, at most once each. `#:done` may be bare or take an ISO date/datetime.
+Children are `(t ...)` or `(mirror "anchor")` (closed grammar). Module exports
+`tasks` and `anchors` (hash id → task).

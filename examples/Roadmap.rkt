@@ -24,9 +24,11 @@ Selfflowy roadmap #project
   [x] done status
     : `@done` / `[x]` sugar, `#:done` in the core, agenda exclusion, checked
     : HTML rendering, `selfflowy done TITLE` with add-style write safety.
-  0.2b mirrors
-    : ^anchor / *anchor references resolve; cycles rejected at check time.
-    : Design already in docs/syntax.md.
+  [x] 0.2b.1 mirrors (in-file)
+    : ^anchor / *anchor; #:id + (mirror); cycle rejection; JSON mirror refs +
+    : anchors index; agenda dedupe; html permalinks; done/add accept ^anchor.
+  0.2b.2 cross-file mirrors
+    : Link anchors across outline files (not yet).
   0.4 the agent
     : Minimal HTTP server whose only page is a chat panel driving Claude
     : Code over ACP, plus the html view served live. Talk to your outline

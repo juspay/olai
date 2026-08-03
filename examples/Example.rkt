@@ -16,6 +16,10 @@ Inbox #capture
   Wire the CLI
     : completed with a stamp
     @done 2026-08-02
+  Agent work ^agent
+    : Anchored sample for mirrors
+  This week
+    *agent
 
 Someday
   Calendar view
