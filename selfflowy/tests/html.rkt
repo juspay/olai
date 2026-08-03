@@ -1,6 +1,7 @@
 #lang racket/base
 
 (require rackunit
+         json
          racket/file
          racket/port
          racket/string
@@ -11,56 +12,77 @@
 (define (tk title date desc kids #:tags [tags '()])
   (task title date desc tags kids))
 
+(define (xstr x) (xexpr->string x))
+
 (module+ test
-  (test-case "leaf is li without details"
-    (define x (task->xexpr (tk "Leaf" #f #f '())))
-    (check-equal? (car x) 'li)
-    (define s (xexpr->string x))
+  (test-case "leaf is li with list-disc, no details"
+    (define s (xstr (task->xexpr (tk "Leaf" #f #f '()))))
+    (check-true (string-contains? s "list-disc") s)
     (check-false (string-contains? s "<details") s)
     (check-true (string-contains? s "Leaf") s))
 
-  (test-case "parent uses details/summary"
-    (define x
-      (task->xexpr
-       (tk "Parent" #f #f (list (tk "Child" #f #f '())))))
-    (define s (xexpr->string x))
+  (test-case "parent uses details/summary tree chrome"
+    (define s
+      (xstr (task->xexpr (tk "Parent" #f #f (list (tk "Child" #f #f '()))))))
     (check-true (string-contains? s "<details") s)
     (check-true (string-contains? s "<summary") s)
     (check-true (string-contains? s "Parent") s)
-    (check-true (string-contains? s "Child") s))
+    (check-true (string-contains? s "Child") s)
+    (check-false (string-contains? s "Expand all") s)
+    (check-false (string-contains? s "Collapse all") s))
 
-  (test-case "escapes quotes angle brackets and ampersands"
-    (define x
-      (task->xexpr
-       (tk "A <b> & \"q\"" #f #f '())))
-    (define s (xexpr->string x))
-    (check-true (string-contains? s "&lt;") s)
-    (check-true (string-contains? s "&amp;") s)
-    (check-true (or (string-contains? s "&quot;")
-                    (string-contains? s "\""))
-                s)
-    (check-false (regexp-match? #rx"<b>" s) s))
+  (test-case "title bold italic code"
+    (define xs (title->inline-xexprs "**bold** and *i* and `code`"))
+    (define s (string-join (map xstr xs) ""))
+    (check-true (string-contains? s "<strong") s)
+    (check-true (string-contains? s "<em") s)
+    (check-true (string-contains? s "<code") s)
+    (check-true (string-contains? s "bold") s))
+
+  (test-case "title link"
+    (define xs (title->inline-xexprs "[hi](https://example.com)"))
+    (define s (string-join (map xstr xs) ""))
+    (check-true (string-contains? s "href=\"https://example.com\"") s)
+    (check-true (string-contains? s "hi") s))
+
+  (test-case "fenced block in notes"
+    (define xs (note->xexprs "intro\n\n```\nblock\n```\n"))
+    (define s (string-join (map xstr xs) ""))
+    (check-true (string-contains? s "<pre") s)
+    (check-true (string-contains? s "block") s))
+
+  (test-case "script and raw HTML stripped (not injected)"
+    (define xs (title->inline-xexprs "hi <script>alert(1)</script> & ok"))
+    (define s (string-join (map xstr xs) ""))
+    (check-false (string-contains? s "<script") s)
+    (check-true (string-contains? s "alert(1)") s) ; text content may remain
+    (define s2 (xstr (task->xexpr (tk "A <b>x</b> & y" #f #f '()))))
+    (check-false (regexp-match? #rx"<b[ >]" s2) s2)
+    (check-true (string-contains? s2 "x") s2)
+    (check-true (string-contains? s2 "&amp;") s2))
+
+  (test-case "tag pills outside code; code keeps #tag text"
+    (define s1 (string-join (map xstr (title->inline-xexprs "Ship #lang work")) ""))
+    (check-true (string-contains? s1 "rounded-full") s1)
+    (check-true (string-contains? s1 "#lang") s1)
+    (define s2 (string-join (map xstr (title->inline-xexprs "see `code #notag` please")) ""))
+    (check-true (string-contains? s2 "<code") s2)
+    (check-true (string-contains? s2 "#notag") s2)
+    ;; no pill class wrapping the code's #notag
+    (check-false (regexp-match? #rx"rounded-full[^>]*>#notag" s2) s2))
 
   (test-case "date badge and description present"
-    (define x
-      (task->xexpr
-       (tk "T" "2026-01-02" "note" '())))
-    (define s (xexpr->string x))
+    (define s (xstr (task->xexpr (tk "T" "2026-01-02" "a **note**" '()))))
     (check-true (string-contains? s "2026-01-02") s)
-    (check-true (string-contains? s "note") s))
+    (check-true (string-contains? s "note") s)
+    (check-true (string-contains? s "<strong") s))
 
-  (test-case "tag tokens rendered as pill spans"
-    (define x (task->xexpr (tk "Ship #lang work" #f #f '())))
-    (define s (xexpr->string x))
-    (check-true (string-contains? s "#lang") s)
-    (check-true (regexp-match? #rx"rounded-full" s) s))
-
-  (test-case "tasks->html includes doctype and tailwind cdn"
-    (define html
-      (tasks->html (list (tk "A" #f #f '())) "Demo"))
+  (test-case "tasks->html has doctype and tailwind, no expand-all JS"
+    (define html (tasks->html (list (tk "A" #f #f '())) "Demo"))
     (check-true (string-prefix? html "<!DOCTYPE html>") html)
     (check-true (string-contains? html "cdn.tailwindcss.com") html)
-    (check-true (string-contains? html "<title>Demo</title>") html))
+    (check-true (string-contains? html "<title>Demo</title>") html)
+    (check-false (string-contains? html "expand-all") html))
 
   (test-case "cli html --out writes file"
     (define dir (make-temporary-file "sfhtml~a" 'directory))
@@ -69,7 +91,9 @@
     (dynamic-wind
      void
      (λ ()
-       (display-to-file "#lang selfflowy\nHello & <world>\n" outline #:exists 'truncate)
+       (display-to-file
+        "#lang selfflowy\nParent **bold** & stuff\n  Child\n"
+        outline #:exists 'truncate)
        (define-values (sp stdout stdin stderr)
          (subprocess #f #f #f
                      (find-executable-path "racket")
@@ -84,7 +108,36 @@
        (check-equal? (subprocess-status sp) 0 (string-append o e))
        (check-true (file-exists? out))
        (define html (file->string out))
-       (check-true (string-contains? html "Hello") html)
+       (check-true (string-contains? html "Parent") html)
+       (check-true (string-contains? html "<strong") html)
        (check-true (string-contains? html "&amp;") html)
-       (check-true (string-contains? html "&lt;") html))
+       (check-true (string-contains? html "<details") html)
+       (check-true (string-contains? html "Child") html))
+     (λ () (delete-directory/files dir))))
+
+  (test-case "cli tree is always JSON"
+    (define dir (make-temporary-file "sftree~a" 'directory))
+    (define outline (build-path dir "t.rkt"))
+    (dynamic-wind
+     void
+     (λ ()
+       (display-to-file "#lang selfflowy\nRoot\n" outline #:exists 'truncate)
+       (define-values (code out err)
+         (let ()
+           (define-values (sp stdout stdin stderr)
+             (subprocess #f #f #f
+                         (find-executable-path "racket")
+                         "-l" "selfflowy/cli" "--"
+                         "tree" (path->string outline)))
+           (close-output-port stdin)
+           (define o (port->string stdout))
+           (define e (port->string stderr))
+           (close-input-port stdout)
+           (close-input-port stderr)
+           (subprocess-wait sp)
+           (values (subprocess-status sp) o e)))
+       (check-equal? code 0 err)
+       (define j (read-json (open-input-string out)))
+       (check-equal? (hash-ref j 'version) 1)
+       (check-true (list? (hash-ref j 'tasks))))
      (λ () (delete-directory/files dir)))))
