@@ -66,9 +66,8 @@ restructure. Live with it, or open your laptop.
 
 ## STATUS
 
-Outline `#lang selfflowy` + sexp core + `check` / `tree` / `agenda`.
-(Ancestor: srid/Tend, same idea in Lean. The web layer is why it's
-Racket now.)
+Outline `#lang selfflowy` + sexp core + `check` / `tree` / `agenda` /
+`add` (agent-first `--json`). (Ancestor: srid/Tend, same idea in Lean.)
 
 ## ROADMAP
 
@@ -83,6 +82,10 @@ The roadmap is a selfflowy outline:
     just tree examples/Example.rkt
     just agenda examples/Example.rkt
     just test
+
+## CLI (agents)
+
+Machine-readable contract (`--json`, exit codes, `add`): **docs/cli.md**.
 
 ## HACKING
 
