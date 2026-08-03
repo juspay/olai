@@ -44,9 +44,9 @@ restructure. Live with it, or open your laptop.
 
 ## STATUS
 
-Vaporware. README first, code next. (Ancestor: srid/Tend, same idea in
-Lean. The web layer is why it's Racket now.) Classic s-expressions over
-Rhombus for `#lang selfflowy`.
+Phase 0.1: `#lang selfflowy` + `selfflowy check` / `tree`. (Ancestor:
+srid/Tend, same idea in Lean. The web layer is why it's Racket now.)
+Classic s-expressions over Rhombus.
 
 ## ROADMAP
 
@@ -78,9 +78,11 @@ project dies at any line below, what exists still works.
 
 ## BUILDING
 
-    nix develop        # or: install racket >= 9.2 yourself
-    raco pkg install --auto selfflowy/   # someday
-    selfflowy check ~/tasks
+    nix develop        # racket 9.2 + just; or install them yourself
+    just install       # raco pkg install --link selfflowy/
+    just check         # validates Tasks.rkt (gitignored private outline)
+    just tree examples/Example.rkt
+    just test
 
 ## HACKING
 
