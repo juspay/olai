@@ -44,9 +44,9 @@ restructure. Live with it, or open your laptop.
 
 ## STATUS
 
-Phase 0.1: `#lang selfflowy` + `selfflowy check` / `tree`. (Ancestor:
-srid/Tend, same idea in Lean. The web layer is why it's Racket now.)
-Classic s-expressions over Rhombus.
+Phase 0.1 + dates: `#lang selfflowy`, `check` / `tree` / `agenda`.
+(Ancestor: srid/Tend, same idea in Lean. The web layer is why it's
+Racket now.) Classic s-expressions over Rhombus.
 
 ## ROADMAP
 
@@ -59,6 +59,7 @@ The roadmap is a selfflowy outline:
     just install       # raco pkg install --link selfflowy/
     just check         # validates Tasks.rkt (gitignored private outline)
     just tree examples/Example.rkt
+    just agenda examples/Example.rkt
     just test
 
 ## HACKING
