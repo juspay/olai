@@ -13,9 +13,14 @@
          task-date
          task-description
          task-done
+         task-id
          task-tags
          task-children
+         mirror-ref
+         mirror-ref?
+         mirror-ref-anchor
          title-tags
+         valid-anchor-id?
          (struct-out dated-task)
          collect-dated
          agenda-groups

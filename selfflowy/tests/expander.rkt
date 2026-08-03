@@ -35,13 +35,15 @@ EOF
     (check-false (task-date inbox))
     (check-equal? (task-description inbox) "landing")
     (check-false (task-done inbox))
+    (check-false (task-id inbox))
     (check-equal? (task-tags inbox) '())
     (check-equal? (length (task-children inbox)) 2)
     (define milk (car (task-children inbox)))
     (check-equal? (task-title milk) "Buy milk")
     (check-equal? (task-date milk) "2026-08-04")
     (check-equal? (task-description milk) "2%")
-    (check-false (task-done milk)))
+    (check-false (task-done milk))
+    (check-false (task-id milk)))
 
   (test-case "bare #:done and #:done with timestamp"
     (define tasks

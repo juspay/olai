@@ -10,21 +10,21 @@
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/html)
 
-(define (tk title date desc kids #:tags [tags '()] #:done [done #f])
-  (task title date desc done tags kids))
+(define (tk title date desc kids #:tags [tags '()] #:done [done #f] #:id [id #f])
+  (task title date desc done id tags kids))
 
 (define (xstr x) (xexpr->string x))
 
 (module+ test
   (test-case "leaf is li with list-disc, no details"
-    (define s (xstr (task->xexpr (tk "Leaf" #f #f '()))))
+    (define s (xstr (task->xexpr (tk "Leaf" #f #f '()) (hash))))
     (check-true (string-contains? s "list-disc") s)
     (check-false (string-contains? s "<details") s)
     (check-true (string-contains? s "Leaf") s))
 
   (test-case "parent uses details/summary tree chrome"
     (define s
-      (xstr (task->xexpr (tk "Parent" #f #f (list (tk "Child" #f #f '()))))))
+      (xstr (task->xexpr (tk "Parent" #f #f (list (tk "Child" #f #f '()))) (hash))))
     (check-true (string-contains? s "<details") s)
     (check-true (string-contains? s "<summary") s)
     (check-true (string-contains? s "Parent") s)
@@ -57,7 +57,7 @@
     (define s (string-join (map xstr xs) ""))
     (check-false (string-contains? s "<script") s)
     (check-true (string-contains? s "alert(1)") s) ; text content may remain
-    (define s2 (xstr (task->xexpr (tk "A <b>x</b> & y" #f #f '()))))
+    (define s2 (xstr (task->xexpr (tk "A <b>x</b> & y" #f #f '()) (hash))))
     (check-false (regexp-match? #rx"<b[ >]" s2) s2)
     (check-true (string-contains? s2 "x") s2)
     (check-true (string-contains? s2 "&amp;") s2))
@@ -73,7 +73,7 @@
     (check-false (regexp-match? #rx"rounded-full[^>]*>#notag" s2) s2))
 
   (test-case "date badge and description present"
-    (define s (xstr (task->xexpr (tk "T" "2026-01-02" "a **note**" '()))))
+    (define s (xstr (task->xexpr (tk "T" "2026-01-02" "a **note**" '()) (hash))))
     (check-true (string-contains? s "2026-01-02") s)
     (check-true (string-contains? s "note") s)
     (check-true (string-contains? s "<strong") s)
@@ -81,12 +81,13 @@
     (check-false (string-contains? s "line-through") s))
 
   (test-case "done task renders checked checkbox and strikethrough"
-    (define s (xstr (task->xexpr (tk "Done item" #f #f '() #:done #t))))
+    (define s (xstr (task->xexpr (tk "Done item" #f #f '() #:done #t) (hash))))
     (check-true (string-contains? s "☑") s)
     (check-true (string-contains? s "line-through") s)
     (check-true (string-contains? s "Done item") s)
     (define s2 (xstr (task->xexpr (tk "Stamped" "2026-01-01" #f '()
-                                       #:done "2026-01-02"))))
+                                       #:done "2026-01-02")
+                                  (hash))))
     (check-true (string-contains? s2 "☑") s2)
     (check-true (string-contains? s2 "line-through") s2))
 
@@ -102,8 +103,8 @@
   (test-case "files->html multi-file sections use basenames as h2"
     (define html
       (files->html
-       (list (cons (string->path "/tmp/Tasks.rkt") (list (tk "Milk" #f #f '())))
-             (cons (string->path "/tmp/Roadmap.rkt") (list (tk "Ship" #f #f '()))))
+       (list (list (string->path "/tmp/Tasks.rkt") (list (tk "Milk" #f #f '())) (hash))
+             (list (string->path "/tmp/Roadmap.rkt") (list (tk "Ship" #f #f '())) (hash)))
        "selfflowy"))
     (check-true (string-contains? html "<h2") html)
     (check-true (string-contains? html "Tasks.rkt") html)

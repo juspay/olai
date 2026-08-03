@@ -6,8 +6,8 @@
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/agenda)
 
-(define (tk title date desc kids #:done [done #f])
-  (task title date desc done '() kids))
+(define (tk title date desc kids #:done [done #f] #:id [id #f])
+  (task title date desc done id '() kids))
 
 (module+ test
   (define sample
