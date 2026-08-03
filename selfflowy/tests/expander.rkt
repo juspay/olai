@@ -10,19 +10,18 @@
    void
    (λ ()
      (display-to-file src tmp #:exists 'truncate)
-     ;; Same namespace as this module so `task?` / accessors match.
      (dynamic-require `(file ,(path->string tmp)) 'tasks))
    (λ () (delete-file tmp))))
 
 (module+ test
   (test-case "empty module yields empty task list"
-    (check-equal? (eval-tasks "#lang selfflowy\n") '()))
+    (check-equal? (eval-tasks "#lang selfflowy/sexp\n") '()))
 
   (test-case "nested tasks with optional date and description"
     (define tasks
       (eval-tasks
        #<<EOF
-#lang selfflowy
+#lang selfflowy/sexp
 (t "Inbox"
    #:description "landing"
    (t "Buy milk" #:date "2026-08-04" #:description "2%")
@@ -35,20 +34,33 @@ EOF
     (check-equal? (task-title inbox) "Inbox")
     (check-false (task-date inbox))
     (check-equal? (task-description inbox) "landing")
+    (check-equal? (task-tags inbox) '())
     (check-equal? (length (task-children inbox)) 2)
     (define milk (car (task-children inbox)))
     (check-equal? (task-title milk) "Buy milk")
     (check-equal? (task-date milk) "2026-08-04")
-    (check-equal? (task-description milk) "2%")
-    (define docs (cadr (task-children inbox)))
-    (check-equal? (task-title docs) "Write docs")
-    (check-false (task-description docs))
-    (check-equal? (length (task-children docs)) 1))
+    (check-equal? (task-description milk) "2%"))
+
+  (test-case "inline #tags extracted, title stays verbatim"
+    (define tasks
+      (eval-tasks
+       "#lang selfflowy/sexp\n(t \"Ship #lang and #lang again #docs\")\n"))
+    (define tk (car tasks))
+    (check-equal? (task-title tk) "Ship #lang and #lang again #docs")
+    (check-equal? (task-tags tk) '("lang" "docs")))
+
+  (test-case "title-tags order, dedup, punctuation edges"
+    (check-equal? (title-tags "plain") '())
+    (check-equal? (title-tags "#a #b #a") '("a" "b"))
+    ;; #word matches anywhere (including mid-token after #)
+    (check-equal? (title-tags "see #yes_1 and #ok-2.") '("yes_1" "ok-2"))
+    (check-equal? (title-tags "c++ not a #tag!") '("tag"))
+    (check-equal? (title-tags "#A #a") '("A" "a")))
 
   (test-case "description before date is allowed"
     (define tasks
       (eval-tasks
-       "#lang selfflowy\n(t \"x\" #:description \"hi\" #:date \"2026-01-02\")\n"))
+       "#lang selfflowy/sexp\n(t \"x\" #:description \"hi\" #:date \"2026-01-02\")\n"))
     (define tk (car tasks))
     (check-equal? (task-description tk) "hi")
     (check-equal? (task-date tk) "2026-01-02"))
@@ -61,21 +73,21 @@ EOF
                            (exn-message e))))
      (λ ()
        (eval-tasks
-        "#lang selfflowy\n(t \"x\" #:date \"not-a-date\")\n"))))
+        "#lang selfflowy/sexp\n(t \"x\" #:date \"not-a-date\")\n"))))
 
   (test-case "non-string date is a syntax error"
     (check-exn
      (λ (e) (exn:fail:syntax? e))
      (λ ()
        (eval-tasks
-        "#lang selfflowy\n(t \"x\" #:date 42)\n"))))
+        "#lang selfflowy/sexp\n(t \"x\" #:date 42)\n"))))
 
   (test-case "non-string description is a syntax error"
     (check-exn
      (λ (e) (exn:fail:syntax? e))
      (λ ()
        (eval-tasks
-        "#lang selfflowy\n(t \"x\" #:description 42)\n"))))
+        "#lang selfflowy/sexp\n(t \"x\" #:description 42)\n"))))
 
   (test-case "duplicate #:date rejected"
     (check-exn
@@ -85,7 +97,7 @@ EOF
                            (exn-message e))))
      (λ ()
        (eval-tasks
-        "#lang selfflowy\n(t \"x\" #:date \"2026-01-01\" #:date \"2026-01-02\")\n"))))
+        "#lang selfflowy/sexp\n(t \"x\" #:date \"2026-01-01\" #:date \"2026-01-02\")\n"))))
 
   (test-case "duplicate #:description rejected"
     (check-exn
@@ -95,26 +107,26 @@ EOF
                            (exn-message e))))
      (λ ()
        (eval-tasks
-        "#lang selfflowy\n(t \"x\" #:description \"a\" #:description \"b\")\n"))))
+        "#lang selfflowy/sexp\n(t \"x\" #:description \"a\" #:description \"b\")\n"))))
 
   (test-case "bad month/day rejected"
     (check-exn
      (λ (e) (exn:fail:syntax? e))
      (λ ()
        (eval-tasks
-        "#lang selfflowy\n(t \"x\" #:date \"2026-13-01\")\n")))
+        "#lang selfflowy/sexp\n(t \"x\" #:date \"2026-13-01\")\n")))
     (check-exn
      (λ (e) (exn:fail:syntax? e))
      (λ ()
        (eval-tasks
-        "#lang selfflowy\n(t \"x\" #:date \"2026-02-30\")\n"))))
+        "#lang selfflowy/sexp\n(t \"x\" #:date \"2026-02-30\")\n"))))
 
   (test-case "non-string title is a syntax error"
     (check-exn
      exn:fail?
      (λ ()
        (eval-tasks
-        "#lang selfflowy\n(t 42)\n"))))
+        "#lang selfflowy/sexp\n(t 42)\n"))))
 
   (test-case "malformed child is a syntax error (closed grammar)"
     (check-exn
@@ -124,7 +136,7 @@ EOF
                            (exn-message e))))
      (λ ()
        (eval-tasks
-        "#lang selfflowy\n(t \"x\" 42)\n"))))
+        "#lang selfflowy/sexp\n(t \"x\" 42)\n"))))
 
   (test-case "non-task top-level form is a syntax error"
     (check-exn
@@ -134,4 +146,4 @@ EOF
                            (exn-message e))))
      (λ ()
        (eval-tasks
-        "#lang selfflowy\n42\n")))))
+        "#lang selfflowy/sexp\n42\n")))))

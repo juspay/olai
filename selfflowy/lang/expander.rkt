@@ -1,29 +1,19 @@
 #lang racket/base
 
-;; #lang selfflowy expander (phase 0.1)
+;; Shared expander for #lang selfflowy (outline) and #lang selfflowy/sexp.
 ;;
-;; A module is a list of top-level tasks:
+;; Surface form (both readers produce this):
 ;;
-;;   #lang selfflowy
-;;   (t "Inbox"
-;;      (t "Buy milk"
-;;         #:date "2026-08-04"
-;;         #:description "2% if they have it"))
+;;   (t "title" [#:date "YYYY-MM-DD"] [#:description "..."] child ...)
 ;;
-;; Optional keywords after the title (any order, at most once each):
-;;   #:date        YYYY-MM-DD string
-;;   #:description free-form string
-;;
-;; Children must themselves be (t ...) forms (closed grammar).
-;; Mirrors/agenda are phase 0.2.
-;;
-;; Callers that (require) this module for the data model should use
-;; (except-in ... #%module-begin) so module+ submodules keep racket's
-;; #%module-begin (this export is for #lang only).
+;; Inline #tags in titles are extracted into the task-tags field; the title
+;; string stays verbatim. Children must be nested (t ...) forms.
 
-(require (for-syntax racket/base
+(require racket/list
+         (for-syntax racket/base
                      syntax/parse
-                     racket/string))
+                     racket/string
+                     racket/list))
 
 (provide (rename-out [module-begin #%module-begin])
          t
@@ -32,11 +22,29 @@
          task-title
          task-date
          task-description
+         task-tags
          task-children
+         title-tags
          #%app #%datum #%top #%top-interaction
          quote)
 
-(struct task (title date description children) #:transparent)
+(struct task (title date description tags children) #:transparent)
+
+;; Extract #tags from a title: word = [A-Za-z0-9_-]+, no # in the list,
+;; order of first appearance, deduplicated. Title is not modified.
+(define (title-tags title)
+  (define raw
+    (regexp-match* #px"#([A-Za-z0-9_-]+)"
+                   title
+                   #:match-select (λ (m) (cadr m))))
+  (remove-duplicates raw))
+
+(define-for-syntax (title-tags/stx title)
+  (define raw
+    (regexp-match* #px"#([A-Za-z0-9_-]+)"
+                   title
+                   #:match-select (λ (m) (cadr m))))
+  (remove-duplicates raw))
 
 (begin-for-syntax
   (define (date-string? s)
@@ -46,7 +54,6 @@
                 [m (list-ref parts 1)]
                 [d (list-ref parts 2)])
            (and (<= 1 m 12)
-                ;; cheap day-of-month check (no leap-year refinement in 0.1)
                 (or (and (memv m '(1 3 5 7 8 10 12)) (<= 1 d 31))
                     (and (memv m '(4 6 9 11)) (<= 1 d 30))
                     (and (= m 2) (<= 1 d 29)))))))
@@ -57,7 +64,6 @@
              #:fail-unless (date-string? (syntax-e #'d))
              "expected YYYY-MM-DD date"))
 
-  ;; Optional #:date / #:description in either order (at most once each).
   (define-splicing-syntax-class t-kwargs
     #:attributes (date description)
     (pattern (~seq (~alt (~optional (~seq #:date d:date-str)
@@ -68,7 +74,6 @@
              #:attr date (or (attribute d) #'#f)
              #:attr description (or (attribute desc) #'#f)))
 
-  ;; Closed grammar: every task node is a (t ...) form, recursively.
   (define-syntax-class task-form
     #:description "a nested (t ...) task form"
     #:literals (t)
@@ -77,7 +82,9 @@
 (define-syntax (t stx)
   (syntax-parse stx
     [(_ title:str kw:t-kwargs child:task-form ...)
-     #'(task title kw.date kw.description (list child ...))]
+     (define tags (title-tags/stx (syntax-e #'title)))
+     (with-syntax ([tags-lit (datum->syntax stx tags)])
+       #'(task title kw.date kw.description 'tags-lit (list child ...)))]
     [(_ title . _)
      (raise-syntax-error
       't

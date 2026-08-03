@@ -2,6 +2,7 @@
 
 ;; Render a task tree with unicode box-drawing characters.
 ;; Optional #:description is shown dimmed on the next line, indented.
+;; Inline #tags in titles are underlined on a TTY.
 
 (require racket/list
          racket/string
@@ -11,7 +12,7 @@
 (provide render-tree)
 
 (define (format-task-line tk)
-  (define title (task-title tk))
+  (define title (style-title-tags (task-title tk)))
   (define date (task-date tk))
   (if date
       (format "~a  [~a]" title date)

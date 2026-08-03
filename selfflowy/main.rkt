@@ -12,7 +12,9 @@
          task-title
          task-date
          task-description
+         task-tags
          task-children
+         title-tags
          render-tree
          (struct-out dated-task)
          collect-dated

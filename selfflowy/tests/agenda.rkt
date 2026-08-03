@@ -5,25 +5,28 @@
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/agenda)
 
+(define (tk title date desc kids)
+  (task title date desc '() kids))
+
 (module+ test
   (define sample
     (list
-     (task "Inbox" #f #f
-           (list
-            (task "Old" "2026-07-01" #f '())
-            (task "Milk" "2026-08-03" #f '())
-            (task "Nested" #f #f
-                  (list (task "Later" "2026-09-15" #f '())))))
-     (task "Root2" #f #f
-           (list (task "Soon" "2026-08-10" #f '())
-                 (task "Also today" "2026-08-03" #f '())))))
+     (tk "Inbox" #f #f
+         (list
+          (tk "Old" "2026-07-01" #f '())
+          (tk "Milk" "2026-08-03" #f '())
+          (tk "Nested" #f #f
+              (list (tk "Later" "2026-09-15" #f '())))))
+     (tk "Root2" #f #f
+         (list (tk "Soon" "2026-08-10" #f '())
+               (tk "Also today" "2026-08-03" #f '())))))
 
   (test-case "empty tasks => no groups"
     (check-equal? (agenda-groups '() "2026-08-03") '()))
 
   (test-case "no dated tasks => no groups"
     (check-equal?
-     (agenda-groups (list (task "A" #f #f (list (task "B" #f #f '()))))
+     (agenda-groups (list (tk "A" #f #f (list (tk "B" #f #f '()))))
                     "2026-08-03")
      '()))
 
@@ -58,11 +61,11 @@
 
   (test-case "omit empty groups"
     (define only-future
-      (list (task "A" "2099-01-01" #f '())))
+      (list (tk "A" "2099-01-01" #f '())))
     (define groups (agenda-groups only-future "2026-08-03"))
     (check-equal? (map car groups) '(upcoming))
     (define only-past
-      (list (task "A" "2000-01-01" #f '())))
+      (list (tk "A" "2000-01-01" #f '())))
     (check-equal? (map car (agenda-groups only-past "2026-08-03"))
                   '(overdue)))
 
