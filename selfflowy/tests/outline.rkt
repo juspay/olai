@@ -105,9 +105,90 @@ EOF
     (check-exn
      (λ (e)
        (and (exn:fail:read? e)
-            (regexp-match? #rx"(?i:unknown|@layout|@date)" (exn-message e))))
+            (regexp-match? #rx"(?i:unknown|@layout|@date|@done)" (exn-message e))))
      (λ ()
        (eval-tasks "#lang selfflowy\nTask\n  @layout wide\n"))))
+
+  (test-case "@done bare and with timestamp"
+    (define tasks
+      (eval-tasks
+       #<<EOF
+#lang selfflowy
+Bare done
+  @done
+With stamp
+  @done 2026-08-03
+With datetime
+  @done 2026-08-03 09:15
+EOF
+       ))
+    (check-equal? (task-done (car tasks)) #t)
+    (check-equal? (task-done (cadr tasks)) "2026-08-03")
+    (check-equal? (task-done (caddr tasks)) "2026-08-03T09:15")
+    (check-equal? (map task-title tasks)
+                  '("Bare done" "With stamp" "With datetime")))
+
+  (test-case "[x] / [ ] title checkbox sugar"
+    (define tasks
+      (eval-tasks
+       #<<EOF
+#lang selfflowy
+[x] Finished task
+[ ] Open task
+[X] Also finished
+EOF
+       ))
+    (check-equal? (map task-title tasks)
+                  '("Finished task" "Open task" "Also finished"))
+    (check-equal? (task-done (car tasks)) #t)
+    (check-false (task-done (cadr tasks)))
+    (check-equal? (task-done (caddr tasks)) #t))
+
+  (test-case "escaped checkbox is literal title, not sugar"
+    (define tasks
+      (eval-tasks
+       #<<EOF
+#lang selfflowy
+\[x] literal checkbox text
+EOF
+       ))
+    (check-equal? (task-title (car tasks)) "[x] literal checkbox text")
+    (check-false (task-done (car tasks))))
+
+  (test-case "duplicate @done is a reader error"
+    (check-exn
+     (λ (e)
+       (and (exn:fail:read? e)
+            (regexp-match? #rx"(?i:duplicate|@done)" (exn-message e))))
+     (λ ()
+       (eval-tasks "#lang selfflowy\nTask\n  @done\n  @done 2026-01-01\n"))))
+
+  (test-case "[x] plus @done is duplicate"
+    (check-exn
+     (λ (e)
+       (and (exn:fail:read? e)
+            (regexp-match? #rx"(?i:duplicate|@done)" (exn-message e))))
+     (λ ()
+       (eval-tasks "#lang selfflowy\n[x] Task\n  @done 2026-01-01\n"))))
+
+  (test-case "bad @done timestamp fails expander"
+    (check-exn
+     (λ (e)
+       (and (exn:fail? e)
+            (regexp-match? #rx"(?i:date|ISO|datetime)" (exn-message e))))
+     (λ ()
+       (eval-tasks "#lang selfflowy\nTask\n  @done not-a-date\n"))))
+
+  (test-case "strip-checkbox-prefix helper"
+    (define-values (t1 f1) (strip-checkbox-prefix "[x] hi"))
+    (check-equal? t1 "hi")
+    (check-equal? f1 'done)
+    (define-values (t2 f2) (strip-checkbox-prefix "[ ] hi"))
+    (check-equal? t2 "hi")
+    (check-equal? f2 'open)
+    (define-values (t3 f3) (strip-checkbox-prefix "plain"))
+    (check-equal? t3 "plain")
+    (check-false f3))
 
   (test-case "datetime @date accepted (T and space forms)"
     (define tasks

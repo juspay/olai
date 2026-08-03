@@ -1,7 +1,8 @@
 #lang racket/base
 
 ;; Line-oriented outline parser for #lang selfflowy.
-;; Emits (t "title" #:date ... #:description ... child ...) syntax with srclocs.
+;; Emits (t "title" #:date ... #:description ... #:done ... child ...) syntax
+;; with srclocs.
 
 (require racket/list
          racket/match
@@ -9,13 +10,16 @@
          syntax/readerr)
 
 (provide parse-outline-port
-         parse-outline-string)
+         parse-outline-string
+         strip-checkbox-prefix)
 
 (struct raw-line (n col text indent content) #:transparent)
 
 ;; descs: list of (list text line col) newest-first
 ;; date-info: #f or (list value line col)
-(struct node (title date-info descs children line col span src) #:mutable #:transparent)
+;; done-info: #f or (list value line col) where value is #t or a date string
+(struct node (title date-info done-info descs children line col span src)
+  #:mutable #:transparent)
 
 (define (reader-error src line col pos msg . args)
   (raise-read-error
@@ -48,11 +52,23 @@
 (define (blank-content? c)
   (or (string=? c "") (regexp-match? #px"^\\s*$" c)))
 
+;; Title checkbox sugar: "[x] " / "[X] " → done (#t); "[ ] " → open (stripped).
+;; Prefix is not part of the verbatim title. Returns (values title done-flag)
+;; done-flag: #f | 'done | 'open
+(define (strip-checkbox-prefix title)
+  (cond
+    [(regexp-match #px"^\\[[xX]\\] (.*)$" title)
+     => (λ (m) (values (cadr m) 'done))]
+    [(regexp-match #px"^\\[ \\] (.*)$" title)
+     => (λ (m) (values (cadr m) 'open))]
+    [else (values title #f)]))
+
 (define (classify-content content src line col)
   (cond
     [(blank-content? content) 'blank]
+    ;; Escape: title is rest after `\`; checkbox sugar does NOT apply.
     [(regexp-match? #px"^\\\\" content)
-     `(title ,(substring content 1))]
+     `(title ,(substring content 1) #f)]
     [(regexp-match #px"^: (.*)$" content)
      => (λ (m) `(desc ,(cadr m)))]
     [(regexp-match #px"^:($|[^ ].*)$" content)
@@ -68,12 +84,22 @@
     [(regexp-match #px"^@date\\s*$" content)
      (reader-error src line col #f
                    "expected a date or datetime after @date (YYYY-MM-DD[THH:MM[:SS]])")]
+    [(regexp-match #px"^@done[ \t]+(\\S.*)$" content)
+     => (λ (m)
+          (define val (string-trim (cadr m)))
+          (define prefix-m (regexp-match #px"^@done[ \t]+" content))
+          (define val-col (+ col (string-length (car prefix-m))))
+          `(done ,val ,val-col))]
+    [(regexp-match #px"^@done\\s*$" content)
+     `(done-bare ,col)]
     [(regexp-match #px"^@(\\S+)" content)
      => (λ (m)
           (reader-error src line col #f
-                        "unknown @~a; known fields: @date"
+                        "unknown @~a; known fields: @date, @done"
                         (cadr m)))]
-    [else `(title ,content)]))
+    [else
+     (define-values (title flag) (strip-checkbox-prefix content))
+     `(title ,title ,flag)]))
 
 (define (level-of indent src line col)
   (unless (zero? (remainder indent 2))
@@ -98,6 +124,14 @@
        (list (datum->syntax #f '#:date (loc-vec src dline dcol 5))
              (datum->syntax #f d (loc-vec src dline dcol (string-length d))))]
       [#f '()]))
+  (define done-part
+    (match (node-done-info nd)
+      [(list #t dline dcol)
+       (list (datum->syntax #f '#:done (loc-vec src dline dcol 5)))]
+      [(list d dline dcol)
+       (list (datum->syntax #f '#:done (loc-vec src dline dcol 5))
+             (datum->syntax #f d (loc-vec src dline dcol (string-length d))))]
+      [#f '()]))
   (define desc-part
     (let ([ds (node-descs nd)])
       (if (null? ds)
@@ -114,7 +148,7 @@
   (define kids (map node->syntax (reverse (node-children nd))))
   (define form
     (cons (datum->syntax #f 't (loc-vec src line col span))
-          (append (list title-stx) date-part desc-part kids)))
+          (append (list title-stx) date-part done-part desc-part kids)))
   (datum->syntax #f form (loc-vec src line col span)))
 
 (define (parse-lines src lines)
@@ -146,7 +180,7 @@
       [else
        (define level (level-of ind src n col))
        (match kind
-         [`(title ,title)
+         [`(title ,title ,flag)
           (when (> level (current-depth))
             (reader-error src n col #f
                           "indent jumps more than one level (from ~a to ~a); use 2 spaces per level"
@@ -156,8 +190,12 @@
                           "indent jumps more than one level (from 0 to ~a); top-level tasks must start at column 0"
                           level))
           (set! stack (take stack level))
+          (define done-info
+            (case flag
+              [(done) (list #t n col)]
+              [else #f]))
           (define nd
-            (node title #f '() '() n col (string-length title) src))
+            (node title #f done-info '() '() n col (string-length title) src))
           (push-node! nd level)]
          [`(desc ,text)
           (when (zero? level)
@@ -179,7 +217,31 @@
           (when (node-date-info parent)
             (reader-error src n col #f
                           "duplicate @date on this task"))
-          (set-node-date-info! parent (list d n val-col))])]))
+          (set-node-date-info! parent (list d n val-col))]
+         [`(done ,d ,val-col)
+          (when (zero? level)
+            (reader-error src n col #f
+                          "@done with no title above"))
+          (define parent (last-node-at (sub1 level)))
+          (unless parent
+            (reader-error src n col #f
+                          "@done with no title above"))
+          (when (node-done-info parent)
+            (reader-error src n col #f
+                          "duplicate @done on this task"))
+          (set-node-done-info! parent (list d n val-col))]
+         [`(done-bare ,dcol)
+          (when (zero? level)
+            (reader-error src n col #f
+                          "@done with no title above"))
+          (define parent (last-node-at (sub1 level)))
+          (unless parent
+            (reader-error src n col #f
+                          "@done with no title above"))
+          (when (node-done-info parent)
+            (reader-error src n col #f
+                          "duplicate @done on this task"))
+          (set-node-done-info! parent (list #t n dcol))])]))
   (map node->syntax (reverse roots)))
 
 (define (parse-outline-port src in)
