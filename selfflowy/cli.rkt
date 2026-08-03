@@ -1,12 +1,14 @@
 #lang racket/base
 
-;; selfflowy CLI: check | tree
+;; selfflowy CLI: check | tree | agenda
 ;; Helpers are module-private; entry point is module+ main.
 
-(require racket/list
+(require racket/date
+         racket/list
          racket/path
          (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/tree)
+         selfflowy/tree
+         selfflowy/agenda)
 
 (define default-file "Tasks.rkt")
 
@@ -52,6 +54,12 @@
             (count c))))
   (for/sum ([tk (in-list tasks)]) (count tk)))
 
+(define (today-iso)
+  (define d (seconds->date (current-seconds)))
+  (define (pad2 n)
+    (if (< n 10) (format "0~a" n) (number->string n)))
+  (format "~a-~a-~a" (date-year d) (pad2 (date-month d)) (pad2 (date-day d))))
+
 (define (cmd-check path)
   (define tasks (load-tasks path))
   (define n (count-tasks tasks))
@@ -65,12 +73,18 @@
   (define tasks (load-tasks path))
   (displayln (render-tree tasks)))
 
+(define (cmd-agenda path)
+  (define tasks (load-tasks path))
+  (define groups (agenda-groups tasks (today-iso)))
+  (displayln (format-agenda groups)))
+
 (define (usage)
   (eprintf "usage: selfflowy <command> [file]\n")
   (eprintf "\n")
   (eprintf "commands:\n")
-  (eprintf "  check [file]   validate a #lang selfflowy module (default: ~a)\n" default-file)
-  (eprintf "  tree  [file]   print the outline with box-drawing (default: ~a)\n" default-file)
+  (eprintf "  check  [file]  validate a #lang selfflowy module (default: ~a)\n" default-file)
+  (eprintf "  tree   [file]  print the outline with box-drawing (default: ~a)\n" default-file)
+  (eprintf "  agenda [file]  dated tasks as OVERDUE / TODAY / UPCOMING (default: ~a)\n" default-file)
   (eprintf "\n")
   (eprintf "A module is a list of top-level\n")
   (eprintf "  (t \"title\" [#:date \"YYYY-MM-DD\"] [#:description \"...\"] child ...)\n")
@@ -95,6 +109,8 @@
         (cmd-check (resolve-file file-arg))]
        [("tree")
         (cmd-tree (resolve-file file-arg))]
+       [("agenda")
+        (cmd-agenda (resolve-file file-arg))]
        [("help" "-h" "--help")
         (usage)]
        [else
