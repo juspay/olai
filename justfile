@@ -39,7 +39,11 @@ add *args: install
 # Usage: just html
 #        just html examples/Example.rkt
 html file="Tasks.rkt": install
-    selfflowy html --out {{file}}.html {{file}}
+    #!/usr/bin/env bash
+    set -euo pipefail
+    out="{{file}}"
+    out="${out%.rkt}.html"
+    selfflowy html --out "$out" "{{file}}"
 
 # Re-run `just tree` whenever Tasks.rkt changes (clears the screen each time)
 watch: install
