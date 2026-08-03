@@ -8,12 +8,14 @@
 ;;
 ;; Inline #tags in titles are extracted into the task-tags field; the title
 ;; string stays verbatim. Children must be nested (t ...) forms.
+;; Date validation uses gregor (iso8601->date).
 
 (require racket/list
          (for-syntax racket/base
                      syntax/parse
                      racket/string
-                     racket/list))
+                     racket/list
+                     (only-in gregor iso8601->date)))
 
 (provide (rename-out [module-begin #%module-begin])
          t
@@ -30,8 +32,6 @@
 
 (struct task (title date description tags children) #:transparent)
 
-;; Extract #tags from a title: word = [A-Za-z0-9_-]+, no # in the list,
-;; order of first appearance, deduplicated. Title is not modified.
 (define (title-tags title)
   (define raw
     (regexp-match* #px"#([A-Za-z0-9_-]+)"
@@ -49,14 +49,9 @@
 (begin-for-syntax
   (define (date-string? s)
     (and (string? s)
-         (regexp-match? #px"^[0-9]{4}-[0-9]{2}-[0-9]{2}$" s)
-         (let* ([parts (map string->number (string-split s "-"))]
-                [m (list-ref parts 1)]
-                [d (list-ref parts 2)])
-           (and (<= 1 m 12)
-                (or (and (memv m '(1 3 5 7 8 10 12)) (<= 1 d 31))
-                    (and (memv m '(4 6 9 11)) (<= 1 d 30))
-                    (and (= m 2) (<= 1 d 29)))))))
+         (with-handlers ([exn:fail? (λ (_) #f)])
+           (iso8601->date s)
+           #t)))
 
   (define-syntax-class date-str
     #:description "YYYY-MM-DD date"

@@ -1,6 +1,9 @@
 #lang racket/base
 
-;; Shared terminal styling. ANSI only when stdout is a TTY.
+;; Shared terminal styling via ansi-color. ANSI only when stdout is a TTY.
+
+(require racket/port
+         ansi-color)
 
 (provide use-ansi?
          style-dim
@@ -12,16 +15,19 @@
 
 (define (style-dim s)
   (if (use-ansi?)
-      (string-append "\x1b[2m" s "\x1b[0m")
+      (with-output-to-string
+        (λ ()
+          ;; Approximate dim: white foreground (ansi-color has no dim SGR)
+          (with-colors 'white (λ () (display s)))))
       s))
 
-;; Underline a tag token (including the leading #).
 (define (style-tag s)
   (if (use-ansi?)
-      (string-append "\x1b[4m" s "\x1b[0m")
+      (with-output-to-string
+        (λ ()
+          (with-colors 'cyan (λ () (display s)))))
       s))
 
-;; Style #tag tokens inside a title when on a TTY; plain otherwise.
 (define (style-title-tags title)
   (if (use-ansi?)
       (regexp-replace* #px"#[A-Za-z0-9_-]+"
