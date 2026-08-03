@@ -7,11 +7,7 @@
          racket/string
          (except-in "lang/expander.rkt" #%module-begin))
 
-(provide render-tree
-         render-task
-         format-task-line
-         format-description-line
-         dim)
+(provide render-tree)
 
 (define (dim s)
   (string-append "\x1b[2m" s "\x1b[0m"))

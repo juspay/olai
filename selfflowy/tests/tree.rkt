@@ -6,11 +6,6 @@
          selfflowy/tree)
 
 (module+ test
-  (test-case "format-task-line includes date when present"
-    (check-equal? (format-task-line (task "a" #f #f '())) "a")
-    (check-equal? (format-task-line (task "a" "2026-01-01" #f '()))
-                  "a  [2026-01-01]"))
-
   (test-case "render-tree uses box drawing for nested nodes"
     (define tasks
       (list

@@ -1,16 +1,15 @@
 #lang racket/base
 
-;; Public library surface for the selfflowy package.
+;; Public library surface: task data model + tree rendering.
+;; CLI lives in selfflowy/cli and is not re-exported here.
 
 (require (except-in "lang/expander.rkt" #%module-begin)
-         "tree.rkt"
-         "cli.rkt")
+         "tree.rkt")
 
-(provide (all-from-out "lang/expander.rkt")
-         (all-from-out "tree.rkt")
-         default-file
-         resolve-file
-         load-tasks
-         count-tasks
-         cmd-check
-         cmd-tree)
+(provide task
+         task?
+         task-title
+         task-date
+         task-description
+         task-children
+         render-tree)

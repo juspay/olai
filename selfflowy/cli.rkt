@@ -1,19 +1,12 @@
 #lang racket/base
 
 ;; selfflowy CLI: check | tree
+;; Helpers are module-private; entry point is module+ main.
 
 (require racket/list
          racket/path
          (except-in "lang/expander.rkt" #%module-begin)
          "tree.rkt")
-
-(provide default-file
-         resolve-file
-         load-tasks
-         count-tasks
-         cmd-check
-         cmd-tree
-         main)
 
 (define default-file "Tasks.rkt")
 
