@@ -45,11 +45,8 @@ restructure. Live with it, or open your laptop.
 ## STATUS
 
 Vaporware. README first, code next. (Ancestor: srid/Tend, same idea in
-Lean. The web layer is why it's Racket now.)
-
-The two files in the repo root are the syntax fluency experiment that
-picked classic s-expressions over Rhombus: tasks.rkt compiled first try,
-tasks.rhm took three.
+Lean. The web layer is why it's Racket now.) Classic s-expressions over
+Rhombus for `#lang selfflowy`.
 
 ## ROADMAP
 
