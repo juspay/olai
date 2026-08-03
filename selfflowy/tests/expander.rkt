@@ -65,11 +65,21 @@ EOF
     (check-equal? (task-description tk) "hi")
     (check-equal? (task-date tk) "2026-01-02"))
 
+  (test-case "datetime #:date accepted and space normalized to T"
+    (define tasks
+      (eval-tasks
+       "#lang selfflowy/sexp\n(t \"x\" #:date \"2026-08-04 09:30\")\n"))
+    (check-equal? (task-date (car tasks)) "2026-08-04T09:30")
+    (define tasks2
+      (eval-tasks
+       "#lang selfflowy/sexp\n(t \"y\" #:date \"2026-08-04T18:00\")\n"))
+    (check-equal? (task-date (car tasks2)) "2026-08-04T18:00"))
+
   (test-case "invalid date is a syntax error"
     (check-exn
      (λ (e)
        (and (exn:fail:syntax? e)
-            (regexp-match? #rx"(?i:YYYY-MM-DD|date)"
+            (regexp-match? #rx"(?i:ISO|date|datetime|YYYY)"
                            (exn-message e))))
      (λ ()
        (eval-tasks

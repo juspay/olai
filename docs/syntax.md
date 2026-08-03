@@ -14,7 +14,7 @@ Selfflowy roadmap #project
   0.4 the agent
     : Minimal HTTP server whose only page is a chat panel
     : driving Claude Code over ACP. Ugly on purpose.
-    @date 2026-08-15
+    @date 2026-08-15T09:30
   Buy milk — don't quote me; 2% "raw" milk is fine
 ```
 
@@ -25,7 +25,7 @@ Selfflowy roadmap #project
 | Title | Non-blank line, **verbatim** (any characters). |
 | Nesting | Exactly **2 spaces** per level. Tabs forbidden. Indent may increase by at most one level. |
 | Description | Indented continuation `: text`. Multiple `: ` lines join with `\n` into one `#:description`. |
-| Date | Indented `@date YYYY-MM-DD` → `#:date` (validated by the expander). |
+| Date/time | Indented `@date …` → `#:date`. Accepts `YYYY-MM-DD` or datetime `YYYY-MM-DDTHH:MM[:SS]` (space instead of `T` ok; normalized to `T`). Validated by gregor in the expander. |
 | Escape | Line starting with `\` (after indent) is a title beginning with the rest (so titles may start with `:`, `@`, or `\`). |
 | Blank lines | Insignificant. |
 | Inline `#tags` | In titles: `#` + `[A-Za-z0-9_-]+`. Title stays verbatim; expander fills `task-tags` (no `#`, first-seen order, deduped). Works for both langs. |

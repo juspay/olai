@@ -58,19 +58,16 @@
     [(regexp-match #px"^:($|[^ ].*)$" content)
      (reader-error src line col #f
                    "description line must start with \": \" (colon + space)")]
-    [(regexp-match #px"^@date[ \t]+(\\S+)(.*)$" content)
+    ;; Value is the rest of the line (trimmed): date and optional time.
+    [(regexp-match #px"^@date[ \t]+(\\S.*)$" content)
      => (λ (m)
-          (define rest (caddr m))
-          (unless (regexp-match? #px"^[ \t]*$" rest)
-            (reader-error src line col #f
-                          "trailing junk after @date; expected only a YYYY-MM-DD value"))
-          ;; column of the date value: after indent + "@date" + spaces
+          (define val (string-trim (cadr m)))
           (define prefix-m (regexp-match #px"^@date[ \t]+" content))
           (define val-col (+ col (string-length (car prefix-m))))
-          `(date ,(cadr m) ,val-col))]
+          `(date ,val ,val-col))]
     [(regexp-match #px"^@date\\s*$" content)
      (reader-error src line col #f
-                   "expected a date after @date (YYYY-MM-DD)")]
+                   "expected a date or datetime after @date (YYYY-MM-DD[THH:MM[:SS]])")]
     [(regexp-match #px"^@(\\S+)" content)
      => (λ (m)
           (reader-error src line col #f

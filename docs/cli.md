@@ -101,7 +101,10 @@ $ selfflowy html --out /tmp/Example.html examples/Example.rkt
 
 Exit codes same as other read commands (0 / 1 / 2 / 3).
 
-## `add [--json] [--file F] [--date YYYY-MM-DD] [--description TEXT] [--no-commit] TITLE...`
+## `add [--json] [--file F] [--date ISO] [--description TEXT] [--no-commit] TITLE...`
+
+`--date` accepts `YYYY-MM-DD` or a datetime (`YYYY-MM-DDTHH:MM` / `…:SS`; a space
+instead of `T` is fine).
 
 Capture under a top-level `Inbox` node (created if missing). Writes **outline**
 syntax only. TITLE words join with spaces (no shell quoting required).

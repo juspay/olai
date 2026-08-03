@@ -70,4 +70,19 @@
                   '(overdue)))
 
   (test-case "format-agenda empty message"
-    (check-equal? (format-agenda '()) "no dated tasks")))
+    (check-equal? (format-agenda '()) "no dated tasks"))
+
+  (test-case "datetime on today buckets as TODAY; sorts by full timestamp"
+    (define sample
+      (list
+       (tk "A" "2026-08-03T09:00" #f '())
+       (tk "B" "2026-08-03T18:00" #f '())
+       (tk "C" "2026-08-02T23:00" #f '())
+       (tk "D" "2026-08-04T01:00" #f '())))
+    (define groups (agenda-groups sample "2026-08-03"))
+    (check-equal? (map car groups) '(overdue today upcoming))
+    (check-equal? (map dated-task-title (cdr (assq 'overdue groups))) '("C"))
+    (check-equal? (map dated-task-title (cdr (assq 'today groups))) '("A" "B"))
+    (check-equal? (map dated-task-date (cdr (assq 'today groups)))
+                  '("2026-08-03T09:00" "2026-08-03T18:00"))
+    (check-equal? (map dated-task-title (cdr (assq 'upcoming groups))) '("D"))))

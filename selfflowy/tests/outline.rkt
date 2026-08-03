@@ -33,9 +33,9 @@ Inbox #capture
   : Quick capture landing zone
   Buy milk — don't quote me
     : 2% "raw" milk is fine
-    @date 2026-01-15
+    @date 2026-01-15T08:00
   Ship phase 0.1 #lang
-    @date 2026-08-03
+    @date 2026-08-03 14:30
 EOF
        ))
     (check-equal? (length tasks) 1)
@@ -46,11 +46,11 @@ EOF
     (check-equal? (length (task-children inbox)) 2)
     (define milk (car (task-children inbox)))
     (check-equal? (task-title milk) "Buy milk — don't quote me")
-    (check-equal? (task-date milk) "2026-01-15")
+    (check-equal? (task-date milk) "2026-01-15T08:00")
     (check-equal? (task-description milk) "2% \"raw\" milk is fine")
     (define ship (cadr (task-children inbox)))
     (check-equal? (task-tags ship) '("lang"))
-    (check-equal? (task-date ship) "2026-08-03"))
+    (check-equal? (task-date ship) "2026-08-03T14:30"))
 
   (test-case "multi-line description joins with newline"
     (define tasks
@@ -109,11 +109,25 @@ EOF
      (λ ()
        (eval-tasks "#lang selfflowy\nTask\n  @layout wide\n"))))
 
-  (test-case "trailing junk after @date is a reader error"
+  (test-case "datetime @date accepted (T and space forms)"
+    (define tasks
+      (eval-tasks
+       #<<EOF
+#lang selfflowy
+Morning
+  @date 2026-08-04 09:30
+Afternoon
+  @date 2026-08-04T18:00:00
+EOF
+       ))
+    (check-equal? (task-date (car tasks)) "2026-08-04T09:30")
+    (check-equal? (task-date (cadr tasks)) "2026-08-04T18:00:00"))
+
+  (test-case "garbage after @date fails expander validation"
     (check-exn
      (λ (e)
-       (and (exn:fail:read? e)
-            (regexp-match? #rx"(?i:trailing|junk)" (exn-message e))))
+       (and (exn:fail? e)
+            (regexp-match? #rx"(?i:date|ISO|datetime)" (exn-message e))))
      (λ ()
        (eval-tasks "#lang selfflowy\nTask\n  @date 2026-01-01 extra\n"))))
 

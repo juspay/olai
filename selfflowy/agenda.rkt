@@ -6,14 +6,15 @@
 (require racket/list
          racket/string
          (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/style)
+         selfflowy/style
+         selfflowy/dates)
 
 (provide (struct-out dated-task)
          collect-dated
          agenda-groups
          format-agenda)
 
-;; date: YYYY-MM-DD string
+;; date: ISO date or datetime string (YYYY-MM-DD[THH:MM[:SS]])
 ;; title: task title
 ;; breadcrumb: "A > B > title" path from root
 (struct dated-task (date title breadcrumb) #:transparent)
@@ -46,10 +47,11 @@
   (define-values (overdue today* upcoming)
     (for/fold ([ov '()] [td '()] [up '()])
               ([it (in-list items)])
-      (define d (dated-task-date it))
+      ;; Bucket by calendar day; sort still uses full timestamp string.
+      (define day (date-day-prefix (dated-task-date it)))
       (cond
-        [(string<? d today) (values (cons it ov) td up)]
-        [(string=? d today) (values ov (cons it td) up)]
+        [(string<? day today) (values (cons it ov) td up)]
+        [(string=? day today) (values ov (cons it td) up)]
         [else (values ov td (cons it up))])))
   ;; for/fold conses in reverse; restore date order
   (define groups

@@ -4,18 +4,18 @@
 ;;
 ;; Surface form (both readers produce this):
 ;;
-;;   (t "title" [#:date "YYYY-MM-DD"] [#:description "..."] child ...)
+;;   (t "title" [#:date "YYYY-MM-DD[THH:MM[:SS]]"] [#:description "..."] child ...)
 ;;
 ;; Inline #tags in titles are extracted into the task-tags field; the title
 ;; string stays verbatim. Children must be nested (t ...) forms.
-;; Date validation uses gregor (iso8601->date).
+;; Date/time validation uses gregor.
 
 (require racket/list
          (for-syntax racket/base
                      syntax/parse
                      racket/string
                      racket/list
-                     (only-in gregor iso8601->date)))
+                     (only-in gregor iso8601->date iso8601->datetime)))
 
 (provide (rename-out [module-begin #%module-begin])
          t
@@ -47,17 +47,28 @@
   (remove-duplicates raw))
 
 (begin-for-syntax
+  (define (normalize-date-string s)
+    (cond
+      [(regexp-match #px"^([0-9]{4}-[0-9]{2}-[0-9]{2})[ ]+([0-9].*)$" s)
+       => (λ (m) (string-append (cadr m) "T" (caddr m)))]
+      [else s]))
+
   (define (date-string? s)
     (and (string? s)
-         (with-handlers ([exn:fail? (λ (_) #f)])
-           (iso8601->date s)
-           #t)))
+         (let ([s (normalize-date-string s)])
+           (or (with-handlers ([exn:fail? (λ (_) #f)])
+                 (iso8601->date s)
+                 #t)
+               (with-handlers ([exn:fail? (λ (_) #f)])
+                 (iso8601->datetime s)
+                 #t)))))
 
   (define-syntax-class date-str
-    #:description "YYYY-MM-DD date"
+    #:description "ISO date or datetime (YYYY-MM-DD[THH:MM[:SS]])"
     (pattern d:str
              #:fail-unless (date-string? (syntax-e #'d))
-             "expected YYYY-MM-DD date"))
+             "expected ISO date or datetime (YYYY-MM-DD or YYYY-MM-DDTHH:MM[:SS])"
+             #:attr normalized (normalize-date-string (syntax-e #'d))))
 
   (define-splicing-syntax-class t-kwargs
     #:attributes (date description)
@@ -66,7 +77,9 @@
                          (~optional (~seq #:description desc:str)
                                     #:name "#:description"))
                    ...)
-             #:attr date (or (attribute d) #'#f)
+             #:attr date (if (attribute d)
+                             (datum->syntax #'d (attribute d.normalized) #'d)
+                             #'#f)
              #:attr description (or (attribute desc) #'#f)))
 
   (define-syntax-class task-form
@@ -83,14 +96,14 @@
     [(_ title . _)
      (raise-syntax-error
       't
-      "expected (t \"title\" [#:date \"YYYY-MM-DD\"] [#:description \"...\"] child ...); title must be a string literal"
+      "expected (t \"title\" [#:date iso-date] [#:description \"...\"] child ...); title must be a string literal"
       stx
       (let ([e (syntax-e stx)])
         (if (and (pair? e) (pair? (cdr e))) (cadr e) stx)))]
     [_
      (raise-syntax-error
       't
-      "expected (t \"title\" [#:date \"YYYY-MM-DD\"] [#:description \"...\"] child ...)"
+      "expected (t \"title\" [#:date iso-date] [#:description \"...\"] child ...)"
       stx)]))
 
 (define-syntax (module-begin stx)

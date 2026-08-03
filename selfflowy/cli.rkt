@@ -153,8 +153,9 @@
   (define title (string-join title-parts " "))
   (when (and date (not (valid-iso-date-string? date)))
     (die exit-usage
-         (format "invalid --date ~s; expected YYYY-MM-DD" date)
+         (format "invalid --date ~s; expected YYYY-MM-DD or YYYY-MM-DDTHH:MM[:SS]" date)
          #:json? json?))
+  (define date* (and date (normalize-date-string date)))
   (define path
     (simple-form-path
      (path->complete-path (or file-arg default-file))))
@@ -169,7 +170,7 @@
          #:json? json?
          #:file path))
   (define-values (new-text line created-inbox?)
-    (append-capture original title #:date date #:description desc))
+    (append-capture original title #:date date* #:description desc))
   (define tmp (string->path (string-append (path->string path) ".sf-tmp")))
   (with-handlers
       ([exn:fail?
@@ -197,7 +198,7 @@
       (write-json-stdout
        (ok-hash 'file (path->string path)
                 'title title
-                'date (nullish date)
+                'date (nullish date*)
                 'description (nullish desc)
                 'line line
                 'created_inbox created-inbox?
@@ -216,7 +217,7 @@
   (eprintf "  tree   [--json] [file]     print outline tree\n")
   (eprintf "  agenda [--json] [file]     OVERDUE / TODAY / UPCOMING\n")
   (eprintf "  html   [--out PATH] [file] render interactive HTML (stdout default)\n")
-  (eprintf "  add    [--json] [--file F] [--date YYYY-MM-DD] [--description TEXT]\n")
+  (eprintf "  add    [--json] [--file F] [--date ISO] [--description TEXT]\n")
   (eprintf "         [--no-commit] TITLE...   capture under Inbox\n")
   (eprintf "\n")
   (eprintf "exit codes: 0 ok | 1 usage | 2 validation/load | 3 not found\n")
@@ -296,7 +297,7 @@
    #:once-each
    [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
    [("--file") f "Outline file (default: Tasks.rkt)" (set! file-arg f)]
-   [("--date") d "YYYY-MM-DD date on the new task" (set! date d)]
+   [("--date") d "ISO date or datetime (YYYY-MM-DD[THH:MM[:SS]])" (set! date d)]
    [("--description") t "Description text" (set! desc t)]
    [("--no-commit") "Do not auto-commit even in a git repo" (set! no-commit? #t)]
    #:args title-words
