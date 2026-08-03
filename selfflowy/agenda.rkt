@@ -23,8 +23,9 @@
     (define title (task-title tk))
     (define path (append ancestors (list title)))
     (define crumb (string-join path " > "))
+    ;; Done tasks are excluded from the agenda even if they still have a date.
     (define here
-      (if (task-date tk)
+      (if (and (task-date tk) (not (task-done tk)))
           (list (dated-task (task-date tk) title crumb))
           '()))
     (append here

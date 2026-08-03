@@ -191,10 +191,25 @@
   (define title (task-title tk))
   (define date (task-date tk))
   (define desc (task-description tk))
+  (define done? (and (task-done tk) #t))
   (define kids (task-children tk))
+  (define title-class
+    (if done?
+        "text-base text-zinc-400 dark:text-zinc-500 line-through"
+        "text-base text-zinc-900 dark:text-zinc-100"))
+  (define checkbox
+    (if done?
+        `(span ((class "shrink-0 text-sm text-emerald-600 dark:text-emerald-400 select-none")
+                (aria-hidden "true")
+                (title "done"))
+               "☑")
+        `(span ((class "shrink-0 text-sm text-zinc-300 dark:text-zinc-600 select-none")
+                (aria-hidden "true"))
+               "☐")))
   (define title-row
     `(div ((class "flex flex-wrap items-baseline gap-2 min-w-0"))
-          (span ((class "text-base text-zinc-900 dark:text-zinc-100"))
+          ,checkbox
+          (span ((class ,title-class))
                 ,@(map style-md-xexpr (title->inline-xexprs title)))
           ,@(if date
                 (list `(span ((class "text-xs rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 px-1.5 py-0.5 font-mono shrink-0"))
@@ -202,7 +217,9 @@
                 '())))
   (define desc-el
     (if desc
-        `((div ((class "mt-0.5 pl-1"))
+        `((div ((class ,(if done?
+                            "mt-0.5 pl-1 opacity-60"
+                            "mt-0.5 pl-1")))
                ,@(note->xexprs desc)))
         '()))
   (define body

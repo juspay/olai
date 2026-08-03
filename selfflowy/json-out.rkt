@@ -22,6 +22,13 @@
 (define (nullish v)
   (if v v (json-null)))
 
+;; done field: null | true | ISO timestamp string
+(define (done->json d)
+  (cond
+    [(eq? d #t) #t]
+    [(string? d) d]
+    [else (json-null)]))
+
 (define (write-json-stdout h)
   (write-json h (current-output-port))
   (newline (current-output-port)))
@@ -46,6 +53,7 @@
   (hash 'title (task-title tk)
         'date (nullish (task-date tk))
         'description (nullish (task-description tk))
+        'done (done->json (task-done tk))
         'tags (task-tags tk)
         'children (map task->jsexpr (task-children tk))))
 
