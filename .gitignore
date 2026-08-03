@@ -1,0 +1,17 @@
+# Private task data — never commit
+/Tasks.rkt
+
+# Racket
+compiled/
+*.zo
+*.dep
+
+# Nix
+/result
+/result-*
+.direnv/
+
+# Local Racket user home for nix/dev
+.plt-user/
+
+/.direnv
