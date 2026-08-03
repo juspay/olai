@@ -3,6 +3,7 @@
 (require rackunit
          json
          racket/file
+         racket/path
          racket/port
          racket/string
          xml
@@ -94,7 +95,21 @@
     (check-true (string-prefix? html "<!DOCTYPE html>") html)
     (check-true (string-contains? html "cdn.tailwindcss.com") html)
     (check-true (string-contains? html "<title>Demo</title>") html)
-    (check-false (string-contains? html "expand-all") html))
+    (check-false (string-contains? html "expand-all") html)
+    ;; single file: no per-file h2 section chrome
+    (check-false (string-contains? html "<h2") html))
+
+  (test-case "files->html multi-file sections use basenames as h2"
+    (define html
+      (files->html
+       (list (cons (string->path "/tmp/Tasks.rkt") (list (tk "Milk" #f #f '())))
+             (cons (string->path "/tmp/Roadmap.rkt") (list (tk "Ship" #f #f '()))))
+       "selfflowy"))
+    (check-true (string-contains? html "<h2") html)
+    (check-true (string-contains? html "Tasks.rkt") html)
+    (check-true (string-contains? html "Roadmap.rkt") html)
+    (check-true (string-contains? html "Milk") html)
+    (check-true (string-contains? html "Ship") html))
 
   (test-case "cli html --out writes file"
     (define dir (make-temporary-file "sfhtml~a" 'directory))

@@ -2,6 +2,7 @@
 
 (require rackunit
          racket/list
+         racket/path
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/agenda)
 
@@ -100,4 +101,25 @@
     (check-equal? (map dated-task-title (cdr (assq 'overdue groups)))
                   '("Open overdue"))
     (check-equal? (map dated-task-title (cdr (assq 'today groups)))
-                  '("Open today"))))
+                  '("Open today")))
+
+  (test-case "multi-file merge roots breadcrumbs at basename"
+    (define a (list (tk "Milk" "2026-08-01" #f '())))
+    (define b (list (tk "Later" "2026-09-01" #f '())))
+    (define groups
+      (agenda-groups-from-files
+       (list (cons (string->path "/tmp/Tasks.rkt") a)
+             (cons (string->path "/tmp/Roadmap.rkt") b))
+       "2026-08-03"))
+    (check-equal? (map car groups) '(overdue upcoming))
+    (define ov (car (cdr (assq 'overdue groups))))
+    (define up (car (cdr (assq 'upcoming groups))))
+    (check-equal? (dated-task-breadcrumb ov) "Tasks.rkt > Milk")
+    (check-equal? (dated-task-breadcrumb up) "Roadmap.rkt > Later")
+    ;; single file: no file root
+    (define one
+      (agenda-groups-from-files
+       (list (cons (string->path "/tmp/Tasks.rkt") a))
+       "2026-08-03"))
+    (check-equal? (dated-task-breadcrumb (car (cdr (assq 'overdue one))))
+                  "Milk")))

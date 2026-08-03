@@ -4,6 +4,7 @@
 ;; Plain-text formatting only (no ANSI). Printing/clock live in the CLI.
 
 (require racket/list
+         racket/path
          racket/string
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/dates)
@@ -11,14 +12,16 @@
 (provide (struct-out dated-task)
          collect-dated
          agenda-groups
+         agenda-groups-from-files
          format-agenda)
 
 ;; date: ISO date or datetime string (YYYY-MM-DD[THH:MM[:SS]])
 ;; title: task title
-;; breadcrumb: "A > B > title" path from root
+;; breadcrumb: "A > B > title" path from root (optional file basename root)
 (struct dated-task (date title breadcrumb) #:transparent)
 
-(define (collect-dated tasks)
+;; #:root — optional string prepended to every breadcrumb (e.g. file basename).
+(define (collect-dated tasks #:root [root #f])
   (define (walk tk ancestors)
     (define title (task-title tk))
     (define path (append ancestors (list title)))
@@ -32,21 +35,18 @@
             (append*
              (for/list ([c (in-list (task-children tk))])
                (walk c path)))))
+  (define start (if root (list root) '()))
   (append*
    (for/list ([tk (in-list tasks)])
-     (walk tk '()))))
+     (walk tk start))))
 
-;; -> (listof (cons group-sym (listof dated-task)))
-;; group-sym is 'overdue | 'today | 'upcoming; empty groups omitted.
-;; Items within each group sorted by date ascending (ISO strings).
-(define (agenda-groups tasks today)
-  (define items
-    (sort (collect-dated tasks)
-          string<?
-          #:key dated-task-date))
+;; items: already-collected (listof dated-task)
+(define (group-dated-items items today)
+  (define sorted
+    (sort items string<? #:key dated-task-date))
   (define-values (overdue today* upcoming)
     (for/fold ([ov '()] [td '()] [up '()])
-              ([it (in-list items)])
+              ([it (in-list sorted)])
       ;; Bucket by calendar day; sort still uses full timestamp string.
       (define day (date-day-prefix (dated-task-date it)))
       (cond
@@ -58,6 +58,26 @@
           (cons 'today (reverse today*))
           (cons 'upcoming (reverse upcoming))))
   (filter (λ (g) (not (null? (cdr g)))) groups))
+
+;; -> (listof (cons group-sym (listof dated-task)))
+;; group-sym is 'overdue | 'today | 'upcoming; empty groups omitted.
+(define (agenda-groups tasks today #:root [root #f])
+  (group-dated-items (collect-dated tasks #:root root) today))
+
+;; file-entries: (listof (cons path tasks))
+;; When more than one file, breadcrumbs are rooted at each file's basename.
+(define (agenda-groups-from-files file-entries today)
+  (define multi? (> (length file-entries) 1))
+  (define items
+    (append*
+     (for/list ([e (in-list file-entries)])
+       (define path (car e))
+       (define tasks (cdr e))
+       (define root
+         (and multi?
+              (path->string (file-name-from-path path))))
+       (collect-dated tasks #:root root))))
+  (group-dated-items items today))
 
 (define (group-header sym)
   (case sym

@@ -6,12 +6,14 @@
 
 (require racket/list
          racket/match
+         racket/path
          racket/string
          xml
          (only-in markdown parse-markdown)
          (except-in selfflowy/lang/expander #%module-begin))
 
 (provide tasks->html
+         files->html
          task->xexpr
          page-xexpr
          title->inline-xexprs
@@ -240,7 +242,24 @@
                     (ul ((class "ml-3 pl-3 border-l border-zinc-200 dark:border-zinc-700 mt-0.5 space-y-0.5"))
                         ,@(map task->xexpr kids))))))
 
-(define (page-xexpr tasks page-title)
+;; sections: (listof (cons section-title tasks)) — one section per file when multi.
+(define (page-xexpr sections page-title)
+  (define body-sections
+    (match sections
+      [(list (cons _ tasks))
+       ;; Single file: flat tree, no per-file h2.
+       `((ul ((class "space-y-1"))
+             ,@(map task->xexpr tasks)))]
+      [many
+       (append*
+        (for/list ([sec (in-list many)])
+          (define sec-title (car sec))
+          (define tasks (cdr sec))
+          `((section ((class "mb-8"))
+                     (h2 ((class "text-lg font-semibold tracking-tight mb-3 text-zinc-800 dark:text-zinc-100"))
+                         ,sec-title)
+                     (ul ((class "space-y-1"))
+                         ,@(map task->xexpr tasks))))))]))
   `(html ((lang "en"))
          (head
           (meta ((charset "utf-8")))
@@ -254,10 +273,26 @@
                      (header ((class "mb-6"))
                              (h1 ((class "text-xl font-semibold tracking-tight"))
                                  ,page-title))
-                     (ul ((class "space-y-1"))
-                         ,@(map task->xexpr tasks))))))
+                     ,@body-sections))))
 
 (define (tasks->html tasks page-title)
+  (files->html (list (cons page-title tasks)) page-title))
+
+;; file-entries: (listof (cons path-or-label tasks))
+;; Section heading is the basename when path-like, else the label string.
+(define (files->html file-entries page-title)
+  (define sections
+    (for/list ([e (in-list file-entries)])
+      (define label
+        (let ([p (car e)])
+          (if (path? p)
+              (path->string (file-name-from-path p))
+              (let ([s (if (string? p) p (format "~a" p))])
+                (define-values (base name dir?) (split-path s))
+                (if (path-for-some-system? name)
+                    (path->string name)
+                    s)))))
+      (cons label (cdr e))))
   (string-append
    "<!DOCTYPE html>\n"
-   (xexpr->string (page-xexpr tasks page-title))))
+   (xexpr->string (page-xexpr sections page-title))))

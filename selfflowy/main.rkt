@@ -19,4 +19,6 @@
          (struct-out dated-task)
          collect-dated
          agenda-groups
-         tasks->html)
+         agenda-groups-from-files
+         tasks->html
+         files->html)
