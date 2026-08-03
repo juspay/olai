@@ -50,31 +50,8 @@ Classic s-expressions over Rhombus.
 
 ## ROADMAP
 
-Weekend-sized phases. Every phase leaves the tool USABLE -- if the
-project dies at any line below, what exists still works.
-
-    0.1  the language      #lang selfflowy + `selfflowy check`; render
-                           tree to terminal. Usable today with $EDITOR,
-                           Claude Code, and git. No server.
-    0.2  mirrors & dates   references resolve, cycles rejected, date
-                           literals; `selfflowy agenda` in the terminal.
-    0.3  capture           `selfflowy add "buy milk"` appends to the
-                           inbox file; auto-commit. Bind it to a hotkey.
-    0.4  the agent         minimal HTTP server whose only page is a chat
-                           panel driving Claude Code over ACP, plus a
-                           crude tree dump. Talk to your outline from
-                           any browser. Ugly on purpose.
-    0.5  the outline       real read-mostly view: collapse, zoom,
-                           breadcrumbs; SSE pushes updates when files
-                           change (agent edits appear live).
-    0.6  micro-edits       capture box + check-off from the browser.
-                           The phone loop closes: capture, complete,
-                           ask the agent for everything else.
-    0.7  PWA               manifest + service worker; offline reading,
-                           background-sync capture queue.
-    0.8  calendar          agenda & calendar views over date literals.
-    0.9  search            plain text search + keyboard nav.
-    1.0  daily driver      when the author stops opening Workflowy.
+The roadmap is a selfflowy outline:
+`selfflowy tree examples/Roadmap.rkt` (phases 0.1–1.0).
 
 ## BUILDING
 
