@@ -1,31 +1,29 @@
 #lang selfflowy
 
-Shipped #project
-  : Landed and pushed. git log is the real changelog.
-  0.1 the language
+Selfflowy roadmap #project
+  : Weekend-sized phases; every phase leaves the tool usable.
+  : git log is the real changelog.
+  [x] 0.1 the language
     : The s-exp core, then the quoteless outline syntax took the flagship
     : name (selfflowy/sexp keeps the old form). Strict 2-space indent,
     : verbatim titles, ": " notes, @date fields, inline #tags, closed
     : grammar, srcloc'd errors agents can act on.
-  0.2a dates
+  [x] 0.2a dates
     : @date with ISO date or datetime (gregor); `selfflowy agenda` groups
     : overdue / today / upcoming.
-  0.3 capture
+  [x] 0.3 capture
     : `selfflowy add` appends under Inbox, re-validates before keeping the
     : write, auto-commits. Bind it to a hotkey.
-  agent-first CLI
+  [x] agent-first CLI
     : Agents are the primary users: --json everywhere (version key,
     : append-only fields), exit-code contract, errors as JSON. docs/cli.md
-    : is the contract.
-  html view
+    : is the contract. Multi-file paths; merged agenda.
+  [x] html view
     : `selfflowy html` — Tailwind + details/summary, Markdown in titles and
     : notes (render-time only). Terminal renderer retired; tree is JSON-only.
-  done status
+  [x] done status
     : `@done` / `[x]` sugar, `#:done` in the core, agenda exclusion, checked
     : HTML rendering, `selfflowy done TITLE` with add-style write safety.
-
-Selfflowy roadmap #project
-  : Weekend-sized phases; every phase leaves the tool usable.
   0.2b mirrors
     : ^anchor / *anchor references resolve; cycles rejected at check time.
     : Design already in docs/syntax.md.
