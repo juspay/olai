@@ -3,6 +3,9 @@
 Agents are the primary users. Prefer `--json`. Fields within a `version` are
 **append-only**; a bump of `version` is a breaking change.
 
+**Human view is HTML** (`selfflowy html`). There is no ANSI terminal tree.
+Agents use `tree` / `check` / `agenda --json`.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -17,7 +20,7 @@ Same codes for plain and `--json` modes.
 ## Global
 
 - Default outline file: `Tasks.rkt` in the cwd (except `add --file`).
-- `--json` may appear after the subcommand for every command.
+- `--json` may appear after the subcommand where supported.
 
 ## `check [--json] [file]`
 
@@ -38,10 +41,8 @@ JSON stdout:
 
 ## `tree [--json] [file]`
 
-Print the outline (unicode tree + dim descriptions on a TTY), or the full
-task forest as JSON.
-
-JSON stdout:
+**Always JSON** (the task forest). `--json` is accepted as a no-op for compat.
+Humans should use `html`.
 
 ```json
 {
@@ -59,18 +60,19 @@ JSON stdout:
 }
 ```
 
-`date` / `description` are strings or `null`. `tags` is always an array.
+`date` / `description` are raw strings or `null` (Markdown is not interpreted
+here). `tags` is always an array.
 
 ## `agenda [--json] [file]`
 
-Dated tasks relative to local today. Empty groups omitted in plain mode;
-JSON always includes all three arrays (possibly empty).
+Dated tasks relative to local today. Plain mode is unstyled text. Empty groups
+omitted in plain mode; JSON always includes all three arrays (possibly empty).
 
 Plain:
 
 ```
 OVERDUE
-  [2026-01-15]  Buy milk
+  [2026-01-15T08:00]  Buy milk
          Inbox > Buy milk
 ```
 
@@ -80,7 +82,7 @@ JSON stdout:
 {
   "version": 1,
   "today": "2026-08-03",
-  "overdue": [{"title":"...","date":"2026-01-15","breadcrumb":"..."}],
+  "overdue": [{"title":"...","date":"2026-01-15T08:00","breadcrumb":"..."}],
   "today_items": [],
   "upcoming": []
 }
@@ -88,8 +90,9 @@ JSON stdout:
 
 ## `html [--out PATH] [file]`
 
-Render an interactive HTML outline (X-expressions + Tailwind CDN). No `--json`
-— HTML is the output format.
+Render an interactive HTML **tree** (nested lists; parents are
+`<details>`/`<summary>` — click a node to expand/collapse). No `--json` —
+HTML is the output format. Titles/notes use Markdown at render time only.
 
 - Default: write the document to **stdout** (pipe-friendly).
 - `--out PATH`: write a file and print the absolute path on stdout.
@@ -149,7 +152,7 @@ Single object on **stderr**, exit non-zero:
     "file": ".../Tasks.rkt",
     "line": 4,
     "col": 2,
-    "message": "expected YYYY-MM-DD date"
+    "message": "..."
   }
 }
 ```
@@ -162,3 +165,10 @@ pretty-printed messages.
 - Top-level objects always include `"version": 1`.
 - Within v1, new keys may appear; existing keys keep meaning and type.
 - Removing or renaming a key requires a version bump.
+
+## Nix build note
+
+Runtime deps include `gregor` and `markdown`. Pure `nix build` cannot fetch
+them without vendoring; until zips are pinned as fixed-output derivations, use
+the dev shell (`just test` / `raco pkg install --auto`). Keep CI green via
+`just test` when pure offline distribute is blocked.

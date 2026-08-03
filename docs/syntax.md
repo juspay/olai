@@ -30,6 +30,28 @@ Selfflowy roadmap #project
 | Blank lines | Insignificant. |
 | Inline `#tags` | In titles: `#` + `[A-Za-z0-9_-]+`. Title stays verbatim; expander fills `task-tags` (no `#`, first-seen order, deduped). Works for both langs. |
 
+### Inline formatting (Markdown)
+
+Formatting is **interpretation at render time**, not data. The reader, expander,
+task struct, and CLI write path leave strings **verbatim**. Only `selfflowy html`
+parses Markdown (via the `markdown` package → xexprs).
+
+| Surface | Markdown scope |
+|--------|----------------|
+| **Title** | Inline subset only: bold, italic, code spans, links. Block constructs never apply inside a title (no headings, lists, fenced blocks). |
+| **Notes** (`: ` lines, joined with `\n`) | Full document Markdown, including fenced code blocks. |
+
+**Ambiguity rules**
+
+- `#word` is a **tag**, never an ATX heading. Block Markdown is not parsed in titles; tags are recognized in text nodes after Markdown parse, **except inside `` `code` `` spans** (code wins — a `#tag` inside backticks stays plain code text, not a pill).
+- Future mirror sigil `*anchor` is **line-initial** on its own outline line, so it will not collide with inline `*italic*`.
+- Raw HTML in titles/notes is **not** trusted: unknown tags are stripped after parse (no `<script>` injection).
+
+**Designed, not implemented**
+
+- `@layout code` — whole node rendered as a code block
+- Strikethrough (`~~x~~`) — not in the default `markdown` package grammar we use; do not invent it yet
+
 ### Not implemented (designed, deferred)
 
 Mark these clearly so agents do not invent them:

@@ -36,24 +36,24 @@ under a title:
     Inbox #capture
       : Quick capture landing zone
       Buy milk — don't quote me
-        @date 2026-08-04
+        @date 2026-08-04T18:00
 
-Inline `#tags` stay in the title; the expander also records them on the
-task. Full rules (and what is deliberately not implemented): `docs/syntax.md`.
+Titles and notes are Markdown at **render** time (`html` only); stored
+strings stay raw. Full rules: `docs/syntax.md`.
 
 Under the hood every outline becomes s-expressions. Same expander:
 
     #lang selfflowy/sexp
     (t "Inbox #capture"
        #:description "Quick capture landing zone"
-       (t "Buy milk" #:date "2026-08-04"))
+       (t "Buy milk" #:date "2026-08-04T18:00"))
 
 ## HOW IT WORKS
 
     ~/tasks/*.rkt                    <- source of truth (#lang selfflowy)
         |
         v
-    selfflowy CLI (Racket)           <- validate / query / render / capture
+    selfflowy CLI (Racket)           <- validate / query / html / capture
         |
         v
     racket web-server ---- SSE ----> browser (PWA, htmx)
@@ -66,32 +66,33 @@ restructure. Live with it, or open your laptop.
 
 ## STATUS
 
-Outline `#lang selfflowy` + sexp core + `check` / `tree` / `agenda` /
-`add` / `html` (agent-first `--json`). (Ancestor: srid/Tend.)
+Outline `#lang selfflowy` + sexp core + agent CLI (`check` / `tree` JSON /
+`agenda` / `add` / `html`). Human view is HTML. (Ancestor: srid/Tend.)
 
 ## ROADMAP
 
 The roadmap is a selfflowy outline:
-`selfflowy tree examples/Roadmap.rkt` (phases 0.1–1.0).
+`selfflowy html examples/Roadmap.rkt` (phases 0.1–1.0).
 
 ## BUILDING
 
     nix develop        # racket 9.2 + just; or install them yourself
     just install       # raco pkg install --link selfflowy/
     just check         # validates Tasks.rkt (gitignored private outline)
-    just tree examples/Example.rkt
+    just tree examples/Example.rkt   # JSON forest for agents
+    just html examples/Example.rkt   # human tree view
     just agenda examples/Example.rkt
-    just html examples/Example.rkt
     just test
 
 ## CLI (agents)
 
 Machine-readable contract (`--json`, exit codes, `add`): **docs/cli.md**.
+No ANSI. Humans: `selfflowy html`.
 
 ## HACKING
 
 **No hand-rolling where a library exists.** Prefer maintained packages
-(`racket/cmdline`, `json`, `gregor`, `ansi-color`, `xml` xexprs) over
+(`racket/cmdline`, `json`, `gregor`, `markdown`, `xml` xexprs) over
 home-grown parsers and escape codes.
 
 Patches welcome. Keep it small, keep it boring. The interesting part is
