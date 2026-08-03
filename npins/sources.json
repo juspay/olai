@@ -1,0 +1,172 @@
+{
+  "pins": {
+    "cldr-bcp47": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "97jaz",
+        "repo": "cldr-bcp47"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "823fc1a530f1a0ec4de59f5454c1a17f20c5a5d6",
+      "url": "https://github.com/97jaz/cldr-bcp47/archive/823fc1a530f1a0ec4de59f5454c1a17f20c5a5d6.tar.gz",
+      "hash": "sha256-YY5q44IQ1cNX4wk8Yt7B+z2uvfy+xMSl5tTDs+1RBlA=",
+      "frozen": true
+    },
+    "cldr-core": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "97jaz",
+        "repo": "cldr-core"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "c9b80777c422c3b104bb85052d74a2dc1535a3c3",
+      "url": "https://github.com/97jaz/cldr-core/archive/c9b80777c422c3b104bb85052d74a2dc1535a3c3.tar.gz",
+      "hash": "sha256-Tpk6uYWz4//C+/n50wsLiD16rwOim85R/Ykrtcoa1+8=",
+      "frozen": true
+    },
+    "cldr-dates-modern": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "97jaz",
+        "repo": "cldr-dates-modern"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "c36282917247f6a069e553535f4619007cd7b6e5",
+      "url": "https://github.com/97jaz/cldr-dates-modern/archive/c36282917247f6a069e553535f4619007cd7b6e5.tar.gz",
+      "hash": "sha256-byD2ubs543P9512lKD1JKB1ppyzjKzoWnuW8JPspa7M=",
+      "frozen": true
+    },
+    "cldr-localenames-modern": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "97jaz",
+        "repo": "cldr-localenames-modern"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "f9f3e8d9245764a309542816acf40fe147b473a3",
+      "url": "https://github.com/97jaz/cldr-localenames-modern/archive/f9f3e8d9245764a309542816acf40fe147b473a3.tar.gz",
+      "hash": "sha256-fZ1fnkslpZuicJgMh6/aLd4rPov7lvJr6ulDWpTMpKg=",
+      "frozen": true
+    },
+    "cldr-numbers-modern": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "97jaz",
+        "repo": "cldr-numbers-modern"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "625428099b3f8cd264955a283dddc176a6080ba1",
+      "url": "https://github.com/97jaz/cldr-numbers-modern/archive/625428099b3f8cd264955a283dddc176a6080ba1.tar.gz",
+      "hash": "sha256-RDa1d4sSyfyuNgz2dJdu2f1XGiO4cPOkaseZ7q2cLJU=",
+      "frozen": true
+    },
+    "gregor": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "97jaz",
+        "repo": "gregor"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "f56215db229ef2e33670f55d08c0330d8f85de23",
+      "url": "https://github.com/97jaz/gregor/archive/f56215db229ef2e33670f55d08c0330d8f85de23.tar.gz",
+      "hash": "sha256-4TIeinXk7ak7sbT2lwfWYdwIwFD9S7whBrR2KEajW30=",
+      "frozen": true
+    },
+    "markdown": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "greghendershott",
+        "repo": "markdown"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "1083700a81c0bdb38f62f31fd711686007fe33e8",
+      "url": "https://github.com/greghendershott/markdown/archive/1083700a81c0bdb38f62f31fd711686007fe33e8.tar.gz",
+      "hash": "sha256-uFioTU2HhU0flwvlN5yxs5Nn47+AQaE75RMb5hW0sl0=",
+      "frozen": true
+    },
+    "memoize": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "jbclements",
+        "repo": "memoize"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "c9691ed9ba2604de223b6ba3dd08d17f740bc8cd",
+      "url": "https://github.com/jbclements/memoize/archive/c9691ed9ba2604de223b6ba3dd08d17f740bc8cd.tar.gz",
+      "hash": "sha256-HLAnsZe+BACkBQUYpgid2HKcHe4y8E0QqsYcZuvFaR0=",
+      "frozen": true
+    },
+    "nixpkgs": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "NixOS",
+        "repo": "nixpkgs"
+      },
+      "branch": "nixos-unstable",
+      "submodules": false,
+      "revision": "643809054d65fdd466a63e3155b8c498cb483c04",
+      "url": "https://github.com/NixOS/nixpkgs/archive/643809054d65fdd466a63e3155b8c498cb483c04.tar.gz",
+      "hash": "sha256-vUfIeBEfpbAfZ5zjgIkYk7eHBeVfCYVjLbWnMkseYnk="
+    },
+    "parsack": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "stchang",
+        "repo": "parsack"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "57b21873e8e3eb7ffbdfa253251c3c27a66723b1",
+      "url": "https://github.com/stchang/parsack/archive/57b21873e8e3eb7ffbdfa253251c3c27a66723b1.tar.gz",
+      "hash": "sha256-nWpLRsynxy2G3vAxflGkl6LfMiVIRpujAQ/LTGuBDfk=",
+      "frozen": true
+    },
+    "threading": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "lexi-lambda",
+        "repo": "threading"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "e79cfe551740baf9f696f452d7507a6f2ed00a05",
+      "url": "https://github.com/lexi-lambda/threading/archive/e79cfe551740baf9f696f452d7507a6f2ed00a05.tar.gz",
+      "hash": "sha256-9iTG6eR+WsGoIClOFQyiMXeJsI220SkNvh75lh4SslM=",
+      "frozen": true
+    },
+    "tzinfo": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "97jaz",
+        "repo": "tzinfo"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "2f812283d9c90040aecb3c7e2ed2edf93a3720de",
+      "url": "https://github.com/97jaz/tzinfo/archive/2f812283d9c90040aecb3c7e2ed2edf93a3720de.tar.gz",
+      "hash": "sha256-vvb3EZHFysa/2OiTat+i8zuALxiCPHNNaWCGlyPF6gk=",
+      "frozen": true
+    }
+  },
+  "version": 8
+}
