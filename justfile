@@ -29,6 +29,11 @@ tree *args: install
 agenda *args: install
     selfflowy agenda {{if args == "" { "Tasks.rkt" } else { args }}}
 
+# Capture under Inbox
+# Usage: just add buy milk
+add *args: install
+    selfflowy add --no-commit {{args}}
+
 # Re-run `just tree` whenever Tasks.rkt changes (clears the screen each time)
 watch: install
     watchexec -w Tasks.rkt -c -- just tree
