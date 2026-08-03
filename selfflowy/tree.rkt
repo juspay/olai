@@ -2,21 +2,13 @@
 
 ;; Render a task tree with unicode box-drawing characters.
 ;; Optional #:description is shown dimmed on the next line, indented.
-;; ANSI styling is emitted only when stdout is a terminal.
 
 (require racket/list
          racket/string
-         (except-in selfflowy/lang/expander #%module-begin))
+         (except-in selfflowy/lang/expander #%module-begin)
+         selfflowy/style)
 
 (provide render-tree)
-
-(define (use-ansi?)
-  (terminal-port? (current-output-port)))
-
-(define (style-dim s)
-  (if (use-ansi?)
-      (string-append "\x1b[2m" s "\x1b[0m")
-      s))
 
 (define (format-task-line tk)
   (define title (task-title tk))
