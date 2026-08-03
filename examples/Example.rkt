@@ -11,6 +11,11 @@ Inbox #capture
     Ship phase 0.1 #lang
       : today-ish sample with a time
       @date 2026-08-03 14:30
+  [x] Pick a name
+    : done via checkbox sugar (not on agenda)
+  Wire the CLI
+    : completed with a stamp
+    @done 2026-08-02
 
 Someday
   Calendar view

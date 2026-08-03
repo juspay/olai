@@ -20,6 +20,9 @@ Shipped #project
   html view
     : `selfflowy html` — Tailwind + details/summary, Markdown in titles and
     : notes (render-time only). Terminal renderer retired; tree is JSON-only.
+  done status
+    : `@done` / `[x]` sugar, `#:done` in the core, agenda exclusion, checked
+    : HTML rendering, `selfflowy done TITLE` with add-style write safety.
 
 Selfflowy roadmap #project
   : Weekend-sized phases; every phase leaves the tool usable.
@@ -34,8 +37,8 @@ Selfflowy roadmap #project
     : Real read-mostly web view: collapse, zoom, breadcrumbs; SSE pushes
     : updates when files change (agent edits appear live).
   0.6 micro-edits
-    : Capture box + check-off from the browser (needs @done, designed in
-    : docs/syntax.md). The phone loop closes: capture, complete, ask the
+    : Capture box + check-off from the browser (done status already in the
+    : language + CLI). The phone loop closes: capture, complete, ask the
     : agent for everything else.
   0.7 PWA
     : Manifest + service worker; offline reading, background-sync capture

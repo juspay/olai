@@ -37,16 +37,20 @@ under a title:
       : Quick capture landing zone
       Buy milk — don't quote me
         @date 2026-08-04T18:00
+      [x] Already shipped the pitch
+        @done 2026-08-03
 
 Titles and notes are Markdown at **render** time (`html` only); stored
-strings stay raw. Full rules: `docs/syntax.md`.
+strings stay raw. Check off with `[x] ` / `@done` (or `selfflowy done TITLE`).
+Full rules: `docs/syntax.md`.
 
 Under the hood every outline becomes s-expressions. Same expander:
 
     #lang selfflowy/sexp
     (t "Inbox #capture"
        #:description "Quick capture landing zone"
-       (t "Buy milk" #:date "2026-08-04T18:00"))
+       (t "Buy milk" #:date "2026-08-04T18:00")
+       (t "Already shipped the pitch" #:done "2026-08-03"))
 
 ## HOW IT WORKS
 
@@ -67,7 +71,8 @@ restructure. Live with it, or open your laptop.
 ## STATUS
 
 Outline `#lang selfflowy` + sexp core + agent CLI (`check` / `tree` JSON /
-`agenda` / `add` / `html`). Human view is HTML. (Ancestor: srid/Tend.)
+`agenda` / `add` / `done` / `html`). Done status (`@done` / `[x]`) is first
+class. Human view is HTML. (Ancestor: srid/Tend.)
 
 ## ROADMAP
 

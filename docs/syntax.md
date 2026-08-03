@@ -26,6 +26,8 @@ Selfflowy roadmap #project
 | Nesting | Exactly **2 spaces** per level. Tabs forbidden. Indent may increase by at most one level. |
 | Description | Indented continuation `: text`. Multiple `: ` lines join with `\n` into one `#:description`. |
 | Date/time | Indented `@date …` → `#:date`. Accepts `YYYY-MM-DD` or datetime `YYYY-MM-DDTHH:MM[:SS]` (space instead of `T` ok; normalized to `T`). Validated by gregor in the expander. |
+| Done | Indented `@done` or `@done …` → `#:done` / `#:done` timestamp. Bare means completed (`#t`); with a value, same ISO forms as `@date`. |
+| Checkbox sugar | Title prefix `[x] ` / `[X] ` desugars to bare `@done` (prefix **not** part of the title). `[ ] ` is an explicit not-done marker (stripped, no-op). Escape with `\` if the title should literally start with `[x] `. |
 | Escape | Line starting with `\` (after indent) is a title beginning with the rest (so titles may start with `:`, `@`, or `\`). |
 | Blank lines | Insignificant. |
 | Inline `#tags` | In titles: `#` + `[A-Za-z0-9_-]+`. Title stays verbatim; expander fills `task-tags` (no `#`, first-seen order, deduped). Works for both langs. |
@@ -56,12 +58,12 @@ parses Markdown (via the `markdown` package → xexprs).
 
 Mark these clearly so agents do not invent them:
 
-- `[x]` / `@done` — completion / check-off
 - `^anchor` / `*anchor` — mirrors / references
-- `@layout` and other `@` fields beyond `@date`
+- `@layout` and other `@` fields beyond `@date` / `@done`
 - Sidecar UI state (collapse, zoom, focus) — not in the outline file
+- Interactive check-off in `html` (0.6 micro-edits); rendering of done is already checked/strikethrough
 
-Unknown `@field` is a **reader error** today (names the known fields).
+Unknown `@field` is a **reader error** today (names the known fields: `@date`, `@done`).
 
 ## `#lang selfflowy/sexp` — s-expression core
 
@@ -73,8 +75,11 @@ prefer sexps.
 
 (t "Inbox #capture"
    #:description "landing"
-   (t "Buy milk" #:date "2026-01-15"))
+   (t "Buy milk" #:date "2026-01-15")
+   (t "Shipped" #:done "2026-08-03"))
 ```
 
-Keywords `#:date` and `#:description` are optional, either order, at most once
-each. Children must themselves be `(t ...)` forms (closed grammar).
+Keywords `#:date`, `#:description`, and `#:done` are optional, any order, at
+most once each. `#:done` may be bare (`#:done` → completed) or take an ISO
+date/datetime string. Children must themselves be `(t ...)` forms (closed
+grammar).

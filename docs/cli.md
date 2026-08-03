@@ -53,6 +53,7 @@ Humans should use `html`.
       "title": "Inbox #capture",
       "date": null,
       "description": "Quick capture landing zone",
+      "done": null,
       "tags": ["capture"],
       "children": [ ... ]
     }
@@ -61,12 +62,14 @@ Humans should use `html`.
 ```
 
 `date` / `description` are raw strings or `null` (Markdown is not interpreted
-here). `tags` is always an array.
+here). `done` is `null` (open), `true` (completed, no timestamp), or an ISO
+timestamp string. `tags` is always an array.
 
 ## `agenda [--json] [file]`
 
-Dated tasks relative to local today. Plain mode is unstyled text. Empty groups
-omitted in plain mode; JSON always includes all three arrays (possibly empty).
+Dated tasks relative to local today. **Done tasks are excluded** even if they
+still have a `@date`. Plain mode is unstyled text. Empty groups omitted in
+plain mode; JSON always includes all three arrays (possibly empty).
 
 Plain:
 
@@ -140,6 +143,45 @@ JSON stdout:
 }
 ```
 
+## `done [--json] [--file F] [--undo] [--no-commit] TITLE...`
+
+Mark a task done by exact title match (or undo). Writes **outline** syntax only
+— same safety as `add`: write temp → re-validate → rename; restore on failure.
+
+- Exact title match across the file (checkbox prefix is not part of the title).
+- **0 matches** → exit 2.
+- **>1 matches** → exit 2; message lists each `file:line` so an agent can
+  disambiguate (future: anchors).
+- On success: inserts `@done YYYY-MM-DD` (today) after the task's metadata,
+  preserving the rest of the file. Rejects tasks already done.
+- `--undo`: remove `@done` metadata and strip a leading `[x] ` / `[X] ` prefix.
+- Auto-commit `done: TITLE` / `undone: TITLE` in a git work tree unless
+  `--no-commit`.
+
+Plain:
+
+```
+$ selfflowy done --no-commit Buy milk
+done "Buy milk" in .../Tasks.rkt (line 5)
+```
+
+JSON stdout:
+
+```json
+{
+  "version": 1,
+  "ok": true,
+  "file": ".../Tasks.rkt",
+  "title": "Buy milk",
+  "line": 5,
+  "done": "2026-08-03",
+  "undone": false,
+  "committed": false
+}
+```
+
+On `--undo`, `done` is `null` and `undone` is `true`.
+
 ## Errors (`--json`)
 
 Single object on **stderr**, exit non-zero:
@@ -168,7 +210,5 @@ pretty-printed messages.
 
 ## Nix build note
 
-Runtime deps include `gregor` and `markdown`. Pure `nix build` cannot fetch
-them without vendoring; until zips are pinned as fixed-output derivations, use
-the dev shell (`just test` / `raco pkg install --auto`). Keep CI green via
-`just test` when pure offline distribute is blocked.
+Runtime deps (`gregor`, `markdown`) and nixpkgs are pinned with **npins**
+(`npins/sources.json`). `nix build` is fully offline/sandboxed.

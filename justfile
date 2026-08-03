@@ -28,6 +28,10 @@ agenda *args: install
 add *args: install
     selfflowy add --no-commit {{args}}
 
+# Mark a task done by exact title (or: just done --undo TITLE...)
+done *args: install
+    selfflowy done --no-commit {{args}}
+
 # Render HTML tree (default Tasks.rkt -> Tasks.html)
 html file="Tasks.rkt": install
     #!/usr/bin/env bash
