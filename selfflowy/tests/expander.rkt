@@ -34,12 +34,49 @@ EOF
     (check-equal? (task-title inbox) "Inbox")
     (check-false (task-date inbox))
     (check-equal? (task-description inbox) "landing")
+    (check-false (task-done inbox))
     (check-equal? (task-tags inbox) '())
     (check-equal? (length (task-children inbox)) 2)
     (define milk (car (task-children inbox)))
     (check-equal? (task-title milk) "Buy milk")
     (check-equal? (task-date milk) "2026-08-04")
-    (check-equal? (task-description milk) "2%"))
+    (check-equal? (task-description milk) "2%")
+    (check-false (task-done milk)))
+
+  (test-case "bare #:done and #:done with timestamp"
+    (define tasks
+      (eval-tasks
+       #<<EOF
+#lang selfflowy/sexp
+(t "A" #:done)
+(t "B" #:done "2026-08-03")
+(t "C" #:done "2026-08-03 14:30" #:date "2026-08-01")
+EOF
+       ))
+    (check-equal? (task-done (car tasks)) #t)
+    (check-equal? (task-done (cadr tasks)) "2026-08-03")
+    (check-equal? (task-done (caddr tasks)) "2026-08-03T14:30")
+    (check-equal? (task-date (caddr tasks)) "2026-08-01"))
+
+  (test-case "duplicate #:done rejected"
+    (check-exn
+     (λ (e)
+       (and (exn:fail:syntax? e)
+            (regexp-match? #rx"(?i:too many|#:done|done)"
+                           (exn-message e))))
+     (λ ()
+       (eval-tasks
+        "#lang selfflowy/sexp\n(t \"x\" #:done #:done)\n"))))
+
+  (test-case "bad #:done timestamp rejected"
+    (check-exn
+     (λ (e)
+       (and (exn:fail:syntax? e)
+            (regexp-match? #rx"(?i:ISO|date|datetime|YYYY)"
+                           (exn-message e))))
+     (λ ()
+       (eval-tasks
+        "#lang selfflowy/sexp\n(t \"x\" #:done \"not-a-date\")\n"))))
 
   (test-case "inline #tags extracted, title stays verbatim"
     (define tasks

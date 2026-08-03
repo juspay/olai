@@ -9,8 +9,8 @@
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/html)
 
-(define (tk title date desc kids #:tags [tags '()])
-  (task title date desc tags kids))
+(define (tk title date desc kids #:tags [tags '()] #:done [done #f])
+  (task title date desc done tags kids))
 
 (define (xstr x) (xexpr->string x))
 
@@ -75,7 +75,19 @@
     (define s (xstr (task->xexpr (tk "T" "2026-01-02" "a **note**" '()))))
     (check-true (string-contains? s "2026-01-02") s)
     (check-true (string-contains? s "note") s)
-    (check-true (string-contains? s "<strong") s))
+    (check-true (string-contains? s "<strong") s)
+    (check-true (string-contains? s "☐") s)
+    (check-false (string-contains? s "line-through") s))
+
+  (test-case "done task renders checked checkbox and strikethrough"
+    (define s (xstr (task->xexpr (tk "Done item" #f #f '() #:done #t))))
+    (check-true (string-contains? s "☑") s)
+    (check-true (string-contains? s "line-through") s)
+    (check-true (string-contains? s "Done item") s)
+    (define s2 (xstr (task->xexpr (tk "Stamped" "2026-01-01" #f '()
+                                       #:done "2026-01-02"))))
+    (check-true (string-contains? s2 "☑") s2)
+    (check-true (string-contains? s2 "line-through") s2))
 
   (test-case "tasks->html has doctype and tailwind, no expand-all JS"
     (define html (tasks->html (list (tk "A" #f #f '())) "Demo"))

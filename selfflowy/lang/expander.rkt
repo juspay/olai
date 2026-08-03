@@ -4,11 +4,15 @@
 ;;
 ;; Surface form (both readers produce this):
 ;;
-;;   (t "title" [#:date "YYYY-MM-DD[THH:MM[:SS]]"] [#:description "..."] child ...)
+;;   (t "title" [#:date "YYYY-MM-DD[THH:MM[:SS]]"]
+;;              [#:description "..."]
+;;              [#:done] | [#:done "YYYY-MM-DD[THH:MM[:SS]]"]
+;;              child ...)
 ;;
 ;; Inline #tags in titles are extracted into the task-tags field; the title
 ;; string stays verbatim. Children must be nested (t ...) forms.
-;; Date/time validation uses gregor.
+;; Date/time validation uses gregor. #:done is optional; bare means #t,
+;; with a string means completed at that timestamp.
 
 (require racket/list
          (for-syntax racket/base
@@ -24,13 +28,15 @@
          task-title
          task-date
          task-description
+         task-done
          task-tags
          task-children
          title-tags
          #%app #%datum #%top #%top-interaction
          quote)
 
-(struct task (title date description tags children) #:transparent)
+;; done: #f | #t | ISO date/datetime string
+(struct task (title date description done tags children) #:transparent)
 
 (define (title-tags title)
   (define raw
@@ -70,17 +76,30 @@
              "expected ISO date or datetime (YYYY-MM-DD or YYYY-MM-DDTHH:MM[:SS])"
              #:attr normalized (normalize-date-string (syntax-e #'d))))
 
+  ;; #:done | #:done "ISO"
+  (define-splicing-syntax-class done-kw
+    #:attributes (value)
+    (pattern (~seq #:done d:date-str)
+             #:attr value (datum->syntax #'d (attribute d.normalized) #'d))
+    (pattern (~seq #:done)
+             #:attr value #'#t))
+
   (define-splicing-syntax-class t-kwargs
-    #:attributes (date description)
+    #:attributes (date description done)
     (pattern (~seq (~alt (~optional (~seq #:date d:date-str)
                                     #:name "#:date")
                          (~optional (~seq #:description desc:str)
-                                    #:name "#:description"))
+                                    #:name "#:description")
+                         (~optional dk:done-kw
+                                    #:name "#:done"))
                    ...)
              #:attr date (if (attribute d)
                              (datum->syntax #'d (attribute d.normalized) #'d)
                              #'#f)
-             #:attr description (or (attribute desc) #'#f)))
+             #:attr description (or (attribute desc) #'#f)
+             #:attr done (if (attribute dk)
+                             (attribute dk.value)
+                             #'#f)))
 
   (define-syntax-class task-form
     #:description "a nested (t ...) task form"
@@ -92,18 +111,18 @@
     [(_ title:str kw:t-kwargs child:task-form ...)
      (define tags (title-tags/stx (syntax-e #'title)))
      (with-syntax ([tags-lit (datum->syntax stx tags)])
-       #'(task title kw.date kw.description 'tags-lit (list child ...)))]
+       #'(task title kw.date kw.description kw.done 'tags-lit (list child ...)))]
     [(_ title . _)
      (raise-syntax-error
       't
-      "expected (t \"title\" [#:date iso-date] [#:description \"...\"] child ...); title must be a string literal"
+      "expected (t \"title\" [#:date iso-date] [#:description \"...\"] [#:done [iso-date]] child ...); title must be a string literal"
       stx
       (let ([e (syntax-e stx)])
         (if (and (pair? e) (pair? (cdr e))) (cadr e) stx)))]
     [_
      (raise-syntax-error
       't
-      "expected (t \"title\" [#:date iso-date] [#:description \"...\"] child ...)"
+      "expected (t \"title\" [#:date iso-date] [#:description \"...\"] [#:done [iso-date]] child ...)"
       stx)]))
 
 (define-syntax (module-begin stx)

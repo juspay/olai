@@ -12,6 +12,7 @@
          task-title
          task-date
          task-description
+         task-done
          task-tags
          task-children
          title-tags

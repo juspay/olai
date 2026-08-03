@@ -5,8 +5,8 @@
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/agenda)
 
-(define (tk title date desc kids)
-  (task title date desc '() kids))
+(define (tk title date desc kids #:done [done #f])
+  (task title date desc done '() kids))
 
 (module+ test
   (define sample
@@ -85,4 +85,19 @@
     (check-equal? (map dated-task-title (cdr (assq 'today groups))) '("A" "B"))
     (check-equal? (map dated-task-date (cdr (assq 'today groups)))
                   '("2026-08-03T09:00" "2026-08-03T18:00"))
-    (check-equal? (map dated-task-title (cdr (assq 'upcoming groups))) '("D"))))
+    (check-equal? (map dated-task-title (cdr (assq 'upcoming groups))) '("D")))
+
+  (test-case "done tasks excluded from agenda even when dated"
+    (define sample
+      (list
+       (tk "Open overdue" "2026-07-01" #f '())
+       (tk "Done overdue" "2026-07-01" #f '() #:done #t)
+       (tk "Done today" "2026-08-03" #f '() #:done "2026-08-03")
+       (tk "Open today" "2026-08-03" #f '())
+       (tk "Done upcoming" "2026-09-01" #f '() #:done #t)))
+    (define groups (agenda-groups sample "2026-08-03"))
+    (check-equal? (map car groups) '(overdue today))
+    (check-equal? (map dated-task-title (cdr (assq 'overdue groups)))
+                  '("Open overdue"))
+    (check-equal? (map dated-task-title (cdr (assq 'today groups)))
+                  '("Open today"))))
