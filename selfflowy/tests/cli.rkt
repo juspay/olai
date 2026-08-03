@@ -31,7 +31,7 @@
   (values (subprocess-status sp) out err))
 
 (define (parse-json s)
-  (string->jsexpr s))
+  (read-json (open-input-string s)))
 
 (module+ test
   (test-case "check example succeeds"
@@ -195,7 +195,7 @@
        (check-true (regexp-match? #rx"capture: committed item" log) log))
      (λ () (delete-directory/files dir))))
 
-  (test-case "add restores on validation failure"
+  (test-case "add invalid --date is usage error and leaves file"
     (define dir (make-temporary-file "sfbad~a" 'directory))
     (define f (build-path dir "Tasks.rkt"))
     (dynamic-wind
@@ -203,14 +203,27 @@
      (λ ()
        (define original "#lang selfflowy\n\nKeepme\n")
        (display-to-file original f #:exists 'truncate)
-       ;; Title with only invalid construction is hard; use a date that
-       ;; expander rejects by forcing a write of bad meta via --date that
-       ;; passes CLI regex but fails expander month check.
        (define-values (code out err)
          (run-selfflowy
           (list "add" "--json" "--no-commit" "--file" (path->string f)
                 "--date" "2026-13-01" "bad date task")))
-       ;; CLI only checks YYYY-MM-DD shape; expander rejects month 13
+       (check-equal? code 1)
+       (check-equal? (file->string f) original))
+     (λ () (delete-directory/files dir))))
+
+  (test-case "add leaves original untouched when post-write load fails"
+    (define dir (make-temporary-file "sfbad2~a" 'directory))
+    (define f (build-path dir "Tasks.rkt"))
+    (dynamic-wind
+     void
+     (λ ()
+       ;; No #lang — append succeeds as text, load of tmp fails, original kept
+       (define original "not a module\n")
+       (display-to-file original f #:exists 'truncate)
+       (define-values (code out err)
+         (run-selfflowy
+          (list "add" "--json" "--no-commit" "--file" (path->string f)
+                "orphan")))
        (check-equal? code 2)
        (check-equal? (file->string f) original))
      (λ () (delete-directory/files dir)))))

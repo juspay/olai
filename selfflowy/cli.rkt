@@ -1,21 +1,24 @@
 #lang racket/base
 
-;; selfflowy CLI — agent-first: check | tree | agenda | add
+;; selfflowy CLI — agent-first: check | tree | agenda | add | html
 ;; Exit codes: 0 ok, 1 usage, 2 validation/load, 3 not found.
+;; Arg parsing: racket/cmdline. JSON: json package write-json.
 
 (require json
-         racket/date
+         racket/cmdline
          racket/file
          racket/list
          racket/match
          racket/path
          racket/string
+         racket/vector
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/tree
          selfflowy/agenda
          selfflowy/json-out
-         selfflowy/capture)
-
+         selfflowy/capture
+         selfflowy/html
+         selfflowy/dates)
 (define exit-ok 0)
 (define exit-usage 1)
 (define exit-validation 2)
@@ -29,19 +32,29 @@
       (eprintf "selfflowy: ~a\n" msg))
   (exit code))
 
+;; Prefer the most specific syntax object for agents: highest line/col among
+;; exprs that carry a source (outline @date values are later subforms).
 (define (exn-location e fallback-path)
   (cond
     [(exn:fail:syntax? e)
      (define stxs (exn:fail:syntax-exprs e))
-     (define s (findf (λ (x) (syntax-source x)) stxs))
+     (define with-src
+       (filter (λ (x) (and (syntax-source x) (syntax-line x))) stxs))
+     (define s
+       (if (null? with-src)
+           #f
+           (argmax
+            (λ (x)
+              (+ (* 100000 (or (syntax-line x) 0))
+                 (or (syntax-column x) 0)))
+            with-src)))
      (if s
          (values (syntax-source s) (syntax-line s) (syntax-column s))
          (values fallback-path #f #f))]
     [(exn:fail:read? e)
      (define locs (exn:fail:read-srclocs e))
      (if (pair? locs)
-         (let ([loc (car locs)])
-           ;; srcloc or list
+         (let ([loc (last locs)])
            (cond
              [(srcloc? loc)
               (values (srcloc-source loc) (srcloc-line loc) (srcloc-column loc))]
@@ -54,11 +67,13 @@
 (define (exn-message* e)
   (cond
     [(exn:fail:syntax? e)
-     (define msgs (exn-message e))
      (define-values (src line col) (exn-location e #f))
+     (define core
+       ;; Drop Racket's leading "file:line:col: " if we re-emit a better loc
+       (regexp-replace #px"^[^\\s:]+:[0-9]+:[0-9]+:\\s*" (exn-message e) ""))
      (if (and src line)
-         (format "~a\n  at: ~a:~a:~a" msgs src line (or col "?"))
-         msgs)]
+         (format "~a:~a:~a: ~a" src line (or col 0) core)
+         (exn-message e))]
     [(exn:fail? e) (exn-message e)]
     [else (format "~a" e)]))
 
@@ -79,7 +94,9 @@
           (define-values (src line col) (exn-location e path))
           (define msg (exn-message* e))
           (die exit-validation
-               (if json? (exn-message e) (format "failed to load ~a\n~a" path msg))
+               (if json?
+                   msg
+                   (format "failed to load ~a\n~a" path msg))
                #:json? json?
                #:file (or src path)
                #:line line
@@ -93,10 +110,7 @@
   (for/sum ([tk (in-list tasks)]) (count tk)))
 
 (define (today-iso)
-  (define d (seconds->date (current-seconds)))
-  (define (pad2 n)
-    (if (< n 10) (format "0~a" n) (number->string n)))
-  (format "~a-~a-~a" (date-year d) (pad2 (date-month d)) (pad2 (date-day d))))
+  (today-iso-string))
 
 (define (cmd-check path json?)
   (define tasks (load-tasks path json?))
@@ -123,11 +137,21 @@
       (write-json-stdout (agenda-groups->jsexpr groups today))
       (displayln (format-agenda groups))))
 
+(define (cmd-html path out-path)
+  (define tasks (load-tasks path #f))
+  (define html (tasks->html tasks (path->string (file-name-from-path path))))
+  (cond
+    [out-path
+     (display-to-file html out-path #:exists 'truncate/replace)
+     (printf "~a\n" (path->string (simple-form-path (path->complete-path out-path))))]
+    [else
+     (display html)]))
+
 (define (cmd-add json? file-arg date desc no-commit? title-parts)
   (when (null? title-parts)
     (die exit-usage "add requires a TITLE" #:json? json?))
   (define title (string-join title-parts " "))
-  (when (and date (not (regexp-match? #px"^[0-9]{4}-[0-9]{2}-[0-9]{2}$" date)))
+  (when (and date (not (valid-iso-date-string? date)))
     (die exit-usage
          (format "invalid --date ~s; expected YYYY-MM-DD" date)
          #:json? json?))
@@ -138,16 +162,12 @@
     (if (file-exists? path)
         (file->string path)
         "#lang selfflowy\n"))
-  ;; Must be outline lang if non-empty existing
   (when (and (file-exists? path)
-             (not (regexp-match? #px"(?m:^#lang selfflowy\\s*$)" original))
-             (not (regexp-match? #px"(?m:^#lang selfflowy\\s)" original)))
-    ;; Allow #lang selfflowy with options; reject sexp
-    (when (regexp-match? #px"(?m:^#lang selfflowy/sexp)" original)
-      (die exit-validation
-           "add only writes outline syntax (#lang selfflowy), not selfflowy/sexp"
-           #:json? json?
-           #:file path)))
+             (regexp-match? #px"(?m:^#lang selfflowy/sexp)" original))
+    (die exit-validation
+         "add only writes outline syntax (#lang selfflowy), not selfflowy/sexp"
+         #:json? json?
+         #:file path))
   (define-values (new-text line created-inbox?)
     (append-capture original title #:date date #:description desc))
   (define tmp (string->path (string-append (path->string path) ".sf-tmp")))
@@ -157,7 +177,6 @@
           (when (file-exists? tmp) (delete-file tmp))
           (die exit-validation (exn-message e) #:json? json? #:file path))])
     (display-to-file new-text tmp #:exists 'truncate/replace)
-    ;; Validate by loading
     (with-handlers
         ([exn:fail?
           (λ (e)
@@ -170,7 +189,6 @@
                  #:line ln
                  #:col col))])
       (dynamic-require `(file ,(path->string tmp)) 'tasks)
-      ;; Atomic-ish replace; original preserved until rename succeeds
       (rename-file-or-directory tmp path #t)))
   (define committed?
     (and (not no-commit?)
@@ -197,78 +215,120 @@
   (eprintf "  check  [--json] [file]     validate outline (default: ~a)\n" default-file)
   (eprintf "  tree   [--json] [file]     print outline tree\n")
   (eprintf "  agenda [--json] [file]     OVERDUE / TODAY / UPCOMING\n")
+  (eprintf "  html   [--out PATH] [file] render interactive HTML (stdout default)\n")
   (eprintf "  add    [--json] [--file F] [--date YYYY-MM-DD] [--description TEXT]\n")
   (eprintf "         [--no-commit] TITLE...   capture under Inbox\n")
   (eprintf "\n")
   (eprintf "exit codes: 0 ok | 1 usage | 2 validation/load | 3 not found\n")
   (eprintf "agent contract: docs/cli.md\n"))
 
-(define (take-flag args flag)
-  (define i (index-of args flag))
-  (if i
-      (values #t (append (take args i) (drop args (add1 i))))
-      (values #f args)))
+;; ---- subcommand parsers via racket/cmdline ----
 
-(define (take-opt args flag)
-  ;; --flag VALUE
-  (define i (index-of args flag))
-  (cond
-    [(not i) (values #f args)]
-    [(>= (add1 i) (length args))
-     (values 'missing args)]
-    [else
-     (values (list-ref args (add1 i))
-             (append (take args i) (drop args (+ i 2))))]))
+(define (cli-check)
+  (define json? #f)
+  (define file-arg #f)
+  (command-line
+   #:program "selfflowy check"
+   #:once-each
+   [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
+   #:args file-args
+   (set! file-arg
+         (match file-args
+           ['() #f]
+           [(list f) f]
+           [_ (die exit-usage "too many arguments" #:json? json?)])))
+  (cmd-check (resolve-file file-arg json?) json?))
 
-(define (parse-common args)
-  (define-values (json? a1) (take-flag args "--json"))
-  (values json? a1))
+(define (cli-tree)
+  (define json? #f)
+  (define file-arg #f)
+  (command-line
+   #:program "selfflowy tree"
+   #:once-each
+   [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
+   #:args file-args
+   (set! file-arg
+         (match file-args
+           ['() #f]
+           [(list f) f]
+           [_ (die exit-usage "too many arguments" #:json? json?)])))
+  (cmd-tree (resolve-file file-arg json?) json?))
+
+(define (cli-agenda)
+  (define json? #f)
+  (define file-arg #f)
+  (command-line
+   #:program "selfflowy agenda"
+   #:once-each
+   [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
+   #:args file-args
+   (set! file-arg
+         (match file-args
+           ['() #f]
+           [(list f) f]
+           [_ (die exit-usage "too many arguments" #:json? json?)])))
+  (cmd-agenda (resolve-file file-arg json?) json?))
+
+(define (cli-html)
+  (define out-path #f)
+  (define file-arg #f)
+  (command-line
+   #:program "selfflowy html"
+   #:once-each
+   [("--out") path "Write HTML to path (default: stdout)" (set! out-path path)]
+   #:args file-args
+   (set! file-arg
+         (match file-args
+           ['() #f]
+           [(list f) f]
+           [_ (die exit-usage "too many arguments" #:json? #f)])))
+  (cmd-html (resolve-file file-arg #f) out-path))
+
+(define (cli-add)
+  (define json? #f)
+  (define file-arg #f)
+  (define date #f)
+  (define desc #f)
+  (define no-commit? #f)
+  (define titles '())
+  (command-line
+   #:program "selfflowy add"
+   #:once-each
+   [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
+   [("--file") f "Outline file (default: Tasks.rkt)" (set! file-arg f)]
+   [("--date") d "YYYY-MM-DD date on the new task" (set! date d)]
+   [("--description") t "Description text" (set! desc t)]
+   [("--no-commit") "Do not auto-commit even in a git repo" (set! no-commit? #t)]
+   #:args title-words
+   (set! titles title-words))
+  (cmd-add json? file-arg date desc no-commit? titles))
 
 (define (main)
-  (define argv (vector->list (current-command-line-arguments)))
+  (define argv (current-command-line-arguments))
   (cond
-    [(null? argv)
+    [(zero? (vector-length argv))
      (usage)
      (exit exit-usage)]
     [else
-     (define cmd (car argv))
-     (define rest (cdr argv))
-     (case cmd
-       [("help" "-h" "--help")
-        (usage)
-        (exit exit-ok)]
-       [("check" "tree" "agenda")
-        (define-values (json? args) (parse-common rest))
-        (define file-arg
-          (match args
-            ['() #f]
-            [(list f) f]
-            [_ (die exit-usage "too many arguments" #:json? json?)]))
-        (define path (resolve-file file-arg json?))
-        (case cmd
-          [("check") (cmd-check path json?)]
-          [("tree") (cmd-tree path json?)]
-          [("agenda") (cmd-agenda path json?)])]
-       [("add")
-        (define-values (json? a0) (parse-common rest))
-        (define-values (no-commit? a1) (take-flag a0 "--no-commit"))
-        (define-values (file-opt a2) (take-opt a1 "--file"))
-        (define-values (date-opt a3) (take-opt a2 "--date"))
-        (define-values (desc-opt a4) (take-opt a3 "--description"))
-        (when (eq? file-opt 'missing)
-          (die exit-usage "--file requires a path" #:json? json?))
-        (when (eq? date-opt 'missing)
-          (die exit-usage "--date requires YYYY-MM-DD" #:json? json?))
-        (when (eq? desc-opt 'missing)
-          (die exit-usage "--description requires text" #:json? json?))
-        ;; remaining flags?
-        (when (ormap (λ (s) (regexp-match? #px"^--" s)) a4)
-          (die exit-usage
-               (format "unknown option in add: ~a" (findf (λ (s) (regexp-match? #px"^--" s)) a4))
-               #:json? json?))
-        (cmd-add json? file-opt date-opt desc-opt no-commit? a4)]
-       [else
-        (die exit-usage (format "unknown command ~s" cmd) #:json? #f)])]))
+     (define cmd (vector-ref argv 0))
+     (define rest (vector-drop argv 1))
+     (parameterize ([current-command-line-arguments rest])
+       (with-handlers
+           ([exn:fail:user?
+             (λ (e)
+               (eprintf "~a\n" (exn-message e))
+               (exit exit-usage))])
+         (case cmd
+           [("help" "-h" "--help")
+            (usage)
+            (exit exit-ok)]
+           [("check") (cli-check)]
+           [("tree") (cli-tree)]
+           [("agenda") (cli-agenda)]
+           [("html") (cli-html)]
+           [("add") (cli-add)]
+           [else
+            (die exit-usage (format "unknown command ~s" cmd) #:json? #f)])))]))
 
 (module+ main
   (main))
