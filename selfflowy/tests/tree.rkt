@@ -2,7 +2,7 @@
 
 (require rackunit
          racket/string
-         selfflowy/lang/expander
+         (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/tree)
 
 (module+ test

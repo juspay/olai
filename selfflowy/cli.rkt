@@ -4,7 +4,7 @@
 
 (require racket/list
          racket/path
-         "lang/expander.rkt"
+         (except-in "lang/expander.rkt" #%module-begin)
          "tree.rkt")
 
 (provide default-file
@@ -55,10 +55,6 @@
 
 (define (count-tasks tasks)
   (define (count tk)
-    (unless (task? tk)
-      (error 'selfflowy
-             "expected a task at top level or as a child, got: ~e"
-             tk))
     (add1 (for/sum ([c (in-list (task-children tk))])
             (count c))))
   (for/sum ([tk (in-list tasks)]) (count tk)))
@@ -74,8 +70,6 @@
 
 (define (cmd-tree path)
   (define tasks (load-tasks path))
-  ;; validate shapes before rendering
-  (void (count-tasks tasks))
   (displayln (render-tree tasks)))
 
 (define (usage)

@@ -2,7 +2,7 @@
 
 (require rackunit
          racket/file
-         selfflowy/lang/expander)
+         (except-in selfflowy/lang/expander #%module-begin))
 
 (define (eval-tasks src)
   (define tmp (make-temporary-file "selfflowy~a.rkt"))
@@ -97,4 +97,24 @@ EOF
      exn:fail?
      (λ ()
        (eval-tasks
-        "#lang selfflowy\n(t 42)\n")))))
+        "#lang selfflowy\n(t 42)\n"))))
+
+  (test-case "malformed child is a syntax error (closed grammar)"
+    (check-exn
+     (λ (e)
+       (and (exn:fail:syntax? e)
+            (regexp-match? #rx"(?i:nested|task form|expected)"
+                           (exn-message e))))
+     (λ ()
+       (eval-tasks
+        "#lang selfflowy\n(t \"x\" 42)\n"))))
+
+  (test-case "non-task top-level form is a syntax error"
+    (check-exn
+     (λ (e)
+       (and (exn:fail:syntax? e)
+            (regexp-match? #rx"(?i:nested|task form|expected)"
+                           (exn-message e))))
+     (λ ()
+       (eval-tasks
+        "#lang selfflowy\n42\n")))))

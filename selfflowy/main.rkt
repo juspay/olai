@@ -2,7 +2,7 @@
 
 ;; Public library surface for the selfflowy package.
 
-(require "lang/expander.rkt"
+(require (except-in "lang/expander.rkt" #%module-begin)
          "tree.rkt"
          "cli.rkt")
 

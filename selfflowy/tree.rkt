@@ -5,7 +5,7 @@
 
 (require racket/list
          racket/string
-         "lang/expander.rkt")
+         (except-in "lang/expander.rkt" #%module-begin))
 
 (provide render-tree
          render-task

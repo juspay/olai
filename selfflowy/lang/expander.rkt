@@ -14,7 +14,12 @@
 ;;   #:date        YYYY-MM-DD string
 ;;   #:description free-form string
 ;;
+;; Children must themselves be (t ...) forms (closed grammar).
 ;; Mirrors/agenda are phase 0.2.
+;;
+;; Callers that (require) this module for the data model should use
+;; (except-in ... #%module-begin) so module+ submodules keep racket's
+;; #%module-begin (this export is for #lang only).
 
 (require (for-syntax racket/base
                      syntax/parse
@@ -63,11 +68,17 @@
              #:fail-when (eq? (attribute date) 'duplicate)
              "duplicate #:date"
              #:fail-when (eq? (attribute description) 'duplicate)
-             "duplicate #:description")))
+             "duplicate #:description"))
+
+  ;; Closed grammar: every task node is a (t ...) form, recursively.
+  (define-syntax-class task-form
+    #:description "a nested (t ...) task form"
+    #:literals (t)
+    (pattern (t title:str kw:t-kwargs child:task-form ...))))
 
 (define-syntax (t stx)
   (syntax-parse stx
-    [(_ title:str kw:t-kwargs child ...)
+    [(_ title:str kw:t-kwargs child:task-form ...)
      #:do [(define date-stx #'kw.date)
            (define date-val (syntax-e date-stx))
            (define desc-stx #'kw.description)
@@ -90,14 +101,7 @@
               't
               "value after #:description must be a string literal"
               stx
-              desc-stx))
-           (for ([c (in-list (syntax->list #'(child ...)))])
-             (when (keyword? (syntax-e c))
-               (raise-syntax-error
-                't
-                "unexpected keyword among children; only #:date and #:description are supported, immediately after the title"
-                stx
-                c)))]
+              desc-stx))]
      #'(task title kw.date kw.description (list child ...))]
     [(_ title . _)
      (raise-syntax-error
@@ -115,7 +119,16 @@
 (define-syntax (module-begin stx)
   (syntax-parse stx
     [(_ form ...)
-     #'(#%module-begin
-        (provide tasks)
-        (define tasks (list form ...))
-        (void))]))
+     (define checked
+       (for/list ([f (in-list (syntax->list #'(form ...)))])
+         (syntax-parse f
+           [tf:task-form #'tf]
+           [_ (raise-syntax-error
+               #f
+               "expected a nested (t ...) task form"
+               f)])))
+     (with-syntax ([(form* ...) checked])
+       #'(#%module-begin
+          (provide tasks)
+          (define tasks (list form* ...))
+          (void)))]))
