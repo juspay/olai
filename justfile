@@ -40,11 +40,14 @@ html *args: install
     #!/usr/bin/env bash
     set -euo pipefail
     if [ -z "{{args}}" ]; then
-      selfflowy html --out Tasks.html Tasks.rkt examples/Roadmap.rkt
+      out=Tasks.html
+      rm -f "$out"
+      selfflowy html --out "$out" Tasks.rkt examples/Roadmap.rkt
     else
       # First path stems the default out name when a single file is given
       set -- {{args}}
       out="${1%.rkt}.html"
+      rm -f "$out"
       selfflowy html --out "$out" "$@"
     fi
 
