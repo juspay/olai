@@ -1,0 +1,40 @@
+#lang rhombus
+// Blind attempt #1 — same mini task DSL in Rhombus: macro, class, query.
+import:
+  rhombus/meta open
+
+class Task(title :: String, date, children :: List)
+
+expr.macro 'task $(title :: Term) $tail ...':
+  match '$tail ...'
+  | '~date $(date :: Term): $child; ...':
+      'Task($title, $date, [$child, ...])'
+  | ': $child; ...':
+      'Task($title, #false, [$child, ...])'
+  | '~date $(date :: Term)':
+      'Task($title, $date, [])'
+  | '':
+      'Task($title, #false, [])'
+
+def inbox:
+  task "Inbox":
+    task "Buy milk" ~date "2026-08-04"
+    task "Write Selfflowy README":
+      task "Compare Racket vs Rhombus"
+
+fun count_tasks(t :: Task) :: Int:
+  for values(sum = 1):
+    each c: t.children
+    sum + count_tasks(c)
+
+fun due(t :: Task) :: List:
+  def here: if t.date | [t] | []
+  for values(acc = here):
+    each c: t.children
+    acc ++ due(c)
+
+module main:
+  println("total: " +& count_tasks(inbox))
+  for:
+    each t: due(inbox)
+    println("due " +& t.date +& ": " +& t.title)
