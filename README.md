@@ -67,7 +67,7 @@ restructure. Live with it, or open your laptop.
 ## STATUS
 
 Outline `#lang selfflowy` + sexp core + `check` / `tree` / `agenda` /
-`add` (agent-first `--json`). (Ancestor: srid/Tend, same idea in Lean.)
+`add` / `html` (agent-first `--json`). (Ancestor: srid/Tend.)
 
 ## ROADMAP
 
@@ -81,6 +81,7 @@ The roadmap is a selfflowy outline:
     just check         # validates Tasks.rkt (gitignored private outline)
     just tree examples/Example.rkt
     just agenda examples/Example.rkt
+    just html examples/Example.rkt
     just test
 
 ## CLI (agents)
@@ -88,6 +89,10 @@ The roadmap is a selfflowy outline:
 Machine-readable contract (`--json`, exit codes, `add`): **docs/cli.md**.
 
 ## HACKING
+
+**No hand-rolling where a library exists.** Prefer maintained packages
+(`racket/cmdline`, `json`, `gregor`, `ansi-color`, `xml` xexprs) over
+home-grown parsers and escape codes.
 
 Patches welcome. Keep it small, keep it boring. The interesting part is
 the DSL; write good expander error messages -- the agents read them.

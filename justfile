@@ -9,6 +9,7 @@ default:
 # Install / link the local package (idempotent enough for dev)
 install:
     mkdir -p "{{PLTUSERHOME}}"
+    raco pkg install --auto --skip-installed gregor ansi-color
     raco pkg install --auto --skip-installed --link {{justfile_directory()}}/selfflowy
 
 # Validate outline (default: Tasks.rkt)
@@ -33,6 +34,12 @@ agenda *args: install
 # Usage: just add buy milk
 add *args: install
     selfflowy add --no-commit {{args}}
+
+# Render HTML outline (default Tasks.rkt -> Tasks.html)
+# Usage: just html
+#        just html examples/Example.rkt
+html file="Tasks.rkt": install
+    selfflowy html --out {{file}}.html {{file}}
 
 # Re-run `just tree` whenever Tasks.rkt changes (clears the screen each time)
 watch: install

@@ -34,13 +34,18 @@
             version = "0.1.0";
             src = ./.;
             nativeBuildInputs = [ pkgs.racket ];
-            # Writable PLT tree inside the sandbox; package depends only on base.
+            # Writable PLT tree inside the sandbox.
             # Copy sources out of the read-only store so raco can write compiled/.
+            # Dependencies: gregor + ansi-color (network install fails in pure
+            # sandbox). Prefer a prior `raco pkg install` into a fixed PLT tree,
+            # or run builds with network (impure). Dev shell uses PLTUSERHOME.
             buildPhase = ''
               export PLTUSERHOME="$TMPDIR/plt-user"
               mkdir -p "$PLTUSERHOME"
               cp -a "$src/selfflowy" ./selfflowy-pkg
               chmod -R u+w ./selfflowy-pkg
+              # Install declared deps when network is available (CI impure / local).
+              raco pkg install --auto --no-docs --skip-installed gregor ansi-color || true
               raco pkg install --auto --no-docs --link ./selfflowy-pkg
               raco exe ++lang selfflowy -o selfflowy-bin \
                 "$(racket -e '(display (path->string (collection-file-path "cli.rkt" "selfflowy")))')"
@@ -83,6 +88,7 @@
             export PLTUSERHOME="$TMPDIR/plt-user"
             mkdir -p "$PLTUSERHOME"
             cd $src
+            raco pkg install --auto --no-docs --skip-installed gregor ansi-color || true
             raco pkg install --auto --no-docs --link "$src/selfflowy"
             raco test -p selfflowy
             touch $out

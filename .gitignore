@@ -1,5 +1,6 @@
 # Private task data — never commit
 /Tasks.rkt
+/Tasks.html
 
 # Racket
 compiled/

@@ -86,6 +86,21 @@ JSON stdout:
 }
 ```
 
+## `html [--out PATH] [file]`
+
+Render an interactive HTML outline (X-expressions + Tailwind CDN). No `--json`
+— HTML is the output format.
+
+- Default: write the document to **stdout** (pipe-friendly).
+- `--out PATH`: write a file and print the absolute path on stdout.
+
+```
+$ selfflowy html --out /tmp/Example.html examples/Example.rkt
+/tmp/Example.html
+```
+
+Exit codes same as other read commands (0 / 1 / 2 / 3).
+
 ## `add [--json] [--file F] [--date YYYY-MM-DD] [--description TEXT] [--no-commit] TITLE...`
 
 Capture under a top-level `Inbox` node (created if missing). Writes **outline**
