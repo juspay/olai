@@ -5,8 +5,8 @@
 
 (require racket/list
          racket/path
-         (except-in "lang/expander.rkt" #%module-begin)
-         "tree.rkt")
+         (except-in selfflowy/lang/expander #%module-begin)
+         selfflowy/tree)
 
 (define default-file "Tasks.rkt")
 

@@ -6,7 +6,7 @@
 
 (require racket/list
          racket/string
-         (except-in "lang/expander.rkt" #%module-begin))
+         (except-in selfflowy/lang/expander #%module-begin))
 
 (provide render-tree)
 

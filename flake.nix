@@ -26,26 +26,32 @@
         };
       });
 
-      # Runnable CLI: copies package sources and wraps racket -l selfflowy/cli.
-      # First run installs the package into a cache PLTUSERHOME if needed.
+      # Self-contained CLI via raco exe + raco distribute (no racket install needed to run).
       packages = forAllSystems ({ pkgs, system }:
         let
-          selfflowy = pkgs.stdenvNoCC.mkDerivation {
+          selfflowy = pkgs.stdenv.mkDerivation {
             pname = "selfflowy";
             version = "0.1.0";
             src = ./.;
-            nativeBuildInputs = [ pkgs.makeWrapper ];
-            buildInputs = [ pkgs.racket ];
-            dontBuild = true;
+            nativeBuildInputs = [ pkgs.racket ];
+            # Writable PLT tree inside the sandbox; package depends only on base.
+            # Copy sources out of the read-only store so raco can write compiled/.
+            buildPhase = ''
+              export PLTUSERHOME="$TMPDIR/plt-user"
+              mkdir -p "$PLTUSERHOME"
+              cp -a "$src/selfflowy" ./selfflowy-pkg
+              chmod -R u+w ./selfflowy-pkg
+              raco pkg install --auto --no-docs --link ./selfflowy-pkg
+              raco exe ++lang selfflowy -o selfflowy-bin \
+                "$(racket -e '(display (path->string (collection-file-path "cli.rkt" "selfflowy")))')"
+              raco distribute dist selfflowy-bin
+            '';
             installPhase = ''
-              mkdir -p $out/share/selfflowy $out/bin
-              cp -r selfflowy $out/share/selfflowy/pkg
-              makeWrapper ${pkgs.racket}/bin/racket $out/bin/selfflowy \
-                --prefix PATH : ${pkgs.racket}/bin \
-                --run "export PLTUSERHOME=\"\''${PLTUSERHOME:-\''${XDG_CACHE_HOME:-\$HOME/.cache}/selfflowy-plt}\"; mkdir -p \"\$PLTUSERHOME\"; if ! raco pkg show selfflowy >/dev/null 2>&1; then raco pkg install --auto --no-docs --skip-installed --copy $out/share/selfflowy/pkg; fi" \
-                --add-flags "-l" \
-                --add-flags "selfflowy/cli" \
-                --add-flags "--"
+              mkdir -p $out
+              cp -a dist/. $out/
+              # raco distribute puts the binary under bin/<name>
+              test -x $out/bin/selfflowy-bin
+              mv $out/bin/selfflowy-bin $out/bin/selfflowy
             '';
             meta = with pkgs.lib; {
               description = "selfflowy CLI — validate and render #lang selfflowy outlines";
@@ -64,6 +70,23 @@
           type = "app";
           program = "${self.packages.${system}.selfflowy}/bin/selfflowy";
         };
+      });
+
+      checks = forAllSystems ({ pkgs, system }: {
+        build = self.packages.${system}.selfflowy;
+        test = pkgs.runCommand "selfflowy-test"
+          {
+            nativeBuildInputs = [ pkgs.racket pkgs.just ];
+            src = ./.;
+          }
+          ''
+            export PLTUSERHOME="$TMPDIR/plt-user"
+            mkdir -p "$PLTUSERHOME"
+            cd $src
+            raco pkg install --auto --no-docs --link "$src/selfflowy"
+            raco test -p selfflowy
+            touch $out
+          '';
       });
     };
 }
