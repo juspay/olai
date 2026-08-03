@@ -9,35 +9,26 @@ default:
 # Install / link the local package (idempotent enough for dev)
 install:
     mkdir -p "{{PLTUSERHOME}}"
-    raco pkg install --auto --skip-installed gregor ansi-color
+    raco pkg install --auto --skip-installed gregor markdown
     raco pkg install --auto --skip-installed --link {{justfile_directory()}}/selfflowy
 
 # Validate outline (default: Tasks.rkt)
-# Usage: just check
-#        just check examples/Example.rkt
 check *args: install
     selfflowy check {{if args == "" { "Tasks.rkt" } else { args }}}
 
-# Print outline tree
-# Usage: just tree
-#        just tree examples/Example.rkt
+# Outline as JSON (agents; human view is html)
 tree *args: install
     selfflowy tree {{if args == "" { "Tasks.rkt" } else { args }}}
 
 # Dated tasks: OVERDUE / TODAY / UPCOMING
-# Usage: just agenda
-#        just agenda examples/Example.rkt
 agenda *args: install
     selfflowy agenda {{if args == "" { "Tasks.rkt" } else { args }}}
 
 # Capture under Inbox
-# Usage: just add buy milk
 add *args: install
     selfflowy add --no-commit {{args}}
 
-# Render HTML outline (default Tasks.rkt -> Tasks.html)
-# Usage: just html
-#        just html examples/Example.rkt
+# Render HTML tree (default Tasks.rkt -> Tasks.html)
 html file="Tasks.rkt": install
     #!/usr/bin/env bash
     set -euo pipefail
@@ -45,9 +36,9 @@ html file="Tasks.rkt": install
     out="${out%.rkt}.html"
     selfflowy html --out "$out" "{{file}}"
 
-# Re-run `just tree` whenever Tasks.rkt changes (clears the screen each time)
+# Re-render HTML whenever Tasks.rkt changes
 watch: install
-    watchexec -w Tasks.rkt -c -- just tree
+    watchexec -w Tasks.rkt -c -- just html
 
 # Run unit tests
 test: install

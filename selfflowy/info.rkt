@@ -1,7 +1,7 @@
 #lang info
 
 (define collection "selfflowy")
-(define deps '("base" "gregor" "ansi-color"))
+(define deps '("base" "gregor" "markdown"))
 (define build-deps '("rackunit-lib"))
 (define pkg-desc "Self-hosted outliner: #lang selfflowy + CLI")
 (define version "0.1")

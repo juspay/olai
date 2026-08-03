@@ -1,12 +1,11 @@
 #lang racket/base
 
 ;; Pure agenda: collect dated tasks, sort by date, group vs a today string.
-;; Printing and clock lookup live in the CLI.
+;; Plain-text formatting only (no ANSI). Printing/clock live in the CLI.
 
 (require racket/list
          racket/string
          (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/style
          selfflowy/dates)
 
 (provide (struct-out dated-task)
@@ -53,7 +52,6 @@
         [(string<? day today) (values (cons it ov) td up)]
         [(string=? day today) (values ov (cons it td) up)]
         [else (values ov td (cons it up))])))
-  ;; for/fold conses in reverse; restore date order
   (define groups
     (list (cons 'overdue (reverse overdue))
           (cons 'today (reverse today*))
@@ -71,7 +69,7 @@
   (define line1
     (format "  [~a]  ~a" (dated-task-date it) (dated-task-title it)))
   (define line2
-    (string-append "         " (style-dim (dated-task-breadcrumb it))))
+    (string-append "         " (dated-task-breadcrumb it)))
   (string-append line1 "\n" line2))
 
 ;; Render grouped agenda to a string. Empty => "no dated tasks".

@@ -1,11 +1,11 @@
 #lang racket/base
 
-;; Public library surface: task data model, tree rendering, agenda query.
-;; CLI lives in selfflowy/cli and is not re-exported here.
+;; Public library surface: task data model, agenda query, HTML render.
+;; CLI is app code, not re-exported here.
 
 (require (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/tree
-         selfflowy/agenda)
+         selfflowy/agenda
+         selfflowy/html)
 
 (provide task
          task?
@@ -15,7 +15,7 @@
          task-tags
          task-children
          title-tags
-         render-tree
          (struct-out dated-task)
          collect-dated
-         agenda-groups)
+         agenda-groups
+         tasks->html)

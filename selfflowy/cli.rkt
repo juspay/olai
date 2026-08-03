@@ -13,7 +13,6 @@
          racket/string
          racket/vector
          (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/tree
          selfflowy/agenda
          selfflowy/json-out
          selfflowy/capture
@@ -120,14 +119,13 @@
        (ok-hash 'file (path->string path) 'tasks n))
       (printf "ok: ~a (~a task~a)\n" path n (if (= n 1) "" "s"))))
 
+;; tree is JSON-only (human view is `html`). --json is accepted as a no-op.
 (define (cmd-tree path json?)
   (define tasks (load-tasks path json?))
-  (if json?
-      (write-json-stdout
-       (hash 'version json-version
-             'file (path->string path)
-             'tasks (tasks->jsexpr tasks)))
-      (displayln (render-tree tasks))))
+  (write-json-stdout
+   (hash 'version json-version
+         'file (path->string path)
+         'tasks (tasks->jsexpr tasks))))
 
 (define (cmd-agenda path json?)
   (define tasks (load-tasks path json?))
@@ -214,9 +212,9 @@
   (eprintf "\n")
   (eprintf "commands:\n")
   (eprintf "  check  [--json] [file]     validate outline (default: ~a)\n" default-file)
-  (eprintf "  tree   [--json] [file]     print outline tree\n")
+  (eprintf "  tree   [--json] [file]     outline as JSON (human view: html)\n")
   (eprintf "  agenda [--json] [file]     OVERDUE / TODAY / UPCOMING\n")
-  (eprintf "  html   [--out PATH] [file] render interactive HTML (stdout default)\n")
+  (eprintf "  html   [--out PATH] [file] interactive HTML tree (stdout default)\n")
   (eprintf "  add    [--json] [--file F] [--date ISO] [--description TEXT]\n")
   (eprintf "         [--no-commit] TITLE...   capture under Inbox\n")
   (eprintf "\n")
@@ -241,19 +239,19 @@
   (cmd-check (resolve-file file-arg json?) json?))
 
 (define (cli-tree)
-  (define json? #f)
+  (define json? #t) ; always JSON; flag kept as no-op for agents
   (define file-arg #f)
   (command-line
    #:program "selfflowy tree"
    #:once-each
-   [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
+   [("--json") "No-op (tree is always JSON)" (set! json? #t)]
    #:args file-args
    (set! file-arg
          (match file-args
            ['() #f]
            [(list f) f]
-           [_ (die exit-usage "too many arguments" #:json? json?)])))
-  (cmd-tree (resolve-file file-arg json?) json?))
+           [_ (die exit-usage "too many arguments" #:json? #t)])))
+  (cmd-tree (resolve-file file-arg #t) #t))
 
 (define (cli-agenda)
   (define json? #f)

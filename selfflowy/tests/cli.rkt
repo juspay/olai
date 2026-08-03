@@ -49,9 +49,9 @@
     (check-true (hash-has-key? j 'file))
     (check-true (exact-positive-integer? (hash-ref j 'tasks))))
 
-  (test-case "tree --json shape"
+  (test-case "tree is always JSON (with or without --json)"
     (define-values (code out err)
-      (run-selfflowy (list "tree" "--json" (path->string example))))
+      (run-selfflowy (list "tree" (path->string example))))
     (check-equal? code 0 (string-append out err))
     (define j (parse-json out))
     (check-equal? (hash-ref j 'version) 1)
@@ -62,7 +62,11 @@
     (check-true (hash-has-key? inbox 'tags))
     (check-true (hash-has-key? inbox 'children))
     (check-true (hash-has-key? inbox 'date))
-    (check-true (hash-has-key? inbox 'description)))
+    (check-true (hash-has-key? inbox 'description))
+    (define-values (c2 o2 e2)
+      (run-selfflowy (list "tree" "--json" (path->string example))))
+    (check-equal? c2 0 e2)
+    (check-equal? (hash-ref (parse-json o2) 'version) 1))
 
   (test-case "agenda --json shape"
     (define-values (code out err)
