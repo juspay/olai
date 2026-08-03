@@ -56,38 +56,55 @@ EOF
   (test-case "invalid date is a syntax error"
     (check-exn
      (λ (e)
-       (and (exn:fail? e)
-            (regexp-match? #rx"(?i:invalid date|YYYY-MM-DD|date)"
+       (and (exn:fail:syntax? e)
+            (regexp-match? #rx"(?i:YYYY-MM-DD|date)"
                            (exn-message e))))
      (λ ()
        (eval-tasks
         "#lang selfflowy\n(t \"x\" #:date \"not-a-date\")\n"))))
 
+  (test-case "non-string date is a syntax error"
+    (check-exn
+     (λ (e) (exn:fail:syntax? e))
+     (λ ()
+       (eval-tasks
+        "#lang selfflowy\n(t \"x\" #:date 42)\n"))))
+
   (test-case "non-string description is a syntax error"
     (check-exn
-     (λ (e)
-       (and (exn:fail? e)
-            (regexp-match? #rx"(?i:description|string)"
-                           (exn-message e))))
+     (λ (e) (exn:fail:syntax? e))
      (λ ()
        (eval-tasks
         "#lang selfflowy\n(t \"x\" #:description 42)\n"))))
 
+  (test-case "duplicate #:date rejected"
+    (check-exn
+     (λ (e)
+       (and (exn:fail:syntax? e)
+            (regexp-match? #rx"(?i:too many|#:date|date)"
+                           (exn-message e))))
+     (λ ()
+       (eval-tasks
+        "#lang selfflowy\n(t \"x\" #:date \"2026-01-01\" #:date \"2026-01-02\")\n"))))
+
   (test-case "duplicate #:description rejected"
     (check-exn
-     exn:fail?
+     (λ (e)
+       (and (exn:fail:syntax? e)
+            (regexp-match? #rx"(?i:too many|#:description|description)"
+                           (exn-message e))))
      (λ ()
        (eval-tasks
         "#lang selfflowy\n(t \"x\" #:description \"a\" #:description \"b\")\n"))))
 
   (test-case "bad month/day rejected"
     (check-exn
-     exn:fail?
+     (λ (e) (exn:fail:syntax? e))
      (λ ()
        (eval-tasks
         "#lang selfflowy\n(t \"x\" #:date \"2026-13-01\")\n")))
     (check-exn
-     exn:fail?
+     (λ (e) (exn:fail:syntax? e))
      (λ ()
        (eval-tasks
         "#lang selfflowy\n(t \"x\" #:date \"2026-02-30\")\n"))))

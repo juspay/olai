@@ -51,24 +51,22 @@
                     (and (memv m '(4 6 9 11)) (<= 1 d 30))
                     (and (= m 2) (<= 1 d 29)))))))
 
-  (define (unique-attr attr-list)
-    (define xs (filter values (or attr-list '())))
-    (cond
-      [(null? xs) #'#f]
-      [(null? (cdr xs)) (car xs)]
-      [else 'duplicate]))
+  (define-syntax-class date-str
+    #:description "YYYY-MM-DD date"
+    (pattern d:str
+             #:fail-unless (date-string? (syntax-e #'d))
+             "expected YYYY-MM-DD date"))
 
   ;; Optional #:date / #:description in either order (at most once each).
   (define-splicing-syntax-class t-kwargs
     #:attributes (date description)
-    (pattern (~seq (~or (~seq #:date d)
-                        (~seq #:description desc)) ...)
-             #:attr date (unique-attr (attribute d))
-             #:attr description (unique-attr (attribute desc))
-             #:fail-when (eq? (attribute date) 'duplicate)
-             "duplicate #:date"
-             #:fail-when (eq? (attribute description) 'duplicate)
-             "duplicate #:description"))
+    (pattern (~seq (~alt (~optional (~seq #:date d:date-str)
+                                    #:name "#:date")
+                         (~optional (~seq #:description desc:str)
+                                    #:name "#:description"))
+                   ...)
+             #:attr date (or (attribute d) #'#f)
+             #:attr description (or (attribute desc) #'#f)))
 
   ;; Closed grammar: every task node is a (t ...) form, recursively.
   (define-syntax-class task-form
@@ -79,29 +77,6 @@
 (define-syntax (t stx)
   (syntax-parse stx
     [(_ title:str kw:t-kwargs child:task-form ...)
-     #:do [(define date-stx #'kw.date)
-           (define date-val (syntax-e date-stx))
-           (define desc-stx #'kw.description)
-           (define desc-val (syntax-e desc-stx))
-           (when (and date-val (not (string? date-val)))
-             (raise-syntax-error
-              't
-              "date after #:date must be a string literal YYYY-MM-DD"
-              stx
-              date-stx))
-           (when (and (string? date-val) (not (date-string? date-val)))
-             (raise-syntax-error
-              't
-              (format "invalid date ~s; expected YYYY-MM-DD (e.g. \"2026-08-04\")"
-                      date-val)
-              stx
-              date-stx))
-           (when (and desc-val (not (string? desc-val)))
-             (raise-syntax-error
-              't
-              "value after #:description must be a string literal"
-              stx
-              desc-stx))]
      #'(task title kw.date kw.description (list child ...))]
     [(_ title . _)
      (raise-syntax-error
@@ -118,17 +93,8 @@
 
 (define-syntax (module-begin stx)
   (syntax-parse stx
-    [(_ form ...)
-     (define checked
-       (for/list ([f (in-list (syntax->list #'(form ...)))])
-         (syntax-parse f
-           [tf:task-form #'tf]
-           [_ (raise-syntax-error
-               #f
-               "expected a nested (t ...) task form"
-               f)])))
-     (with-syntax ([(form* ...) checked])
-       #'(#%module-begin
-          (provide tasks)
-          (define tasks (list form* ...))
-          (void)))]))
+    [(_ form:task-form ...)
+     #'(#%module-begin
+        (provide tasks)
+        (define tasks (list form ...))
+        (void))]))
