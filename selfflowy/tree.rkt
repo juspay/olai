@@ -2,6 +2,7 @@
 
 ;; Render a task tree with unicode box-drawing characters.
 ;; Optional #:description is shown dimmed on the next line, indented.
+;; ANSI styling is emitted only when stdout is a terminal.
 
 (require racket/list
          racket/string
@@ -9,8 +10,13 @@
 
 (provide render-tree)
 
-(define (dim s)
-  (string-append "\x1b[2m" s "\x1b[0m"))
+(define (use-ansi?)
+  (terminal-port? (current-output-port)))
+
+(define (style-dim s)
+  (if (use-ansi?)
+      (string-append "\x1b[2m" s "\x1b[0m")
+      s))
 
 (define (format-task-line tk)
   (define title (task-title tk))
@@ -21,7 +27,7 @@
 
 (define (format-description-line tk)
   (define desc (task-description tk))
-  (and desc (dim desc)))
+  (and desc (style-dim desc)))
 
 ;; prefix: string drawn before the connector for nested nodes
 (define (render-task tk #:prefix [prefix ""] #:is-last? [is-last? #t] #:is-root? [is-root? #t])

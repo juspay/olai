@@ -31,4 +31,14 @@
     (check-true (string-contains? out "kid note") out)
     ;; description sits on its own line under the title
     (check-true (regexp-match? #rx"Root\n.*a note" out) out)
-    (check-true (regexp-match? #rx"Kid\n.*kid note" out) out)))
+    (check-true (regexp-match? #rx"Kid\n.*kid note" out) out))
+
+  (test-case "no ANSI when stdout is not a terminal"
+    (define tasks (list (task "Root" #f "dim me" '())))
+    (define out
+      (let ([sp (open-output-string)])
+        (parameterize ([current-output-port sp])
+          ;; render-tree checks current-output-port for TTY
+          (render-tree tasks))))
+    (check-true (string-contains? out "dim me") out)
+    (check-false (regexp-match? #rx"\x1b" out) out)))
