@@ -3,9 +3,8 @@
 ;; Pure agenda: collect dated tasks, sort by date, group vs a today string.
 ;; Plain-text formatting only (no ANSI). Printing/clock live in the CLI.
 
-(require racket/list
-         racket/string
-         (except-in selfflowy/lang/expander #%module-begin) ; task, mirror-ref
+(require racket/string
+         (except-in selfflowy/lang/expander #%module-begin) ; task
          selfflowy/dates
          selfflowy/query)
 
