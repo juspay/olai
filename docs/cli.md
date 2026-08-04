@@ -87,6 +87,7 @@ Single file:
       "description": "Quick capture landing zone",
       "done": null,
       "id": null,
+      "key": "pd076e677",
       "tags": ["capture"],
       "children": [ ... ]
     }
@@ -116,6 +117,13 @@ Multiple files:
 `date` / `description` are raw strings or `null` (Markdown is not interpreted
 here). `done` is `null` (open), `true` (completed, no timestamp), or an ISO
 timestamp string. `id` is `null` or the anchor string. `tags` is always an array.
+
+`key` is the node's stable identity — its `^anchor` when it has one, else a
+hash of the file name plus the child ordinals that reach it. It survives
+renaming the node or any ancestor and cannot collide between same-titled
+siblings; it changes when siblings are reordered (anchor the node if you need
+more). The web view addresses nodes by it (element ids, permalinks, stored
+collapse state).
 
 ## `agenda [--json] [file ...]`
 

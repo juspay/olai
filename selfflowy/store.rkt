@@ -29,9 +29,8 @@
          syntax/modread
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/load
-         ;; Node identity still comes from the renderer's breadcrumb hash;
-         ;; the next change mints it in the model instead.
-         (only-in selfflowy/web/render fragment-index))
+         ;; one owner for how a file is named in the UI
+         (only-in selfflowy/web/render file-label))
 
 (provide make-store
          store?
@@ -40,6 +39,7 @@
          store-error
          store-invalidate!
          (struct-out snapshot)
+         outline-index
          call-in-outline-namespace)
 
 ;; One consistent view of the outlines. Handlers read this once and never see
@@ -150,13 +150,34 @@
               [(k v) (in-hash (outline-anchors o))])
     (values k v)))
 
+;; key -> (list task crumbs) for every node, where crumbs is the trail from
+;; the file label down to and including the node itself, each crumb a
+;; (list label key) with key #f for the file label. Keys come from the model
+;; (task-key), so this is a plain invertible hash: no id formula restated
+;; anywhere, no scan when a lookup misses. Mirrors are not indexed — a mirror
+;; site is the same node as its defining site, and that site owns the key.
+(define (outline-index files-data)
+  (define idx (make-hash))
+  (define (walk x trail)
+    (when (task? x)
+      (define here (append trail (list (list (task-title x) (task-key x)))))
+      (unless (hash-has-key? idx (task-key x))
+        (hash-set! idx (task-key x) (list x here)))
+      (for ([c (in-list (task-children x))])
+        (walk c here))))
+  (for ([e (in-list files-data)])
+    (define trail (list (list (file-label (car e)) #f)))
+    (for ([tk (in-list (cadr e))])
+      (walk tk trail)))
+  idx)
+
 (define (build-snapshot outlines watch)
   (define files-data
     (for/list ([o (in-list outlines)])
       (list (outline-path o) (outline-tasks o) (outline-anchors o))))
   (snapshot outlines
             files-data
-            (fragment-index files-data)
+            (outline-index files-data)
             (merge-anchors outlines)
             watch))
 

@@ -87,6 +87,7 @@
           'description (nullish (task-description tk))
           'done (done->json (task-done tk))
           'id (nullish (task-id tk))
+          'key (nullish (task-key tk))
           'tags (task-tags tk)
           'children (map (λ (c) (child->jsexpr c #:root-file root-file))
                          (task-children tk))))

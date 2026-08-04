@@ -17,6 +17,7 @@
          task-tags
          task-children
          task-file
+         task-key
          mirror-ref
          mirror-ref?
          mirror-ref-anchor
@@ -29,7 +30,6 @@
          collect-dated
          agenda-groups
          agenda-groups-from-files
-         fragment-id
          render-node-fragment
          render-outline
          render-breadcrumbs

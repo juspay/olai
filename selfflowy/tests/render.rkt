@@ -6,12 +6,22 @@
 (require rackunit
          racket/string
          xml
+         file/sha1
          (except-in selfflowy/lang/expander #%module-begin)
+         selfflowy/store
          selfflowy/web/render
          selfflowy/web/markdown)
 
-(define (tk title date desc kids #:tags [tags '()] #:done [done #f] #:id [id #f])
-  (task title date desc done id tags kids #f))
+;; Hand-built tasks, so the key has to be minted here too. Keying off the
+;; title keeps these tests readable: two `tk` calls with the same title stand
+;; for the same node. Real keys come from the expander (see tests/expander).
+(define (title-key title)
+  (string-append
+   "p" (substring (sha1 (open-input-bytes (string->bytes/utf-8 title))) 0 8)))
+
+(define (tk title date desc kids
+            #:tags [tags '()] #:done [done #f] #:id [id #f] #:key [key #f])
+  (task title date desc done id tags kids #f (or key id (title-key title))))
 
 (define (xstr x) (xexpr->string x))
 
@@ -21,40 +31,11 @@
 
 (module+ test
 
-  ;; ---- fragment ids -------------------------------------------------------
-
-  (test-case "fragment id prefers the anchor"
-    (check-equal? (fragment-id (tk "T" #f #f '() #:id "roadmap") '("F.rkt" "T"))
-                  "roadmap")
-    ;; anchor wins no matter where the node sits
-    (check-equal? (fragment-id (tk "T" #f #f '() #:id "roadmap") '("Other.rkt" "X" "T"))
-                  "roadmap"))
-
-  (test-case "path fragment id is p + 8 hex, stable, path-sensitive"
-    (define a (fragment-id (tk "Buy milk" #f #f '()) '("Tasks.rkt" "Inbox" "Buy milk")))
-    (define b (fragment-id (tk "Buy milk" #f #f '()) '("Tasks.rkt" "Inbox" "Buy milk")))
-    (check-equal? a b)
-    (check-regexp-match #px"^p[0-9a-f]{8}$" a)
-    ;; same title under a different parent -> different id
-    (check-not-equal? a (fragment-id (tk "Buy milk" #f #f '())
-                                     '("Tasks.rkt" "Later" "Buy milk")))
-    ;; string and list breadcrumbs agree
-    (check-equal? a (fragment-id (tk "Buy milk" #f #f '())
-                                 "Tasks.rkt > Inbox > Buy milk")))
-
-  (test-case "ids do not depend on how many files were loaded"
-    (define t (tk "Solo" #f #f '()))
-    (define one (fragment-index (files (list "Tasks.rkt" (list t) (hash)))))
-    (define two (fragment-index (files (list "Tasks.rkt" (list t) (hash))
-                                       (list "Roadmap.rkt" (list (tk "Other" #f #f '())) (hash)))))
-    (check-true (hash-has-key? two (car (hash-keys one)))))
-
   ;; ---- node fragment ------------------------------------------------------
 
-  (test-case "node fragment wraps in n-{fragment-id}"
-    (define fid (fragment-id (tk "Leaf" #f #f '()) '("F.rkt" "Leaf")))
+  (test-case "node fragment wraps in n-{task-key}"
+    (define fid (task-key (tk "Leaf" #f #f '())))
     (define s (xstr (render-node-fragment (tk "Leaf" #f #f '())
-                                          #:breadcrumb '("F.rkt" "Leaf")
                                           #:today "2026-08-04")))
     (check-true (string-contains? s (string-append "id=\"n-" fid "\"")) s)
     (check-true (string-contains? s (string-append "data-fragment-id=\"" fid "\"")) s)
@@ -67,9 +48,8 @@
   (test-case "parent gets a toggle, a children list and nested node ids"
     (define parent (tk "Parent" #f #f (list (tk "Child" #f #f '()))))
     (define s (xstr (render-node-fragment parent
-                                          #:breadcrumb '("F.rkt" "Parent")
                                           #:today "2026-08-04")))
-    (define kid-id (fragment-id (tk "Child" #f #f '()) '("F.rkt" "Parent" "Child")))
+    (define kid-id (task-key (tk "Child" #f #f (quote ()))))
     (check-true (string-contains? s "sf-node has-children") s)
     (check-true (string-contains? s "class=\"sf-toggle\"") s)
     (check-true (string-contains? s "aria-expanded=\"true\"") s)
@@ -77,7 +57,7 @@
     ;; only parents get a collapse key, and it is the fragment id
     (check-true (string-contains?
                  s (string-append "data-collapse-key=\""
-                                  (fragment-id parent '("F.rkt" "Parent")) "\""))
+                                  (task-key parent) "\""))
                 s)
     (check-false (string-contains?
                   s (string-append "data-collapse-key=\"" kid-id "\""))
@@ -94,7 +74,7 @@
 
   (test-case "anchored node keeps a plain #anchor target for mirror links"
     (define s (xstr (render-node-fragment (tk "Ship" #f #f '() #:id "ship")
-                                          #:breadcrumb '("F.rkt" "Ship"))))
+                                          )))
     (check-true (string-contains? s "id=\"n-ship\"") s)
     (check-true (string-contains? s "class=\"sf-anchor\" id=\"ship\"") s))
 
@@ -103,7 +83,7 @@
     (define parent (tk "Holder" #f #f (list (mirror-ref "a1"))))
     (define s (xstr (render-node-fragment parent
                                           #:anchors (hash "a1" target)
-                                          #:breadcrumb '("F.rkt" "Holder"))))
+                                          )))
     (check-true (string-contains? s "Anchored") s)
     (check-true (string-contains? s "class=\"sf-mirror\"") s)
     (check-true (string-contains? s "href=\"#a1\"") s)
@@ -274,7 +254,7 @@
     (check-true (string-contains? s "Milk") s)
     (check-true (string-contains? s "Ship") s)
     ;; roots are keyed off the file label
-    (define fid (fragment-id (tk "Milk" #f #f '()) '("Tasks.rkt" "Milk")))
+    (define fid (task-key (tk "Milk" #f #f (quote ()))))
     (check-true (string-contains? s (string-append "id=\"n-" fid "\"")) s))
 
   ;; ---- sidebar ------------------------------------------------------------
@@ -325,9 +305,8 @@
                                                 (list (tk "2% please" #f #f '())))))
                                   (tk "Elsewhere" #f #f '()))
                             (hash))))
-    (define fid (fragment-id (tk "Buy milk" #f #f '())
-                             '("Tasks.rkt" "Inbox" "Buy milk")))
-    (define s (xstr (render-zoom fd fid #:today "2026-08-04")))
+    (define fid (task-key (tk "Buy milk" #f #f '())))
+    (define s (xstr (render-zoom (outline-index fd) fid #:today "2026-08-04")))
     (check-true (string-contains? s "sf-breadcrumbs") s)
     (check-true (string-contains? s "Tasks.rkt") s)
     (check-true (string-contains? s "Inbox") s)
@@ -336,20 +315,17 @@
     (check-false (string-contains? s "Elsewhere") s)
     ;; the ancestor crumb is clickable, the file label is not
     (check-true (string-contains? s (string-append
-                                     "href=\"#n-"
-                                     (fragment-id (tk "Inbox" #f #f '())
-                                                  '("Tasks.rkt" "Inbox"))
-                                     "\""))
+                                     "href=\"#n-" (task-key (tk "Inbox" #f #f '())) "\""))
                 s))
 
-  (test-case "zoom by anchor and unknown id"
+  (test-case "zoom by anchor and unknown key"
     (define fd (files (list "Tasks.rkt"
                             (list (tk "Root" #f #f (list (tk "Kid" #f #f '() #:id "kid"))))
                             (hash))))
-    (define s (xstr (render-zoom fd "kid")))
+    (define s (xstr (render-zoom (outline-index fd) "kid")))
     (check-true (string-contains? s "id=\"n-kid\"") s)
     (check-true (string-contains? s "Kid") s)
-    (define miss (xstr (render-zoom fd "pdeadbeef")))
+    (define miss (xstr (render-zoom (outline-index fd) "pdeadbeef")))
     (check-true (string-contains? miss "No such node.") miss))
 
   ;; ---- page shell ---------------------------------------------------------

@@ -91,6 +91,69 @@
        (define day (car (task-children (car (task-children t)))))
        (check-equal? (map task-title (task-children day)) '("Ship the store")))))
 
+  ;; ---- node identity -------------------------------------------------------
+
+  (define (all-keys snap)
+    (for*/list ([o (in-list (snapshot-outlines snap))]
+                [tk (in-list (outline-tasks o))]
+                [k (in-list (let walk ([x tk])
+                              (if (task? x)
+                                  (cons (list (task-title x) (task-key x))
+                                        (append* (map walk (task-children x))))
+                                  '())))])
+      k))
+
+  (test-case "renaming an ancestor does not re-key its descendants"
+    (with-temp-dir
+     (λ (dir)
+       (define f (build-path dir "Tasks.rkt"))
+       (write-file! f "#lang selfflowy\nProjects\n  Ship it\n    Write the docs\n")
+       (define st (make-store (list f)))
+       (define before (all-keys (store-snapshot st)))
+       (define (key-of pairs title) (cadr (assoc title pairs)))
+       ;; rename every ancestor of "Write the docs"
+       (write-file! f "#lang selfflowy\nWork\n  Ship the thing\n    Write the docs\n")
+       (store-invalidate! st)
+       (define after (all-keys (store-snapshot st)))
+       (check-equal? (key-of after "Write the docs") (key-of before "Write the docs"))
+       ;; and the renamed nodes keep their own keys too — identity is position,
+       ;; not text
+       (check-equal? (key-of after "Ship the thing") (key-of before "Ship it"))
+       (check-equal? (key-of after "Work") (key-of before "Projects")))))
+
+  (test-case "same-titled siblings do not collide"
+    (with-temp-dir
+     (λ (dir)
+       (define f (build-path dir "Tasks.rkt"))
+       (write-file! f "#lang selfflowy\nInbox\n  Call\n    mum\n  Call\n    dad\n")
+       (define st (make-store (list f)))
+       (define snap (store-snapshot st))
+       (define calls
+         (for/list ([c (in-list (task-children
+                                 (car (outline-tasks (car (snapshot-outlines snap))))))])
+           (task-key c)))
+       (check-equal? (length calls) 2)
+       (check-not-equal? (car calls) (cadr calls))
+       ;; both are addressable: the index keeps each, not just the first
+       (for ([k (in-list calls)])
+         (check-not-false (hash-ref (snapshot-index snap) k #f) k))
+       (check-equal? (hash-count (snapshot-index snap)) 5))))
+
+  (test-case "an ^anchor is the key, wherever the node sits"
+    (with-temp-dir
+     (λ (dir)
+       (define f (build-path dir "Tasks.rkt"))
+       (write-file! f "#lang selfflowy\nInbox\n  Ship it ^ship\n")
+       (define st (make-store (list f)))
+       (define tk (car (task-children
+                        (car (outline-tasks (car (snapshot-outlines (store-snapshot st))))))))
+       (check-equal? (task-key tk) "ship")
+       ;; moved and renamed: still ^ship
+       (write-file! f "#lang selfflowy\nLater\nInbox\n  Sub\n    Ship it now ^ship\n")
+       (store-invalidate! st)
+       (define snap (store-snapshot st))
+       (check-not-false (hash-ref (snapshot-index snap) "ship" #f)))))
+
   (test-case "an index and merged anchors are derived once per load"
     (with-temp-dir
      (λ (dir)

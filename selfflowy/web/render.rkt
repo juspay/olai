@@ -9,25 +9,22 @@
 ;;   (list label tasks anchors)   ; label: path or string, anchors: hash
 ;;   (cons label tasks)           ; legacy shorthand, no anchors
 ;;
-;; IDS — every node element carries id="n-{fragment-id}". fragment-id is the
-;; task's ^anchor when it has one, else "p" + 8 hex chars of the SHA-1 of its
-;; breadcrumb path ("Tasks.rkt > Inbox > Buy milk"). Breadcrumbs INCLUDE the
-;; node's own title and start at the file label, so an id is stable no matter
-;; how many files were loaded alongside it.
+;; IDS — a node's identity is `task-key`, minted by the expander (its ^anchor,
+;; else a hash of file + child ordinals). This module never computes an id: it
+;; only decorates one, so renaming a title cannot re-key a permalink, a stored
+;; collapse state, or an SSE swap target.
 
 (require racket/list
          racket/match
          racket/path
          racket/string
          racket/runtime-path
-         file/sha1
          (only-in xml cdata xexpr->string)
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/dates
          selfflowy/web/markdown)
 
-(provide fragment-id
-         render-node-fragment
+(provide render-node-fragment
          render-outline
          render-breadcrumbs
          render-sidebar
@@ -36,7 +33,6 @@
          ;; helpers the server needs to route/lookup
          page->html-string
          render-error-banner
-         fragment-index
          file-label
          node-element-id
          web-static-dir
@@ -50,31 +46,10 @@
 (define-runtime-path static-dir "static")
 (define (web-static-dir) static-dir)
 
-;; ---- fragment ids ---------------------------------------------------------
+;; ---- element ids ----------------------------------------------------------
 
-;; breadcrumb: string or (listof string). Lists join with " > ".
-(define (breadcrumb->string breadcrumb)
-  (cond
-    [(string? breadcrumb) breadcrumb]
-    [(list? breadcrumb) (string-join (map crumb-label breadcrumb) " > ")]
-    [else (format "~a" breadcrumb)]))
-
-(define (crumb-label c)
-  (cond
-    [(string? c) c]
-    [(pair? c) (crumb-label (car c))]
-    [else (format "~a" c)]))
-
-(define (path-hash s)
-  (substring (sha1 (open-input-bytes (string->bytes/utf-8 s))) 0 8))
-
-;; The anchor wins: ^ids are user-chosen and survive renames of ancestors.
-(define (fragment-id tk breadcrumb)
-  (or (and (task? tk) (task-id tk))
-      (string-append "p" (path-hash (breadcrumb->string breadcrumb)))))
-
-(define (node-element-id fid)
-  (string-append "n-" fid))
+(define (node-element-id key)
+  (string-append "n-" key))
 
 ;; ---- small helpers --------------------------------------------------------
 
@@ -152,7 +127,6 @@
 
 (define (render-child child
                       #:anchors anchors
-                      #:breadcrumb breadcrumb
                       #:today today
                       #:zoom-base zoom-base
                       #:toggle-base toggle-base)
@@ -164,7 +138,6 @@
        [target
         (render-node-fragment target
                               #:anchors anchors
-                              #:breadcrumb (append breadcrumb (list (task-title target)))
                               #:today today
                               #:mirror-of anchor
                               #:zoom-base zoom-base
@@ -180,7 +153,6 @@
     [(task? child)
      (render-node-fragment child
                            #:anchors anchors
-                           #:breadcrumb (append breadcrumb (list (task-title child)))
                            #:today today
                            #:zoom-base zoom-base
                            #:toggle-base toggle-base)]
@@ -189,16 +161,14 @@
 ;; One subtree, self-contained: this is the unit SSE re-swaps.
 (define (render-node-fragment tk
                               #:anchors [anchors (hash)]
-                              #:breadcrumb [breadcrumb #f]
                               #:today [today #f]
                               #:mirror-of [mirror-of #f]
                               #:zoom-base [zoom-base #f]
                               #:toggle-base [toggle-base #f]
                               #:collapsed? [collapsed? #f])
   (define title (task-title tk))
-  (define crumb (or breadcrumb (list title)))
   (define today* (or today (today-iso-string)))
-  (define fid (fragment-id tk crumb))
+  (define key (task-key tk))
   (define done? (and (task-done tk) #t))
   (define kids (task-children tk))
   (define has-kids? (pair? kids))
@@ -222,13 +192,13 @@
                               (aria-hidden "true")))])
              (if zoom-base
                  `(a ((class "sf-bullet-link")
-                      (href ,(href-for zoom-base fid))
+                      (href ,(href-for zoom-base key))
                       (title "zoom in"))
                      ,dot)
                  dot))
           ;; the check sits in the gutter, not in the text run, so a title
           ;; and its note stay flush left of each other
-          ,(checkbox-xexpr fid done? toggle-base)
+          ,(checkbox-xexpr key done? toggle-base)
           (div ((class "sf-content"))
                (div ((class "sf-line"))
                     ,@(if mirror-of
@@ -249,9 +219,9 @@
                          (and has-kids? "has-children")
                          (and collapsed? "is-collapsed")
                          (and done? "is-done")))
-        (id ,(node-element-id fid))
-        (data-fragment-id ,fid)
-        ,@(if has-kids? `((data-collapse-key ,fid)) '()))
+        (id ,(node-element-id key))
+        (data-fragment-id ,key)
+        ,@(if has-kids? `((data-collapse-key ,key)) (quote ())))
        ,@(legacy-anchor-xexpr tk)
        ,row
        ,@(if has-kids?
@@ -259,7 +229,6 @@
                         ,@(for/list ([c (in-list kids)])
                             (render-child c
                                           #:anchors anchors
-                                          #:breadcrumb crumb
                                           #:today today*
                                           #:zoom-base zoom-base
                                           #:toggle-base toggle-base))))
@@ -278,7 +247,6 @@
          ,@(for/list ([tk (in-list tasks)])
              (render-child tk
                            #:anchors anchors
-                           #:breadcrumb (list label)
                            #:today today*
                            #:zoom-base zoom-base
                            #:toggle-base toggle-base))))
@@ -319,22 +287,21 @@
                         #:zoom-base [zoom-base #f]
                         #:home-href [home-href "/"])
   (define entries (normalize-files-data files-data))
-  (define (tree-item tk breadcrumb depth)
+  (define (tree-item tk depth)
     (cond
-      [(mirror-ref? tk) '()]
+      [(mirror-ref? tk) (quote ())]
       [(task? tk)
-       (define crumb (append breadcrumb (list (task-title tk))))
-       (define fid (fragment-id tk crumb))
+       (define key (task-key tk))
        (define kids (filter task? (task-children tk)))
        (define has-kids? (pair? kids))
        (list
         `(li ((class ,(classes "sf-tree-node"
                                (and has-kids? "has-children")
                                (and has-kids? (> depth 0) "is-collapsed")))
-              (data-fragment-id ,fid)
+              (data-fragment-id ,key)
               ;; sidebar collapse state is its own; the same node can sit
               ;; expanded in the main pane and folded here.
-              ,@(if has-kids? `((data-collapse-key ,(string-append "tree-" fid))) '()))
+              ,@(if has-kids? `((data-collapse-key ,(string-append "tree-" key))) (quote ())))
              (div ((class "sf-tree-row"))
                   ,@(if has-kids?
                         (list `(button ((type "button")
@@ -344,13 +311,13 @@
                                        "▸"))
                         (list `(span ((class "sf-toggle sf-toggle-empty")
                                       (aria-hidden "true")))))
-                  (a ((class "sf-tree-link") (href ,(href-for zoom-base fid)))
+                  (a ((class "sf-tree-link") (href ,(href-for zoom-base key)))
                      ,@(map style-md-xexpr (title->inline-xexprs (task-title tk)))))
              ,@(if has-kids?
                    (list `(ul ((class "sf-tree-children"))
                               ,@(append*
                                  (for/list ([c (in-list kids)])
-                                   (tree-item c crumb (add1 depth))))))
+                                   (tree-item c (add1 depth))))))
                    '())))]
       [else '()]))
   `(aside ((class "sf-sidebar") (id "sf-sidebar"))
@@ -376,7 +343,7 @@
                              (ul ((class "sf-tree"))
                                  ,@(append*
                                     (for/list ([tk (in-list tasks)])
-                                      (tree-item tk (list label) 0)))))))))
+                                      (tree-item tk 0)))))))))
 
 ;; ---- page shell -----------------------------------------------------------
 
@@ -464,76 +431,36 @@ JS
 
 ;; ---- zoom -----------------------------------------------------------------
 
-;; fid -> (list task breadcrumb) for every node in files-data. Mirrors resolve
-;; to their target once (the anchor site owns the id).
-(define (fragment-index files-data)
-  (define entries (normalize-files-data files-data))
-  (define idx (make-hash))
-  (define (walk x breadcrumb)
-    (when (task? x)
-      (define crumb (append breadcrumb (list (task-title x))))
-      (define fid (fragment-id x crumb))
-      (unless (hash-has-key? idx fid)
-        (hash-set! idx fid (list x crumb)))
-      (for ([c (in-list (task-children x))])
-        (walk c crumb))))
-  (for ([e (in-list entries)])
-    (match-define (list label tasks _) e)
-    (for ([tk (in-list tasks)])
-      (walk tk (list label))))
-  idx)
-
-(define (anchors-for files-data)
-  (for/fold ([h (hash)]) ([e (in-list (normalize-files-data files-data))])
-    (for/fold ([h h]) ([(k v) (in-hash (caddr e))])
-      (hash-set h k v))))
-
-;; Breadcrumbs + the focused subtree. Unknown id -> a plain "not found" pane.
-(define (render-zoom files-data id
+;; Breadcrumbs + the focused subtree.
+;;
+;; `index` is the store's node index: key -> (list task crumbs), where crumbs
+;; is the trail from the file label down to and including the node, each crumb
+;; a (list label key) with key #f for the file label itself. Nothing here
+;; recomputes an id or walks a tree — zoom is a hash lookup.
+(define (render-zoom index key
+                     #:anchors [anchors (hash)]
                      #:today [today #f]
                      #:zoom-base [zoom-base #f]
                      #:toggle-base [toggle-base #f]
                      #:home-href [home-href "/"])
-  (define idx (fragment-index files-data))
-  (define hit (hash-ref idx id #f))
+  (define hit (hash-ref index key #f))
   (cond
     [(not hit)
      `(div ((class "sf-pane sf-zoom") (id "sf-outline"))
            ,(render-breadcrumbs '() #:home-href home-href)
            (p ((class "sf-empty")) "No such node."))]
     [else
-     (match-define (list tk crumb) hit)
-     ;; Ancestor crumbs are clickable: rebuild their fragment ids from the path.
+     (match-define (list tk crumbs) hit)
+     ;; drop the node's own crumb; the file label has no node to zoom to
      (define ancestors
-       (let loop ([acc '()] [path '()] [rest crumb])
-         (cond
-           [(null? (cdr rest)) (reverse acc)]
-           [else
-            (define here (append path (list (car rest))))
-            (loop (cons (if (null? path)
-                            (car rest) ; file label: no node to zoom to
-                            (list (car rest)
-                                  (or (fid-for idx here) (car rest))))
-                        acc)
-                  here
-                  (cdr rest))])))
+       (for/list ([c (in-list (drop-right crumbs 1))])
+         (match-define (list label k) c)
+         (if k (list label k) label)))
      `(div ((class "sf-pane sf-zoom") (id "sf-outline"))
            ,(render-breadcrumbs ancestors #:zoom-base zoom-base #:home-href home-href)
            (ul ((class "sf-outline sf-zoom-root"))
                ,(render-node-fragment tk
-                                      #:anchors (anchors-for files-data)
-                                      #:breadcrumb crumb
+                                      #:anchors anchors
                                       #:today today
                                       #:zoom-base zoom-base
                                       #:toggle-base toggle-base)))]))
-
-;; path -> fragment id if that exact path is a node we indexed
-(define (fid-for idx path)
-  (define want (string-append "p" (path-hash (breadcrumb->string path))))
-  (cond
-    [(hash-has-key? idx want) want]
-    [else
-     ;; anchored node: its id is the ^anchor, so look it up by path
-     (for/first ([(k v) (in-hash idx)]
-                 #:when (equal? (cadr v) path))
-       k)]))

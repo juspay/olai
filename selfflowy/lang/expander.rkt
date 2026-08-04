@@ -20,6 +20,7 @@
 (require racket/list
          racket/string
          racket/path
+         file/sha1
          (for-syntax racket/base
                      syntax/parse
                      racket/string
@@ -42,6 +43,7 @@
          task-tags
          task-children
          task-file
+         task-key
          mirror-ref
          mirror-ref?
          mirror-ref-anchor
@@ -56,7 +58,8 @@
 ;; done: #f | #t | ISO date/datetime string
 ;; id: #f | non-empty anchor string
 ;; file: #f | absolute path string of defining outline
-(struct task (title date description done id tags children file) #:transparent)
+;; key: stable node identity, minted at load time (see mint-keys)
+(struct task (title date description done id tags children file key) #:transparent)
 
 ;; Mirror site: same node as anchors[anchor], not a copy.
 (struct mirror-ref (anchor) #:transparent)
@@ -399,14 +402,7 @@
   (append* (map flatten-child xs)))
 
 (define (rebuild-task tk kids)
-  (task (task-title tk)
-        (task-date tk)
-        (task-description tk)
-        (task-done tk)
-        (task-id tk)
-        (task-tags tk)
-        kids
-        (task-file tk)))
+  (struct-copy task tk [children kids]))
 
 ;; Recursively flatten include-splices nested under tasks.
 (define (flatten-tree tasks)
@@ -505,11 +501,49 @@
       (dfs id)))
   (void))
 
-(define (finalize-tasks forms)
+;; ---- node identity -------------------------------------------------------
+;;
+;; A node's key is what everything downstream addresses it by: element ids,
+;; permalinks, stored collapse state, SSE swap targets. So it must not be
+;; derived from anything the user retypes casually. It is:
+;;
+;;   * the ^anchor when the node has one — user-chosen, survives everything;
+;;   * otherwise a hash of "<file>/<child ordinals>" ("Tasks.rkt/0.2.1"),
+;;     which survives renaming the node or any ancestor, cannot collide
+;;     between same-titled siblings, and changes only when siblings are
+;;     reordered (anchor the node if you want more than that).
+;;
+;; Minted here, after includes splice, so ordinals are the ones the reader of
+;; this file actually sees.
+
+(define (short-hash s)
+  (substring (sha1 (open-input-bytes (string->bytes/utf-8 s))) 0 8))
+
+(define (path-key label ordinals)
+  (string-append
+   "p"
+   (short-hash (format "~a/~a"
+                       label
+                       (string-join (map number->string (reverse ordinals)) ".")))))
+
+(define (mint-keys tasks label)
+  (define (walk x ordinals)
+    (cond
+      [(task? x)
+       (struct-copy task x
+                    [key (or (task-id x) (path-key label ordinals))]
+                    [children (for/list ([c (in-list (task-children x))]
+                                         [i (in-naturals)])
+                                (walk c (cons i ordinals)))])]
+      [else x]))
+  (for/list ([t (in-list tasks)] [i (in-naturals)])
+    (walk t (list i))))
+
+(define (finalize-tasks forms src)
   (define includes (collect-include-paths forms))
   (define flat (flatten-tree forms))
   (validate-task-tree! flat)
-  (values flat includes))
+  (values (mint-keys flat (if src (path-basename src) "")) includes))
 
 (define (build-anchors-hash tasks)
   (define h (make-hash))
@@ -609,8 +643,10 @@
                    [file-lit (datum->syntax stx file)])
        ;; Keep include-splice values in the children list until finalize-tasks
        ;; flattens the whole tree (so includes can be recorded).
+       ;; key is #f until finalize-tasks mints it: ordinals are only knowable
+       ;; once includes have spliced.
        #'(task title kw.date kw.description kw.done kw.id 'tags-lit
-               (list child ...) file-lit))]
+               (list child ...) file-lit #f))]
     [(_ title . _)
      (raise-syntax-error
       't
@@ -628,9 +664,10 @@
   (syntax-parse stx
     [(_ form:body-form ...)
      (validate-body-forms (syntax->list #'(form ...)))
-     #'(#%module-begin
+     #`(#%module-begin
         (provide tasks anchors includes)
         (define raw-forms (list form ...))
-        (define-values (tasks includes) (finalize-tasks raw-forms))
+        (define-values (tasks includes)
+          (finalize-tasks raw-forms #,(syntax-source-path stx)))
         (define anchors (build-anchors-hash tasks))
         (void))]))
