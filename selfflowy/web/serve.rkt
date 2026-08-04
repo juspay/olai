@@ -16,7 +16,6 @@
          racket/list
          racket/match
          racket/path
-         racket/string
          (for-syntax racket/base)
          json
          net/url
@@ -37,8 +36,7 @@
          selfflowy/json-out
          selfflowy/load)
 
-(provide start-server
-         static-dir)
+(provide start-server)
 
 (define-runtime-path static-dir "static")
 (define-runtime-path mime-types-path
