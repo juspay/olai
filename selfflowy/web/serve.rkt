@@ -13,8 +13,6 @@
 ;; only thing this module owns is which outline files get read.
 
 (require racket/async-channel
-         racket/list
-         racket/match
          racket/path
          (for-syntax racket/base)
          json
@@ -75,25 +73,26 @@
 ;; a `raco exe` binary cannot populate from collection paths — the live view
 ;; lands with SSE, in the WP that owns pushing changes to the browser.
 ;;
-;; -> (values entries #f) | (values #f (list msg file line col))
-;; entries : (listof (list path tasks anchors includes))
+;; -> (values entries #f) | (values #f load-error)
+;; entries : (listof outline)
 (define (load-entries files)
   (let loop ([fs files] [acc '()])
     (cond
       [(null? fs) (values (reverse acc) #f)]
       [else
-       (match (try-load-outline (car fs))
-         [(list 'ok tasks anchors includes)
-          (loop (cdr fs) (cons (list (car fs) tasks anchors includes) acc))]
-         [(list 'error msg src line col)
-          (values #f (list msg src line col))])])))
+       (define r (try-load-outline (car fs)))
+       (if (outline? r)
+           (loop (cdr fs) (cons r acc))
+           (values #f r))])))
 
 (define (load-error->json err)
-  (match-define (list msg src line col) err)
-  (err-hash msg #:file src #:line line #:col col))
+  (err-hash (load-error-message err)
+            #:file (load-error-file err)
+            #:line (load-error-line err)
+            #:col (load-error-col err)))
 
 (define (load-error->text err)
-  (format "selfflowy: ~a\n" (car err)))
+  (format "selfflowy: ~a\n" (load-error-message err)))
 
 ;; ---- handlers -------------------------------------------------------------
 
@@ -107,8 +106,8 @@
            (path->string (file-name-from-path (car files)))
            "selfflowy"))
      (define files-data
-       (for/list ([e (in-list entries)])
-         (list (first e) (second e) (third e))))
+       (for/list ([o (in-list entries)])
+         (list (outline-path o) (outline-tasks o) (outline-anchors o))))
      (html-response
       (page->html-string
        (render-page (render-outline files-data)
@@ -129,7 +128,7 @@
      (define today (today-iso-string))
      (define groups
        (agenda-groups-from-files
-        (for/list ([e (in-list entries)]) (cons (first e) (second e)))
+        (for/list ([o (in-list entries)]) (cons (outline-path o) (outline-tasks o)))
         today))
      (json-response (agenda-groups->jsexpr groups today))]))
 

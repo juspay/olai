@@ -69,8 +69,8 @@
 
 (define (load-outline path json?)
   (match (try-load-outline path)
-    [(list 'ok tasks anchors includes) (values tasks anchors includes)]
-    [(list 'error msg src line col)
+    [(outline _p tasks anchors includes) (values tasks anchors includes)]
+    [(load-error msg src line col)
      (die exit-validation
           (if json?
               msg
@@ -107,13 +107,13 @@
   (define results
     (for/list ([path (in-list paths)])
       (match (try-load-outline path)
-        [(list 'ok tasks anchors includes)
+        [(outline _p tasks anchors includes)
          (list 'ok path
                (count-tasks tasks)
                (hash-count anchors)
                (count-mirrors tasks)
                includes)]
-        [(list 'error msg src line col)
+        [(load-error msg src line col)
          (list 'error path msg src line col)])))
   (define any-bad? (ormap (λ (r) (eq? (car r) 'error)) results))
   (cond
@@ -177,7 +177,7 @@
   (define entries
     (for/list ([path (in-list paths)])
       (define-values (tasks anchors includes) (load-outline path #t))
-      (list path tasks anchors includes)))
+      (outline path tasks anchors includes)))
   (write-json-stdout (outlines->jsexpr entries)))
 
 (define (cmd-agenda paths json?)

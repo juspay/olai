@@ -3,11 +3,11 @@
 ;; Agent-facing JSON helpers (versioned envelope).
 
 (require json
-         racket/list
          racket/path
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/agenda
-         selfflowy/calendar)
+         selfflowy/calendar
+         selfflowy/load)
 
 (provide json-version
          write-json-stdout
@@ -133,11 +133,12 @@
                 (for/list ([p (in-list includes)])
                   (hash 'file p)))))
 
-;; The whole `tree` payload. entries : (listof (list path tasks anchors includes)).
+;; The whole `tree` payload. entries : (listof outline).
 ;; One file keeps the historical single-file shape; several nest under 'files.
 (define (outlines->jsexpr entries)
-  (define (one e)
-    (outline->jsexpr (first e) (second e) (third e) #:includes (fourth e)))
+  (define (one o)
+    (outline->jsexpr (outline-path o) (outline-tasks o) (outline-anchors o)
+                     #:includes (outline-includes o)))
   (if (= (length entries) 1)
       (hash-set (one (car entries)) 'version json-version)
       (hash 'version json-version

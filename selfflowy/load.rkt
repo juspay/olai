@@ -9,9 +9,24 @@
 (require racket/list
          racket/path)
 
-(provide try-load-outline
+(provide (struct-out outline)
+         (struct-out load-error)
+         try-load-outline
          exn-location
          exn-message*)
+
+;; A loaded outline module. Named fields, not a positional tuple: every
+;; consumer (CLI, JSON, web) reads the same four things and used to
+;; destructure them by index.
+;;   path     : path of the outline file
+;;   tasks    : (listof task)
+;;   anchors  : hash id -> task
+;;   includes : (listof string) absolute paths spliced in by @include
+(struct outline (path tasks anchors includes) #:transparent)
+
+;; A load failure, with the srcloc of the offending form (CLAUDE.md: errors
+;; carry file:line:col). line/col may be #f when the exn had no source.
+(struct load-error (message file line col) #:transparent)
 
 ;; Prefer the most specific syntax object for agents: highest line/col among
 ;; exprs that carry a source (outline @date values are later subforms).
@@ -58,13 +73,13 @@
     [(exn:fail? e) (exn-message e)]
     [else (format "~a" e)]))
 
-;; -> (list 'ok tasks anchors includes) | (list 'error msg src line col)
+;; -> outline | load-error
 (define (try-load-outline path)
   (with-handlers
       ([exn:fail?
         (λ (e)
           (define-values (src line col) (exn-location e path))
-          (list 'error (exn-message* e) (or src path) line col))])
+          (load-error (exn-message* e) (or src path) line col))])
     (define mod `(file ,(path->string path)))
     (define tasks (dynamic-require mod 'tasks))
     (define anchors
@@ -73,4 +88,4 @@
     (define includes
       (with-handlers ([exn:fail? (λ (_) '())])
         (dynamic-require mod 'includes)))
-    (list 'ok tasks anchors includes)))
+    (outline path tasks anchors includes)))
