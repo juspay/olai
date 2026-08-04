@@ -71,9 +71,9 @@ Under the hood every outline becomes s-expressions. Same expander:
 
 Personal outlines are plain files you sync however you like (Dropbox,
 git, rsync). The repo holds the tool; your data stays outside it.
-`add` / `done` / `move` auto-commit only when the written file's dir is a
-git work tree; otherwise they write the file and leave history to your
-sync layer.
+`add` / `done` / `move` / `daily` auto-commit only when the written
+file's dir is a git work tree; otherwise they write the file and leave
+history to your sync layer.
 
 Single user, many devices. The server runs on your headless box behind
 Caddy or Tailscale. Offline you can read and queue captures; you cannot
