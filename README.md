@@ -54,7 +54,8 @@ Under the hood every outline becomes s-expressions. Same expander:
 
 ## HOW IT WORKS
 
-    ~/tasks/*.rkt                    <- source of truth (#lang selfflowy)
+    $SELFFLOWY_HOME/*.rkt            <- personal data (#lang selfflowy)
+    (default: ~/Dropbox/Selfflowy-Srid/)
         |
         v
     selfflowy CLI (Racket)           <- validate / query / html / capture
@@ -63,6 +64,11 @@ Under the hood every outline becomes s-expressions. Same expander:
     racket web-server ---- SSE ----> browser (PWA, htmx)
         |
         +-- spawns agent CLI over ACP (JSON-RPC on stdio)
+
+Personal outlines are plain files you sync however you like (Dropbox,
+git, rsync). The repo holds the tool; your data stays outside it.
+`add` / `done` auto-commit only when the outline dir is a git work tree;
+otherwise they write the file and leave history to your sync layer.
 
 Single user, many devices. The server runs on your headless box behind
 Caddy or Tailscale. Offline you can read and queue captures; you cannot
@@ -77,14 +83,15 @@ mirrors (`^anchor` / `*anchor`) are first class. Human view is HTML.
 
 ## ROADMAP
 
-The roadmap is a selfflowy outline:
-`selfflowy html examples/Roadmap.rkt` (phases 0.1–1.0).
+Track your own plan as a `#lang selfflowy` outline (e.g. under
+`$SELFFLOWY_HOME/Roadmap.rkt`). The repo's `examples/Roadmap.rkt` is
+fictional demo data only.
 
 ## BUILDING
 
     nix develop        # racket 9.2 + just; or install them yourself
     just install       # raco pkg install --link selfflowy/
-    just check         # validates Tasks.rkt (gitignored) + examples/Roadmap.rkt
+    just check         # validates $SELFFLOWY_HOME/{Tasks,Daily,Roadmap}.rkt
     just tree examples/Example.rkt   # JSON forest for agents
     just html examples/Example.rkt   # human tree view
     just agenda examples/Example.rkt

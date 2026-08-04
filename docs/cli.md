@@ -19,11 +19,17 @@ Same codes for plain and `--json` modes.
 
 ## Global
 
-- Default outline file when no paths given: `Tasks.rkt` in the cwd
-  (`add` / `done` always target one file via `--file`, default `Tasks.rkt`).
+- Default outline file when no paths given:
+  `$SELFFLOWY_HOME/Tasks.rkt` (default home:
+  `~/Dropbox/Selfflowy-Srid`). `add` / `done` always target one file via
+  `--file`, same default.
 - **Read commands** (`check` / `tree` / `agenda` / `html`) accept **one or more**
-  outline paths. The justfile defaults to `Tasks.rkt examples/Roadmap.rkt`.
-- `Tasks.rkt` is gitignored (personal outline data).
+  outline paths. The justfile defaults to
+  `$SELFFLOWY_HOME/{Tasks,Daily,Roadmap}.rkt` (no `examples/` paths).
+- Personal data lives outside the repo. Override the directory with
+  `SELFFLOWY_HOME`. Auto-commit (`add` / `done`) only runs when that
+  directory is a git work tree; otherwise it no-ops (`committed: false`)
+  and Dropbox (or your sync) is the history layer.
 - `--json` may appear after the subcommand where supported.
 
 ## `check [--json] [file ...]`
@@ -35,7 +41,7 @@ Plain — one ok-line per file; if any fail, all are reported then exit 2:
 ```
 $ selfflowy check examples/Example.rkt examples/Roadmap.rkt
 ok: .../Example.rkt (10 tasks)
-ok: .../Roadmap.rkt (16 tasks)
+ok: .../Roadmap.rkt (6 tasks)
 ```
 
 JSON — **single file** keeps the historical shape:
