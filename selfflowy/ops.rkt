@@ -23,7 +23,6 @@
          selfflowy/resolve)
 
 (provide (struct-out exn:fail:op)
-         op-error-kind
          (struct-out add-result)
          (struct-out done-result)
          (struct-out move-result)
@@ -38,9 +37,6 @@
 ;; file/line/col carry the srcloc when there is one (CLAUDE.md: errors carry
 ;; file:line:col).
 (struct exn:fail:op exn:fail (kind file line col) #:transparent)
-
-(define (op-error-kind e)
-  (if (exn:fail:op? e) (exn:fail:op-kind e) 'validation))
 
 (define (op-fail kind fmt #:file [file #f] #:line [line #f] #:col [col #f]
                  . args)
@@ -83,7 +79,7 @@
              (load-error-message r)))
   r)
 
-(define (existing-file path who)
+(define (existing-file path)
   (define full (simple-form-path (path->complete-path path)))
   (unless (file-exists? full)
     (op-fail 'not-found "file not found: ~a" #:file full full))
@@ -135,7 +131,7 @@
 (define (ops-done! file spec today
                    #:undo? [undo? #f]
                    #:commit? [commit? #t])
-  (define root-path (existing-file file 'done))
+  (define root-path (existing-file file))
   (define hit
     (as-validation root-path
                    (λ () (locate (load-outline-or-fail root-path) spec))))
@@ -166,7 +162,7 @@
                    #:commit? [commit? #t])
   (when (and (not clear?) (not date))
     (op-fail 'usage "move requires DATE (YYYY-MM-DD[THH:MM[:SS]]) or --clear"))
-  (define root-path (existing-file file 'move))
+  (define root-path (existing-file file))
   (define hit
     (as-validation root-path
                    (λ () (locate (load-outline-or-fail root-path) spec))))
