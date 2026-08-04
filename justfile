@@ -12,7 +12,7 @@ default_outlines := selfflowy_home + "/Tasks.rkt " + selfflowy_home + "/Daily.rk
 default:
     @just --list
 
-# Install / link the local package (idempotent enough for dev)
+# Runtime deps (gregor, markdown) + raco link ./selfflowy; cheap to repeat
 install:
     mkdir -p "{{PLTUSERHOME}}"
     raco pkg install --auto --skip-installed gregor markdown
@@ -26,12 +26,12 @@ check *args: install
 tree *args: install
     selfflowy tree {{if args == "" { default_outlines } else { args }}}
 
-# Dated tasks: OVERDUE / TODAY / UPCOMING (merged across files)
+# Dated tasks: OVERDUE / TODAY / UPCOMING (merged across files, done excluded)
 agenda *args: install
     selfflowy agenda {{if args == "" { default_outlines } else { args }}}
 
-# Calendar days with dated items (default: current month, Dropbox outlines).
-# Flags only (e.g. --month 2026-08) still load the default outlines.
+# Flags-only invocations (e.g. --month 2026-08) keep the default outlines.
+# Calendar days with dated items (default: current month, done included)
 calendar *args: install
     #!/usr/bin/env bash
     set -euo pipefail
@@ -43,7 +43,8 @@ calendar *args: install
       selfflowy calendar {{args}}
     fi
 
-# RFC 5545 VCALENDAR of dated tasks
+# Bare `just ics` writes ./Tasks.ics; --out or explicit paths override.
+# RFC 5545 VCALENDAR of dated tasks (done included)
 ics *args: install
     #!/usr/bin/env bash
     set -euo pipefail
@@ -55,11 +56,11 @@ ics *args: install
       selfflowy ics {{args}}
     fi
 
-# Capture under Inbox (default file: $SELFFLOWY_HOME/Tasks.rkt)
+# Capture under Inbox in $SELFFLOWY_HOME/Tasks.rkt; never commits
 add *args: install
     selfflowy add --no-commit {{args}}
 
-# Mark a task done by exact title (or: just done --undo TITLE...)
+# Done by exact title or ^anchor (--undo reverses); never commits
 done *args: install
     selfflowy done --no-commit {{args}}
 
