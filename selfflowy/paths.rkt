@@ -1,16 +1,20 @@
 #lang racket/base
 
-;; What a file is CALLED.
+;; What a file is CALLED. Core, not web: the store builds a node index out of
+;; these and must not reach up into web/ for a basename.
 ;;
-;; key-label is what a node's KEY is minted from: the defining file's path
-;; relative to the root set's common directory ("Daily/2026-08.rkt"). A
-;; basename would let two roots named Daily.rkt in different directories mint
-;; one key for two different nodes.
+;;   file-label  what a human reads — the basename ("Daily.rkt").
+;;   key-label   what a node's KEY is minted from: the defining file's path
+;;               relative to the root set's common directory
+;;               ("Daily/2026-08.rkt"). A basename would let two roots named
+;;               Daily.rkt in different directories mint one key for two
+;;               different nodes.
 
 (require racket/list
          racket/path)
 
-(provide roots-base
+(provide file-label
+         roots-base
          key-label)
 
 (define (->path p)
@@ -18,6 +22,16 @@
     [(path? p) p]
     [(string? p) (string->path p)]
     [else (string->path (format "~a" p))]))
+
+;; UI name for a file: its basename. A label that is not a path at all (the
+;; renderer accepts plain strings) passes through.
+(define (file-label label)
+  (cond
+    [(path? label) (path->string (file-name-from-path label))]
+    [(string? label)
+     (define-values (base name dir?) (split-path label))
+     (if (path-for-some-system? name) (path->string name) label)]
+    [else (format "~a" label)]))
 
 ;; The directory the loaded files hang off: the deepest directory that
 ;; contains all of them. Keys are minted relative to it, so the same outline

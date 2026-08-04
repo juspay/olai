@@ -22,6 +22,8 @@
          (only-in xml cdata xexpr->string)
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/dates
+         ;; one owner for how a file is named in the UI (core, not web)
+         (only-in selfflowy/paths file-label)
          selfflowy/web/markdown)
 
 (provide render-node-fragment
@@ -35,7 +37,6 @@
          render-file-section
          page->html-string
          render-error-banner
-         file-label
          node-element-id
          web-static-dir
          web-static-prefix
@@ -82,14 +83,6 @@
   (regexp-replace* #px"[^A-Za-z0-9_-]" s "_"))
 
 ;; ---- small helpers --------------------------------------------------------
-
-(define (file-label label)
-  (cond
-    [(path? label) (path->string (file-name-from-path label))]
-    [(string? label)
-     (define-values (base name dir?) (split-path label))
-     (if (path-for-some-system? name) (path->string name) label)]
-    [else (format "~a" label)]))
 
 ;; files-data -> (listof (list label tasks anchors)) with labels as strings
 (define (normalize-files-data files-data)

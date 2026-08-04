@@ -221,6 +221,30 @@
        ;; and both are addressable
        (check-equal? (hash-count (snapshot-index snap)) 2))))
 
+  ;; LAYERING (CLAUDE.md): the web view is built ON the core, so the core
+  ;; must build without it. The store used to reach up into web/render for a
+  ;; basename, which put the whole renderer under `selfflowy tree`.
+  (test-case "core modules do not reach into web/"
+    (define core-dir
+      (simple-form-path
+       (build-path (collection-file-path "info.rkt" "selfflowy") 'up)))
+    (define (rkt-files dir)
+      (for/list ([p (in-list (directory-list dir))]
+                 #:when (regexp-match? #px"[.]rkt$" (path->string p)))
+        (build-path dir p)))
+    ;; cli.rkt is app code and main.rkt is the library surface: both are
+    ;; allowed to know about the web view. Everything else is core.
+    (define core
+      (for/list ([f (in-list (append (rkt-files core-dir)
+                                     (rkt-files (build-path core-dir "lang"))))]
+                 #:unless (member (path->string (file-name-from-path f))
+                                  '("cli.rkt" "main.rkt")))
+        f))
+    (check-true (> (length core) 10) (format "~a core modules?" (length core)))
+    (for ([f (in-list core)])
+      (check-false (regexp-match? #px"selfflowy/web" (file->string f))
+                   (path->string f))))
+
   (test-case "an index and merged anchors are derived once per load"
     (with-temp-dir
      (λ (dir)

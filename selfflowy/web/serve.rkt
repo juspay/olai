@@ -34,6 +34,7 @@
          selfflowy/dates
          selfflowy/json-out
          selfflowy/load
+         (only-in selfflowy/paths file-label)
          selfflowy/store
          selfflowy/web/render)
 

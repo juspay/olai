@@ -30,7 +30,7 @@
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/load
          ;; one owner for how a file is named in the UI
-         (only-in selfflowy/web/render file-label))
+         (only-in selfflowy/paths file-label))
 
 (provide make-store
          store?
