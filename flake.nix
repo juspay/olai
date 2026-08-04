@@ -208,6 +208,17 @@
                                     (pair? (hash-ref j (quote tasks))))
                          (error (quote smoke) "unexpected tree JSON"))'
 
+            # The write path validates in a fresh namespace, so it has to work
+            # from the packaged binary too.
+            cp ${./examples/Example.rkt} edit.rkt
+            chmod u+w edit.rkt
+            selfflowy add --json --no-commit --file edit.rkt "Smoke capture" > add.json
+            racket -e '(require json)
+                       (unless (hash-ref (call-with-input-file "add.json" read-json)
+                                         (quote ok))
+                         (error (quote smoke) "add failed"))'
+            selfflowy check edit.rkt
+
             # The server has to work from the packaged binary too: static files
             # and the language readers resolve differently there.
             cp ${./examples/Example.rkt} live.rkt

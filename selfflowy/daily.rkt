@@ -8,6 +8,7 @@
          racket/string
          racket/format
          selfflowy/dates
+         selfflowy/edit
          selfflowy/lang/outline
          (except-in selfflowy/lang/expander #%module-begin)
          (only-in selfflowy/json-out count-tasks))
@@ -90,15 +91,7 @@
       body))
 
 (define (write-validated path text)
-  (define tmp (string->path (string-append (path->string path) ".sf-tmp")))
-  (with-handlers
-      ([exn:fail?
-        (λ (e)
-          (when (file-exists? tmp) (delete-file tmp))
-          (raise e))])
-    (display-to-file text tmp #:exists 'truncate/replace)
-    (dynamic-require `(file ,(path->string tmp)) 'tasks)
-    (rename-file-or-directory tmp path #t)))
+  (apply-outline-edit! path text))
 
 (define (make-parent-directory* path)
   (define-values (base name dir?) (split-path path))

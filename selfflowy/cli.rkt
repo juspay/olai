@@ -23,6 +23,7 @@
          selfflowy/daily
          selfflowy/dates
          selfflowy/load
+         selfflowy/edit
          selfflowy/web/serve
          (only-in selfflowy/lang/expander
                   find-task-by-id
@@ -86,6 +87,24 @@
 
 (define (today-iso)
   (today-iso-string))
+
+;; Every command that writes goes through the one write path: unique temp,
+;; validate in a fresh namespace, atomic rename. `what` names the command in
+;; the error ("capture failed validation: …").
+(define (write-outline! path text json? what)
+  (with-handlers
+      ([exn:fail?
+        (λ (e) (die exit-validation (exn-message e) #:json? json? #:file path))])
+    (apply-outline-edit!
+     path text
+     #:on-invalid
+     (λ (err)
+       (die exit-validation
+            (format "~a failed validation: ~a" what (load-error-message err))
+            #:json? json?
+            #:file (load-error-file err)
+            #:line (load-error-line err)
+            #:col (load-error-col err))))))
 
 (define (format-check-plain path n anchors mirrors includes)
   (define extras
@@ -290,26 +309,7 @@
                       #:date date*
                       #:description desc
                       #:parent parent)))
-  (define tmp (string->path (string-append (path->string path) ".sf-tmp")))
-  (with-handlers
-      ([exn:fail?
-        (λ (e)
-          (when (file-exists? tmp) (delete-file tmp))
-          (die exit-validation (exn-message e) #:json? json? #:file path))])
-    (display-to-file new-text tmp #:exists 'truncate/replace)
-    (with-handlers
-        ([exn:fail?
-          (λ (e)
-            (when (file-exists? tmp) (delete-file tmp))
-            (define-values (src ln col) (exn-location e path))
-            (die exit-validation
-                 (format "capture failed validation: ~a" (exn-message e))
-                 #:json? json?
-                 #:file (or src path)
-                 #:line ln
-                 #:col col))])
-      (dynamic-require `(file ,(path->string tmp)) 'tasks)
-      (rename-file-or-directory tmp path #t)))
+  (write-outline! path new-text json? "capture")
   (define committed?
     (and (not no-commit?)
          (try-git-commit path (format "capture: ~a" title))))
@@ -395,26 +395,7 @@
             (values t l (json-null)))
           (let-values ([(t l) (mark-done-in-text original title today)])
             (values t l today)))))
-  (define tmp (string->path (string-append (path->string path) ".sf-tmp")))
-  (with-handlers
-      ([exn:fail?
-        (λ (e)
-          (when (file-exists? tmp) (delete-file tmp))
-          (die exit-validation (exn-message e) #:json? json? #:file path))])
-    (display-to-file new-text tmp #:exists 'truncate/replace)
-    (with-handlers
-        ([exn:fail?
-          (λ (e)
-            (when (file-exists? tmp) (delete-file tmp))
-            (define-values (src ln col) (exn-location e path))
-            (die exit-validation
-                 (format "done failed validation: ~a" (exn-message e))
-                 #:json? json?
-                 #:file (or src path)
-                 #:line ln
-                 #:col col))])
-      (dynamic-require `(file ,(path->string tmp)) 'tasks)
-      (rename-file-or-directory tmp path #t)))
+  (write-outline! path new-text json? "done")
   (define commit-msg
     (if undo?
         (format "undone: ~a" resolved-title)
@@ -471,26 +452,7 @@
             (values t l title (json-null)))
           (let-values ([(t l title d) (set-date-in-text original title date-arg)])
             (values t l title d)))))
-  (define tmp (string->path (string-append (path->string path) ".sf-tmp")))
-  (with-handlers
-      ([exn:fail?
-        (λ (e)
-          (when (file-exists? tmp) (delete-file tmp))
-          (die exit-validation (exn-message e) #:json? json? #:file path))])
-    (display-to-file new-text tmp #:exists 'truncate/replace)
-    (with-handlers
-        ([exn:fail?
-          (λ (e)
-            (when (file-exists? tmp) (delete-file tmp))
-            (define-values (src ln col) (exn-location e path))
-            (die exit-validation
-                 (format "move failed validation: ~a" (exn-message e))
-                 #:json? json?
-                 #:file (or src path)
-                 #:line ln
-                 #:col col))])
-      (dynamic-require `(file ,(path->string tmp)) 'tasks)
-      (rename-file-or-directory tmp path #t)))
+  (write-outline! path new-text json? "move")
   (define commit-msg
     (if clear?
         (format "move: ~a (cleared date)" resolved-title)
