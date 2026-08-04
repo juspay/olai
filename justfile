@@ -79,7 +79,7 @@ serve *args: install
       selfflowy serve {{args}}
     fi
 
-# The server is how you run selfflowy; it re-reads outlines per request.
+# The server is how you run selfflowy; it reloads an outline when it changes.
 alias run := serve
 alias watch := serve
 
