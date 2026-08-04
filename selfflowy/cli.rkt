@@ -24,7 +24,7 @@
 (define exit-validation 2)
 (define exit-not-found 3)
 
-(define default-file "Tasks.rkt")
+(define default-file "private/Tasks.rkt")
 
 (define (die code msg #:json? json? #:file [file #f] #:line [line #f] #:col [col #f])
   (if json?
@@ -487,7 +487,7 @@
    #:program "selfflowy add"
    #:once-each
    [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
-   [("--file") f "Outline file (default: Tasks.rkt)" (set! file-arg f)]
+   [("--file") f "Outline file (default: private/Tasks.rkt)" (set! file-arg f)]
    [("--date") d "ISO date or datetime (YYYY-MM-DD[THH:MM[:SS]])" (set! date d)]
    [("--description") t "Description text" (set! desc t)]
    [("--parent") p "Parent title or ^anchor (default: Inbox)" (set! parent p)]
@@ -506,7 +506,7 @@
    #:program "selfflowy done"
    #:once-each
    [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
-   [("--file") f "Outline file (default: Tasks.rkt)" (set! file-arg f)]
+   [("--file") f "Outline file (default: private/Tasks.rkt)" (set! file-arg f)]
    [("--undo") "Remove done state instead of marking done" (set! undo? #t)]
    [("--no-commit") "Do not auto-commit even in a git repo" (set! no-commit? #t)]
    #:args title-words

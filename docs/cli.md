@@ -19,10 +19,12 @@ Same codes for plain and `--json` modes.
 
 ## Global
 
-- Default outline file when no paths given: `Tasks.rkt` in the cwd
-  (`add` / `done` always target one file via `--file`, default `Tasks.rkt`).
+- Default outline file when no paths given: `private/Tasks.rkt`
+  (`add` / `done` always target one file via `--file`, same default).
 - **Read commands** (`check` / `tree` / `agenda` / `html`) accept **one or more**
-  outline paths. The justfile defaults to `Tasks.rkt examples/Roadmap.rkt`.
+  outline paths. The justfile defaults to
+  `private/Tasks.rkt private/Daily.rkt examples/Roadmap.rkt`.
+- The whole `private/` directory is gitignored (personal outline data).
 - `--json` may appear after the subcommand where supported.
 
 ## `check [--json] [file ...]`
