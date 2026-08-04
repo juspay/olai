@@ -40,6 +40,47 @@
     (check-true (string-contains? s "<code") s)
     (check-true (string-contains? s "bold") s))
 
+  (test-case "ISO date titles keep plain hyphens (no smart dashes)"
+    (define s (string-join (map xstr (title->inline-xexprs "2026-07-31")) ""))
+    (check-true (string-contains? s "2026-07-31") s)
+    (check-false (string-contains? s "ndash") s)
+    (check-false (string-contains? s "mdash") s)
+    (check-false (string-contains? s "\u2013") s) ; en-dash
+    (check-false (string-contains? s "\u2014") s) ; em-dash
+    (define s2 (xstr (task->xexpr (tk "2026-07-31" #f #f '()) (hash))))
+    (check-true (string-contains? s2 "2026-07-31") s2)
+    (check-false (string-contains? s2 "ndash") s2))
+
+  (test-case "quotes and apostrophes stay straight"
+    (define s (string-join
+               (map xstr (title->inline-xexprs "don't \"quote\" me"))
+               ""))
+    (check-true (string-contains? s "don't") s)
+    (check-true (string-contains? s "\"quote\"") s)
+    (check-false (string-contains? s "rsquo") s)
+    (check-false (string-contains? s "lsquo") s)
+    (check-false (string-contains? s "ldquo") s)
+    (check-false (string-contains? s "rdquo") s)
+    (check-false (string-contains? s "\u2019") s) ; curly apostrophe
+    (check-false (string-contains? s "\u201C") s)
+    (define note-s (string-join (map xstr (note->xexprs "it's a -- test")) ""))
+    (check-true (string-contains? note-s "it's a -- test") note-s)
+    (check-false (string-contains? note-s "ndash") note-s)
+    (check-false (string-contains? note-s "mdash") note-s))
+
+  (test-case "entity symbols expand to characters/ASCII, not names"
+    ;; Smart-punct entities normalize to plain ASCII (verbatim source feel).
+    (define s (xstr (sanitize-xexpr `(p "2026" ndash "07" ndash "31"))))
+    (check-true (string-contains? s "2026-07-31") s)
+    (check-false (string-contains? s "ndash") s)
+    (define s2 (xstr (sanitize-xexpr `(p "don" rsquo "t"))))
+    (check-true (string-contains? s2 "don't") s2)
+    (check-false (string-contains? s2 "rsquo") s2)
+    ;; Non-smart entities become the real character.
+    (define s3 (xstr (sanitize-xexpr `(p "a" nbsp "b"))))
+    (check-true (string-contains? s3 "a\u00A0b") s3)
+    (check-false (string-contains? s3 "nbsp") s3))
+
   (test-case "title link"
     (define xs (title->inline-xexprs "[hi](https://example.com)"))
     (define s (string-join (map xstr xs) ""))

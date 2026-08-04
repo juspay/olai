@@ -65,6 +65,49 @@
      (if href `((href ,href)) '())]
     [else '()]))
 
+;; The markdown package emits smart punctuation as bare entity symbols
+;; (mdash, ndash, rsquo, …). We want VERBATIM ASCII for those — ISO dates
+;; like 2026-07-31 must keep plain hyphens, quotes stay straight. Other
+;; legitimate entities expand to the real Unicode character, never to the
+;; entity *name* as text (that produced "2026ndash07ndash31").
+;;
+;; (current-strict-markdown? #t) would kill smart punctuation but also
+;; fenced code blocks and other useful GFM-ish bits, so we normalize after
+;; a normal parse instead.
+(define smart-punct-ascii
+  #hasheq((mdash . "--")
+          (ndash . "-")
+          (lsquo . "'")
+          (rsquo . "'")
+          (ldquo . "\"")
+          (rdquo . "\"")
+          (sbquo . "'")
+          (bdquo . "\"")
+          (lsaquo . "<")
+          (rsaquo . ">")
+          (hellip . "...")
+          (prime . "'")
+          (Prime . "\"")
+          (apos . "'")
+          (quot . "\"")))
+
+(define named-entity-chars
+  #hasheq((middot . "\u00B7")
+          (bull . "\u2022")
+          (nbsp . "\u00A0")
+          (ensp . "\u2002")
+          (emsp . "\u2003")
+          (thinsp . "\u2009")
+          (amp . "&")
+          (lt . "<")
+          (gt . ">")))
+
+(define (entity-symbol->text sym)
+  (or (hash-ref smart-punct-ascii sym #f)
+      (hash-ref named-entity-chars sym #f)
+      ;; Unknown entity name: never emit the bare name as text.
+      ""))
+
 ;; Returns a list of sanitized pieces (may flatten forbidden wrappers).
 (define (sanitize-pieces x #:inline-only? [inline-only? #f])
   (define (allowed? tag)
@@ -73,7 +116,7 @@
   (let loop ([x x])
     (cond
       [(string? x) (list x)]
-      [(symbol? x) (list (symbol->string x))]
+      [(symbol? x) (list (entity-symbol->text x))]
       [(number? x) (list (number->string x))]
       [(and (list? x) (pair? x) (symbol? (car x)))
        (define tag (xexpr-tag x))
@@ -87,6 +130,9 @@
        (append* (map loop x))]
       [else '()])))
 
+(define (parse-md s)
+  (parse-markdown s))
+
 (define (sanitize-xexpr x #:inline-only? [inline-only? #f])
   (define pieces (sanitize-pieces x #:inline-only? inline-only?))
   (match pieces
@@ -97,7 +143,7 @@
 
 (define (title-md-inline s)
   ;; Single-line parse; unwrap outer <p>; drop blocks; keep inlines.
-  (define parsed (parse-markdown s))
+  (define parsed (parse-md s))
   (define body
     (match parsed
       [(list (list 'p (list (list (? symbol?) _) ...) kids ...) _ ...) kids]
@@ -183,7 +229,7 @@
       [else x])))
 
 (define (note->xexprs note)
-  (define parsed (parse-markdown note))
+  (define parsed (parse-md note))
   (define pieces (sanitize-pieces parsed))
   (map style-md-xexpr pieces))
 
