@@ -283,6 +283,28 @@ RFC 5545 `VCALENDAR` of all dated tasks (done included). Minimal writer —
 no catalog ics package. UID is `anchor@selfflowy` when present, else a
 stable hash of path/title/date. `DTSTART` is `VALUE=DATE` or local datetime.
 
+## `daily [--json] [--date YYYY-MM-DD] [--home DIR]`
+
+Ensure a day node exists in the personal Daily structure under `$SELFFLOWY_HOME`
+(or `--home`):
+
+- Fragment: `Daily/YYYY-MM.rkt` (day nodes only at top level)
+- Root: `Daily.rkt` with `year > MonthName > @include Daily/YYYY-MM.rkt`
+
+Creates the month fragment and `@include` line on first use in a month;
+idempotent thereafter. Writes use add-style validate-then-rename.
+
+```json
+{"version":1,"ok":true,"day":"2026-08-04","file":".../Daily/2026-08.rkt",
+ "created_month":false,"created_day":false,"line":11}
+```
+
+## Write routing under `@include`
+
+`done` / `move` / `add --parent ^anchor` resolve the target against the loaded
+tree (including fragments), then edit the **defining file** of that node.
+JSON `file` fields on tree nodes show where agents should write.
+
 ## Errors (`--json`)
 
 Single object on **stderr**, exit non-zero:

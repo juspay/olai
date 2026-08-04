@@ -26,6 +26,7 @@ Selfflowy roadmap #project
 | Nesting | Exactly **2 spaces** per level. Tabs forbidden. Indent may increase by at most one level. |
 | Description | Indented continuation `: text`. Multiple `: ` lines join with `\n` into one `#:description`. |
 | Date/time | Indented `@date …` → `#:date`. Accepts `YYYY-MM-DD` or datetime `YYYY-MM-DDTHH:MM[:SS]` (space instead of `T` ok; normalized to `T`). Validated by gregor in the expander. |
+| Include | `@include RELATIVE/PATH.rkt` at a title position → `(include "…")`. Require+splice of the fragment's **top-level** tasks (no redundant root in the fragment). Path relative to the including file. Cycles rejected. |
 | Done | Indented `@done` or `@done …` → `#:done` / `#:done` timestamp. Bare means completed (`#t`); with a value, same ISO forms as `@date`. |
 | Checkbox sugar | Title prefix `[x] ` / `[X] ` desugars to bare `@done` (prefix **not** part of the title). `[ ] ` is an explicit not-done marker (stripped, no-op). Escape with `\` if the title should literally start with `[x] `. |
 | Escape | Line starting with `\` (after indent) is a title beginning with the rest (so titles may start with `:`, `@`, or `\`). |
@@ -65,7 +66,16 @@ Mark these clearly so agents do not invent them:
 - Sidecar UI state (collapse, zoom, focus) — not in the outline file
 - Interactive check-off in `html` (0.6 micro-edits); rendering of done is already checked/strikethrough
 
-Unknown `@field` is a **reader error** today (names the known fields: `@date`, `@done`).
+Unknown `@field` is a **reader error** today (names the known fields: `@date`, `@done`, `@include`).
+
+### Includes (file composition)
+
+`@include` / `(include "path")` is **require + splice**, not textual paste. The
+included file is a normal `#lang selfflowy` module; its top-level tasks appear
+in place of the include line. Anchors/mirrors resolve across the whole tree;
+duplicate `^id` names both files. Each task records its defining file
+(`task-file`); writes (`done` / `move` / `add --parent ^anchor`) edit that
+file, not the root.
 
 ### Mirrors (in-file)
 

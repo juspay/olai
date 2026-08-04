@@ -63,6 +63,10 @@ add *args: install
 done *args: install
     selfflowy done --no-commit {{args}}
 
+# Ensure today's day node in $SELFFLOWY_HOME Daily/YYYY-MM.rkt
+daily *args: install
+    selfflowy daily {{args}}
+
 # Render HTML (default: Dropbox outlines -> Tasks.html)
 html *args: install
     #!/usr/bin/env bash

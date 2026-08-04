@@ -77,9 +77,9 @@ restructure. Live with it, or open your laptop.
 ## STATUS
 
 Outline `#lang selfflowy` + sexp core + agent CLI (`check` / `tree` JSON /
-`agenda` / `calendar` / `add` / `done` / `move` / `ics` / `html`). Done
-status (`@done` / `[x]`), in-file mirrors, and a month calendar in the HTML
-view are first class. (Ancestor: srid/Tend.)
+`agenda` / `calendar` / `add` / `done` / `move` / `daily` / `ics` / `html`).
+Done status, in-file mirrors, `@include` composition, and a month calendar
+in the HTML view are first class. (Ancestor: srid/Tend.)
 
 ## ROADMAP
 
