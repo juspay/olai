@@ -22,9 +22,9 @@ Selfflowy roadmap #project
 
 | Feature | Rule |
 |--------|------|
-| Title | Non-blank line, **verbatim** (any characters). |
+| Title | Any non-blank line that is not `#lang`, metadata (`:`/`@`), a mirror, or an include — stored **verbatim** minus its sugar. Escape with `\` to keep a line that starts like one of those. |
 | Nesting | Exactly **2 spaces** per level. Tabs forbidden. Indent may increase by at most one level. |
-| Description | Indented continuation `: text`. Multiple `: ` lines join with `\n` into one `#:description`. |
+| Description | Indented continuation `: text` — colon **and space**; a bare `:` or `:text` is a reader error. Multiple `: ` lines join with `\n` into one `#:description`. |
 | Date/time | Indented `@date …` → `#:date`. Accepts `YYYY-MM-DD` or datetime `YYYY-MM-DDTHH:MM[:SS]` (space instead of `T` ok; normalized to `T`). Validated by gregor in the expander. |
 | Include | `@include RELATIVE/PATH.rkt` at a title position → `(include "…")`. Require+splice of the fragment's **top-level** tasks (no redundant root in the fragment). Path relative to the including file. Cycles rejected. |
 | Done | Indented `@done` or `@done …` → `#:done` / `#:done` timestamp. Bare means completed (`#t`); with a value, same ISO forms as `@date`. |
@@ -45,7 +45,7 @@ sanitizer. `tree` / `check` / `agenda` JSON never do.
 
 | Surface | Markdown scope |
 |--------|----------------|
-| **Title** | Inline subset only: bold, italic, code spans, links. Block constructs never apply inside a title (no headings, lists, fenced blocks). |
+| **Title** | Inline only: bold, italic, code spans, links. Block constructs produce no block markup — the title is parsed as a document and then unwrapped to its inlines (see the wart below). |
 | **Notes** (`: ` lines, joined with `\n`) | Full document Markdown, including fenced code blocks. |
 
 **Ambiguity rules**
