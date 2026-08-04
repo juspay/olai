@@ -21,37 +21,45 @@ Same codes for plain and `--json` modes.
 
 - Default outline file when no paths given:
   `$SELFFLOWY_HOME/Tasks.rkt` (default home:
-  `~/Dropbox/Selfflowy-Srid`). `add` / `done` always target one file via
-  `--file`, same default.
-- **Read commands** (`check` / `tree` / `agenda` / `calendar` / `ics`)
-  accept **one or more** outline paths. The justfile defaults to
+  `~/Dropbox/Selfflowy-Srid`). `add` / `done` / `move` always target one file
+  via `--file`, same default.
+- **Read commands** (`check` / `tree` / `agenda` / `calendar` / `ics` /
+  `serve`) accept **one or more** outline paths. The justfile defaults to
   `$SELFFLOWY_HOME/{Tasks,Daily,Roadmap}.rkt` (no `examples/` paths).
 - Personal data lives outside the repo. Override the directory with
-  `SELFFLOWY_HOME`. Auto-commit (`add` / `done`) only runs when that
-  directory is a git work tree; otherwise it no-ops (`committed: false`)
-  and Dropbox (or your sync) is the history layer.
+  `SELFFLOWY_HOME`. Auto-commit (`add` / `done` / `move`) only runs when the
+  directory of the file actually written is a git work tree; otherwise it
+  no-ops (`committed: false`) and Dropbox (or your sync) is the history layer.
 - `--json` may appear after the subcommand where supported.
 
 ## `check [--json] [file ...]`
 
 Validate `#lang selfflowy` or `#lang selfflowy/sexp` module(s).
 
-Plain — one ok-line per file; if any fail, all are reported then exit 2:
+Plain — one ok-line per file; if any fail, all are reported then exit 2.
+Anchor / mirror / include counts are appended only when non-zero:
 
 ```
 $ selfflowy check examples/Example.rkt examples/Roadmap.rkt
-ok: .../Example.rkt (10 tasks)
-ok: .../Roadmap.rkt (6 tasks)
+ok: .../Example.rkt (12 tasks, 1 anchor, 1 mirror)
+ok: .../Roadmap.rkt (8 tasks)
 ```
 
 JSON — **single file** keeps the historical shape:
 
 ```json
-{"version":1,"ok":true,"file":".../Example.rkt","tasks":10,"anchors":0,"mirrors":0}
+{"version":1,"ok":true,"file":".../Example.rkt","tasks":12,"anchors":1,"mirrors":1}
 ```
 
 `tasks` counts each defining node once (mirrors do not inflate the count).
-`anchors` / `mirrors` are counts of `^id` declarations and `*id` sites.
+`anchors` / `mirrors` are counts of `^id` declarations and `*id` sites. A file
+that splices `@include` fragments also carries `includes` — absent, not empty,
+when there are none:
+
+```json
+{"version":1,"ok":true,"file":".../IncludeRoot.rkt","tasks":6,"anchors":1,
+ "mirrors":1,"includes":[{"file":".../IncludeFrag.rkt"}]}
+```
 
 **Multiple files**:
 
@@ -60,8 +68,9 @@ JSON — **single file** keeps the historical shape:
   "version": 1,
   "ok": false,
   "files": [
-    {"file":".../good.rkt","ok":true,"tasks":2},
-    {"file":".../bad.rkt","ok":false,"error":{"file":"...","line":3,"col":2,"message":"..."}}
+    {"file":".../Example.rkt","ok":true,"tasks":12,"anchors":1,"mirrors":1},
+    {"file":".../bad.rkt","ok":false,
+     "error":{"file":".../bad.rkt","line":4,"col":8,"message":"..."}}
   ]
 }
 ```
@@ -92,8 +101,9 @@ Single file:
       "children": [ ... ]
     }
   ],
-  "anchors": { "agent": { "title": "Agent work", "id": "agent", "children": [] } },
-  "task_count": 10,
+  "anchors": { "agent": { "title": "Agent work", "id": "agent", "key": "agent",
+                          "children": [] } },
+  "task_count": 12,
   "mirror_count": 1,
   "anchor_count": 1
 }
@@ -102,14 +112,21 @@ Single file:
 Mirror sites in `children` are `{"mirror":"agent"}` — never an inlined subtree.
 The `anchors` object holds each anchored node once (same shape as a task).
 
+A root that splices `@include` fragments also carries `includes`
+(`[{"file":"..."}]`, absent when there are none), and every node whose
+**defining** file differs from the loaded file carries its own `file` — that is
+where writes go (see *Write routing under `@include`*).
+
 Multiple files:
 
 ```json
 {
   "version": 1,
   "files": [
-    {"file":".../Tasks.rkt","tasks":[...],"anchors":{...},"task_count":3,"mirror_count":0,"anchor_count":0},
-    {"file":".../Roadmap.rkt","tasks":[...],"anchors":{...},"task_count":16,"mirror_count":0,"anchor_count":0}
+    {"file":".../Example.rkt","tasks":[...],"anchors":{...},
+     "task_count":12,"mirror_count":1,"anchor_count":1},
+    {"file":".../Roadmap.rkt","tasks":[...],"anchors":{...},
+     "task_count":8,"mirror_count":0,"anchor_count":0}
   ]
 }
 ```
@@ -266,11 +283,16 @@ JSON stdout:
   "title": "buy oat milk",
   "date": null,
   "description": null,
+  "parent": null,
   "line": 12,
   "created_inbox": false,
   "committed": false
 }
 ```
+
+`parent` echoes `--parent` verbatim (`null` for the default Inbox). `file` is
+the file actually written — with `--parent ^anchor` that may be an `@include`
+fragment, not `--file`.
 
 ## `done [--json] [--file F] [--undo] [--no-commit] TITLE...|^anchor`
 
@@ -278,8 +300,9 @@ Mark a task done by exact title match or `^anchor` (or undo). **One file only**
 (`--file`). Writes **outline** syntax only — same safety as `add`: write temp →
 re-validate → rename; restore on failure.
 
-- Exact title match across the file (checkbox / `^anchor` prefix are not part of
-  the matched title), or a single `^id` addressing the defining site.
+- Exact title match across the file (a `[x] ` checkbox prefix and a trailing
+  `^anchor` are not part of the matched title), or a single `^id` addressing
+  the defining site.
 - **0 matches** → exit 2.
 - **>1 matches** → exit 2; message lists each `file:line` and suggests
   `add a ^anchor to disambiguate`.
@@ -342,8 +365,10 @@ idempotent thereafter. Writes use add-style validate-then-rename.
 
 ```json
 {"version":1,"ok":true,"day":"2026-08-04","file":".../Daily/2026-08.rkt",
- "created_month":false,"created_day":false,"line":11}
+ "created_month":true,"created_day":true,"line":2}
 ```
+
+Both `created_*` are `false` on every run after the first for that day.
 
 ## Write routing under `@include`
 
