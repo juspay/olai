@@ -23,8 +23,8 @@ Same codes for plain and `--json` modes.
   `$SELFFLOWY_HOME/Tasks.rkt` (default home:
   `~/Dropbox/Selfflowy-Srid`). `add` / `done` always target one file via
   `--file`, same default.
-- **Read commands** (`check` / `tree` / `agenda` / `html`) accept **one or more**
-  outline paths. The justfile defaults to
+- **Read commands** (`check` / `tree` / `agenda` / `calendar` / `html` / `ics`)
+  accept **one or more** outline paths. The justfile defaults to
   `$SELFFLOWY_HOME/{Tasks,Daily,Roadmap}.rkt` (no `examples/` paths).
 - Personal data lives outside the repo. Override the directory with
   `SELFFLOWY_HOME`. Auto-commit (`add` / `done`) only runs when that
@@ -145,13 +145,39 @@ JSON stdout:
 }
 ```
 
+## `calendar [--json] [--month YYYY-MM] [file ...]`
+
+Group **dated** tasks by calendar day for one month (default: current).
+**Done tasks are included** (JSON `done` is `true` or a timestamp). Days that
+have a bare-ISO day node in Daily-style outlines set `day_node: true` (for
+html deep-links). Multi-file merge like agenda.
+
+```json
+{
+  "version": 1,
+  "month": "2026-08",
+  "days": [
+    {
+      "date": "2026-08-04",
+      "day_node": true,
+      "items": [
+        {"title":"Buy milk","date":"2026-08-04T18:00","breadcrumb":"...","done":null,"id":null}
+      ]
+    }
+  ]
+}
+```
+
 ## `html [--out PATH] [file ...]`
 
-Render an interactive HTML **tree** (nested lists; parents are
-`<details>`/`<summary>` — click a node to expand/collapse). No `--json` —
-HTML is the output format. Titles/notes use Markdown at render time only.
-With multiple files, each file is a top-level section (`<h2>` = basename)
-above its tree.
+Render an interactive HTML **tree** plus a **month calendar** (Mon-start
+grid, prev/current/next months, vanilla JS nav). Day cells list `@date`
+items (done = muted/struck) and link day numbers to `#YYYY-MM-DD` when a
+bare-ISO day node exists. Bare ISO titles in the tree render as friendly
+pills (`Mon, Aug 3`) — display-only; the file keeps ISO. No `--json` —
+HTML is the output format. Titles/notes use Markdown at render time only
+(smart dashes/quotes normalized to plain ASCII). With multiple files, each
+file is a top-level section (`<h2>` = basename) above its tree.
 
 - Default: write the document to **stdout** (pipe-friendly).
 - `--out PATH`: write a file and print the absolute path on stdout.
@@ -240,6 +266,22 @@ JSON stdout:
 ```
 
 On `--undo`, `done` is `null` and `undone` is `true`.
+
+## `move [--json] [--file F] [--no-commit] [--clear] TITLE...|^anchor DATE`
+
+Set or rewrite `@date` on a task (same write-safety as `add`/`done`). `DATE`
+is ISO date or datetime. `--clear` removes `@date` instead (no DATE arg).
+Auto-commit message: `move: TITLE -> DATE` (or cleared).
+
+```json
+{"version":1,"ok":true,"file":"...","title":"Buy milk","line":6,"date":"2026-08-10","committed":false}
+```
+
+## `ics [--out PATH] [file ...]`
+
+RFC 5545 `VCALENDAR` of all dated tasks (done included). Minimal writer —
+no catalog ics package. UID is `anchor@selfflowy` when present, else a
+stable hash of path/title/date. `DTSTART` is `VALUE=DATE` or local datetime.
 
 ## Errors (`--json`)
 

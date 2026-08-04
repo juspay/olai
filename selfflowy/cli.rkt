@@ -14,9 +14,12 @@
          racket/vector
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/agenda
+         selfflowy/calendar
          selfflowy/json-out
          selfflowy/capture
          selfflowy/done
+         selfflowy/move
+         selfflowy/ics
          selfflowy/html
          selfflowy/dates)
 (define exit-ok 0)
@@ -235,6 +238,23 @@
       (write-json-stdout (agenda-groups->jsexpr groups today))
       (displayln (format-agenda groups))))
 
+(define (cmd-calendar paths json? month)
+  (define entries
+    (for/list ([path (in-list paths)])
+      (cons path (load-tasks path json?))))
+  (define today (today-iso))
+  (define ym
+    (or month (substring today 0 7)))
+  (define-values (y m) (parse-year-month ym))
+  (unless y
+    (die exit-usage
+         (format "invalid --month ~s; expected YYYY-MM" ym)
+         #:json? json?))
+  (define cal (calendar-from-files entries ym))
+  (if json?
+      (write-json-stdout (calendar->jsexpr cal))
+      (displayln (format-calendar cal))))
+
 (define (cmd-html paths out-path)
   (define entries
     (for/list ([path (in-list paths)])
@@ -427,18 +447,106 @@
               line
               (if committed? ", committed" ""))))
 
+(define (cmd-move json? file-arg no-commit? clear? title-parts date-arg)
+  (when (null? title-parts)
+    (die exit-usage "move requires TITLE|^anchor" #:json? json?))
+  (when (and (not clear?) (not date-arg))
+    (die exit-usage
+         "move requires DATE (YYYY-MM-DD[THH:MM[:SS]]) or --clear"
+         #:json? json?))
+  (define title (string-join title-parts " "))
+  (define path
+    (simple-form-path
+     (path->complete-path (or file-arg default-file))))
+  (unless (file-exists? path)
+    (die exit-not-found
+         (format "file not found: ~a" path)
+         #:json? json?
+         #:file path))
+  (define original (file->string path))
+  (when (regexp-match? #px"(?m:^#lang selfflowy/sexp)" original)
+    (die exit-validation
+         "move only writes outline syntax (#lang selfflowy), not selfflowy/sexp"
+         #:json? json?
+         #:file path))
+  (define-values (new-text line resolved-title date-val)
+    (with-handlers
+        ([exn:fail?
+          (λ (e)
+            (die exit-validation (exn-message e) #:json? json? #:file path))])
+      (if clear?
+          (let-values ([(t l title) (clear-date-in-text original title)])
+            (values t l title (json-null)))
+          (let-values ([(t l title d) (set-date-in-text original title date-arg)])
+            (values t l title d)))))
+  (define tmp (string->path (string-append (path->string path) ".sf-tmp")))
+  (with-handlers
+      ([exn:fail?
+        (λ (e)
+          (when (file-exists? tmp) (delete-file tmp))
+          (die exit-validation (exn-message e) #:json? json? #:file path))])
+    (display-to-file new-text tmp #:exists 'truncate/replace)
+    (with-handlers
+        ([exn:fail?
+          (λ (e)
+            (when (file-exists? tmp) (delete-file tmp))
+            (define-values (src ln col) (exn-location e path))
+            (die exit-validation
+                 (format "move failed validation: ~a" (exn-message e))
+                 #:json? json?
+                 #:file (or src path)
+                 #:line ln
+                 #:col col))])
+      (dynamic-require `(file ,(path->string tmp)) 'tasks)
+      (rename-file-or-directory tmp path #t)))
+  (define commit-msg
+    (if clear?
+        (format "move: ~a (cleared date)" resolved-title)
+        (format "move: ~a -> ~a" resolved-title date-val)))
+  (define committed?
+    (and (not no-commit?)
+         (try-git-commit path commit-msg)))
+  (if json?
+      (write-json-stdout
+       (ok-hash 'file (path->string path)
+                'title resolved-title
+                'line line
+                'date date-val
+                'committed committed?))
+      (printf "moved ~s in ~a (line ~a)~a~a\n"
+              resolved-title
+              path
+              line
+              (if clear? " date cleared"
+                  (format " -> ~a" date-val))
+              (if committed? ", committed" ""))))
+
+(define (cmd-ics paths out-path)
+  (define entries
+    (for/list ([path (in-list paths)])
+      (cons path (load-tasks path #f))))
+  (define ics (tasks->ics entries))
+  (cond
+    [out-path
+     (display-to-file ics out-path #:exists 'truncate/replace)
+     (printf "~a\n" (path->string (simple-form-path (path->complete-path out-path))))]
+    [else
+     (display ics)]))
+
 (define (usage)
   (eprintf "usage: selfflowy <command> [options] ...\n")
   (eprintf "\n")
   (eprintf "commands:\n")
-  (eprintf "  check  [--json] [file ...]  validate outline(s) (default: ~a)\n" default-file)
-  (eprintf "  tree   [--json] [file ...]  outline(s) as JSON (human view: html)\n")
-  (eprintf "  agenda [--json] [file ...]  OVERDUE / TODAY / UPCOMING (merged)\n")
-  (eprintf "  html   [--out PATH] [file ...]  interactive HTML (sections if multi)\n")
-  (eprintf "  add    [--json] [--file F] [--date ISO] [--description TEXT]\n")
-  (eprintf "         [--parent TITLE|^anchor] [--no-commit] TITLE...\n")
-  (eprintf "  done   [--json] [--file F] [--undo] [--no-commit] TITLE|^anchor\n")
-  (eprintf "                                 mark task done (one file)\n")
+  (eprintf "  check    [--json] [file ...]  validate outline(s) (default: ~a)\n" default-file)
+  (eprintf "  tree     [--json] [file ...]  outline(s) as JSON (human view: html)\n")
+  (eprintf "  agenda   [--json] [file ...]  OVERDUE / TODAY / UPCOMING (merged)\n")
+  (eprintf "  calendar [--json] [--month YYYY-MM] [file ...]  days with dated items\n")
+  (eprintf "  html     [--out PATH] [file ...]  tree + month calendar\n")
+  (eprintf "  add      [--json] [--file F] [--date ISO] [--description TEXT]\n")
+  (eprintf "           [--parent TITLE|^anchor] [--no-commit] TITLE...\n")
+  (eprintf "  done     [--json] [--file F] [--undo] [--no-commit] TITLE|^anchor\n")
+  (eprintf "  move     [--json] [--file F] [--no-commit] [--clear] TITLE|^anchor DATE\n")
+  (eprintf "  ics      [--out PATH] [file ...]  RFC 5545 VCALENDAR of dated tasks\n")
   (eprintf "\n")
   (eprintf "exit codes: 0 ok | 1 usage | 2 validation/load | 3 not found\n")
   (eprintf "agent contract: docs/cli.md\n"))
@@ -477,6 +585,19 @@
    #:args paths
    (set! file-args paths))
   (cmd-agenda (resolve-files file-args json?) json?))
+
+(define (cli-calendar)
+  (define json? #f)
+  (define month #f)
+  (define file-args '())
+  (command-line
+   #:program "selfflowy calendar"
+   #:once-each
+   [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
+   [("--month") m "Month YYYY-MM (default: current)" (set! month m)]
+   #:args paths
+   (set! file-args paths))
+  (cmd-calendar (resolve-files file-args json?) json? month))
 
 (define (cli-html)
   (define out-path #f)
@@ -527,6 +648,43 @@
    (set! titles title-words))
   (cmd-done json? file-arg undo? no-commit? titles))
 
+(define (cli-move)
+  (define json? #f)
+  (define file-arg #f)
+  (define no-commit? #f)
+  (define clear? #f)
+  (define words '())
+  (command-line
+   #:program "selfflowy move"
+   #:once-each
+   [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
+   [("--file") f "Outline file (default: $SELFFLOWY_HOME/Tasks.rkt)" (set! file-arg f)]
+   [("--no-commit") "Do not auto-commit even in a git repo" (set! no-commit? #t)]
+   [("--clear") "Remove @date instead of setting one" (set! clear? #t)]
+   #:args args
+   (set! words args))
+  ;; Last arg is DATE unless --clear; rest is TITLE.
+  (cond
+    [clear?
+     (cmd-move json? file-arg no-commit? #t words #f)]
+    [(null? words)
+     (die exit-usage "move requires TITLE|^anchor DATE" #:json? json?)]
+    [else
+     (define date-arg (last words))
+     (define title-parts (drop-right words 1))
+     (cmd-move json? file-arg no-commit? #f title-parts date-arg)]))
+
+(define (cli-ics)
+  (define out-path #f)
+  (define file-args '())
+  (command-line
+   #:program "selfflowy ics"
+   #:once-each
+   [("--out") path "Write ICS to path (default: stdout)" (set! out-path path)]
+   #:args paths
+   (set! file-args paths))
+  (cmd-ics (resolve-files file-args #f) out-path))
+
 (define (main)
   (define argv (current-command-line-arguments))
   (cond
@@ -549,9 +707,12 @@
            [("check") (cli-check)]
            [("tree") (cli-tree)]
            [("agenda") (cli-agenda)]
+           [("calendar") (cli-calendar)]
            [("html") (cli-html)]
            [("add") (cli-add)]
            [("done") (cli-done)]
+           [("move") (cli-move)]
+           [("ics") (cli-ics)]
            [else
             (die exit-usage (format "unknown command ~s" cmd) #:json? #f)])))]))
 

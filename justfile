@@ -30,6 +30,31 @@ tree *args: install
 agenda *args: install
     selfflowy agenda {{if args == "" { default_outlines } else { args }}}
 
+# Calendar days with dated items (default: current month, Dropbox outlines).
+# Flags only (e.g. --month 2026-08) still load the default outlines.
+calendar *args: install
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -z "{{args}}" ]; then
+      selfflowy calendar {{default_outlines}}
+    elif [[ "{{args}}" != *".rkt"* ]]; then
+      selfflowy calendar {{args}} {{default_outlines}}
+    else
+      selfflowy calendar {{args}}
+    fi
+
+# RFC 5545 VCALENDAR of dated tasks
+ics *args: install
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -z "{{args}}" ]; then
+      selfflowy ics --out Tasks.ics {{default_outlines}}
+    elif [[ "{{args}}" != *".rkt"* ]]; then
+      selfflowy ics {{args}} {{default_outlines}}
+    else
+      selfflowy ics {{args}}
+    fi
+
 # Capture under Inbox (default file: $SELFFLOWY_HOME/Tasks.rkt)
 add *args: install
     selfflowy add --no-commit {{args}}

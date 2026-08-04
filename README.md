@@ -77,9 +77,9 @@ restructure. Live with it, or open your laptop.
 ## STATUS
 
 Outline `#lang selfflowy` + sexp core + agent CLI (`check` / `tree` JSON /
-`agenda` / `add` / `done` / `html`). Done status (`@done` / `[x]`) and in-file
-mirrors (`^anchor` / `*anchor`) are first class. Human view is HTML.
-(Ancestor: srid/Tend.)
+`agenda` / `calendar` / `add` / `done` / `move` / `ics` / `html`). Done
+status (`@done` / `[x]`), in-file mirrors, and a month calendar in the HTML
+view are first class. (Ancestor: srid/Tend.)
 
 ## ROADMAP
 
@@ -93,8 +93,9 @@ fictional demo data only.
     just install       # raco pkg install --link selfflowy/
     just check         # validates $SELFFLOWY_HOME/{Tasks,Daily,Roadmap}.rkt
     just tree examples/Example.rkt   # JSON forest for agents
-    just html examples/Example.rkt   # human tree view
-    just agenda examples/Example.rkt
+    just html                        # tree + calendar over personal outlines
+    just agenda
+    just calendar --month 2026-08
     just test
 
 ## CLI (agents)
