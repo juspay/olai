@@ -189,6 +189,42 @@ $ selfflowy html --out /tmp/all.html Tasks.rkt examples/Roadmap.rkt
 
 Exit codes same as other read commands (0 / 1 / 2 / 3).
 
+## `serve [--port N] [--bind ADDR] [file ...]`
+
+Run the web view over the given outlines (default file set as above:
+`$SELFFLOWY_HOME/Tasks.rkt`; `just serve` passes the usual trio). Blocks
+until Ctrl-C, which shuts the listener down cleanly. One line on stdout at
+startup:
+
+```
+$ selfflowy serve examples/Example.rkt
+selfflowy serve http://127.0.0.1:8080 files: /.../examples/Example.rkt
+```
+
+- `--port N` — default `8080`. `0` binds a free port and logs which one.
+- `--bind ADDR` — default `127.0.0.1`. `--bind ""` listens on all interfaces.
+- **No auth.** The network is the auth: put it behind Tailscale or Caddy.
+
+Routes (WP1 skeleton — more land with the real UI):
+
+| Route | Body |
+|-------|------|
+| `GET /` | HTML page from the same renderer as `html` (placeholder markup) |
+| `GET /api/tree` | byte-identical to `selfflowy tree` |
+| `GET /api/agenda` | byte-identical to `selfflowy agenda --json` |
+| `GET /static/*` | files under `selfflowy/web/static/` |
+| anything else | `404`, terse `text/plain` |
+
+Paths that climb out of `static/` are 404, not files. A file that fails to
+load answers `500`: the JSON error object (same shape as `--json` errors) on
+the `/api/*` routes, one plain-text line on `/`.
+
+Outlines are read once per process, so **restart to see edits** — live
+updates arrive with SSE.
+
+Exit codes: 0 on clean shutdown, 1 on bad flags or a port it cannot bind,
+3 when an outline path does not exist.
+
 ## `add [--json] [--file F] [--date ISO] [--description TEXT] [--parent TITLE|^anchor] [--no-commit] TITLE...`
 
 `--date` accepts `YYYY-MM-DD` or a datetime (`YYYY-MM-DDTHH:MM` / `…:SS`; a space

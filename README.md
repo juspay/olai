@@ -79,7 +79,9 @@ restructure. Live with it, or open your laptop.
 Outline `#lang selfflowy` + sexp core + agent CLI (`check` / `tree` JSON /
 `agenda` / `calendar` / `add` / `done` / `move` / `daily` / `ics` / `html`).
 Done status, in-file mirrors, `@include` composition, and a month calendar
-in the HTML view are first class. (Ancestor: srid/Tend.)
+in the HTML view are first class. `selfflowy serve` puts that view and the
+JSON on a port (read-only, no auth — bind it to localhost or Tailscale).
+(Ancestor: srid/Tend.)
 
 ## ROADMAP
 
@@ -94,6 +96,7 @@ fictional demo data only.
     just check         # validates $SELFFLOWY_HOME/{Tasks,Daily,Roadmap}.rkt
     just tree examples/Example.rkt   # JSON forest for agents
     just html                        # tree + calendar over personal outlines
+    just serve                       # web view on http://127.0.0.1:8080
     just agenda
     just calendar --month 2026-08
     just test
