@@ -7,10 +7,13 @@
 ;; The expander is the only validator: we just dynamic-require and report.
 
 (require racket/list
-         racket/path)
+         racket/path
+         racket/string)
 
 (provide (struct-out outline)
          (struct-out load-error)
+         load-error-where
+         load-error-detail
          try-load-outline
          exn-location
          exn-message*)
@@ -27,6 +30,26 @@
 ;; A load failure, with the srcloc of the offending form (CLAUDE.md: errors
 ;; carry file:line:col). line/col may be #f when the exn had no source.
 (struct load-error (message file line col) #:transparent)
+
+;; "file:line:col" — or just "file" when the exn carried no position, #f when
+;; not even that. Every surface (JSON, plain text, HTML) shows this.
+(define (load-error-where err)
+  (define f (load-error-file err))
+  (define file (and f (if (path? f) (path->string f) f)))
+  (cond
+    [(and file (load-error-line err))
+     (format "~a:~a:~a" file (load-error-line err) (or (load-error-col err) 0))]
+    [else file]))
+
+;; The message without a leading copy of `where` (exn-message* already
+;; prefixes syntax errors with their location, JSON carries it in fields).
+(define (load-error-detail err)
+  (define w (load-error-where err))
+  (define m (load-error-message err))
+  (define prefix (and w (string-append w ": ")))
+  (if (and prefix (string-prefix? m prefix))
+      (substring m (string-length prefix))
+      m))
 
 ;; Prefer the most specific syntax object for agents: highest line/col among
 ;; exprs that carry a source (outline @date values are later subforms).

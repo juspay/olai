@@ -194,12 +194,23 @@ Routes (WP1 skeleton — more land with the real UI):
 | `GET /static/*` | files under `selfflowy/web/static/` |
 | anything else | `404`, terse `text/plain` |
 
-Paths that climb out of `static/` are 404, not files. A file that fails to
-load answers `500`: the JSON error object (same shape as `--json` errors) on
-the `/api/*` routes, one plain-text line on `/`.
+Paths that climb out of `static/` are 404, not files.
 
-Outlines are read once per process, so **restart to see edits** — live
-updates arrive with SSE.
+**Edits are picked up on the next request.** The server keeps a snapshot of
+the outlines (roots plus every `@include` fragment) and reloads it when a
+watched file's mtime or size changes; a reload runs in a fresh namespace, so
+the module registry cannot serve you yesterday's file.
+
+A file is broken for a moment during every edit, so the two surfaces differ:
+
+- `/api/*` answers `500` with the JSON error object (same shape as `--json`
+  errors, `file` / `line` / `col` / `message`) — agents never get stale data
+  quietly.
+- `/` keeps rendering the **last good** snapshot and puts the error, with its
+  `file:line:col`, in a banner at the top of the page. With no last-good
+  snapshot (the first load failed) it answers `500` with the same banner.
+
+Live push to the browser arrives with SSE.
 
 Exit codes: 0 on clean shutdown, 1 on bad flags or a port it cannot bind,
 3 when an outline path does not exist.

@@ -35,6 +35,7 @@
          render-zoom
          ;; helpers the server needs to route/lookup
          page->html-string
+         render-error-banner
          fragment-index
          file-label
          node-element-id
@@ -413,9 +414,20 @@
 JS
   )
 
+;; A file is broken for a moment during every edit. The page keeps the last
+;; good content and says so here, with the file:line:col of the offending
+;; form — the same location the JSON errors carry.
+(define (render-error-banner detail #:where [where #f])
+  `(div ((class "sf-error") (role "alert"))
+        ,@(if where
+              (list `(span ((class "sf-error-where")) ,where))
+              '())
+        (span ((class "sf-error-detail")) ,detail)))
+
 (define (render-page main
                      #:title [title "selfflowy"]
                      #:sidebar [sidebar #f]
+                     #:banner [banner #f]
                      #:sse-connect [sse-connect #f]
                      #:head-extra [head-extra '()]
                      #:body-extra [body-extra '()])
@@ -436,6 +448,10 @@ JS
                       '()))
                ,@(if sidebar (list sidebar) '())
                (main ((class "sf-main"))
+                     ;; fixed slot: the banner is swapped in and out, so it
+                     ;; must exist (empty) even on a healthy page
+                     (div ((class "sf-banner-slot") (id "sf-banner"))
+                          ,@(if banner (list banner) '()))
                      ,main)
                ,@body-extra
                (script ,(cdata #f #f collapse-js)))))

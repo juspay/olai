@@ -1,16 +1,17 @@
 #lang racket/base
 
-;; The read-mostly web view. WP1 skeleton: routing + the existing renderers.
+;; The read-mostly web view.
 ;;
-;;   GET /              the html renderer's page (WP2 replaces the markup)
+;;   GET /              the html page: sidebar + outline
 ;;   GET /api/tree      byte-identical to `selfflowy tree`
 ;;   GET /api/agenda    byte-identical to `selfflowy agenda --json`
 ;;   GET /static/*      files from web/static/
 ;;   anything else      404, terse text/plain
 ;;
 ;; No auth: the network is the auth (Tailscale / Caddy in front of it).
-;; Routing, static files, and MIME types come from racket web-server; the
-;; only thing this module owns is which outline files get read.
+;; Routing, static files, and MIME types come from racket web-server. Outline
+;; content comes from selfflowy/store — this module owns routes and responses,
+;; never a load.
 
 (require racket/async-channel
          racket/path
@@ -32,6 +33,7 @@
          selfflowy/dates
          selfflowy/json-out
          selfflowy/load
+         selfflowy/store
          selfflowy/web/render)
 
 (provide start-server)
@@ -66,24 +68,22 @@
 (define (not-found-response)
   (text-response "404 not found\n" #:code 404))
 
-;; ---- outlines -------------------------------------------------------------
+;; ---- the store ------------------------------------------------------------
 
-;; Outlines are loaded through the module registry, so a file is read once per
-;; process: restart to pick up edits. Reloading needs a fresh namespace, which
-;; a `raco exe` binary cannot populate from collection paths — the live view
-;; lands with SSE, in the WP that owns pushing changes to the browser.
+;; Every route starts here: refresh the store (a cheap mtime probe unless a
+;; file actually changed), then hand the handler ONE consistent snapshot.
 ;;
-;; -> (values entries #f) | (values #f load-error)
-;; entries : (listof outline)
-(define (load-entries files)
-  (let loop ([fs files] [acc '()])
-    (cond
-      [(null? fs) (values (reverse acc) #f)]
-      [else
-       (define r (try-load-outline (car fs)))
-       (if (outline? r)
-           (loop (cdr fs) (cons r acc))
-           (values #f r))])))
+;; A live load error means the file is mid-edit. JSON routes fail loudly —
+;; agents must never be handed stale data quietly — while the page keeps the
+;; last good content and shows the error in its banner (#:stale-ok? #t). With
+;; no last-good snapshot at all, everything fails.
+(define (with-snapshot st fail proc #:stale-ok? [stale-ok? #f])
+  (store-invalidate! st)
+  (define snap (store-snapshot st))
+  (define err (store-error st))
+  (if (and err (or (not stale-ok?) (null? (snapshot-outlines snap))))
+      (fail err)
+      (proc snap err)))
 
 (define (load-error->json err)
   (err-hash (load-error-message err)
@@ -91,55 +91,61 @@
             #:line (load-error-line err)
             #:col (load-error-col err)))
 
-(define (load-error->text err)
-  (format "selfflowy: ~a\n" (load-error-message err)))
+(define (json-failure err)
+  (json-response (load-error->json err) #:code 500))
+
+(define (error-banner err)
+  (render-error-banner (load-error-detail err) #:where (load-error-where err)))
+
+(define (page-failure err)
+  (html-response
+   (page->html-string
+    (render-page `(div ((class "sf-pane")) (p ((class "sf-empty")) "No outline loaded."))
+                 #:title "selfflowy"
+                 #:banner (error-banner err)))
+   #:code 500))
 
 ;; ---- handlers -------------------------------------------------------------
 
-(define (page-handler files)
-  (define-values (entries err) (load-entries files))
-  (cond
-    [err (text-response (load-error->text err) #:code 500)]
-    [else
-     (define title
-       (if (= (length files) 1)
-           (path->string (file-name-from-path (car files)))
-           "selfflowy"))
-     (define files-data
-       (for/list ([o (in-list entries)])
-         (list (outline-path o) (outline-tasks o) (outline-anchors o))))
-     (html-response
-      (page->html-string
-       (render-page (render-outline files-data)
-                    #:title title
-                    #:sidebar (render-sidebar files-data))))]))
+(define (page-title files)
+  (if (= (length files) 1)
+      (path->string (file-name-from-path (car files)))
+      "selfflowy"))
 
-(define (tree-handler files)
-  (define-values (entries err) (load-entries files))
-  (if err
-      (json-response (load-error->json err) #:code 500)
-      (json-response (outlines->jsexpr entries))))
+(define (page-handler st)
+  (with-snapshot st page-failure #:stale-ok? #t
+    (λ (snap err)
+      (define files-data (snapshot-files-data snap))
+      (html-response
+       (page->html-string
+        (render-page (render-outline files-data)
+                     #:title (page-title (store-files st))
+                     #:sidebar (render-sidebar files-data)
+                     #:banner (and err (error-banner err))))))))
 
-(define (agenda-handler files)
-  (define-values (entries err) (load-entries files))
-  (cond
-    [err (json-response (load-error->json err) #:code 500)]
-    [else
-     (define today (today-iso-string))
-     (define groups
-       (agenda-groups-from-files
-        (for/list ([o (in-list entries)]) (cons (outline-path o) (outline-tasks o)))
-        today))
-     (json-response (agenda-groups->jsexpr groups today))]))
+(define (tree-handler st)
+  (with-snapshot st json-failure
+    (λ (snap _err) (json-response (outlines->jsexpr (snapshot-outlines snap))))))
+
+(define (agenda-handler st)
+  (with-snapshot st json-failure
+    (λ (snap _err)
+      (define today (today-iso-string))
+      (define groups
+        (agenda-groups-from-files
+         (for/list ([o (in-list (snapshot-outlines snap))])
+           (cons (outline-path o) (outline-tasks o)))
+         today))
+      (json-response (agenda-groups->jsexpr groups today)))))
 
 ;; ---- dispatch -------------------------------------------------------------
 
-(define (make-router files)
+(define (make-router st)
   (define-values (route _url)
     (dispatch-rules
-     [("") (λ (req) (page-handler files))]
-     [("api" "tree") (λ (req) (tree-handler files))]
-     [("api" "agenda") (λ (req) (agenda-handler files))]
+     [("") (λ (req) (page-handler st))]
+     [("api" "tree") (λ (req) (tree-handler st))]
+     [("api" "agenda") (λ (req) (agenda-handler st))]
      [else (λ (req) (not-found-response))]))
   route)
 
@@ -153,13 +159,13 @@
       (with-handlers ([exn:fail? (λ (_e) (next-dispatcher))])
         (u->p (struct-copy url u [path rest]))))))
 
-(define (make-dispatcher files)
+(define (make-dispatcher st)
   (sequencer:make
    (filter:make #rx"^/static/"
                 (files:make #:url->path static-url->path
                             #:path->mime-type (make-path->mime-type mime-types-path)
                             #:indices '()))
-   (lift:make (make-router files))))
+   (lift:make (make-router st))))
 
 ;; ---- server ---------------------------------------------------------------
 
@@ -169,12 +175,10 @@
                       #:bind [bind "127.0.0.1"]
                       #:files files
                       #:on-listen [on-listen void])
-  (define paths
-    (for/list ([f (in-list files)])
-      (simple-form-path (if (path? f) f (string->path f)))))
+  (define st (make-store files))
   (define confirm (make-async-channel 1))
   (define stop
-    (serve #:dispatch (make-dispatcher paths)
+    (serve #:dispatch (make-dispatcher st)
            #:port port
            #:listen-ip bind
            #:confirmation-channel confirm))

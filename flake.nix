@@ -210,7 +210,9 @@
 
             # The server has to work from the packaged binary too: static files
             # and the language readers resolve differently there.
-            selfflowy serve --port 8099 ${./examples/Example.rkt} &
+            cp ${./examples/Example.rkt} live.rkt
+            chmod u+w live.rkt
+            selfflowy serve --port 8099 live.rkt &
             for i in $(seq 1 60); do
               curl -sf -o page.html http://127.0.0.1:8099/ && break
               sleep 1
@@ -223,6 +225,24 @@
                          (error (quote smoke) "unexpected /api/tree JSON"))'
             curl -sf -o app.css http://127.0.0.1:8099/static/app.css
             test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8099/nope)" = 404
+
+            # Reload after a save. This is the check that matters in the
+            # PACKAGED binary: the store loads outlines in a fresh namespace,
+            # which has no collection paths to resolve selfflowy from — it has
+            # to work off attached modules.
+            ! grep -q "Smoke reload marker" page.html
+            printf 'Smoke reload marker\n' >> live.rkt
+            curl -sf -o page2.html http://127.0.0.1:8099/
+            grep -q "Smoke reload marker" page2.html
+
+            # A broken file keeps the last good page (with an error banner)
+            # and fails the JSON route loudly.
+            printf '  @date not-a-date\n' >> live.rkt
+            curl -sf -o page3.html http://127.0.0.1:8099/
+            grep -q "Smoke reload marker" page3.html
+            grep -q "sf-error" page3.html
+            test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8099/api/tree)" = 500
+
             kill %1
 
             touch $out

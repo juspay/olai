@@ -373,6 +373,18 @@
     ;; served form carries the doctype (no quirks mode)
     (check-true (string-prefix? (page->html-string (render-page '(div))) "<!DOCTYPE html>")))
 
+  (test-case "the page has a banner slot; the banner keeps file:line:col"
+    (define plain (xstr (render-page '(div))))
+    (check-true (string-contains? plain "id=\"sf-banner\"") plain)
+    (check-false (string-contains? plain "sf-error") plain)
+    (define s (xstr (render-page '(div)
+                                 #:banner (render-error-banner
+                                           "expected ISO date"
+                                           #:where "/tmp/Tasks.rkt:3:4"))))
+    (check-true (string-contains? s "sf-error") s)
+    (check-true (string-contains? s "/tmp/Tasks.rkt:3:4") s)
+    (check-true (string-contains? s "expected ISO date") s))
+
   (test-case "sse-connect opts the body into the htmx sse extension"
     (define s (xstr (render-page '(div) #:sse-connect "/events")))
     (check-true (string-contains? s "hx-ext=\"sse\"") s)
