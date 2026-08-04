@@ -4,7 +4,8 @@
 
 (require json
          (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/agenda)
+         selfflowy/agenda
+         selfflowy/calendar)
 
 (provide json-version
          write-json-stdout
@@ -18,6 +19,8 @@
          outline->jsexpr
          dated-task->jsexpr
          agenda-groups->jsexpr
+         cal-item->jsexpr
+         calendar->jsexpr
          nullish
          count-tasks
          count-mirrors)
@@ -124,3 +127,19 @@
         'overdue (items-for 'overdue)
         'today_items (items-for 'today)
         'upcoming (items-for 'upcoming)))
+
+(define (cal-item->jsexpr it)
+  (hash 'title (cal-item-title it)
+        'date (cal-item-date it)
+        'breadcrumb (cal-item-breadcrumb it)
+        'done (done->json (cal-item-done it))
+        'id (nullish (cal-item-id it))))
+
+(define (calendar->jsexpr cal)
+  (hash 'version json-version
+        'month (hash-ref cal 'month)
+        'days
+        (for/list ([d (in-list (hash-ref cal 'days))])
+          (hash 'date (hash-ref d 'date)
+                'day_node (hash-ref d 'day_node #f)
+                'items (map cal-item->jsexpr (hash-ref d 'items))))))

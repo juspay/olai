@@ -156,13 +156,16 @@
     (check-true (string-contains? s2 "line-through") s2))
 
   (test-case "tasks->html has doctype and tailwind, no expand-all JS"
-    (define html (tasks->html (list (tk "A" #f #f '())) "Demo"))
+    (define html (tasks->html (list (tk "A" #f #f '())) "Demo"
+                              #:today "2026-08-03"))
     (check-true (string-prefix? html "<!DOCTYPE html>") html)
     (check-true (string-contains? html "cdn.tailwindcss.com") html)
     (check-true (string-contains? html "<title>Demo</title>") html)
     (check-false (string-contains? html "expand-all") html)
-    ;; single file: no per-file h2 section chrome
-    (check-false (string-contains? html "<h2") html))
+    ;; calendar section is present; single-file outline has no per-file h2
+    (check-true (string-contains? html "sf-calendar") html)
+    (check-true (string-contains? html "grid-cols-7") html)
+    (check-false (string-contains? html ">Tasks.rkt<") html))
 
   (test-case "files->html multi-file sections use basenames as h2"
     (define html

@@ -9,9 +9,11 @@
          racket/path
          racket/string
          xml
+         (only-in xml cdata)
          (only-in markdown parse-markdown)
          (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/dates)
+         selfflowy/dates
+         selfflowy/calendar)
 
 (provide tasks->html
          files->html
@@ -366,8 +368,126 @@
                     (ul ((class "ml-3 pl-3 border-l border-zinc-200 dark:border-zinc-700 mt-0.5 space-y-0.5"))
                         ,@(map (λ (c) (child->xexpr c anchors #:today today*)) kids))))))
 
+(define (cal-item-link it)
+  (define id (cal-item-id it))
+  (define title (cal-item-title it))
+  (define done? (cal-item-done it))
+  (define cls
+    (if done?
+        "block text-xs truncate text-zinc-400 dark:text-zinc-500 line-through"
+        "block text-xs truncate text-zinc-700 dark:text-zinc-200 hover:underline"))
+  (if id
+      `(a ((href ,(string-append "#" id)) (class ,cls) (title ,(cal-item-breadcrumb it)))
+          ,title)
+      `(span ((class ,cls) (title ,(cal-item-breadcrumb it))) ,title)))
+
+(define (month-grid-xexpr ym cal-hash today)
+  (define cells (month-grid-cells ym cal-hash today))
+  (define weeks
+    (let loop ([cs cells] [acc '()])
+      (if (null? cs)
+          (reverse acc)
+          (loop (drop cs 7) (cons (take cs 7) acc)))))
+  `(div ((class "grid grid-cols-7 gap-1 text-sm"))
+        ,@(for/list ([wd (in-list '("Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"))])
+            `(div ((class "text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 py-1"))
+                  ,wd))
+        ,@(append*
+           (for/list ([week (in-list weeks)])
+             (for/list ([cell (in-list week)])
+               (if (not cell)
+                   `(div ((class "min-h-[5.5rem] rounded-lg bg-zinc-100/50 dark:bg-zinc-900/40")))
+                   (let* ([d (hash-ref cell 'date)]
+                          [num (hash-ref cell 'day_num)]
+                          [items (hash-ref cell 'items)]
+                          [node? (hash-ref cell 'day_node)]
+                          [today? (hash-ref cell 'is_today)]
+                          [cell-cls
+                           (string-append
+                            "min-h-[5.5rem] rounded-lg border p-1.5 flex flex-col gap-0.5 "
+                            (cond
+                              [today?
+                               "border-sky-400 dark:border-sky-500 bg-sky-50 dark:bg-sky-950/40"]
+                              [node?
+                               "border-violet-200 dark:border-violet-800 bg-white dark:bg-zinc-900"]
+                              [else
+                               "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"]))])
+                     `(div ((class ,cell-cls))
+                           (div ((class "flex items-baseline justify-between gap-1"))
+                                ,(if node?
+                                     `(a ((href ,(string-append "#" d))
+                                          (class "font-semibold text-violet-700 dark:text-violet-300 hover:underline")
+                                          (title ,(string-append "day notes " d)))
+                                         ,(number->string num))
+                                     `(span ((class "font-medium text-zinc-700 dark:text-zinc-200"))
+                                            ,(number->string num)))
+                                ,@(if today?
+                                      `((span ((class "text-[10px] uppercase tracking-wide text-sky-600 dark:text-sky-400"))
+                                              "today"))
+                                      '()))
+                           (div ((class "space-y-0.5 min-w-0"))
+                                ,@(map cal-item-link (take items (min 4 (length items))))
+                                ,@(if (> (length items) 4)
+                                      `((span ((class "text-[10px] text-zinc-400"))
+                                              ,(format "+~a more" (- (length items) 4))))
+                                      '()))))))))))
+
+(define calendar-nav-js
+  #<<JS
+(function(){
+  var root=document.getElementById('sf-calendar');
+  if(!root)return;
+  var months=JSON.parse(root.getAttribute('data-months'));
+  var i=1; // middle = current
+  function show(){
+    var panels=root.querySelectorAll('[data-cal-panel]');
+    panels.forEach(function(p,idx){p.classList.toggle('hidden',idx!==i);});
+    var title=root.querySelector('[data-cal-title]');
+    if(title) title.textContent=months[i];
+    var prev=root.querySelector('[data-cal-prev]');
+    var next=root.querySelector('[data-cal-next]');
+    if(prev) prev.disabled=i<=0;
+    if(next) next.disabled=i>=months.length-1;
+  }
+  root.querySelector('[data-cal-prev]').addEventListener('click',function(){if(i>0){i--;show();}});
+  root.querySelector('[data-cal-next]').addEventListener('click',function(){if(i<months.length-1){i++;show();}});
+  show();
+})();
+JS
+  )
+
+(define (calendar-section-xexpr month-cals today)
+  (define months (map (λ (c) (hash-ref c 'month)) month-cals))
+  (define months-json
+    (string-append "[\"" (string-join months "\",\"") "\"]"))
+  `(section
+    ((id "sf-calendar")
+     (class "mb-10")
+     (data-months ,months-json))
+    (div ((class "flex items-center justify-between gap-3 mb-3"))
+         (button ((type "button")
+                  (data-cal-prev "")
+                  (class "px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-30"))
+                 "←")
+         (h2 ((data-cal-title "")
+              (class "text-lg font-semibold tracking-tight text-zinc-800 dark:text-zinc-100 font-mono"))
+             ,(list-ref months (min 1 (sub1 (length months)))))
+         (button ((type "button")
+                  (data-cal-next "")
+                  (class "px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-30"))
+                 "→"))
+    ,@(for/list ([cal (in-list month-cals)]
+                 [idx (in-naturals)])
+        (define ym (hash-ref cal 'month))
+        `(div ((data-cal-panel ,ym)
+               (class ,(if (= idx 1) "" "hidden")))
+              ,(month-grid-xexpr ym cal today)))
+    (script ,(cdata #f #f calendar-nav-js))))
+
 ;; sections: (listof (list section-title tasks anchors))
-(define (page-xexpr sections page-title #:today [today #f])
+(define (page-xexpr sections page-title
+                    #:today [today #f]
+                    #:calendar-months [calendar-months #f])
   (define today* (or today (today-iso-string)))
   (define body-sections
     (match sections
@@ -385,6 +505,12 @@
                          ,sec-title)
                      (ul ((class "space-y-1"))
                          ,@(map (λ (t) (task->xexpr t anchors #:today today*)) tasks))))))]))
+  (define cal-sec
+    (if (and calendar-months (pair? calendar-months))
+        (list (calendar-section-xexpr calendar-months today*))
+        '()))
+  (define main-w
+    (if (pair? cal-sec) "max-w-5xl mx-auto px-4 py-8" "max-w-2xl mx-auto px-4 py-8"))
   `(html ((lang "en"))
          (head
           (meta ((charset "utf-8")))
@@ -394,20 +520,23 @@
           (script "tailwind.config = { darkMode: 'media' }")
           (style "summary{outline:none;list-style:none} summary::-webkit-details-marker{display:none}"))
          (body ((class "bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 min-h-screen"))
-               (main ((class "max-w-2xl mx-auto px-4 py-8"))
+               (main ((class ,main-w))
                      (header ((class "mb-6"))
                              (h1 ((class "text-xl font-semibold tracking-tight"))
                                  ,page-title))
+                     ,@cal-sec
                      ,@body-sections))))
 
-(define (tasks->html tasks page-title #:anchors [anchors #f] #:today [today #f])
+(define (tasks->html tasks page-title #:anchors [anchors #f] #:today [today #f] #:month [month #f])
   (files->html (list (list page-title tasks (or anchors (hash))))
                page-title
-               #:today today))
+               #:today today
+               #:month month))
 
 ;; file-entries: (listof (list path-or-label tasks anchors))
 ;;   or legacy (cons path tasks) with empty anchors
-(define (files->html file-entries page-title #:today [today #f])
+(define (files->html file-entries page-title #:today [today #f] #:month [month #f])
+  (define today* (or today (today-iso-string)))
   (define sections
     (for/list ([e (in-list file-entries)])
       (define-values (label tasks anchors)
@@ -425,6 +554,16 @@
                     (path->string name)
                     s)))))
       (list lab tasks (or anchors (hash)))))
+  (define pairs
+    (for/list ([sec (in-list sections)])
+      (cons (car sec) (cadr sec))))
+  (define ym
+    (or month (substring today* 0 7)))
+  (define month-cals
+    (for/list ([delta (in-list '(-1 0 1))])
+      (calendar-from-files pairs (shift-year-month ym delta))))
   (string-append
    "<!DOCTYPE html>\n"
-   (xexpr->string (page-xexpr sections page-title #:today today))))
+   (xexpr->string (page-xexpr sections page-title
+                              #:today today*
+                              #:calendar-months month-cals))))
