@@ -161,19 +161,25 @@ a { color: inherit; }
   color: var(--dim);
 }
 
-.sf-tree, .sf-tree-children { list-style: none; margin: 0; padding: 0; }
+/* SIDEBAR NODES: same shell as the outline (.sf-node / .sf-row /
+   .sf-children), keyed by the .is-tree modifier — flatter, no connector,
+   one line each. */
+.sf-tree { list-style: none; margin: 0; padding: 0; }
 
-.sf-tree-children { margin-left: 0.75rem; }
+.sf-node.is-tree > .sf-children {
+  margin-left: 0.75rem;
+  padding-left: 0;
+  border-left: 0;
+}
 
-.sf-tree-row {
-  display: flex;
+.sf-node.is-tree > .sf-row {
   align-items: center;
-  gap: 0.125rem;
-  border-radius: var(--radius);
   padding: 0.0625rem 0.25rem;
 }
 
-.sf-tree-row:hover { background: var(--pill-bg); }
+.sf-node.is-tree > .sf-row:hover { background: var(--pill-bg); }
+
+.sf-node.is-tree > .sf-row > .sf-toggle { height: 1.25rem; }
 
 .sf-tree-link {
   flex: 1 1 auto;
@@ -185,8 +191,6 @@ a { color: inherit; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-.sf-tree-node.is-collapsed > .sf-tree-children { display: none; }
 
 /* ---- main pane -------------------------------------------------------- */
 
@@ -306,16 +310,12 @@ a.sf-crumb:hover { color: var(--ink); text-decoration: underline; }
 .sf-toggle-empty { cursor: default; }
 
 .sf-row:hover > .sf-toggle,
-.sf-tree-row:hover > .sf-toggle,
 .sf-toggle:focus-visible { opacity: 1; }
 
-.is-collapsed > .sf-row > .sf-toggle,
-.is-collapsed > .sf-tree-row > .sf-toggle {
+.sf-node.is-collapsed > .sf-row > .sf-toggle {
   transform: rotate(0deg);
   opacity: 1;
 }
-
-.sf-tree-row > .sf-toggle { height: 1.25rem; }
 
 /* bullet */
 .sf-bullet-link { display: inline-flex; align-items: center; height: 1.5rem; }

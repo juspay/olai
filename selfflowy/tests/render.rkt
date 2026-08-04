@@ -295,7 +295,7 @@
     (check-false (string-contains? s "sf-check") s)
     (check-true (string-contains? s "sf-toggle") s)
     ;; deeper levels start collapsed
-    (check-true (string-contains? s "sf-tree-node has-children is-collapsed") s)
+    (check-true (string-contains? s "sf-node is-tree has-children is-collapsed") s)
     ;; sidebar collapse state is namespaced away from the main pane's
     (check-true (string-contains? s "data-collapse-key=\"tree-") s))
 

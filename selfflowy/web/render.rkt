@@ -193,6 +193,48 @@
                            #:toggle-base toggle-base)]
     [else `(li ((class "sf-node sf-unresolved")) "???")]))
 
+;; The collapsible shell both panes wear: the node <li> with its collapse
+;; state, the disclosure toggle, the row, and the child list. The main pane
+;; and the sidebar tree differ in what goes IN the row and in one modifier
+;; class — not in the markup, and not in the selectors CSS and JS have to
+;; know about.
+(define (node-shell #:key key
+                    #:element-id [element-id #f]
+                    #:collapse-key collapse-key
+                    #:collapsed? collapsed?
+                    #:tree? [tree? #f]
+                    #:done? [done? #f]
+                    #:before-row [before-row '()]
+                    #:row row
+                    #:children [children '()])
+  (define has-kids? (pair? children))
+  `(li ((class ,(classes "sf-node"
+                         (and tree? "is-tree")
+                         (and has-kids? "has-children")
+                         ;; a leaf has nothing to fold
+                         (and has-kids? collapsed? "is-collapsed")
+                         (and done? "is-done")))
+        ,@(if element-id `((id ,element-id)) '())
+        (data-fragment-id ,key)
+        ,@(if has-kids? `((data-collapse-key ,collapse-key)) '()))
+       ,@before-row
+       (div ((class "sf-row"))
+            ,(toggle-xexpr has-kids? collapsed?)
+            ,@row)
+       ,@(if has-kids?
+             (list `(ul ((class "sf-children")) ,@children))
+             '())))
+
+;; Hidden until hover, like Workflowy; a leaf keeps the gutter.
+(define (toggle-xexpr has-kids? collapsed?)
+  (if has-kids?
+      `(button ((type "button")
+                (class "sf-toggle")
+                (aria-expanded ,(if collapsed? "false" "true"))
+                (aria-label "toggle children"))
+               "▸")
+      `(span ((class "sf-toggle sf-toggle-empty") (aria-hidden "true")))))
+
 ;; One subtree, self-contained: this is the unit SSE re-swaps.
 (define (render-node-fragment tk
                               #:anchors [anchors (hash)]
@@ -208,35 +250,36 @@
   (define qkey (site-key site key))
   (define done? (and (task-done tk) #t))
   (define kids (task-children tk))
-  (define has-kids? (pair? kids))
   (define iso-day (and (bare-iso-date-title? title) title))
   (define title-el
     (if iso-day
         (day-pill-xexpr iso-day today done?)
         `(span ((class ,(classes "sf-title" (and done? "is-done"))))
                ,@(map style-md-xexpr (title->inline-xexprs title)))))
-  (define row
-    `(div ((class "sf-row"))
-          ,@(if has-kids?
-                (list `(button ((type "button")
-                                (class "sf-toggle")
-                                (aria-expanded ,(if collapsed? "false" "true"))
-                                (aria-label "toggle children"))
-                               "▸"))
-                (list `(span ((class "sf-toggle sf-toggle-empty") (aria-hidden "true")))))
-          ,(let ([dot `(span ((class ,(classes "sf-bullet"
-                                               (and has-kids? "has-children")))
-                              (aria-hidden "true")))])
-             (if zoom-base
-                 `(a ((class "sf-bullet-link")
-                      (href ,(href-for zoom-base key))
-                      (title "zoom in"))
-                     ,dot)
-                 dot))
-          ;; the check sits in the gutter, not in the text run, so a title
-          ;; and its note stay flush left of each other
-          ,(checkbox-xexpr key qkey done? toggle-base)
-          (div ((class "sf-content"))
+  (define bullet
+    (let ([dot `(span ((class ,(classes "sf-bullet"
+                                        (and (pair? kids) "has-children")))
+                       (aria-hidden "true")))])
+      (if zoom-base
+          `(a ((class "sf-bullet-link")
+               (href ,(href-for zoom-base key))
+               (title "zoom in"))
+              ,dot)
+          dot)))
+  (node-shell
+   #:key key
+   #:element-id (node-element-id key #:site site)
+   #:collapse-key qkey
+   #:collapsed? collapsed?
+   #:done? done?
+   ;; the legacy #anchor target belongs to the defining site only
+   #:before-row (if site '() (legacy-anchor-xexpr tk))
+   #:row
+   (list bullet
+         ;; the check sits in the gutter, not in the text run, so a title
+         ;; and its note stay flush left of each other
+         (checkbox-xexpr key qkey done? toggle-base)
+         `(div ((class "sf-content"))
                (div ((class "sf-line"))
                     ,@(if mirror-of
                           (list `(a ((class "sf-mirror")
@@ -251,27 +294,16 @@
                ,@(if (task-description tk)
                      (list `(div ((class ,(classes "sf-note" (and done? "is-done"))))
                                  ,@(note->xexprs (task-description tk))))
-                     '()))))
-  `(li ((class ,(classes "sf-node"
-                         (and has-kids? "has-children")
-                         (and collapsed? "is-collapsed")
-                         (and done? "is-done")))
-        (id ,(node-element-id key #:site site))
-        (data-fragment-id ,key)
-        ,@(if has-kids? `((data-collapse-key ,qkey)) (quote ())))
-       ,@(if site (quote ()) (legacy-anchor-xexpr tk))
-       ,row
-       ,@(if has-kids?
-             (list `(ul ((class "sf-children"))
-                        ,@(for/list ([c (in-list kids)])
-                            (render-child c
-                                          #:anchors anchors
-                                          #:site site
-                                          #:owner qkey
-                                          #:today today
-                                          #:zoom-base zoom-base
-                                          #:toggle-base toggle-base))))
-             '())))
+                     '())))
+   #:children (for/list ([c (in-list kids)])
+                (render-child c
+                              #:anchors anchors
+                              #:site site
+                              #:owner qkey
+                              #:today today
+                              #:zoom-base zoom-base
+                              #:toggle-base toggle-base))))
+
 
 ;; ---- main pane ------------------------------------------------------------
 
@@ -343,32 +375,19 @@
       [(task? tk)
        (define key (task-key tk))
        (define kids (filter task? (task-children tk)))
-       (define has-kids? (pair? kids))
        (list
-        `(li ((class ,(classes "sf-tree-node"
-                               (and has-kids? "has-children")
-                               (and has-kids? (> depth 0) "is-collapsed")))
-              (data-fragment-id ,key)
-              ;; sidebar collapse state is its own; the same node can sit
-              ;; expanded in the main pane and folded here.
-              ,@(if has-kids? `((data-collapse-key ,(string-append "tree-" key))) (quote ())))
-             (div ((class "sf-tree-row"))
-                  ,@(if has-kids?
-                        (list `(button ((type "button")
-                                        (class "sf-toggle")
-                                        (aria-expanded ,(if (> depth 0) "false" "true"))
-                                        (aria-label "toggle children"))
-                                       "▸"))
-                        (list `(span ((class "sf-toggle sf-toggle-empty")
-                                      (aria-hidden "true")))))
-                  (a ((class "sf-tree-link") (href ,(href-for zoom-base key)))
-                     ,@(map style-md-xexpr (title->inline-xexprs (task-title tk)))))
-             ,@(if has-kids?
-                   (list `(ul ((class "sf-tree-children"))
-                              ,@(append*
-                                 (for/list ([c (in-list kids)])
-                                   (tree-item c (add1 depth))))))
-                   '())))]
+        (node-shell
+         #:key key
+         #:tree? #t
+         ;; sidebar collapse state is its own; the same node can sit expanded
+         ;; in the main pane and folded here
+         #:collapse-key (string-append "tree-" key)
+         #:collapsed? (> depth 0)
+         #:row (list `(a ((class "sf-tree-link") (href ,(href-for zoom-base key)))
+                         ,@(map style-md-xexpr (title->inline-xexprs (task-title tk)))))
+         #:children (append*
+                     (for/list ([c (in-list kids)])
+                       (tree-item c (add1 depth))))))]
       [else '()]))
   `(aside ((class "sf-sidebar") (id "sf-sidebar"))
           (div ((class "sf-brand"))

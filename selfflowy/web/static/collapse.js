@@ -1,4 +1,4 @@
-// Collapse state: a class on .sf-node / .sf-tree-node, persisted per
+// Collapse state: a class on .sf-node (both panes), persisted per
 // data-collapse-key. Unvisited keys keep whatever the server rendered, so
 // render-time defaults survive. htmx swaps re-apply through the same pass.
 (function(){
@@ -6,7 +6,7 @@
   try{state=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){state={}}
   function set(n,c){
     n.classList.toggle('is-collapsed',c);
-    var t=n.querySelector(':scope > .sf-row > .sf-toggle, :scope > .sf-tree-row > .sf-toggle');
+    var t=n.querySelector(':scope > .sf-row > .sf-toggle');
     if(t)t.setAttribute('aria-expanded',c?'false':'true');
   }
   function apply(root){
