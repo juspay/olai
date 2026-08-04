@@ -40,7 +40,7 @@ under a title:
       [x] Already shipped the pitch
         @done 2026-08-03
 
-Titles and notes are Markdown at **render** time (`html` only); stored
+Titles and notes are Markdown at **render** time (web view only); stored
 strings stay raw. Check off with `[x] ` / `@done` (or `selfflowy done TITLE`).
 Full rules: `docs/syntax.md`.
 
@@ -58,7 +58,7 @@ Under the hood every outline becomes s-expressions. Same expander:
     (default: ~/Dropbox/Selfflowy-Srid/)
         |
         v
-    selfflowy CLI (Racket)           <- validate / query / html / capture
+    selfflowy CLI (Racket)           <- validate / query / capture
         |
         v
     racket web-server ---- SSE ----> browser (PWA, htmx)
@@ -77,9 +77,10 @@ restructure. Live with it, or open your laptop.
 ## STATUS
 
 Outline `#lang selfflowy` + sexp core + agent CLI (`check` / `tree` JSON /
-`agenda` / `calendar` / `add` / `done` / `move` / `daily` / `ics` / `html`).
-Done status, in-file mirrors, `@include` composition, and a month calendar
-in the HTML view are first class. (Ancestor: srid/Tend.)
+`agenda` / `calendar` / `add` / `done` / `move` / `daily` / `ics`).
+Done status, in-file mirrors and `@include` composition are first class.
+The human view is the web app (htmx + SSE); there is no static HTML
+export. (Ancestor: srid/Tend.)
 
 ## ROADMAP
 
@@ -93,7 +94,6 @@ fictional demo data only.
     just install       # raco pkg install --link selfflowy/
     just check         # validates $SELFFLOWY_HOME/{Tasks,Daily,Roadmap}.rkt
     just tree examples/Example.rkt   # JSON forest for agents
-    just html                        # tree + calendar over personal outlines
     just agenda
     just calendar --month 2026-08
     just test
@@ -101,7 +101,7 @@ fictional demo data only.
 ## CLI (agents)
 
 Machine-readable contract (`--json`, exit codes, `add`): **docs/cli.md**.
-No ANSI. Humans: `selfflowy html`.
+No ANSI. Humans use the web app.
 
 ## HACKING
 

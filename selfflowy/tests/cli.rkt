@@ -446,26 +446,3 @@
        (check-true (string-contains? (hash-ref up 'breadcrumb) "Roadmap.rkt")
                    (hash-ref up 'breadcrumb)))
      (λ () (delete-directory/files dir))))
-
-  (test-case "multi-file html has per-file sections"
-    (define dir (make-temporary-file "sfhtml2~a" 'directory))
-    (define a (build-path dir "Tasks.rkt"))
-    (define b (build-path dir "Roadmap.rkt"))
-    (define out (build-path dir "out.html"))
-    (dynamic-wind
-     void
-     (λ ()
-       (display-to-file "#lang selfflowy\nMilk\n" a #:exists 'truncate)
-       (display-to-file "#lang selfflowy\nShip\n" b #:exists 'truncate)
-       (define-values (code stdout err)
-         (run-selfflowy
-          (list "html" "--out" (path->string out)
-                (path->string a) (path->string b))))
-       (check-equal? code 0 (string-append stdout err))
-       (define html (file->string out))
-       (check-true (string-contains? html "<h2") html)
-       (check-true (string-contains? html "Tasks.rkt") html)
-       (check-true (string-contains? html "Roadmap.rkt") html)
-       (check-true (string-contains? html "Milk") html)
-       (check-true (string-contains? html "Ship") html))
-     (λ () (delete-directory/files dir))))

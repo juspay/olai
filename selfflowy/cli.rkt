@@ -1,6 +1,6 @@
 #lang racket/base
 
-;; selfflowy CLI — agent-first: check | tree | agenda | add | done | html
+;; selfflowy CLI — agent-first: check | tree | agenda | add | done | move
 ;; Exit codes: 0 ok, 1 usage, 2 validation/load, 3 not found.
 ;; Arg parsing: racket/cmdline. JSON: json package write-json.
 
@@ -21,7 +21,6 @@
          selfflowy/move
          selfflowy/ics
          selfflowy/daily
-         selfflowy/html
          selfflowy/dates
          (only-in selfflowy/lang/expander
                   find-task-by-id
@@ -233,7 +232,7 @@
           (eprintf "selfflowy: failed to load ~a\n~a\n" path msg)]))
      (when any-bad? (exit exit-validation))]))
 
-;; tree is JSON-only (human view is `html`). --json is accepted as a no-op.
+;; tree is JSON-only (human view is the web app). --json is accepted as a no-op.
 (define (cmd-tree paths json?)
   (define entries
     (for/list ([path (in-list paths)])
@@ -279,23 +278,6 @@
   (if json?
       (write-json-stdout (calendar->jsexpr cal))
       (displayln (format-calendar cal))))
-
-(define (cmd-html paths out-path)
-  (define entries
-    (for/list ([path (in-list paths)])
-      (define-values (tasks anchors includes) (load-outline path #f))
-      (list path tasks anchors)))
-  (define page-title
-    (if (= (length paths) 1)
-        (path->string (file-name-from-path (car paths)))
-        "selfflowy"))
-  (define html (files->html entries page-title))
-  (cond
-    [out-path
-     (display-to-file html out-path #:exists 'truncate/replace)
-     (printf "~a\n" (path->string (simple-form-path (path->complete-path out-path))))]
-    [else
-     (display html)]))
 
 ;; Resolve TITLE or ^anchor against the outline at path; return the defining
 ;; file that must be edited (may differ under @include).
@@ -620,10 +602,9 @@
   (eprintf "\n")
   (eprintf "commands:\n")
   (eprintf "  check    [--json] [file ...]  validate outline(s) (default: ~a)\n" default-file)
-  (eprintf "  tree     [--json] [file ...]  outline(s) as JSON (human view: html)\n")
+  (eprintf "  tree     [--json] [file ...]  outline(s) as JSON (human view: web)\n")
   (eprintf "  agenda   [--json] [file ...]  OVERDUE / TODAY / UPCOMING (merged)\n")
   (eprintf "  calendar [--json] [--month YYYY-MM] [file ...]  days with dated items\n")
-  (eprintf "  html     [--out PATH] [file ...]  tree + month calendar\n")
   (eprintf "  add      [--json] [--file F] [--date ISO] [--description TEXT]\n")
   (eprintf "           [--parent TITLE|^anchor] [--no-commit] TITLE...\n")
   (eprintf "  done     [--json] [--file F] [--undo] [--no-commit] TITLE|^anchor\n")
@@ -681,17 +662,6 @@
    #:args paths
    (set! file-args paths))
   (cmd-calendar (resolve-files file-args json?) json? month))
-
-(define (cli-html)
-  (define out-path #f)
-  (define file-args '())
-  (command-line
-   #:program "selfflowy html"
-   #:once-each
-   [("--out") path "Write HTML to path (default: stdout)" (set! out-path path)]
-   #:args paths
-   (set! file-args paths))
-  (cmd-html (resolve-files file-args #f) out-path))
 
 (define (cli-add)
   (define json? #f)
@@ -837,7 +807,6 @@
            [("tree") (cli-tree)]
            [("agenda") (cli-agenda)]
            [("calendar") (cli-calendar)]
-           [("html") (cli-html)]
            [("add") (cli-add)]
            [("done") (cli-done)]
            [("move") (cli-move)]

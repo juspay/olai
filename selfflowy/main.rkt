@@ -1,11 +1,11 @@
 #lang racket/base
 
-;; Public library surface: task data model, agenda query, HTML render.
+;; Public library surface: task data model, agenda query, web renderers.
 ;; CLI is app code, not re-exported here.
 
 (require (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/agenda
-         selfflowy/html)
+         selfflowy/web/render)
 
 (provide task
          task?
@@ -29,5 +29,10 @@
          collect-dated
          agenda-groups
          agenda-groups-from-files
-         tasks->html
-         files->html)
+         fragment-id
+         render-node-fragment
+         render-outline
+         render-breadcrumbs
+         render-sidebar
+         render-page
+         render-zoom)
