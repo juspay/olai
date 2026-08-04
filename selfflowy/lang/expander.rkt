@@ -21,8 +21,10 @@
          racket/string
          racket/path
          selfflowy/lang/tags
+         selfflowy/lang/graph
          (for-syntax racket/base
                      selfflowy/lang/tags
+                     selfflowy/lang/graph
                      ;; the date grammar has one owner; the expander is a
                      ;; consumer of it, at phase 1 like the tag grammar
                      selfflowy/dates
@@ -47,9 +49,11 @@
          task-children
          task-file
          task-key
+         task-loc
          mirror-ref
          mirror-ref?
          mirror-ref-anchor
+         mirror-ref-loc
          title-tags
          tag-rx
          valid-anchor-id?
@@ -66,10 +70,14 @@
 ;;      until the load layer mints one (selfflowy/load, mint-task-keys). A
 ;;      module cannot mint it: it knows only its own entry point, and the same
 ;;      node reached through a different root must key the same.
-(struct task (title date description done id tags children file key) #:transparent)
+;; loc: srcloc of the form that defined this node. Kept because a tree that
+;;      came through @include has no syntax left by the time it is checked,
+;;      and an error still has to say file:line:col.
+(struct task (title date description done id tags children file key loc)
+  #:transparent)
 
 ;; Mirror site: same node as anchors[anchor], not a copy.
-(struct mirror-ref (anchor) #:transparent)
+(struct mirror-ref (anchor loc) #:transparent)
 
 ;; Runtime include result before flatten (list of top-level tasks from fragment).
 (struct include-splice (abs-path rel tasks) #:transparent)
@@ -79,6 +87,16 @@
 
 (define-for-syntax (valid-anchor-id?/stx s)
   (and (string? s) (regexp-match? #px"^[A-Za-z0-9_-]+$" s)))
+
+;; Where `stx` is, as literals the expansion can rebuild a srcloc from at run
+;; time. Nothing syntactic survives an @include splice; this does.
+(define-for-syntax (loc-parts stx)
+  (datum->syntax stx
+                 (list (syntax-source-path stx)
+                       (syntax-line stx)
+                       (syntax-column stx)
+                       (syntax-position stx)
+                       (syntax-span stx))))
 
 (define-for-syntax (syntax-source-path stx)
   (define s (syntax-source stx))
@@ -186,141 +204,33 @@
         [(ir-task _ kids _) (ormap walk kids)]))
     (ormap walk irs))
 
-  (define (collect-anchor-decls ir-roots)
-    (define h (make-hash))
-    (define (walk ir)
-      (match ir
-        [(ir-mirror _ _) (void)]
-        [(ir-include _ _) (void)]
-        [(ir-task id kids stx)
-         (when id
-           (define prev (hash-ref h id #f))
-           (when prev
-             (define pline (syntax-line prev))
-             (define pcol (syntax-column prev))
-             (raise-syntax-error
-              't
-              (format "duplicate ^~a; first declared at ~a:~a"
-                      id
-                      (or pline "?")
-                      (or pcol "?"))
-              stx))
-           (hash-set! h id stx))
-         (for-each walk kids)]))
-    (for-each walk ir-roots)
-    h)
+  ;; The compile-time adaptor to the shared checker: an IR node's anchor, its
+  ;; children, whether it is a mirror site, where it is, how to fail.
+  (define (ir-loc ir)
+    (define stx (ir-stx ir))
+    (format "~a:~a" (or (syntax-line stx) "?") (or (syntax-column stx) "?")))
 
-  (define (check-mirrors-resolve ir-roots decl-hash)
-    (define known (hash-keys decl-hash))
-    (define (walk ir)
-      (match ir
-        [(ir-include _ _) (void)]
-        [(ir-mirror anchor stx)
-         (unless (hash-has-key? decl-hash anchor)
-           (define listed
-             (if (null? known)
-                 "(none)"
-                 (string-join (sort known string<?) ", ")))
-           (raise-syntax-error
-            'mirror
-            (format "unknown *~a; anchors in this file: ~a" anchor listed)
-            stx))]
-        [(ir-task _ kids _)
-         (for-each walk kids)]))
-    (for-each walk ir-roots))
-
-  (define (check-mirror-cycles ir-roots decl-hash)
-    (define id->ir (make-hash))
-    (define (index ir)
-      (match ir
-        [(ir-mirror _ _) (void)]
-        [(ir-include _ _) (void)]
-        [(ir-task id kids _)
-         (when id (hash-set! id->ir id ir))
-         (for-each index kids)]))
-    (for-each index ir-roots)
-
-    (define edges (make-hash))
-    (define (add-edge! from to mirror-stx)
-      (hash-set! edges from
-                 (cons (cons to mirror-stx)
-                       (hash-ref edges from '()))))
-
-    (define (walk-under ir owner)
-      (match ir
-        [(ir-include _ _) (void)]
-        [(ir-mirror anchor stx)
-         (add-edge! owner anchor stx)]
-        [(ir-task id kids _)
-         (when id
-           (add-edge! owner id #f))
-         (for ([k (in-list kids)])
-           (walk-under k owner))]))
-
-    (for ([(id ir) (in-hash id->ir)])
-      (for ([k (in-list (ir-task-kids ir))])
-        (walk-under k id)))
-
-    (define WHITE 0) (define GRAY 1) (define BLACK 2)
-    (define color (make-hash))
-    (define parent (make-hash))
-
-    (define (format-cycle end)
-      (define nodes (list end))
-      (let loop ([cur end])
-        (define p (hash-ref parent cur #f))
-        (cond
-          [(not p) nodes]
-          [else
-           (define prev (car p))
-           (set! nodes (cons prev nodes))
-           (if (equal? prev end)
-               nodes
-               (loop prev))])))
-
-    (define (cycle-mirror-stx path-nodes)
-      (define n (length path-nodes))
-      (for/or ([i (in-range (sub1 n))])
-        (define from (list-ref path-nodes i))
-        (define to (list-ref path-nodes (add1 i)))
-        (for/or ([e (in-list (hash-ref edges from '()))])
-          (and (equal? (car e) to) (cdr e)))))
-
-    (define (dfs u)
-      (hash-set! color u GRAY)
-      (for ([e (in-list (hash-ref edges u '()))])
-        (define v (car e))
-        (define mstx (cdr e))
-        (define c (hash-ref color v WHITE))
-        (cond
-          [(= c GRAY)
-           (hash-set! parent v (cons u mstx))
-           (define path (format-cycle v))
-           (define path-str (string-join path " -> "))
-           (define err-stx (or (cycle-mirror-stx path) mstx u))
-           (raise-syntax-error
-            'mirror
-            (format "mirror *~a creates a cycle: ~a"
-                    (if mstx v (car path))
-                    path-str)
-            (if (syntax? err-stx) err-stx #f))]
-          [(= c WHITE)
-           (hash-set! parent v (cons u mstx))
-           (dfs v)]))
-      (hash-set! color u BLACK))
-
-    (for ([id (in-hash-keys id->ir)])
-      (when (= (hash-ref color id WHITE) WHITE)
-        (dfs id))))
+  (define (ir-stx ir)
+    (match ir
+      [(ir-task _ _ stx) stx]
+      [(ir-mirror _ stx) stx]
+      [(ir-include _ stx) stx]))
 
   (define (validate-body-forms stxs)
     (define irs (map syntax->ir stxs))
-    (define decls (collect-anchor-decls irs))
     ;; When this module uses @include, cross-file anchors resolve only after
-    ;; splice at runtime — skip full mirror checks here.
+    ;; the splice — the whole tree is checked at run time instead (same rules,
+    ;; same messages, srclocs carried on the nodes).
     (unless (any-include? irs)
-      (check-mirrors-resolve irs decls)
-      (check-mirror-cycles irs decls))
+      (check-anchor-graph
+       irs
+       #:id (λ (ir) (and (ir-task? ir) (ir-task-id ir)))
+       #:kids (λ (ir) (if (ir-task? ir) (ir-task-kids ir) '()))
+       #:mirror (λ (ir) (and (ir-mirror? ir) (ir-mirror-anchor ir)))
+       #:scope "this file"
+       #:describe ir-loc
+       #:fail (λ (who ir msg)
+                (raise-syntax-error who msg (and ir (ir-stx ir))))))
     (void))
   )
 
@@ -393,89 +303,52 @@
       [else '()]))
   (append* (map walk tasks)))
 
-;; Full-tree validation after includes splice. Raises exn:fail with message.
+;; Full-tree validation after includes splice — the same three rules the
+;; compile-time pass applies, over tasks instead of syntax. A node carries
+;; the srcloc of the form that defined it, so an error here says
+;; file:line:col even though nothing syntactic is left.
+;;
+;; It raises exn:fail:syntax, which is not a lie: this IS the language
+;; rejecting a form, and it is what makes selfflowy/load report the location
+;; in the same fields as any other read/expand error.
+(define (loc->syntax loc)
+  (and loc
+       (datum->syntax #f 'selfflowy
+                      (vector (srcloc-source loc)
+                              (srcloc-line loc)
+                              (srcloc-column loc)
+                              (srcloc-position loc)
+                              (srcloc-span loc)))))
+
+(define (loc->string loc)
+  (cond
+    [(not loc) "?"]
+    [else
+     (format "~a:~a:~a"
+             (or (srcloc-source loc) "?")
+             (or (srcloc-line loc) "?")
+             (or (srcloc-column loc) 0))]))
+
+(define (node-loc x)
+  (cond
+    [(task? x) (task-loc x)]
+    [(mirror-ref? x) (mirror-ref-loc x)]
+    [else #f]))
+
 (define (validate-task-tree! tasks)
-  (define id->task (make-hash))
-  (define id->file (make-hash))
-  (define (walk x)
-    (cond
-      [(mirror-ref? x) (void)]
-      [(task? x)
-       (define id (task-id x))
-       (when id
-         (define prev (hash-ref id->task id #f))
-         (when prev
-           (define f1 (or (hash-ref id->file id #f) "?"))
-           (define f2 (or (task-file x) "?"))
-           (error 't
-                  "duplicate ^~a; first declared in ~a, again in ~a"
-                  id
-                  (path-basename f1)
-                  (path-basename f2)))
-         (hash-set! id->task id x)
-         (hash-set! id->file id (task-file x)))
-       (for ([c (in-list (task-children x))])
-         (walk c))]))
-  (for ([t (in-list tasks)]) (walk t))
-
-  (define known (sort (hash-keys id->task) string<?))
-  (define (check-mirrors x)
-    (cond
-      [(mirror-ref? x)
-       (define a (mirror-ref-anchor x))
-       (unless (hash-has-key? id->task a)
-         (define listed
-           (if (null? known) "(none)" (string-join known ", ")))
-         (error 'mirror
-                "unknown *~a; anchors in this tree: ~a" a listed))]
-      [(task? x)
-       (for ([c (in-list (task-children x))])
-         (check-mirrors c))]))
-  (for ([t (in-list tasks)]) (check-mirrors t))
-
-  ;; Cycle detection on id graph
-  (define edges (make-hash))
-  (define (add-edge! from to)
-    (hash-set! edges from (cons to (hash-ref edges from '()))))
-  (define (walk-under x owner)
-    (cond
-      [(mirror-ref? x)
-       (add-edge! owner (mirror-ref-anchor x))]
-      [(task? x)
-       (when (task-id x)
-         (add-edge! owner (task-id x)))
-       (for ([c (in-list (task-children x))])
-         (walk-under c owner))]))
-  (for ([(id tk) (in-hash id->task)])
-    (for ([c (in-list (task-children tk))])
-      (walk-under c id)))
-
-  (define WHITE 0) (define GRAY 1) (define BLACK 2)
-  (define color (make-hash))
-  (define parent (make-hash))
-  (define (dfs u)
-    (hash-set! color u GRAY)
-    (for ([v (in-list (hash-ref edges u '()))])
-      (define c (hash-ref color v WHITE))
-      (cond
-        [(= c GRAY)
-         (hash-set! parent v u)
-         (define nodes (list v))
-         (let loop ([cur v])
-           (define p (hash-ref parent cur #f))
-           (when p
-             (set! nodes (cons p nodes))
-             (unless (equal? p v) (loop p))))
-         (error 'mirror
-                "mirror creates a cycle: ~a"
-                (string-join nodes " -> "))]
-        [(= c WHITE)
-         (hash-set! parent v u)
-         (dfs v)]))
-    (hash-set! color u BLACK))
-  (for ([id (in-hash-keys id->task)])
-    (when (= (hash-ref color id WHITE) WHITE)
-      (dfs id)))
+  (check-anchor-graph
+   tasks
+   #:id (λ (x) (and (task? x) (task-id x)))
+   #:kids (λ (x) (if (task? x) (task-children x) '()))
+   #:mirror (λ (x) (and (mirror-ref? x) (mirror-ref-anchor x)))
+   #:scope "this tree"
+   #:describe (λ (x) (loc->string (node-loc x)))
+   #:fail
+   (λ (who x msg)
+     (define stx (loc->syntax (and x (node-loc x))))
+     (raise (exn:fail:syntax (format "~a: ~a" who msg)
+                             (current-continuation-marks)
+                             (if stx (list stx) '())))))
   (void))
 
 (define (finalize-tasks forms src)
@@ -538,7 +411,8 @@
 (define-syntax (mirror stx)
   (syntax-parse stx
     [(_ a:anchor-str)
-     #'(mirror-ref a)]
+     (with-syntax ([(src ln cl ps sp) (loc-parts stx)])
+       #'(mirror-ref a (srcloc src ln cl ps sp)))]
     [_
      (raise-syntax-error
       'mirror
@@ -579,12 +453,13 @@
      (define tags (title-tags (syntax-e #'title)))
      (define file (syntax-source-path stx))
      (with-syntax ([tags-lit (datum->syntax stx tags)]
-                   [file-lit (datum->syntax stx file)])
+                   [file-lit (datum->syntax stx file)]
+                   [(src ln cl ps sp) (loc-parts stx)])
        ;; Keep include-splice values in the children list until finalize-tasks
        ;; flattens the whole tree (so includes can be recorded).
        ;; key is the ^anchor, or #f until the load layer mints one.
        #'(task title kw.date kw.description kw.done kw.id 'tags-lit
-               (list child ...) file-lit kw.id))]
+               (list child ...) file-lit kw.id (srcloc src ln cl ps sp)))]
     [(_ title . _)
      (raise-syntax-error
       't

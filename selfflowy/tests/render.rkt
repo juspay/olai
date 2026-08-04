@@ -22,7 +22,7 @@
 
 (define (tk title date desc kids
             #:tags [tags '()] #:done [done #f] #:id [id #f] #:key [key #f])
-  (task title date desc done id tags kids #f (or key id (title-key title))))
+  (task title date desc done id tags kids #f (or key id (title-key title)) #f))
 
 (define (xstr x) (xexpr->string x))
 
@@ -81,7 +81,7 @@
 
   (test-case "mirror site renders the target with a mirror link"
     (define target (tk "Anchored" #f #f '() #:id "a1"))
-    (define parent (tk "Holder" #f #f (list (mirror-ref "a1"))))
+    (define parent (tk "Holder" #f #f (list (mirror-ref "a1" #f))))
     (define s (xstr (render-node-fragment parent
                                           #:anchors (hash "a1" target)
                                           #:today "2026-08-04")))
@@ -89,7 +89,7 @@
     (check-true (string-contains? s "class=\"sf-mirror\"") s)
     (check-true (string-contains? s "href=\"#a1\"") s)
     ;; unresolved mirror does not blow up
-    (define s2 (xstr (render-node-fragment (tk "Holder" #f #f (list (mirror-ref "nope")))
+    (define s2 (xstr (render-node-fragment (tk "Holder" #f #f (list (mirror-ref "nope" #f)))
                                            #:anchors (hash) #:today "2026-08-04")))
     (check-true (string-contains? s2 "sf-unresolved") s2)
     (check-true (string-contains? s2 "(unresolved)") s2))

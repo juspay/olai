@@ -8,7 +8,7 @@
          selfflowy/dates)
 
 (define (tk title date desc kids #:done [done #f] #:id [id #f])
-  (task title date desc done id '() kids #f (or id title)))
+  (task title date desc done id '() kids #f (or id title) #f))
 
 (module+ test
   (test-case "collect includes done; mirrors once"
@@ -16,7 +16,7 @@
       (list
        (tk "A" "2026-08-01" #f
            (list (tk "B" "2026-08-02" #f '() #:done #t #:id "b")
-                 (mirror-ref "b")))))
+                 (mirror-ref "b" #f)))))
     (define items (collect-cal-items t))
     (check-equal? (length items) 2)
     (check-true (for/or ([it items]) (cal-item-done it)))
