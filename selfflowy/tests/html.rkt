@@ -11,7 +11,7 @@
          selfflowy/html)
 
 (define (tk title date desc kids #:tags [tags '()] #:done [done #f] #:id [id #f])
-  (task title date desc done id tags kids))
+  (task title date desc done id tags kids #f))
 
 (define (xstr x) (xexpr->string x))
 

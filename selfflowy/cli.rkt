@@ -20,8 +20,15 @@
          selfflowy/done
          selfflowy/move
          selfflowy/ics
+         selfflowy/daily
          selfflowy/html
-         selfflowy/dates)
+         selfflowy/dates
+         (only-in selfflowy/lang/expander
+                  find-task-by-id
+                  find-tasks-by-title
+                  task-file
+                  task-title
+                  task-id))
 (define exit-ok 0)
 (define exit-usage 1)
 (define exit-validation 2)
@@ -104,7 +111,7 @@
   (define raw (if (null? file-args) (list default-file) file-args))
   (map (λ (p) (resolve-path p json?)) raw))
 
-;; -> (list 'ok tasks anchors) | (list 'error msg src line col)
+;; -> (list 'ok tasks anchors includes) | (list 'error msg src line col)
 (define (try-load-outline path)
   (with-handlers
       ([exn:fail?
@@ -116,11 +123,14 @@
     (define anchors
       (with-handlers ([exn:fail? (λ (_) (hash))])
         (dynamic-require mod 'anchors)))
-    (list 'ok tasks anchors)))
+    (define includes
+      (with-handlers ([exn:fail? (λ (_) '())])
+        (dynamic-require mod 'includes)))
+    (list 'ok tasks anchors includes)))
 
 (define (load-outline path json?)
   (match (try-load-outline path)
-    [(list 'ok tasks anchors) (values tasks anchors)]
+    [(list 'ok tasks anchors includes) (values tasks anchors includes)]
     [(list 'error msg src line col)
      (die exit-validation
           (if json?
@@ -132,19 +142,22 @@
           #:col col)]))
 
 (define (load-tasks path json?)
-  (define-values (tasks _anchors) (load-outline path json?))
+  (define-values (tasks _anchors _includes) (load-outline path json?))
   tasks)
 
 (define (today-iso)
   (today-iso-string))
 
-(define (format-check-plain path n anchors mirrors)
+(define (format-check-plain path n anchors mirrors includes)
   (define extras
     (filter values
             (list (and (positive? anchors)
                        (format "~a anchor~a" anchors (if (= anchors 1) "" "s")))
                   (and (positive? mirrors)
-                       (format "~a mirror~a" mirrors (if (= mirrors 1) "" "s"))))))
+                       (format "~a mirror~a" mirrors (if (= mirrors 1) "" "s")))
+                  (and (positive? (length includes))
+                       (format "~a include~a" (length includes)
+                               (if (= (length includes) 1) "" "s"))))))
   (if (null? extras)
       (format "ok: ~a (~a task~a)\n" path n (if (= n 1) "" "s"))
       (format "ok: ~a (~a task~a, ~a)\n"
@@ -155,11 +168,12 @@
   (define results
     (for/list ([path (in-list paths)])
       (match (try-load-outline path)
-        [(list 'ok tasks anchors)
+        [(list 'ok tasks anchors includes)
          (list 'ok path
                (count-tasks tasks)
                (hash-count anchors)
-               (count-mirrors tasks))]
+               (count-mirrors tasks)
+               includes)]
         [(list 'error msg src line col)
          (list 'error path msg src line col)])))
   (define any-bad? (ormap (λ (r) (eq? (car r) 'error)) results))
@@ -167,23 +181,34 @@
     [json?
      (if (= (length paths) 1)
          (match (car results)
-           [(list 'ok path n ac mc)
+           [(list 'ok path n ac mc includes)
             (write-json-stdout
-             (ok-hash 'file (path->string path)
-                      'tasks n
-                      'anchors ac
-                      'mirrors mc))]
+             (let ([h (ok-hash 'file (path->string path)
+                               'tasks n
+                               'anchors ac
+                               'mirrors mc)])
+               (if (null? includes)
+                   h
+                   (hash-set h 'includes
+                             (for/list ([p includes])
+                               (hash 'file p))))))]
            [(list 'error path msg src line col)
             (die exit-validation msg #:json? #t #:file src #:line line #:col col)])
          (let ([files
                 (for/list ([r (in-list results)])
                   (match r
-                    [(list 'ok path n ac mc)
-                     (hash 'file (path->string path)
-                           'ok #t
-                           'tasks n
-                           'anchors ac
-                           'mirrors mc)]
+                    [(list 'ok path n ac mc includes)
+                     (define h
+                       (hash 'file (path->string path)
+                             'ok #t
+                             'tasks n
+                             'anchors ac
+                             'mirrors mc))
+                     (if (null? includes)
+                         h
+                         (hash-set h 'includes
+                                   (for/list ([p includes])
+                                     (hash 'file p))))]
                     [(list 'error path msg src line col)
                      (hash 'file (path->string path)
                            'ok #f
@@ -202,8 +227,8 @@
     [else
      (for ([r (in-list results)])
        (match r
-         [(list 'ok path n ac mc)
-          (display (format-check-plain path n ac mc))]
+         [(list 'ok path n ac mc includes)
+          (display (format-check-plain path n ac mc includes))]
          [(list 'error path msg src line col)
           (eprintf "selfflowy: failed to load ~a\n~a\n" path msg)]))
      (when any-bad? (exit exit-validation))]))
@@ -212,21 +237,21 @@
 (define (cmd-tree paths json?)
   (define entries
     (for/list ([path (in-list paths)])
-      (define-values (tasks anchors) (load-outline path #t))
-      (list path tasks anchors)))
+      (define-values (tasks anchors includes) (load-outline path #t))
+      (list path tasks anchors includes)))
   (if (= (length entries) 1)
       (match (car entries)
-        [(list path tasks anchors)
+        [(list path tasks anchors includes)
          (write-json-stdout
-          (hash-set (outline->jsexpr path tasks anchors)
+          (hash-set (outline->jsexpr path tasks anchors #:includes includes)
                     'version json-version))])
       (write-json-stdout
        (hash 'version json-version
              'files
              (for/list ([e (in-list entries)])
                (match e
-                 [(list path tasks anchors)
-                  (outline->jsexpr path tasks anchors)]))))))
+                 [(list path tasks anchors includes)
+                  (outline->jsexpr path tasks anchors #:includes includes)]))))))
 
 (define (cmd-agenda paths json?)
   (define entries
@@ -258,7 +283,7 @@
 (define (cmd-html paths out-path)
   (define entries
     (for/list ([path (in-list paths)])
-      (define-values (tasks anchors) (load-outline path #f))
+      (define-values (tasks anchors includes) (load-outline path #f))
       (list path tasks anchors)))
   (define page-title
     (if (= (length paths) 1)
@@ -272,6 +297,51 @@
     [else
      (display html)]))
 
+;; Resolve TITLE or ^anchor against the outline at path; return the defining
+;; file that must be edited (may differ under @include).
+(define (resolve-defining-file path title-or-anchor json?)
+  (define-values (tasks anchors _includes) (load-outline path json?))
+  (define kind (parse-title-or-anchor title-or-anchor))
+  (match kind
+    [(cons 'anchor a)
+     (define tk (or (hash-ref anchors a #f)
+                    (find-task-by-id tasks a)))
+     (unless tk
+       (die exit-validation
+            (format "no task matching ^~a in ~a" a path)
+            #:json? json?
+            #:file path))
+     (define f (or (task-file tk) (path->string path)))
+     (values (simple-form-path f) (task-title tk))]
+    [(cons 'title t)
+     (define ms (find-tasks-by-title tasks t))
+     (cond
+       [(null? ms)
+        (die exit-validation
+             (format "no task matching ~s in ~a" t path)
+             #:json? json?
+             #:file path)]
+       [(> (length ms) 1)
+        ;; Prefer line numbers from the root file text when all matches live there.
+        (define text (file->string path))
+        (define matches (find-title-matches text t))
+        (define where
+          (if (pair? matches)
+              (format-match-lines path matches)
+              (string-join
+               (for/list ([tk (in-list ms)])
+                 (or (task-file tk) (path->string path)))
+               ", ")))
+        (die exit-validation
+             (format "ambiguous title ~s; matches: ~a; add a ^anchor to disambiguate"
+                     t where)
+             #:json? json?
+             #:file path)]
+       [else
+        (define tk (car ms))
+        (define f (or (task-file tk) (path->string path)))
+        (values (simple-form-path f) (task-title tk))])]))
+
 (define (cmd-add json? file-arg date desc no-commit? parent title-parts)
   (when (null? title-parts)
     (die exit-usage "add requires a TITLE" #:json? json?))
@@ -281,9 +351,16 @@
          (format "invalid --date ~s; expected YYYY-MM-DD or YYYY-MM-DDTHH:MM[:SS]" date)
          #:json? json?))
   (define date* (and date (normalize-date-string date)))
-  (define path
+  (define root-path
     (simple-form-path
      (path->complete-path (or file-arg default-file))))
+  ;; Route writes into the parent's defining file when --parent ^anchor.
+  (define path
+    (cond
+      [(and parent (regexp-match? #px"^\\^[A-Za-z0-9_-]+$" (string-trim parent)))
+       (define-values (f _t) (resolve-defining-file root-path parent json?))
+       f]
+      [else root-path]))
   (define original
     (if (file-exists? path)
         (file->string path)
@@ -357,14 +434,17 @@
   (when (null? title-parts)
     (die exit-usage "done requires a TITLE" #:json? json?))
   (define title (string-join title-parts " "))
-  (define path
+  (define root-path
     (simple-form-path
      (path->complete-path (or file-arg default-file))))
-  (unless (file-exists? path)
+  (unless (file-exists? root-path)
     (die exit-not-found
-         (format "file not found: ~a" path)
+         (format "file not found: ~a" root-path)
          #:json? json?
-         #:file path))
+         #:file root-path))
+  ;; Edit the defining file (may be an @include fragment).
+  (define-values (path _resolved)
+    (resolve-defining-file root-path title json?))
   (define original (file->string path))
   (when (regexp-match? #px"(?m:^#lang selfflowy/sexp)" original)
     (die exit-validation
@@ -455,14 +535,16 @@
          "move requires DATE (YYYY-MM-DD[THH:MM[:SS]]) or --clear"
          #:json? json?))
   (define title (string-join title-parts " "))
-  (define path
+  (define root-path
     (simple-form-path
      (path->complete-path (or file-arg default-file))))
-  (unless (file-exists? path)
+  (unless (file-exists? root-path)
     (die exit-not-found
-         (format "file not found: ~a" path)
+         (format "file not found: ~a" root-path)
          #:json? json?
-         #:file path))
+         #:file root-path))
+  (define-values (path _resolved)
+    (resolve-defining-file root-path title json?))
   (define original (file->string path))
   (when (regexp-match? #px"(?m:^#lang selfflowy/sexp)" original)
     (die exit-validation
@@ -546,6 +628,7 @@
   (eprintf "           [--parent TITLE|^anchor] [--no-commit] TITLE...\n")
   (eprintf "  done     [--json] [--file F] [--undo] [--no-commit] TITLE|^anchor\n")
   (eprintf "  move     [--json] [--file F] [--no-commit] [--clear] TITLE|^anchor DATE\n")
+  (eprintf "  daily    [--json] [--date YYYY-MM-DD] [--home DIR]  ensure today in Daily/\n")
   (eprintf "  ics      [--out PATH] [file ...]  RFC 5545 VCALENDAR of dated tasks\n")
   (eprintf "\n")
   (eprintf "exit codes: 0 ok | 1 usage | 2 validation/load | 3 not found\n")
@@ -685,6 +768,52 @@
    (set! file-args paths))
   (cmd-ics (resolve-files file-args #f) out-path))
 
+(define (cmd-daily json? date-arg home-arg)
+  (define day
+    (cond
+      [(not date-arg) (today-iso)]
+      [(bare-iso-date-title? date-arg) date-arg]
+      [else
+       (die exit-usage
+            (format "invalid --date ~s; expected YYYY-MM-DD" date-arg)
+            #:json? json?)]))
+  (define home
+    (or home-arg
+        (path->string (selfflowy-home))))
+  (define result
+    (with-handlers
+        ([exn:fail?
+          (λ (e)
+            (die exit-validation (exn-message e) #:json? json?))])
+      (ensure-daily-day! home day)))
+  (if json?
+      (write-json-stdout
+       (ok-hash 'day (hash-ref result 'day)
+                'file (hash-ref result 'file)
+                'created_month (hash-ref result 'created_month)
+                'created_day (hash-ref result 'created_day)
+                'line (hash-ref result 'line)))
+      (printf "daily ~a in ~a (line ~a)~a~a\n"
+              (hash-ref result 'day)
+              (hash-ref result 'file)
+              (hash-ref result 'line)
+              (if (hash-ref result 'created_month) ", created month" "")
+              (if (hash-ref result 'created_day) ", created day" ""))))
+
+(define (cli-daily)
+  (define json? #f)
+  (define date-arg #f)
+  (define home-arg #f)
+  (command-line
+   #:program "selfflowy daily"
+   #:once-each
+   [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
+   [("--date") d "Day YYYY-MM-DD (default: today)" (set! date-arg d)]
+   [("--home") h "Outline home (default: $SELFFLOWY_HOME)" (set! home-arg h)]
+   #:args ()
+   (void))
+  (cmd-daily json? date-arg home-arg))
+
 (define (main)
   (define argv (current-command-line-arguments))
   (cond
@@ -712,6 +841,7 @@
            [("add") (cli-add)]
            [("done") (cli-done)]
            [("move") (cli-move)]
+           [("daily") (cli-daily)]
            [("ics") (cli-ics)]
            [else
             (die exit-usage (format "unknown command ~s" cmd) #:json? #f)])))]))

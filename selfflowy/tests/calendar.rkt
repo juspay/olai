@@ -8,7 +8,7 @@
          selfflowy/dates)
 
 (define (tk title date desc kids #:done [done #f] #:id [id #f])
-  (task title date desc done id '() kids))
+  (task title date desc done id '() kids #f))
 
 (module+ test
   (test-case "collect includes done; mirrors once"

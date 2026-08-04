@@ -3,6 +3,7 @@
 ;; Agent-facing JSON helpers (versioned envelope).
 
 (require json
+         racket/path
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/agenda
          selfflowy/calendar)
@@ -77,15 +78,7 @@
       [else 0]))
   (for/sum ([t (in-list tasks)]) (count t)))
 
-(define (child->jsexpr x)
-  (cond
-    [(mirror-ref? x)
-     (hash 'mirror (mirror-ref-anchor x))]
-    [(task? x)
-     (task->jsexpr x)]
-    [else (error 'child->jsexpr "unknown child ~a" x)]))
-
-(define (task->jsexpr tk)
+(define (task->jsexpr tk #:root-file [root-file #f])
   (define h
     (hash 'title (task-title tk)
           'date (nullish (task-date tk))
@@ -93,25 +86,50 @@
           'done (done->json (task-done tk))
           'id (nullish (task-id tk))
           'tags (task-tags tk)
-          'children (map child->jsexpr (task-children tk))))
-  h)
+          'children (map (λ (c) (child->jsexpr c #:root-file root-file))
+                         (task-children tk))))
+  (define tf (task-file tk))
+  (define root*
+    (and root-file
+         (path->string (simple-form-path
+                        (if (path? root-file) root-file (string->path root-file))))))
+  (define tf*
+    (and tf (path->string (simple-form-path (string->path tf)))))
+  (if (and tf* root* (not (equal? tf* root*)))
+      (hash-set h 'file tf*)
+      h))
 
-(define (tasks->jsexpr tasks)
-  (map task->jsexpr tasks))
+(define (child->jsexpr x #:root-file [root-file #f])
+  (cond
+    [(mirror-ref? x)
+     (hash 'mirror (mirror-ref-anchor x))]
+    [(task? x)
+     (task->jsexpr x #:root-file root-file)]
+    [else (error 'child->jsexpr "unknown child ~a" x)]))
 
-(define (anchors->jsexpr anchors)
+(define (tasks->jsexpr tasks #:root-file [root-file #f])
+  (map (λ (t) (task->jsexpr t #:root-file root-file)) tasks))
+
+(define (anchors->jsexpr anchors #:root-file [root-file #f])
   ;; hash id -> task; emit object with string keys
   (for/hash ([(id tk) (in-hash anchors)])
-    (values (string->symbol id) (task->jsexpr tk))))
+    (values (string->symbol id) (task->jsexpr tk #:root-file root-file))))
 
 ;; Single-file tree payload (version added by caller or here).
-(define (outline->jsexpr path tasks anchors)
-  (hash 'file (if (path? path) (path->string path) path)
-        'tasks (tasks->jsexpr tasks)
-        'anchors (anchors->jsexpr anchors)
-        'task_count (count-tasks tasks)
-        'mirror_count (count-mirrors tasks)
-        'anchor_count (hash-count anchors)))
+(define (outline->jsexpr path tasks anchors #:includes [includes '()])
+  (define path-str (if (path? path) (path->string path) path))
+  (define h
+    (hash 'file path-str
+          'tasks (tasks->jsexpr tasks #:root-file path-str)
+          'anchors (anchors->jsexpr anchors #:root-file path-str)
+          'task_count (count-tasks tasks)
+          'mirror_count (count-mirrors tasks)
+          'anchor_count (hash-count anchors)))
+  (if (null? includes)
+      h
+      (hash-set h 'includes
+                (for/list ([p (in-list includes)])
+                  (hash 'file p)))))
 
 (define (dated-task->jsexpr it)
   (hash 'title (dated-task-title it)
