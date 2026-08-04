@@ -189,12 +189,42 @@
         build = self.packages.${system}.selfflowy;
         smoke = pkgs.runCommand "selfflowy-smoke"
           {
-            nativeBuildInputs = [ self.packages.${system}.selfflowy ];
+            nativeBuildInputs = [
+              self.packages.${system}.selfflowy
+              pkgs.racket
+              pkgs.curl
+            ];
           }
           ''
             export TZDIR="${pkgs.tzdata}/share/zoneinfo"
             selfflowy check ${./examples/Example.rkt}
-            selfflowy tree ${./examples/Example.rkt} | head -c 40 | grep -q '"file"'
+
+            # Parse the JSON; never grep it (key order is not a contract).
+            selfflowy tree ${./examples/Example.rkt} > tree.json
+            racket -e '(require json)
+                       (define j (call-with-input-file "tree.json" read-json))
+                       (unless (and (= 1 (hash-ref j (quote version)))
+                                    (string? (hash-ref j (quote file)))
+                                    (pair? (hash-ref j (quote tasks))))
+                         (error (quote smoke) "unexpected tree JSON"))'
+
+            # The server has to work from the packaged binary too: static files
+            # and the language readers resolve differently there.
+            selfflowy serve --port 8099 ${./examples/Example.rkt} &
+            for i in $(seq 1 60); do
+              curl -sf -o page.html http://127.0.0.1:8099/ && break
+              sleep 1
+            done
+            grep -qi "<html" page.html
+            curl -sf -o api.json http://127.0.0.1:8099/api/tree
+            racket -e '(require json)
+                       (unless (= 1 (hash-ref (call-with-input-file "api.json" read-json)
+                                              (quote version)))
+                         (error (quote smoke) "unexpected /api/tree JSON"))'
+            curl -sf -o app.css http://127.0.0.1:8099/static/app.css
+            test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8099/nope)" = 404
+            kill %1
+
             touch $out
           '';
       });
