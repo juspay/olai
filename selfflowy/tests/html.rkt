@@ -68,6 +68,29 @@
     (check-false (string-contains? note-s "ndash") note-s)
     (check-false (string-contains? note-s "mdash") note-s))
 
+  (test-case "bare ISO day title renders friendly pill, not mangled hyphens"
+    (define s (xstr (task->xexpr (tk "2026-08-03" #f #f '()) (hash)
+                                 #:today "2026-08-04")))
+    (check-true (string-contains? s "Mon, Aug 3") s)
+    (check-true (string-contains? s "title=\"2026-08-03\"") s)
+    (check-true (string-contains? s "id=\"2026-08-03\"") s)
+    (check-false (string-contains? s "ndash") s)
+    (check-false (regexp-match? #rx">2026-08-03<" s) s) ; ISO not in body text
+    ;; Today highlight when the day is today
+    (define s-today (xstr (task->xexpr (tk "2026-08-03" #f #f '()) (hash)
+                                       #:today "2026-08-03")))
+    (check-true (string-contains? s-today "data-today") s-today)
+    (check-true (string-contains? s-today "ring-2") s-today)
+    ;; Month / year titles stay as-is (not pills)
+    (define s-month (xstr (task->xexpr (tk "August" #f #f '()) (hash)
+                                       #:today "2026-08-03")))
+    (check-true (string-contains? s-month "August") s-month)
+    (check-false (string-contains? s-month "data-today") s-month)
+    (define s-year (xstr (task->xexpr (tk "2026" #f #f '()) (hash)
+                                      #:today "2026-08-03")))
+    (check-true (string-contains? s-year "2026") s-year)
+    (check-false (string-contains? s-year "rounded-full") s-year))
+
   (test-case "entity symbols expand to characters/ASCII, not names"
     ;; Smart-punct entities normalize to plain ASCII (verbatim source feel).
     (define s (xstr (sanitize-xexpr `(p "2026" ndash "07" ndash "31"))))

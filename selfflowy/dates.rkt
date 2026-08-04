@@ -15,7 +15,9 @@
 (provide valid-iso-date-string?
          normalize-date-string
          date-day-prefix
-         today-iso-string)
+         today-iso-string
+         bare-iso-date-title?
+         friendly-date-label)
 
 ;; "2026-08-04 14:30" -> "2026-08-04T14:30"
 (define (normalize-date-string s)
@@ -43,3 +45,13 @@
 
 (define (today-iso-string)
   (~t (today) "yyyy-MM-dd"))
+
+;; True when `s` is exactly YYYY-MM-DD (a day-node title in Daily.rkt).
+(define (bare-iso-date-title? s)
+  (and (string? s)
+       (regexp-match? #px"^[0-9]{4}-[0-9]{2}-[0-9]{2}$" s)
+       (valid-iso-date-string? s)))
+
+;; Display-only label for a bare ISO day: "Mon, Aug 3".
+(define (friendly-date-label iso-day)
+  (~t (iso8601->date iso-day) "EEE, MMM d"))

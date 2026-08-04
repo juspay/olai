@@ -10,7 +10,8 @@
          racket/string
          xml
          (only-in markdown parse-markdown)
-         (except-in selfflowy/lang/expander #%module-begin))
+         (except-in selfflowy/lang/expander #%module-begin)
+         selfflowy/dates)
 
 (provide tasks->html
          files->html
@@ -236,15 +237,15 @@
 ;; ---- tree chrome ----------------------------------------------------------
 
 ;; anchors: hash id -> task (for resolving mirror sites). May be #f / empty.
-(define (child->xexpr x anchors)
+(define (child->xexpr x anchors #:today today)
   (cond
     [(mirror-ref? x)
-     (mirror->xexpr (mirror-ref-anchor x) anchors)]
+     (mirror->xexpr (mirror-ref-anchor x) anchors #:today today)]
     [(task? x)
-     (task->xexpr x anchors)]
+     (task->xexpr x anchors #:today today)]
     [else `(li "???")]))
 
-(define (mirror->xexpr anchor anchors)
+(define (mirror->xexpr anchor anchors #:today today)
   (define target (and anchors (hash-ref anchors anchor #f)))
   (define link
     `(a ((href ,(string-append "#" anchor))
@@ -259,16 +260,46 @@
                (span ((class "text-sm")) "(unresolved)")))]
     [else
      ;; Render the target's body chrome with a mirror glyph; nest its children.
-     (define inner (task->xexpr target anchors #:mirror-of anchor))
+     (define inner (task->xexpr target anchors #:mirror-of anchor #:today today))
      inner]))
 
-(define (task->xexpr tk anchors #:mirror-of [mirror-of #f])
+;; Bare ISO day title → friendly pill (display-only). ISO stays in the file.
+(define (iso-day-title-xexpr iso-day today done?)
+  (define label (friendly-date-label iso-day))
+  (define today? (equal? iso-day today))
+  (define base
+    (if done?
+        "inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-medium line-through "
+        "inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-medium "))
+  (define colors
+    (cond
+      [done?
+       "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500"]
+      [today?
+       "bg-sky-100 dark:bg-sky-900 text-sky-900 dark:text-sky-100 ring-2 ring-sky-400 dark:ring-sky-500"]
+      [else
+       "bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100"]))
+  `(span ((class ,(string-append base colors))
+          (title ,iso-day)
+          ,@(if today? '((data-today "true")) '()))
+         ,label))
+
+(define (task->xexpr tk anchors #:mirror-of [mirror-of #f] #:today [today #f])
   (define title (task-title tk))
   (define date (task-date tk))
   (define desc (task-description tk))
   (define id (task-id tk))
   (define done? (and (task-done tk) #t))
   (define kids (task-children tk))
+  (define today* (or today (today-iso-string)))
+  (define iso-day (and (bare-iso-date-title? title) title))
+  ;; Permalink target for calendar day cells: explicit ^id, else the ISO day.
+  (define html-id
+    (cond
+      [mirror-of #f]
+      [id id]
+      [iso-day iso-day]
+      [else #f]))
   (define title-class
     (if done?
         "text-base text-zinc-400 dark:text-zinc-500 line-through"
@@ -289,12 +320,16 @@
               (title ,(string-append "mirror of ^" mirror-of)))
              "↗"))
         '()))
+  (define title-el
+    (if iso-day
+        (iso-day-title-xexpr iso-day today* done?)
+        `(span ((class ,title-class))
+               ,@(map style-md-xexpr (title->inline-xexprs title)))))
   (define title-row
     `(div ((class "flex flex-wrap items-baseline gap-2 min-w-0"))
           ,checkbox
           ,@mirror-glyph
-          (span ((class ,title-class))
-                ,@(map style-md-xexpr (title->inline-xexprs title)))
+          ,title-el
           ,@(if date
                 (list `(span ((class "text-xs rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 px-1.5 py-0.5 font-mono shrink-0"))
                              ,date))
@@ -313,15 +348,11 @@
   (define li-attrs
     (append
      '((class "list-disc ml-5 marker:text-zinc-400 dark:marker:text-zinc-500"))
-     (if (and id (not mirror-of))
-         `((id ,id))
-         '())))
+     (if html-id `((id ,html-id)) '())))
   (define li-attrs-parent
     (append
      '((class "list-none ml-1"))
-     (if (and id (not mirror-of))
-         `((id ,id))
-         '())))
+     (if html-id `((id ,html-id)) '())))
   (if (null? kids)
       `(li ,li-attrs ,body)
       `(li ,li-attrs-parent
@@ -333,15 +364,16 @@
                      (div ((class "min-w-0 flex-1"))
                           ,body))
                     (ul ((class "ml-3 pl-3 border-l border-zinc-200 dark:border-zinc-700 mt-0.5 space-y-0.5"))
-                        ,@(map (λ (c) (child->xexpr c anchors)) kids))))))
+                        ,@(map (λ (c) (child->xexpr c anchors #:today today*)) kids))))))
 
 ;; sections: (listof (list section-title tasks anchors))
-(define (page-xexpr sections page-title)
+(define (page-xexpr sections page-title #:today [today #f])
+  (define today* (or today (today-iso-string)))
   (define body-sections
     (match sections
       [(list (list _ tasks anchors))
        `((ul ((class "space-y-1"))
-             ,@(map (λ (t) (task->xexpr t anchors)) tasks)))]
+             ,@(map (λ (t) (task->xexpr t anchors #:today today*)) tasks)))]
       [many
        (append*
         (for/list ([sec (in-list many)])
@@ -352,7 +384,7 @@
                      (h2 ((class "text-lg font-semibold tracking-tight mb-3 text-zinc-800 dark:text-zinc-100"))
                          ,sec-title)
                      (ul ((class "space-y-1"))
-                         ,@(map (λ (t) (task->xexpr t anchors)) tasks))))))]))
+                         ,@(map (λ (t) (task->xexpr t anchors #:today today*)) tasks))))))]))
   `(html ((lang "en"))
          (head
           (meta ((charset "utf-8")))
@@ -368,12 +400,14 @@
                                  ,page-title))
                      ,@body-sections))))
 
-(define (tasks->html tasks page-title #:anchors [anchors #f])
-  (files->html (list (list page-title tasks (or anchors (hash)))) page-title))
+(define (tasks->html tasks page-title #:anchors [anchors #f] #:today [today #f])
+  (files->html (list (list page-title tasks (or anchors (hash))))
+               page-title
+               #:today today))
 
 ;; file-entries: (listof (list path-or-label tasks anchors))
 ;;   or legacy (cons path tasks) with empty anchors
-(define (files->html file-entries page-title)
+(define (files->html file-entries page-title #:today [today #f])
   (define sections
     (for/list ([e (in-list file-entries)])
       (define-values (label tasks anchors)
@@ -393,4 +427,4 @@
       (list lab tasks (or anchors (hash)))))
   (string-append
    "<!DOCTYPE html>\n"
-   (xexpr->string (page-xexpr sections page-title))))
+   (xexpr->string (page-xexpr sections page-title #:today today))))
