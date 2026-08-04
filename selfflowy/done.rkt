@@ -21,7 +21,8 @@
 ;; index: 0-based index into line list
 ;; indent: leading spaces on the title line
 ;; already-done?: #t if [x] prefix or @done metadata present
-(struct title-match (line index indent already-done?) #:transparent)
+;; title: resolved effective title (checkbox/^anchor stripped)
+(struct title-match (line index indent already-done? title) #:transparent)
 
 (define (blank-line? s)
   (regexp-match? #px"^\\s*$" s))
@@ -114,7 +115,7 @@
            (define meta (metadata-indices lines i ind))
            (define done? (title-already-done? content meta lines))
            (set! matches
-                 (cons (title-match (add1 i) i ind done?) matches))))]))
+                 (cons (title-match (add1 i) i ind done? eff) matches))))]))
   (reverse matches))
 
 ;; Find the title line declaring ^anchor (at most one if file is valid).
@@ -135,8 +136,9 @@
          (when (equal? a anchor)
            (define meta (metadata-indices lines i ind))
            (define done? (title-already-done? content meta lines))
+           (define eff (effective-title content))
            (set! matches
-                 (cons (title-match (add1 i) i ind done?) matches))))]))
+                 (cons (title-match (add1 i) i ind done? eff) matches))))]))
   (reverse matches))
 
 (define (lines->text lines original)

@@ -151,7 +151,10 @@ EOF
     (define-values (new line)
       (mark-done-in-text src "^ship" "2026-08-03"))
     (check-true (string-contains? new "@done 2026-08-03") new)
-    (check-true (string-contains? new "Ship it ^ship") new))
+    (check-true (string-contains? new "Ship it ^ship") new)
+    (define ms (find-anchor-matches src "ship"))
+    (check-equal? (length ms) 1)
+    (check-equal? (title-match-title (car ms)) "Ship it"))
 
   (test-case "add --parent ^anchor"
     (define src

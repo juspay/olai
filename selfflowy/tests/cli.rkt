@@ -334,6 +334,25 @@
                      "#lang selfflowy\nDup\nOther\n  Dup\n"))
      (λ () (delete-directory/files dir))))
 
+  (test-case "done ^anchor reports resolved title in JSON"
+    (define dir (make-temporary-file "sfanch~a" 'directory))
+    (define f (build-path dir "Tasks.rkt"))
+    (dynamic-wind
+     void
+     (λ ()
+       (display-to-file
+        "#lang selfflowy\nShip the agent ^agent\n"
+        f #:exists 'truncate)
+       (define-values (code out err)
+         (run-selfflowy
+          (list "done" "--json" "--no-commit" "--file" (path->string f)
+                "^agent")))
+       (check-equal? code 0 (string-append out err))
+       (define j (parse-json out))
+       (check-equal? (hash-ref j 'title) "Ship the agent")
+       (check-false (equal? (hash-ref j 'title) "^agent")))
+     (λ () (delete-directory/files dir))))
+
   (test-case "multi-file check: both ok + one-good-one-bad"
     (define dir (make-temporary-file "sfmulti~a" 'directory))
     (define good (build-path dir "good.rkt"))

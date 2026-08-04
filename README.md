@@ -84,7 +84,7 @@ The roadmap is a selfflowy outline:
 
     nix develop        # racket 9.2 + just; or install them yourself
     just install       # raco pkg install --link selfflowy/
-    just check         # validates private/* + examples/Roadmap.rkt
+    just check         # validates Tasks.rkt (gitignored) + examples/Roadmap.rkt
     just tree examples/Example.rkt   # JSON forest for agents
     just html examples/Example.rkt   # human tree view
     just agenda examples/Example.rkt

@@ -4,9 +4,9 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
 
 ## HARD RULES
 
-* `private/` is the user's PRIVATE outline data (gitignored). NEVER commit
-  it, never overwrite without re-validating. Defaults: `private/Tasks.rkt`,
-  `private/Daily.rkt`. The committed dogfood roadmap is `examples/Roadmap.rkt`.
+* Tasks.rkt is the user's PRIVATE data. gitignored. NEVER commit, never
+  overwrite without re-validating. The committed dogfood copy is
+  examples/Roadmap.rkt.
 * No hand-rolling where a maintained library exists. In use: racket/cmdline,
   json (write-json/read-json), xml (xexprs), gregor (dates), markdown
   (title/note formatting in html only).

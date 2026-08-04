@@ -24,7 +24,7 @@
 (define exit-validation 2)
 (define exit-not-found 3)
 
-(define default-file "private/Tasks.rkt")
+(define default-file "Tasks.rkt")
 
 (define (die code msg #:json? json? #:file [file #f] #:line [line #f] #:col [col #f])
   (if json?
@@ -362,6 +362,8 @@
                   label (format-match-lines path matches))
           #:json? json?
           #:file path)])
+  ;; Resolved node title (not the raw ^anchor input).
+  (define resolved-title (title-match-title (car matches)))
   (define today (today-iso))
   (define-values (new-text line done-val)
     (with-handlers
@@ -394,21 +396,23 @@
       (dynamic-require `(file ,(path->string tmp)) 'tasks)
       (rename-file-or-directory tmp path #t)))
   (define commit-msg
-    (if undo? (format "undone: ~a" title) (format "done: ~a" title)))
+    (if undo?
+        (format "undone: ~a" resolved-title)
+        (format "done: ~a" resolved-title)))
   (define committed?
     (and (not no-commit?)
          (try-git-commit path commit-msg)))
   (if json?
       (write-json-stdout
        (ok-hash 'file (path->string path)
-                'title title
+                'title resolved-title
                 'line line
                 'done done-val
                 'undone undo?
                 'committed committed?))
       (printf "~a ~s in ~a (line ~a)~a\n"
               (if undo? "undone" "done")
-              title
+              resolved-title
               path
               line
               (if committed? ", committed" ""))))
@@ -487,7 +491,7 @@
    #:program "selfflowy add"
    #:once-each
    [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
-   [("--file") f "Outline file (default: private/Tasks.rkt)" (set! file-arg f)]
+   [("--file") f "Outline file (default: Tasks.rkt)" (set! file-arg f)]
    [("--date") d "ISO date or datetime (YYYY-MM-DD[THH:MM[:SS]])" (set! date d)]
    [("--description") t "Description text" (set! desc t)]
    [("--parent") p "Parent title or ^anchor (default: Inbox)" (set! parent p)]
@@ -506,7 +510,7 @@
    #:program "selfflowy done"
    #:once-each
    [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
-   [("--file") f "Outline file (default: private/Tasks.rkt)" (set! file-arg f)]
+   [("--file") f "Outline file (default: Tasks.rkt)" (set! file-arg f)]
    [("--undo") "Remove done state instead of marking done" (set! undo? #t)]
    [("--no-commit") "Do not auto-commit even in a git repo" (set! no-commit? #t)]
    #:args title-words

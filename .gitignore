@@ -1,7 +1,6 @@
-# Private outline data — never commit
-/private/
-
-# Generated HTML views
+# Private task data — never commit
+/Tasks.rkt
+/Tasks.html
 *.html
 !docs/**
 
