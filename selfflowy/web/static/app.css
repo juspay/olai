@@ -1,20 +1,37 @@
 /* selfflowy skin — hand-written, no framework, no build step.
    Paper-and-ink palette; Workflowy-faithful outline chrome. */
 
+/* Each palette is written ONCE. The selectors below only map a palette to
+   the names the rest of the file uses — light by default, dark when the OS
+   says so, and either one when the page carries data-theme. */
 :root {
-  --paper: #E4ECCA;
-  --paper-2: #EDF2DC;
-  --ink: #2C4222;
-  --dim: #74855F;
-  --line: #CDD8AB;
-  --pill-bg: #F5F8E6;
-  --green: #3E7A3A;
-  --amber-fg: #B9741B;
-  --amber-bg: #F7E9C8;
-  --blue-fg: #2B6A8F;
-  --blue-bg: #D8E8EF;
-  --rose-fg: #A84A5E;
-  --rose-bg: #F5DBDF;
+  --l-paper: #E4ECCA;
+  --l-paper-2: #EDF2DC;
+  --l-ink: #2C4222;
+  --l-dim: #74855F;
+  --l-line: #CDD8AB;
+  --l-pill-bg: #F5F8E6;
+  --l-green: #3E7A3A;
+  --l-amber-fg: #B9741B;
+  --l-amber-bg: #F7E9C8;
+  --l-blue-fg: #2B6A8F;
+  --l-blue-bg: #D8E8EF;
+  --l-rose-fg: #A84A5E;
+  --l-rose-bg: #F5DBDF;
+
+  --d-paper: #1E2417;
+  --d-paper-2: #252D1D;
+  --d-ink: #DBE7C9;
+  --d-dim: #8FA077;
+  --d-line: #33402A;
+  --d-pill-bg: #2A3320;
+  --d-green: #8FD08A;
+  --d-amber-fg: #E6B366;
+  --d-amber-bg: #3D310F;
+  --d-blue-fg: #7DB8D8;
+  --d-blue-bg: #1D3340;
+  --d-rose-fg: #E396A5;
+  --d-rose-bg: #402028;
 
   --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
           "Helvetica Neue", Arial, sans-serif;
@@ -26,54 +43,55 @@
   --radius: 0.375rem;
 }
 
+:root,
+:root[data-theme="light"] {
+  --paper: var(--l-paper);
+  --paper-2: var(--l-paper-2);
+  --ink: var(--l-ink);
+  --dim: var(--l-dim);
+  --line: var(--l-line);
+  --pill-bg: var(--l-pill-bg);
+  --green: var(--l-green);
+  --amber-fg: var(--l-amber-fg);
+  --amber-bg: var(--l-amber-bg);
+  --blue-fg: var(--l-blue-fg);
+  --blue-bg: var(--l-blue-bg);
+  --rose-fg: var(--l-rose-fg);
+  --rose-bg: var(--l-rose-bg);
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #1E2417;
-    --paper-2: #252D1D;
-    --ink: #DBE7C9;
-    --dim: #8FA077;
-    --line: #33402A;
-    --pill-bg: #2A3320;
-    --green: #8FD08A;
-    --amber-fg: #E6B366;
-    --amber-bg: #3D310F;
-    --blue-fg: #7DB8D8;
-    --blue-bg: #1D3340;
-    --rose-fg: #E396A5;
-    --rose-bg: #402028;
+    --paper: var(--d-paper);
+    --paper-2: var(--d-paper-2);
+    --ink: var(--d-ink);
+    --dim: var(--d-dim);
+    --line: var(--d-line);
+    --pill-bg: var(--d-pill-bg);
+    --green: var(--d-green);
+    --amber-fg: var(--d-amber-fg);
+    --amber-bg: var(--d-amber-bg);
+    --blue-fg: var(--d-blue-fg);
+    --blue-bg: var(--d-blue-bg);
+    --rose-fg: var(--d-rose-fg);
+    --rose-bg: var(--d-rose-bg);
   }
 }
 
-:root[data-theme="light"] {
-  --paper: #E4ECCA;
-  --paper-2: #EDF2DC;
-  --ink: #2C4222;
-  --dim: #74855F;
-  --line: #CDD8AB;
-  --pill-bg: #F5F8E6;
-  --green: #3E7A3A;
-  --amber-fg: #B9741B;
-  --amber-bg: #F7E9C8;
-  --blue-fg: #2B6A8F;
-  --blue-bg: #D8E8EF;
-  --rose-fg: #A84A5E;
-  --rose-bg: #F5DBDF;
-}
-
 :root[data-theme="dark"] {
-  --paper: #1E2417;
-  --paper-2: #252D1D;
-  --ink: #DBE7C9;
-  --dim: #8FA077;
-  --line: #33402A;
-  --pill-bg: #2A3320;
-  --green: #8FD08A;
-  --amber-fg: #E6B366;
-  --amber-bg: #3D310F;
-  --blue-fg: #7DB8D8;
-  --blue-bg: #1D3340;
-  --rose-fg: #E396A5;
-  --rose-bg: #402028;
+  --paper: var(--d-paper);
+  --paper-2: var(--d-paper-2);
+  --ink: var(--d-ink);
+  --dim: var(--d-dim);
+  --line: var(--d-line);
+  --pill-bg: var(--d-pill-bg);
+  --green: var(--d-green);
+  --amber-fg: var(--d-amber-fg);
+  --amber-bg: var(--d-amber-bg);
+  --blue-fg: var(--d-blue-fg);
+  --blue-bg: var(--d-blue-bg);
+  --rose-fg: var(--d-rose-fg);
+  --rose-bg: var(--d-rose-bg);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
