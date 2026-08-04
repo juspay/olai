@@ -351,6 +351,9 @@ Auto-commit message: `move: TITLE -> DATE` (or cleared).
 {"version":1,"ok":true,"file":"...","title":"Buy milk","line":6,"date":"2026-08-10","committed":false}
 ```
 
+With `--clear`, `date` is `null`. `title` is always the node's resolved title,
+never the raw `^anchor` you passed.
+
 ## `ics [--out PATH] [file ...]`
 
 RFC 5545 `VCALENDAR` of all dated tasks (done included). Minimal writer —
