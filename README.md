@@ -92,8 +92,8 @@ changes. No SSE push yet, no static HTML export. (Ancestor: srid/Tend.)
 ## ROADMAP
 
 Track your own plan as a `#lang selfflowy` outline (e.g. under
-`$SELFFLOWY_HOME/Roadmap.rkt`). The repo's `examples/Roadmap.rkt` is
-fictional demo data only.
+`$SELFFLOWY_HOME/Roadmap.rkt`). Repo demos live in `examples/` (see
+`examples/Daily.rkt` for `@include` composition).
 
 ## BUILDING
 

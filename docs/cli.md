@@ -40,9 +40,9 @@ Plain — one ok-line per file; if any fail, all are reported then exit 2.
 Anchor / mirror / include counts are appended only when non-zero:
 
 ```
-$ selfflowy check examples/Example.rkt examples/Roadmap.rkt
+$ selfflowy check examples/Example.rkt examples/Daily.rkt
 ok: .../Example.rkt (12 tasks, 1 anchor, 1 mirror)
-ok: .../Roadmap.rkt (8 tasks)
+ok: .../Daily.rkt (18 tasks, 2 anchors, 1 mirror, 2 includes)
 ```
 
 JSON — **single file** keeps the historical shape:
@@ -126,8 +126,9 @@ Multiple files:
   "files": [
     {"file":".../Example.rkt","tasks":[...],"anchors":{...},
      "task_count":12,"mirror_count":1,"anchor_count":1},
-    {"file":".../Roadmap.rkt","tasks":[...],"anchors":{...},
-     "task_count":8,"mirror_count":0,"anchor_count":0}
+    {"file":".../Daily.rkt","tasks":[...],"anchors":{...},
+     "task_count":18,"mirror_count":1,"anchor_count":2,
+     "includes":[{"file":".../Daily/2026-07.rkt"},{"file":".../Daily/2026-08.rkt"}]}
   ]
 }
 ```

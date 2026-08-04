@@ -8,8 +8,8 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
   (default `~/Dropbox/Selfflowy-Srid/`) — `Tasks.rkt`, `Daily.rkt`,
   `Roadmap.rkt`. NEVER commit those. NEVER invent content for them; treat
   them as user-owned. Re-validate after any edit. `examples/` is demo
-  fiction only (including `examples/Roadmap.rkt`); CI uses examples only,
-  never Dropbox paths.
+  fiction only (e.g. `examples/Daily.rkt` + fragments); CI uses examples
+  only, never Dropbox paths.
 * No hand-rolling where a maintained library exists. In use: racket/cmdline,
   json (write-json/read-json), xml (xexprs), gregor (dates), markdown
   (title/note formatting in the web view only).
