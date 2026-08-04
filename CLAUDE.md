@@ -16,8 +16,10 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
 * No ANSI. Human view is the web app: `selfflowy serve` (routes in
   docs/cli.md; `just serve` / `just run` / `just watch` all launch it).
   Agents use `--json` (and `tree`, which is JSON-only).
-* The expander is the ONLY validator (closed grammar). Readers just translate
-  to (t ...) forms. Never validate in the reader or at runtime.
+* The LANGUAGE is the only validator (closed grammar): the expander checks a
+  module, and the same rules run over a whole loaded snapshot (cross-file
+  anchors exist only after `@include` splices). Readers just translate to
+  (t ...) forms. Never validate in the reader, the CLI, or the web layer.
 * Agents are the primary CLI users: every command gets --json where it makes
   sense; errors are JSON on stderr in --json mode; exit codes are contract
   (see docs/cli.md). JSON fields are append-only within a "version".

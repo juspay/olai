@@ -7,6 +7,7 @@
          racket/port
          json
          (except-in selfflowy/lang/expander #%module-begin)
+         selfflowy/load
          selfflowy/json-out
          selfflowy/done
          selfflowy/daily)
@@ -105,6 +106,63 @@
        (check-exn
         (λ (e) (regexp-match? #px"duplicate \\^agent" (exn-message e)))
         (λ () (load-tasks root2))))
+     (λ () (delete-directory/files dir))))
+
+  ;; The graph rules are checked at run time once @include is in play, and
+  ;; that is exactly when the diagnostic used to lose its srcloc: no
+  ;; file:line:col, no anchor names. CLAUDE.md says errors carry the location
+  ;; of the offending form — include mode included.
+  (test-case "include-mode graph errors keep file:line:col and names"
+    (define dir (make-temporary-file "sfloc~a" 'directory))
+    (dynamic-wind
+     void
+     (λ ()
+       (define (where+detail path)
+         (define r (try-load-outline path))
+         (check-true (load-error? r) (format "~a" r))
+         (values (or (load-error-where r) "") (load-error-message r)))
+
+       ;; unknown mirror: the *site* is in the root, under an @include
+       (write-outline dir "frag.rkt" "#lang selfflowy\nWork ^agent\n")
+       (define bad-mirror
+         (write-outline dir "mirror.rkt"
+                        "#lang selfflowy\nWeek\n  @include frag.rkt\n  *nope\n"))
+       (define-values (where1 msg1) (where+detail bad-mirror))
+       (check-true (string-contains? where1 "mirror.rkt") where1)
+       (check-true (string-contains? where1 ":4:") where1)
+       (check-true (regexp-match? #px"unknown \\*nope" msg1) msg1)
+       ;; and it says which anchors it did know about
+       (check-true (regexp-match? #px"agent" msg1) msg1)
+
+       ;; duplicate anchor: the second declaration is in another fragment
+       (write-outline dir "frag2.rkt" "#lang selfflowy\nOther\n  Deep ^agent\n")
+       (define dup
+         (write-outline dir "dup.rkt"
+                        "#lang selfflowy\n@include frag.rkt\n@include frag2.rkt\n"))
+       (define-values (where2 msg2) (where+detail dup))
+       (check-true (string-contains? where2 "frag2.rkt") where2)
+       (check-true (string-contains? where2 ":3:") where2)
+       (check-true (regexp-match? #px"duplicate \\^agent" msg2) msg2)
+       ;; naming where the first one was is the whole point
+       (check-true (string-contains? msg2 "frag.rkt") msg2)
+
+       ;; a cycle in a file that uses @include: the compile-time pass steps
+       ;; aside there, so this is the runtime checker talking
+       (write-outline dir "leaf.rkt" "#lang selfflowy\nLeaf\n")
+       (define cyc
+         (write-outline dir "cyc.rkt"
+                        (string-append "#lang selfflowy\n"
+                                       "@include leaf.rkt\n"
+                                       "A ^a\n"
+                                       "  *b\n"
+                                       "B ^b\n"
+                                       "  *a\n")))
+       (define-values (where3 msg3) (where+detail cyc))
+       (check-true (regexp-match? #px"a -> b -> a|b -> a -> b" msg3) msg3)
+       (check-true (string-contains? where3 "cyc.rkt") where3)
+       ;; the location is one of the two mirror lines, not "somewhere"
+       (check-true (or (string-contains? where3 ":4:") (string-contains? where3 ":6:"))
+                   where3))
      (λ () (delete-directory/files dir))))
 
   (test-case "JSON file field on included nodes"
