@@ -162,12 +162,28 @@
           racket-deps = racketDeps;
         });
 
-      apps = forAllSystems ({ pkgs, system }: {
-        default = {
-          type = "app";
-          program = "${self.packages.${system}.selfflowy}/bin/selfflowy";
-        };
-      });
+      # `nix run` starts the web view; `nix run .#cli -- check ...` is the CLI.
+      # A one-line exec wrapper around the built binary is the boring option:
+      # no second closure, nothing to keep in sync, works offline.
+      apps = forAllSystems ({ pkgs, system }:
+        let
+          cli = "${self.packages.${system}.selfflowy}/bin/selfflowy";
+          serve = pkgs.writeShellScriptBin "selfflowy-serve" ''
+            exec ${cli} serve "$@"
+          '';
+          serveApp = {
+            type = "app";
+            program = "${serve}/bin/selfflowy-serve";
+          };
+        in
+        {
+          default = serveApp;
+          serve = serveApp;
+          cli = {
+            type = "app";
+            program = cli;
+          };
+        });
 
       checks = forAllSystems ({ pkgs, system }: {
         build = self.packages.${system}.selfflowy;

@@ -72,15 +72,11 @@
 
 ;; ---- outlines -------------------------------------------------------------
 
-;; Load every file for one request. A fresh namespace (sharing the expander's
-;; instantiation, so struct identities match) means an edited outline shows up
-;; on the next request instead of being frozen at first load.
-(define (load-outline-fresh path)
-  (define ns (make-base-empty-namespace))
-  (namespace-attach-module (current-namespace) 'selfflowy/lang/expander ns)
-  (parameterize ([current-namespace ns])
-    (try-load-outline path)))
-
+;; Outlines are loaded through the module registry, so a file is read once per
+;; process: restart to pick up edits. Reloading needs a fresh namespace, which
+;; a `raco exe` binary cannot populate from collection paths — the live view
+;; lands with SSE, in the WP that owns pushing changes to the browser.
+;;
 ;; -> (values entries #f) | (values #f (list msg file line col))
 ;; entries : (listof (list path tasks anchors includes))
 (define (load-entries files)
@@ -88,7 +84,7 @@
     (cond
       [(null? fs) (values (reverse acc) #f)]
       [else
-       (match (load-outline-fresh (car fs))
+       (match (try-load-outline (car fs))
          [(list 'ok tasks anchors includes)
           (loop (cdr fs) (cons (list (car fs) tasks anchors includes) acc))]
          [(list 'error msg src line col)

@@ -83,9 +83,21 @@ html *args: install
       selfflowy html --out "$out" "$@"
     fi
 
-# Re-render HTML whenever personal outlines change
-watch: install
-    watchexec -w "{{selfflowy_home}}" -c -- just html
+# Serve the web view (default: Dropbox outlines on 127.0.0.1:8080)
+serve *args: install
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -z "{{args}}" ]; then
+      selfflowy serve {{default_outlines}}
+    elif [[ "{{args}}" != *".rkt"* ]]; then
+      selfflowy serve {{args}} {{default_outlines}}
+    else
+      selfflowy serve {{args}}
+    fi
+
+# The server is how you run selfflowy; it re-reads outlines per request.
+alias run := serve
+alias watch := serve
 
 # Run unit tests
 test: install
