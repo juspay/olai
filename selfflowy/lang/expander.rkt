@@ -23,12 +23,14 @@
          selfflowy/lang/tags
          (for-syntax racket/base
                      selfflowy/lang/tags
+                     ;; the date grammar has one owner; the expander is a
+                     ;; consumer of it, at phase 1 like the tag grammar
+                     selfflowy/dates
                      syntax/parse
                      racket/string
                      racket/list
                      racket/match
-                     racket/path
-                     (only-in gregor iso8601->date iso8601->datetime)))
+                     racket/path))
 
 (provide (rename-out [module-begin #%module-begin])
          t
@@ -86,26 +88,10 @@
     [else #f]))
 
 (begin-for-syntax
-  (define (normalize-date-string s)
-    (cond
-      [(regexp-match #px"^([0-9]{4}-[0-9]{2}-[0-9]{2})[ ]+([0-9].*)$" s)
-       => (λ (m) (string-append (cadr m) "T" (caddr m)))]
-      [else s]))
-
-  (define (date-string? s)
-    (and (string? s)
-         (let ([s (normalize-date-string s)])
-           (or (with-handlers ([exn:fail? (λ (_) #f)])
-                 (iso8601->date s)
-                 #t)
-               (with-handlers ([exn:fail? (λ (_) #f)])
-                 (iso8601->datetime s)
-                 #t)))))
-
   (define-syntax-class date-str
     #:description "ISO date or datetime (YYYY-MM-DD[THH:MM[:SS]])"
     (pattern d:str
-             #:fail-unless (date-string? (syntax-e #'d))
+             #:fail-unless (valid-iso-date-string? (syntax-e #'d))
              "expected ISO date or datetime (YYYY-MM-DD or YYYY-MM-DDTHH:MM[:SS])"
              #:attr normalized (normalize-date-string (syntax-e #'d))))
 

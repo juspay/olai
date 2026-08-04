@@ -7,8 +7,11 @@
 (require racket/list
          racket/match
          racket/string
-         syntax/readerr)
+         syntax/readerr
+         selfflowy/lang/line)
 
+;; The line grammar itself lives in lang/line.rkt; these two are re-exported
+;; because they are how a title's sugar is spelled everywhere.
 (provide parse-outline-port
          parse-outline-string
          strip-checkbox-prefix
@@ -52,76 +55,20 @@
        (set! lines (cons (raw-line n col s ind content) lines))
        (loop (add1 n))])))
 
-(define (blank-content? c)
-  (or (string=? c "") (regexp-match? #px"^\\s*$" c)))
-
-;; Title checkbox sugar: "[x] " / "[X] " → done (#t); "[ ] " → open (stripped).
-(define (strip-checkbox-prefix title)
-  (cond
-    [(regexp-match #px"^\\[[xX]\\] (.*)$" title)
-     => (λ (m) (values (cadr m) 'done))]
-    [(regexp-match #px"^\\[ \\] (.*)$" title)
-     => (λ (m) (values (cadr m) 'open))]
-    [else (values title #f)]))
-
-;; Trailing ^anchor (not part of the verbatim title).
-;; Returns (values title-without-anchor anchor-or-#f).
-(define (strip-trailing-anchor title)
-  (cond
-    [(regexp-match #px"^(.*\\S)\\s+\\^([A-Za-z0-9_-]+)\\s*$" title)
-     => (λ (m) (values (cadr m) (caddr m)))]
-    [(regexp-match #px"^\\^([A-Za-z0-9_-]+)\\s*$" title)
-     => (λ (m) (values "" (cadr m)))]
-    [else (values title #f)]))
-
+;; The grammar says what a line IS (lang/line.rkt); the reader is what says
+;; where it went wrong. This is the whole difference between the two.
 (define (classify-content content src line col)
-  (cond
-    [(blank-content? content) 'blank]
-    ;; Escape: title is rest after `\`; checkbox/mirror/anchor sugar does NOT apply.
-    [(regexp-match? #px"^\\\\" content)
-     `(title ,(substring content 1) #f #f)]
-    ;; Mirror line: *anchor alone (line-initial *).
-    [(regexp-match #px"^\\*([A-Za-z0-9_-]+)\\s*$" content)
-     => (λ (m) `(mirror ,(cadr m)))]
-    [(regexp-match #px"^: (.*)$" content)
-     => (λ (m) `(desc ,(cadr m)))]
-    [(regexp-match #px"^:($|[^ ].*)$" content)
-     (reader-error src line col #f
-                   "description line must start with \": \" (colon + space)")]
-    [(regexp-match #px"^@date[ \t]+(\\S.*)$" content)
-     => (λ (m)
-          (define val (string-trim (cadr m)))
-          (define prefix-m (regexp-match #px"^@date[ \t]+" content))
-          (define val-col (+ col (string-length (car prefix-m))))
-          `(date ,val ,val-col))]
-    [(regexp-match #px"^@date\\s*$" content)
-     (reader-error src line col #f
-                   "expected a date or datetime after @date (YYYY-MM-DD[THH:MM[:SS]])")]
-    [(regexp-match #px"^@done[ \t]+(\\S.*)$" content)
-     => (λ (m)
-          (define val (string-trim (cadr m)))
-          (define prefix-m (regexp-match #px"^@done[ \t]+" content))
-          (define val-col (+ col (string-length (car prefix-m))))
-          `(done ,val ,val-col))]
-    [(regexp-match #px"^@done\\s*$" content)
-     `(done-bare ,col)]
-    [(regexp-match #px"^@include[ \t]+(\\S.*)$" content)
-     => (λ (m) `(include ,(string-trim (cadr m))))]
-    [(regexp-match #px"^@include\\s*$" content)
-     (reader-error src line col #f
-                   "expected a relative path after @include")]
-    [(regexp-match #px"^@(\\S+)" content)
-     => (λ (m)
-          (reader-error src line col #f
-                        "unknown @~a; known fields: @date, @done, @include"
-                        (cadr m)))]
-    [else
-     (define-values (title0 flag) (strip-checkbox-prefix content))
-     (define-values (title anchor) (strip-trailing-anchor title0))
-     (when (and anchor (string=? title ""))
-       (reader-error src line col #f
-                     "title required before ^~a" anchor))
-     `(title ,title ,flag ,anchor)]))
+  ;; The reader is handed the body AFTER the #lang line, so a line that looks
+  ;; like one here is an ordinary title.
+  (define k
+    (let ([k (classify-line content)])
+      (if (line-lang? k) (list 'title content #f #f) k)))
+  (match k
+    [(list 'meta 'bad msg)
+     (reader-error src line col #f "~a" msg)]
+    [(list 'title "" _flag (? string? anchor))
+     (reader-error src line col #f "title required before ^~a" anchor)]
+    [_ k]))
 
 (define (level-of indent src line col)
   (unless (zero? (remainder indent 2))
@@ -243,7 +190,7 @@
     (define content (raw-line-content rl))
     (define kind (classify-content content src n col))
     (cond
-      [(eq? kind 'blank) (void)]
+      [(line-blank? kind) (void)]
       [else
        (define level (level-of ind src n col))
        (match kind
@@ -306,27 +253,21 @@
           (define nd
             (node title #f done-info id-info '() '() n col (string-length title) src #f #f))
           (push-node! nd level)]
-         [`(desc ,text)
+         [`(meta desc ,text)
           (define parent (require-task-parent! level n col "description line"))
           (set-node-descs! parent (cons (list text n col) (node-descs parent)))]
-         [`(date ,d ,val-col)
+         [`(meta date ,d ,off)
           (define parent (require-task-parent! level n col "@date"))
           (when (node-date-info parent)
             (reader-error src n col #f
                           "duplicate @date on this task"))
-          (set-node-date-info! parent (list d n val-col))]
-         [`(done ,d ,val-col)
+          (set-node-date-info! parent (list d n (+ col off)))]
+         [`(meta done ,d ,off)
           (define parent (require-task-parent! level n col "@done"))
           (when (node-done-info parent)
             (reader-error src n col #f
                           "duplicate @done on this task"))
-          (set-node-done-info! parent (list d n val-col))]
-         [`(done-bare ,dcol)
-          (define parent (require-task-parent! level n col "@done"))
-          (when (node-done-info parent)
-            (reader-error src n col #f
-                          "duplicate @done on this task"))
-          (set-node-done-info! parent (list #t n dcol))])]))
+          (set-node-done-info! parent (list d n (+ col off)))])]))
   (map node->syntax (reverse roots)))
 
 (define (parse-outline-port src in)

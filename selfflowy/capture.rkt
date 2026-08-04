@@ -8,7 +8,7 @@
          racket/path
          racket/port
          racket/string
-         selfflowy/lang/outline)
+         selfflowy/lang/line)
 
 (provide format-capture-lines
          find-inbox-insert
@@ -27,35 +27,18 @@
      (if date (list (string-append mpad "@date " date)) '())))
   (cons head meta))
 
-(define (blank-line? s)
-  (regexp-match? #px"^\\s*$" s))
-
-(define (line-indent+content s)
-  (define m (regexp-match #px"^( *)(.*)$" s))
-  (values (string-length (cadr m)) (caddr m)))
-
+;; What the insert-point scan needs: 'blank | 'lang
+;; | (list 'title level title anchor) | (list 'other level content)
 (define (scan-line s)
+  (define-values (ind content) (line-indent+content s))
+  (define k (classify-line content))
+  (define level (quotient ind 2))
   (cond
-    [(regexp-match? #px"^\\s*$" s) 'blank]
-    [(regexp-match? #px"^#lang\\s" s) 'lang]
-    [else
-     (define m (regexp-match #px"^( *)(.*)$" s))
-     (define ind (string-length (cadr m)))
-     (define content (caddr m))
-     (define level (quotient ind 2))
-     (cond
-       [(and (zero? (remainder ind 2))
-             (not (regexp-match? #px"^:" content))
-             (not (regexp-match? #px"^@" content))
-             (not (regexp-match? #px"^\\*" content)))
-        (define raw
-          (if (regexp-match? #px"^\\\\" content)
-              (substring content 1)
-              content))
-        (define-values (t0 _f) (strip-checkbox-prefix raw))
-        (define-values (title anchor) (strip-trailing-anchor t0))
-        (list 'title level title anchor)]
-       [else (list 'other level content)])]))
+    [(line-blank? k) 'blank]
+    [(line-lang? k) 'lang]
+    [(and (line-title? k) (even? ind))
+     (list 'title level (cadr k) (cadddr k))]
+    [else (list 'other level content)]))
 
 ;; Returns (values insert-pos has-parent? task-line-1-based parent-indent)
 ;; parent-spec: #f | string title | (cons 'anchor id-string)

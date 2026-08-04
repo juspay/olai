@@ -8,10 +8,11 @@
          racket/match
          racket/set
          racket/string
-         selfflowy/lang/outline) ; strip-checkbox-prefix, strip-trailing-anchor
+         selfflowy/lang/line) ; the one owner of what a line IS
 
 (provide find-title-matches
          find-anchor-matches
+         metadata-indices
          mark-done-in-text
          undo-done-in-text
          parse-title-or-anchor
@@ -24,28 +25,21 @@
 ;; title: resolved effective title (checkbox/^anchor stripped)
 (struct title-match (line index indent already-done? title) #:transparent)
 
-(define (blank-line? s)
-  (regexp-match? #px"^\\s*$" s))
+;; -> (values indent classification): what every scan below actually wants.
+(define (scan s)
+  (define-values (ind content) (line-indent+content s))
+  (values ind (classify-line content)))
 
-(define (line-indent+content s)
-  (define m (regexp-match #px"^( *)(.*)$" s))
-  (values (string-length (cadr m)) (caddr m)))
-
-(define (meta-content? content)
-  (or (regexp-match? #px"^: " content)
-      (regexp-match? #px"^:($|[^ ])" content)
-      (regexp-match? #px"^@" content)))
-
-(define (done-meta? content)
-  (regexp-match? #px"^@done(\\s|$)" content))
-
-(define (title-content? content)
-  (and (not (blank-line? content))
-       (not (regexp-match? #px"^#lang\\s" content))
-       (not (meta-content? content))))
+(define (done-line? s)
+  (define-values (_ind k) (scan s))
+  (eq? (meta-field k) 'done))
 
 ;; Lines that are metadata for the title at title-idx (same indent+2, until
 ;; a child title or dedent). Returns list of 0-based line indices.
+;;
+;; An @include there is a child node, not metadata — but it sits in the same
+;; indented run (a month node in Daily.rkt is exactly that), and a @date
+;; written after it is still this title's date, so the run does not stop.
 (define (metadata-indices lines title-idx title-indent)
   (define meta-indent (+ title-indent 2))
   (let loop ([i (add1 title-idx)] [acc '()])
@@ -54,40 +48,18 @@
       [(blank-line? (list-ref lines i))
        (loop (add1 i) acc)]
       [else
-       (define-values (ind content) (line-indent+content (list-ref lines i)))
+       (define-values (ind k) (scan (list-ref lines i)))
        (cond
          [(not (= ind meta-indent)) (reverse acc)]
-         [(meta-content? content)
+         [(or (line-meta? k) (line-include? k))
           (loop (add1 i) (cons i acc))]
          [else (reverse acc)])])))
 
-(define (title-already-done? content meta-idxs lines)
-  (define-values (_title flag)
-    (if (regexp-match? #px"^\\\\" content)
-        (values (substring content 1) #f)
-        (strip-checkbox-prefix content)))
-  (or (eq? flag 'done)
+;; k is a (title TEXT FLAG ANCHOR) classification.
+(define (title-already-done? k meta-idxs lines)
+  (or (eq? (caddr k) 'done)
       (for/or ([i (in-list meta-idxs)])
-        (define-values (_ind c) (line-indent+content (list-ref lines i)))
-        (done-meta? c))))
-
-(define (effective-title content)
-  (cond
-    [(regexp-match? #px"^\\\\" content)
-     (substring content 1)]
-    [else
-     (define-values (t _f) (strip-checkbox-prefix content))
-     (define-values (t2 _a) (strip-trailing-anchor t))
-     t2]))
-
-(define (line-anchor content)
-  (cond
-    [(regexp-match? #px"^\\\\" content) #f]
-    [(regexp-match? #px"^\\*" content) #f]
-    [else
-     (define-values (t _f) (strip-checkbox-prefix content))
-     (define-values (_t2 a) (strip-trailing-anchor t))
-     a]))
+        (done-line? (list-ref lines i)))))
 
 ;; 'title | 'anchor
 (define (parse-title-or-anchor s)
@@ -96,50 +68,29 @@
      => (λ (m) (cons 'anchor (cadr m)))]
     [else (cons 'title s)]))
 
+;; Every title line the file has, as title-matches, newest scan order.
+;; `keep?` decides which ones the caller wanted.
+(define (find-title-lines text keep?)
+  (define lines (string-split text "\n" #:trim? #f))
+  (filter
+   values
+   (for/list ([s (in-list lines)] [i (in-naturals)])
+     (define-values (ind k) (scan s))
+     (and (line-title? k)
+          (even? ind)
+          (keep? k)
+          (let ([meta (metadata-indices lines i ind)])
+            (title-match (add1 i) i ind
+                         (title-already-done? k meta lines)
+                         (cadr k)))))))
+
 ;; Find all title lines whose effective title equals `title` exactly.
 (define (find-title-matches text title)
-  (define lines (string-split text "\n" #:trim? #f))
-  (define matches '())
-  (for ([i (in-range (length lines))])
-    (define s (list-ref lines i))
-    (cond
-      [(blank-line? s) (void)]
-      [(regexp-match? #px"^#lang\\s" s) (void)]
-      [else
-       (define-values (ind content) (line-indent+content s))
-       (when (and (zero? (remainder ind 2))
-                  (title-content? content)
-                  (not (regexp-match? #px"^\\*" content)))
-         (define eff (effective-title content))
-         (when (equal? eff title)
-           (define meta (metadata-indices lines i ind))
-           (define done? (title-already-done? content meta lines))
-           (set! matches
-                 (cons (title-match (add1 i) i ind done? eff) matches))))]))
-  (reverse matches))
+  (find-title-lines text (λ (k) (equal? (cadr k) title))))
 
 ;; Find the title line declaring ^anchor (at most one if file is valid).
 (define (find-anchor-matches text anchor)
-  (define lines (string-split text "\n" #:trim? #f))
-  (define matches '())
-  (for ([i (in-range (length lines))])
-    (define s (list-ref lines i))
-    (cond
-      [(blank-line? s) (void)]
-      [(regexp-match? #px"^#lang\\s" s) (void)]
-      [else
-       (define-values (ind content) (line-indent+content s))
-       (when (and (zero? (remainder ind 2))
-                  (title-content? content)
-                  (not (regexp-match? #px"^\\*" content)))
-         (define a (line-anchor content))
-         (when (equal? a anchor)
-           (define meta (metadata-indices lines i ind))
-           (define done? (title-already-done? content meta lines))
-           (define eff (effective-title content))
-           (set! matches
-                 (cons (title-match (add1 i) i ind done? eff) matches))))]))
-  (reverse matches))
+  (find-title-lines text (λ (k) (equal? (cadddr k) anchor))))
 
 (define (lines->text lines original)
   (define body (string-join lines "\n"))
@@ -212,8 +163,7 @@
      ;; Drop @done metadata lines (highest indices first).
      (define drop-set
        (for/set ([i (in-list meta)]
-                 #:when (let-values ([(_ c) (line-indent+content (list-ref lines i))])
-                          (done-meta? c)))
+                 #:when (done-line? (list-ref lines i)))
          i))
      (define lines*
        (for/list ([i (in-range (length lines))]

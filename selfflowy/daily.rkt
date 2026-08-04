@@ -9,7 +9,7 @@
          racket/format
          selfflowy/dates
          selfflowy/edit
-         selfflowy/lang/outline
+         selfflowy/lang/line
          (except-in selfflowy/lang/expander #%module-begin)
          (only-in selfflowy/json-out count-tasks))
 
@@ -37,29 +37,13 @@
   (define m (string->number (substring day 5 7)))
   (values y m))
 
-(define (blank-line? s)
-  (regexp-match? #px"^\\s*$" s))
-
-(define (line-indent+content s)
-  (define m (regexp-match #px"^( *)(.*)$" s))
-  (values (string-length (cadr m)) (caddr m)))
-
+;; -> (list indent title) for a title line, #f for anything else.
 (define (scan-title-line s)
-  (cond
-    [(blank-line? s) #f]
-    [(regexp-match? #px"^#lang\\s" s) #f]
-    [else
-     (define-values (ind content) (line-indent+content s))
-     (and (zero? (remainder ind 2))
-          (not (regexp-match? #px"^:" content))
-          (not (regexp-match? #px"^@" content))
-          (not (regexp-match? #px"^\\*" content))
-          (let* ([raw (if (regexp-match? #px"^\\\\" content)
-                          (substring content 1)
-                          content)]
-                 [t0 (let-values ([(t _) (strip-checkbox-prefix raw)]) t)]
-                 [t1 (let-values ([(t _) (strip-trailing-anchor t0)]) t)])
-            (list ind t1)))]))
+  (define-values (ind content) (line-indent+content s))
+  (define k (classify-line content))
+  (and (line-title? k)
+       (even? ind)
+       (list ind (cadr k))))
 
 (define (find-title-line lines title indent)
   (for/or ([i (in-range (length lines))])

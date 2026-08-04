@@ -9,40 +9,14 @@
          racket/string
          selfflowy/done
          selfflowy/dates
-         selfflowy/lang/outline)
+         selfflowy/lang/line)
 
 (provide set-date-in-text
          clear-date-in-text)
 
-(define (blank-line? s)
-  (regexp-match? #px"^\\s*$" s))
-
-(define (line-indent+content s)
-  (define m (regexp-match #px"^( *)(.*)$" s))
-  (values (string-length (cadr m)) (caddr m)))
-
-(define (meta-content? content)
-  (or (regexp-match? #px"^: " content)
-      (regexp-match? #px"^:($|[^ ])" content)
-      (regexp-match? #px"^@" content)))
-
-(define (date-meta? content)
-  (regexp-match? #px"^@date(\\s|$)" content))
-
-(define (metadata-indices lines title-idx title-indent)
-  (define meta-indent (+ title-indent 2))
-  (let loop ([i (add1 title-idx)] [acc '()])
-    (cond
-      [(>= i (length lines)) (reverse acc)]
-      [(blank-line? (list-ref lines i))
-       (loop (add1 i) acc)]
-      [else
-       (define-values (ind content) (line-indent+content (list-ref lines i)))
-       (cond
-         [(not (= ind meta-indent)) (reverse acc)]
-         [(meta-content? content)
-          (loop (add1 i) (cons i acc))]
-         [else (reverse acc)])])))
+(define (date-line? s)
+  (define-values (_ind content) (line-indent+content s))
+  (eq? (meta-field (classify-line content)) 'date))
 
 (define (lines->text lines original)
   (define body (string-join lines "\n"))
@@ -87,8 +61,7 @@
   ;; Drop existing @date lines, then insert one after remaining meta.
   (define drop-set
     (for/set ([i (in-list meta)]
-              #:when (let-values ([(_ c) (line-indent+content (list-ref lines i))])
-                       (date-meta? c)))
+              #:when (date-line? (list-ref lines i)))
       i))
   (define lines*
     (for/list ([i (in-range (length lines))]
@@ -119,8 +92,7 @@
   (define meta (metadata-indices lines idx ind))
   (define drop-set
     (for/set ([i (in-list meta)]
-              #:when (let-values ([(_ c) (line-indent+content (list-ref lines i))])
-                       (date-meta? c)))
+              #:when (date-line? (list-ref lines i)))
       i))
   (when (set-empty? drop-set)
     (error 'clear-date-in-text "no @date on ~s (line ~a)" label (title-match-line m)))
