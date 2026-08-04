@@ -74,6 +74,14 @@
     (check-true (string-contains? s "class=\"sf-toggle\"") s)
     (check-true (string-contains? s "aria-expanded=\"true\"") s)
     (check-true (string-contains? s "<ul class=\"sf-children\">") s)
+    ;; only parents get a collapse key, and it is the fragment id
+    (check-true (string-contains?
+                 s (string-append "data-collapse-key=\""
+                                  (fragment-id parent '("F.rkt" "Parent")) "\""))
+                s)
+    (check-false (string-contains?
+                  s (string-append "data-collapse-key=\"" kid-id "\""))
+                 s)
     (check-true (string-contains? s (string-append "id=\"n-" kid-id "\"")) s)
     (check-true (string-contains? s "Child") s))
 
@@ -274,7 +282,9 @@
   (test-case "sidebar lists Today, Starred placeholder and file roots"
     (define s (xstr (render-sidebar
                      (files (list "/tmp/Tasks.rkt"
-                                  (list (tk "Inbox" #f #f (list (tk "Deep" #f #f '())))
+                                  (list (tk "Inbox" #f #f
+                                            (list (tk "Deep" #f #f
+                                                      (list (tk "Deeper" #f #f '())))))
                                         (tk "Someday" #f #f '()))
                                   (hash))
                             (list "/tmp/Roadmap.rkt" (list (tk "WP2" #f #f '())) (hash))))))
@@ -292,7 +302,9 @@
     (check-false (string-contains? s "sf-check") s)
     (check-true (string-contains? s "sf-toggle") s)
     ;; deeper levels start collapsed
-    (check-true (string-contains? s "sf-tree-node is-collapsed") s))
+    (check-true (string-contains? s "sf-tree-node has-children is-collapsed") s)
+    ;; sidebar collapse state is namespaced away from the main pane's
+    (check-true (string-contains? s "data-collapse-key=\"tree-") s))
 
   ;; ---- breadcrumbs / zoom -------------------------------------------------
 
@@ -357,7 +369,9 @@
     (check-true (string-contains? s "<main class=\"sf-main\">") s)
     ;; the collapse script is inline and persists to localStorage
     (check-true (string-contains? s "selfflowy.collapsed") s)
-    (check-true (string-contains? s "localStorage") s))
+    (check-true (string-contains? s "localStorage") s)
+    ;; served form carries the doctype (no quirks mode)
+    (check-true (string-prefix? (page->html-string (render-page '(div))) "<!DOCTYPE html>")))
 
   (test-case "sse-connect opts the body into the htmx sse extension"
     (define s (xstr (render-page '(div) #:sse-connect "/events")))

@@ -21,7 +21,7 @@
          racket/string
          racket/runtime-path
          file/sha1
-         (only-in xml cdata)
+         (only-in xml cdata xexpr->string)
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/dates
          selfflowy/web/markdown)
@@ -34,6 +34,7 @@
          render-page
          render-zoom
          ;; helpers the server needs to route/lookup
+         page->html-string
          fragment-index
          file-label
          node-element-id
@@ -212,8 +213,7 @@
                 (list `(button ((type "button")
                                 (class "sf-toggle")
                                 (aria-expanded ,(if collapsed? "false" "true"))
-                                (aria-label "toggle children")
-                                (data-toggle ,fid))
+                                (aria-label "toggle children"))
                                "▸"))
                 (list `(span ((class "sf-toggle sf-toggle-empty") (aria-hidden "true")))))
           ,(let ([dot `(span ((class ,(classes "sf-bullet"
@@ -225,9 +225,11 @@
                       (title "zoom in"))
                      ,dot)
                  dot))
+          ;; the check sits in the gutter, not in the text run, so a title
+          ;; and its note stay flush left of each other
+          ,(checkbox-xexpr fid done? toggle-base)
           (div ((class "sf-content"))
                (div ((class "sf-line"))
-                    ,(checkbox-xexpr fid done? toggle-base)
                     ,@(if mirror-of
                           (list `(a ((class "sf-mirror")
                                      (href ,(string-append "#" mirror-of))
@@ -247,7 +249,8 @@
                          (and collapsed? "is-collapsed")
                          (and done? "is-done")))
         (id ,(node-element-id fid))
-        (data-fragment-id ,fid))
+        (data-fragment-id ,fid)
+        ,@(if has-kids? `((data-collapse-key ,fid)) '()))
        ,@(legacy-anchor-xexpr tk)
        ,row
        ,@(if has-kids?
@@ -326,15 +329,17 @@
        (list
         `(li ((class ,(classes "sf-tree-node"
                                (and has-kids? "has-children")
-                               (and (> depth 0) "is-collapsed")))
-              (data-fragment-id ,fid))
+                               (and has-kids? (> depth 0) "is-collapsed")))
+              (data-fragment-id ,fid)
+              ;; sidebar collapse state is its own; the same node can sit
+              ;; expanded in the main pane and folded here.
+              ,@(if has-kids? `((data-collapse-key ,(string-append "tree-" fid))) '()))
              (div ((class "sf-tree-row"))
                   ,@(if has-kids?
                         (list `(button ((type "button")
                                         (class "sf-toggle")
                                         (aria-expanded ,(if (> depth 0) "false" "true"))
-                                        (aria-label "toggle children")
-                                        (data-toggle ,(string-append "tree-" fid)))
+                                        (aria-label "toggle children"))
                                        "▸"))
                         (list `(span ((class "sf-toggle sf-toggle-empty")
                                       (aria-hidden "true")))))
@@ -374,33 +379,33 @@
 
 ;; ---- page shell -----------------------------------------------------------
 
-;; Collapse state: a class on .sf-node / .sf-tree-node, persisted by id.
-;; No framework, no build step; htmx swaps re-apply it via the same function.
+;; Collapse state: a class on .sf-node / .sf-tree-node, persisted per
+;; data-collapse-key. Unvisited keys keep whatever the server rendered, so
+;; render-time defaults survive. htmx swaps re-apply through the same pass.
 (define collapse-js
   #<<JS
 (function(){
-  var KEY='selfflowy.collapsed';
-  function load(){try{return new Set(JSON.parse(localStorage.getItem(KEY)||'[]'))}catch(e){return new Set()}}
-  var hidden=load();
-  function save(){localStorage.setItem(KEY,JSON.stringify(Array.from(hidden)))}
-  function key(node){return node.dataset.fragmentId||''}
+  var KEY='selfflowy.collapsed',state={};
+  try{state=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){state={}}
+  function set(n,c){
+    n.classList.toggle('is-collapsed',c);
+    var t=n.querySelector(':scope > .sf-row > .sf-toggle, :scope > .sf-tree-row > .sf-toggle');
+    if(t)t.setAttribute('aria-expanded',c?'false':'true');
+  }
   function apply(root){
-    (root||document).querySelectorAll('[data-fragment-id].has-children').forEach(function(n){
-      var c=hidden.has(key(n));
-      n.classList.toggle('is-collapsed',c);
-      var t=n.querySelector(':scope > .sf-row > .sf-toggle, :scope > .sf-tree-row > .sf-toggle');
-      if(t)t.setAttribute('aria-expanded',c?'false':'true');
+    (root||document).querySelectorAll('[data-collapse-key]').forEach(function(n){
+      var v=state[n.dataset.collapseKey];
+      set(n,v===undefined?n.classList.contains('is-collapsed'):v);
     });
   }
   document.addEventListener('click',function(e){
     var t=e.target.closest('.sf-toggle');if(!t)return;
-    var n=t.closest('[data-fragment-id]');if(!n||!n.classList.contains('has-children'))return;
+    var n=t.closest('[data-collapse-key]');if(!n)return;
     e.preventDefault();
     var c=!n.classList.contains('is-collapsed');
-    c?hidden.add(key(n)):hidden.delete(key(n));
-    n.classList.toggle('is-collapsed',c);
-    t.setAttribute('aria-expanded',c?'false':'true');
-    save();
+    state[n.dataset.collapseKey]=c;
+    set(n,c);
+    localStorage.setItem(KEY,JSON.stringify(state));
   });
   document.addEventListener('htmx:afterSwap',function(e){apply(e.target)});
   apply();
@@ -434,6 +439,12 @@ JS
                      ,main)
                ,@body-extra
                (script ,(cdata #f #f collapse-js)))))
+
+;; Serve this, not a bare xexpr: without the doctype browsers fall into
+;; quirks mode and the layout collapses. Fragments need no doctype —
+;; xexpr->string is enough for those.
+(define (page->html-string page)
+  (string-append "<!DOCTYPE html>\n" (xexpr->string page)))
 
 ;; ---- zoom -----------------------------------------------------------------
 

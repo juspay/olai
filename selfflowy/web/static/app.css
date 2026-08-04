@@ -239,7 +239,7 @@ a.sf-crumb:hover { color: var(--ink); text-decoration: underline; }
 .sf-children {
   margin-left: var(--indent);
   padding-left: 0.75rem;
-  border-left: 1px solid var(--line);
+  border-left: 1px solid color-mix(in srgb, var(--dim) 35%, var(--line));
 }
 
 .sf-node.is-collapsed > .sf-children { display: none; }
@@ -335,17 +335,29 @@ a.sf-crumb:hover { color: var(--ink); text-decoration: underline; }
   min-width: 0;
 }
 
+/* the bullet is the node; the box only shows up when it matters */
 .sf-check {
-  flex: 0 0 auto;
+  flex: 0 0 1.125rem;
+  width: 1.125rem;
+  height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0;
   border: 0;
   background: none;
-  color: var(--line);
+  color: var(--dim);
   font-size: 0.8125rem;
-  line-height: 1.5;
+  line-height: 1;
   cursor: pointer;
   user-select: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
 }
+
+.sf-row:hover .sf-check,
+.sf-check:focus-visible,
+.sf-check.is-done { opacity: 1; }
 
 button.sf-check:hover { color: var(--green); }
 
