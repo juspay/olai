@@ -1,6 +1,12 @@
-# Private task data — never commit
+# Belt-and-braces: never commit personal outline data if someone
+# accidentally drops a copy in the repo. Canonical data is outside:
+# $SELFFLOWY_HOME (default ~/Dropbox/Selfflowy-Srid/).
+/private/
 /Tasks.rkt
-/Tasks.html
+/Daily.rkt
+/Roadmap.rkt
+
+# Generated HTML views
 *.html
 !docs/**
 

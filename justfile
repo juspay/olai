@@ -3,8 +3,11 @@
 export PLTUSERHOME := env_var_or_default("PLTUSERHOME", justfile_directory() / ".plt-user")
 export PATH := PLTUSERHOME / ".local/share/racket/9.2/bin:" + env_var("PATH")
 
-# Default outlines for read commands (private Tasks + canonical roadmap)
-default_outlines := "Tasks.rkt examples/Roadmap.rkt"
+# Personal outline data (outside the repo). Override with SELFFLOWY_HOME.
+selfflowy_home := env_var_or_default("SELFFLOWY_HOME", env_var("HOME") + "/Dropbox/Selfflowy-Srid")
+
+# Default outlines for read commands: Tasks + Daily + live Roadmap (all data).
+default_outlines := selfflowy_home + "/Tasks.rkt " + selfflowy_home + "/Daily.rkt " + selfflowy_home + "/Roadmap.rkt"
 
 default:
     @just --list
@@ -15,7 +18,7 @@ install:
     raco pkg install --auto --skip-installed gregor markdown
     raco pkg install --auto --skip-installed --link {{justfile_directory()}}/selfflowy
 
-# Validate outline(s) (default: Tasks.rkt + examples/Roadmap.rkt)
+# Validate outline(s) (default: $SELFFLOWY_HOME/{Tasks,Daily,Roadmap}.rkt)
 check *args: install
     selfflowy check {{if args == "" { default_outlines } else { args }}}
 
@@ -27,7 +30,7 @@ tree *args: install
 agenda *args: install
     selfflowy agenda {{if args == "" { default_outlines } else { args }}}
 
-# Capture under Inbox
+# Capture under Inbox (default file: $SELFFLOWY_HOME/Tasks.rkt)
 add *args: install
     selfflowy add --no-commit {{args}}
 
@@ -35,25 +38,25 @@ add *args: install
 done *args: install
     selfflowy done --no-commit {{args}}
 
-# Render HTML (default: Tasks.rkt + Roadmap -> Tasks.html)
+# Render HTML (default: Dropbox outlines -> Tasks.html)
 html *args: install
     #!/usr/bin/env bash
     set -euo pipefail
     if [ -z "{{args}}" ]; then
       out=Tasks.html
       rm -f "$out"
-      selfflowy html --out "$out" Tasks.rkt examples/Roadmap.rkt
+      selfflowy html --out "$out" {{default_outlines}}
     else
-      # First path stems the default out name when a single file is given
       set -- {{args}}
       out="${1%.rkt}.html"
+      out="$(basename "$out")"
       rm -f "$out"
       selfflowy html --out "$out" "$@"
     fi
 
-# Re-render HTML whenever Tasks.rkt or the roadmap changes
+# Re-render HTML whenever personal outlines change
 watch: install
-    watchexec -w Tasks.rkt -w examples/Roadmap.rkt -c -- just html
+    watchexec -w "{{selfflowy_home}}" -c -- just html
 
 # Run unit tests
 test: install

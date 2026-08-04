@@ -24,7 +24,17 @@
 (define exit-validation 2)
 (define exit-not-found 3)
 
-(define default-file "Tasks.rkt")
+;; Personal outline data lives outside the repo (Dropbox by default).
+;; Override with SELFFLOWY_HOME. Auto-commit only fires when that dir is
+;; a git work tree; Dropbox alone is the sync layer (no-op otherwise).
+(define (selfflowy-home)
+  (define env (getenv "SELFFLOWY_HOME"))
+  (if (and env (non-empty-string? env))
+      (expand-user-path env)
+      (build-path (expand-user-path "~") "Dropbox" "Selfflowy-Srid")))
+
+(define default-file
+  (path->string (build-path (selfflowy-home) "Tasks.rkt")))
 
 (define (die code msg #:json? json? #:file [file #f] #:line [line #f] #:col [col #f])
   (if json?
@@ -491,7 +501,7 @@
    #:program "selfflowy add"
    #:once-each
    [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
-   [("--file") f "Outline file (default: Tasks.rkt)" (set! file-arg f)]
+   [("--file") f "Outline file (default: $SELFFLOWY_HOME/Tasks.rkt)" (set! file-arg f)]
    [("--date") d "ISO date or datetime (YYYY-MM-DD[THH:MM[:SS]])" (set! date d)]
    [("--description") t "Description text" (set! desc t)]
    [("--parent") p "Parent title or ^anchor (default: Inbox)" (set! parent p)]
@@ -510,7 +520,7 @@
    #:program "selfflowy done"
    #:once-each
    [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
-   [("--file") f "Outline file (default: Tasks.rkt)" (set! file-arg f)]
+   [("--file") f "Outline file (default: $SELFFLOWY_HOME/Tasks.rkt)" (set! file-arg f)]
    [("--undo") "Remove done state instead of marking done" (set! undo? #t)]
    [("--no-commit") "Do not auto-commit even in a git repo" (set! no-commit? #t)]
    #:args title-words
