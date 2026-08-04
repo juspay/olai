@@ -353,6 +353,81 @@
        (check-false (equal? (hash-ref j 'title) "^agent")))
      (λ () (delete-directory/files dir))))
 
+  ;; daily used to be the one write command that changed the outline behind
+  ;; git's back; the day and the @include that reaches it are one commit.
+  (test-case "daily auto-commits in a git repo"
+    (define home (make-temporary-file "sfdailygit~a" 'directory))
+    (dynamic-wind
+     void
+     (λ ()
+       (parameterize ([current-directory home])
+         (system* (find-executable-path "git") "init" "-q")
+         (system* (find-executable-path "git") "config" "user.email" "t@t.test")
+         (system* (find-executable-path "git") "config" "user.name" "t")
+         (display-to-file "#lang selfflowy\n" (build-path home "Daily.rkt")
+                          #:exists 'truncate)
+         (system* (find-executable-path "git") "add" "Daily.rkt")
+         (system* (find-executable-path "git") "commit" "-q" "-m" "init"))
+       (define-values (code out err)
+         (run-selfflowy
+          (list "daily" "--json" "--home" (path->string home)
+                "--date" "2026-08-04")))
+       (check-equal? code 0 (string-append out err))
+       (define j (parse-json out))
+       (check-equal? (hash-ref j 'committed) #t)
+       (define (log-subjects)
+         (with-output-to-string
+           (λ ()
+             (parameterize ([current-directory home])
+               (system* (find-executable-path "git") "log" "--pretty=%s")))))
+       (check-true (string-contains? (log-subjects) "daily: 2026-08-04")
+                   (log-subjects))
+       ;; the fragment and the root it is included from land in ONE commit
+       (check-equal? (length (regexp-match* #rx"daily: 2026-08-04" (log-subjects)))
+                     1)
+       (define dirty
+         (with-output-to-string
+           (λ ()
+             (parameterize ([current-directory home])
+               (system* (find-executable-path "git") "status" "--porcelain")))))
+       (check-equal? (string-trim dirty) "" dirty)
+       ;; nothing to do the second time: nothing to commit either
+       (define-values (c2 o2 e2)
+         (run-selfflowy
+          (list "daily" "--json" "--home" (path->string home)
+                "--date" "2026-08-04")))
+       (check-equal? c2 0 (string-append o2 e2))
+       (check-equal? (hash-ref (parse-json o2) 'committed) #f)
+       ;; and --no-commit leaves the change uncommitted
+       (define-values (c3 o3 e3)
+         (run-selfflowy
+          (list "daily" "--json" "--no-commit" "--home" (path->string home)
+                "--date" "2026-08-05")))
+       (check-equal? c3 0 (string-append o3 e3))
+       (check-equal? (hash-ref (parse-json o3) 'committed) #f))
+     (λ () (delete-directory/files home))))
+
+  ;; Every writer emits outline syntax, so the write path refuses a sexp file
+  ;; rather than each command remembering to.
+  (test-case "writes refuse a #lang selfflowy/sexp file"
+    (define dir (make-temporary-file "sfsexpguard~a" 'directory))
+    (define f (build-path dir "Tasks.rkt"))
+    (dynamic-wind
+     void
+     (λ ()
+       (define original "#lang selfflowy/sexp\n(t \"Ship it\")\n")
+       (display-to-file original f #:exists 'truncate)
+       (for ([args (in-list (list (list "add" "--json" "--no-commit"
+                                        "--file" (path->string f) "new")
+                                  (list "done" "--json" "--no-commit"
+                                        "--file" (path->string f) "Ship it")))])
+         (define-values (code out err) (run-selfflowy args))
+         (check-equal? code 2 (string-append out err))
+         (define msg (hash-ref (hash-ref (parse-json err) 'error) 'message))
+         (check-true (regexp-match? #px"sexp" msg) msg))
+       (check-equal? (file->string f) original))
+     (λ () (delete-directory/files dir))))
+
   (test-case "multi-file check: both ok + one-good-one-bad"
     (define dir (make-temporary-file "sfmulti~a" 'directory))
     (define good (build-path dir "good.rkt"))

@@ -15,15 +15,10 @@
          selfflowy/agenda
          selfflowy/calendar
          selfflowy/json-out
-         selfflowy/capture
-         selfflowy/done
-         selfflowy/move
          selfflowy/ics
-         selfflowy/daily
          selfflowy/dates
          selfflowy/load
-         selfflowy/resolve
-         selfflowy/edit
+         selfflowy/ops
          selfflowy/web/serve)
 (define exit-ok 0)
 (define exit-usage 1)
@@ -81,24 +76,6 @@
 
 (define (today-iso)
   (today-iso-string))
-
-;; Every command that writes goes through the one write path: unique temp,
-;; validate in a fresh namespace, atomic rename. `what` names the command in
-;; the error ("capture failed validation: …").
-(define (write-outline! path text json? what)
-  (with-handlers
-      ([exn:fail?
-        (λ (e) (die exit-validation (exn-message e) #:json? json? #:file path))])
-    (apply-outline-edit!
-     path text
-     #:on-invalid
-     (λ (err)
-       (die exit-validation
-            (format "~a failed validation: ~a" what (load-error-message err))
-            #:json? json?
-            #:file (load-error-file err)
-            #:line (load-error-line err)
-            #:col (load-error-col err))))))
 
 (define (format-check-plain path n anchors mirrors includes)
   (define extras
@@ -221,195 +198,138 @@
       (write-json-stdout (calendar->jsexpr cal))
       (displayln (format-calendar cal))))
 
-;; Resolve TITLE or ^anchor against the outline at `path`, once: which file
-;; defines it (may differ under @include) and which line in that file.
-(define (locate-in path title-or-anchor json?)
-  (define-values (tasks anchors includes) (load-outline path json?))
+;; ---- write commands: parse, call the op, render --------------------------
+;;
+;; Everything below is presentation. The ops (selfflowy/ops) do the work and
+;; know nothing about exit codes, JSON or stdout; `die` lives on this side of
+;; that line only.
+
+(define (exit-code-for kind)
+  (case kind
+    [(usage) exit-usage]
+    [(not-found) exit-not-found]
+    [else exit-validation]))
+
+;; Run an op, or die with the exit code its failure asked for.
+(define (run-op json? thunk)
   (with-handlers
-      ([exn:fail?
-        (λ (e) (die exit-validation (exn-message e) #:json? json? #:file path))])
-    (locate (outline path tasks anchors includes) title-or-anchor)))
+      ([exn:fail:op?
+        (λ (e)
+          (die (exit-code-for (exn:fail:op-kind e))
+               (exn-message e)
+               #:json? json?
+               #:file (exn:fail:op-file e)
+               #:line (exn:fail:op-line e)
+               #:col (exn:fail:op-col e)))]
+       [exn:fail?
+        (λ (e) (die exit-validation (exn-message e) #:json? json?))])
+    (thunk)))
+
+(define (committed-suffix committed?)
+  (if committed? ", committed" ""))
 
 (define (cmd-add json? file-arg date desc no-commit? parent title-parts)
   (when (null? title-parts)
     (die exit-usage "add requires a TITLE" #:json? json?))
   (define title (string-join title-parts " "))
-  (when (and date (not (valid-iso-date-string? date)))
-    (die exit-usage
-         (format "invalid --date ~s; expected YYYY-MM-DD or YYYY-MM-DDTHH:MM[:SS]" date)
-         #:json? json?))
-  (define date* (and date (normalize-date-string date)))
-  (define root-path
-    (simple-form-path
-     (path->complete-path (or file-arg default-file))))
-  ;; Route writes into the parent's defining file when --parent ^anchor.
-  (define path
-    (cond
-      [(and parent (regexp-match? #px"^\\^[A-Za-z0-9_-]+$" (string-trim parent)))
-       (located-file (locate-in root-path parent json?))]
-      [else root-path]))
-  (define original
-    (if (file-exists? path)
-        (file->string path)
-        "#lang selfflowy\n"))
-  (when (and (file-exists? path)
-             (regexp-match? #px"(?m:^#lang selfflowy/sexp)" original))
-    (die exit-validation
-         "add only writes outline syntax (#lang selfflowy), not selfflowy/sexp"
-         #:json? json?
-         #:file path))
-  (define-values (new-text line created-inbox?)
-    (with-handlers
-        ([exn:fail?
-          (λ (e)
-            (die exit-validation (exn-message e) #:json? json? #:file path))])
-      (append-capture original title
-                      #:date date*
-                      #:description desc
-                      #:parent parent)))
-  (write-outline! path new-text json? "capture")
-  (define committed?
-    (and (not no-commit?)
-         (try-git-commit path (format "capture: ~a" title))))
-  (define under
-    (cond
-      [(not parent) "Inbox"]
-      [else parent]))
+  (define r
+    (run-op json?
+            (λ ()
+              (ops-add! (or file-arg default-file) title
+                        #:date date
+                        #:description desc
+                        #:parent parent
+                        #:commit? (not no-commit?)))))
   (if json?
       (write-json-stdout
-       (ok-hash 'file (path->string path)
-                'title title
-                'date (nullish date*)
-                'description (nullish desc)
-                'parent (nullish parent)
-                'line line
-                'created_inbox created-inbox?
-                'committed committed?))
+       (ok-hash 'file (add-result-file r)
+                'title (add-result-title r)
+                'date (nullish (add-result-date r))
+                'description (nullish (add-result-description r))
+                'parent (nullish (add-result-parent r))
+                'line (add-result-line r)
+                'created_inbox (add-result-created-inbox? r)
+                'committed (add-result-committed? r)))
       (printf "added ~s under ~a in ~a (line ~a)~a\n"
-              title
-              under
-              path
-              line
-              (if committed? ", committed" ""))))
+              (add-result-title r)
+              (or (add-result-parent r) "Inbox")
+              (add-result-file r)
+              (add-result-line r)
+              (committed-suffix (add-result-committed? r)))))
 
 (define (cmd-done json? file-arg undo? no-commit? title-parts)
   (when (null? title-parts)
     (die exit-usage "done requires a TITLE" #:json? json?))
-  (define title (string-join title-parts " "))
-  (define root-path
-    (simple-form-path
-     (path->complete-path (or file-arg default-file))))
-  (unless (file-exists? root-path)
-    (die exit-not-found
-         (format "file not found: ~a" root-path)
-         #:json? json?
-         #:file root-path))
-  ;; Edit the defining file (may be an @include fragment), at the line the
-  ;; resolver picked — no second search, no second ambiguity error.
-  (define hit (locate-in root-path title json?))
-  (define path (located-file hit))
-  (define original (file->string path))
-  (when (regexp-match? #px"(?m:^#lang selfflowy/sexp)" original)
-    (die exit-validation
-         "done only writes outline syntax (#lang selfflowy), not selfflowy/sexp"
-         #:json? json?
-         #:file path))
-  ;; Resolved node title (not the raw ^anchor input).
-  (define resolved-title (located-title hit))
-  (define today (today-iso))
-  (define-values (new-text line done-val)
-    (with-handlers
-        ([exn:fail?
-          (λ (e)
-            (die exit-validation (exn-message e) #:json? json? #:file path))])
-      (if undo?
-          (let-values ([(t l) (undo-done-in-text original title
-                                                 #:at (located-index hit))])
-            (values t l (json-null)))
-          (let-values ([(t l) (mark-done-in-text original title today
-                                                 #:at (located-index hit))])
-            (values t l today)))))
-  (write-outline! path new-text json? "done")
-  (define commit-msg
-    (if undo?
-        (format "undone: ~a" resolved-title)
-        (format "done: ~a" resolved-title)))
-  (define committed?
-    (and (not no-commit?)
-         (try-git-commit path commit-msg)))
+  (define spec (string-join title-parts " "))
+  (define r
+    (run-op json?
+            (λ ()
+              (ops-done! (or file-arg default-file) spec (today-iso)
+                         #:undo? undo?
+                         #:commit? (not no-commit?)))))
   (if json?
       (write-json-stdout
-       (ok-hash 'file (path->string path)
-                'title resolved-title
-                'line line
-                'done done-val
-                'undone undo?
-                'committed committed?))
+       (ok-hash 'file (done-result-file r)
+                'title (done-result-title r)
+                'line (done-result-line r)
+                'done (nullish (done-result-done r))
+                'undone (done-result-undone? r)
+                'committed (done-result-committed? r)))
       (printf "~a ~s in ~a (line ~a)~a\n"
-              (if undo? "undone" "done")
-              resolved-title
-              path
-              line
-              (if committed? ", committed" ""))))
+              (if (done-result-undone? r) "undone" "done")
+              (done-result-title r)
+              (done-result-file r)
+              (done-result-line r)
+              (committed-suffix (done-result-committed? r)))))
 
 (define (cmd-move json? file-arg no-commit? clear? title-parts date-arg)
   (when (null? title-parts)
     (die exit-usage "move requires TITLE|^anchor" #:json? json?))
-  (when (and (not clear?) (not date-arg))
-    (die exit-usage
-         "move requires DATE (YYYY-MM-DD[THH:MM[:SS]]) or --clear"
-         #:json? json?))
-  (define title (string-join title-parts " "))
-  (define root-path
-    (simple-form-path
-     (path->complete-path (or file-arg default-file))))
-  (unless (file-exists? root-path)
-    (die exit-not-found
-         (format "file not found: ~a" root-path)
-         #:json? json?
-         #:file root-path))
-  (define hit (locate-in root-path title json?))
-  (define path (located-file hit))
-  (define original (file->string path))
-  (when (regexp-match? #px"(?m:^#lang selfflowy/sexp)" original)
-    (die exit-validation
-         "move only writes outline syntax (#lang selfflowy), not selfflowy/sexp"
-         #:json? json?
-         #:file path))
-  (define at (located-index hit))
-  (define-values (new-text line resolved-title date-val)
-    (with-handlers
-        ([exn:fail?
-          (λ (e)
-            (die exit-validation (exn-message e) #:json? json? #:file path))])
-      (if clear?
-          (let-values ([(t l title) (clear-date-in-text original title #:at at)])
-            (values t l title (json-null)))
-          (let-values ([(t l title d) (set-date-in-text original title date-arg
-                                                        #:at at)])
-            (values t l title d)))))
-  (write-outline! path new-text json? "move")
-  (define commit-msg
-    (if clear?
-        (format "move: ~a (cleared date)" resolved-title)
-        (format "move: ~a -> ~a" resolved-title date-val)))
-  (define committed?
-    (and (not no-commit?)
-         (try-git-commit path commit-msg)))
+  (define spec (string-join title-parts " "))
+  (define r
+    (run-op json?
+            (λ ()
+              (ops-move! (or file-arg default-file) spec date-arg
+                         #:clear? clear?
+                         #:commit? (not no-commit?)))))
   (if json?
       (write-json-stdout
-       (ok-hash 'file (path->string path)
-                'title resolved-title
-                'line line
-                'date date-val
-                'committed committed?))
+       (ok-hash 'file (move-result-file r)
+                'title (move-result-title r)
+                'line (move-result-line r)
+                'date (nullish (move-result-date r))
+                'committed (move-result-committed? r)))
       (printf "moved ~s in ~a (line ~a)~a~a\n"
-              resolved-title
-              path
-              line
-              (if clear? " date cleared"
-                  (format " -> ~a" date-val))
-              (if committed? ", committed" ""))))
+              (move-result-title r)
+              (move-result-file r)
+              (move-result-line r)
+              (if (move-result-date r)
+                  (format " -> ~a" (move-result-date r))
+                  " date cleared")
+              (committed-suffix (move-result-committed? r)))))
+
+(define (cmd-daily json? date-arg home-arg no-commit?)
+  (define r
+    (run-op json?
+            (λ ()
+              (ops-daily! (or home-arg (path->string (selfflowy-home)))
+                          (or date-arg (today-iso))
+                          #:commit? (not no-commit?)))))
+  (if json?
+      (write-json-stdout
+       (ok-hash 'day (daily-result-day r)
+                'file (daily-result-file r)
+                'created_month (daily-result-created-month? r)
+                'created_day (daily-result-created-day? r)
+                'line (daily-result-line r)
+                'committed (daily-result-committed? r)))
+      (printf "daily ~a in ~a (line ~a)~a~a~a\n"
+              (daily-result-day r)
+              (daily-result-file r)
+              (daily-result-line r)
+              (if (daily-result-created-month? r) ", created month" "")
+              (if (daily-result-created-day? r) ", created day" "")
+              (committed-suffix (daily-result-committed? r)))))
 
 (define (cmd-ics paths out-path)
   (define entries
@@ -461,7 +381,8 @@
   (eprintf "           [--parent TITLE|^anchor] [--no-commit] TITLE...\n")
   (eprintf "  done     [--json] [--file F] [--undo] [--no-commit] TITLE|^anchor\n")
   (eprintf "  move     [--json] [--file F] [--no-commit] [--clear] TITLE|^anchor DATE\n")
-  (eprintf "  daily    [--json] [--date YYYY-MM-DD] [--home DIR]  ensure today in Daily/\n")
+  (eprintf "  daily    [--json] [--date YYYY-MM-DD] [--home DIR] [--no-commit]\n")
+  (eprintf "           ensure today in Daily/\n")
   (eprintf "  ics      [--out PATH] [file ...]  RFC 5545 VCALENDAR of dated tasks\n")
   (eprintf "\n")
   (eprintf "exit codes: 0 ok | 1 usage | 2 validation/load | 3 not found\n")
@@ -610,51 +531,21 @@
    (set! file-args paths))
   (cmd-ics (resolve-files file-args #f) out-path))
 
-(define (cmd-daily json? date-arg home-arg)
-  (define day
-    (cond
-      [(not date-arg) (today-iso)]
-      [(bare-iso-date-title? date-arg) date-arg]
-      [else
-       (die exit-usage
-            (format "invalid --date ~s; expected YYYY-MM-DD" date-arg)
-            #:json? json?)]))
-  (define home
-    (or home-arg
-        (path->string (selfflowy-home))))
-  (define result
-    (with-handlers
-        ([exn:fail?
-          (λ (e)
-            (die exit-validation (exn-message e) #:json? json?))])
-      (ensure-daily-day! home day)))
-  (if json?
-      (write-json-stdout
-       (ok-hash 'day (hash-ref result 'day)
-                'file (hash-ref result 'file)
-                'created_month (hash-ref result 'created_month)
-                'created_day (hash-ref result 'created_day)
-                'line (hash-ref result 'line)))
-      (printf "daily ~a in ~a (line ~a)~a~a\n"
-              (hash-ref result 'day)
-              (hash-ref result 'file)
-              (hash-ref result 'line)
-              (if (hash-ref result 'created_month) ", created month" "")
-              (if (hash-ref result 'created_day) ", created day" ""))))
-
 (define (cli-daily)
   (define json? #f)
   (define date-arg #f)
   (define home-arg #f)
+  (define no-commit? #f)
   (command-line
    #:program "selfflowy daily"
    #:once-each
    [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
    [("--date") d "Day YYYY-MM-DD (default: today)" (set! date-arg d)]
    [("--home") h "Outline home (default: $SELFFLOWY_HOME)" (set! home-arg h)]
+   [("--no-commit") "Do not auto-commit even in a git repo" (set! no-commit? #t)]
    #:args ()
    (void))
-  (cmd-daily json? date-arg home-arg))
+  (cmd-daily json? date-arg home-arg no-commit?))
 
 (define (main)
   (define argv (current-command-line-arguments))

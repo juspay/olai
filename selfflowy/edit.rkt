@@ -13,11 +13,13 @@
 
 (require racket/file
          racket/path
+         racket/port
          racket/string
          selfflowy/load
          selfflowy/store)
 
-(provide apply-outline-edit!)
+(provide apply-outline-edit!
+         try-git-commit)
 
 ;; Replace `path` with `text`, but only if `text` still validates.
 ;;
@@ -34,6 +36,7 @@
                              #:on-invalid [on-invalid default-invalid]
                              #:on-applied [on-applied void])
   (define full (simple-form-path path))
+  (guard-sexp-file! full)
   ;; Same directory, always: rename is atomic only within one filesystem, and
   ;; a file's @include paths resolve relative to the file being validated.
   (define tmp (make-temporary-file "sf-edit~a.rkt" #f (path-only full)))
@@ -52,6 +55,56 @@
      (rename-file-or-directory tmp full #t)
      (on-applied full)
      #t]))
+
+;; Every writer emits outline syntax, so a #lang selfflowy/sexp file would be
+;; rewritten into a different language. Refuse here rather than in each
+;; command: the write path is where the rule can actually be enforced.
+(define (guard-sexp-file! full)
+  (when (and (file-exists? full)
+             (regexp-match? #px"(?m:^#lang selfflowy/sexp)" (file->string full)))
+    (error 'outline
+           "~a is #lang selfflowy/sexp; writes emit outline syntax (#lang selfflowy)"
+           full)))
+
+;; Auto-commit what a write applied — one path or several (an edit that lands
+;; in a fragment and its root is still one change). Only fires inside a git
+;; work tree; a Dropbox-only home no-ops (#f).
+(define (try-git-commit path-or-paths message)
+  (define paths
+    (if (list? path-or-paths) path-or-paths (list path-or-paths)))
+  (define git (find-executable-path "git"))
+  (cond
+    [(null? paths) #f]
+    [(not git) #f]
+    [else
+     (define dir (path-only (path->complete-path (car paths))))
+     (define fulls
+       (for/list ([p (in-list paths)])
+         (path->string (path->complete-path p))))
+     (define (git-run . args)
+       (define-values (sp out in err)
+         (apply subprocess #f #f #f git args))
+       (close-output-port in)
+       (void (port->string out))
+       (void (port->string err))
+       (close-input-port out)
+       (close-input-port err)
+       (subprocess-wait sp)
+       (subprocess-status sp))
+     (define-values (sp out in err)
+       (subprocess #f #f #f git "-C" (path->string dir)
+                   "rev-parse" "--show-toplevel"))
+     (close-output-port in)
+     (define _top (port->string out))
+     (close-input-port out)
+     (close-input-port err)
+     (subprocess-wait sp)
+     (cond
+       [(not (zero? (subprocess-status sp))) #f]
+       [else
+        (and (zero? (apply git-run "-C" (path->string dir) "add" "--" fulls))
+             (zero? (apply git-run "-C" (path->string dir) "commit"
+                           "-m" message "--" fulls)))])]))
 
 ;; The exn talks about the temp file; the user edited `path`.
 (define (edit-error e tmp path)

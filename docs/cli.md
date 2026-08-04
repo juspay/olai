@@ -27,9 +27,9 @@ Same codes for plain and `--json` modes.
   `serve`) accept **one or more** outline paths. The justfile defaults to
   `$SELFFLOWY_HOME/{Tasks,Daily,Roadmap}.rkt` (no `examples/` paths).
 - Personal data lives outside the repo. Override the directory with
-  `SELFFLOWY_HOME`. Auto-commit (`add` / `done` / `move`) only runs when the
-  directory of the file actually written is a git work tree; otherwise it
-  no-ops (`committed: false`) and Dropbox (or your sync) is the history layer.
+  `SELFFLOWY_HOME`. Auto-commit (`add` / `done` / `move` / `daily`) only runs
+  when the directory of the file actually written is a git work tree;
+  otherwise it no-ops (`committed: false`) and Dropbox (or your sync) is the history layer.
 - `--json` may appear after the subcommand where supported.
 
 ## `check [--json] [file ...]`
@@ -360,7 +360,7 @@ RFC 5545 `VCALENDAR` of all dated tasks (done included). Minimal writer —
 no catalog ics package. UID is `anchor@selfflowy` when present, else a
 stable hash of path/title/date. `DTSTART` is `VALUE=DATE` or local datetime.
 
-## `daily [--json] [--date YYYY-MM-DD] [--home DIR]`
+## `daily [--json] [--date YYYY-MM-DD] [--home DIR] [--no-commit]`
 
 Ensure a day node exists in the personal Daily structure under `$SELFFLOWY_HOME`
 (or `--home`):
@@ -369,14 +369,17 @@ Ensure a day node exists in the personal Daily structure under `$SELFFLOWY_HOME`
 - Root: `Daily.rkt` with `year > MonthName > @include Daily/YYYY-MM.rkt`
 
 Creates the month fragment and `@include` line on first use in a month;
-idempotent thereafter. Writes use add-style validate-then-rename.
+idempotent thereafter. Writes use add-style validate-then-rename, and
+auto-commit like the other write commands — the fragment and the root that
+includes it in ONE commit (`daily: YYYY-MM-DD`).
 
 ```json
 {"version":1,"ok":true,"day":"2026-08-04","file":".../Daily/2026-08.rkt",
- "created_month":true,"created_day":true,"line":2}
+ "created_month":true,"created_day":true,"line":2,"committed":true}
 ```
 
-Both `created_*` are `false` on every run after the first for that day.
+Both `created_*` are `false` on every run after the first for that day, and
+`committed` is `false` when there was nothing to write (or `--no-commit`).
 
 ## Write routing under `@include`
 

@@ -74,8 +74,11 @@
       (if (regexp-match? #px"\n$" body) body (string-append body "\n"))
       body))
 
+;; #:on-applied reaches the caller (ops-daily! commits with it).
+(define current-on-applied (make-parameter void))
+
 (define (write-validated path text)
-  (apply-outline-edit! path text))
+  (apply-outline-edit! path text #:on-applied (current-on-applied)))
 
 (define (make-parent-directory* path)
   (define-values (base name dir?) (split-path path))
@@ -88,7 +91,13 @@
     (display-to-file "#lang selfflowy\n" path #:exists 'error)))
 
 ;; Ensure day node exists. Returns hash of result fields (no version/ok).
-(define (ensure-daily-day! home day)
+;; #:on-applied is called with every file actually rewritten (0, 1 or 2 of
+;; them: the month fragment and the root that includes it).
+(define (ensure-daily-day! home day #:on-applied [on-applied void])
+  (parameterize ([current-on-applied on-applied])
+    (ensure-daily-day!* home day)))
+
+(define (ensure-daily-day!* home day)
   (define-values (y m) (parse-iso-day day))
   (define home-path (simple-form-path (expand-user-path home)))
   (define root (build-path home-path "Daily.rkt"))

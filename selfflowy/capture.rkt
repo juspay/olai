@@ -5,16 +5,13 @@
 
 (require racket/list
          racket/match
-         racket/path
-         racket/port
          racket/string
          selfflowy/lang/line)
 
 (provide format-capture-lines
          find-inbox-insert
          find-parent-insert
-         append-capture
-         try-git-commit)
+         append-capture)
 
 ;; Lines to insert for a new task under a parent at the given child indent.
 (define (format-capture-lines title #:indent [indent 2] #:date [date #f] #:description [desc #f])
@@ -153,34 +150,3 @@
           (+ line-count 2))))
   (values new-text actual-line create-inbox?))
 
-(define (try-git-commit file-path message)
-  (define dir (path-only (path->complete-path file-path)))
-  (define git (find-executable-path "git"))
-  (cond
-    [(not git) #f]
-    [else
-     (define (git-run . args)
-       (define-values (sp out in err)
-         (apply subprocess #f #f #f git args))
-       (close-output-port in)
-       (define _o (port->string out))
-       (define _e (port->string err))
-       (close-input-port out)
-       (close-input-port err)
-       (subprocess-wait sp)
-       (subprocess-status sp))
-     (define-values (sp out in err)
-       (subprocess #f #f #f git "-C" (path->string dir)
-                   "rev-parse" "--show-toplevel"))
-     (close-output-port in)
-     (define top (string-trim (port->string out)))
-     (close-input-port out)
-     (close-input-port err)
-     (subprocess-wait sp)
-     (cond
-       [(not (zero? (subprocess-status sp))) #f]
-       [else
-        (define full (path->string (path->complete-path file-path)))
-        (and (zero? (git-run "-C" (path->string dir) "add" "--" full))
-             (zero? (git-run "-C" (path->string dir) "commit" "-m" message
-                             "--" full)))])]))
