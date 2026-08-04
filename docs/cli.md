@@ -75,8 +75,9 @@ when there are none:
 }
 ```
 
-Top-level `ok` is false if any file failed. Per-file errors are in the array
-(stdout), not only on stderr.
+Top-level `ok` is false if any file failed. Per-file errors ride in the array
+on **stdout** and nothing goes to stderr — the single-file shape is the one
+that reports on stderr (see *Errors*). Exit is still 2.
 
 ## `tree [--json] [file ...]`
 
@@ -152,8 +153,9 @@ this key (element ids, permalinks, stored collapse state).
 Dated tasks relative to local today, **merged across all given files**. **Done
 tasks are excluded** even if they still have a `@date`. When more than one file
 is given, breadcrumbs are rooted at each file's basename
-(`Tasks.rkt > Inbox > Buy milk`). Plain mode is unstyled text. Empty groups
-omitted in plain mode; JSON always includes all three arrays (possibly empty).
+(`Tasks.rkt > Inbox > Buy milk`). Plain mode is unstyled text. Empty groups are
+omitted in plain mode, and an agenda with nothing in it prints `no dated tasks`;
+JSON always includes all three arrays (possibly empty).
 
 Plain:
 
@@ -219,14 +221,15 @@ Routes:
 | Route | Body |
 |-------|------|
 | `GET /` | HTML page (Workflowy-style skin from `selfflowy/web/render.rkt`) |
-| `GET /today` | today's Daily day node, zoomed; terse empty state when there is none yet |
+| `GET /today` | the first node titled with today's ISO date (the Daily day node), zoomed; terse empty state when there is none yet |
 | `GET /api/tree` | byte-identical to `selfflowy tree` |
 | `GET /api/agenda` | byte-identical to `selfflowy agenda --json` |
 | `GET /static/*` | files under `selfflowy/web/static/` |
 | anything else | `404`, terse `text/plain` |
 
-A node's permalink is `/#n-<key>` (`key` as in `tree` JSON). Anchored nodes
-also keep a plain `#<anchor>` target.
+A node's permalink is `/#n-<key>` (`key` as in `tree` JSON). Anchored nodes and
+bare-ISO day nodes also keep a plain `#<anchor>` / `#<YYYY-MM-DD>` target, so
+links people wrote by hand still resolve.
 
 Paths that climb out of `static/` are 404, not files.
 
@@ -244,7 +247,9 @@ A file is broken for a moment during every edit, so the two surfaces differ:
   `file:line:col`, in a banner at the top of the page. With no last-good
   snapshot (the first load failed) it answers `500` with the same banner.
 
-Live push to the browser arrives with SSE.
+There is **no live push yet**: the page ships the htmx SSE extension but the
+server opens no event stream, so a reload is still a reload. That is the next
+thing to land here.
 
 Exit codes: 0 on clean shutdown, 1 on bad flags or a port it cannot bind,
 3 when an outline path does not exist.
