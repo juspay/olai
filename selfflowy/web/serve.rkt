@@ -38,7 +38,8 @@
 
 (provide start-server)
 
-(define-runtime-path static-dir "static")
+;; static files: render owns the directory and the URL prefix (it also
+;; writes the <head> that links them); this module only mounts them.
 (define-runtime-path mime-types-path
   (list 'lib "default-web-root/mime.types" "web-server"))
 
@@ -109,7 +110,7 @@
 
 (define (page-title files)
   (if (= (length files) 1)
-      (path->string (file-name-from-path (car files)))
+      (file-label (car files))
       "selfflowy"))
 
 (define (page-handler st)
@@ -118,7 +119,7 @@
       (define files-data (snapshot-files-data snap))
       (html-response
        (page->html-string
-        (render-page (render-outline files-data)
+        (render-page (render-outline files-data #:today (today-iso-string))
                      #:title (page-title (store-files st))
                      #:sidebar (render-sidebar files-data)
                      #:banner (and err (error-banner err))))))))
@@ -149,11 +150,11 @@
      [else (λ (req) (not-found-response))]))
   route)
 
-;; /static/foo.css -> static-dir/foo.css. make-url->path refuses anything that
-;; climbs out of the base ("/static/../..") — we turn that into a plain 404
-;; instead of an error page.
+;; /static/foo.css -> the render collection's static/foo.css. make-url->path
+;; refuses anything that climbs out of the base ("/static/../..") — we turn
+;; that into a plain 404 instead of an error page.
 (define static-url->path
-  (let ([u->p (make-url->path static-dir)])
+  (let ([u->p (make-url->path (web-static-dir))])
     (λ (u)
       (define rest (if (pair? (url-path u)) (cdr (url-path u)) '()))
       (with-handlers ([exn:fail? (λ (_e) (next-dispatcher))])
@@ -161,7 +162,7 @@
 
 (define (make-dispatcher st)
   (sequencer:make
-   (filter:make #rx"^/static/"
+   (filter:make (regexp (string-append "^" (regexp-quote web-static-prefix)))
                 (files:make #:url->path static-url->path
                             #:path->mime-type (make-path->mime-type mime-types-path)
                             #:indices '()))

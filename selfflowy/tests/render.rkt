@@ -4,6 +4,7 @@
 ;; `today` is always passed in.
 
 (require rackunit
+         racket/file
          racket/string
          xml
          file/sha1
@@ -73,8 +74,8 @@
     (check-true (string-contains? s "aria-expanded=\"false\"") s))
 
   (test-case "anchored node keeps a plain #anchor target for mirror links"
-    (define s (xstr (render-node-fragment (tk "Ship" #f #f '() #:id "ship")
-                                          )))
+    (define s (xstr (render-node-fragment (tk "Ship" #f #f (quote ()) #:id "ship")
+                                          #:today "2026-08-04")))
     (check-true (string-contains? s "id=\"n-ship\"") s)
     (check-true (string-contains? s "class=\"sf-anchor\" id=\"ship\"") s))
 
@@ -83,43 +84,49 @@
     (define parent (tk "Holder" #f #f (list (mirror-ref "a1"))))
     (define s (xstr (render-node-fragment parent
                                           #:anchors (hash "a1" target)
-                                          )))
+                                          #:today "2026-08-04")))
     (check-true (string-contains? s "Anchored") s)
     (check-true (string-contains? s "class=\"sf-mirror\"") s)
     (check-true (string-contains? s "href=\"#a1\"") s)
     ;; unresolved mirror does not blow up
     (define s2 (xstr (render-node-fragment (tk "Holder" #f #f (list (mirror-ref "nope")))
-                                           #:anchors (hash))))
+                                           #:anchors (hash) #:today "2026-08-04")))
     (check-true (string-contains? s2 "sf-unresolved") s2)
     (check-true (string-contains? s2 "(unresolved)") s2))
 
   (test-case "toggle-base wires htmx check-off; default is inert"
-    (define plain (xstr (render-node-fragment (tk "T" #f #f '() #:id "t1"))))
+    (define plain (xstr (render-node-fragment (tk "T" #f #f (quote ())  #:id "t1")
+                                              #:today "2026-08-04")))
     (check-false (string-contains? plain "hx-post") plain)
     (check-true (string-contains? plain "<span class=\"sf-check\"") plain)
-    (define hx (xstr (render-node-fragment (tk "T" #f #f '() #:id "t1")
+    (define hx (xstr (render-node-fragment (tk "T" #f #f (quote ()) #:id "t1")
+                                           #:today "2026-08-04"
                                            #:toggle-base "/toggle/")))
     (check-true (string-contains? hx "hx-post=\"/toggle/t1\"") hx)
     (check-true (string-contains? hx "hx-target=\"#n-t1\"") hx)
     (check-true (string-contains? hx "hx-swap=\"outerHTML\"") hx))
 
   (test-case "zoom-base makes the bullet a zoom link"
-    (define s (xstr (render-node-fragment (tk "T" #f #f '() #:id "t1")
+    (define s (xstr (render-node-fragment (tk "T" #f #f (quote ()) #:id "t1")
+                                          #:today "2026-08-04"
                                           #:zoom-base "/z/")))
     (check-true (string-contains? s "href=\"/z/t1\"") s)
-    (define s2 (xstr (render-node-fragment (tk "T" #f #f '() #:id "t1"))))
+    (define s2 (xstr (render-node-fragment (tk "T" #f #f (quote ()) #:id "t1")
+                                           #:today "2026-08-04")))
     (check-false (string-contains? s2 "sf-bullet-link") s2))
 
   ;; ---- done / dates / tags (carried over from the old html tests) ---------
 
   (test-case "done task renders checked box and strikethrough class"
-    (define s (xstr (render-node-fragment (tk "Done item" #f #f '() #:done #t))))
+    (define s (xstr (render-node-fragment (tk "Done item" #f #f (quote ()) #:done #t)
+                                          #:today "2026-08-04")))
     (check-true (string-contains? s "☑") s)
     (check-true (string-contains? s "sf-check is-done") s)
     (check-true (string-contains? s "sf-title is-done") s)
     (check-true (string-contains? s "Done item") s)
-    (define s2 (xstr (render-node-fragment (tk "Stamped" "2026-01-01" #f '()
-                                               #:done "2026-01-02"))))
+    (define s2 (xstr (render-node-fragment (tk "Stamped" "2026-01-01" #f (quote ())
+                                               #:done "2026-01-02")
+                                           #:today "2026-08-04")))
     (check-true (string-contains? s2 "☑") s2)
     (check-true (string-contains? s2 "sf-node is-done") s2))
 
@@ -164,7 +171,8 @@
     (check-false (string-contains? s-year "sf-day") s-year))
 
   (test-case "tag pills outside code; code keeps #tag text"
-    (define s1 (xstr (render-node-fragment (tk "Ship #lang work" #f #f '()))))
+    (define s1 (xstr (render-node-fragment (tk "Ship #lang work" #f #f (quote ()))
+                                           #:today "2026-08-04")))
     (check-true (string-contains? s1 "sf-pill sf-tag") s1)
     (check-true (string-contains? s1 "#lang") s1)
     (define s2 (xstr* (title->inline-xexprs "see `code #notag` please")))
@@ -221,14 +229,16 @@
     (define s (xstr* (title->inline-xexprs "hi <script>alert(1)</script> & ok")))
     (check-false (string-contains? s "<script") s)
     (check-true (string-contains? s "alert(1)") s)
-    (define node (xstr (render-node-fragment (tk "A <b>x</b> & y \"q\"" #f #f '()))))
+    (define node (xstr (render-node-fragment (tk "A <b>x</b> & y \"q\"" #f #f (quote ()))
+                                             #:today "2026-08-04")))
     (check-false (regexp-match? #rx"<b[ >]" node) node)
     (check-true (string-contains? node "&amp;") node)
     (check-true (string-contains? node "x") node)
     (define bad (xstr* (title->inline-xexprs "[x](javascript:alert(1))")))
     (check-false (string-contains? bad "javascript:") bad)
     ;; a scripted title cannot escape its attribute either
-    (define attrs (xstr (render-node-fragment (tk "2026-08-03" #f #f '() #:id "q\"x"))))
+    (define attrs (xstr (render-node-fragment (tk "2026-08-03" #f #f (quote ()) #:id "q\"x")
+                                              #:today "2026-08-04")))
     (check-false (regexp-match? #rx"id=\"q\"x\"" attrs) attrs))
 
   (test-case "note markdown lists survive sanitizing"
@@ -322,10 +332,10 @@
     (define fd (files (list "Tasks.rkt"
                             (list (tk "Root" #f #f (list (tk "Kid" #f #f '() #:id "kid"))))
                             (hash))))
-    (define s (xstr (render-zoom (outline-index fd) "kid")))
+    (define s (xstr (render-zoom (outline-index fd) "kid" #:today "2026-08-04")))
     (check-true (string-contains? s "id=\"n-kid\"") s)
     (check-true (string-contains? s "Kid") s)
-    (define miss (xstr (render-zoom (outline-index fd) "pdeadbeef")))
+    (define miss (xstr (render-zoom (outline-index fd) "pdeadbeef" #:today "2026-08-04")))
     (check-true (string-contains? miss "No such node.") miss))
 
   ;; ---- page shell ---------------------------------------------------------
@@ -339,13 +349,13 @@
     (check-true (string-contains? s "href=\"/static/app.css\"") s)
     (check-true (string-contains? s "src=\"/static/htmx.min.js\"") s)
     (check-true (string-contains? s "src=\"/static/sse.js\"") s)
+    (check-true (string-contains? s "src=\"/static/collapse.js\"") s)
     (check-false (string-contains? s "tailwind") s)
     (check-false (string-contains? s "cdn.") s)
     (check-true (string-contains? s "<aside class=\"sf-sidebar\"") s)
     (check-true (string-contains? s "<main class=\"sf-main\">") s)
-    ;; the collapse script is inline and persists to localStorage
-    (check-true (string-contains? s "selfflowy.collapsed") s)
-    (check-true (string-contains? s "localStorage") s)
+    ;; no inline script: every asset is a cacheable file under /static/
+    (check-false (string-contains? s "localStorage") s)
     ;; served form carries the doctype (no quirks mode)
     (check-true (string-prefix? (page->html-string (render-page '(div))) "<!DOCTYPE html>")))
 
@@ -368,5 +378,22 @@
     (check-false (string-contains? (xstr (render-page '(div))) "sse-connect") s))
 
   (test-case "collapse script stays tiny and framework-free"
-    (check-true (< (length (string-split collapse-js "\n")) 30) collapse-js)
-    (check-false (string-contains? collapse-js "require") collapse-js)))
+    (define js
+      (file->string (build-path (web-static-dir) "collapse.js")))
+    (check-true (< (length (string-split js "\n")) 40) js)
+    (check-false (string-contains? js "require") js)
+    (check-true (string-contains? js "selfflowy.collapsed") js)
+    (check-true (string-contains? js "localStorage") js))
+
+  ;; ---- file sections (the watcher's re-render unit) ------------------------
+
+  (test-case "a file section is addressable on its own"
+    (define entry (list "Tasks.rkt" (list (tk "Milk" #f #f '())) (hash)))
+    (define s (xstr (render-file-section entry #:today "2026-08-04")))
+    (check-true (string-prefix? s "<section class=\"sf-file\"") s)
+    (check-true (string-contains? s "id=\"sf-file-Tasks_rkt\"") s)
+    (check-true (string-contains? s "data-file=\"Tasks.rkt\"") s)
+    (check-true (string-contains? s "Milk") s)
+    ;; the page is just its sections
+    (define page (xstr (render-outline (list entry) #:today "2026-08-04")))
+    (check-true (string-contains? page s) page)))

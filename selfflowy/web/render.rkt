@@ -31,20 +31,36 @@
          render-page
          render-zoom
          ;; helpers the server needs to route/lookup
+         render-file-section
          page->html-string
          render-error-banner
          file-label
          node-element-id
          web-static-dir
-         collapse-js
+         web-static-prefix
+         web-stylesheets
+         web-scripts
          ;; re-exported markdown surface (render-time only)
          title->inline-xexprs
          note->xexprs
          sanitize-xexpr)
 
-;; Where the server mounts /static/ from.
+;; ---- static assets --------------------------------------------------------
+;;
+;; One owner for the whole /static/ surface: the directory the server mounts,
+;; the URL prefix it mounts it at, and the files the page pulls in. No JS or
+;; CSS lives in this module — a script that changes with every SSE tweak has
+;; no business recompiling a Racket module, and browsers cannot cache it.
+
 (define-runtime-path static-dir "static")
 (define (web-static-dir) static-dir)
+
+(define web-static-prefix "/static/")
+
+(define web-stylesheets '("app.css"))
+(define web-scripts '("htmx.min.js" "sse.js" "collapse.js"))
+
+(define (static-href name) (string-append web-static-prefix name))
 
 ;; ---- element ids ----------------------------------------------------------
 
@@ -180,13 +196,12 @@
 (define (render-node-fragment tk
                               #:anchors [anchors (hash)]
                               #:site [site #f]
-                              #:today [today #f]
+                              #:today today
                               #:mirror-of [mirror-of #f]
                               #:zoom-base [zoom-base #f]
                               #:toggle-base [toggle-base #f]
                               #:collapsed? [collapsed? #f])
   (define title (task-title tk))
-  (define today* (or today (today-iso-string)))
   (define key (task-key tk))
   ;; where this copy of the node sits: #f at its defining site
   (define qkey (site-key site key))
@@ -196,7 +211,7 @@
   (define iso-day (and (bare-iso-date-title? title) title))
   (define title-el
     (if iso-day
-        (day-pill-xexpr iso-day today* done?)
+        (day-pill-xexpr iso-day today done?)
         `(span ((class ,(classes "sf-title" (and done? "is-done"))))
                ,@(map style-md-xexpr (title->inline-xexprs title)))))
   (define row
@@ -230,7 +245,7 @@
                           '())
                     ,title-el
                     ,@(if (task-date tk)
-                          (list (date-pill-xexpr (task-date tk) today* done?))
+                          (list (date-pill-xexpr (task-date tk) today done?))
                           '()))
                ,@(if (task-description tk)
                      (list `(div ((class ,(classes "sf-note" (and done? "is-done"))))
@@ -252,35 +267,44 @@
                                           #:anchors anchors
                                           #:site site
                                           #:owner qkey
-                                          #:today today*
+                                          #:today today
                                           #:zoom-base zoom-base
                                           #:toggle-base toggle-base))))
              '())))
 
 ;; ---- main pane ------------------------------------------------------------
 
+;; One file's section. This is the natural re-render unit for a watcher: a
+;; save touches one file, and #sf-file-<label> is what it swaps.
+(define (render-file-section entry
+                             #:today today
+                             #:zoom-base [zoom-base #f]
+                             #:toggle-base [toggle-base #f])
+  (match-define (list label tasks anchors) (car (normalize-files-data (list entry))))
+  `(section ((class "sf-file")
+             (id ,(string-append "sf-file-" (id-safe label)))
+             (data-file ,label))
+            (h2 ((class "sf-file-title")) ,label)
+            (ul ((class "sf-outline"))
+                ,@(for/list ([tk (in-list tasks)])
+                    (render-child tk
+                                  #:anchors anchors
+                                  #:site #f
+                                  #:owner (id-safe label)
+                                  #:today today
+                                  #:zoom-base zoom-base
+                                  #:toggle-base toggle-base)))))
+
 (define (render-outline files-data
-                        #:today [today #f]
+                        #:today today
                         #:zoom-base [zoom-base #f]
                         #:toggle-base [toggle-base #f])
-  (define today* (or today (today-iso-string)))
-  (define entries (normalize-files-data files-data))
-  (define (file-list label tasks anchors)
-    `(ul ((class "sf-outline"))
-         ,@(for/list ([tk (in-list tasks)])
-             (render-child tk
-                           #:anchors anchors
-                           #:site #f
-                           #:owner (id-safe label)
-                           #:today today*
-                           #:zoom-base zoom-base
-                           #:toggle-base toggle-base))))
   `(div ((class "sf-pane") (id "sf-outline"))
-        ,@(for/list ([e (in-list entries)])
-            (match-define (list label tasks anchors) e)
-            `(section ((class "sf-file") (data-file ,label))
-                      (h2 ((class "sf-file-title")) ,label)
-                      ,(file-list label tasks anchors)))))
+        ,@(for/list ([e (in-list files-data)])
+            (render-file-section e
+                                 #:today today
+                                 #:zoom-base zoom-base
+                                 #:toggle-base toggle-base))))
 
 ;; ---- chrome ---------------------------------------------------------------
 
@@ -372,40 +396,6 @@
 
 ;; ---- page shell -----------------------------------------------------------
 
-;; Collapse state: a class on .sf-node / .sf-tree-node, persisted per
-;; data-collapse-key. Unvisited keys keep whatever the server rendered, so
-;; render-time defaults survive. htmx swaps re-apply through the same pass.
-(define collapse-js
-  #<<JS
-(function(){
-  var KEY='selfflowy.collapsed',state={};
-  try{state=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){state={}}
-  function set(n,c){
-    n.classList.toggle('is-collapsed',c);
-    var t=n.querySelector(':scope > .sf-row > .sf-toggle, :scope > .sf-tree-row > .sf-toggle');
-    if(t)t.setAttribute('aria-expanded',c?'false':'true');
-  }
-  function apply(root){
-    (root||document).querySelectorAll('[data-collapse-key]').forEach(function(n){
-      var v=state[n.dataset.collapseKey];
-      set(n,v===undefined?n.classList.contains('is-collapsed'):v);
-    });
-  }
-  document.addEventListener('click',function(e){
-    var t=e.target.closest('.sf-toggle');if(!t)return;
-    var n=t.closest('[data-collapse-key]');if(!n)return;
-    e.preventDefault();
-    var c=!n.classList.contains('is-collapsed');
-    state[n.dataset.collapseKey]=c;
-    set(n,c);
-    localStorage.setItem(KEY,JSON.stringify(state));
-  });
-  document.addEventListener('htmx:afterSwap',function(e){apply(e.target)});
-  apply();
-})();
-JS
-  )
-
 ;; A file is broken for a moment during every edit. The page keeps the last
 ;; good content and says so here, with the file:line:col of the offending
 ;; form — the same location the JSON errors carry.
@@ -430,9 +420,10 @@ JS
                  (content "width=device-width, initial-scale=1, viewport-fit=cover")))
           (meta ((name "color-scheme") (content "light dark")))
           (title ,title)
-          (link ((rel "stylesheet") (href "/static/app.css")))
-          (script ((src "/static/htmx.min.js") (defer "defer")))
-          (script ((src "/static/sse.js") (defer "defer")))
+          ,@(for/list ([name (in-list web-stylesheets)])
+              `(link ((rel "stylesheet") (href ,(static-href name)))))
+          ,@(for/list ([name (in-list web-scripts)])
+              `(script ((src ,(static-href name)) (defer "defer"))))
           ,@head-extra)
          (body ((class "sf-body")
                 ,@(if sse-connect
@@ -445,8 +436,7 @@ JS
                      (div ((class "sf-banner-slot") (id "sf-banner"))
                           ,@(if banner (list banner) '()))
                      ,main)
-               ,@body-extra
-               (script ,(cdata #f #f collapse-js)))))
+               ,@body-extra)))
 
 ;; Serve this, not a bare xexpr: without the doctype browsers fall into
 ;; quirks mode and the layout collapses. Fragments need no doctype —
@@ -464,7 +454,7 @@ JS
 ;; recomputes an id or walks a tree — zoom is a hash lookup.
 (define (render-zoom index key
                      #:anchors [anchors (hash)]
-                     #:today [today #f]
+                     #:today today
                      #:zoom-base [zoom-base #f]
                      #:toggle-base [toggle-base #f]
                      #:home-href [home-href "/"])

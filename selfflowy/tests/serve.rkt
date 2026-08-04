@@ -110,6 +110,13 @@
                    (format "~a" headers))
        (check-true (string-contains? body "selfflowy") body))))
 
+  (test-case "GET /static/collapse.js serves the collapse script"
+    (with-server
+     (λ (port f)
+       (define-values (code headers body) (GET port "/static/collapse.js"))
+       (check-equal? code 200 body)
+       (check-true (string-contains? body "selfflowy.collapsed") body))))
+
   (test-case "unknown path is a terse 404"
     (with-server
      (λ (port f)

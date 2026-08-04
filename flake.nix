@@ -224,6 +224,8 @@
                                               (quote version)))
                          (error (quote smoke) "unexpected /api/tree JSON"))'
             curl -sf -o app.css http://127.0.0.1:8099/static/app.css
+            curl -sf -o collapse.js http://127.0.0.1:8099/static/collapse.js
+            grep -q "selfflowy.collapsed" collapse.js
             test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8099/nope)" = 404
 
             # Reload after a save. This is the check that matters in the
