@@ -24,6 +24,9 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
   has tests; keep them passing.
 * Markdown is render-time only (html). Strings in the struct/JSON stay
   verbatim.
+* Code organization/review: https://kolu.dev/blog/hickey-lowy/ — separate
+  spatial (complected concepts, Hickey) and temporal (volatility mismatches,
+  Lowy) passes; ship only when both lenses go quiet.
 
 ## LAYERING
 
