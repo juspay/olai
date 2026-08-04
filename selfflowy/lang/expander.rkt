@@ -21,7 +21,9 @@
          racket/string
          racket/path
          file/sha1
+         selfflowy/lang/tags
          (for-syntax racket/base
+                     selfflowy/lang/tags
                      syntax/parse
                      racket/string
                      racket/list
@@ -48,6 +50,7 @@
          mirror-ref?
          mirror-ref-anchor
          title-tags
+         tag-rx
          valid-anchor-id?
          validate-task-tree!
          find-task-by-id
@@ -69,20 +72,6 @@
 
 (define (valid-anchor-id? s)
   (and (string? s) (regexp-match? #px"^[A-Za-z0-9_-]+$" s)))
-
-(define (title-tags title)
-  (define raw
-    (regexp-match* #px"#([A-Za-z0-9_-]+)"
-                   title
-                   #:match-select (λ (m) (cadr m))))
-  (remove-duplicates raw))
-
-(define-for-syntax (title-tags/stx title)
-  (define raw
-    (regexp-match* #px"#([A-Za-z0-9_-]+)"
-                   title
-                   #:match-select (λ (m) (cadr m))))
-  (remove-duplicates raw))
 
 (define-for-syntax (valid-anchor-id?/stx s)
   (and (string? s) (regexp-match? #px"^[A-Za-z0-9_-]+$" s)))
@@ -637,7 +626,7 @@
 (define-syntax (t stx)
   (syntax-parse stx
     [(_ title:str kw:t-kwargs child:child-form ...)
-     (define tags (title-tags/stx (syntax-e #'title)))
+     (define tags (title-tags (syntax-e #'title)))
      (define file (syntax-source-path stx))
      (with-syntax ([tags-lit (datum->syntax stx tags)]
                    [file-lit (datum->syntax stx file)])

@@ -9,7 +9,9 @@
 
 (require racket/list
          racket/match
-         (only-in markdown parse-markdown))
+         (only-in markdown parse-markdown)
+         ;; the tag grammar has one owner; this module only draws the pills
+         (only-in selfflowy/lang/tags tag-rx))
 
 (provide sanitize-xexpr
          title->inline-xexprs
@@ -146,7 +148,7 @@
 
 (define (add-tag-pills pieces)
   ;; Tag pills only in text nodes outside <code>. Code wins over #tags.
-  (define re #px"#[A-Za-z0-9_-]+")
+  (define re tag-rx)
   (define (split-text s)
     (define parts '())
     (let loop ([pos 0])
