@@ -3,8 +3,8 @@
 Agents are the primary users. Prefer `--json`. Fields within a `version` are
 **append-only**; a bump of `version` is a breaking change.
 
-**Human view is HTML** (`selfflowy html`). There is no ANSI terminal tree.
-Agents use `tree` / `check` / `agenda --json`.
+**Human view is the web app** (`selfflowy/web`). There is no ANSI terminal
+tree and no static HTML export. Agents use `tree` / `check` / `agenda --json`.
 
 ## Exit codes
 
@@ -23,7 +23,7 @@ Same codes for plain and `--json` modes.
   `$SELFFLOWY_HOME/Tasks.rkt` (default home:
   `~/Dropbox/Selfflowy-Srid`). `add` / `done` always target one file via
   `--file`, same default.
-- **Read commands** (`check` / `tree` / `agenda` / `calendar` / `html` / `ics`)
+- **Read commands** (`check` / `tree` / `agenda` / `calendar` / `ics`)
   accept **one or more** outline paths. The justfile defaults to
   `$SELFFLOWY_HOME/{Tasks,Daily,Roadmap}.rkt` (no `examples/` paths).
 - Personal data lives outside the repo. Override the directory with
@@ -72,7 +72,7 @@ Top-level `ok` is false if any file failed. Per-file errors are in the array
 ## `tree [--json] [file ...]`
 
 **Always JSON** (the task forest). `--json` is accepted as a no-op for compat.
-Humans should use `html`.
+Humans should use the web app.
 
 Single file:
 
@@ -150,7 +150,7 @@ JSON stdout:
 Group **dated** tasks by calendar day for one month (default: current).
 **Done tasks are included** (JSON `done` is `true` or a timestamp). Days that
 have a bare-ISO day node in Daily-style outlines set `day_node: true` (for
-html deep-links). Multi-file merge like agenda.
+web deep-links). Multi-file merge like agenda.
 
 ```json
 {
@@ -167,27 +167,6 @@ html deep-links). Multi-file merge like agenda.
   ]
 }
 ```
-
-## `html [--out PATH] [file ...]`
-
-Render an interactive HTML **tree** plus a **month calendar** (Mon-start
-grid, prev/current/next months, vanilla JS nav). Day cells list `@date`
-items (done = muted/struck) and link day numbers to `#YYYY-MM-DD` when a
-bare-ISO day node exists. Bare ISO titles in the tree render as friendly
-pills (`Mon, Aug 3`) — display-only; the file keeps ISO. No `--json` —
-HTML is the output format. Titles/notes use Markdown at render time only
-(smart dashes/quotes normalized to plain ASCII). With multiple files, each
-file is a top-level section (`<h2>` = basename) above its tree.
-
-- Default: write the document to **stdout** (pipe-friendly).
-- `--out PATH`: write a file and print the absolute path on stdout.
-
-```
-$ selfflowy html --out /tmp/all.html Tasks.rkt examples/Roadmap.rkt
-/tmp/all.html
-```
-
-Exit codes same as other read commands (0 / 1 / 2 / 3).
 
 ## `serve [--port N] [--bind ADDR] [file ...]`
 
@@ -209,7 +188,7 @@ Routes (WP1 skeleton — more land with the real UI):
 
 | Route | Body |
 |-------|------|
-| `GET /` | HTML page from the same renderer as `html` (placeholder markup) |
+| `GET /` | HTML page (Workflowy-style skin from `selfflowy/web/render.rkt`) |
 | `GET /api/tree` | byte-identical to `selfflowy tree` |
 | `GET /api/agenda` | byte-identical to `selfflowy agenda --json` |
 | `GET /static/*` | files under `selfflowy/web/static/` |
@@ -224,6 +203,9 @@ updates arrive with SSE.
 
 Exit codes: 0 on clean shutdown, 1 on bad flags or a port it cannot bind,
 3 when an outline path does not exist.
+
+There is no static HTML export — `curl http://127.0.0.1:8080/ > snap.html`
+if you want one.
 
 ## `add [--json] [--file F] [--date ISO] [--description TEXT] [--parent TITLE|^anchor] [--no-commit] TITLE...`
 

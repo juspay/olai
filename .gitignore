@@ -6,10 +6,6 @@
 /Daily.rkt
 /Roadmap.rkt
 
-# Generated HTML views
-*.html
-!docs/**
-
 # Racket
 compiled/
 *.zo

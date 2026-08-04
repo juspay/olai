@@ -22,7 +22,7 @@ install:
 check *args: install
     selfflowy check {{if args == "" { default_outlines } else { args }}}
 
-# Outline(s) as JSON (agents; human view is html)
+# Outline(s) as JSON (agents; human view is the web app)
 tree *args: install
     selfflowy tree {{if args == "" { default_outlines } else { args }}}
 
@@ -66,22 +66,6 @@ done *args: install
 # Ensure today's day node in $SELFFLOWY_HOME Daily/YYYY-MM.rkt
 daily *args: install
     selfflowy daily {{args}}
-
-# Render HTML (default: Dropbox outlines -> Tasks.html)
-html *args: install
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [ -z "{{args}}" ]; then
-      out=Tasks.html
-      rm -f "$out"
-      selfflowy html --out "$out" {{default_outlines}}
-    else
-      set -- {{args}}
-      out="${1%.rkt}.html"
-      out="$(basename "$out")"
-      rm -f "$out"
-      selfflowy html --out "$out" "$@"
-    fi
 
 # Serve the web view (default: Dropbox outlines on 127.0.0.1:8080)
 serve *args: install

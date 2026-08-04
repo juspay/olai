@@ -32,9 +32,9 @@
          (only-in web-server/private/mime-types make-path->mime-type)
          selfflowy/agenda
          selfflowy/dates
-         selfflowy/html
          selfflowy/json-out
-         selfflowy/load)
+         selfflowy/load
+         selfflowy/web/render)
 
 (provide start-server)
 
@@ -97,8 +97,6 @@
 
 ;; ---- handlers -------------------------------------------------------------
 
-;; Placeholder page: whatever the html renderer already produces. WP2 owns
-;; the real UI; this only proves the wiring.
 (define (page-handler files)
   (define-values (entries err) (load-entries files))
   (cond
@@ -108,10 +106,14 @@
        (if (= (length files) 1)
            (path->string (file-name-from-path (car files)))
            "selfflowy"))
+     (define files-data
+       (for/list ([e (in-list entries)])
+         (list (first e) (second e) (third e))))
      (html-response
-      (files->html (for/list ([e (in-list entries)])
-                     (list (first e) (second e) (third e)))
-                   title))]))
+      (page->html-string
+       (render-page (render-outline files-data)
+                    #:title title
+                    #:sidebar (render-sidebar files-data))))]))
 
 (define (tree-handler files)
   (define-values (entries err) (load-entries files))
