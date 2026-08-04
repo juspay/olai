@@ -14,7 +14,8 @@
 ;; never computes an id: it only decorates one, so renaming a title cannot
 ;; re-key a permalink, a stored collapse state, or an SSE swap target.
 
-(require racket/list
+(require racket/contract
+         racket/list
          racket/match
          racket/path
          racket/string
@@ -26,23 +27,62 @@
          (only-in selfflowy/paths file-label)
          selfflowy/web/markdown)
 
-(provide render-node-fragment
-         render-outline
-         render-breadcrumbs
-         render-sidebar
-         render-page
-         render-zoom
-         render-empty-pane
-         ;; helpers the server needs to route/lookup
-         render-file-section
-         page->html-string
-         render-error-banner
-         node-element-id
-         web-static-dir
-         web-static-prefix
-         web-stylesheets
-         web-scripts
-         ;; re-exported markdown surface (render-time only)
+;; Contracts on the drawing surface check the INPUT shape — a task, a
+;; files-data list, an ISO `today` string — and say only `list?` about the
+;; xexpr coming back. `xexpr?` is a recursive walk of the whole rendered page;
+;; the server renders one on every request, and a shape check that costs as
+;; much as the render is not a check, it is a second renderer.
+(provide (contract-out
+          [render-node-fragment
+           (->* (task? #:today string?)
+                (#:anchors hash?
+                 #:site (or/c string? #f)
+                 #:mirror-of (or/c string? #f)
+                 #:zoom-base (or/c string? #f)
+                 #:toggle-base (or/c string? #f)
+                 #:collapsed? boolean?)
+                list?)]
+          [render-outline
+           (->* (list? #:today string?)
+                (#:zoom-base (or/c string? #f) #:toggle-base (or/c string? #f))
+                list?)]
+          [render-file-section
+           (->* (any/c #:today string?)
+                (#:zoom-base (or/c string? #f) #:toggle-base (or/c string? #f))
+                list?)]
+          [render-breadcrumbs
+           (->* (list? #:home-href (or/c string? #f))
+                (#:zoom-base (or/c string? #f))
+                list?)]
+          [render-sidebar
+           (->* (list? #:home-href string? #:today-href (or/c string? #f))
+                (#:zoom-base (or/c string? #f))
+                list?)]
+          [render-page
+           (->* (any/c)
+                (#:title string?
+                 #:sidebar (or/c list? #f)
+                 #:banner (or/c list? #f)
+                 #:sse-connect (or/c string? #f)
+                 #:head-extra list?
+                 #:body-extra list?)
+                list?)]
+          [render-zoom
+           (->* (hash? string? #:today string? #:home-href string?)
+                (#:anchors hash?
+                 #:zoom-base (or/c string? #f)
+                 #:toggle-base (or/c string? #f))
+                list?)]
+          [render-empty-pane (-> string? #:home-href string? list?)]
+          [render-error-banner (->* (string?) (#:where (or/c string? #f)) list?)]
+          [page->html-string (-> any/c string?)]
+          [node-element-id (->* (string?) (#:site (or/c string? #f)) string?)]
+          [web-static-dir (-> path?)]
+          [web-static-prefix string?]
+          [web-stylesheets (listof string?)]
+          [web-scripts (listof string?)])
+         ;; re-exported markdown surface (render-time only): contracted by
+         ;; the module that owns it, not decorated twice here
          title->inline-xexprs
          note->xexprs
          sanitize-xexpr)

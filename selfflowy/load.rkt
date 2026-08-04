@@ -6,22 +6,35 @@
 ;;
 ;; The expander is the only validator: we just dynamic-require and report.
 
-(require racket/list
+(require racket/contract
+         racket/list
          racket/path
          racket/string
          file/sha1
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/paths)
 
-(provide (struct-out outline)
-         (struct-out load-error)
-         load-error-where
-         load-error-detail
-         try-load-outline
-         mint-outline-keys
-         mint-task-keys
-         exn-location
-         exn-message*)
+;; This is a seam, so it ships with contracts: a caller that hands us a string
+;; where a path belongs is named by the blame, at its own srcloc, instead of
+;; failing three frames down inside dynamic-require. Checks are flat and
+;; shallow on purpose — a struct predicate, a list, a hash — never a walk of
+;; the task tree.
+(provide (contract-out
+          [struct outline ([path path?]
+                           [tasks list?]
+                           [anchors hash?]
+                           [includes list?])]
+          [struct load-error ([message string?]
+                              [file (or/c path? string? #f)]
+                              [line (or/c exact-positive-integer? #f)]
+                              [col (or/c exact-nonnegative-integer? #f)])]
+          [load-error-where (-> load-error? (or/c string? #f))]
+          [load-error-detail (-> load-error? string?)]
+          [try-load-outline (-> path? (or/c outline? load-error?))]
+          [mint-outline-keys (-> (listof outline?) (listof outline?))]
+          [mint-task-keys (-> list? #:label (-> any/c string?) list?)]
+          [exn-location (-> any/c any/c any)]
+          [exn-message* (-> any/c string?)]))
 
 ;; A loaded outline module. Named fields, not a positional tuple: every
 ;; consumer (CLI, JSON, web) reads the same four things and used to

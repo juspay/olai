@@ -25,6 +25,8 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
   (see docs/cli.md). JSON fields are append-only within a "version".
 * Error messages carry file:line:col of the OFFENDING form. srcloc fidelity
   has tests; keep them passing.
+* Module boundaries ship with `contract-out` (flat, cheap checks — never a
+  tree walk); blame + srcloc are part of the error contract, and have tests.
 * Markdown is render-time only (web view). Strings in the struct/JSON stay
   verbatim.
 * Code organization/review: https://kolu.dev/blog/hickey-lowy/ — separate

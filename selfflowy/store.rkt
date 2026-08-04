@@ -23,7 +23,8 @@
 ;; and only instantiated in the fresh one, which is what keeps reloading
 ;; working inside the `raco exe` binary (see compiling-load).
 
-(require racket/list
+(require racket/contract
+         racket/list
          racket/path
          racket/port
          syntax/modread
@@ -33,16 +34,24 @@
          ;; one owner for how a file is named in the UI
          (only-in selfflowy/paths file-label))
 
-(provide make-store
-         store?
-         store-files
-         store-snapshot
-         store-error
-         store-invalidate!
-         (struct-out snapshot)
-         outline-index
-         snapshot-day-key
-         call-in-outline-namespace)
+;; Handlers hold a store for the life of the process and read a snapshot per
+;; request: the two things that must not be confused with each other, or with
+;; a bare list of outlines. Contracts say which is which at the boundary.
+(provide (contract-out
+          [make-store (-> (listof (or/c path? string?)) store?)]
+          [store? (-> any/c boolean?)]
+          [store-files (-> store? (listof path?))]
+          [store-snapshot (-> store? snapshot?)]
+          [store-error (-> store? (or/c load-error? #f))]
+          [store-invalidate! (->* (store?) (#:force? any/c) void?)]
+          [struct snapshot ([outlines (listof outline?)]
+                            [files-data list?]
+                            [index hash?]
+                            [anchors hash?]
+                            [watch (listof path?)])]
+          [outline-index (-> list? hash?)]
+          [snapshot-day-key (-> snapshot? string? (or/c string? #f))]
+          [call-in-outline-namespace (-> (-> any) any)]))
 
 ;; One consistent view of the outlines. Handlers read this once and never see
 ;; a half-reloaded world.

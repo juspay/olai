@@ -10,7 +10,8 @@
 ;; those into JSON, text and exit codes, and the web mutation routes will call
 ;; the same functions.
 
-(require racket/file
+(require racket/contract
+         racket/file
          racket/path
          racket/string
          selfflowy/capture
@@ -22,15 +23,53 @@
          selfflowy/move
          selfflowy/resolve)
 
+;; The write surface: the CLI calls it, the web mutation routes will. Both
+;; get told what an op takes and what its result carries — including that a
+;; result's `file` is the file actually written, as a string, and that a
+;; failure arrives as exn:fail:op (not contracted: an exn is not a value the
+;; caller constructs).
 (provide (struct-out exn:fail:op)
-         (struct-out add-result)
-         (struct-out done-result)
-         (struct-out move-result)
-         (struct-out daily-result)
-         ops-add!
-         ops-done!
-         ops-move!
-         ops-daily!)
+         (contract-out
+          [struct add-result ([file string?]
+                              [title string?]
+                              [date (or/c string? #f)]
+                              [description (or/c string? #f)]
+                              [parent (or/c string? #f)]
+                              [line exact-positive-integer?]
+                              [created-inbox? boolean?]
+                              [committed? boolean?])]
+          [struct done-result ([file string?]
+                               [title string?]
+                               [line exact-positive-integer?]
+                               [done (or/c string? #f)]
+                               [undone? boolean?]
+                               [committed? boolean?])]
+          [struct move-result ([file string?]
+                               [title string?]
+                               [line exact-positive-integer?]
+                               [date (or/c string? #f)]
+                               [committed? boolean?])]
+          [struct daily-result ([file string?]
+                                [day string?]
+                                [line exact-positive-integer?]
+                                [created-month? boolean?]
+                                [created-day? boolean?]
+                                [committed? boolean?])]
+          [ops-add! (->* ((or/c path? string?) string?)
+                         (#:date (or/c string? #f)
+                          #:description (or/c string? #f)
+                          #:parent (or/c string? #f)
+                          #:commit? boolean?)
+                         add-result?)]
+          [ops-done! (->* ((or/c path? string?) string? string?)
+                          (#:undo? boolean? #:commit? boolean?)
+                          done-result?)]
+          [ops-move! (->* ((or/c path? string?) string? (or/c string? #f))
+                          (#:clear? boolean? #:commit? boolean?)
+                          move-result?)]
+          [ops-daily! (->* ((or/c path? string?) string?)
+                           (#:commit? boolean?)
+                           daily-result?)]))
 
 ;; kind: 'usage | 'validation | 'not-found — what the caller should make of
 ;; it (the CLI maps kinds to exit codes; a web route maps them to statuses).

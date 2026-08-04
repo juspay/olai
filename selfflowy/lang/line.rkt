@@ -25,20 +25,31 @@
 ;;   (meta done VALUE OFFSET)    VALUE #t for a bare @done
 ;;   (meta bad MESSAGE)
 
-(require racket/string)
+(require racket/contract
+         racket/string)
 
-(provide blank-line?
-         line-indent+content
-         classify-line
-         line-blank?
-         line-lang?
-         line-title?
-         line-mirror?
-         line-include?
-         line-meta?
-         meta-field
-         strip-checkbox-prefix
-         strip-trailing-anchor)
+;; The grammar is a boundary five modules read across, so it is contracted:
+;; the input is a line with its indentation already stripped, and the answer
+;; is always a list headed by one of the six kinds. Flat checks only — this
+;; runs once per line of a file being edited.
+(define line-kind/c
+  (or/c 'blank 'lang 'title 'mirror 'include 'meta))
+
+(define classification/c (cons/c line-kind/c list?))
+
+(provide (contract-out
+          [blank-line? (-> string? boolean?)]
+          [line-indent+content (-> string? any)]
+          [classify-line (-> string? classification/c)]
+          [line-blank? (-> classification/c boolean?)]
+          [line-lang? (-> classification/c boolean?)]
+          [line-title? (-> classification/c boolean?)]
+          [line-mirror? (-> classification/c boolean?)]
+          [line-include? (-> classification/c boolean?)]
+          [line-meta? (-> classification/c boolean?)]
+          [meta-field (-> classification/c (or/c 'desc 'date 'done 'bad #f))]
+          [strip-checkbox-prefix (-> string? any)]
+          [strip-trailing-anchor (-> string? any)]))
 
 (define (blank-line? s)
   (regexp-match? #px"^\\s*$" s))

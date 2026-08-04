@@ -10,12 +10,14 @@
 ;;               Daily.rkt in different directories mint one key for two
 ;;               different nodes.
 
-(require racket/list
+(require racket/contract
+         racket/list
          racket/path)
 
-(provide file-label
-         roots-base
-         key-label)
+(provide (contract-out
+          [file-label (-> any/c string?)]
+          [roots-base (-> list? path?)]
+          [key-label (-> path? any/c string?)]))
 
 (define (->path p)
   (cond

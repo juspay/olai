@@ -18,13 +18,21 @@
 ;; `proc` gets each node, the list of its ancestor tasks (outermost first,
 ;; node not included), and the accumulator.
 
-(require racket/list
+(require racket/contract
+         racket/list
          (except-in selfflowy/lang/expander #%module-begin))
 
-(provide fold-tasks
-         task-path
-         find-task-by-id
-         find-tasks-by-title)
+;; The mirror policy is an argument, so it is contracted: 'skip or 'visit and
+;; nothing else. `proc` is checked for arity only — a (-> any/c list? any/c
+;; any/c) wrapper would ride along on every node of every walk, and this is
+;; the hot path everything else is built on.
+(provide (contract-out
+          [fold-tasks (->* (list? (procedure-arity-includes/c 3) any/c)
+                           (#:mirrors (or/c 'skip 'visit) #:path list?)
+                           any/c)]
+          [task-path (-> list? any/c list?)]
+          [find-task-by-id (-> list? (or/c string? #f) (or/c task? #f))]
+          [find-tasks-by-title (-> list? string? list?)]))
 
 (define (fold-tasks roots proc init
                     #:mirrors [mirrors 'skip]

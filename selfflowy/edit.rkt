@@ -11,15 +11,25 @@
 ;; fresh namespace fix that, and having one function means the CLI commands
 ;; and the coming web mutations cannot drift apart.
 
-(require racket/file
+(require racket/contract
+         racket/file
          racket/path
          racket/port
          racket/string
          selfflowy/load
          selfflowy/store)
 
-(provide apply-outline-edit!
-         try-git-commit)
+;; The callbacks are part of this contract: #:on-invalid is handed a
+;; load-error and #:on-applied the path that was replaced — a caller that
+;; expects the other shape finds out here, not after the rename.
+(provide (contract-out
+          [apply-outline-edit!
+           (->* ((or/c path? string?) string?)
+                (#:on-invalid (-> load-error? any)
+                 #:on-applied (-> path? any))
+                boolean?)]
+          [try-git-commit
+           (-> (or/c path? string? (listof (or/c path? string?))) string? boolean?)]))
 
 ;; Replace `path` with `text`, but only if `text` still validates.
 ;;
