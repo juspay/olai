@@ -5,9 +5,11 @@
 ;; can render a whole page, one node fragment (SSE re-swap), or a zoom view
 ;; from the same code.
 ;;
-;; DATA IN — files-data: (listof file-entry), where file-entry is
-;;   (list label tasks anchors)   ; label: path or string, anchors: hash
-;;   (cons label tasks)           ; legacy shorthand, no anchors
+;; DATA IN — files-data: (listof (list label tasks)), label a path or a
+;; string. `tasks` is a RESOLVED tree: every mirror site already carries the
+;; node it mirrors (selfflowy/lang/walk, resolve-mirrors). This module draws
+;; what it is given and looks nothing up — an unresolved mirror is a state a
+;; marker is drawn in, not a hash miss in the middle of a recursion.
 ;;
 ;; IDS — a node's identity is `task-key`, minted by the load layer (its
 ;; ^anchor, else a hash of its defining file + child ordinals). This module
@@ -22,6 +24,8 @@
          racket/runtime-path
          (only-in xml cdata xexpr->string)
          (except-in selfflowy/lang/expander #%module-begin)
+         ;; the resolved shape of a mirror site (core owns the binding)
+         (only-in selfflowy/lang/walk mirror-site? mirror-site-of mirror-site-task)
          selfflowy/dates
          ;; one owner for how a file is named in the UI (core, not web)
          (only-in selfflowy/paths file-label)
@@ -35,8 +39,7 @@
 (provide (contract-out
           [render-node-fragment
            (->* (task? #:today string?)
-                (#:anchors hash?
-                 #:site (or/c string? #f)
+                (#:site (or/c string? #f)
                  #:mirror-of (or/c string? #f)
                  #:zoom-base (or/c string? #f)
                  #:toggle-base (or/c string? #f)
@@ -69,8 +72,7 @@
                 list?)]
           [render-zoom
            (->* (hash? string? #:today string? #:home-href string?)
-                (#:anchors hash?
-                 #:zoom-base (or/c string? #f)
+                (#:zoom-base (or/c string? #f)
                  #:toggle-base (or/c string? #f))
                 list?)]
           [render-empty-pane (-> string? #:home-href string? list?)]
@@ -124,12 +126,11 @@
 
 ;; ---- small helpers --------------------------------------------------------
 
-;; files-data -> (listof (list label tasks anchors)) with labels as strings
+;; files-data -> (listof (list label tasks)) with labels as strings
 (define (normalize-files-data files-data)
   (for/list ([e (in-list files-data)])
     (match e
-      [(list label tasks anchors) (list (file-label label) tasks (or anchors (hash)))]
-      [(cons label tasks) (list (file-label label) tasks (hash))]
+      [(list label (? list? tasks)) (list (file-label label) tasks)]
       [_ (error 'render "bad files-data entry: ~e" e)])))
 
 (define (href-for base fid)
@@ -189,37 +190,36 @@
       (list `(a ((class "sf-anchor") (id ,legacy) (aria-hidden "true"))))
       '()))
 
+;; A mirror site whose anchor named nothing. The marker is still drawn — the
+;; outline says something belongs here — in its unresolved state.
+(define (unresolved-mirror-xexpr anchor)
+  `(li ((class "sf-node sf-unresolved"))
+       (div ((class "sf-row"))
+            (span ((class "sf-bullet")))
+            (div ((class "sf-content"))
+                 (a ((class "sf-mirror") (href ,(string-append "#" anchor)))
+                    "↗" ,anchor)
+                 (span ((class "sf-title sf-dim")) "(unresolved)")))))
+
 (define (render-child child
-                      #:anchors anchors
                       #:site site
                       #:owner owner
                       #:today today
                       #:zoom-base zoom-base
                       #:toggle-base toggle-base)
   (cond
-    [(mirror-ref? child)
-     (define anchor (mirror-ref-anchor child))
-     (define target (and anchors (hash-ref anchors anchor #f)))
-     (cond
-       [target
-        (render-node-fragment target
-                              #:anchors anchors
-                              #:site owner
-                              #:today today
-                              #:mirror-of anchor
-                              #:zoom-base zoom-base
-                              #:toggle-base toggle-base)]
-       [else
-        `(li ((class "sf-node sf-unresolved"))
-             (div ((class "sf-row"))
-                  (span ((class "sf-bullet")))
-                  (div ((class "sf-content"))
-                       (a ((class "sf-mirror") (href ,(string-append "#" anchor)))
-                          "↗" ,anchor)
-                       (span ((class "sf-title sf-dim")) "(unresolved)"))))])]
+    [(mirror-site? child)
+     (define target (mirror-site-task child))
+     (if target
+         (render-node-fragment target
+                               #:site owner
+                               #:today today
+                               #:mirror-of (mirror-site-of child)
+                               #:zoom-base zoom-base
+                               #:toggle-base toggle-base)
+         (unresolved-mirror-xexpr (mirror-site-of child)))]
     [(task? child)
      (render-node-fragment child
-                           #:anchors anchors
                            #:site site
                            #:today today
                            #:zoom-base zoom-base
@@ -270,7 +270,6 @@
 
 ;; One subtree, self-contained: this is the unit SSE re-swaps.
 (define (render-node-fragment tk
-                              #:anchors [anchors (hash)]
                               #:site [site #f]
                               #:today today
                               #:mirror-of [mirror-of #f]
@@ -330,7 +329,6 @@
                      '())))
    #:children (for/list ([c (in-list kids)])
                 (render-child c
-                              #:anchors anchors
                               #:site site
                               #:owner qkey
                               #:today today
@@ -346,7 +344,7 @@
                              #:today today
                              #:zoom-base [zoom-base #f]
                              #:toggle-base [toggle-base #f])
-  (match-define (list label tasks anchors) (car (normalize-files-data (list entry))))
+  (match-define (list label tasks) (car (normalize-files-data (list entry))))
   `(section ((class "sf-file")
              (id ,(string-append "sf-file-" (id-safe label)))
              (data-file ,label))
@@ -354,7 +352,6 @@
             (ul ((class "sf-outline"))
                 ,@(for/list ([tk (in-list tasks)])
                     (render-child tk
-                                  #:anchors anchors
                                   #:site #f
                                   #:owner (id-safe label)
                                   #:today today
@@ -402,9 +399,10 @@
                         #:today-href today-href
                         #:zoom-base [zoom-base #f])
   (define entries (normalize-files-data files-data))
+  ;; Disclosure only, and mirror sites stay out of it: the tree is for finding
+  ;; a node, and a node is listed where it is defined.
   (define (tree-item tk depth)
     (cond
-      [(mirror-ref? tk) (quote ())]
       [(task? tk)
        (define key (task-key tk))
        (define kids (filter task? (task-children tk)))
@@ -439,7 +437,7 @@
           (section ((class "sf-sidebar-section"))
                    (h3 ((class "sf-sidebar-heading")) "Home")
                    ,@(for/list ([e (in-list entries)])
-                       (match-define (list label tasks _) e)
+                       (match-define (list label tasks) e)
                        `(div ((class "sf-tree-file"))
                              (div ((class "sf-tree-file-label")) ,label)
                              (ul ((class "sf-tree"))
@@ -512,7 +510,6 @@
 ;; a (list label key) with key #f for the file label itself. Nothing here
 ;; recomputes an id or walks a tree — zoom is a hash lookup.
 (define (render-zoom index key
-                     #:anchors [anchors (hash)]
                      #:today today
                      #:home-href home-href
                      #:zoom-base [zoom-base #f]
@@ -531,7 +528,6 @@
            ,(render-breadcrumbs ancestors #:zoom-base zoom-base #:home-href home-href)
            (ul ((class "sf-outline sf-zoom-root"))
                ,(render-node-fragment tk
-                                      #:anchors anchors
                                       #:today today
                                       #:zoom-base zoom-base
                                       #:toggle-base toggle-base)))]))

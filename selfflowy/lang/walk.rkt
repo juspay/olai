@@ -32,7 +32,9 @@
                            any/c)]
           [task-path (-> list? any/c list?)]
           [find-task-by-id (-> list? (or/c string? #f) (or/c task? #f))]
-          [find-tasks-by-title (-> list? string? list?)]))
+          [find-tasks-by-title (-> list? string? list?)]
+          [struct mirror-site ([of string?] [task (or/c task? #f)])]
+          [resolve-mirrors (-> list? hash? list?)]))
 
 (define (fold-tasks roots proc init
                     #:mirrors [mirrors 'skip]
@@ -64,3 +66,36 @@
                (λ (tk _path acc)
                  (if (equal? (task-title tk) title) (cons tk acc) acc))
                '())))
+
+;; ---- binding mirror sites -------------------------------------------------
+;;
+;; A (mirror "anchor") is an unbound reference: it names a node without
+;; carrying it. The renderer used to do the binding itself, mid-walk, by
+;; carrying an anchors hash down the recursion and hash-ref'ing at every
+;; mirror site — so drawing a page and resolving a name were one function, and
+;; "this anchor names nothing" was a failed lookup deep inside the drawing.
+;;
+;; This pass binds them once, before anyone draws: a mirror site becomes a
+;; node it CARRIES plus the anchor it is a mirror OF (the defining site's key
+;; — a mirror's target always has one, since anchored nodes key by anchor).
+;; An anchor that names nothing carries #f, which is a state to draw, not a
+;; lookup that failed.
+;;
+;; `anchors` is the defining file's own anchor hash: the language rejects a
+;; mirror to an anchor its module cannot see, so there is no wider world to
+;; resolve against.
+(struct mirror-site (of task) #:transparent)
+
+(define (resolve-mirrors tasks anchors)
+  (define (resolve x)
+    (cond
+      [(task? x)
+       (struct-copy task x [children (map resolve (task-children x))])]
+      [(mirror-ref? x)
+       (define anchor (mirror-ref-anchor x))
+       (define target (hash-ref anchors anchor #f))
+       ;; the mirrored subtree can hold mirrors of its own; the language
+       ;; rejects cycles, so this terminates
+       (mirror-site anchor (and target (resolve target)))]
+      [else x]))
+  (map resolve tasks))

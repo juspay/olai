@@ -55,8 +55,11 @@
 
 ;; One consistent view of the outlines. Handlers read this once and never see
 ;; a half-reloaded world.
-;;   outlines   : (listof outline)
-;;   files-data : (listof (list path tasks anchors))  — render's input shape
+;;   outlines   : (listof outline) as loaded — mirror sites still unbound,
+;;                which is what the durable JSON serializes
+;;   files-data : (listof (list path tasks)) — render's input: the same trees
+;;                with every mirror site already bound to its node
+;;                (selfflowy/lang/walk, resolve-mirrors)
 ;;   index      : hash node-id -> (list task breadcrumb)
 ;;   anchors    : hash anchor -> task, merged across files
 ;;   watch      : (listof path) roots + transitive @include fragments
@@ -196,11 +199,16 @@
 ;; Node keys are minted here, over the whole loaded set at once (see
 ;; mint-outline-keys): a fragment shared by two roots is one node with one
 ;; key, and the index below can be a plain invertible hash.
+;;
+;; Mirror sites are bound here too, once per load rather than once per render:
+;; what handlers get is a tree of already-bound nodes, and the renderer never
+;; holds an anchors hash.
 (define (build-snapshot outlines watch)
   (define outs (mint-outline-keys outlines))
   (define files-data
     (for/list ([o (in-list outs)])
-      (list (outline-path o) (outline-tasks o) (outline-anchors o))))
+      (list (outline-path o)
+            (resolve-mirrors (outline-tasks o) (outline-anchors o)))))
   (snapshot outs
             files-data
             (outline-index files-data)

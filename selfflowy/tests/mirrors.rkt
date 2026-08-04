@@ -10,6 +10,8 @@
          selfflowy/lang/outline
          selfflowy/json-out
          (only-in selfflowy/query count-tasks count-mirrors)
+         (only-in selfflowy/lang/walk resolve-mirrors
+                  mirror-site? mirror-site-of mirror-site-task)
          selfflowy/agenda
          selfflowy/load
          selfflowy/web/render
@@ -137,6 +139,36 @@ EOF
     (check-equal? (dated-task-title (car ov)) "Milk")
     (check-equal? (dated-task-breadcrumb (car ov)) "Milk"))
 
+  ;; Binding happens once, in core, before anything is drawn: a mirror site
+  ;; comes out carrying its node, and an anchor that names nothing comes out
+  ;; carrying #f (a state, not a failed lookup mid-render).
+  (test-case "resolve-mirrors binds a mirror site to the node it names"
+    (define-values (tasks anchors)
+      (eval-mod
+       #<<EOF
+#lang selfflowy/sexp
+(t "Agent" #:id "agent" (t "sub"))
+(t "Week" (mirror "agent"))
+EOF
+       ))
+    (define bound (resolve-mirrors tasks anchors))
+    (define site (car (task-children (cadr bound))))
+    (check-true (mirror-site? site))
+    (check-equal? (mirror-site-of site) "agent")
+    (check-equal? (task-title (mirror-site-task site)) "Agent")
+    ;; same node, so the same key: the defining site owns it
+    (check-equal? (task-key (mirror-site-task site)) (task-key (car tasks)))
+    ;; the mirrored subtree came along, bound too
+    (check-equal? (map task-title (task-children (mirror-site-task site))) '("sub"))
+    ;; an unbindable anchor is carried as #f (the language rejects these at
+    ;; load time, so only a hand-built tree can get here)
+    (define loose
+      (resolve-mirrors (list (task "Holder" #f #f #f #f '()
+                                   (list (mirror-ref "nope" #f))
+                                   #f "k" #f))
+                       (hash)))
+    (check-false (mirror-site-task (car (task-children (car loose))))))
+
   (test-case "rendered mirror site keeps the anchor and glyph"
     (define-values (tasks anchors)
       (eval-mod
@@ -147,7 +179,7 @@ EOF
 EOF
        ))
     (define html
-      (xexpr->string (render-outline (list (list "T.rkt" tasks anchors))
+      (xexpr->string (render-outline (list (list "T.rkt" (resolve-mirrors tasks anchors)))
                                      #:today "2026-08-03")))
     ;; the node id is namespaced; the bare ^anchor stays linkable
     (check-true (string-contains? html "id=\"n-agent\"") html)
@@ -166,7 +198,7 @@ EOF
 EOF
        ))
     (define html
-      (xexpr->string (render-outline (list (list "T.rkt" tasks anchors))
+      (xexpr->string (render-outline (list (list "T.rkt" (resolve-mirrors tasks anchors)))
                                      #:today "2026-08-03")))
     (define (count-of needle)
       (length (regexp-match* (regexp (regexp-quote needle)) html)))

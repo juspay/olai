@@ -159,7 +159,6 @@
       (chrome (snapshot-files-data snap)
               (if key
                   (render-zoom (snapshot-index snap) key
-                               #:anchors (snapshot-anchors snap)
                                #:today today
                                #:home-href home-href
                                #:zoom-base node-href-base)

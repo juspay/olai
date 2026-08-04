@@ -9,6 +9,7 @@
          xml
          file/sha1
          (except-in selfflowy/lang/expander #%module-begin)
+         (only-in selfflowy/lang/walk resolve-mirrors)
          selfflowy/store
          selfflowy/web/render
          selfflowy/web/markdown)
@@ -79,18 +80,21 @@
     (check-true (string-contains? s "id=\"n-ship\"") s)
     (check-true (string-contains? s "class=\"sf-anchor\" id=\"ship\"") s))
 
-  (test-case "mirror site renders the target with a mirror link"
+  ;; The renderer is handed a RESOLVED tree: binding happens in core (see
+  ;; lang/walk, resolve-mirrors), and this module never holds an anchors hash.
+  (test-case "mirror site renders the node it carries, with a mirror link"
     (define target (tk "Anchored" #f #f '() #:id "a1"))
     (define parent (tk "Holder" #f #f (list (mirror-ref "a1" #f))))
-    (define s (xstr (render-node-fragment parent
-                                          #:anchors (hash "a1" target)
-                                          #:today "2026-08-04")))
+    (define bound (car (resolve-mirrors (list parent) (hash "a1" target))))
+    (define s (xstr (render-node-fragment bound #:today "2026-08-04")))
     (check-true (string-contains? s "Anchored") s)
     (check-true (string-contains? s "class=\"sf-mirror\"") s)
     (check-true (string-contains? s "href=\"#a1\"") s)
-    ;; unresolved mirror does not blow up
-    (define s2 (xstr (render-node-fragment (tk "Holder" #f #f (list (mirror-ref "nope" #f)))
-                                           #:anchors (hash) #:today "2026-08-04")))
+    ;; an anchor that names nothing is a state the marker is drawn in
+    (define loose
+      (car (resolve-mirrors (list (tk "Holder" #f #f (list (mirror-ref "nope" #f))))
+                            (hash))))
+    (define s2 (xstr (render-node-fragment loose #:today "2026-08-04")))
     (check-true (string-contains? s2 "sf-unresolved") s2)
     (check-true (string-contains? s2 "(unresolved)") s2))
 
@@ -251,11 +255,9 @@
   (test-case "outline renders one section per file with nested lists"
     (define x (render-outline
                (files (list (string->path "/tmp/Tasks.rkt")
-                            (list (tk "Milk" #f #f (list (tk "2%" #f #f '()))))
-                            (hash))
+                            (list (tk "Milk" #f #f (list (tk "2%" #f #f '())))))
                       (list (string->path "/tmp/Roadmap.rkt")
-                            (list (tk "Ship" #f #f '()))
-                            (hash)))
+                            (list (tk "Ship" #f #f '()))))
                #:today "2026-08-04"))
     (define s (xstr x))
     (check-true (string-contains? s "data-file=\"Tasks.rkt\"") s)
@@ -275,9 +277,8 @@
                                   (list (tk "Inbox" #f #f
                                             (list (tk "Deep" #f #f
                                                       (list (tk "Deeper" #f #f '())))))
-                                        (tk "Someday" #f #f '()))
-                                  (hash))
-                            (list "/tmp/Roadmap.rkt" (list (tk "WP2" #f #f '())) (hash)))
+                                        (tk "Someday" #f #f '())))
+                            (list "/tmp/Roadmap.rkt" (list (tk "WP2" #f #f '()))))
                      #:home-href "/"
                      #:today-href "/today")))
     (check-true (string-contains? s "href=\"/today\"") s)
@@ -318,8 +319,7 @@
                             (list (tk "Inbox" #f #f
                                       (list (tk "Buy milk" #f #f
                                                 (list (tk "2% please" #f #f '())))))
-                                  (tk "Elsewhere" #f #f '()))
-                            (hash))))
+                                  (tk "Elsewhere" #f #f '())))))
     (define fid (task-key (tk "Buy milk" #f #f '())))
     (define s (xstr (render-zoom (outline-index fd) fid #:today "2026-08-04" #:home-href "/")))
     (check-true (string-contains? s "sf-breadcrumbs") s)
@@ -335,8 +335,7 @@
 
   (test-case "zoom by anchor and unknown key"
     (define fd (files (list "Tasks.rkt"
-                            (list (tk "Root" #f #f (list (tk "Kid" #f #f '() #:id "kid"))))
-                            (hash))))
+                            (list (tk "Root" #f #f (list (tk "Kid" #f #f '() #:id "kid")))))))
     (define s (xstr (render-zoom (outline-index fd) "kid" #:today "2026-08-04" #:home-href "/")))
     (check-true (string-contains? s "id=\"n-kid\"") s)
     (check-true (string-contains? s "Kid") s)
@@ -347,7 +346,7 @@
   ;; ---- page shell ---------------------------------------------------------
 
   (test-case "page shell links the static assets and composes sidebar + main"
-    (define fd (files (list "Tasks.rkt" (list (tk "Milk" #f #f '())) (hash))))
+    (define fd (files (list "Tasks.rkt" (list (tk "Milk" #f #f '())))))
     (define s (xstr (render-page (render-outline fd #:today "2026-08-04")
                                  #:title "selfflowy"
                                  #:sidebar (render-sidebar fd #:home-href "/"
@@ -395,7 +394,7 @@
   ;; ---- file sections (the watcher's re-render unit) ------------------------
 
   (test-case "a file section is addressable on its own"
-    (define entry (list "Tasks.rkt" (list (tk "Milk" #f #f '())) (hash)))
+    (define entry (list "Tasks.rkt" (list (tk "Milk" #f #f '()))))
     (define s (xstr (render-file-section entry #:today "2026-08-04")))
     (check-true (string-prefix? s "<section class=\"sf-file\"") s)
     (check-true (string-contains? s "id=\"sf-file-Tasks_rkt\"") s)
