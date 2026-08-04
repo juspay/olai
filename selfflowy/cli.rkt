@@ -23,6 +23,7 @@
          selfflowy/daily
          selfflowy/html
          selfflowy/dates
+         selfflowy/load
          (only-in selfflowy/lang/expander
                   find-task-by-id
                   find-tasks-by-title
@@ -52,51 +53,6 @@
       (eprintf "selfflowy: ~a\n" msg))
   (exit code))
 
-;; Prefer the most specific syntax object for agents: highest line/col among
-;; exprs that carry a source (outline @date values are later subforms).
-(define (exn-location e fallback-path)
-  (cond
-    [(exn:fail:syntax? e)
-     (define stxs (exn:fail:syntax-exprs e))
-     (define with-src
-       (filter (λ (x) (and (syntax-source x) (syntax-line x))) stxs))
-     (define s
-       (if (null? with-src)
-           #f
-           (argmax
-            (λ (x)
-              (+ (* 100000 (or (syntax-line x) 0))
-                 (or (syntax-column x) 0)))
-            with-src)))
-     (if s
-         (values (syntax-source s) (syntax-line s) (syntax-column s))
-         (values fallback-path #f #f))]
-    [(exn:fail:read? e)
-     (define locs (exn:fail:read-srclocs e))
-     (if (pair? locs)
-         (let ([loc (last locs)])
-           (cond
-             [(srcloc? loc)
-              (values (srcloc-source loc) (srcloc-line loc) (srcloc-column loc))]
-             [(list? loc)
-              (values (list-ref loc 0) (list-ref loc 1) (list-ref loc 2))]
-             [else (values fallback-path #f #f)]))
-         (values fallback-path #f #f))]
-    [else (values fallback-path #f #f)]))
-
-(define (exn-message* e)
-  (cond
-    [(exn:fail:syntax? e)
-     (define-values (src line col) (exn-location e #f))
-     (define core
-       ;; Drop Racket's leading "file:line:col: " if we re-emit a better loc
-       (regexp-replace #px"^[^\\s:]+:[0-9]+:[0-9]+:\\s*" (exn-message e) ""))
-     (if (and src line)
-         (format "~a:~a:~a: ~a" src line (or col 0) core)
-         (exn-message e))]
-    [(exn:fail? e) (exn-message e)]
-    [else (format "~a" e)]))
-
 (define (resolve-path p json?)
   (define path (simple-form-path (path->complete-path p)))
   (unless (file-exists? path)
@@ -110,23 +66,6 @@
 (define (resolve-files file-args json?)
   (define raw (if (null? file-args) (list default-file) file-args))
   (map (λ (p) (resolve-path p json?)) raw))
-
-;; -> (list 'ok tasks anchors includes) | (list 'error msg src line col)
-(define (try-load-outline path)
-  (with-handlers
-      ([exn:fail?
-        (λ (e)
-          (define-values (src line col) (exn-location e path))
-          (list 'error (exn-message* e) (or src path) line col))])
-    (define mod `(file ,(path->string path)))
-    (define tasks (dynamic-require mod 'tasks))
-    (define anchors
-      (with-handlers ([exn:fail? (λ (_) (hash))])
-        (dynamic-require mod 'anchors)))
-    (define includes
-      (with-handlers ([exn:fail? (λ (_) '())])
-        (dynamic-require mod 'includes)))
-    (list 'ok tasks anchors includes)))
 
 (define (load-outline path json?)
   (match (try-load-outline path)
