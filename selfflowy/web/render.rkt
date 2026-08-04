@@ -9,10 +9,10 @@
 ;;   (list label tasks anchors)   ; label: path or string, anchors: hash
 ;;   (cons label tasks)           ; legacy shorthand, no anchors
 ;;
-;; IDS — a node's identity is `task-key`, minted by the expander (its ^anchor,
-;; else a hash of file + child ordinals). This module never computes an id: it
-;; only decorates one, so renaming a title cannot re-key a permalink, a stored
-;; collapse state, or an SSE swap target.
+;; IDS — a node's identity is `task-key`, minted by the load layer (its
+;; ^anchor, else a hash of its defining file + child ordinals). This module
+;; never computes an id: it only decorates one, so renaming a title cannot
+;; re-key a permalink, a stored collapse state, or an SSE swap target.
 
 (require racket/list
          racket/match

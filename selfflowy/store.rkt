@@ -183,14 +183,18 @@
                  (task-key x)
                  (walk (task-children x))))))))
 
+;; Node keys are minted here, over the whole loaded set at once (see
+;; mint-outline-keys): a fragment shared by two roots is one node with one
+;; key, and the index below can be a plain invertible hash.
 (define (build-snapshot outlines watch)
+  (define outs (mint-outline-keys outlines))
   (define files-data
-    (for/list ([o (in-list outlines)])
+    (for/list ([o (in-list outs)])
       (list (outline-path o) (outline-tasks o) (outline-anchors o))))
-  (snapshot outlines
+  (snapshot outs
             files-data
             (outline-index files-data)
-            (merge-anchors outlines)
+            (merge-anchors outs)
             watch))
 
 ;; -> (values (listof outline) #f (listof path)) | (values #f load-error '())

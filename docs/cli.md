@@ -119,11 +119,16 @@ here). `done` is `null` (open), `true` (completed, no timestamp), or an ISO
 timestamp string. `id` is `null` or the anchor string. `tags` is always an array.
 
 `key` is the node's stable identity — its `^anchor` when it has one, else a
-hash of the file name plus the child ordinals that reach it. It survives
-renaming the node or any ancestor and cannot collide between same-titled
-siblings; it changes when siblings are reordered (anchor the node if you need
-more). The web view addresses nodes by it (element ids, permalinks, stored
-collapse state).
+hash of its **defining** file plus the child ordinals that reach it inside
+that file. It survives renaming the node or any ancestor and cannot collide
+between same-titled siblings; it changes when siblings are reordered (anchor
+the node if you need more). Because the file is the one that DEFINES the node,
+an `@include`d node keys the same whether you load the fragment or the root
+that includes it, and two roots sharing a fragment agree about it. File names
+are taken relative to the common directory of the files you loaded, so two
+roots named `Daily.rkt` in different directories do not collide, and moving
+the whole outline home does not re-key it. The web view addresses nodes by
+this key (element ids, permalinks, stored collapse state).
 
 ## `agenda [--json] [file ...]`
 

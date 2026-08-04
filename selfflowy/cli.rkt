@@ -194,9 +194,10 @@
 ;; tree is JSON-only (human view is the web app). --json is accepted as a no-op.
 (define (cmd-tree paths json?)
   (define entries
-    (for/list ([path (in-list paths)])
-      (define-values (tasks anchors includes) (load-outline path #t))
-      (outline path tasks anchors includes)))
+    (mint-outline-keys
+     (for/list ([path (in-list paths)])
+       (define-values (tasks anchors includes) (load-outline path #t))
+       (outline path tasks anchors includes))))
   (write-json-stdout (outlines->jsexpr entries)))
 
 (define (cmd-agenda paths json?)

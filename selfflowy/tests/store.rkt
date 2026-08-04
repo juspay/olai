@@ -154,6 +154,73 @@
        (define snap (store-snapshot st))
        (check-not-false (hash-ref (snapshot-index snap) "ship" #f)))))
 
+  ;; A node's key comes from its DEFINING file, so the entry point you happen
+  ;; to load cannot change it.
+  (define (key-in tasks title)
+    (for/or ([x (in-list tasks)])
+      (and (task? x)
+           (if (equal? (task-title x) title)
+               (task-key x)
+               (key-in (task-children x) title)))))
+
+  (define (key-for st title)
+    (key-in (append* (for/list ([o (in-list (snapshot-outlines (store-snapshot st)))])
+                       (outline-tasks o)))
+            title))
+
+  (test-case "a node keys the same standalone and through the file that includes it"
+    (with-temp-dir
+     (λ (dir)
+       (define frag (build-path dir "frag.rkt"))
+       (define root (build-path dir "root.rkt"))
+       (write-file! frag "#lang selfflowy\nDayA\n  child\nDayB\n")
+       (write-file! root "#lang selfflowy\nParent\n  @include frag.rkt\n")
+       (define alone (make-store (list frag)))
+       (define via (make-store (list root)))
+       (for ([title (in-list '("DayA" "child" "DayB"))])
+         (check-equal? (key-for via title) (key-for alone title) title))
+       ;; the including root's own node is keyed by root.rkt, not by frag
+       (check-not-equal? (key-for via "Parent") (key-for alone "DayA")))))
+
+  (test-case "two roots sharing a fragment agree on its nodes"
+    (with-temp-dir
+     (λ (dir)
+       (define frag (build-path dir "Daily" "2026-08.rkt"))
+       (define a (build-path dir "A.rkt"))
+       (define b (build-path dir "B.rkt"))
+       (write-file! frag "#lang selfflowy\n2026-08-04\n  Ship it\n")
+       (write-file! a "#lang selfflowy\nAlpha\n  @include Daily/2026-08.rkt\n")
+       (write-file! b "#lang selfflowy\nBeta\n  Filler\n  @include Daily/2026-08.rkt\n")
+       ;; both roots in ONE store: the shared node must be one key, so the
+       ;; index that keeps first-wins is not hiding a second identity
+       (define st (make-store (list a b)))
+       (define snap (store-snapshot st))
+       (define keys
+         (for/list ([o (in-list (snapshot-outlines snap))])
+           (key-in (outline-tasks o) "2026-08-04")))
+       (check-equal? (length keys) 2)
+       (check-equal? (car keys) (cadr keys))
+       (check-not-false (hash-ref (snapshot-index snap) (car keys) #f))
+       ;; the shared day node's child too, not just its root
+       (check-equal? (key-in (outline-tasks (car (snapshot-outlines snap))) "Ship it")
+                     (key-in (outline-tasks (cadr (snapshot-outlines snap))) "Ship it")))))
+
+  (test-case "two roots with the same basename do not share keys"
+    (with-temp-dir
+     (λ (dir)
+       (define a (build-path dir "a" "Daily.rkt"))
+       (define b (build-path dir "b" "Daily.rkt"))
+       (write-file! a "#lang selfflowy\nDay\n")
+       (write-file! b "#lang selfflowy\nDay\n")
+       (define st (make-store (list a b)))
+       (define snap (store-snapshot st))
+       (define keys
+         (for/list ([o (in-list (snapshot-outlines snap))])
+           (task-key (car (outline-tasks o)))))
+       (check-not-equal? (car keys) (cadr keys))
+       ;; and both are addressable
+       (check-equal? (hash-count (snapshot-index snap)) 2))))
+
   (test-case "an index and merged anchors are derived once per load"
     (with-temp-dir
      (λ (dir)

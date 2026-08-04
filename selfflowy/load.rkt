@@ -8,13 +8,18 @@
 
 (require racket/list
          racket/path
-         racket/string)
+         racket/string
+         file/sha1
+         (except-in selfflowy/lang/expander #%module-begin)
+         selfflowy/paths)
 
 (provide (struct-out outline)
          (struct-out load-error)
          load-error-where
          load-error-detail
          try-load-outline
+         mint-outline-keys
+         mint-task-keys
          exn-location
          exn-message*)
 
@@ -112,3 +117,74 @@
       (with-handlers ([exn:fail? (λ (_) '())])
         (dynamic-require mod 'includes)))
     (outline path tasks anchors includes)))
+
+;; ---- node identity --------------------------------------------------------
+;;
+;; A node's key is what everything downstream addresses it by: element ids,
+;; permalinks, stored collapse state, SSE swap targets. So it must not be
+;; derived from anything the user retypes casually, and it must not depend on
+;; WHICH file you happened to load. It is:
+;;
+;;   * the ^anchor when the node has one — user-chosen, survives everything;
+;;   * otherwise a hash of "<defining file>/<child ordinals within that file>"
+;;     ("Daily/2026-08.rkt/0.2.1"), which survives renaming the node or any
+;;     ancestor, cannot collide between same-titled siblings, and changes only
+;;     when siblings are reordered (anchor the node if you want more).
+;;
+;; Minted HERE and not in the expander, because the expander only ever sees
+;; one entry point: a node spliced in by @include would key differently loaded
+;; standalone than through the file that includes it, and two roots sharing a
+;; fragment would mint two keys for one node.
+
+(define (short-hash s)
+  (substring (sha1 (open-input-bytes (string->bytes/utf-8 s))) 0 8))
+
+(define (path-key label ordinals)
+  (string-append
+   "p"
+   (short-hash (format "~a/~a"
+                       label
+                       (string-join (map number->string ordinals) ".")))))
+
+;; Ordinals are counted per DEFINING file, and restart whenever the file
+;; changes: a fragment's top-level tasks are ordinals 0,1,… of the fragment
+;; wherever they are spliced. `label-of` names a file (see paths.rkt).
+;; An already-minted key (an ^anchor) is left alone.
+(define (mint-task-keys tasks #:label label-of)
+  (define (walk-forest xs parent-file parent-ords)
+    (define counts (make-hash))
+    (for/list ([x (in-list xs)])
+      (cond
+        [(task? x)
+         (define f (task-file x))
+         (define i (hash-ref counts f 0))
+         (hash-set! counts f (add1 i))
+         (define ords
+           (if (equal? f parent-file)
+               (append parent-ords (list i))
+               (list i)))
+         (struct-copy task x
+                      [key (or (task-key x) (path-key (label-of f) ords))]
+                      [children (walk-forest (task-children x) f ords)])]
+        [else x])))
+  (walk-forest tasks #f '()))
+
+;; Anchors index the minted trees, not the module's originals: a mirror site
+;; renders the node it finds here, and it must carry the same key.
+(define (tree-anchors tasks)
+  (define h (make-hash))
+  (define (walk x)
+    (when (task? x)
+      (when (task-id x) (hash-set! h (task-id x) x))
+      (for ([c (in-list (task-children x))]) (walk c))))
+  (for ([t (in-list tasks)]) (walk t))
+  h)
+
+;; The whole loaded set at once: labels are relative to what these files have
+;; in common, so the answer does not depend on the machine's $HOME.
+(define (mint-outline-keys outs)
+  (define base (roots-base (map outline-path outs)))
+  (for/list ([o (in-list outs)])
+    (define tasks
+      (mint-task-keys (outline-tasks o) #:label (λ (f) (key-label base f))))
+    (outline (outline-path o) tasks (tree-anchors tasks) (outline-includes o))))

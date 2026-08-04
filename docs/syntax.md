@@ -75,7 +75,9 @@ included file is a normal `#lang selfflowy` module; its top-level tasks appear
 in place of the include line. Anchors/mirrors resolve across the whole tree;
 duplicate `^id` names both files. Each task records its defining file
 (`task-file`); writes (`done` / `move` / `add --parent ^anchor`) edit that
-file, not the root.
+file, not the root. Node identity (`key` in the JSON) is minted from that
+defining file too, so a node keys the same loaded standalone or through any
+root that includes it — see `docs/cli.md`.
 
 ### Mirrors (in-file)
 

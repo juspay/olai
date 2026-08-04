@@ -10,11 +10,13 @@
          selfflowy/lang/outline
          selfflowy/json-out
          selfflowy/agenda
+         selfflowy/load
          selfflowy/web/render
          xml
          selfflowy/done
          selfflowy/capture)
 
+;; Keys are minted by the load layer, not the module, so these go through it.
 (define (eval-mod src)
   (define tmp (make-temporary-file "sf-mir~a.rkt"))
   (dynamic-wind
@@ -23,7 +25,8 @@
      (display-to-file src tmp #:exists 'truncate)
      (define tasks (dynamic-require `(file ,(path->string tmp)) 'tasks))
      (define anchors (dynamic-require `(file ,(path->string tmp)) 'anchors))
-     (values tasks anchors))
+     (define o (car (mint-outline-keys (list (outline tmp tasks anchors '())))))
+     (values (outline-tasks o) (outline-anchors o)))
    (λ () (delete-file tmp))))
 
 (define (eval-tasks src)
