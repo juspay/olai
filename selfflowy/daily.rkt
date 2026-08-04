@@ -11,7 +11,7 @@
          selfflowy/edit
          selfflowy/lang/line
          (except-in selfflowy/lang/expander #%module-begin)
-         (only-in selfflowy/json-out count-tasks))
+         (only-in selfflowy/query count-tasks))
 
 (provide month-name
          month-fragment-rel

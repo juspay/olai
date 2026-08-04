@@ -19,7 +19,21 @@
          collect-dated-nodes
          breadcrumb-of
          with-file-roots
-         collect-day-titles)
+         collect-day-titles
+         count-tasks
+         count-mirrors)
+
+;; How big is this outline? Two folds, and the difference between them is the
+;; whole mirror policy: a node is counted where it is DEFINED, a mirror site
+;; is counted as a site.
+(define (count-tasks tasks)
+  (fold-tasks tasks (λ (_tk _path n) (add1 n)) 0))
+
+(define (count-mirrors tasks)
+  (fold-tasks tasks
+              (λ (x _path n) (if (mirror-ref? x) (add1 n) n))
+              0
+              #:mirrors 'visit))
 
 ;; task: the node itself; breadcrumb: "Tasks.rkt > Inbox > Buy milk"
 (struct dated-node (task breadcrumb) #:transparent)

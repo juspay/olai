@@ -77,43 +77,36 @@
           "END:VEVENT"))
   (map fold-ics-line lines))
 
-;; file-entries: (listof (cons path tasks))
-(define (tasks->ics file-entries)
-  (define pairs
-    (append*
-     (for/list ([e (in-list file-entries)])
-       (define path (car e))
-       (define path-str
-         (if (path? path) (path->string path) (format "~a" path)))
-       ;; ICS events are read outside the outline, so every breadcrumb is
-       ;; file-rooted here, single file or not.
-       (for/list ([it (in-list (collect-cal-items (cdr e)
-                                                  #:root (file-label path)))])
-         (cons path-str it)))))
-  (define body
-    (append*
-     (for/list ([pair (in-list pairs)])
-       (vevent (car pair) (cdr pair)))))
+;; The VCALENDAR wrapper, written once. `events` is the already-folded lines
+;; of every VEVENT.
+(define (vcalendar events)
   (string-append
    "BEGIN:VCALENDAR\r\n"
    "VERSION:2.0\r\n"
    "PRODID:-//selfflowy//EN\r\n"
    "CALSCALE:GREGORIAN\r\n"
-   (string-join body "\r\n")
-   (if (null? body) "" "\r\n")
+   (string-join events "\r\n")
+   (if (null? events) "" "\r\n")
    "END:VCALENDAR\r\n"))
 
+(define (path-string p)
+  (if (path? p) (path->string p) (format "~a" p)))
+
+;; file-entries: (listof (cons path tasks))
+(define (tasks->ics file-entries)
+  (vcalendar
+   (append*
+    (for/list ([e (in-list file-entries)])
+      (define path (car e))
+      ;; ICS events are read outside the outline, so every breadcrumb is
+      ;; file-rooted here, single file or not.
+      (append*
+       (for/list ([it (in-list (collect-cal-items (cdr e)
+                                                  #:root (file-label path)))])
+         (vevent (path-string path) it)))))))
+
 (define (cal-items->ics items #:path [path "outline.rkt"])
-  (define path-str (if (path? path) (path->string path) path))
-  (define body
-    (append*
-     (for/list ([it (in-list items)])
-       (vevent path-str it))))
-  (string-append
-   "BEGIN:VCALENDAR\r\n"
-   "VERSION:2.0\r\n"
-   "PRODID:-//selfflowy//EN\r\n"
-   "CALSCALE:GREGORIAN\r\n"
-   (string-join body "\r\n")
-   (if (null? body) "" "\r\n")
-   "END:VCALENDAR\r\n"))
+  (vcalendar
+   (append*
+    (for/list ([it (in-list items)])
+      (vevent (path-string path) it)))))

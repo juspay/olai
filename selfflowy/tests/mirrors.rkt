@@ -9,6 +9,7 @@
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/lang/outline
          selfflowy/json-out
+         (only-in selfflowy/query count-tasks count-mirrors)
          selfflowy/agenda
          selfflowy/load
          selfflowy/web/render

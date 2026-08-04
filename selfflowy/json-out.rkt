@@ -7,7 +7,9 @@
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/agenda
          selfflowy/calendar
-         selfflowy/load)
+         selfflowy/load
+         ;; task_count / mirror_count are queries, not a JSON concern
+         (only-in selfflowy/query count-tasks count-mirrors))
 
 (provide json-version
          write-json-stdout
@@ -24,9 +26,7 @@
          agenda-groups->jsexpr
          cal-item->jsexpr
          calendar->jsexpr
-         nullish
-         count-tasks
-         count-mirrors)
+         nullish)
 
 (define json-version 1)
 
@@ -59,26 +59,6 @@
                      'line (nullish line)
                      'col (nullish col)
                      'message message)))
-
-;; Count unique defining task nodes (mirrors do not add to the count).
-(define (count-tasks tasks)
-  (define (count x)
-    (cond
-      [(task? x)
-       (add1 (for/sum ([c (in-list (task-children x))])
-               (count c)))]
-      [else 0]))
-  (for/sum ([t (in-list tasks)]) (count t)))
-
-(define (count-mirrors tasks)
-  (define (count x)
-    (cond
-      [(mirror-ref? x) 1]
-      [(task? x)
-       (for/sum ([c (in-list (task-children x))])
-         (count c))]
-      [else 0]))
-  (for/sum ([t (in-list tasks)]) (count t)))
 
 (define (task->jsexpr tk #:root-file [root-file #f])
   (define h

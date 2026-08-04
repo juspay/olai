@@ -9,6 +9,7 @@
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/load
          selfflowy/json-out
+         (only-in selfflowy/query count-tasks)
          selfflowy/done
          selfflowy/daily)
 

@@ -15,6 +15,7 @@
          selfflowy/agenda
          selfflowy/calendar
          selfflowy/json-out
+         selfflowy/query
          selfflowy/ics
          selfflowy/dates
          selfflowy/load
