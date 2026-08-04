@@ -9,7 +9,8 @@
          selfflowy/lang/outline
          selfflowy/json-out
          selfflowy/agenda
-         selfflowy/html
+         selfflowy/web/render
+         xml
          selfflowy/done
          selfflowy/capture)
 
@@ -131,7 +132,7 @@ EOF
     (check-equal? (dated-task-title (car ov)) "Milk")
     (check-equal? (dated-task-breadcrumb (car ov)) "Milk"))
 
-  (test-case "html id and mirror glyph"
+  (test-case "rendered mirror site keeps the anchor and glyph"
     (define-values (tasks anchors)
       (eval-mod
        #<<EOF
@@ -140,7 +141,11 @@ EOF
 (t "Week" (mirror "agent"))
 EOF
        ))
-    (define html (tasks->html tasks "T" #:anchors anchors))
+    (define html
+      (xexpr->string (render-outline (list (list "T.rkt" tasks anchors))
+                                     #:today "2026-08-03")))
+    ;; the node id is namespaced; the bare ^anchor stays linkable
+    (check-true (string-contains? html "id=\"n-agent\"") html)
     (check-true (string-contains? html "id=\"agent\"") html)
     (check-true (string-contains? html "href=\"#agent\"") html)
     (check-true (string-contains? html "↗") html))
