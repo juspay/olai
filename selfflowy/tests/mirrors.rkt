@@ -2,6 +2,7 @@
 
 (require rackunit
          racket/file
+         racket/list
          racket/hash
          racket/string
          json
@@ -149,6 +150,36 @@ EOF
     (check-true (string-contains? html "id=\"agent\"") html)
     (check-true (string-contains? html "href=\"#agent\"") html)
     (check-true (string-contains? html "↗") html))
+
+  (test-case "a mirror site gets its own element id, never a duplicate"
+    (define-values (tasks anchors)
+      (eval-mod
+       #<<EOF
+#lang selfflowy/sexp
+(t "Agent" #:id "agent" (t "sub"))
+(t "Week" (mirror "agent"))
+(t "Later" (mirror "agent"))
+EOF
+       ))
+    (define html
+      (xexpr->string (render-outline (list (list "T.rkt" tasks anchors))
+                                     #:today "2026-08-03")))
+    (define (count-of needle)
+      (length (regexp-match* (regexp (regexp-quote needle)) html)))
+    ;; one node, three sites: same fragment id everywhere, one id each
+    (check-equal? (count-of "data-fragment-id=\"agent\"") 3 html)
+    (check-equal? (count-of "id=\"n-agent\"") 1 html)
+    ;; the legacy plain #anchor target belongs to the defining site only
+    (check-equal? (count-of "class=\"sf-anchor\" id=\"agent\"") 1 html)
+    ;; the mirrored subtree is qualified too, not just its root
+    (define sub-key (task-key (car (task-children (car tasks)))))
+    (check-equal? (count-of (string-append "data-fragment-id=\"" sub-key "\"")) 3 html)
+    (check-equal? (count-of (string-append "id=\"n-" sub-key "\"")) 1 html)
+    ;; every id in the document is unique
+    (define ids
+      (regexp-match* #px"(?<![-a-z])id=\"([^\"]+)\"" html #:match-select cadr))
+    (check-equal? (length ids) (length (remove-duplicates ids))
+                  (format "~a" ids)))
 
   (test-case "done via ^anchor"
     (define src

@@ -48,8 +48,21 @@
 
 ;; ---- element ids ----------------------------------------------------------
 
-(define (node-element-id key)
-  (string-append "n-" key))
+;; A node with an ^anchor is one node rendered at several SITES (its defining
+;; site and every *mirror of it). They share a key — they are the same node —
+;; but a DOM id has to be unique or an id-addressed swap updates only the
+;; first copy. The defining site owns the bare id; a mirror site qualifies it
+;; with the site it hangs under. Every site keeps data-fragment-id=<key>, so
+;; a swap can address them all as [data-fragment-id="…"].
+(define (node-element-id key #:site [site #f])
+  (string-append "n-" (site-key site key)))
+
+(define (site-key site key)
+  (if site (string-append site "-" key) key))
+
+;; ids and CSS selectors: keep them to the anchor grammar
+(define (id-safe s)
+  (regexp-replace* #px"[^A-Za-z0-9_-]" s "_"))
 
 ;; ---- small helpers --------------------------------------------------------
 
@@ -99,16 +112,17 @@
                (list `(span ((class "sf-date-time")) ,(substring date 11)))
                '())))
 
-(define (checkbox-xexpr fid done? toggle-base)
+(define (checkbox-xexpr key elt-key done? toggle-base)
   (define label (if done? "☑" "☐"))
   (define common
     `((class ,(classes "sf-check" (and done? "is-done")))
       (title ,(if done? "done" "not done"))))
   (if toggle-base
+      ;; post against the node (its key), swap the copy you clicked (elt-key)
       `(button ((type "button")
                 ,@common
-                (hx-post ,(string-append toggle-base fid))
-                (hx-target ,(string-append "#" (node-element-id fid)))
+                (hx-post ,(string-append toggle-base key))
+                (hx-target ,(string-append "#n-" elt-key))
                 (hx-swap "outerHTML")
                 (aria-label ,(if done? "mark not done" "mark done")))
                ,label)
@@ -127,6 +141,8 @@
 
 (define (render-child child
                       #:anchors anchors
+                      #:site site
+                      #:owner owner
                       #:today today
                       #:zoom-base zoom-base
                       #:toggle-base toggle-base)
@@ -138,6 +154,7 @@
        [target
         (render-node-fragment target
                               #:anchors anchors
+                              #:site owner
                               #:today today
                               #:mirror-of anchor
                               #:zoom-base zoom-base
@@ -153,6 +170,7 @@
     [(task? child)
      (render-node-fragment child
                            #:anchors anchors
+                           #:site site
                            #:today today
                            #:zoom-base zoom-base
                            #:toggle-base toggle-base)]
@@ -161,6 +179,7 @@
 ;; One subtree, self-contained: this is the unit SSE re-swaps.
 (define (render-node-fragment tk
                               #:anchors [anchors (hash)]
+                              #:site [site #f]
                               #:today [today #f]
                               #:mirror-of [mirror-of #f]
                               #:zoom-base [zoom-base #f]
@@ -169,6 +188,8 @@
   (define title (task-title tk))
   (define today* (or today (today-iso-string)))
   (define key (task-key tk))
+  ;; where this copy of the node sits: #f at its defining site
+  (define qkey (site-key site key))
   (define done? (and (task-done tk) #t))
   (define kids (task-children tk))
   (define has-kids? (pair? kids))
@@ -198,7 +219,7 @@
                  dot))
           ;; the check sits in the gutter, not in the text run, so a title
           ;; and its note stay flush left of each other
-          ,(checkbox-xexpr key done? toggle-base)
+          ,(checkbox-xexpr key qkey done? toggle-base)
           (div ((class "sf-content"))
                (div ((class "sf-line"))
                     ,@(if mirror-of
@@ -219,16 +240,18 @@
                          (and has-kids? "has-children")
                          (and collapsed? "is-collapsed")
                          (and done? "is-done")))
-        (id ,(node-element-id key))
+        (id ,(node-element-id key #:site site))
         (data-fragment-id ,key)
-        ,@(if has-kids? `((data-collapse-key ,key)) (quote ())))
-       ,@(legacy-anchor-xexpr tk)
+        ,@(if has-kids? `((data-collapse-key ,qkey)) (quote ())))
+       ,@(if site (quote ()) (legacy-anchor-xexpr tk))
        ,row
        ,@(if has-kids?
              (list `(ul ((class "sf-children"))
                         ,@(for/list ([c (in-list kids)])
                             (render-child c
                                           #:anchors anchors
+                                          #:site site
+                                          #:owner qkey
                                           #:today today*
                                           #:zoom-base zoom-base
                                           #:toggle-base toggle-base))))
@@ -247,6 +270,8 @@
          ,@(for/list ([tk (in-list tasks)])
              (render-child tk
                            #:anchors anchors
+                           #:site #f
+                           #:owner (id-safe label)
                            #:today today*
                            #:zoom-base zoom-base
                            #:toggle-base toggle-base))))
