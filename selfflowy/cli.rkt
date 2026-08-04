@@ -12,7 +12,6 @@
          racket/path
          racket/string
          racket/vector
-         (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/agenda
          selfflowy/calendar
          selfflowy/json-out
@@ -23,14 +22,9 @@
          selfflowy/daily
          selfflowy/dates
          selfflowy/load
+         selfflowy/resolve
          selfflowy/edit
-         selfflowy/web/serve
-         (only-in selfflowy/lang/expander
-                  find-task-by-id
-                  find-tasks-by-title
-                  task-file
-                  task-title
-                  task-id))
+         selfflowy/web/serve)
 (define exit-ok 0)
 (define exit-usage 1)
 (define exit-validation 2)
@@ -227,50 +221,14 @@
       (write-json-stdout (calendar->jsexpr cal))
       (displayln (format-calendar cal))))
 
-;; Resolve TITLE or ^anchor against the outline at path; return the defining
-;; file that must be edited (may differ under @include).
-(define (resolve-defining-file path title-or-anchor json?)
-  (define-values (tasks anchors _includes) (load-outline path json?))
-  (define kind (parse-title-or-anchor title-or-anchor))
-  (match kind
-    [(cons 'anchor a)
-     (define tk (or (hash-ref anchors a #f)
-                    (find-task-by-id tasks a)))
-     (unless tk
-       (die exit-validation
-            (format "no task matching ^~a in ~a" a path)
-            #:json? json?
-            #:file path))
-     (define f (or (task-file tk) (path->string path)))
-     (values (simple-form-path f) (task-title tk))]
-    [(cons 'title t)
-     (define ms (find-tasks-by-title tasks t))
-     (cond
-       [(null? ms)
-        (die exit-validation
-             (format "no task matching ~s in ~a" t path)
-             #:json? json?
-             #:file path)]
-       [(> (length ms) 1)
-        ;; Prefer line numbers from the root file text when all matches live there.
-        (define text (file->string path))
-        (define matches (find-title-matches text t))
-        (define where
-          (if (pair? matches)
-              (format-match-lines path matches)
-              (string-join
-               (for/list ([tk (in-list ms)])
-                 (or (task-file tk) (path->string path)))
-               ", ")))
-        (die exit-validation
-             (format "ambiguous title ~s; matches: ~a; add a ^anchor to disambiguate"
-                     t where)
-             #:json? json?
-             #:file path)]
-       [else
-        (define tk (car ms))
-        (define f (or (task-file tk) (path->string path)))
-        (values (simple-form-path f) (task-title tk))])]))
+;; Resolve TITLE or ^anchor against the outline at `path`, once: which file
+;; defines it (may differ under @include) and which line in that file.
+(define (locate-in path title-or-anchor json?)
+  (define-values (tasks anchors includes) (load-outline path json?))
+  (with-handlers
+      ([exn:fail?
+        (λ (e) (die exit-validation (exn-message e) #:json? json? #:file path))])
+    (locate (outline path tasks anchors includes) title-or-anchor)))
 
 (define (cmd-add json? file-arg date desc no-commit? parent title-parts)
   (when (null? title-parts)
@@ -288,8 +246,7 @@
   (define path
     (cond
       [(and parent (regexp-match? #px"^\\^[A-Za-z0-9_-]+$" (string-trim parent)))
-       (define-values (f _t) (resolve-defining-file root-path parent json?))
-       f]
+       (located-file (locate-in root-path parent json?))]
       [else root-path]))
   (define original
     (if (file-exists? path)
@@ -335,12 +292,6 @@
               line
               (if committed? ", committed" ""))))
 
-(define (format-match-lines path matches)
-  (string-join
-   (for/list ([m (in-list matches)])
-     (format "~a:~a" path (title-match-line m)))
-   ", "))
-
 (define (cmd-done json? file-arg undo? no-commit? title-parts)
   (when (null? title-parts)
     (die exit-usage "done requires a TITLE" #:json? json?))
@@ -353,38 +304,18 @@
          (format "file not found: ~a" root-path)
          #:json? json?
          #:file root-path))
-  ;; Edit the defining file (may be an @include fragment).
-  (define-values (path _resolved)
-    (resolve-defining-file root-path title json?))
+  ;; Edit the defining file (may be an @include fragment), at the line the
+  ;; resolver picked — no second search, no second ambiguity error.
+  (define hit (locate-in root-path title json?))
+  (define path (located-file hit))
   (define original (file->string path))
   (when (regexp-match? #px"(?m:^#lang selfflowy/sexp)" original)
     (die exit-validation
          "done only writes outline syntax (#lang selfflowy), not selfflowy/sexp"
          #:json? json?
          #:file path))
-  (define kind (parse-title-or-anchor title))
-  (define matches
-    (match kind
-      [(cons 'anchor a) (find-anchor-matches original a)]
-      [(cons 'title t) (find-title-matches original t)]))
-  (define label
-    (match kind
-      [(cons 'anchor a) (format "^~a" a)]
-      [(cons 'title t) t]))
-  (cond
-    [(null? matches)
-     (die exit-validation
-          (format "no task matching ~s in ~a" label path)
-          #:json? json?
-          #:file path)]
-    [(> (length matches) 1)
-     (die exit-validation
-          (format "ambiguous title ~s; matches: ~a; add a ^anchor to disambiguate"
-                  label (format-match-lines path matches))
-          #:json? json?
-          #:file path)])
   ;; Resolved node title (not the raw ^anchor input).
-  (define resolved-title (title-match-title (car matches)))
+  (define resolved-title (located-title hit))
   (define today (today-iso))
   (define-values (new-text line done-val)
     (with-handlers
@@ -392,9 +323,11 @@
           (λ (e)
             (die exit-validation (exn-message e) #:json? json? #:file path))])
       (if undo?
-          (let-values ([(t l) (undo-done-in-text original title)])
+          (let-values ([(t l) (undo-done-in-text original title
+                                                 #:at (located-index hit))])
             (values t l (json-null)))
-          (let-values ([(t l) (mark-done-in-text original title today)])
+          (let-values ([(t l) (mark-done-in-text original title today
+                                                 #:at (located-index hit))])
             (values t l today)))))
   (write-outline! path new-text json? "done")
   (define commit-msg
@@ -435,23 +368,25 @@
          (format "file not found: ~a" root-path)
          #:json? json?
          #:file root-path))
-  (define-values (path _resolved)
-    (resolve-defining-file root-path title json?))
+  (define hit (locate-in root-path title json?))
+  (define path (located-file hit))
   (define original (file->string path))
   (when (regexp-match? #px"(?m:^#lang selfflowy/sexp)" original)
     (die exit-validation
          "move only writes outline syntax (#lang selfflowy), not selfflowy/sexp"
          #:json? json?
          #:file path))
+  (define at (located-index hit))
   (define-values (new-text line resolved-title date-val)
     (with-handlers
         ([exn:fail?
           (λ (e)
             (die exit-validation (exn-message e) #:json? json? #:file path))])
       (if clear?
-          (let-values ([(t l title) (clear-date-in-text original title)])
+          (let-values ([(t l title) (clear-date-in-text original title #:at at)])
             (values t l title (json-null)))
-          (let-values ([(t l title d) (set-date-in-text original title date-arg)])
+          (let-values ([(t l title d) (set-date-in-text original title date-arg
+                                                        #:at at)])
             (values t l title d)))))
   (write-outline! path new-text json? "move")
   (define commit-msg

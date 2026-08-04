@@ -25,6 +25,8 @@
          find-anchor-matches
          metadata-indices
          locate-one
+         spec-label
+         title-match-at
          update-meta!)
 
 ;; line: 1-based outline line of the title
@@ -102,19 +104,39 @@
      => (λ (m) (cons 'anchor (cadr m)))]
     [else (cons 'title s)]))
 
+;; How a spec is quoted in messages: ^anchors bare, titles quoted.
+(define (spec-label spec)
+  (match (parse-title-or-anchor spec)
+    [(cons 'anchor a) (format "^~a" a)]
+    [(cons 'title t) (format "~s" t)]))
+
+;; The title-match at a line the resolver already picked (see
+;; selfflowy/resolve): no second search, no second ambiguity error.
+(define (title-match-at text idx who)
+  (define lines (string-split text "\n" #:trim? #f))
+  (unless (and (exact-nonnegative-integer? idx) (< idx (length lines)))
+    (error who "line ~a is not in this file" (add1 idx)))
+  (define-values (ind k) (scan (list-ref lines idx)))
+  (unless (line-title? k)
+    (error who "line ~a is not a task title" (add1 idx)))
+  (title-match (add1 idx) idx ind
+               (title-done? k (metadata-indices lines idx ind) lines)
+               (cadr k)))
+
 ;; The one match a mutation may touch, or an error naming the spec as the
 ;; user typed it. -> (values title-match label)
 (define (locate-one text spec who)
-  (define-values (matches label)
+  (define matches
     (match (parse-title-or-anchor spec)
-      [(cons 'anchor a) (values (find-anchor-matches text a) (format "^~a" a))]
-      [(cons 'title t) (values (find-title-matches text t) t)]))
+      [(cons 'anchor a) (find-anchor-matches text a)]
+      [(cons 'title t) (find-title-matches text t)]))
+  (define label (spec-label spec))
   (cond
     [(null? matches)
-     (error who "no task matching ~s" label)]
+     (error who "no task matching ~a" label)]
     [(> (length matches) 1)
      (error who
-            "ambiguous title ~s (~a matches); add a ^anchor to disambiguate"
+            "ambiguous title ~a (~a matches); add a ^anchor to disambiguate"
             label (length matches))]
     [else (values (car matches) label)]))
 
@@ -125,6 +147,8 @@
       body))
 
 ;; The engine. An op supplies:
+;;   #:at          the title's 0-based line index when a resolver already
+;;                 found it; #f to resolve `spec` against this text
 ;;   #:drop-field  the metadata field it replaces ('date, 'done) or #f
 ;;   #:insert-line (indent-string -> line) or #f for a pure removal
 ;;   #:check!      (match label dropped-indices -> void) — the op's
@@ -135,11 +159,15 @@
 ;; inserted one when there is one, else the title's.
 (define (update-meta! text spec
                       #:who who
+                      #:at [at #f]
                       #:drop-field [drop-field #f]
                       #:insert-line [insert-line #f]
                       #:check! [check! void]
                       #:retitle [retitle #f])
-  (define-values (m label) (locate-one text spec who))
+  (define-values (m label)
+    (if at
+        (values (title-match-at text at who) (spec-label spec))
+        (locate-one text spec who)))
   (define lines (string-split text "\n" #:trim? #f))
   (define idx (title-match-index m))
   (define ind (title-match-indent m))
