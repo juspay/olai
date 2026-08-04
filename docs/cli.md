@@ -192,15 +192,19 @@ selfflowy serve http://127.0.0.1:8080 files: /.../examples/Example.rkt
 - `--bind ADDR` — default `127.0.0.1`. `--bind ""` listens on all interfaces.
 - **No auth.** The network is the auth: put it behind Tailscale or Caddy.
 
-Routes (WP1 skeleton — more land with the real UI):
+Routes:
 
 | Route | Body |
 |-------|------|
 | `GET /` | HTML page (Workflowy-style skin from `selfflowy/web/render.rkt`) |
+| `GET /today` | today's Daily day node, zoomed; terse empty state when there is none yet |
 | `GET /api/tree` | byte-identical to `selfflowy tree` |
 | `GET /api/agenda` | byte-identical to `selfflowy agenda --json` |
 | `GET /static/*` | files under `selfflowy/web/static/` |
 | anything else | `404`, terse `text/plain` |
+
+A node's permalink is `/#n-<key>` (`key` as in `tree` JSON). Anchored nodes
+also keep a plain `#<anchor>` target.
 
 Paths that climb out of `static/` are 404, not files.
 

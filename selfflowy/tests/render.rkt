@@ -277,7 +277,10 @@
                                                       (list (tk "Deeper" #f #f '())))))
                                         (tk "Someday" #f #f '()))
                                   (hash))
-                            (list "/tmp/Roadmap.rkt" (list (tk "WP2" #f #f '())) (hash))))))
+                            (list "/tmp/Roadmap.rkt" (list (tk "WP2" #f #f '())) (hash)))
+                     #:home-href "/"
+                     #:today-href "/today")))
+    (check-true (string-contains? s "href=\"/today\"") s)
     (check-true (string-contains? s "Today") s)
     (check-true (string-contains? s "Starred") s)
     (check-true (string-contains? s "Nothing starred yet") s)
@@ -299,12 +302,14 @@
   ;; ---- breadcrumbs / zoom -------------------------------------------------
 
   (test-case "breadcrumbs link the pairs and leave bare strings plain"
-    (define s (xstr (render-breadcrumbs (list "Tasks.rkt" (list "Inbox" "p1234abcd")))))
+    (define s (xstr (render-breadcrumbs (list "Tasks.rkt" (list "Inbox" "p1234abcd"))
+                                        #:home-href "/")))
     (check-true (string-contains? s "sf-breadcrumbs") s)
     (check-true (string-contains? s "href=\"/\"") s)
     (check-true (string-contains? s "<span class=\"sf-crumb\">Tasks.rkt</span>") s)
     (check-true (string-contains? s "href=\"#n-p1234abcd\"") s)
     (define z (xstr (render-breadcrumbs (list (list "Inbox" "p1234abcd"))
+                                        #:home-href "/"
                                         #:zoom-base "/z/")))
     (check-true (string-contains? z "href=\"/z/p1234abcd\"") z))
 
@@ -316,7 +321,7 @@
                                   (tk "Elsewhere" #f #f '()))
                             (hash))))
     (define fid (task-key (tk "Buy milk" #f #f '())))
-    (define s (xstr (render-zoom (outline-index fd) fid #:today "2026-08-04")))
+    (define s (xstr (render-zoom (outline-index fd) fid #:today "2026-08-04" #:home-href "/")))
     (check-true (string-contains? s "sf-breadcrumbs") s)
     (check-true (string-contains? s "Tasks.rkt") s)
     (check-true (string-contains? s "Inbox") s)
@@ -332,10 +337,11 @@
     (define fd (files (list "Tasks.rkt"
                             (list (tk "Root" #f #f (list (tk "Kid" #f #f '() #:id "kid"))))
                             (hash))))
-    (define s (xstr (render-zoom (outline-index fd) "kid" #:today "2026-08-04")))
+    (define s (xstr (render-zoom (outline-index fd) "kid" #:today "2026-08-04" #:home-href "/")))
     (check-true (string-contains? s "id=\"n-kid\"") s)
     (check-true (string-contains? s "Kid") s)
-    (define miss (xstr (render-zoom (outline-index fd) "pdeadbeef" #:today "2026-08-04")))
+    (define miss (xstr (render-zoom (outline-index fd) "pdeadbeef" #:today "2026-08-04"
+                                #:home-href "/")))
     (check-true (string-contains? miss "No such node.") miss))
 
   ;; ---- page shell ---------------------------------------------------------
@@ -344,7 +350,8 @@
     (define fd (files (list "Tasks.rkt" (list (tk "Milk" #f #f '())) (hash))))
     (define s (xstr (render-page (render-outline fd #:today "2026-08-04")
                                  #:title "selfflowy"
-                                 #:sidebar (render-sidebar fd))))
+                                 #:sidebar (render-sidebar fd #:home-href "/"
+                                                           #:today-href "/today"))))
     (check-true (string-contains? s "<title>selfflowy</title>") s)
     (check-true (string-contains? s "href=\"/static/app.css\"") s)
     (check-true (string-contains? s "src=\"/static/htmx.min.js\"") s)

@@ -3,6 +3,7 @@
 ;; The read-mostly web view.
 ;;
 ;;   GET /              the html page: sidebar + outline
+;;   GET /today         today's Daily day node, zoomed
 ;;   GET /api/tree      byte-identical to `selfflowy tree`
 ;;   GET /api/agenda    byte-identical to `selfflowy agenda --json`
 ;;   GET /static/*      files from web/static/
@@ -101,10 +102,23 @@
 (define (page-failure err)
   (html-response
    (page->html-string
-    (render-page `(div ((class "sf-pane")) (p ((class "sf-empty")) "No outline loaded."))
+    (render-page (render-empty-pane "No outline loaded." #:home-href home-href)
                  #:title "selfflowy"
                  #:banner (error-banner err)))
    #:code 500))
+
+;; ---- the route table ------------------------------------------------------
+;;
+;; One owner: these are the only URLs the app has, and the renderer is told
+;; them rather than guessing (it used to default to a /today that did not
+;; exist, so the shipped sidebar link 404'd).
+
+(define home-href "/")
+(define today-href "/today")
+
+;; A node's address. There is no zoom route yet, so it is the home page
+;; anchored at the node — every node carries id="n-<key>" there.
+(define node-href-base "/#n-")
 
 ;; ---- handlers -------------------------------------------------------------
 
@@ -113,16 +127,46 @@
       (file-label (car files))
       "selfflowy"))
 
+(define (chrome files-data main #:title title #:banner [banner #f] #:code [code 200])
+  (html-response
+   (page->html-string
+    (render-page main
+                 #:title title
+                 #:sidebar (render-sidebar files-data
+                                           #:home-href home-href
+                                           #:today-href today-href
+                                           #:zoom-base node-href-base)
+                 #:banner banner))
+   #:code code))
+
 (define (page-handler st)
   (with-snapshot st page-failure #:stale-ok? #t
     (λ (snap err)
       (define files-data (snapshot-files-data snap))
-      (html-response
-       (page->html-string
-        (render-page (render-outline files-data #:today (today-iso-string))
-                     #:title (page-title (store-files st))
-                     #:sidebar (render-sidebar files-data)
-                     #:banner (and err (error-banner err))))))))
+      (chrome files-data
+              (render-outline files-data #:today (today-iso-string))
+              #:title (page-title (store-files st))
+              #:banner (and err (error-banner err))))))
+
+;; Today's Daily day node, zoomed. No day node yet is the normal state before
+;; the first capture of the day, not an error.
+(define (today-handler st)
+  (with-snapshot st page-failure #:stale-ok? #t
+    (λ (snap err)
+      (define today (today-iso-string))
+      (define key (snapshot-day-key snap today))
+      (chrome (snapshot-files-data snap)
+              (if key
+                  (render-zoom (snapshot-index snap) key
+                               #:anchors (snapshot-anchors snap)
+                               #:today today
+                               #:home-href home-href
+                               #:zoom-base node-href-base)
+                  (render-empty-pane
+                   (format "No day node for ~a. Run: selfflowy daily" today)
+                   #:home-href home-href))
+              #:title (string-append "today " today)
+              #:banner (and err (error-banner err))))))
 
 (define (tree-handler st)
   (with-snapshot st json-failure
@@ -145,6 +189,7 @@
   (define-values (route _url)
     (dispatch-rules
      [("") (λ (req) (page-handler st))]
+     [("today") (λ (req) (today-handler st))]
      [("api" "tree") (λ (req) (tree-handler st))]
      [("api" "agenda") (λ (req) (agenda-handler st))]
      [else (λ (req) (not-found-response))]))

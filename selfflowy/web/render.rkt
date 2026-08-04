@@ -30,6 +30,7 @@
          render-sidebar
          render-page
          render-zoom
+         render-empty-pane
          ;; helpers the server needs to route/lookup
          render-file-section
          page->html-string
@@ -309,7 +310,7 @@
 ;; ---- chrome ---------------------------------------------------------------
 
 ;; path: (listof crumb) where crumb is "Label" or (list "Label" href-or-fid)
-(define (render-breadcrumbs path #:zoom-base [zoom-base #f] #:home-href [home-href "/"])
+(define (render-breadcrumbs path #:home-href home-href #:zoom-base [zoom-base #f])
   (define (label->xexprs label)
     (map style-md-xexpr (title->inline-xexprs label)))
   (define (crumb->xexpr c)
@@ -332,9 +333,9 @@
 
 ;; Sidebar: Today, Starred (placeholder), Home tree (disclosure only).
 (define (render-sidebar files-data
-                        #:today-href [today-href "/today"]
-                        #:zoom-base [zoom-base #f]
-                        #:home-href [home-href "/"])
+                        #:home-href home-href
+                        #:today-href today-href
+                        #:zoom-base [zoom-base #f])
   (define entries (normalize-files-data files-data))
   (define (tree-item tk depth)
     (cond
@@ -446,6 +447,12 @@
 
 ;; ---- zoom -----------------------------------------------------------------
 
+;; A pane with nothing to show: breadcrumbs home, one line saying why.
+(define (render-empty-pane message #:home-href home-href)
+  `(div ((class "sf-pane sf-zoom") (id "sf-outline"))
+        ,(render-breadcrumbs '() #:home-href home-href)
+        (p ((class "sf-empty")) ,message)))
+
 ;; Breadcrumbs + the focused subtree.
 ;;
 ;; `index` is the store's node index: key -> (list task crumbs), where crumbs
@@ -455,15 +462,12 @@
 (define (render-zoom index key
                      #:anchors [anchors (hash)]
                      #:today today
+                     #:home-href home-href
                      #:zoom-base [zoom-base #f]
-                     #:toggle-base [toggle-base #f]
-                     #:home-href [home-href "/"])
+                     #:toggle-base [toggle-base #f])
   (define hit (hash-ref index key #f))
   (cond
-    [(not hit)
-     `(div ((class "sf-pane sf-zoom") (id "sf-outline"))
-           ,(render-breadcrumbs '() #:home-href home-href)
-           (p ((class "sf-empty")) "No such node."))]
+    [(not hit) (render-empty-pane "No such node." #:home-href home-href)]
     [else
      (match-define (list tk crumbs) hit)
      ;; drop the node's own crumb; the file label has no node to zoom to

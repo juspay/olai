@@ -64,6 +64,32 @@
                    (format "~a" headers))
        (check-true (string-contains? body "Buy milk") body))))
 
+  (test-case "the sidebar Today link is a real route"
+    (with-server
+     (λ (port f)
+       ;; no day node in the outline yet: terse empty state, not a 404
+       (define-values (code _h body) (GET port "/today"))
+       (check-equal? code 200 body)
+       (check-true (string-contains? body "No day node for") body)
+       ;; and the link the page ships points here
+       (define-values (_c _hh home) (GET port "/"))
+       (check-true (string-contains? home "href=\"/today\"") home)
+       ;; add today's day node and it zooms to it
+       (define today
+         (let ()
+           (define j (read-json (open-input-string
+                                 (let-values ([(_c2 _h2 b) (GET port "/api/agenda")]) b))))
+           (hash-ref j 'today)))
+       (display-to-file (string-append outline today "\n  Water the plants\n")
+                        f #:exists 'truncate)
+       (define-values (code2 _h3 body2) (GET port "/today"))
+       (check-equal? code2 200 body2)
+       (check-true (string-contains? body2 "Water the plants") body2)
+       ;; zoomed: the main pane holds that subtree and nothing else
+       (define pane (cadr (string-split body2 "<main class=\"sf-main\">")))
+       (check-true (string-contains? pane "sf-zoom") pane)
+       (check-false (string-contains? pane "Buy milk") pane))))
+
   (test-case "GET /api/tree matches the tree JSON contract"
     (with-server
      (λ (port f)

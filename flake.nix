@@ -228,6 +228,10 @@
             grep -q "selfflowy.collapsed" collapse.js
             test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8099/nope)" = 404
 
+            # the sidebar Today link has to be a real route
+            curl -sf -o today.html http://127.0.0.1:8099/today
+            grep -qi "<html" today.html
+
             # Reload after a save. This is the check that matters in the
             # PACKAGED binary: the store loads outlines in a fresh namespace,
             # which has no collection paths to resolve selfflowy from — it has

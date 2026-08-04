@@ -40,6 +40,7 @@
          store-invalidate!
          (struct-out snapshot)
          outline-index
+         snapshot-day-key
          call-in-outline-namespace)
 
 ;; One consistent view of the outlines. Handlers read this once and never see
@@ -170,6 +171,17 @@
     (for ([tk (in-list (cadr e))])
       (walk tk trail)))
   idx)
+
+;; The key of the day node titled `iso-day` (Daily.rkt keeps one per day), or
+;; #f. First match in file order, so the answer does not depend on hash order.
+(define (snapshot-day-key snap iso-day)
+  (for/or ([e (in-list (snapshot-files-data snap))])
+    (let walk ([xs (cadr e)])
+      (for/or ([x (in-list xs)])
+        (and (task? x)
+             (if (equal? (task-title x) iso-day)
+                 (task-key x)
+                 (walk (task-children x))))))))
 
 (define (build-snapshot outlines watch)
   (define files-data
