@@ -28,6 +28,7 @@
          racket/port
          syntax/modread
          (except-in selfflowy/lang/expander #%module-begin)
+         selfflowy/lang/walk
          selfflowy/load
          ;; one owner for how a file is named in the UI
          (only-in selfflowy/paths file-label))
@@ -159,29 +160,29 @@
 ;; site is the same node as its defining site, and that site owns the key.
 (define (outline-index files-data)
   (define idx (make-hash))
-  (define (walk x trail)
-    (when (task? x)
-      (define here (append trail (list (list (task-title x) (task-key x)))))
-      (unless (hash-has-key? idx (task-key x))
-        (hash-set! idx (task-key x) (list x here)))
-      (for ([c (in-list (task-children x))])
-        (walk c here))))
   (for ([e (in-list files-data)])
-    (define trail (list (list (file-label (car e)) #f)))
-    (for ([tk (in-list (cadr e))])
-      (walk tk trail)))
+    (define file-crumb (list (list (file-label (car e)) #f)))
+    (fold-tasks
+     (cadr e)
+     (λ (tk path _acc)
+       (unless (hash-has-key? idx (task-key tk))
+         (hash-set! idx (task-key tk)
+                    (list tk
+                          (append file-crumb
+                                  (for/list ([n (in-list (task-path path tk))])
+                                    (list (task-title n) (task-key n)))))))
+       idx)
+     idx))
   idx)
 
 ;; The key of the day node titled `iso-day` (Daily.rkt keeps one per day), or
 ;; #f. First match in file order, so the answer does not depend on hash order.
 (define (snapshot-day-key snap iso-day)
   (for/or ([e (in-list (snapshot-files-data snap))])
-    (let walk ([xs (cadr e)])
-      (for/or ([x (in-list xs)])
-        (and (task? x)
-             (if (equal? (task-title x) iso-day)
-                 (task-key x)
-                 (walk (task-children x))))))))
+    (fold-tasks (cadr e)
+                (λ (tk _path acc)
+                  (or acc (and (equal? (task-title tk) iso-day) (task-key tk))))
+                #f)))
 
 ;; Node keys are minted here, over the whole loaded set at once (see
 ;; mint-outline-keys): a fragment shared by two roots is one node with one

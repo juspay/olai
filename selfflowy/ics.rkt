@@ -10,7 +10,8 @@
          file/sha1
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/calendar
-         selfflowy/dates)
+         selfflowy/dates
+         (only-in selfflowy/paths file-label))
 
 (provide tasks->ics
          ics-escape
@@ -82,14 +83,12 @@
     (append*
      (for/list ([e (in-list file-entries)])
        (define path (car e))
-       (define tasks (cdr e))
        (define path-str
          (if (path? path) (path->string path) (format "~a" path)))
-       (define root
-         (path->string
-          (file-name-from-path
-           (if (path? path) path (string->path path-str)))))
-       (for/list ([it (in-list (collect-cal-items tasks #:root root))])
+       ;; ICS events are read outside the outline, so every breadcrumb is
+       ;; file-rooted here, single file or not.
+       (for/list ([it (in-list (collect-cal-items (cdr e)
+                                                  #:root (file-label path)))])
          (cons path-str it)))))
   (define body
     (append*

@@ -4,10 +4,10 @@
 ;; Plain-text formatting only (no ANSI). Printing/clock live in the CLI.
 
 (require racket/list
-         racket/path
          racket/string
          (except-in selfflowy/lang/expander #%module-begin) ; task, mirror-ref
-         selfflowy/dates)
+         selfflowy/dates
+         selfflowy/query)
 
 (provide (struct-out dated-task)
          collect-dated
@@ -21,30 +21,12 @@
 (struct dated-task (date title breadcrumb) #:transparent)
 
 ;; #:root — optional string prepended to every breadcrumb (e.g. file basename).
+;; Done tasks are excluded from the agenda even if they still have a date.
 (define (collect-dated tasks #:root [root #f])
-  ;; Walk defining sites only — skip mirror-ref children so a mirrored dated
-  ;; task appears once, with the breadcrumb of its defining site.
-  (define (walk x ancestors)
-    (cond
-      [(mirror-ref? x) '()]
-      [(task? x)
-       (define title (task-title x))
-       (define path (append ancestors (list title)))
-       (define crumb (string-join path " > "))
-       ;; Done tasks are excluded from the agenda even if they still have a date.
-       (define here
-         (if (and (task-date x) (not (task-done x)))
-             (list (dated-task (task-date x) title crumb))
-             '()))
-       (append here
-               (append*
-                (for/list ([c (in-list (task-children x))])
-                  (walk c path))))]
-      [else '()]))
-  (define start (if root (list root) '()))
-  (append*
-   (for/list ([tk (in-list tasks)])
-     (walk tk start))))
+  (for/list ([d (in-list (collect-dated-nodes tasks #:root root))]
+             #:unless (task-done (dated-node-task d)))
+    (define tk (dated-node-task d))
+    (dated-task (task-date tk) (task-title tk) (dated-node-breadcrumb d))))
 
 ;; items: already-collected (listof dated-task)
 (define (group-dated-items items today)
@@ -73,17 +55,10 @@
 ;; file-entries: (listof (cons path tasks))
 ;; When more than one file, breadcrumbs are rooted at each file's basename.
 (define (agenda-groups-from-files file-entries today)
-  (define multi? (> (length file-entries) 1))
-  (define items
-    (append*
-     (for/list ([e (in-list file-entries)])
-       (define path (car e))
-       (define tasks (cdr e))
-       (define root
-         (and multi?
-              (path->string (file-name-from-path path))))
-       (collect-dated tasks #:root root))))
-  (group-dated-items items today))
+  (group-dated-items
+   (with-file-roots file-entries
+                    (λ (tasks root) (collect-dated tasks #:root root)))
+   today))
 
 (define (group-header sym)
   (case sym

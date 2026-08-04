@@ -58,8 +58,6 @@
          tag-rx
          valid-anchor-id?
          validate-task-tree!
-         find-task-by-id
-         find-tasks-by-title
          #%app #%datum #%top #%top-interaction
          quote)
 
@@ -382,31 +380,6 @@
       [else (void)]))
   (for-each walk forms)
   (reverse (remove-duplicates paths)))
-
-(define (find-task-by-id tasks id)
-  (define (walk x)
-    (cond
-      [(mirror-ref? x) #f]
-      [(task? x)
-       (if (equal? (task-id x) id)
-           x
-           (for/or ([c (in-list (task-children x))])
-             (walk c)))]
-      [else #f]))
-  (for/or ([t (in-list tasks)]) (walk t)))
-
-(define (find-tasks-by-title tasks title)
-  (define acc '())
-  (define (walk x)
-    (cond
-      [(mirror-ref? x) (void)]
-      [(task? x)
-       (when (equal? (task-title x) title)
-         (set! acc (cons x acc)))
-       (for ([c (in-list (task-children x))])
-         (walk c))]))
-  (for ([t (in-list tasks)]) (walk t))
-  (reverse acc))
 
 (define-syntax (mirror stx)
   (syntax-parse stx

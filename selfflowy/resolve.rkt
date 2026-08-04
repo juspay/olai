@@ -13,10 +13,8 @@
          racket/match
          racket/path
          racket/string
-         (only-in selfflowy/lang/expander
-                  task-file
-                  find-task-by-id
-                  find-tasks-by-title)
+         (only-in selfflowy/lang/expander task-file)
+         (only-in selfflowy/lang/walk find-task-by-id find-tasks-by-title)
          selfflowy/load
          selfflowy/meta)
 

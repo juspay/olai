@@ -4,12 +4,12 @@
 ;; Day nodes (bare ISO titles in Daily.rkt) are tracked separately for links.
 
 (require racket/list
-         racket/path
          racket/set
          racket/string
          racket/format
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/dates
+         selfflowy/query
          (only-in gregor
                   date
                   +months
@@ -33,40 +33,16 @@
 ;; id: task-id or #f
 (struct cal-item (date title breadcrumb done id) #:transparent)
 
+;; Unlike the agenda, done nodes stay: a calendar shows what happened.
 (define (collect-cal-items tasks #:root [root #f])
-  (define (walk x ancestors)
-    (cond
-      [(mirror-ref? x) '()]
-      [(task? x)
-       (define title (task-title x))
-       (define path (append ancestors (list title)))
-       (define crumb (string-join path " > "))
-       (define here
-         (if (task-date x)
-             (list (cal-item (task-date x) title crumb (task-done x) (task-id x)))
-             '()))
-       (append here
-               (append*
-                (for/list ([c (in-list (task-children x))])
-                  (walk c path))))]
-      [else '()]))
-  (define start (if root (list root) '()))
-  (append*
-   (for/list ([tk (in-list tasks)])
-     (walk tk start))))
+  (for/list ([d (in-list (collect-dated-nodes tasks #:root root))])
+    (define tk (dated-node-task d))
+    (cal-item (task-date tk) (task-title tk) (dated-node-breadcrumb d)
+              (task-done tk) (task-id tk))))
 
 ;; Bare ISO day titles (Daily.rkt day nodes). -> setof "YYYY-MM-DD"
 (define (collect-day-nodes tasks)
-  (define (walk x)
-    (cond
-      [(mirror-ref? x) '()]
-      [(task? x)
-       (define t (task-title x))
-       (append
-        (if (bare-iso-date-title? t) (list t) '())
-        (append* (map walk (task-children x))))]
-      [else '()]))
-  (list->set (append* (map walk tasks))))
+  (list->set (collect-day-titles tasks)))
 
 ;; "2026-08" -> (values 2026 8) or (values #f #f)
 (define (parse-year-month s)
@@ -126,27 +102,14 @@
                     #:key (λ (h) (hash-ref h 'date)))))
 
 ;; file-entries: (listof (cons path tasks))
-(define (entry-basename path)
-  (cond
-    [(path? path) (path->string (file-name-from-path path))]
-    [(string? path)
-     (define-values (base name dir?) (split-path path))
-     (if (path-for-some-system? name) (path->string name) path)]
-    [else (format "~a" path)]))
-
 (define (calendar-from-files file-entries ym)
-  (define multi? (> (length file-entries) 1))
   (define items
-    (append*
-     (for/list ([e (in-list file-entries)])
-       (define path (car e))
-       (define tasks (cdr e))
-       (define root (and multi? (entry-basename path)))
-       (collect-cal-items tasks #:root root))))
+    (with-file-roots file-entries
+                     (λ (tasks root) (collect-cal-items tasks #:root root))))
   (define nodes
-    (foldl set-union (set)
-           (for/list ([e (in-list file-entries)])
-             (collect-day-nodes (cdr e)))))
+    (list->set
+     (append* (for/list ([e (in-list file-entries)])
+                (collect-day-titles (cdr e))))))
   (calendar-for-month items nodes ym))
 
 ;; Mon-start grid. Cell: #f (padding) or hash with date/day_num/items/day_node/is_today
