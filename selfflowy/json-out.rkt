@@ -3,6 +3,7 @@
 ;; Agent-facing JSON helpers (versioned envelope).
 
 (require json
+         racket/list
          racket/path
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/agenda
@@ -18,6 +19,7 @@
          child->jsexpr
          anchors->jsexpr
          outline->jsexpr
+         outlines->jsexpr
          dated-task->jsexpr
          agenda-groups->jsexpr
          cal-item->jsexpr
@@ -130,6 +132,16 @@
       (hash-set h 'includes
                 (for/list ([p (in-list includes)])
                   (hash 'file p)))))
+
+;; The whole `tree` payload. entries : (listof (list path tasks anchors includes)).
+;; One file keeps the historical single-file shape; several nest under 'files.
+(define (outlines->jsexpr entries)
+  (define (one e)
+    (outline->jsexpr (first e) (second e) (third e) #:includes (fourth e)))
+  (if (= (length entries) 1)
+      (hash-set (one (car entries)) 'version json-version)
+      (hash 'version json-version
+            'files (map one entries))))
 
 (define (dated-task->jsexpr it)
   (hash 'title (dated-task-title it)

@@ -24,6 +24,7 @@
          selfflowy/html
          selfflowy/dates
          selfflowy/load
+         selfflowy/web/serve
          (only-in selfflowy/lang/expander
                   find-task-by-id
                   find-tasks-by-title
@@ -178,19 +179,7 @@
     (for/list ([path (in-list paths)])
       (define-values (tasks anchors includes) (load-outline path #t))
       (list path tasks anchors includes)))
-  (if (= (length entries) 1)
-      (match (car entries)
-        [(list path tasks anchors includes)
-         (write-json-stdout
-          (hash-set (outline->jsexpr path tasks anchors #:includes includes)
-                    'version json-version))])
-      (write-json-stdout
-       (hash 'version json-version
-             'files
-             (for/list ([e (in-list entries)])
-               (match e
-                 [(list path tasks anchors includes)
-                  (outline->jsexpr path tasks anchors #:includes includes)]))))))
+  (write-json-stdout (outlines->jsexpr entries)))
 
 (define (cmd-agenda paths json?)
   (define entries
@@ -554,6 +543,31 @@
     [else
      (display ics)]))
 
+;; Blocks until Ctrl-C. No auth: the network is the auth (put it behind
+;; Tailscale or Caddy). A custodian shutdown drops listeners and connections.
+(define (cmd-serve paths port bind)
+  (define cust (make-custodian))
+  (define stop
+    (parameterize ([current-custodian cust])
+      (with-handlers
+          ([exn:fail?
+            (λ (e) (die exit-usage (exn-message e) #:json? #f))])
+        (start-server
+         #:port port
+         #:bind bind
+         #:files paths
+         #:on-listen
+         (λ (bound)
+           (printf "selfflowy serve http://~a:~a files: ~a\n"
+                   (or bind "0.0.0.0") bound
+                   (string-join (map path->string paths) " "))
+           (flush-output))))))
+  (with-handlers ([exn:break? (λ (_e) (void))])
+    (sync/enable-break never-evt))
+  (stop)
+  (custodian-shutdown-all cust)
+  (exit exit-ok))
+
 (define (usage)
   (eprintf "usage: selfflowy <command> [options] ...\n")
   (eprintf "\n")
@@ -563,6 +577,7 @@
   (eprintf "  agenda   [--json] [file ...]  OVERDUE / TODAY / UPCOMING (merged)\n")
   (eprintf "  calendar [--json] [--month YYYY-MM] [file ...]  days with dated items\n")
   (eprintf "  html     [--out PATH] [file ...]  tree + month calendar\n")
+  (eprintf "  serve    [--port N] [--bind ADDR] [file ...]  web view (Ctrl-C to stop)\n")
   (eprintf "  add      [--json] [--file F] [--date ISO] [--description TEXT]\n")
   (eprintf "           [--parent TITLE|^anchor] [--no-commit] TITLE...\n")
   (eprintf "  done     [--json] [--file F] [--undo] [--no-commit] TITLE|^anchor\n")
@@ -631,6 +646,26 @@
    #:args paths
    (set! file-args paths))
   (cmd-html (resolve-files file-args #f) out-path))
+
+(define (cli-serve)
+  (define port 8080)
+  (define bind "127.0.0.1")
+  (define file-args '())
+  (command-line
+   #:program "selfflowy serve"
+   #:once-each
+   [("--port") p "TCP port (default: 8080; 0 picks a free one)"
+               (define n (string->number p))
+               (unless (and (exact-nonnegative-integer? n) (< n 65536))
+                 (die exit-usage (format "invalid --port ~s" p) #:json? #f))
+               (set! port n)]
+   [("--bind") a "Listen address (default: 127.0.0.1; \"\" for all)"
+               (set! bind a)]
+   #:args paths
+   (set! file-args paths))
+  (cmd-serve (resolve-files file-args #f)
+             port
+             (if (string=? bind "") #f bind)))
 
 (define (cli-add)
   (define json? #f)
@@ -777,6 +812,7 @@
            [("agenda") (cli-agenda)]
            [("calendar") (cli-calendar)]
            [("html") (cli-html)]
+           [("serve") (cli-serve)]
            [("add") (cli-add)]
            [("done") (cli-done)]
            [("move") (cli-move)]

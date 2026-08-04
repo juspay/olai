@@ -1,0 +1,14 @@
+/* selfflowy web view — placeholder sheet. WP2 owns the real styling; this
+   exists so /static/ has something to serve and something to replace. */
+
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 2rem auto;
+  max-width: 48rem;
+  padding: 0 1rem;
+  font-family: system-ui, sans-serif;
+  line-height: 1.4;
+}
