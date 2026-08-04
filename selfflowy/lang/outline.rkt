@@ -20,7 +20,8 @@
 ;; date-info / done-info: #f or (list value line col)
 ;; id-info: #f or (list id-string line col)
 ;; mirror-anchor: #f or anchor string (when set, this node is a mirror leaf)
-(struct node (title date-info done-info id-info descs children line col span src mirror-anchor)
+;; include-path: #f or relative path string (when set, this node is an include leaf)
+(struct node (title date-info done-info id-info descs children line col span src mirror-anchor include-path)
   #:mutable #:transparent)
 
 (define (reader-error src line col pos msg . args)
@@ -104,10 +105,15 @@
           `(done ,val ,val-col))]
     [(regexp-match #px"^@done\\s*$" content)
      `(done-bare ,col)]
+    [(regexp-match #px"^@include[ \t]+(\\S.*)$" content)
+     => (λ (m) `(include ,(string-trim (cadr m))))]
+    [(regexp-match #px"^@include\\s*$" content)
+     (reader-error src line col #f
+                   "expected a relative path after @include")]
     [(regexp-match #px"^@(\\S+)" content)
      => (λ (m)
           (reader-error src line col #f
-                        "unknown @~a; known fields: @date, @done"
+                        "unknown @~a; known fields: @date, @done, @include"
                         (cadr m)))]
     [else
      (define-values (title0 flag) (strip-checkbox-prefix content))
@@ -130,6 +136,9 @@
 (define (node-mirror? nd)
   (and (node-mirror-anchor nd) #t))
 
+(define (node-include? nd)
+  (and (node-include-path nd) #t))
+
 (define (node->syntax nd)
   (define src (node-src nd))
   (define line (node-line nd))
@@ -142,6 +151,13 @@
       #f
       (list (datum->syntax #f 'mirror (loc-vec src line col span))
             (datum->syntax #f a (loc-vec src line col (string-length a))))
+      (loc-vec src line col span))]
+    [(node-include? nd)
+     (define p (node-include-path nd))
+     (datum->syntax
+      #f
+      (list (datum->syntax #f 'include (loc-vec src line col span))
+            (datum->syntax #f p (loc-vec src line col (string-length p))))
       (loc-vec src line col span))]
     [else
      (define title-stx
@@ -200,6 +216,9 @@
       (when (node-mirror? parent)
         (reader-error src (node-line nd) (node-col nd) #f
                       "mirror cannot have children"))
+      (when (node-include? parent)
+        (reader-error src (node-line nd) (node-col nd) #f
+                      "include cannot have children"))
       (set-node-children! parent (cons nd (node-children parent))))
     (when (zero? level)
       (set! roots (cons nd roots)))
@@ -213,6 +232,8 @@
       (reader-error src n col #f "~a with no title above" what))
     (when (node-mirror? parent)
       (reader-error src n col #f "~a cannot attach to a mirror" what))
+    (when (node-include? parent)
+      (reader-error src n col #f "~a cannot attach to an include" what))
     parent)
 
   (for ([rl (in-list lines)])
@@ -237,11 +258,34 @@
                           level))
           (when (and (positive? level)
                      (let ([p (last-node-at (sub1 level))])
-                       (and p (node-mirror? p))))
-            (reader-error src n col #f "mirror cannot have children"))
+                       (and p (or (node-mirror? p) (node-include? p)))))
+            (reader-error src n col #f
+                          (if (node-mirror? (last-node-at (sub1 level)))
+                              "mirror cannot have children"
+                              "include cannot have children")))
           (set! stack (take stack level))
           (define nd
-            (node #f #f #f #f '() '() n col (string-length content) src anchor))
+            (node #f #f #f #f '() '() n col (string-length content) src anchor #f))
+          (push-node! nd level)]
+         [`(include ,path)
+          (when (> level (current-depth))
+            (reader-error src n col #f
+                          "indent jumps more than one level (from ~a to ~a); use 2 spaces per level"
+                          (current-depth) level))
+          (when (and (zero? (current-depth)) (positive? level))
+            (reader-error src n col #f
+                          "indent jumps more than one level (from 0 to ~a); top-level tasks must start at column 0"
+                          level))
+          (when (and (positive? level)
+                     (let ([p (last-node-at (sub1 level))])
+                       (and p (or (node-mirror? p) (node-include? p)))))
+            (reader-error src n col #f
+                          (if (node-mirror? (last-node-at (sub1 level)))
+                              "mirror cannot have children"
+                              "include cannot have children")))
+          (set! stack (take stack level))
+          (define nd
+            (node #f #f #f #f '() '() n col (string-length content) src #f path))
           (push-node! nd level)]
          [`(title ,title ,flag ,anchor)
           (when (> level (current-depth))
@@ -260,7 +304,7 @@
           (define id-info
             (and anchor (list anchor n col)))
           (define nd
-            (node title #f done-info id-info '() '() n col (string-length title) src #f))
+            (node title #f done-info id-info '() '() n col (string-length title) src #f #f))
           (push-node! nd level)]
          [`(desc ,text)
           (define parent (require-task-parent! level n col "description line"))
