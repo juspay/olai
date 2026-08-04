@@ -24,3 +24,6 @@ compiled/
 .plt-user/
 
 /.direnv
+
+# Agent scratch worktrees
+/.claude/
