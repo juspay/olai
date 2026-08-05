@@ -137,9 +137,9 @@ just test
 instead still works — see docs/cli.md.
 
 `serve` refuses to start without `OLAI_ACP_AGENT` — the path to an
-executable speaking the Agent Client Protocol. `nix develop` (hence `just
-serve`) and `nix run` default it to the bundled, pinned Claude Code adapter.
-Outside nix, export it yourself.
+executable speaking the Agent Client Protocol. The Nix package defaults it
+to the bundled, pinned Claude Code adapter (`--set-default`); `nix develop`
+(hence `just serve`) exports the same. Outside nix, export it yourself.
 
 ## CLI (agents)
 

@@ -354,7 +354,7 @@
 ;; The agent `serve` chats with. No fallback and no PATH lookup: an agent the
 ;; server picked for you is an agent you did not choose, and a serve command
 ;; that silently has no chat panel is worse than one that will not start. Nix
-;; sets the variable (`nix run`, the dev shell, hence `just serve`).
+;; sets the variable (Nix package --set-default, the dev shell, `just serve`).
 (define (acp-command-or-die)
   (define v (getenv "OLAI_ACP_AGENT"))
   (unless (and v (non-empty-string? v))
