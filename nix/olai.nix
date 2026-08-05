@@ -63,7 +63,14 @@ stdenv.mkDerivation {
     raco pkg install --copy --no-docs --deps force ./olai-pkg
 
     mkdir -p $out/bin
-    raco exe ++lang olai -o $out/bin/.olai-wrapped \
+    # Embed language readers so #lang modules resolve with no collection
+    # paths at runtime. ++lang olai is enough for the outline reader.
+    # ++lang olai/sexp is NOT: raco maps multi-segment langs via
+    # (lib "…/sexp.rkt") + relative "lang/reader.rkt", which collapses
+    # to olai/lang/reader — the wrong module, declared, so the flag
+    # silently no-ops. ++lib names the real reader path.
+    raco exe ++lang olai ++lib olai/sexp/lang/reader \
+      -o $out/bin/.olai-wrapped \
       "$(racket -e '(display (path->string (collection-file-path "cli.rkt" "olai")))')"
     chmod +x $out/bin/.olai-wrapped
 

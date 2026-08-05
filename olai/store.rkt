@@ -77,10 +77,13 @@
 
 ;; Shared with every reload: attaching (not re-requiring) keeps one `task`
 ;; struct type and works inside the packaged binary, where these modules are
-;; embedded and cannot be found by collection path.
+;; embedded and cannot be found by collection path. Both #lang readers —
+;; outline and s-expression — must be here; the sexp one is embedded via
+;; ++lib (see nix/olai.nix), not ++lang.
 (define attached-modules
   '(olai/lang/expander
-    olai/lang/reader))
+    olai/lang/reader
+    olai/sexp/lang/reader))
 
 (define (make-outline-namespace src)
   (define ns (parameterize ([current-namespace src]) (make-base-empty-namespace)))

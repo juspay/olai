@@ -1,9 +1,7 @@
-# `./examples/Example.rkt` and `./olai/tests/integration/fake-acp-agent.rkt`
-# used to be relative paths in flake.nix, resolving from the repo root. Moved
-# here verbatim they'd resolve from nix/ instead (nix/examples, nix/olai/...),
-# which don't exist — so the flake passes the two repo paths in as arguments
-# (`exampleOutline`, `fakeAcpAgentSrc`) instead of this file spelling them out.
-{ runCommand, olai, racket, curl, tzdata, exampleOutline, fakeAcpAgentSrc }:
+# Repo-root paths resolve from the caller's dir, not nix/; the flake passes
+# them in (`exampleOutline`, `exampleSexpOutline`, `fakeAcpAgentSrc`).
+{ runCommand, olai, racket, curl, tzdata
+, exampleOutline, exampleSexpOutline, fakeAcpAgentSrc }:
 
 runCommand "olai-smoke"
   {
@@ -16,6 +14,18 @@ runCommand "olai-smoke"
   ''
     export TZDIR="${tzdata}/share/zoneinfo"
     olai check ${exampleOutline}
+
+    # #lang olai/sexp needs its reader embedded in the raco-exe binary
+    # (++lib olai/sexp/lang/reader; see nix/olai.nix). Without it this
+    # fails with collection not found for olai/sexp/lang/reader.
+    olai check ${exampleSexpOutline}
+    olai tree ${exampleSexpOutline} > tree-sexp.json
+    racket -e '(require json)
+               (define j (call-with-input-file "tree-sexp.json" read-json))
+               (unless (and (= 1 (hash-ref j (quote version)))
+                            (string? (hash-ref j (quote file)))
+                            (pair? (hash-ref j (quote tasks))))
+                 (error (quote smoke) "unexpected sexp tree JSON"))'
 
     # Parse the JSON; never grep it (key order is not a contract).
     olai tree ${exampleOutline} > tree.json
@@ -116,7 +126,7 @@ runCommand "olai-smoke"
     # The agent loop, over HTTP: the page carries the panel, a POST is
     # accepted with no body of its own, and what the panel draws comes
     # back as `chat` frames on the stream above.
-    grep -q 'id="sf-chat"' page.html
+    grep -q 'id="ol-chat"' page.html
     test "$(curl -s -o /dev/null -w '%{http_code}' \
               --data-urlencode 'text=smoke hello' \
               http://127.0.0.1:8099/chat)" = 204
@@ -159,7 +169,7 @@ runCommand "olai-smoke"
     printf '  @date not-a-date\n' >> live.rkt
     curl -sf -o page3.html http://127.0.0.1:8099/
     grep -q "Smoke reload marker" page3.html
-    grep -q "sf-error" page3.html
+    grep -q "ol-error" page3.html
     test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8099/api/tree)" = 500
 
     kill $events_pid || true
