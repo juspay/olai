@@ -125,15 +125,17 @@ author does. Repo demos live in `examples/` (see `examples/Daily.rkt` for
 ```bash
 nix develop        # racket 9.2 + just; or install them yourself
 just install       # gregor + markdown, then --link olai/
+just build         # raco setup --pkgs olai (bytecode; test depends on it)
 just check         # validates $OLAI_HOME/*.rkt (unset: examples + Roadmap)
 just tree examples/Example.rkt   # JSON forest for agents
 just serve                       # $OLAI_HOME on http://127.0.0.1:8080
 just agenda
 just calendar --month 2026-08
 just daily                       # today's node in Daily/YYYY-MM.rkt
-just test                        # unit tests (in-process)
+just test                        # unit tests (in-process; builds first)
 just test-integration            # subprocess CLI + servers
 just test-all                    # both
+just clean                       # drop olai/**/compiled
 just css-classes                 # regenerate olai/tests/classes.golden
 ```
 
@@ -158,6 +160,9 @@ No ANSI. Humans use the web app.
 (`racket/cmdline`, `json`, `gregor`, `markdown`, `xml` xexprs,
 `web-server` for routing and static files) over home-grown parsers,
 routers and escape codes.
+
+Toolchain traps, css-expr spelling, and the stale-`.zo` symptom:
+**docs/hacking.md**.
 
 Patches welcome. Keep it small, keep it boring. The interesting part is
 the DSL; write good expander error messages -- the agents read them.
