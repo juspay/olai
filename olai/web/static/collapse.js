@@ -22,7 +22,9 @@
     var c=!n.classList.contains('is-collapsed');
     state[n.dataset.collapseKey]=c;
     set(n,c);
-    localStorage.setItem(KEY,JSON.stringify(state));
+    // same guard as the read above: storage can be full or forbidden, and a
+    // fold that threw would leave the click half-done
+    try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}
   });
   // An outerHTML swap replaces the element the event would name, so re-apply
   // over the whole document rather than over e.target: a live re-render must

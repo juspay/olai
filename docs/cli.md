@@ -413,14 +413,15 @@ Paths that climb out of `static/` are 404, not files.
 
 **Prefs** are a sidebar section, one row per preference — client state, stored
 in `localStorage` under `olai.<pref>`, never sent to the server (same standing
-as the collapse state) and therefore per browser. The first row is `theme`:
-`auto` plus one chip per theme (`light`, `dark`, `manuscript`, `chalk`,
-`pitch`). The sheet carries all of them, so picking one is a value on
-`<html data-theme>` and nothing else — no round trip, no re-render. `auto` is
-the default and follows the OS's `prefers-color-scheme`. A tiny inline script in
-`<head>` restores stored prefs before the first paint (`static/prefs.js` is the
-picker); each theme also declares its own `color-scheme`, so scrollbars and
-form controls follow.
+as the collapse state) and therefore per browser. The first row is `theme`: one
+chip per theme in `olai/web/theme`'s table, and nothing else. The sheet carries
+all of them, so picking one is a value on `<html data-theme>` and nothing else
+— no round trip, no re-render. A page that has picked nothing reads in the
+default theme (the sheet's bare `:root`) and that chip is the lit one; the OS's
+`prefers-color-scheme` is never consulted, and a stored theme the sheet no
+longer carries is forgotten on sight. A tiny inline script in `<head>` restores
+stored prefs before the first paint (`static/prefs.js` is the picker); each
+theme declares its own `color-scheme`, so scrollbars and form controls follow.
 
 The chat panel (a `>_ agent` button, bottom right; open state remembered in
 `localStorage`) is server-rendered from the bridge's transcript on every page

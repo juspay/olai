@@ -17,11 +17,12 @@
 ;; re-key a permalink, a stored collapse state, or an SSE swap target.
 ;;
 ;; STYLES — every class this module draws is DEFINED here, next to the markup
-;; that wears it (olai/web/style). Two exceptions, both of them classes this
-;; module is not the only one to draw: .ol-pill's shape is the skin's
-;; (olai/web/theme), and the markdown classes are web/markdown's, which is what
-;; puts them on the markup. The chat panel is an overlay on all of this, so it
-;; requires this module, which is what puts its rules last in the cascade.
+;; that wears it (olai/web/style). The exceptions are classes this module does
+;; not own the markup of: .ol-pill's shape is the skin's (olai/web/theme), the
+;; markdown classes are web/markdown's, and the prefs picker is web/prefs' — the
+;; sidebar only places the block it hands back. The chat panel is an overlay on
+;; all of this, so it requires this module, which is what puts its rules last in
+;; the cascade.
 
 (require racket/contract
          racket/list
@@ -40,7 +41,11 @@
          ;; anything that leans on them (see style.rkt on ordering)
          olai/web/theme
          olai/web/style
-         olai/web/markdown)
+         olai/web/markdown
+         ;; the sidebar's picker and the boot script that restores what it
+         ;; picked. Last of the requires, so its rules land after the skin's
+         ;; and before this module's own; nothing else paints .ol-pref*
+         olai/web/prefs)
 
 ;; Contracts on the drawing surface check the INPUT shape — a task, a
 ;; files-data list, an ISO `today` string — and say only `list?` about the
@@ -76,9 +81,9 @@
            (->* (any/c)
                 (#:title string?
                  #:stylesheet-href (or/c string? #f)
-                 ;; a theme by name (web/theme's theme-names), or #f for "let
-                 ;; the OS and the browser decide"
-                 #:theme (or/c string? #f)
+                 ;; what the browser should assume before the sheet lands
+                 ;; (web/theme's theme-color-scheme), or #f for no such meta
+                 #:color-scheme (or/c string? #f)
                  #:sidebar (or/c list? #f)
                  #:banner (or/c list? #f)
                  #:sse-connect (or/c string? #f)
@@ -110,11 +115,12 @@
 ;; ---- static assets --------------------------------------------------------
 ;;
 ;; One owner for the whole /static/ surface: the directory the server mounts,
-;; the URL prefix it mounts it at, and the files the page pulls in. Almost no JS
-;; lives in this module — a script that changes with every SSE tweak has no
-;; business recompiling a Racket module, and browsers cannot cache it. The one
-;; exception is below, and it is one line: it has to run before the first paint,
-;; which is the one thing a cacheable deferred file cannot do.
+;; the URL prefix it mounts it at, and the files the page pulls in. NO JS lives
+;; in this module — a script that changes with every SSE tweak has no business
+;; recompiling a Racket module, and browsers cannot cache it. The one script the
+;; page carries inline is web/prefs' (it has to run before the first paint,
+;; which is the one thing a cacheable deferred file cannot do), and it is that
+;; module's, not this one's.
 ;;
 ;; The stylesheet is the other way round: it is NOT a file. It is generated
 ;; from the modules that draw the page (olai/web/skin), and this module cannot
@@ -127,23 +133,6 @@
 (define web-static-prefix "/static/")
 
 (define web-scripts '("htmx.min.js" "sse.js" "collapse.js" "prefs.js" "chat.js"))
-
-;; The ONE inline script in the page, and it is here for a reason a file cannot
-;; solve: a pref stored in this browser has to be on <html> before the first
-;; paint, and every script above is deferred — it would land after it, which is
-;; a flash of the wrong colors on every load. So this much runs in <head>, and
-;; nothing else does: the rows, and everything that happens after a click, are
-;; static/prefs.js.
-;;
-;; The key convention (olai.<pref>) is spelled there too. It is one string on
-;; both sides of a border the compiler does not cross (like a class name in a
-;; .js), and tests/render.rkt is what holds the two together. WHICH prefs there
-;; are is not: that list is below, and this is generated from it.
-(define (prefs-boot-js)
-  (string-append
-   "try{" (client-pref-names-js) ".forEach(function(p){"
-   "var v=localStorage.getItem('olai.'+p);"
-   "if(v)document.documentElement.dataset[p]=v})}catch(e){}"))
 
 (define (static-href name) (string-append web-static-prefix name))
 
@@ -766,88 +755,6 @@
    [(: & hover) #:background ,pill-bg]]
   [(> ,(sel ol-node is-tree) ,(sel ol-row) ,(sel ol-toggle)) #:height 1.25rem]))
 
-;; ---- preferences ----------------------------------------------------------
-;;
-;; The page is a VIEW, and what it looks like to YOU is CLIENT state: stored in
-;; this browser, never sent anywhere, exactly like the collapse state. The
-;; theme is the first one; density and type size are the obvious next ones, and
-;; they are meant to be rows here rather than a second mechanism.
-;;
-;; A pref is a NAME and the values it may take. The name is two things at once
-;; — a data attribute on <html> (data-theme) and the tail of a localStorage key
-;; (olai.theme) — which is what lets one script drive every row and one boot
-;; script restore them all (static/prefs.js, and the head script above).
-;;
-;; "auto" is not a value: it is the absence of one, which is why it is
-;; prepended rather than written into any list. Nothing is stored, no attribute
-;; is set, and the sheet's own default — the OS's preference, for the theme —
-;; is what decides.
-
-(struct pref (name values) #:transparent)
-
-(define pref-auto "auto")
-
-(define client-prefs (list (pref "theme" theme-names)))
-
-;; the pref names the boot script restores, as a JS array literal. Generated
-;; from the list above: a row nobody restored would be a pref that forgets
-;; itself on reload.
-(define (client-pref-names-js)
-  (string-append
-   "[" (string-join (for/list ([p (in-list client-prefs)])
-                      (string-append "'" (pref-name p) "'"))
-                    ",")
-   "]"))
-
-;; which value a row is in. Only the browser knows — the server draws the same
-;; rows for everyone — so prefs.js is what marks it.
-(define-modifier is-on)
-
-(define-component (pref-opt-xexpr value)
-  #:class ol-pref-opt
-  #:css (#:padding (0.0625rem 0.375rem)
-         #:border (1px solid ,line)
-         #:border-radius 9999px
-         #:background ,paper-2
-         #:color ,dim
-         #:font-family ,mono
-         #:font-size ,micro-size
-         #:cursor pointer
-         [(: & hover) #:color ,ink #:border-color ,dim]
-         ;; the one in force
-         [,(sel '& is-on) #:background ,pill-bg #:color ,green #:border-color ,green])
-  `(button ((type "button") (class ,ol-pref-opt) (data-value ,value)
-            (aria-pressed "false"))
-           ,value))
-
-(define-style ol-pref-opts #:display flex #:flex-wrap wrap #:gap 0.25rem)
-
-(define-style ol-pref-label
-  #:font-family ,mono
-  #:font-size ,micro-size
-  #:color ,dim)
-
-;; One row: what it is called, and every value it takes. `data-pref` is the
-;; name — the script reads it rather than knowing a class per pref, which is
-;; what makes the second row cost nothing.
-(define-component (pref-row-xexpr p)
-  #:class ol-pref
-  #:css (#:display flex #:flex-direction column #:gap 0.25rem)
-  `(div ((class ,ol-pref) (data-pref ,(pref-name p)))
-        (div ((class ,ol-pref-label)) ,(pref-name p))
-        (div ((class ,ol-pref-opts))
-             ,@(for/list ([v (in-list (cons pref-auto (pref-values p)))])
-                 (pref-opt-xexpr v)))))
-
-(define-component (prefs-xexpr)
-  #:class ol-prefs
-  #:css (#:display flex
-         #:flex-direction column
-         #:gap 0.625rem
-         #:margin-left 0.5rem)
-  `(div ((class ,ol-prefs))
-        ,@(for/list ([p (in-list client-prefs)]) (pref-row-xexpr p))))
-
 (define-style ol-tree-link
   #:flex (1 1 auto)
   #:min-width 0
@@ -996,27 +903,28 @@
                      ;; olai/web/skin). #f is a page with no skin at all — a
                      ;; fragment test, never a served page.
                      #:stylesheet-href [stylesheet-href #f]
-                     ;; A theme this page is SERVED in, named out loud. #f is
-                     ;; the normal case and means nobody has decided: the OS's
-                     ;; preference picks, and the browser's own choice (stored
-                     ;; by the picker) is stamped on by the boot script below.
-                     #:theme [theme #f]
+                     ;; What the browser should assume BEFORE the sheet lands.
+                     ;; The palettes decide it (web/theme, theme-color-scheme)
+                     ;; and the route layer passes it, like every other fact
+                     ;; this renderer is told rather than knows. Once the sheet
+                     ;; is in, each theme says which one it is and that wins.
+                     #:color-scheme [color-scheme #f]
                      #:sidebar [sidebar #f]
                      #:banner [banner #f]
                      #:sse-connect [sse-connect #f]
                      #:live-href [live-href #f]
                      #:head-extra [head-extra '()]
                      #:body-extra [body-extra '()])
-  `(html ((lang "en") ,@(if theme `((data-theme ,theme)) '()))
+  ;; No data-theme here: which theme you read in is the BROWSER's, and the boot
+  ;; script below is the only thing that writes it.
+  `(html ((lang "en"))
          (head
           (meta ((charset "utf-8")))
           (meta ((name "viewport")
                  (content "width=device-width, initial-scale=1, viewport-fit=cover")))
-          ;; What the browser should assume BEFORE the sheet lands, which is
-          ;; both, because a page that names no theme follows the OS. Once the
-          ;; sheet is in, every theme says which one it is (color-scheme in
-          ;; web/theme) and that is what wins.
-          (meta ((name "color-scheme") (content "light dark")))
+          ,@(if color-scheme
+                (list `(meta ((name "color-scheme") (content ,color-scheme))))
+                '())
           (title ,title)
           ;; before the sheet: it is the first paint this is racing
           (script () ,(cdata #f #f (prefs-boot-js)))

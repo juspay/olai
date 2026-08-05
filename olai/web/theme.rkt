@@ -13,6 +13,7 @@
 
 (require racket/list
          racket/contract
+         racket/string
          olai/web/style)
 
 (provide (contract-out
@@ -24,13 +25,28 @@
           ;; here with the rest of the shared vocabulary; each kind repaints
           ;; it in the module that draws it
           [ol-pill string?]
-          ;; every theme the sheet carries, in cascade order. The page picks
-          ;; one with data-theme; this is the list of what it may say
+          ;; every theme the sheet carries, in table order. The page picks one
+          ;; by name; this is the list of what it may say, and the picker's rows
           [theme-names (listof string?)]
-          ;; where one theme's value for a token is written: --l-paper for
-          ;; ("light", 'paper). The prefix rule is this module's (make-palette
-          ;; below), and a reader that recomputed it would be a second one
-          [theme-token-property (-> string? symbol? string?)]))
+          ;; the attribute a page names a theme with. The picker writes it and
+          ;; the sheet keys off it, so it is one string, spelled here
+          [theme-attribute string?]
+          ;; the theme a page with no attribute reads in — the sheet's bare
+          ;; :root. The picker needs it to light a chip before anyone picks
+          [theme-default string?]
+          ;; what <meta name="color-scheme"> should say before the sheet lands:
+          ;; every way the themes come, said once
+          [theme-color-scheme string?]
+          ;; the themes that promise AA contrast on every foreground it paints
+          ;; on a background. A claim, so something can check it
+          [aa-theme-names (listof string?)]
+          ;; one theme's table: (token . value), the row the sheet below is
+          ;; generated from. `list?` and not the shape: the shape is what the
+          ;; load-time guards check, once, rather than on every read
+          [theme-entries (-> string? list?)]
+          ;; name -> the css fragment that puts that theme in force. What
+          ;; lands in the sheet, handed over rather than found in its text
+          [theme-blocks (-> list?)]))
 
 ;; The tokens themselves are bound and provided by define-tokens below.
 
@@ -79,27 +95,32 @@
 ;; ---- the themes -----------------------------------------------------------
 ;;
 ;; A theme is a palette with a name, and the whole file is generated from this
-;; table: adding a theme is adding a row. Values are written ONCE, under a
-;; one-letter prefix (--l-paper, --d-paper), and the mapping that points the
-;; skin's names at one of them is emitted per theme — in hand-written CSS that
-;; is the same fourteen lines copied once per theme, which is one place per
-;; theme for a new token to be forgotten.
+;; table: adding a theme is adding a row, deleting one is deleting a row, and
+;; neither touches a line of CSS. A theme's values are written once, in the
+;; block that puts that theme in force — which in hand-written CSS is the same
+;; fourteen lines copied once per theme, and one place per theme for a new
+;; token to be forgotten.
 
-(struct palette (name prefix scheme entries) #:transparent)
+(struct palette (name scheme aa? entries) #:transparent)
 
-;; The prefix is the name's first letter: short, and nothing to keep in step.
-;;
 ;; `scheme` is the one thing about a theme a browser has to be told in its own
 ;; words: form controls, scrollbars and the canvas behind the page are the UA's
 ;; to paint, and `color-scheme` is how it is told which way. It rides in the
 ;; table because it is a fact about the palette — a theme that changed its mind
 ;; about being dark and forgot this would keep the OS's scrollbars.
-(define (make-palette name #:scheme scheme entries)
-  (palette name (substring name 0 1) scheme entries))
+;;
+;; `aa?` is a PROMISE, and only some themes make it: every foreground this
+;; palette paints on a background clears WCAG AA (4.5:1). Said here so the
+;; suite can hold the palette to it — a color nudged by two digits is exactly
+;; the edit that quietly drops a pair under the line.
+(define (make-palette name #:scheme scheme #:aa? [aa? #f] entries)
+  (palette name scheme aa? entries))
 
 (define palettes
   (list
-   (make-palette "light" #:scheme 'light
+   ;; the leaf the outline is written on: dried palm green, dark-green ink.
+   ;; The name is the palette; nothing here is "light".
+   (make-palette "leaf" #:scheme 'light
                  '((paper     . |#E4ECCA|)
                    (paper-2   . |#EDF2DC|)
                    (panel     . |#EFF4DC|)
@@ -147,8 +168,9 @@
                    (rose-fg   . |#9E4444|)
                    (rose-bg   . |#F1DBD2|)))
    ;; near-white, high contrast: every foreground/background pair clears AA.
-   ;; The one to reach for on a bad screen or in bright light.
-   (make-palette "chalk" #:scheme 'light
+   ;; The DEFAULT — what a page reads in before anyone picks — because the one
+   ;; nobody chose should be the one that is legible on any screen.
+   (make-palette "chalk" #:scheme 'light #:aa? #t
                  '((paper     . |#FAFAF6|)
                    (paper-2   . |#F2F2EC|)
                    (panel     . |#F5F5F0|)
@@ -183,11 +205,13 @@
 
 (define theme-names (map palette-name palettes))
 
-;; Two themes whose names start with the same letter would declare the same
-;; --x-token twice, and the second would win everywhere.
-(let ([prefixes (map palette-prefix palettes)])
-  (unless (= (length prefixes) (length (remove-duplicates prefixes)))
-    (error 'theme "two themes share a prefix: ~s" prefixes)))
+(define aa-theme-names
+  (for/list ([p (in-list palettes)] #:when (palette-aa? p)) (palette-name p)))
+
+;; Two themes with one name is one block overwriting the other, and a picker
+;; with two chips that do the same thing.
+(unless (= (length theme-names) (length (remove-duplicates theme-names)))
+  (error 'theme "two themes share a name: ~s" theme-names))
 
 ;; A token a theme forgets is a var(--x) that resolves to nothing the moment
 ;; that theme is picked. Cheap to check here, invisible in a browser.
@@ -198,50 +222,50 @@
 
 ;; ---- policy ---------------------------------------------------------------
 ;;
-;; Which theme a page gets when it says nothing, and which one the OS means
-;; when it says it prefers dark. Named, because the generators below only know
-;; that some theme fills each role.
+;; Which theme a page gets when it says nothing. Named, because the generators
+;; below only know that some theme fills the role — and the picker needs it
+;; too, to light the chip that is in force before anyone has picked one.
+;;
+;; The OS does not vote. `prefers-color-scheme` chose the theme once, and it
+;; meant two ways to be dark that could disagree; a theme is a PICK, and an
+;; unpicked page reads in the default.
 
-(define default-theme "light")
-(define os-dark-theme "dark")
+(define theme-default "chalk")
+
+;; How a page says which theme it is in: one attribute, keyed on by the sheet,
+;; written by the picker (web/prefs), and spelled here.
+(define theme-attribute "data-theme")
+(define theme-attribute-datum (string->symbol theme-attribute))
+
+;; What the browser should assume BEFORE the sheet lands, which is every way
+;; these themes come — it cannot know yet which one this page is in. Once the
+;; sheet is in, each theme's own color-scheme is what wins.
+(define theme-color-scheme
+  (string-join
+   (remove-duplicates (for/list ([p (in-list palettes)])
+                        (symbol->string (palette-scheme p))))
+   " "))
 
 (define (theme-named name)
   (or (findf (λ (p) (equal? (palette-name p) name)) palettes)
       (error 'theme "no theme named ~a" name)))
 
+(define (theme-entries name) (palette-entries (theme-named name)))
+
 ;; ---- the generators -------------------------------------------------------
 
 (define (custom-property name) (string->keyword (string-append "--" name)))
 
-(define (prefixed p token)
-  (string-append (palette-prefix p) "-" (symbol->string token)))
-
-(define (theme-token-property name token)
-  (string-append "--" (prefixed (theme-named name) token)))
-
-;; --l-paper: #E4ECCA; ... — one theme's values, spelled out
-(define (palette-declarations p)
-  (append*
-   (for/list ([entry (in-list (palette-entries p))])
-     (list (custom-property (prefixed p (car entry))) (cdr entry)))))
-
-;; --paper: var(--l-paper); ... — the skin's names, pointed at one theme, and
-;; the one declaration that is not a custom property: color-scheme is what the
-;; BROWSER paints from (form controls, scrollbars, the canvas), and it belongs
-;; wherever a theme is put in force, which is exactly here.
+;; --paper: #E4ECCA; ... — one theme's values, in force, and the one
+;; declaration that is not a custom property: color-scheme is what the BROWSER
+;; paints from (form controls, scrollbars, the canvas), and it belongs wherever
+;; a theme is put in force, which is exactly here.
 (define (palette-mapping p)
   (append
    (list '#:color-scheme (palette-scheme p))
    (append*
-    (for/list ([token (in-list palette-tokens)])
-      (list (custom-property (symbol->string token))
-            (list 'apply 'var (string->symbol (string-append "--" (prefixed p token)))))))))
-
-;; every theme's raw values, one block
-(register-base!
- (css-expr
-  [(: root)
-   ,@(append* (for/list ([p (in-list palettes)]) (palette-declarations p)))]))
+    (for/list ([entry (in-list (palette-entries p))])
+      (list (custom-property (symbol->string (car entry))) (cdr entry))))))
 
 ;; shape and type: the same in every theme, so its own block
 (register-base!
@@ -257,27 +281,35 @@
    #:--indent 1.375rem
    #:--radius 0.375rem]))
 
-;; the default, and the page that names it out loud — one block, because they
-;; are the same mapping
-(register-base!
- (css-expr
-  [(: root) (attribute (: root) (= data-theme ,default-theme))
-   ,@(palette-mapping (theme-named default-theme))]))
+;; The block that puts ONE theme in force. Every theme's is the selector a page
+;; asks for it by; the DEFAULT's also lands on a bare :root, because a page that
+;; picked nothing is in it — same mapping, so one block rather than two.
+;;
+;; Handed out below (theme-blocks) as well as registered: a reader that went
+;; looking for these in the sheet's text would be finding them by the spelling
+;; they happen to have rather than being given them.
+(define (theme-block p)
+  (if (equal? (palette-name p) theme-default)
+      (css-expr [(: root)
+                 (attribute (: root) (= ,theme-attribute-datum ,(palette-name p)))
+                 ,@(palette-mapping p)])
+      (css-expr [(attribute (: root) (= ,theme-attribute-datum ,(palette-name p)))
+                 ,@(palette-mapping p)])))
 
-;; the OS's preference, for a page that named nothing
-(register-base!
- (css-expr
-  [@ media (#:prefers-color-scheme dark)
-     [(: root) ,@(palette-mapping (theme-named os-dark-theme))]]))
+(define theme-block-alist
+  (for/list ([p (in-list palettes)]) (cons (palette-name p) (theme-block p))))
 
-;; and every other theme, for a page that asked for it. The default is already
-;; spelled above; repeating it here would be the same declarations twice.
-(for ([p (in-list palettes)]
-      #:unless (equal? (palette-name p) default-theme))
-  (register-base!
-   (css-expr
-    [(attribute (: root) (= data-theme ,(palette-name p)))
-     ,@(palette-mapping p)])))
+(define (theme-blocks) theme-block-alist)
+
+(define (theme-block-named name) (cdr (assoc name theme-block-alist)))
+
+;; the default first: it is what a page with no theme reads in
+(register-base! (theme-block-named theme-default))
+
+;; and every other theme, for a page that asked for it by name. Last, so the
+;; named theme wins over the bare :root above.
+(for ([name (in-list theme-names)] #:unless (equal? name theme-default))
+  (register-base! (theme-block-named name)))
 
 ;; ---- base -----------------------------------------------------------------
 
