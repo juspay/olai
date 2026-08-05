@@ -84,6 +84,9 @@
                  ;; what the browser should assume before the sheet lands
                  ;; (web/theme's theme-color-scheme), or #f for no such meta
                  #:color-scheme (or/c string? #f)
+                 ;; browser chrome colour before the sheet / pwa.js rewrites it
+                 ;; from --paper. #f means no theme-color meta (fragment tests)
+                 #:theme-color (or/c string? #f)
                  #:sidebar (or/c list? #f)
                  #:banner (or/c list? #f)
                  #:sse-connect (or/c string? #f)
@@ -132,7 +135,8 @@
 
 (define web-static-prefix "/static/")
 
-(define web-scripts '("htmx.min.js" "sse.js" "collapse.js" "prefs.js" "chat.js"))
+(define web-scripts
+  '("htmx.min.js" "sse.js" "collapse.js" "prefs.js" "chat.js" "pwa.js"))
 
 (define (static-href name) (string-append web-static-prefix name))
 
@@ -284,8 +288,13 @@
   [(> ,(sel ol-node is-collapsed) ,(sel ol-row) &)
    #:transform (apply rotate 0deg)
    #:opacity 1]
-  ;; a touch screen has no hover to reveal it with
-  [@ media (#:max-width ,phone-max) #:opacity 1])
+  ;; a touch screen has no hover, and a finger needs a bigger target
+  [@ media (#:max-width ,phone-max)
+     #:opacity 1
+     #:flex (0 0 1.75rem)
+     #:width 1.75rem
+     #:height 1.75rem
+     #:font-size 0.75rem])
 
 (define-style ol-toggle-empty #:cursor default)
 
@@ -399,7 +408,15 @@
          #:opacity 0
          #:transition (opacity 120ms ease)
          [((: ,(sel ol-row) hover) &) (: & focus-visible) ,(sel '& is-done) #:opacity 1]
-         [,(sel '& is-done) #:color ,green])
+         [,(sel '& is-done) #:color ,green]
+         ;; no hover on a phone: the box has to stay put, and a finger needs
+         ;; room around it. Done was already visible; open ones were not
+         [@ media (#:max-width ,phone-max)
+            #:opacity 1
+            #:flex (0 0 1.75rem)
+            #:width 1.75rem
+            #:height 1.75rem
+            #:font-size 1rem])
   (define label (if done? "☑" "☐"))
   (define common
     `((class ,(classes ol-check (and done? is-done)))
@@ -678,17 +695,19 @@
   #:border-right (1px solid ,line)
   #:background (apply color-mix (in srgb) (,paper 85%) ,paper-2)
   #:overflow-y auto
-  #:max-height 100vh
+  #:max-height 100dvh
   #:position sticky
   #:top 0
   [@ media (#:max-width ,phone-max)
+     ;; header, not a second full page: cap the height so the outline still
+     ;; has room below, and scroll the tree inside rather than the whole view
      #:position static
      #:flex (0 0 auto)
      #:width 100%
-     #:max-height none
+     #:max-height 42dvh
      #:border-right 0
      #:border-bottom (1px solid ,line)
-     #:padding 1rem])
+     #:padding (0.75rem 1rem)])
 
 (define-style ol-brand #:margin-bottom 1.25rem)
 
@@ -895,7 +914,9 @@
   #:min-width 0
   #:padding (2rem 2rem 6rem)
   #:max-width 56rem
-  [@ media (#:max-width ,phone-max) #:padding (1.25rem 1rem 4rem)])
+  ;; room under the outline for the chat toggle, plus the home-indicator inset
+  [@ media (#:max-width ,phone-max)
+     #:padding (1rem 1rem (apply calc (+ 5rem (apply env safe-area-inset-bottom))))])
 
 (define (render-page main
                      #:title [title "olai"]
@@ -909,6 +930,11 @@
                      ;; this renderer is told rather than knows. Once the sheet
                      ;; is in, each theme says which one it is and that wins.
                      #:color-scheme [color-scheme #f]
+                     ;; Browser chrome colour before the sheet lands and before
+                     ;; pwa.js rewrites it from --paper. Same standing as
+                     ;; color-scheme: the route layer is told the default
+                     ;; paper, and a fragment test passes nothing.
+                     #:theme-color [theme-color #f]
                      #:sidebar [sidebar #f]
                      #:banner [banner #f]
                      #:sse-connect [sse-connect #f]
@@ -925,7 +951,21 @@
           ,@(if color-scheme
                 (list `(meta ((name "color-scheme") (content ,color-scheme))))
                 '())
+          ,@(if theme-color
+                (list `(meta ((name "theme-color") (content ,theme-color))))
+                '())
           (title ,title)
+          ;; PWA install surface: manifest, icons, iOS "Add to Home Screen".
+          ;; All under /static/ — same owner as the scripts. The service worker
+          ;; itself is NOT here: its scope has to be `/`, so the route layer
+          ;; serves it at /sw.js (see serve.rkt); pwa.js registers that URL.
+          (link ((rel "manifest") (href ,(static-href "manifest.webmanifest"))))
+          (link ((rel "icon") (href ,(static-href "icon.svg")) (type "image/svg+xml")))
+          (link ((rel "apple-touch-icon") (href ,(static-href "apple-touch-icon.png"))))
+          (meta ((name "mobile-web-app-capable") (content "yes")))
+          (meta ((name "apple-mobile-web-app-capable") (content "yes")))
+          (meta ((name "apple-mobile-web-app-status-bar-style") (content "default")))
+          (meta ((name "apple-mobile-web-app-title") (content "olai")))
           ;; before the sheet: it is the first paint this is racing
           (script () ,(cdata #f #f (prefs-boot-js)))
           ,@(if stylesheet-href

@@ -98,7 +98,41 @@
        (check-true (string-contains? body "Buy milk") body)
        ;; the sheet is generated, so the page is TOLD its href: a route layer
        ;; that forgot would serve an unstyled page and nothing else would say so
-       (check-true (string-contains? body "href=\"/static/app.css\"") body))))
+       (check-true (string-contains? body "href=\"/static/app.css\"") body)
+       ;; PWA surface: installable shell, theme-color for browser chrome
+       (check-true (string-contains? body "rel=\"manifest\"") body)
+       (check-true (string-contains? body "name=\"theme-color\"") body)
+       (check-true (string-contains? body "src=\"/static/pwa.js\"") body))))
+
+  (test-case "GET /sw.js is the service worker with root scope"
+    (with-server
+     (λ (port f)
+       (define-values (code headers body) (GET port "/sw.js"))
+       (check-equal? code 200 body)
+       (check-true (string-contains? (or (header-value headers "content-type:") "")
+                                     "javascript")
+                   (format "~a" headers))
+       (check-true (string-contains?
+                    (string-downcase (or (header-value headers "service-worker-allowed:") ""))
+                    "/")
+                   (format "~a" headers))
+       (check-true (string-contains? body "olai-shell") body)
+       ;; live channels stay uncached
+       (check-true (string-contains? body "/events") body))))
+
+  (test-case "GET /static/manifest.webmanifest is installable JSON"
+    (with-server
+     (λ (port f)
+       (define-values (code headers body) (GET port "/static/manifest.webmanifest"))
+       (check-equal? code 200 body)
+       (check-true (string-contains? (or (header-value headers "content-type:") "")
+                                     "manifest")
+                   (format "~a" headers))
+       (define j (read-json (open-input-string body)))
+       (check-equal? (hash-ref j 'name) "olai")
+       (check-equal? (hash-ref j 'display) "standalone")
+       (check-equal? (hash-ref j 'start_url) "/")
+       (check-true (pair? (hash-ref j 'icons)) body))))
 
   (test-case "the sidebar Today link is a real route"
     (with-server

@@ -79,7 +79,7 @@ racket web-server --- spawns ---> ACP agent (Claude Code; JSON-RPC on stdio)
     |
     +-- SSE ---> browser (htmx): a file moved, or the agent said something
     |
-    +-- PWA, static export: planned, not wired
+    +-- PWA: installable shell (manifest + SW); offline reading of last page
 ```
 
 Personal outlines are plain files you sync however you like (Dropbox,
@@ -91,8 +91,9 @@ file's dir is a git work tree; otherwise they write the file and leave
 history to your sync layer.
 
 Single user, many devices. The server runs on your headless box behind
-Caddy or Tailscale. Offline you can read and queue captures; you cannot
-restructure. Live with it, or open your laptop.
+Caddy or Tailscale. Install the web view as a PWA; offline you still get
+the last page and the shell. Capture-queue is next. Live with it, or open
+your laptop.
 
 ## STATUS
 
@@ -103,9 +104,10 @@ mirrors reach anchors anywhere in the loaded tree, fragments included. The
 human view is the web app served by `olai serve` — htmx, no auth (bind
 it to localhost or Tailscale). It reloads an outline when the file changes
 and pushes that over SSE, so open tabs redraw with no refresh, and it carries
-a chat panel driving Claude Code over ACP (`OLAI_ACP_AGENT`). The page
-itself still writes nothing; there is no static HTML export.
-(Ancestor: srid/Tend.)
+a chat panel driving Claude Code over ACP (`OLAI_ACP_AGENT`). Installable
+as a PWA (manifest, icons, service worker; offline reading of the last
+good page). The page itself still writes nothing; there is no static HTML
+export. (Ancestor: srid/Tend.)
 
 ## ROADMAP
 

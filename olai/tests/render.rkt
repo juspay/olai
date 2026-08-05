@@ -15,7 +15,7 @@
          olai/web/render
          ;; the list the picker draws: the themes the sheet carries, and the
          ;; one a page that picked nothing reads in
-         (only-in olai/web/theme theme-names theme-default)
+         (only-in olai/web/theme theme-names theme-default theme-default-paper)
          ;; the chat panel is its own module now: presentation for the agent's
          ;; conversation, sitting on top of the outline's skin
          olai/web/chat-panel
@@ -430,10 +430,18 @@
     (check-true (string-contains? s "src=\"/static/collapse.js\"") s)
     (check-true (string-contains? s "src=\"/static/prefs.js\"") s)
     (check-true (string-contains? s "src=\"/static/chat.js\"") s)
+    (check-true (string-contains? s "src=\"/static/pwa.js\"") s)
     (check-false (string-contains? s "tailwind") s)
     (check-false (string-contains? s "cdn.") s)
     (check-true (string-contains? s "<aside class=\"ol-sidebar\"") s)
     (check-true (string-contains? s "<main class=\"ol-main\">") s)
+    ;; PWA install surface: manifest + icons + iOS home-screen meta. The
+    ;; service worker is registered by pwa.js at /sw.js (root scope).
+    (check-true (string-contains? s "rel=\"manifest\"") s)
+    (check-true (string-contains? s "href=\"/static/manifest.webmanifest\"") s)
+    (check-true (string-contains? s "href=\"/static/icon.svg\"") s)
+    (check-true (string-contains? s "apple-touch-icon") s)
+    (check-true (string-contains? s "mobile-web-app-capable") s)
     ;; ONE inline script, and it is the prefs boot: everything else is a
     ;; cacheable file under /static/. (A stored pref has to be on <html>
     ;; before the first paint, and a deferred file lands after it.)
@@ -501,6 +509,34 @@
     ;; told nothing, it says nothing: a fragment test, never a served page
     (check-false (string-contains? (xstr (render-page '(div))) "color-scheme")
                  "an untold page invented a color-scheme"))
+
+  (test-case "theme-color meta is only the colour it is told"
+    (define s (xstr (render-page '(div) #:theme-color theme-default-paper)))
+    (check-true (string-contains?
+                 s (string-append "name=\"theme-color\" content=\""
+                                  theme-default-paper "\""))
+                s)
+    (check-true (regexp-match? #px"^#[0-9A-Fa-f]{6}$" theme-default-paper)
+                theme-default-paper)
+    (check-false (string-contains? (xstr (render-page '(div))) "theme-color")
+                 "an untold page invented a theme-color"))
+
+  (test-case "PWA static assets exist beside the scripts"
+    (for ([name (in-list '("manifest.webmanifest" "icon.svg" "icon-192.png"
+                           "icon-512.png" "icon-maskable-512.png"
+                           "apple-touch-icon.png" "sw.js" "pwa.js"))])
+      (check-true (file-exists? (build-path (web-static-dir) name)) name))
+    (define man (file->string (build-path (web-static-dir) "manifest.webmanifest")))
+    (check-true (string-contains? man "\"name\": \"olai\"") man)
+    (check-true (string-contains? man "\"display\": \"standalone\"") man)
+    (check-true (string-contains? man "icon-192.png") man)
+    (define pwa (file->string (build-path (web-static-dir) "pwa.js")))
+    (check-true (string-contains? pwa "serviceWorker") pwa)
+    (check-true (string-contains? pwa "/sw.js") pwa)
+    (check-true (string-contains? pwa "theme-color") pwa)
+    (define sw (file->string (build-path (web-static-dir) "sw.js")))
+    (check-true (string-contains? sw "olai-shell") sw)
+    (check-true (string-contains? sw "/events") sw))
 
   ;; ---- chat panel ----------------------------------------------------------
   ;;
