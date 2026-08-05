@@ -54,7 +54,7 @@
           # package-lock.json it builds from.
           acpAgent = pkgs.callPackage ./acp { };
 
-          # The build (racket build, TZDIR dance, raco exe/distribute) lives
+          # The build (racket build, TZDIR dance, raco exe stub) lives
           # in nix/olai.nix; src is a flake-level decision, passed in.
           olai = pkgs.callPackage ./nix/olai.nix {
             inherit (racketDepsPkg) racketPkgs racketDeps;
