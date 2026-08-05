@@ -40,7 +40,15 @@ stdenv.mkDerivation {
 
     raco exe ++lang olai -o olai-bin \
       "$(racket -e '(display (path->string (collection-file-path "cli.rkt" "olai")))')"
-    raco distribute dist olai-bin
+    ${if stdenv.hostPlatform.isDarwin then ''
+      # raco distribute fails on aarch64-darwin: result arity mismatch in
+      # compiler/private/elf.rkt:adjust-racket-section-size while patching
+      # binaries. Ship the raco exe binary alone; makeWrapper still sets TZDIR.
+      mkdir -p dist/bin
+      cp olai-bin dist/bin/olai-bin
+    '' else ''
+      raco distribute dist olai-bin
+    ''}
   '';
 
   installPhase = ''
