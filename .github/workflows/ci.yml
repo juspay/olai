@@ -8,7 +8,10 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
       actions: write          # required by cache-nix-action purge
