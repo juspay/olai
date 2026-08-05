@@ -66,6 +66,10 @@
           'date (nullish (task-date tk))
           'description (nullish (task-description tk))
           'done (done->json (task-done tk))
+          ;; the state the field means: "open" | "done". `done` keeps the
+          ;; stored value (null | true | timestamp) — both, so a reader can
+          ;; ask the question it actually has.
+          'status (symbol->string (task-status tk))
           'id (nullish (task-id tk))
           'key (nullish (task-key tk))
           'tags (task-tags tk)
@@ -145,6 +149,7 @@
         'date (cal-item-date it)
         'breadcrumb (cal-item-breadcrumb it)
         'done (done->json (cal-item-done it))
+        'status (symbol->string (cal-item-status it))
         'id (nullish (cal-item-id it))))
 
 (define (calendar->jsexpr cal)

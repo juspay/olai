@@ -125,6 +125,9 @@ EOF
     (check-equal? (task-done (car tasks)) #t)
     (check-equal? (task-done (cadr tasks)) "2026-08-03")
     (check-equal? (task-done (caddr tasks)) "2026-08-03T09:15")
+    (check-equal? (map task-status tasks) '(done done done))
+    (check-equal? (map task-done-at tasks)
+                  '(#f "2026-08-03" "2026-08-03T09:15"))
     (check-equal? (map task-title tasks)
                   '("Bare done" "With stamp" "With datetime")))
 
@@ -140,9 +143,7 @@ EOF
        ))
     (check-equal? (map task-title tasks)
                   '("Finished task" "Open task" "Also finished"))
-    (check-equal? (task-done (car tasks)) #t)
-    (check-false (task-done (cadr tasks)))
-    (check-equal? (task-done (caddr tasks)) #t))
+    (check-equal? (map task-status tasks) '(done open done)))
 
   (test-case "escaped checkbox is literal title, not sugar"
     (define tasks

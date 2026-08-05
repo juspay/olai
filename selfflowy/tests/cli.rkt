@@ -64,7 +64,9 @@
     (check-true (hash-has-key? inbox 'date))
     (check-true (hash-has-key? inbox 'description))
     (check-true (hash-has-key? inbox 'done))
-    (check-equal? (hash-ref inbox 'done) (json-null)))
+    (check-equal? (hash-ref inbox 'done) (json-null))
+    ;; the stored field and what it means travel together
+    (check-equal? (hash-ref inbox 'status) "open"))
     (define-values (c2 o2 e2)
       (run-selfflowy (list "tree" "--json" (path->string example))))
     (check-equal? c2 0 e2)
@@ -277,6 +279,7 @@
          (car (hash-ref (car (hash-ref tree 'tasks)) 'children)))
        (check-equal? (hash-ref ship 'title) "Ship it")
        (check-true (string? (hash-ref ship 'done)))
+       (check-equal? (hash-ref ship 'status) "done")
        ;; undo
        (define-values (c3 o3 e3)
          (run-selfflowy

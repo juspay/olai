@@ -96,6 +96,7 @@ Single file:
       "date": null,
       "description": "Quick capture landing zone",
       "done": null,
+      "status": "open",
       "id": null,
       "key": "pd076e677",
       "tags": ["capture"],
@@ -134,8 +135,11 @@ Multiple files:
 ```
 
 `date` / `description` are raw strings or `null` (Markdown is not interpreted
-here). `done` is `null` (open), `true` (completed, no timestamp), or an ISO
-timestamp string. `id` is `null` or the anchor string. `tags` is always an array.
+here). `done` is the stored field: `null` (open), `true` (completed, no
+timestamp), or an ISO timestamp string. `status` is what that field MEANS —
+`"open"` or `"done"` — and is the one to switch on: it is where a future
+state would show up, while `done` keeps its type. `id` is `null` or the anchor
+string. `tags` is always an array.
 
 `key` is the node's stable identity — its `^anchor` when it has one, else a
 hash of its **defining** file plus the child ordinals that reach it inside
@@ -181,7 +185,8 @@ JSON stdout:
 ## `calendar [--json] [--month YYYY-MM] [file ...]`
 
 Group **dated** tasks by calendar day for one month (default: current).
-**Done tasks are included** (JSON `done` is `true` or a timestamp). Days that
+**Done tasks are included** (JSON `done` is `true` or a timestamp, `status` is
+`"done"`). Days that
 have a bare-ISO day node in Daily-style outlines set `day_node: true` (for
 web deep-links). Multi-file merge like agenda.
 
@@ -194,7 +199,8 @@ web deep-links). Multi-file merge like agenda.
       "date": "2026-08-04",
       "day_node": true,
       "items": [
-        {"title":"Buy milk","date":"2026-08-04T18:00","breadcrumb":"...","done":null,"id":null}
+        {"title":"Buy milk","date":"2026-08-04T18:00","breadcrumb":"...","done":null,
+         "status":"open","id":null}
       ]
     }
   ]

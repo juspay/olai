@@ -29,16 +29,18 @@
          format-year-month
          format-calendar)
 
-;; done: #f | #t | ISO timestamp (same as task-done)
+;; done:   the stored field, #f | #t | ISO timestamp (what JSON serializes)
+;; status: what that MEANS — 'open | 'done, derived once (lang/expander)
 ;; id: task-id or #f
-(struct cal-item (date title breadcrumb done id) #:transparent)
+(struct cal-item (date title breadcrumb done status id) #:transparent)
 
-;; Unlike the agenda, done nodes stay: a calendar shows what happened.
+;; Unlike the agenda, nothing is filtered out by state: a calendar shows what
+;; happened.
 (define (collect-cal-items tasks #:root [root #f])
   (for/list ([d (in-list (collect-dated-nodes tasks #:root root))])
     (define tk (dated-node-task d))
     (cal-item (task-date tk) (task-title tk) (dated-node-breadcrumb d)
-              (task-done tk) (task-id tk))))
+              (task-done tk) (task-status tk) (task-id tk))))
 
 ;; Bare ISO day titles (Daily.rkt day nodes). -> setof "YYYY-MM-DD"
 (define (collect-day-nodes tasks)
@@ -150,7 +152,10 @@
           (string-append date (if node? "  (day notes)" "")))
         (cons head
               (for/list ([it (in-list (hash-ref d 'items))])
-                (define mark (if (cal-item-done it) "  [x] " "  - "))
+                (define mark
+                  (case (cal-item-status it)
+                    [(done) "  [x] "]
+                    [else "  - "]))
                 (string-append
                  mark (cal-item-title it)
                  "  [" (cal-item-date it) "]"

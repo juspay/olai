@@ -44,6 +44,8 @@
          task-date
          task-description
          task-done
+         task-status
+         task-done-at
          task-id
          task-tags
          task-children
@@ -73,6 +75,21 @@
 ;;      and an error still has to say file:line:col.
 (struct task (title date description done id tags children file key loc)
   #:transparent)
+
+;; `done` is STORAGE — #f, #t, or the ISO day it was marked with. What a
+;; consumer wants is the STATE, and it is derived here, once. Eight places
+;; used to read the field as a boolean, which is fine until a node can be in
+;; a third state: then "not done" quietly means "open", in eight places, and
+;; each of them has to be found. Switching on task-status instead makes a new
+;; state a new `case` clause the compiler cannot help you forget.
+(define (task-status tk)
+  (if (task-done tk) 'done 'open))
+
+;; When it was marked, if it was recorded: #f for a bare @done, and for
+;; anything still open.
+(define (task-done-at tk)
+  (define d (task-done tk))
+  (and (string? d) d))
 
 ;; Mirror site: same node as anchors[anchor], not a copy.
 (struct mirror-ref (anchor loc) #:transparent)

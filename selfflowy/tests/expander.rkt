@@ -35,6 +35,7 @@ EOF
     (check-false (task-date inbox))
     (check-equal? (task-description inbox) "landing")
     (check-false (task-done inbox))
+    (check-equal? (task-status inbox) 'open)
     (check-false (task-id inbox))
     (check-equal? (task-tags inbox) '())
     (check-equal? (length (task-children inbox)) 2)
@@ -58,7 +59,12 @@ EOF
     (check-equal? (task-done (car tasks)) #t)
     (check-equal? (task-done (cadr tasks)) "2026-08-03")
     (check-equal? (task-done (caddr tasks)) "2026-08-03T14:30")
-    (check-equal? (task-date (caddr tasks)) "2026-08-01"))
+    (check-equal? (task-date (caddr tasks)) "2026-08-01")
+    ;; the field is storage; the state is derived from it, and the timestamp
+    ;; is asked for by name (a bare @done has none)
+    (check-equal? (map task-status tasks) '(done done done))
+    (check-equal? (map task-done-at tasks)
+                  '(#f "2026-08-03" "2026-08-03T14:30")))
 
   (test-case "duplicate #:done rejected"
     (check-exn

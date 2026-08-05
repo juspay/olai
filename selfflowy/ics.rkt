@@ -65,9 +65,9 @@
   (define desc-parts
     (filter non-empty-string?
             (list (cal-item-breadcrumb it)
-                  (if (cal-item-done it)
-                      (format "done: ~a" (cal-item-done it))
-                      ""))))
+                  (case (cal-item-status it)
+                    [(done) (format "done: ~a" (cal-item-done it))]
+                    [else ""]))))
   (define lines
     (list "BEGIN:VEVENT"
           (format "UID:~a" (uid-for path-str title date (cal-item-id it)))

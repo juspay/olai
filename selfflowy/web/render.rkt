@@ -280,7 +280,8 @@
   (define key (task-key tk))
   ;; where this copy of the node sits: #f at its defining site
   (define qkey (site-key site key))
-  (define done? (and (task-done tk) #t))
+  ;; one switch on the node's state; everything below is drawing
+  (define done? (eq? (task-status tk) 'done))
   (define kids (task-children tk))
   (define iso-day (and (bare-iso-date-title? title) title))
   (define title-el

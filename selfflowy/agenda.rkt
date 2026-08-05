@@ -20,10 +20,10 @@
 (struct dated-task (date title breadcrumb) #:transparent)
 
 ;; #:root — optional string prepended to every breadcrumb (e.g. file basename).
-;; Done tasks are excluded from the agenda even if they still have a date.
+;; An agenda is what is still OPEN: a node in any other state has had its say.
 (define (collect-dated tasks #:root [root #f])
   (for/list ([d (in-list (collect-dated-nodes tasks #:root root))]
-             #:unless (task-done (dated-node-task d)))
+             #:when (eq? (task-status (dated-node-task d)) 'open))
     (define tk (dated-node-task d))
     (dated-task (task-date tk) (task-title tk) (dated-node-breadcrumb d))))
 

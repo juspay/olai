@@ -14,6 +14,8 @@
          task-date
          task-description
          task-done
+         task-status
+         task-done-at
          task-id
          task-tags
          task-children

@@ -19,7 +19,10 @@
                  (mirror-ref "b" #f)))))
     (define items (collect-cal-items t))
     (check-equal? (length items) 2)
-    (check-true (for/or ([it items]) (cal-item-done it)))
+    (check-equal? (sort (map (λ (it) (symbol->string (cal-item-status it)))
+                             items)
+                        string<?)
+                  '("done" "open"))
     (check-equal? (length (filter (λ (i) (equal? (cal-item-title i) "B")) items))
                   1))
 
@@ -38,9 +41,9 @@
 
   (test-case "calendar-for-month groups and marks day_node"
     (define items
-      (list (cal-item "2026-08-04T09:30" "Dentist" "Inbox > Dentist" #f #f)
-            (cal-item "2026-07-01" "Old" "Old" #f #f)
-            (cal-item "2026-08-10" "Ship" "Ship" #t "ship")))
+      (list (cal-item "2026-08-04T09:30" "Dentist" "Inbox > Dentist" #f 'open #f)
+            (cal-item "2026-07-01" "Old" "Old" #f 'open #f)
+            (cal-item "2026-08-10" "Ship" "Ship" #t 'done "ship")))
     (define nodes (set "2026-08-03" "2026-08-04"))
     (define cal (calendar-for-month items nodes "2026-08"))
     (check-equal? (hash-ref cal 'month) "2026-08")
@@ -76,7 +79,7 @@
   (test-case "format-calendar plain"
     (define cal
       (calendar-for-month
-       (list (cal-item "2026-08-04" "X" "A > X" #f #f))
+       (list (cal-item "2026-08-04" "X" "A > X" #f 'open #f))
        (set)
        "2026-08"))
     (define s (format-calendar cal))
