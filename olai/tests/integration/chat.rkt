@@ -1,9 +1,10 @@
 #lang racket/base
 
-;; The conversation, against a scripted agent (tests/fake-acp-agent.rkt): real
-;; subprocess, real ndjson, no LLM. What is being checked is the FRAMES — the
-;; wire format WP5 renders — and the transcript it replays from. The protocol
-;; underneath is tests/acp.rkt's business.
+;; The conversation, against a scripted agent
+;; (tests/integration/fake-acp-agent.rkt): real subprocess, real ndjson, no
+;; LLM. What is being checked is the FRAMES — the wire format WP5 renders —
+;; and the transcript it replays from. The protocol underneath is
+;; tests/integration/acp.rkt's business.
 ;;
 ;; Frames are parsed, never string-matched: they are JSON on the wire and the
 ;; key order is not a contract.
@@ -29,7 +30,8 @@
          olai/web/serve)
 
 (define fake-agent
-  (path->string (collection-file-path "fake-acp-agent.rkt" "olai" "tests")))
+  (path->string
+   (collection-file-path "fake-acp-agent.rkt" "olai" "tests" "integration")))
 
 ;; A file that exists and is not an executable: the other way to get the
 ;; agent's path wrong.
@@ -180,7 +182,8 @@
    thunk
    (λ () (environment-variables-set! env #"OLAI_FAKE_ACP_STORED" #f))))
 
-;; /events never ends, so this keeps the port. Same shape as tests/serve.rkt.
+;; /events never ends, so this keeps the port. Same shape as
+;; tests/integration/serve.rkt.
 (define (open-events port)
   (define-values (_status _headers in)
     (http-sendrecv "127.0.0.1" "/events" #:port port #:method #"GET"))

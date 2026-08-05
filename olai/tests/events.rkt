@@ -1,7 +1,8 @@
 #lang racket/base
 
 ;; The SSE hub and the watcher's midnight arithmetic — both in isolation,
-;; no server and no clock. The wired-up version lives in tests/serve.rkt.
+;; no server and no clock. The wired-up version lives in
+;; tests/integration/serve.rkt.
 
 (require rackunit
          gregor
