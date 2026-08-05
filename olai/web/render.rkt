@@ -956,9 +956,9 @@
                 '())
           (title ,title)
           ;; PWA install surface: manifest, icons, iOS "Add to Home Screen".
-          ;; All under /static/ — same owner as the scripts. The service worker
-          ;; itself is NOT here: its scope has to be `/`, so the route layer
-          ;; serves it at /sw.js (see serve.rkt); pwa.js registers that URL.
+          ;; All under /static/ — same owner as the scripts. pwa.js only keeps
+          ;; theme-color in step with the picked theme; there is no offline
+          ;; shell (live view is live-or-nothing).
           (link ((rel "manifest") (href ,(static-href "manifest.webmanifest"))))
           (link ((rel "icon") (href ,(static-href "icon.svg")) (type "image/svg+xml")))
           (link ((rel "apple-touch-icon") (href ,(static-href "apple-touch-icon.png"))))

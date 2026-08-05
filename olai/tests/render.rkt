@@ -435,8 +435,7 @@
     (check-false (string-contains? s "cdn.") s)
     (check-true (string-contains? s "<aside class=\"ol-sidebar\"") s)
     (check-true (string-contains? s "<main class=\"ol-main\">") s)
-    ;; PWA install surface: manifest + icons + iOS home-screen meta. The
-    ;; service worker is registered by pwa.js at /sw.js (root scope).
+    ;; PWA install surface: manifest + icons + iOS home-screen meta
     (check-true (string-contains? s "rel=\"manifest\"") s)
     (check-true (string-contains? s "href=\"/static/manifest.webmanifest\"") s)
     (check-true (string-contains? s "href=\"/static/icon.svg\"") s)
@@ -524,19 +523,15 @@
   (test-case "PWA static assets exist beside the scripts"
     (for ([name (in-list '("manifest.webmanifest" "icon.svg" "icon-192.png"
                            "icon-512.png" "icon-maskable-512.png"
-                           "apple-touch-icon.png" "sw.js" "pwa.js"))])
+                           "apple-touch-icon.png" "pwa.js"))])
       (check-true (file-exists? (build-path (web-static-dir) name)) name))
     (define man (file->string (build-path (web-static-dir) "manifest.webmanifest")))
     (check-true (string-contains? man "\"name\": \"olai\"") man)
     (check-true (string-contains? man "\"display\": \"standalone\"") man)
     (check-true (string-contains? man "icon-192.png") man)
     (define pwa (file->string (build-path (web-static-dir) "pwa.js")))
-    (check-true (string-contains? pwa "serviceWorker") pwa)
-    (check-true (string-contains? pwa "/sw.js") pwa)
     (check-true (string-contains? pwa "theme-color") pwa)
-    (define sw (file->string (build-path (web-static-dir) "sw.js")))
-    (check-true (string-contains? sw "olai-shell") sw)
-    (check-true (string-contains? sw "/events") sw))
+    (check-false (string-contains? pwa "serviceWorker") pwa))
 
   ;; ---- chat panel ----------------------------------------------------------
   ;;

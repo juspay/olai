@@ -104,22 +104,6 @@
        (check-true (string-contains? body "name=\"theme-color\"") body)
        (check-true (string-contains? body "src=\"/static/pwa.js\"") body))))
 
-  (test-case "GET /sw.js is the service worker with root scope"
-    (with-server
-     (λ (port f)
-       (define-values (code headers body) (GET port "/sw.js"))
-       (check-equal? code 200 body)
-       (check-true (string-contains? (or (header-value headers "content-type:") "")
-                                     "javascript")
-                   (format "~a" headers))
-       (check-true (string-contains?
-                    (string-downcase (or (header-value headers "service-worker-allowed:") ""))
-                    "/")
-                   (format "~a" headers))
-       (check-true (string-contains? body "olai-shell") body)
-       ;; live channels stay uncached
-       (check-true (string-contains? body "/events") body))))
-
   (test-case "GET /static/manifest.webmanifest is installable JSON"
     (with-server
      (λ (port f)

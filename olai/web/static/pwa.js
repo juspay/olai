@@ -1,20 +1,14 @@
-// PWA glue: register the service worker, and keep <meta name=theme-color>
-// in step with the theme the page is actually in.
+// PWA glue: keep <meta name=theme-color> in step with the theme the page
+// is actually in.
 //
 // theme-color is the browser chrome (status bar, installed-app title bar).
 // The sheet paints --paper; we read it after the first paint and whenever a
 // pref chip flips. prefs.js does not know about meta tags, and this file
 // does not know about localStorage — one job each.
+//
+// No service worker: the app is live-or-nothing (SSE, agent). Installability
+// is the manifest + icons; offline is not a goal.
 (function () {
-  if ('serviceWorker' in navigator) {
-    // register after load so it does not race first paint / htmx
-    window.addEventListener('load', function () {
-      // /sw.js, not /static/sw.js: a worker's default scope is its directory,
-      // and the app is the whole origin. serve.rkt owns that URL.
-      navigator.serviceWorker.register('/sw.js').catch(function () {});
-    });
-  }
-
   function paper() {
     try {
       var v = getComputedStyle(document.documentElement)

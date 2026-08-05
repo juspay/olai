@@ -14,8 +14,7 @@
 ;;   GET  /api/tree     byte-identical to `olai tree`
 ;;   GET  /api/agenda   byte-identical to `olai agenda --json`
 ;;   GET  /static/app.css  the generated stylesheet (olai/web/skin)
-;;   GET  /static/*     files from web/static/
-;;   GET  /sw.js        service worker (root scope; file lives under static/)
+;;   GET  /static/*     files from web/static/ (icons, scripts, manifest)
 ;;   anything else      404, terse text/plain
 ;;
 ;; No auth: the network is the auth (Tailscale / Caddy in front of it).
@@ -109,34 +108,17 @@
    #:headers (list (make-header #"Cache-Control" #"no-cache"))
    #:mime-type #"text/css; charset=utf-8"))
 
-;; A static file under web/static/, with a MIME and optional headers the
-;; filesystem dispatcher cannot name (Service-Worker-Allowed; the manifest's
-;; real type). The bytes live next to the other assets; only the URL and the
-;; headers are special.
-(define (static-file-response name
-                              #:mime mime
-                              #:headers [headers '()])
-  (define path (build-path (web-static-dir) name))
+;; application/manifest+json is not in the stock mime.types table, and a
+;; browser that gets application/octet-stream will not install. The bytes
+;; live next to the other assets; only the MIME is special.
+(define (manifest-response)
+  (define path (build-path (web-static-dir) "manifest.webmanifest"))
   (response/output
    (λ (out)
      (call-with-input-file path
        (λ (in) (copy-port in out))))
-   #:headers (cons (make-header #"Cache-Control" #"no-cache") headers)
-   #:mime-type mime))
-
-;; Root scope is load-bearing: a worker under /static/ can only control
-;; /static/*. The file still lives in static/ so there is one source; this
-;; route is the only place its URL is spelled.
-(define (sw-response)
-  (static-file-response "sw.js"
-                        #:mime #"application/javascript; charset=utf-8"
-                        #:headers (list (make-header #"Service-Worker-Allowed" #"/"))))
-
-;; application/manifest+json is not in the stock mime.types table, and a
-;; browser that gets application/octet-stream will not install.
-(define (manifest-response)
-  (static-file-response "manifest.webmanifest"
-                        #:mime #"application/manifest+json; charset=utf-8"))
+   #:headers (list (make-header #"Cache-Control" #"no-cache"))
+   #:mime-type #"application/manifest+json; charset=utf-8"))
 
 (define (text-response str #:code [code 200])
   (response/output
@@ -430,11 +412,9 @@
    (filter:make (regexp (string-append "^" (regexp-quote stylesheet-href) "$"))
                 (lift:make (λ (req) (css-response))))
    ;; before the static dir: the manifest needs a MIME the stock table
-   ;; does not know, and /sw.js is not under /static/ at all (scope)
+   ;; does not know
    (filter:make #rx"^/static/manifest\\.webmanifest$"
                 (lift:make (λ (_req) (manifest-response))))
-   (filter:make #rx"^/sw\\.js$"
-                (lift:make (λ (_req) (sw-response))))
    (filter:make (regexp (string-append "^" (regexp-quote web-static-prefix)))
                 (files:make #:url->path static-url->path
                             #:path->mime-type (make-path->mime-type mime-types-path)

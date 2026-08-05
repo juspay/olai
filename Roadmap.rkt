@@ -35,6 +35,9 @@ olai roadmap #project
     [x] 0.8 calendar
       : Agenda, month grid in html (links to Daily day nodes), move, ics.
       : (Grid view later retired with the html command; query/move/ics live.)
+    [x] 0.7 PWA
+      : Installable web view: manifest, palm-leaf icons, theme-color, mobile
+      : chrome (safe-area, touch targets). No offline shell — live-or-nothing.
   0.2b.2 cross-file mirrors
     : Link anchors across outline files (not yet).
   glob includes
@@ -103,17 +106,6 @@ olai roadmap #project
     : Capture box + check-off from the browser (done status already in the
     : language + CLI). The phone loop closes: capture, complete, ask the
     : agent for everything else.
-  0.7 PWA
-    : Manifest + service worker; offline reading, background-sync capture
-    : queue.
-    installable shell
-      : Manifest, palm-leaf icons (svg + png), theme-color, /sw.js with
-      : root scope; caches shell + last page; never the live stream.
-      : Mobile polish (safe-area, touch targets, sidebar height cap).
-      @done 2026-08-05
-    background-sync capture queue
-      : Needs 0.6's browser write path; queue captures while offline and
-      : flush when the network returns.
   0.9 search
     : Text search + keyboard nav in the web view.
   \@doc documents

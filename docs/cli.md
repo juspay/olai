@@ -413,7 +413,6 @@ Routes:
 | `GET /static/app.css` | the skin, `text/css`, `Cache-Control: no-cache`. Generated from the Racket modules that draw the page — `olai/web/skin` composes them — not a file on disk. `olai css` prints the same bytes |
 | `GET /static/manifest.webmanifest` | web app manifest (`application/manifest+json`); name, icons, `display: standalone`, default theme colours |
 | `GET /static/*` | files under `olai/web/static/` (icons, htmx, scripts, `pwa.js`) |
-| `GET /sw.js` | service worker, root scope (`Service-Worker-Allowed: /`). File lives under `static/`; this URL is what gives it the whole origin. Caches the shell for offline reading; never caches `/events`, `/api/*`, or `/chat*` |
 | anything else | `404`, terse `text/plain` |
 
 A node's permalink is `/#n-<key>` (`key` as in `tree` JSON). Anchored nodes and
@@ -437,11 +436,10 @@ theme declares its own `color-scheme`, so scrollbars and form controls follow.
 from `--paper` by `static/pwa.js` whenever a chip flips, so the browser chrome
 tracks the page.
 
-**PWA.** The page links the manifest and icons, registers `/sw.js`, and is
-installable (Add to Home Screen / install prompt) when served over HTTPS or
-localhost. Offline, the last good page and the shell assets still draw; the
-live stream and the API do not. Capture-queue / background-sync is still open
-work (roadmap 0.7's second half — needs the browser write path from 0.6).
+**PWA.** The page links the manifest and icons and is installable (Add to
+Home Screen / install prompt) when served over HTTPS or localhost. There is
+no service worker and no offline mode: the view is live-or-nothing (SSE,
+agent). `static/pwa.js` only keeps `theme-color` in step with the picked theme.
 
 The chat panel (a `>_ agent` button, bottom right; open state remembered in
 `localStorage`) is server-rendered from the bridge's transcript on every page
