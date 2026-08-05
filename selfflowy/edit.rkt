@@ -16,6 +16,7 @@
          racket/path
          racket/port
          racket/string
+         selfflowy/fail
          selfflowy/load
          selfflowy/store)
 
@@ -72,9 +73,9 @@
 (define (guard-sexp-file! full)
   (when (and (file-exists? full)
              (regexp-match? #px"(?m:^#lang selfflowy/sexp)" (file->string full)))
-    (error 'outline
-           "~a is #lang selfflowy/sexp; writes emit outline syntax (#lang selfflowy)"
-           full)))
+    (user-fail
+     "~a is #lang selfflowy/sexp; writes emit outline syntax (#lang selfflowy)"
+     full)))
 
 ;; Auto-commit what a write applied — one path or several (an edit that lands
 ;; in a fragment and its root is still one change). Only fires inside a git
@@ -126,4 +127,4 @@
               col))
 
 (define (default-invalid err)
-  (error 'outline "~a" (load-error-message err)))
+  (user-fail "~a" (load-error-message err)))

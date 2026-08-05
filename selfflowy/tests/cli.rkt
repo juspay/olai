@@ -297,6 +297,37 @@
        (check-true (string-contains? log2 "undone: Ship it") log2))
      (λ () (delete-directory/files dir))))
 
+  ;; What a user (and an agent's JSON) gets told is a sentence about their
+  ;; outline, not the name of the function that noticed.
+  (test-case "done on a done task says so in user language"
+    (define dir (make-temporary-file "sfredone~a" 'directory))
+    (define f (build-path dir "Tasks.rkt"))
+    (dynamic-wind
+     void
+     (λ ()
+       (display-to-file "#lang selfflowy\nShip it\n  @done 2026-08-01\n"
+                        f #:exists 'truncate)
+       (define-values (code out err)
+         (run-selfflowy
+          (list "done" "--json" "--no-commit" "--file" (path->string f)
+                "Ship it")))
+       (check-equal? code 2 (string-append out err))
+       (define msg (hash-ref (hash-ref (parse-json err) 'error) 'message))
+       (check-true (regexp-match? #px"(?i:already done)" msg) msg)
+       (check-false (string-contains? msg "mark-done-in-text") msg)
+       (check-false (string-contains? msg "-in-text") msg)
+       ;; and the same for the other direction
+       (display-to-file "#lang selfflowy\nShip it\n" f #:exists 'truncate)
+       (define-values (c2 o2 e2)
+         (run-selfflowy
+          (list "done" "--json" "--undo" "--no-commit" "--file" (path->string f)
+                "Ship it")))
+       (check-equal? c2 2 (string-append o2 e2))
+       (define msg2 (hash-ref (hash-ref (parse-json e2) 'error) 'message))
+       (check-true (regexp-match? #px"(?i:not done)" msg2) msg2)
+       (check-false (string-contains? msg2 "undo-done-in-text") msg2))
+     (λ () (delete-directory/files dir))))
+
   (test-case "done no match exits 2"
     (define dir (make-temporary-file "sfnomatch~a" 'directory))
     (define f (build-path dir "Tasks.rkt"))

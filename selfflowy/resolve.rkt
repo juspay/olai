@@ -15,6 +15,7 @@
          racket/string
          (only-in selfflowy/lang/expander task-file)
          (only-in selfflowy/lang/walk find-task-by-id find-tasks-by-title)
+         selfflowy/fail
          selfflowy/load
          selfflowy/meta)
 
@@ -25,11 +26,6 @@
 ;; index : 0-based index of its title line in that file
 ;; title : the resolved title (never the "^anchor" the user typed)
 (struct located (file index title) #:transparent)
-
-;; These messages are shown to a user (and to an agent, as JSON), so they
-;; carry no `who:` prefix — the command already said who it was.
-(define (fail fmt . args)
-  (raise (exn:fail (apply format fmt args) (current-continuation-marks))))
 
 ;; The files that could hold this node: the defining file of every model
 ;; match. No match in the model means no candidate, which is the "no task"
@@ -66,14 +62,14 @@
   (define label (spec-label spec))
   (cond
     [(null? hits)
-     (fail "no task matching ~a in ~a" label (outline-path out))]
+     (user-fail "no task matching ~a in ~a" label (outline-path out))]
     [(> (length hits) 1)
-     (fail "ambiguous title ~a; matches: ~a; add a ^anchor to disambiguate"
-           label
-           (string-join
-            (for/list ([h (in-list hits)])
-              (format "~a:~a" (car h) (title-match-line (cdr h))))
-            ", "))]
+     (user-fail "ambiguous title ~a; matches: ~a; add a ^anchor to disambiguate"
+                label
+                (string-join
+                 (for/list ([h (in-list hits)])
+                   (format "~a:~a" (car h) (title-match-line (cdr h))))
+                 ", "))]
     [else
      (define f (car (car hits)))
      (define m (cdr (car hits)))

@@ -4,7 +4,8 @@
 ;; Two argument sets for the metadata engine (selfflowy/meta): insert an
 ;; @done line, or drop it and un-check the title.
 
-(require selfflowy/meta)
+(require selfflowy/fail
+         selfflowy/meta)
 
 (provide mark-done-in-text
          undo-done-in-text
@@ -20,15 +21,13 @@
 (define (mark-done-in-text text title today #:at [at #f])
   (define-values (new line _title)
     (update-meta! text title
-                  #:who 'mark-done-in-text
                   #:at at
                   #:insert-line (λ (pad) (string-append pad "@done " today))
                   #:check!
                   (λ (m label _dropped)
                     (when (title-match-already-done? m)
-                      (error 'mark-done-in-text
-                             "already done: ~a (line ~a)"
-                             label (title-match-line m))))))
+                      (user-fail "~a is already done (line ~a)"
+                                 label (title-match-line m))))))
   (values new line))
 
 ;; Remove done state: strip @done metadata and the [x]/[X] title prefix.
@@ -36,16 +35,14 @@
 (define (undo-done-in-text text title #:at [at #f])
   (define-values (new line _title)
     (update-meta! text title
-                  #:who 'undo-done-in-text
                   #:at at
                   #:drop-field 'done
                   #:retitle uncheck
                   #:check!
                   (λ (m label _dropped)
                     (unless (title-match-already-done? m)
-                      (error 'undo-done-in-text
-                             "not done: ~a (line ~a)"
-                             label (title-match-line m))))))
+                      (user-fail "~a is not done (line ~a)"
+                                 label (title-match-line m))))))
   (values new line))
 
 (define (uncheck title-line)

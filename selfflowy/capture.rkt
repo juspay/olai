@@ -6,6 +6,7 @@
 (require racket/list
          racket/match
          racket/string
+         selfflowy/fail
          selfflowy/lang/line)
 
 (provide format-capture-lines
@@ -126,10 +127,9 @@
         (string-append (string-join body-lines "\n") "\n")
         (if create-inbox?
             (string-append "Inbox\n" (string-join body-lines "\n") "\n")
-            (error 'append-capture
-                   (if (pair? parent-spec)
-                       (format "no task with anchor ^~a" (cdr parent-spec))
-                       (format "no task titled ~s" parent-spec))))))
+            (if (pair? parent-spec)
+                (user-fail "no task with anchor ^~a" (cdr parent-spec))
+                (user-fail "no task titled ~s" parent-spec)))))
   (define prefix (substring text 0 pos))
   (define suffix (substring text pos))
   (define new-text
