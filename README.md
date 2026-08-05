@@ -111,8 +111,7 @@ itself still writes nothing; there is no static HTML export.
 
 The project tracks its own plan the same way it wants you to track yours:
 `Roadmap.rkt` at the repo root is a `#lang olai` outline, edited and
-committed like any other file. `olai tree Roadmap.rkt` (or `just tree
-Roadmap.rkt`) gives the JSON view.
+committed like any other file. `olai tree Roadmap.rkt` gives the JSON view.
 
 Track your own plan as a `#lang olai` outline wherever you like
 (`$OLAI_HOME`) — a private `Tasks.rkt` can `@include` the repo's
@@ -126,14 +125,11 @@ author does. Repo demos live in `examples/` (see `examples/Daily.rkt` for
 nix develop        # racket 9.2 + just; or install them yourself
 just install       # gregor + markdown, then --link olai/
 just check         # validates $OLAI_HOME/*.rkt (unset: examples + Roadmap)
-just tree examples/Example.rkt   # JSON forest for agents
 just serve                       # $OLAI_HOME on http://127.0.0.1:8080
-just agenda
-just calendar --month 2026-08
-just daily                       # today's node in Daily/YYYY-MM.rkt
 just test                        # unit tests (in-process)
 just test-integration            # subprocess CLI + servers
 just test-all                    # both
+just ci                          # full CI DAG (nix + smoke + tests; odu root)
 just css-classes                 # regenerate olai/tests/classes.golden
 ```
 

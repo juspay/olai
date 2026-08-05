@@ -16,8 +16,8 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
   json (write-json/read-json), xml (xexprs), gregor (dates), markdown
   (title/note formatting in the web view only).
 * No ANSI. Human view is the web app: `olai serve` (routes in
-  docs/cli.md; `just serve` / `just run` / `just watch` all launch it).
-  Agents use `--json` (and `tree`, which is JSON-only).
+  docs/cli.md; `just serve` launches it). Agents use `--json` (and
+  `tree`, which is JSON-only).
 * The LANGUAGE is the only validator (closed grammar): one checker
   (lang/graph) runs over a module's syntax at compile time, and over the whole
   spliced tree at run time when it has `@include`s (cross-file anchors exist
@@ -63,9 +63,9 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
 
 ## WORKFLOW
 
-* just check / tree / agenda / serve / test — recipes handle PLTUSERHOME +
-  raco link (`run`/`watch` alias `serve`). Racket comes from the nix dev
-  shell (nixpkgs 9.2). Don't fight raco setup; PLTUSERHOME must be writable.
+* just check / serve / test / ci — recipes handle PLTUSERHOME + raco link.
+  Racket comes from the nix dev shell (nixpkgs 9.2). Don't fight raco setup;
+  PLTUSERHOME must be writable.
 * `just test` is the only test command you run. It is the fast set; CI
   runs everything else on the PR.
 * Branch + PR for every change (agents included); CI green before merge.
@@ -78,10 +78,10 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
   <id> "text"`, pause ~2s, then `kaval-tui send <id> --key Enter` (separate
   sends — same-breath Enter gets eaten by the paste debounce). Long briefs:
   write a file, send a short "read <path>" prompt. Never kill that terminal.
-* CI = nix build + binary smoke + the full test suite. Keep
-  `nix build` offline-clean when possible; external racket deps (gregor,
-  markdown) need vendoring or impure install until fixed-output derivations
-  land.
+* CI = `just ci` (odu DAG in ci/mod.just: nix build + binary smoke + unit +
+  integration). GHA and odu both run that recipe. Keep `nix build`
+  offline-clean when possible; external racket deps (gregor, markdown) need
+  vendoring or impure install until fixed-output derivations land.
 * Tests parse JSON output with read-json. Never string-match JSON.
 
 ## VOICE
