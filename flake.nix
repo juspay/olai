@@ -95,6 +95,17 @@
           };
         });
 
+      # home-manager module (nix/home/module.nix) for running `serve` as a
+      # user service. The flake fills in the packages for the host platform;
+      # the user fills in dataDir. Same output name as kolu.
+      homeManagerModules.default = { pkgs, lib, ... }: {
+        imports = [ ./nix/home/module.nix ];
+        config.services.olai.package =
+          lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.olai;
+        config.services.olai.acpAgent =
+          lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.acp-agent;
+      };
+
       checks = forAllSystems ({ pkgs, system }: {
         build = self.packages.${system}.olai;
         # The runCommand script lives in nix/smoke.nix; the example outline
