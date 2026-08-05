@@ -5,8 +5,8 @@
 let
   cfg = config.services.olai;
 
-  # Pure argv for both supervisors. host/port/dataDir are flags and a path.
-  # OLAI_ACP_AGENT is the operator's environment (same as any other `olai serve`).
+  # Pure argv for both supervisors. The package defaults OLAI_ACP_AGENT;
+  # host/port/dataDir are the only service knobs.
   serveArgs = [
     (lib.getExe cfg.package)
     "serve"

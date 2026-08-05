@@ -42,22 +42,13 @@ runCommand "olai-smoke"
     cp ${exampleOutline} live.rkt
     chmod u+w live.rkt
 
-    # `serve` refuses to start without an ACP agent. The scripted one
-    # from the test suite is agent enough here: real subprocess, real
-    # ndjson, no LLM.
+    # Packaged `olai` defaults OLAI_ACP_AGENT to the bundled adapter
+    # (--set-default); override with the scripted fake for a real
+    # subprocess, real ndjson, no LLM.
     printf '#!/bin/sh\nexec racket %s "$@"\n' \
       ${fakeAcpAgentSrc} > fake-acp-agent
     chmod +x fake-acp-agent
     export OLAI_ACP_AGENT="$PWD/fake-acp-agent"
-
-    # No agent, no server: a usage error naming the variable, and
-    # nothing left listening on 8098.
-    if env -u OLAI_ACP_AGENT olai serve --port 8098 live.rkt \
-         > refused.out 2> refused.err; then
-      echo "smoke: serve started with no OLAI_ACP_AGENT" >&2
-      exit 1
-    fi
-    grep -q OLAI_ACP_AGENT refused.err
 
     # Nothing to serve, no server: the DIRECTORY form globs the top
     # level, and an empty one is refused before anything binds.

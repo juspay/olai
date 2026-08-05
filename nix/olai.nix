@@ -11,7 +11,9 @@
 #     on Darwin it is broken for us — nixpkgs builds racket with
 #     `--enable-xonx`, so `cross-system-type` is `unix` and distribute's
 #     ELF patcher arity-mismatches (compiler/private/elf.rkt).
-{ lib, stdenv, racket, makeWrapper, tzdata, racketDeps, racketPkgs, src }:
+{ lib, stdenv, racket, makeWrapper, tzdata, racketDeps, racketPkgs, src
+, acpAgent
+}:
 
 stdenv.mkDerivation {
   pname = "olai";
@@ -19,7 +21,9 @@ stdenv.mkDerivation {
   inherit src;
   nativeBuildInputs = [ racket makeWrapper ];
   # racket is a true runtime dep: the exe is a stub over store racket.
-  buildInputs = [ racket tzdata ];
+  # acpAgent is too: serve needs it, and the wrapper defaults OLAI_ACP_AGENT
+  # so the binary is self-sufficient (exported var still wins).
+  buildInputs = [ racket tzdata acpAgent ];
 
   # Zoneinfo for gregor/tzinfo during the install-time raco setup.
   TZDIR = "${tzdata}/share/zoneinfo";
@@ -63,9 +67,12 @@ stdenv.mkDerivation {
       "$(racket -e '(display (path->string (collection-file-path "cli.rkt" "olai")))')"
     chmod +x $out/bin/.olai-wrapped
 
-    # Wrap with TZDIR so gregor finds zoneinfo outside /usr/share
+    # TZDIR: gregor outside /usr/share. OLAI_ACP_AGENT: serve refuses to
+    # start without one — default the bundled adapter so `nix build` / HM
+    # / `nix run` need no ambient env. An exported var still wins.
     makeWrapper $out/bin/.olai-wrapped $out/bin/olai \
       --set TZDIR "${tzdata}/share/zoneinfo" \
+      --set-default OLAI_ACP_AGENT "${lib.getExe acpAgent}" \
       --prefix PATH : "${tzdata}/bin"
 
     mkdir -p $out/share/tzdata
