@@ -4,8 +4,9 @@
 ;;
 ;; Render-time only: strings in the task struct / JSON stay verbatim. The
 ;; markdown package does the parsing; this module only sanitizes (no raw
-;; HTML injection) and attaches semantic classes. Styling lives in
-;; web/static/app.css — never inline, never a utility-class framework.
+;; HTML injection) and attaches semantic classes. What those classes LOOK
+;; like is the skin's (web/render, "markdown inline") — never inline, never a
+;; utility-class framework.
 
 (require racket/contract
          racket/list

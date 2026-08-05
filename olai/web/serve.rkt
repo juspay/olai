@@ -13,6 +13,7 @@
 ;;   POST /chat/load    load one of them (form field `id`) -> 204
 ;;   GET  /api/tree     byte-identical to `olai tree`
 ;;   GET  /api/agenda   byte-identical to `olai agenda --json`
+;;   GET  /static/app.css  the generated stylesheet (olai/web/style)
 ;;   GET  /static/*     files from web/static/
 ;;   anything else      404, terse text/plain
 ;;
@@ -34,6 +35,7 @@
 
 (require racket/async-channel
          racket/path
+         racket/promise
          racket/string
          (for-syntax racket/base)
          json
@@ -59,7 +61,14 @@
          olai/store
          olai/web/chat
          olai/web/events
+         ;; The skin is assembled by requiring it, in cascade order: render
+         ;; pulls theme (tokens, base rules) and then draws the outline;
+         ;; chat-panel pulls render and lands on top of it. `stylesheet` is
+         ;; whatever those modules registered, which is why this module
+         ;; requires the panel even though only the panel's renderer is used.
          olai/web/render
+         olai/web/chat-panel
+         (only-in olai/web/style stylesheet)
          olai/web/watch)
 
 (provide start-server)
@@ -85,6 +94,15 @@
      (newline out))
    #:code code
    #:mime-type #"application/json; charset=utf-8"))
+
+;; The skin is code, and it is the same string for the life of the process:
+;; built once, on the first request that asks for it.
+(define the-stylesheet (delay (stylesheet)))
+
+(define (css-response)
+  (response/output
+   (λ (out) (write-string (force the-stylesheet) out))
+   #:mime-type #"text/css; charset=utf-8"))
 
 (define (text-response str #:code [code 200])
   (response/output
@@ -363,8 +381,16 @@
       (with-handlers ([exn:fail? (λ (_e) (next-dispatcher))])
         (u->p (struct-copy url u [path rest]))))))
 
+;; The stylesheet the page links is generated, not a file. It keeps the URL it
+;; always had — one <link>, one cacheable name — and wins it ahead of the
+;; static directory, which no longer holds an app.css to serve.
+(define stylesheet-path
+  (string-append web-static-prefix (car web-stylesheets)))
+
 (define (make-dispatcher st hub agent)
   (sequencer:make
+   (filter:make (regexp (string-append "^" (regexp-quote stylesheet-path) "$"))
+                (lift:make (λ (req) (css-response))))
    (filter:make (regexp (string-append "^" (regexp-quote web-static-prefix)))
                 (files:make #:url->path static-url->path
                             #:path->mime-type (make-path->mime-type mime-types-path)

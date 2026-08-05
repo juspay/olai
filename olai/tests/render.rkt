@@ -13,6 +13,9 @@
          (only-in olai/lang/walk resolve-mirrors)
          olai/store
          olai/web/render
+         ;; the chat panel is its own module now: presentation for the agent's
+         ;; conversation, sitting on top of the outline's skin
+         olai/web/chat-panel
          olai/web/markdown)
 
 ;; Hand-built tasks, so the key has to be minted here too. Keying off the

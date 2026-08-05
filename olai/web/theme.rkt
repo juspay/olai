@@ -18,6 +18,13 @@
           ;; and chat panel hang their layout off it
           [sf-body string?]))
 
+;; The one raw-string fragment in the skin: css-expr has no comment form, and
+;; a generated file that does not say so is a file somebody edits by hand.
+(register-fragment!
+ (string-append
+  "/* olai skin — GENERATED from olai/web/*.rkt (theme, render, chat-panel).\n"
+  "   Do not edit: edit the Racket module that owns the component. */"))
+
 ;; ---- palettes -------------------------------------------------------------
 ;;
 ;; Each palette is written ONCE, as raw values under a prefix. The three
@@ -124,6 +131,9 @@
   [* (:: * before) (:: * after) #:box-sizing border-box]
   [html #:-webkit-text-size-adjust 100%]))
 
+;; The page IS the layout: sidebar and main pane are its two flex children.
+;; On a phone there is no room for two columns, so the same two stack — the
+;; only rule about the document as a whole, and it lives with the document.
 (define-style sf-body #:tag body
   #:margin 0
   #:min-height 100vh
@@ -133,7 +143,8 @@
   #:color (apply var --ink)
   #:font-family (apply var --sans)
   #:font-size 15px
-  #:line-height 1.5)
+  #:line-height 1.5
+  [@ media (#:max-width 48rem) #:flex-direction column])
 
 (register-fragment! (css-expr [a #:color inherit]))
 

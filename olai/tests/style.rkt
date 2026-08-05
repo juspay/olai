@@ -8,9 +8,16 @@
 ;; test reads. Instantiation order is the cascade; that is the contract.
 
 (require rackunit
+         racket/file
+         racket/list
+         racket/set
          racket/string
          olai/web/style
-         olai/web/theme)
+         olai/web/theme
+         ;; the whole skin, in cascade order — the parity and border tests
+         ;; below read the sheet those two modules finish
+         olai/web/render
+         olai/web/chat-panel)
 
 ;; ---- fixtures -------------------------------------------------------------
 
@@ -36,6 +43,44 @@
 (define (index-of-substring haystack needle)
   (define m (regexp-match-positions (regexp (regexp-quote needle)) haystack))
   (and m (caar m)))
+
+;; ---- the skin's border ----------------------------------------------------
+
+;; Every class the hand-written web/static/app.css styled, frozen. app.css is
+;; gone; this list is what says so out loud when a class stops being defined.
+;; A class LEAVES the skin by leaving this list, deliberately — not by a
+;; selector quietly matching nothing.
+(define app-css-classes
+  '("has-children" "has-commands" "is-agent" "is-busy" "is-collapsed" "is-done"
+    "is-error" "is-open" "is-picked" "is-today" "is-tree" "is-user"
+    "sf-anchor" "sf-banner-slot" "sf-body" "sf-brand" "sf-brand-link"
+    "sf-breadcrumbs" "sf-bullet" "sf-bullet-link" "sf-chat" "sf-chat-actions"
+    "sf-chat-body" "sf-chat-btn" "sf-chat-cmd" "sf-chat-cmd-desc"
+    "sf-chat-cmd-name" "sf-chat-cmds" "sf-chat-dock" "sf-chat-form"
+    "sf-chat-head" "sf-chat-input" "sf-chat-model" "sf-chat-msg" "sf-chat-note"
+    "sf-chat-open" "sf-chat-pop" "sf-chat-send" "sf-chat-sep" "sf-chat-session"
+    "sf-chat-spop" "sf-chat-stop" "sf-chat-title" "sf-chat-tool"
+    "sf-chat-tool-glyph" "sf-chat-tool-title" "sf-chat-turn" "sf-chat-working"
+    "sf-check" "sf-children" "sf-code" "sf-content" "sf-crumb" "sf-crumb-sep"
+    "sf-date" "sf-date-time" "sf-day" "sf-dim" "sf-empty" "sf-error"
+    "sf-error-detail" "sf-error-where" "sf-file" "sf-file-title" "sf-line"
+    "sf-link" "sf-main" "sf-mirror" "sf-nav-icon" "sf-nav-item" "sf-node"
+    "sf-note" "sf-outline" "sf-pill" "sf-pre" "sf-row" "sf-sidebar"
+    "sf-sidebar-empty" "sf-sidebar-heading" "sf-sidebar-nav"
+    "sf-sidebar-section" "sf-tag" "sf-title" "sf-toggle" "sf-toggle-empty"
+    "sf-tree" "sf-tree-file" "sf-tree-file-label" "sf-tree-link"))
+
+;; Class-shaped names in a .js file: the same three prefixes the skin uses,
+;; wherever they appear (a class list, a selector, an id that doubles as one).
+(define class-rx #px"(?:^|[^a-zA-Z0-9_-])((?:sf|is|has)-[a-z0-9]+(?:-[a-z0-9]+)*)")
+
+(define (js-class-names path)
+  (remove-duplicates
+   (regexp-match* class-rx (file->string path) #:match-select cadr)))
+
+;; A name a script uses and nothing styles. Empty, and meant to stay that way:
+;; an entry here is a promise that the class is a hook with no look.
+(define styleless-js-classes '())
 
 (module+ test
 
@@ -151,4 +196,59 @@
     (check-true (string-contains? css "background:var(--paper);color:var(--ink);") css)
     (check-true (string-contains? css "a{color:inherit;}") css)
     (check-true (string-contains? css ":focus-visible{outline:2px solid var(--green);outline-offset:2px;}")
-                css)))
+                css))
+
+  ;; ---- the border with app.css ------------------------------------------
+
+  (test-case "every class the old stylesheet styled is still defined"
+    (define known (list->seteq (map string->symbol (class-names))))
+    (for ([c (in-list app-css-classes)])
+      (check-true (set-member? known (string->symbol c))
+                  (format "~a is in no module's define-style/-component/-modifier" c))))
+
+  (test-case "every class the old stylesheet styled still has a selector"
+    (define css (stylesheet))
+    (for ([c (in-list app-css-classes)])
+      (check-true (string-contains? css (string-append "." c))
+                  (format "no .~a selector in the generated sheet" c))))
+
+  ;; ---- the border with the scripts --------------------------------------
+
+  ;; The compiler checks the two Racket sides of a class name. Nothing checks
+  ;; the third, so this does: a class chat.js toggles and no module defines is
+  ;; a selector that matches nothing, discovered in a browser at 3am.
+  (test-case "every class the scripts spell is a class the skin defines"
+    (define known (list->seteq (map string->symbol (class-names))))
+    (define allowed (list->seteq (map string->symbol styleless-js-classes)))
+    (for ([js (in-list (list "chat.js" "collapse.js" "sse.js"))])
+      (define path (build-path (web-static-dir) js))
+      (for ([c (in-list (js-class-names path))])
+        (define sym (string->symbol c))
+        (check-true (or (set-member? known sym) (set-member? allowed sym))
+                    (format "~a spells .~a; no module defines it" js c)))))
+
+  ;; ---- the cascade, where a rule leans on it ----------------------------
+
+  ;; Equal-specificity pairs: the second one only wins because it is second.
+  ;; These are the places a require moved to the wrong line would break.
+  (test-case "order-sensitive rules land in the order they need"
+    (define css (stylesheet))
+    (define (at s)
+      (define i (index-of-substring css s))
+      (check-not-false i (format "missing: ~a" s))
+      i)
+    (for ([pair (in-list
+                 (list
+                  ;; the pill's shape, then each kind's paint
+                  (list ".sf-pill{" ".sf-date{")
+                  (list ".sf-pill{" ".sf-tag{")
+                  ;; the popover, then the same popover at the other end
+                  (list ".sf-chat-pop{" ".sf-chat-spop{")
+                  ;; the three buttons' shared block, then the stop's alarm
+                  (list ".sf-chat-btn,.sf-chat-send,.sf-chat-stop{" ".sf-chat-stop{color")
+                  ;; having commands shows the button; being busy hides it again
+                  (list ".sf-chat.has-commands .sf-chat-cmds" ".sf-chat.is-busy .sf-chat-cmds")
+                  ;; the outline's skin, then the panel that overlays it
+                  (list ".sf-main{" "body.sf-body:has")))])
+      (check-true (< (at (first pair)) (at (second pair)))
+                  (format "~a must come before ~a" (first pair) (second pair))))))

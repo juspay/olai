@@ -38,6 +38,13 @@
           [register-fragment! (-> (or/c string? list?) void?)]
           [fragment->css (-> (or/c string? list?) string?)]
           [stylesheet (-> string?)]
+          ;; every class this program has DEFINED, in definition order. The
+          ;; JS reads classes the Racket side never writes; this is what a
+          ;; test compares that against.
+          [class-names (-> (listof string?))]
+          ;; class names -> one xexpr class attribute, #f parts dropped:
+          ;;   (classes sf-node (and done? is-done)) -> "sf-node is-done"
+          [classes (->* () #:rest (listof (or/c string? #f)) string?)]
           ;; class names -> a css-expr selector datum, for use under unquote
           [sel (->* ((or/c string? symbol?))
                     #:rest (listof (or/c string? symbol?))
@@ -51,6 +58,10 @@
 ;;
 ;;   (sel sf-node is-collapsed)   -> .sf-node.is-collapsed
 ;;   (sel 'body sf-body)          -> body.sf-body
+;;   (sel '& is-done)             -> &.is-done, inside a nested rule
+;;
+;; A nested rule that does not mention & is read as a DESCENDANT of its
+;; parent, so a rule about the parent in another state spells the & itself.
 ;;
 ;; Use it under unquote; css-expr is quasiquote, so it composes with every
 ;; combinator css-expr has:
@@ -67,13 +78,29 @@
       [acc (list '|.| acc (string->symbol p))]
       [else (list '|.| (string->symbol p))])))
 
+;; The other crossing, the one an xexpr wants: several class names into one
+;; attribute value, with #f for "not in this state". `(and done? is-done)`
+;; reads as the condition it is.
+(define (classes . parts)
+  (string-join (filter values parts) " "))
+
 ;; ---- the registry ---------------------------------------------------------
 
 ;; Appended in module-instantiation order; reversed once, on the way out.
 (define fragments '())
 
+;; Same order, names only. A class is DEFINED here and used in three places —
+;; a selector, an xexpr, a .js — and only the first two are checked by the
+;; compiler. This is what lets a test check the third.
+(define defined-classes '())
+
 (define (register-fragment! fragment)
   (set! fragments (cons fragment fragments)))
+
+(define (register-class! name)
+  (set! defined-classes (cons name defined-classes)))
+
+(define (class-names) (reverse defined-classes))
 
 (define (fragment->css fragment)
   (if (string? fragment) fragment (css-expr->css fragment)))
@@ -104,6 +131,7 @@
                          #'(sel class-name))
      #'(begin
          (define name class-name)
+         (register-class! class-name)
          (register-fragment! (list (cons selector (css-expr rule ...)))))]))
 
 ;; A component is a render function and its styles in one place. `cls` is
@@ -121,12 +149,15 @@
          (define-style cls rule ...)
          (define (name arg ...) body ...))]))
 
-;; A state class: is-done, has-children, is-open. It carries no rules of its
-;; own — it appears inside other components' selectors, and in the JS that
-;; toggles it. Binding it is the whole point: the string exists once, and both
-;; sides of the toggle spell it from there.
+;; A class with no rules of its own. Two kinds wear it: a STATE (is-done,
+;; has-children, is-open) that appears inside other components' selectors and
+;; in the JS that toggles it, and a HOOK (sf-pane, sf-chat-sink) that only JS
+;; or a test addresses. Binding it is the whole point: the string exists once,
+;; and both sides spell it from there.
 (define-syntax (define-modifier stx)
   (syntax-parse stx
-    [(_ name:id)
-     #:with class-name (datum->syntax #'name (symbol->string (syntax-e #'name)))
-     #'(define name class-name)]))
+    [(_ name:id ...+)
+     #:with (class-name ...) (for/list ([n (in-list (syntax->list #'(name ...)))])
+                               (datum->syntax n (symbol->string (syntax-e n))))
+     #'(begin
+         (begin (define name class-name) (register-class! class-name)) ...)]))
