@@ -1,24 +1,20 @@
 # home-manager module for `olai serve` (systemd user unit on Linux, launchd
-# agent on macOS — same split as kolu's nix/home/module.nix). The flake's
-# `homeModules.default` imports this and fills in `package`; nothing here
-# names a store path.
+# agent on macOS). The flake's `homeManagerModules.default` imports this and
+# fills in `package`; nothing here names a store path.
 { config, lib, pkgs, ... }:
 let
   cfg = config.services.olai;
 
-  # One wrapper script, both supervisors. The ACP agent is not an option:
-  # `serve` refuses to start without one, and the bundled adapter is the only
-  # agent the flake ships (`nix run` makes the same call). Precedence matches
-  # the CLI elsewhere: an exported OLAI_ACP_AGENT wins, the wrapper sets it
-  # only when unset.
-  envScript = ''
-    export OLAI_ACP_AGENT="''${OLAI_ACP_AGENT:-${cfg.acpAgent}/bin/claude-agent-acp}"
-    exec ${lib.getExe cfg.package} serve --port ${toString cfg.port} --bind ${cfg.host} "$@"
-  '';
-
+  # Pure argv for both supervisors. host/port/dataDir are flags and a path.
+  # OLAI_ACP_AGENT is the operator's environment (same as any other `olai serve`).
   serveArgs = [
-    "${pkgs.writeShellScript "olai-serve" envScript}"
-    (toString cfg.dataDir)
+    (lib.getExe cfg.package)
+    "serve"
+    "--port"
+    (toString cfg.port)
+    "--bind"
+    cfg.host
+    cfg.dataDir
   ];
 in
 {
@@ -30,25 +26,14 @@ in
       description = "The olai package to serve with.";
     };
 
-    acpAgent = lib.mkOption {
-      type = lib.types.package;
-      description = ''
-        Package whose bin/claude-agent-acp is handed to `serve` via
-        OLAI_ACP_AGENT (the chat panel's agent). A `package`, not a path:
-        the adapter drags a node closure, and a str would garbage-collect
-        it out from under the unit.
-      '';
-    };
-
     dataDir = lib.mkOption {
       # str, not path: these are the user's outlines. A path literal would
       # copy them into the read-only store and `serve` would watch the copy.
       type = lib.types.str;
-      example = lib.literalExpression ''"''${config.home.homeDirectory}/Dropbox/Selfflowy-Srid"'';
+      example = lib.literalExpression ''"''${config.home.homeDirectory}/outlines"'';
       description = ''
-        Directory of *.rkt outlines to serve (your $OLAI_HOME). olai itself
-        defaults to ~/Dropbox/Selfflowy-Srid, but a user unit must not guess
-        whose Dropbox that is — set it.
+        Directory of *.rkt outlines to serve. Required — a user unit has no
+        ambient home to fall back on.
       '';
     };
 
@@ -68,7 +53,7 @@ in
   config = lib.mkIf cfg.enable {
     # The CLI faces (check/tree/agenda/daily) work from any shell on the same
     # files the service serves; the binary cannot skew from the service it
-    # inspects. Same reasoning as kolu's cliPackage, minus the opt-out.
+    # inspects.
     home.packages = [ cfg.package ];
 
     systemd.user.services = lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
