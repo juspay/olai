@@ -13,6 +13,9 @@
          (only-in olai/lang/walk resolve-mirrors)
          olai/store
          olai/web/render
+         ;; the list the picker draws: the themes the sheet carries, and the
+         ;; one a page that picked nothing reads in
+         (only-in olai/web/theme theme-names theme-default)
          ;; the chat panel is its own module now: presentation for the agent's
          ;; conversation, sitting on top of the outline's skin
          olai/web/chat-panel
@@ -36,6 +39,13 @@
 (define (xstr* xs) (string-join (map xstr xs) ""))
 
 (define (files . entries) entries)
+
+;; The sidebar over one trivial outline — what the prefs tests below read. The
+;; outline is not the subject there; the chrome around it is.
+(define (sidebar-html)
+  (xstr (render-sidebar (files (list "/tmp/Tasks.rkt" (list (tk "Inbox" #f #f '()))))
+                        #:home-href "/"
+                        #:today-href "/today")))
 
 (module+ test
 
@@ -334,6 +344,33 @@
     ;; sidebar collapse state is namespaced away from the main pane's
     (check-true (string-contains? s "data-collapse-key=\"tree-") s))
 
+  ;; Every theme the sheet carries, and nothing else. Generated from
+  ;; theme-names, so a theme added to the table shows up in the picker or fails
+  ;; here. There is no chip for "auto" and nothing to defer to: a page that
+  ;; picked nothing reads in the row's default, and prefs.js lights that chip.
+  (test-case "the sidebar's prefs list the theme row: one chip per theme"
+    (define s (sidebar-html))
+    (check-true (string-contains? s "Prefs") s)
+    (check-true (string-contains? s "ol-prefs") s)
+    ;; one row per pref, named, carrying where this browser stores it and what
+    ;; is in force until it stores anything: the script reads all three, and
+    ;; never spells a class per pref, a key, or a theme
+    (check-true (string-contains?
+                 s (string-append
+                    "<div class=\"ol-pref\" data-pref=\"theme\""
+                    " data-store-key=\"olai.theme\""
+                    " data-default=\"" theme-default "\">"))
+                s)
+    (check-false (string-contains? s "data-value=\"auto\"") s)
+    (check-true (pair? theme-names))
+    (for ([t (in-list theme-names)])
+      (check-true (string-contains? s (string-append "data-value=\"" t "\"")) s))
+    ;; exactly the themes: no sixth chip from anywhere
+    (check-equal? (length (regexp-match* #px"data-value=\"" s)) (length theme-names) s)
+    ;; nothing is picked on the server: which theme you read in is the
+    ;; browser's, and prefs.js is what marks it
+    (check-false (string-contains? s "is-on") s))
+
   ;; ---- breadcrumbs / zoom -------------------------------------------------
 
   (test-case "breadcrumbs link the pairs and leave bare strings plain"
@@ -391,13 +428,18 @@
     (check-true (string-contains? s "src=\"/static/htmx.min.js\"") s)
     (check-true (string-contains? s "src=\"/static/sse.js\"") s)
     (check-true (string-contains? s "src=\"/static/collapse.js\"") s)
+    (check-true (string-contains? s "src=\"/static/prefs.js\"") s)
     (check-true (string-contains? s "src=\"/static/chat.js\"") s)
     (check-false (string-contains? s "tailwind") s)
     (check-false (string-contains? s "cdn.") s)
     (check-true (string-contains? s "<aside class=\"ol-sidebar\"") s)
     (check-true (string-contains? s "<main class=\"ol-main\">") s)
-    ;; no inline script: every asset is a cacheable file under /static/
-    (check-false (string-contains? s "localStorage") s)
+    ;; ONE inline script, and it is the prefs boot: everything else is a
+    ;; cacheable file under /static/. (A stored pref has to be on <html>
+    ;; before the first paint, and a deferred file lands after it.)
+    (check-equal? (length (regexp-match* #px"<script" s))
+                  (add1 (length web-scripts)) s)
+    (check-true (string-contains? s "localStorage.getItem") s)
     ;; served form carries the doctype (no quirks mode)
     (check-true (string-prefix? (page->html-string (render-page '(div))) "<!DOCTYPE html>")))
 
@@ -426,6 +468,39 @@
     (check-false (string-contains? js "require") js)
     (check-true (string-contains? js "olai.collapsed") js)
     (check-true (string-contains? js "localStorage") js))
+
+  ;; A pref is client state, like the collapse state: a value on <html>, stored
+  ;; here, never sent anywhere. The storage key is no longer spelled in either
+  ;; script — Racket builds it (olai/web/prefs) and hands it to both, the row in
+  ;; data-store-key and the boot script in its table — so what is left to check
+  ;; is that every row the sidebar draws is one the boot script restores.
+  (test-case "prefs script stays tiny, and the boot script names every row"
+    (define js (file->string (build-path (web-static-dir) "prefs.js")))
+    (define boot (xstr (render-page '(div))))
+    (check-true (< (length (string-split js "\n")) 40) js)
+    (check-false (string-contains? js "require") js)
+    (check-true (string-contains? js "localStorage") js)
+    (check-true (string-contains? js "ol-pref") js)
+    ;; a hyphenated pref name is not a dataset key: both sides write the
+    ;; attribute itself, or the setter throws
+    (check-true (string-contains? js "setAttribute") js)
+    (check-true (string-contains? boot "setAttribute") boot)
+    (for ([name (in-list (regexp-match* #px"data-pref=\"([a-z-]+)\"" (sidebar-html)
+                                        #:match-select cadr))])
+      (check-true (string-contains? boot (string-append "\"" name "\"")) boot)
+      (check-true (string-contains? boot (string-append "\"olai." name "\"")) boot)))
+
+  ;; The page never names a theme: which one you read in is the BROWSER's, and
+  ;; the boot script is the only thing that writes data-theme. What the page
+  ;; does carry is what to assume before the sheet lands, and it is TOLD that.
+  (test-case "the page names no theme, and carries the color-scheme it is told"
+    (define s (xstr (render-page '(div) #:color-scheme "light dark")))
+    (check-true (string-contains? s "<html lang=\"en\">") s)
+    (check-false (string-contains? s "data-theme=") s)
+    (check-true (string-contains? s "content=\"light dark\"") s)
+    ;; told nothing, it says nothing: a fragment test, never a served page
+    (check-false (string-contains? (xstr (render-page '(div))) "color-scheme")
+                 "an untold page invented a color-scheme"))
 
   ;; ---- chat panel ----------------------------------------------------------
   ;;

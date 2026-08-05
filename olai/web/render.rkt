@@ -17,17 +17,19 @@
 ;; re-key a permalink, a stored collapse state, or an SSE swap target.
 ;;
 ;; STYLES — every class this module draws is DEFINED here, next to the markup
-;; that wears it (olai/web/style). Two exceptions, both of them classes this
-;; module is not the only one to draw: .ol-pill's shape is the skin's
-;; (olai/web/theme), and the markdown classes are web/markdown's, which is what
-;; puts them on the markup. The chat panel is an overlay on all of this, so it
-;; requires this module, which is what puts its rules last in the cascade.
+;; that wears it (olai/web/style). The exceptions are classes this module does
+;; not own the markup of: .ol-pill's shape is the skin's (olai/web/theme), the
+;; markdown classes are web/markdown's, and the prefs picker is web/prefs' — the
+;; sidebar only places the block it hands back. The chat panel is an overlay on
+;; all of this, so it requires this module, which is what puts its rules last in
+;; the cascade.
 
 (require racket/contract
          racket/list
          racket/match
          racket/path
          racket/runtime-path
+         racket/string
          (only-in xml cdata xexpr->string)
          (except-in olai/lang/expander #%module-begin)
          ;; the resolved shape of a mirror site (core owns the binding)
@@ -39,7 +41,11 @@
          ;; anything that leans on them (see style.rkt on ordering)
          olai/web/theme
          olai/web/style
-         olai/web/markdown)
+         olai/web/markdown
+         ;; the sidebar's picker and the boot script that restores what it
+         ;; picked. Last of the requires, so its rules land after the skin's
+         ;; and before this module's own; nothing else paints .ol-pref*
+         olai/web/prefs)
 
 ;; Contracts on the drawing surface check the INPUT shape — a task, a
 ;; files-data list, an ISO `today` string — and say only `list?` about the
@@ -75,6 +81,9 @@
            (->* (any/c)
                 (#:title string?
                  #:stylesheet-href (or/c string? #f)
+                 ;; what the browser should assume before the sheet lands
+                 ;; (web/theme's theme-color-scheme), or #f for no such meta
+                 #:color-scheme (or/c string? #f)
                  #:sidebar (or/c list? #f)
                  #:banner (or/c list? #f)
                  #:sse-connect (or/c string? #f)
@@ -106,9 +115,12 @@
 ;; ---- static assets --------------------------------------------------------
 ;;
 ;; One owner for the whole /static/ surface: the directory the server mounts,
-;; the URL prefix it mounts it at, and the files the page pulls in. No JS lives
+;; the URL prefix it mounts it at, and the files the page pulls in. NO JS lives
 ;; in this module — a script that changes with every SSE tweak has no business
-;; recompiling a Racket module, and browsers cannot cache it.
+;; recompiling a Racket module, and browsers cannot cache it. The one script the
+;; page carries inline is web/prefs' (it has to run before the first paint,
+;; which is the one thing a cacheable deferred file cannot do), and it is that
+;; module's, not this one's.
 ;;
 ;; The stylesheet is the other way round: it is NOT a file. It is generated
 ;; from the modules that draw the page (olai/web/skin), and this module cannot
@@ -120,7 +132,7 @@
 
 (define web-static-prefix "/static/")
 
-(define web-scripts '("htmx.min.js" "sse.js" "collapse.js" "chat.js"))
+(define web-scripts '("htmx.min.js" "sse.js" "collapse.js" "prefs.js" "chat.js"))
 
 (define (static-href name) (string-append web-static-prefix name))
 
@@ -794,6 +806,13 @@
           (section ((class ,ol-sidebar-section))
                    (h3 ((class ,ol-sidebar-heading)) "Starred")
                    (p ((class ,ol-sidebar-empty)) "Nothing starred yet"))
+          ;; above the tree, not below it: the tree is the one section here
+          ;; whose length is the outline's, and a control under it would be a
+          ;; scroll away on a big one. A section, like Starred and Home — a
+          ;; disclosure would be new machinery for three lines of chrome.
+          (section ((class ,ol-sidebar-section))
+                   (h3 ((class ,ol-sidebar-heading)) "Prefs")
+                   ,(prefs-xexpr))
           (section ((class ,ol-sidebar-section))
                    (h3 ((class ,ol-sidebar-heading)) "Home")
                    ,@(for/list ([e (in-list entries)])
@@ -884,19 +903,31 @@
                      ;; olai/web/skin). #f is a page with no skin at all — a
                      ;; fragment test, never a served page.
                      #:stylesheet-href [stylesheet-href #f]
+                     ;; What the browser should assume BEFORE the sheet lands.
+                     ;; The palettes decide it (web/theme, theme-color-scheme)
+                     ;; and the route layer passes it, like every other fact
+                     ;; this renderer is told rather than knows. Once the sheet
+                     ;; is in, each theme says which one it is and that wins.
+                     #:color-scheme [color-scheme #f]
                      #:sidebar [sidebar #f]
                      #:banner [banner #f]
                      #:sse-connect [sse-connect #f]
                      #:live-href [live-href #f]
                      #:head-extra [head-extra '()]
                      #:body-extra [body-extra '()])
+  ;; No data-theme here: which theme you read in is the BROWSER's, and the boot
+  ;; script below is the only thing that writes it.
   `(html ((lang "en"))
          (head
           (meta ((charset "utf-8")))
           (meta ((name "viewport")
                  (content "width=device-width, initial-scale=1, viewport-fit=cover")))
-          (meta ((name "color-scheme") (content "light dark")))
+          ,@(if color-scheme
+                (list `(meta ((name "color-scheme") (content ,color-scheme))))
+                '())
           (title ,title)
+          ;; before the sheet: it is the first paint this is racing
+          (script () ,(cdata #f #f (prefs-boot-js)))
           ,@(if stylesheet-href
                 (list `(link ((rel "stylesheet") (href ,stylesheet-href))))
                 '())

@@ -22,17 +22,25 @@ the kinds are how the layer below talks about failure.
 
 ## Global
 
-- Default outline file when no paths given:
-  `$OLAI_HOME/Tasks.rkt` (default home:
-  `~/Dropbox/Selfflowy-Srid` — the author's data dir, not renamed with the
-  tool). `add` / `done` / `move` always target one file via `--file`, same
-  default.
+- Default outline file when no paths given: `$OLAI_HOME/Tasks.rkt`.
+  `add` / `done` / `move` always target one file via `--file`, same default.
+- **`OLAI_HOME` has no default.** Unset, any command that would need it —
+  the file defaults above, `daily` without `--home` — is a **usage error**
+  (exit 1, JSON on stderr under `--json`), nothing is read or written:
+
+  ```console
+  $ olai add --no-commit "buy milk"
+  olai: OLAI_HOME is not set; set it to your outline directory, or name the outline explicitly (a path argument, --file, --home)
+  ```
+
+  Naming files (or `--file` / `--home`) works with the variable unset.
 - **Read commands** (`check` / `tree` / `agenda` / `calendar` / `ics` /
   `serve`) accept **one or more** outline paths. The justfile defaults to
-  `$OLAI_HOME/*.rkt` (no `examples/` paths). `serve` also takes the
-  DIRECTORY and globs it itself — that is its front door, see below.
-- Personal data lives outside the repo. Override the directory with
-  `OLAI_HOME`. Auto-commit (`add` / `done` / `move` / `daily`) only runs
+  `$OLAI_HOME/*.rkt`, or the repo's own `examples/Example.rkt Roadmap.rkt`
+  when `OLAI_HOME` is unset. `serve` also takes the DIRECTORY and globs it
+  itself — that is its front door, see below.
+- Personal data lives outside the repo, in the directory `OLAI_HOME`
+  names. Auto-commit (`add` / `done` / `move` / `daily`) only runs
   when the directory of the file actually written is a git work tree;
   otherwise it no-ops (`committed: false`) and Dropbox (or your sync) is the history layer.
 - `--json` may appear after the subcommand where supported.
@@ -239,7 +247,8 @@ recursive walk would load every one of them twice), sorted, so the node keys
 minted against the set are stable. The glob is evaluated once at startup: a new
 top-level file is picked up by restarting, not while running. A directory with
 no `*.rkt` in it is refused, naming the directory, exit 3. `just serve` is this
-form over `$OLAI_HOME`.
+form over `$OLAI_HOME` (with it unset, `just serve` names the repo's own
+outlines instead).
 
 The agent runs **in that directory** — exactly it, not the base derived from
 the files. That is the point of the form: Claude Code keys its stored sessions
@@ -247,8 +256,8 @@ by the directory it was started in, so a stable one is what makes "the session
 you were last in" a thing that survives a restart (see *Sessions* below).
 
 ```console
-$ olai serve ~/Dropbox/Selfflowy-Srid
-olai serve http://127.0.0.1:8080 dir: /home/me/Dropbox/Selfflowy-Srid files: /.../Daily.rkt /.../Tasks.rkt
+$ olai serve ~/notes
+olai serve http://127.0.0.1:8080 dir: /home/me/notes files: /.../Daily.rkt /.../Tasks.rkt
 ```
 
 **Explicit `.rkt` files are the plumbing** — the roots are those files, and the
@@ -410,6 +419,18 @@ bare-ISO day nodes also keep a plain `#<anchor>` / `#<YYYY-MM-DD>` target, so
 links people wrote by hand still resolve.
 
 Paths that climb out of `static/` are 404, not files.
+
+**Prefs** are a sidebar section, one row per preference — client state, stored
+in `localStorage` under `olai.<pref>`, never sent to the server (same standing
+as the collapse state) and therefore per browser. The first row is `theme`: one
+chip per theme in `olai/web/theme`'s table, and nothing else. The sheet carries
+all of them, so picking one is a value on `<html data-theme>` and nothing else
+— no round trip, no re-render. A page that has picked nothing reads in the
+default theme (the sheet's bare `:root`) and that chip is the lit one; the OS's
+`prefers-color-scheme` is never consulted, and a stored theme the sheet no
+longer carries is forgotten on sight. A tiny inline script in `<head>` restores
+stored prefs before the first paint (`static/prefs.js` is the picker); each
+theme declares its own `color-scheme`, so scrollbars and form controls follow.
 
 The chat panel (a `>_ agent` button, bottom right; open state remembered in
 `localStorage`) is server-rendered from the bridge's transcript on every page

@@ -63,6 +63,9 @@
          olai/web/events
          ;; the sheet and its URL; which modules it is made of is skin's
          olai/web/skin
+         ;; the one fact about the palettes a page carries before the sheet
+         ;; lands, from the module that owns them
+         (only-in olai/web/theme theme-color-scheme)
          olai/web/render
          (only-in olai/web/chat-panel render-chat-panel)
          olai/web/watch)
@@ -155,6 +158,7 @@
     (render-page (render-empty-pane "No outline loaded." #:home-href home-href)
                  #:title "olai"
                  #:stylesheet-href stylesheet-href
+                 #:color-scheme theme-color-scheme
                  #:banner (error-banner err)
                  #:sse-connect events-href
                  #:live-href live-href
@@ -292,6 +296,7 @@
     (render-page main
                  #:title title
                  #:stylesheet-href stylesheet-href
+                 #:color-scheme theme-color-scheme
                  #:sidebar (render-sidebar files-data
                                            #:home-href home-href
                                            #:today-href today-href

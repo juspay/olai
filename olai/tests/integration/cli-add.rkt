@@ -122,6 +122,25 @@
        (check-equal? (file->string f) original))
      (λ () (delete-directory/files dir))))
 
+  ;; There is no default home. With OLAI_HOME unset and nothing named, the
+  ;; command that would have needed it says so and touches nothing — usage
+  ;; error on both sides of the CLI, JSON on stderr when asked for.
+  (test-case "unset OLAI_HOME is a usage error"
+    (parameterize ([current-environment-variables
+                    (let ([e (environment-variables-copy
+                              (current-environment-variables))])
+                      (environment-variables-set! e #"OLAI_HOME" #f)
+                      e)])
+      (define-values (code out err) (run-olai (list "add" "--no-commit" "x")))
+      (check-equal? code 1 (string-append out err))
+      (check-true (regexp-match? #px"OLAI_HOME" err) err)
+      (define-values (c2 o2 e2) (run-olai (list "check" "--json")))
+      (check-equal? c2 1 (string-append o2 e2))
+      (define j (parse-json e2))
+      (check-equal? (hash-ref j 'ok) #f)
+      (define msg (hash-ref (hash-ref j 'error) 'message))
+      (check-true (regexp-match? #px"OLAI_HOME" msg) msg)))
+
   ;; Every writer emits outline syntax, so the write path refuses a sexp file
   ;; rather than each command remembering to.
   (test-case "writes refuse a #lang olai/sexp file"

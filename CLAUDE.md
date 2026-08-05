@@ -6,12 +6,12 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
 
 * If your model is Fable, a) use subagents for implementation (typically
   Opus), b) reserve Fable only where truly necessary.
-* Personal outline DATA lives outside the repo: `$OLAI_HOME` (default
-  `~/Dropbox/Selfflowy-Srid/`) — `Tasks.rkt`, `Daily.rkt` (+ `Daily/`).
-  NEVER commit or invent content for these; user-owned, re-validate after
-  edits. `examples/` is demo fiction for CI, never Dropbox paths.
-  `Roadmap.rkt` is public, at repo root, committed and re-validated like
-  any file — the author's `Tasks.rkt` `@include`s it.
+* Personal outline DATA lives outside the repo, in `$OLAI_HOME` —
+  `Tasks.rkt`, `Daily.rkt` (+ `Daily/`). No default path: unset is a usage
+  error, and the repo never names anyone's data dir. NEVER commit or invent
+  content for these; user-owned, re-validate after edits. `examples/` is demo
+  fiction for CI. `Roadmap.rkt` is public, at repo root, committed and
+  re-validated like any file — a private `Tasks.rkt` may `@include` it.
 * No hand-rolling where a maintained library exists. In use: racket/cmdline,
   json (write-json/read-json), xml (xexprs), gregor (dates), markdown
   (title/note formatting in the web view only).
@@ -66,9 +66,8 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
 * just check / tree / agenda / serve / test — recipes handle PLTUSERHOME +
   raco link (`run`/`watch` alias `serve`). Racket comes from the nix dev
   shell (nixpkgs 9.2). Don't fight raco setup; PLTUSERHOME must be writable.
-* Two test sets: `just test` is olai/tests/*.rkt (in-process, fast),
-  `just test-integration` is olai/tests/integration/ (spawns `olai`
-  subprocesses, boots servers). `just test-all` runs both.
+* `just test` is the only test command you run. It is the fast set; CI
+  runs everything else on the PR.
 * Branch + PR for every change (agents included); CI green before merge.
   Master rejects direct pushes.
 * Other agents work this repo concurrently (Grok in a kolu terminal). git pull
@@ -79,7 +78,7 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
   <id> "text"`, pause ~2s, then `kaval-tui send <id> --key Enter` (separate
   sends — same-breath Enter gets eaten by the paste debounce). Long briefs:
   write a file, send a short "read <path>" prompt. Never kill that terminal.
-* CI = nix build + binary smoke + just test + just test-integration. Keep
+* CI = nix build + binary smoke + the full test suite. Keep
   `nix build` offline-clean when possible; external racket deps (gregor,
   markdown) need vendoring or impure install until fixed-output derivations
   land.

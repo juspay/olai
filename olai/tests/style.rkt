@@ -7,7 +7,8 @@
 ;;
 ;; What this file asks, and what it does not: ordering questions are asked of
 ;; the REGISTRY (style-fragments, fragment-classes) and theme questions are
-;; generated from theme.rkt's own token list. css-expr's output text is pinned
+;; generated from theme.rkt's own tables and asked of the blocks it hands over
+;; (theme-blocks), never of the sheet's text. css-expr's output text is pinned
 ;; in exactly one test case, marked as the canary. A css-expr bump is allowed
 ;; to break that case and nothing else here.
 ;;
@@ -33,10 +34,12 @@
          ;; what it composes
          olai/web/skin
          ;; the skin's own vocabulary: the two classes named below, the token
-         ;; lists the theme tests fold over, and where a theme writes a value
+         ;; lists the theme tests fold over, and the themes themselves — their
+         ;; tables, their blocks, and which of them promise AA
          (only-in olai/web/theme
-                  ol-body ol-pill theme-names palette-tokens layout-tokens
-                  theme-token-property)
+                  ol-body ol-pill theme-names theme-default
+                  palette-tokens layout-tokens
+                  theme-entries theme-blocks aa-theme-names)
          ;; the renderers: what the skin is FOR, and the only honest answer to
          ;; "does anything wear this class"
          olai/web/render
@@ -199,7 +202,7 @@
 ;; olai's own scripts plus the vendored sse extension. htmx itself is not in
 ;; the list: it spells no olai class, and scanning a minified bundle for
 ;; class-shaped names would find noise, not a border.
-(define script-names '("chat.js" "collapse.js" "sse.js"))
+(define script-names '("chat.js" "collapse.js" "prefs.js" "sse.js"))
 
 (define scripted-classes
   (for/fold ([acc (set)]) ([js (in-list script-names)])
@@ -333,56 +336,136 @@
 
   ;; ---- theme --------------------------------------------------------------
 
-  ;; A custom property, DECLARED: the name and whatever whitespace the
-  ;; serializer does or does not put around the colon.
-  (define (declares? css property)
-    (regexp-match? (regexp (string-append (regexp-quote property) "\\s*:")) css))
+  ;; A custom property, declared WITH ITS VALUE: the name, whatever whitespace
+  ;; the serializer puts around the colon, and what the table says it is.
+  ;; (--paper does not match --paper-2: the next character is a hyphen, not a
+  ;; colon.)
+  (define (declares? css property value)
+    (regexp-match? (regexp (string-append (regexp-quote (string-append "--" property))
+                                          "\\s*:\\s*" (regexp-quote value)))
+                   css))
 
-  ;; the skin's name for a token, pointed at one theme's value
-  (define (maps? css token property)
-    (regexp-match?
-     (regexp (string-append (regexp-quote (string-append "--" (symbol->string token)))
-                            "\\s*:\\s*var\\(\\s*" (regexp-quote property) "\\s*\\)"))
-     css))
+  ;; The block that puts ONE theme in force, as CSS. theme.rkt HANDS these
+  ;; over (theme-blocks) rather than leaving them to be found in the sheet by
+  ;; the selector they happen to be written with.
+  (define theme-css
+    (for/list ([entry (in-list (theme-blocks))])
+      (cons (car entry) (fragment->css (cdr entry)))))
+
+  (define (theme-block theme) (cdr (assoc theme theme-css)))
+
+  (define (token-value theme token)
+    (format "~a" (cdr (assq token (theme-entries theme)))))
 
   ;; Generated from theme.rkt's own table: the tokens are its list and the
-  ;; property names are its spelling. A token added to the skin is checked in
-  ;; every theme the moment it is added, and a theme that forgets one fails
-  ;; here rather than resolving to nothing in a browser.
-  (test-case "every theme declares every token, and every theme maps them all"
+  ;; values are its values. A token added to the skin is checked in every theme
+  ;; the moment it is added, a theme that forgets one fails here rather than
+  ;; resolving to nothing in a browser, and a theme that carries someone else's
+  ;; color fails too. Adding a THEME is the same: it is checked the moment it
+  ;; joins the table.
+  (test-case "every theme's block carries that theme's own values, for every token"
     (define css (stylesheet))
     (check-true (pair? theme-names))
     (check-true (pair? palette-tokens))
-    (for* ([theme (in-list theme-names)]
-           [token (in-list palette-tokens)])
-      (define property (theme-token-property theme token))
-      (check-true (declares? css property)
-                  (format "the ~a theme declares no ~a" theme property))
-      (check-true (maps? css token property)
-                  (format "nothing points --~a at ~a" token property))))
+    (check-equal? (map car theme-css) theme-names)
+    (for ([theme (in-list theme-names)])
+      (define block (theme-block theme))
+      (check-true (non-empty-string? block))
+      (check-true (string-contains? css block)
+                  (format "the ~a theme's block is not in the sheet" theme))
+      (check-true (regexp-match? (regexp (string-append "data-theme\\s*=\\s*\"" theme "\""))
+                                 block)
+                  (format "no page can ask for the ~a theme" theme))
+      (check-equal? (map car (theme-entries theme)) palette-tokens
+                    (format "the ~a theme does not name the skin's tokens" theme))
+      (for ([token (in-list palette-tokens)])
+        (define value (token-value theme token))
+        (check-true (declares? block (symbol->string token) value)
+                    (format "the ~a theme's block does not say --~a: ~a"
+                            theme token value)))))
+
+  ;; The browser paints the scrollbars, the form controls and the canvas, and
+  ;; color-scheme is the only thing that tells it which way. A theme that put
+  ;; its colors in force and not this would read dark under light chrome.
+  (test-case "every theme says which color-scheme it is"
+    (for ([theme (in-list theme-names)])
+      (check-true (regexp-match? #px"[^-]color-scheme\\s*:\\s*(light|dark)"
+                                 (theme-block theme))
+                  (format "the ~a theme does not say which color-scheme it is"
+                          theme))))
 
   (test-case "the layout vocabulary is declared, and does not vary by theme"
     (define css (stylesheet))
     (check-true (pair? layout-tokens))
     (for ([token (in-list layout-tokens)])
-      (define property (string-append "--" (symbol->string token)))
-      (check-true (declares? css property) (format "nothing declares ~a" property))))
+      (check-true (regexp-match?
+                   (regexp (string-append "--" (symbol->string token) "\\s*:"))
+                   css)
+                  (format "nothing declares --~a" token))))
 
-  (test-case "a page can name a theme, and the OS's preference is read"
-    (define css (stylesheet))
-    (check-true (regexp-match? #px"prefers-color-scheme\\s*:\\s*dark" css)
-                "no rule reads the OS's preference")
-    (for ([theme (in-list theme-names)])
-      (check-true (regexp-match? (regexp (string-append "data-theme\\s*=\\s*\"" theme "\"")) css)
-                  (format "no page can ask for the ~a theme" theme))))
+  ;; A page that picked nothing has no data-theme, so exactly one theme's block
+  ;; has to land on a bare :root as well — and it has to be the one everything
+  ;; else calls the default.
+  (test-case "one theme is what a page that picked nothing reads in"
+    (define bare
+      (for/list ([entry (in-list theme-css)]
+                 #:when (regexp-match? #px"(^|,):root[,{]" (cdr entry)))
+        (car entry)))
+    (check-equal? bare (list theme-default)
+                  "the sheet's bare :root is not the default theme's block"))
+
+  ;; A theme is a PICK. The sheet used to switch under you when the OS did,
+  ;; which meant two things could disagree about which dark you were in; now
+  ;; the page that picked nothing reads in the default, and nothing moves.
+  (test-case "the sheet asks the OS nothing about color"
+    (check-false (regexp-match? #px"prefers-color-scheme" (stylesheet))
+                 "a rule reads the OS's preference again"))
 
   ;; Two values, spelled out: the table in theme.rkt is the source, and this is
   ;; the spot check that says it reaches the sheet verbatim rather than through
   ;; some normalization. Same standing as the canary above.
   (test-case "canary: palette values reach the sheet verbatim (spot check)"
     (define css (stylesheet))
-    (check-true (string-contains? css "#E4ECCA") "light --paper")
-    (check-true (string-contains? css "#402028") "dark --rose-bg"))
+    (check-true (string-contains? css "#E4ECCA") "leaf --paper")
+    (check-true (string-contains? css "#773B3B") "dark --rose-bg"))
+
+  ;; ---- contrast -----------------------------------------------------------
+  ;;
+  ;; A palette can say it clears WCAG AA (theme.rkt, #:aa?). That is a claim
+  ;; about pairs of its own values, so it is arithmetic, and this is the
+  ;; arithmetic: sRGB relative luminance, and the 4.5:1 line. Only the themes
+  ;; that make the claim are held to it.
+
+  (define (relative-luminance hex)
+    (define (channel i)
+      (define v (/ (string->number (substring hex i (+ i 2)) 16) 255.0))
+      (if (<= v 0.03928) (/ v 12.92) (expt (/ (+ v 0.055) 1.055) 2.4)))
+    (+ (* 0.2126 (channel 1)) (* 0.7152 (channel 3)) (* 0.0722 (channel 5))))
+
+  (define (contrast-ratio fg bg)
+    (define a (relative-luminance fg))
+    (define b (relative-luminance bg))
+    (/ (+ (max a b) 0.05) (+ (min a b) 0.05)))
+
+  ;; Every foreground the skin paints on a background, as pairs of tokens: the
+  ;; text colors on each of the three surfaces and on a pill, and each accent
+  ;; pill on its own ground.
+  (define contrast-pairs
+    '((ink paper) (ink paper-2) (ink panel) (ink pill-bg)
+      (dim paper) (dim paper-2) (dim panel) (dim pill-bg)
+      (green paper) (green paper-2) (green panel) (green pill-bg)
+      (amber-fg amber-bg) (blue-fg blue-bg) (rose-fg rose-bg)))
+
+  (test-case "a theme that promises AA keeps it, pair by pair"
+    (check-true (pair? aa-theme-names) "no theme claims AA any more")
+    (for* ([theme (in-list aa-theme-names)]
+           [pair (in-list contrast-pairs)])
+      (define ratio (contrast-ratio (token-value theme (car pair))
+                                    (token-value theme (cadr pair))))
+      (check-true (>= ratio 4.5)
+                  (format "~a: ~a on ~a is ~a:1, under AA"
+                          theme (car pair) (cadr pair)
+                          (real->decimal-string ratio 2)))))
 
   ;; ---- the class list -----------------------------------------------------
 
