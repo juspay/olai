@@ -70,6 +70,31 @@
                                     (car (snapshot-outlines (store-snapshot st)))))))
                      2))))
 
+  (test-case "the revision moves on a reload and stands still otherwise"
+    (with-temp-dir
+     (λ (dir)
+       (define f (build-path dir "Tasks.rkt"))
+       (write-file! f "#lang selfflowy\nInbox\n")
+       (define st (make-store (list f)))
+       (define r0 (store-revision st))
+       (check-true (exact-positive-integer? r0))
+       ;; nothing changed on disk: an invalidate is a probe, not a reload
+       (store-invalidate! st)
+       (check-equal? (store-revision st) r0)
+       (write-file! f "#lang selfflowy\nInbox\nSomeday maybe\n")
+       (store-invalidate! st)
+       (check-true (> (store-revision st) r0))
+       ;; a file that BREAKS is a change too — the readers grow a banner
+       (define r1 (store-revision st))
+       (write-file! f "#lang selfflowy\nInbox\n  @date nope\n")
+       (store-invalidate! st)
+       (check-true (load-error? (store-error st)))
+       (check-true (> (store-revision st) r1))
+       ;; and a broken file is retried on the next EDIT, not on every probe
+       (define r2 (store-revision st))
+       (store-invalidate! st)
+       (check-equal? (store-revision st) r2))))
+
   (test-case "watch set covers transitive @include fragments"
     (with-temp-dir
      (λ (dir)

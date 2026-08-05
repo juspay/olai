@@ -28,7 +28,8 @@ the kinds are how the layer below talks about failure.
   via `--file`, same default.
 - **Read commands** (`check` / `tree` / `agenda` / `calendar` / `ics` /
   `serve`) accept **one or more** outline paths. The justfile defaults to
-  `$SELFFLOWY_HOME/{Tasks,Daily,Roadmap}.rkt` (no `examples/` paths).
+  `$SELFFLOWY_HOME/*.rkt` (no `examples/` paths). `serve` also takes the
+  DIRECTORY and globs it itself — that is its front door, see below.
 - Personal data lives outside the repo. Override the directory with
   `SELFFLOWY_HOME`. Auto-commit (`add` / `done` / `move` / `daily`) only runs
   when the directory of the file actually written is a git work tree;
@@ -225,12 +226,33 @@ web deep-links). Multi-file merge like agenda.
 }
 ```
 
-## `serve [--port N] [--bind ADDR] [file ...]`
+## `serve [--port N] [--bind ADDR] [DIR | file ...]`
 
-Run the web view over the given outlines (default file set as above:
-`$SELFFLOWY_HOME/Tasks.rkt`; `just serve` passes the usual trio). Blocks
-until Ctrl-C, which shuts the listener down cleanly. One line on stdout at
-startup:
+Run the web view over an outline directory. Blocks until Ctrl-C, which shuts
+the listener down cleanly.
+
+**A DIRECTORY is the front door** — one argument that is a directory, or no
+argument at all, which means `$PWD`. The roots are that directory's `*.rkt` at
+the **top level only** (`@include` fragments live in subdirectories, so a
+recursive walk would load every one of them twice), sorted, so the node keys
+minted against the set are stable. The glob is evaluated once at startup: a new
+top-level file is picked up by restarting, not while running. A directory with
+no `*.rkt` in it is refused, naming the directory, exit 3. `just serve` is this
+form over `$SELFFLOWY_HOME`.
+
+The agent runs **in that directory** — exactly it, not the base derived from
+the files. That is the point of the form: Claude Code keys its stored sessions
+by the directory it was started in, so a stable one is what makes "the session
+you were last in" a thing that survives a restart (see *Sessions* below).
+
+```console
+$ selfflowy serve ~/Dropbox/Selfflowy-Srid
+selfflowy serve http://127.0.0.1:8080 dir: /home/me/Dropbox/Selfflowy-Srid files: /.../Daily.rkt /.../Tasks.rkt
+```
+
+**Explicit `.rkt` files are the plumbing** — the roots are those files, and the
+agent works from the directory they hang off (one file: its directory; several:
+the deepest directory holding all of them, the base keys are minted against).
 
 ```console
 $ selfflowy serve examples/Example.rkt
@@ -241,12 +263,140 @@ selfflowy serve http://127.0.0.1:8080 files: /.../examples/Example.rkt
 - `--bind ADDR` — default `127.0.0.1`. `--bind ""` listens on all interfaces.
 - **No auth.** The network is the auth: put it behind Tailscale or Caddy.
 
+**`SELFFLOWY_ACP_AGENT`** is an absolute path to an executable that speaks the
+[Agent Client Protocol](https://agentclientprotocol.com/) on stdio; `serve`
+spawns it as a subprocess. There is no fallback and no PATH lookup: with the
+variable unset (or pointing at something that is not executable) the server
+refuses to start. Nix sets it for you — `nix run` / `nix run .#serve` and the
+dev shell (so `just serve`) default it to the bundled Claude Code adapter,
+`packages.acp-agent` (`nix build .#acp-agent`), which is vendored from npm and
+pinned, never fetched at run time. Exporting the variable yourself wins, which
+is how you point `serve` at a different agent.
+
+Unset, or pointing at a file that is missing or not executable, is a **usage
+error**: nothing binds a port and the reason goes to stderr naming the
+variable —
+
+```console
+$ selfflowy serve
+selfflowy: SELFFLOWY_ACP_AGENT is not set; serve needs the path to an ACP agent (docs/cli.md)
+$ SELFFLOWY_ACP_AGENT=/nope selfflowy serve
+selfflowy: SELFFLOWY_ACP_AGENT does not exist: /nope
+```
+
+— exit 1, the usage code. The agent is spawned **at startup**, in a background
+thread: the listener is up first, so pages serve while the subprocess starts
+and the last conversation replays into them (see *Sessions*). A boot that fails
+is an `error` frame and a log line, and the next chat message retries it — the
+same path a crashed agent takes, which is likewise replaced on the next message.
+Its stderr is a log sink, drained into the server's own stderr with an `acp:`
+prefix; only its stdout is protocol. Chat frames ride `/events` under the `chat`
+event name, one JSON object per event:
+`{"type":"user","text"}`, `{"type":"chunk","text"}`,
+`{"type":"tool","id","title","status"}` (the same `id` twice means the same
+line, updated), `{"type":"done","stopReason","html"}` (`html` is the turn's
+agent text rendered as Markdown), `{"type":"error","message"}`,
+`{"type":"reset"}`, `{"type":"model","name"}`,
+`{"type":"commands","commands":[{"name","description"}]}`,
+`{"type":"session","id","title"}`. New keys may appear;
+existing ones keep their meaning.
+
+The `model` frame is which model the session is running, and it is the agent's
+word for it — said two ways, because one is not enough. The adapter reports the
+**picked** model as a session config option (`configOptions`, the entry with id
+`model`), once in the `session/new` result and again in a
+`config_option_update` whenever it changes under a live session. But a `/model`
+slash command is handled inside the wrapped Claude Code CLI: the adapter never
+sees it as a config change, so `configOptions` go on naming the model the
+session started on. The **running** model is in the CLI's own `system`/`init`
+message, which the adapter forwards verbatim as a `_claude/sdkMessage`
+notification — to a client that asked, for the kinds it asked for, which is why
+`session/new` carries
+`_meta.claudeCode.emitRawSDKMessages = [{"type":"system","subtype":"init"}]`.
+Only the `model` field of it is read.
+
+Whichever source moved last wins, and each is debounced against its own
+previous value: the picker resends its whole set whenever anything in it moves,
+and the running model repeats every turn. The first running model is a baseline
+(it agrees with the config option) and is not announced twice. A running model
+the picker offers is labelled with the picker's name; one it does not offer is
+shown raw and named once in the log — truthful, where a guess would not be. An
+agent that never says leaves the header alone; nothing is inferred from a
+command line or a version, and an agent that is not the Claude Code adapter
+ignores the `_meta` and loses nothing.
+
+The `commands` frame is the agent's slash commands — the adapter pushes the
+whole list as an `available_commands_update` (`availableCommands`, each entry
+`{name, description, input}`) just after `session/new`, and again whenever the
+set moves under a live session. The bridge keeps the names and descriptions,
+drops `input` (an argument hint the panel does not draw), and pushes a frame
+only when the list actually changed. A command is INVOKED as ordinary prompt
+text — `/name arguments` in a `POST /chat` — so nothing else on the wire knows
+about them.
+
+### Sessions
+
+An agent that keeps its conversations keys them by the directory it was started
+in — which is why `serve DIR` runs it in exactly that directory. So there is a
+LAST session, and the server comes up in it:
+
+- After `initialize`, if the agent advertises `loadSession` and
+  `sessionCapabilities.list`, the bridge asks `session/list` for that directory
+  and **adopts the most recently updated** session with `session/load`. Nothing
+  stored, or an agent that advertises neither: `session/new`, as before.
+- `session/load` **replays the whole conversation** as `session/update`
+  notifications and only then answers. The replay has no live turn and nothing
+  in it says where one turn ended, so the bridge reconstructs them from the one
+  boundary it has: a `user_message_chunk` opens a turn, agent chunks and tool
+  calls fill it, the next user message closes it. Replayed turns land in the
+  transcript in the same shape as lived ones, and go out as the same frames —
+  `user`, `chunk`, `tool`, `done` — so open tabs fill in as they arrive. Their
+  `stopReason` is **null**: a replay does not carry how a turn ended, and
+  `end_turn` would be a guess.
+- The `session` frame is which conversation this is. It goes out when a session
+  is established (new, adopted, or picked) and again when its title moves — the
+  agent writes the title in the background and pushes it as a
+  `session_info_update` (which also carries `updatedAt`; only the title is
+  read). `title` is null until there is one, so a fresh session says its id
+  first and its name later. The panel header shows the title, quietly, beside
+  the model.
+- `+ new` still means `session/new`: the agent-side context goes away, a
+  `session` frame names the new one, and a `reset` clears the panels.
+
+The picker is two routes. `GET /chat/sessions` asks the agent every time (its
+list is the only one that is right):
+
+```json
+{"sessions":[{"id":"…","title":"Investigate the crash",
+              "updatedAt":"2026-08-05T14:41:21.471Z","current":true}]}
+```
+
+Newest first; `title` / `updatedAt` may be `null`; `current` marks the one the
+server is in. `POST /chat/load` (form field `id`) moves to one: `204`, then a
+`reset`, the replayed turns, and the `session` frame on `/events`, so every open
+tab repopulates. `409` while a turn is running or another load is in flight;
+`503` when the agent is gone or does not keep sessions. The load is not a turn —
+it does not appear in the transcript as one, and the transcript it replaces is
+dropped, because a transcript of a session you are no longer in is a lie.
+
+A turn is accepted (and its `user` frame pushed) before the subprocess exists,
+so a cancel can arrive during the handshake. It is remembered and sent as soon
+as the prompt is on the wire: every cancelled turn ends the same way, a `done`
+frame whose `stopReason` the agent chose (`cancelled` from a Claude Code
+adapter).
+
 Routes:
 
 | Route | Body |
 |-------|------|
 | `GET /` | HTML page (Workflowy-style skin from `selfflowy/web/render.rkt`) |
 | `GET /today` | the first node titled with today's ISO date (the Daily day node), zoomed; terse empty state when there is none yet |
+| `GET /events` | `text/event-stream`, never ends. `event: outline` with the store revision as its data whenever a watched file reloaded, plus one at local midnight; `event: chat` with one JSON frame from the agent per line; a `:hb` comment on connect and every 15s after, so a client knows it is subscribed and proxies leave it alone |
+| `POST /chat` | prompt the agent; form field `text` (empty after trimming is `400`). `204` — what the panel draws comes back over `/events`, so every open tab stays in step. `409` with a terse `text/plain` body while a turn is running, `503` when the agent is gone |
+| `POST /chat/new` | new chat: the agent-side context goes away, `204`, and a `reset` frame clears every panel |
+| `POST /chat/cancel` | cancel the turn in flight, `204` (also while the agent is still booting); the `done` frame (`stopReason` `cancelled`) follows on its own |
+| `GET /chat/sessions` | the agent's stored conversations for this directory, JSON (see *Sessions*); `503` while the agent is gone |
+| `POST /chat/load` | load one of them; form field `id` (missing is `400`). `204` — the reset, the replayed turns and the `session` frame come back over `/events`. `409` while a turn or another load is running, `503` when the agent is gone |
 | `GET /api/tree` | byte-identical to `selfflowy tree` |
 | `GET /api/agenda` | byte-identical to `selfflowy agenda --json` |
 | `GET /static/*` | files under `selfflowy/web/static/` |
@@ -258,10 +408,32 @@ links people wrote by hand still resolve.
 
 Paths that climb out of `static/` are 404, not files.
 
-**Edits are picked up on the next request.** The server keeps a snapshot of
-the outlines (roots plus every `@include` fragment) and reloads it when a
-watched file's mtime or size changes; a reload runs in a fresh namespace, so
-the module registry cannot serve you yesterday's file.
+The chat panel (a `>_ agent` button, bottom right; open state remembered in
+`localStorage`) is server-rendered from the bridge's transcript on every page
+load — frames are ephemeral, so a reload or a second tab replays instead of
+missing the conversation — and kept live by `static/chat.js` off the page's one
+SSE connection. Its header names the model when the agent has reported one, and
+the conversation when it has a title. The `chats` button beside `+ new` opens a
+popover over `GET /chat/sessions` — newest first, the current one marked, ↑/↓
+and Enter or a click to load one, Esc to close.
+Agent text is Markdown at render time, same as titles and notes; what you typed
+and a tool's title never are.
+
+Typing `/` in the panel's input — or pressing the `/` button on the input row,
+which shows the whole list — opens a completion popover over the agent's
+slash commands (replayed onto the panel as `data-commands`, kept live by the
+`commands` frame): ↑/↓ move, Enter or Tab accept the highlighted one into the
+input, Esc closes, and Enter with nothing open sends the message as always.
+Accepting only writes `/name ` — sending is what invokes it.
+
+**Edits are pushed, and picked up on the next request either way.** The server
+keeps a snapshot of the outlines (roots plus every `@include` fragment) and
+reloads it when a watched file's mtime or size changes; a reload runs in a
+fresh namespace, so the module registry cannot serve you yesterday's file. A
+watcher holds a `filesystem-change-evt` on each watched file's *directory*
+(saves are atomic renames, which fire there), debounces the flurry, and pushes
+an `outline` event on `/events` when the store actually reloaded. Open pages
+re-fetch themselves and swap the pane and the error banner — no refresh.
 
 A file is broken for a moment during every edit, so the two surfaces differ:
 
@@ -272,12 +444,13 @@ A file is broken for a moment during every edit, so the two surfaces differ:
   `file:line:col`, in a banner at the top of the page. With no last-good
   snapshot (the first load failed) it answers `500` with the same banner.
 
-There is **no live push yet**: the page ships the htmx SSE extension but the
-server opens no event stream, so a reload is still a reload. That is the next
-thing to land here.
+A broken file pushes an event too — the banner appearing IS the news — so the
+revision moves on a failed reload as well as a good one. It is a counter, not
+a version: compare it, do not parse it.
 
-Exit codes: 0 on clean shutdown, 1 on bad flags or a port it cannot bind,
-3 when an outline path does not exist.
+Exit codes: 0 on clean shutdown, 1 on bad flags, a port it cannot bind, or a
+missing / unusable `SELFFLOWY_ACP_AGENT`; 3 when an outline path does not
+exist, or a directory holds no top-level `*.rkt`.
 
 There is no static HTML export — `curl http://127.0.0.1:8080/ > snap.html`
 if you want one.

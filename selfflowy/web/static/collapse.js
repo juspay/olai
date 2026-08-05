@@ -24,6 +24,9 @@
     set(n,c);
     localStorage.setItem(KEY,JSON.stringify(state));
   });
-  document.addEventListener('htmx:afterSwap',function(e){apply(e.target)});
+  // An outerHTML swap replaces the element the event would name, so re-apply
+  // over the whole document rather than over e.target: a live re-render must
+  // not silently unfold what you folded.
+  document.addEventListener('htmx:afterSwap',function(){apply()});
   apply();
 })();

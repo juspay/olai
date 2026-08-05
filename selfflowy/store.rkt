@@ -43,6 +43,7 @@
           [store-files (-> store? (listof path?))]
           [store-snapshot (-> store? snapshot?)]
           [store-error (-> store? (or/c load-error? #f))]
+          [store-revision (-> store? exact-positive-integer?)]
           [store-invalidate! (->* (store?) (#:force? any/c) void?)]
           [struct snapshot ([outlines (listof outline?)]
                             [files-data list?]
@@ -66,7 +67,9 @@
 (define empty-snapshot (snapshot '() '() (hash) '()))
 
 ;; probe : hash path -> (cons mtime size) | #f, for cheap staleness checks
-(struct store (files [snap #:mutable] [err #:mutable] [probe #:mutable] sema))
+;; rev   : bumped by every reload, so "did anything happen?" is a comparison
+(struct store (files [snap #:mutable] [err #:mutable] [probe #:mutable]
+                     [rev #:mutable] sema))
 
 ;; ---- fresh namespaces -----------------------------------------------------
 
@@ -230,6 +233,7 @@
                     empty-snapshot
                     #f
                     (hash)
+                    0
                     (make-semaphore 1)))
   (reload! st)
   st)
@@ -241,6 +245,13 @@
 ;; #f, or the load-error from the most recent failed reload (last-good is
 ;; still being served).
 (define (store-error st) (store-err st))
+
+;; A counter that moves whenever the store re-read the files — including a
+;; reload that FAILED, because a file that just broke is a change every
+;; reader has to see (the page grows a banner, /api/* starts failing). A
+;; caller that has to ask "did that invalidate do anything?" compares this
+;; instead of diffing snapshots. 1 after make-store, never 0.
+(define (store-revision st) (store-rev st))
 
 (define (reload! st)
   (define files (store-files st))
@@ -258,7 +269,8 @@
       st
       (probe-for (remove-duplicates
                   (append files (snapshot-watch (store-snap st)))
-                  #:key path-key)))]))
+                  #:key path-key)))])
+  (set-store-rev! st (add1 (store-rev st))))
 
 (define (stale? st)
   (define want (store-probe st))

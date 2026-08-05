@@ -1,10 +1,11 @@
 # Belt-and-braces: never commit personal outline data if someone
 # accidentally drops a copy in the repo. Canonical data is outside:
-# $SELFFLOWY_HOME (default ~/Dropbox/Selfflowy-Srid/).
+# $SELFFLOWY_HOME (default ~/Dropbox/Selfflowy-Srid/). Roadmap.rkt is NOT
+# personal data -- it's the project's own roadmap and lives at repo root,
+# tracked like any other file.
 /private/
 /Tasks.rkt
 /Daily.rkt
-/Roadmap.rkt
 
 # Racket
 compiled/
@@ -18,6 +19,10 @@ compiled/
 
 # Local Racket user home for nix/dev
 .plt-user/
+
+# npm only ever runs here to regenerate acp/package-lock.json; the tree it
+# leaves behind is nix's business, not the repo's.
+/acp/node_modules/
 
 /.direnv
 

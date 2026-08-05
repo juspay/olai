@@ -4,12 +4,12 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
 
 ## HARD RULES
 
-* Personal outline DATA lives outside the repo: `$SELFFLOWY_HOME`
-  (default `~/Dropbox/Selfflowy-Srid/`) — `Tasks.rkt`, `Daily.rkt`,
-  `Roadmap.rkt`. NEVER commit those. NEVER invent content for them; treat
-  them as user-owned. Re-validate after any edit. `examples/` is demo
-  fiction only (e.g. `examples/Daily.rkt` + fragments); CI uses examples
-  only, never Dropbox paths.
+* Personal outline DATA lives outside the repo: `$SELFFLOWY_HOME` (default
+  `~/Dropbox/Selfflowy-Srid/`) — `Tasks.rkt`, `Daily.rkt` (+ `Daily/`).
+  NEVER commit or invent content for these; user-owned, re-validate after
+  edits. `examples/` is demo fiction for CI, never Dropbox paths.
+  `Roadmap.rkt` is public, at repo root, committed and re-validated like
+  any file — the author's `Tasks.rkt` `@include`s it.
 * No hand-rolling where a maintained library exists. In use: racket/cmdline,
   json (write-json/read-json), xml (xexprs), gregor (dates), markdown
   (title/note formatting in the web view only).
@@ -45,6 +45,11 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
   map kind -> exit code. The web mutation routes will call the same ops.
 * Node keys are minted in the load layer, not the expander (see docs/cli.md);
   store.rkt owns snapshots and binds mirror sites before anything draws them.
+* Live view: store (what) -> web/watch.rkt (when) -> web/events.rkt (generic
+  SSE hub); they meet only in serve.rkt, and the chat rides the same hub.
+* selfflowy/acp.rkt speaks ACP: one subprocess, typed events out of one
+  handler, no web/. web/chat.rkt makes those events a conversation — one turn
+  at a time, chat frames, transcript. Nothing else spells either.
 * Core must build without web/: file naming is selfflowy/paths (file-label,
   key-label), not a renderer helper.
 * JSON is two modules, two version counters: json/model (what a node/tree IS,
@@ -55,7 +60,8 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
 * just check / tree / agenda / serve / test — recipes handle PLTUSERHOME +
   raco link (`run`/`watch` alias `serve`). Racket comes from the nix dev
   shell (nixpkgs 9.2). Don't fight raco setup; PLTUSERHOME must be writable.
-* Small commits, one concern each. Push as you go.
+* Branch + PR for every change (agents included); CI green before merge.
+  Master rejects direct pushes.
 * Other agents work this repo concurrently (Grok in a kolu terminal). git pull
   --rebase before starting; don't assume a clean tree is yours.
 * Driving that terminal: `padi-tui status` lists terminals + agent state;

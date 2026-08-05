@@ -22,6 +22,7 @@
          racket/path
          racket/string
          racket/runtime-path
+         (only-in json jsexpr->string)
          (only-in xml cdata xexpr->string)
          (except-in selfflowy/lang/expander #%module-begin)
          ;; the resolved shape of a mirror site (core owns the binding)
@@ -67,6 +68,7 @@
                  #:sidebar (or/c list? #f)
                  #:banner (or/c list? #f)
                  #:sse-connect (or/c string? #f)
+                 #:live-href (or/c string? #f)
                  #:head-extra list?
                  #:body-extra list?)
                 list?)]
@@ -74,6 +76,15 @@
            (->* (hash? string? #:today string? #:home-href string?)
                 (#:zoom-base (or/c string? #f)
                  #:toggle-base (or/c string? #f))
+                list?)]
+          [render-chat-panel
+           (->* ((listof hash?)
+                 #:send-href string? #:new-href string? #:cancel-href string?
+                 #:sessions-href string? #:load-href string?
+                 #:event string?)
+                (#:model (or/c string? #f)
+                 #:session-title (or/c string? #f)
+                 #:commands (listof hash?))
                 list?)]
           [render-empty-pane (-> string? #:home-href string? list?)]
           [render-error-banner (->* (string?) (#:where (or/c string? #f)) list?)]
@@ -102,7 +113,7 @@
 (define web-static-prefix "/static/")
 
 (define web-stylesheets '("app.css"))
-(define web-scripts '("htmx.min.js" "sse.js" "collapse.js"))
+(define web-scripts '("htmx.min.js" "sse.js" "collapse.js" "chat.js"))
 
 (define (static-href name) (string-append web-static-prefix name))
 
@@ -458,11 +469,38 @@
               '())
         (span ((class "sf-error-detail")) ,detail)))
 
+;; What an `outline` event re-swaps: the banner slot AND the pane, in one
+;; container, because a save can change either and they must not be able to
+;; disagree about which snapshot they are showing.
+;;
+;; `live-href` is the page's OWN address, and it comes from the route layer —
+;; a renderer that guessed it would be guessing a URL, which is how the
+;; sidebar's Today link once came to 404. The container re-fetches that page
+;; and lifts itself back out of the reply (hx-select), so one handler serves
+;; both the first load and every swap.
+(define (live-region live-href banner main)
+  (define slot
+    ;; fixed slot: the banner is swapped in and out, so it must exist
+    ;; (empty) even on a healthy page
+    `(div ((class "sf-banner-slot") (id "sf-banner"))
+          ,@(if banner (list banner) '())))
+  (if live-href
+      `(div ((id "sf-live")
+             (hx-get ,live-href)
+             (hx-trigger "sse:outline")
+             (hx-select "#sf-live")
+             (hx-target "#sf-live")
+             (hx-swap "outerHTML"))
+            ,slot
+            ,main)
+      `(div ((id "sf-live")) ,slot ,main)))
+
 (define (render-page main
                      #:title [title "selfflowy"]
                      #:sidebar [sidebar #f]
                      #:banner [banner #f]
                      #:sse-connect [sse-connect #f]
+                     #:live-href [live-href #f]
                      #:head-extra [head-extra '()]
                      #:body-extra [body-extra '()])
   `(html ((lang "en"))
@@ -483,11 +521,7 @@
                       '()))
                ,@(if sidebar (list sidebar) '())
                (main ((class "sf-main"))
-                     ;; fixed slot: the banner is swapped in and out, so it
-                     ;; must exist (empty) even on a healthy page
-                     (div ((class "sf-banner-slot") (id "sf-banner"))
-                          ,@(if banner (list banner) '()))
-                     ,main)
+                     ,(live-region live-href banner main))
                ,@body-extra)))
 
 ;; Serve this, not a bare xexpr: without the doctype browsers fall into
@@ -495,6 +529,161 @@
 ;; xexpr->string is enough for those.
 (define (page->html-string page)
   (string-append "<!DOCTYPE html>\n" (xexpr->string page)))
+
+;; ---- chat panel -----------------------------------------------------------
+;;
+;; The agent's conversation, replayed from the bridge's transcript (frames are
+;; ephemeral: a browser that connects late, or reloads, missed them). From
+;; there static/chat.js keeps it live off the page's ONE SSE connection.
+;;
+;; The URLs are the route layer's, and so is the SSE event name — a renderer
+;; that spelled "chat" here would be a second owner of the wire format.
+;;
+;; What is Markdown and what is not: a FINISHED turn's agent text gets the
+;; same treatment a note gets. A running or failed turn's text is a fragment,
+;; so it stays verbatim (chat.js accumulates chunks as text and swaps in the
+;; server's HTML when the `done` frame lands). User text and tool titles are
+;; never Markdown — they are strings in an xexpr, which is what escapes them.
+
+(define tool-glyphs #hash(("completed" . "✓") ("failed" . "✗")))
+
+(define (chat-tool-xexpr t)
+  (define status (chat-string t 'status "pending"))
+  `(div ((class "sf-chat-tool")
+         (data-tool-id ,(chat-string t 'id ""))
+         (data-status ,status))
+        (span ((class "sf-chat-tool-glyph")) ,(hash-ref tool-glyphs status "⚙"))
+        (span ((class "sf-chat-tool-title")) ,(chat-string t 'title ""))))
+
+;; A transcript field is JSON: a missing one and an explicit null are the
+;; same nothing, and neither may reach xexpr->string.
+(define (chat-string h k [default #f])
+  (define v (hash-ref h k #f))
+  (if (string? v) v default))
+
+(define (chat-turn-xexpr e)
+  (define status (chat-string e 'status "done"))
+  (define text (chat-string e 'agent ""))
+  (define stop (chat-string e 'stopReason))
+  (define err (chat-string e 'error))
+  `(div ((class "sf-chat-turn"))
+        (div ((class "sf-chat-msg is-user")) ,(chat-string e 'text ""))
+        (div ((class "sf-chat-msg is-agent"))
+             ,@(if (equal? status "done")
+                   (note->xexprs text)
+                   (list text)))
+        ,@(for/list ([t (in-list (hash-ref e 'tools '()))]
+                     #:when (hash? t))
+            (chat-tool-xexpr t))
+        ,@(if err (list `(div ((class "sf-chat-msg is-error")) ,err)) '())
+        ,@(if (and stop (not (equal? stop "end_turn")))
+              (list `(div ((class "sf-chat-note")) ,stop))
+              '())))
+
+;; Not a turn: the conversation moved. A live `reset` clears the panel; a
+;; replayed one is a line across it, because the turns above it happened.
+(define (chat-marker-xexpr e)
+  (define type (chat-string e 'type ""))
+  `(div ((class "sf-chat-sep"))
+        ,(or (chat-string e 'message) (if (equal? type "reset") "new chat" type))))
+
+(define (chat-entry-xexpr e)
+  (if (equal? (chat-string e 'type "") "turn")
+      (chat-turn-xexpr e)
+      (chat-marker-xexpr e)))
+
+(define (render-chat-panel transcript
+                           #:send-href send-href
+                           #:new-href new-href
+                           #:cancel-href cancel-href
+                           #:sessions-href sessions-href
+                           #:load-href load-href
+                           #:event event
+                           #:model [model #f]
+                           #:session-title [session-title #f]
+                           #:commands [commands '()])
+  ;; A turn was still running when this page was rendered: the panel comes up
+  ;; in that state (input disabled, stop showing) rather than idle.
+  (define busy?
+    (for/or ([e (in-list transcript)]) (equal? (chat-string e 'status) "running")))
+  `(div ((class "sf-chat-dock"))
+        (button ((type "button") (class "sf-chat-open") (data-chat-toggle "")
+                 (aria-label "open the agent panel"))
+                ">_ agent")
+        ;; The agent's slash commands, replayed onto the panel: chat.js reads
+        ;; them at init so a reloaded page completes immediately, and a
+        ;; `commands` frame replaces them from there. JSON in an attribute —
+        ;; the xexpr layer is what escapes it, same as any other string here.
+        (aside ((class ,(classes "sf-chat" (and busy? "is-busy")
+                                 ;; nothing to offer, nothing to press: the
+                                 ;; commands button is a class away (app.css),
+                                 ;; so a `commands` frame can bring it back
+                                 (and (pair? commands) "has-commands")))
+                (id "sf-chat")
+                (data-commands ,(jsexpr->string commands)))
+               (div ((class "sf-chat-head"))
+                    ;; Which model, when the bridge has heard one — never a
+                    ;; placeholder. Its own span, and the separator is the
+                    ;; span's (app.css), so a `model` frame sets one string.
+                    (span ((class "sf-chat-title")) "agent · claude code"
+                          (span ((class "sf-chat-model") (id "sf-chat-model"))
+                                ,(or model ""))
+                          ;; A running turn is visible on the floating toggle,
+                          ;; which an OPEN panel hides — so the header carries
+                          ;; the same signal. Always drawn, shown by is-busy
+                          ;; (app.css), which the server sets for a turn in
+                          ;; flight and chat.js moves from there.
+                          (span ((class "sf-chat-working") (title "working")))
+                          ;; Which conversation, when it has a name. Same
+                          ;; pattern as the model, one line down: a `session`
+                          ;; frame sets one string, and an empty one takes the
+                          ;; line away with it.
+                          (span ((class "sf-chat-session") (id "sf-chat-session"))
+                                ,(or session-title "")))
+                    (div ((class "sf-chat-actions"))
+                         ;; The conversations the agent has stored for this
+                         ;; directory. The popover it opens is drawn by
+                         ;; chat.js from what the route answers — the list is
+                         ;; the agent's, and a copy rendered into the page
+                         ;; would be stale before it was read.
+                         (button ((type "button") (class "sf-chat-btn")
+                                  (data-chat-sessions ,sessions-href)
+                                  (data-chat-load ,load-href)
+                                  (title "past chats"))
+                                 "chats")
+                         (button ((type "button") (class "sf-chat-btn")
+                                  (data-post ,new-href) (title "new chat"))
+                                 "+ new")
+                         ;; An open panel sits on top of the floating toggle,
+                         ;; so the way out is in here — and on a phone, where
+                         ;; the panel is a full-width sheet, it is the only one.
+                         (button ((type "button") (class "sf-chat-btn")
+                                  (data-chat-toggle "")
+                                  (title "close the agent panel")
+                                  (aria-label "close the agent panel"))
+                                 "×")))
+               ;; Frames land here: the htmx sse extension would swap the raw
+               ;; JSON in, and chat.js cancels that and keeps the data. One
+               ;; connection, two consumers.
+               (div ((class "sf-chat-sink") (id "sf-chat-sink")
+                     (sse-swap ,event) (hidden "hidden")))
+               (div ((class "sf-chat-body") (id "sf-chat-body"))
+                    ,@(for/list ([e (in-list transcript)]) (chat-entry-xexpr e)))
+               (form ((class "sf-chat-form") (id "sf-chat-form")
+                      (action ,send-href) (method "post"))
+                     ;; The same popover a typed "/" opens, unfiltered: the
+                     ;; commands are a thing to SEE, not only to guess at.
+                     (button ((type "button") (class "sf-chat-btn sf-chat-cmds")
+                              (data-chat-commands "") (title "commands")
+                              (aria-label "show the agent's commands"))
+                             "/")
+                     (input ((class "sf-chat-input") (name "text") (type "text")
+                             (autocomplete "off") (placeholder "message the agent")
+                             ,@(if busy? '((disabled "disabled")) '())))
+                     (button ((type "submit") (class "sf-chat-send")) "send")
+                     (button ((type "button") (class "sf-chat-stop")
+                              (data-post ,cancel-href))
+                             "stop")))))
 
 ;; ---- zoom -----------------------------------------------------------------
 

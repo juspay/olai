@@ -7,6 +7,7 @@
 :root {
   --l-paper: #E4ECCA;
   --l-paper-2: #EDF2DC;
+  --l-panel: #EFF4DC;
   --l-ink: #2C4222;
   --l-dim: #74855F;
   --l-line: #CDD8AB;
@@ -21,6 +22,7 @@
 
   --d-paper: #1E2417;
   --d-paper-2: #252D1D;
+  --d-panel: #272F1E;
   --d-ink: #DBE7C9;
   --d-dim: #8FA077;
   --d-line: #33402A;
@@ -39,6 +41,7 @@
           "Liberation Mono", monospace;
 
   --sidebar-w: 15rem;
+  --chat-w: max(21rem, 33vw);
   --indent: 1.375rem;
   --radius: 0.375rem;
 }
@@ -47,6 +50,7 @@
 :root[data-theme="light"] {
   --paper: var(--l-paper);
   --paper-2: var(--l-paper-2);
+  --panel: var(--l-panel);
   --ink: var(--l-ink);
   --dim: var(--l-dim);
   --line: var(--l-line);
@@ -64,6 +68,7 @@
   :root {
     --paper: var(--d-paper);
     --paper-2: var(--d-paper-2);
+    --panel: var(--d-panel);
     --ink: var(--d-ink);
     --dim: var(--d-dim);
     --line: var(--d-line);
@@ -81,6 +86,7 @@
 :root[data-theme="dark"] {
   --paper: var(--d-paper);
   --paper-2: var(--d-paper-2);
+  --panel: var(--d-panel);
   --ink: var(--d-ink);
   --dim: var(--d-dim);
   --line: var(--d-line);
@@ -524,6 +530,357 @@ button.sf-check:hover { color: var(--green); }
 
 .sf-pre .sf-code { background: none; border: 0; padding: 0; }
 
+/* ---- chat panel ------------------------------------------------------- */
+
+/* The outline stays the star. The panel is fixed to the right edge, closed
+   until asked for, and the main pane makes room rather than being covered.
+   The dock itself is not a box: its two children place themselves. */
+.sf-chat-dock { display: contents; }
+
+.sf-chat-open {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 20;
+  padding: 0.3125rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 9999px;
+  background: var(--paper-2);
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.sf-chat-open:hover { color: var(--ink); border-color: var(--dim); }
+
+/* an open panel is on top of where the toggle sits — it would land on the
+   send button. It steps aside, and the header's × takes over. */
+.sf-chat-dock.is-open .sf-chat-open { display: none; }
+
+/* a turn is running behind a closed panel: the toggle breathes so working is
+   visible without opening it. The ring is the accent color at low alpha,
+   expanding and fading — no bounce, no color change on the button itself. */
+.sf-chat-dock.is-busy .sf-chat-open {
+  border-color: var(--green);
+  animation: sf-chat-glow 1.8s ease-in-out infinite;
+}
+
+@keyframes sf-chat-glow {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--green) 45%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--green) 0%, transparent); }
+}
+
+.sf-chat {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 19;
+  width: var(--chat-w);
+  display: none;
+  flex-direction: column;
+  border-left: 1px solid var(--line);
+  /* its own surface, one step up the paper ramp (paper -> paper-2 -> panel):
+     the panel is a layer over the outline, not more of the same sheet */
+  background: var(--panel);
+}
+
+.sf-chat.is-open { display: flex; }
+
+body.sf-body:has(.sf-chat.is-open) .sf-main {
+  padding-right: calc(var(--chat-w) + 1.5rem);
+}
+
+.sf-chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  /* the chrome rows sit a shade back from the conversation, so the panel's
+     structure reads without a second border */
+  background: color-mix(in srgb, var(--panel) 85%, var(--paper));
+  /* the header is what the sessions popover hangs off */
+  position: relative;
+}
+
+.sf-chat-title {
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--dim);
+}
+
+/* the model, when the agent named one. Empty means unknown, and unknown says
+   nothing at all — separator included. */
+.sf-chat-model { opacity: 0.8; }
+
+.sf-chat-model:not(:empty)::before { content: " · "; }
+
+/* which conversation, when the agent has named one. Quieter than the model —
+   it is context, not state — and one line down, where a long title has room
+   to be cut off instead of pushing the buttons around. */
+.sf-chat-session {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.65;
+  font-size: 0.6875rem;
+  letter-spacing: 0;
+}
+
+/* a turn running behind an OPEN panel: the toggle that breathes is hidden
+   under it, so the header says it instead — one dot, the same accent and the
+   same rhythm as the toggle's ring */
+.sf-chat-working {
+  display: none;
+  width: 0.4375rem;
+  height: 0.4375rem;
+  margin-left: 0.5rem;
+  border-radius: 50%;
+  background: var(--green);
+  vertical-align: middle;
+}
+
+.sf-chat.is-busy .sf-chat-working {
+  display: inline-block;
+  animation: sf-chat-glow 1.8s ease-in-out infinite;
+}
+
+.sf-chat-actions { display: flex; align-items: center; gap: 0.375rem; }
+
+.sf-chat-btn, .sf-chat-send, .sf-chat-stop {
+  padding: 0.1875rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper-2);
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  cursor: pointer;
+}
+
+.sf-chat-btn:hover, .sf-chat-send:hover { color: var(--ink); }
+
+.sf-chat-stop { color: var(--rose-fg); border-color: var(--rose-fg); }
+
+.sf-chat-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  font-size: 0.875rem;
+}
+
+.sf-chat-turn { display: flex; flex-direction: column; gap: 0.375rem; }
+
+/* what you said: a bubble on the right. What it said: plain text, left. */
+.sf-chat-msg.is-user {
+  align-self: flex-end;
+  max-width: 85%;
+  padding: 0.1875rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--pill-bg);
+}
+
+.sf-chat-msg { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.sf-chat-msg.is-agent:empty { display: none; }
+
+.sf-chat-msg.is-agent p:first-child { margin-top: 0; }
+
+.sf-chat-msg.is-agent p:last-child { margin-bottom: 0; }
+
+.sf-chat-msg.is-agent ul, .sf-chat-msg.is-agent ol {
+  margin: 0.25rem 0;
+  padding-left: 1.25rem;
+}
+
+.sf-chat-msg.is-error {
+  color: var(--rose-fg);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.sf-chat-note {
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+}
+
+/* one line per tool call, updated in place by id */
+.sf-chat-tool {
+  display: flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--dim);
+}
+
+.sf-chat-tool-title { overflow-wrap: anywhere; }
+
+.sf-chat-tool[data-status="completed"] .sf-chat-tool-glyph { color: var(--green); }
+
+.sf-chat-tool[data-status="failed"] { color: var(--rose-fg); }
+
+.sf-chat-tool[data-status="pending"] .sf-chat-tool-glyph,
+.sf-chat-tool[data-status="in_progress"] .sf-chat-tool-glyph {
+  display: inline-block;
+  animation: sf-spin 2s linear infinite;
+}
+
+@keyframes sf-spin { to { transform: rotate(360deg); } }
+
+/* a break in the conversation: new chat, or an agent that was replaced */
+.sf-chat-sep {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+}
+
+.sf-chat-sep::before, .sf-chat-sep::after {
+  content: "";
+  flex: 1 1 auto;
+  border-top: 1px solid var(--line);
+}
+
+.sf-chat-form {
+  display: flex;
+  gap: 0.375rem;
+  padding: 0.625rem 0.75rem;
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 85%, var(--paper));
+  /* the input row is what the command popover hangs off */
+  position: relative;
+}
+
+/* ---- the slash-command popover ---------------------------------------- */
+
+/* Opens upward, over the conversation: the input row is the last line of the
+   panel, and a menu below it would be off the screen. Its own surface, one
+   step up from the row it belongs to. */
+.sf-chat-pop {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 100%;
+  z-index: 1;
+  max-height: 14rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: 0 -4px 12px color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.sf-chat-pop[hidden] { display: none; }
+
+.sf-chat-cmd {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+}
+
+.sf-chat-cmd-name {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--green);
+}
+
+/* one line per command: the description is context, not the thing being read */
+.sf-chat-cmd-desc {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* the keyboard's highlight and the mouse's are the same mark */
+.sf-chat-cmd.is-picked, .sf-chat-cmd:hover { background: var(--pill-bg); }
+
+/* The same popover at the other end of the panel: the past conversations hang
+   off the header, so this one opens DOWNWARD from it. */
+.sf-chat-spop {
+  top: 100%;
+  bottom: auto;
+  left: 0.75rem;
+  right: 0.75rem;
+  padding: 0.25rem 0;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+/* here the TITLE is the thing being read and the timestamp is the context, so
+   the two swap roles: the title takes the room and gets cut off, not the date */
+.sf-chat-spop .sf-chat-cmd-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--sans);
+  color: var(--ink);
+}
+
+.sf-chat-spop .sf-chat-cmd-desc { flex: none; font-family: var(--mono); }
+
+.sf-chat-spop .sf-chat-cmd { gap: 0.75rem; }
+
+/* the one you are in already: marked, and not worth clicking */
+.sf-chat-cmd[data-current] .sf-chat-cmd-name::before {
+  content: "● ";
+  color: var(--green);
+}
+
+.sf-chat-cmd[data-current] { cursor: default; }
+
+/* The button that opens the same popover, for someone who has not learned the
+   slash. It appears only once there is a list to show — and while a turn runs
+   there is still just the one thing to do, and it is stop. */
+.sf-chat-cmds { display: none; }
+
+.sf-chat.has-commands .sf-chat-cmds { display: inline-block; }
+
+.sf-chat.is-busy .sf-chat-cmds { display: none; }
+
+.sf-chat-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 0.875rem;
+}
+
+.sf-chat-input:disabled { opacity: 0.6; }
+
+/* while a turn runs there is one thing to do, and it is stop */
+.sf-chat-stop, .sf-chat.is-busy .sf-chat-send { display: none; }
+
+.sf-chat.is-busy .sf-chat-stop { display: inline-block; }
+
 /* ---- focus / small screens -------------------------------------------- */
 
 :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
@@ -544,4 +901,19 @@ button.sf-check:hover { color: var(--green); }
   .sf-main { padding: 1.25rem 1rem 4rem; }
 
   .sf-toggle { opacity: 1; }
+
+  /* a phone has no room beside the outline: the panel is a sheet over it */
+  .sf-chat { width: 100%; left: 0; border-left: 0; }
+
+  body.sf-body:has(.sf-chat.is-open) .sf-main { padding-right: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-chat-tool .sf-chat-tool-glyph { animation: none; }
+
+  /* the border still marks busy; only the motion drops out */
+  .sf-chat-dock.is-busy .sf-chat-open { animation: none; }
+
+  /* likewise the dot: it stays, it just stops breathing */
+  .sf-chat.is-busy .sf-chat-working { animation: none; }
 }

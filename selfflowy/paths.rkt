@@ -9,6 +9,7 @@
 ;;               ("Daily/2026-08.rkt"). A basename would let two roots named
 ;;               Daily.rkt in different directories mint one key for two
 ;;               different nodes.
+;;   dir-roots   which files a DIRECTORY contributes as roots.
 
 (require racket/contract
          racket/list
@@ -17,6 +18,7 @@
 (provide (contract-out
           [file-label (-> any/c string?)]
           [roots-base (-> list? path?)]
+          [dir-roots (-> (or/c path? string?) (listof path?))]
           [key-label (-> path? any/c string?)]))
 
 (define (->path p)
@@ -53,6 +55,22 @@
      (if (null? common)
          (current-directory)
          (apply build-path common))]))
+
+;; The outlines a directory holds: its *.rkt at the TOP level only, sorted.
+;;
+;; Top level only is the outline convention, not a shortcut: roots live in the
+;; directory, `@include` fragments live in subdirectories of it (Daily/), so a
+;; recursive walk would load every fragment twice. Sorted because a file set is
+;; what node keys are minted against, and "whatever the filesystem said" is not
+;; a stable set.
+(define (dir-roots dir)
+  (define d (simple-form-path (->path dir)))
+  (sort (for*/list ([p (in-list (directory-list d))]
+                    [full (in-value (build-path d p))]
+                    #:when (and (path-has-extension? p #".rkt") (file-exists? full)))
+          full)
+        string<?
+        #:key path->string))
 
 ;; The name of `f` inside a key: relative to `base` when it sits under it,
 ;; else the full path (a fragment outside the root set still gets a name that

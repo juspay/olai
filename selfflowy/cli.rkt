@@ -21,6 +21,8 @@
          selfflowy/dates
          selfflowy/load
          selfflowy/ops
+         (only-in selfflowy/paths dir-roots)
+         (only-in selfflowy/acp acp-command-problem)
          selfflowy/web/serve)
 (define exit-ok 0)
 (define exit-usage 1)
@@ -345,9 +347,56 @@
     [else
      (display ics)]))
 
+;; The agent `serve` chats with. No fallback and no PATH lookup: an agent the
+;; server picked for you is an agent you did not choose, and a serve command
+;; that silently has no chat panel is worse than one that will not start. Nix
+;; sets the variable (`nix run`, the dev shell, hence `just serve`).
+(define (acp-command-or-die)
+  (define v (getenv "SELFFLOWY_ACP_AGENT"))
+  (unless (and v (non-empty-string? v))
+    (die exit-usage
+         "SELFFLOWY_ACP_AGENT is not set; serve needs the path to an ACP agent (docs/cli.md)"
+         #:json? #f))
+  (define problem (acp-command-problem v))
+  (when problem
+    (die exit-usage
+         (format "SELFFLOWY_ACP_AGENT ~a: ~a" problem v)
+         #:json? #f))
+  v)
+
+;; What `serve` was pointed AT: -> (values roots dir), dir being #f unless the
+;; front door was used.
+;;
+;; A DIRECTORY (or no argument at all, which means this one) is the front door:
+;; the roots are its top-level `*.rkt` and the agent works IN it, which is what
+;; makes "the last session" a thing that survives a restart — Claude Code keys
+;; its stored sessions by the directory the agent runs in, and a derived one
+;; moves when the file set does. Explicit files are the plumbing: the roots are
+;; those files and the agent works from the directory they hang off.
+(define (serve-roots file-args)
+  (define dir-arg
+    (cond
+      [(null? file-args) (path->string (current-directory))]
+      [(and (null? (cdr file-args)) (directory-exists? (car file-args))) (car file-args)]
+      [else #f]))
+  (cond
+    [dir-arg
+     (define dir (simple-form-path (path->complete-path dir-arg)))
+     (define roots (dir-roots dir))
+     (when (null? roots)
+       (die exit-not-found
+            (format "no outlines in ~a (serve wants *.rkt at its top level)" dir)
+            #:json? #f))
+     (values roots dir)]
+    [else (values (resolve-files file-args #f) #f)]))
+
 ;; Blocks until Ctrl-C. No auth: the network is the auth (put it behind
 ;; Tailscale or Caddy). A custodian shutdown drops listeners and connections.
-(define (cmd-serve paths port bind)
+;;
+;; `dir` is the directory the agent works in when there was one to name (see
+;; serve-roots); #f leaves it to the outlines' own common base.
+(define (cmd-serve paths dir port bind)
+  (define acp-command (acp-command-or-die))
   (define cust (make-custodian))
   (define stop
     (parameterize ([current-custodian cust])
@@ -358,10 +407,13 @@
          #:port port
          #:bind bind
          #:files paths
+         #:acp-command acp-command
+         #:agent-cwd dir
          #:on-listen
          (λ (bound)
-           (printf "selfflowy serve http://~a:~a files: ~a\n"
+           (printf "selfflowy serve http://~a:~a ~afiles: ~a\n"
                    (or bind "0.0.0.0") bound
+                   (if dir (format "dir: ~a " dir) "")
                    (string-join (map path->string paths) " "))
            (flush-output))))))
   (with-handlers ([exn:break? (λ (_e) (void))])
@@ -378,7 +430,8 @@
   (eprintf "  tree     [--json] [file ...]  outline(s) as JSON (human view: web)\n")
   (eprintf "  agenda   [--json] [file ...]  OVERDUE / TODAY / UPCOMING (merged)\n")
   (eprintf "  calendar [--json] [--month YYYY-MM] [file ...]  days with dated items\n")
-  (eprintf "  serve    [--port N] [--bind ADDR] [file ...]  web view (Ctrl-C to stop)\n")
+  (eprintf "  serve    [--port N] [--bind ADDR] [DIR | file ...]  web view (Ctrl-C to stop)\n")
+  (eprintf "           DIR (default: .) serves DIR/*.rkt; the agent works in DIR\n")
   (eprintf "  add      [--json] [--file F] [--date ISO] [--description TEXT]\n")
   (eprintf "           [--parent TITLE|^anchor] [--no-commit] TITLE...\n")
   (eprintf "  done     [--json] [--file F] [--undo] [--no-commit] TITLE|^anchor\n")
@@ -454,9 +507,8 @@
                (set! bind a)]
    #:args paths
    (set! file-args paths))
-  (cmd-serve (resolve-files file-args #f)
-             port
-             (if (string=? bind "") #f bind)))
+  (define-values (roots dir) (serve-roots file-args))
+  (cmd-serve roots dir port (if (string=? bind "") #f bind)))
 
 (define (cli-add)
   (define json? #f)

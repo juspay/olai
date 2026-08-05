@@ -7,16 +7,19 @@
 ;; HTML injection) and attaches semantic classes. Styling lives in
 ;; web/static/app.css — never inline, never a utility-class framework.
 
-(require racket/list
+(require racket/contract
+         racket/list
          racket/match
          (only-in markdown parse-markdown)
+         (only-in xml xexpr->string)
          ;; the tag grammar has one owner; this module only draws the pills
          (only-in selfflowy/lang/tags tag-rx))
 
 (provide sanitize-xexpr
          title->inline-xexprs
          note->xexprs
-         style-md-xexpr)
+         style-md-xexpr
+         (contract-out [note->html-string (-> string? string?)]))
 
 ;; ---- xexpr helpers --------------------------------------------------------
 
@@ -221,3 +224,10 @@
 
 (define (note->xexprs note)
   (map style-md-xexpr (sanitize-pieces (parse-markdown note))))
+
+;; The same treatment, as one HTML string — for the callers that hand HTML to
+;; a browser instead of an xexpr to a renderer (the `done` chat frame carries
+;; the agent's finished text this way). xexpr->string is what escapes it, so
+;; the string is safe to insert as markup and nowhere else is.
+(define (note->html-string note)
+  (apply string-append (map xexpr->string (note->xexprs note))))

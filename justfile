@@ -6,8 +6,10 @@ export PATH := PLTUSERHOME / ".local/share/racket/9.2/bin:" + env_var("PATH")
 # Personal outline data (outside the repo). Override with SELFFLOWY_HOME.
 selfflowy_home := env_var_or_default("SELFFLOWY_HOME", env_var("HOME") + "/Dropbox/Selfflowy-Srid")
 
-# Default outlines for read commands: Tasks + Daily + live Roadmap (all data).
-default_outlines := selfflowy_home + "/Tasks.rkt " + selfflowy_home + "/Daily.rkt " + selfflowy_home + "/Roadmap.rkt"
+# Top-level *.rkt in $SELFFLOWY_HOME are roots (Tasks, Daily, a Roadmap
+# @include, ...); include fragments live in subdirectories (Daily/), so the
+# glob never double-loads.
+default_outlines := selfflowy_home + "/*.rkt"
 
 default:
     @just --list
@@ -18,7 +20,7 @@ install:
     raco pkg install --auto --skip-installed gregor markdown
     raco pkg install --auto --skip-installed --link {{justfile_directory()}}/selfflowy
 
-# Validate outline(s) (default: $SELFFLOWY_HOME/{Tasks,Daily,Roadmap}.rkt)
+# Validate outline(s) (default: $SELFFLOWY_HOME/*.rkt)
 check *args: install
     selfflowy check {{if args == "" { default_outlines } else { args }}}
 
@@ -72,17 +74,14 @@ move *args: install
 daily *args: install
     selfflowy daily {{args}}
 
-# Serve the web view (default: Dropbox outlines on 127.0.0.1:8080)
+# serve takes the DIRECTORY, not the glob: it globs the top level itself, and
+# the agent then works in $SELFFLOWY_HOME (which is what makes its stored
+# sessions survive a restart). SELFFLOWY_ACP_AGENT comes from the nix dev
+# shell; serve will not start without it, so export it yourself outside
+# `nix develop`.
+# Serve the web view (default: $SELFFLOWY_HOME on 127.0.0.1:8080)
 serve *args: install
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [ -z "{{args}}" ]; then
-      selfflowy serve {{default_outlines}}
-    elif [[ "{{args}}" != *".rkt"* ]]; then
-      selfflowy serve {{args}} {{default_outlines}}
-    else
-      selfflowy serve {{args}}
-    fi
+    selfflowy serve {{if args == "" { selfflowy_home } else { args }}}
 
 # The server is how you run selfflowy; it reloads an outline when it changes.
 alias run := serve

@@ -12,7 +12,9 @@
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/lang/line
          selfflowy/load
-         selfflowy/web/render)
+         selfflowy/web/events
+         selfflowy/web/render
+         selfflowy/web/watch)
 
 (define here "tests/contracts.rkt")
 
@@ -45,4 +47,14 @@
     ;; `today` is an argument, and it is a string: no clock, no #f
     (check-exn (blames "render.rkt")
                (λ () (render-node-fragment (make-task #:title "T" #:key "k")
-                                           #:today #f)))))
+                                           #:today #f))))
+
+  (test-case "web/events: an event is a name and a payload, both strings"
+    (check-exn (blames "events.rkt")
+               (λ () (sse-frame 'outline "1")))
+    (check-exn (blames "events.rkt")
+               (λ () (hub-broadcast! (make-hub) "outline" 7))))
+
+  (test-case "web/watch: the midnight boundary is a moment, not a clock reading"
+    (check-exn (blames "watch.rkt")
+               (λ () (seconds-until-midnight "2026-08-05T00:00")))))

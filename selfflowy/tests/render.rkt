@@ -4,6 +4,7 @@
 ;; `today` is always passed in.
 
 (require rackunit
+         json
          racket/file
          racket/string
          xml
@@ -386,6 +387,7 @@
     (check-true (string-contains? s "src=\"/static/htmx.min.js\"") s)
     (check-true (string-contains? s "src=\"/static/sse.js\"") s)
     (check-true (string-contains? s "src=\"/static/collapse.js\"") s)
+    (check-true (string-contains? s "src=\"/static/chat.js\"") s)
     (check-false (string-contains? s "tailwind") s)
     (check-false (string-contains? s "cdn.") s)
     (check-true (string-contains? s "<aside class=\"sf-sidebar\"") s)
@@ -420,6 +422,180 @@
     (check-false (string-contains? js "require") js)
     (check-true (string-contains? js "selfflowy.collapsed") js)
     (check-true (string-contains? js "localStorage") js))
+
+  ;; ---- chat panel ----------------------------------------------------------
+  ;;
+  ;; The panel is rendered from the bridge's transcript (jsexprs; see
+  ;; tests/acp.rkt for the real ones). Hand-built here so the drawing is the
+  ;; only thing under test.
+
+  (define (turn text agent
+                #:tools [tools '()] #:status [status "done"]
+                #:stop [stop "end_turn"] #:error [err (json-null)])
+    (hash 'type "turn" 'text text 'agent agent 'tools tools
+          'status status 'stopReason stop 'error err))
+
+  (define (panel transcript #:model [model #f] #:commands [commands '()]
+                 #:session-title [session-title #f])
+    (xstr (render-chat-panel transcript
+                             #:send-href "/chat"
+                             #:new-href "/chat/new"
+                             #:cancel-href "/chat/cancel"
+                             #:sessions-href "/chat/sessions"
+                             #:load-href "/chat/load"
+                             #:event "chat"
+                             #:model model
+                             #:session-title session-title
+                             #:commands commands)))
+
+  ;; The commands ride in an attribute as JSON, which means two escapings meet
+  ;; there. Reading it back the way a browser does is the only assertion that
+  ;; says the round trip works.
+  (define (unescape s)
+    (for/fold ([s s]) ([pair (in-list '(("&quot;" "\"") ("&lt;" "<") ("&gt;" ">")
+                                        ;; last: an escaped ampersand is what
+                                        ;; the others are made of
+                                        ("&amp;" "&")))])
+      (string-replace s (car pair) (cadr pair))))
+
+  (define (panel-commands s)
+    (define m (regexp-match #rx"data-commands=\"([^\"]*)\"" s))
+    (and m (string->jsexpr (unescape (cadr m)))))
+
+  (test-case "an empty panel is a form, a sink and the routes it was told"
+    (define s (panel '()))
+    (check-true (string-contains? s "id=\"sf-chat\"") s)
+    (check-true (string-contains? s "action=\"/chat\"") s)
+    (check-true (string-contains? s "data-post=\"/chat/new\"") s)
+    (check-true (string-contains? s "data-post=\"/chat/cancel\"") s)
+    ;; frames arrive on the page's own connection, under the name it is given
+    (check-true (string-contains? s "sse-swap=\"chat\"") s)
+    (check-false (string-contains? s "sse-connect") s)
+    ;; an open panel covers the floating toggle, so the header carries a way
+    ;; out of its own — two buttons, one toggle path
+    (check-equal? (length (regexp-match* #rx"data-chat-toggle" s)) 2 s)
+    ;; idle: the input is live and there is nothing to stop
+    (check-false (string-contains? s "is-busy") s)
+    (check-false (string-contains? s "disabled") s))
+
+  (test-case "a finished turn replays: user text verbatim, agent text Markdown"
+    (define s (panel (list (turn "do **not** bold me" "and **this** is bold"
+                                 #:tools (list (hash 'id "call-1"
+                                                     'title "read Tasks.rkt"
+                                                     'status "completed"))))))
+    ;; what the user typed is a string, not a document
+    (check-true (string-contains? s "do **not** bold me") s)
+    ;; what the agent said gets the same treatment a note gets
+    (check-true (string-contains? s "<strong>this</strong>") s)
+    (check-true (string-contains? s "data-tool-id=\"call-1\"") s)
+    (check-true (string-contains? s "data-status=\"completed\"") s)
+    (check-true (string-contains? s "✓") s)
+    ;; end_turn is the ordinary ending: it says nothing
+    (check-false (string-contains? s "sf-chat-note") s))
+
+  (test-case "a running turn comes up busy, with its text still verbatim"
+    (define s (panel (list (turn "go" "half a **sent"
+                                 #:status "running" #:stop (json-null)))))
+    (check-true (string-contains? s "sf-chat is-busy") s)
+    ;; an open panel hides the toggle that breathes, so the header carries the
+    ;; working dot — drawn either way, and shown by that is-busy class
+    (check-true (string-contains? s "sf-chat-working") s)
+    (check-true (string-contains? (panel '()) "sf-chat-working") s)
+    (check-true (string-contains? s "disabled=\"disabled\"") s)
+    ;; mid-stream text is a fragment; Markdown waits for the done frame
+    (check-true (string-contains? s "half a **sent") s)
+    (check-false (string-contains? s "<strong") s))
+
+  (test-case "a failed turn keeps its error, and an odd ending says which"
+    (define s (panel (list (turn "go" "" #:status "error" #:stop (json-null)
+                                 #:error "the agent exited (code 1)")
+                           (turn "again" "" #:stop "cancelled"))))
+    (check-true (string-contains? s "the agent exited (code 1)") s)
+    (check-true (string-contains? s "sf-chat-msg is-error") s)
+    (check-true (string-contains? s "cancelled") s))
+
+  (test-case "markers draw a break in the conversation, not a turn"
+    (define s (panel (list (hash 'type "reset" 'message (json-null))
+                           (hash 'type "restart" 'message "the agent exited"))))
+    (check-true (string-contains? s "sf-chat-sep") s)
+    (check-true (string-contains? s "new chat") s)
+    (check-true (string-contains? s "the agent exited") s)
+    (check-false (string-contains? s "sf-chat-turn") s))
+
+  ;; User text and tool titles are never Markdown and never HTML. The xexpr
+  ;; is what guarantees it, so this is the test that says so.
+  (test-case "script payloads land as text, in messages and tool titles alike"
+    (define s (panel (list (turn "<script>alert(1)</script>" "<b>no</b>"
+                                 #:tools (list (hash 'id "c<1"
+                                                     'title "rm -rf <script>"
+                                                     'status "failed"))))))
+    (check-false (string-contains? s "<script>") s)
+    (check-true (string-contains? s "&lt;script&gt;alert(1)&lt;/script&gt;") s)
+    ;; the agent's Markdown is sanitized by the markdown module, raw HTML and all
+    (check-false (regexp-match? #rx"<b[ >]" s) s)
+    (check-true (string-contains? s "data-tool-id=\"c&lt;1\"") s)
+    (check-true (string-contains? s "✗") s))
+
+  ;; The model is the agent's word, replayed. Unknown is not "unknown": the
+  ;; span is there for a `model` frame to fill, and empty until one lands.
+  (test-case "the header names the model when there is one, and omits it when not"
+    (define named (panel '() #:model "fake-model-1"))
+    (check-true (string-contains? named "agent · claude code") named)
+    (check-true (string-contains? named
+                                  "<span class=\"sf-chat-model\" id=\"sf-chat-model\">fake-model-1</span>")
+                named)
+    (define bare (panel '()))
+    (check-true (string-contains? bare "id=\"sf-chat-model\"") bare)
+    (check-false (string-contains? bare "fake-model") bare)
+    (check-false (string-contains? bare "unknown") bare))
+
+  ;; Which conversation, same discipline as the model: the agent's word for it,
+  ;; replayed, and an empty span waiting for a `session` frame when there is
+  ;; none. The picker's button carries the routes it drives.
+  (test-case "the header names the conversation when it has one, and offers the others"
+    (define named (panel '() #:session-title "the last conversation"))
+    (check-true (string-contains?
+                 named
+                 "<span class=\"sf-chat-session\" id=\"sf-chat-session\">the last conversation</span>")
+                named)
+    (check-true (string-contains? named "data-chat-sessions=\"/chat/sessions\"") named)
+    (check-true (string-contains? named "data-chat-load=\"/chat/load\"") named)
+    (define bare (panel '()))
+    (check-true (string-contains? bare "id=\"sf-chat-session\"") bare)
+    (check-false (string-contains? bare "conversation") bare))
+
+  ;; The agent's slash commands, replayed so a reloaded page completes before
+  ;; the agent says anything. An empty list is an empty list, not a missing
+  ;; attribute: chat.js parses one thing.
+  (test-case "the panel carries the commands the agent offers, JSON in an attribute"
+    (define offered (list (hash 'name "fake-init" 'description "start something")
+                          (hash 'name "quote\"me" 'description "<b>not html</b>")))
+    (define s (panel '() #:commands offered))
+    ;; read back the way a browser reads it: unescape the attribute, parse the
+    ;; JSON (which is read-json's hasheq, not the hash that went in)
+    (check-equal? (panel-commands s)
+                  (list (hasheq 'name "fake-init" 'description "start something")
+                        (hasheq 'name "quote\"me" 'description "<b>not html</b>")))
+    ;; the attribute is escaped, so nothing in it can end the tag
+    (check-false (string-contains? s "<b>not html</b>") s)
+    ;; a list to show is what puts the commands button on the input row
+    (check-true (string-contains? s "sf-chat has-commands") s)
+    (check-true (string-contains? s "data-chat-commands") s)
+    (define bare (panel '()))
+    (check-equal? (panel-commands bare) '())
+    (check-true (string-contains? bare "data-commands=\"[]\"") bare)
+    (check-false (string-contains? bare "has-commands") bare))
+
+  (test-case "the chat script stays tiny, framework-free and connection-free"
+    (define js (file->string (build-path (web-static-dir) "chat.js")))
+    (check-false (string-contains? js "require") js)
+    ;; ONE connection per page: the panel hooks the htmx sse extension's
+    ;; messages instead of opening a second EventSource
+    (check-false (string-contains? js "new EventSource") js)
+    (check-true (string-contains? js "htmx:sseBeforeMessage") js)
+    (check-true (string-contains? js "selfflowy.chat") js)
+    ;; chunk and user text are inserted as TEXT
+    (check-true (string-contains? js "textContent") js))
 
   ;; ---- file sections (the watcher's re-render unit) ------------------------
 

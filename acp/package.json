@@ -1,0 +1,10 @@
+{
+  "name": "selfflowy-acp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "vendoring shim: pins the Claude Code ACP adapter so nix can build it offline",
+  "license": "AGPL-3.0-or-later",
+  "dependencies": {
+    "@agentclientprotocol/claude-agent-acp": "0.64.2"
+  }
+}

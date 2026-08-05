@@ -71,8 +71,11 @@
                            (#:commit? boolean?)
                            daily-result?)]))
 
-;; kind: 'usage | 'validation | 'not-found — what the caller should make of
-;; it (the CLI maps kinds to exit codes; a web route maps them to statuses).
+;; kind: 'usage | 'validation | 'not-found | 'busy — what the caller should
+;; make of it (the CLI maps kinds to exit codes; a web route maps them to
+;; statuses). 'busy is nobody's fault and reaches no CLI command: the ACP
+;; bridge raises it when a second prompt arrives mid-turn, and a route turns
+;; it into 409.
 ;; file/line/col carry the srcloc when there is one (CLAUDE.md: errors carry
 ;; file:line:col).
 (struct exn:fail:op exn:fail (kind file line col) #:transparent)

@@ -17,12 +17,14 @@ Selfflowy inverts it:
   * tasks are CODE      -- a Racket #lang; the expander is the validator
   * git is the HISTORY  -- no sync protocol, no CRDT, no vendor
   * agents are USERS    -- Claude Code & friends edit your files; the
-                           DSL's error messages are their REPL. (ACP
-                           wiring is next.)
-  * the web UI is a VIEW -- read-mostly htmx. Today it only reads;
-                           capture and check-off in the browser are
-                           next. Structure changes go through the agent
-                           or your editor either way.
+                           DSL's error messages are their REPL. The web
+                           view spawns one over ACP and puts it in a
+                           chat panel.
+  * the web UI is a VIEW -- htmx, pushed over SSE: save a file and every
+                           open tab redraws itself. It still does not
+                           WRITE — capture and check-off in the browser
+                           are next. Until then the chat panel is how
+                           you change an outline without an editor.
 
 Mirrors fall out of the language for free: a node is a binding,
 referencing it twice is a mirror. define-before-use kills most cycles
@@ -65,14 +67,16 @@ Under the hood every outline becomes s-expressions. Same expander:
 ```text
 $SELFFLOWY_HOME/*.rkt            <- personal data (#lang selfflowy)
 (default: ~/Dropbox/Selfflowy-Srid/)
+    |                                 ^
+    v                                 | edits your files
+selfflowy CLI (Racket)                |   <- validate / query / capture
+    |                                 |
+    v                                 |
+racket web-server --- spawns ---> ACP agent (Claude Code; JSON-RPC on stdio)
     |
-    v
-selfflowy CLI (Racket)           <- validate / query / capture
+    +-- SSE ---> browser (htmx): a file moved, or the agent said something
     |
-    v
-racket web-server -------------> browser (htmx)
-    |
-    +-- SSE push, PWA, agent CLI over ACP: planned, not wired
+    +-- PWA, static export: planned, not wired
 ```
 
 Personal outlines are plain files you sync however you like (Dropbox,
@@ -91,29 +95,48 @@ Outline `#lang selfflowy` + sexp core + agent CLI (`check` / `tree` JSON /
 `agenda` / `calendar` / `add` / `done` / `move` / `daily` / `ics` /
 `serve`). Done status, mirrors and `@include` composition are first class;
 mirrors reach anchors anywhere in the loaded tree, fragments included. The
-human view is the web app served by `selfflowy serve` — htmx, read-only, no
-auth (bind it to localhost or Tailscale), reloading an outline when the file
-changes. No SSE push yet, no static HTML export. (Ancestor: srid/Tend.)
+human view is the web app served by `selfflowy serve` — htmx, no auth (bind
+it to localhost or Tailscale). It reloads an outline when the file changes
+and pushes that over SSE, so open tabs redraw with no refresh, and it carries
+a chat panel driving Claude Code over ACP (`SELFFLOWY_ACP_AGENT`). The page
+itself still writes nothing; there is no static HTML export.
+(Ancestor: srid/Tend.)
 
 ## ROADMAP
 
-Track your own plan as a `#lang selfflowy` outline (e.g. under
-`$SELFFLOWY_HOME/Roadmap.rkt`). Repo demos live in `examples/` (see
-`examples/Daily.rkt` for `@include` composition).
+The project tracks its own plan the same way it wants you to track yours:
+`Roadmap.rkt` at the repo root is a `#lang selfflowy` outline, edited and
+committed like any other file. `selfflowy tree Roadmap.rkt` (or `just tree
+Roadmap.rkt`) gives the JSON view.
+
+Track your own plan as a `#lang selfflowy` outline wherever you like
+(`$SELFFLOWY_HOME`) — a private `Tasks.rkt` can `@include` the repo's
+`Roadmap.rkt` to pull it into your own outline; that's exactly what the
+author does. Repo demos live in `examples/` (see `examples/Daily.rkt` for
+`@include` composition).
 
 ## BUILDING
 
 ```bash
 nix develop        # racket 9.2 + just; or install them yourself
 just install       # gregor + markdown, then --link selfflowy/
-just check         # validates $SELFFLOWY_HOME/{Tasks,Daily,Roadmap}.rkt
+just check         # validates $SELFFLOWY_HOME/*.rkt
 just tree examples/Example.rkt   # JSON forest for agents
-just serve                       # web view on http://127.0.0.1:8080
+just serve                       # $SELFFLOWY_HOME on http://127.0.0.1:8080
 just agenda
 just calendar --month 2026-08
 just daily                       # today's node in Daily/YYYY-MM.rkt
 just test
 ```
+
+`selfflowy serve DIR` serves `DIR/*.rkt` and runs the agent in `DIR`
+(default: `$PWD`; `just serve` passes `$SELFFLOWY_HOME`). Naming files
+instead still works — see docs/cli.md.
+
+`serve` refuses to start without `SELFFLOWY_ACP_AGENT` — the path to an
+executable speaking the Agent Client Protocol. `nix develop` (hence `just
+serve`) and `nix run` default it to the bundled, pinned Claude Code adapter.
+Outside nix, export it yourself.
 
 ## CLI (agents)
 
