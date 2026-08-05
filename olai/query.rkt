@@ -10,10 +10,10 @@
 
 (require racket/list
          racket/string
-         (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/dates
-         selfflowy/lang/walk
-         selfflowy/paths)
+         (except-in olai/lang/expander #%module-begin)
+         olai/dates
+         olai/lang/walk
+         olai/paths)
 
 (provide (struct-out dated-node)
          collect-dated-nodes

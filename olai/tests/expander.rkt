@@ -2,10 +2,10 @@
 
 (require rackunit
          racket/file
-         (except-in selfflowy/lang/expander #%module-begin))
+         (except-in olai/lang/expander #%module-begin))
 
 (define (eval-tasks src)
-  (define tmp (make-temporary-file "selfflowy~a.rkt"))
+  (define tmp (make-temporary-file "olai~a.rkt"))
   (dynamic-wind
    void
    (λ ()
@@ -15,13 +15,13 @@
 
 (module+ test
   (test-case "empty module yields empty task list"
-    (check-equal? (eval-tasks "#lang selfflowy/sexp\n") '()))
+    (check-equal? (eval-tasks "#lang olai/sexp\n") '()))
 
   (test-case "nested tasks with optional date and description"
     (define tasks
       (eval-tasks
        #<<EOF
-#lang selfflowy/sexp
+#lang olai/sexp
 (t "Inbox"
    #:description "landing"
    (t "Buy milk" #:date "2026-08-04" #:description "2%")
@@ -50,7 +50,7 @@ EOF
     (define tasks
       (eval-tasks
        #<<EOF
-#lang selfflowy/sexp
+#lang olai/sexp
 (t "A" #:done)
 (t "B" #:done "2026-08-03")
 (t "C" #:done "2026-08-03 14:30" #:date "2026-08-01")
@@ -74,7 +74,7 @@ EOF
                            (exn-message e))))
      (λ ()
        (eval-tasks
-        "#lang selfflowy/sexp\n(t \"x\" #:done #:done)\n"))))
+        "#lang olai/sexp\n(t \"x\" #:done #:done)\n"))))
 
   (test-case "bad #:done timestamp rejected"
     (check-exn
@@ -84,12 +84,12 @@ EOF
                            (exn-message e))))
      (λ ()
        (eval-tasks
-        "#lang selfflowy/sexp\n(t \"x\" #:done \"not-a-date\")\n"))))
+        "#lang olai/sexp\n(t \"x\" #:done \"not-a-date\")\n"))))
 
   (test-case "inline #tags extracted, title stays verbatim"
     (define tasks
       (eval-tasks
-       "#lang selfflowy/sexp\n(t \"Ship #lang and #lang again #docs\")\n"))
+       "#lang olai/sexp\n(t \"Ship #lang and #lang again #docs\")\n"))
     (define tk (car tasks))
     (check-equal? (task-title tk) "Ship #lang and #lang again #docs")
     (check-equal? (task-tags tk) '("lang" "docs")))
@@ -105,7 +105,7 @@ EOF
   (test-case "description before date is allowed"
     (define tasks
       (eval-tasks
-       "#lang selfflowy/sexp\n(t \"x\" #:description \"hi\" #:date \"2026-01-02\")\n"))
+       "#lang olai/sexp\n(t \"x\" #:description \"hi\" #:date \"2026-01-02\")\n"))
     (define tk (car tasks))
     (check-equal? (task-description tk) "hi")
     (check-equal? (task-date tk) "2026-01-02"))
@@ -113,11 +113,11 @@ EOF
   (test-case "datetime #:date accepted and space normalized to T"
     (define tasks
       (eval-tasks
-       "#lang selfflowy/sexp\n(t \"x\" #:date \"2026-08-04 09:30\")\n"))
+       "#lang olai/sexp\n(t \"x\" #:date \"2026-08-04 09:30\")\n"))
     (check-equal? (task-date (car tasks)) "2026-08-04T09:30")
     (define tasks2
       (eval-tasks
-       "#lang selfflowy/sexp\n(t \"y\" #:date \"2026-08-04T18:00\")\n"))
+       "#lang olai/sexp\n(t \"y\" #:date \"2026-08-04T18:00\")\n"))
     (check-equal? (task-date (car tasks2)) "2026-08-04T18:00"))
 
   (test-case "invalid date is a syntax error"
@@ -128,21 +128,21 @@ EOF
                            (exn-message e))))
      (λ ()
        (eval-tasks
-        "#lang selfflowy/sexp\n(t \"x\" #:date \"not-a-date\")\n"))))
+        "#lang olai/sexp\n(t \"x\" #:date \"not-a-date\")\n"))))
 
   (test-case "non-string date is a syntax error"
     (check-exn
      (λ (e) (exn:fail:syntax? e))
      (λ ()
        (eval-tasks
-        "#lang selfflowy/sexp\n(t \"x\" #:date 42)\n"))))
+        "#lang olai/sexp\n(t \"x\" #:date 42)\n"))))
 
   (test-case "non-string description is a syntax error"
     (check-exn
      (λ (e) (exn:fail:syntax? e))
      (λ ()
        (eval-tasks
-        "#lang selfflowy/sexp\n(t \"x\" #:description 42)\n"))))
+        "#lang olai/sexp\n(t \"x\" #:description 42)\n"))))
 
   (test-case "duplicate #:date rejected"
     (check-exn
@@ -152,7 +152,7 @@ EOF
                            (exn-message e))))
      (λ ()
        (eval-tasks
-        "#lang selfflowy/sexp\n(t \"x\" #:date \"2026-01-01\" #:date \"2026-01-02\")\n"))))
+        "#lang olai/sexp\n(t \"x\" #:date \"2026-01-01\" #:date \"2026-01-02\")\n"))))
 
   (test-case "duplicate #:description rejected"
     (check-exn
@@ -162,26 +162,26 @@ EOF
                            (exn-message e))))
      (λ ()
        (eval-tasks
-        "#lang selfflowy/sexp\n(t \"x\" #:description \"a\" #:description \"b\")\n"))))
+        "#lang olai/sexp\n(t \"x\" #:description \"a\" #:description \"b\")\n"))))
 
   (test-case "bad month/day rejected"
     (check-exn
      (λ (e) (exn:fail:syntax? e))
      (λ ()
        (eval-tasks
-        "#lang selfflowy/sexp\n(t \"x\" #:date \"2026-13-01\")\n")))
+        "#lang olai/sexp\n(t \"x\" #:date \"2026-13-01\")\n")))
     (check-exn
      (λ (e) (exn:fail:syntax? e))
      (λ ()
        (eval-tasks
-        "#lang selfflowy/sexp\n(t \"x\" #:date \"2026-02-30\")\n"))))
+        "#lang olai/sexp\n(t \"x\" #:date \"2026-02-30\")\n"))))
 
   (test-case "non-string title is a syntax error"
     (check-exn
      exn:fail?
      (λ ()
        (eval-tasks
-        "#lang selfflowy/sexp\n(t 42)\n"))))
+        "#lang olai/sexp\n(t 42)\n"))))
 
   (test-case "malformed child is a syntax error (closed grammar)"
     (check-exn
@@ -191,7 +191,7 @@ EOF
                            (exn-message e))))
      (λ ()
        (eval-tasks
-        "#lang selfflowy/sexp\n(t \"x\" 42)\n"))))
+        "#lang olai/sexp\n(t \"x\" 42)\n"))))
 
   (test-case "non-task top-level form is a syntax error"
     (check-exn
@@ -201,4 +201,4 @@ EOF
                            (exn-message e))))
      (λ ()
        (eval-tasks
-        "#lang selfflowy/sexp\n42\n")))))
+        "#lang olai/sexp\n42\n")))))

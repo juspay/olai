@@ -1,11 +1,11 @@
 #lang racket/base
 
 ;; Set / rewrite / clear @date on an outline title (TITLE or ^anchor).
-;; Two more argument sets for the metadata engine (selfflowy/meta).
+;; Two more argument sets for the metadata engine (olai/meta).
 
-(require selfflowy/dates
-         selfflowy/fail
-         selfflowy/meta)
+(require olai/dates
+         olai/fail
+         olai/meta)
 
 (provide set-date-in-text
          clear-date-in-text)

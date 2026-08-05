@@ -7,11 +7,11 @@
          racket/path
          racket/string
          racket/format
-         selfflowy/dates
-         selfflowy/edit
-         selfflowy/lang/line
-         (except-in selfflowy/lang/expander #%module-begin)
-         (only-in selfflowy/query count-tasks))
+         olai/dates
+         olai/edit
+         olai/lang/line
+         (except-in olai/lang/expander #%module-begin)
+         (only-in olai/query count-tasks))
 
 (provide month-name
          month-fragment-rel
@@ -88,7 +88,7 @@
 (define (ensure-file-lang path)
   (unless (file-exists? path)
     (make-parent-directory* path)
-    (display-to-file "#lang selfflowy\n" path #:exists 'error)))
+    (display-to-file "#lang olai\n" path #:exists 'error)))
 
 ;; Ensure day node exists. Returns hash of result fields (no version/ok).
 ;; #:on-applied is called with every file actually rewritten (0, 1 or 2 of
@@ -113,7 +113,7 @@
   (unless (file-exists? frag)
     (set! created-month? #t)
     (make-parent-directory* frag)
-    (display-to-file "#lang selfflowy\n" frag #:exists 'error))
+    (display-to-file "#lang olai\n" frag #:exists 'error))
 
   (define frag-text (file->string frag))
   (define frag-lines (string-split frag-text "\n" #:trim? #f))
@@ -137,8 +137,8 @@
        (add1 at)]))
 
   (define root-text (file->string root))
-  (unless (regexp-match? #px"(?m:^#lang selfflowy)" root-text)
-    (error 'daily "Daily.rkt must be #lang selfflowy"))
+  (unless (regexp-match? #px"(?m:^#lang olai)" root-text)
+    (error 'daily "Daily.rkt must be #lang olai"))
   (define root-lines (string-split root-text "\n" #:trim? #f))
 
   (define root-lines*
@@ -276,7 +276,7 @@
     (make-parent-directory* frag)
     (define body
       (string-append
-       "#lang selfflowy\n\n"
+       "#lang olai\n\n"
        (string-join
         (for/list ([g (in-list day-groups)])
           (string-join g "\n"))

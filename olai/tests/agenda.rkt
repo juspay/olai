@@ -3,8 +3,8 @@
 (require rackunit
          racket/list
          racket/path
-         (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/agenda)
+         (except-in olai/lang/expander #%module-begin)
+         olai/agenda)
 
 (define (tk title date desc kids #:done [done #f] #:id [id #f])
   (make-task #:title title #:date date #:description desc #:done done

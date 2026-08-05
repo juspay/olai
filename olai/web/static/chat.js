@@ -8,7 +8,7 @@
 // rendered and sanitized (web/markdown), which replaces the plain text the
 // chunks accumulated.
 (function(){
-  var KEY='selfflowy.chat';
+  var KEY='olai.chat';
   var panel,dock,body,form,input,sink,turn,agentEl,modelEl,sessionEl,pop,spop;
 
   // ---- open / closed (same shape as collapse.js: a class, remembered) ----

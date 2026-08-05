@@ -1,4 +1,4 @@
-#lang selfflowy
+#lang olai
 
 2026-08-03
   Setup day

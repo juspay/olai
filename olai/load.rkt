@@ -11,8 +11,8 @@
          racket/path
          racket/string
          file/sha1
-         (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/paths)
+         (except-in olai/lang/expander #%module-begin)
+         olai/paths)
 
 ;; This is a seam, so it ships with contracts: a caller that hands us a string
 ;; where a path belongs is named by the blame, at its own srcloc, instead of

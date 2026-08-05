@@ -7,17 +7,17 @@
 ;;
 ;; Its version is its own (json-model-version). The shape of a `done` reply,
 ;; or of an error envelope, has nothing to do with what a task IS: those live
-;; in selfflowy/json/reply and version separately. They used to share one
+;; in olai/json/reply and version separately. They used to share one
 ;; constant, so adding a field to a node and changing an envelope were the
 ;; same breaking change, and neither could move without the other.
 
 (require racket/contract
          json
          racket/path
-         (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/load
+         (except-in olai/lang/expander #%module-begin)
+         olai/load
          ;; task_count / mirror_count are queries, not a JSON concern
-         (only-in selfflowy/query count-tasks count-mirrors))
+         (only-in olai/query count-tasks count-mirrors))
 
 (define file-ref/c (or/c path? string? #f))
 

@@ -1,6 +1,6 @@
 #lang racket/base
 
-;; Line-oriented outline parser for #lang selfflowy.
+;; Line-oriented outline parser for #lang olai.
 ;; Emits (t "title" #:id ... #:date ... #:description ... #:done ... child ...)
 ;; and (mirror "anchor") with srclocs.
 
@@ -8,7 +8,7 @@
          racket/match
          racket/string
          syntax/readerr
-         selfflowy/lang/line)
+         olai/lang/line)
 
 ;; The line grammar itself lives in lang/line.rkt; these two are re-exported
 ;; because they are how a title's sugar is spelled everywhere.

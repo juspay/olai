@@ -4,7 +4,7 @@
 ;; A scripted ACP agent, for testing the bridge without an LLM.
 ;;
 ;; It speaks just enough of the protocol to be indistinguishable from a real
-;; agent as far as selfflowy/acp is concerned: line-delimited JSON-RPC on
+;; agent as far as olai/acp is concerned: line-delimited JSON-RPC on
 ;; stdio, initialize / session/new / session/load / session/list /
 ;; session/set_mode, one turn per session/prompt, session/cancel as a
 ;; notification, and session/update notifications on the way.
@@ -13,7 +13,7 @@
 ;; a property of the machine the agent woke up on, not of anything a client
 ;; says:
 ;;
-;;   SELFFLOWY_FAKE_ACP_STORED   non-empty -> session/list answers with two
+;;   OLAI_FAKE_ACP_STORED   non-empty -> session/list answers with two
 ;;                               conversations and session/load replays the
 ;;                               one that is asked for; unset (the default) ->
 ;;                               nothing is stored, so a client boots the way
@@ -39,7 +39,7 @@
 ;; the one turn thread (the main loop keeps reading, which is what makes
 ;; cancel and permission answers arrive DURING a turn).
 ;;
-;; Self-contained: racket/base + json, no selfflowy collection. Run it as
+;; Self-contained: racket/base + json, no olai collection. Run it as
 ;; `racket fake-acp-agent.rkt`, or directly — it is committed executable.
 ;;
 ;; Nothing runs on require (raco test would otherwise sit here reading stdin
@@ -88,7 +88,7 @@
               'updatedAt "2026-08-01T17:30:00.000Z")))
 
 (define (stored?)
-  (define v (getenv "SELFFLOWY_FAKE_ACP_STORED"))
+  (define v (getenv "OLAI_FAKE_ACP_STORED"))
   (and v (not (string=? v ""))))
 
 ;; Set by a session/cancel notification, cleared when a prompt is accepted —

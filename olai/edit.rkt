@@ -16,9 +16,9 @@
          racket/path
          racket/port
          racket/string
-         selfflowy/fail
-         selfflowy/load
-         selfflowy/store)
+         olai/fail
+         olai/load
+         olai/store)
 
 ;; The callbacks are part of this contract: #:on-invalid is handed a
 ;; load-error and #:on-applied the path that was replaced — a caller that
@@ -67,14 +67,14 @@
      (on-applied full)
      #t]))
 
-;; Every writer emits outline syntax, so a #lang selfflowy/sexp file would be
+;; Every writer emits outline syntax, so a #lang olai/sexp file would be
 ;; rewritten into a different language. Refuse here rather than in each
 ;; command: the write path is where the rule can actually be enforced.
 (define (guard-sexp-file! full)
   (when (and (file-exists? full)
-             (regexp-match? #px"(?m:^#lang selfflowy/sexp)" (file->string full)))
+             (regexp-match? #px"(?m:^#lang olai/sexp)" (file->string full)))
     (user-fail
-     "~a is #lang selfflowy/sexp; writes emit outline syntax (#lang selfflowy)"
+     "~a is #lang olai/sexp; writes emit outline syntax (#lang olai)"
      full)))
 
 ;; Auto-commit what a write applied — one path or several (an edit that lands

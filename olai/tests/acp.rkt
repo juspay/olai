@@ -11,16 +11,16 @@
 (require rackunit
          racket/async-channel
          racket/string
-         selfflowy/acp
-         selfflowy/ops)
+         olai/acp
+         olai/ops)
 
 (define fake-agent
-  (path->string (collection-file-path "fake-acp-agent.rkt" "selfflowy" "tests")))
+  (path->string (collection-file-path "fake-acp-agent.rkt" "olai" "tests")))
 
 ;; A file that exists and is not an executable: the other way to get the
 ;; agent's path wrong.
 (define example
-  (build-path (simplify-path (build-path (collection-file-path "info.rkt" "selfflowy")
+  (build-path (simplify-path (build-path (collection-file-path "info.rkt" "olai")
                                          'up 'up))
               "examples" "Example.rkt"))
 
@@ -82,9 +82,9 @@
 (define (with-stored-sessions thunk)
   (define env (current-environment-variables))
   (dynamic-wind
-   (λ () (environment-variables-set! env #"SELFFLOWY_FAKE_ACP_STORED" #"1"))
+   (λ () (environment-variables-set! env #"OLAI_FAKE_ACP_STORED" #"1"))
    thunk
-   (λ () (environment-variables-set! env #"SELFFLOWY_FAKE_ACP_STORED" #f))))
+   (λ () (environment-variables-set! env #"OLAI_FAKE_ACP_STORED" #f))))
 
 ;; What a boot says, once there is a session: which conversation, what it runs,
 ;; what it offers, and the name the agent wrote for it.

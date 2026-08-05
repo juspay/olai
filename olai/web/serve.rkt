@@ -11,20 +11,20 @@
 ;;   POST /chat/cancel  cancel the turn in flight -> 204
 ;;   GET  /chat/sessions the agent's stored conversations, as JSON
 ;;   POST /chat/load    load one of them (form field `id`) -> 204
-;;   GET  /api/tree     byte-identical to `selfflowy tree`
-;;   GET  /api/agenda   byte-identical to `selfflowy agenda --json`
+;;   GET  /api/tree     byte-identical to `olai tree`
+;;   GET  /api/agenda   byte-identical to `olai agenda --json`
 ;;   GET  /static/*     files from web/static/
 ;;   anything else      404, terse text/plain
 ;;
 ;; No auth: the network is the auth (Tailscale / Caddy in front of it).
 ;; Routing, static files, and MIME types come from racket web-server. Outline
-;; content comes from selfflowy/store — this module owns routes and responses,
+;; content comes from olai/store — this module owns routes and responses,
 ;; never a load.
 ;;
 ;; Live updates are three parts that only meet here: the store knows WHAT the
 ;; outlines are, the watcher knows WHEN they moved, the hub knows WHO is
 ;; listening. None of them knows about the other two. The agent conversation
-;; (web/chat, over selfflowy/acp) is a fourth of the same kind — it pushes
+;; (web/chat, over olai/acp) is a fourth of the same kind — it pushes
 ;; `chat` through the same hub and has never heard of HTTP; the /chat routes
 ;; below are the only place the two meet.
 ;;
@@ -49,18 +49,18 @@
          (prefix-in lift: web-server/dispatchers/dispatch-lift)
          (prefix-in sequencer: web-server/dispatchers/dispatch-sequencer)
          (only-in web-server/private/mime-types make-path->mime-type)
-         selfflowy/agenda
-         selfflowy/dates
-         selfflowy/json/model
-         selfflowy/json/reply
-         selfflowy/load
-         (only-in selfflowy/ops exn:fail:op? exn:fail:op-kind)
-         (only-in selfflowy/paths file-label roots-base)
-         selfflowy/store
-         selfflowy/web/chat
-         selfflowy/web/events
-         selfflowy/web/render
-         selfflowy/web/watch)
+         olai/agenda
+         olai/dates
+         olai/json/model
+         olai/json/reply
+         olai/load
+         (only-in olai/ops exn:fail:op? exn:fail:op-kind)
+         (only-in olai/paths file-label roots-base)
+         olai/store
+         olai/web/chat
+         olai/web/events
+         olai/web/render
+         olai/web/watch)
 
 (provide start-server)
 
@@ -135,7 +135,7 @@
   (html-response
    (page->html-string
     (render-page (render-empty-pane "No outline loaded." #:home-href home-href)
-                 #:title "selfflowy"
+                 #:title "olai"
                  #:banner (error-banner err)
                  #:sse-connect events-href
                  #:live-href live-href
@@ -256,7 +256,7 @@
 (define (page-title files)
   (if (= (length files) 1)
       (file-label (car files))
-      "selfflowy"))
+      "olai"))
 
 ;; The panel sits in body-extra, OUTSIDE #sf-live: an outline event re-swaps
 ;; the live region, and a chat mid-turn must not be swapped out from under
@@ -310,7 +310,7 @@
                                #:home-href home-href
                                #:zoom-base node-href-base)
                   (render-empty-pane
-                   (format "No day node for ~a. Run: selfflowy daily" today)
+                   (format "No day node for ~a. Run: olai daily" today)
                    #:home-href home-href))
               #:title (string-append "today " today)
               #:live-href today-href

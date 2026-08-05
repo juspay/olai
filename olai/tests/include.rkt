@@ -6,13 +6,13 @@
          racket/string
          racket/port
          json
-         (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/load
-         selfflowy/json/model
-         selfflowy/json/reply
-         (only-in selfflowy/query count-tasks)
-         selfflowy/done
-         selfflowy/daily)
+         (except-in olai/lang/expander #%module-begin)
+         olai/load
+         olai/json/model
+         olai/json/reply
+         (only-in olai/query count-tasks)
+         olai/done
+         olai/daily)
 
 (define (write-outline dir name body)
   (define p (build-path dir name))
@@ -37,10 +37,10 @@
      void
      (λ ()
        (write-outline dir "frag.rkt"
-                      "#lang selfflowy\nDayA\n  child\nDayB\n")
+                      "#lang olai\nDayA\n  child\nDayB\n")
        (define root
          (write-outline dir "root.rkt"
-                        "#lang selfflowy\nParent\n  @include frag.rkt\n"))
+                        "#lang olai\nParent\n  @include frag.rkt\n"))
        (define tasks (load-tasks root))
        (check-equal? (length tasks) 1)
        (define parent (car tasks))
@@ -64,7 +64,7 @@
      (λ ()
        (define root
          (write-outline dir "root.rkt"
-                        "#lang selfflowy\nX\n  @include no-such.rkt\n"))
+                        "#lang olai\nX\n  @include no-such.rkt\n"))
        (check-exn
         (λ (e) (regexp-match? #px"file not found|no-such" (exn-message e)))
         (λ () (load-tasks root))))
@@ -76,9 +76,9 @@
      void
      (λ ()
        (write-outline dir "a.rkt"
-                      "#lang selfflowy\nA\n  @include b.rkt\n")
+                      "#lang olai\nA\n  @include b.rkt\n")
        (write-outline dir "b.rkt"
-                      "#lang selfflowy\nB\n  @include a.rkt\n")
+                      "#lang olai\nB\n  @include a.rkt\n")
        (check-exn
         (λ (e) (regexp-match? #px"include cycle" (exn-message e)))
         (λ () (load-tasks (build-path dir "a.rkt")))))
@@ -90,10 +90,10 @@
      void
      (λ ()
        (write-outline dir "frag.rkt"
-                      "#lang selfflowy\nWork ^agent\n")
+                      "#lang olai\nWork ^agent\n")
        (define root
          (write-outline dir "root.rkt"
-                        "#lang selfflowy\nWeek\n  @include frag.rkt\n  *agent\n"))
+                        "#lang olai\nWeek\n  @include frag.rkt\n  *agent\n"))
        (define tasks (load-tasks root))
        (define anchors (dynamic-require `(file ,(path->string root)) 'anchors))
        (check-true (hash-has-key? anchors "agent"))
@@ -101,10 +101,10 @@
        (check-true (mirror-ref? (cadr (task-children week))))
        ;; duplicate across root + frag
        (write-outline dir "frag2.rkt"
-                      "#lang selfflowy\nOther ^agent\n")
+                      "#lang olai\nOther ^agent\n")
        (define root2
          (write-outline dir "root2.rkt"
-                        "#lang selfflowy\n@include frag.rkt\n@include frag2.rkt\n"))
+                        "#lang olai\n@include frag.rkt\n@include frag2.rkt\n"))
        (check-exn
         (λ (e) (regexp-match? #px"duplicate \\^agent" (exn-message e)))
         (λ () (load-tasks root2))))
@@ -125,10 +125,10 @@
          (values (or (load-error-where r) "") (load-error-message r)))
 
        ;; unknown mirror: the *site* is in the root, under an @include
-       (write-outline dir "frag.rkt" "#lang selfflowy\nWork ^agent\n")
+       (write-outline dir "frag.rkt" "#lang olai\nWork ^agent\n")
        (define bad-mirror
          (write-outline dir "mirror.rkt"
-                        "#lang selfflowy\nWeek\n  @include frag.rkt\n  *nope\n"))
+                        "#lang olai\nWeek\n  @include frag.rkt\n  *nope\n"))
        (define-values (where1 msg1) (where+detail bad-mirror))
        (check-true (string-contains? where1 "mirror.rkt") where1)
        (check-true (string-contains? where1 ":4:") where1)
@@ -137,10 +137,10 @@
        (check-true (regexp-match? #px"agent" msg1) msg1)
 
        ;; duplicate anchor: the second declaration is in another fragment
-       (write-outline dir "frag2.rkt" "#lang selfflowy\nOther\n  Deep ^agent\n")
+       (write-outline dir "frag2.rkt" "#lang olai\nOther\n  Deep ^agent\n")
        (define dup
          (write-outline dir "dup.rkt"
-                        "#lang selfflowy\n@include frag.rkt\n@include frag2.rkt\n"))
+                        "#lang olai\n@include frag.rkt\n@include frag2.rkt\n"))
        (define-values (where2 msg2) (where+detail dup))
        (check-true (string-contains? where2 "frag2.rkt") where2)
        (check-true (string-contains? where2 ":3:") where2)
@@ -150,10 +150,10 @@
 
        ;; a cycle in a file that uses @include: the compile-time pass steps
        ;; aside there, so this is the runtime checker talking
-       (write-outline dir "leaf.rkt" "#lang selfflowy\nLeaf\n")
+       (write-outline dir "leaf.rkt" "#lang olai\nLeaf\n")
        (define cyc
          (write-outline dir "cyc.rkt"
-                        (string-append "#lang selfflowy\n"
+                        (string-append "#lang olai\n"
                                        "@include leaf.rkt\n"
                                        "A ^a\n"
                                        "  *b\n"
@@ -172,10 +172,10 @@
     (dynamic-wind
      void
      (λ ()
-       (write-outline dir "frag.rkt" "#lang selfflowy\nInFrag\n")
+       (write-outline dir "frag.rkt" "#lang olai\nInFrag\n")
        (define root
          (write-outline dir "root.rkt"
-                        "#lang selfflowy\nRoot\n  @include frag.rkt\n"))
+                        "#lang olai\nRoot\n  @include frag.rkt\n"))
        (define tasks (load-tasks root))
        (define j (outline->jsexpr root tasks (hash) #:includes '("/tmp/x")))
        (define kids (hash-ref (car (hash-ref j 'tasks)) 'children))
@@ -193,10 +193,10 @@
      (λ ()
        (define frag
          (write-outline dir "frag.rkt"
-                        "#lang selfflowy\nShip it ^ship\n"))
+                        "#lang olai\nShip it ^ship\n"))
        (define root
          (write-outline dir "root.rkt"
-                        "#lang selfflowy\nP\n  @include frag.rkt\n"))
+                        "#lang olai\nP\n  @include frag.rkt\n"))
        (define root-before (file->string root))
        (define frag-before (file->string frag))
        ;; Simulate CLI routing: load root, find defining file, edit frag
@@ -218,7 +218,7 @@
      void
      (λ ()
        (display-to-file
-        "#lang selfflowy\n\nDaily notes ^daily\n  : scratch\n"
+        "#lang olai\n\nDaily notes ^daily\n  : scratch\n"
         (build-path home "Daily.rkt")
         #:exists 'truncate)
        (define r1 (ensure-daily-day! home "2026-08-04"))
@@ -242,7 +242,7 @@
      (λ ()
        (display-to-file
         (string-append
-         "#lang selfflowy\n\n"
+         "#lang olai\n\n"
          "Daily notes ^daily\n"
          "  : note\n"
          "2026\n"
@@ -277,11 +277,11 @@
     (dynamic-wind
      void
      (λ ()
-       (write-outline dir "frag.rkt" "#lang selfflowy\nKid\n")
+       (write-outline dir "frag.rkt" "#lang olai\nKid\n")
        (define root
          (write-outline
           dir "root.rkt"
-          "#lang selfflowy/sexp\n(t \"P\" (include \"frag.rkt\"))\n"))
+          "#lang olai/sexp\n(t \"P\" (include \"frag.rkt\"))\n"))
        (define tasks (load-tasks root))
        (check-equal? (map task-title (task-children (car tasks))) '("Kid")))
      (λ () (delete-directory/files dir)))))

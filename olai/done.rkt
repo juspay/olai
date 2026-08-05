@@ -1,11 +1,11 @@
 #lang racket/base
 
-;; Mark / unmark done in outline (#lang selfflowy) source text.
-;; Two argument sets for the metadata engine (selfflowy/meta): insert an
+;; Mark / unmark done in outline (#lang olai) source text.
+;; Two argument sets for the metadata engine (olai/meta): insert an
 ;; @done line, or drop it and un-check the title.
 
-(require selfflowy/fail
-         selfflowy/meta)
+(require olai/fail
+         olai/meta)
 
 (provide mark-done-in-text
          undo-done-in-text

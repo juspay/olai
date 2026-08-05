@@ -28,11 +28,11 @@
          racket/path
          racket/port
          syntax/modread
-         (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/lang/walk
-         selfflowy/load
+         (except-in olai/lang/expander #%module-begin)
+         olai/lang/walk
+         olai/load
          ;; one owner for how a file is named in the UI
-         (only-in selfflowy/paths file-label))
+         (only-in olai/paths file-label))
 
 ;; Handlers hold a store for the life of the process and read a snapshot per
 ;; request: the two things that must not be confused with each other, or with
@@ -59,7 +59,7 @@
 ;;                which is what the durable JSON serializes
 ;;   files-data : (listof (list path tasks)) — render's input: the same trees
 ;;                with every mirror site already bound to its node
-;;                (selfflowy/lang/walk, resolve-mirrors)
+;;                (olai/lang/walk, resolve-mirrors)
 ;;   index      : hash node-id -> (list task breadcrumb)
 ;;   watch      : (listof path) roots + transitive @include fragments
 (struct snapshot (outlines files-data index watch) #:transparent)
@@ -79,8 +79,8 @@
 ;; struct type and works inside the packaged binary, where these modules are
 ;; embedded and cannot be found by collection path.
 (define attached-modules
-  '(selfflowy/lang/expander
-    selfflowy/lang/reader))
+  '(olai/lang/expander
+    olai/lang/reader))
 
 (define (make-outline-namespace src)
   (define ns (parameterize ([current-namespace src]) (make-base-empty-namespace)))

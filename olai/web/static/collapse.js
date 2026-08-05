@@ -2,7 +2,7 @@
 // data-collapse-key. Unvisited keys keep whatever the server rendered, so
 // render-time defaults survive. htmx swaps re-apply through the same pass.
 (function(){
-  var KEY='selfflowy.collapsed',state={};
+  var KEY='olai.collapsed',state={};
   try{state=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){state={}}
   function set(n,c){
     n.classList.toggle('is-collapsed',c);

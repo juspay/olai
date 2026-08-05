@@ -14,14 +14,14 @@
          racket/file
          racket/path
          racket/string
-         selfflowy/capture
-         selfflowy/daily
-         selfflowy/dates
-         selfflowy/done
-         selfflowy/edit
-         selfflowy/load
-         selfflowy/move
-         selfflowy/resolve)
+         olai/capture
+         olai/daily
+         olai/dates
+         olai/done
+         olai/edit
+         olai/load
+         olai/move
+         olai/resolve)
 
 ;; The write surface: the CLI calls it, the web mutation routes will. Both
 ;; get told what an op takes and what its result carries — including that a
@@ -153,7 +153,7 @@
                              (locate (load-outline-or-fail root-path) parent))))]
       [else root-path]))
   (define original
-    (if (file-exists? path) (file->string path) "#lang selfflowy\n"))
+    (if (file-exists? path) (file->string path) "#lang olai\n"))
   (define-values (new-text line created-inbox?)
     (as-validation path
                    (λ () (append-capture original title

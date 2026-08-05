@@ -2,7 +2,7 @@
 
 (require rackunit
          racket/string
-         selfflowy/capture)
+         olai/capture)
 
 (module+ test
   (test-case "format-capture-lines"
@@ -13,13 +13,13 @@
 
   (test-case "append-capture creates Inbox"
     (define-values (new line created?)
-      (append-capture "#lang selfflowy\n" "hello"))
+      (append-capture "#lang olai\n" "hello"))
     (check-true created?)
     (check-true (string-contains? new "Inbox\n  hello\n") new))
 
   (test-case "append-capture under existing Inbox preserves neighbors"
     (define src
-      "#lang selfflowy\n\nInbox\n  old\n\nOther\n  z\n")
+      "#lang olai\n\nInbox\n  old\n\nOther\n  z\n")
     (define-values (new line created?)
       (append-capture src "new" #:date "2026-02-02"))
     (check-false created?)

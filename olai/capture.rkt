@@ -6,8 +6,8 @@
 (require racket/list
          racket/match
          racket/string
-         selfflowy/fail
-         selfflowy/lang/line)
+         olai/fail
+         olai/lang/line)
 
 (provide format-capture-lines
          find-inbox-insert

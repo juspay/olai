@@ -1,4 +1,4 @@
-# The ACP agent `selfflowy serve` spawns. npm is the only channel the
+# The ACP agent `olai serve` spawns. npm is the only channel the
 # adapter ships through, so it gets the npins treatment: a committed
 # lockfile in acp/, one fixed-output derivation (npmDepsHash) for the
 # tarballs, nothing fetched at build time and no npx at run time.
@@ -11,7 +11,7 @@
 { lib, stdenv, buildNpmPackage, makeWrapper, nodejs, patchelf, ripgrep, procps }:
 
 buildNpmPackage {
-  pname = "selfflowy-acp-agent";
+  pname = "olai-acp-agent";
   version = "0.64.2"; # tracks @agentclientprotocol/claude-agent-acp
   # ./. would also pull in this default.nix; keep the src (and its hash)
   # to just the two files the build actually reads.
@@ -41,7 +41,7 @@ buildNpmPackage {
     let
       # npm's own platform naming: linux-x64, darwin-arm64, ...
       nodeArch = "${stdenv.hostPlatform.node.platform}-${stdenv.hostPlatform.node.arch}";
-      mods = "$out/lib/node_modules/selfflowy-acp/node_modules";
+      mods = "$out/lib/node_modules/olai-acp/node_modules";
     in
     ''
       entry="${mods}/@agentclientprotocol/claude-agent-acp/dist/index.js"
@@ -72,7 +72,7 @@ buildNpmPackage {
   # and declaring that unfree would make `nix build` demand
   # allowUnfree from every consumer of this flake.
   meta = with lib; {
-    description = "Claude Code ACP adapter, pinned for selfflowy serve";
+    description = "Claude Code ACP adapter, pinned for olai serve";
     mainProgram = "claude-agent-acp";
     platforms = platforms.unix;
   };

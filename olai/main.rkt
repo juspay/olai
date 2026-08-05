@@ -3,10 +3,10 @@
 ;; Public library surface: task data model, agenda query, web renderers.
 ;; CLI is app code, not re-exported here.
 
-(require (except-in selfflowy/lang/expander #%module-begin)
-         (only-in selfflowy/lang/walk find-task-by-id find-tasks-by-title)
-         selfflowy/agenda
-         selfflowy/web/render)
+(require (except-in olai/lang/expander #%module-begin)
+         (only-in olai/lang/walk find-task-by-id find-tasks-by-title)
+         olai/agenda
+         olai/web/render)
 
 (provide task
          make-task

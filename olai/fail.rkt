@@ -6,7 +6,7 @@
 ;; invariant — it is answering the user. `(error 'mark-done-in-text ...)` put
 ;; the name of a private function in front of that answer, so the CLI printed
 ;;
-;;   selfflowy: mark-done-in-text: already done: "Buy milk" (line 5)
+;;   olai: mark-done-in-text: already done: "Buy milk" (line 5)
 ;;
 ;; and agents got the same string in their JSON `message`. Three modules had
 ;; grown their own copy of "raise without a who:" to avoid it.

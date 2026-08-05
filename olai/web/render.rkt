@@ -7,7 +7,7 @@
 ;;
 ;; DATA IN — files-data: (listof (list label tasks)), label a path or a
 ;; string. `tasks` is a RESOLVED tree: every mirror site already carries the
-;; node it mirrors (selfflowy/lang/walk, resolve-mirrors). This module draws
+;; node it mirrors (olai/lang/walk, resolve-mirrors). This module draws
 ;; what it is given and looks nothing up — an unresolved mirror is a state a
 ;; marker is drawn in, not a hash miss in the middle of a recursion.
 ;;
@@ -24,13 +24,13 @@
          racket/runtime-path
          (only-in json jsexpr->string)
          (only-in xml cdata xexpr->string)
-         (except-in selfflowy/lang/expander #%module-begin)
+         (except-in olai/lang/expander #%module-begin)
          ;; the resolved shape of a mirror site (core owns the binding)
-         (only-in selfflowy/lang/walk mirror-site? mirror-site-of mirror-site-task)
-         selfflowy/dates
+         (only-in olai/lang/walk mirror-site? mirror-site-of mirror-site-task)
+         olai/dates
          ;; one owner for how a file is named in the UI (core, not web)
-         (only-in selfflowy/paths file-label)
-         selfflowy/web/markdown)
+         (only-in olai/paths file-label)
+         olai/web/markdown)
 
 ;; Contracts on the drawing surface check the INPUT shape — a task, a
 ;; files-data list, an ISO `today` string — and say only `list?` about the
@@ -434,7 +434,7 @@
       [else '()]))
   `(aside ((class "sf-sidebar") (id "sf-sidebar"))
           (div ((class "sf-brand"))
-               (a ((class "sf-brand-link") (href ,home-href)) "selfflowy"))
+               (a ((class "sf-brand-link") (href ,home-href)) "olai"))
           (nav ((class "sf-sidebar-nav"))
                ,(if today-href
                     `(a ((class "sf-nav-item") (href ,today-href))
@@ -496,7 +496,7 @@
       `(div ((id "sf-live")) ,slot ,main)))
 
 (define (render-page main
-                     #:title [title "selfflowy"]
+                     #:title [title "olai"]
                      #:sidebar [sidebar #f]
                      #:banner [banner #f]
                      #:sse-connect [sse-connect #f]

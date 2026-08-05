@@ -4,9 +4,9 @@
 ;; Plain-text formatting only (no ANSI). Printing/clock live in the CLI.
 
 (require racket/string
-         (except-in selfflowy/lang/expander #%module-begin) ; task
-         selfflowy/dates
-         selfflowy/query)
+         (except-in olai/lang/expander #%module-begin) ; task
+         olai/dates
+         olai/query)
 
 (provide (struct-out dated-task)
          collect-dated

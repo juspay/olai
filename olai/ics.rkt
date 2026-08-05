@@ -8,10 +8,10 @@
          racket/path
          racket/string
          file/sha1
-         (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/calendar
-         selfflowy/dates
-         (only-in selfflowy/paths file-label))
+         (except-in olai/lang/expander #%module-begin)
+         olai/calendar
+         olai/dates
+         (only-in olai/paths file-label))
 
 (provide tasks->ics
          ics-escape
@@ -51,7 +51,7 @@
         (bytes->hex-string
          (sha1-bytes (string->bytes/utf-8
                       (format "~a\0~a\0~a" path title date))))))
-  (format "~a@selfflowy" base))
+  (format "~a@olai" base))
 
 (define (vevent path-str it)
   (define date (cal-item-date it))
@@ -83,7 +83,7 @@
   (string-append
    "BEGIN:VCALENDAR\r\n"
    "VERSION:2.0\r\n"
-   "PRODID:-//selfflowy//EN\r\n"
+   "PRODID:-//olai//EN\r\n"
    "CALSCALE:GREGORIAN\r\n"
    (string-join events "\r\n")
    (if (null? events) "" "\r\n")

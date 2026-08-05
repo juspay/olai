@@ -2,7 +2,7 @@
 
 ;; The ACP client: one subprocess, one protocol, no browser.
 ;;
-;; `selfflowy serve` spawns an agent that speaks the Agent Client Protocol
+;; `olai serve` spawns an agent that speaks the Agent Client Protocol
 ;; (JSON-RPC 2.0, one object per line, over stdio). Everything about that
 ;; protocol stops here — nothing else spells "session/prompt" — and nothing in
 ;; here knows what a page, a frame or an SSE event is. What a caller gets is a
@@ -56,8 +56,8 @@
          racket/contract
          racket/path
          racket/string
-         (only-in selfflowy/fail user-fail)
-         (only-in selfflowy/ops exn:fail:op))
+         (only-in olai/fail user-fail)
+         (only-in olai/ops exn:fail:op))
 
 ;; The surface a caller sees. `make-acp-client` is told how to reach the agent
 ;; (a command, a directory) and where to put what it hears; every other export

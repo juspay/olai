@@ -2,12 +2,12 @@
 
 (require rackunit
          racket/string
-         selfflowy/done)
+         olai/done)
 
 (module+ test
   (define sample
     #<<EOF
-#lang selfflowy
+#lang olai
 
 Inbox
   Buy milk
@@ -40,26 +40,26 @@ EOF
     (check-equal? line 8))
 
   (test-case "mark-done after title with no meta"
-    (define src "#lang selfflowy\nSolo\n")
+    (define src "#lang olai\nSolo\n")
     (define-values (new line)
       (mark-done-in-text src "Solo" "2026-08-03"))
-    (check-equal? new "#lang selfflowy\nSolo\n  @done 2026-08-03\n")
+    (check-equal? new "#lang olai\nSolo\n  @done 2026-08-03\n")
     (check-equal? line 3))
 
   (test-case "mark-done rejects already done via @done"
-    (define src "#lang selfflowy\nX\n  @done 2026-01-01\n")
+    (define src "#lang olai\nX\n  @done 2026-01-01\n")
     (check-exn
      (λ (e) (regexp-match? #rx"(?i:already done)" (exn-message e)))
      (λ () (mark-done-in-text src "X" "2026-08-03"))))
 
   (test-case "mark-done rejects already done via [x]"
-    (define src "#lang selfflowy\n[x] X\n")
+    (define src "#lang olai\n[x] X\n")
     (check-exn
      (λ (e) (regexp-match? #rx"(?i:already done)" (exn-message e)))
      (λ () (mark-done-in-text src "X" "2026-08-03"))))
 
   (test-case "undo removes @done"
-    (define src "#lang selfflowy\nX\n  : note\n  @done 2026-08-03\n  Child\n")
+    (define src "#lang olai\nX\n  : note\n  @done 2026-08-03\n  Child\n")
     (define-values (new line)
       (undo-done-in-text src "X"))
     (check-false (string-contains? new "@done") new)
@@ -68,7 +68,7 @@ EOF
     (check-equal? line 2))
 
   (test-case "undo strips [x] prefix"
-    (define src "#lang selfflowy\n[x] Finished\n  : note\n")
+    (define src "#lang olai\n[x] Finished\n  : note\n")
     (define-values (new line)
       (undo-done-in-text src "Finished"))
     (check-true (regexp-match? #rx"(?m:^Finished$)" new) new)

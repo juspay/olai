@@ -10,16 +10,16 @@
 
 (define root
   (simplify-path
-   (build-path (collection-file-path "info.rkt" "selfflowy") 'up 'up)))
+   (build-path (collection-file-path "info.rkt" "olai") 'up 'up)))
 
 (define example (build-path root "examples" "Example.rkt"))
 
-(define (run-selfflowy args)
+(define (run-olai args)
   (define-values (sp stdout stdin stderr)
     (apply subprocess
            #f #f #f
            (find-executable-path "racket")
-           "-l" "selfflowy/cli"
+           "-l" "olai/cli"
            "--"
            args))
   (close-output-port stdin)
@@ -35,13 +35,13 @@
 
 (module+ test
   (test-case "check example succeeds"
-    (define-values (code out err) (run-selfflowy (list "check" (path->string example))))
+    (define-values (code out err) (run-olai (list "check" (path->string example))))
     (check-equal? code 0 out)
     (check-regexp-match #rx"^ok:" out))
 
   (test-case "check --json shape"
     (define-values (code out err)
-      (run-selfflowy (list "check" "--json" (path->string example))))
+      (run-olai (list "check" "--json" (path->string example))))
     (check-equal? code 0 (string-append out err))
     (define j (parse-json out))
     (check-equal? (hash-ref j 'version) 1)
@@ -51,7 +51,7 @@
 
   (test-case "tree is always JSON (with or without --json)"
     (define-values (code out err)
-      (run-selfflowy (list "tree" (path->string example))))
+      (run-olai (list "tree" (path->string example))))
     (check-equal? code 0 (string-append out err))
     (define j (parse-json out))
     (check-equal? (hash-ref j 'version) 1)
@@ -68,13 +68,13 @@
     ;; the stored field and what it means travel together
     (check-equal? (hash-ref inbox 'status) "open"))
     (define-values (c2 o2 e2)
-      (run-selfflowy (list "tree" "--json" (path->string example))))
+      (run-olai (list "tree" "--json" (path->string example))))
     (check-equal? c2 0 e2)
     (check-equal? (hash-ref (parse-json o2) 'version) 1))
 
   (test-case "agenda --json shape"
     (define-values (code out err)
-      (run-selfflowy (list "agenda" "--json" (path->string example))))
+      (run-olai (list "agenda" "--json" (path->string example))))
     (check-equal? code 0 (string-append out err))
     (define j (parse-json out))
     (check-equal? (hash-ref j 'version) 1)
@@ -89,13 +89,13 @@
 
   (test-case "check missing file exits 3"
     (define-values (code out err)
-      (run-selfflowy (list "check" "/tmp/selfflowy-no-such-file-xyz.rkt")))
+      (run-olai (list "check" "/tmp/olai-no-such-file-xyz.rkt")))
     (check-equal? code 3)
     (check-regexp-match #rx"not found" err))
 
   (test-case "check missing file --json exits 3 with error object"
     (define-values (code out err)
-      (run-selfflowy (list "check" "--json" "/tmp/selfflowy-no-such-file-xyz.rkt")))
+      (run-olai (list "check" "--json" "/tmp/olai-no-such-file-xyz.rkt")))
     (check-equal? code 3)
     (define j (parse-json err))
     (check-equal? (hash-ref j 'ok) #f)
@@ -108,10 +108,10 @@
      void
      (λ ()
        (display-to-file
-        "#lang selfflowy\nbad\n  @date bogus\n"
+        "#lang olai\nbad\n  @date bogus\n"
         tmp #:exists 'truncate)
        (define-values (code out err)
-         (run-selfflowy (list "check" "--json" (path->string tmp))))
+         (run-olai (list "check" "--json" (path->string tmp))))
        (check-equal? code 2)
        (define j (parse-json err))
        (check-equal? (hash-ref j 'ok) #f)
@@ -120,7 +120,7 @@
      (λ () (delete-file tmp))))
 
   (test-case "usage error exits 1"
-    (define-values (code out err) (run-selfflowy '()))
+    (define-values (code out err) (run-olai '()))
     (check-equal? code 1))
 
   (test-case "add creates Inbox and preserves content"
@@ -130,10 +130,10 @@
      void
      (λ ()
        (display-to-file
-        "#lang selfflowy\n\nSomeday\n  Later idea\n"
+        "#lang olai\n\nSomeday\n  Later idea\n"
         f #:exists 'truncate)
        (define-values (code out err)
-         (run-selfflowy
+         (run-olai
           (list "add" "--json" "--no-commit" "--file" (path->string f)
                 "buy" "oat" "milk")))
        (check-equal? code 0 (string-append out err))
@@ -149,7 +149,7 @@
        (check-true (string-contains? text "buy oat milk") text)
        ;; still loads
        (define-values (c2 o2 e2)
-         (run-selfflowy (list "check" "--json" (path->string f))))
+         (run-olai (list "check" "--json" (path->string f))))
        (check-equal? c2 0 e2))
      (λ () (delete-directory/files dir))))
 
@@ -160,10 +160,10 @@
      void
      (λ ()
        (display-to-file
-        "#lang selfflowy\n\nInbox\n  already here\n\nOther\n  x\n"
+        "#lang olai\n\nInbox\n  already here\n\nOther\n  x\n"
         f #:exists 'truncate)
        (define-values (code out err)
-         (run-selfflowy
+         (run-olai
           (list "add" "--no-commit" "--file" (path->string f)
                 "--date" "2026-09-01" "new task")))
        (check-equal? code 0 (string-append out err))
@@ -186,11 +186,11 @@
          (system* (find-executable-path "git") "init" "-q")
          (system* (find-executable-path "git") "config" "user.email" "t@t.test")
          (system* (find-executable-path "git") "config" "user.name" "t")
-         (display-to-file "#lang selfflowy\n" f #:exists 'truncate)
+         (display-to-file "#lang olai\n" f #:exists 'truncate)
          (system* (find-executable-path "git") "add" "Tasks.rkt")
          (system* (find-executable-path "git") "commit" "-q" "-m" "init"))
        (define-values (code out err)
-         (run-selfflowy
+         (run-olai
           (list "add" "--json" "--file" (path->string f) "committed item")))
        (check-equal? code 0 (string-append out err))
        (define j (parse-json out))
@@ -209,10 +209,10 @@
     (dynamic-wind
      void
      (λ ()
-       (define original "#lang selfflowy\n\nKeepme\n")
+       (define original "#lang olai\n\nKeepme\n")
        (display-to-file original f #:exists 'truncate)
        (define-values (code out err)
-         (run-selfflowy
+         (run-olai
           (list "add" "--json" "--no-commit" "--file" (path->string f)
                 "--date" "2026-13-01" "bad date task")))
        (check-equal? code 1)
@@ -229,7 +229,7 @@
        (define original "not a module\n")
        (display-to-file original f #:exists 'truncate)
        (define-values (code out err)
-         (run-selfflowy
+         (run-olai
           (list "add" "--json" "--no-commit" "--file" (path->string f)
                 "orphan")))
        (check-equal? code 2)
@@ -248,12 +248,12 @@
          (system* (find-executable-path "git") "config" "user.email" "t@t.test")
          (system* (find-executable-path "git") "config" "user.name" "t")
          (display-to-file
-          "#lang selfflowy\n\nInbox\n  Ship it\n    @date 2026-08-01\n"
+          "#lang olai\n\nInbox\n  Ship it\n    @date 2026-08-01\n"
           f #:exists 'truncate)
          (system* (find-executable-path "git") "add" "Tasks.rkt")
          (system* (find-executable-path "git") "commit" "-q" "-m" "init"))
        (define-values (code out err)
-         (run-selfflowy
+         (run-olai
           (list "done" "--json" "--file" (path->string f) "Ship" "it")))
        (check-equal? code 0 (string-append out err))
        (define j (parse-json out))
@@ -272,7 +272,7 @@
        (check-true (string-contains? log1 "done: Ship it") log1)
        ;; tree JSON has done timestamp
        (define-values (c2 o2 e2)
-         (run-selfflowy (list "tree" (path->string f))))
+         (run-olai (list "tree" (path->string f))))
        (check-equal? c2 0 e2)
        (define tree (parse-json o2))
        (define ship
@@ -282,7 +282,7 @@
        (check-equal? (hash-ref ship 'status) "done")
        ;; undo
        (define-values (c3 o3 e3)
-         (run-selfflowy
+         (run-olai
           (list "done" "--json" "--undo" "--file" (path->string f) "Ship it")))
        (check-equal? c3 0 (string-append o3 e3))
        (define j3 (parse-json o3))
@@ -305,10 +305,10 @@
     (dynamic-wind
      void
      (λ ()
-       (display-to-file "#lang selfflowy\nShip it\n  @done 2026-08-01\n"
+       (display-to-file "#lang olai\nShip it\n  @done 2026-08-01\n"
                         f #:exists 'truncate)
        (define-values (code out err)
-         (run-selfflowy
+         (run-olai
           (list "done" "--json" "--no-commit" "--file" (path->string f)
                 "Ship it")))
        (check-equal? code 2 (string-append out err))
@@ -317,9 +317,9 @@
        (check-false (string-contains? msg "mark-done-in-text") msg)
        (check-false (string-contains? msg "-in-text") msg)
        ;; and the same for the other direction
-       (display-to-file "#lang selfflowy\nShip it\n" f #:exists 'truncate)
+       (display-to-file "#lang olai\nShip it\n" f #:exists 'truncate)
        (define-values (c2 o2 e2)
-         (run-selfflowy
+         (run-olai
           (list "done" "--json" "--undo" "--no-commit" "--file" (path->string f)
                 "Ship it")))
        (check-equal? c2 2 (string-append o2 e2))
@@ -334,9 +334,9 @@
     (dynamic-wind
      void
      (λ ()
-       (display-to-file "#lang selfflowy\nOnly\n" f #:exists 'truncate)
+       (display-to-file "#lang olai\nOnly\n" f #:exists 'truncate)
        (define-values (code out err)
-         (run-selfflowy
+         (run-olai
           (list "done" "--json" "--no-commit" "--file" (path->string f)
                 "Missing")))
        (check-equal? code 2)
@@ -353,10 +353,10 @@
      void
      (λ ()
        (display-to-file
-        "#lang selfflowy\nDup\nOther\n  Dup\n"
+        "#lang olai\nDup\nOther\n  Dup\n"
         f #:exists 'truncate)
        (define-values (code out err)
-         (run-selfflowy
+         (run-olai
           (list "done" "--json" "--no-commit" "--file" (path->string f)
                 "Dup")))
        (check-equal? code 2)
@@ -365,7 +365,7 @@
        (check-true (regexp-match? #px":2" msg) msg)
        (check-true (regexp-match? #px":4" msg) msg)
        (check-equal? (file->string f)
-                     "#lang selfflowy\nDup\nOther\n  Dup\n"))
+                     "#lang olai\nDup\nOther\n  Dup\n"))
      (λ () (delete-directory/files dir))))
 
   (test-case "done ^anchor reports resolved title in JSON"
@@ -375,10 +375,10 @@
      void
      (λ ()
        (display-to-file
-        "#lang selfflowy\nShip the agent ^agent\n"
+        "#lang olai\nShip the agent ^agent\n"
         f #:exists 'truncate)
        (define-values (code out err)
-         (run-selfflowy
+         (run-olai
           (list "done" "--json" "--no-commit" "--file" (path->string f)
                 "^agent")))
        (check-equal? code 0 (string-append out err))
@@ -398,12 +398,12 @@
          (system* (find-executable-path "git") "init" "-q")
          (system* (find-executable-path "git") "config" "user.email" "t@t.test")
          (system* (find-executable-path "git") "config" "user.name" "t")
-         (display-to-file "#lang selfflowy\n" (build-path home "Daily.rkt")
+         (display-to-file "#lang olai\n" (build-path home "Daily.rkt")
                           #:exists 'truncate)
          (system* (find-executable-path "git") "add" "Daily.rkt")
          (system* (find-executable-path "git") "commit" "-q" "-m" "init"))
        (define-values (code out err)
-         (run-selfflowy
+         (run-olai
           (list "daily" "--json" "--home" (path->string home)
                 "--date" "2026-08-04")))
        (check-equal? code 0 (string-append out err))
@@ -427,14 +427,14 @@
        (check-equal? (string-trim dirty) "" dirty)
        ;; nothing to do the second time: nothing to commit either
        (define-values (c2 o2 e2)
-         (run-selfflowy
+         (run-olai
           (list "daily" "--json" "--home" (path->string home)
                 "--date" "2026-08-04")))
        (check-equal? c2 0 (string-append o2 e2))
        (check-equal? (hash-ref (parse-json o2) 'committed) #f)
        ;; and --no-commit leaves the change uncommitted
        (define-values (c3 o3 e3)
-         (run-selfflowy
+         (run-olai
           (list "daily" "--json" "--no-commit" "--home" (path->string home)
                 "--date" "2026-08-05")))
        (check-equal? c3 0 (string-append o3 e3))
@@ -443,19 +443,19 @@
 
   ;; Every writer emits outline syntax, so the write path refuses a sexp file
   ;; rather than each command remembering to.
-  (test-case "writes refuse a #lang selfflowy/sexp file"
+  (test-case "writes refuse a #lang olai/sexp file"
     (define dir (make-temporary-file "sfsexpguard~a" 'directory))
     (define f (build-path dir "Tasks.rkt"))
     (dynamic-wind
      void
      (λ ()
-       (define original "#lang selfflowy/sexp\n(t \"Ship it\")\n")
+       (define original "#lang olai/sexp\n(t \"Ship it\")\n")
        (display-to-file original f #:exists 'truncate)
        (for ([args (in-list (list (list "add" "--json" "--no-commit"
                                         "--file" (path->string f) "new")
                                   (list "done" "--json" "--no-commit"
                                         "--file" (path->string f) "Ship it")))])
-         (define-values (code out err) (run-selfflowy args))
+         (define-values (code out err) (run-olai args))
          (check-equal? code 2 (string-append out err))
          (define msg (hash-ref (hash-ref (parse-json err) 'error) 'message))
          (check-true (regexp-match? #px"sexp" msg) msg))
@@ -469,12 +469,12 @@
     (dynamic-wind
      void
      (λ ()
-       (display-to-file "#lang selfflowy\nA\n" good #:exists 'truncate)
-       (display-to-file "#lang selfflowy\nB\n" (build-path dir "other.rkt")
+       (display-to-file "#lang olai\nA\n" good #:exists 'truncate)
+       (display-to-file "#lang olai\nB\n" (build-path dir "other.rkt")
                         #:exists 'truncate)
        (define other (build-path dir "other.rkt"))
        (define-values (c1 o1 e1)
-         (run-selfflowy
+         (run-olai
           (list "check" "--json"
                 (path->string good) (path->string other))))
        (check-equal? c1 0 (string-append o1 e1))
@@ -483,16 +483,16 @@
        (check-true (list? (hash-ref j1 'files)))
        (check-equal? (length (hash-ref j1 'files)) 2)
        (define-values (cplain oplain eplain)
-         (run-selfflowy
+         (run-olai
           (list "check" (path->string good) (path->string other))))
        (check-equal? cplain 0 eplain)
        (check-true (regexp-match? #rx"ok:.*good\\.rkt" oplain) oplain)
        (check-true (regexp-match? #rx"ok:.*other\\.rkt" oplain) oplain)
        ;; one bad
-       (display-to-file "#lang selfflowy\nX\n  @date bogus\n" bad
+       (display-to-file "#lang olai\nX\n  @date bogus\n" bad
                         #:exists 'truncate)
        (define-values (c2 o2 e2)
-         (run-selfflowy
+         (run-olai
           (list "check" "--json"
                 (path->string good) (path->string bad))))
        (check-equal? c2 2)
@@ -503,7 +503,7 @@
        (check-equal? (hash-ref (car files) 'ok) #t)
        (check-equal? (hash-ref (cadr files) 'ok) #f)
        (define-values (c3 o3 e3)
-         (run-selfflowy
+         (run-olai
           (list "check" (path->string good) (path->string bad))))
        (check-equal? c3 2)
        (check-true (regexp-match? #rx"ok:.*good\\.rkt" o3) o3)
@@ -517,10 +517,10 @@
     (dynamic-wind
      void
      (λ ()
-       (display-to-file "#lang selfflowy\nA\n" a #:exists 'truncate)
-       (display-to-file "#lang selfflowy\nB\n" b #:exists 'truncate)
+       (display-to-file "#lang olai\nA\n" a #:exists 'truncate)
+       (display-to-file "#lang olai\nB\n" b #:exists 'truncate)
        (define-values (code out err)
-         (run-selfflowy
+         (run-olai
           (list "tree" (path->string a) (path->string b))))
        (check-equal? code 0 (string-append out err))
        (define j (parse-json out))
@@ -538,13 +538,13 @@
      void
      (λ ()
        (display-to-file
-        "#lang selfflowy\nMilk\n  @date 2026-07-01\n"
+        "#lang olai\nMilk\n  @date 2026-07-01\n"
         a #:exists 'truncate)
        (display-to-file
-        "#lang selfflowy\nLater\n  @date 2026-12-01\n"
+        "#lang olai\nLater\n  @date 2026-12-01\n"
         b #:exists 'truncate)
        (define-values (code out err)
-         (run-selfflowy
+         (run-olai
           (list "agenda" "--json" (path->string a) (path->string b))))
        (check-equal? code 0 (string-append out err))
        (define j (parse-json out))

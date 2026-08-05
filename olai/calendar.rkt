@@ -7,9 +7,9 @@
          racket/set
          racket/string
          racket/format
-         (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/dates
-         selfflowy/query
+         (except-in olai/lang/expander #%module-begin)
+         olai/dates
+         olai/query
          (only-in gregor
                   date
                   +months

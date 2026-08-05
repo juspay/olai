@@ -13,7 +13,7 @@
          (only-in markdown parse-markdown)
          (only-in xml xexpr->string)
          ;; the tag grammar has one owner; this module only draws the pills
-         (only-in selfflowy/lang/tags tag-rx))
+         (only-in olai/lang/tags tag-rx))
 
 (provide sanitize-xexpr
          title->inline-xexprs

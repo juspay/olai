@@ -4,7 +4,7 @@
 { lib, stdenv, racket, makeWrapper, tzdata, racketDeps, racketPkgs, src }:
 
 stdenv.mkDerivation {
-  pname = "selfflowy";
+  pname = "olai";
   version = "0.1.0";
   inherit src;
   nativeBuildInputs = [ racket makeWrapper ];
@@ -25,31 +25,31 @@ stdenv.mkDerivation {
     ln -sfn "${tzdata}/share/zoneinfo" \
       "$PLTUSERHOME/.local/share/racket/9.2/share/tzdata/zoneinfo"
 
-    cp -a "$src/selfflowy" ./selfflowy-pkg
-    chmod -R u+w ./selfflowy-pkg
+    cp -a "$src/olai" ./olai-pkg
+    chmod -R u+w ./olai-pkg
 
     # Offline install of npins-vendored deps (order matters).
     # --deps force: markdown wants package name "parsack"; we ship
-    # parsack-lib. selfflowy wants "gregor"; we ship gregor-lib.
+    # parsack-lib. olai wants "gregor"; we ship gregor-lib.
     ${lib.concatMapStringsSep "\n" (p: ''
       echo "raco pkg install ${p.name}"
       raco pkg install --copy --no-docs --deps force --batch "${racketDeps}/${p.name}"
     '') racketPkgs}
 
-    raco pkg install --no-docs --deps force --link ./selfflowy-pkg
+    raco pkg install --no-docs --deps force --link ./olai-pkg
 
-    raco exe ++lang selfflowy -o selfflowy-bin \
-      "$(racket -e '(display (path->string (collection-file-path "cli.rkt" "selfflowy")))')"
-    raco distribute dist selfflowy-bin
+    raco exe ++lang olai -o olai-bin \
+      "$(racket -e '(display (path->string (collection-file-path "cli.rkt" "olai")))')"
+    raco distribute dist olai-bin
   '';
 
   installPhase = ''
     mkdir -p $out
     cp -a dist/. $out/
-    test -x $out/bin/selfflowy-bin
+    test -x $out/bin/olai-bin
     # Wrap with TZDIR so gregor finds zoneinfo outside /usr/share
-    mv $out/bin/selfflowy-bin $out/bin/.selfflowy-wrapped
-    makeWrapper $out/bin/.selfflowy-wrapped $out/bin/selfflowy \
+    mv $out/bin/olai-bin $out/bin/.olai-wrapped
+    makeWrapper $out/bin/.olai-wrapped $out/bin/olai \
       --set TZDIR "${tzdata}/share/zoneinfo" \
       --prefix PATH : "${tzdata}/bin"
     mkdir -p $out/share/tzdata
@@ -57,8 +57,8 @@ stdenv.mkDerivation {
   '';
 
   meta = with lib; {
-    description = "selfflowy CLI — validate and render #lang selfflowy outlines";
-    mainProgram = "selfflowy";
+    description = "olai CLI — validate and render #lang olai outlines";
+    mainProgram = "olai";
     license = licenses.agpl3Plus;
   };
 }

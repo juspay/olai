@@ -20,7 +20,7 @@
 
 (require racket/contract
          racket/list
-         (except-in selfflowy/lang/expander #%module-begin))
+         (except-in olai/lang/expander #%module-begin))
 
 ;; The mirror policy is an argument, so it is contracted: 'skip or 'visit and
 ;; nothing else. `proc` is checked for arity only — a (-> any/c list? any/c

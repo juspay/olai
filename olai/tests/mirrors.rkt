@@ -6,19 +6,19 @@
          racket/hash
          racket/string
          json
-         (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/lang/outline
-         selfflowy/json/model
-         selfflowy/json/reply
-         (only-in selfflowy/query count-tasks count-mirrors)
-         (only-in selfflowy/lang/walk resolve-mirrors
+         (except-in olai/lang/expander #%module-begin)
+         olai/lang/outline
+         olai/json/model
+         olai/json/reply
+         (only-in olai/query count-tasks count-mirrors)
+         (only-in olai/lang/walk resolve-mirrors
                   mirror-site? mirror-site-of mirror-site-task)
-         selfflowy/agenda
-         selfflowy/load
-         selfflowy/web/render
+         olai/agenda
+         olai/load
+         olai/web/render
          xml
-         selfflowy/done
-         selfflowy/capture)
+         olai/done
+         olai/capture)
 
 ;; Keys are minted by the load layer, not the module, so these go through it.
 (define (eval-mod src)
@@ -42,7 +42,7 @@
     (define-values (tasks anchors)
       (eval-mod
        #<<EOF
-#lang selfflowy/sexp
+#lang olai/sexp
 (t "Agent work" #:id "agent"
    (t "notes"))
 (t "This week"
@@ -60,7 +60,7 @@ EOF
     (define-values (tasks anchors)
       (eval-mod
        #<<EOF
-#lang selfflowy
+#lang olai
 Agent work ^agent
   notes
 This week
@@ -78,21 +78,21 @@ EOF
      (λ (e) (regexp-match? #rx"(?i:duplicate)" (exn-message e)))
      (λ ()
        (eval-tasks
-        "#lang selfflowy/sexp\n(t \"A\" #:id \"x\")\n(t \"B\" #:id \"x\")\n"))))
+        "#lang olai/sexp\n(t \"A\" #:id \"x\")\n(t \"B\" #:id \"x\")\n"))))
 
   (test-case "unknown mirror rejected"
     (check-exn
      (λ (e) (regexp-match? #rx"(?i:unknown)" (exn-message e)))
      (λ ()
        (eval-tasks
-        "#lang selfflowy/sexp\n(t \"A\" (mirror \"missing\"))\n"))))
+        "#lang olai/sexp\n(t \"A\" (mirror \"missing\"))\n"))))
 
   (test-case "direct cycle rejected"
     (check-exn
      (λ (e) (regexp-match? #rx"(?i:cycle)" (exn-message e)))
      (λ ()
        (eval-tasks
-        "#lang selfflowy/sexp\n(t \"A\" #:id \"a\" (mirror \"a\"))\n"))))
+        "#lang olai/sexp\n(t \"A\" #:id \"a\" (mirror \"a\"))\n"))))
 
   (test-case "transitive cycle rejected"
     (check-exn
@@ -100,7 +100,7 @@ EOF
      (λ ()
        (eval-tasks
         #<<EOF
-#lang selfflowy/sexp
+#lang olai/sexp
 (t "A" #:id "a" (mirror "b"))
 (t "B" #:id "b" (mirror "a"))
 EOF
@@ -110,7 +110,7 @@ EOF
     (define-values (tasks anchors)
       (eval-mod
        #<<EOF
-#lang selfflowy/sexp
+#lang olai/sexp
 (t "A" #:id "a" #:date "2026-01-01")
 (t "B" (mirror "a"))
 EOF
@@ -129,7 +129,7 @@ EOF
     (define-values (tasks anchors)
       (eval-mod
        #<<EOF
-#lang selfflowy/sexp
+#lang olai/sexp
 (t "Milk" #:id "milk" #:date "2026-07-01")
 (t "Elsewhere" (mirror "milk"))
 EOF
@@ -147,7 +147,7 @@ EOF
     (define-values (tasks anchors)
       (eval-mod
        #<<EOF
-#lang selfflowy/sexp
+#lang olai/sexp
 (t "Agent" #:id "agent" (t "sub"))
 (t "Week" (mirror "agent"))
 EOF
@@ -174,7 +174,7 @@ EOF
     (define-values (tasks anchors)
       (eval-mod
        #<<EOF
-#lang selfflowy/sexp
+#lang olai/sexp
 (t "Agent" #:id "agent")
 (t "Week" (mirror "agent"))
 EOF
@@ -192,7 +192,7 @@ EOF
     (define-values (tasks anchors)
       (eval-mod
        #<<EOF
-#lang selfflowy/sexp
+#lang olai/sexp
 (t "Agent" #:id "agent" (t "sub"))
 (t "Week" (mirror "agent"))
 (t "Later" (mirror "agent"))
@@ -220,7 +220,7 @@ EOF
 
   (test-case "done via ^anchor"
     (define src
-      "#lang selfflowy\nShip it ^ship\n  : note\n")
+      "#lang olai\nShip it ^ship\n  : note\n")
     (define-values (new line)
       (mark-done-in-text src "^ship" "2026-08-03"))
     (check-true (string-contains? new "@done 2026-08-03") new)
@@ -231,7 +231,7 @@ EOF
 
   (test-case "add --parent ^anchor"
     (define src
-      "#lang selfflowy\nProject ^proj\n  existing\nOther\n")
+      "#lang olai\nProject ^proj\n  existing\nOther\n")
     (define-values (new line created?)
       (append-capture src "fresh" #:parent "^proj"))
     (check-false created?)

@@ -8,9 +8,9 @@
          racket/list
          racket/path
          racket/string
-         (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/load
-         selfflowy/store)
+         (except-in olai/lang/expander #%module-begin)
+         olai/load
+         olai/store)
 
 (define (with-temp-dir proc)
   (define dir (make-temporary-file "sfstore~a" 'directory))
@@ -30,13 +30,13 @@
     (with-temp-dir
      (λ (dir)
        (define f (build-path dir "Tasks.rkt"))
-       (write-file! f "#lang selfflowy\nInbox\n")
+       (write-file! f "#lang olai\nInbox\n")
        (define st (make-store (list f)))
        (check-equal? (titles (store-snapshot st)) '("Inbox"))
        (check-false (store-error st))
        ;; the module registry would hand back "Inbox" forever; the store
        ;; reloads through a fresh namespace instead
-       (write-file! f "#lang selfflowy\nInbox\nSomeday maybe\n")
+       (write-file! f "#lang olai\nInbox\nSomeday maybe\n")
        (store-invalidate! st)
        (check-equal? (titles (store-snapshot st)) '("Inbox" "Someday maybe"))
        ;; tasks stay real tasks across the reload (one struct type, attached)
@@ -46,9 +46,9 @@
     (with-temp-dir
      (λ (dir)
        (define f (build-path dir "Tasks.rkt"))
-       (write-file! f "#lang selfflowy\nInbox\n  Buy milk\n")
+       (write-file! f "#lang olai\nInbox\n  Buy milk\n")
        (define st (make-store (list f)))
-       (write-file! f "#lang selfflowy\nInbox\n  Buy milk\n    @date nope\n")
+       (write-file! f "#lang olai\nInbox\n  Buy milk\n    @date nope\n")
        (store-invalidate! st)
        (define err (store-error st))
        (check-true (load-error? err))
@@ -62,7 +62,7 @@
        ;; last-good is still being served
        (check-equal? (titles (store-snapshot st)) '("Inbox"))
        ;; and the error clears once the file parses again
-       (write-file! f "#lang selfflowy\nInbox\n  Buy milk\n  Buy bread\n")
+       (write-file! f "#lang olai\nInbox\n  Buy milk\n  Buy bread\n")
        (store-invalidate! st)
        (check-false (store-error st))
        (check-equal? (length (task-children
@@ -74,19 +74,19 @@
     (with-temp-dir
      (λ (dir)
        (define f (build-path dir "Tasks.rkt"))
-       (write-file! f "#lang selfflowy\nInbox\n")
+       (write-file! f "#lang olai\nInbox\n")
        (define st (make-store (list f)))
        (define r0 (store-revision st))
        (check-true (exact-positive-integer? r0))
        ;; nothing changed on disk: an invalidate is a probe, not a reload
        (store-invalidate! st)
        (check-equal? (store-revision st) r0)
-       (write-file! f "#lang selfflowy\nInbox\nSomeday maybe\n")
+       (write-file! f "#lang olai\nInbox\nSomeday maybe\n")
        (store-invalidate! st)
        (check-true (> (store-revision st) r0))
        ;; a file that BREAKS is a change too — the readers grow a banner
        (define r1 (store-revision st))
-       (write-file! f "#lang selfflowy\nInbox\n  @date nope\n")
+       (write-file! f "#lang olai\nInbox\n  @date nope\n")
        (store-invalidate! st)
        (check-true (load-error? (store-error st)))
        (check-true (> (store-revision st) r1))
@@ -101,16 +101,16 @@
        (define root (build-path dir "Daily.rkt"))
        (define mid (build-path dir "Daily" "2026-08.rkt"))
        (define leaf (build-path dir "Daily" "extra.rkt"))
-       (write-file! leaf "#lang selfflowy\n2026-08-04\n")
-       (write-file! mid "#lang selfflowy\nAugust\n  @include extra.rkt\n")
-       (write-file! root "#lang selfflowy\n2026\n  @include Daily/2026-08.rkt\n")
+       (write-file! leaf "#lang olai\n2026-08-04\n")
+       (write-file! mid "#lang olai\nAugust\n  @include extra.rkt\n")
+       (write-file! root "#lang olai\n2026\n  @include Daily/2026-08.rkt\n")
        (define st (make-store (list root)))
        (define watched (map path->string (snapshot-watch (store-snapshot st))))
        (for ([p (in-list (list root mid leaf))])
          (check-not-false (member (path->string (simple-form-path p)) watched)
                           (format "~a not watched: ~a" p watched)))
        ;; editing a fragment two levels down invalidates the snapshot
-       (write-file! leaf "#lang selfflowy\n2026-08-04\n  Ship the store\n")
+       (write-file! leaf "#lang olai\n2026-08-04\n  Ship the store\n")
        (store-invalidate! st)
        (define t (car (outline-tasks (car (snapshot-outlines (store-snapshot st))))))
        (define day (car (task-children (car (task-children t)))))
@@ -132,12 +132,12 @@
     (with-temp-dir
      (λ (dir)
        (define f (build-path dir "Tasks.rkt"))
-       (write-file! f "#lang selfflowy\nProjects\n  Ship it\n    Write the docs\n")
+       (write-file! f "#lang olai\nProjects\n  Ship it\n    Write the docs\n")
        (define st (make-store (list f)))
        (define before (all-keys (store-snapshot st)))
        (define (key-of pairs title) (cadr (assoc title pairs)))
        ;; rename every ancestor of "Write the docs"
-       (write-file! f "#lang selfflowy\nWork\n  Ship the thing\n    Write the docs\n")
+       (write-file! f "#lang olai\nWork\n  Ship the thing\n    Write the docs\n")
        (store-invalidate! st)
        (define after (all-keys (store-snapshot st)))
        (check-equal? (key-of after "Write the docs") (key-of before "Write the docs"))
@@ -150,7 +150,7 @@
     (with-temp-dir
      (λ (dir)
        (define f (build-path dir "Tasks.rkt"))
-       (write-file! f "#lang selfflowy\nInbox\n  Call\n    mum\n  Call\n    dad\n")
+       (write-file! f "#lang olai\nInbox\n  Call\n    mum\n  Call\n    dad\n")
        (define st (make-store (list f)))
        (define snap (store-snapshot st))
        (define calls
@@ -168,13 +168,13 @@
     (with-temp-dir
      (λ (dir)
        (define f (build-path dir "Tasks.rkt"))
-       (write-file! f "#lang selfflowy\nInbox\n  Ship it ^ship\n")
+       (write-file! f "#lang olai\nInbox\n  Ship it ^ship\n")
        (define st (make-store (list f)))
        (define tk (car (task-children
                         (car (outline-tasks (car (snapshot-outlines (store-snapshot st))))))))
        (check-equal? (task-key tk) "ship")
        ;; moved and renamed: still ^ship
-       (write-file! f "#lang selfflowy\nLater\nInbox\n  Sub\n    Ship it now ^ship\n")
+       (write-file! f "#lang olai\nLater\nInbox\n  Sub\n    Ship it now ^ship\n")
        (store-invalidate! st)
        (define snap (store-snapshot st))
        (check-not-false (hash-ref (snapshot-index snap) "ship" #f)))))
@@ -198,8 +198,8 @@
      (λ (dir)
        (define frag (build-path dir "frag.rkt"))
        (define root (build-path dir "root.rkt"))
-       (write-file! frag "#lang selfflowy\nDayA\n  child\nDayB\n")
-       (write-file! root "#lang selfflowy\nParent\n  @include frag.rkt\n")
+       (write-file! frag "#lang olai\nDayA\n  child\nDayB\n")
+       (write-file! root "#lang olai\nParent\n  @include frag.rkt\n")
        (define alone (make-store (list frag)))
        (define via (make-store (list root)))
        (for ([title (in-list '("DayA" "child" "DayB"))])
@@ -213,9 +213,9 @@
        (define frag (build-path dir "Daily" "2026-08.rkt"))
        (define a (build-path dir "A.rkt"))
        (define b (build-path dir "B.rkt"))
-       (write-file! frag "#lang selfflowy\n2026-08-04\n  Ship it\n")
-       (write-file! a "#lang selfflowy\nAlpha\n  @include Daily/2026-08.rkt\n")
-       (write-file! b "#lang selfflowy\nBeta\n  Filler\n  @include Daily/2026-08.rkt\n")
+       (write-file! frag "#lang olai\n2026-08-04\n  Ship it\n")
+       (write-file! a "#lang olai\nAlpha\n  @include Daily/2026-08.rkt\n")
+       (write-file! b "#lang olai\nBeta\n  Filler\n  @include Daily/2026-08.rkt\n")
        ;; both roots in ONE store: the shared node must be one key, so the
        ;; index that keeps first-wins is not hiding a second identity
        (define st (make-store (list a b)))
@@ -235,8 +235,8 @@
      (λ (dir)
        (define a (build-path dir "a" "Daily.rkt"))
        (define b (build-path dir "b" "Daily.rkt"))
-       (write-file! a "#lang selfflowy\nDay\n")
-       (write-file! b "#lang selfflowy\nDay\n")
+       (write-file! a "#lang olai\nDay\n")
+       (write-file! b "#lang olai\nDay\n")
        (define st (make-store (list a b)))
        (define snap (store-snapshot st))
        (define keys
@@ -248,11 +248,11 @@
 
   ;; LAYERING (CLAUDE.md): the web view is built ON the core, so the core
   ;; must build without it. The store used to reach up into web/render for a
-  ;; basename, which put the whole renderer under `selfflowy tree`.
+  ;; basename, which put the whole renderer under `olai tree`.
   (test-case "core modules do not reach into web/"
     (define core-dir
       (simple-form-path
-       (build-path (collection-file-path "info.rkt" "selfflowy") 'up)))
+       (build-path (collection-file-path "info.rkt" "olai") 'up)))
     (define (rkt-files dir)
       (for/list ([p (in-list (directory-list dir))]
                  #:when (regexp-match? #px"[.]rkt$" (path->string p)))
@@ -267,7 +267,7 @@
         f))
     (check-true (> (length core) 10) (format "~a core modules?" (length core)))
     (for ([f (in-list core)])
-      (check-false (regexp-match? #px"selfflowy/web" (file->string f))
+      (check-false (regexp-match? #px"olai/web" (file->string f))
                    (path->string f))))
 
   (test-case "the render input and the node index are derived once per load"
@@ -275,8 +275,8 @@
      (λ (dir)
        (define a (build-path dir "Tasks.rkt"))
        (define b (build-path dir "Roadmap.rkt"))
-       (write-file! a "#lang selfflowy\nInbox\n  Buy milk\n")
-       (write-file! b "#lang selfflowy\nShip it ^ship\n")
+       (write-file! a "#lang olai\nInbox\n  Buy milk\n")
+       (write-file! b "#lang olai\nShip it ^ship\n")
        (define st (make-store (list a b)))
        (define snap (store-snapshot st))
        (check-equal? (length (snapshot-files-data snap)) 2)

@@ -18,7 +18,7 @@ jobs:
         run: nix build
 
       - name: Smoke-check the built CLI
-        run: ./result/bin/selfflowy check examples/Example.rkt Roadmap.rkt
+        run: ./result/bin/olai check examples/Example.rkt Roadmap.rkt
 
       - name: Test
         run: nix develop -c just test

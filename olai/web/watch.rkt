@@ -22,7 +22,7 @@
          racket/list
          racket/path
          (only-in gregor now/moment moment? at-midnight +days ->posix)
-         selfflowy/store)
+         olai/store)
 
 (provide (contract-out
           [start-watcher (->* (store? #:on-change (-> any))
@@ -110,7 +110,7 @@
       ;; change notification at all. Say so once, then poll.
       [(memq 'unsupported evts)
        (cancel-all evts)
-       (eprintf "selfflowy: filesystem-change-evt unsupported here; polling every ~as\n"
+       (eprintf "olai: filesystem-change-evt unsupported here; polling every ~as\n"
                 poll)
        (poll-loop st on-change stopped poll)]
       [else

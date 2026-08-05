@@ -4,7 +4,7 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
 
 ## HARD RULES
 
-* Personal outline DATA lives outside the repo: `$SELFFLOWY_HOME` (default
+* Personal outline DATA lives outside the repo: `$OLAI_HOME` (default
   `~/Dropbox/Selfflowy-Srid/`) — `Tasks.rkt`, `Daily.rkt` (+ `Daily/`).
   NEVER commit or invent content for these; user-owned, re-validate after
   edits. `examples/` is demo fiction for CI, never Dropbox paths.
@@ -13,7 +13,7 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
 * No hand-rolling where a maintained library exists. In use: racket/cmdline,
   json (write-json/read-json), xml (xexprs), gregor (dates), markdown
   (title/note formatting in the web view only).
-* No ANSI. Human view is the web app: `selfflowy serve` (routes in
+* No ANSI. Human view is the web app: `olai serve` (routes in
   docs/cli.md; `just serve` / `just run` / `just watch` all launch it).
   Agents use `--json` (and `tree`, which is JSON-only).
 * The LANGUAGE is the only validator (closed grammar): one checker
@@ -47,10 +47,10 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
   store.rkt owns snapshots and binds mirror sites before anything draws them.
 * Live view: store (what) -> web/watch.rkt (when) -> web/events.rkt (generic
   SSE hub); they meet only in serve.rkt, and the chat rides the same hub.
-* selfflowy/acp.rkt speaks ACP: one subprocess, typed events out of one
+* olai/acp.rkt speaks ACP: one subprocess, typed events out of one
   handler, no web/. web/chat.rkt makes those events a conversation — one turn
   at a time, chat frames, transcript. Nothing else spells either.
-* Core must build without web/: file naming is selfflowy/paths (file-label,
+* Core must build without web/: file naming is olai/paths (file-label,
   key-label), not a renderer helper.
 * JSON is two modules, two version counters: json/model (what a node/tree IS,
   durable) and json/reply (command envelopes, agenda, calendar).

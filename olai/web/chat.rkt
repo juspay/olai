@@ -3,7 +3,7 @@
 ;; The conversation with the agent: one turn at a time, one transcript, one
 ;; stream of chat frames.
 ;;
-;; selfflowy/acp speaks the protocol and says what it heard (typed events, one
+;; olai/acp speaks the protocol and says what it heard (typed events, one
 ;; handler); this module is the only thing that listens, and what it makes of
 ;; them is a CHAT: what a browser is shown, in what order, and what a browser
 ;; that arrives late is shown instead. No JSON-RPC method name appears below.
@@ -37,11 +37,11 @@
 
 (require json
          racket/contract
-         selfflowy/acp
-         (only-in selfflowy/ops exn:fail:op)
+         olai/acp
+         (only-in olai/ops exn:fail:op)
          ;; render-time Markdown has one owner; this module only asks it for
          ;; the finished turn's HTML
-         (only-in selfflowy/web/markdown note->html-string))
+         (only-in olai/web/markdown note->html-string))
 
 ;; The surface the server sees. `make-chat` is told how to reach the agent (a
 ;; command, a directory) and where to put frames, and nothing else; every other
@@ -236,7 +236,7 @@
 
 ;; ---- the seam ---------------------------------------------------------------
 ;;
-;; Everything the agent has to say arrives here, as one of selfflowy/acp's
+;; Everything the agent has to say arrives here, as one of olai/acp's
 ;; events, on whichever of the client's threads heard it. Each case does the
 ;; same two things in the same order and under the same lock: move the
 ;; conversation, then say so.
@@ -272,7 +272,7 @@
 ;;
 ;; The agent says it two ways and neither alone is enough: the session's config
 ;; option is what was PICKED, the CLI's own init message is what is RUNNING, and
-;; they part company at a `/model` slash command (see selfflowy/acp).
+;; they part company at a `/model` slash command (see olai/acp).
 ;;
 ;; Whichever source moved last wins, and each is debounced against its OWN
 ;; previous value: the picker resends its whole set whenever anything in it

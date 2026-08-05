@@ -17,8 +17,8 @@
          racket/match
          racket/set
          racket/string
-         selfflowy/fail
-         selfflowy/lang/line)
+         olai/fail
+         olai/lang/line)
 
 (provide (struct-out title-match)
          parse-title-or-anchor
@@ -112,7 +112,7 @@
     [(cons 'title t) (format "~s" t)]))
 
 ;; The title-match at a line the resolver already picked (see
-;; selfflowy/resolve): no second search, no second ambiguity error.
+;; olai/resolve): no second search, no second ambiguity error.
 (define (title-match-at text idx)
   (define lines (string-split text "\n" #:trim? #f))
   (unless (and (exact-nonnegative-integer? idx) (< idx (length lines)))
@@ -151,7 +151,7 @@
 ;;                 found it; #f to resolve `spec` against this text
 ;;
 ;; Everything it can fail with is an answer to the user ("no task matching
-;; X"), so it is raised without a who: prefix — see selfflowy/fail.
+;; X"), so it is raised without a who: prefix — see olai/fail.
 ;;   #:drop-field  the metadata field it replaces ('date, 'done) or #f
 ;;   #:insert-line (indent-string -> line) or #f for a pure removal
 ;;   #:check!      (match label dropped-indices -> void) — the op's

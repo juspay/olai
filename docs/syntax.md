@@ -1,16 +1,16 @@
-# selfflowy syntax
+# olai syntax
 
 Two surface syntaxes share one expander (the validator).
 
-## `#lang selfflowy` — outline (default)
+## `#lang olai` — outline (default)
 
 Workflowy-shaped, quoteless titles. The reader translates to `(t ...)` forms;
 the expander does not know which surface you used.
 
 ```racket
-#lang selfflowy
+#lang olai
 
-Selfflowy roadmap #project
+olai roadmap #project
   0.4 the agent
     : Minimal HTTP server whose only page is a chat panel
     : driving Claude Code over ACP. Ugly on purpose.
@@ -40,7 +40,7 @@ Selfflowy roadmap #project
 
 Formatting is **interpretation at render time**, not data. The reader, expander,
 task struct, and CLI write path leave strings **verbatim**. Only the web view
-(`selfflowy serve`) parses Markdown, via the `markdown` package → xexprs →
+(`olai serve`) parses Markdown, via the `markdown` package → xexprs →
 sanitizer. `tree` / `check` / `agenda` JSON never do.
 
 | Surface | Markdown scope |
@@ -75,7 +75,7 @@ Unknown `@field` is a **reader error** today (names the known fields: `@date`, `
 ### Includes (file composition)
 
 `@include` / `(include "path")` is **require + splice**, not textual paste. The
-included file is a normal `#lang selfflowy` module; its top-level tasks appear
+included file is a normal `#lang olai` module; its top-level tasks appear
 in place of the include line. Anchors/mirrors resolve across the whole tree;
 duplicate `^id` names both files. Each task records its defining file
 (`task-file`); writes (`done` / `move` / `add --parent ^anchor`) edit that
@@ -107,13 +107,13 @@ JSON tree sites emit `{"mirror":"id"}` (never inline the subtree). An
 once (defining breadcrumb). Web view: the defining site gets `id="anchor"`;
 mirror sites render with a ↗ link to `#anchor`.
 
-## `#lang selfflowy/sexp` — s-expression core
+## `#lang olai/sexp` — s-expression core
 
 The underlying form the expander sees. Useful for tests and for agents that
 prefer sexps.
 
 ```racket
-#lang selfflowy/sexp
+#lang olai/sexp
 
 (t "Inbox #capture"
    #:description "landing"

@@ -7,8 +7,8 @@
          racket/list
          racket/path
          racket/string
-         selfflowy/edit
-         selfflowy/load)
+         olai/edit
+         olai/load)
 
 (define (with-temp-dir proc)
   (define dir (make-temporary-file "sfedit~a" 'directory))
@@ -36,21 +36,21 @@
     (with-temp-dir
      (λ (dir)
        (define f (build-path dir "Tasks.rkt"))
-       (write-file! f "#lang selfflowy\nInbox\n")
-       (define-values (err applied) (try-edit! f "#lang selfflowy\nInbox\n  Buy milk\n"))
+       (write-file! f "#lang olai\nInbox\n")
+       (define-values (err applied) (try-edit! f "#lang olai\nInbox\n  Buy milk\n"))
        (check-false err)
        (check-equal? (length applied) 1)
-       (check-equal? (file->string f) "#lang selfflowy\nInbox\n  Buy milk\n")
+       (check-equal? (file->string f) "#lang olai\nInbox\n  Buy milk\n")
        (check-equal? (leftovers dir) '()))))
 
   (test-case "an invalid edit leaves the file alone and reports the real file"
     (with-temp-dir
      (λ (dir)
        (define f (build-path dir "Tasks.rkt"))
-       (define before "#lang selfflowy\nInbox\n")
+       (define before "#lang olai\nInbox\n")
        (write-file! f before)
        (define-values (err applied)
-         (try-edit! f "#lang selfflowy\nInbox\n  Buy milk\n    @date nope\n"))
+         (try-edit! f "#lang olai\nInbox\n  Buy milk\n    @date nope\n"))
        (check-true (load-error? err))
        (check-equal? applied '())
        (check-equal? (file->string f) before)
@@ -68,15 +68,15 @@
     (with-temp-dir
      (λ (dir)
        (define f (build-path dir "Tasks.rkt"))
-       (write-file! f "#lang selfflowy\nInbox\n")
-       (define-values (err1 _a1) (try-edit! f "#lang selfflowy\nInbox\n  first\n"))
+       (write-file! f "#lang olai\nInbox\n")
+       (define-values (err1 _a1) (try-edit! f "#lang olai\nInbox\n  first\n"))
        (check-false err1)
-       (define-values (err2 a2) (try-edit! f "#lang selfflowy\nInbox\n  @date nope\n"))
+       (define-values (err2 a2) (try-edit! f "#lang olai\nInbox\n  @date nope\n"))
        (check-true (load-error? err2) "second edit slipped through")
        (check-equal? a2 '())
-       (check-equal? (file->string f) "#lang selfflowy\nInbox\n  first\n")
+       (check-equal? (file->string f) "#lang olai\nInbox\n  first\n")
        ;; and a third, valid one still lands
-       (define-values (err3 _a3) (try-edit! f "#lang selfflowy\nInbox\n  third\n"))
+       (define-values (err3 _a3) (try-edit! f "#lang olai\nInbox\n  third\n"))
        (check-false err3)
        (check-true (string-contains? (file->string f) "third")))))
 
@@ -85,17 +85,17 @@
      (λ (dir)
        (define root (build-path dir "Daily.rkt"))
        (define frag (build-path dir "Daily" "2026-08.rkt"))
-       (write-file! frag "#lang selfflowy\n2026-08-04\n")
-       (write-file! root "#lang selfflowy\n2026\n")
+       (write-file! frag "#lang olai\n2026-08-04\n")
+       (write-file! root "#lang olai\n2026\n")
        ;; the temp sits beside the root, so the relative include resolves
        (define-values (err _a)
-         (try-edit! root "#lang selfflowy\n2026\n  August\n    @include Daily/2026-08.rkt\n"))
+         (try-edit! root "#lang olai\n2026\n  August\n    @include Daily/2026-08.rkt\n"))
        (check-false err (format "~a" err))
        (check-true (string-contains? (file->string root) "@include"))
        ;; a missing fragment is a validation failure, not a half-written file
        (define before (file->string root))
        (define-values (err2 _a2)
-         (try-edit! root "#lang selfflowy\n2026\n  September\n    @include Daily/nope.rkt\n"))
+         (try-edit! root "#lang olai\n2026\n  September\n    @include Daily/nope.rkt\n"))
        (check-true (load-error? err2))
        (check-equal? (file->string root) before)
        (check-equal? (leftovers dir) '())))))

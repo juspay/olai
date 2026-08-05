@@ -9,11 +9,11 @@
          racket/string
          xml
          file/sha1
-         (except-in selfflowy/lang/expander #%module-begin)
-         (only-in selfflowy/lang/walk resolve-mirrors)
-         selfflowy/store
-         selfflowy/web/render
-         selfflowy/web/markdown)
+         (except-in olai/lang/expander #%module-begin)
+         (only-in olai/lang/walk resolve-mirrors)
+         olai/store
+         olai/web/render
+         olai/web/markdown)
 
 ;; Hand-built tasks, so the key has to be minted here too. Keying off the
 ;; title keeps these tests readable: two `tk` calls with the same title stand
@@ -379,10 +379,10 @@
   (test-case "page shell links the static assets and composes sidebar + main"
     (define fd (files (list "Tasks.rkt" (list (tk "Milk" #f #f '())))))
     (define s (xstr (render-page (render-outline fd #:today "2026-08-04")
-                                 #:title "selfflowy"
+                                 #:title "olai"
                                  #:sidebar (render-sidebar fd #:home-href "/"
                                                            #:today-href "/today"))))
-    (check-true (string-contains? s "<title>selfflowy</title>") s)
+    (check-true (string-contains? s "<title>olai</title>") s)
     (check-true (string-contains? s "href=\"/static/app.css\"") s)
     (check-true (string-contains? s "src=\"/static/htmx.min.js\"") s)
     (check-true (string-contains? s "src=\"/static/sse.js\"") s)
@@ -420,7 +420,7 @@
       (file->string (build-path (web-static-dir) "collapse.js")))
     (check-true (< (length (string-split js "\n")) 40) js)
     (check-false (string-contains? js "require") js)
-    (check-true (string-contains? js "selfflowy.collapsed") js)
+    (check-true (string-contains? js "olai.collapsed") js)
     (check-true (string-contains? js "localStorage") js))
 
   ;; ---- chat panel ----------------------------------------------------------
@@ -593,7 +593,7 @@
     ;; messages instead of opening a second EventSource
     (check-false (string-contains? js "new EventSource") js)
     (check-true (string-contains? js "htmx:sseBeforeMessage") js)
-    (check-true (string-contains? js "selfflowy.chat") js)
+    (check-true (string-contains? js "olai.chat") js)
     ;; chunk and user text are inserted as TEXT
     (check-true (string-contains? js "textContent") js))
 

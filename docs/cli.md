@@ -1,9 +1,9 @@
-# selfflowy CLI — agent contract
+# olai CLI — agent contract
 
 Agents are the primary users. Prefer `--json`. Fields within a `version` are
 **append-only**; a bump of `version` is a breaking change.
 
-**Human view is the web app** (`selfflowy/web`). There is no ANSI terminal
+**Human view is the web app** (`olai/web`). There is no ANSI terminal
 tree and no static HTML export. Agents use `tree` / `check` / `agenda --json`.
 
 ## Exit codes
@@ -12,39 +12,39 @@ tree and no static HTML export. Agents use `tree` / `check` / `agenda --json`.
 |------|---------|
 | 0 | success |
 | 1 | usage: unknown command, bad flags, missing TITLE, a malformed `--date` / `--month` / `--port` |
-| 2 | the outline said no: load or validation error, no such task, ambiguous title, already done, a write aimed at a `#lang selfflowy/sexp` file |
+| 2 | the outline said no: load or validation error, no such task, ambiguous title, already done, a write aimed at a `#lang olai/sexp` file |
 | 3 | file not found |
 
 Same codes for plain and `--json` modes. The write commands know nothing about
-exit codes: an op (`selfflowy/ops`) fails with a KIND — usage, validation,
+exit codes: an op (`olai/ops`) fails with a KIND — usage, validation,
 not-found — and the CLI maps the kind to a code. The codes are the contract;
 the kinds are how the layer below talks about failure.
 
 ## Global
 
 - Default outline file when no paths given:
-  `$SELFFLOWY_HOME/Tasks.rkt` (default home:
+  `$OLAI_HOME/Tasks.rkt` (default home:
   `~/Dropbox/Selfflowy-Srid`). `add` / `done` / `move` always target one file
   via `--file`, same default.
 - **Read commands** (`check` / `tree` / `agenda` / `calendar` / `ics` /
   `serve`) accept **one or more** outline paths. The justfile defaults to
-  `$SELFFLOWY_HOME/*.rkt` (no `examples/` paths). `serve` also takes the
+  `$OLAI_HOME/*.rkt` (no `examples/` paths). `serve` also takes the
   DIRECTORY and globs it itself — that is its front door, see below.
 - Personal data lives outside the repo. Override the directory with
-  `SELFFLOWY_HOME`. Auto-commit (`add` / `done` / `move` / `daily`) only runs
+  `OLAI_HOME`. Auto-commit (`add` / `done` / `move` / `daily`) only runs
   when the directory of the file actually written is a git work tree;
   otherwise it no-ops (`committed: false`) and Dropbox (or your sync) is the history layer.
 - `--json` may appear after the subcommand where supported.
 
 ## `check [--json] [file ...]`
 
-Validate `#lang selfflowy` or `#lang selfflowy/sexp` module(s).
+Validate `#lang olai` or `#lang olai/sexp` module(s).
 
 Plain — one ok-line per file; if any fail, all are reported then exit 2.
 Anchor / mirror / include counts are appended only when non-zero:
 
 ```console
-$ selfflowy check examples/Example.rkt examples/Daily.rkt
+$ olai check examples/Example.rkt examples/Daily.rkt
 ok: .../Example.rkt (12 tasks, 1 anchor, 1 mirror)
 ok: .../Daily.rkt (18 tasks, 2 anchors, 1 mirror, 2 includes)
 ```
@@ -164,8 +164,8 @@ as its own root and its label re-bases, so its nodes key differently than they
 do under the root that includes them.
 
 ```console
-$ selfflowy tree examples/Daily.rkt           # "Setup day" -> p8cfece7b
-$ selfflowy tree examples/Daily/2026-08.rkt   # "Setup day" -> p3dd3c447
+$ olai tree examples/Daily.rkt           # "Setup day" -> p8cfece7b
+$ olai tree examples/Daily/2026-08.rkt   # "Setup day" -> p3dd3c447
 ```
 
 Load the files you always load (`serve` keys against the set it was given) and
@@ -238,7 +238,7 @@ recursive walk would load every one of them twice), sorted, so the node keys
 minted against the set are stable. The glob is evaluated once at startup: a new
 top-level file is picked up by restarting, not while running. A directory with
 no `*.rkt` in it is refused, naming the directory, exit 3. `just serve` is this
-form over `$SELFFLOWY_HOME`.
+form over `$OLAI_HOME`.
 
 The agent runs **in that directory** — exactly it, not the base derived from
 the files. That is the point of the form: Claude Code keys its stored sessions
@@ -246,8 +246,8 @@ by the directory it was started in, so a stable one is what makes "the session
 you were last in" a thing that survives a restart (see *Sessions* below).
 
 ```console
-$ selfflowy serve ~/Dropbox/Selfflowy-Srid
-selfflowy serve http://127.0.0.1:8080 dir: /home/me/Dropbox/Selfflowy-Srid files: /.../Daily.rkt /.../Tasks.rkt
+$ olai serve ~/Dropbox/Selfflowy-Srid
+olai serve http://127.0.0.1:8080 dir: /home/me/Dropbox/Selfflowy-Srid files: /.../Daily.rkt /.../Tasks.rkt
 ```
 
 **Explicit `.rkt` files are the plumbing** — the roots are those files, and the
@@ -255,15 +255,15 @@ agent works from the directory they hang off (one file: its directory; several:
 the deepest directory holding all of them, the base keys are minted against).
 
 ```console
-$ selfflowy serve examples/Example.rkt
-selfflowy serve http://127.0.0.1:8080 files: /.../examples/Example.rkt
+$ olai serve examples/Example.rkt
+olai serve http://127.0.0.1:8080 files: /.../examples/Example.rkt
 ```
 
 - `--port N` — default `8080`. `0` binds a free port and logs which one.
 - `--bind ADDR` — default `127.0.0.1`. `--bind ""` listens on all interfaces.
 - **No auth.** The network is the auth: put it behind Tailscale or Caddy.
 
-**`SELFFLOWY_ACP_AGENT`** is an absolute path to an executable that speaks the
+**`OLAI_ACP_AGENT`** is an absolute path to an executable that speaks the
 [Agent Client Protocol](https://agentclientprotocol.com/) on stdio; `serve`
 spawns it as a subprocess. There is no fallback and no PATH lookup: with the
 variable unset (or pointing at something that is not executable) the server
@@ -278,10 +278,10 @@ error**: nothing binds a port and the reason goes to stderr naming the
 variable —
 
 ```console
-$ selfflowy serve
-selfflowy: SELFFLOWY_ACP_AGENT is not set; serve needs the path to an ACP agent (docs/cli.md)
-$ SELFFLOWY_ACP_AGENT=/nope selfflowy serve
-selfflowy: SELFFLOWY_ACP_AGENT does not exist: /nope
+$ olai serve
+olai: OLAI_ACP_AGENT is not set; serve needs the path to an ACP agent (docs/cli.md)
+$ OLAI_ACP_AGENT=/nope olai serve
+olai: OLAI_ACP_AGENT does not exist: /nope
 ```
 
 — exit 1, the usage code. The agent is spawned **at startup**, in a background
@@ -389,7 +389,7 @@ Routes:
 
 | Route | Body |
 |-------|------|
-| `GET /` | HTML page (Workflowy-style skin from `selfflowy/web/render.rkt`) |
+| `GET /` | HTML page (Workflowy-style skin from `olai/web/render.rkt`) |
 | `GET /today` | the first node titled with today's ISO date (the Daily day node), zoomed; terse empty state when there is none yet |
 | `GET /events` | `text/event-stream`, never ends. `event: outline` with the store revision as its data whenever a watched file reloaded, plus one at local midnight; `event: chat` with one JSON frame from the agent per line; a `:hb` comment on connect and every 15s after, so a client knows it is subscribed and proxies leave it alone |
 | `POST /chat` | prompt the agent; form field `text` (empty after trimming is `400`). `204` — what the panel draws comes back over `/events`, so every open tab stays in step. `409` with a terse `text/plain` body while a turn is running, `503` when the agent is gone |
@@ -397,9 +397,9 @@ Routes:
 | `POST /chat/cancel` | cancel the turn in flight, `204` (also while the agent is still booting); the `done` frame (`stopReason` `cancelled`) follows on its own |
 | `GET /chat/sessions` | the agent's stored conversations for this directory, JSON (see *Sessions*); `503` while the agent is gone |
 | `POST /chat/load` | load one of them; form field `id` (missing is `400`). `204` — the reset, the replayed turns and the `session` frame come back over `/events`. `409` while a turn or another load is running, `503` when the agent is gone |
-| `GET /api/tree` | byte-identical to `selfflowy tree` |
-| `GET /api/agenda` | byte-identical to `selfflowy agenda --json` |
-| `GET /static/*` | files under `selfflowy/web/static/` |
+| `GET /api/tree` | byte-identical to `olai tree` |
+| `GET /api/agenda` | byte-identical to `olai agenda --json` |
+| `GET /static/*` | files under `olai/web/static/` |
 | anything else | `404`, terse `text/plain` |
 
 A node's permalink is `/#n-<key>` (`key` as in `tree` JSON). Anchored nodes and
@@ -449,7 +449,7 @@ revision moves on a failed reload as well as a good one. It is a counter, not
 a version: compare it, do not parse it.
 
 Exit codes: 0 on clean shutdown, 1 on bad flags, a port it cannot bind, or a
-missing / unusable `SELFFLOWY_ACP_AGENT`; 3 when an outline path does not
+missing / unusable `OLAI_ACP_AGENT`; 3 when an outline path does not
 exist, or a directory holds no top-level `*.rkt`.
 
 There is no static HTML export — `curl http://127.0.0.1:8080/ > snap.html`
@@ -472,7 +472,7 @@ words join with spaces (no shell quoting required).
 Plain:
 
 ```console
-$ selfflowy add --no-commit buy oat milk
+$ olai add --no-commit buy oat milk
 added "buy oat milk" under Inbox in .../Tasks.rkt (line 12)
 ```
 
@@ -518,7 +518,7 @@ re-validate → rename; restore on failure.
 Plain:
 
 ```console
-$ selfflowy done --no-commit Buy milk
+$ olai done --no-commit Buy milk
 done "Buy milk" in .../Tasks.rkt (line 5)
 ```
 
@@ -555,12 +555,12 @@ never the raw `^anchor` you passed.
 ## `ics [--out PATH] [file ...]`
 
 RFC 5545 `VCALENDAR` of all dated tasks (done included). Minimal writer —
-no catalog ics package. UID is `anchor@selfflowy` when present, else a
+no catalog ics package. UID is `anchor@olai` when present, else a
 stable hash of path/title/date. `DTSTART` is `VALUE=DATE` or local datetime.
 
 ## `daily [--json] [--date YYYY-MM-DD] [--home DIR] [--no-commit]`
 
-Ensure a day node exists in the personal Daily structure under `$SELFFLOWY_HOME`
+Ensure a day node exists in the personal Daily structure under `$OLAI_HOME`
 (or `--home`):
 
 - Fragment: `Daily/YYYY-MM.rkt` (day nodes only at top level)

@@ -9,12 +9,12 @@
 
 (require rackunit
          racket/string
-         (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/lang/line
-         selfflowy/load
-         selfflowy/web/events
-         selfflowy/web/render
-         selfflowy/web/watch)
+         (except-in olai/lang/expander #%module-begin)
+         olai/lang/line
+         olai/load
+         olai/web/events
+         olai/web/render
+         olai/web/watch)
 
 (define here "tests/contracts.rkt")
 
@@ -36,7 +36,7 @@
 
   (test-case "load: try-load-outline takes a path, not a string"
     (check-exn (blames "load.rkt")
-               (λ () (try-load-outline "/tmp/selfflowy-no-such-file.rkt")))
+               (λ () (try-load-outline "/tmp/olai-no-such-file.rkt")))
     ;; minting keys is over outlines, not over bare task lists
     (check-exn (blames "load.rkt")
                (λ () (mint-outline-keys (list "not an outline")))))

@@ -1,5 +1,5 @@
 {
-  description = "selfflowy — self-hosted outliner (#lang selfflowy + CLI)";
+  description = "olai — self-hosted outliner (#lang olai + CLI)";
 
   # Sources (nixpkgs + Racket package git revs) are pinned via npins.
   # See npins/sources.json; update with: npins update / npins add ...
@@ -40,7 +40,7 @@
             # `serve` refuses to start without an ACP agent; hand it the
             # bundled one so `just serve` works out of the box. Set the var
             # yourself to point at a different agent.
-            export SELFFLOWY_ACP_AGENT="''${SELFFLOWY_ACP_AGENT:-${self.packages.${system}.acp-agent}/bin/claude-agent-acp}"
+            export OLAI_ACP_AGENT="''${OLAI_ACP_AGENT:-${self.packages.${system}.acp-agent}/bin/claude-agent-acp}"
           '';
         };
       });
@@ -55,15 +55,15 @@
           acpAgent = pkgs.callPackage ./acp { };
 
           # The build (racket build, TZDIR dance, raco exe/distribute) lives
-          # in nix/selfflowy.nix; src is a flake-level decision, passed in.
-          selfflowy = pkgs.callPackage ./nix/selfflowy.nix {
+          # in nix/olai.nix; src is a flake-level decision, passed in.
+          olai = pkgs.callPackage ./nix/olai.nix {
             inherit (racketDepsPkg) racketPkgs racketDeps;
             src = ./.;
           };
         in
         {
-          default = selfflowy;
-          inherit selfflowy;
+          default = olai;
+          inherit olai;
           racket-deps = racketDepsPkg.racketDeps;
           acp-agent = acpAgent;
         });
@@ -73,17 +73,17 @@
       # no second closure, nothing to keep in sync, works offline.
       apps = forAllSystems ({ pkgs, system }:
         let
-          cli = "${self.packages.${system}.selfflowy}/bin/selfflowy";
+          cli = "${self.packages.${system}.olai}/bin/olai";
           # serve wants an ACP agent and will not start without one, so the app
           # hands it the bundled adapter. Only serve: the bare CLI stays lean
           # and never drags the node closure in. An exported var wins.
-          serve = pkgs.writeShellScriptBin "selfflowy-serve" ''
-            export SELFFLOWY_ACP_AGENT="''${SELFFLOWY_ACP_AGENT:-${self.packages.${system}.acp-agent}/bin/claude-agent-acp}"
+          serve = pkgs.writeShellScriptBin "olai-serve" ''
+            export OLAI_ACP_AGENT="''${OLAI_ACP_AGENT:-${self.packages.${system}.acp-agent}/bin/claude-agent-acp}"
             exec ${cli} serve "$@"
           '';
           serveApp = {
             type = "app";
-            program = "${serve}/bin/selfflowy-serve";
+            program = "${serve}/bin/olai-serve";
           };
         in
         {
@@ -96,14 +96,14 @@
         });
 
       checks = forAllSystems ({ pkgs, system }: {
-        build = self.packages.${system}.selfflowy;
+        build = self.packages.${system}.olai;
         # The runCommand script lives in nix/smoke.nix; the example outline
         # and fake-agent paths are repo-root relative, so the flake passes
         # them in rather than nix/smoke.nix guessing its own location.
         smoke = pkgs.callPackage ./nix/smoke.nix {
-          selfflowy = self.packages.${system}.selfflowy;
+          olai = self.packages.${system}.olai;
           exampleOutline = ./examples/Example.rkt;
-          fakeAcpAgentSrc = ./selfflowy/tests/fake-acp-agent.rkt;
+          fakeAcpAgentSrc = ./olai/tests/fake-acp-agent.rkt;
         };
       });
     };

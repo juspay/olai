@@ -1,37 +1,37 @@
-#lang selfflowy
+#lang olai
 
-Selfflowy roadmap #project
+olai roadmap #project
   : Weekend-sized phases; every phase leaves the tool usable.
   : git log is the real changelog.
   Done
     : Landed, pushed, verified.
     [x] 0.1 the language
       : The s-exp core, then the quoteless outline syntax took the flagship
-      : name (selfflowy/sexp keeps the old form). Strict 2-space indent,
+      : name (olai/sexp keeps the old form). Strict 2-space indent,
       : verbatim titles, ": " notes, @date fields, inline #tags, closed
       : grammar, srcloc'd errors agents can act on.
     [x] 0.2a dates
-      : @date with ISO date or datetime (gregor); `selfflowy agenda` groups
+      : @date with ISO date or datetime (gregor); `olai agenda` groups
       : overdue / today / upcoming.
     [x] 0.3 capture
-      : `selfflowy add` appends under Inbox, re-validates before keeping the
+      : `olai add` appends under Inbox, re-validates before keeping the
       : write, auto-commits. Bind it to a hotkey.
     [x] agent-first CLI
       : Agents are the primary users: --json everywhere (version key,
       : append-only fields), exit-code contract, errors as JSON. docs/cli.md
       : is the contract. Multi-file paths; merged agenda.
     [x] html view
-      : `selfflowy html` — Tailwind + details/summary, Markdown in titles and
+      : `olai html` — Tailwind + details/summary, Markdown in titles and
       : notes (render-time only). Terminal renderer retired; tree is JSON-only.
-      : (Superseded: the html command died when `selfflowy serve` arrived.)
+      : (Superseded: the html command died when `olai serve` arrived.)
     [x] done status
       : `@done` / `[x]` sugar, `#:done` in the core, agenda exclusion, checked
-      : HTML rendering, `selfflowy done TITLE` with add-style write safety.
+      : HTML rendering, `olai done TITLE` with add-style write safety.
     [x] 0.2b.1 mirrors (in-file)
       : ^anchor / *anchor; #:id + (mirror); cycle rejection; JSON mirror refs +
       : anchors index; agenda dedupe; html permalinks; done/add accept ^anchor.
     [x] @include composition + daily rollover
-      : @include require+splice; Daily/YYYY-MM.rkt fragments; selfflowy daily; write-path routes to defining file.
+      : @include require+splice; Daily/YYYY-MM.rkt fragments; olai daily; write-path routes to defining file.
     [x] 0.8 calendar
       : Agenda, month grid in html (links to Daily day nodes), move, ics.
       : (Grid view later retired with the html command; query/move/ics live.)
@@ -63,7 +63,7 @@ Selfflowy roadmap #project
     : plus the outline served live. Talk to your outline from any browser.
     : Built with 0.5 as one push; Opus subagents implement, Fable reviews.
     [x] WP1 serve skeleton
-      : `selfflowy serve` + routes (/, /api/tree, /api/agenda, /static/*);
+      : `olai serve` + routes (/, /api/tree, /api/agenda, /static/*);
       : nix run; just run/watch. Byte-identical JSON to the CLI.
     WP4 ACP bridge
       : Spawn claude-agent-acp subprocess (bypass-permissions), stdio
@@ -119,7 +119,7 @@ Selfflowy roadmap #project
     : A third state between open and done: `[~]` title sugar + `@doing`
     : field (#:doing in the core), same desugar rules as [x]/@done.
     : Rendered distinctly (pulsing/slanted pill); agenda gains a DOING
-    : group above TODAY; `selfflowy doing TITLE|^anchor` flips it with
+    : group above TODAY; `olai doing TITLE|^anchor` flips it with
     : the usual write safety; done clears doing. Would have replaced the
     : "In progress" prose notes this roadmap has been faking.
   1.0 daily driver

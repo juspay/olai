@@ -1,6 +1,6 @@
 #lang racket/base
 
-;; Shared expander for #lang selfflowy (outline) and #lang selfflowy/sexp.
+;; Shared expander for #lang olai (outline) and #lang olai/sexp.
 ;;
 ;; Surface forms:
 ;;
@@ -20,14 +20,14 @@
 (require racket/list
          racket/string
          racket/path
-         selfflowy/lang/tags
-         selfflowy/lang/graph
+         olai/lang/tags
+         olai/lang/graph
          (for-syntax racket/base
-                     selfflowy/lang/tags
-                     selfflowy/lang/graph
+                     olai/lang/tags
+                     olai/lang/graph
                      ;; the date grammar has one owner; the expander is a
                      ;; consumer of it, at phase 1 like the tag grammar
-                     selfflowy/dates
+                     olai/dates
                      syntax/parse
                      racket/string
                      racket/list
@@ -68,7 +68,7 @@
 ;; id: #f | non-empty anchor string
 ;; file: #f | absolute path string of defining outline
 ;; key: stable node identity — the ^anchor here, #f for an unanchored node
-;;      until the load layer mints one (selfflowy/load, mint-task-keys). A
+;;      until the load layer mints one (olai/load, mint-task-keys). A
 ;;      module cannot mint it: it knows only its own entry point, and the same
 ;;      node reached through a different root must key the same.
 ;; loc: srcloc of the form that defined this node. Kept because a tree that
@@ -229,7 +229,7 @@
        (define id (and (syntax-e #'kw.id) (syntax-e #'kw.id)))
        (define id* (if (string? id) id #f))
        (ir-task id* (map syntax->ir (syntax->list #'(child ...))) stx)]
-      [_ (raise-syntax-error 'selfflowy "internal: bad form for IR" stx)]))
+      [_ (raise-syntax-error 'olai "internal: bad form for IR" stx)]))
 
   (define (any-include? irs)
     (define (walk ir)
@@ -344,11 +344,11 @@
 ;; file:line:col even though nothing syntactic is left.
 ;;
 ;; It raises exn:fail:syntax, which is not a lie: this IS the language
-;; rejecting a form, and it is what makes selfflowy/load report the location
+;; rejecting a form, and it is what makes olai/load report the location
 ;; in the same fields as any other read/expand error.
 (define (loc->syntax loc)
   (and loc
-       (datum->syntax #f 'selfflowy
+       (datum->syntax #f 'olai
                       (vector (srcloc-source loc)
                               (srcloc-line loc)
                               (srcloc-column loc)

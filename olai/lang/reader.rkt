@@ -1,5 +1,5 @@
 #lang s-exp syntax/module-reader
-selfflowy/lang/expander
+olai/lang/expander
 
 #:whole-body-readers? #t
 #:read sf-read

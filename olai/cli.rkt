@@ -1,6 +1,6 @@
 #lang racket/base
 
-;; selfflowy CLI — agent-first: check | tree | agenda | add | done | move
+;; olai CLI — agent-first: check | tree | agenda | add | done | move
 ;; Exit codes: 0 ok, 1 usage, 2 validation/load, 3 not found.
 ;; Arg parsing: racket/cmdline. JSON: json package write-json.
 
@@ -12,39 +12,41 @@
          racket/path
          racket/string
          racket/vector
-         selfflowy/agenda
-         selfflowy/calendar
-         selfflowy/json/model
-         selfflowy/json/reply
-         selfflowy/query
-         selfflowy/ics
-         selfflowy/dates
-         selfflowy/load
-         selfflowy/ops
-         (only-in selfflowy/paths dir-roots)
-         (only-in selfflowy/acp acp-command-problem)
-         selfflowy/web/serve)
+         olai/agenda
+         olai/calendar
+         olai/json/model
+         olai/json/reply
+         olai/query
+         olai/ics
+         olai/dates
+         olai/load
+         olai/ops
+         (only-in olai/paths dir-roots)
+         (only-in olai/acp acp-command-problem)
+         olai/web/serve)
 (define exit-ok 0)
 (define exit-usage 1)
 (define exit-validation 2)
 (define exit-not-found 3)
 
 ;; Personal outline data lives outside the repo (Dropbox by default).
-;; Override with SELFFLOWY_HOME. Auto-commit only fires when that dir is
+;; Override with OLAI_HOME. Auto-commit only fires when that dir is
 ;; a git work tree; Dropbox alone is the sync layer (no-op otherwise).
-(define (selfflowy-home)
-  (define env (getenv "SELFFLOWY_HOME"))
+;; The default path still spells the old name: it follows the user's
+;; data dir, which this rebrand deliberately did not move.
+(define (olai-home)
+  (define env (getenv "OLAI_HOME"))
   (if (and env (non-empty-string? env))
       (expand-user-path env)
       (build-path (expand-user-path "~") "Dropbox" "Selfflowy-Srid")))
 
 (define default-file
-  (path->string (build-path (selfflowy-home) "Tasks.rkt")))
+  (path->string (build-path (olai-home) "Tasks.rkt")))
 
 (define (die code msg #:json? json? #:file [file #f] #:line [line #f] #:col [col #f])
   (if json?
       (write-json-stderr (err-hash msg #:file file #:line line #:col col))
-      (eprintf "selfflowy: ~a\n" msg))
+      (eprintf "olai: ~a\n" msg))
   (exit code))
 
 (define (resolve-path p json?)
@@ -163,7 +165,7 @@
          [(list 'ok path n ac mc includes)
           (display (format-check-plain path n ac mc includes))]
          [(list 'error path msg src line col)
-          (eprintf "selfflowy: failed to load ~a\n~a\n" path msg)]))
+          (eprintf "olai: failed to load ~a\n~a\n" path msg)]))
      (when any-bad? (exit exit-validation))]))
 
 ;; tree is JSON-only (human view is the web app). --json is accepted as a no-op.
@@ -204,7 +206,7 @@
 
 ;; ---- write commands: parse, call the op, render --------------------------
 ;;
-;; Everything below is presentation. The ops (selfflowy/ops) do the work and
+;; Everything below is presentation. The ops (olai/ops) do the work and
 ;; know nothing about exit codes, JSON or stdout; `die` lives on this side of
 ;; that line only.
 
@@ -316,7 +318,7 @@
   (define r
     (run-op json?
             (λ ()
-              (ops-daily! (or home-arg (path->string (selfflowy-home)))
+              (ops-daily! (or home-arg (path->string (olai-home)))
                           (or date-arg (today-iso))
                           #:commit? (not no-commit?)))))
   (if json?
@@ -352,15 +354,15 @@
 ;; that silently has no chat panel is worse than one that will not start. Nix
 ;; sets the variable (`nix run`, the dev shell, hence `just serve`).
 (define (acp-command-or-die)
-  (define v (getenv "SELFFLOWY_ACP_AGENT"))
+  (define v (getenv "OLAI_ACP_AGENT"))
   (unless (and v (non-empty-string? v))
     (die exit-usage
-         "SELFFLOWY_ACP_AGENT is not set; serve needs the path to an ACP agent (docs/cli.md)"
+         "OLAI_ACP_AGENT is not set; serve needs the path to an ACP agent (docs/cli.md)"
          #:json? #f))
   (define problem (acp-command-problem v))
   (when problem
     (die exit-usage
-         (format "SELFFLOWY_ACP_AGENT ~a: ~a" problem v)
+         (format "OLAI_ACP_AGENT ~a: ~a" problem v)
          #:json? #f))
   v)
 
@@ -411,7 +413,7 @@
          #:agent-cwd dir
          #:on-listen
          (λ (bound)
-           (printf "selfflowy serve http://~a:~a ~afiles: ~a\n"
+           (printf "olai serve http://~a:~a ~afiles: ~a\n"
                    (or bind "0.0.0.0") bound
                    (if dir (format "dir: ~a " dir) "")
                    (string-join (map path->string paths) " "))
@@ -423,7 +425,7 @@
   (exit exit-ok))
 
 (define (usage)
-  (eprintf "usage: selfflowy <command> [options] ...\n")
+  (eprintf "usage: olai <command> [options] ...\n")
   (eprintf "\n")
   (eprintf "commands:\n")
   (eprintf "  check    [--json] [file ...]  validate outline(s) (default: ~a)\n" default-file)
@@ -449,7 +451,7 @@
   (define json? #f)
   (define file-args '())
   (command-line
-   #:program "selfflowy check"
+   #:program "olai check"
    #:once-each
    [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
    #:args paths
@@ -460,7 +462,7 @@
   (define json? #t) ; always JSON; flag kept as no-op for agents
   (define file-args '())
   (command-line
-   #:program "selfflowy tree"
+   #:program "olai tree"
    #:once-each
    [("--json") "No-op (tree is always JSON)" (set! json? #t)]
    #:args paths
@@ -471,7 +473,7 @@
   (define json? #f)
   (define file-args '())
   (command-line
-   #:program "selfflowy agenda"
+   #:program "olai agenda"
    #:once-each
    [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
    #:args paths
@@ -483,7 +485,7 @@
   (define month #f)
   (define file-args '())
   (command-line
-   #:program "selfflowy calendar"
+   #:program "olai calendar"
    #:once-each
    [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
    [("--month") m "Month YYYY-MM (default: current)" (set! month m)]
@@ -496,7 +498,7 @@
   (define bind "127.0.0.1")
   (define file-args '())
   (command-line
-   #:program "selfflowy serve"
+   #:program "olai serve"
    #:once-each
    [("--port") p "TCP port (default: 8080; 0 picks a free one)"
                (define n (string->number p))
@@ -519,10 +521,10 @@
   (define parent #f)
   (define titles '())
   (command-line
-   #:program "selfflowy add"
+   #:program "olai add"
    #:once-each
    [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
-   [("--file") f "Outline file (default: $SELFFLOWY_HOME/Tasks.rkt)" (set! file-arg f)]
+   [("--file") f "Outline file (default: $OLAI_HOME/Tasks.rkt)" (set! file-arg f)]
    [("--date") d "ISO date or datetime (YYYY-MM-DD[THH:MM[:SS]])" (set! date d)]
    [("--description") t "Description text" (set! desc t)]
    [("--parent") p "Parent title or ^anchor (default: Inbox)" (set! parent p)]
@@ -538,10 +540,10 @@
   (define no-commit? #f)
   (define titles '())
   (command-line
-   #:program "selfflowy done"
+   #:program "olai done"
    #:once-each
    [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
-   [("--file") f "Outline file (default: $SELFFLOWY_HOME/Tasks.rkt)" (set! file-arg f)]
+   [("--file") f "Outline file (default: $OLAI_HOME/Tasks.rkt)" (set! file-arg f)]
    [("--undo") "Remove done state instead of marking done" (set! undo? #t)]
    [("--no-commit") "Do not auto-commit even in a git repo" (set! no-commit? #t)]
    #:args title-words
@@ -555,10 +557,10 @@
   (define clear? #f)
   (define words '())
   (command-line
-   #:program "selfflowy move"
+   #:program "olai move"
    #:once-each
    [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
-   [("--file") f "Outline file (default: $SELFFLOWY_HOME/Tasks.rkt)" (set! file-arg f)]
+   [("--file") f "Outline file (default: $OLAI_HOME/Tasks.rkt)" (set! file-arg f)]
    [("--no-commit") "Do not auto-commit even in a git repo" (set! no-commit? #t)]
    [("--clear") "Remove @date instead of setting one" (set! clear? #t)]
    #:args args
@@ -578,7 +580,7 @@
   (define out-path #f)
   (define file-args '())
   (command-line
-   #:program "selfflowy ics"
+   #:program "olai ics"
    #:once-each
    [("--out") path "Write ICS to path (default: stdout)" (set! out-path path)]
    #:args paths
@@ -591,11 +593,11 @@
   (define home-arg #f)
   (define no-commit? #f)
   (command-line
-   #:program "selfflowy daily"
+   #:program "olai daily"
    #:once-each
    [("--json") "Emit versioned JSON on stdout" (set! json? #t)]
    [("--date") d "Day YYYY-MM-DD (default: today)" (set! date-arg d)]
-   [("--home") h "Outline home (default: $SELFFLOWY_HOME)" (set! home-arg h)]
+   [("--home") h "Outline home (default: $OLAI_HOME)" (set! home-arg h)]
    [("--no-commit") "Do not auto-commit even in a git repo" (set! no-commit? #t)]
    #:args ()
    (void))

@@ -10,14 +10,14 @@
          racket/path
          racket/port
          racket/string
-         selfflowy/web/serve)
+         olai/web/serve)
 
 ;; Sizes differ on every write below: the store's staleness probe is mtime +
 ;; size, and a same-second same-size rewrite is invisible to it.
 
 (define outline
   (string-append
-   "#lang selfflowy\n"
+   "#lang olai\n"
    "Inbox\n"
    "  Buy milk\n"
    "    @date 2026-01-15\n"
@@ -167,14 +167,14 @@
        (check-true (string-contains? (or (header-value headers "content-type:") "")
                                      "text/css")
                    (format "~a" headers))
-       (check-true (string-contains? body "selfflowy") body))))
+       (check-true (string-contains? body "olai") body))))
 
   (test-case "GET /static/collapse.js serves the collapse script"
     (with-server
      (λ (port f)
        (define-values (code headers body) (GET port "/static/collapse.js"))
        (check-equal? code 200 body)
-       (check-true (string-contains? body "selfflowy.collapsed") body))))
+       (check-true (string-contains? body "olai.collapsed") body))))
 
   (test-case "unknown path is a terse 404"
     (with-server
@@ -333,14 +333,14 @@
        (define frag (build-path (path-only f) "Frag.rkt"))
        (define-values (_code _headers in) (open-events port))
        ;; the fragment is not in the watch set until the root names it
-       (display-to-file "#lang selfflowy\nFrom the fragment\n" frag)
+       (display-to-file "#lang olai\nFrom the fragment\n" frag)
        (display-to-file (string-append outline "Later\n  @include Frag.rkt\n")
                         f #:exists 'truncate)
        (check-not-false (next-event in) "no event for the root")
        (define-values (_c1 _h1 b1) (GET port "/"))
        (check-true (string-contains? b1 "From the fragment") b1)
        ;; now edit the FRAGMENT: the watch set was re-read, so this lands too
-       (display-to-file "#lang selfflowy\nFrom the fragment\n  Deeper still\n"
+       (display-to-file "#lang olai\nFrom the fragment\n  Deeper still\n"
                         frag #:exists 'truncate)
        (check-not-false (next-event in) "no event for the fragment")
        (define-values (_c2 _h2 b2) (GET port "/"))

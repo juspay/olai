@@ -22,19 +22,19 @@
          racket/list
          racket/port
          racket/string
-         selfflowy/acp
-         selfflowy/ops
-         selfflowy/web/chat
-         selfflowy/web/markdown
-         selfflowy/web/serve)
+         olai/acp
+         olai/ops
+         olai/web/chat
+         olai/web/markdown
+         olai/web/serve)
 
 (define fake-agent
-  (path->string (collection-file-path "fake-acp-agent.rkt" "selfflowy" "tests")))
+  (path->string (collection-file-path "fake-acp-agent.rkt" "olai" "tests")))
 
 ;; A file that exists and is not an executable: the other way to get the
 ;; agent's path wrong.
 (define example
-  (build-path (simplify-path (build-path (collection-file-path "info.rkt" "selfflowy")
+  (build-path (simplify-path (build-path (collection-file-path "info.rkt" "olai")
                                          'up 'up))
               "examples" "Example.rkt"))
 
@@ -131,7 +131,7 @@
 ;; ---- a server with an agent in it ------------------------------------------
 
 (define outline
-  (string-append "#lang selfflowy\n" "Inbox\n" "  Buy milk\n"))
+  (string-append "#lang olai\n" "Inbox\n" "  Buy milk\n"))
 
 ;; Boots the real server with the fake agent wired in: (proc port agent).
 ;;
@@ -176,9 +176,9 @@
 (define (with-stored-sessions thunk)
   (define env (current-environment-variables))
   (dynamic-wind
-   (λ () (environment-variables-set! env #"SELFFLOWY_FAKE_ACP_STORED" #"1"))
+   (λ () (environment-variables-set! env #"OLAI_FAKE_ACP_STORED" #"1"))
    thunk
-   (λ () (environment-variables-set! env #"SELFFLOWY_FAKE_ACP_STORED" #f))))
+   (λ () (environment-variables-set! env #"OLAI_FAKE_ACP_STORED" #f))))
 
 ;; /events never ends, so this keeps the port. Same shape as tests/serve.rkt.
 (define (open-events port)
@@ -240,16 +240,16 @@
 
 ;; ---- the CLI ---------------------------------------------------------------
 
-;; `selfflowy serve ARGS` with SELFFLOWY_ACP_AGENT set to `agent` — or removed
+;; `olai serve ARGS` with OLAI_ACP_AGENT set to `agent` — or removed
 ;; from the environment entirely when it is #f. -> (values sp stdout stderr).
 (define (start-serve agent args)
   (define env (environment-variables-copy (current-environment-variables)))
-  (environment-variables-set! env #"SELFFLOWY_ACP_AGENT"
+  (environment-variables-set! env #"OLAI_ACP_AGENT"
                               (and agent (string->bytes/utf-8 agent)))
   (define-values (sp stdout stdin stderr)
     (parameterize ([current-environment-variables env])
       (apply subprocess #f #f #f (find-executable-path "racket")
-             "-l" "selfflowy/cli" "--" "serve" args)))
+             "-l" "olai/cli" "--" "serve" args)))
   (close-output-port stdin)
   (values sp stdout stderr))
 
@@ -1024,19 +1024,19 @@
 
   ;; ---- the CLI contract ----------------------------------------------------
 
-  (test-case "serve with no SELFFLOWY_ACP_AGENT is a usage error naming it"
+  (test-case "serve with no OLAI_ACP_AGENT is a usage error naming it"
     (define-values (code err) (run-serve #f))
     (check-equal? code 1 err)
-    (check-true (string-contains? err "SELFFLOWY_ACP_AGENT") err)
+    (check-true (string-contains? err "OLAI_ACP_AGENT") err)
     (check-true (string-contains? err "not set") err))
 
-  (test-case "serve with a SELFFLOWY_ACP_AGENT that is not there says which"
+  (test-case "serve with a OLAI_ACP_AGENT that is not there says which"
     (define-values (code err) (run-serve "/nonexistent/acp-agent"))
     (check-equal? code 1 err)
-    (check-true (string-contains? err "SELFFLOWY_ACP_AGENT") err)
+    (check-true (string-contains? err "OLAI_ACP_AGENT") err)
     (check-true (string-contains? err "/nonexistent/acp-agent") err))
 
-  (test-case "serve with a SELFFLOWY_ACP_AGENT that is not executable says so"
+  (test-case "serve with a OLAI_ACP_AGENT that is not executable says so"
     (define-values (code err) (run-serve (path->string example)))
     (check-equal? code 1 err)
     (check-true (string-contains? err "is not executable") err))
@@ -1052,11 +1052,11 @@
     (dynamic-wind
      void
      (λ ()
-       (display-to-file "#lang selfflowy\nBuy milk\n" (build-path dir "Tasks.rkt"))
-       (display-to-file "#lang selfflowy\nShip it\n" (build-path dir "Roadmap.rkt"))
+       (display-to-file "#lang olai\nBuy milk\n" (build-path dir "Tasks.rkt"))
+       (display-to-file "#lang olai\nShip it\n" (build-path dir "Roadmap.rkt"))
        ;; a fragment lives one level down, and is not a root
        (make-directory (build-path dir "Daily"))
-       (display-to-file "#lang selfflowy\nNot a root\n"
+       (display-to-file "#lang olai\nNot a root\n"
                         (build-path dir "Daily" "2026-08.rkt"))
        (with-serve
         (list (path->string dir))
@@ -1080,7 +1080,7 @@
     (dynamic-wind
      void
      (λ ()
-       (display-to-file "#lang selfflowy\nFrom the cwd\n" (build-path dir "Tasks.rkt"))
+       (display-to-file "#lang olai\nFrom the cwd\n" (build-path dir "Tasks.rkt"))
        (parameterize ([current-directory dir])
          (with-serve '()
                      (λ (port _line)
@@ -1096,7 +1096,7 @@
      (λ ()
        ;; a fragment in a subdirectory is not a root, so this is still empty
        (make-directory (build-path dir "Daily"))
-       (display-to-file "#lang selfflowy\nDeeper\n" (build-path dir "Daily" "2026-08.rkt"))
+       (display-to-file "#lang olai\nDeeper\n" (build-path dir "Daily" "2026-08.rkt"))
        (define-values (code err) (run-serve fake-agent (list (path->string dir))))
        (check-equal? code 3 err)
        (check-true (string-contains? err (path->string dir)) err)

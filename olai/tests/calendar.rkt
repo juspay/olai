@@ -3,9 +3,9 @@
 (require rackunit
          racket/set
          racket/string
-         (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/calendar
-         selfflowy/dates)
+         (except-in olai/lang/expander #%module-begin)
+         olai/calendar
+         olai/dates)
 
 (define (tk title date desc kids #:done [done #f] #:id [id #f])
   (make-task #:title title #:date date #:description desc #:done done

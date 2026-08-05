@@ -1,6 +1,6 @@
 #lang racket/base
 
-;; The surface line grammar of #lang selfflowy, in one place.
+;; The surface line grammar of #lang olai, in one place.
 ;;
 ;; The file is line-oriented: a line is blank, the #lang line, a title, a
 ;; mirror, an @include, or one metadata field of the title above it. The

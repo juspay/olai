@@ -5,8 +5,8 @@
 
 (require rackunit
          gregor
-         selfflowy/web/events
-         selfflowy/web/watch)
+         olai/web/events
+         olai/web/watch)
 
 ;; -> frame string | #f. Generous: these are all local channel hops.
 (define (take-frame s [timeout 5])

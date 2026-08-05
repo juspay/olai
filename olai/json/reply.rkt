@@ -15,9 +15,9 @@
 (require racket/contract
          json
          racket/path
-         selfflowy/agenda
-         selfflowy/calendar
-         (only-in selfflowy/json/model nullish done->json))
+         olai/agenda
+         olai/calendar
+         (only-in olai/json/model nullish done->json))
 
 (provide (contract-out
           [json-reply-version exact-positive-integer?]

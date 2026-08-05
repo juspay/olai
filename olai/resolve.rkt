@@ -13,11 +13,11 @@
          racket/match
          racket/path
          racket/string
-         (only-in selfflowy/lang/expander task-file)
-         (only-in selfflowy/lang/walk find-task-by-id find-tasks-by-title)
-         selfflowy/fail
-         selfflowy/load
-         selfflowy/meta)
+         (only-in olai/lang/expander task-file)
+         (only-in olai/lang/walk find-task-by-id find-tasks-by-title)
+         olai/fail
+         olai/load
+         olai/meta)
 
 (provide (struct-out located)
          locate)

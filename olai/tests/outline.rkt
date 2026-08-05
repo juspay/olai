@@ -4,8 +4,8 @@
          racket/file
          racket/list
          racket/string
-         (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/lang/outline)
+         (except-in olai/lang/expander #%module-begin)
+         olai/lang/outline)
 
 (define (eval-tasks src)
   (define tmp (make-temporary-file "sf-outline~a.rkt"))
@@ -21,13 +21,13 @@
 
 (module+ test
   (test-case "empty outline"
-    (check-equal? (eval-tasks "#lang selfflowy\n") '()))
+    (check-equal? (eval-tasks "#lang olai\n") '()))
 
   (test-case "nested outline with date, description, tags"
     (define tasks
       (eval-tasks
        #<<EOF
-#lang selfflowy
+#lang olai
 
 Inbox #capture
   : Quick capture landing zone
@@ -56,7 +56,7 @@ EOF
     (define tasks
       (eval-tasks
        #<<EOF
-#lang selfflowy
+#lang olai
 Parent
   : line one
   : line two
@@ -68,7 +68,7 @@ EOF
     (define tasks
       (eval-tasks
        #<<EOF
-#lang selfflowy
+#lang olai
 \: not a description
 \@date not a field
 \\ still a title
@@ -83,7 +83,7 @@ EOF
        (and (exn:fail:read? e)
             (regexp-match? #rx"(?i:tab)" (exn-message e))))
      (λ ()
-       (eval-tasks "#lang selfflowy\nRoot\n\tChild\n"))))
+       (eval-tasks "#lang olai\nRoot\n\tChild\n"))))
 
   (test-case "indent jump is a reader error"
     (check-exn
@@ -91,7 +91,7 @@ EOF
        (and (exn:fail:read? e)
             (regexp-match? #rx"(?i:indent|jump)" (exn-message e))))
      (λ ()
-       (eval-tasks "#lang selfflowy\nRoot\n    Jump\n"))))
+       (eval-tasks "#lang olai\nRoot\n    Jump\n"))))
 
   (test-case "metadata without title is a reader error"
     (check-exn
@@ -99,7 +99,7 @@ EOF
        (and (exn:fail:read? e)
             (regexp-match? #rx"(?i:no title|description)" (exn-message e))))
      (λ ()
-       (eval-tasks "#lang selfflowy\n  : orphan\n"))))
+       (eval-tasks "#lang olai\n  : orphan\n"))))
 
   (test-case "unknown @field is a reader error"
     (check-exn
@@ -107,13 +107,13 @@ EOF
        (and (exn:fail:read? e)
             (regexp-match? #rx"(?i:unknown|@layout|@date|@done)" (exn-message e))))
      (λ ()
-       (eval-tasks "#lang selfflowy\nTask\n  @layout wide\n"))))
+       (eval-tasks "#lang olai\nTask\n  @layout wide\n"))))
 
   (test-case "@done bare and with timestamp"
     (define tasks
       (eval-tasks
        #<<EOF
-#lang selfflowy
+#lang olai
 Bare done
   @done
 With stamp
@@ -135,7 +135,7 @@ EOF
     (define tasks
       (eval-tasks
        #<<EOF
-#lang selfflowy
+#lang olai
 [x] Finished task
 [ ] Open task
 [X] Also finished
@@ -149,7 +149,7 @@ EOF
     (define tasks
       (eval-tasks
        #<<EOF
-#lang selfflowy
+#lang olai
 \[x] literal checkbox text
 EOF
        ))
@@ -162,7 +162,7 @@ EOF
        (and (exn:fail:read? e)
             (regexp-match? #rx"(?i:duplicate|@done)" (exn-message e))))
      (λ ()
-       (eval-tasks "#lang selfflowy\nTask\n  @done\n  @done 2026-01-01\n"))))
+       (eval-tasks "#lang olai\nTask\n  @done\n  @done 2026-01-01\n"))))
 
   (test-case "[x] plus @done is duplicate"
     (check-exn
@@ -170,7 +170,7 @@ EOF
        (and (exn:fail:read? e)
             (regexp-match? #rx"(?i:duplicate|@done)" (exn-message e))))
      (λ ()
-       (eval-tasks "#lang selfflowy\n[x] Task\n  @done 2026-01-01\n"))))
+       (eval-tasks "#lang olai\n[x] Task\n  @done 2026-01-01\n"))))
 
   (test-case "bad @done timestamp fails expander"
     (check-exn
@@ -178,7 +178,7 @@ EOF
        (and (exn:fail? e)
             (regexp-match? #rx"(?i:date|ISO|datetime)" (exn-message e))))
      (λ ()
-       (eval-tasks "#lang selfflowy\nTask\n  @done not-a-date\n"))))
+       (eval-tasks "#lang olai\nTask\n  @done not-a-date\n"))))
 
   (test-case "strip-checkbox-prefix helper"
     (define-values (t1 f1) (strip-checkbox-prefix "[x] hi"))
@@ -195,7 +195,7 @@ EOF
     (define tasks
       (eval-tasks
        #<<EOF
-#lang selfflowy
+#lang olai
 Morning
   @date 2026-08-04 09:30
 Afternoon
@@ -211,7 +211,7 @@ EOF
        (and (exn:fail? e)
             (regexp-match? #rx"(?i:date|ISO|datetime)" (exn-message e))))
      (λ ()
-       (eval-tasks "#lang selfflowy\nTask\n  @date 2026-01-01 extra\n"))))
+       (eval-tasks "#lang olai\nTask\n  @date 2026-01-01 extra\n"))))
 
   (test-case "bad @date value reports outline file:line:col via expander"
     (define tmp (make-temporary-file "sf-baddate~a.rkt"))
@@ -220,7 +220,7 @@ EOF
      (λ ()
        (display-to-file
         #<<EOF
-#lang selfflowy
+#lang olai
 Bad date task
   @date not-a-date
 EOF
