@@ -70,6 +70,20 @@
       "hash": "sha256-RDa1d4sSyfyuNgz2dJdu2f1XGiO4cPOkaseZ7q2cLJU=",
       "frozen": true
     },
+    "css-expr": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "leafac",
+        "repo": "css-expr"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "d060b2a76d08013c91318890dc5d9f6cc6c81138",
+      "url": "https://github.com/leafac/css-expr/archive/d060b2a76d08013c91318890dc5d9f6cc6c81138.tar.gz",
+      "hash": "sha256-17Ys1qM5TnoKq4wXBXE1Q+0zfI92TwwhKaGVy50Eq6Y=",
+      "frozen": true
+    },
     "gregor": {
       "type": "Git",
       "repository": {
@@ -110,6 +124,20 @@
       "revision": "c9691ed9ba2604de223b6ba3dd08d17f740bc8cd",
       "url": "https://github.com/jbclements/memoize/archive/c9691ed9ba2604de223b6ba3dd08d17f740bc8cd.tar.gz",
       "hash": "sha256-HLAnsZe+BACkBQUYpgid2HKcHe4y8E0QqsYcZuvFaR0=",
+      "frozen": true
+    },
+    "nanopass": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "nanopass",
+        "repo": "nanopass-framework-racket"
+      },
+      "branch": "main",
+      "submodules": false,
+      "revision": "deac3a4bf937e1217ec54c5439710712b227fc5a",
+      "url": "https://github.com/nanopass/nanopass-framework-racket/archive/deac3a4bf937e1217ec54c5439710712b227fc5a.tar.gz",
+      "hash": "sha256-2VftyKsZhWPIeLq5vpSI2NWS2mryivSLEgknZ5+g3n0=",
       "frozen": true
     },
     "nixpkgs": {
@@ -165,6 +193,20 @@
       "revision": "2f812283d9c90040aecb3c7e2ed2edf93a3720de",
       "url": "https://github.com/97jaz/tzinfo/archive/2f812283d9c90040aecb3c7e2ed2edf93a3720de.tar.gz",
       "hash": "sha256-vvb3EZHFysa/2OiTat+i8zuALxiCPHNNaWCGlyPF6gk=",
+      "frozen": true
+    },
+    "unstable-pretty-lib": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "racket",
+        "repo": "unstable-pretty-lib"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "d420f822301174b1931c8b43d2131924fc75565f",
+      "url": "https://github.com/racket/unstable-pretty-lib/archive/d420f822301174b1931c8b43d2131924fc75565f.tar.gz",
+      "hash": "sha256-aYGw/oj95ttqHwKKFLbpOBa2e6eWCohOTH8l1cxx33c=",
       "frozen": true
     }
   },

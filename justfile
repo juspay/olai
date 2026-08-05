@@ -15,10 +15,10 @@ default_outlines := olai_home + "/*.rkt"
 default:
     @just --list
 
-# Runtime deps (gregor, markdown) + raco link ./olai; cheap to repeat
+# Runtime deps (gregor, markdown, css-expr) + raco link ./olai; cheap to repeat
 install:
     mkdir -p "{{PLTUSERHOME}}"
-    raco pkg install --auto --skip-installed gregor markdown
+    raco pkg install --auto --skip-installed gregor markdown css-expr
     raco pkg install --auto --skip-installed --link {{justfile_directory()}}/olai
 
 # Validate outline(s) (default: $OLAI_HOME/*.rkt)

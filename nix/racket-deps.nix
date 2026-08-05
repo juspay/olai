@@ -15,6 +15,9 @@ rec {
     { name = "tzinfo"; pin = "tzinfo"; subdir = null; }
     { name = "gregor-lib"; pin = "gregor"; subdir = "gregor-lib"; }
     { name = "markdown"; pin = "markdown"; subdir = null; }
+    { name = "unstable-pretty-lib"; pin = "unstable-pretty-lib"; subdir = null; }
+    { name = "nanopass"; pin = "nanopass"; subdir = null; }
+    { name = "css-expr"; pin = "css-expr"; subdir = null; }
   ];
 
   # Stage each npins source into $out/<name> for raco pkg install --copy.
