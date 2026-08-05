@@ -21,11 +21,21 @@ mod ci 'ci/mod.just'
 default:
     @just --list
 
-# Runtime deps (gregor, markdown, css-expr) + raco link ./olai; cheap to repeat
+# Deps + raco link ./olai (cheap; does not recompile — use `just build`)
 install:
     mkdir -p "{{PLTUSERHOME}}"
     raco pkg install --auto --skip-installed gregor markdown css-expr
     raco pkg install --auto --skip-installed --link {{justfile_directory()}}/olai
+
+# raco setup --pkgs olai: write .zo and keep them coherent (see docs/hacking.md)
+build: install
+    raco setup --pkgs olai
+
+# Drop olai/**/compiled (linklet-mismatch escape hatch; prefer `just build`)
+clean:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    find olai -type d -name compiled -print0 | xargs -0 rm -rf
 
 # Validate outline(s) (default: $OLAI_HOME/*.rkt, else the repo's own)
 check *args: install
@@ -52,13 +62,13 @@ css-classes: install
     racket -e '(require olai/web/skin (only-in olai/web/style class-names)) (for-each displayln (sort (class-names) string<?))' > olai/tests/classes.golden
 
 # Unit tests: in-process, no subprocesses (olai/tests/*.rkt)
-test: install
+test: build
     raco test -j {{ num_cpus() }} olai/tests/*.rkt
 
 # Integration tests: subprocess CLI + real servers (olai/tests/integration/)
-test-integration: install
+test-integration: build
     raco test -j {{ num_cpus() }} olai/tests/integration/
 
 # Everything, in one -j pool so the slow files start first
-test-all: install
+test-all: build
     raco test -j {{ num_cpus() }} olai/tests/integration/ olai/tests/*.rkt

@@ -1,6 +1,7 @@
 # CLAUDE.md
 
-Read README.md and docs/*.md first. This file is only what you can't infer.
+Read README.md and docs/*.md first (especially docs/hacking.md for the
+edit-verify loop and css-expr). This file is only what you can't infer.
 
 ## HARD RULES
 
@@ -66,6 +67,11 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
 * just check / serve / test / ci — recipes handle PLTUSERHOME + raco link.
   Racket comes from the nix dev shell (nixpkgs 9.2). Don't fight raco setup;
   PLTUSERHOME must be writable.
+* `just test` runs `just build` first (`raco setup --pkgs olai`) so
+  compiled/*.zo exist and stay coherent after edits. `just install` alone
+  does not recompile. Linklet mismatch → `just clean && just build` (see
+  docs/hacking.md). Repo-specific facts agents rediscover otherwise live
+  in docs/hacking.md — read it before probing css-expr or the toolchain.
 * `just test` is the only test command you run. It is the fast set; CI
   runs everything else on the PR.
 * Branch + PR for every change (agents included); CI green before merge.

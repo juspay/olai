@@ -6,10 +6,9 @@
 # equivalent: `just ci`. Matches .github/workflows/ci.yml:
 #   nix build + binary smoke + unit tests + integration tests.
 #
-# install is a single shared node: concurrent `raco pkg install` races on
-# LOCKpkgs.rktd (seen on aarch64-darwin when test and test-integration both
-# pulled root `just test` → install). odu runs each node with --no-deps, so
-# bodies below call raco directly and never re-enter install.
+# build is a single shared node (install + raco setup): concurrent raco pkg
+# install races on LOCKpkgs.rktd, and tests need coherent .zo (docs/hacking.md).
+# odu runs each node with --no-deps, so bodies below call raco test directly.
 
 set working-directory := '..'
 
@@ -18,16 +17,16 @@ set working-directory := '..'
 nix_shell := if env('IN_NIX_SHELL', '') != '' { '' } else { 'nix develop --accept-flake-config -c' }
 
 # Pipeline root: every recipe listed here becomes a (recipe × platform) node.
-# smoke waits on nix; tests wait on install; nix ‖ install, then fan-out.
+# smoke waits on nix; tests wait on build; nix ‖ build, then fan-out.
 [linux]
 [macos]
 [parallel]
 [metadata("ci")]
 default: smoke test test-integration
 
-# One raco link per lane — funnel every racket consumer through this node.
-install:
-    {{ nix_shell }} just install
+# One install + raco setup per lane — funnel every racket test through this.
+build:
+    {{ nix_shell }} just build
 
 # Package the CLI. Leaves ./result for smoke (gitignored).
 nix:
@@ -38,9 +37,9 @@ smoke: nix
     ./result/bin/olai check examples/Example.rkt Roadmap.rkt
 
 # Unit tests: in-process (olai/tests/*.rkt).
-test: install
+test: build
     {{ nix_shell }} raco test -j {{ num_cpus() }} olai/tests/*.rkt
 
 # Integration tests: subprocess CLI + real servers (olai/tests/integration/).
-test-integration: install
+test-integration: build
     {{ nix_shell }} raco test -j {{ num_cpus() }} olai/tests/integration/
