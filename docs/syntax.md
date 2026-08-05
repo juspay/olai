@@ -1,0 +1,130 @@
+# selfflowy syntax
+
+Two surface syntaxes share one expander (the validator).
+
+## `#lang selfflowy` — outline (default)
+
+Workflowy-shaped, quoteless titles. The reader translates to `(t ...)` forms;
+the expander does not know which surface you used.
+
+```racket
+#lang selfflowy
+
+Selfflowy roadmap #project
+  0.4 the agent
+    : Minimal HTTP server whose only page is a chat panel
+    : driving Claude Code over ACP. Ugly on purpose.
+    @date 2026-08-15T09:30
+  Buy milk — don't quote me; 2% "raw" milk is fine
+```
+
+### Implemented
+
+| Feature | Rule |
+|--------|------|
+| Title | Any non-blank line that is not `#lang`, metadata (`:`/`@`), a mirror, or an include — stored **verbatim** minus its sugar. Escape with `\` to keep a line that starts like one of those. |
+| Nesting | Exactly **2 spaces** per level. Tabs forbidden. Indent may increase by at most one level. |
+| Description | Indented continuation `: text` — colon **and space**; a bare `:` or `:text` is a reader error. Multiple `: ` lines join with `\n` into one `#:description`. |
+| Date/time | Indented `@date …` → `#:date`. Accepts `YYYY-MM-DD` or datetime `YYYY-MM-DDTHH:MM[:SS]` (space instead of `T` ok; normalized to `T`). Validated by gregor in the expander. |
+| Include | `@include RELATIVE/PATH.rkt` at a title position → `(include "…")`. Require+splice of the fragment's **top-level** tasks (no redundant root in the fragment). Path relative to the including file. Cycles rejected. |
+| Done | Indented `@done` or `@done …` → `#:done` / `#:done` timestamp. Bare means completed (`#t`); with a value, same ISO forms as `@date`. |
+| Checkbox sugar | Title prefix `[x] ` / `[X] ` desugars to bare `@done` (prefix **not** part of the title). `[ ] ` is an explicit not-done marker (stripped, no-op). Escape with `\` if the title should literally start with `[x] `. |
+| At most once | A second `@date` or `@done` under one title is a reader error. `[x] ` counts as the node's `@done`, so checkbox **and** `@done` on the same node is a duplicate. |
+| Escape | Line starting with `\` (after indent) is a title beginning with the rest. It turns off **all** line sugar for that line — checkbox, mirror, trailing `^anchor` — so titles may start with `:`, `@`, `*`, `[x] `, or `\` and may end in `^word`. |
+| Blank lines | Insignificant. |
+| Inline `#tags` | In titles: `#` + `[A-Za-z0-9_-]+`. Title stays verbatim; expander fills `task-tags` (no `#`, first-seen order, deduped). Works for both langs. |
+| Anchor | Title-trailing `^anchor` (`[A-Za-z0-9_-]+`). Stripped from the stored title; becomes `#:id`. Unique across the whole loaded tree, `@include` fragments included. |
+| Mirror | Line that is only `*anchor` → `(mirror "anchor")`. Same node as the `^anchor` declaration (DAG, not a copy). Escape with `\` if a title should start with `*`. |
+
+### Inline formatting (Markdown)
+
+Formatting is **interpretation at render time**, not data. The reader, expander,
+task struct, and CLI write path leave strings **verbatim**. Only the web view
+(`selfflowy serve`) parses Markdown, via the `markdown` package → xexprs →
+sanitizer. `tree` / `check` / `agenda` JSON never do.
+
+| Surface | Markdown scope |
+|--------|----------------|
+| **Title** | Inline only: bold, italic, code spans, links. Block syntax is text in a title — a leading `#tag`, `- `, `> ` or `1. ` renders verbatim, pill and all. |
+| **Notes** (`: ` lines, joined with `\n`) | Full document Markdown, including fenced code blocks. |
+
+**Ambiguity rules**
+
+- `#word` is a **tag** in the data, always: `task-tags` comes from a regexp over the verbatim title, so the JSON is right no matter what the line looks like.
+- Rendering agrees: a title is parsed **inline-only**, so a line-initial block marker is text. `#tag first` keeps its pill, `- not a list` is not a list, `> quoted` is not a blockquote. (Notes are the opposite — full document Markdown, blocks included.)
+- Tags are pilled in text nodes after the Markdown parse, **except inside `` `code` `` spans** (code wins — a `#tag` inside backticks stays plain code text).
+- Mirror sigil `*anchor` is **line-initial** on its own outline line, so it does not collide with inline `*italic*`.
+- Raw HTML in titles/notes is **not** trusted: unknown tags are stripped after parse (no `<script>` injection).
+
+**Designed, not implemented**
+
+- `@layout code` — whole node rendered as a code block
+- Strikethrough (`~~x~~`) — not in the default `markdown` package grammar we use; `~~x~~` renders literally. Do not invent it yet.
+
+### Not implemented (designed, deferred)
+
+Mark these clearly so agents do not invent them:
+
+- `@layout` and other `@` fields beyond `@date` / `@done` / `@include`
+- UI state in the outline file, or in a sidecar next to it. Collapse state is real but lives in the browser (`localStorage`, keyed by node); zoom is a URL (`/today`, `/#n-<key>`). Nothing on disk records either.
+- Check-off from the web view — it renders a static checkbox, and done already renders checked/dimmed. Structure edits go through the CLI or your editor.
+- Live push: the page loads the htmx SSE extension but the server opens no event stream yet; edits show up on the next request.
+
+Unknown `@field` is a **reader error** today (names the known fields: `@date`, `@done`, `@include`).
+
+### Includes (file composition)
+
+`@include` / `(include "path")` is **require + splice**, not textual paste. The
+included file is a normal `#lang selfflowy` module; its top-level tasks appear
+in place of the include line. Anchors/mirrors resolve across the whole tree;
+duplicate `^id` names both files. Each task records its defining file
+(`task-file`); writes (`done` / `move` / `add --parent ^anchor`) edit that
+file, not the root. Node identity (`key` in the JSON) is minted from that
+defining file too, so a node keys the same through any root that includes it,
+and two roots sharing a fragment agree about it. The file is named relative to
+the common directory of the loaded set, so loading a fragment as its own root
+re-bases that name and re-keys its nodes — see `docs/cli.md`.
+
+### Mirrors
+
+A mirror is the **same node**, not a copy: shared title/fields/children. One
+node, multiple parents (DAG). Scope is the **loaded tree**: `*id` reaches an
+`^id` in the same file, or in any fragment that file `@include`s. It cannot
+reach a file nobody included — that is an unknown-anchor error, not a link.
+
+Validation happens at compile time when the file has no `@include` (the
+expander can see the whole tree), and right after the splice otherwise; the
+checks and the messages are the same either way:
+
+- Duplicate `^id` → error, naming the first declaration (line, or the other
+  file's name once fragments are involved).
+- Unknown `*id` → error, listing the anchors that do exist.
+- Cycle (direct or via other anchors) → error with path, e.g.
+  `agent -> week -> agent`.
+
+JSON tree sites emit `{"mirror":"id"}` (never inline the subtree). An
+`anchors` object holds each anchored node once. Agenda counts a dated node
+once (defining breadcrumb). Web view: the defining site gets `id="anchor"`;
+mirror sites render with a ↗ link to `#anchor`.
+
+## `#lang selfflowy/sexp` — s-expression core
+
+The underlying form the expander sees. Useful for tests and for agents that
+prefer sexps.
+
+```racket
+#lang selfflowy/sexp
+
+(t "Inbox #capture"
+   #:description "landing"
+   (t "Buy milk" #:date "2026-01-15")
+   (t "Agent work" #:id "agent")
+   (t "This week" (mirror "agent"))
+   (t "Shipped" #:done "2026-08-03"))
+```
+
+Keywords `#:id`, `#:date`, `#:description`, and `#:done` are optional, any
+order, at most once each. `#:done` may be bare or take an ISO date/datetime.
+Children are `(t ...)`, `(mirror "anchor")`, or `(include "relative/path.rkt")`
+— closed grammar, same three forms allowed at top level. Module exports
+`tasks`, `anchors` (hash id → task), and `includes` (absolute paths spliced in).

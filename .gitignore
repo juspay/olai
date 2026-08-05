@@ -1,0 +1,25 @@
+# Belt-and-braces: never commit personal outline data if someone
+# accidentally drops a copy in the repo. Canonical data is outside:
+# $SELFFLOWY_HOME (default ~/Dropbox/Selfflowy-Srid/).
+/private/
+/Tasks.rkt
+/Daily.rkt
+/Roadmap.rkt
+
+# Racket
+compiled/
+*.zo
+*.dep
+
+# Nix
+/result
+/result-*
+.direnv/
+
+# Local Racket user home for nix/dev
+.plt-user/
+
+/.direnv
+
+# Agent scratch worktrees
+/.claude/
