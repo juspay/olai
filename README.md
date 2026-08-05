@@ -1,5 +1,8 @@
 # olai
 
+ஓலை: the palm leaf Tamil was written on for two millennia — nodes are
+leaves, your files are the manuscript.
+
 An outliner for people who think the filesystem was right all along.
 
 Self-hosted, AI-native alternative to Workflowy. Your outline is a bunch
@@ -65,11 +68,11 @@ Under the hood every outline becomes s-expressions. Same expander:
 ## HOW IT WORKS
 
 ```text
-$OLAI_HOME/*.rkt            <- personal data (#lang olai)
+$OLAI_HOME/*.rkt                 <- personal data (#lang olai)
 (default: ~/Dropbox/Selfflowy-Srid/)
     |                                 ^
     v                                 | edits your files
-olai CLI (Racket)                |   <- validate / query / capture
+olai CLI (Racket)                     |   <- validate / query / capture
     |                                 |
     v                                 |
 racket web-server --- spawns ---> ACP agent (Claude Code; JSON-RPC on stdio)

@@ -24,8 +24,9 @@ the kinds are how the layer below talks about failure.
 
 - Default outline file when no paths given:
   `$OLAI_HOME/Tasks.rkt` (default home:
-  `~/Dropbox/Selfflowy-Srid`). `add` / `done` / `move` always target one file
-  via `--file`, same default.
+  `~/Dropbox/Selfflowy-Srid` — the author's data dir, not renamed with the
+  tool). `add` / `done` / `move` always target one file via `--file`, same
+  default.
 - **Read commands** (`check` / `tree` / `agenda` / `calendar` / `ics` /
   `serve`) accept **one or more** outline paths. The justfile defaults to
   `$OLAI_HOME/*.rkt` (no `examples/` paths). `serve` also takes the
