@@ -1,6 +1,6 @@
 #lang racket/base
 
-;; olai CLI — agent-first: check | tree | agenda | add | done | move
+;; olai CLI — agent-first: check | tree | agenda | add | done | move | css
 ;; Exit codes: 0 ok, 1 usage, 2 validation/load, 3 not found.
 ;; Arg parsing: racket/cmdline. JSON: json package write-json.
 
@@ -23,6 +23,8 @@
          olai/ops
          (only-in olai/paths dir-roots)
          (only-in olai/acp acp-command-problem)
+         ;; the skin, for `css`: the same string the server answers with
+         (only-in olai/web/skin stylesheet)
          olai/web/serve)
 (define exit-ok 0)
 (define exit-usage 1)
@@ -424,6 +426,12 @@
   (custodian-shutdown-all cust)
   (exit exit-ok))
 
+;; The skin on stdout, the same bytes /static/app.css serves. No --json: CSS
+;; is the output, and a diff of two of these is how you read a skin change.
+(define (cmd-css)
+  (displayln (stylesheet))
+  (exit exit-ok))
+
 (define (usage)
   (eprintf "usage: olai <command> [options] ...\n")
   (eprintf "\n")
@@ -441,6 +449,7 @@
   (eprintf "  daily    [--json] [--date YYYY-MM-DD] [--home DIR] [--no-commit]\n")
   (eprintf "           ensure today in Daily/\n")
   (eprintf "  ics      [--out PATH] [file ...]  RFC 5545 VCALENDAR of dated tasks\n")
+  (eprintf "  css      the generated stylesheet on stdout (what serve answers)\n")
   (eprintf "\n")
   (eprintf "exit codes: 0 ok | 1 usage | 2 validation/load | 3 not found\n")
   (eprintf "agent contract: docs/cli.md\n"))
@@ -587,6 +596,13 @@
    (set! file-args paths))
   (cmd-ics (resolve-files file-args #f) out-path))
 
+(define (cli-css)
+  (command-line
+   #:program "olai css"
+   #:args ()
+   (void))
+  (cmd-css))
+
 (define (cli-daily)
   (define json? #f)
   (define date-arg #f)
@@ -632,6 +648,7 @@
            [("move") (cli-move)]
            [("daily") (cli-daily)]
            [("ics") (cli-ics)]
+           [("css") (cli-css)]
            [else
             (die exit-usage (format "unknown command ~s" cmd) #:json? #f)])))]))
 

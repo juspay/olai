@@ -1,7 +1,7 @@
 #lang info
 
 (define collection "olai")
-(define deps '("base" "gregor" "markdown" "web-server-lib"))
+(define deps '("base" "css-expr" "gregor" "markdown" "web-server-lib"))
 (define build-deps '("rackunit-lib"))
 (define pkg-desc "Self-hosted outliner: #lang olai + CLI")
 (define version "0.1")

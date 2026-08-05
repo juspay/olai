@@ -207,7 +207,7 @@ EOF
     (check-equal? (count-of "data-fragment-id=\"agent\"") 3 html)
     (check-equal? (count-of "id=\"n-agent\"") 1 html)
     ;; the legacy plain #anchor target belongs to the defining site only
-    (check-equal? (count-of "class=\"sf-anchor\" id=\"agent\"") 1 html)
+    (check-equal? (count-of "class=\"ol-anchor\" id=\"agent\"") 1 html)
     ;; the mirrored subtree is qualified too, not just its root
     (define sub-key (task-key (car (task-children (car tasks)))))
     (check-equal? (count-of (string-append "data-fragment-id=\"" sub-key "\"")) 3 html)

@@ -3,6 +3,11 @@
 # catalog package names (parsack, gregor) differ from the lib package dirs.
 { lib, stdenvNoCC, sources }:
 rec {
+  # HAND-MAINTAINED TRANSITIVE CLOSURE. npins pins sources, it does not resolve
+  # Racket package deps, so every dep of every dep is listed here by hand, in
+  # install order. To add a package: read its info.rkt `deps`, drop the ones the
+  # Racket distribution already ships (base, rackunit, ...), pin what is left
+  # with npins, and add those rows ABOVE the package that needs them.
   racketPkgs = [
     { name = "memoize-lib"; pin = "memoize"; subdir = "memoize-lib"; }
     { name = "parsack-lib"; pin = "parsack"; subdir = "parsack-lib"; }
@@ -15,6 +20,9 @@ rec {
     { name = "tzinfo"; pin = "tzinfo"; subdir = null; }
     { name = "gregor-lib"; pin = "gregor"; subdir = "gregor-lib"; }
     { name = "markdown"; pin = "markdown"; subdir = null; }
+    { name = "unstable-pretty-lib"; pin = "unstable-pretty-lib"; subdir = null; }
+    { name = "nanopass"; pin = "nanopass"; subdir = null; }
+    { name = "css-expr"; pin = "css-expr"; subdir = null; }
   ];
 
   # Stage each npins source into $out/<name> for raco pkg install --copy.

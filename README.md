@@ -96,7 +96,7 @@ restructure. Live with it, or open your laptop.
 
 Outline `#lang olai` + sexp core + agent CLI (`check` / `tree` JSON /
 `agenda` / `calendar` / `add` / `done` / `move` / `daily` / `ics` /
-`serve`). Done status, mirrors and `@include` composition are first class;
+`serve` / `css`). Done status, mirrors and `@include` composition are first class;
 mirrors reach anchors anywhere in the loaded tree, fragments included. The
 human view is the web app served by `olai serve` — htmx, no auth (bind
 it to localhost or Tailscale). It reloads an outline when the file changes
@@ -132,6 +132,7 @@ just daily                       # today's node in Daily/YYYY-MM.rkt
 just test                        # unit tests (in-process)
 just test-integration            # subprocess CLI + servers
 just test-all                    # both
+just css-classes                 # regenerate olai/tests/classes.golden
 ```
 
 `olai serve DIR` serves `DIR/*.rkt` and runs the agent in `DIR`

@@ -13,6 +13,9 @@
          (only-in olai/lang/walk resolve-mirrors)
          olai/store
          olai/web/render
+         ;; the chat panel is its own module now: presentation for the agent's
+         ;; conversation, sitting on top of the outline's skin
+         olai/web/chat-panel
          olai/web/markdown)
 
 ;; Hand-built tasks, so the key has to be minted here too. Keying off the
@@ -44,21 +47,21 @@
                                           #:today "2026-08-04")))
     (check-true (string-contains? s (string-append "id=\"n-" fid "\"")) s)
     (check-true (string-contains? s (string-append "data-fragment-id=\"" fid "\"")) s)
-    (check-true (string-contains? s "class=\"sf-node\"") s)
+    (check-true (string-contains? s "class=\"ol-node\"") s)
     (check-true (string-contains? s "Leaf") s)
     ;; leaf: no children list, no live toggle
-    (check-false (string-contains? s "sf-children") s)
-    (check-true (string-contains? s "sf-toggle-empty") s))
+    (check-false (string-contains? s "ol-children") s)
+    (check-true (string-contains? s "ol-toggle-empty") s))
 
   (test-case "parent gets a toggle, a children list and nested node ids"
     (define parent (tk "Parent" #f #f (list (tk "Child" #f #f '()))))
     (define s (xstr (render-node-fragment parent
                                           #:today "2026-08-04")))
     (define kid-id (task-key (tk "Child" #f #f (quote ()))))
-    (check-true (string-contains? s "sf-node has-children") s)
-    (check-true (string-contains? s "class=\"sf-toggle\"") s)
+    (check-true (string-contains? s "ol-node has-children") s)
+    (check-true (string-contains? s "class=\"ol-toggle\"") s)
     (check-true (string-contains? s "aria-expanded=\"true\"") s)
-    (check-true (string-contains? s "<ul class=\"sf-children\">") s)
+    (check-true (string-contains? s "<ul class=\"ol-children\">") s)
     ;; only parents get a collapse key, and it is the fragment id
     (check-true (string-contains?
                  s (string-append "data-collapse-key=\""
@@ -81,7 +84,7 @@
     (define s (xstr (render-node-fragment (tk "Ship" #f #f (quote ()) #:id "ship")
                                           #:today "2026-08-04")))
     (check-true (string-contains? s "id=\"n-ship\"") s)
-    (check-true (string-contains? s "class=\"sf-anchor\" id=\"ship\"") s))
+    (check-true (string-contains? s "class=\"ol-anchor\" id=\"ship\"") s))
 
   ;; The renderer is handed a RESOLVED tree: binding happens in core (see
   ;; lang/walk, resolve-mirrors), and this module never holds an anchors hash.
@@ -91,21 +94,21 @@
     (define bound (car (resolve-mirrors (list parent) (hash "a1" target))))
     (define s (xstr (render-node-fragment bound #:today "2026-08-04")))
     (check-true (string-contains? s "Anchored") s)
-    (check-true (string-contains? s "class=\"sf-mirror\"") s)
+    (check-true (string-contains? s "class=\"ol-mirror\"") s)
     (check-true (string-contains? s "href=\"#a1\"") s)
     ;; an anchor that names nothing is a state the marker is drawn in
     (define loose
       (car (resolve-mirrors (list (tk "Holder" #f #f (list (mirror-ref "nope" #f))))
                             (hash))))
     (define s2 (xstr (render-node-fragment loose #:today "2026-08-04")))
-    (check-true (string-contains? s2 "sf-unresolved") s2)
+    (check-true (string-contains? s2 "ol-unresolved") s2)
     (check-true (string-contains? s2 "(unresolved)") s2))
 
   (test-case "toggle-base wires htmx check-off; default is inert"
     (define plain (xstr (render-node-fragment (tk "T" #f #f (quote ())  #:id "t1")
                                               #:today "2026-08-04")))
     (check-false (string-contains? plain "hx-post") plain)
-    (check-true (string-contains? plain "<span class=\"sf-check\"") plain)
+    (check-true (string-contains? plain "<span class=\"ol-check\"") plain)
     (define hx (xstr (render-node-fragment (tk "T" #f #f (quote ()) #:id "t1")
                                            #:today "2026-08-04"
                                            #:toggle-base "/toggle/")))
@@ -120,7 +123,7 @@
     (check-true (string-contains? s "href=\"/z/t1\"") s)
     (define s2 (xstr (render-node-fragment (tk "T" #f #f (quote ()) #:id "t1")
                                            #:today "2026-08-04")))
-    (check-false (string-contains? s2 "sf-bullet-link") s2))
+    (check-false (string-contains? s2 "ol-bullet-link") s2))
 
   ;; ---- done / dates / tags (carried over from the old html tests) ---------
 
@@ -128,22 +131,22 @@
     (define s (xstr (render-node-fragment (tk "Done item" #f #f (quote ()) #:done #t)
                                           #:today "2026-08-04")))
     (check-true (string-contains? s "☑") s)
-    (check-true (string-contains? s "sf-check is-done") s)
-    (check-true (string-contains? s "sf-title is-done") s)
+    (check-true (string-contains? s "ol-check is-done") s)
+    (check-true (string-contains? s "ol-title is-done") s)
     (check-true (string-contains? s "Done item") s)
     (define s2 (xstr (render-node-fragment (tk "Stamped" "2026-01-01" #f (quote ())
                                                #:done "2026-01-02")
                                            #:today "2026-08-04")))
     (check-true (string-contains? s2 "☑") s2)
-    (check-true (string-contains? s2 "sf-node is-done") s2))
+    (check-true (string-contains? s2 "ol-node is-done") s2))
 
   (test-case "date pill and description present; undone box is empty"
     (define s (xstr (render-node-fragment (tk "T" "2026-01-02" "a **note**" '())
                                           #:today "2026-08-04")))
-    (check-true (string-contains? s "sf-pill sf-date") s)
+    (check-true (string-contains? s "ol-pill ol-date") s)
     (check-true (string-contains? s "title=\"2026-01-02\"") s)
     (check-true (string-contains? s "Fri, Jan 2") s)
-    (check-true (string-contains? s "sf-note") s)
+    (check-true (string-contains? s "ol-note") s)
     (check-true (string-contains? s "<strong") s)
     (check-true (string-contains? s "☐") s)
     (check-false (string-contains? s "is-done") s))
@@ -151,7 +154,7 @@
   (test-case "today's date pill is ringed; timed dates keep the clock"
     (define s (xstr (render-node-fragment (tk "T" "2026-08-04T18:00" #f '())
                                           #:today "2026-08-04")))
-    (check-true (string-contains? s "sf-date is-today") s)
+    (check-true (string-contains? s "ol-date is-today") s)
     (check-true (string-contains? s "18:00") s))
 
   (test-case "bare ISO day title renders a friendly pill, not mangled hyphens"
@@ -160,7 +163,7 @@
     (check-true (string-contains? s "Mon, Aug 3") s)
     (check-true (string-contains? s "title=\"2026-08-03\"") s)
     ;; day nodes stay linkable as #YYYY-MM-DD
-    (check-true (string-contains? s "class=\"sf-anchor\" id=\"2026-08-03\"") s)
+    (check-true (string-contains? s "class=\"ol-anchor\" id=\"2026-08-03\"") s)
     (check-false (string-contains? s "ndash") s)
     (check-false (regexp-match? #rx">2026-08-03<" s) s)
     (define s-today (xstr (render-node-fragment (tk "2026-08-03" #f #f '())
@@ -175,17 +178,17 @@
     (define s-year (xstr (render-node-fragment (tk "2026" #f #f '())
                                                #:today "2026-08-03")))
     (check-true (string-contains? s-year "2026") s-year)
-    (check-false (string-contains? s-year "sf-day") s-year))
+    (check-false (string-contains? s-year "ol-day") s-year))
 
   (test-case "tag pills outside code; code keeps #tag text"
     (define s1 (xstr (render-node-fragment (tk "Ship #lang work" #f #f (quote ()))
                                            #:today "2026-08-04")))
-    (check-true (string-contains? s1 "sf-pill sf-tag") s1)
+    (check-true (string-contains? s1 "ol-pill ol-tag") s1)
     (check-true (string-contains? s1 "#lang") s1)
     (define s2 (xstr* (title->inline-xexprs "see `code #notag` please")))
     (check-true (string-contains? s2 "<code") s2)
     (check-true (string-contains? s2 "#notag") s2)
-    (check-false (regexp-match? #rx"sf-tag[^>]*>#notag" s2) s2))
+    (check-false (regexp-match? #rx"ol-tag[^>]*>#notag" s2) s2))
 
   ;; ---- markdown / escaping -----------------------------------------------
 
@@ -193,7 +196,7 @@
   ;; leading #tag is a tag, not an <h1> with the "#" eaten.
   (test-case "leading block markers in a title stay text"
     (define pill (xstr* (map style-md-xexpr (title->inline-xexprs "#tag first"))))
-    (check-true (string-contains? pill "sf-pill sf-tag") pill)
+    (check-true (string-contains? pill "ol-pill ol-tag") pill)
     (check-true (string-contains? pill "#tag") pill)
     (check-false (regexp-match? #rx"<h[1-6]" pill) pill)
     (define dash (xstr* (title->inline-xexprs "- not a list")))
@@ -255,9 +258,9 @@
     (define s (xstr* (map style-md-xexpr
                           (title->inline-xexprs "[hi](https://example.com)"))))
     (check-true (string-contains? s "href=\"https://example.com\"") s)
-    (check-true (string-contains? s "sf-link") s)
+    (check-true (string-contains? s "ol-link") s)
     (define n (xstr* (note->xexprs "intro\n\n```\nblock\n```\n")))
-    (check-true (string-contains? n "<pre class=\"sf-pre\"") n)
+    (check-true (string-contains? n "<pre class=\"ol-pre\"") n)
     (check-true (string-contains? n "block") n))
 
   (test-case "script, raw HTML and javascript: hrefs are stripped, & is escaped"
@@ -293,7 +296,7 @@
     (define s (xstr x))
     (check-true (string-contains? s "data-file=\"Tasks.rkt\"") s)
     (check-true (string-contains? s "data-file=\"Roadmap.rkt\"") s)
-    (check-true (string-contains? s "<ul class=\"sf-outline\">") s)
+    (check-true (string-contains? s "<ul class=\"ol-outline\">") s)
     (check-true (string-contains? s "Milk") s)
     (check-true (string-contains? s "Ship") s)
     ;; roots are keyed off the file label
@@ -323,11 +326,11 @@
     (check-true (string-contains? s "Someday") s)
     (check-true (string-contains? s "WP2") s)
     ;; disclosure only: no bullets, no notes, no checkboxes in the sidebar
-    (check-false (string-contains? s "sf-bullet") s)
-    (check-false (string-contains? s "sf-check") s)
-    (check-true (string-contains? s "sf-toggle") s)
+    (check-false (string-contains? s "ol-bullet") s)
+    (check-false (string-contains? s "ol-check") s)
+    (check-true (string-contains? s "ol-toggle") s)
     ;; deeper levels start collapsed
-    (check-true (string-contains? s "sf-node is-tree has-children is-collapsed") s)
+    (check-true (string-contains? s "ol-node is-tree has-children is-collapsed") s)
     ;; sidebar collapse state is namespaced away from the main pane's
     (check-true (string-contains? s "data-collapse-key=\"tree-") s))
 
@@ -336,9 +339,9 @@
   (test-case "breadcrumbs link the pairs and leave bare strings plain"
     (define s (xstr (render-breadcrumbs (list "Tasks.rkt" (list "Inbox" "p1234abcd"))
                                         #:home-href "/")))
-    (check-true (string-contains? s "sf-breadcrumbs") s)
+    (check-true (string-contains? s "ol-breadcrumbs") s)
     (check-true (string-contains? s "href=\"/\"") s)
-    (check-true (string-contains? s "<span class=\"sf-crumb\">Tasks.rkt</span>") s)
+    (check-true (string-contains? s "<span class=\"ol-crumb\">Tasks.rkt</span>") s)
     (check-true (string-contains? s "href=\"#n-p1234abcd\"") s)
     (define z (xstr (render-breadcrumbs (list (list "Inbox" "p1234abcd"))
                                         #:home-href "/"
@@ -353,7 +356,7 @@
                                   (tk "Elsewhere" #f #f '())))))
     (define fid (task-key (tk "Buy milk" #f #f '())))
     (define s (xstr (render-zoom (outline-index fd) fid #:today "2026-08-04" #:home-href "/")))
-    (check-true (string-contains? s "sf-breadcrumbs") s)
+    (check-true (string-contains? s "ol-breadcrumbs") s)
     (check-true (string-contains? s "Tasks.rkt") s)
     (check-true (string-contains? s "Inbox") s)
     (check-true (string-contains? s (string-append "id=\"n-" fid "\"")) s)
@@ -380,6 +383,7 @@
     (define fd (files (list "Tasks.rkt" (list (tk "Milk" #f #f '())))))
     (define s (xstr (render-page (render-outline fd #:today "2026-08-04")
                                  #:title "olai"
+                                 #:stylesheet-href "/static/app.css"
                                  #:sidebar (render-sidebar fd #:home-href "/"
                                                            #:today-href "/today"))))
     (check-true (string-contains? s "<title>olai</title>") s)
@@ -390,8 +394,8 @@
     (check-true (string-contains? s "src=\"/static/chat.js\"") s)
     (check-false (string-contains? s "tailwind") s)
     (check-false (string-contains? s "cdn.") s)
-    (check-true (string-contains? s "<aside class=\"sf-sidebar\"") s)
-    (check-true (string-contains? s "<main class=\"sf-main\">") s)
+    (check-true (string-contains? s "<aside class=\"ol-sidebar\"") s)
+    (check-true (string-contains? s "<main class=\"ol-main\">") s)
     ;; no inline script: every asset is a cacheable file under /static/
     (check-false (string-contains? s "localStorage") s)
     ;; served form carries the doctype (no quirks mode)
@@ -399,13 +403,13 @@
 
   (test-case "the page has a banner slot; the banner keeps file:line:col"
     (define plain (xstr (render-page '(div))))
-    (check-true (string-contains? plain "id=\"sf-banner\"") plain)
-    (check-false (string-contains? plain "sf-error") plain)
+    (check-true (string-contains? plain "id=\"ol-banner\"") plain)
+    (check-false (string-contains? plain "ol-error") plain)
     (define s (xstr (render-page '(div)
                                  #:banner (render-error-banner
                                            "expected ISO date"
                                            #:where "/tmp/Tasks.rkt:3:4"))))
-    (check-true (string-contains? s "sf-error") s)
+    (check-true (string-contains? s "ol-error") s)
     (check-true (string-contains? s "/tmp/Tasks.rkt:3:4") s)
     (check-true (string-contains? s "expected ISO date") s))
 
@@ -436,8 +440,9 @@
           'status status 'stopReason stop 'error err))
 
   (define (panel transcript #:model [model #f] #:commands [commands '()]
-                 #:session-title [session-title #f])
+                 #:session-title [session-title #f] #:busy? [busy? #f])
     (xstr (render-chat-panel transcript
+                             #:busy? busy?
                              #:send-href "/chat"
                              #:new-href "/chat/new"
                              #:cancel-href "/chat/cancel"
@@ -464,7 +469,7 @@
 
   (test-case "an empty panel is a form, a sink and the routes it was told"
     (define s (panel '()))
-    (check-true (string-contains? s "id=\"sf-chat\"") s)
+    (check-true (string-contains? s "id=\"ol-chat\"") s)
     (check-true (string-contains? s "action=\"/chat\"") s)
     (check-true (string-contains? s "data-post=\"/chat/new\"") s)
     (check-true (string-contains? s "data-post=\"/chat/cancel\"") s)
@@ -491,16 +496,17 @@
     (check-true (string-contains? s "data-status=\"completed\"") s)
     (check-true (string-contains? s "✓") s)
     ;; end_turn is the ordinary ending: it says nothing
-    (check-false (string-contains? s "sf-chat-note") s))
+    (check-false (string-contains? s "ol-chat-note") s))
 
   (test-case "a running turn comes up busy, with its text still verbatim"
     (define s (panel (list (turn "go" "half a **sent"
-                                 #:status "running" #:stop (json-null)))))
-    (check-true (string-contains? s "sf-chat is-busy") s)
+                                 #:status "running" #:stop (json-null)))
+                     #:busy? #t))
+    (check-true (string-contains? s "ol-chat is-busy") s)
     ;; an open panel hides the toggle that breathes, so the header carries the
     ;; working dot — drawn either way, and shown by that is-busy class
-    (check-true (string-contains? s "sf-chat-working") s)
-    (check-true (string-contains? (panel '()) "sf-chat-working") s)
+    (check-true (string-contains? s "ol-chat-working") s)
+    (check-true (string-contains? (panel '()) "ol-chat-working") s)
     (check-true (string-contains? s "disabled=\"disabled\"") s)
     ;; mid-stream text is a fragment; Markdown waits for the done frame
     (check-true (string-contains? s "half a **sent") s)
@@ -511,16 +517,16 @@
                                  #:error "the agent exited (code 1)")
                            (turn "again" "" #:stop "cancelled"))))
     (check-true (string-contains? s "the agent exited (code 1)") s)
-    (check-true (string-contains? s "sf-chat-msg is-error") s)
+    (check-true (string-contains? s "ol-chat-msg is-error") s)
     (check-true (string-contains? s "cancelled") s))
 
   (test-case "markers draw a break in the conversation, not a turn"
     (define s (panel (list (hash 'type "reset" 'message (json-null))
                            (hash 'type "restart" 'message "the agent exited"))))
-    (check-true (string-contains? s "sf-chat-sep") s)
+    (check-true (string-contains? s "ol-chat-sep") s)
     (check-true (string-contains? s "new chat") s)
     (check-true (string-contains? s "the agent exited") s)
-    (check-false (string-contains? s "sf-chat-turn") s))
+    (check-false (string-contains? s "ol-chat-turn") s))
 
   ;; User text and tool titles are never Markdown and never HTML. The xexpr
   ;; is what guarantees it, so this is the test that says so.
@@ -542,10 +548,10 @@
     (define named (panel '() #:model "fake-model-1"))
     (check-true (string-contains? named "agent · claude code") named)
     (check-true (string-contains? named
-                                  "<span class=\"sf-chat-model\" id=\"sf-chat-model\">fake-model-1</span>")
+                                  "<span class=\"ol-chat-model\" id=\"ol-chat-model\">fake-model-1</span>")
                 named)
     (define bare (panel '()))
-    (check-true (string-contains? bare "id=\"sf-chat-model\"") bare)
+    (check-true (string-contains? bare "id=\"ol-chat-model\"") bare)
     (check-false (string-contains? bare "fake-model") bare)
     (check-false (string-contains? bare "unknown") bare))
 
@@ -556,12 +562,12 @@
     (define named (panel '() #:session-title "the last conversation"))
     (check-true (string-contains?
                  named
-                 "<span class=\"sf-chat-session\" id=\"sf-chat-session\">the last conversation</span>")
+                 "<span class=\"ol-chat-session\" id=\"ol-chat-session\">the last conversation</span>")
                 named)
     (check-true (string-contains? named "data-chat-sessions=\"/chat/sessions\"") named)
     (check-true (string-contains? named "data-chat-load=\"/chat/load\"") named)
     (define bare (panel '()))
-    (check-true (string-contains? bare "id=\"sf-chat-session\"") bare)
+    (check-true (string-contains? bare "id=\"ol-chat-session\"") bare)
     (check-false (string-contains? bare "conversation") bare))
 
   ;; The agent's slash commands, replayed so a reloaded page completes before
@@ -579,7 +585,7 @@
     ;; the attribute is escaped, so nothing in it can end the tag
     (check-false (string-contains? s "<b>not html</b>") s)
     ;; a list to show is what puts the commands button on the input row
-    (check-true (string-contains? s "sf-chat has-commands") s)
+    (check-true (string-contains? s "ol-chat has-commands") s)
     (check-true (string-contains? s "data-chat-commands") s)
     (define bare (panel '()))
     (check-equal? (panel-commands bare) '())
@@ -602,8 +608,8 @@
   (test-case "a file section is addressable on its own"
     (define entry (list "Tasks.rkt" (list (tk "Milk" #f #f '()))))
     (define s (xstr (render-file-section entry #:today "2026-08-04")))
-    (check-true (string-prefix? s "<section class=\"sf-file\"") s)
-    (check-true (string-contains? s "id=\"sf-file-Tasks_rkt\"") s)
+    (check-true (string-prefix? s "<section class=\"ol-file\"") s)
+    (check-true (string-contains? s "id=\"ol-file-Tasks_rkt\"") s)
     (check-true (string-contains? s "data-file=\"Tasks.rkt\"") s)
     (check-true (string-contains? s "Milk") s)
     ;; the page is just its sections

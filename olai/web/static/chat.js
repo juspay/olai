@@ -58,9 +58,9 @@
   // tool id is only ever looked up inside the turn it belongs to.
   function startTurn(text){
     turn=null;
-    var t=line('sf-chat-turn');
-    t.appendChild(line('sf-chat-msg is-user',text));
-    agentEl=line('sf-chat-msg is-agent');
+    var t=line('ol-chat-turn');
+    t.appendChild(line('ol-chat-msg is-user',text));
+    agentEl=line('ol-chat-msg is-agent');
     t.appendChild(agentEl);
     append(t);
     turn=t;
@@ -73,15 +73,15 @@
     var sel='[data-tool-id="'+(window.CSS&&CSS.escape?CSS.escape(id):id)+'"]';
     var el=turn?turn.querySelector(sel):null;
     if(!el){
-      el=line('sf-chat-tool');
+      el=line('ol-chat-tool');
       el.setAttribute('data-tool-id',id);
-      el.appendChild(line('sf-chat-tool-glyph'));
-      el.appendChild(line('sf-chat-tool-title'));
+      el.appendChild(line('ol-chat-tool-glyph'));
+      el.appendChild(line('ol-chat-tool-title'));
       append(el);
     }
     el.setAttribute('data-status',status);
-    el.querySelector('.sf-chat-tool-glyph').textContent=GLYPH[status]||'⚙';
-    el.querySelector('.sf-chat-tool-title').textContent=title;
+    el.querySelector('.ol-chat-tool-glyph').textContent=GLYPH[status]||'⚙';
+    el.querySelector('.ol-chat-tool-title').textContent=title;
   }
 
   // ---- slash commands ----------------------------------------------------
@@ -133,10 +133,10 @@
     if(!pop||!list.length){closePop();return}
     pop.textContent='';
     for(var i=0;i<list.length;i++){
-      var row=line('sf-chat-cmd');
+      var row=line('ol-chat-cmd');
       row.setAttribute('data-index',String(i));
-      row.appendChild(line('sf-chat-cmd-name','/'+list[i].name));
-      row.appendChild(line('sf-chat-cmd-desc',list[i].description));
+      row.appendChild(line('ol-chat-cmd-name','/'+list[i].name));
+      row.appendChild(line('ol-chat-cmd-desc',list[i].description));
       pop.appendChild(row);
     }
     matches=list;
@@ -200,16 +200,16 @@
     if(!spop)return;
     spop.textContent='';
     if(!list.length){
-      spop.appendChild(line('sf-chat-cmd-desc','no past chats here'));
+      spop.appendChild(line('ol-chat-cmd-desc','no past chats here'));
       sessions=[];sessPicked=-1;spop.hidden=false;
       return;
     }
     for(var i=0;i<list.length;i++){
-      var row=line('sf-chat-cmd');
+      var row=line('ol-chat-cmd');
       row.setAttribute('data-index',String(i));
       if(list[i].current)row.setAttribute('data-current','1');
-      row.appendChild(line('sf-chat-cmd-name',list[i].title||'(untitled)'));
-      row.appendChild(line('sf-chat-cmd-desc',stamp(list[i].updatedAt)));
+      row.appendChild(line('ol-chat-cmd-name',list[i].title||'(untitled)'));
+      row.appendChild(line('ol-chat-cmd-desc',stamp(list[i].updatedAt)));
       spop.appendChild(row);
     }
     sessions=list;
@@ -218,7 +218,7 @@
   }
 
   function highlightSess(i){
-    var rows=spop.querySelectorAll('.sf-chat-cmd');
+    var rows=spop.querySelectorAll('.ol-chat-cmd');
     if(!rows.length)return;
     sessPicked=(i+rows.length)%rows.length;
     for(var j=0;j<rows.length;j++)rows[j].classList.toggle('is-picked',j===sessPicked);
@@ -230,13 +230,13 @@
     closePop();
     fetch(sessionsUrl).then(function(r){
       if(!r.ok)return r.text().then(function(t){
-        append(line('sf-chat-msg is-error',(t||'').trim()||('http '+r.status)));
+        append(line('ol-chat-msg is-error',(t||'').trim()||('http '+r.status)));
       });
       return r.json().then(function(j){
         drawSpop((j&&j.sessions)||[]);
       });
     }).catch(function(e){
-      append(line('sf-chat-msg is-error',String(e)));
+      append(line('ol-chat-msg is-error',String(e)));
     });
   }
 
@@ -263,11 +263,11 @@
     else if(f.type==='done'){
       if(agentEl&&typeof f.html==='string')agentEl.innerHTML=f.html;
       if(f.stopReason&&f.stopReason!=='end_turn')
-        append(line('sf-chat-note',f.stopReason));
+        append(line('ol-chat-note',f.stopReason));
       endTurn();
     }
     else if(f.type==='error'){
-      append(line('sf-chat-msg is-error',f.message));
+      append(line('ol-chat-msg is-error',f.message));
       endTurn();
     }
     else if(f.type==='reset'){
@@ -310,43 +310,43 @@
     fetch(url,opts).then(function(r){
       if(r.ok)return;
       return r.text().then(function(t){
-        append(line('sf-chat-msg is-error',(t||'').trim()||('http '+r.status)));
+        append(line('ol-chat-msg is-error',(t||'').trim()||('http '+r.status)));
       });
     }).catch(function(e){
-      append(line('sf-chat-msg is-error',String(e)));
+      append(line('ol-chat-msg is-error',String(e)));
     });
   }
 
   // ---- wiring ------------------------------------------------------------
 
   function init(){
-    panel=document.getElementById('sf-chat');
+    panel=document.getElementById('ol-chat');
     if(!panel)return;
-    dock=panel.closest('.sf-chat-dock');
-    body=document.getElementById('sf-chat-body');
-    form=document.getElementById('sf-chat-form');
-    input=form.querySelector('.sf-chat-input');
-    sink=document.getElementById('sf-chat-sink');
-    modelEl=document.getElementById('sf-chat-model');
-    sessionEl=document.getElementById('sf-chat-session');
+    dock=panel.closest('.ol-chat-dock');
+    body=document.getElementById('ol-chat-body');
+    form=document.getElementById('ol-chat-form');
+    input=form.querySelector('.ol-chat-input');
+    sink=document.getElementById('ol-chat-sink');
+    modelEl=document.getElementById('ol-chat-model');
+    sessionEl=document.getElementById('ol-chat-session');
     // What the server knew when it drew the page. Bad JSON is no commands,
     // not a broken panel.
     try{setCommands(JSON.parse(panel.getAttribute('data-commands')||'[]'))}catch(e){}
     // The popover belongs to the input row and to nothing else, so it is made
     // here rather than rendered: there is no server state in it.
-    pop=line('sf-chat-pop');
-    pop.id='sf-chat-pop';
+    pop=line('ol-chat-pop');
+    pop.id='ol-chat-pop';
     pop.hidden=true;
     form.appendChild(pop);
     // The sessions popover hangs off the HEADER, where its button is: same
     // surface, the other end of the panel.
-    var head=panel.querySelector('.sf-chat-head');
+    var head=panel.querySelector('.ol-chat-head');
     var sbtn=panel.querySelector('[data-chat-sessions]');
     if(head&&sbtn){
       sessionsUrl=sbtn.getAttribute('data-chat-sessions');
       loadUrl=sbtn.getAttribute('data-chat-load');
-      spop=line('sf-chat-pop sf-chat-spop');
-      spop.id='sf-chat-spop';
+      spop=line('ol-chat-pop ol-chat-spop');
+      spop.id='ol-chat-spop';
       spop.hidden=true;
       head.appendChild(spop);
     }
@@ -358,9 +358,9 @@
     // replayed turn too, or the next live frame would start a duplicate.
     if(panel.classList.contains('is-busy')){
       setBusy(true);
-      var turns=body?body.querySelectorAll('.sf-chat-turn'):[];
+      var turns=body?body.querySelectorAll('.ol-chat-turn'):[];
       turn=turns[turns.length-1]||null;
-      agentEl=turn?turn.querySelector('.sf-chat-msg.is-agent'):null;
+      agentEl=turn?turn.querySelector('.ol-chat-msg.is-agent'):null;
     }
     if(body)body.scrollTop=body.scrollHeight;
 
@@ -421,7 +421,7 @@
     // mousedown, not click: it runs before the input loses focus, and the
     // default (that blur) is what accept() would have to undo.
     pop.addEventListener('mousedown',function(e){
-      var row=e.target.closest('.sf-chat-cmd');
+      var row=e.target.closest('.ol-chat-cmd');
       if(!row)return;
       e.preventDefault();
       accept(Number(row.getAttribute('data-index')));
@@ -431,7 +431,7 @@
     // document's while it is open: arrows move, Enter loads, Esc puts it away.
     if(spop){
       spop.addEventListener('mousedown',function(e){
-        var row=e.target.closest('.sf-chat-cmd');
+        var row=e.target.closest('.ol-chat-cmd');
         if(!row)return;
         e.preventDefault();
         loadSession(Number(row.getAttribute('data-index')));
@@ -445,7 +445,7 @@
       });
     }
 
-    // The htmx sse extension would swap the frame's JSON into #sf-chat-sink.
+    // The htmx sse extension would swap the frame's JSON into #ol-chat-sink.
     // Cancelling that message is how this panel borrows the page's one
     // connection: the data is ours, the swap never happens.
     document.body.addEventListener('htmx:sseBeforeMessage',function(e){

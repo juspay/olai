@@ -15,10 +15,10 @@ default_outlines := olai_home + "/*.rkt"
 default:
     @just --list
 
-# Runtime deps (gregor, markdown) + raco link ./olai; cheap to repeat
+# Runtime deps (gregor, markdown, css-expr) + raco link ./olai; cheap to repeat
 install:
     mkdir -p "{{PLTUSERHOME}}"
-    raco pkg install --auto --skip-installed gregor markdown
+    raco pkg install --auto --skip-installed gregor markdown css-expr
     raco pkg install --auto --skip-installed --link {{justfile_directory()}}/olai
 
 # Validate outline(s) (default: $OLAI_HOME/*.rkt)
@@ -91,6 +91,13 @@ alias watch := serve
 # The two sets differ in what they cost: unit tests run in this VM, the
 # integration ones spawn `olai` subprocesses and boot real servers. Both are
 # parallel-safe (ephemeral ports, temp dirs), so -j is free speed.
+
+# The skin's class list, sorted, one per line: what olai/tests/style.rkt
+# compares (class-names) against. A rename is one line gone and one added, in
+# a diff — accepted by running this, never by hand-editing the file.
+# Regenerate olai/tests/classes.golden from the skin
+css-classes: install
+    racket -e '(require olai/web/skin (only-in olai/web/style class-names)) (for-each displayln (sort (class-names) string<?))' > olai/tests/classes.golden
 
 # Unit tests: in-process, no subprocesses (olai/tests/*.rkt)
 test: install

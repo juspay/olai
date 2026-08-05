@@ -4,8 +4,9 @@
 ;;
 ;; Render-time only: strings in the task struct / JSON stay verbatim. The
 ;; markdown package does the parsing; this module only sanitizes (no raw
-;; HTML injection) and attaches semantic classes. Styling lives in
-;; web/static/app.css — never inline, never a utility-class framework.
+;; HTML injection) and attaches semantic classes — and, since it is the
+;; module that DRAWS them, it owns what they look like too (olai/web/style).
+;; Never inline, never a utility-class framework.
 
 (require racket/contract
          racket/list
@@ -13,7 +14,11 @@
          (only-in markdown parse-markdown)
          (only-in xml xexpr->string)
          ;; the tag grammar has one owner; this module only draws the pills
-         (only-in olai/lang/tags tag-rx))
+         (only-in olai/lang/tags tag-rx)
+         ;; the skin: its mechanism, its tokens, and the shared shape a #tag
+         ;; pill wears
+         olai/web/style
+         olai/web/theme)
 
 (provide sanitize-xexpr
          title->inline-xexprs
@@ -163,6 +168,13 @@
     [(list (list 'h1 kids ...) _ ...) kids]
     [other other]))
 
+;; A #tag in a title: the shared pill shape (theme) in its own paint.
+(define-style ol-tag
+  #:background ,amber-bg
+  #:color ,amber-fg
+  #:font-family ,mono
+  #:font-size ,micro-size)
+
 (define (add-tag-pills pieces)
   ;; Tag pills only in text nodes outside <code>. Code wins over #tags.
   (define re tag-rx)
@@ -181,7 +193,7 @@
          (when (> a pos)
            (set! parts (cons (substring s pos a) parts)))
          (set! parts
-               (cons `(span ((class "sf-pill sf-tag")) ,(substring s a b))
+               (cons `(span ((class ,(classes ol-pill ol-tag))) ,(substring s a b))
                      parts))
          (loop b)])))
   (define (walk x #:in-code? [in-code? #f])
@@ -203,7 +215,37 @@
 (define (title->inline-xexprs title)
   (add-tag-pills (title-md-inline title)))
 
-;; Attach semantic classes; the skin decides what they look like.
+;; ---- markdown inline ------------------------------------------------------
+;;
+;; The three looks a rendered title or note asks for. They are defined here
+;; because this is the module that puts them on the markup.
+
+(define-style ol-link
+  #:color ,blue-fg
+  #:text-decoration underline
+  [(: & hover) #:color ,ink])
+
+(define-style ol-code
+  #:font-family ,mono
+  #:font-size 0.8125em
+  #:background ,pill-bg
+  #:border (1px solid ,line)
+  #:border-radius 0.25rem
+  #:padding (0.0625rem 0.25rem))
+
+(define-style ol-pre
+  #:font-family ,mono
+  #:font-size 0.8125rem
+  #:background ,pill-bg
+  #:border (1px solid ,line)
+  #:border-radius ,radius
+  #:padding (0.625rem 0.75rem)
+  #:margin (0.375rem 0)
+  #:overflow-x auto
+  ;; a block already has the box; the code inside it does not need a second
+  [(& ,(sel ol-code)) #:background none #:border 0 #:padding 0])
+
+;; Attach the classes above; nothing else decides what a piece looks like.
 (define (style-md-xexpr x)
   (let loop ([x x])
     (cond
@@ -213,11 +255,11 @@
        (define attrs (xexpr-attrs x))
        (define kids (map loop (xexpr-kids x)))
        (case tag
-         [(code) (make-xexpr 'code '((class "sf-code")) kids)]
-         [(pre) (make-xexpr 'pre '((class "sf-pre")) kids)]
+         [(code) (make-xexpr 'code `((class ,ol-code)) kids)]
+         [(pre) (make-xexpr 'pre `((class ,ol-pre)) kids)]
          [(a)
           (define href (cond [(assq 'href attrs) => cadr] [else "#"]))
-          (make-xexpr 'a `((href ,href) (class "sf-link")) kids)]
+          (make-xexpr 'a `((href ,href) (class ,ol-link)) kids)]
          [else (make-xexpr tag attrs kids)])]
       [(list? x) (map loop x)]
       [else x])))

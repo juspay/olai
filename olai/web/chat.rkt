@@ -48,6 +48,15 @@
 ;; export is a verb or a read.
 (provide (contract-out
           [acp-event-name string?]
+          ;; the words a transcript is written in (see "the vocabulary")
+          [turn-running string?]
+          [turn-done string?]
+          [turn-error string?]
+          [tool-pending string?]
+          [tool-in-progress string?]
+          [tool-completed string?]
+          [tool-failed string?]
+          [stop-end-turn string?]
           [make-chat (->* (#:command (or/c path? string?)
                            #:cwd (or/c path? string?)
                            #:broadcast (-> string? string? any))
@@ -76,6 +85,30 @@
 ;; A wedged turn must not make "new chat" hang: cancel, wait this long, then
 ;; take the subprocess away from it.
 (define reset-timeout-seconds 5)
+
+;; ---- the vocabulary ---------------------------------------------------------
+;;
+;; The words a transcript is written in. What a turn's status IS, and what a
+;; tool call's means, is this module's business — so the panel that draws one
+;; and the selector that reacts to it spell a binding, not a string that
+;; happens to match. Append-only, like the frames themselves.
+;;
+;; A turn's status is a symbol in the struct below and these on the wire
+;; (symbol->string of the same word). The tool statuses are the agent's, passed
+;; through olai/acp unchanged.
+
+(define turn-running "running")
+(define turn-done "done")
+(define turn-error "error")
+
+(define tool-pending "pending")
+(define tool-in-progress "in_progress")
+(define tool-completed "completed")
+(define tool-failed "failed")
+
+;; how a turn ends when nothing happened to it. Any other ending is worth
+;; saying out loud.
+(define stop-end-turn "end_turn")
 
 ;; ---- what a transcript remembers -------------------------------------------
 
@@ -431,7 +464,7 @@
                               'title (tool-title t) 'status (tool-status t)))]
         [tn
          ;; an update for a call we never saw: still a line worth showing
-         (define t2 (tool id (or title "tool") (or status "in_progress")))
+         (define t2 (tool id (or title "tool") (or status tool-in-progress)))
          (set-turn-tools! tn (cons t2 (turn-tools tn)))
          (broadcast! ch (hash 'type "tool" 'id id
                               'title (tool-title t2) 'status (tool-status t2)))]

@@ -4,6 +4,8 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
 
 ## HARD RULES
 
+* If your model is Fable, a) use subagents for implementation (typically
+  Opus), b) reserve Fable only where truly necessary.
 * Personal outline DATA lives outside the repo: `$OLAI_HOME` (default
   `~/Dropbox/Selfflowy-Srid/`) — `Tasks.rkt`, `Daily.rkt` (+ `Daily/`).
   NEVER commit or invent content for these; user-owned, re-validate after
@@ -54,6 +56,10 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
   key-label), not a renderer helper.
 * JSON is two modules, two version counters: json/model (what a node/tree IS,
   durable) and json/reply (command envelopes, agenda, calendar).
+* CSS cascade = layer ('base | 'component | 'overlay) then instantiation
+  order; a class is defined in the module that DRAWS it. No native @layer.
+* web/skin.rkt composes the sheet (require order = cascade) and owns its URL;
+  render-page is TOLD the href, so nothing downstream requires skin.
 
 ## WORKFLOW
 
