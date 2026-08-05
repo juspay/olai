@@ -39,6 +39,7 @@
          mirror
          include
          task
+         make-task
          task?
          task-title
          task-date
@@ -75,6 +76,25 @@
 ;;      and an error still has to say file:line:col.
 (struct task (title date description done id tags children file key loc)
   #:transparent)
+
+;; Build one BY NAME. Ten positional arguments in the macro template below
+;; meant every new field (loc and key so far, @doc and @doing next) had to be
+;; threaded through the struct, the template and every construction site, in
+;; the same order, with nothing to say when a site got it wrong. With
+;; keywords the field order stops being an interface: a new field is a new
+;; optional argument that every existing caller already gets right.
+(define (make-task #:title title
+                   #:date [date #f]
+                   #:description [description #f]
+                   #:done [done #f]
+                   #:id [id #f]
+                   #:tags [tags '()]
+                   #:children [children '()]
+                   #:file [file #f]
+                   ;; the ^anchor, or #f until the load layer mints one
+                   #:key [key #f]
+                   #:loc [loc #f])
+  (task title date description done id tags children file key loc))
 
 ;; `done` is STORAGE — #f, #t, or the ISO day it was marked with. What a
 ;; consumer wants is the STATE, and it is derived here, once. Eight places
@@ -447,9 +467,16 @@
                    [(src ln cl ps sp) (loc-parts stx)])
        ;; Keep include-splice values in the children list until finalize-tasks
        ;; flattens the whole tree (so includes can be recorded).
-       ;; key is the ^anchor, or #f until the load layer mints one.
-       #'(task title kw.date kw.description kw.done kw.id 'tags-lit
-               (list child ...) file-lit kw.id (srcloc src ln cl ps sp)))]
+       #'(make-task #:title title
+                    #:date kw.date
+                    #:description kw.description
+                    #:done kw.done
+                    #:id kw.id
+                    #:tags 'tags-lit
+                    #:children (list child ...)
+                    #:file file-lit
+                    #:key kw.id
+                    #:loc (srcloc src ln cl ps sp)))]
     [(_ title . _)
      (raise-syntax-error
       't

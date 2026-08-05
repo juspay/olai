@@ -23,7 +23,9 @@
 
 (define (tk title date desc kids
             #:tags [tags '()] #:done [done #f] #:id [id #f] #:key [key #f])
-  (task title date desc done id tags kids #f (or key id (title-key title)) #f))
+  (make-task #:title title #:date date #:description desc #:done done
+             #:id id #:tags tags #:children kids
+             #:key (or key id (title-key title))))
 
 (define (xstr x) (xexpr->string x))
 

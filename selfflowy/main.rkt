@@ -9,6 +9,7 @@
          selfflowy/web/render)
 
 (provide task
+         make-task
          task?
          task-title
          task-date

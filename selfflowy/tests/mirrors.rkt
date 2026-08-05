@@ -164,9 +164,9 @@ EOF
     ;; an unbindable anchor is carried as #f (the language rejects these at
     ;; load time, so only a hand-built tree can get here)
     (define loose
-      (resolve-mirrors (list (task "Holder" #f #f #f #f '()
-                                   (list (mirror-ref "nope" #f))
-                                   #f "k" #f))
+      (resolve-mirrors (list (make-task #:title "Holder"
+                                        #:children (list (mirror-ref "nope" #f))
+                                        #:key "k"))
                        (hash)))
     (check-false (mirror-site-task (car (task-children (car loose))))))
 

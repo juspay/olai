@@ -44,5 +44,5 @@
                (λ () (render-node-fragment "Buy milk" #:today "2026-08-04")))
     ;; `today` is an argument, and it is a string: no clock, no #f
     (check-exn (blames "render.rkt")
-               (λ () (render-node-fragment (task "T" #f #f #f #f '() '() #f "k" #f)
+               (λ () (render-node-fragment (make-task #:title "T" #:key "k")
                                            #:today #f)))))
