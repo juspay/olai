@@ -188,6 +188,34 @@
 
   ;; ---- markdown / escaping -----------------------------------------------
 
+  ;; A title is inline, so Markdown's BLOCK syntax is just text in one: a
+  ;; leading #tag is a tag, not an <h1> with the "#" eaten.
+  (test-case "leading block markers in a title stay text"
+    (define pill (xstr* (map style-md-xexpr (title->inline-xexprs "#tag first"))))
+    (check-true (string-contains? pill "sf-pill sf-tag") pill)
+    (check-true (string-contains? pill "#tag") pill)
+    (check-false (regexp-match? #rx"<h[1-6]" pill) pill)
+    (define dash (xstr* (title->inline-xexprs "- not a list")))
+    (check-true (string-contains? dash "- not a list") dash)
+    (check-false (string-contains? dash "<ul") dash)
+    (check-false (string-contains? dash "<li") dash)
+    (define quoted (xstr* (title->inline-xexprs "> quoted")))
+    (check-true (string-contains? quoted "&gt; quoted") quoted)
+    (check-false (string-contains? quoted "<blockquote") quoted)
+    (define numbered (xstr* (title->inline-xexprs "1. one")))
+    (check-true (string-contains? numbered "1. one") numbered)
+    (check-false (string-contains? numbered "<ol") numbered)
+    ;; and a node built from such a title draws the text, not a heading
+    (define node (xstr (render-node-fragment (tk "#tag first" #f #f '())
+                                             #:today "2026-08-04")))
+    (check-true (string-contains? node "#tag") node)
+    (check-false (regexp-match? #rx"<h[1-6]" node) node)
+    ;; NOTES are still full Markdown: blocks are the point of a note
+    (define note (xstr* (note->xexprs "# heading\n\n- one\n- two\n")))
+    (check-true (string-contains? note "<h1") note)
+    (check-true (string-contains? note "<ul") note)
+    (check-true (string-contains? note "one") note))
+
   (test-case "title bold italic code"
     (define s (xstr* (title->inline-xexprs "**bold** and *i* and `code`")))
     (check-true (string-contains? s "<strong") s)

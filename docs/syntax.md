@@ -45,13 +45,13 @@ sanitizer. `tree` / `check` / `agenda` JSON never do.
 
 | Surface | Markdown scope |
 |--------|----------------|
-| **Title** | Inline only: bold, italic, code spans, links. Block constructs produce no block markup — the title is parsed as a document and then unwrapped to its inlines (see the wart below). |
+| **Title** | Inline only: bold, italic, code spans, links. Block syntax is text in a title — a leading `#tag`, `- `, `> ` or `1. ` renders verbatim, pill and all. |
 | **Notes** (`: ` lines, joined with `\n`) | Full document Markdown, including fenced code blocks. |
 
 **Ambiguity rules**
 
 - `#word` is a **tag** in the data, always: `task-tags` comes from a regexp over the verbatim title, so the JSON is right no matter what the line looks like.
-- Rendering is weaker. A title is parsed as a Markdown *document* and then unwrapped to its inlines, so a **line-initial** block marker is swallowed: `# thing` and `- thing` both render as `thing`, and a title that *starts* with `#tag` renders without its pill (the tag is still in `tags`). Anywhere but the first character, tags pill correctly. Known wart; do not rely on a leading `#`.
+- Rendering agrees: a title is parsed **inline-only**, so a line-initial block marker is text. `#tag first` keeps its pill, `- not a list` is not a list, `> quoted` is not a blockquote. (Notes are the opposite — full document Markdown, blocks included.)
 - Tags are pilled in text nodes after the Markdown parse, **except inside `` `code` `` spans** (code wins — a `#tag` inside backticks stays plain code text).
 - Mirror sigil `*anchor` is **line-initial** on its own outline line, so it does not collide with inline `*italic*`.
 - Raw HTML in titles/notes is **not** trusted: unknown tags are stripped after parse (no `<script>` injection).

@@ -136,15 +136,29 @@
 
 ;; ---- titles / notes -------------------------------------------------------
 
+;; A TITLE IS INLINE. That is the spec, and Markdown disagrees: the same
+;; characters at the START of a line are block syntax, so "#tag first" came
+;; back as an <h1> with the "#" eaten (and the tag pill with it), "- not a
+;; list" as a one-item <ul>, "> quoted" as a blockquote, "1. one" as an <ol>.
+;;
+;; There is no inline-only entry point in the markdown package, so: parse it,
+;; and if the parser insisted on a block, read it again as the text of a
+;; heading — the one context where "#", "- ", "> " and "1. " at the start of
+;; a line are just characters. Ordinary titles (a paragraph, which is nearly
+;; all of them) never take the second path.
 (define (title-md-inline s)
-  ;; Single-line parse; unwrap outer <p>; drop blocks; keep inlines.
-  (define parsed (parse-markdown s))
   (define body
-    (match parsed
+    (match (parse-markdown s)
       [(list (list 'p (list (list (? symbol?) _) ...) kids ...) _ ...) kids]
       [(list (list 'p kids ...) _ ...) kids]
-      [other other]))
+      [_ (heading-inlines s)]))
   (sanitize-pieces body #:inline-only? #t))
+
+(define (heading-inlines s)
+  (match (parse-markdown (string-append "# " s))
+    [(list (list 'h1 (list (list (? symbol?) _) ...) kids ...) _ ...) kids]
+    [(list (list 'h1 kids ...) _ ...) kids]
+    [other other]))
 
 (define (add-tag-pills pieces)
   ;; Tag pills only in text nodes outside <code>. Code wins over #tags.
