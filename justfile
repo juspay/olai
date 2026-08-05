@@ -88,6 +88,18 @@ serve *args: install
 alias run := serve
 alias watch := serve
 
-# Run unit tests
+# The two sets differ in what they cost: unit tests run in this VM, the
+# integration ones spawn `olai` subprocesses and boot real servers. Both are
+# parallel-safe (ephemeral ports, temp dirs), so -j is free speed.
+
+# Unit tests: in-process, no subprocesses (olai/tests/*.rkt)
 test: install
-    raco test -p olai
+    raco test -j {{ num_cpus() }} olai/tests/*.rkt
+
+# Integration tests: subprocess CLI + real servers (olai/tests/integration/)
+test-integration: install
+    raco test -j {{ num_cpus() }} olai/tests/integration/
+
+# Everything, in one -j pool so the slow files start first
+test-all: install
+    raco test -j {{ num_cpus() }} olai/tests/integration/ olai/tests/*.rkt

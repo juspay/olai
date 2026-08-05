@@ -129,7 +129,9 @@ just serve                       # $OLAI_HOME on http://127.0.0.1:8080
 just agenda
 just calendar --month 2026-08
 just daily                       # today's node in Daily/YYYY-MM.rkt
-just test
+just test                        # unit tests (in-process)
+just test-integration            # subprocess CLI + servers
+just test-all                    # both
 ```
 
 `olai serve DIR` serves `DIR/*.rkt` and runs the agent in `DIR`

@@ -1,9 +1,10 @@
 #lang racket/base
 
-;; The ACP client, against a scripted agent (tests/fake-acp-agent.rkt): real
-;; subprocess, real ndjson, no LLM. What is being checked here is the
-;; PROTOCOL — what goes on the wire, what comes back, and the events the client
-;; makes of it. What a browser then sees is tests/chat.rkt's business.
+;; The ACP client, against a scripted agent
+;; (tests/integration/fake-acp-agent.rkt): real subprocess, real ndjson, no
+;; LLM. What is being checked here is the PROTOCOL — what goes on the wire,
+;; what comes back, and the events the client makes of it. What a browser then
+;; sees is tests/integration/chat.rkt's business.
 ;;
 ;; Events are compared by name and payload, never by print form: they are
 ;; structs, and a test that matched their printing would be testing racket.
@@ -15,7 +16,8 @@
          olai/ops)
 
 (define fake-agent
-  (path->string (collection-file-path "fake-acp-agent.rkt" "olai" "tests")))
+  (path->string
+   (collection-file-path "fake-acp-agent.rkt" "olai" "tests" "integration")))
 
 ;; A file that exists and is not an executable: the other way to get the
 ;; agent's path wrong.
