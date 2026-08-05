@@ -8,7 +8,8 @@
          json
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/lang/outline
-         selfflowy/json-out
+         selfflowy/json/model
+         selfflowy/json/reply
          (only-in selfflowy/query count-tasks count-mirrors)
          (only-in selfflowy/lang/walk resolve-mirrors
                   mirror-site? mirror-site-of mirror-site-task)

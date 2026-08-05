@@ -416,6 +416,10 @@ pretty-printed messages.
 
 ## Stability
 
+- Two counters, both `1` today and free to move apart: the **model** version
+  rides on `tree` payloads (what a node/tree/anchor IS), the **reply** version
+  on command envelopes (`ok` / `error`, `agenda`, `calendar`, the write
+  commands) — a new node field bumps the first, a reshaped envelope the second.
 - Top-level objects always include `"version": 1`.
 - Within v1, new keys may appear; existing keys keep meaning and type.
 - Removing or renaming a key requires a version bump.

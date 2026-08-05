@@ -32,7 +32,8 @@
          (only-in web-server/private/mime-types make-path->mime-type)
          selfflowy/agenda
          selfflowy/dates
-         selfflowy/json-out
+         selfflowy/json/model
+         selfflowy/json/reply
          selfflowy/load
          (only-in selfflowy/paths file-label)
          selfflowy/store

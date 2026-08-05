@@ -14,7 +14,8 @@
          racket/vector
          selfflowy/agenda
          selfflowy/calendar
-         selfflowy/json-out
+         selfflowy/json/model
+         selfflowy/json/reply
          selfflowy/query
          selfflowy/ics
          selfflowy/dates
@@ -150,7 +151,7 @@
                                         'col (nullish col)
                                         'message msg))]))])
            (write-json-stdout
-            (hash 'version json-version
+            (hash 'version json-reply-version
                   'ok (not any-bad?)
                   'files files))
            (when any-bad? (exit exit-validation))))]

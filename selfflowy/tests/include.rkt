@@ -8,7 +8,8 @@
          json
          (except-in selfflowy/lang/expander #%module-begin)
          selfflowy/load
-         selfflowy/json-out
+         selfflowy/json/model
+         selfflowy/json/reply
          (only-in selfflowy/query count-tasks)
          selfflowy/done
          selfflowy/daily)

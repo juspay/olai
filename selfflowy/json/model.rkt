@@ -1,64 +1,52 @@
 #lang racket/base
 
-;; Agent-facing JSON helpers (versioned envelope).
+;; The DURABLE serializer: what a node, a tree, an anchor index and a whole
+;; outline look like as JSON. This is the model an agent stores, diffs and
+;; writes tooling against, and it changes only when the model does — a new
+;; node field, edges between nodes, a state a task can be in.
+;;
+;; Its version is its own (json-model-version). The shape of a `done` reply,
+;; or of an error envelope, has nothing to do with what a task IS: those live
+;; in selfflowy/json/reply and version separately. They used to share one
+;; constant, so adding a field to a node and changing an envelope were the
+;; same breaking change, and neither could move without the other.
 
-(require json
+(require racket/contract
+         json
          racket/path
          (except-in selfflowy/lang/expander #%module-begin)
-         selfflowy/agenda
-         selfflowy/calendar
          selfflowy/load
          ;; task_count / mirror_count are queries, not a JSON concern
          (only-in selfflowy/query count-tasks count-mirrors))
 
-(provide json-version
-         write-json-stdout
-         write-json-stderr
-         ok-hash
-         err-hash
-         task->jsexpr
-         tasks->jsexpr
-         child->jsexpr
-         anchors->jsexpr
-         outline->jsexpr
-         outlines->jsexpr
-         dated-task->jsexpr
-         agenda-groups->jsexpr
-         cal-item->jsexpr
-         calendar->jsexpr
-         nullish)
+(define file-ref/c (or/c path? string? #f))
 
-(define json-version 1)
+(provide (contract-out
+          [json-model-version exact-positive-integer?]
+          [nullish (-> any/c any/c)]
+          [done->json (-> any/c any/c)]
+          [task->jsexpr (->* (task?) (#:root-file file-ref/c) hash?)]
+          [child->jsexpr (->* (any/c) (#:root-file file-ref/c) hash?)]
+          [tasks->jsexpr (->* (list?) (#:root-file file-ref/c) list?)]
+          [anchors->jsexpr (->* (hash?) (#:root-file file-ref/c) hash?)]
+          [outline->jsexpr (->* ((or/c path? string?) list? hash?)
+                                (#:includes list?)
+                                hash?)]
+          [outlines->jsexpr (-> (listof outline?) hash?)]))
+
+(define json-model-version 1)
 
 (define (nullish v)
   (if v v (json-null)))
 
-;; done field: null | true | ISO timestamp string
+;; How the stored `done` field encodes: null | true | ISO timestamp string.
+;; The model owns it, and a reply that carries a copy of the field (a
+;; calendar item) encodes it the same way rather than its own way.
 (define (done->json d)
   (cond
     [(eq? d #t) #t]
     [(string? d) d]
     [else (json-null)]))
-
-(define (write-json-stdout h)
-  (write-json h (current-output-port))
-  (newline (current-output-port)))
-
-(define (write-json-stderr h)
-  (write-json h (current-error-port))
-  (newline (current-error-port)))
-
-(define (ok-hash . kvs)
-  (apply hash 'version json-version 'ok #t kvs))
-
-(define (err-hash message #:file [file #f] #:line [line #f] #:col [col #f])
-  (hash 'version json-version
-        'ok #f
-        'error (hash 'file (nullish (and file
-                                         (if (path? file) (path->string file) file)))
-                     'line (nullish line)
-                     'col (nullish col)
-                     'message message)))
 
 (define (task->jsexpr tk #:root-file [root-file #f])
   (define h
@@ -102,7 +90,8 @@
   (for/hash ([(id tk) (in-hash anchors)])
     (values (string->symbol id) (task->jsexpr tk #:root-file root-file))))
 
-;; Single-file tree payload (version added by caller or here).
+;; Single-file tree payload (version added by the caller, or by
+;; outlines->jsexpr below).
 (define (outline->jsexpr path tasks anchors #:includes [includes '()])
   (define path-str (if (path? path) (path->string path) path))
   (define h
@@ -125,38 +114,6 @@
     (outline->jsexpr (outline-path o) (outline-tasks o) (outline-anchors o)
                      #:includes (outline-includes o)))
   (if (= (length entries) 1)
-      (hash-set (one (car entries)) 'version json-version)
-      (hash 'version json-version
+      (hash-set (one (car entries)) 'version json-model-version)
+      (hash 'version json-model-version
             'files (map one entries))))
-
-(define (dated-task->jsexpr it)
-  (hash 'title (dated-task-title it)
-        'date (dated-task-date it)
-        'breadcrumb (dated-task-breadcrumb it)))
-
-(define (agenda-groups->jsexpr groups today)
-  (define (items-for sym)
-    (define p (assq sym groups))
-    (if p (map dated-task->jsexpr (cdr p)) '()))
-  (hash 'version json-version
-        'today today
-        'overdue (items-for 'overdue)
-        'today_items (items-for 'today)
-        'upcoming (items-for 'upcoming)))
-
-(define (cal-item->jsexpr it)
-  (hash 'title (cal-item-title it)
-        'date (cal-item-date it)
-        'breadcrumb (cal-item-breadcrumb it)
-        'done (done->json (cal-item-done it))
-        'status (symbol->string (cal-item-status it))
-        'id (nullish (cal-item-id it))))
-
-(define (calendar->jsexpr cal)
-  (hash 'version json-version
-        'month (hash-ref cal 'month)
-        'days
-        (for/list ([d (in-list (hash-ref cal 'days))])
-          (hash 'date (hash-ref d 'date)
-                'day_node (hash-ref d 'day_node #f)
-                'items (map cal-item->jsexpr (hash-ref d 'items))))))
