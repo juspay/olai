@@ -47,7 +47,6 @@
           [struct snapshot ([outlines (listof outline?)]
                             [files-data list?]
                             [index hash?]
-                            [anchors hash?]
                             [watch (listof path?)])]
           [outline-index (-> list? hash?)]
           [snapshot-day-key (-> snapshot? string? (or/c string? #f))]
@@ -61,11 +60,10 @@
 ;;                with every mirror site already bound to its node
 ;;                (selfflowy/lang/walk, resolve-mirrors)
 ;;   index      : hash node-id -> (list task breadcrumb)
-;;   anchors    : hash anchor -> task, merged across files
 ;;   watch      : (listof path) roots + transitive @include fragments
-(struct snapshot (outlines files-data index anchors watch) #:transparent)
+(struct snapshot (outlines files-data index watch) #:transparent)
 
-(define empty-snapshot (snapshot '() '() (hash) (hash) '()))
+(define empty-snapshot (snapshot '() '() (hash) '()))
 
 ;; probe : hash path -> (cons mtime size) | #f, for cheap staleness checks
 (struct store (files [snap #:mutable] [err #:mutable] [probe #:mutable] sema))
@@ -159,11 +157,6 @@
   (for ([o (in-list outlines)]) (visit (outline-path o)))
   (reverse acc))
 
-(define (merge-anchors outlines)
-  (for*/hash ([o (in-list outlines)]
-              [(k v) (in-hash (outline-anchors o))])
-    (values k v)))
-
 ;; key -> (list task crumbs) for every node, where crumbs is the trail from
 ;; the file label down to and including the node itself, each crumb a
 ;; (list label key) with key #f for the file label. Keys come from the model
@@ -212,7 +205,6 @@
   (snapshot outs
             files-data
             (outline-index files-data)
-            (merge-anchors outs)
             watch))
 
 ;; -> (values (listof outline) #f (listof path)) | (values #f load-error '())

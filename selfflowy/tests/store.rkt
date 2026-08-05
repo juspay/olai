@@ -245,7 +245,7 @@
       (check-false (regexp-match? #px"selfflowy/web" (file->string f))
                    (path->string f))))
 
-  (test-case "an index and merged anchors are derived once per load"
+  (test-case "the render input and the node index are derived once per load"
     (with-temp-dir
      (λ (dir)
        (define a (build-path dir "Tasks.rkt"))
@@ -255,7 +255,6 @@
        (define st (make-store (list a b)))
        (define snap (store-snapshot st))
        (check-equal? (length (snapshot-files-data snap)) 2)
-       (check-true (hash-has-key? (snapshot-anchors snap) "ship"))
        (check-true (hash-has-key? (snapshot-index snap) "ship"))
        ;; every node is in the index, keyed by its node id
        (check-equal? (hash-count (snapshot-index snap)) 3)))))
