@@ -16,10 +16,12 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
 * No ANSI. Human view is the web app: `selfflowy serve` (routes in
   docs/cli.md; `just serve` / `just run` / `just watch` all launch it).
   Agents use `--json` (and `tree`, which is JSON-only).
-* The LANGUAGE is the only validator (closed grammar): the expander checks a
-  module, and the same rules run over a whole loaded snapshot (cross-file
-  anchors exist only after `@include` splices). Readers just translate to
-  (t ...) forms. Never validate in the reader, the CLI, or the web layer.
+* The LANGUAGE is the only validator (closed grammar): one checker
+  (lang/graph) runs over a module's syntax at compile time, and over the whole
+  spliced tree at run time when it has `@include`s (cross-file anchors exist
+  only after the splice). Same rules, same messages, both ways. Readers just
+  translate to (t ...) forms. Never validate in the reader, the CLI, the
+  store, or the web layer.
 * Agents are the primary CLI users: every command gets --json where it makes
   sense; errors are JSON on stderr in --json mode; exit codes are contract
   (see docs/cli.md). JSON fields are append-only within a "version".
@@ -38,6 +40,15 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
 * lang/ readers -> lang/expander (t forms, closed grammar) -> task struct
 * main.rkt exports data model + pure queries + web render. CLI is app code,
   not library. Pure logic takes `today` as an argument (testable, no clocks).
+* Writes live in ops.rkt (add/done/move/daily -> result struct, or an
+  exn:fail:op naming a kind). cli.rkt is a shell: parse, call an op, render,
+  map kind -> exit code. The web mutation routes will call the same ops.
+* Node keys are minted in the load layer, not the expander (see docs/cli.md);
+  store.rkt owns snapshots and binds mirror sites before anything draws them.
+* Core must build without web/: file naming is selfflowy/paths (file-label,
+  key-label), not a renderer helper.
+* JSON is two modules, two version counters: json/model (what a node/tree IS,
+  durable) and json/reply (command envelopes, agenda, calendar).
 
 ## WORKFLOW
 
