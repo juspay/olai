@@ -64,6 +64,10 @@ add *args: install
 done *args: install
     selfflowy done --no-commit {{args}}
 
+# Set @date by exact title or ^anchor (--clear removes it); never commits
+move *args: install
+    selfflowy move --no-commit {{args}}
+
 # Ensure today's day node in $SELFFLOWY_HOME Daily/YYYY-MM.rkt
 daily *args: install
     selfflowy daily {{args}}
