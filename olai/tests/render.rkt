@@ -13,6 +13,8 @@
          (only-in olai/lang/walk resolve-mirrors)
          olai/store
          olai/web/render
+         ;; the list the picker draws: the themes the sheet carries
+         (only-in olai/web/theme theme-names)
          ;; the chat panel is its own module now: presentation for the agent's
          ;; conversation, sitting on top of the outline's skin
          olai/web/chat-panel
@@ -36,6 +38,13 @@
 (define (xstr* xs) (string-join (map xstr xs) ""))
 
 (define (files . entries) entries)
+
+;; The sidebar over one trivial outline — what the prefs tests below read. The
+;; outline is not the subject there; the chrome around it is.
+(define (sidebar-html)
+  (xstr (render-sidebar (files (list "/tmp/Tasks.rkt" (list (tk "Inbox" #f #f '()))))
+                        #:home-href "/"
+                        #:today-href "/today")))
 
 (module+ test
 
@@ -334,6 +343,22 @@
     ;; sidebar collapse state is namespaced away from the main pane's
     (check-true (string-contains? s "data-collapse-key=\"tree-") s))
 
+  ;; Every theme the sheet carries, and the OS. Generated from theme-names, so
+  ;; a theme added to the table shows up in the picker or fails here.
+  (test-case "the sidebar's prefs list the theme row: every theme, plus auto"
+    (define s (sidebar-html))
+    (check-true (string-contains? s "Prefs") s)
+    (check-true (string-contains? s "ol-prefs") s)
+    ;; one row per pref, named: the script reads the name, not a class
+    (check-true (string-contains? s "<div class=\"ol-pref\" data-pref=\"theme\">") s)
+    (check-true (string-contains? s "data-value=\"auto\"") s)
+    (check-true (pair? theme-names))
+    (for ([t (in-list theme-names)])
+      (check-true (string-contains? s (string-append "data-value=\"" t "\"")) s))
+    ;; nothing is picked on the server: which theme you read in is the
+    ;; browser's, and prefs.js is what marks it
+    (check-false (string-contains? s "is-on") s))
+
   ;; ---- breadcrumbs / zoom -------------------------------------------------
 
   (test-case "breadcrumbs link the pairs and leave bare strings plain"
@@ -391,13 +416,18 @@
     (check-true (string-contains? s "src=\"/static/htmx.min.js\"") s)
     (check-true (string-contains? s "src=\"/static/sse.js\"") s)
     (check-true (string-contains? s "src=\"/static/collapse.js\"") s)
+    (check-true (string-contains? s "src=\"/static/prefs.js\"") s)
     (check-true (string-contains? s "src=\"/static/chat.js\"") s)
     (check-false (string-contains? s "tailwind") s)
     (check-false (string-contains? s "cdn.") s)
     (check-true (string-contains? s "<aside class=\"ol-sidebar\"") s)
     (check-true (string-contains? s "<main class=\"ol-main\">") s)
-    ;; no inline script: every asset is a cacheable file under /static/
-    (check-false (string-contains? s "localStorage") s)
+    ;; ONE inline script, and it is the prefs boot: everything else is a
+    ;; cacheable file under /static/. (A stored pref has to be on <html>
+    ;; before the first paint, and a deferred file lands after it.)
+    (check-equal? (length (regexp-match* #px"<script" s))
+                  (add1 (length web-scripts)) s)
+    (check-true (string-contains? s "localStorage.getItem('olai.'+p)") s)
     ;; served form carries the doctype (no quirks mode)
     (check-true (string-prefix? (page->html-string (render-page '(div))) "<!DOCTYPE html>")))
 
@@ -426,6 +456,37 @@
     (check-false (string-contains? js "require") js)
     (check-true (string-contains? js "olai.collapsed") js)
     (check-true (string-contains? js "localStorage") js))
+
+  ;; A pref is client state, like the collapse state: a value on <html>, stored
+  ;; here, never sent anywhere. The picker's script and the page's boot script
+  ;; spell the same storage key on two sides of a border the compiler does not
+  ;; cross — a mismatch is a picker that picks and a page that forgets. And the
+  ;; boot script has to NAME every pref, or the row that joined restores to
+  ;; nothing on the next load.
+  (test-case "prefs script stays tiny and shares the boot script's key"
+    (define js (file->string (build-path (web-static-dir) "prefs.js")))
+    (define boot (xstr (render-page '(div))))
+    (check-true (< (length (string-split js "\n")) 40) js)
+    (check-false (string-contains? js "require") js)
+    (check-true (string-contains? js "localStorage") js)
+    (check-true (string-contains? js "ol-pref") js)
+    ;; the key convention, spelled the same on both sides
+    (check-true (string-contains? js "'olai.'+p") js)
+    (check-true (string-contains? boot "'olai.'+p") boot)
+    ;; and every row the sidebar draws is a name the boot script restores
+    (for ([name (in-list (regexp-match* #px"data-pref=\"([a-z-]+)\"" (sidebar-html)
+                                        #:match-select cadr))])
+      (check-true (string-contains? boot (string-append "'" name "'")) boot)))
+
+  (test-case "a page can name a theme; unset leaves it to the OS"
+    (define named (xstr (render-page '(div) #:theme "pitch")))
+    (check-true (string-contains? named "<html lang=\"en\" data-theme=\"pitch\">") named)
+    ;; the default: nothing named, so the OS's preference and whatever this
+    ;; browser stored are what decide
+    (check-false (string-contains? (xstr (render-page '(div))) "data-theme") named)
+    ;; both ways, the browser is told the page has two faces before the sheet
+    ;; lands; the sheet is what narrows it per theme
+    (check-true (string-contains? named "content=\"light dark\"") named))
 
   ;; ---- chat panel ----------------------------------------------------------
   ;;

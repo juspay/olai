@@ -199,7 +199,7 @@
 ;; olai's own scripts plus the vendored sse extension. htmx itself is not in
 ;; the list: it spells no olai class, and scanning a minified bundle for
 ;; class-shaped names would find noise, not a border.
-(define script-names '("chat.js" "collapse.js" "sse.js"))
+(define script-names '("chat.js" "collapse.js" "prefs.js" "sse.js"))
 
 (define scripted-classes
   (for/fold ([acc (set)]) ([js (in-list script-names)])
@@ -345,21 +345,47 @@
                             "\\s*:\\s*var\\(\\s*" (regexp-quote property) "\\s*\\)"))
      css))
 
+  ;; The block that puts ONE theme in force: found by the selector a page uses
+  ;; to ask for it, read as CSS. Scoping the mapping checks to it is what makes
+  ;; them a question about that theme rather than about the sheet — with five
+  ;; themes, "something somewhere maps --paper" is true no matter which one is
+  ;; broken.
+  (define (theme-block theme)
+    (define rx (regexp (string-append "data-theme\\s*=\\s*\"" theme "\"")))
+    (for/first ([f (in-list ordered-fragments)]
+                #:when (regexp-match? rx (fragment->css (cdr f))))
+      (fragment->css (cdr f))))
+
   ;; Generated from theme.rkt's own table: the tokens are its list and the
   ;; property names are its spelling. A token added to the skin is checked in
   ;; every theme the moment it is added, and a theme that forgets one fails
-  ;; here rather than resolving to nothing in a browser.
-  (test-case "every theme declares every token, and every theme maps them all"
+  ;; here rather than resolving to nothing in a browser. Adding a THEME is the
+  ;; same: it is checked the moment it joins the table.
+  (test-case "every theme declares every token, and its own block maps them all"
     (define css (stylesheet))
     (check-true (pair? theme-names))
     (check-true (pair? palette-tokens))
-    (for* ([theme (in-list theme-names)]
-           [token (in-list palette-tokens)])
-      (define property (theme-token-property theme token))
-      (check-true (declares? css property)
-                  (format "the ~a theme declares no ~a" theme property))
-      (check-true (maps? css token property)
-                  (format "nothing points --~a at ~a" token property))))
+    (for ([theme (in-list theme-names)])
+      (define block (or (theme-block theme) ""))
+      (check-true (non-empty-string? block)
+                  (format "no page can ask for the ~a theme" theme))
+      (for ([token (in-list palette-tokens)])
+        (define property (theme-token-property theme token))
+        (check-true (declares? css property)
+                    (format "the ~a theme declares no ~a" theme property))
+        (check-true (maps? block token property)
+                    (format "the ~a theme's block does not point --~a at ~a"
+                            theme token property)))))
+
+  ;; The browser paints the scrollbars, the form controls and the canvas, and
+  ;; color-scheme is the only thing that tells it which way. A theme that put
+  ;; its colors in force and not this would read dark under light chrome.
+  (test-case "every theme says which color-scheme it is"
+    (for ([theme (in-list theme-names)])
+      (check-true (regexp-match? #px"[^-]color-scheme\\s*:\\s*(light|dark)"
+                                 (or (theme-block theme) ""))
+                  (format "the ~a theme does not say which color-scheme it is"
+                          theme))))
 
   (test-case "the layout vocabulary is declared, and does not vary by theme"
     (define css (stylesheet))

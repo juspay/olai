@@ -5,6 +5,7 @@ is-busy
 is-collapsed
 is-done
 is-error
+is-on
 is-open
 is-picked
 is-today
@@ -76,6 +77,11 @@ ol-outline
 ol-pane
 ol-pill
 ol-pre
+ol-pref
+ol-pref-label
+ol-pref-opt
+ol-pref-opts
+ol-prefs
 ol-row
 ol-sidebar
 ol-sidebar-empty

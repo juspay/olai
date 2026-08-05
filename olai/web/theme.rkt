@@ -85,15 +85,21 @@
 ;; is the same fourteen lines copied once per theme, which is one place per
 ;; theme for a new token to be forgotten.
 
-(struct palette (name prefix entries) #:transparent)
+(struct palette (name prefix scheme entries) #:transparent)
 
 ;; The prefix is the name's first letter: short, and nothing to keep in step.
-(define (make-palette name entries)
-  (palette name (substring name 0 1) entries))
+;;
+;; `scheme` is the one thing about a theme a browser has to be told in its own
+;; words: form controls, scrollbars and the canvas behind the page are the UA's
+;; to paint, and `color-scheme` is how it is told which way. It rides in the
+;; table because it is a fact about the palette — a theme that changed its mind
+;; about being dark and forgot this would keep the OS's scrollbars.
+(define (make-palette name #:scheme scheme entries)
+  (palette name (substring name 0 1) scheme entries))
 
 (define palettes
   (list
-   (make-palette "light"
+   (make-palette "light" #:scheme 'light
                  '((paper     . |#E4ECCA|)
                    (paper-2   . |#EDF2DC|)
                    (panel     . |#EFF4DC|)
@@ -108,7 +114,7 @@
                    (blue-bg   . |#D8E8EF|)
                    (rose-fg   . |#A84A5E|)
                    (rose-bg   . |#F5DBDF|)))
-   (make-palette "dark"
+   (make-palette "dark" #:scheme 'dark
                  '((paper     . |#1E2417|)
                    (paper-2   . |#252D1D|)
                    (panel     . |#272F1E|)
@@ -122,7 +128,58 @@
                    (blue-fg   . |#7DB8D8|)
                    (blue-bg   . |#1D3340|)
                    (rose-fg   . |#E396A5|)
-                   (rose-bg   . |#402028|)))))
+                   (rose-bg   . |#402028|)))
+   ;; aged palm leaf, iron-gall ink: the outline as a manuscript. Warm paper,
+   ;; brown-black ink, and accents pulled back to what a dye would give.
+   (make-palette "manuscript" #:scheme 'light
+                 '((paper     . |#F0E7D2|)
+                   (paper-2   . |#F5EDDD|)
+                   (panel     . |#F7F0E2|)
+                   (ink       . |#3D2F1B|)
+                   (dim       . |#8C7B5C|)
+                   (line      . |#DCCEAC|)
+                   (pill-bg   . |#FAF4E6|)
+                   (green     . |#5A7A34|)
+                   (amber-fg  . |#A05A16|)
+                   (amber-bg  . |#F3E2BC|)
+                   (blue-fg   . |#2F6580|)
+                   (blue-bg   . |#DCE7E4|)
+                   (rose-fg   . |#9E4444|)
+                   (rose-bg   . |#F1DBD2|)))
+   ;; near-white, high contrast: every foreground/background pair clears AA.
+   ;; The one to reach for on a bad screen or in bright light.
+   (make-palette "chalk" #:scheme 'light
+                 '((paper     . |#FAFAF6|)
+                   (paper-2   . |#F2F2EC|)
+                   (panel     . |#F5F5F0|)
+                   (ink       . |#15180F|)
+                   (dim       . |#555E4C|)
+                   (line      . |#C9CDBF|)
+                   (pill-bg   . |#EDEFE6|)
+                   (green     . |#2A6626|)
+                   (amber-fg  . |#8F5200|)
+                   (amber-bg  . |#F5E4BE|)
+                   (blue-fg   . |#134F75|)
+                   (blue-bg   . |#D4E5EF|)
+                   (rose-fg   . |#8E3348|)
+                   (rose-bg   . |#F4D7DD|)))
+   ;; true black: an OLED panel spends nothing on #000000, and the outline is
+   ;; mostly background. Everything else is the dark theme, one step quieter.
+   (make-palette "pitch" #:scheme 'dark
+                 '((paper     . |#000000|)
+                   (paper-2   . |#0D110A|)
+                   (panel     . |#10140C|)
+                   (ink       . |#C9D6B4|)
+                   (dim       . |#77836A|)
+                   (line      . |#242B1E|)
+                   (pill-bg   . |#161B10|)
+                   (green     . |#7FC97A|)
+                   (amber-fg  . |#D9A85A|)
+                   (amber-bg  . |#2C230B|)
+                   (blue-fg   . |#6FAECE|)
+                   (blue-bg   . |#122633|)
+                   (rose-fg   . |#D68B9A|)
+                   (rose-bg   . |#301820|)))))
 
 (define theme-names (map palette-name palettes))
 
@@ -168,12 +225,17 @@
    (for/list ([entry (in-list (palette-entries p))])
      (list (custom-property (prefixed p (car entry))) (cdr entry)))))
 
-;; --paper: var(--l-paper); ... — the skin's names, pointed at one theme
+;; --paper: var(--l-paper); ... — the skin's names, pointed at one theme, and
+;; the one declaration that is not a custom property: color-scheme is what the
+;; BROWSER paints from (form controls, scrollbars, the canvas), and it belongs
+;; wherever a theme is put in force, which is exactly here.
 (define (palette-mapping p)
-  (append*
-   (for/list ([token (in-list palette-tokens)])
-     (list (custom-property (symbol->string token))
-           (list 'apply 'var (string->symbol (string-append "--" (prefixed p token))))))))
+  (append
+   (list '#:color-scheme (palette-scheme p))
+   (append*
+    (for/list ([token (in-list palette-tokens)])
+      (list (custom-property (symbol->string token))
+            (list 'apply 'var (string->symbol (string-append "--" (prefixed p token)))))))))
 
 ;; every theme's raw values, one block
 (register-base!
