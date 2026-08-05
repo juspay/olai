@@ -4,6 +4,8 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
 
 ## HARD RULES
 
+* If your model is Fable, a) use subagents for implementation (typically
+  Opus), b) reserve Fable only where truly necessary.
 * Personal outline DATA lives outside the repo: `$OLAI_HOME` (default
   `~/Dropbox/Selfflowy-Srid/`) — `Tasks.rkt`, `Daily.rkt` (+ `Daily/`).
   NEVER commit or invent content for these; user-owned, re-validate after
