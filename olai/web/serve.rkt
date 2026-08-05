@@ -278,7 +278,7 @@
       (file-label (car files))
       "olai"))
 
-;; The panel sits in body-extra, OUTSIDE #sf-live: an outline event re-swaps
+;; The panel sits in body-extra, OUTSIDE #ol-live: an outline event re-swaps
 ;; the live region, and a chat mid-turn must not be swapped out from under
 ;; the person typing into it.
 (define (chrome files-data main

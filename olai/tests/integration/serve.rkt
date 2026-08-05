@@ -122,8 +122,8 @@
        (check-equal? code2 200 body2)
        (check-true (string-contains? body2 "Water the plants") body2)
        ;; zoomed: the main pane holds that subtree and nothing else
-       (define pane (cadr (string-split body2 "<main class=\"sf-main\">")))
-       (check-true (string-contains? pane "sf-zoom") pane)
+       (define pane (cadr (string-split body2 "<main class=\"ol-main\">")))
+       (check-true (string-contains? pane "ol-zoom") pane)
        (check-false (string-contains? pane "Buy milk") pane))))
 
   (test-case "GET /api/tree matches the tree JSON contract"
@@ -207,7 +207,7 @@
     (with-server
      (λ (port f)
        (define-values (_c _h body) (GET port "/"))
-       (check-false (string-contains? body "sf-chat-body") body)
+       (check-false (string-contains? body "ol-chat-body") body)
        (define-values (status _headers in)
          (http-sendrecv "127.0.0.1" "/chat" #:port port #:method #"POST"
                         #:headers (list #"Content-Type: application/x-www-form-urlencoded")
@@ -247,7 +247,7 @@
        (define-values (code _h body) (GET port "/"))
        (check-equal? code 200 body)
        (check-true (string-contains? body "Buy milk") body)
-       (check-true (string-contains? body "sf-error") body)
+       (check-true (string-contains? body "ol-error") body)
        (check-true (string-contains? body "Tasks.rkt:") body)
        ;; agents get the failure, not stale data
        (define-values (jcode _jh jbody) (GET port "/api/tree"))
@@ -261,7 +261,7 @@
        (display-to-file outline f #:exists 'truncate)
        (define-values (c3 _h3 b3) (GET port "/"))
        (check-equal? c3 200 b3)
-       (check-false (string-contains? b3 "sf-error") b3)
+       (check-false (string-contains? b3 "ol-error") b3)
        (define-values (c4 _h4 _b4) (GET port "/api/tree"))
        (check-equal? c4 200))))
 
@@ -286,10 +286,10 @@
        (define-values (_c _h body) (GET port "/"))
        (check-true (string-contains? body "sse-connect=\"/events\"") body)
        (check-true (string-contains? body "hx-trigger=\"sse:outline\"") body)
-       (check-true (string-contains? body "id=\"sf-live\" hx-get=\"/\"") body)
+       (check-true (string-contains? body "id=\"ol-live\" hx-get=\"/\"") body)
        ;; /today refreshes /today, not the home page
        (define-values (_c2 _h2 today) (GET port "/today"))
-       (check-true (string-contains? today "id=\"sf-live\" hx-get=\"/today\"") today))))
+       (check-true (string-contains? today "id=\"ol-live\" hx-get=\"/today\"") today))))
 
   (test-case "saving an outline pushes an outline event, and the page follows"
     (with-server
@@ -320,14 +320,14 @@
        (check-not-false broke "no event when the file broke")
        (check-equal? (car broke) "outline")
        (define-values (_c1 _h1 b1) (GET port "/"))
-       (check-true (string-contains? b1 "sf-error") b1)
+       (check-true (string-contains? b1 "ol-error") b1)
        (display-to-file (string-append outline "Healed\n") f #:exists 'truncate)
        (define healed (next-event in))
        (check-not-false healed "no event when the file healed")
        (check-true (> (string->number (cdr healed)) (string->number (cdr broke)))
                    (format "~a -> ~a" broke healed))
        (define-values (_c2 _h2 b2) (GET port "/"))
-       (check-false (string-contains? b2 "sf-error") b2)
+       (check-false (string-contains? b2 "ol-error") b2)
        (check-true (string-contains? b2 "Healed") b2)
        (close-input-port in))))
 

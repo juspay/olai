@@ -18,12 +18,12 @@
 (provide (contract-out
           ;; the body's class: the page shell wears it, and the outline pane
           ;; and chat panel hang their layout off it
-          [sf-body string?]
+          [ol-body string?]
           ;; the pill's SHAPE. Two modules draw a pill — web/render a date,
           ;; web/markdown a #tag — so the shape belongs to neither and sits
           ;; here with the rest of the shared vocabulary; each kind repaints
           ;; it in the module that draws it
-          [sf-pill string?]
+          [ol-pill string?]
           ;; every theme the sheet carries, in cascade order. The page picks
           ;; one with data-theme; this is the list of what it may say
           [theme-names (listof string?)]))
@@ -220,7 +220,7 @@
 ;; The page IS the layout: sidebar and main pane are its two flex children.
 ;; On a phone there is no room for two columns, so the same two stack — the
 ;; only rule about the document as a whole, and it lives with the document.
-(define-style sf-body #:tag body #:layer 'base
+(define-style ol-body #:tag body #:layer 'base
   #:margin 0
   #:min-height 100vh
   #:display flex
@@ -237,7 +237,7 @@
 ;; One shape, three readings: a date, a done date, a #tag. The shape is the
 ;; skin's, like the focus ring below — the modules that draw a pill only say
 ;; how their kind is painted, and their rules land after this one.
-(define-style sf-pill #:layer 'base
+(define-style ol-pill #:layer 'base
   #:display inline-flex
   #:align-items center
   #:gap 0.25rem

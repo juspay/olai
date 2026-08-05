@@ -1,4 +1,4 @@
-// Collapse state: a class on .sf-node (both panes), persisted per
+// Collapse state: a class on .ol-node (both panes), persisted per
 // data-collapse-key. Unvisited keys keep whatever the server rendered, so
 // render-time defaults survive. htmx swaps re-apply through the same pass.
 (function(){
@@ -6,7 +6,7 @@
   try{state=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){state={}}
   function set(n,c){
     n.classList.toggle('is-collapsed',c);
-    var t=n.querySelector(':scope > .sf-row > .sf-toggle');
+    var t=n.querySelector(':scope > .ol-row > .ol-toggle');
     if(t)t.setAttribute('aria-expanded',c?'false':'true');
   }
   function apply(root){
@@ -16,7 +16,7 @@
     });
   }
   document.addEventListener('click',function(e){
-    var t=e.target.closest('.sf-toggle');if(!t)return;
+    var t=e.target.closest('.ol-toggle');if(!t)return;
     var n=t.closest('[data-collapse-key]');if(!n)return;
     e.preventDefault();
     var c=!n.classList.contains('is-collapsed');

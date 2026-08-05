@@ -17,23 +17,23 @@
          ;; below read the sheet it composes
          olai/web/skin
          ;; two classes the assertions below name
-         (only-in olai/web/theme sf-body)
+         (only-in olai/web/theme ol-body)
          (only-in olai/web/render web-static-dir))
 
 ;; ---- fixtures -------------------------------------------------------------
 
 (define-modifier is-probe)
 
-(define-style sf-probe-box
+(define-style ol-probe-box
   #:color red
   ;; a nested rule reaching the same class's hover state
   [(: & hover) #:color blue])
 
 (define-component (probe-badge-xexpr text)
-  #:class sf-probe-badge
+  #:class ol-probe-badge
   #:css (#:display inline-flex
          #:border-radius 9999px)
-  `(span ((class ,sf-probe-badge)) ,text))
+  `(span ((class ,ol-probe-badge)) ,text))
 
 ;; The escape hatch, exercised: a raw string goes out verbatim. (Nothing here
 ;; NEEDS one — css-expr spells everything app.css does — but the mechanism
@@ -54,26 +54,26 @@
 (define app-css-classes
   '("has-children" "has-commands" "is-agent" "is-busy" "is-collapsed" "is-done"
     "is-error" "is-open" "is-picked" "is-today" "is-tree" "is-user"
-    "sf-anchor" "sf-banner-slot" "sf-body" "sf-brand" "sf-brand-link"
-    "sf-breadcrumbs" "sf-bullet" "sf-bullet-link" "sf-chat" "sf-chat-actions"
-    "sf-chat-body" "sf-chat-btn" "sf-chat-cmd" "sf-chat-cmd-desc"
-    "sf-chat-cmd-name" "sf-chat-cmds" "sf-chat-dock" "sf-chat-form"
-    "sf-chat-head" "sf-chat-input" "sf-chat-model" "sf-chat-msg" "sf-chat-note"
-    "sf-chat-open" "sf-chat-pop" "sf-chat-send" "sf-chat-sep" "sf-chat-session"
-    "sf-chat-spop" "sf-chat-stop" "sf-chat-title" "sf-chat-tool"
-    "sf-chat-tool-glyph" "sf-chat-tool-title" "sf-chat-turn" "sf-chat-working"
-    "sf-check" "sf-children" "sf-code" "sf-content" "sf-crumb" "sf-crumb-sep"
-    "sf-date" "sf-date-time" "sf-day" "sf-dim" "sf-empty" "sf-error"
-    "sf-error-detail" "sf-error-where" "sf-file" "sf-file-title" "sf-line"
-    "sf-link" "sf-main" "sf-mirror" "sf-nav-icon" "sf-nav-item" "sf-node"
-    "sf-note" "sf-outline" "sf-pill" "sf-pre" "sf-row" "sf-sidebar"
-    "sf-sidebar-empty" "sf-sidebar-heading" "sf-sidebar-nav"
-    "sf-sidebar-section" "sf-tag" "sf-title" "sf-toggle" "sf-toggle-empty"
-    "sf-tree" "sf-tree-file" "sf-tree-file-label" "sf-tree-link"))
+    "ol-anchor" "ol-banner-slot" "ol-body" "ol-brand" "ol-brand-link"
+    "ol-breadcrumbs" "ol-bullet" "ol-bullet-link" "ol-chat" "ol-chat-actions"
+    "ol-chat-body" "ol-chat-btn" "ol-chat-cmd" "ol-chat-cmd-desc"
+    "ol-chat-cmd-name" "ol-chat-cmds" "ol-chat-dock" "ol-chat-form"
+    "ol-chat-head" "ol-chat-input" "ol-chat-model" "ol-chat-msg" "ol-chat-note"
+    "ol-chat-open" "ol-chat-pop" "ol-chat-send" "ol-chat-sep" "ol-chat-session"
+    "ol-chat-spop" "ol-chat-stop" "ol-chat-title" "ol-chat-tool"
+    "ol-chat-tool-glyph" "ol-chat-tool-title" "ol-chat-turn" "ol-chat-working"
+    "ol-check" "ol-children" "ol-code" "ol-content" "ol-crumb" "ol-crumb-sep"
+    "ol-date" "ol-date-time" "ol-day" "ol-dim" "ol-empty" "ol-error"
+    "ol-error-detail" "ol-error-where" "ol-file" "ol-file-title" "ol-line"
+    "ol-link" "ol-main" "ol-mirror" "ol-nav-icon" "ol-nav-item" "ol-node"
+    "ol-note" "ol-outline" "ol-pill" "ol-pre" "ol-row" "ol-sidebar"
+    "ol-sidebar-empty" "ol-sidebar-heading" "ol-sidebar-nav"
+    "ol-sidebar-section" "ol-tag" "ol-title" "ol-toggle" "ol-toggle-empty"
+    "ol-tree" "ol-tree-file" "ol-tree-file-label" "ol-tree-link"))
 
 ;; Class-shaped names in a .js file: the same three prefixes the skin uses,
 ;; wherever they appear (a class list, a selector, an id that doubles as one).
-(define class-rx #px"(?:^|[^a-zA-Z0-9_-])((?:sf|is|has)-[a-z0-9]+(?:-[a-z0-9]+)*)")
+(define class-rx #px"(?:^|[^a-zA-Z0-9_-])((?:ol|is|has)-[a-z0-9]+(?:-[a-z0-9]+)*)")
 
 (define (js-class-names path)
   (remove-duplicates
@@ -88,46 +88,46 @@
   ;; ---- identifiers become class names -------------------------------------
 
   (test-case "define-style binds the class-name string, hyphens kept"
-    (check-equal? sf-probe-box "sf-probe-box"))
+    (check-equal? ol-probe-box "ol-probe-box"))
 
   (test-case "define-modifier binds the string and registers no rule"
     (check-equal? is-probe "is-probe")
     (check-false (index-of-substring (stylesheet) ".is-probe{")))
 
   (test-case "define-component binds its class and defines a render function"
-    (check-equal? sf-probe-badge "sf-probe-badge")
-    (check-equal? (probe-badge-xexpr "hi") '(span ((class "sf-probe-badge")) "hi"))
-    (check-true (string-contains? (stylesheet) ".sf-probe-badge{display:inline-flex;")))
+    (check-equal? ol-probe-badge "ol-probe-badge")
+    (check-equal? (probe-badge-xexpr "hi") '(span ((class "ol-probe-badge")) "hi"))
+    (check-true (string-contains? (stylesheet) ".ol-probe-badge{display:inline-flex;")))
 
   ;; ---- selectors ----------------------------------------------------------
 
   (test-case "sel compounds bound class names"
-    (check-equal? (fragment->css (css-expr [,(sel sf-probe-box is-probe) #:color red]))
-                  ".sf-probe-box.is-probe{color:red;}"))
+    (check-equal? (fragment->css (css-expr [,(sel ol-probe-box is-probe) #:color red]))
+                  ".ol-probe-box.is-probe{color:red;}"))
 
   (test-case "sel takes a leading tag"
-    (check-equal? (fragment->css (css-expr [,(sel 'body sf-probe-box) #:margin 0]))
-                  "body.sf-probe-box{margin:0;}"))
+    (check-equal? (fragment->css (css-expr [,(sel 'body ol-probe-box) #:margin 0]))
+                  "body.ol-probe-box{margin:0;}"))
 
   (test-case "sel refuses a tag after a class"
-    (check-exn exn:fail? (lambda () (sel sf-probe-box 'body))))
+    (check-exn exn:fail? (lambda () (sel ol-probe-box 'body))))
 
   ;; The selector the collapsed-parent halo needs: compound, child, descendant
   ;; and a pseudo-element in one breath.
   (test-case "sel composes with every css-expr combinator"
     (check-equal?
      (fragment->css
-      (css-expr [(> ,(sel "sf-node" "is-collapsed")
-                    (,(sel "sf-row") (:: ,(sel "sf-bullet" "has-children") before)))
+      (css-expr [(> ,(sel "ol-node" "is-collapsed")
+                    (,(sel "ol-row") (:: ,(sel "ol-bullet" "has-children") before)))
                  #:content ""]))
-     ".sf-node.is-collapsed>.sf-row .sf-bullet.has-children::before{content:\"\";}"))
+     ".ol-node.is-collapsed>.ol-row .ol-bullet.has-children::before{content:\"\";}"))
 
   ;; ---- fragments ----------------------------------------------------------
 
   (test-case "a css-expr fragment compiles; a nested & rule unnests"
-    (define css (fragment->css (css-expr [(\. sf-probe-box) #:color red
+    (define css (fragment->css (css-expr [(\. ol-probe-box) #:color red
                                           [(: & hover) #:color blue]])))
-    (check-equal? css ".sf-probe-box{color:red;}.sf-probe-box:hover{color:blue;}"))
+    (check-equal? css ".ol-probe-box{color:red;}.ol-probe-box:hover{color:blue;}"))
 
   (test-case "a raw-string fragment passes through verbatim"
     (check-equal? (fragment->css probe-raw) probe-raw)
@@ -138,15 +138,15 @@
   (test-case "require order is cascade order: theme first, then this module"
     (define css (stylesheet))
     (define theme-at (index-of-substring css "--l-paper:"))
-    (define probe-at (index-of-substring css ".sf-probe-box{"))
+    (define probe-at (index-of-substring css ".ol-probe-box{"))
     (check-not-false theme-at css)
     (check-not-false probe-at css)
     (check-true (< theme-at probe-at)))
 
   (test-case "within a module, definition order is preserved"
     (define css (stylesheet))
-    (define box-at (index-of-substring css ".sf-probe-box{"))
-    (define badge-at (index-of-substring css ".sf-probe-badge{"))
+    (define box-at (index-of-substring css ".ol-probe-box{"))
+    (define badge-at (index-of-substring css ".ol-probe-badge{"))
     (define raw-at (index-of-substring css probe-raw))
     (check-not-false box-at css)
     (check-not-false badge-at css)
@@ -192,8 +192,8 @@
     (define css (stylesheet))
     (check-true (string-contains? css "*,*::before,*::after{box-sizing:border-box;}") css)
     (check-true (string-contains? css "html{-webkit-text-size-adjust:100%;}") css)
-    (check-equal? sf-body "sf-body")
-    (check-true (string-contains? css "body.sf-body{margin:0;min-height:100vh;display:flex;") css)
+    (check-equal? ol-body "ol-body")
+    (check-true (string-contains? css "body.ol-body{margin:0;min-height:100vh;display:flex;") css)
     (check-true (string-contains? css "background:var(--paper);color:var(--ink);") css)
     (check-true (string-contains? css "a{color:inherit;}") css)
     (check-true (string-contains? css ":focus-visible{outline:2px solid var(--green);outline-offset:2px;}")
@@ -241,15 +241,15 @@
     (for ([pair (in-list
                  (list
                   ;; the pill's shape, then each kind's paint
-                  (list ".sf-pill{" ".sf-date{")
-                  (list ".sf-pill{" ".sf-tag{")
+                  (list ".ol-pill{" ".ol-date{")
+                  (list ".ol-pill{" ".ol-tag{")
                   ;; the popover, then the same popover at the other end
-                  (list ".sf-chat-pop{" ".sf-chat-spop{")
+                  (list ".ol-chat-pop{" ".ol-chat-spop{")
                   ;; the three buttons' shared block, then the stop's alarm
-                  (list ".sf-chat-btn,.sf-chat-send,.sf-chat-stop{" ".sf-chat-stop{color")
+                  (list ".ol-chat-btn,.ol-chat-send,.ol-chat-stop{" ".ol-chat-stop{color")
                   ;; having commands shows the button; being busy hides it again
-                  (list ".sf-chat.has-commands .sf-chat-cmds" ".sf-chat.is-busy .sf-chat-cmds")
+                  (list ".ol-chat.has-commands .ol-chat-cmds" ".ol-chat.is-busy .ol-chat-cmds")
                   ;; the outline's skin, then the panel that overlays it
-                  (list ".sf-main{" "body.sf-body:has")))])
+                  (list ".ol-main{" "body.ol-body:has")))])
       (check-true (< (at (first pair)) (at (second pair)))
                   (format "~a must come before ~a" (first pair) (second pair))))))

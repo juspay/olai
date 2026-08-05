@@ -18,7 +18,7 @@
 ;;
 ;; STYLES — every class this module draws is DEFINED here, next to the markup
 ;; that wears it (olai/web/style). Two exceptions, both of them classes this
-;; module is not the only one to draw: .sf-pill's shape is the skin's
+;; module is not the only one to draw: .ol-pill's shape is the skin's
 ;; (olai/web/theme), and the markdown classes are web/markdown's, which is what
 ;; puts them on the markup. The chat panel is an overlay on all of this, so it
 ;; requires this module, which is what puts its rules last in the cascade.
@@ -96,7 +96,7 @@
           [web-scripts (listof string?)]
           ;; the outline pane's class: the chat panel is the one thing that
           ;; moves it, so the one thing that needs its name
-          [sf-main string?])
+          [ol-main string?])
          ;; re-exported markdown surface (render-time only): contracted by
          ;; the module that owns it, not decorated twice here
          title->inline-xexprs
@@ -166,15 +166,15 @@
 
 ;; Hooks, not looks: a pane wrapper the SSE swap and the tests address, and a
 ;; mirror site whose anchor named nothing. Nothing paints them.
-(define-modifier sf-pane sf-zoom sf-zoom-root sf-unresolved sf-crumb-home)
+(define-modifier ol-pane ol-zoom ol-zoom-root ol-unresolved ol-crumb-home)
 
 ;; ---- pills ----------------------------------------------------------------
 ;;
-;; The shape is the skin's (web/theme, .sf-pill) because web/markdown draws one
-;; too. Here is what a DATE reads like — and .sf-pill comes first in the
+;; The shape is the skin's (web/theme, .ol-pill) because web/markdown draws one
+;; too. Here is what a DATE reads like — and .ol-pill comes first in the
 ;; cascade, so this repaints it.
 
-(define-style sf-date
+(define-style ol-date
   #:background ,blue-bg
   #:color ,blue-fg
   #:font-variant-numeric tabular-nums
@@ -191,9 +191,9 @@
    #:border-color transparent
    #:text-decoration line-through])
 
-(define-style sf-day #:font-weight 500)
+(define-style ol-day #:font-weight 500)
 
-(define-style sf-date-time
+(define-style ol-date-time
   #:opacity 0.75
   #:font-family ,mono
   #:font-size ,micro-size)
@@ -202,7 +202,7 @@
 
 ;; Bare ISO day title -> friendly pill (display-only). ISO stays in the file.
 (define (day-pill-xexpr iso-day today done?)
-  `(span ((class ,(classes sf-pill sf-date sf-day
+  `(span ((class ,(classes ol-pill ol-date ol-day
                            (and (equal? iso-day today) is-today)
                            (and done? is-done)))
           (title ,iso-day)
@@ -211,21 +211,21 @@
 
 (define (date-pill-xexpr date today done?)
   (define day (date-day-prefix date))
-  `(span ((class ,(classes sf-pill sf-date
+  `(span ((class ,(classes ol-pill ol-date
                            (and (equal? day today) is-today)
                            (and done? is-done)))
           (title ,date))
          ,(if (bare-iso-date-title? day) (friendly-date-label day) date)
          ,@(if (> (string-length date) 10)
-               (list `(span ((class ,sf-date-time)) ,(substring date 11)))
+               (list `(span ((class ,ol-date-time)) ,(substring date 11)))
                '())))
 
 ;; The shell first: the <li>, the row, the child list. Everything after it
 ;; sits INSIDE the row, and the selectors that reach in from here need these
 ;; names to already exist.
 
-(define-style sf-children
-  ;; the list reset every outline list wears (.sf-outline and .sf-tree too)
+(define-style ol-children
+  ;; the list reset every outline list wears (.ol-outline and .ol-tree too)
   #:list-style none
   #:margin 0
   #:padding 0
@@ -235,12 +235,12 @@
   #:border-left (1px solid (apply color-mix (in srgb)
                                   (,dim 35%) ,line)))
 
-(define-style sf-node
+(define-style ol-node
   #:position relative
   ;; collapse is a class on the node; the children are what it hides
-  [(> ,(sel '& is-collapsed) ,(sel sf-children)) #:display none])
+  [(> ,(sel '& is-collapsed) ,(sel ol-children)) #:display none])
 
-(define-style sf-row
+(define-style ol-row
   #:display flex
   #:align-items flex-start
   #:gap 0.125rem
@@ -250,7 +250,7 @@
    #:background (apply color-mix (in srgb) (,pill-bg 55%) transparent)])
 
 ;; disclosure triangle: hidden until hover, like Workflowy
-(define-style sf-toggle
+(define-style ol-toggle
   #:flex (0 0 1rem)
   #:width 1rem
   #:height 1.5rem
@@ -267,15 +267,15 @@
   #:opacity 0
   #:transform (apply rotate 90deg)
   #:transition (transform 120ms ease) (opacity 120ms ease)
-  [(> (: ,(sel sf-row) hover) &) (: & focus-visible) #:opacity 1]
+  [(> (: ,(sel ol-row) hover) &) (: & focus-visible) #:opacity 1]
   ;; folded: the triangle points right, and stays visible saying so
-  [(> ,(sel sf-node is-collapsed) ,(sel sf-row) &)
+  [(> ,(sel ol-node is-collapsed) ,(sel ol-row) &)
    #:transform (apply rotate 0deg)
    #:opacity 1]
   ;; a touch screen has no hover to reveal it with
   [@ media (#:max-width ,phone-max) #:opacity 1])
 
-(define-style sf-toggle-empty #:cursor default)
+(define-style ol-toggle-empty #:cursor default)
 
 ;; The collapsible shell both panes wear: the node <li> with its collapse
 ;; state, the disclosure toggle, the row, and the child list. The main pane
@@ -292,7 +292,7 @@
                     #:row row
                     #:children [children '()])
   (define has-kids? (pair? children))
-  `(li ((class ,(classes sf-node
+  `(li ((class ,(classes ol-node
                          (and tree? is-tree)
                          (and has-kids? has-children)
                          ;; a leaf has nothing to fold
@@ -302,31 +302,31 @@
         (data-fragment-id ,key)
         ,@(if has-kids? `((data-collapse-key ,collapse-key)) '()))
        ,@before-row
-       (div ((class ,sf-row))
+       (div ((class ,ol-row))
             ,(toggle-xexpr has-kids? collapsed?)
             ,@row)
        ,@(if has-kids?
-             (list `(ul ((class ,sf-children)) ,@children))
+             (list `(ul ((class ,ol-children)) ,@children))
              '())))
 
 ;; Hidden until hover, like Workflowy; a leaf keeps the gutter.
 (define (toggle-xexpr has-kids? collapsed?)
   (if has-kids?
       `(button ((type "button")
-                (class ,sf-toggle)
+                (class ,ol-toggle)
                 (aria-expanded ,(if collapsed? "false" "true"))
                 (aria-label "toggle children"))
                "▸")
-      `(span ((class ,(classes sf-toggle sf-toggle-empty)) (aria-hidden "true")))))
+      `(span ((class ,(classes ol-toggle ol-toggle-empty)) (aria-hidden "true")))))
 
 ;; ---- what sits in the row -------------------------------------------------
 
-(define-style sf-bullet-link
+(define-style ol-bullet-link
   #:display inline-flex
   #:align-items center
   #:height 1.5rem)
 
-(define-style sf-bullet
+(define-style ol-bullet
   #:position relative
   #:flex (0 0 1rem)
   #:width 1rem
@@ -342,7 +342,7 @@
    #:border-radius 50%
    #:background ,dim]
   ;; collapsed parents wear a halo, like Workflowy
-  [(> ,(sel sf-node is-collapsed) (,(sel sf-row) (:: ,(sel '& has-children) before)))
+  [(> ,(sel ol-node is-collapsed) (,(sel ol-row) (:: ,(sel '& has-children) before)))
    #:content ""
    #:position absolute
    #:top 50%
@@ -352,14 +352,14 @@
    #:margin (-0.5rem 0 0 -0.5rem)
    #:border-radius 50%
    #:background ,line]
-  [((: ,(sel sf-bullet-link) hover) (:: & after)) #:background ,ink])
+  [((: ,(sel ol-bullet-link) hover) (:: & after)) #:background ,ink])
 
-(define-style sf-content
+(define-style ol-content
   #:flex (1 1 auto)
   #:min-width 0
   #:padding (0.125rem 0))
 
-(define-style sf-line
+(define-style ol-line
   #:display flex
   #:flex-wrap wrap
   #:align-items baseline
@@ -369,7 +369,7 @@
 ;; The bullet is the node; the box only shows up when it matters — on hover,
 ;; on focus, or once it is checked.
 (define-component (checkbox-xexpr key elt-key done? toggle-base)
-  #:class sf-check
+  #:class ol-check
   #:css (#:flex (0 0 1.125rem)
          #:width 1.125rem
          #:height 1.5rem
@@ -386,11 +386,11 @@
          #:user-select none
          #:opacity 0
          #:transition (opacity 120ms ease)
-         [((: ,(sel sf-row) hover) &) (: & focus-visible) ,(sel '& is-done) #:opacity 1]
+         [((: ,(sel ol-row) hover) &) (: & focus-visible) ,(sel '& is-done) #:opacity 1]
          [,(sel '& is-done) #:color ,green])
   (define label (if done? "☑" "☐"))
   (define common
-    `((class ,(classes sf-check (and done? is-done)))
+    `((class ,(classes ol-check (and done? is-done)))
       (title ,(if done? "done" "not done"))))
   (if toggle-base
       ;; post against the node (its key), swap the copy you clicked (elt-key)
@@ -407,19 +407,19 @@
 ;; the button answers a hover. CSS nesting has no spelling for "the parent,
 ;; but only when it is a button", so this rule is written out.
 (register-fragment!
- (css-expr [(: ,(sel 'button sf-check) hover) #:color ,green]))
+ (css-expr [(: ,(sel 'button ol-check) hover) #:color ,green]))
 
-(define-style sf-title
+(define-style ol-title
   #:color ,ink
   #:overflow-wrap anywhere
   ;; done is a state of the NODE; the title is where it reads
-  [,(sel '& is-done) (> ,(sel sf-node is-done) (,(sel sf-row) &))
+  [,(sel '& is-done) (> ,(sel ol-node is-done) (,(sel ol-row) &))
    #:color ,dim
    #:text-decoration line-through])
 
-(define-style sf-dim #:color ,dim)
+(define-style ol-dim #:color ,dim)
 
-(define-style sf-note
+(define-style ol-note
   #:margin-top 0.125rem
   #:color ,dim
   #:font-size 0.875rem
@@ -433,7 +433,7 @@
    #:border-left (2px solid ,line)])
 
 ;; A permalink target, not a thing to see.
-(define-style sf-anchor #:position absolute #:width 0 #:height 0 #:overflow hidden)
+(define-style ol-anchor #:position absolute #:width 0 #:height 0 #:overflow hidden)
 
 ;; Legacy permalink target: explicit ^anchor or bare ISO day title. Node ids
 ;; are namespaced ("n-…"), so this keeps plain "#anchor" links — mirrors,
@@ -443,10 +443,10 @@
     (or (task-id tk)
         (and (bare-iso-date-title? (task-title tk)) (task-title tk))))
   (if legacy
-      (list `(a ((class ,sf-anchor) (id ,legacy) (aria-hidden "true"))))
+      (list `(a ((class ,ol-anchor) (id ,legacy) (aria-hidden "true"))))
       '()))
 
-(define-style sf-mirror
+(define-style ol-mirror
   #:flex (0 0 auto)
   #:font-family ,mono
   #:font-size ,micro-size
@@ -457,13 +457,13 @@
 ;; A mirror site whose anchor named nothing. The marker is still drawn — the
 ;; outline says something belongs here — in its unresolved state.
 (define (unresolved-mirror-xexpr anchor)
-  `(li ((class ,(classes sf-node sf-unresolved)))
-       (div ((class ,sf-row))
-            (span ((class ,sf-bullet)))
-            (div ((class ,sf-content))
-                 (a ((class ,sf-mirror) (href ,(string-append "#" anchor)))
+  `(li ((class ,(classes ol-node ol-unresolved)))
+       (div ((class ,ol-row))
+            (span ((class ,ol-bullet)))
+            (div ((class ,ol-content))
+                 (a ((class ,ol-mirror) (href ,(string-append "#" anchor)))
                     "↗" ,anchor)
-                 (span ((class ,(classes sf-title sf-dim))) "(unresolved)")))))
+                 (span ((class ,(classes ol-title ol-dim))) "(unresolved)")))))
 
 (define (render-child child
                       #:site site
@@ -488,7 +488,7 @@
                            #:today today
                            #:zoom-base zoom-base
                            #:toggle-base toggle-base)]
-    [else `(li ((class ,(classes sf-node sf-unresolved))) "???")]))
+    [else `(li ((class ,(classes ol-node ol-unresolved))) "???")]))
 
 ;; One subtree, self-contained: this is the unit SSE re-swaps.
 (define (render-node-fragment tk
@@ -509,14 +509,14 @@
   (define title-el
     (if iso-day
         (day-pill-xexpr iso-day today done?)
-        `(span ((class ,(classes sf-title (and done? is-done))))
+        `(span ((class ,(classes ol-title (and done? is-done))))
                ,@(map style-md-xexpr (title->inline-xexprs title)))))
   (define bullet
-    (let ([dot `(span ((class ,(classes sf-bullet
+    (let ([dot `(span ((class ,(classes ol-bullet
                                         (and (pair? kids) has-children)))
                        (aria-hidden "true")))])
       (if zoom-base
-          `(a ((class ,sf-bullet-link)
+          `(a ((class ,ol-bullet-link)
                (href ,(href-for zoom-base key))
                (title "zoom in"))
               ,dot)
@@ -534,10 +534,10 @@
          ;; the check sits in the gutter, not in the text run, so a title
          ;; and its note stay flush left of each other
          (checkbox-xexpr key qkey done? toggle-base)
-         `(div ((class ,sf-content))
-               (div ((class ,sf-line))
+         `(div ((class ,ol-content))
+               (div ((class ,ol-line))
                     ,@(if mirror-of
-                          (list `(a ((class ,sf-mirror)
+                          (list `(a ((class ,ol-mirror)
                                      (href ,(string-append "#" mirror-of))
                                      (title ,(string-append "mirror of ^" mirror-of)))
                                     "↗"))
@@ -547,7 +547,7 @@
                           (list (date-pill-xexpr (task-date tk) today done?))
                           '()))
                ,@(if (task-description tk)
-                     (list `(div ((class ,(classes sf-note (and done? is-done))))
+                     (list `(div ((class ,(classes ol-note (and done? is-done))))
                                  ,@(note->xexprs (task-description tk))))
                      '())))
    #:children (for/list ([c (in-list kids)])
@@ -561,14 +561,14 @@
 
 ;; ---- main pane ------------------------------------------------------------
 
-;; The outline's own list: same reset as .sf-children, no connector — a file's
+;; The outline's own list: same reset as .ol-children, no connector — a file's
 ;; top level has no parent to hang off.
-(define-style sf-outline #:list-style none #:margin 0 #:padding 0)
+(define-style ol-outline #:list-style none #:margin 0 #:padding 0)
 
 ;; Files stack; the gap between two of them is what says they are two.
-(define-style sf-file [(+ & &) #:margin-top 2.5rem])
+(define-style ol-file [(+ & &) #:margin-top 2.5rem])
 
-(define-style sf-file-title
+(define-style ol-file-title
   #:margin (0 0 0.75rem 0.25rem)
   #:font-family ,mono
   #:font-size 0.75rem
@@ -578,17 +578,17 @@
   #:color ,dim)
 
 ;; One file's section. This is the natural re-render unit for a watcher: a
-;; save touches one file, and #sf-file-<label> is what it swaps.
+;; save touches one file, and #ol-file-<label> is what it swaps.
 (define (render-file-section entry
                              #:today today
                              #:zoom-base [zoom-base #f]
                              #:toggle-base [toggle-base #f])
   (match-define (list label tasks) (car (normalize-files-data (list entry))))
-  `(section ((class ,sf-file)
-             (id ,(string-append "sf-file-" (id-safe label)))
+  `(section ((class ,ol-file)
+             (id ,(string-append "ol-file-" (id-safe label)))
              (data-file ,label))
-            (h2 ((class ,sf-file-title)) ,label)
-            (ul ((class ,sf-outline))
+            (h2 ((class ,ol-file-title)) ,label)
+            (ul ((class ,ol-outline))
                 ,@(for/list ([tk (in-list tasks)])
                     (render-child tk
                                   #:site #f
@@ -601,7 +601,7 @@
                         #:today today
                         #:zoom-base [zoom-base #f]
                         #:toggle-base [toggle-base #f])
-  `(div ((class ,sf-pane) (id "sf-outline"))
+  `(div ((class ,ol-pane) (id "ol-outline"))
         ,@(for/list ([e (in-list files-data)])
             (render-file-section e
                                  #:today today
@@ -610,7 +610,7 @@
 
 ;; ---- chrome ---------------------------------------------------------------
 
-(define-style sf-breadcrumbs
+(define-style ol-breadcrumbs
   #:display flex
   #:flex-wrap wrap
   #:align-items center
@@ -619,18 +619,18 @@
   #:font-size 0.8125rem
   #:color ,dim)
 
-(define-style sf-crumb
+(define-style ol-crumb
   #:text-decoration none
   #:color ,dim)
 
 ;; only a crumb you can click answers a hover, and a crumb is a link only
 ;; when it has somewhere to go
 (register-fragment!
- (css-expr [(: ,(sel 'a sf-crumb) hover)
+ (css-expr [(: ,(sel 'a ol-crumb) hover)
             #:color ,ink
             #:text-decoration underline]))
 
-(define-style sf-crumb-sep #:color ,line)
+(define-style ol-crumb-sep #:color ,line)
 
 ;; path: (listof crumb) where crumb is "Label" or (list "Label" href-or-fid)
 (define (render-breadcrumbs path #:home-href home-href #:zoom-base [zoom-base #f])
@@ -639,27 +639,27 @@
   (define (crumb->xexpr c)
     (match c
       [(list label target)
-       `(a ((class ,sf-crumb) (href ,(if (regexp-match? #px"^[/#]" target)
+       `(a ((class ,ol-crumb) (href ,(if (regexp-match? #px"^[/#]" target)
                                          target
                                          (href-for zoom-base target))))
            ,@(label->xexprs label))]
-      [(? string? label) `(span ((class ,sf-crumb)) ,@(label->xexprs label))]
-      [_ `(span ((class ,sf-crumb)) ,(format "~a" c))]))
-  `(nav ((class ,sf-breadcrumbs) (aria-label "breadcrumbs"))
+      [(? string? label) `(span ((class ,ol-crumb)) ,@(label->xexprs label))]
+      [_ `(span ((class ,ol-crumb)) ,(format "~a" c))]))
+  `(nav ((class ,ol-breadcrumbs) (aria-label "breadcrumbs"))
         ,@(if home-href
-              (list `(a ((class ,(classes sf-crumb sf-crumb-home)) (href ,home-href))
+              (list `(a ((class ,(classes ol-crumb ol-crumb-home)) (href ,home-href))
                         "home"))
               '())
         ,@(append*
            (for/list ([c (in-list path)])
-             (list `(span ((class ,sf-crumb-sep) (aria-hidden "true")) "›")
+             (list `(span ((class ,ol-crumb-sep) (aria-hidden "true")) "›")
                    (crumb->xexpr c))))))
 
 ;; ---- sidebar --------------------------------------------------------------
 
 ;; A column that stays put while the outline scrolls — until the screen is a
 ;; phone's, where there is only one column and it becomes a header.
-(define-style sf-sidebar
+(define-style ol-sidebar
   #:flex (0 0 ,sidebar-w)
   #:width ,sidebar-w
   #:padding (1.25rem 0.75rem 3rem 1rem)
@@ -678,17 +678,17 @@
      #:border-bottom (1px solid ,line)
      #:padding 1rem])
 
-(define-style sf-brand #:margin-bottom 1.25rem)
+(define-style ol-brand #:margin-bottom 1.25rem)
 
-(define-style sf-brand-link
+(define-style ol-brand-link
   #:font-weight 600
   #:letter-spacing -0.01em
   #:text-decoration none
   #:color ,ink)
 
-(define-style sf-sidebar-nav #:display flex #:flex-direction column #:gap 0.125rem)
+(define-style ol-sidebar-nav #:display flex #:flex-direction column #:gap 0.125rem)
 
-(define-style sf-nav-item
+(define-style ol-nav-item
   #:display flex
   #:align-items center
   #:gap 0.5rem
@@ -699,11 +699,11 @@
   #:font-size 0.875rem
   [(: & hover) #:background ,pill-bg])
 
-(define-style sf-nav-icon #:color ,green #:font-size 0.75rem)
+(define-style ol-nav-icon #:color ,green #:font-size 0.75rem)
 
-(define-style sf-sidebar-section #:margin-top 1.5rem)
+(define-style ol-sidebar-section #:margin-top 1.5rem)
 
-(define-style sf-sidebar-heading
+(define-style ol-sidebar-heading
   #:margin (0 0 0.375rem 0.5rem)
   #:font-size ,micro-size
   #:font-weight 600
@@ -711,39 +711,39 @@
   #:text-transform uppercase
   #:color ,dim)
 
-(define-style sf-sidebar-empty
+(define-style ol-sidebar-empty
   #:margin (0 0 0 0.5rem)
   #:font-size 0.8125rem
   #:color ,dim
   #:font-style italic)
 
-(define-style sf-tree-file [(+ & &) #:margin-top 0.75rem])
+(define-style ol-tree-file [(+ & &) #:margin-top 0.75rem])
 
-(define-style sf-tree-file-label
+(define-style ol-tree-file-label
   #:margin (0 0 0.125rem 0.5rem)
   #:font-family ,mono
   #:font-size ,micro-size
   #:color ,dim)
 
-(define-style sf-tree #:list-style none #:margin 0 #:padding 0)
+(define-style ol-tree #:list-style none #:margin 0 #:padding 0)
 
-;; SIDEBAR NODES: the same shell as the outline (.sf-node / .sf-row /
-;; .sf-children), keyed by the .is-tree modifier — flatter, no connector, one
+;; SIDEBAR NODES: the same shell as the outline (.ol-node / .ol-row /
+;; .ol-children), keyed by the .is-tree modifier — flatter, no connector, one
 ;; line each. Three components at once, so it is written as one fragment
 ;; rather than nested under any of them.
 (register-fragment!
  (css-expr
-  [(> ,(sel sf-node is-tree) ,(sel sf-children))
+  [(> ,(sel ol-node is-tree) ,(sel ol-children))
    #:margin-left 0.75rem
    #:padding-left 0
    #:border-left 0]
-  [(> ,(sel sf-node is-tree) ,(sel sf-row))
+  [(> ,(sel ol-node is-tree) ,(sel ol-row))
    #:align-items center
    #:padding (0.0625rem 0.25rem)
    [(: & hover) #:background ,pill-bg]]
-  [(> ,(sel sf-node is-tree) ,(sel sf-row) ,(sel sf-toggle)) #:height 1.25rem]))
+  [(> ,(sel ol-node is-tree) ,(sel ol-row) ,(sel ol-toggle)) #:height 1.25rem]))
 
-(define-style sf-tree-link
+(define-style ol-tree-link
   #:flex (1 1 auto)
   #:min-width 0
   #:text-decoration none
@@ -774,33 +774,33 @@
          ;; in the main pane and folded here
          #:collapse-key (string-append "tree-" key)
          #:collapsed? (> depth 0)
-         #:row (list `(a ((class ,sf-tree-link) (href ,(href-for zoom-base key)))
+         #:row (list `(a ((class ,ol-tree-link) (href ,(href-for zoom-base key)))
                          ,@(map style-md-xexpr (title->inline-xexprs (task-title tk)))))
          #:children (append*
                      (for/list ([c (in-list kids)])
                        (tree-item c (add1 depth))))))]
       [else '()]))
-  `(aside ((class ,sf-sidebar) (id "sf-sidebar"))
-          (div ((class ,sf-brand))
-               (a ((class ,sf-brand-link) (href ,home-href)) "olai"))
-          (nav ((class ,sf-sidebar-nav))
+  `(aside ((class ,ol-sidebar) (id "ol-sidebar"))
+          (div ((class ,ol-brand))
+               (a ((class ,ol-brand-link) (href ,home-href)) "olai"))
+          (nav ((class ,ol-sidebar-nav))
                ,(if today-href
-                    `(a ((class ,sf-nav-item) (href ,today-href))
-                        (span ((class ,sf-nav-icon) (aria-hidden "true")) "◉")
+                    `(a ((class ,ol-nav-item) (href ,today-href))
+                        (span ((class ,ol-nav-icon) (aria-hidden "true")) "◉")
                         "Today")
-                    `(span ((class ,sf-nav-item))
-                           (span ((class ,sf-nav-icon) (aria-hidden "true")) "◉")
+                    `(span ((class ,ol-nav-item))
+                           (span ((class ,ol-nav-icon) (aria-hidden "true")) "◉")
                            "Today")))
-          (section ((class ,sf-sidebar-section))
-                   (h3 ((class ,sf-sidebar-heading)) "Starred")
-                   (p ((class ,sf-sidebar-empty)) "Nothing starred yet"))
-          (section ((class ,sf-sidebar-section))
-                   (h3 ((class ,sf-sidebar-heading)) "Home")
+          (section ((class ,ol-sidebar-section))
+                   (h3 ((class ,ol-sidebar-heading)) "Starred")
+                   (p ((class ,ol-sidebar-empty)) "Nothing starred yet"))
+          (section ((class ,ol-sidebar-section))
+                   (h3 ((class ,ol-sidebar-heading)) "Home")
                    ,@(for/list ([e (in-list entries)])
                        (match-define (list label tasks) e)
-                       `(div ((class ,sf-tree-file))
-                             (div ((class ,sf-tree-file-label)) ,label)
-                             (ul ((class ,sf-tree))
+                       `(div ((class ,ol-tree-file))
+                             (div ((class ,ol-tree-file-label)) ,label)
+                             (ul ((class ,ol-tree))
                                  ,@(append*
                                     (for/list ([tk (in-list tasks)])
                                       (tree-item tk 0)))))))))
@@ -811,7 +811,7 @@
 ;; good content and says so here, with the file:line:col of the offending
 ;; form — the same location the JSON errors carry.
 (define-component (render-error-banner detail #:where [where #f])
-  #:class sf-error
+  #:class ol-error
   #:css (#:display flex
          #:flex-wrap wrap
          #:gap 0.5rem
@@ -823,20 +823,20 @@
          #:background ,rose-bg
          #:color ,rose-fg
          #:font-size 0.8125rem)
-  `(div ((class ,sf-error) (role "alert"))
+  `(div ((class ,ol-error) (role "alert"))
         ,@(if where
-              (list `(span ((class ,sf-error-where)) ,where))
+              (list `(span ((class ,ol-error-where)) ,where))
               '())
-        (span ((class ,sf-error-detail)) ,detail)))
+        (span ((class ,ol-error-detail)) ,detail)))
 
 ;; file:line:col — long, and the one part worth wrapping anywhere
-(define-style sf-error-where
+(define-style ol-error-where
   #:font-family ,mono
   #:font-size 0.75rem
   #:opacity 0.85
   #:overflow-wrap anywhere)
 
-(define-style sf-error-detail #:font-family ,mono #:overflow-wrap anywhere)
+(define-style ol-error-detail #:font-family ,mono #:overflow-wrap anywhere)
 
 ;; What an `outline` event re-swaps: the banner slot AND the pane, in one
 ;; container, because a save can change either and they must not be able to
@@ -850,28 +850,28 @@
 ;; Fixed slot: empty while the outlines load clean, filled while a file is
 ;; mid-edit. The page keeps showing the last good content underneath, and an
 ;; empty slot must not leave a gap where the banner would be.
-(define-style sf-banner-slot [(: & empty) #:display none])
+(define-style ol-banner-slot [(: & empty) #:display none])
 
 (define (live-region live-href banner main)
   (define slot
     ;; fixed slot: the banner is swapped in and out, so it must exist
     ;; (empty) even on a healthy page
-    `(div ((class ,sf-banner-slot) (id "sf-banner"))
+    `(div ((class ,ol-banner-slot) (id "ol-banner"))
           ,@(if banner (list banner) '())))
   (if live-href
-      `(div ((id "sf-live")
+      `(div ((id "ol-live")
              (hx-get ,live-href)
              (hx-trigger "sse:outline")
-             (hx-select "#sf-live")
-             (hx-target "#sf-live")
+             (hx-select "#ol-live")
+             (hx-target "#ol-live")
              (hx-swap "outerHTML"))
             ,slot
             ,main)
-      `(div ((id "sf-live")) ,slot ,main)))
+      `(div ((id "ol-live")) ,slot ,main)))
 
 ;; The reading column: it takes what the sidebar leaves and stops growing
 ;; where a line stops being readable.
-(define-style sf-main
+(define-style ol-main
   #:flex (1 1 auto)
   #:min-width 0
   #:padding (2rem 2rem 6rem)
@@ -903,12 +903,12 @@
           ,@(for/list ([name (in-list web-scripts)])
               `(script ((src ,(static-href name)) (defer "defer"))))
           ,@head-extra)
-         (body ((class ,sf-body)
+         (body ((class ,ol-body)
                 ,@(if sse-connect
                       `((hx-ext "sse") (sse-connect ,sse-connect))
                       '()))
                ,@(if sidebar (list sidebar) '())
-               (main ((class ,sf-main))
+               (main ((class ,ol-main))
                      ,(live-region live-href banner main))
                ,@body-extra)))
 
@@ -920,13 +920,13 @@
 
 ;; ---- zoom -----------------------------------------------------------------
 
-(define-style sf-empty #:color ,dim #:font-style italic)
+(define-style ol-empty #:color ,dim #:font-style italic)
 
 ;; A pane with nothing to show: breadcrumbs home, one line saying why.
 (define (render-empty-pane message #:home-href home-href)
-  `(div ((class ,(classes sf-pane sf-zoom)) (id "sf-outline"))
+  `(div ((class ,(classes ol-pane ol-zoom)) (id "ol-outline"))
         ,(render-breadcrumbs '() #:home-href home-href)
-        (p ((class ,sf-empty)) ,message)))
+        (p ((class ,ol-empty)) ,message)))
 
 ;; Breadcrumbs + the focused subtree.
 ;;
@@ -949,9 +949,9 @@
        (for/list ([c (in-list (drop-right crumbs 1))])
          (match-define (list label k) c)
          (if k (list label k) label)))
-     `(div ((class ,(classes sf-pane sf-zoom)) (id "sf-outline"))
+     `(div ((class ,(classes ol-pane ol-zoom)) (id "ol-outline"))
            ,(render-breadcrumbs ancestors #:zoom-base zoom-base #:home-href home-href)
-           (ul ((class ,(classes sf-outline sf-zoom-root)))
+           (ul ((class ,(classes ol-outline ol-zoom-root)))
                ,(render-node-fragment tk
                                       #:today today
                                       #:zoom-base zoom-base

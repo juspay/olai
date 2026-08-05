@@ -52,7 +52,7 @@
           ;; test compares that against.
           [class-names (-> (listof string?))]
           ;; class names -> one xexpr class attribute, #f parts dropped:
-          ;;   (classes sf-node (and done? is-done)) -> "sf-node is-done"
+          ;;   (classes ol-node (and done? is-done)) -> "ol-node is-done"
           [classes (->* () #:rest (listof (or/c string? #f)) string?)]
           ;; class names -> a css-expr selector datum, for use under unquote
           [sel (->* ((or/c string? symbol?))
@@ -65,8 +65,8 @@
 ;; css-expr selectors are symbols. `sel` is the crossing, and it builds the
 ;; whole compound in one call so a selector reads like the CSS it becomes:
 ;;
-;;   (sel sf-node is-collapsed)   -> .sf-node.is-collapsed
-;;   (sel 'body sf-body)          -> body.sf-body
+;;   (sel ol-node is-collapsed)   -> .ol-node.is-collapsed
+;;   (sel 'body ol-body)          -> body.ol-body
 ;;   (sel '& is-done)             -> &.is-done, inside a nested rule
 ;;
 ;; A nested rule that does not mention & is read as a DESCENDANT of its
@@ -75,8 +75,8 @@
 ;; Use it under unquote; css-expr is quasiquote, so it composes with every
 ;; combinator css-expr has:
 ;;
-;;   (css-expr [(> ,(sel sf-node is-collapsed)
-;;                 (,(sel sf-row) (:: ,(sel sf-bullet has-children) before)))
+;;   (css-expr [(> ,(sel ol-node is-collapsed)
+;;                 (,(sel ol-row) (:: ,(sel ol-bullet has-children) before)))
 ;;              #:content ""])
 (define (sel part . parts)
   (for/fold ([acc #f]) ([p (in-list (cons part parts))])
@@ -135,7 +135,7 @@
 
 ;; ---- the macros -----------------------------------------------------------
 
-;; Three prefixes, and no fourth: sf- is a piece of the skin, is- and has- are
+;; Three prefixes, and no fourth: ol- is a piece of the skin, is- and has- are
 ;; states something else is in. The convention is not decoration — the test
 ;; that reads class-shaped names out of the .js files finds them by these
 ;; prefixes, so a class that wore a fourth one would be outside that border
@@ -143,19 +143,19 @@
 ;; makes the border complete by construction.
 (begin-for-syntax
   (define (check-class-name! id)
-    (unless (regexp-match? #px"^(sf|is|has)-[a-z0-9]"
+    (unless (regexp-match? #px"^(ol|is|has)-[a-z0-9]"
                            (symbol->string (syntax-e id)))
-      (raise-syntax-error #f "a class name starts with sf-, is- or has-" id))))
+      (raise-syntax-error #f "a class name starts with ol-, is- or has-" id))))
 
-;; (define-style sf-node rule ...) binds sf-node to "sf-node" and registers
-;; `.sf-node { rule ... }`. Rules are css-expr block elements, so a nested
+;; (define-style ol-node rule ...) binds ol-node to "ol-node" and registers
+;; `.ol-node { rule ... }`. Rules are css-expr block elements, so a nested
 ;; rule with `&` reaches the states and children of the same class:
 ;;
-;;   (define-style sf-crumb
+;;   (define-style ol-crumb
 ;;     #:text-decoration none
 ;;     [(: & hover) #:text-decoration underline])
 ;;
-;; #:tag qualifies the selector with an element (body.sf-body). Rare: a class
+;; #:tag qualifies the selector with an element (body.ol-body). Rare: a class
 ;; that only ever lands on one tag, where the tag is part of what the rule
 ;; means. #:layer says which cascade layer the rule belongs to ('component
 ;; unless it says otherwise).
@@ -163,9 +163,9 @@
 ;; The subject may also be a LIST of names — one control with three jobs, one
 ;; block of rules:
 ;;
-;;   (define-style (sf-chat-btn sf-chat-send sf-chat-stop) #:cursor pointer)
+;;   (define-style (ol-chat-btn ol-chat-send ol-chat-stop) #:cursor pointer)
 ;;
-;; which binds all three and registers .sf-chat-btn,.sf-chat-send,.sf-chat-stop
+;; which binds all three and registers .ol-chat-btn,.ol-chat-send,.ol-chat-stop
 ;; once. A nested rule under that form reaches all three, which is what the
 ;; grouping means; anything that is true of only one of them is its own rule.
 (define-syntax (define-style stx)
@@ -200,9 +200,9 @@
 ;; and the rule that paints it cannot drift apart:
 ;;
 ;;   (define-component (crumb-sep)
-;;     #:class sf-crumb-sep
+;;     #:class ol-crumb-sep
 ;;     #:css (#:color ,line)
-;;     `(span ((class ,sf-crumb-sep) (aria-hidden "true")) "›"))
+;;     `(span ((class ,ol-crumb-sep) (aria-hidden "true")) "›"))
 (define-syntax (define-component stx)
   (syntax-parse stx
     [(_ (name:id arg ...) #:class cls:id
@@ -222,7 +222,7 @@
 ;; binds `palette-tokens` to '(paper ink dim) — what a generator folds over —
 ;; and each name to the css-expr datum for var(--name), for use under unquote:
 ;;
-;;   (define-style sf-note #:color ,dim #:border (1px solid ,line))
+;;   (define-style ol-note #:color ,dim #:border (1px solid ,line))
 ;;
 ;; They are PROVIDED as well as defined: a token no other module can spell is
 ;; not a token, it is a local. No contracts — a token is a constant datum, and
@@ -241,7 +241,7 @@
 
 ;; A class with no rules of its own. Two kinds wear it: a STATE (is-done,
 ;; has-children, is-open) that appears inside other components' selectors and
-;; in the JS that toggles it, and a HOOK (sf-pane, sf-chat-sink) that only JS
+;; in the JS that toggles it, and a HOOK (ol-pane, ol-chat-sink) that only JS
 ;; or a test addresses. Binding it is the whole point: the string exists once,
 ;; and both sides spell it from there. It binds only, and no longer stands in
 ;; for a rule with several subjects — define-style takes a list for that.

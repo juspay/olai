@@ -43,7 +43,7 @@
                   tool-failed stop-end-turn)
          ;; the pane the panel makes room in, and the note renderer a finished
          ;; turn is run through
-         (only-in olai/web/render sf-main note->xexprs))
+         (only-in olai/web/render ol-main note->xexprs))
 
 (provide (contract-out
           [render-chat-panel
@@ -71,9 +71,9 @@
 ;; The outline stays the star. The panel is fixed to the right edge, closed
 ;; until asked for, and the main pane makes room rather than being covered.
 ;; The dock itself is not a box: its two children place themselves.
-(define-style sf-chat-dock #:display contents)
+(define-style ol-chat-dock #:display contents)
 
-(define-style sf-chat-open
+(define-style ol-chat-open
   #:position fixed
   #:right 1rem
   #:bottom 1rem
@@ -89,19 +89,19 @@
   [(: & hover) #:color ,ink #:border-color ,dim]
   ;; an open panel is on top of where the toggle sits — it would land on the
   ;; send button. It steps aside, and the header's × takes over.
-  [(,(sel sf-chat-dock is-open) &) #:display none]
+  [(,(sel ol-chat-dock is-open) &) #:display none]
   ;; a turn is running behind a closed panel: the toggle breathes so working is
   ;; visible without opening it. The ring is the accent color at low alpha,
   ;; expanding and fading — no bounce, no color change on the button itself.
-  [(,(sel sf-chat-dock is-busy) &)
+  [(,(sel ol-chat-dock is-busy) &)
    #:border-color ,green
-   #:animation (sf-chat-glow ,busy-beat ease-in-out infinite)
+   #:animation (ol-chat-glow ,busy-beat ease-in-out infinite)
    ;; the border still marks busy; only the motion drops out
    [@ media (#:prefers-reduced-motion reduce) #:animation none]])
 
 (register-fragment!
  (css-expr
-  [@ keyframes sf-chat-glow
+  [@ keyframes ol-chat-glow
      [0% 100% #:box-shadow (0 0 0 0 (apply color-mix (in srgb)
                                            (,green 45%) transparent))]
      [50% #:box-shadow (0 0 0 6px (apply color-mix (in srgb)
@@ -109,7 +109,7 @@
 
 ;; ---- the panel ------------------------------------------------------------
 
-(define-style sf-chat
+(define-style ol-chat
   #:position fixed
   #:top 0
   #:right 0
@@ -133,12 +133,12 @@
 (register-fragment!
  #:layer 'overlay
  (css-expr
-  [((: ,(sel 'body sf-body) (apply has ,(sel sf-chat is-open))) ,(sel sf-main))
+  [((: ,(sel 'body ol-body) (apply has ,(sel ol-chat is-open))) ,(sel ol-main))
    #:padding-right (apply calc (+ ,chat-w 1.5rem))
    ;; on a phone the sheet covers it anyway, so there is nothing to make room for
    [@ media (#:max-width ,phone-max) #:padding-right 1rem]]))
 
-(define-style sf-chat-head
+(define-style ol-chat-head
   #:display flex
   #:align-items center
   #:justify-content space-between
@@ -151,7 +151,7 @@
   ;; the header is what the sessions popover hangs off
   #:position relative)
 
-(define-style sf-chat-title
+(define-style ol-chat-title
   #:min-width 0
   #:font-family ,mono
   #:font-size 0.75rem
@@ -160,14 +160,14 @@
 
 ;; the model, when the agent named one. Empty means unknown, and unknown says
 ;; nothing at all — separator included.
-(define-style sf-chat-model
+(define-style ol-chat-model
   #:opacity 0.8
   [(:: (: & (apply not (: empty))) before) #:content " · "])
 
 ;; which conversation, when the agent has named one. Quieter than the model —
 ;; it is context, not state — and one line down, where a long title has room
 ;; to be cut off instead of pushing the buttons around.
-(define-style sf-chat-session
+(define-style ol-chat-session
   #:display block
   #:max-width 100%
   #:overflow hidden
@@ -180,7 +180,7 @@
 ;; a turn running behind an OPEN panel: the toggle that breathes is hidden
 ;; under it, so the header says it instead — one dot, the same accent and the
 ;; same rhythm as the toggle's ring
-(define-style sf-chat-working
+(define-style ol-chat-working
   #:display none
   #:width 0.4375rem
   #:height 0.4375rem
@@ -188,16 +188,16 @@
   #:border-radius 50%
   #:background ,green
   #:vertical-align middle
-  [(,(sel sf-chat is-busy) &)
+  [(,(sel ol-chat is-busy) &)
    #:display inline-block
-   #:animation (sf-chat-glow ,busy-beat ease-in-out infinite)
+   #:animation (ol-chat-glow ,busy-beat ease-in-out infinite)
    ;; likewise the dot: it stays, it just stops breathing
    [@ media (#:prefers-reduced-motion reduce) #:animation none]])
 
-(define-style sf-chat-actions #:display flex #:align-items center #:gap 0.375rem)
+(define-style ol-chat-actions #:display flex #:align-items center #:gap 0.375rem)
 
 ;; One control with three jobs: one block, three subjects.
-(define-style (sf-chat-btn sf-chat-send sf-chat-stop)
+(define-style (ol-chat-btn ol-chat-send ol-chat-stop)
   #:padding (0.1875rem 0.5rem)
   #:border (1px solid ,line)
   #:border-radius ,radius
@@ -211,12 +211,12 @@
 ;; stop wears the alarm color.
 (register-fragment!
  (css-expr
-  [(: ,(sel sf-chat-btn) hover) (: ,(sel sf-chat-send) hover) #:color ,ink]
-  [,(sel sf-chat-stop) #:color ,rose-fg #:border-color ,rose-fg]))
+  [(: ,(sel ol-chat-btn) hover) (: ,(sel ol-chat-send) hover) #:color ,ink]
+  [,(sel ol-chat-stop) #:color ,rose-fg #:border-color ,rose-fg]))
 
 ;; ---- the conversation -----------------------------------------------------
 
-(define-style sf-chat-body
+(define-style ol-chat-body
   #:flex (1 1 auto)
   #:overflow-y auto
   #:overscroll-behavior contain
@@ -226,10 +226,10 @@
   #:gap 0.625rem
   #:font-size 0.875rem)
 
-(define-style sf-chat-turn #:display flex #:flex-direction column #:gap 0.375rem)
+(define-style ol-chat-turn #:display flex #:flex-direction column #:gap 0.375rem)
 
 ;; what you said: a bubble on the right. What it said: plain text, left.
-(define-style sf-chat-msg
+(define-style ol-chat-msg
   [,(sel '& is-user)
    #:align-self flex-end
    #:max-width 85%
@@ -251,13 +251,13 @@
    #:font-family ,mono
    #:font-size 0.75rem])
 
-(define-style sf-chat-note
+(define-style ol-chat-note
   #:color ,dim
   #:font-family ,mono
   #:font-size ,micro-size)
 
 ;; one line per tool call, updated in place by id
-(define-style sf-chat-tool
+(define-style ol-chat-tool
   #:display flex
   #:align-items baseline
   #:gap 0.375rem
@@ -266,23 +266,23 @@
   #:color ,dim
   [(attribute & (= data-status ,tool-failed)) #:color ,rose-fg])
 
-(define-style sf-chat-tool-title #:overflow-wrap anywhere)
+(define-style ol-chat-tool-title #:overflow-wrap anywhere)
 
-(define-style sf-chat-tool-glyph
-  [((attribute ,(sel sf-chat-tool) (= data-status ,tool-completed)) &) #:color ,green]
+(define-style ol-chat-tool-glyph
+  [((attribute ,(sel ol-chat-tool) (= data-status ,tool-completed)) &) #:color ,green]
   ;; a call still in flight spins; a finished one is a mark
-  [((attribute ,(sel sf-chat-tool) (= data-status ,tool-pending)) &)
-   ((attribute ,(sel sf-chat-tool) (= data-status ,tool-in-progress)) &)
+  [((attribute ,(sel ol-chat-tool) (= data-status ,tool-pending)) &)
+   ((attribute ,(sel ol-chat-tool) (= data-status ,tool-in-progress)) &)
    #:display inline-block
-   #:animation (sf-spin 2s linear infinite)]
+   #:animation (ol-spin 2s linear infinite)]
   [@ media (#:prefers-reduced-motion reduce)
-     [(,(sel sf-chat-tool) &) #:animation none]])
+     [(,(sel ol-chat-tool) &) #:animation none]])
 
 (register-fragment!
- (css-expr [@ keyframes sf-spin [to #:transform (apply rotate 360deg)]]))
+ (css-expr [@ keyframes ol-spin [to #:transform (apply rotate 360deg)]]))
 
 ;; a break in the conversation: new chat, or an agent that was replaced
-(define-style sf-chat-sep
+(define-style ol-chat-sep
   #:display flex
   #:align-items center
   #:gap 0.5rem
@@ -293,11 +293,11 @@
    #:border-top (1px solid ,line)])
 
 ;; Frames land here: a hook for the SSE extension, nothing to look at.
-(define-modifier sf-chat-sink)
+(define-modifier ol-chat-sink)
 
 ;; ---- the input row --------------------------------------------------------
 
-(define-style sf-chat-form
+(define-style ol-chat-form
   #:display flex
   #:gap 0.375rem
   #:padding (0.625rem 0.75rem)
@@ -309,7 +309,7 @@
 ;; Opens upward, over the conversation: the input row is the last line of the
 ;; panel, and a menu below it would be off the screen. Its own surface, one
 ;; step up from the row it belongs to.
-(define-style sf-chat-pop
+(define-style ol-chat-pop
   #:position absolute
   #:left 0.75rem
   #:right 0.75rem
@@ -324,7 +324,7 @@
   #:box-shadow (0 -4px 12px (apply color-mix (in srgb) (,ink 12%) transparent))
   [(attribute & hidden) #:display none])
 
-(define-style sf-chat-cmd
+(define-style ol-chat-cmd
   #:display flex
   #:align-items baseline
   #:gap 0.5rem
@@ -335,17 +335,17 @@
   ;; the one you are in already: marked, and not worth clicking
   [(attribute & data-current) #:cursor default])
 
-(define-style sf-chat-cmd-name
+(define-style ol-chat-cmd-name
   #:flex none
   #:font-family ,mono
   #:font-size 0.75rem
   #:color ,green
-  [(:: ((attribute ,(sel sf-chat-cmd) data-current) &) before)
+  [(:: ((attribute ,(sel ol-chat-cmd) data-current) &) before)
    #:content "● "
    #:color ,green])
 
 ;; one line per command: the description is context, not the thing being read
-(define-style sf-chat-cmd-desc
+(define-style ol-chat-cmd-desc
   #:flex (1 1 auto)
   #:min-width 0
   #:font-size 0.75rem
@@ -356,8 +356,8 @@
 
 ;; The same popover at the other end of the panel: the past conversations hang
 ;; off the header, so this one opens DOWNWARD from it. A second class on the
-;; same element, so every rule here has to land after .sf-chat-pop's.
-(define-style sf-chat-spop
+;; same element, so every rule here has to land after .ol-chat-pop's.
+(define-style ol-chat-spop
   #:top 100%
   #:bottom auto
   #:left 0.75rem
@@ -367,7 +367,7 @@
   ;; here the TITLE is the thing being read and the timestamp is the context,
   ;; so the two swap roles: the title takes the room and gets cut off, not the
   ;; date
-  [(& ,(sel sf-chat-cmd-name))
+  [(& ,(sel ol-chat-cmd-name))
    #:flex (1 1 auto)
    #:min-width 0
    #:overflow hidden
@@ -375,18 +375,18 @@
    #:white-space nowrap
    #:font-family ,sans
    #:color ,ink]
-  [(& ,(sel sf-chat-cmd-desc)) #:flex none #:font-family ,mono]
-  [(& ,(sel sf-chat-cmd)) #:gap 0.75rem])
+  [(& ,(sel ol-chat-cmd-desc)) #:flex none #:font-family ,mono]
+  [(& ,(sel ol-chat-cmd)) #:gap 0.75rem])
 
 ;; The button that opens the same popover, for someone who has not learned the
 ;; slash. It appears only once there is a list to show — and while a turn runs
 ;; there is still just the one thing to do, and it is stop.
-(define-style sf-chat-cmds
+(define-style ol-chat-cmds
   #:display none
-  [(,(sel sf-chat has-commands) &) #:display inline-block]
-  [(,(sel sf-chat is-busy) &) #:display none])
+  [(,(sel ol-chat has-commands) &) #:display inline-block]
+  [(,(sel ol-chat is-busy) &) #:display none])
 
-(define-style sf-chat-input
+(define-style ol-chat-input
   #:flex (1 1 auto)
   #:min-width 0
   #:padding (0.25rem 0.5rem)
@@ -401,8 +401,8 @@
 ;; while a turn runs there is one thing to do, and it is stop
 (register-fragment!
  (css-expr
-  [,(sel sf-chat-stop) (,(sel sf-chat is-busy) ,(sel sf-chat-send)) #:display none]
-  [(,(sel sf-chat is-busy) ,(sel sf-chat-stop)) #:display inline-block]))
+  [,(sel ol-chat-stop) (,(sel ol-chat is-busy) ,(sel ol-chat-send)) #:display none]
+  [(,(sel ol-chat is-busy) ,(sel ol-chat-stop)) #:display inline-block]))
 
 ;; ---- the markup -----------------------------------------------------------
 
@@ -410,11 +410,11 @@
 
 (define (chat-tool-xexpr t)
   (define status (chat-string t 'status tool-pending))
-  `(div ((class ,sf-chat-tool)
+  `(div ((class ,ol-chat-tool)
          (data-tool-id ,(chat-string t 'id ""))
          (data-status ,status))
-        (span ((class ,sf-chat-tool-glyph)) ,(hash-ref tool-glyphs status "⚙"))
-        (span ((class ,sf-chat-tool-title)) ,(chat-string t 'title ""))))
+        (span ((class ,ol-chat-tool-glyph)) ,(hash-ref tool-glyphs status "⚙"))
+        (span ((class ,ol-chat-tool-title)) ,(chat-string t 'title ""))))
 
 ;; A transcript field is JSON: a missing one and an explicit null are the
 ;; same nothing, and neither may reach xexpr->string.
@@ -427,9 +427,9 @@
   (define text (chat-string e 'agent ""))
   (define stop (chat-string e 'stopReason))
   (define err (chat-string e 'error))
-  `(div ((class ,sf-chat-turn))
-        (div ((class ,(classes sf-chat-msg is-user))) ,(chat-string e 'text ""))
-        (div ((class ,(classes sf-chat-msg is-agent)))
+  `(div ((class ,ol-chat-turn))
+        (div ((class ,(classes ol-chat-msg is-user))) ,(chat-string e 'text ""))
+        (div ((class ,(classes ol-chat-msg is-agent)))
              ,@(if (equal? status turn-done)
                    (note->xexprs text)
                    (list text)))
@@ -437,17 +437,17 @@
                      #:when (hash? t))
             (chat-tool-xexpr t))
         ,@(if err
-              (list `(div ((class ,(classes sf-chat-msg is-error))) ,err))
+              (list `(div ((class ,(classes ol-chat-msg is-error))) ,err))
               '())
         ,@(if (and stop (not (equal? stop stop-end-turn)))
-              (list `(div ((class ,sf-chat-note)) ,stop))
+              (list `(div ((class ,ol-chat-note)) ,stop))
               '())))
 
 ;; Not a turn: the conversation moved. A live `reset` clears the panel; a
 ;; replayed one is a line across it, because the turns above it happened.
 (define (chat-marker-xexpr e)
   (define type (chat-string e 'type ""))
-  `(div ((class ,sf-chat-sep))
+  `(div ((class ,ol-chat-sep))
         ,(or (chat-string e 'message) (if (equal? type "reset") "new chat" type))))
 
 (define (chat-entry-xexpr e)
@@ -472,58 +472,58 @@
                            #:model [model #f]
                            #:session-title [session-title #f]
                            #:commands [commands '()])
-  `(div ((class ,sf-chat-dock))
-        (button ((type "button") (class ,sf-chat-open) (data-chat-toggle "")
+  `(div ((class ,ol-chat-dock))
+        (button ((type "button") (class ,ol-chat-open) (data-chat-toggle "")
                  (aria-label "open the agent panel"))
                 ">_ agent")
         ;; The agent's slash commands, replayed onto the panel: chat.js reads
         ;; them at init so a reloaded page completes immediately, and a
         ;; `commands` frame replaces them from there. JSON in an attribute —
         ;; the xexpr layer is what escapes it, same as any other string here.
-        (aside ((class ,(classes sf-chat (and busy? is-busy)
+        (aside ((class ,(classes ol-chat (and busy? is-busy)
                                  ;; nothing to offer, nothing to press: the
                                  ;; commands button is one class away, so a
                                  ;; `commands` frame can bring it back
                                  (and (pair? commands) has-commands)))
-                (id "sf-chat")
+                (id "ol-chat")
                 (data-commands ,(jsexpr->string commands)))
-               (div ((class ,sf-chat-head))
+               (div ((class ,ol-chat-head))
                     ;; Which model, when the bridge has heard one — never a
                     ;; placeholder. Its own span, and the separator is the
                     ;; span's, so a `model` frame sets one string.
-                    (span ((class ,sf-chat-title)) "agent · claude code"
-                          (span ((class ,sf-chat-model) (id "sf-chat-model"))
+                    (span ((class ,ol-chat-title)) "agent · claude code"
+                          (span ((class ,ol-chat-model) (id "ol-chat-model"))
                                 ,(or model ""))
                           ;; A running turn is visible on the floating toggle,
                           ;; which an OPEN panel hides — so the header carries
                           ;; the same signal. Always drawn, shown by is-busy,
                           ;; which the server sets for a turn in flight and
                           ;; chat.js moves from there.
-                          (span ((class ,sf-chat-working) (title "working")))
+                          (span ((class ,ol-chat-working) (title "working")))
                           ;; Which conversation, when it has a name. Same
                           ;; pattern as the model, one line down: a `session`
                           ;; frame sets one string, and an empty one takes the
                           ;; line away with it.
-                          (span ((class ,sf-chat-session) (id "sf-chat-session"))
+                          (span ((class ,ol-chat-session) (id "ol-chat-session"))
                                 ,(or session-title "")))
-                    (div ((class ,sf-chat-actions))
+                    (div ((class ,ol-chat-actions))
                          ;; The conversations the agent has stored for this
                          ;; directory. The popover it opens is drawn by
                          ;; chat.js from what the route answers — the list is
                          ;; the agent's, and a copy rendered into the page
                          ;; would be stale before it was read.
-                         (button ((type "button") (class ,sf-chat-btn)
+                         (button ((type "button") (class ,ol-chat-btn)
                                   (data-chat-sessions ,sessions-href)
                                   (data-chat-load ,load-href)
                                   (title "past chats"))
                                  "chats")
-                         (button ((type "button") (class ,sf-chat-btn)
+                         (button ((type "button") (class ,ol-chat-btn)
                                   (data-post ,new-href) (title "new chat"))
                                  "+ new")
                          ;; An open panel sits on top of the floating toggle,
                          ;; so the way out is in here — and on a phone, where
                          ;; the panel is a full-width sheet, it is the only one.
-                         (button ((type "button") (class ,sf-chat-btn)
+                         (button ((type "button") (class ,ol-chat-btn)
                                   (data-chat-toggle "")
                                   (title "close the agent panel")
                                   (aria-label "close the agent panel"))
@@ -531,22 +531,22 @@
                ;; Frames land here: the htmx sse extension would swap the raw
                ;; JSON in, and chat.js cancels that and keeps the data. One
                ;; connection, two consumers.
-               (div ((class ,sf-chat-sink) (id "sf-chat-sink")
+               (div ((class ,ol-chat-sink) (id "ol-chat-sink")
                      (sse-swap ,event) (hidden "hidden")))
-               (div ((class ,sf-chat-body) (id "sf-chat-body"))
+               (div ((class ,ol-chat-body) (id "ol-chat-body"))
                     ,@(for/list ([e (in-list transcript)]) (chat-entry-xexpr e)))
-               (form ((class ,sf-chat-form) (id "sf-chat-form")
+               (form ((class ,ol-chat-form) (id "ol-chat-form")
                       (action ,send-href) (method "post"))
                      ;; The same popover a typed "/" opens, unfiltered: the
                      ;; commands are a thing to SEE, not only to guess at.
-                     (button ((type "button") (class ,(classes sf-chat-btn sf-chat-cmds))
+                     (button ((type "button") (class ,(classes ol-chat-btn ol-chat-cmds))
                               (data-chat-commands "") (title "commands")
                               (aria-label "show the agent's commands"))
                              "/")
-                     (input ((class ,sf-chat-input) (name "text") (type "text")
+                     (input ((class ,ol-chat-input) (name "text") (type "text")
                              (autocomplete "off") (placeholder "message the agent")
                              ,@(if busy? '((disabled "disabled")) '())))
-                     (button ((type "submit") (class ,sf-chat-send)) "send")
-                     (button ((type "button") (class ,sf-chat-stop)
+                     (button ((type "submit") (class ,ol-chat-send)) "send")
+                     (button ((type "button") (class ,ol-chat-stop)
                               (data-post ,cancel-href))
                              "stop")))))

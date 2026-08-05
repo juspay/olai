@@ -994,7 +994,7 @@
        (check-true (string-contains? body "data-status=\"completed\"") body)
        ;; the header is replayed too: the model frame was ephemeral, the model
        ;; the bridge learned from it is not
-       (check-true (string-contains? body "id=\"sf-chat-model\">fake-model-1<") body)
+       (check-true (string-contains? body "id=\"ol-chat-model\">fake-model-1<") body)
        ;; and so are the commands, so a reloaded panel completes without
        ;; waiting for the agent to say anything again
        (check-true (string-contains? body "fake-init") body)
@@ -1005,7 +1005,7 @@
      (λ (port agent)
        (define-values (code body) (GET port "/"))
        (check-equal? code 200)
-       (check-true (string-contains? body "id=\"sf-chat\"") body)
+       (check-true (string-contains? body "id=\"ol-chat\"") body)
        (check-true (string-contains? body "src=\"/static/chat.js\"") body)
        (check-true (string-contains? body "action=\"/chat\"") body)
        (check-true (string-contains? body "data-post=\"/chat/new\"") body)

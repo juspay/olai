@@ -169,7 +169,7 @@
     [other other]))
 
 ;; A #tag in a title: the shared pill shape (theme) in its own paint.
-(define-style sf-tag
+(define-style ol-tag
   #:background ,amber-bg
   #:color ,amber-fg
   #:font-family ,mono
@@ -193,7 +193,7 @@
          (when (> a pos)
            (set! parts (cons (substring s pos a) parts)))
          (set! parts
-               (cons `(span ((class ,(classes sf-pill sf-tag))) ,(substring s a b))
+               (cons `(span ((class ,(classes ol-pill ol-tag))) ,(substring s a b))
                      parts))
          (loop b)])))
   (define (walk x #:in-code? [in-code? #f])
@@ -220,12 +220,12 @@
 ;; The three looks a rendered title or note asks for. They are defined here
 ;; because this is the module that puts them on the markup.
 
-(define-style sf-link
+(define-style ol-link
   #:color ,blue-fg
   #:text-decoration underline
   [(: & hover) #:color ,ink])
 
-(define-style sf-code
+(define-style ol-code
   #:font-family ,mono
   #:font-size 0.8125em
   #:background ,pill-bg
@@ -233,7 +233,7 @@
   #:border-radius 0.25rem
   #:padding (0.0625rem 0.25rem))
 
-(define-style sf-pre
+(define-style ol-pre
   #:font-family ,mono
   #:font-size 0.8125rem
   #:background ,pill-bg
@@ -243,7 +243,7 @@
   #:margin (0.375rem 0)
   #:overflow-x auto
   ;; a block already has the box; the code inside it does not need a second
-  [(& ,(sel sf-code)) #:background none #:border 0 #:padding 0])
+  [(& ,(sel ol-code)) #:background none #:border 0 #:padding 0])
 
 ;; Attach the classes above; nothing else decides what a piece looks like.
 (define (style-md-xexpr x)
@@ -255,11 +255,11 @@
        (define attrs (xexpr-attrs x))
        (define kids (map loop (xexpr-kids x)))
        (case tag
-         [(code) (make-xexpr 'code `((class ,sf-code)) kids)]
-         [(pre) (make-xexpr 'pre `((class ,sf-pre)) kids)]
+         [(code) (make-xexpr 'code `((class ,ol-code)) kids)]
+         [(pre) (make-xexpr 'pre `((class ,ol-pre)) kids)]
          [(a)
           (define href (cond [(assq 'href attrs) => cadr] [else "#"]))
-          (make-xexpr 'a `((href ,href) (class ,sf-link)) kids)]
+          (make-xexpr 'a `((href ,href) (class ,ol-link)) kids)]
          [else (make-xexpr tag attrs kids)])]
       [(list? x) (map loop x)]
       [else x])))
