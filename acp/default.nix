@@ -2,7 +2,9 @@
 # adapter ships through, so it gets the npins treatment: a committed
 # lockfile in acp/, one fixed-output derivation (npmDepsHash) for the
 # tarballs, nothing fetched at build time and no npx at run time.
-# Regenerate after bumping acp/package.json:
+# Regenerate after ANY edit to acp/package.json — the shim's own name is
+# in the lockfile, so renaming it moves the hash as surely as a version
+# bump does:
 #   cd acp && npm install --package-lock-only --ignore-scripts
 #   set npmDepsHash to lib.fakeHash, build, paste the hash it prints.
 # The lockfile names a prebuilt `claude` for every platform npm knows
@@ -20,7 +22,7 @@ buildNpmPackage {
     src = ./.;
     filter = path: _type: baseNameOf path == "package.json" || baseNameOf path == "package-lock.json";
   };
-  npmDepsHash = "sha256-Dk6VfZ7VPXtPWejwzAR4FUKJkyxgL2QrD7LWnnsH25U=";
+  npmDepsHash = "sha256-fGYbBq7Z0FlRj0lH7fl9NYbmCcbVRJvW1RNDJ00ZIOs=";
 
   # acp/ is a shim around one dependency: nothing to compile, and no
   # package in the tree has an install script to run.
