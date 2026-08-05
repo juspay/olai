@@ -101,12 +101,13 @@
 
       checks = forAllSystems ({ pkgs, system }: {
         build = self.packages.${system}.olai;
-        # The runCommand script lives in nix/smoke.nix; the example outline
-        # and fake-agent paths are repo-root relative, so the flake passes
-        # them in rather than nix/smoke.nix guessing its own location.
+        # The runCommand script lives in nix/smoke.nix; example + fake-agent
+        # paths are repo-root relative, so the flake passes them in rather
+        # than nix/smoke.nix guessing its own location.
         smoke = pkgs.callPackage ./nix/smoke.nix {
           olai = self.packages.${system}.olai;
           exampleOutline = ./examples/Example.rkt;
+          exampleSexpOutline = ./examples/Example.sexp.rkt;
           fakeAcpAgentSrc = ./olai/tests/integration/fake-acp-agent.rkt;
         };
       });
