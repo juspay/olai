@@ -7,7 +7,7 @@ Two surface syntaxes share one expander (the validator).
 Workflowy-shaped, quoteless titles. The reader translates to `(t ...)` forms;
 the expander does not know which surface you used.
 
-```
+```racket
 #lang selfflowy
 
 Selfflowy roadmap #project
@@ -112,7 +112,7 @@ mirror sites render with a ↗ link to `#anchor`.
 The underlying form the expander sees. Useful for tests and for agents that
 prefer sexps.
 
-```
+```racket
 #lang selfflowy/sexp
 
 (t "Inbox #capture"

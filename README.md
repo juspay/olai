@@ -33,15 +33,17 @@ before they exist.
 Quoteless outline (flagship). Nest with 2 spaces; attach notes and dates
 under a title:
 
-    #lang selfflowy
+```racket
+#lang selfflowy
 
-    Inbox #capture
-      : Quick capture landing zone
-      Buy milk — don't quote me
-        @date 2026-08-04T18:00
-      [x] Already shipped the pitch
-      Wired the CLI
-        @done 2026-08-03
+Inbox #capture
+  : Quick capture landing zone
+  Buy milk — don't quote me
+    @date 2026-08-04T18:00
+  [x] Already shipped the pitch
+  Wired the CLI
+    @done 2026-08-03
+```
 
 Titles and notes are Markdown at **render** time (web view only); stored
 strings stay raw. Check off with `[x] ` OR `@done` — one node, one of them
@@ -49,25 +51,29 @@ strings stay raw. Check off with `[x] ` OR `@done` — one node, one of them
 
 Under the hood every outline becomes s-expressions. Same expander:
 
-    #lang selfflowy/sexp
-    (t "Inbox #capture"
-       #:description "Quick capture landing zone"
-       (t "Buy milk" #:date "2026-08-04T18:00")
-       (t "Already shipped the pitch" #:done)
-       (t "Wired the CLI" #:done "2026-08-03"))
+```racket
+#lang selfflowy/sexp
+(t "Inbox #capture"
+   #:description "Quick capture landing zone"
+   (t "Buy milk" #:date "2026-08-04T18:00")
+   (t "Already shipped the pitch" #:done)
+   (t "Wired the CLI" #:done "2026-08-03"))
+```
 
 ## HOW IT WORKS
 
-    $SELFFLOWY_HOME/*.rkt            <- personal data (#lang selfflowy)
-    (default: ~/Dropbox/Selfflowy-Srid/)
-        |
-        v
-    selfflowy CLI (Racket)           <- validate / query / capture
-        |
-        v
-    racket web-server -------------> browser (htmx)
-        |
-        +-- SSE push, PWA, agent CLI over ACP: planned, not wired
+```text
+$SELFFLOWY_HOME/*.rkt            <- personal data (#lang selfflowy)
+(default: ~/Dropbox/Selfflowy-Srid/)
+    |
+    v
+selfflowy CLI (Racket)           <- validate / query / capture
+    |
+    v
+racket web-server -------------> browser (htmx)
+    |
+    +-- SSE push, PWA, agent CLI over ACP: planned, not wired
+```
 
 Personal outlines are plain files you sync however you like (Dropbox,
 git, rsync). The repo holds the tool; your data stays outside it.
@@ -97,15 +103,17 @@ Track your own plan as a `#lang selfflowy` outline (e.g. under
 
 ## BUILDING
 
-    nix develop        # racket 9.2 + just; or install them yourself
-    just install       # gregor + markdown, then --link selfflowy/
-    just check         # validates $SELFFLOWY_HOME/{Tasks,Daily,Roadmap}.rkt
-    just tree examples/Example.rkt   # JSON forest for agents
-    just serve                       # web view on http://127.0.0.1:8080
-    just agenda
-    just calendar --month 2026-08
-    just daily                       # today's node in Daily/YYYY-MM.rkt
-    just test
+```bash
+nix develop        # racket 9.2 + just; or install them yourself
+just install       # gregor + markdown, then --link selfflowy/
+just check         # validates $SELFFLOWY_HOME/{Tasks,Daily,Roadmap}.rkt
+just tree examples/Example.rkt   # JSON forest for agents
+just serve                       # web view on http://127.0.0.1:8080
+just agenda
+just calendar --month 2026-08
+just daily                       # today's node in Daily/YYYY-MM.rkt
+just test
+```
 
 ## CLI (agents)
 

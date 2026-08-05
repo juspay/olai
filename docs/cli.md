@@ -42,7 +42,7 @@ Validate `#lang selfflowy` or `#lang selfflowy/sexp` module(s).
 Plain — one ok-line per file; if any fail, all are reported then exit 2.
 Anchor / mirror / include counts are appended only when non-zero:
 
-```
+```console
 $ selfflowy check examples/Example.rkt examples/Daily.rkt
 ok: .../Example.rkt (12 tasks, 1 anchor, 1 mirror)
 ok: .../Daily.rkt (18 tasks, 2 anchors, 1 mirror, 2 includes)
@@ -162,7 +162,7 @@ it. The corollary is that the base moves with the set: load a nested fragment
 as its own root and its label re-bases, so its nodes key differently than they
 do under the root that includes them.
 
-```
+```console
 $ selfflowy tree examples/Daily.rkt           # "Setup day" -> p8cfece7b
 $ selfflowy tree examples/Daily/2026-08.rkt   # "Setup day" -> p3dd3c447
 ```
@@ -182,7 +182,7 @@ JSON always includes all three arrays (possibly empty).
 
 Plain:
 
-```
+```text
 OVERDUE
   [2026-01-15T08:00]  Buy milk
          Tasks.rkt > Inbox > Buy milk
@@ -232,7 +232,7 @@ Run the web view over the given outlines (default file set as above:
 until Ctrl-C, which shuts the listener down cleanly. One line on stdout at
 startup:
 
-```
+```console
 $ selfflowy serve examples/Example.rkt
 selfflowy serve http://127.0.0.1:8080 files: /.../examples/Example.rkt
 ```
@@ -298,7 +298,7 @@ words join with spaces (no shell quoting required).
 
 Plain:
 
-```
+```console
 $ selfflowy add --no-commit buy oat milk
 added "buy oat milk" under Inbox in .../Tasks.rkt (line 12)
 ```
@@ -344,7 +344,7 @@ re-validate → rename; restore on failure.
 
 Plain:
 
-```
+```console
 $ selfflowy done --no-commit Buy milk
 done "Buy milk" in .../Tasks.rkt (line 5)
 ```
