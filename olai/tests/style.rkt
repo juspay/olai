@@ -427,7 +427,7 @@
   (test-case "canary: palette values reach the sheet verbatim (spot check)"
     (define css (stylesheet))
     (check-true (string-contains? css "#E4ECCA") "leaf --paper")
-    (check-true (string-contains? css "#402028") "dark --rose-bg"))
+    (check-true (string-contains? css "#773B3B") "dark --rose-bg"))
 
   ;; ---- contrast -----------------------------------------------------------
   ;;

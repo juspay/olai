@@ -135,21 +135,6 @@
                    (blue-bg   . |#D8E8EF|)
                    (rose-fg   . |#A84A5E|)
                    (rose-bg   . |#F5DBDF|)))
-   (make-palette "dark" #:scheme 'dark
-                 '((paper     . |#1E2417|)
-                   (paper-2   . |#252D1D|)
-                   (panel     . |#272F1E|)
-                   (ink       . |#DBE7C9|)
-                   (dim       . |#8FA077|)
-                   (line      . |#33402A|)
-                   (pill-bg   . |#2A3320|)
-                   (green     . |#8FD08A|)
-                   (amber-fg  . |#E6B366|)
-                   (amber-bg  . |#3D310F|)
-                   (blue-fg   . |#7DB8D8|)
-                   (blue-bg   . |#1D3340|)
-                   (rose-fg   . |#E396A5|)
-                   (rose-bg   . |#402028|)))
    ;; aged palm leaf, iron-gall ink: the outline as a manuscript. Warm paper,
    ;; brown-black ink, and accents pulled back to what a dye would give.
    (make-palette "manuscript" #:scheme 'light
@@ -201,7 +186,236 @@
                    (blue-fg   . |#6FAECE|)
                    (blue-bg   . |#122633|)
                    (rose-fg   . |#D68B9A|)
-                   (rose-bg   . |#301820|)))))
+                   (rose-bg   . |#301820|)))
+
+   ;; ---- imported palettes --------------------------------------------------
+   ;;
+   ;; The rows below are the WorkFlowy desktop themes' COLOR VALUES, read off
+   ;; the palettes their app ships and written here as olai rows. Nothing else
+   ;; came across: WorkFlowy paints a different app, and none of its rules,
+   ;; names or markup are ours to keep. A hex is a fact about a color.
+   ;;
+   ;; ONE rule maps their vocabulary onto ours, and every row below follows it
+   ;; unless it is named as an exception in that row's own comment:
+   ;;
+   ;;   paper     <- background-primary     the page itself
+   ;;   paper-2   <- background-secondary   one step along the paper ramp
+   ;;   panel     <- background-tertiary    the third surface (chat panel)
+   ;;   ink       <- text-primary
+   ;;   dim       <- text-tertiary          their muted body text
+   ;;   line      <- border-primary
+   ;;   pill-bg   <- background-selected    (= background-info in every theme)
+   ;;   green     <- text-green             the checkmark, the focus ring
+   ;;   amber-fg  <- text-yellow            #tag
+   ;;   amber-bg  <- background-yellow
+   ;;   blue-fg   <- text-blue              a date
+   ;;   blue-bg   <- background-blue
+   ;;   rose-fg   <- text-red               a mirror, an error
+   ;;   rose-bg   <- background-red
+   ;;
+   ;; Two of their slots are deliberately NOT the source. text-quinary is a
+   ;; placeholder tone that is invisible on the page in half their themes, so
+   ;; dim comes from text-tertiary; and the semantic accents (text-success,
+   ;; text-danger, text-warning) are pale mints and pinks that only work on a
+   ;; dark ground, so the accents come from their named color ramp instead —
+   ;; the one they pair a background with.
+   ;;
+   ;; Themes of theirs that are a photograph or a pane of glass over one of
+   ;; these palettes are not here: without the image they are a duplicate row.
+
+   ;; their default: white page, blue-gray ink.
+   (make-palette "light" #:scheme 'light
+                 '((paper     . |#FFFFFF|)
+                   (paper-2   . |#F3F4F4|)
+                   (panel     . |#DCE0E2|)
+                   (ink       . |#2A3135|)
+                   (dim       . |#868C90|)
+                   (line      . |#DCE0E2|)
+                   (pill-bg   . |#C1E1F2|)
+                   (green     . |#057A55|)
+                   (amber-fg  . |#9F580A|)
+                   (amber-bg  . |#FCE96A|)
+                   (blue-fg   . |#1C64F2|)
+                   (blue-bg   . |#C3DDFD|)
+                   (rose-fg   . |#E02424|)
+                   (rose-bg   . |#FBD5D5|)))
+   ;; their dark: charcoal, white ink, a slate-blue chip.
+   (make-palette "dark" #:scheme 'dark
+                 '((paper     . |#2A3135|)
+                   (paper-2   . |#353C3F|)
+                   (panel     . |#5C6062|)
+                   (ink       . |#FFFFFF|)
+                   (dim       . |#9EA1A2|)
+                   (line      . |#5C6062|)
+                   (pill-bg   . |#336677|)
+                   (green     . |#31C48D|)
+                   (amber-fg  . |#E3A008|)
+                   (amber-bg  . |#8C7146|)
+                   (blue-fg   . |#76A9FA|)
+                   (blue-bg   . |#405580|)
+                   (rose-fg   . |#F98080|)
+                   (rose-bg   . |#773B3B|)))
+   ;; paper on a gray desk. EXCEPTION: paper is their background-ambient, the
+   ;; only body value vintage does not share with their default — the rest of
+   ;; what makes it vintage is a dark app frame, and olai has no frame.
+   (make-palette "vintage" #:scheme 'light
+                 '((paper     . |#ECEEF0|)
+                   (paper-2   . |#F3F4F4|)
+                   (panel     . |#DCE0E2|)
+                   (ink       . |#2A3135|)
+                   (dim       . |#868C90|)
+                   (line      . |#DCE0E2|)
+                   (pill-bg   . |#C1E1F2|)
+                   (green     . |#057A55|)
+                   (amber-fg  . |#9F580A|)
+                   (amber-bg  . |#FCE96A|)
+                   (blue-fg   . |#1C64F2|)
+                   (blue-bg   . |#C3DDFD|)
+                   (rose-fg   . |#E02424|)
+                   (rose-bg   . |#FBD5D5|)))
+   ;; the mocha one: plum-black page, lavender ink, pastel accents over it.
+   ;; EXCEPTION: pill-bg is their background-quaternary — the selected blue-gray
+   ;; is close enough to their muted text to swallow a pill's label.
+   (make-palette "catppuccin" #:scheme 'dark
+                 '((paper     . |#1E1E2E|)
+                   (paper-2   . |#343546|)
+                   (panel     . |#45475A|)
+                   (ink       . |#CDD6F4|)
+                   (dim       . |#9399B2|)
+                   (line      . |#313244|)
+                   (pill-bg   . |#313244|)
+                   (green     . |#A6E3A1|)
+                   (amber-fg  . |#F9E2AF|)
+                   (amber-bg  . |#F9E2AF99|)
+                   (blue-fg   . |#89B4FA|)
+                   (blue-bg   . |#89B4FA99|)
+                   (rose-fg   . |#F38BA8|)
+                   (rose-bg   . |#F38BA899|)))
+   ;; cocoa and cream: warm paper, near-black cocoa ink, a honey chip.
+   (make-palette "chocolate" #:scheme 'light
+                 '((paper     . |#FFEFE2|)
+                   (paper-2   . |#F0DAC9|)
+                   (panel     . |#E6CDBB|)
+                   (ink       . |#281603|)
+                   (dim       . |#7D5E47|)
+                   (line      . |#A1836B53|)
+                   (pill-bg   . |#FBDA8A|)
+                   (green     . |#2DA044|)
+                   (amber-fg  . |#C99A00|)
+                   (amber-bg  . |#FFF3C4|)
+                   (blue-fg   . |#1A73E8|)
+                   (blue-bg   . |#D4E8FF|)
+                   (rose-fg   . |#D93636|)
+                   (rose-bg   . |#FFE0E0|)))
+   ;; a phosphor terminal: black page, lime ink, a green-on-green ramp. The
+   ;; accents are the ones they hand every dark theme.
+   (make-palette "hacker" #:scheme 'dark
+                 '((paper     . |#000000|)
+                   (paper-2   . |#002200|)
+                   (panel     . |#003300|)
+                   (ink       . |#00FF00|)
+                   (dim       . |#009900|)
+                   (line      . |#005500|)
+                   (pill-bg   . |#005500|)
+                   (green     . |#31C48D|)
+                   (amber-fg  . |#E3A008|)
+                   (amber-bg  . |#8C7146|)
+                   (blue-fg   . |#76A9FA|)
+                   (blue-bg   . |#405580|)
+                   (rose-fg   . |#F98080|)
+                   (rose-bg   . |#773B3B|)))
+   ;; tea powder: green page, darker green ink. TWO EXCEPTIONS, both because
+   ;; matcha has one muted tone and one dark surface: dim is their text-quinary
+   ;; (text-tertiary is text-primary here, so the rule leaves nothing dim), and
+   ;; paper-2 is their background-tertiary (background-secondary is a saturated
+   ;; mid-green that leaves a chip's label at 1.5:1).
+   (make-palette "matcha" #:scheme 'light
+                 '((paper     . |#DDEABE|)
+                   (paper-2   . |#EEF6CF|)
+                   (panel     . |#EEF6CF|)
+                   (ink       . |#415915|)
+                   (dim       . |#85AC41|)
+                   (line      . |#85AC41|)
+                   (pill-bg   . |#EEF6CF|)
+                   (green     . |#3D8828|)
+                   (amber-fg  . |#A88510|)
+                   (amber-bg  . |#F0E4A8|)
+                   (blue-fg   . |#2868A0|)
+                   (blue-bg   . |#C0D8F0|)
+                   (rose-fg   . |#C43838|)
+                   (rose-bg   . |#F5D0C8|)))
+   ;; moonlight: blush paper, lilac ink. EXCEPTION: pill-bg is their
+   ;; background-completed — the selected lilac is a mid tone, and a date's
+   ;; green on it is 1.4:1.
+   (make-palette "moon" #:scheme 'light
+                 '((paper     . |#FDF6F6|)
+                   (paper-2   . |#ECE7EE|)
+                   (panel     . |#DFDEF2|)
+                   (ink       . |#615F7F|)
+                   (dim       . |#8B6FA8|)
+                   (line      . |#E4D8EA|)
+                   (pill-bg   . |#EFEEF5|)
+                   (green     . |#5FA876|)
+                   (amber-fg  . |#C9A84F|)
+                   (amber-bg  . |#F9ECC7|)
+                   (blue-fg   . |#6B8BC9|)
+                   (blue-bg   . |#C9D8F4|)
+                   (rose-fg   . |#C85B5B|)
+                   (rose-bg   . |#FDCDC8|)))
+   ;; neutral near-black, no hue in the grays at all.
+   (make-palette "neo" #:scheme 'dark
+                 '((paper     . |#141414|)
+                   (paper-2   . |#2D2D2D|)
+                   (panel     . |#373737|)
+                   (ink       . |#DCDBDB|)
+                   (dim       . |#9EA1A2|)
+                   (line      . |#242424|)
+                   (pill-bg   . |#286C8E|)
+                   (green     . |#8DBD6A|)
+                   (amber-fg  . |#F1C068|)
+                   (amber-bg  . |#F1C06899|)
+                   (blue-fg   . |#76A9FA|)
+                   (blue-bg   . |#76A9FA99|)
+                   (rose-fg   . |#CF4653|)
+                   (rose-bg   . |#CF465399|)))
+   ;; the editor palette, by way of their port of it: blue-gray page, muted
+   ;; everything. Its one dim tone is dim on purpose and stays that way.
+   (make-palette "one-dark" #:scheme 'dark
+                 '((paper     . |#282C33|)
+                   (paper-2   . |#2F343E|)
+                   (panel     . |#3B4048|)
+                   (ink       . |#C8CCD4|)
+                   (dim       . |#5D636F|)
+                   (line      . |#3B4048|)
+                   (pill-bg   . |#293B5B|)
+                   (green     . |#A1C181|)
+                   (amber-fg  . |#DFC184|)
+                   (amber-bg  . |#DFC18499|)
+                   (blue-fg   . |#73ADE9|)
+                   (blue-bg   . |#73ADE999|)
+                   (rose-fg   . |#D07277|)
+                   (rose-bg   . |#D0727799|)))
+   ;; black steel, orange readout, red frame. THE EXCEPTIONS, all of them
+   ;; forced: robot paints its accent BACKGROUNDS the same solid color as its
+   ;; accent TEXT (a chip whose label is its own ground), so the three accent
+   ;; grounds are the washes it draws behind text instead; dim is its gray
+   ;; rather than its red, which is already the frame and the error; and a
+   ;; pill's ground is its own near-black rather than the lime selection wash.
+   (make-palette "robot" #:scheme 'dark
+                 '((paper     . |#000000|)
+                   (paper-2   . |#1A2B2B|)
+                   (panel     . |#FEA14320|)
+                   (ink       . |#FEA143|)
+                   (dim       . |#7A8A8A|)
+                   (line      . |#E8393F|)
+                   (pill-bg   . |#151413|)
+                   (green     . |#4ED8A3|)
+                   (amber-fg  . |#DFE361|)
+                   (amber-bg  . |#FAFF7A26|)
+                   (blue-fg   . |#3580D3|)
+                   (blue-bg   . |#A9E9F126|)
+                   (rose-fg   . |#E8393F|)
+                   (rose-bg   . |#E8393F65|)))))
 
 (define theme-names (map palette-name palettes))
 
