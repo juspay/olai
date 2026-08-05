@@ -1,6 +1,16 @@
 # `src = ./.` stays a flake-level decision (that's what makes the whole repo,
 # including nix/, the package's source) so the flake passes it in rather than
 # this file assuming its own directory.
+#
+# Packaging model (Nix, not raco distribute):
+#   * Install collections under $out so absolute data-file paths that
+#     `raco exe` embeds stay live at runtime (cldr xml, web/static, …).
+#   * Emit a `raco exe` stub that re-execs the store racket (marker "e…");
+#     the scanner keeps racket in the closure via that path string.
+#   * Never `raco distribute`: it is for relocatable non-Nix bundles, and
+#     on Darwin it is broken for us — nixpkgs builds racket with
+#     `--enable-xonx`, so `cross-system-type` is `unix` and distribute's
+#     ELF patcher arity-mismatches (compiler/private/elf.rkt).
 { lib, stdenv, racket, makeWrapper, tzdata, racketDeps, racketPkgs, src }:
 
 stdenv.mkDerivation {
@@ -8,13 +18,20 @@ stdenv.mkDerivation {
   version = "0.1.0";
   inherit src;
   nativeBuildInputs = [ racket makeWrapper ];
-  buildInputs = [ tzdata ];
+  # racket is a true runtime dep: the exe is a stub over store racket.
+  buildInputs = [ racket tzdata ];
 
-  # Zoneinfo for gregor/tzinfo during build (sandbox has no /usr/share).
+  # Zoneinfo for gregor/tzinfo during the install-time raco setup.
   TZDIR = "${tzdata}/share/zoneinfo";
 
-  buildPhase = ''
-    export PLTUSERHOME="$TMPDIR/plt-user"
+  # All install work writes under $out so embedded paths remain valid.
+  # buildPhase is a no-op; the derivation is pure install.
+  dontBuild = true;
+
+  installPhase = ''
+    runHook preInstall
+
+    export PLTUSERHOME="$out/share/olai-plt"
     mkdir -p "$PLTUSERHOME"
     export TZDIR="${tzdata}/share/zoneinfo"
 
@@ -31,37 +48,30 @@ stdenv.mkDerivation {
     # Offline install of npins-vendored deps (order matters).
     # --deps force: markdown wants package name "parsack"; we ship
     # parsack-lib. olai wants "gregor"; we ship gregor-lib.
+    # --copy so each package lands under $PLTUSERHOME (i.e. $out).
     ${lib.concatMapStringsSep "\n" (p: ''
       echo "raco pkg install ${p.name}"
       raco pkg install --copy --no-docs --deps force --batch "${racketDeps}/${p.name}"
     '') racketPkgs}
 
-    raco pkg install --no-docs --deps force --link ./olai-pkg
+    # --copy, not --link: a link would keep $src (or /build) paths in the
+    # package catalog and raco exe would bake those into the stub.
+    raco pkg install --copy --no-docs --deps force ./olai-pkg
 
-    raco exe ++lang olai -o olai-bin \
+    mkdir -p $out/bin
+    raco exe ++lang olai -o $out/bin/.olai-wrapped \
       "$(racket -e '(display (path->string (collection-file-path "cli.rkt" "olai")))')"
-    ${if stdenv.hostPlatform.isDarwin then ''
-      # raco distribute fails on aarch64-darwin: result arity mismatch in
-      # compiler/private/elf.rkt:adjust-racket-section-size while patching
-      # binaries. Ship the raco exe binary alone; makeWrapper still sets TZDIR.
-      mkdir -p dist/bin
-      cp olai-bin dist/bin/olai-bin
-    '' else ''
-      raco distribute dist olai-bin
-    ''}
-  '';
+    chmod +x $out/bin/.olai-wrapped
 
-  installPhase = ''
-    mkdir -p $out
-    cp -a dist/. $out/
-    test -x $out/bin/olai-bin
     # Wrap with TZDIR so gregor finds zoneinfo outside /usr/share
-    mv $out/bin/olai-bin $out/bin/.olai-wrapped
     makeWrapper $out/bin/.olai-wrapped $out/bin/olai \
       --set TZDIR "${tzdata}/share/zoneinfo" \
       --prefix PATH : "${tzdata}/bin"
+
     mkdir -p $out/share/tzdata
     ln -sfn "${tzdata}/share/zoneinfo" $out/share/tzdata/zoneinfo
+
+    runHook postInstall
   '';
 
   meta = with lib; {
