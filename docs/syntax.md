@@ -80,8 +80,10 @@ in place of the include line. Anchors/mirrors resolve across the whole tree;
 duplicate `^id` names both files. Each task records its defining file
 (`task-file`); writes (`done` / `move` / `add --parent ^anchor`) edit that
 file, not the root. Node identity (`key` in the JSON) is minted from that
-defining file too, so a node keys the same loaded standalone or through any
-root that includes it — see `docs/cli.md`.
+defining file too, so a node keys the same through any root that includes it,
+and two roots sharing a fragment agree about it. The file is named relative to
+the common directory of the loaded set, so loading a fragment as its own root
+re-bases that name and re-keys its nodes — see `docs/cli.md`.
 
 ### Mirrors
 
