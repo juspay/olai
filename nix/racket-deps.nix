@@ -1,5 +1,5 @@
 # Racket packages from npins. Monorepos need a subdir; others install at root.
-# Install order is bottom-up. markdown and selfflowy use --deps force because
+# Install order is bottom-up. markdown and olai use --deps force because
 # catalog package names (parsack, gregor) differ from the lib package dirs.
 { lib, stdenvNoCC, sources }:
 rec {
@@ -21,7 +21,7 @@ rec {
   # Writable copies so we can strip markdown test modules that need
   # optional build-deps (sexp-diff, redex) not required at runtime.
   racketDeps = stdenvNoCC.mkDerivation {
-    name = "selfflowy-racket-deps";
+    name = "olai-racket-deps";
     dontUnpack = true;
     # npins sources are fixed-output store paths; string context pulls them in.
     buildCommand = ''

@@ -1,11 +1,11 @@
-#lang selfflowy
+#lang olai
 
 Inbox #capture
   : Quick capture landing zone
   Buy milk — don't quote me; 2% "raw" milk is fine
     : overdue sample
     @date 2026-01-15T08:00
-  Write Selfflowy README
+  Write olai README
     : Ship the pitch before the code calcifies
     Compare Racket vs Rhombus
     Ship phase 0.1 #lang

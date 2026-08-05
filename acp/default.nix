@@ -1,8 +1,10 @@
-# The ACP agent `selfflowy serve` spawns. npm is the only channel the
+# The ACP agent `olai serve` spawns. npm is the only channel the
 # adapter ships through, so it gets the npins treatment: a committed
 # lockfile in acp/, one fixed-output derivation (npmDepsHash) for the
 # tarballs, nothing fetched at build time and no npx at run time.
-# Regenerate after bumping acp/package.json:
+# Regenerate after ANY edit to acp/package.json — the shim's own name is
+# in the lockfile, so renaming it moves the hash as surely as a version
+# bump does:
 #   cd acp && npm install --package-lock-only --ignore-scripts
 #   set npmDepsHash to lib.fakeHash, build, paste the hash it prints.
 # The lockfile names a prebuilt `claude` for every platform npm knows
@@ -11,7 +13,7 @@
 { lib, stdenv, buildNpmPackage, makeWrapper, nodejs, patchelf, ripgrep, procps }:
 
 buildNpmPackage {
-  pname = "selfflowy-acp-agent";
+  pname = "olai-acp-agent";
   version = "0.64.2"; # tracks @agentclientprotocol/claude-agent-acp
   # ./. would also pull in this default.nix; keep the src (and its hash)
   # to just the two files the build actually reads.
@@ -20,7 +22,7 @@ buildNpmPackage {
     src = ./.;
     filter = path: _type: baseNameOf path == "package.json" || baseNameOf path == "package-lock.json";
   };
-  npmDepsHash = "sha256-Dk6VfZ7VPXtPWejwzAR4FUKJkyxgL2QrD7LWnnsH25U=";
+  npmDepsHash = "sha256-fGYbBq7Z0FlRj0lH7fl9NYbmCcbVRJvW1RNDJ00ZIOs=";
 
   # acp/ is a shim around one dependency: nothing to compile, and no
   # package in the tree has an install script to run.
@@ -41,7 +43,7 @@ buildNpmPackage {
     let
       # npm's own platform naming: linux-x64, darwin-arm64, ...
       nodeArch = "${stdenv.hostPlatform.node.platform}-${stdenv.hostPlatform.node.arch}";
-      mods = "$out/lib/node_modules/selfflowy-acp/node_modules";
+      mods = "$out/lib/node_modules/olai-acp/node_modules";
     in
     ''
       entry="${mods}/@agentclientprotocol/claude-agent-acp/dist/index.js"
@@ -72,7 +74,7 @@ buildNpmPackage {
   # and declaring that unfree would make `nix build` demand
   # allowUnfree from every consumer of this flake.
   meta = with lib; {
-    description = "Claude Code ACP adapter, pinned for selfflowy serve";
+    description = "Claude Code ACP adapter, pinned for olai serve";
     mainProgram = "claude-agent-acp";
     platforms = platforms.unix;
   };

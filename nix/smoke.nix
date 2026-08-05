@@ -1,24 +1,24 @@
-# `./examples/Example.rkt` and `./selfflowy/tests/fake-acp-agent.rkt` used to
+# `./examples/Example.rkt` and `./olai/tests/fake-acp-agent.rkt` used to
 # be relative paths in flake.nix, resolving from the repo root. Moved here
-# verbatim they'd resolve from nix/ instead (nix/examples, nix/selfflowy/...),
+# verbatim they'd resolve from nix/ instead (nix/examples, nix/olai/...),
 # which don't exist — so the flake passes the two repo paths in as arguments
 # (`exampleOutline`, `fakeAcpAgentSrc`) instead of this file spelling them out.
-{ runCommand, selfflowy, racket, curl, tzdata, exampleOutline, fakeAcpAgentSrc }:
+{ runCommand, olai, racket, curl, tzdata, exampleOutline, fakeAcpAgentSrc }:
 
-runCommand "selfflowy-smoke"
+runCommand "olai-smoke"
   {
     nativeBuildInputs = [
-      selfflowy
+      olai
       racket
       curl
     ];
   }
   ''
     export TZDIR="${tzdata}/share/zoneinfo"
-    selfflowy check ${exampleOutline}
+    olai check ${exampleOutline}
 
     # Parse the JSON; never grep it (key order is not a contract).
-    selfflowy tree ${exampleOutline} > tree.json
+    olai tree ${exampleOutline} > tree.json
     racket -e '(require json)
                (define j (call-with-input-file "tree.json" read-json))
                (unless (and (= 1 (hash-ref j (quote version)))
@@ -30,12 +30,12 @@ runCommand "selfflowy-smoke"
     # from the packaged binary too.
     cp ${exampleOutline} edit.rkt
     chmod u+w edit.rkt
-    selfflowy add --json --no-commit --file edit.rkt "Smoke capture" > add.json
+    olai add --json --no-commit --file edit.rkt "Smoke capture" > add.json
     racket -e '(require json)
                (unless (hash-ref (call-with-input-file "add.json" read-json)
                                  (quote ok))
                  (error (quote smoke) "add failed"))'
-    selfflowy check edit.rkt
+    olai check edit.rkt
 
     # The server has to work from the packaged binary too: static files
     # and the language readers resolve differently there.
@@ -48,21 +48,21 @@ runCommand "selfflowy-smoke"
     printf '#!/bin/sh\nexec racket %s "$@"\n' \
       ${fakeAcpAgentSrc} > fake-acp-agent
     chmod +x fake-acp-agent
-    export SELFFLOWY_ACP_AGENT="$PWD/fake-acp-agent"
+    export OLAI_ACP_AGENT="$PWD/fake-acp-agent"
 
     # No agent, no server: a usage error naming the variable, and
     # nothing left listening on 8098.
-    if env -u SELFFLOWY_ACP_AGENT selfflowy serve --port 8098 live.rkt \
+    if env -u OLAI_ACP_AGENT olai serve --port 8098 live.rkt \
          > refused.out 2> refused.err; then
-      echo "smoke: serve started with no SELFFLOWY_ACP_AGENT" >&2
+      echo "smoke: serve started with no OLAI_ACP_AGENT" >&2
       exit 1
     fi
-    grep -q SELFFLOWY_ACP_AGENT refused.err
+    grep -q OLAI_ACP_AGENT refused.err
 
     # Nothing to serve, no server: the DIRECTORY form globs the top
     # level, and an empty one is refused before anything binds.
     mkdir -p empty-outlines
-    if selfflowy serve --port 8097 empty-outlines \
+    if olai serve --port 8097 empty-outlines \
          > refused-dir.out 2> refused-dir.err; then
       echo "smoke: serve started on a directory with no outlines" >&2
       exit 1
@@ -81,7 +81,7 @@ runCommand "selfflowy-smoke"
       return 1
     }
 
-    selfflowy serve --port 8099 live.rkt &
+    olai serve --port 8099 live.rkt &
     serve_pid=$!
     for i in $(seq 1 60); do
       curl -sf -o page.html http://127.0.0.1:8099/ && break
@@ -95,7 +95,7 @@ runCommand "selfflowy-smoke"
                  (error (quote smoke) "unexpected /api/tree JSON"))'
     curl -sf -o app.css http://127.0.0.1:8099/static/app.css
     curl -sf -o collapse.js http://127.0.0.1:8099/static/collapse.js
-    grep -q "selfflowy.collapsed" collapse.js
+    grep -q "olai.collapsed" collapse.js
     test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8099/nope)" = 404
 
     # the sidebar Today link has to be a real route
@@ -111,7 +111,7 @@ runCommand "selfflowy-smoke"
 
     # Reload after a save. This is the check that matters in the
     # PACKAGED binary: the store loads outlines in a fresh namespace,
-    # which has no collection paths to resolve selfflowy from — it has
+    # which has no collection paths to resolve olai from — it has
     # to work off attached modules.
     #
     # The push comes first on purpose: a request would reload the store

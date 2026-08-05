@@ -1,14 +1,14 @@
-#lang selfflowy/sexp
+#lang olai/sexp
 
 ;; Same shape as examples/Example.rkt, in the underlying s-expression core.
-;; Prefer #lang selfflowy (outline) for day-to-day editing.
+;; Prefer #lang olai (outline) for day-to-day editing.
 
 (t "Inbox #capture"
    #:description "Quick capture landing zone"
    (t "Buy milk — don't quote me; 2% \"raw\" milk is fine"
       #:date "2026-01-15"
       #:description "overdue sample")
-   (t "Write Selfflowy README"
+   (t "Write olai README"
       #:description "Ship the pitch before the code calcifies"
       (t "Compare Racket vs Rhombus")
       (t "Ship phase 0.1 #lang"

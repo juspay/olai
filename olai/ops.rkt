@@ -1,0 +1,259 @@
+#lang racket/base
+
+;; What the write commands DO, with no idea that a terminal exists.
+;;
+;; add / done / move / daily each used to be one CLI function that resolved,
+;; edited, wrote, committed, decided an exit code and printed — so nothing
+;; but a subprocess could call them, and `die` was reachable from the middle
+;; of the logic. Here each op is a function from arguments to a result struct
+;; (or an exn:fail:op naming what went wrong and how bad it is); cli.rkt turns
+;; those into JSON, text and exit codes, and the web mutation routes will call
+;; the same functions.
+
+(require racket/contract
+         racket/file
+         racket/path
+         racket/string
+         olai/capture
+         olai/daily
+         olai/dates
+         olai/done
+         olai/edit
+         olai/load
+         olai/move
+         olai/resolve)
+
+;; The write surface: the CLI calls it, the web mutation routes will. Both
+;; get told what an op takes and what its result carries — including that a
+;; result's `file` is the file actually written, as a string, and that a
+;; failure arrives as exn:fail:op (not contracted: an exn is not a value the
+;; caller constructs).
+(provide (struct-out exn:fail:op)
+         (contract-out
+          [struct add-result ([file string?]
+                              [title string?]
+                              [date (or/c string? #f)]
+                              [description (or/c string? #f)]
+                              [parent (or/c string? #f)]
+                              [line exact-positive-integer?]
+                              [created-inbox? boolean?]
+                              [committed? boolean?])]
+          [struct done-result ([file string?]
+                               [title string?]
+                               [line exact-positive-integer?]
+                               [done (or/c string? #f)]
+                               [undone? boolean?]
+                               [committed? boolean?])]
+          [struct move-result ([file string?]
+                               [title string?]
+                               [line exact-positive-integer?]
+                               [date (or/c string? #f)]
+                               [committed? boolean?])]
+          [struct daily-result ([file string?]
+                                [day string?]
+                                [line exact-positive-integer?]
+                                [created-month? boolean?]
+                                [created-day? boolean?]
+                                [committed? boolean?])]
+          [ops-add! (->* ((or/c path? string?) string?)
+                         (#:date (or/c string? #f)
+                          #:description (or/c string? #f)
+                          #:parent (or/c string? #f)
+                          #:commit? boolean?)
+                         add-result?)]
+          [ops-done! (->* ((or/c path? string?) string? string?)
+                          (#:undo? boolean? #:commit? boolean?)
+                          done-result?)]
+          [ops-move! (->* ((or/c path? string?) string? (or/c string? #f))
+                          (#:clear? boolean? #:commit? boolean?)
+                          move-result?)]
+          [ops-daily! (->* ((or/c path? string?) string?)
+                           (#:commit? boolean?)
+                           daily-result?)]))
+
+;; kind: 'usage | 'validation | 'not-found | 'busy — what the caller should
+;; make of it (the CLI maps kinds to exit codes; a web route maps them to
+;; statuses). 'busy is nobody's fault and reaches no CLI command: the ACP
+;; bridge raises it when a second prompt arrives mid-turn, and a route turns
+;; it into 409.
+;; file/line/col carry the srcloc when there is one (CLAUDE.md: errors carry
+;; file:line:col).
+(struct exn:fail:op exn:fail (kind file line col) #:transparent)
+
+(define (op-fail kind fmt #:file [file #f] #:line [line #f] #:col [col #f]
+                 . args)
+  (raise (exn:fail:op (apply format fmt args)
+                      (current-continuation-marks)
+                      kind file line col)))
+
+;; Anything the layers below raise (append-capture, the metadata engine, the
+;; resolver) is a validation failure about `file` until proven otherwise.
+(define (as-validation file thunk)
+  (with-handlers ([exn:fail:op? raise]
+                  [exn:fail? (λ (e) (op-fail 'validation "~a" #:file file
+                                             (exn-message e)))])
+    (thunk)))
+
+;; The one write: validate-then-rename, then commit if asked. -> committed?
+(define (write! path text #:commit [message #f])
+  (define committed? #f)
+  (as-validation
+   path
+   (λ ()
+     (apply-outline-edit!
+      path text
+      #:on-invalid
+      (λ (err)
+        (op-fail 'validation "~a" #:file (load-error-file err)
+                 #:line (load-error-line err) #:col (load-error-col err)
+                 (load-error-message err)))
+      #:on-applied
+      (λ (applied)
+        (when message
+          (set! committed? (and (try-git-commit applied message) #t)))))))
+  committed?)
+
+(define (load-outline-or-fail path)
+  (define r (try-load-outline path))
+  (when (load-error? r)
+    (op-fail 'validation "~a" #:file (load-error-file r)
+             #:line (load-error-line r) #:col (load-error-col r)
+             (load-error-message r)))
+  r)
+
+(define (existing-file path)
+  (define full (simple-form-path (path->complete-path path)))
+  (unless (file-exists? full)
+    (op-fail 'not-found "file not found: ~a" #:file full full))
+  full)
+
+;; ---- add ------------------------------------------------------------------
+
+(struct add-result (file title date description parent line created-inbox? committed?)
+  #:transparent)
+
+;; parent: #f (Inbox) | "TITLE" | "^anchor". A ^anchor parent routes the write
+;; into the file that DEFINES it, which may be an @include fragment.
+(define (ops-add! file title
+                  #:date [date #f]
+                  #:description [desc #f]
+                  #:parent [parent #f]
+                  #:commit? [commit? #t])
+  (when (and date (not (valid-iso-date-string? date)))
+    (op-fail 'usage
+             "invalid --date ~s; expected YYYY-MM-DD or YYYY-MM-DDTHH:MM[:SS]"
+             date))
+  (define date* (and date (normalize-date-string date)))
+  (define root-path (simple-form-path (path->complete-path file)))
+  (define path
+    (cond
+      [(and parent (regexp-match? #px"^\\^[A-Za-z0-9_-]+$" (string-trim parent)))
+       (as-validation root-path
+                      (λ () (located-file
+                             (locate (load-outline-or-fail root-path) parent))))]
+      [else root-path]))
+  (define original
+    (if (file-exists? path) (file->string path) "#lang olai\n"))
+  (define-values (new-text line created-inbox?)
+    (as-validation path
+                   (λ () (append-capture original title
+                                         #:date date*
+                                         #:description desc
+                                         #:parent parent))))
+  (define committed?
+    (write! path new-text #:commit (and commit? (format "capture: ~a" title))))
+  (add-result (path->string path) title date* desc parent
+              line created-inbox? committed?))
+
+;; ---- done / undo ----------------------------------------------------------
+
+;; done: #f when undone, else the ISO day it was marked with.
+(struct done-result (file title line done undone? committed?) #:transparent)
+
+(define (ops-done! file spec today
+                   #:undo? [undo? #f]
+                   #:commit? [commit? #t])
+  (define root-path (existing-file file))
+  (define hit
+    (as-validation root-path
+                   (λ () (locate (load-outline-or-fail root-path) spec))))
+  (define path (located-file hit))
+  (define title (located-title hit))
+  (define original (file->string path))
+  (define-values (new-text line)
+    (as-validation
+     path
+     (λ ()
+       (if undo?
+           (undo-done-in-text original spec #:at (located-index hit))
+           (mark-done-in-text original spec today #:at (located-index hit))))))
+  (define committed?
+    (write! path new-text
+            #:commit (and commit?
+                          (format "~a: ~a" (if undo? "undone" "done") title))))
+  (done-result (path->string path) title line
+               (and (not undo?) today) undo? committed?))
+
+;; ---- move (set / clear @date) ---------------------------------------------
+
+;; date: #f when cleared, else the normalized ISO date written.
+(struct move-result (file title line date committed?) #:transparent)
+
+(define (ops-move! file spec date
+                   #:clear? [clear? #f]
+                   #:commit? [commit? #t])
+  (when (and (not clear?) (not date))
+    (op-fail 'usage "move requires DATE (YYYY-MM-DD[THH:MM[:SS]]) or --clear"))
+  (define root-path (existing-file file))
+  (define hit
+    (as-validation root-path
+                   (λ () (locate (load-outline-or-fail root-path) spec))))
+  (define path (located-file hit))
+  (define at (located-index hit))
+  (define original (file->string path))
+  (define-values (new-text line title date-val)
+    (as-validation
+     path
+     (λ ()
+       (if clear?
+           (let-values ([(t l ttl) (clear-date-in-text original spec #:at at)])
+             (values t l ttl #f))
+           (set-date-in-text original spec date #:at at)))))
+  (define committed?
+    (write! path new-text
+            #:commit (and commit?
+                          (if clear?
+                              (format "move: ~a (cleared date)" title)
+                              (format "move: ~a -> ~a" title date-val)))))
+  (move-result (path->string path) title line date-val committed?))
+
+;; ---- daily ----------------------------------------------------------------
+
+(struct daily-result (file day line created-month? created-day? committed?)
+  #:transparent)
+
+;; Ensures today's day node (and the month fragment + @include that hold it).
+;; Commits like every other write does — it used to be the one command that
+;; changed the outline behind git's back.
+(define (ops-daily! home day #:commit? [commit? #t])
+  (unless (bare-iso-date-title? day)
+    (op-fail 'usage "invalid --date ~s; expected YYYY-MM-DD" day))
+  ;; The day can land in two files (the month fragment and the root that
+  ;; includes it) — one change, so one commit.
+  (define written '())
+  (define result
+    (as-validation
+     #f
+     (λ ()
+       (ensure-daily-day! home day
+                          #:on-applied (λ (p) (set! written (cons p written)))))))
+  (define committed?
+    (and commit?
+         (try-git-commit (reverse written) (format "daily: ~a" day))
+         #t))
+  (daily-result (hash-ref result 'file)
+                (hash-ref result 'day)
+                (hash-ref result 'line)
+                (hash-ref result 'created_month)
+                (hash-ref result 'created_day)
+                committed?))

@@ -1,4 +1,4 @@
-#lang selfflowy
+#lang olai
 
 Daily notes ^daily
   : Fictional demo of year > month > @include composition.
