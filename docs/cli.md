@@ -11,11 +11,14 @@ tree and no static HTML export. Agents use `tree` / `check` / `agenda --json`.
 | Code | Meaning |
 |------|---------|
 | 0 | success |
-| 1 | usage / bad flags / missing TITLE |
-| 2 | validation or load error (bad outline, bad date, capture failed) |
+| 1 | usage: bad flags, missing TITLE, a `--date` / `--month` / `--port` that is not the shape it says |
+| 2 | the outline said no: load or validation error, no such task, ambiguous title, already done, a write aimed at a `#lang selfflowy/sexp` file |
 | 3 | file not found |
 
-Same codes for plain and `--json` modes.
+Same codes for plain and `--json` modes. The write commands know nothing about
+exit codes: an op (`selfflowy/ops`) fails with a KIND — usage, validation,
+not-found — and the CLI maps the kind to the code above. New kinds, not new
+codes, are how that grows.
 
 ## Global
 
@@ -143,15 +146,30 @@ string. `tags` is always an array.
 
 `key` is the node's stable identity — its `^anchor` when it has one, else a
 hash of its **defining** file plus the child ordinals that reach it inside
-that file. It survives renaming the node or any ancestor and cannot collide
-between same-titled siblings; it changes when siblings are reordered (anchor
-the node if you need more). Because the file is the one that DEFINES the node,
-an `@include`d node keys the same whether you load the fragment or the root
-that includes it, and two roots sharing a fragment agree about it. File names
-are taken relative to the common directory of the files you loaded, so two
-roots named `Daily.rkt` in different directories do not collide, and moving
-the whole outline home does not re-key it. The web view addresses nodes by
-this key (element ids, permalinks, stored collapse state).
+that file. Only the anchor case comes from the expander (a module sees one
+entry point and would key a spliced node twice); the rest are minted by the
+load layer, over the whole set of files you loaded, at once. A key survives
+renaming the node or any ancestor and cannot collide between same-titled
+siblings; it changes when siblings are reordered (anchor the node if you need
+more). Because the file is the one that DEFINES the node, an `@include`d node
+keys the same through any root that includes it, and two roots sharing a
+fragment agree about it.
+
+The file's name inside that hash is its path **relative to the common
+directory of the loaded set** — so two roots named `Daily.rkt` in different
+directories do not collide, and moving the whole outline home does not re-key
+it. The corollary is that the base moves with the set: load a nested fragment
+as its own root and its label re-bases, so its nodes key differently than they
+do under the root that includes them.
+
+```
+$ selfflowy tree examples/Daily.rkt           # "Setup day" -> p8cfece7b
+$ selfflowy tree examples/Daily/2026-08.rkt   # "Setup day" -> p3dd3c447
+```
+
+Load the files you always load (`serve` keys against the set it was given) and
+keys are stable. The web view addresses nodes by this key (element ids,
+permalinks, stored collapse state).
 
 ## `agenda [--json] [file ...]`
 
@@ -411,8 +429,18 @@ Single object on **stderr**, exit non-zero:
 }
 ```
 
-`line` / `col` / `file` are `null` when not applicable. Agents must not regex
-pretty-printed messages.
+`line` / `col` / `file` are `null` when not applicable — a load failure carries
+all three (and repeats them as a `file:line:col` prefix in `message`), a
+"you asked for something that is not there" failure names the file only:
+
+```json
+{"version":1,"ok":false,
+ "error":{"file":".../Tasks.rkt","line":null,"col":null,
+          "message":"\"Wire the CLI\" is already done (line 16)"}}
+```
+
+`message` is addressed to a person, not to a stack: no `some-private-function:`
+prefix in front of the answer. Agents must not regex pretty-printed messages.
 
 ## Stability
 
