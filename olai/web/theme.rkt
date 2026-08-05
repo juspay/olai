@@ -26,7 +26,11 @@
           [ol-pill string?]
           ;; every theme the sheet carries, in cascade order. The page picks
           ;; one with data-theme; this is the list of what it may say
-          [theme-names (listof string?)]))
+          [theme-names (listof string?)]
+          ;; where one theme's value for a token is written: --l-paper for
+          ;; ("light", 'paper). The prefix rule is this module's (make-palette
+          ;; below), and a reader that recomputed it would be a second one
+          [theme-token-property (-> string? symbol? string?)]))
 
 ;; The tokens themselves are bound and provided by define-tokens below.
 
@@ -154,6 +158,9 @@
 
 (define (prefixed p token)
   (string-append (palette-prefix p) "-" (symbol->string token)))
+
+(define (theme-token-property name token)
+  (string-append "--" (prefixed (theme-named name) token)))
 
 ;; --l-paper: #E4ECCA; ... — one theme's values, spelled out
 (define (palette-declarations p)

@@ -132,6 +132,7 @@ just daily                       # today's node in Daily/YYYY-MM.rkt
 just test                        # unit tests (in-process)
 just test-integration            # subprocess CLI + servers
 just test-all                    # both
+just css-classes                 # regenerate olai/tests/classes.golden
 ```
 
 `olai serve DIR` serves `DIR/*.rkt` and runs the agent in `DIR`

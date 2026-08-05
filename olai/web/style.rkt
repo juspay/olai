@@ -41,12 +41,22 @@
          (contract-out
           ;; the three cascade layers, in the order they come out
           [css-layer? (-> any/c boolean?)]
+          [css-layers (listof css-layer?)]
           ;; A fragment is a css-expr stylesheet (a list of rules) or a raw
           ;; CSS string. The string is the escape hatch for what css-expr
           ;; cannot spell; every use gets a comment saying why.
           [register-fragment! (->* ((or/c string? list?)) (#:layer css-layer?) void?)]
           [fragment->css (-> (or/c string? list?) string?)]
           [stylesheet (-> string?)]
+          ;; the sheet BEFORE it is a string: every fragment in the order it
+          ;; comes out, paired with the layer that put it there. Where a rule
+          ;; LANDS is a question about this list; asking the minified text
+          ;; instead is asking css-expr's serializer a question about olai
+          [style-fragments (-> (listof (cons/c css-layer? (or/c string? list?))))]
+          ;; the class names a fragment's SELECTORS mention — its subject, and
+          ;; whatever its nested rules reach. A raw-string fragment is opaque
+          ;; and mentions nothing
+          [fragment-classes (-> (or/c string? list?) (listof string?))]
           ;; every class this program has DEFINED, in definition order. The
           ;; JS reads classes the Racket side never writes; this is what a
           ;; test compares that against.
@@ -96,9 +106,9 @@
 ;; ---- the registry ---------------------------------------------------------
 
 ;; The layers, in the order they come out of the sheet.
-(define layer-order '(base component overlay))
+(define css-layers '(base component overlay))
 
-(define (css-layer? v) (and (memq v layer-order) #t))
+(define (css-layer? v) (and (memq v css-layers) #t))
 
 ;; Appended in module-instantiation order as (layer . fragment); reversed once
 ;; and sorted by layer on the way out.
@@ -127,11 +137,29 @@
 
 ;; Layer first, instantiation order second — `sort` is stable, so the second
 ;; costs nothing to keep.
+(define (style-fragments)
+  (sort (reverse fragments) < #:key (λ (f) (index-of css-layers (car f)))))
+
 (define (stylesheet)
-  (define ordered
-    (sort (reverse fragments) < #:key (λ (f) (index-of layer-order (car f)))))
-  (string-join (for/list ([f (in-list ordered)]) (fragment->css (cdr f)))
+  (string-join (for/list ([f (in-list (style-fragments))]) (fragment->css (cdr f)))
                "\n"))
+
+;; css-expr spells a class as (\. name), and a compound as (\. base name) —
+;; the LAST element is the class, anything before it is what it qualifies (a
+;; tag, another class). Nested rules are part of the same datum, so a fragment
+;; mentions everything its rules reach.
+(define (fragment-classes fragment)
+  (define seen '())
+  (let walk ([x fragment])
+    (cond
+      [(not (pair? x)) (void)]
+      [(and (eq? (car x) '|.|) (pair? (cdr x)))
+       (define parts (cdr x))
+       (define name (last parts))
+       (when (symbol? name) (set! seen (cons (symbol->string name) seen)))
+       (for-each walk (drop-right parts 1))]
+      [else (walk (car x)) (walk (cdr x))]))
+  (remove-duplicates (reverse seen)))
 
 ;; ---- the macros -----------------------------------------------------------
 

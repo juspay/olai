@@ -92,6 +92,13 @@ alias watch := serve
 # integration ones spawn `olai` subprocesses and boot real servers. Both are
 # parallel-safe (ephemeral ports, temp dirs), so -j is free speed.
 
+# The skin's class list, sorted, one per line: what olai/tests/style.rkt
+# compares (class-names) against. A rename is one line gone and one added, in
+# a diff — accepted by running this, never by hand-editing the file.
+# Regenerate olai/tests/classes.golden from the skin
+css-classes: install
+    racket -e '(require olai/web/skin (only-in olai/web/style class-names)) (for-each displayln (sort (class-names) string<?))' > olai/tests/classes.golden
+
 # Unit tests: in-process, no subprocesses (olai/tests/*.rkt)
 test: install
     raco test -j {{ num_cpus() }} olai/tests/*.rkt
