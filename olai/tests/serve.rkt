@@ -95,7 +95,10 @@
        (check-true (string-contains? (or (header-value headers "content-type:") "")
                                      "text/html")
                    (format "~a" headers))
-       (check-true (string-contains? body "Buy milk") body))))
+       (check-true (string-contains? body "Buy milk") body)
+       ;; the sheet is generated, so the page is TOLD its href: a route layer
+       ;; that forgot would serve an unstyled page and nothing else would say so
+       (check-true (string-contains? body "href=\"/static/app.css\"") body))))
 
   (test-case "the sidebar Today link is a real route"
     (with-server
@@ -167,7 +170,8 @@
        (check-true (string-contains? (or (header-value headers "content-type:") "")
                                      "text/css")
                    (format "~a" headers))
-       (check-true (string-contains? body "olai") body))))
+       ;; a stylesheet, not a page that 200'd: the tokens every rule reads
+       (check-true (string-contains? body ":root{") body))))
 
   (test-case "GET /static/collapse.js serves the collapse script"
     (with-server

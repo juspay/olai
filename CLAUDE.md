@@ -56,6 +56,10 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
   key-label), not a renderer helper.
 * JSON is two modules, two version counters: json/model (what a node/tree IS,
   durable) and json/reply (command envelopes, agenda, calendar).
+* CSS cascade = layer ('base | 'component | 'overlay) then instantiation
+  order; a class is defined in the module that DRAWS it. No native @layer.
+* web/skin.rkt composes the sheet (require order = cascade) and owns its URL;
+  render-page is TOLD the href, so nothing downstream requires skin.
 
 ## WORKFLOW
 

@@ -17,9 +17,11 @@
 ;; re-key a permalink, a stored collapse state, or an SSE swap target.
 ;;
 ;; STYLES — every class this module draws is DEFINED here, next to the markup
-;; that wears it (olai/web/style). The chat panel is the one component that
-;; lives elsewhere: it is an overlay on all of this, so it requires this
-;; module, which is also what puts its rules last in the cascade.
+;; that wears it (olai/web/style). Two exceptions, both of them classes this
+;; module is not the only one to draw: .sf-pill's shape is the skin's
+;; (olai/web/theme), and the markdown classes are web/markdown's, which is what
+;; puts them on the markup. The chat panel is an overlay on all of this, so it
+;; requires this module, which is what puts its rules last in the cascade.
 
 (require racket/contract
          racket/list
@@ -72,6 +74,7 @@
           [render-page
            (->* (any/c)
                 (#:title string?
+                 #:stylesheet-href (or/c string? #f)
                  #:sidebar (or/c list? #f)
                  #:banner (or/c list? #f)
                  #:sse-connect (or/c string? #f)
@@ -90,7 +93,6 @@
           [node-element-id (->* (string?) (#:site (or/c string? #f)) string?)]
           [web-static-dir (-> path?)]
           [web-static-prefix string?]
-          [web-stylesheets (listof string?)]
           [web-scripts (listof string?)]
           ;; the outline pane's class: the chat panel is the one thing that
           ;; moves it, so the one thing that needs its name
@@ -108,16 +110,16 @@
 ;; in this module — a script that changes with every SSE tweak has no business
 ;; recompiling a Racket module, and browsers cannot cache it.
 ;;
-;; app.css is the exception, and it is the other way round: the stylesheet is
-;; NOT a file. It is generated from the components below (see style.rkt) and
-;; served at this URL, so the page links one name either way.
+;; The stylesheet is the other way round: it is NOT a file. It is generated
+;; from the modules that draw the page (olai/web/skin), and this module cannot
+;; name it — skin requires render, so render asking skin for a URL would be a
+;; cycle. render-page is TOLD the href, like every other address it links.
 
 (define-runtime-path static-dir "static")
 (define (web-static-dir) static-dir)
 
 (define web-static-prefix "/static/")
 
-(define web-stylesheets '("app.css"))
 (define web-scripts '("htmx.min.js" "sse.js" "collapse.js" "chat.js"))
 
 (define (static-href name) (string-append web-static-prefix name))
@@ -168,36 +170,24 @@
 
 ;; ---- pills ----------------------------------------------------------------
 ;;
-;; One shape, three readings: a date, a done date, a #tag. The base is the
-;; shape; each kind repaints it, so .sf-pill has to come first.
-
-(define-style sf-pill
-  #:display inline-flex
-  #:align-items center
-  #:gap 0.25rem
-  #:border-radius 9999px
-  #:padding (0.0625rem 0.5rem)
-  #:font-size 0.75rem
-  #:line-height 1.4
-  #:white-space nowrap
-  #:background (apply var --pill-bg)
-  #:color (apply var --dim)
-  #:border (1px solid transparent))
+;; The shape is the skin's (web/theme, .sf-pill) because web/markdown draws one
+;; too. Here is what a DATE reads like — and .sf-pill comes first in the
+;; cascade, so this repaints it.
 
 (define-style sf-date
-  #:background (apply var --blue-bg)
-  #:color (apply var --blue-fg)
+  #:background ,blue-bg
+  #:color ,blue-fg
   #:font-variant-numeric tabular-nums
   ;; today is the accent, and the only pill that carries a border
   [,(sel '& is-today)
-   #:background (apply var --pill-bg)
-   #:color (apply var --green)
-   #:border-color (apply var --green)
+   #:background ,pill-bg
+   #:color ,green
+   #:border-color ,green
    #:font-weight 600]
   ;; a done date is history: it keeps its place and stops shouting
   [,(sel '& is-done)
-   #:background (apply var --pill-bg)
-   #:color (apply var --dim)
+   #:background ,pill-bg
+   #:color ,dim
    #:border-color transparent
    #:text-decoration line-through])
 
@@ -205,45 +195,8 @@
 
 (define-style sf-date-time
   #:opacity 0.75
-  #:font-family (apply var --mono)
-  #:font-size 0.6875rem)
-
-;; drawn by web/markdown out of a #tag in a title
-(define-style sf-tag
-  #:background (apply var --amber-bg)
-  #:color (apply var --amber-fg)
-  #:font-family (apply var --mono)
-  #:font-size 0.6875rem)
-
-;; ---- markdown inline ------------------------------------------------------
-;;
-;; web/markdown attaches these to a title's or a note's rendered Markdown; it
-;; decides what a piece IS, and the skin — here — decides what it looks like.
-
-(define-style sf-link
-  #:color (apply var --blue-fg)
-  #:text-decoration underline
-  [(: & hover) #:color (apply var --ink)])
-
-(define-style sf-code
-  #:font-family (apply var --mono)
-  #:font-size 0.8125em
-  #:background (apply var --pill-bg)
-  #:border (1px solid (apply var --line))
-  #:border-radius 0.25rem
-  #:padding (0.0625rem 0.25rem))
-
-(define-style sf-pre
-  #:font-family (apply var --mono)
-  #:font-size 0.8125rem
-  #:background (apply var --pill-bg)
-  #:border (1px solid (apply var --line))
-  #:border-radius (apply var --radius)
-  #:padding (0.625rem 0.75rem)
-  #:margin (0.375rem 0)
-  #:overflow-x auto
-  ;; a block already has the box; the code inside it does not need a second
-  [(& ,(sel sf-code)) #:background none #:border 0 #:padding 0])
+  #:font-family ,mono
+  #:font-size ,micro-size)
 
 ;; ---- one node -------------------------------------------------------------
 
@@ -277,10 +230,10 @@
   #:margin 0
   #:padding 0
   ;; Workflowy connector: a hairline down the left of a node's children
-  #:margin-left (apply var --indent)
+  #:margin-left ,indent
   #:padding-left 0.75rem
   #:border-left (1px solid (apply color-mix (in srgb)
-                                  ((apply var --dim) 35%) (apply var --line))))
+                                  (,dim 35%) ,line)))
 
 (define-style sf-node
   #:position relative
@@ -292,9 +245,9 @@
   #:align-items flex-start
   #:gap 0.125rem
   #:padding (0.0625rem 0)
-  #:border-radius (apply var --radius)
+  #:border-radius ,radius
   [(: & hover)
-   #:background (apply color-mix (in srgb) ((apply var --pill-bg) 55%) transparent)])
+   #:background (apply color-mix (in srgb) (,pill-bg 55%) transparent)])
 
 ;; disclosure triangle: hidden until hover, like Workflowy
 (define-style sf-toggle
@@ -307,7 +260,7 @@
   #:padding 0
   #:border 0
   #:background none
-  #:color (apply var --dim)
+  #:color ,dim
   #:font-size 0.625rem
   #:line-height 1
   #:cursor pointer
@@ -320,7 +273,7 @@
    #:transform (apply rotate 0deg)
    #:opacity 1]
   ;; a touch screen has no hover to reveal it with
-  [@ media (#:max-width 48rem) #:opacity 1])
+  [@ media (#:max-width ,phone-max) #:opacity 1])
 
 (define-style sf-toggle-empty #:cursor default)
 
@@ -387,7 +340,7 @@
    #:width 0.4375rem
    #:height 0.4375rem
    #:border-radius 50%
-   #:background (apply var --dim)]
+   #:background ,dim]
   ;; collapsed parents wear a halo, like Workflowy
   [(> ,(sel sf-node is-collapsed) (,(sel sf-row) (:: ,(sel '& has-children) before)))
    #:content ""
@@ -398,8 +351,8 @@
    #:height 1rem
    #:margin (-0.5rem 0 0 -0.5rem)
    #:border-radius 50%
-   #:background (apply var --line)]
-  [((: ,(sel sf-bullet-link) hover) (:: & after)) #:background (apply var --ink)])
+   #:background ,line]
+  [((: ,(sel sf-bullet-link) hover) (:: & after)) #:background ,ink])
 
 (define-style sf-content
   #:flex (1 1 auto)
@@ -426,7 +379,7 @@
          #:padding 0
          #:border 0
          #:background none
-         #:color (apply var --dim)
+         #:color ,dim
          #:font-size 0.8125rem
          #:line-height 1
          #:cursor pointer
@@ -434,7 +387,7 @@
          #:opacity 0
          #:transition (opacity 120ms ease)
          [((: ,(sel sf-row) hover) &) (: & focus-visible) ,(sel '& is-done) #:opacity 1]
-         [,(sel '& is-done) #:color (apply var --green)])
+         [,(sel '& is-done) #:color ,green])
   (define label (if done? "☑" "☐"))
   (define common
     `((class ,(classes sf-check (and done? is-done)))
@@ -454,21 +407,21 @@
 ;; the button answers a hover. CSS nesting has no spelling for "the parent,
 ;; but only when it is a button", so this rule is written out.
 (register-fragment!
- (css-expr [(: ,(sel 'button sf-check) hover) #:color (apply var --green)]))
+ (css-expr [(: ,(sel 'button sf-check) hover) #:color ,green]))
 
 (define-style sf-title
-  #:color (apply var --ink)
+  #:color ,ink
   #:overflow-wrap anywhere
   ;; done is a state of the NODE; the title is where it reads
   [,(sel '& is-done) (> ,(sel sf-node is-done) (,(sel sf-row) &))
-   #:color (apply var --dim)
+   #:color ,dim
    #:text-decoration line-through])
 
-(define-style sf-dim #:color (apply var --dim))
+(define-style sf-dim #:color ,dim)
 
 (define-style sf-note
   #:margin-top 0.125rem
-  #:color (apply var --dim)
+  #:color ,dim
   #:font-size 0.875rem
   [,(sel '& is-done) #:opacity 0.65 #:text-decoration line-through]
   ;; Markdown blocks inside a note: tightened, never the browser's defaults
@@ -477,7 +430,7 @@
   [(& blockquote)
    #:margin (0.25rem 0)
    #:padding-left 0.75rem
-   #:border-left (2px solid (apply var --line))])
+   #:border-left (2px solid ,line)])
 
 ;; A permalink target, not a thing to see.
 (define-style sf-anchor #:position absolute #:width 0 #:height 0 #:overflow hidden)
@@ -495,9 +448,9 @@
 
 (define-style sf-mirror
   #:flex (0 0 auto)
-  #:font-family (apply var --mono)
-  #:font-size 0.6875rem
-  #:color (apply var --rose-fg)
+  #:font-family ,mono
+  #:font-size ,micro-size
+  #:color ,rose-fg
   #:text-decoration none
   [(: & hover) #:text-decoration underline])
 
@@ -617,12 +570,12 @@
 
 (define-style sf-file-title
   #:margin (0 0 0.75rem 0.25rem)
-  #:font-family (apply var --mono)
+  #:font-family ,mono
   #:font-size 0.75rem
   #:font-weight 600
   #:letter-spacing 0.06em
   #:text-transform uppercase
-  #:color (apply var --dim))
+  #:color ,dim)
 
 ;; One file's section. This is the natural re-render unit for a watcher: a
 ;; save touches one file, and #sf-file-<label> is what it swaps.
@@ -664,20 +617,20 @@
   #:gap 0.375rem
   #:margin-bottom 1rem
   #:font-size 0.8125rem
-  #:color (apply var --dim))
+  #:color ,dim)
 
 (define-style sf-crumb
   #:text-decoration none
-  #:color (apply var --dim))
+  #:color ,dim)
 
 ;; only a crumb you can click answers a hover, and a crumb is a link only
 ;; when it has somewhere to go
 (register-fragment!
  (css-expr [(: ,(sel 'a sf-crumb) hover)
-            #:color (apply var --ink)
+            #:color ,ink
             #:text-decoration underline]))
 
-(define-style sf-crumb-sep #:color (apply var --line))
+(define-style sf-crumb-sep #:color ,line)
 
 ;; path: (listof crumb) where crumb is "Label" or (list "Label" href-or-fid)
 (define (render-breadcrumbs path #:home-href home-href #:zoom-base [zoom-base #f])
@@ -707,22 +660,22 @@
 ;; A column that stays put while the outline scrolls — until the screen is a
 ;; phone's, where there is only one column and it becomes a header.
 (define-style sf-sidebar
-  #:flex (0 0 (apply var --sidebar-w))
-  #:width (apply var --sidebar-w)
+  #:flex (0 0 ,sidebar-w)
+  #:width ,sidebar-w
   #:padding (1.25rem 0.75rem 3rem 1rem)
-  #:border-right (1px solid (apply var --line))
-  #:background (apply color-mix (in srgb) ((apply var --paper) 85%) (apply var --paper-2))
+  #:border-right (1px solid ,line)
+  #:background (apply color-mix (in srgb) (,paper 85%) ,paper-2)
   #:overflow-y auto
   #:max-height 100vh
   #:position sticky
   #:top 0
-  [@ media (#:max-width 48rem)
+  [@ media (#:max-width ,phone-max)
      #:position static
      #:flex (0 0 auto)
      #:width 100%
      #:max-height none
      #:border-right 0
-     #:border-bottom (1px solid (apply var --line))
+     #:border-bottom (1px solid ,line)
      #:padding 1rem])
 
 (define-style sf-brand #:margin-bottom 1.25rem)
@@ -731,7 +684,7 @@
   #:font-weight 600
   #:letter-spacing -0.01em
   #:text-decoration none
-  #:color (apply var --ink))
+  #:color ,ink)
 
 (define-style sf-sidebar-nav #:display flex #:flex-direction column #:gap 0.125rem)
 
@@ -740,37 +693,37 @@
   #:align-items center
   #:gap 0.5rem
   #:padding (0.25rem 0.5rem)
-  #:border-radius (apply var --radius)
+  #:border-radius ,radius
   #:text-decoration none
-  #:color (apply var --ink)
+  #:color ,ink
   #:font-size 0.875rem
-  [(: & hover) #:background (apply var --pill-bg)])
+  [(: & hover) #:background ,pill-bg])
 
-(define-style sf-nav-icon #:color (apply var --green) #:font-size 0.75rem)
+(define-style sf-nav-icon #:color ,green #:font-size 0.75rem)
 
 (define-style sf-sidebar-section #:margin-top 1.5rem)
 
 (define-style sf-sidebar-heading
   #:margin (0 0 0.375rem 0.5rem)
-  #:font-size 0.6875rem
+  #:font-size ,micro-size
   #:font-weight 600
   #:letter-spacing 0.08em
   #:text-transform uppercase
-  #:color (apply var --dim))
+  #:color ,dim)
 
 (define-style sf-sidebar-empty
   #:margin (0 0 0 0.5rem)
   #:font-size 0.8125rem
-  #:color (apply var --dim)
+  #:color ,dim
   #:font-style italic)
 
 (define-style sf-tree-file [(+ & &) #:margin-top 0.75rem])
 
 (define-style sf-tree-file-label
   #:margin (0 0 0.125rem 0.5rem)
-  #:font-family (apply var --mono)
-  #:font-size 0.6875rem
-  #:color (apply var --dim))
+  #:font-family ,mono
+  #:font-size ,micro-size
+  #:color ,dim)
 
 (define-style sf-tree #:list-style none #:margin 0 #:padding 0)
 
@@ -787,14 +740,14 @@
   [(> ,(sel sf-node is-tree) ,(sel sf-row))
    #:align-items center
    #:padding (0.0625rem 0.25rem)
-   [(: & hover) #:background (apply var --pill-bg)]]
+   [(: & hover) #:background ,pill-bg]]
   [(> ,(sel sf-node is-tree) ,(sel sf-row) ,(sel sf-toggle)) #:height 1.25rem]))
 
 (define-style sf-tree-link
   #:flex (1 1 auto)
   #:min-width 0
   #:text-decoration none
-  #:color (apply var --ink)
+  #:color ,ink
   #:font-size 0.875rem
   #:white-space nowrap
   #:overflow hidden
@@ -865,10 +818,10 @@
          #:align-items baseline
          #:margin-bottom 1.5rem
          #:padding (0.625rem 0.875rem)
-         #:border (1px solid (apply var --rose-fg))
-         #:border-radius (apply var --radius)
-         #:background (apply var --rose-bg)
-         #:color (apply var --rose-fg)
+         #:border (1px solid ,rose-fg)
+         #:border-radius ,radius
+         #:background ,rose-bg
+         #:color ,rose-fg
          #:font-size 0.8125rem)
   `(div ((class ,sf-error) (role "alert"))
         ,@(if where
@@ -878,12 +831,12 @@
 
 ;; file:line:col — long, and the one part worth wrapping anywhere
 (define-style sf-error-where
-  #:font-family (apply var --mono)
+  #:font-family ,mono
   #:font-size 0.75rem
   #:opacity 0.85
   #:overflow-wrap anywhere)
 
-(define-style sf-error-detail #:font-family (apply var --mono) #:overflow-wrap anywhere)
+(define-style sf-error-detail #:font-family ,mono #:overflow-wrap anywhere)
 
 ;; What an `outline` event re-swaps: the banner slot AND the pane, in one
 ;; container, because a save can change either and they must not be able to
@@ -923,10 +876,14 @@
   #:min-width 0
   #:padding (2rem 2rem 6rem)
   #:max-width 56rem
-  [@ media (#:max-width 48rem) #:padding (1.25rem 1rem 4rem)])
+  [@ media (#:max-width ,phone-max) #:padding (1.25rem 1rem 4rem)])
 
 (define (render-page main
                      #:title [title "olai"]
+                     ;; the generated sheet's URL, from the route layer (see
+                     ;; olai/web/skin). #f is a page with no skin at all — a
+                     ;; fragment test, never a served page.
+                     #:stylesheet-href [stylesheet-href #f]
                      #:sidebar [sidebar #f]
                      #:banner [banner #f]
                      #:sse-connect [sse-connect #f]
@@ -940,8 +897,9 @@
                  (content "width=device-width, initial-scale=1, viewport-fit=cover")))
           (meta ((name "color-scheme") (content "light dark")))
           (title ,title)
-          ,@(for/list ([name (in-list web-stylesheets)])
-              `(link ((rel "stylesheet") (href ,(static-href name)))))
+          ,@(if stylesheet-href
+                (list `(link ((rel "stylesheet") (href ,stylesheet-href))))
+                '())
           ,@(for/list ([name (in-list web-scripts)])
               `(script ((src ,(static-href name)) (defer "defer"))))
           ,@head-extra)
@@ -962,7 +920,7 @@
 
 ;; ---- zoom -----------------------------------------------------------------
 
-(define-style sf-empty #:color (apply var --dim) #:font-style italic)
+(define-style sf-empty #:color ,dim #:font-style italic)
 
 ;; A pane with nothing to show: breadcrumbs home, one line saying why.
 (define (render-empty-pane message #:home-href home-href)

@@ -3,10 +3,12 @@
 ;; The agent panel, drawn: the dock, the conversation, the input row, and
 ;; every rule that paints them.
 ;;
-;; PRESENTATION ONLY. What a turn IS, what a frame means, when the agent is
-;; busy — that is web/chat.rkt over olai/acp, and this module has never heard
-;; of it. It is handed a transcript (plain JSON hashes) and a handful of URLs,
-;; and it gives back an xexpr. The route layer is what puts the two together.
+;; PRESENTATION ONLY. What a turn IS, what a frame means, whether the agent is
+;; busy — that is web/chat.rkt over olai/acp. It is handed a transcript (plain
+;; JSON hashes), that busy flag, and a handful of URLs, and it gives back an
+;; xexpr. The route layer is what puts the two together. The one thing it takes
+;; from web/chat is the WORDS: a status is that module's vocabulary, and a
+;; selector that spelled one by hand would be a second owner of it.
 ;;
 ;; The panel is replayed from that transcript on every page load (frames are
 ;; ephemeral: a browser that connects late, or reloads, missed them). From
@@ -23,15 +25,22 @@
 ;; server's HTML when the `done` frame lands). User text and tool titles are
 ;; never Markdown — they are strings in an xexpr, which is what escapes them.
 ;;
-;; Requiring render.rkt is not only for the two names below: the panel is an
-;; overlay on the outline, so its rules have to land after the outline's, and
-;; a require is how this skin spells "after" (see style.rkt on ordering).
+;; The panel is an overlay on the outline, so its rules land after the
+;; outline's: the require below is what puts them there, and the one rule whose
+;; subject is the outline's own says so out loud with #:layer 'overlay (see
+;; style.rkt on ordering).
 
 (require racket/contract
          (only-in json jsexpr->string)
          olai/web/style
-         ;; the page's own class — the panel is positioned against the document
-         (only-in olai/web/theme sf-body)
+         ;; the skin's tokens and constants, and the page's own class — the
+         ;; panel is positioned against the document
+         olai/web/theme
+         ;; the words a transcript is written in: what a status MEANS is
+         ;; web/chat's, and a selector here spells the same binding
+         (only-in olai/web/chat
+                  turn-done tool-pending tool-in-progress tool-completed
+                  tool-failed stop-end-turn)
          ;; the pane the panel makes room in, and the note renderer a finished
          ;; turn is run through
          (only-in olai/web/render sf-main note->xexprs))
@@ -39,6 +48,7 @@
 (provide (contract-out
           [render-chat-panel
            (->* ((listof hash?)
+                 #:busy? boolean?
                  #:send-href string? #:new-href string? #:cancel-href string?
                  #:sessions-href string? #:load-href string?
                  #:event string?)
@@ -69,14 +79,14 @@
   #:bottom 1rem
   #:z-index 20
   #:padding (0.3125rem 0.75rem)
-  #:border (1px solid (apply var --line))
+  #:border (1px solid ,line)
   #:border-radius 9999px
-  #:background (apply var --paper-2)
-  #:color (apply var --dim)
-  #:font-family (apply var --mono)
+  #:background ,paper-2
+  #:color ,dim
+  #:font-family ,mono
   #:font-size 0.75rem
   #:cursor pointer
-  [(: & hover) #:color (apply var --ink) #:border-color (apply var --dim)]
+  [(: & hover) #:color ,ink #:border-color ,dim]
   ;; an open panel is on top of where the toggle sits — it would land on the
   ;; send button. It steps aside, and the header's × takes over.
   [(,(sel sf-chat-dock is-open) &) #:display none]
@@ -84,8 +94,8 @@
   ;; visible without opening it. The ring is the accent color at low alpha,
   ;; expanding and fading — no bounce, no color change on the button itself.
   [(,(sel sf-chat-dock is-busy) &)
-   #:border-color (apply var --green)
-   #:animation (sf-chat-glow 1.8s ease-in-out infinite)
+   #:border-color ,green
+   #:animation (sf-chat-glow ,busy-beat ease-in-out infinite)
    ;; the border still marks busy; only the motion drops out
    [@ media (#:prefers-reduced-motion reduce) #:animation none]])
 
@@ -93,9 +103,9 @@
  (css-expr
   [@ keyframes sf-chat-glow
      [0% 100% #:box-shadow (0 0 0 0 (apply color-mix (in srgb)
-                                           ((apply var --green) 45%) transparent))]
+                                           (,green 45%) transparent))]
      [50% #:box-shadow (0 0 0 6px (apply color-mix (in srgb)
-                                         ((apply var --green) 0%) transparent))]]))
+                                         (,green 0%) transparent))]]))
 
 ;; ---- the panel ------------------------------------------------------------
 
@@ -105,25 +115,28 @@
   #:right 0
   #:bottom 0
   #:z-index 19
-  #:width (apply var --chat-w)
+  #:width ,chat-w
   #:display none
   #:flex-direction column
-  #:border-left (1px solid (apply var --line))
+  #:border-left (1px solid ,line)
   ;; its own surface, one step up the paper ramp (paper -> paper-2 -> panel):
   ;; the panel is a layer over the outline, not more of the same sheet
-  #:background (apply var --panel)
+  #:background ,panel
   [,(sel '& is-open) #:display flex]
   ;; a phone has no room beside the outline: the panel is a sheet over it
-  [@ media (#:max-width 48rem) #:width 100% #:left 0 #:border-left 0])
+  [@ media (#:max-width ,phone-max) #:width 100% #:left 0 #:border-left 0])
 
-;; The panel is not an overlay: the reading column gives up the width it takes.
-;; Its subject is the OUTLINE's pane, so it is written out rather than nested.
+;; The panel does not cover the outline: the reading column gives up the width
+;; it takes. The SUBJECT here is another module's — the document and the
+;; outline's pane — which is what 'overlay says, and what puts this after
+;; everything web/render registered.
 (register-fragment!
+ #:layer 'overlay
  (css-expr
   [((: ,(sel 'body sf-body) (apply has ,(sel sf-chat is-open))) ,(sel sf-main))
-   #:padding-right (apply calc (+ (apply var --chat-w) 1.5rem))
+   #:padding-right (apply calc (+ ,chat-w 1.5rem))
    ;; on a phone the sheet covers it anyway, so there is nothing to make room for
-   [@ media (#:max-width 48rem) #:padding-right 1rem]]))
+   [@ media (#:max-width ,phone-max) #:padding-right 1rem]]))
 
 (define-style sf-chat-head
   #:display flex
@@ -131,19 +144,19 @@
   #:justify-content space-between
   #:gap 0.5rem
   #:padding (0.625rem 0.75rem)
-  #:border-bottom (1px solid (apply var --line))
+  #:border-bottom (1px solid ,line)
   ;; the chrome rows sit a shade back from the conversation, so the panel's
   ;; structure reads without a second border
-  #:background (apply color-mix (in srgb) ((apply var --panel) 85%) (apply var --paper))
+  #:background (apply color-mix (in srgb) (,panel 85%) ,paper)
   ;; the header is what the sessions popover hangs off
   #:position relative)
 
 (define-style sf-chat-title
   #:min-width 0
-  #:font-family (apply var --mono)
+  #:font-family ,mono
   #:font-size 0.75rem
   #:letter-spacing 0.04em
-  #:color (apply var --dim))
+  #:color ,dim)
 
 ;; the model, when the agent named one. Empty means unknown, and unknown says
 ;; nothing at all — separator included.
@@ -161,7 +174,7 @@
   #:text-overflow ellipsis
   #:white-space nowrap
   #:opacity 0.65
-  #:font-size 0.6875rem
+  #:font-size ,micro-size
   #:letter-spacing 0)
 
 ;; a turn running behind an OPEN panel: the toggle that breathes is hidden
@@ -173,33 +186,33 @@
   #:height 0.4375rem
   #:margin-left 0.5rem
   #:border-radius 50%
-  #:background (apply var --green)
+  #:background ,green
   #:vertical-align middle
   [(,(sel sf-chat is-busy) &)
    #:display inline-block
-   #:animation (sf-chat-glow 1.8s ease-in-out infinite)
+   #:animation (sf-chat-glow ,busy-beat ease-in-out infinite)
    ;; likewise the dot: it stays, it just stops breathing
    [@ media (#:prefers-reduced-motion reduce) #:animation none]])
 
 (define-style sf-chat-actions #:display flex #:align-items center #:gap 0.375rem)
 
-;; One control with three jobs — the shared block is a single rule with three
-;; subjects, and the stop's alarm color has to land after it.
-(define-modifier sf-chat-btn sf-chat-send sf-chat-stop)
+;; One control with three jobs: one block, three subjects.
+(define-style (sf-chat-btn sf-chat-send sf-chat-stop)
+  #:padding (0.1875rem 0.5rem)
+  #:border (1px solid ,line)
+  #:border-radius ,radius
+  #:background ,paper-2
+  #:color ,dim
+  #:font-family ,mono
+  #:font-size ,micro-size
+  #:cursor pointer)
 
+;; What is true of only some of them, after it: two answer a hover, and the
+;; stop wears the alarm color.
 (register-fragment!
  (css-expr
-  [,(sel sf-chat-btn) ,(sel sf-chat-send) ,(sel sf-chat-stop)
-   #:padding (0.1875rem 0.5rem)
-   #:border (1px solid (apply var --line))
-   #:border-radius (apply var --radius)
-   #:background (apply var --paper-2)
-   #:color (apply var --dim)
-   #:font-family (apply var --mono)
-   #:font-size 0.6875rem
-   #:cursor pointer]
-  [(: ,(sel sf-chat-btn) hover) (: ,(sel sf-chat-send) hover) #:color (apply var --ink)]
-  [,(sel sf-chat-stop) #:color (apply var --rose-fg) #:border-color (apply var --rose-fg)]))
+  [(: ,(sel sf-chat-btn) hover) (: ,(sel sf-chat-send) hover) #:color ,ink]
+  [,(sel sf-chat-stop) #:color ,rose-fg #:border-color ,rose-fg]))
 
 ;; ---- the conversation -----------------------------------------------------
 
@@ -221,9 +234,9 @@
    #:align-self flex-end
    #:max-width 85%
    #:padding (0.1875rem 0.5rem)
-   #:border (1px solid (apply var --line))
-   #:border-radius (apply var --radius)
-   #:background (apply var --pill-bg)]
+   #:border (1px solid ,line)
+   #:border-radius ,radius
+   #:background ,pill-bg]
   [& #:white-space pre-wrap #:overflow-wrap anywhere]
   ;; nothing said yet: no empty line waiting for it
   [(: ,(sel '& is-agent) empty) #:display none]
@@ -234,32 +247,32 @@
    #:margin (0.25rem 0)
    #:padding-left 1.25rem]
   [,(sel '& is-error)
-   #:color (apply var --rose-fg)
-   #:font-family (apply var --mono)
+   #:color ,rose-fg
+   #:font-family ,mono
    #:font-size 0.75rem])
 
 (define-style sf-chat-note
-  #:color (apply var --dim)
-  #:font-family (apply var --mono)
-  #:font-size 0.6875rem)
+  #:color ,dim
+  #:font-family ,mono
+  #:font-size ,micro-size)
 
 ;; one line per tool call, updated in place by id
 (define-style sf-chat-tool
   #:display flex
   #:align-items baseline
   #:gap 0.375rem
-  #:font-family (apply var --mono)
+  #:font-family ,mono
   #:font-size 0.75rem
-  #:color (apply var --dim)
-  [(attribute & (= data-status "failed")) #:color (apply var --rose-fg)])
+  #:color ,dim
+  [(attribute & (= data-status ,tool-failed)) #:color ,rose-fg])
 
 (define-style sf-chat-tool-title #:overflow-wrap anywhere)
 
 (define-style sf-chat-tool-glyph
-  [((attribute ,(sel sf-chat-tool) (= data-status "completed")) &) #:color (apply var --green)]
+  [((attribute ,(sel sf-chat-tool) (= data-status ,tool-completed)) &) #:color ,green]
   ;; a call still in flight spins; a finished one is a mark
-  [((attribute ,(sel sf-chat-tool) (= data-status "pending")) &)
-   ((attribute ,(sel sf-chat-tool) (= data-status "in_progress")) &)
+  [((attribute ,(sel sf-chat-tool) (= data-status ,tool-pending)) &)
+   ((attribute ,(sel sf-chat-tool) (= data-status ,tool-in-progress)) &)
    #:display inline-block
    #:animation (sf-spin 2s linear infinite)]
   [@ media (#:prefers-reduced-motion reduce)
@@ -273,11 +286,11 @@
   #:display flex
   #:align-items center
   #:gap 0.5rem
-  #:color (apply var --dim)
-  #:font-family (apply var --mono)
-  #:font-size 0.6875rem
+  #:color ,dim
+  #:font-family ,mono
+  #:font-size ,micro-size
   [(:: & before) (:: & after) #:content "" #:flex (1 1 auto)
-   #:border-top (1px solid (apply var --line))])
+   #:border-top (1px solid ,line)])
 
 ;; Frames land here: a hook for the SSE extension, nothing to look at.
 (define-modifier sf-chat-sink)
@@ -288,8 +301,8 @@
   #:display flex
   #:gap 0.375rem
   #:padding (0.625rem 0.75rem)
-  #:border-top (1px solid (apply var --line))
-  #:background (apply color-mix (in srgb) ((apply var --panel) 85%) (apply var --paper))
+  #:border-top (1px solid ,line)
+  #:background (apply color-mix (in srgb) (,panel 85%) ,paper)
   ;; the input row is what the command popover hangs off
   #:position relative)
 
@@ -305,10 +318,10 @@
   #:max-height 14rem
   #:overflow-y auto
   #:overscroll-behavior contain
-  #:border (1px solid (apply var --line))
-  #:border-radius (apply var --radius)
-  #:background (apply var --panel)
-  #:box-shadow (0 -4px 12px (apply color-mix (in srgb) ((apply var --ink) 12%) transparent))
+  #:border (1px solid ,line)
+  #:border-radius ,radius
+  #:background ,panel
+  #:box-shadow (0 -4px 12px (apply color-mix (in srgb) (,ink 12%) transparent))
   [(attribute & hidden) #:display none])
 
 (define-style sf-chat-cmd
@@ -318,25 +331,25 @@
   #:padding (0.25rem 0.5rem)
   #:cursor pointer
   ;; the keyboard's highlight and the mouse's are the same mark
-  [,(sel '& is-picked) (: & hover) #:background (apply var --pill-bg)]
+  [,(sel '& is-picked) (: & hover) #:background ,pill-bg]
   ;; the one you are in already: marked, and not worth clicking
   [(attribute & data-current) #:cursor default])
 
 (define-style sf-chat-cmd-name
   #:flex none
-  #:font-family (apply var --mono)
+  #:font-family ,mono
   #:font-size 0.75rem
-  #:color (apply var --green)
+  #:color ,green
   [(:: ((attribute ,(sel sf-chat-cmd) data-current) &) before)
    #:content "● "
-   #:color (apply var --green)])
+   #:color ,green])
 
 ;; one line per command: the description is context, not the thing being read
 (define-style sf-chat-cmd-desc
   #:flex (1 1 auto)
   #:min-width 0
   #:font-size 0.75rem
-  #:color (apply var --dim)
+  #:color ,dim
   #:overflow hidden
   #:text-overflow ellipsis
   #:white-space nowrap)
@@ -350,7 +363,7 @@
   #:left 0.75rem
   #:right 0.75rem
   #:padding (0.25rem 0)
-  #:box-shadow (0 4px 12px (apply color-mix (in srgb) ((apply var --ink) 12%) transparent))
+  #:box-shadow (0 4px 12px (apply color-mix (in srgb) (,ink 12%) transparent))
   ;; here the TITLE is the thing being read and the timestamp is the context,
   ;; so the two swap roles: the title takes the room and gets cut off, not the
   ;; date
@@ -360,9 +373,9 @@
    #:overflow hidden
    #:text-overflow ellipsis
    #:white-space nowrap
-   #:font-family (apply var --sans)
-   #:color (apply var --ink)]
-  [(& ,(sel sf-chat-cmd-desc)) #:flex none #:font-family (apply var --mono)]
+   #:font-family ,sans
+   #:color ,ink]
+  [(& ,(sel sf-chat-cmd-desc)) #:flex none #:font-family ,mono]
   [(& ,(sel sf-chat-cmd)) #:gap 0.75rem])
 
 ;; The button that opens the same popover, for someone who has not learned the
@@ -377,11 +390,11 @@
   #:flex (1 1 auto)
   #:min-width 0
   #:padding (0.25rem 0.5rem)
-  #:border (1px solid (apply var --line))
-  #:border-radius (apply var --radius)
-  #:background (apply var --paper)
-  #:color (apply var --ink)
-  #:font-family (apply var --sans)
+  #:border (1px solid ,line)
+  #:border-radius ,radius
+  #:background ,paper
+  #:color ,ink
+  #:font-family ,sans
   #:font-size 0.875rem
   [(: & disabled) #:opacity 0.6])
 
@@ -393,10 +406,10 @@
 
 ;; ---- the markup -----------------------------------------------------------
 
-(define tool-glyphs #hash(("completed" . "✓") ("failed" . "✗")))
+(define tool-glyphs (hash tool-completed "✓" tool-failed "✗"))
 
 (define (chat-tool-xexpr t)
-  (define status (chat-string t 'status "pending"))
+  (define status (chat-string t 'status tool-pending))
   `(div ((class ,sf-chat-tool)
          (data-tool-id ,(chat-string t 'id ""))
          (data-status ,status))
@@ -410,14 +423,14 @@
   (if (string? v) v default))
 
 (define (chat-turn-xexpr e)
-  (define status (chat-string e 'status "done"))
+  (define status (chat-string e 'status turn-done))
   (define text (chat-string e 'agent ""))
   (define stop (chat-string e 'stopReason))
   (define err (chat-string e 'error))
   `(div ((class ,sf-chat-turn))
         (div ((class ,(classes sf-chat-msg is-user))) ,(chat-string e 'text ""))
         (div ((class ,(classes sf-chat-msg is-agent)))
-             ,@(if (equal? status "done")
+             ,@(if (equal? status turn-done)
                    (note->xexprs text)
                    (list text)))
         ,@(for/list ([t (in-list (hash-ref e 'tools '()))]
@@ -426,7 +439,7 @@
         ,@(if err
               (list `(div ((class ,(classes sf-chat-msg is-error))) ,err))
               '())
-        ,@(if (and stop (not (equal? stop "end_turn")))
+        ,@(if (and stop (not (equal? stop stop-end-turn)))
               (list `(div ((class ,sf-chat-note)) ,stop))
               '())))
 
@@ -443,6 +456,13 @@
       (chat-marker-xexpr e)))
 
 (define (render-chat-panel transcript
+                           ;; A turn was still running when this page was
+                           ;; rendered: the panel comes up in that state (input
+                           ;; disabled, stop showing) rather than idle. Whether
+                           ;; it is running is the conversation's to say — a
+                           ;; transcript read for it would be a second answer
+                           ;; to a question web/chat already has one for.
+                           #:busy? busy?
                            #:send-href send-href
                            #:new-href new-href
                            #:cancel-href cancel-href
@@ -452,10 +472,6 @@
                            #:model [model #f]
                            #:session-title [session-title #f]
                            #:commands [commands '()])
-  ;; A turn was still running when this page was rendered: the panel comes up
-  ;; in that state (input disabled, stop showing) rather than idle.
-  (define busy?
-    (for/or ([e (in-list transcript)]) (equal? (chat-string e 'status) "running")))
   `(div ((class ,sf-chat-dock))
         (button ((type "button") (class ,sf-chat-open) (data-chat-toggle "")
                  (aria-label "open the agent panel"))

@@ -13,26 +13,27 @@
          racket/set
          racket/string
          olai/web/style
-         olai/web/theme
          ;; the whole skin, in cascade order — the parity and border tests
-         ;; below read the sheet those two modules finish
-         olai/web/render
-         olai/web/chat-panel)
+         ;; below read the sheet it composes
+         olai/web/skin
+         ;; two classes the assertions below name
+         (only-in olai/web/theme sf-body)
+         (only-in olai/web/render web-static-dir))
 
 ;; ---- fixtures -------------------------------------------------------------
 
 (define-modifier is-probe)
 
-(define-style probe-box
+(define-style sf-probe-box
   #:color red
   ;; a nested rule reaching the same class's hover state
   [(: & hover) #:color blue])
 
 (define-component (probe-badge-xexpr text)
-  #:class probe-badge
+  #:class sf-probe-badge
   #:css (#:display inline-flex
          #:border-radius 9999px)
-  `(span ((class ,probe-badge)) ,text))
+  `(span ((class ,sf-probe-badge)) ,text))
 
 ;; The escape hatch, exercised: a raw string goes out verbatim. (Nothing here
 ;; NEEDS one — css-expr spells everything app.css does — but the mechanism
@@ -87,29 +88,29 @@
   ;; ---- identifiers become class names -------------------------------------
 
   (test-case "define-style binds the class-name string, hyphens kept"
-    (check-equal? probe-box "probe-box"))
+    (check-equal? sf-probe-box "sf-probe-box"))
 
   (test-case "define-modifier binds the string and registers no rule"
     (check-equal? is-probe "is-probe")
     (check-false (index-of-substring (stylesheet) ".is-probe{")))
 
   (test-case "define-component binds its class and defines a render function"
-    (check-equal? probe-badge "probe-badge")
-    (check-equal? (probe-badge-xexpr "hi") '(span ((class "probe-badge")) "hi"))
-    (check-true (string-contains? (stylesheet) ".probe-badge{display:inline-flex;")))
+    (check-equal? sf-probe-badge "sf-probe-badge")
+    (check-equal? (probe-badge-xexpr "hi") '(span ((class "sf-probe-badge")) "hi"))
+    (check-true (string-contains? (stylesheet) ".sf-probe-badge{display:inline-flex;")))
 
   ;; ---- selectors ----------------------------------------------------------
 
   (test-case "sel compounds bound class names"
-    (check-equal? (fragment->css (css-expr [,(sel probe-box is-probe) #:color red]))
-                  ".probe-box.is-probe{color:red;}"))
+    (check-equal? (fragment->css (css-expr [,(sel sf-probe-box is-probe) #:color red]))
+                  ".sf-probe-box.is-probe{color:red;}"))
 
   (test-case "sel takes a leading tag"
-    (check-equal? (fragment->css (css-expr [,(sel 'body probe-box) #:margin 0]))
-                  "body.probe-box{margin:0;}"))
+    (check-equal? (fragment->css (css-expr [,(sel 'body sf-probe-box) #:margin 0]))
+                  "body.sf-probe-box{margin:0;}"))
 
   (test-case "sel refuses a tag after a class"
-    (check-exn exn:fail? (lambda () (sel probe-box 'body))))
+    (check-exn exn:fail? (lambda () (sel sf-probe-box 'body))))
 
   ;; The selector the collapsed-parent halo needs: compound, child, descendant
   ;; and a pseudo-element in one breath.
@@ -124,9 +125,9 @@
   ;; ---- fragments ----------------------------------------------------------
 
   (test-case "a css-expr fragment compiles; a nested & rule unnests"
-    (define css (fragment->css (css-expr [(\. probe-box) #:color red
+    (define css (fragment->css (css-expr [(\. sf-probe-box) #:color red
                                           [(: & hover) #:color blue]])))
-    (check-equal? css ".probe-box{color:red;}.probe-box:hover{color:blue;}"))
+    (check-equal? css ".sf-probe-box{color:red;}.sf-probe-box:hover{color:blue;}"))
 
   (test-case "a raw-string fragment passes through verbatim"
     (check-equal? (fragment->css probe-raw) probe-raw)
@@ -137,15 +138,15 @@
   (test-case "require order is cascade order: theme first, then this module"
     (define css (stylesheet))
     (define theme-at (index-of-substring css "--l-paper:"))
-    (define probe-at (index-of-substring css ".probe-box{"))
+    (define probe-at (index-of-substring css ".sf-probe-box{"))
     (check-not-false theme-at css)
     (check-not-false probe-at css)
     (check-true (< theme-at probe-at)))
 
   (test-case "within a module, definition order is preserved"
     (define css (stylesheet))
-    (define box-at (index-of-substring css ".probe-box{"))
-    (define badge-at (index-of-substring css ".probe-badge{"))
+    (define box-at (index-of-substring css ".sf-probe-box{"))
+    (define badge-at (index-of-substring css ".sf-probe-badge{"))
     (define raw-at (index-of-substring css probe-raw))
     (check-not-false box-at css)
     (check-not-false badge-at css)

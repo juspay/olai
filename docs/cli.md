@@ -400,7 +400,7 @@ Routes:
 | `POST /chat/load` | load one of them; form field `id` (missing is `400`). `204` — the reset, the replayed turns and the `session` frame come back over `/events`. `409` while a turn or another load is running, `503` when the agent is gone |
 | `GET /api/tree` | byte-identical to `olai tree` |
 | `GET /api/agenda` | byte-identical to `olai agenda --json` |
-| `GET /static/app.css` | the skin, `text/css`. Generated from the Racket modules that draw the page (`olai/web/theme`, `render`, `chat-panel`), not a file on disk |
+| `GET /static/app.css` | the skin, `text/css`, `Cache-Control: no-cache`. Generated from the Racket modules that draw the page — `olai/web/skin` composes them — not a file on disk. `olai css` prints the same bytes |
 | `GET /static/*` | files under `olai/web/static/` |
 | anything else | `404`, terse `text/plain` |
 
@@ -456,6 +456,12 @@ exist, or a directory holds no top-level `*.rkt`.
 
 There is no static HTML export — `curl http://127.0.0.1:8080/ > snap.html`
 if you want one.
+
+## `css`
+
+The generated stylesheet on stdout — byte for byte what `GET /static/app.css`
+serves, composed by `olai/web/skin` out of the modules that draw the page. No
+`--json`: CSS is the output. Exit 0.
 
 ## `add [--json] [--file F] [--date ISO] [--description TEXT] [--parent TITLE|^anchor] [--no-commit] TITLE...`
 

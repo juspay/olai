@@ -13,7 +13,7 @@
 ;;   POST /chat/load    load one of them (form field `id`) -> 204
 ;;   GET  /api/tree     byte-identical to `olai tree`
 ;;   GET  /api/agenda   byte-identical to `olai agenda --json`
-;;   GET  /static/app.css  the generated stylesheet (olai/web/style)
+;;   GET  /static/app.css  the generated stylesheet (olai/web/skin)
 ;;   GET  /static/*     files from web/static/
 ;;   anything else      404, terse text/plain
 ;;
@@ -61,14 +61,10 @@
          olai/store
          olai/web/chat
          olai/web/events
-         ;; The skin is assembled by requiring it, in cascade order: render
-         ;; pulls theme (tokens, base rules) and then draws the outline;
-         ;; chat-panel pulls render and lands on top of it. `stylesheet` is
-         ;; whatever those modules registered, which is why this module
-         ;; requires the panel even though only the panel's renderer is used.
+         ;; the sheet and its URL; which modules it is made of is skin's
+         olai/web/skin
          olai/web/render
-         olai/web/chat-panel
-         (only-in olai/web/style stylesheet)
+         (only-in olai/web/chat-panel render-chat-panel)
          olai/web/watch)
 
 (provide start-server)
@@ -99,9 +95,13 @@
 ;; built once, on the first request that asks for it.
 (define the-stylesheet (delay (stylesheet)))
 
+;; no-cache is not "do not cache": it is "ask first". The sheet changes when
+;; the Racket modules do, which a URL that never moves cannot say, so a browser
+;; that kept a copy has to revalidate before it trusts it.
 (define (css-response)
   (response/output
    (λ (out) (write-string (force the-stylesheet) out))
+   #:headers (list (make-header #"Cache-Control" #"no-cache"))
    #:mime-type #"text/css; charset=utf-8"))
 
 (define (text-response str #:code [code 200])
@@ -154,6 +154,7 @@
    (page->html-string
     (render-page (render-empty-pane "No outline loaded." #:home-href home-href)
                  #:title "olai"
+                 #:stylesheet-href stylesheet-href
                  #:banner (error-banner err)
                  #:sse-connect events-href
                  #:live-href live-href
@@ -196,6 +197,7 @@
 (define (chat-panel agent)
   (and agent
        (render-chat-panel (chat-transcript agent)
+                          #:busy? (chat-busy? agent)
                           #:send-href chat-href
                           #:new-href chat-new-href
                           #:cancel-href chat-cancel-href
@@ -289,6 +291,7 @@
    (page->html-string
     (render-page main
                  #:title title
+                 #:stylesheet-href stylesheet-href
                  #:sidebar (render-sidebar files-data
                                            #:home-href home-href
                                            #:today-href today-href
@@ -381,15 +384,12 @@
       (with-handlers ([exn:fail? (λ (_e) (next-dispatcher))])
         (u->p (struct-copy url u [path rest]))))))
 
-;; The stylesheet the page links is generated, not a file. It keeps the URL it
-;; always had — one <link>, one cacheable name — and wins it ahead of the
-;; static directory, which no longer holds an app.css to serve.
-(define stylesheet-path
-  (string-append web-static-prefix (car web-stylesheets)))
-
+;; The stylesheet the page links is generated, not a file (olai/web/skin owns
+;; the URL). It wins that path ahead of the static directory, which no longer
+;; holds an app.css to serve.
 (define (make-dispatcher st hub agent)
   (sequencer:make
-   (filter:make (regexp (string-append "^" (regexp-quote stylesheet-path) "$"))
+   (filter:make (regexp (string-append "^" (regexp-quote stylesheet-href) "$"))
                 (lift:make (λ (req) (css-response))))
    (filter:make (regexp (string-append "^" (regexp-quote web-static-prefix)))
                 (files:make #:url->path static-url->path

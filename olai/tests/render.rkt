@@ -383,6 +383,7 @@
     (define fd (files (list "Tasks.rkt" (list (tk "Milk" #f #f '())))))
     (define s (xstr (render-page (render-outline fd #:today "2026-08-04")
                                  #:title "olai"
+                                 #:stylesheet-href "/static/app.css"
                                  #:sidebar (render-sidebar fd #:home-href "/"
                                                            #:today-href "/today"))))
     (check-true (string-contains? s "<title>olai</title>") s)
@@ -439,8 +440,9 @@
           'status status 'stopReason stop 'error err))
 
   (define (panel transcript #:model [model #f] #:commands [commands '()]
-                 #:session-title [session-title #f])
+                 #:session-title [session-title #f] #:busy? [busy? #f])
     (xstr (render-chat-panel transcript
+                             #:busy? busy?
                              #:send-href "/chat"
                              #:new-href "/chat/new"
                              #:cancel-href "/chat/cancel"
@@ -498,7 +500,8 @@
 
   (test-case "a running turn comes up busy, with its text still verbatim"
     (define s (panel (list (turn "go" "half a **sent"
-                                 #:status "running" #:stop (json-null)))))
+                                 #:status "running" #:stop (json-null)))
+                     #:busy? #t))
     (check-true (string-contains? s "sf-chat is-busy") s)
     ;; an open panel hides the toggle that breathes, so the header carries the
     ;; working dot — drawn either way, and shown by that is-busy class
