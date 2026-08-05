@@ -101,46 +101,40 @@
     (void)))
 
 (define (watch-loop st on-change stopped debounce poll armed)
-  (let loop ([armed armed])
+  (let loop ([armed armed] [warned-unsupported? #f])
     (define evts (map dir-change-evt (watch-dirs st)))
     (define live (filter evt? evts))
+    (define unsupported? (memq 'unsupported evts))
+    (when (and unsupported? (not warned-unsupported?))
+      (eprintf "olai: filesystem-change-evt unsupported here; polling every ~as\n"
+               poll))
     (when armed (semaphore-post armed))
+    ;; Always arm a poll tick alongside any live change-evts. On some Darwin
+    ;; setups (and network mounts) filesystem-change-evt returns an evt that
+    ;; never fires instead of raising unsupported — without a tick the loop
+    ;; would sleep until midnight and miss every save. The store probe is
+    ;; cheap; reloaded? is the arbiter either way.
+    (define midnight (midnight-evt))
+    (define tick (tick-evt poll))
+    (define woke
+      (if unsupported?
+          (sync stopped midnight tick)
+          (apply sync stopped midnight tick live)))
+    (cancel-all live)
     (cond
-      ;; Exotic filesystems (some network mounts, some sandboxes) have no
-      ;; change notification at all. Say so once, then poll.
-      [(memq 'unsupported evts)
-       (cancel-all evts)
-       (eprintf "olai: filesystem-change-evt unsupported here; polling every ~as\n"
-                poll)
-       (poll-loop st on-change stopped poll)]
+      [(eq? woke stopped) (void)]
+      ;; The day rolled over. Nothing on disk moved, so the store has
+      ;; nothing to say — but `today` is a render-time argument, and the
+      ;; page holding yesterday's is the whole reason for this alarm.
+      [(eq? woke midnight)
+       (on-change)
+       (loop #f (or warned-unsupported? unsupported?))]
       [else
-       (define midnight (midnight-evt))
-       ;; Nothing watchable yet (the outline's directory does not exist):
-       ;; tick instead of blocking forever on the two alarms.
-       (define tick (and (null? live) (tick-evt poll)))
-       (define woke (apply sync stopped midnight (if tick (list tick) live)))
-       (cancel-all live)
-       (cond
-         [(eq? woke stopped) (void)]
-         ;; The day rolled over. Nothing on disk moved, so the store has
-         ;; nothing to say — but `today` is a render-time argument, and the
-         ;; page holding yesterday's is the whole reason for this alarm.
-         [(eq? woke midnight) (on-change) (loop #f)]
-         [else
-          ;; One atomic save is a flurry of directory events; let it end.
-          (sleep debounce)
-          (when (reloaded? st) (on-change))
-          (loop #f)])])))
-
-;; store-invalidate! already probes mtime + size cheaply, so polling is just
-;; that probe on a timer; the revision says whether it actually reloaded.
-(define (poll-loop st on-change stopped poll)
-  (let loop ()
-    (cond
-      [(sync/timeout poll stopped) (void)]
-      [else
+       ;; One atomic save is a flurry of directory events; let it end.
+       ;; Poll ticks skip the debounce — they are already spaced by `poll`.
+       (unless (eq? woke tick) (sleep debounce))
        (when (reloaded? st) (on-change))
-       (loop)])))
+       (loop #f (or warned-unsupported? unsupported?))])))
 
 ;; Directory events are not outline events: a lock file, an editor's swap
 ;; file, a Dropbox conflict copy all land in the same directory, and firing
