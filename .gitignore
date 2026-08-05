@@ -28,3 +28,5 @@ compiled/
 
 # Agent scratch worktrees
 /.claude/
+
+/.worktrees
