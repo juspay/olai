@@ -11,14 +11,14 @@ tree and no static HTML export. Agents use `tree` / `check` / `agenda --json`.
 | Code | Meaning |
 |------|---------|
 | 0 | success |
-| 1 | usage: bad flags, missing TITLE, a `--date` / `--month` / `--port` that is not the shape it says |
+| 1 | usage: unknown command, bad flags, missing TITLE, a malformed `--date` / `--month` / `--port` |
 | 2 | the outline said no: load or validation error, no such task, ambiguous title, already done, a write aimed at a `#lang selfflowy/sexp` file |
 | 3 | file not found |
 
 Same codes for plain and `--json` modes. The write commands know nothing about
 exit codes: an op (`selfflowy/ops`) fails with a KIND — usage, validation,
-not-found — and the CLI maps the kind to the code above. New kinds, not new
-codes, are how that grows.
+not-found — and the CLI maps the kind to a code. The codes are the contract;
+the kinds are how the layer below talks about failure.
 
 ## Global
 
