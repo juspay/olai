@@ -37,5 +37,8 @@ jobs:
       - name: Smoke-check the built CLI
         run: ./result/bin/olai check examples/Example.rkt Roadmap.rkt
 
-      - name: Test
+      - name: Unit tests
         run: nix develop -c just test
+
+      - name: Integration tests
+        run: nix develop -c just test-integration

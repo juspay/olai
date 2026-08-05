@@ -1,6 +1,6 @@
-# `./examples/Example.rkt` and `./olai/tests/fake-acp-agent.rkt` used to
-# be relative paths in flake.nix, resolving from the repo root. Moved here
-# verbatim they'd resolve from nix/ instead (nix/examples, nix/olai/...),
+# `./examples/Example.rkt` and `./olai/tests/integration/fake-acp-agent.rkt`
+# used to be relative paths in flake.nix, resolving from the repo root. Moved
+# here verbatim they'd resolve from nix/ instead (nix/examples, nix/olai/...),
 # which don't exist — so the flake passes the two repo paths in as arguments
 # (`exampleOutline`, `fakeAcpAgentSrc`) instead of this file spelling them out.
 { runCommand, olai, racket, curl, tzdata, exampleOutline, fakeAcpAgentSrc }:

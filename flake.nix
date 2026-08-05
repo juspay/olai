@@ -107,7 +107,7 @@
         smoke = pkgs.callPackage ./nix/smoke.nix {
           olai = self.packages.${system}.olai;
           exampleOutline = ./examples/Example.rkt;
-          fakeAcpAgentSrc = ./olai/tests/fake-acp-agent.rkt;
+          fakeAcpAgentSrc = ./olai/tests/integration/fake-acp-agent.rkt;
         };
       });
     };

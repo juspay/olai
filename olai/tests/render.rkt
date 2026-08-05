@@ -426,8 +426,8 @@
   ;; ---- chat panel ----------------------------------------------------------
   ;;
   ;; The panel is rendered from the bridge's transcript (jsexprs; see
-  ;; tests/acp.rkt for the real ones). Hand-built here so the drawing is the
-  ;; only thing under test.
+  ;; tests/integration/acp.rkt for the real ones). Hand-built here so the
+  ;; drawing is the only thing under test.
 
   (define (turn text agent
                 #:tools [tools '()] #:status [status "done"]

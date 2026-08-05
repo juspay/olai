@@ -197,8 +197,8 @@
          (check-false (string-contains? body "#lang") body)))))
 
   ;; This server has no agent (the CLI refuses to start one that way; see
-  ;; tests/acp.rkt for the wired-up chat routes). Everything chat says so
-  ;; rather than pretending: no panel on the page, 503 on the routes.
+  ;; tests/integration/acp.rkt for the wired-up chat routes). Everything chat
+  ;; says so rather than pretending: no panel on the page, 503 on the routes.
   (test-case "without an agent there is no panel, and the chat routes are 503"
     (with-server
      (λ (port f)
