@@ -3,14 +3,16 @@
 export PLTUSERHOME := env_var_or_default("PLTUSERHOME", justfile_directory() / ".plt-user")
 export PATH := PLTUSERHOME / ".local/share/racket/9.2/bin:" + env_var("PATH")
 
-# Personal outline data (outside the repo). Override with OLAI_HOME.
-# The default follows the user's data dir, which the rebrand did not move.
-olai_home := env_var_or_default("OLAI_HOME", env_var("HOME") + "/Dropbox/Selfflowy-Srid")
+# Personal outline data lives outside the repo: set OLAI_HOME to it. Unset,
+# the read recipes fall back to the repo's own outlines and the write ones
+# (add/done/move/daily) let olai say what is missing.
+olai_home := env_var_or_default("OLAI_HOME", "")
 
 # Top-level *.rkt in $OLAI_HOME are roots (Tasks, Daily, a Roadmap
 # @include, ...); include fragments live in subdirectories (Daily/), so the
 # glob never double-loads.
-default_outlines := olai_home + "/*.rkt"
+repo_outlines := "examples/Example.rkt Roadmap.rkt"
+default_outlines := if olai_home == "" { repo_outlines } else { olai_home + "/*.rkt" }
 
 default:
     @just --list
@@ -21,7 +23,7 @@ install:
     raco pkg install --auto --skip-installed gregor markdown css-expr
     raco pkg install --auto --skip-installed --link {{justfile_directory()}}/olai
 
-# Validate outline(s) (default: $OLAI_HOME/*.rkt)
+# Validate outline(s) (default: $OLAI_HOME/*.rkt, else the repo's own)
 check *args: install
     olai check {{if args == "" { default_outlines } else { args }}}
 
@@ -75,14 +77,14 @@ move *args: install
 daily *args: install
     olai daily {{args}}
 
-# serve takes the DIRECTORY, not the glob: it globs the top level itself, and
-# the agent then works in $OLAI_HOME (which is what makes its stored
-# sessions survive a restart). OLAI_ACP_AGENT comes from the nix dev
-# shell; serve will not start without it, so export it yourself outside
-# `nix develop`.
-# Serve the web view (default: $OLAI_HOME on 127.0.0.1:8080)
+# With OLAI_HOME set, serve takes the DIRECTORY, not the glob: it globs the
+# top level itself, and the agent then works in $OLAI_HOME (which is what makes
+# its stored sessions survive a restart). Unset, it serves the repo's own two
+# files by name. OLAI_ACP_AGENT comes from the nix dev shell; serve will not
+# start without it, so export it yourself outside `nix develop`.
+# Serve the web view (default: $OLAI_HOME, else the repo's own, on 127.0.0.1:8080)
 serve *args: install
-    olai serve {{if args == "" { olai_home } else { args }}}
+    olai serve {{if args != "" { args } else if olai_home != "" { olai_home } else { repo_outlines } }}
 
 # The server is how you run olai; it reloads an outline when it changes.
 alias run := serve

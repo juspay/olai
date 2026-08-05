@@ -6,12 +6,12 @@ Read README.md and docs/*.md first. This file is only what you can't infer.
 
 * If your model is Fable, a) use subagents for implementation (typically
   Opus), b) reserve Fable only where truly necessary.
-* Personal outline DATA lives outside the repo: `$OLAI_HOME` (default
-  `~/Dropbox/Selfflowy-Srid/`) — `Tasks.rkt`, `Daily.rkt` (+ `Daily/`).
-  NEVER commit or invent content for these; user-owned, re-validate after
-  edits. `examples/` is demo fiction for CI, never Dropbox paths.
-  `Roadmap.rkt` is public, at repo root, committed and re-validated like
-  any file — the author's `Tasks.rkt` `@include`s it.
+* Personal outline DATA lives outside the repo, in `$OLAI_HOME` —
+  `Tasks.rkt`, `Daily.rkt` (+ `Daily/`). No default path: unset is a usage
+  error, and the repo never names anyone's data dir. NEVER commit or invent
+  content for these; user-owned, re-validate after edits. `examples/` is demo
+  fiction for CI. `Roadmap.rkt` is public, at repo root, committed and
+  re-validated like any file — a private `Tasks.rkt` may `@include` it.
 * No hand-rolling where a maintained library exists. In use: racket/cmdline,
   json (write-json/read-json), xml (xexprs), gregor (dates), markdown
   (title/note formatting in the web view only).

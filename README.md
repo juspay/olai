@@ -69,7 +69,7 @@ Under the hood every outline becomes s-expressions. Same expander:
 
 ```text
 $OLAI_HOME/*.rkt                 <- personal data (#lang olai)
-(default: ~/Dropbox/Selfflowy-Srid/)
+(your outline dir; unset -> the repo's examples/ + Roadmap.rkt)
     |                                 ^
     v                                 | edits your files
 olai CLI (Racket)                     |   <- validate / query / capture
@@ -83,7 +83,9 @@ racket web-server --- spawns ---> ACP agent (Claude Code; JSON-RPC on stdio)
 ```
 
 Personal outlines are plain files you sync however you like (Dropbox,
-git, rsync). The repo holds the tool; your data stays outside it.
+git, rsync). The repo holds the tool; your data stays outside it — point
+`OLAI_HOME` at that directory. Without it the repo serves its own
+`examples/` plus `Roadmap.rkt`, and the write commands ask you to set it.
 `add` / `done` / `move` / `daily` auto-commit only when the written
 file's dir is a git work tree; otherwise they write the file and leave
 history to your sync layer.
@@ -123,7 +125,7 @@ author does. Repo demos live in `examples/` (see `examples/Daily.rkt` for
 ```bash
 nix develop        # racket 9.2 + just; or install them yourself
 just install       # gregor + markdown, then --link olai/
-just check         # validates $OLAI_HOME/*.rkt
+just check         # validates $OLAI_HOME/*.rkt (unset: examples + Roadmap)
 just tree examples/Example.rkt   # JSON forest for agents
 just serve                       # $OLAI_HOME on http://127.0.0.1:8080
 just agenda
@@ -136,8 +138,9 @@ just css-classes                 # regenerate olai/tests/classes.golden
 ```
 
 `olai serve DIR` serves `DIR/*.rkt` and runs the agent in `DIR`
-(default: `$PWD`; `just serve` passes `$OLAI_HOME`). Naming files
-instead still works — see docs/cli.md.
+(default: `$PWD`; `just serve` passes `$OLAI_HOME`, or names the repo's
+own outlines when it is unset). Naming files instead still works — see
+docs/cli.md.
 
 `serve` refuses to start without `OLAI_ACP_AGENT` — the path to an
 executable speaking the Agent Client Protocol. The Nix package defaults it

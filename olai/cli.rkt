@@ -31,18 +31,23 @@
 (define exit-validation 2)
 (define exit-not-found 3)
 
-;; Personal outline data lives outside the repo (Dropbox by default).
-;; Override with OLAI_HOME. Auto-commit only fires when that dir is
-;; a git work tree; Dropbox alone is the sync layer (no-op otherwise).
-;; The default path still spells the old name: it follows the user's
-;; data dir, which this rebrand deliberately did not move.
+;; Personal outline data lives outside the repo; OLAI_HOME names the directory.
+;; There is no default — the tool does not guess where your notes are — so an
+;; unset OLAI_HOME is a usage error (kind 'usage, like any other op failure),
+;; raised only when a command actually needs the home. Auto-commit fires when
+;; that dir is a git work tree; otherwise your sync layer is the history.
 (define (olai-home)
   (define env (getenv "OLAI_HOME"))
-  (if (and env (non-empty-string? env))
-      (expand-user-path env)
-      (build-path (expand-user-path "~") "Dropbox" "Selfflowy-Srid")))
+  (unless (and env (non-empty-string? env))
+    (raise (exn:fail:op
+            (string-append
+             "OLAI_HOME is not set; set it to your outline directory, "
+             "or name the outline explicitly (a path argument, --file, --home)")
+            (current-continuation-marks)
+            'usage #f #f #f)))
+  (expand-user-path env))
 
-(define default-file
+(define (default-file)
   (path->string (build-path (olai-home) "Tasks.rkt")))
 
 (define (die code msg #:json? json? #:file [file #f] #:line [line #f] #:col [col #f])
@@ -60,9 +65,10 @@
          #:file path))
   path)
 
-;; Resolve zero-or-more path args; empty => default Tasks.rkt.
+;; Resolve zero-or-more path args; empty => $OLAI_HOME/Tasks.rkt (run-op so an
+;; unset home dies as the usage error it is, in the mode asked for).
 (define (resolve-files file-args json?)
-  (define raw (if (null? file-args) (list default-file) file-args))
+  (define raw (if (null? file-args) (list (run-op json? default-file)) file-args))
   (map (λ (p) (resolve-path p json?)) raw))
 
 (define (load-outline path json?)
@@ -243,7 +249,7 @@
   (define r
     (run-op json?
             (λ ()
-              (ops-add! (or file-arg default-file) title
+              (ops-add! (or file-arg (default-file)) title
                         #:date date
                         #:description desc
                         #:parent parent
@@ -272,7 +278,7 @@
   (define r
     (run-op json?
             (λ ()
-              (ops-done! (or file-arg default-file) spec (today-iso)
+              (ops-done! (or file-arg (default-file)) spec (today-iso)
                          #:undo? undo?
                          #:commit? (not no-commit?)))))
   (if json?
@@ -297,7 +303,7 @@
   (define r
     (run-op json?
             (λ ()
-              (ops-move! (or file-arg default-file) spec date-arg
+              (ops-move! (or file-arg (default-file)) spec date-arg
                          #:clear? clear?
                          #:commit? (not no-commit?)))))
   (if json?
@@ -436,7 +442,7 @@
   (eprintf "usage: olai <command> [options] ...\n")
   (eprintf "\n")
   (eprintf "commands:\n")
-  (eprintf "  check    [--json] [file ...]  validate outline(s) (default: ~a)\n" default-file)
+  (eprintf "  check    [--json] [file ...]  validate outline(s) (default: $OLAI_HOME/Tasks.rkt)\n")
   (eprintf "  tree     [--json] [file ...]  outline(s) as JSON (human view: web)\n")
   (eprintf "  agenda   [--json] [file ...]  OVERDUE / TODAY / UPCOMING (merged)\n")
   (eprintf "  calendar [--json] [--month YYYY-MM] [file ...]  days with dated items\n")
