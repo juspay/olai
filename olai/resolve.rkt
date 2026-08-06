@@ -17,10 +17,12 @@
          (only-in olai/lang/walk find-task-by-id find-tasks-by-title)
          olai/fail
          olai/load
-         olai/meta)
+         olai/meta
+         (only-in olai/paths dir-roots))
 
 (provide (struct-out located)
-         locate)
+         locate
+         resolution-outline)
 
 ;; file  : path of the file that DEFINES the node (what a write must edit)
 ;; index : 0-based index of its title line in that file
@@ -49,6 +51,46 @@
   (match (parse-title-or-anchor spec)
     [(cons 'anchor a) (find-anchor-matches text a)]
     [(cons 'title t) (find-title-matches text t)]))
+
+;; ---- which outline a spec is resolved against ------------------------------
+;;
+;; A write names ONE file (--file, or the default), and that file is what a
+;; TITLE is looked up in: a title is text, and its scope has always been the
+;; outline you pointed at. An `^anchor` is not text but a NAME, and since the
+;; linker its scope is the loaded set (olai/lang/link) — so `*meeting-prep` in
+;; Daily.rkt and the `^meeting-prep` Tasks.rkt defines are one node, and
+;; checking it off from either side has to reach the file that defines it.
+;;
+;; So: the targeted outline, unless the spec is an anchor that outline cannot
+;; see — then the sibling root that declares it. `locate` does the rest
+;; unchanged; it already writes to a node's own `task-file`, which is the same
+;; routing @include has always had.
+(define (resolution-outline out spec)
+  (define a (anchor-spec spec))
+  (cond
+    [(or (not a) (hash-ref (outline-anchors out) a #f)) out]
+    [else (or (sibling-declaring out a) out)]))
+
+;; The anchor a spec names, or #f when it names a title.
+(define (anchor-spec spec)
+  (match (parse-title-or-anchor spec)
+    [(cons 'anchor a) a]
+    [_ #f]))
+
+;; The other roots in this outline's directory, as `serve` globs them: top
+;; level only, so @include fragments (which live in subdirectories) are not
+;; loaded twice.
+;;
+;; A sibling that does not load is simply not consulted. It is not the file
+;; being written, and one broken outline must not stop every write to the
+;; others — the file under the pen is still validated, before and after, like
+;; any other write.
+(define (sibling-declaring out a)
+  (define self (simple-form-path (outline-path out)))
+  (for/or ([p (in-list (dir-roots (path-only self)))]
+           #:unless (equal? p self))
+    (define r (try-load-outline p))
+    (and (outline? r) (hash-ref (outline-anchors r) a #f) r)))
 
 ;; -> located; raises exn:fail naming file:line for every candidate when the
 ;; spec does not pick out exactly one node.

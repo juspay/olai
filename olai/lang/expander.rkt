@@ -68,7 +68,7 @@
          title-tags
          tag-rx
          valid-anchor-id?
-         validate-task-tree!
+         check-task-graph
          #%app #%datum #%top #%top-interaction
          quote)
 
@@ -340,16 +340,21 @@
 
   (define (validate-body-forms stxs)
     (define irs (map syntax->ir stxs))
-    ;; When this module uses @include, cross-file anchors resolve only after
-    ;; the splice — the whole tree is checked at run time instead (same rules,
-    ;; same messages, srclocs carried on the nodes).
+    ;; When this module uses @include, its own anchors are not all here yet —
+    ;; the spliced tree is checked at run time instead (same rules, same
+    ;; messages, srclocs carried on the nodes).
+    ;;
+    ;; #:scope #f either way: a module does not know which files it will be
+    ;; loaded beside, so a *mirror it cannot resolve is not yet wrong. The
+    ;; linker (lang/link) is the pass that can see them all, and it owns that
+    ;; rule.
     (unless (any-include? irs)
       (check-anchor-graph
        irs
        #:id (λ (ir) (and (ir-task? ir) (ir-task-id ir)))
        #:kids (λ (ir) (if (ir-task? ir) (ir-task-kids ir) '()))
        #:mirror (λ (ir) (and (ir-mirror? ir) (ir-mirror-anchor ir)))
-       #:scope "this file"
+       #:scope #f
        #:describe ir-loc
        #:fail (λ (who ir msg)
                 (raise-syntax-error who msg (and ir (ir-stx ir))))))
@@ -424,14 +429,17 @@
       [else '()]))
   (append* (map walk tasks)))
 
-;; Full-tree validation after includes splice — the same three rules the
-;; compile-time pass applies, over tasks instead of syntax. A node carries
-;; the srcloc of the form that defined it, so an error here says
-;; file:line:col even though nothing syntactic is left.
+;; Validation over TASKS instead of syntax — the same rules, and the only
+;; shape left once @include has spliced or once several files are held side by
+;; side. A node carries the srcloc of the form that defined it, so an error
+;; here says file:line:col even though nothing syntactic is left.
 ;;
 ;; It raises exn:fail:syntax, which is not a lie: this IS the language
 ;; rejecting a form, and it is what makes olai/load report the location
 ;; in the same fields as any other read/expand error.
+;;
+;; Exported because the LINKER runs it over the whole loaded set (lang/link),
+;; which is the same check with the scope closed.
 (define (loc->syntax loc)
   (and loc
        (datum->syntax #f 'olai
@@ -456,13 +464,13 @@
     [(mirror-ref? x) (mirror-ref-loc x)]
     [else #f]))
 
-(define (validate-task-tree! tasks)
+(define (check-task-graph tasks #:scope [scope #f])
   (check-anchor-graph
    tasks
    #:id (λ (x) (and (task? x) (task-id x)))
    #:kids (λ (x) (if (task? x) (task-children x) '()))
    #:mirror (λ (x) (and (mirror-ref? x) (mirror-ref-anchor x)))
-   #:scope "this tree"
+   #:scope scope
    #:describe (λ (x) (loc->string (node-loc x)))
    #:fail
    (λ (who x msg)
@@ -475,7 +483,7 @@
 (define (finalize-tasks forms src)
   (define includes (collect-include-paths forms))
   (define flat (flatten-tree forms))
-  (validate-task-tree! flat)
+  (check-task-graph flat)
   (values flat includes))
 
 (define (build-anchors-hash tasks)

@@ -93,23 +93,64 @@
   (define-values (tasks _anchors _includes) (load-outline path json?))
   tasks)
 
+;; The files as a linked SET — which is what the read commands are given, and
+;; what an anchor's scope is (olai/lang/link). A set that does not link is a
+;; failure of the same kind as a file that does not parse, so it dies the same
+;; way, at the file:line:col of the form that broke it.
+(define (link-or-die paths json?)
+  (define outs
+    (for/list ([path (in-list paths)])
+      (define-values (tasks anchors includes) (load-outline path json?))
+      (outline path tasks anchors includes)))
+  (define lk (link-outlines outs))
+  (when (load-error? lk)
+    (die exit-validation
+         (if json?
+             (load-error-message lk)
+             (format "failed to load ~a\n~a"
+                     (or (load-error-where lk) "the outlines")
+                     (load-error-message lk)))
+         #:json? json?
+         #:file (load-error-file lk)
+         #:line (load-error-line lk)
+         #:col (load-error-col lk)))
+  lk)
+
+;; What a query reads: one (file . tasks) per outline, linked first so a
+;; dangling `*anchor` is heard about here rather than drawn as a hole.
+(define (linked-file-entries paths json?)
+  (for/list ([o (in-list (linked-outlines (link-or-die paths json?)))])
+    (cons (outline-path o) (outline-tasks o))))
+
 (define (today-iso)
   (today-iso-string))
 
 (define (cmd-check paths)
+  (define loaded
+    (for/list ([path (in-list paths)]) (cons path (try-load-outline path))))
   (define results
-    (for/list ([path (in-list paths)])
-      (match (try-load-outline path)
+    (for/list ([e (in-list loaded)])
+      (match (cdr e)
         [(outline _p tasks anchors includes)
-         (list 'ok path
+         (list 'ok (car e)
                (count-tasks tasks)
                (hash-count anchors)
                (count-mirrors tasks)
                includes)]
         [(load-error msg src line col)
-         (list 'error path msg src line col)])))
+         (list 'error (car e) msg src line col)])))
   (define any-bad?
     (for/or ([r (in-list results)]) (eq? (first r) 'error)))
+  ;; Every file may parse and the SET still not link: a `*mirror` naming
+  ;; nothing anywhere, an `^anchor` two of them declare. That failure belongs
+  ;; to no single file, so in the multi-file shape it is the reply's own
+  ;; `error` (with the file:line:col of the offending form, as always) rather
+  ;; than a per-file verdict. Only asked when every file loaded — linking a
+  ;; half-loaded set would answer about a set nobody has.
+  (define link-err
+    (and (not any-bad?)
+         (let ([lk (link-outlines (map cdr loaded))])
+           (and (load-error? lk) lk))))
   ;; The @include list rides along only when the file has one — an absent key
   ;; and an empty list are not the same answer.
   (define (with-includes h includes)
@@ -117,10 +158,21 @@
         h
         (hash-set h 'includes
                   (for/list ([p (in-list includes)]) (hash 'file p)))))
+  ;; A load-error, as the object every JSON reply carries one in.
+  (define (error-hash msg src line col)
+    (hash 'file (nullish (and src (if (path? src) (path->string src) src)))
+          'line (nullish line)
+          'col (nullish col)
+          'message msg))
   (cond
     [(= (length paths) 1)
      (match (first results)
        [(list 'ok path n ac mc includes)
+        (when link-err
+          (die exit-validation (load-error-message link-err) #:json? #t
+               #:file (load-error-file link-err)
+               #:line (load-error-line link-err)
+               #:col (load-error-col link-err)))
         (write-json-stdout
          (with-includes (ok-hash 'file (path->string path)
                                  'tasks n
@@ -143,39 +195,32 @@
            [(list 'error path msg src line col)
             (hash 'file (path->string path)
                   'ok #f
-                  'error (hash 'file (nullish (and src
-                                                   (if (path? src)
-                                                       (path->string src)
-                                                       src)))
-                               'line (nullish line)
-                               'col (nullish col)
-                               'message msg))])))
+                  'error (error-hash msg src line col))])))
+     (define reply
+       (hash 'version json-reply-version
+             'ok (and (not any-bad?) (not link-err))
+             'files files))
      (write-json-stdout
-      (hash 'version json-reply-version
-            'ok (not any-bad?)
-            'files files))
-     (when any-bad? (exit exit-validation))]))
+      (if link-err
+          (hash-set reply 'error
+                    (error-hash (load-error-message link-err)
+                                (load-error-file link-err)
+                                (load-error-line link-err)
+                                (load-error-col link-err)))
+          reply))
+     (when (or any-bad? link-err) (exit exit-validation))]))
 
 (define (cmd-tree paths)
-  (define entries
-    (mint-outline-keys
-     (for/list ([path (in-list paths)])
-       (define-values (tasks anchors includes) (load-outline path #t))
-       (outline path tasks anchors includes))))
-  (write-json-stdout (outlines->jsexpr entries)))
+  (write-json-stdout (linked->jsexpr (link-or-die paths #t))))
 
 (define (cmd-agenda paths)
-  (define entries
-    (for/list ([path (in-list paths)])
-      (cons path (load-tasks path #t))))
+  (define entries (linked-file-entries paths #t))
   (define today (today-iso))
   (write-json-stdout
    (agenda-groups->jsexpr (agenda-groups-from-files entries today) today)))
 
 (define (cmd-calendar paths month)
-  (define entries
-    (for/list ([path (in-list paths)])
-      (cons path (load-tasks path #t))))
+  (define entries (linked-file-entries paths #t))
   (define ym (or month (substring (today-iso) 0 7)))
   (define-values (y m) (parse-year-month ym))
   (unless y
@@ -287,10 +332,7 @@
             'committed (daily-result-committed? r))))
 
 (define (cmd-ics paths out-path)
-  (define entries
-    (for/list ([path (in-list paths)])
-      (cons path (load-tasks path #f))))
-  (define ics (tasks->ics entries))
+  (define ics (tasks->ics (linked-file-entries paths #f)))
   (cond
     [out-path
      (display-to-file ics out-path #:exists 'truncate/replace)

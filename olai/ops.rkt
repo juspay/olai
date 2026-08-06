@@ -123,6 +123,13 @@
              (load-error-message r)))
   r)
 
+;; Where the node a command named actually is. The file it targeted answers
+;; for a title; an `^anchor` is a name the whole loaded set shares, so the
+;; answer may come from the file that DECLARES it — and the write lands there
+;; (olai/resolve), the same routing @include has always had.
+(define (locate-in-set root-path spec)
+  (locate (resolution-outline (load-outline-or-fail root-path) spec) spec))
+
 (define (existing-file path)
   (define full (simple-form-path (path->complete-path path)))
   (unless (file-exists? full)
@@ -151,8 +158,7 @@
     (cond
       [(and parent (regexp-match? #px"^\\^[A-Za-z0-9_-]+$" (string-trim parent)))
        (as-validation root-path
-                      (λ () (located-file
-                             (locate (load-outline-or-fail root-path) parent))))]
+                      (λ () (located-file (locate-in-set root-path parent))))]
       [else root-path]))
   (define original
     (if (file-exists? path) (file->string path) "#lang olai\n"))
@@ -199,8 +205,7 @@
   (define ops (hash-ref marks state))
   (define root-path (existing-file file))
   (define hit
-    (as-validation root-path
-                   (λ () (locate (load-outline-or-fail root-path) spec))))
+    (as-validation root-path (λ () (locate-in-set root-path spec))))
   (define path (located-file hit))
   (define title (located-title hit))
   (define at (located-index hit))
@@ -230,8 +235,7 @@
     (op-fail 'usage "move requires DATE (YYYY-MM-DD[THH:MM[:SS]]) or --clear"))
   (define root-path (existing-file file))
   (define hit
-    (as-validation root-path
-                   (λ () (locate (load-outline-or-fail root-path) spec))))
+    (as-validation root-path (λ () (locate-in-set root-path spec))))
   (define path (located-file hit))
   (define at (located-index hit))
   (define original (file->string path))

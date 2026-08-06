@@ -32,7 +32,7 @@
          valid-anchor-id?
          find-task-by-id
          find-tasks-by-title
-         validate-task-tree!
+         check-task-graph
          (struct-out agenda-item)
          collect-agenda
          agenda-groups

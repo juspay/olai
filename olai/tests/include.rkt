@@ -127,17 +127,7 @@
          (check-true (load-error? r) (format "~a" r))
          (values (or (load-error-where r) "") (load-error-message r)))
 
-       ;; unknown mirror: the *site* is in the root, under an @include
        (write-outline dir "frag.rkt" "#lang olai\nWork ^agent\n")
-       (define bad-mirror
-         (write-outline dir "mirror.rkt"
-                        "#lang olai\nWeek\n  @include frag.rkt\n  *nope\n"))
-       (define-values (where1 msg1) (where+detail bad-mirror))
-       (check-true (string-contains? where1 "mirror.rkt") where1)
-       (check-true (string-contains? where1 ":4:") where1)
-       (check-true (regexp-match? #px"unknown \\*nope" msg1) msg1)
-       ;; and it says which anchors it did know about
-       (check-true (regexp-match? #px"agent" msg1) msg1)
 
        ;; duplicate anchor: the second declaration is in another fragment
        (write-outline dir "frag2.rkt" "#lang olai\nOther\n  Deep ^agent\n")

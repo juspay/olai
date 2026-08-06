@@ -27,7 +27,7 @@ The write commands know nothing about exit codes: an op (`olai/ops`) fails with 
   ```
 
   Naming files (or `--file` / `--home`) works with the variable unset.
-- **Read commands** (`check` / `tree` / `agenda` / `calendar` / `ics` / `serve`) accept **one or more** outline paths. The justfile defaults to `$OLAI_HOME/*.rkt`, or the repo's own `examples/Example.rkt Roadmap.rkt` when `OLAI_HOME` is unset. `serve` also takes the DIRECTORY and globs it itself — that is its front door, see below.
+- **Read commands** (`check` / `tree` / `agenda` / `calendar` / `ics` / `serve`) accept **one or more** outline paths. They are read as one **SET**: node keys are minted against it, and it is the scope an `^anchor` has, so a `*mirror` reaches a node another named file defines and one that reaches nothing is an error ([Mirrors](syntax.md#mirrors)). Load the files you always load. The justfile defaults to `$OLAI_HOME/*.rkt`, or the repo's own `examples/Example.rkt Roadmap.rkt` when `OLAI_HOME` is unset. `serve` also takes the DIRECTORY and globs it itself — that is its front door, see below.
 - Personal data lives outside the repo, in the directory `OLAI_HOME` names. Auto-commit (`add` / `done` / `doing` / `move` / `daily`) only runs when the directory of the file actually written is a git work tree; otherwise it no-ops (`committed: false`) and Dropbox (or your sync) is the history layer.
 - `--json` may appear after the subcommand everywhere it used to; it is a no-op, kept so an invocation an agent already knows does not become a usage error.
 
@@ -64,6 +64,18 @@ Validate `#lang olai` or `#lang olai/sexp` module(s).
 
 Top-level `ok` is false if any file failed. Per-file errors ride in the array on **stdout** and nothing goes to stderr — the single-file shape is the one that reports on stderr (see [Errors](#errors)). Exit is still 2.
 
+The files given are checked as one **set**, because that is an anchor's scope (see [Mirrors](syntax.md#mirrors)). Every file can parse and the set still not link — a `*mirror` naming nothing anywhere, an `^anchor` two of them declare — and that failure belongs to no single file, so it is the reply's own `error`, with the `file:line:col` of the offending form:
+
+```json
+{"version":1,"ok":false,
+ "files":[{"file":".../a.rkt","ok":true,"tasks":1,"anchors":1,"mirrors":0},
+          {"file":".../b.rkt","ok":true,"tasks":1,"anchors":1,"mirrors":0}],
+ "error":{"file":".../b.rkt","line":2,"col":0,
+          "message":"...: duplicate ^agent; first declared at .../a.rkt:2:0"}}
+```
+
+Only asked when every file loaded. Exit 2. In the single-file shape a link failure is simply the error, on stderr, like any other.
+
 ## `tree [file ...]`
 
 The task forest.
@@ -97,7 +109,7 @@ Single file:
 }
 ```
 
-Mirror sites in `children` are `{"mirror":"agent"}` — never an inlined subtree. The `anchors` object holds each anchored node once (same shape as a task).
+Mirror sites in `children` are `{"mirror":"agent"}` — never an inlined subtree. The `anchors` object holds each anchored node once (same shape as a task) and is the **set's** index: every `^id` any of the loaded files declares, which is the scope a `{"mirror":"…"}` resolves in.
 
 A root that splices `@include` fragments also carries `includes` (`[{"file":"..."}]`, absent when there are none), and every node whose **defining** file differs from the loaded file carries its own `file` — that is where writes go (see [Write routing under `@include`](#write-routing-under-include)).
 
@@ -112,9 +124,13 @@ Multiple files:
     {"file":".../Daily.rkt","tasks":[...],"anchors":{...},
      "task_count":18,"mirror_count":1,"anchor_count":2,
      "includes":[{"file":".../Daily/2026-07.rkt"},{"file":".../Daily/2026-08.rkt"}]}
-  ]
+  ],
+  "anchors": {"agent": {"title":"Agent work","id":"agent","key":"agent",
+                        "file":".../Example.rkt","children":[]}}
 }
 ```
+
+Two `anchors` objects, two scopes, and the nesting says which: the one inside a file entry is what THAT file declares (`anchor_count` counts it), and the top-level one is the whole set's — where a `{"mirror":"agent"}` in any of these files points, and, via each entry's `file`, which file a write to it edits.
 
 `date` / `description` are raw strings or `null` (Markdown is not interpreted here). `doc` is the `@doc` path the outline wrote, **verbatim** — relative to the node's **defining** file (the `file` key, when it differs from the loaded one), never resolved and never rendered: the document is a file you can already read, diff and edit. `done` and `doing` are the stored marks: `null` (not in that state), `true` (marked, no timestamp), or an ISO timestamp string. A node carries at most one of them — the language rejects both. `status` is what they MEAN — `"open"`, `"doing"` or `"done"` — and is the one to switch on: it is where a future state would show up, while `done` / `doing` keep their type. `id` is `null` or the anchor string. `tags` is always an array.
 
@@ -319,11 +335,11 @@ Stdout:
 }
 ```
 
-`parent` echoes `--parent` verbatim (`null` for the default Inbox). `file` is the file actually written — with `--parent ^anchor` that may be an `@include` fragment, not `--file`.
+`parent` echoes `--parent` verbatim (`null` for the default Inbox). `file` is the file actually written — with `--parent ^anchor` that may be an `@include` fragment or a sibling root, not `--file` (see [Write routing](#write-routing-the-defining-file)).
 
 ## `done [--file F] [--undo] [--no-commit] TITLE...|^anchor`
 
-Mark a task done by exact title match or `^anchor` (or undo). **One file only** (`--file`). Writes **outline** syntax only — same safety as `add`: write temp → re-validate → rename; restore on failure.
+Mark a task done by exact title match or `^anchor` (or undo). **One file named** (`--file`); an `^anchor` may resolve to a sibling root, and the write follows the node (see [Write routing](#write-routing-the-defining-file)). Writes **outline** syntax only — same safety as `add`: write temp → re-validate → rename; restore on failure.
 
 - Exact title match across the file (a `[x] ` / `[/] ` checkbox prefix and a trailing `^anchor` are not part of the matched title), or a single `^id` addressing the defining site.
 - **0 matches** → exit 2.
@@ -400,9 +416,16 @@ Creates the month fragment and `@include` line on first use in a month; idempote
 
 Both `created_*` are `false` on every run after the first for that day, and `committed` is `false` when there was nothing to write (or `--no-commit`).
 
-## Write routing under `@include`
+## Write routing: the defining file
 
-`done` / `doing` / `move` / `add --parent ^anchor` resolve the target against the loaded tree (including fragments), then edit the **defining file** of that node. JSON `file` fields on tree nodes show where agents should write.
+`done` / `doing` / `move` / `add --parent ^anchor` resolve the target, then edit the **defining file** of that node — which may not be the file you named. JSON `file` fields on tree nodes (and on the set's `anchors` entries) show where agents should write.
+
+Two scopes, because the two kinds of spec are different things:
+
+- A **TITLE** is text, and its scope is the outline you pointed at (`--file`, or the default) plus its `@include` fragments. Unchanged.
+- An **`^anchor`** is a name, and since mirrors reach across files its scope is the set: if the file you named does not declare it, the other top-level `*.rkt` **in that file's directory** are consulted, and the one that declares it is where the write lands. So `olai done '^meeting-prep' --file Daily.rkt` marks the node `Tasks.rkt` defines, which is what "checking a mirror off flips the one real node" means. A sibling that does not load is not consulted — it is not the file being written, and one broken outline must not stop every write to the others.
+
+The file actually written is the reply's `file`.
 
 ## Errors
 

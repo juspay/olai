@@ -83,12 +83,13 @@ EOF
        (eval-tasks
         "#lang olai/sexp\n(t \"A\" #:id \"x\")\n(t \"B\" #:id \"x\")\n"))))
 
-  (test-case "unknown mirror rejected"
-    (check-exn
-     (λ (e) (regexp-match? #rx"(?i:unknown)" (exn-message e)))
-     (λ ()
-       (eval-tasks
-        "#lang olai/sexp\n(t \"A\" (mirror \"missing\"))\n"))))
+  ;; An unknown *mirror is the LINKER's rule, not the module's: a file does
+  ;; not know which files it will be loaded beside, so the module compiles and
+  ;; the set is what says no (olai/tests/link.rkt has the message and the
+  ;; srcloc; this is the module half of that pair).
+  (test-case "unknown mirror is not the module's to reject"
+    (define tasks (eval-tasks "#lang olai/sexp\n(t \"A\" (mirror \"missing\"))\n"))
+    (check-equal? (mirror-ref-anchor (car (task-children (car tasks)))) "missing"))
 
   (test-case "direct cycle rejected"
     (check-exn

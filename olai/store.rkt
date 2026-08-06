@@ -51,18 +51,21 @@
           [store-error (-> store? (or/c load-error? #f))]
           [store-revision (-> store? exact-positive-integer?)]
           [store-invalidate! (->* (store?) (#:force? any/c) void?)]
-          [struct snapshot ([outlines (listof outline?)]
+          [struct snapshot ([linked linked?]
                             [files-data list?]
                             [index hash?]
                             [docs hash?]
                             [watch (listof path?)])]
+          [snapshot-outlines (-> snapshot? (listof outline?))]
+          [snapshot-anchors (-> snapshot? hash?)]
           [snapshot-day-key (-> snapshot? string? (or/c string? #f))]
           [call-in-outline-namespace (-> (-> any) any)]))
 
 ;; One consistent view of the outlines. Handlers read this once and never see
 ;; a half-reloaded world.
-;;   outlines   : (listof outline) as loaded — mirror sites still unbound,
-;;                which is what the durable JSON serializes
+;;   linked     : the loaded set as olai/load produced it — the outlines with
+;;                mirror sites still unbound (which is what the durable JSON
+;;                serializes), and the anchor index they share
 ;;   files-data : (listof (list path tasks)) — render's input: the same trees
 ;;                with every mirror site already bound to its node
 ;;                (olai/lang/walk, resolve-mirrors)
@@ -71,9 +74,13 @@
 ;;                they read right now (see read-docs below)
 ;;   watch      : (listof path) roots, transitive @include fragments, and
 ;;                every document @doc named
-(struct snapshot (outlines files-data index docs watch) #:transparent)
+(struct snapshot (linked files-data index docs watch) #:transparent)
 
-(define empty-snapshot (snapshot '() '() (hash) (hash) '()))
+;; The two questions everyone actually asks the set, without unwrapping it.
+(define (snapshot-outlines snap) (linked-outlines (snapshot-linked snap)))
+(define (snapshot-anchors snap) (linked-anchors (snapshot-linked snap)))
+
+(define empty-snapshot (snapshot (linked '() (hash)) '() (hash) (hash) '()))
 
 ;; probe : hash path -> (cons mtime size) | #f, for cheap staleness checks
 ;; rev   : bumped by every reload, so "did anything happen?" is a comparison
@@ -215,21 +222,24 @@
     (define text (doc-text p))
     (if text (hash-set acc p text) acc)))
 
-;; Node keys are minted here, over the whole loaded set at once (see
-;; mint-outline-keys): a fragment shared by two roots is one node with one
-;; key, and the index below can be a plain invertible hash.
+;; The set arrives already LINKED (olai/load, link-outlines): keys minted over
+;; every file at once, so a fragment shared by two roots is one node with one
+;; key and the index below can be a plain invertible hash — and one anchor
+;; index over all of them.
 ;;
-;; Mirror sites are bound here too, once per load rather than once per render:
-;; what handlers get is a tree of already-bound nodes, and the renderer never
-;; holds an anchors hash.
-(define (build-snapshot outlines watch)
-  (define outs (mint-outline-keys outlines))
+;; Mirror sites are bound here, once per load rather than once per render, and
+;; against that SET-WIDE index: a `*meeting-prep` in Daily.rkt is the node
+;; Tasks.rkt defines, not an unresolved marker. What handlers get is a tree of
+;; already-bound nodes, and the renderer never holds an anchors hash.
+(define (build-snapshot lk watch)
+  (define outs (linked-outlines lk))
+  (define anchors (linked-anchors lk))
   (define files-data
     (for/list ([o (in-list outs)])
       (list (outline-path o)
-            (resolve-mirrors (outline-tasks o) (outline-anchors o)))))
+            (resolve-mirrors (outline-tasks o) anchors))))
   (define docs (doc-paths outs))
-  (snapshot outs
+  (snapshot lk
             files-data
             (outline-index files-data)
             (read-docs docs)
@@ -237,7 +247,11 @@
             ;; back is exactly the change nobody would otherwise hear about
             (append watch (map string->path docs))))
 
-;; -> (values (listof outline) #f (listof path)) | (values #f load-error '())
+;; -> (values linked #f (listof path)) | (values #f load-error '())
+;;
+;; Loading a file at a time and LINKING the result are one step from out here:
+;; a set that does not link is a set that cannot be served, exactly like a file
+;; that does not parse, and it fails in the same fields.
 (define (load-all files)
   (call-in-outline-namespace
    (λ ()
@@ -245,7 +259,10 @@
        (cond
          [(null? fs)
           (define outs (reverse acc))
-          (values outs #f (watch-set outs))]
+          (define lk (link-outlines outs))
+          (if (linked? lk)
+              (values lk #f (watch-set outs))
+              (values #f lk '()))]
          [else
           (define r (try-load-outline (car fs)))
           (if (outline? r)
@@ -282,14 +299,14 @@
 
 (define (reload! st)
   (define files (store-files st))
-  (define-values (outs err watch) (load-all files))
+  (define-values (lk err watch) (load-all files))
   (cond
-    [outs
+    [lk
      ;; probe what the SNAPSHOT says it is built from, not what load-all
      ;; found: the module graph is only half of it — the documents come off
      ;; the loaded tasks, and a set that is probed and a set that is watched
      ;; being two different lists is how a saved document goes unnoticed.
-     (define snap (build-snapshot outs watch))
+     (define snap (build-snapshot lk watch))
      (set-store-snap! st snap)
      (set-store-err! st #f)
      (set-store-probe! st (probe-for (snapshot-watch snap)))]

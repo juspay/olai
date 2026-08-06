@@ -13,6 +13,8 @@
          racket/string
          file/sha1
          (except-in olai/lang/expander #%module-begin)
+         ;; what an anchor means once several files are held at once
+         (only-in olai/lang/link link-anchors)
          olai/paths)
 
 ;; This is a seam, so it ships with contracts: a caller that hands us a string
@@ -25,6 +27,8 @@
                            [tasks list?]
                            [anchors hash?]
                            [includes list?])]
+          [struct linked ([outlines (listof outline?)]
+                          [anchors hash?])]
           [struct load-error ([message string?]
                               [file (or/c path? string? #f)]
                               [line (or/c exact-positive-integer? #f)]
@@ -32,6 +36,7 @@
           [load-error-where (-> load-error? (or/c string? #f))]
           [load-error-detail (-> load-error? string?)]
           [try-load-outline (-> path? (or/c outline? load-error?))]
+          [link-outlines (-> (listof outline?) (or/c linked? load-error?))]
           [mint-outline-keys (-> (listof outline?) (listof outline?))]
           [mint-task-keys (-> list? #:label (-> any/c string?) list?)]
           [exn-location (-> any/c any/c any)]
@@ -45,6 +50,14 @@
 ;;   anchors  : hash id -> task
 ;;   includes : (listof string) absolute paths spliced in by @include
 (struct outline (path tasks anchors includes) #:transparent)
+
+;; A loaded SET, linked: the outlines with their keys minted, and the one
+;; anchor index they share. An anchor is a name whose scope is the set (see
+;; olai/lang/link), so "which node does ^agent mean" has exactly one answer
+;; per load and it is this hash — not something each file answers for itself.
+;;   outlines : (listof outline), in load order, keys minted
+;;   anchors  : hash id -> task, over every file at once
+(struct linked (outlines anchors) #:transparent)
 
 ;; A load failure, with the srcloc of the offending form (CLAUDE.md: errors
 ;; carry file:line:col). line/col may be #f when the exn had no source.
@@ -113,13 +126,16 @@
     [(exn:fail? e) (exn-message e)]
     [else (format "~a" e)]))
 
+;; Any failure of the language, as the four fields every surface reports it
+;; in. `fallback` is the file to blame when the exn carried no source of its
+;; own.
+(define (exn->load-error e fallback)
+  (define-values (src line col) (exn-location e fallback))
+  (load-error (exn-message* e) (or src fallback) line col))
+
 ;; -> outline | load-error
 (define (try-load-outline path)
-  (with-handlers
-      ([exn:fail?
-        (λ (e)
-          (define-values (src line col) (exn-location e path))
-          (load-error (exn-message* e) (or src path) line col))])
+  (with-handlers ([exn:fail? (λ (e) (exn->load-error e path))])
     (define mod `(file ,(path->string path)))
     (define tasks (dynamic-require mod 'tasks))
     (define anchors
@@ -191,6 +207,24 @@
       (for ([c (in-list (task-children x))]) (walk c))))
   (for ([t (in-list tasks)]) (walk t))
   h)
+
+;; ---- linking --------------------------------------------------------------
+;;
+;; Loading is per file; LINKING is what makes the files a set. Both steps here
+;; are set-wide and neither can be done by a module: keys are minted over every
+;; file at once (see above), and an anchor is a name whose scope is the set —
+;; so `*meeting-prep` in Daily.rkt finds the `^meeting-prep` Tasks.rkt defines,
+;; and a name declared twice is an error naming both files.
+;;
+;; The check is the LANGUAGE's, run where cross-file anchors first exist
+;; (lang/link) — the same rules and the same messages the module's own passes
+;; use, and a failure arrives in the same four fields as any other load error,
+;; because it is one.
+(define (link-outlines outs)
+  (define fallback (and (pair? outs) (outline-path (car outs))))
+  (with-handlers ([exn:fail? (λ (e) (exn->load-error e fallback))])
+    (define minted (mint-outline-keys outs))
+    (linked minted (link-anchors (map outline-tasks minted)))))
 
 ;; The whole loaded set at once: labels are relative to what these files have
 ;; in common, so the answer does not depend on the machine's $HOME.

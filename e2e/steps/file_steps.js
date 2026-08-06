@@ -72,6 +72,17 @@ When("I check off {string} from the CLI", async function (title) {
   await this.olai("done", title);
 });
 
+// The same command aimed at the other outline in the directory. An `^anchor`
+// is a name the whole loaded set shares, so this is how a scenario checks a
+// node off from the file that only MIRRORS it — the write lands in the file
+// that declares it, which is the whole of what "one real node" means.
+When(
+  "I check off {string} from the CLI against {string}",
+  async function (spec, file) {
+    await this.olaiOn(file, "done", spec);
+  },
+);
+
 When("I break the outline", async function () {
   await this.append(BREAKAGE);
 });
