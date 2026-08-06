@@ -33,16 +33,20 @@
 ;; line: 1-based outline line of the title
 ;; index: 0-based index into line list
 ;; indent: leading spaces on the title line
-;; already-done?: #t if [x] prefix or @done metadata present
+;; status: 'open | 'doing | 'done — what the title's own sugar and its
+;;         metadata run say the node is. The TEXT's answer to the question
+;;         task-status answers about a loaded node, and the same three
+;;         symbols, because an op that guards on it should not have to
+;;         translate.
 ;; title: resolved effective title (checkbox/^anchor stripped)
-(struct title-match (line index indent already-done? title) #:transparent)
+(struct title-match (line index indent status title) #:transparent)
 
 ;; -> (values indent classification): what every scan below wants.
 (define (scan s)
   (define-values (ind content) (line-indent+content s))
   (values ind (classify-line content)))
 
-;; 'desc | 'date | 'done | 'bad, or #f when the line is not metadata.
+;; 'desc | 'date | 'done | 'doing | 'bad, or #f when the line is not metadata.
 (define (line-field s)
   (define-values (_ind k) (scan s))
   (meta-field k))
@@ -68,11 +72,20 @@
           (loop (add1 i) (cons i acc))]
          [else (reverse acc)])])))
 
-;; k is a (title TEXT FLAG ANCHOR) classification.
-(define (title-done? k meta-idxs lines)
-  (or (eq? (caddr k) 'done)
-      (for/or ([i (in-list meta-idxs)])
-        (eq? (line-field (list-ref lines i)) 'done))))
+;; k is a (title TEXT FLAG ANCHOR) classification. The checkbox flag and the
+;; @field say the same thing, so either one carries the state; done outranks
+;; doing, matching task-status on a loaded node.
+;;
+;; The run is classified ONCE — `list-ref` down a list of lines plus a
+;; classify-line per entry is not a thing to do twice for a two-state answer.
+(define (title-status k meta-idxs lines)
+  (define marks
+    (cons (caddr k)
+          (for/list ([i (in-list meta-idxs)]) (line-field (list-ref lines i)))))
+  (cond
+    [(memq 'done marks) 'done]
+    [(memq 'doing marks) 'doing]
+    [else 'open]))
 
 ;; Every title line the file has, as title-matches; `keep?` picks the ones
 ;; the caller asked for.
@@ -87,7 +100,7 @@
           (keep? k)
           (let ([meta (metadata-indices lines i ind)])
             (title-match (add1 i) i ind
-                         (title-done? k meta lines)
+                         (title-status k meta lines)
                          (cadr k)))))))
 
 ;; Find all title lines whose effective title equals `title` exactly.
@@ -121,7 +134,7 @@
   (unless (line-title? k)
     (user-fail "line ~a is not a task title" (add1 idx)))
   (title-match (add1 idx) idx ind
-               (title-done? k (metadata-indices lines idx ind) lines)
+               (title-status k (metadata-indices lines idx ind) lines)
                (cadr k)))
 
 ;; The one match a mutation may touch, or an error naming the spec as the
@@ -152,7 +165,9 @@
 ;;
 ;; Everything it can fail with is an answer to the user ("no task matching
 ;; X"), so it is raised without a who: prefix — see olai/fail.
-;;   #:drop-field  the metadata field it replaces ('date, 'done) or #f
+;;   #:drop-field  the metadata fields it removes: a list of 'date / 'done /
+;;                 'doing, empty for an op that only inserts. A LIST because
+;;                 `done` writes one mark and clears another.
 ;;   #:insert-line (indent-string -> line) or #f for a pure removal
 ;;   #:check!      (match label dropped-indices -> void) — the op's
 ;;                 preconditions, raised before anything is rewritten
@@ -162,7 +177,7 @@
 ;; inserted one when there is one, else the title's.
 (define (update-meta! text spec
                       #:at [at #f]
-                      #:drop-field [drop-field #f]
+                      #:drop-fields [drop-fields '()]
                       #:insert-line [insert-line #f]
                       #:check! [check! void]
                       #:retitle [retitle #f])
@@ -175,11 +190,9 @@
   (define ind (title-match-indent m))
   (define meta (metadata-indices lines idx ind))
   (define dropped
-    (if drop-field
-        (for/list ([i (in-list meta)]
-                   #:when (eq? (line-field (list-ref lines i)) drop-field))
-          i)
-        '()))
+    (for/list ([i (in-list meta)]
+               #:when (memq (line-field (list-ref lines i)) drop-fields))
+      i))
   (check! m label dropped)
   ;; Metadata always sits BELOW its title, so dropping it cannot move the
   ;; title line: idx still addresses it in lines*.

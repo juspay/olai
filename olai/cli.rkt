@@ -232,23 +232,26 @@
             'created_inbox (add-result-created-inbox? r)
             'committed (add-result-committed? r))))
 
-(define (cmd-done file-arg undo? no-commit? title-parts)
+;; `done` and `doing` are one command with the state filled in — same flags,
+;; same reply, and the stamp rides under the state's own name so an agent
+;; reads `done` out of `olai done` and `doing` out of `olai doing`.
+(define (cmd-mark state file-arg undo? no-commit? title-parts)
   (when (null? title-parts)
-    (die exit-usage "done requires a TITLE" #:json? #t))
+    (die exit-usage (format "~a requires a TITLE" state) #:json? #t))
   (define spec (string-join title-parts " "))
   (define r
     (run-op #t
             (λ ()
-              (ops-done! (or file-arg (default-file)) spec (today-iso)
+              (ops-mark! (or file-arg (default-file)) state spec (today-iso)
                          #:undo? undo?
                          #:commit? (not no-commit?)))))
   (write-json-stdout
-   (ok-hash 'file (done-result-file r)
-            'title (done-result-title r)
-            'line (done-result-line r)
-            'done (nullish (done-result-done r))
-            'undone (done-result-undone? r)
-            'committed (done-result-committed? r))))
+   (ok-hash 'file (mark-result-file r)
+            'title (mark-result-title r)
+            'line (mark-result-line r)
+            state (nullish (mark-result-stamp r))
+            'undone (mark-result-undone? r)
+            'committed (mark-result-committed? r))))
 
 (define (cmd-move file-arg no-commit? clear? title-parts date-arg)
   (when (null? title-parts)
@@ -384,13 +387,15 @@
   (eprintf "commands:\n")
   (eprintf "  check    [file ...]  validate outline(s) (default: $OLAI_HOME/Tasks.rkt)\n")
   (eprintf "  tree     [file ...]  outline(s) as JSON\n")
-  (eprintf "  agenda   [file ...]  overdue / today / upcoming (merged)\n")
+  (eprintf "  agenda   [file ...]  overdue / doing / today / upcoming (merged)\n")
   (eprintf "  calendar [--month YYYY-MM] [file ...]  days with dated items\n")
   (eprintf "  serve    [--port N] [--bind ADDR] [DIR | file ...]  web view (Ctrl-C to stop)\n")
   (eprintf "           DIR (default: .) serves DIR/*.rkt; the agent works in DIR\n")
   (eprintf "  add      [--file F] [--date ISO] [--description TEXT]\n")
   (eprintf "           [--parent TITLE|^anchor] [--no-commit] TITLE...\n")
   (eprintf "  done     [--file F] [--undo] [--no-commit] TITLE|^anchor\n")
+  (eprintf "  doing    [--file F] [--undo] [--no-commit] TITLE|^anchor\n")
+  (eprintf "           mark in progress ([/]); done clears it\n")
   (eprintf "  move     [--file F] [--no-commit] [--clear] TITLE|^anchor DATE\n")
   (eprintf "  daily    [--date YYYY-MM-DD] [--home DIR] [--no-commit]\n")
   (eprintf "           ensure today in Daily/\n")
@@ -491,21 +496,23 @@
    (set! titles title-words))
   (cmd-add file-arg date desc no-commit? parent titles))
 
-(define (cli-done)
+(define (cli-mark state)
   (define file-arg #f)
   (define undo? #f)
   (define no-commit? #f)
   (define titles '())
   (command-line
-   #:program "olai done"
+   #:program (format "olai ~a" state)
    #:once-each
    [("--json") "No-op (the reply is always JSON)" (void)]
    [("--file") f "Outline file (default: $OLAI_HOME/Tasks.rkt)" (set! file-arg f)]
-   [("--undo") "Remove done state instead of marking done" (set! undo? #t)]
+   ;; A literal: racket/cmdline reads the help slot at expansion time, so a
+   ;; computed string there is taken for the handler.
+   [("--undo") "Remove this state instead of marking it" (set! undo? #t)]
    [("--no-commit") "Do not auto-commit even in a git repo" (set! no-commit? #t)]
    #:args title-words
    (set! titles title-words))
-  (cmd-done file-arg undo? no-commit? titles))
+  (cmd-mark state file-arg undo? no-commit? titles))
 
 (define (cli-move)
   (define file-arg #f)
@@ -583,7 +590,8 @@
            [("calendar") (cli-calendar)]
            [("serve") (cli-serve)]
            [("add") (cli-add)]
-           [("done") (cli-done)]
+           [("done") (cli-mark 'done)]
+           [("doing") (cli-mark 'doing)]
            [("move") (cli-move)]
            [("daily") (cli-daily)]
            [("ics") (cli-ics)]

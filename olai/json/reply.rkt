@@ -17,7 +17,7 @@
          racket/path
          olai/agenda
          olai/calendar
-         (only-in olai/json/model nullish done->json))
+         (only-in olai/json/model nullish mark->json))
 
 (provide (contract-out
           [json-reply-version exact-positive-integer?]
@@ -29,7 +29,7 @@
                           #:line (or/c exact-integer? #f)
                           #:col (or/c exact-integer? #f))
                          hash?)]
-          [dated-task->jsexpr (-> dated-task? hash?)]
+          [agenda-item->jsexpr (-> agenda-item? hash?)]
           [agenda-groups->jsexpr (-> list? string? hash?)]
           [cal-item->jsexpr (-> cal-item? hash?)]
           [calendar->jsexpr (-> hash? hash?)])
@@ -58,18 +58,22 @@
                      'col (nullish col)
                      'message message)))
 
-(define (dated-task->jsexpr it)
-  (hash 'title (dated-task-title it)
-        'date (dated-task-date it)
-        'breadcrumb (dated-task-breadcrumb it)))
+(define (agenda-item->jsexpr it)
+  (hash 'title (agenda-item-title it)
+        ;; null in the `doing` group: a node in flight need not be dated
+        'date (nullish (agenda-item-date it))
+        'breadcrumb (agenda-item-breadcrumb it)
+        'status (symbol->string (agenda-item-status it))))
 
 (define (agenda-groups->jsexpr groups today)
   (define (items-for sym)
     (define p (assq sym groups))
-    (if p (map dated-task->jsexpr (cdr p)) '()))
+    (if p (map agenda-item->jsexpr (cdr p)) '()))
   (hash 'version json-reply-version
         'today today
         'overdue (items-for 'overdue)
+        ;; above today_items, as the agenda reads it (olai/agenda)
+        'doing (items-for 'doing)
         'today_items (items-for 'today)
         'upcoming (items-for 'upcoming)))
 
@@ -77,7 +81,8 @@
   (hash 'title (cal-item-title it)
         'date (cal-item-date it)
         'breadcrumb (cal-item-breadcrumb it)
-        'done (done->json (cal-item-done it))
+        'done (mark->json (cal-item-done it))
+        'doing (mark->json (cal-item-doing it))
         'status (symbol->string (cal-item-status it))
         'id (nullish (cal-item-id it))))
 

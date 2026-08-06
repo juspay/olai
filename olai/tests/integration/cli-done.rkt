@@ -6,9 +6,7 @@
 (require rackunit
          json
          racket/file
-         racket/port
          racket/string
-         racket/system
          "cli-util.rkt")
 
 (module+ test
@@ -19,14 +17,14 @@
      void
      (λ ()
        (parameterize ([current-directory dir])
-         (system* (find-executable-path "git") "init" "-q")
-         (system* (find-executable-path "git") "config" "user.email" "t@t.test")
-         (system* (find-executable-path "git") "config" "user.name" "t")
+         (git "init" "-q")
+         (git "config" "user.email" "t@t.test")
+         (git "config" "user.name" "t")
          (display-to-file
           "#lang olai\n\nInbox\n  Ship it\n    @date 2026-08-01\n"
           f #:exists 'truncate)
-         (system* (find-executable-path "git") "add" "Tasks.rkt")
-         (system* (find-executable-path "git") "commit" "-q" "-m" "init"))
+         (git "add" "Tasks.rkt")
+         (git "commit" "-q" "-m" "init"))
        (define-values (code out err)
          (run-olai
           (list "done" "--json" "--file" (path->string f) "Ship" "it")))
@@ -39,20 +37,14 @@
        (check-true (string? (hash-ref j 'done)))
        (define text (file->string f))
        (check-true (string-contains? text "@done ") text)
-       (define log1
-         (with-output-to-string
-           (λ ()
-             (parameterize ([current-directory dir])
-               (system* (find-executable-path "git") "log" "-1" "--pretty=%s")))))
-       (check-true (string-contains? log1 "done: Ship it") log1)
+       (check-true (string-contains? (git-subject dir) "done: Ship it")
+                   (git-subject dir))
        ;; tree JSON has done timestamp
        (define-values (c2 o2 e2)
          (run-olai (list "tree" (path->string f))))
        (check-equal? c2 0 e2)
        (define tree (parse-json o2))
-       (define ship
-         (car (hash-ref (car (hash-ref tree 'tasks)) 'children)))
-       (check-equal? (hash-ref ship 'title) "Ship it")
+       (define ship (find-node (hash-ref tree 'tasks) "Ship it"))
        (check-true (string? (hash-ref ship 'done)))
        (check-equal? (hash-ref ship 'status) "done")
        ;; undo
@@ -64,12 +56,8 @@
        (check-equal? (hash-ref j3 'undone) #t)
        (check-equal? (hash-ref j3 'done) (json-null))
        (check-false (string-contains? (file->string f) "@done"))
-       (define log2
-         (with-output-to-string
-           (λ ()
-             (parameterize ([current-directory dir])
-               (system* (find-executable-path "git") "log" "-1" "--pretty=%s")))))
-       (check-true (string-contains? log2 "undone: Ship it") log2))
+       (check-true (string-contains? (git-subject dir) "undone: Ship it")
+                   (git-subject dir)))
      (λ () (delete-directory/files dir))))
 
   ;; What a user (and an agent's JSON) gets told is a sentence about their

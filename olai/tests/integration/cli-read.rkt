@@ -63,7 +63,9 @@
     (check-true (hash-has-key? inbox 'description))
     (check-true (hash-has-key? inbox 'done))
     (check-equal? (hash-ref inbox 'done) (json-null))
-    ;; the stored field and what it means travel together
+    ;; the stored fields and what they mean travel together
+    (check-true (hash-has-key? inbox 'doing))
+    (check-equal? (hash-ref inbox 'doing) (json-null))
     (check-equal? (hash-ref inbox 'status) "open")
     (define-values (c2 o2 e2)
       (run-olai (list "tree" "--json" (path->string example))))
@@ -78,12 +80,18 @@
     (check-equal? (hash-ref j 'version) 1)
     (check-true (hash-has-key? j 'today))
     (check-true (list? (hash-ref j 'overdue)))
+    (check-true (list? (hash-ref j 'doing)))
     (check-true (list? (hash-ref j 'today_items)))
     (check-true (list? (hash-ref j 'upcoming)))
     (define item (car (hash-ref j 'overdue)))
     (check-true (hash-has-key? item 'title))
     (check-true (hash-has-key? item 'date))
-    (check-true (hash-has-key? item 'breadcrumb)))
+    (check-true (hash-has-key? item 'breadcrumb))
+    (check-equal? (hash-ref item 'status) "open")
+    ;; the demo outline has nodes in flight, and they group on their own
+    (define doing (car (hash-ref j 'doing)))
+    (check-equal? (hash-ref doing 'status) "doing")
+    (check-true (hash-has-key? doing 'breadcrumb)))
 
   ;; Errors are the error object on stderr, flag or no flag.
   (test-case "check missing file exits 3 with error object"

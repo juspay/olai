@@ -28,9 +28,10 @@
    "p" (substring (sha1 (open-input-bytes (string->bytes/utf-8 title))) 0 8)))
 
 (define (tk title date desc kids
-            #:tags [tags '()] #:done [done #f] #:id [id #f] #:key [key #f])
+            #:tags [tags '()] #:done [done #f] #:doing [doing #f]
+            #:id [id #f] #:key [key #f])
   (make-task #:title title #:date date #:description desc #:done done
-             #:id id #:tags tags #:children kids
+             #:doing doing #:id id #:tags tags #:children kids
              #:key (or key id (title-key title))))
 
 (define (xstr x) (xexpr->string x))
@@ -148,6 +149,32 @@
                                            #:today "2026-08-04")))
     (check-true (string-contains? s2 "☑") s2)
     (check-true (string-contains? s2 "ol-node is-done") s2))
+
+  ;; The third state has neither a date nor a strikethrough to be read off,
+  ;; so it says itself: a pill beside the title, a half-filled box, and the
+  ;; state on the node.
+  (test-case "doing task renders its own pill and a half-filled box"
+    (define s (xstr (render-node-fragment (tk "In flight" #f #f '() #:doing #t)
+                                          #:today "2026-08-04")))
+    (check-true (string-contains? s "ol-pill ol-doing") s)
+    (check-true (string-contains? s "◧") s)
+    (check-true (string-contains? s "ol-check is-doing") s)
+    (check-true (string-contains? s "ol-node is-doing") s)
+    ;; doing is not done: no checkmark, no strikethrough class
+    (check-false (string-contains? s "is-done") s)
+    (check-false (string-contains? s "☑") s)
+    ;; and the box says which state it is in, for a screen reader
+    (check-true (string-contains? s "title=\"doing\"") s))
+
+  (test-case "doing keeps its date pill; done is not doing"
+    (define s (xstr (render-node-fragment
+                     (tk "Started" "2026-08-04" #f '() #:doing "2026-08-01")
+                     #:today "2026-08-04")))
+    (check-true (string-contains? s "ol-pill ol-doing") s)
+    (check-true (string-contains? s "ol-pill ol-date") s)
+    (define done (xstr (render-node-fragment (tk "Shipped" #f #f '() #:done #t)
+                                             #:today "2026-08-04")))
+    (check-false (string-contains? done "ol-doing") done))
 
   (test-case "date pill and description present; undone box is empty"
     (define s (xstr (render-node-fragment (tk "T" "2026-01-02" "a **note**" '())

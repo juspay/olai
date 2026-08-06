@@ -61,6 +61,26 @@ Then("{string} is not done", async function (title) {
   await assertClass(this.node(title).first(), "is-done", false, title);
 });
 
+// The third state, same standing: a class on the node, plus a pill that is
+// the only thing on the row saying so (a doing node has no strikethrough and
+// need not have a date).
+Then("{string} is doing", async function (title) {
+  await assertClass(this.node(title).first(), "is-doing", true, title);
+  await part(this, title, ".ol-doing").waitFor({ state: "visible" });
+});
+
+// The waiting one, for a state that ARRIVES under a live swap. It waits for
+// the node wearing the new state rather than for the old one to change:
+// mid-swap, the element a class would be read off is whichever of the two
+// copies the query happened to land on.
+Then("{string} becomes done", async function (title) {
+  await this.nodeInState(title, "is-done").first().waitFor({ state: "visible" });
+});
+
+Then("{string} is not doing", async function (title) {
+  await assertClass(this.node(title).first(), "is-doing", false, title);
+});
+
 // ---- mirrors ---------------------------------------------------------------
 //
 // A mirror is the same node drawn at a second SITE, so it is addressed by

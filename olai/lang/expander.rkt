@@ -8,6 +8,7 @@
 ;;              [#:date "YYYY-MM-DD[THH:MM[:SS]]"]
 ;;              [#:description "..."]
 ;;              [#:done] | [#:done "ISO"]
+;;              [#:doing] | [#:doing "ISO"]
 ;;              child ...)
 ;;
 ;;   (mirror "anchor")
@@ -45,8 +46,10 @@
          task-date
          task-description
          task-done
+         task-doing
          task-status
          task-done-at
+         task-doing-at
          task-id
          task-tags
          task-children
@@ -64,7 +67,8 @@
          #%app #%datum #%top #%top-interaction
          quote)
 
-;; done: #f | #t | ISO date/datetime string
+;; done / doing: #f | #t | ISO date/datetime string. Mutually exclusive on a
+;;      node — the `t` macro rejects the pair (see below).
 ;; id: #f | non-empty anchor string
 ;; file: #f | absolute path string of defining outline
 ;; key: stable node identity — the ^anchor here, #f for an unanchored node
@@ -74,19 +78,20 @@
 ;; loc: srcloc of the form that defined this node. Kept because a tree that
 ;;      came through @include has no syntax left by the time it is checked,
 ;;      and an error still has to say file:line:col.
-(struct task (title date description done id tags children file key loc)
+(struct task (title date description done doing id tags children file key loc)
   #:transparent)
 
 ;; Build one BY NAME. Ten positional arguments in the macro template below
-;; meant every new field (loc and key so far, @doc and @doing next) had to be
-;; threaded through the struct, the template and every construction site, in
-;; the same order, with nothing to say when a site got it wrong. With
-;; keywords the field order stops being an interface: a new field is a new
-;; optional argument that every existing caller already gets right.
+;; meant every new field (loc and key so far, @doc next) had to be threaded
+;; through the struct, the template and every construction site, in the same
+;; order, with nothing to say when a site got it wrong. With keywords the
+;; field order stops being an interface: a new field is a new optional
+;; argument that every existing caller already gets right.
 (define (make-task #:title title
                    #:date [date #f]
                    #:description [description #f]
                    #:done [done #f]
+                   #:doing [doing #f]
                    #:id [id #f]
                    #:tags [tags '()]
                    #:children [children '()]
@@ -94,22 +99,30 @@
                    ;; the ^anchor, or #f until the load layer mints one
                    #:key [key #f]
                    #:loc [loc #f])
-  (task title date description done id tags children file key loc))
+  (task title date description done doing id tags children file key loc))
 
-;; `done` is STORAGE — #f, #t, or the ISO day it was marked with. What a
-;; consumer wants is the STATE, and it is derived here, once. Eight places
-;; used to read the field as a boolean, which is fine until a node can be in
-;; a third state: then "not done" quietly means "open", in eight places, and
-;; each of them has to be found. Switching on task-status instead makes a new
-;; state a new `case` clause the compiler cannot help you forget.
+;; `done` / `doing` are STORAGE — #f, #t, or the ISO day the mark was written
+;; with. What a consumer wants is the STATE, and it is derived here, once.
+;; Eight places used to read `done` as a boolean, which is fine until a node
+;; can be in a third state: then "not done" quietly means "open", in eight
+;; places, and each of them has to be found. Switching on task-status instead
+;; makes a new state a new `case` clause the compiler cannot help you forget.
+;;
+;; The language rejects a node carrying both marks, so the order below is not
+;; a policy: it is what a hand-built task (make-task, a test) gets if it
+;; ignores the rule.
 (define (task-status tk)
-  (if (task-done tk) 'done 'open))
+  (cond
+    [(task-done tk) 'done]
+    [(task-doing tk) 'doing]
+    [else 'open]))
 
-;; When it was marked, if it was recorded: #f for a bare @done, and for
-;; anything still open.
-(define (task-done-at tk)
-  (define d (task-done tk))
-  (and (string? d) d))
+;; When the mark was written, if it was recorded: #f for a bare @done /
+;; @doing, and for a node that does not carry that mark at all.
+(define (stamp v) (and (string? v) v))
+
+(define (task-done-at tk) (stamp (task-done tk)))
+(define (task-doing-at tk) (stamp (task-doing tk)))
 
 ;; Mirror site: same node as anchors[anchor], not a copy.
 (struct mirror-ref (anchor loc) #:transparent)
@@ -154,6 +167,14 @@
              #:fail-unless (valid-anchor-id?/stx (syntax-e #'d))
              "expected anchor id matching [A-Za-z0-9_-]+"))
 
+  ;; A MARK — #:done, #:doing — is a keyword, optionally stamped with an ISO
+  ;; date. The two are the same shape and are still written out, because the
+  ;; LITERAL keyword is load-bearing: a class parameterized over the keyword
+  ;; matches any keyword and rejects the wrong one with a #:when, which fails
+  ;; further into the term than `#:date`'s bad-date failure does — and
+  ;; syntax-parse then reports the mark instead of the date. That costs the
+  ;; srcloc test in tests/outline.rkt ("bad @date value reports … line 3"),
+  ;; which is the contract CLAUDE.md is about. Measured, not assumed.
   (define-splicing-syntax-class done-kw
     #:attributes (value)
     (pattern (~seq #:done d:date-str)
@@ -161,14 +182,31 @@
     (pattern (~seq #:done)
              #:attr value #'#t))
 
+  ;; `kw` is the #:doing keyword itself. "done and doing" has to be reported
+  ;; AT one of the two marks and this is the one, so only this class carries
+  ;; it — in the outline reader each keyword holds the line its own spelling
+  ;; was written on, which is what makes the error name @doing / [/].
+  (define-splicing-syntax-class doing-kw
+    #:attributes (value kw)
+    (pattern (~seq (~and k #:doing) d:date-str)
+             #:attr value (datum->syntax #'d (attribute d.normalized) #'d)
+             #:attr kw #'k)
+    (pattern (~seq (~and k #:doing))
+             #:attr value #'#t
+             #:attr kw #'k))
+
   (define-splicing-syntax-class t-kwargs
-    #:attributes (date description done id)
+    ;; doing-loc is #f or the #:doing keyword — where "done and doing" is
+    ;; reported (see doing-kw above).
+    #:attributes (date description done doing doing-loc id)
     (pattern (~seq (~alt (~optional (~seq #:date d:date-str)
                                     #:name "#:date")
                          (~optional (~seq #:description desc:str)
                                     #:name "#:description")
                          (~optional dk:done-kw
                                     #:name "#:done")
+                         (~optional gk:doing-kw
+                                    #:name "#:doing")
                          (~optional (~seq #:id id-str:anchor-str)
                                     #:name "#:id"))
                    ...)
@@ -179,6 +217,10 @@
              #:attr done (if (attribute dk)
                              (attribute dk.value)
                              #'#f)
+             #:attr doing (if (attribute gk)
+                              (attribute gk.value)
+                              #'#f)
+             #:attr doing-loc (and (attribute gk) (attribute gk.kw))
              #:attr id (if (attribute id-str)
                            #'id-str
                            #'#f)))
@@ -460,6 +502,27 @@
 (define-syntax (t stx)
   (syntax-parse stx
     [(_ title:str kw:t-kwargs child:child-form ...)
+     ;; Done and doing are STATES of one node, so it cannot be in both: `[x]`
+     ;; with an `@doing` under it, `[/]` with an `@done`, or the two fields
+     ;; together.
+     ;;
+     ;; Checked HERE and not in lang/graph, which owns the anchor rules: those
+     ;; are about a relation BETWEEN nodes, across files, and only resolve
+     ;; after @include splices — which is why they run twice, over syntax and
+     ;; again over the tree. This rule is about one node's own fields, and
+     ;; every node comes through this macro in its own defining module, so
+     ;; compile time sees all of them and a splice cannot create a pair that
+     ;; was not already there.
+     ;;
+     ;; Raised rather than spelled as a #:fail-when inside t-kwargs: a failed
+     ;; syntax class drops through to the fallback clauses below, which would
+     ;; answer "expected (t ...)" and lose the reason.
+     (when (and (syntax-e #'kw.done) (syntax-e #'kw.doing))
+       (raise-syntax-error
+        't
+        "a node is done or doing, not both; drop @done / [x] or @doing / [/]"
+        stx
+        (attribute kw.doing-loc)))
      (define tags (title-tags (syntax-e #'title)))
      (define file (syntax-source-path stx))
      (with-syntax ([tags-lit (datum->syntax stx tags)]
@@ -471,6 +534,7 @@
                     #:date kw.date
                     #:description kw.description
                     #:done kw.done
+                    #:doing kw.doing
                     #:id kw.id
                     #:tags 'tags-lit
                     #:children (list child ...)
@@ -480,14 +544,14 @@
     [(_ title . _)
      (raise-syntax-error
       't
-      "expected (t \"title\" [#:id anchor] [#:date iso-date] [#:description \"...\"] [#:done [iso-date]] child ...); title must be a string literal"
+      "expected (t \"title\" [#:id anchor] [#:date iso-date] [#:description \"...\"] [#:done [iso-date]] [#:doing [iso-date]] child ...); title must be a string literal"
       stx
       (let ([e (syntax-e stx)])
         (if (and (pair? e) (pair? (cdr e))) (cadr e) stx)))]
     [_
      (raise-syntax-error
       't
-      "expected (t \"title\" [#:id anchor] [#:date iso-date] [#:description \"...\"] [#:done [iso-date]] child ...)"
+      "expected (t \"title\" [#:id anchor] [#:date iso-date] [#:description \"...\"] [#:done [iso-date]] [#:doing [iso-date]] child ...)"
       stx)]))
 
 (define-syntax (module-begin stx)

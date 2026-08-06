@@ -24,8 +24,10 @@ const FAKE_AGENT = path.join(
 );
 
 // The binary under test: whatever `just build` put on PATH, unless something
-// names another one (the packaged ./result/bin/olai, say).
-const OLAI_BIN = process.env.OLAI_BIN || "olai";
+// names another one (the packaged ./result/bin/olai, say). Exported because
+// the write commands are the same binary — a step that marks a task done
+// (world.olai) must not be testing a different build than the server is.
+export const OLAI_BIN = process.env.OLAI_BIN || "olai";
 
 // The fake agent's script is keyed on the prompt TEXT (its keyword table is at
 // the top of fake-acp-agent.rkt). Which words those are is this module's

@@ -20,11 +20,11 @@
 (struct raw-line (n col text indent content) #:transparent)
 
 ;; descs: list of (list text line col) newest-first
-;; date-info / done-info: #f or (list value line col)
+;; date-info / done-info / doing-info: #f or (list value line col)
 ;; id-info: #f or (list id-string line col)
 ;; mirror-anchor: #f or anchor string (when set, this node is a mirror leaf)
 ;; include-path: #f or relative path string (when set, this node is an include leaf)
-(struct node (title date-info done-info id-info descs children line col span src mirror-anchor include-path)
+(struct node (title date-info done-info doing-info id-info descs children line col span src mirror-anchor include-path)
   #:mutable #:transparent)
 
 (define (reader-error src line col pos msg . args)
@@ -80,6 +80,23 @@
 (define (loc-vec src line col span)
   (vector src line col #f span))
 
+;; @done and @doing are the same shape — a keyword, optionally followed by a
+;; timestamp — so they are spelled once. The keyword's srcloc spans the
+;; "@name" the source wrote, which is what an error about it underlines. The
+;; no-mark case comes first: it is most nodes, and it costs nothing.
+(define (mark-part src kw info)
+  (match info
+    [#f '()]
+    [(list v line col)
+     (define kw-stx
+       (datum->syntax #f kw
+                      (loc-vec src line col
+                               (add1 (string-length (keyword->string kw))))))
+     (if (eq? v #t)
+         (list kw-stx)
+         (list kw-stx (datum->syntax #f v (loc-vec src line col
+                                                   (string-length v)))))]))
+
 (define (node-mirror? nd)
   (and (node-mirror-anchor nd) #t))
 
@@ -121,14 +138,8 @@
           (list (datum->syntax #f '#:date (loc-vec src dline dcol 5))
                 (datum->syntax #f d (loc-vec src dline dcol (string-length d))))]
          [#f '()]))
-     (define done-part
-       (match (node-done-info nd)
-         [(list #t dline dcol)
-          (list (datum->syntax #f '#:done (loc-vec src dline dcol 5)))]
-         [(list d dline dcol)
-          (list (datum->syntax #f '#:done (loc-vec src dline dcol 5))
-                (datum->syntax #f d (loc-vec src dline dcol (string-length d))))]
-         [#f '()]))
+     (define done-part (mark-part src '#:done (node-done-info nd)))
+     (define doing-part (mark-part src '#:doing (node-doing-info nd)))
      (define desc-part
        (let ([ds (node-descs nd)])
          (if (null? ds)
@@ -144,7 +155,8 @@
      (define kids (map node->syntax (reverse (node-children nd))))
      (define form
        (cons (datum->syntax #f 't (loc-vec src line col span))
-             (append (list title-stx) id-part date-part done-part desc-part kids)))
+             (append (list title-stx) id-part date-part done-part doing-part
+                     desc-part kids)))
      (datum->syntax #f form (loc-vec src line col span))]))
 
 (define (parse-lines src lines)
@@ -212,7 +224,7 @@
                               "include cannot have children")))
           (set! stack (take stack level))
           (define nd
-            (node #f #f #f #f '() '() n col (string-length content) src anchor #f))
+            (node #f #f #f #f #f '() '() n col (string-length content) src anchor #f))
           (push-node! nd level)]
          [`(include ,path)
           (when (> level (current-depth))
@@ -232,7 +244,7 @@
                               "include cannot have children")))
           (set! stack (take stack level))
           (define nd
-            (node #f #f #f #f '() '() n col (string-length content) src #f path))
+            (node #f #f #f #f #f '() '() n col (string-length content) src #f path))
           (push-node! nd level)]
          [`(title ,title ,flag ,anchor)
           (when (> level (current-depth))
@@ -244,14 +256,15 @@
                           "indent jumps more than one level (from 0 to ~a); top-level tasks must start at column 0"
                           level))
           (set! stack (take stack level))
-          (define done-info
-            (case flag
-              [(done) (list #t n col)]
-              [else #f]))
+          ;; the checkbox IS the node's mark, so `[x] X` plus `@done` below it
+          ;; is a duplicate, exactly as two `@done` lines would be
+          (define done-info (and (eq? flag 'done) (list #t n col)))
+          (define doing-info (and (eq? flag 'doing) (list #t n col)))
           (define id-info
             (and anchor (list anchor n col)))
           (define nd
-            (node title #f done-info id-info '() '() n col (string-length title) src #f #f))
+            (node title #f done-info doing-info id-info '() '() n col
+                  (string-length title) src #f #f))
           (push-node! nd level)]
          [`(meta desc ,text)
           (define parent (require-task-parent! level n col "description line"))
@@ -267,7 +280,16 @@
           (when (node-done-info parent)
             (reader-error src n col #f
                           "duplicate @done on this task"))
-          (set-node-done-info! parent (list d n (+ col off)))])]))
+          (set-node-done-info! parent (list d n (+ col off)))]
+         ;; A node that is both done and doing is a LANGUAGE error, not a
+         ;; reader one — the reader only knows that neither field is here
+         ;; twice. The expander is what rejects the pair (lang/expander).
+         [`(meta doing ,d ,off)
+          (define parent (require-task-parent! level n col "@doing"))
+          (when (node-doing-info parent)
+            (reader-error src n col #f
+                          "duplicate @doing on this task"))
+          (set-node-doing-info! parent (list d n (+ col off)))])]))
   (map node->syntax (reverse roots)))
 
 (define (parse-outline-port src in)

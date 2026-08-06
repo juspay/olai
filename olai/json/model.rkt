@@ -24,7 +24,7 @@
 (provide (contract-out
           [json-model-version exact-positive-integer?]
           [nullish (-> any/c any/c)]
-          [done->json (-> any/c any/c)]
+          [mark->json (-> any/c any/c)]
           [task->jsexpr (->* (task?) (#:root-file file-ref/c) hash?)]
           [child->jsexpr (->* (any/c) (#:root-file file-ref/c) hash?)]
           [tasks->jsexpr (->* (list?) (#:root-file file-ref/c) list?)]
@@ -39,10 +39,10 @@
 (define (nullish v)
   (if v v (json-null)))
 
-;; How the stored `done` field encodes: null | true | ISO timestamp string.
-;; The model owns it, and a reply that carries a copy of the field (a
+;; How a stored MARK — `done`, `doing` — encodes: null | true | ISO timestamp
+;; string. The model owns it, and a reply that carries a copy of one (a
 ;; calendar item) encodes it the same way rather than its own way.
-(define (done->json d)
+(define (mark->json d)
   (cond
     [(eq? d #t) #t]
     [(string? d) d]
@@ -53,10 +53,12 @@
     (hash 'title (task-title tk)
           'date (nullish (task-date tk))
           'description (nullish (task-description tk))
-          'done (done->json (task-done tk))
-          ;; the state the field means: "open" | "done". `done` keeps the
-          ;; stored value (null | true | timestamp) — both, so a reader can
-          ;; ask the question it actually has.
+          'done (mark->json (task-done tk))
+          'doing (mark->json (task-doing tk))
+          ;; the state the marks mean: "open" | "doing" | "done". `done` and
+          ;; `doing` keep their stored values (null | true | timestamp) —
+          ;; both, so a reader can ask the question it actually has. `status`
+          ;; is the one to switch on: it is where a fourth state would show up.
           'status (symbol->string (task-status tk))
           'id (nullish (task-id tk))
           'key (nullish (task-key tk))

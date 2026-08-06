@@ -15,6 +15,8 @@ olai roadmap #project
     : Minimal HTTP server whose only page is a chat panel
     : driving Claude Code over ACP. Ugly on purpose.
     @date 2026-08-15T09:30
+  [/] Wire the third state
+    : in progress; who and where live in notes, not grammar
   Buy milk — don't quote me; 2% "raw" milk is fine
 ```
 
@@ -28,8 +30,10 @@ olai roadmap #project
 | Date/time | Indented `@date …` → `#:date`. Accepts `YYYY-MM-DD` or datetime `YYYY-MM-DDTHH:MM[:SS]` (space instead of `T` ok; normalized to `T`). Validated by gregor in the expander. |
 | Include | `@include RELATIVE/PATH.rkt` at a title position → `(include "…")`. Require+splice of the fragment's **top-level** tasks (no redundant root in the fragment). Path relative to the including file. Cycles rejected. |
 | Done | Indented `@done` or `@done …` → `#:done` / `#:done` timestamp. Bare means completed (`#t`); with a value, same ISO forms as `@date`. |
-| Checkbox sugar | Title prefix `[x] ` / `[X] ` desugars to bare `@done` (prefix **not** part of the title). `[ ] ` is an explicit not-done marker (stripped, no-op). Escape with `\` if the title should literally start with `[x] `. |
-| At most once | A second `@date` or `@done` under one title is a reader error. `[x] ` counts as the node's `@done`, so checkbox **and** `@done` on the same node is a duplicate. |
+| Doing | Indented `@doing` or `@doing …` → `#:doing` / `#:doing` timestamp. The third state, between open and done: same rules as `@done`, one node cannot be both. |
+| Checkbox sugar | Title prefix `[x] ` / `[X] ` desugars to bare `@done`, `[/] ` to bare `@doing` (prefix **not** part of the title). `[ ] ` is an explicit not-done marker (stripped, no-op). `[-] ` is **not** sugar — it stays part of the title, unclaimed for a future cancelled. Escape with `\` if the title should literally start with `[x] `. |
+| At most once | A second `@date`, `@done` or `@doing` under one title is a reader error. `[x] ` counts as the node's `@done` and `[/] ` as its `@doing`, so checkbox **and** field on the same node is a duplicate. |
+| One state | Done and doing exclude each other: `[x] ` with an `@doing`, `[/] ` with an `@done`, or both fields, is an expander error at the offending mark's `file:line:col`. |
 | Escape | Line starting with `\` (after indent) is a title beginning with the rest. It turns off **all** line sugar for that line — checkbox, mirror, trailing `^anchor` — so titles may start with `:`, `@`, `*`, `[x] `, or `\` and may end in `^word`. |
 | Blank lines | Insignificant. |
 | Inline `#tags` | In titles: `#` + `[A-Za-z0-9_-]+`. Title stays verbatim; expander fills `task-tags` (no `#`, first-seen order, deduped). Works for both langs. |
@@ -65,12 +69,13 @@ sanitizer. `tree` / `check` / `agenda` JSON never do.
 
 Mark these clearly so agents do not invent them:
 
-- `@layout` and other `@` fields beyond `@date` / `@done` / `@include`
+- `@layout` and other `@` fields beyond `@date` / `@done` / `@doing` / `@include`
+- `[-] ` as cancelled — the spelling is left unclaimed, but nothing reads it yet
 - UI state in the outline file, or in a sidecar next to it. Collapse state is real but lives in the browser (`localStorage`, keyed by node); zoom is a URL (`/today`, `/#n-<key>`). Nothing on disk records either.
 - Check-off from the web view — it renders a static checkbox, and done already renders checked/dimmed. Structure edits go through the CLI or your editor.
 - Live push: the page loads the htmx SSE extension but the server opens no event stream yet; edits show up on the next request.
 
-Unknown `@field` is a **reader error** today (names the known fields: `@date`, `@done`, `@include`).
+Unknown `@field` is a **reader error** today (names the known fields: `@date`, `@done`, `@doing`, `@include`).
 
 ### Includes (file composition)
 
@@ -120,11 +125,13 @@ prefer sexps.
    (t "Buy milk" #:date "2026-01-15")
    (t "Agent work" #:id "agent")
    (t "This week" (mirror "agent"))
+   (t "Wiring it" #:doing)
    (t "Shipped" #:done "2026-08-03"))
 ```
 
-Keywords `#:id`, `#:date`, `#:description`, and `#:done` are optional, any
-order, at most once each. `#:done` may be bare or take an ISO date/datetime.
+Keywords `#:id`, `#:date`, `#:description`, `#:done` and `#:doing` are
+optional, any order, at most once each. `#:done` / `#:doing` may be bare or
+take an ISO date/datetime, and a node may carry at most one of the two.
 Children are `(t ...)`, `(mirror "anchor")`, or `(include "relative/path.rkt")`
 — closed grammar, same three forms allowed at top level. Module exports
 `tasks`, `anchors` (hash id → task), and `includes` (absolute paths spliced in).

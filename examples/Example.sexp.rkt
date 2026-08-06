@@ -10,7 +10,8 @@
       #:description "overdue sample")
    (t "Write olai README"
       #:description "Ship the pitch before the code calcifies"
-      (t "Compare Racket vs Rhombus")
+      (t "Compare Racket vs Rhombus" #:doing)
+      (t "Draft the WHY section" #:doing "2026-08-03")
       (t "Ship phase 0.1 #lang"
          #:date "2026-08-03"
          #:description "today-ish sample; outline + check + tree")))

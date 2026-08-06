@@ -105,7 +105,9 @@ EOF
     (check-exn
      (λ (e)
        (and (exn:fail:read? e)
-            (regexp-match? #rx"(?i:unknown|@layout|@date|@done)" (exn-message e))))
+            (regexp-match? #rx"(?i:unknown|@layout|@date|@done)" (exn-message e))
+            ;; the message lists what IS known, so a new field shows up there
+            (regexp-match? #rx"@doing" (exn-message e))))
      (λ ()
        (eval-tasks "#lang olai\nTask\n  @layout wide\n"))))
 
@@ -172,6 +174,84 @@ EOF
      (λ ()
        (eval-tasks "#lang olai\n[x] Task\n  @done 2026-01-01\n"))))
 
+  (test-case "@doing bare and with timestamp"
+    (define tasks
+      (eval-tasks
+       #<<EOF
+#lang olai
+Bare doing
+  @doing
+With stamp
+  @doing 2026-08-03
+With datetime
+  @doing 2026-08-03 09:15
+EOF
+       ))
+    (check-equal? (task-doing (car tasks)) #t)
+    (check-equal? (task-doing (cadr tasks)) "2026-08-03")
+    (check-equal? (task-doing (caddr tasks)) "2026-08-03T09:15")
+    (check-equal? (map task-status tasks) '(doing doing doing))
+    (check-equal? (map task-doing-at tasks)
+                  '(#f "2026-08-03" "2026-08-03T09:15")))
+
+  (test-case "[/] title checkbox sugar is the third state"
+    (define tasks
+      (eval-tasks
+       #<<EOF
+#lang olai
+[/] In flight
+[x] Finished
+[ ] Open
+Plain
+EOF
+       ))
+    (check-equal? (map task-title tasks)
+                  '("In flight" "Finished" "Open" "Plain"))
+    (check-equal? (map task-status tasks) '(doing done open open))
+    ;; sugar is a bare mark; the stamped form is the @field
+    (check-equal? (task-doing (car tasks)) #t))
+
+  ;; [-] is not claimed by anything yet (a future cancelled), so it is a title
+  (test-case "[-] is an ordinary title, not sugar"
+    (define tasks (eval-tasks "#lang olai\n[-] Dropped\n"))
+    (check-equal? (task-title (car tasks)) "[-] Dropped")
+    (check-equal? (task-status (car tasks)) 'open))
+
+  (test-case "escaped [/] is a literal title, not sugar"
+    (define tasks
+      (eval-tasks
+       #<<EOF
+#lang olai
+\[/] literal slash box
+EOF
+       ))
+    (check-equal? (task-title (car tasks)) "[/] literal slash box")
+    (check-false (task-doing (car tasks))))
+
+  (test-case "duplicate @doing is a reader error"
+    (check-exn
+     (λ (e)
+       (and (exn:fail:read? e)
+            (regexp-match? #rx"(?i:duplicate|@doing)" (exn-message e))))
+     (λ ()
+       (eval-tasks "#lang olai\nTask\n  @doing\n  @doing 2026-01-01\n"))))
+
+  (test-case "[/] plus @doing is duplicate"
+    (check-exn
+     (λ (e)
+       (and (exn:fail:read? e)
+            (regexp-match? #rx"(?i:duplicate|@doing)" (exn-message e))))
+     (λ ()
+       (eval-tasks "#lang olai\n[/] Task\n  @doing 2026-01-01\n"))))
+
+  (test-case "bad @doing timestamp fails expander"
+    (check-exn
+     (λ (e)
+       (and (exn:fail? e)
+            (regexp-match? #rx"(?i:date|ISO|datetime)" (exn-message e))))
+     (λ ()
+       (eval-tasks "#lang olai\nTask\n  @doing not-a-date\n"))))
+
   (test-case "bad @done timestamp fails expander"
     (check-exn
      (λ (e)
@@ -189,7 +269,14 @@ EOF
     (check-equal? f2 'open)
     (define-values (t3 f3) (strip-checkbox-prefix "plain"))
     (check-equal? t3 "plain")
-    (check-false f3))
+    (check-false f3)
+    (define-values (t4 f4) (strip-checkbox-prefix "[/] hi"))
+    (check-equal? t4 "hi")
+    (check-equal? f4 'doing)
+    ;; unclaimed, so not sugar
+    (define-values (t5 f5) (strip-checkbox-prefix "[-] hi"))
+    (check-equal? t5 "[-] hi")
+    (check-false f5))
 
   (test-case "datetime @date accepted (T and space forms)"
     (define tasks
