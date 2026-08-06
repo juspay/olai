@@ -11,13 +11,17 @@
 ;; A word is not just a name here; it carries the two things a check needs:
 ;;
 ;;   * a clock carries its RANK (which way a dependency may point) and its
-;;     CHURN CEILING (what history is allowed to say about a module wearing it)
+;;     ALLOWANCE (how many changes, out of a window of commits, history may
+;;     show for a module wearing it)
 ;;   * an authority carries its SPELLINGS — the identifiers that, if a module
-;;     imports and mentions one, mean the module reaches for that authority
+;;     imports and calls one, mean the module reaches for that authority
 ;;
 ;; Keeping the word and its meaning in the same table is what makes "settling"
 ;; a definition rather than a mood. Any check that needed to know what a word
-;; means and asked somewhere else would be a second definition.
+;; means and asked somewhere else would be a second definition — which is why
+;; `clock-allows` answers in COMMITS and not in a fraction somebody downstream
+;; has to turn into one: the checker and `--explain` were doing that
+;; arithmetic separately, and two spellings of one rule is one too many.
 
 (require racket/contract
          racket/list)
@@ -26,12 +30,11 @@
           [clocks (listof symbol?)]
           [clock? (-> any/c boolean?)]
           [clock-rank (-> clock? exact-nonnegative-integer?)]
-          [clock-churn-ceiling (-> clock? (or/c #f (and/c real? (between/c 0 1))))]
+          [clock-allows (-> clock? exact-positive-integer?
+                            (or/c #f exact-nonnegative-integer?))]
           [authorities (listof symbol?)]
           [authority? (-> any/c boolean?)]
-          [authority-spellings (-> authority? (listof symbol?))]
-          [word-list (-> (listof symbol?) string?)]
-          [did-you-mean (-> symbol? (listof symbol?) (or/c symbol? #f))]))
+          [authority-spellings (-> authority? (listof symbol?))]))
 
 ;; ---- clocks -----------------------------------------------------------------
 
@@ -44,28 +47,31 @@
 (define (clock-rank c)
   (- (length clocks) (length (memq c clocks))))
 
-;; What history may say about a module wearing this word, as a fraction of the
-;; audited window. Only the tight end is checked: a module that declares itself
-;; volatile and never changes is not lying about anything a reader could be
-;; misled by, and `volatile` is therefore uncapped.
+;; How many of the last `window` commits may have touched a module wearing this
+;; word — or #f for no ceiling at all.
 ;;
-;; The numbers are deliberately loose. A window is a few dozen commits, a
+;; Only the tight end is checked: a module that declares itself volatile and
+;; never changes misleads nobody, and `volatile` is therefore uncapped.
+;;
+;; The fractions are deliberately loose. A window is a few dozen commits, a
 ;; single feature can touch one file three times in an afternoon, and a check
 ;; that fires on ordinary work is a check people learn to route around. They
 ;; are tight enough to catch the case the audit is for — a module everybody
 ;; edits every week, still declared stable.
-(define churn-ceilings
+(define ceilings
   (hash 'stable   1/5      ; 6 of 30
         'settling 1/2      ; 15 of 30
         'volatile #f))
 
-(define (clock-churn-ceiling c) (hash-ref churn-ceilings c))
+(define (clock-allows c window)
+  (define ceiling (hash-ref ceilings c))
+  (and ceiling (inexact->exact (floor (* ceiling window)))))
 
 ;; ---- authorities ------------------------------------------------------------
 
 ;; Ambient authority: what a module can reach for without being handed it. The
-;; set is the spec's, unchanged. `randomness` has no user in this repo yet and
-;; is listed anyway — the vocabulary is ratified as a whole, and a word nobody
+;; set is the spec's, unchanged. `randomness` has no user in olai yet and is
+;; listed anyway — the vocabulary is ratified as a whole, and a word nobody
 ;; needs today is cheaper than one nobody may add tomorrow.
 ;;
 ;; The spellings are a CURATED TABLE, not a search: an identifier is here
@@ -133,36 +139,3 @@
 (define (authority? v) (and (memq v authorities) #t))
 
 (define (authority-spellings a) (hash-ref authority-table a))
-
-;; ---- saying a list of words --------------------------------------------------
-
-(define (word-list names)
-  (if (null? names)
-      "(none)"
-      (apply string-append
-             (add-between (for/list ([n (in-list names)]) (format "~a" n)) ", "))))
-
-;; ---- did you mean ------------------------------------------------------------
-
-;; Zero dependencies is a rule here and the distribution ships no edit distance,
-;; so this is the textbook two-row Levenshtein — over a handful of candidates,
-;; in a branch that only runs when the compile is already failing.
-(define (edit-distance a b)
-  (define m (string-length b))
-  (for/fold ([row (build-list (add1 m) values)] #:result (last row))
-            ([i (in-range 1 (add1 (string-length a)))])
-    (for/fold ([out (list i)] #:result (reverse out))
-              ([j (in-range 1 (add1 m))])
-      (cons (min (add1 (car out))                       ; delete
-                 (add1 (list-ref row j))                ; insert
-                 (+ (list-ref row (sub1 j))             ; substitute
-                    (if (char=? (string-ref a (sub1 i)) (string-ref b (sub1 j))) 0 1)))
-            out))))
-
-;; Two edits: enough for a transposition (`stabel`) or a dropped letter
-;; (`filesystem-event`), tight enough that an unrelated word is never offered.
-(define (did-you-mean name candidates)
-  (define scored (for/list ([c (in-list candidates)])
-                   (cons (edit-distance (symbol->string name) (symbol->string c)) c)))
-  (define best (and (pair? scored) (argmin car scored)))
-  (and best (<= (car best) 2) (cdr best)))

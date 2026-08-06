@@ -26,7 +26,7 @@
          arch/scope)
 
 (module+ main
-  (define window 30)
+  (define window default-churn-window)
   (define target #f)
   (define root
     (command-line

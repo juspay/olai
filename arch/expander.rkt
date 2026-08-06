@@ -33,7 +33,8 @@
                      racket/path
                      racket/string
                      syntax/parse
-                     arch/vocabulary))
+                     arch/vocabulary
+                     arch/wording))
 
 (provide (rename-out [module-begin #%module-begin])
          #%app #%datum #%top quote)

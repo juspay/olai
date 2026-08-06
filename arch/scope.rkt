@@ -24,6 +24,7 @@
          (contract-out
           [find-scopes (-> path? (listof scope?))]
           [governing (-> (listof scope?) path? (or/c scope? #f))]
+          [scope-covers? (-> scope? path? boolean?)]
           [scope-modules (-> scope? (listof scope?) (listof path?))]
           [declaration-of (-> (listof scope?) path? (or/c effective? #f))]
           [scope-relative (-> scope? path? string?)]))
@@ -61,10 +62,13 @@
 ;; deepest-first, so this is the first hit.
 (define (governing scopes path)
   (define target (simplify-path path))
-  (for/first ([s (in-list scopes)] #:when (under? (scope-dir s) target)) s))
+  (for/first ([s (in-list scopes)] #:when (scope-covers? s target)) s))
 
-(define (under? dir path)
-  (define rel (find-relative-path dir path))
+;; Does this declaration sit above that path? Exported because check 3 asks the
+;; same question of a package-level concept — "is this module inside the scope
+;; that claimed it" — and two spellings of "under" is one too many.
+(define (scope-covers? s path)
+  (define rel (find-relative-path (scope-dir s) (simplify-path path)))
   (and (relative-path? rel) (not (string-prefix? (path->string rel) ".."))))
 
 ;; Every module this scope actually governs: the .rkt files beneath it that no

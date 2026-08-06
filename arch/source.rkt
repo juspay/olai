@@ -37,22 +37,19 @@
           [source-where (-> source? symbol? (or/c srcloc? #f))]))
 
 ;; path        : the module, absolute and simplified
-;; lang        : the resolved path of its #lang, or #f when that is not a file
-;;               (racket/base and friends resolve to files too — everything
-;;               outside the tree is dropped by the caller, not here)
-;; requires    : (listof (cons path srcloc)) — resolved, in source order
+;; requires    : (listof (cons path srcloc)) — resolved, in source order, the
+;;               #lang first: it is a dependency like any other, and the one
+;;               every module has
 ;; definitions : (hash symbol srcloc)
 ;; mentions    : (hash symbol srcloc), first occurrence
-(struct source (path lang requires definitions mentions) #:transparent)
+(struct source (path requires definitions mentions) #:transparent)
 
 (define (read-source path)
   (define-values (lang-stx body) (module-parts (read-module path)))
-  ;; The #lang is a dependency like any other, and the one every module has.
-  ;; It is listed first so a message about it points at the first line, which
-  ;; is where it is written.
+  ;; The #lang goes in with the requires, first, so a message about it points
+  ;; at the first line — which is where it is written.
   (define lang (and lang-stx (resolve-quietly lang-stx path)))
   (source (simplify-path path)
-          lang
           (append (if lang (list (cons lang (loc-of lang-stx))) '())
                   (append* (for/list ([form (in-list body)]) (requires-in form path))))
           (definitions-of body)

@@ -24,9 +24,14 @@
 
 (provide (struct-out churn)
          (contract-out
+          [default-churn-window exact-positive-integer?]
           [read-churn (-> path? exact-positive-integer? (or/c churn? #f))]
-          [churn-count (-> churn? path? exact-nonnegative-integer?)]
-          [churn-fraction (-> churn? path? real?)]))
+          [churn-count (-> churn? path? exact-nonnegative-integer?)]))
+
+;; How much history an audit reads unless somebody says otherwise. One number,
+;; here rather than in the checker AND the command line, because two defaults
+;; for one fact is how they drift apart.
+(define default-churn-window 30)
 
 ;; window : how many commits were actually read (a young repo has fewer than
 ;;          were asked for, and the fraction has to be out of what exists)
@@ -57,9 +62,6 @@
 
 (define (churn-count c path)
   (hash-ref (churn-counts c) (simplify-path path) 0))
-
-(define (churn-fraction c path)
-  (/ (churn-count c path) (churn-window c)))
 
 ;; ---- talking to git -------------------------------------------------------------
 

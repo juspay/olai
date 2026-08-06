@@ -18,5 +18,6 @@
 
 ;; One walker over the anchor rules is the pattern this whole tool is about, so
 ;; it holds for the tool: the four checks live in one module and nowhere else.
-(override "vocabulary.rkt" (concept arch-vocabulary "authorit*" "clock-rank" "clock-churn-ceiling"))
+(override "vocabulary.rkt" (concept arch-vocabulary "authorit*" "clock-rank" "clock-allows"))
+(override "wording.rkt" (concept arch-wording "word-list" "did-you-mean"))
 (override "finding.rkt" (concept arch-finding "finding*"))

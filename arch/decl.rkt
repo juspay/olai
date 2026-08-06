@@ -26,7 +26,6 @@
 
 (require racket/contract
          racket/list
-         racket/string
          arch/vocabulary)
 
 (provide (struct-out grant)
@@ -37,8 +36,7 @@
          (contract-out
           [declaration-for (-> scope-decl? string? effective?)]
           [effective-owns (-> effective? (listof symbol?))]
-          [effective-owns? (-> effective? symbol? boolean?)]
-          [glob-matches? (-> string? symbol? boolean?)]))
+          [effective-owns? (-> effective? symbol? boolean?)]))
 
 ;; One authority, owned here.
 ;;
@@ -95,18 +93,3 @@
 
 (define (effective-owns? e authority)
   (and (memq authority (effective-owns e)) #t))
-
-;; ---- globs -------------------------------------------------------------------
-
-;; `*` and nothing else. A concept names its exports the way a person would say
-;; them out loud — `mint-*`, `acp-*` — and anything richer would be a second
-;; pattern language for a reader to learn, in a file whose whole point is that
-;; it is read at a glance. The literal parts are quoted, so a `.` or a `?` in an
-;; export name is a character and not a metacharacter.
-(define (glob-matches? pattern name)
-  (define rx
-    (regexp (string-append "^"
-                           (string-join (map regexp-quote (string-split pattern "*" #:trim? #f))
-                                        ".*")
-                           "$")))
-  (regexp-match? rx (symbol->string name)))

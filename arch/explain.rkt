@@ -107,18 +107,17 @@
                          (or (srcloc-line (claim-loc c)) "?"))))))
 
 (define (churn-row module decl history)
-  (define ceiling (clock-churn-ceiling (effective-clock decl)))
   (cond
     [(not history) (row "churn" "no git history here — the audit did not run")]
     [else
+     (define window (churn-window history))
+     (define allowed (clock-allows (effective-clock decl) window))
      (row "churn"
           (format "~a of the last ~a commits — ~a"
                   (churn-count history module)
-                  (churn-window history)
-                  (if ceiling
-                      (format "~a allows up to ~a"
-                              (effective-clock decl)
-                              (inexact->exact (floor (* ceiling (churn-window history)))))
+                  window
+                  (if allowed
+                      (format "~a allows up to ~a" (effective-clock decl) allowed)
                       (format "~a has no ceiling" (effective-clock decl)))))]))
 
 ;; What it depends on, inside the declared world, and at what clock — the other

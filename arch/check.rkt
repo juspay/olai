@@ -25,7 +25,6 @@
 
 (require racket/contract
          racket/list
-         racket/path
          racket/set
          racket/string
          arch/churn
@@ -34,39 +33,43 @@
          arch/finding
          arch/scope
          arch/source
-         arch/vocabulary)
+         arch/vocabulary
+         arch/wording)
 
 (provide (struct-out report)
          (struct-out site)
          (contract-out
-          [audit (->* (path?) (#:window exact-positive-integer?) report?)]
-          [sites-of (-> (listof scope?) (listof site?))]))
+          [audit (->* (path?) (#:window exact-positive-integer?) report?)]))
 
 ;; findings : every violation, in file order
 ;; notes    : what the run could not do — today only "there was no history to
 ;;            audit". Printed, never silent: a check that quietly does not run
 ;;            is the failure mode this whole tool exists to remove.
-(struct report (root scopes sites churn findings notes) #:transparent)
+(struct report (scopes sites churn findings notes) #:transparent)
 
 ;; One governed module, with everything anybody needs to say about it.
 (struct site (path source decl) #:transparent)
 
-(define (audit root #:window [window 30])
+(define (audit root #:window [window default-churn-window])
   (define scopes (find-scopes root))
   (define sites (sites-of scopes))
+  ;; Every module is read, declared and looked up exactly once. A dependency is
+  ;; a path, and check 1 asks about ~500 of them — deriving the far end's
+  ;; effective declaration again at each edge would be the same value computed
+  ;; a second way, which is the bug this tool is named after.
+  (define by-path (for/hash ([s (in-list sites)]) (values (site-path s) s)))
   (define history (read-churn root window))
   (define spellings (spelling-table sites))
   (define owners (concept-owners scopes))
   (define (label p) (path-label p root))
-  (report root
-          scopes
+  (report scopes
           sites
           history
           (sort
            (append
             (spelling-findings sites label)
             (claim-findings owners label)
-            (append* (for/list ([s (in-list sites)]) (check-dependencies s scopes label)))
+            (append* (for/list ([s (in-list sites)]) (check-dependencies s by-path label)))
             (append* (for/list ([s (in-list sites)]) (check-authority s sites spellings label)))
             (append* (for/list ([s (in-list sites)]) (check-concepts s owners label)))
             (if history
@@ -102,12 +105,13 @@
 
 ;; ---- 1: dependencies point volatile -> stable ----------------------------------
 
-(define (check-dependencies s scopes label)
+(define (check-dependencies s by-path label)
   (define mine (site-decl s))
   (for*/list ([entry (in-list (source-requires (site-source s)))]
               [dep (in-value (car entry))]
               #:unless (equal? dep (site-path s))
-              [theirs (in-value (declaration-of scopes dep))]
+              [far (in-value (hash-ref by-path dep #f))]
+              [theirs (in-value (and far (site-decl far)))]
               #:when (and theirs
                           (> (clock-rank (effective-clock theirs))
                              (clock-rank (effective-clock mine)))))
@@ -261,38 +265,42 @@
 (define (matching-glob o name)
   (for/first ([g (in-list (owner-globs o))] #:when (glob-matches? g name)) g))
 
+;; `*` and nothing else. A concept names its exports the way a person would say
+;; them out loud — `mint-*`, `acp-*` — and anything richer would be a second
+;; pattern language for a reader to learn, in a file whose whole point is that
+;; it is read at a glance. The literal parts are quoted, so a `.` or a `?` in an
+;; export name is a character and not a metacharacter.
+(define (glob-matches? pattern name)
+  (define rx
+    (regexp (string-append "^"
+                           (string-join (map regexp-quote (string-split pattern "*" #:trim? #f))
+                                        ".*")
+                           "$")))
+  (regexp-match? rx (symbol->string name)))
+
 (define (owned-by? o path)
   (if (owner-module o)
       (equal? (owner-module o) path)
-      (under-scope? (owner-scope o) path)))
-
-(define (under-scope? s path)
-  (define rel (find-relative-path (scope-dir s) path))
-  (and (relative-path? rel) (not (string-prefix? (path->string rel) ".."))))
+      (scope-covers? (owner-scope o) path)))
 
 (define (owner-label o label)
   (if (owner-module o)
       (label (owner-module o))
-      (format "~a and everything under it" (label (owner-scope-file o)))))
-
-(define (owner-scope-file o) (scope-file (owner-scope o)))
+      (format "~a and everything under it" (label (scope-file (owner-scope o))))))
 
 ;; ---- 4: the declaration against the history ----------------------------------------
 
 (define (check-churn s history label)
   (define e (site-decl s))
-  (define ceiling (clock-churn-ceiling (effective-clock e)))
-  (define n (churn-count history (site-path s)))
   (define window (churn-window history))
+  (define allowed (clock-allows (effective-clock e) window))
+  (define n (churn-count history (site-path s)))
   (cond
-    [(and ceiling (> (/ n window) ceiling))
+    [(and allowed (> n allowed))
      (list (finding (effective-clock-loc e)
                     (format "~a: declared ~a, changed in ~a of the last ~a commits"
                             (label (site-path s)) (effective-clock e) n window)
-                    (list (format "~a allows up to ~a of ~a"
-                                  (effective-clock e)
-                                  (inexact->exact (floor (* ceiling window)))
-                                  window)
+                    (list (format "~a allows up to ~a of ~a" (effective-clock e) allowed window)
                           "either the code settles or the declaration changes — both are reviewable diffs")))]
     [else '()]))
 

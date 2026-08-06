@@ -22,7 +22,6 @@
 
 (provide (contract-out
           [module-defines (-> path? (listof symbol?))]
-          [module-provides (-> path? (listof symbol?))]
           [names-from (-> path? set?)]))
 
 ;; Everything `path` provides that it also DEFINES — a re-export is somebody
@@ -33,13 +32,10 @@
   (for/list ([e (in-list (exports path))] #:when (null? (cadr e)))
     (car e)))
 
-(define (module-provides path)
-  (map car (exports path)))
-
 ;; Every name `path` exports, at every phase, whether it defined it or not.
 ;; This is the set a requiring module gets to see.
 (define (names-from path)
-  (list->seteq (module-provides path)))
+  (list->seteq (map car (exports path))))
 
 ;; ---- the module system ---------------------------------------------------------
 
