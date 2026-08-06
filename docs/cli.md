@@ -99,7 +99,7 @@ Single file:
 
 Mirror sites in `children` are `{"mirror":"agent"}` — never an inlined subtree. The `anchors` object holds each anchored node once (same shape as a task).
 
-A root that splices `@include` fragments also carries `includes` (`[{"file":"..."}]`, absent when there are none), and every node whose **defining** file differs from the loaded file carries its own `file` — that is where writes go (see [Write routing under `@include`](#write-routing-under-include)).
+A root that splices `@include` fragments also carries `includes` (`[{"file":"..."}]`, absent when there are none), and every node whose **defining** file differs from the loaded file carries its own `file` — that is where writes go (see [Write routing under `@include`](#write-routing-under-include)). A [glob](syntax.md#globs) include contributes one entry per file it matched: what the JSON reports is the answer, never the pattern.
 
 Multiple files:
 

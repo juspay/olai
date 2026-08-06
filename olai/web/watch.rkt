@@ -22,6 +22,9 @@
          racket/list
          racket/path
          (only-in gregor now/moment moment? at-midnight +days ->posix)
+         ;; where a starred @include reads: a directory nothing in the watch
+         ;; set need sit in yet
+         (only-in olai/lang/glob glob-dir)
          olai/store)
 
 (provide (contract-out
@@ -59,12 +62,19 @@
 ;; store-files is in there as well as the snapshot's watch set: before the
 ;; first successful load the snapshot is empty, and that is exactly the state
 ;; a watcher has to get out of.
+;;
+;; And where every glob READS, which is not the same list: `Daily/*.rkt` that
+;; matched nothing has no file in the watch set to take a parent of, and the
+;; first fragment of a new year appearing there is precisely the event this
+;; whole arrangement exists to catch.
 (define (watch-dirs st)
+  (define snap (store-snapshot st))
   (remove-duplicates
    (filter values
-           (for/list ([p (in-list (append (store-files st)
-                                          (snapshot-watch (store-snapshot st))))])
-             (path-only (simple-form-path p))))
+           (append
+            (for/list ([p (in-list (append (store-files st) (snapshot-watch snap)))])
+              (path-only (simple-form-path p)))
+            (map glob-dir (snapshot-globs snap))))
    #:key path->string))
 
 ;; -> evt | 'unsupported | #f (no such directory, nothing to watch yet)

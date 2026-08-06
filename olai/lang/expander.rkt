@@ -14,10 +14,12 @@
 ;;
 ;;   (mirror "anchor")
 ;;   (include "relative/path.rkt")  ; require+splice top-level tasks
+;;   (include "relative/*.rkt")     ; ... one splice per file the glob matched
 ;;
 ;; Children are (t ...) | (mirror ...) | (include ...) — closed grammar.
-;; Module exports `tasks`, `anchors` (hash id -> task), and `includes`
-;; (list of absolute paths required by this module).
+;; Module exports `tasks`, `anchors` (hash id -> task), `includes` (list of
+;; absolute paths required by this module) and `include-globs` (list of
+;; absolute glob patterns it expanded to get them).
 
 (require racket/list
          racket/string
@@ -27,6 +29,8 @@
          (for-syntax racket/base
                      olai/lang/tags
                      olai/lang/graph
+                     ;; what a starred @include path names, and where it reads
+                     olai/lang/glob
                      ;; the date grammar has one owner; the expander is a
                      ;; consumer of it, at phase 1 like the tag grammar
                      olai/dates
@@ -139,8 +143,16 @@
 ;; Mirror site: same node as anchors[anchor], not a copy.
 (struct mirror-ref (anchor loc) #:transparent)
 
-;; Runtime include result before flatten (list of top-level tasks from fragment).
-(struct include-splice (abs-path rel tasks) #:transparent)
+;; What one @include put in the tree, before flatten: the files it named, the
+;; top-level tasks they contributed, and — when the site was a GLOB — the
+;; pattern that named them.
+;;
+;; One struct for both spellings, because downstream there is one concept: an
+;; include site is a set of files spliced in. The pattern is the only thing a
+;; glob site knows that a literal one does not, and it is kept because the
+;; STORE has to re-ask it — a file appearing in Daily/ changes what this
+;; module means without changing any file it read.
+(struct include-splice (pattern files tasks) #:transparent)
 
 (define (valid-anchor-id? s)
   (and (string? s) (regexp-match? #px"^[A-Za-z0-9_-]+$" s)))
@@ -365,7 +377,10 @@
       (path->string name)
       (format "~a" p)))
 
-(define (load-include-tasks abs-path rel)
+;; One file's top-level tasks, with the cycle guard around it. The two include
+;; spellings below differ in WHICH files they call this for, and in nothing
+;; else — a glob is not a second kind of include, it is a set of them.
+(define (load-include-file abs-path rel)
   (define abs* (path->string (simplify-path (string->path abs-path) #t)))
   (define stack (current-include-stack))
   (when (member abs* stack string=?)
@@ -397,17 +412,23 @@
                  (error 'include "file not found: ~a" rel)]
                 [else (raise e)]))])
         (dynamic-require `(file ,abs*) 'tasks)))
-    (include-splice abs* rel tasks)))
+    (values abs* tasks)))
 
-(define (flatten-child x)
-  (cond
-    [(include-splice? x) (include-splice-tasks x)]
-    [(task? x) (list x)]
-    [(mirror-ref? x) (list x)]
-    [else (list x)]))
+(define (load-include-tasks abs-path rel)
+  (define-values (abs* tasks) (load-include-file abs-path rel))
+  (include-splice #f (list abs*) tasks))
 
-(define (flatten-children xs)
-  (append* (map flatten-child xs)))
+;; A GLOB site: the files the pattern matched at expansion time, spliced flat
+;; and in the order they were matched in — exactly what the same number of
+;; literal @include lines in that order would have done. Zero matches is zero
+;; lines, which is a legal thing to write: `Daily/2027-*.rkt` on the first of
+;; January names the files that year is about to have.
+(define (load-include-glob pattern entries)
+  (define loaded
+    (for/list ([e (in-list entries)])
+      (define-values (abs* tasks) (load-include-file (car e) (cdr e)))
+      (cons abs* tasks)))
+  (include-splice pattern (map car loaded) (append* (map cdr loaded))))
 
 (define (rebuild-task tk kids)
   (struct-copy task tk [children kids]))
@@ -474,9 +495,10 @@
 
 (define (finalize-tasks forms src)
   (define includes (collect-include-paths forms))
+  (define globs (collect-include-globs forms))
   (define flat (flatten-tree forms))
   (validate-task-tree! flat)
-  (values flat includes))
+  (values flat includes globs))
 
 (define (build-anchors-hash tasks)
   (define h (make-hash))
@@ -491,18 +513,30 @@
   (for ([t (in-list tasks)]) (walk t))
   h)
 
-(define (collect-include-paths forms)
-  (define paths '())
+;; What every include site in this module contributed, in source order:
+;; `#:of` says which part of a site is being collected — the files it spliced,
+;; or the pattern it found them with (#f at a literal site, and dropped).
+(define (collect-includes forms #:of part)
+  (define acc '())
   (define (walk x)
     (cond
       [(include-splice? x)
-       (set! paths (cons (include-splice-abs-path x) paths))
+       (set! acc (append (reverse (part x)) acc))
        (for-each walk (include-splice-tasks x))]
       [(task? x)
        (for-each walk (task-children x))]
       [else (void)]))
   (for-each walk forms)
-  (reverse (remove-duplicates paths)))
+  (remove-duplicates (reverse acc)))
+
+(define (collect-include-paths forms)
+  (collect-includes forms #:of include-splice-files))
+
+(define (collect-include-globs forms)
+  (collect-includes forms
+                    #:of (λ (x)
+                           (define p (include-splice-pattern x))
+                           (if p (list p) '()))))
 
 (define-syntax (mirror stx)
   (syntax-parse stx
@@ -515,28 +549,61 @@
       "expected (mirror \"anchor\")"
       stx)]))
 
+;; The directory an @include is relative to: the one the file that wrote it
+;; sits in.
+(define-for-syntax (include-base-dir stx)
+  (define src (syntax-source stx))
+  (cond
+    [(path? src) (path-only src)]
+    [(string? src) (path-only (string->path src))]
+    [else #f]))
+
+(define-for-syntax (expand-literal-include stx rel dir)
+  (define full
+    (simplify-path
+     (path->complete-path
+      (if dir (build-path dir rel) (string->path rel))
+      (or dir (current-directory)))))
+  (unless (file-exists? full)
+    (raise-syntax-error 'include (format "file not found: ~a" rel) stx))
+  #`(load-include-tasks #,(path->string full) #,rel))
+
+;; A GLOB is expanded HERE, once per compile, so the module graph is static
+;; for the life of a load: what the pattern matched is what got required, and
+;; nothing re-reads a directory mid-tree. Asking it again is the store's job
+;; (olai/store), which is also what recompiles this module when the answer has
+;; moved.
+;;
+;; The two ways it can be wrong are not the same kind of wrong. A pattern
+;; outside the grammar is a form the language does not accept. A directory
+;; that is not there is a name that resolves to nothing, exactly like a
+;; literal @include's missing file — the directory part is literal, so it is a
+;; claim, and a typo in it must not read as "matched nothing". What the
+;; pattern found in that directory is a different question, and the empty
+;; answer is a legal one.
+(define-for-syntax (expand-glob-include stx rel dir)
+  (define problem (include-glob-problem rel))
+  (when problem
+    (raise-syntax-error 'include problem stx))
+  (define pattern (glob-absolute rel dir))
+  (define gdir (glob-dir pattern))
+  (unless (directory-exists? gdir)
+    (raise-syntax-error 'include
+                        (format "no such directory: ~a" (path->string gdir))
+                        stx))
+  (define entries
+    (for/list ([m (in-list (glob-expand pattern))])
+      #`(cons #,(path->string m) #,(glob-match-rel rel m))))
+  #`(load-include-glob #,(path->string pattern) (list #,@entries)))
+
 (define-syntax (include stx)
   (syntax-parse stx
     [(_ path:str)
-     (define src (syntax-source stx))
-     (define dir
-       (cond
-         [(path? src) (path-only src)]
-         [(string? src) (path-only (string->path src))]
-         [else #f]))
      (define rel (syntax-e #'path))
-     (define full
-       (simplify-path
-        (path->complete-path
-         (if dir (build-path dir rel) (string->path rel))
-         (or dir (current-directory)))))
-     (define full-str (path->string full))
-     (unless (file-exists? full)
-       (raise-syntax-error
-        'include
-        (format "file not found: ~a" rel)
-        stx))
-     #`(load-include-tasks #,full-str #,rel)]
+     (define dir (include-base-dir stx))
+     (if (include-glob? rel)
+         (expand-glob-include stx rel dir)
+         (expand-literal-include stx rel dir))]
     [_
      (raise-syntax-error
       'include
@@ -612,9 +679,9 @@
     [(_ form:body-form ...)
      (validate-body-forms (syntax->list #'(form ...)))
      #`(#%module-begin
-        (provide tasks anchors includes)
+        (provide tasks anchors includes include-globs)
         (define raw-forms (list form ...))
-        (define-values (tasks includes)
+        (define-values (tasks includes include-globs)
           (finalize-tasks raw-forms #,(syntax-source-path stx)))
         (define anchors (build-anchors-hash tasks))
         (void))]))

@@ -699,4 +699,27 @@
        (check-not-false (next-event in) "no event for the fragment")
        (define-values (_c2 _h2 b2) (GET port "/"))
        (check-true (string-contains? b2 "Deeper still") b2)
+       (close-input-port in))))
+
+  ;; The case a glob adds, and the only one in this file where NO file the
+  ;; server had read moved: a month that did not exist when the outline was
+  ;; loaded lands in the directory the pattern reads. The page follows it
+  ;; without anyone restarting anything.
+  (test-case "a new file matching an @include glob shows up while serving"
+    (with-server
+     (λ (port f)
+       (define frags (build-path (path-only f) "Frags"))
+       (make-directory* frags)
+       (display-to-file "#lang olai\nJanuary\n" (build-path frags "2026-01.rkt"))
+       (define-values (_code _headers in) (open-events port))
+       (display-to-file (string-append outline "Daily\n  @include Frags/*.rkt\n")
+                        f #:exists 'truncate)
+       (check-not-false (next-event in) "no event for the root")
+       (define-values (_c1 _h1 b1) (GET port "/"))
+       (check-true (string-contains? b1 "January") b1)
+       ;; nothing already loaded is touched here — a file simply appears
+       (display-to-file "#lang olai\nFebruary\n" (build-path frags "2026-02.rkt"))
+       (check-not-false (next-event in) "no event for the new match")
+       (define-values (_c2 _h2 b2) (GET port "/"))
+       (check-true (string-contains? b2 "February") b2)
        (close-input-port in)))))

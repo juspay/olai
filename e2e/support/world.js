@@ -131,6 +131,18 @@ export class OlaiWorld extends World {
     await this.rewrite(this.outline + text);
   }
 
+  /** Write a file BESIDE the outline, parents and all: an @include fragment.
+   *
+   *  Not an outline edit — the .rkt the server was started on does not move —
+   *  which is the point when the outline names the fragment with a glob. The
+   *  file simply appears in a directory a pattern reads, and the store has to
+   *  find out by asking the pattern again. */
+  async writeFragment(rel, text) {
+    const p = path.join(this.dir, rel);
+    await fs.mkdir(path.dirname(p), { recursive: true });
+    await fs.writeFile(p, text, "utf8");
+  }
+
   /** Rewrite the document a node's @doc attaches. Not an outline edit at all —
    *  the .rkt does not move — which is the whole point of the scenario that
    *  uses it: the page still has to redraw. */
