@@ -37,13 +37,6 @@ Feature: folding a node
     Then the sidebar's "Ship the server" is folded
     And "Ship the server" is unfolded
 
-  # KNOWN BROKEN: the live view unfolds everything you folded.
-  # collapse.js re-applies the fold on htmx:afterSwap, and at that moment it is
-  # right — but the nodes carry ids, so htmx's settle phase then restores the
-  # class attribute the SERVER sent, which has no is-collapsed. The fold is
-  # correct for ~20ms and then gone. htmx:afterSettle is where that pass
-  # belongs. Parked until collapse.js listens there.
-  @skip
   Scenario: a fold outlives the live view's re-swap
     When I open the home page
     And I fold "Inbox"
