@@ -137,7 +137,7 @@ Then("the chat is not titled {string}", async function (title) {
 // Nothing was replayed into it: this conversation is new, not one adopted from
 // somewhere else.
 Then("the transcript is empty", async function () {
-  assert.equal(await this.page.locator("#ol-chat-body .ol-chat-turn").count(), 0);
+  assert.equal(await this.page.locator(TURNS).count(), 0);
 });
 
 // ---- geometry -------------------------------------------------------------
@@ -272,8 +272,10 @@ async function sheet(page) {
 
 /** The turn being drawn. A turn owns its user bubble, the agent's text and its
  *  tool lines, so everything asserted about one is looked up inside it. */
+const TURNS = "#ol-chat-body .ol-chat-turn";
+
 function lastTurn(page) {
-  return page.locator("#ol-chat-body .ol-chat-turn").last();
+  return page.locator(TURNS).last();
 }
 
 Then("the last turn quotes me {string}", async function (text) {
@@ -297,4 +299,78 @@ Then("the last turn ran the tool {string}", async function (title) {
     .locator(".ol-chat-tool .ol-chat-tool-title", { hasText: title })
     .first()
     .waitFor({ state: "visible" });
+});
+
+// ---- folding the chatter ----------------------------------------------------
+//
+// A tool call is a disclosure, and the fake agent runs exactly one per turn,
+// so "the turn's tool call" is unambiguous. The button's aria-expanded IS the
+// fold — there is no class saying it a second time — so the state goes in the
+// SELECTOR, which is what makes these wait for it rather than read whatever is
+// there when they look.
+
+/** A turn's tool call: any of them, or the one in a given ARIA state. */
+function toolCall(turn, expanded) {
+  const state = expanded === undefined ? "" : `[aria-expanded="${expanded}"]`;
+  return turn.locator(`.ol-chat-tool${state}`).first();
+}
+
+function firstTurn(page) {
+  return page.locator(TURNS).first();
+}
+
+When("I unfold the last turn's tool call", async function () {
+  const tool = toolCall(lastTurn(this.page), "false");
+  // What the fold is holding down, read before the click: after it there is
+  // nothing left to compare against.
+  this.foldedToolBox = await tool.boundingBox();
+  await tool.click();
+});
+
+Then("the last turn's tool call is folded", async function () {
+  await toolCall(lastTurn(this.page), "false").waitFor({ state: "visible" });
+});
+
+Then("the last turn's tool call is unfolded", async function () {
+  await toolCall(lastTurn(this.page), "true").waitFor({ state: "visible" });
+});
+
+Then("the first turn's tool call is unfolded", async function () {
+  await toolCall(firstTurn(this.page), "true").waitFor({ state: "visible" });
+});
+
+// The clamp, as the browser laid it out rather than as the sheet claims it:
+// a title with more to say than the line has room for is cut off, and the
+// element knows it.
+Then("the tool call's title is cut off", async function () {
+  assert.ok(await clipped(this.page), "the title fits its line — nothing is held back");
+});
+
+// The other half: the whole title is out, and the line grew to hold it.
+Then("unfolding put the whole title on screen", async function () {
+  const tool = toolCall(lastTurn(this.page), "true");
+  const box = await tool.boundingBox();
+  assert.ok(
+    box.height > this.foldedToolBox.height,
+    `the tool call is still ${box.height}px tall — the title never left its one line`,
+  );
+  assert.equal(await clipped(this.page), false, "the title is still cut off");
+});
+
+async function clipped(page) {
+  return await toolCall(lastTurn(page))
+    .locator(".ol-chat-tool-title")
+    .evaluate((el) => el.scrollWidth > el.clientWidth);
+}
+
+// The prose the panel is actually for. Nothing in it is pressable, and its
+// text is there to read rather than to ask for.
+Then("the agent's words have nothing to unfold", async function () {
+  const said = lastTurn(this.page).locator(".ol-chat-msg.is-agent");
+  await said.waitFor({ state: "visible" });
+  assert.equal(
+    await said.locator("button, [aria-expanded]").count(),
+    0,
+    "the agent's own words carry a fold",
+  );
 });
