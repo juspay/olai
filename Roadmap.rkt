@@ -80,10 +80,10 @@ olai roadmap #project
       [x] WP3 SSE + watcher
         : /events hub; filesystem-change-evt debounce; outline-changed
         : fragment re-swaps; midnight re-render.
-      WP7 zoom + breadcrumbs
-        : Per-node zoom route keyed by task-key (render-zoom exists, wired
-        : only to /today); breadcrumbs from the ancestor path; node
-        : permalinks point at the zoom instead of home.
+      [x] WP7 zoom + breadcrumbs
+        : Per-node zoom route keyed by task-key; breadcrumbs from the
+        : ancestor path; node permalinks point at the zoom instead of
+        : home.
       collapse state lost on live re-swap #bug
         : sse.js swaps via api.swap directly, so htmx:afterSwap never
         : fires and collapse.js's re-apply pass is skipped — an SSE
@@ -95,8 +95,42 @@ olai roadmap #project
       : Capture box + check-off from the browser (done status already in the
       : language + CLI). The phone loop closes: capture, complete, ask the
       : agent for everything else.
+    drag-drop reorder
+      : Move and reindent nodes in the browser — the write path is 0.6's
+      : ops layer; order and parent become editable from the view.
     0.9 search
       : Text search + keyboard nav in the web view.
+    view toggles
+      : Client view state, like collapse: localStorage, no server.
+      hide completed
+        : Workflowy's Ctrl+O checkmark toggle — [x]/@done nodes stop
+        : rendering (the agenda already excludes done); a Done subtree
+        : vanishes from view without deletion.
+      starred views
+        : Star a zoom or search into the sidebar's STARRED section for
+        : one-click return.
+    node views
+      : One language field says how a node DRAWS its children (heading |
+      : numbered | board | table); the checker owns the closed set,
+      : renderers follow. The data stays outline-shaped either way.
+      headings
+        : A node renders as a heading tier, its children as the section.
+      numbered lists
+        : Children render 1. 2. 3. — the order is already the tree's.
+      kanban board
+        : Children as columns, grandchildren as cards; done and #tags
+        : drive the lanes.
+      tables
+        : Children as rows, fields as columns — trackers and small
+        : databases without leaving the outline.
+    templates
+      : Recurring structures (weekly review, project skeleton) that
+      : capture or the agent instantiates; a template is just an outline
+      : file.
+    backlinks panel
+      : A zoomed node lists what points at it — mirrors today, typed
+      : edges once that linker lands. The reverse index is a pure query
+      : over the snapshot.
     command palette
       : Ctrl+K (and Ctrl+; fallback), the Workflowy "Jump To": one box
       : that fuzzy-jumps to any node by title, ^anchor, or #tag, and
@@ -129,6 +163,7 @@ olai roadmap #project
         : and boot ADOPTS the newest as the web conversation. The raw
         : entries carry cwd (acp.rkt:370); filter list-sessions to exact
         : server-cwd matches before the picker or adopt logic sees them.
+        @done 2026-08-05
   language
     : The grammar grows; the expander stays the only validator.
     0.2b.2 cross-file mirrors
