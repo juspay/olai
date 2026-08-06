@@ -50,6 +50,10 @@ edit-verify loop and css-expr). This file is only what you can't infer.
   map kind -> exit code. The web mutation routes will call the same ops.
 * Node keys are minted in the load layer, not the expander (see docs/cli.md);
   store.rkt owns snapshots and binds mirror sites before anything draws them.
+  index.rkt inverts the keys (key -> node + its parent's key) and derives the
+  trail above a node on demand — what /n/<key> and its breadcrumbs are drawn
+  from. Addressing is not snapshotting: the store builds one index per load
+  and asks it nothing.
 * Live view: store (what) -> web/watch.rkt (when) -> web/events.rkt (generic
   SSE hub); they meet only in serve.rkt, and the chat rides the same hub.
 * olai/acp.rkt speaks ACP: one subprocess, typed events out of one

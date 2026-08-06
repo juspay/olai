@@ -342,7 +342,11 @@
 ;;
 ;; `dir` is the directory the agent works in when there was one to name (see
 ;; serve-roots); #f leaves it to the outlines' own common base.
-(define (cmd-serve paths dir port bind)
+;;
+;; `fallback?` is "nobody asked for this port" — the default. Taken, we bind a
+;; free one and say which. A port typed on the command line is a request, and
+;; a taken one is an error.
+(define (cmd-serve paths dir port fallback? bind)
   (define acp-command (acp-command-or-die))
   (define cust (make-custodian))
   (define stop
@@ -352,12 +356,17 @@
             (λ (e) (die exit-usage (exn-message e) #:json? #f))])
         (start-server
          #:port port
+         #:port-fallback? fallback?
          #:bind bind
          #:files paths
          #:acp-command acp-command
          #:agent-cwd dir
          #:on-listen
          (λ (bound)
+           ;; The URL below is always the port actually bound; this line is
+           ;; why it is not the one you expected.
+           (when (and fallback? (not (= bound port)))
+             (eprintf "olai: port ~a is taken; serving on ~a\n" port bound))
            (printf "olai serve http://~a:~a ~afiles: ~a\n"
                    (or bind "0.0.0.0") bound
                    (if dir (format "dir: ~a " dir) "")
@@ -443,22 +452,24 @@
 
 (define (cli-serve)
   (define port 8080)
+  (define asked? #f)
   (define bind "127.0.0.1")
   (define file-args '())
   (command-line
    #:program "olai serve"
    #:once-each
-   [("--port") p "TCP port (default: 8080; 0 picks a free one)"
+   [("--port") p "TCP port (default: 8080, or a free one if taken; 0 picks a free one)"
                (define n (string->number p))
                (unless (and (exact-nonnegative-integer? n) (< n 65536))
                  (die exit-usage (format "invalid --port ~s" p) #:json? #f))
-               (set! port n)]
+               (set! port n)
+               (set! asked? #t)]
    [("--bind") a "Listen address (default: 127.0.0.1; \"\" for all)"
                (set! bind a)]
    #:args paths
    (set! file-args paths))
   (define-values (roots dir) (serve-roots file-args))
-  (cmd-serve roots dir port (if (string=? bind "") #f bind)))
+  (cmd-serve roots dir port (not asked?) (if (string=? bind "") #f bind)))
 
 (define (cli-add)
   (define file-arg #f)

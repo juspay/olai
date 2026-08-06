@@ -95,7 +95,7 @@
                  #:body-extra list?)
                 list?)]
           [render-zoom
-           (->* (hash? string? #:today string? #:home-href string?)
+           (->* (task? list? #:today string? #:home-href string?)
                 (#:zoom-base (or/c string? #f)
                  #:toggle-base (or/c string? #f))
                 list?)]
@@ -661,19 +661,19 @@
 
 (define-style ol-crumb-sep #:color ,line)
 
-;; path: (listof crumb) where crumb is "Label" or (list "Label" href-or-fid)
+;; path: (listof crumb), two shapes and no third. `(list "Title" key)` is a
+;; NODE — a title, which is Markdown, at the one address nodes have; anything
+;; else is the FILE the trail hangs off, drawn the way files are named here
+;; (olai/paths) and nothing to click. A crumb never carries a ready-made href:
+;; where a key points is the route layer's answer, and it hands it down as
+;; `zoom-base` like every other address in this module.
 (define (render-breadcrumbs path #:home-href home-href #:zoom-base [zoom-base #f])
-  (define (label->xexprs label)
-    (map style-md-xexpr (title->inline-xexprs label)))
   (define (crumb->xexpr c)
     (match c
-      [(list label target)
-       `(a ((class ,ol-crumb) (href ,(if (regexp-match? #px"^[/#]" target)
-                                         target
-                                         (href-for zoom-base target))))
-           ,@(label->xexprs label))]
-      [(? string? label) `(span ((class ,ol-crumb)) ,@(label->xexprs label))]
-      [_ `(span ((class ,ol-crumb)) ,(format "~a" c))]))
+      [(list title key)
+       `(a ((class ,ol-crumb) (href ,(href-for zoom-base key)))
+           ,@(map style-md-xexpr (title->inline-xexprs title)))]
+      [file `(span ((class ,ol-crumb)) ,(file-label file))]))
   `(nav ((class ,ol-breadcrumbs) (aria-label "breadcrumbs"))
         ,@(if home-href
               (list `(a ((class ,(classes ol-crumb ol-crumb-home)) (href ,home-href))
@@ -1001,29 +1001,19 @@
 
 ;; Breadcrumbs + the focused subtree.
 ;;
-;; `index` is the store's node index: key -> (list task crumbs), where crumbs
-;; is the trail from the file label down to and including the node, each crumb
-;; a (list label key) with key #f for the file label itself. Nothing here
-;; recomputes an id or walks a tree — zoom is a hash lookup.
-(define (render-zoom index key
+;; Both are GIVEN: `tk` is the node to draw, `crumbs` the trail above it
+;; (olai/index, node-ancestors). Which node a key names, and what sits above
+;; it, are answered before anything gets here — this draws a zoom, it does not
+;; find one, so there is no such thing as a miss at this layer.
+(define (render-zoom tk crumbs
                      #:today today
                      #:home-href home-href
                      #:zoom-base [zoom-base #f]
                      #:toggle-base [toggle-base #f])
-  (define hit (hash-ref index key #f))
-  (cond
-    [(not hit) (render-empty-pane "No such node." #:home-href home-href)]
-    [else
-     (match-define (list tk crumbs) hit)
-     ;; drop the node's own crumb; the file label has no node to zoom to
-     (define ancestors
-       (for/list ([c (in-list (drop-right crumbs 1))])
-         (match-define (list label k) c)
-         (if k (list label k) label)))
-     `(div ((class ,(classes ol-pane ol-zoom)) (id "ol-outline"))
-           ,(render-breadcrumbs ancestors #:zoom-base zoom-base #:home-href home-href)
-           (ul ((class ,(classes ol-outline ol-zoom-root)))
-               ,(render-node-fragment tk
-                                      #:today today
-                                      #:zoom-base zoom-base
-                                      #:toggle-base toggle-base)))]))
+  `(div ((class ,(classes ol-pane ol-zoom)) (id "ol-outline"))
+        ,(render-breadcrumbs crumbs #:zoom-base zoom-base #:home-href home-href)
+        (ul ((class ,(classes ol-outline ol-zoom-root)))
+            ,(render-node-fragment tk
+                                   #:today today
+                                   #:zoom-base zoom-base
+                                   #:toggle-base toggle-base))))
