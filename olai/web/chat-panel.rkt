@@ -321,9 +321,6 @@
   [(:: & before) (:: & after) #:content "" #:flex (1 1 auto)
    #:border-top (1px solid ,line)])
 
-;; Frames land here: a hook for the SSE extension, nothing to look at.
-(define-modifier ol-chat-sink)
-
 ;; ---- the input row --------------------------------------------------------
 
 (define-style ol-chat-form
@@ -487,7 +484,12 @@
         ;; In none of its states: closed, idle, and with nothing to offer. Each
         ;; of them is one class away, and the frames this connection is caught
         ;; up with are what put it in the right ones.
-        (aside ((class ,ol-chat) (id "ol-chat"))
+        ;; The event name the conversation rides under, carried rather than
+        ;; spelled: it is the route layer's word (web/chat owns it), and
+        ;; static/chat.js subscribes to whatever is written here. The page's
+        ;; ONE stream is the framework's (live.on); this panel is its second
+        ;; consumer, and nothing about that is a swap.
+        (aside ((class ,ol-chat) (id "ol-chat") (data-chat-event ,event))
                (div ((class ,ol-chat-head))
                     ;; Which model — never a placeholder: an empty span for a
                     ;; `model` frame to fill, and the separator is the span's
@@ -524,11 +526,6 @@
                                   (title "close the agent panel")
                                   (aria-label "close the agent panel"))
                                  "×")))
-               ;; Frames land here: the htmx sse extension would swap the raw
-               ;; JSON in, and chat.js cancels that and keeps the data. One
-               ;; connection, two consumers.
-               (div ((class ,ol-chat-sink) (id "ol-chat-sink")
-                     (sse-swap ,event) (hidden "hidden")))
                ;; Empty, always: the conversation is what the stream says it
                ;; is, from the frames it catches this connection up with.
                (div ((class ,ol-chat-body) (id "ol-chat-body")))

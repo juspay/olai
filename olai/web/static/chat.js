@@ -1,6 +1,7 @@
 // The chat panel: chat frames in, DOM out. One SSE connection for the whole
-// page (the body's sse-connect), so this hooks the htmx sse extension rather
-// than opening an EventSource of its own — browsers cap those per origin.
+// page, so this subscribes to the live-view runtime's stream (live.on) rather
+// than opening an EventSource of its own — browsers cap those per origin, and
+// a second one would be a second story about whether the page is live.
 //
 // The panel comes out of the server empty and in none of its states. Every
 // word in it, and every class on it, arrives as a frame — including the ones
@@ -16,7 +17,7 @@
 // chunks accumulated.
 (function(){
   var KEY='olai.chat';
-  var panel,dock,body,form,input,sink,turn,agentEl,modelEl,sessionEl,pop,spop;
+  var panel,dock,body,form,input,turn,agentEl,modelEl,sessionEl,pop,spop;
 
   // ---- open / closed (same shape as collapse.js: a class, remembered) ----
   //
@@ -373,7 +374,6 @@
     body=document.getElementById('ol-chat-body');
     form=document.getElementById('ol-chat-form');
     input=form.querySelector('.ol-chat-input');
-    sink=document.getElementById('ol-chat-sink');
     modelEl=document.getElementById('ol-chat-model');
     sessionEl=document.getElementById('ol-chat-session');
     // The popover belongs to the input row and to nothing else, so it is made
@@ -489,15 +489,15 @@
       });
     }
 
-    // The htmx sse extension would swap the frame's JSON into #ol-chat-sink.
-    // Cancelling that message is how this panel borrows the page's one
-    // connection: the data is ours, the swap never happens.
-    document.body.addEventListener('htmx:sseBeforeMessage',function(e){
-      var d=e.detail;
-      if(!d||d.type!=='chat'||(sink&&d.elt!==sink))return;
-      e.preventDefault();
+    // The page has ONE stream and every event name rides it; this is how a
+    // consumer whose payload is not markup listens to one (live/static/live.js
+    // holds the connection). The name is the server's word, carried on the
+    // panel — a script that spelled it here would be a second owner of the
+    // wire format.
+    var name=panel.getAttribute('data-chat-event');
+    if(name&&window.live)window.live.on(name,function(data){
       var f=null;
-      try{f=JSON.parse(d.data)}catch(err){return}
+      try{f=JSON.parse(data)}catch(err){return}
       if(f&&f.type)frame(f);
     });
   }

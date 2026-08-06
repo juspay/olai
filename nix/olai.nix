@@ -13,6 +13,9 @@
 #     ELF patcher arity-mismatches (compiler/private/elf.rkt).
 { lib, stdenv, racket, makeWrapper, tzdata, racketDeps, racketPkgs, src
 , acpAgent
+# the live-view collection with its vendored browser runtime already staged
+# (live/default.nix) — a drop-in for $src/live
+, live
 }:
 
 stdenv.mkDerivation {
@@ -46,8 +49,11 @@ stdenv.mkDerivation {
     ln -sfn "${tzdata}/share/zoneinfo" \
       "$PLTUSERHOME/.local/share/racket/9.2/share/tzdata/zoneinfo"
 
+    # live comes from its own derivation, not from $src: the browser runtime
+    # under its static/ is pinned upstream rather than committed.
+    cp -a "${live}" ./live-pkg
     cp -a "$src/olai" ./olai-pkg
-    chmod -R u+w ./olai-pkg
+    chmod -R u+w ./live-pkg ./olai-pkg
 
     # Offline install of npins-vendored deps (order matters).
     # --deps force: markdown wants package name "parsack"; we ship
@@ -60,6 +66,9 @@ stdenv.mkDerivation {
 
     # --copy, not --link: a link would keep $src (or /build) paths in the
     # package catalog and raco exe would bake those into the stub.
+    # `live` before `olai`: the live-view framework is a package of its own
+    # (this repo's live/), and olai declares a dependency on it.
+    raco pkg install --copy --no-docs --deps force ./live-pkg
     raco pkg install --copy --no-docs --deps force ./olai-pkg
 
     mkdir -p $out/bin

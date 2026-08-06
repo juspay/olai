@@ -19,7 +19,7 @@ olai inverts it:
 * tasks are CODE -- a Racket `#lang`; the expander is the validator
 * git is the HISTORY -- no sync protocol, no CRDT, no vendor
 * agents are USERS -- Claude Code & friends edit your files; the DSL's error messages are their REPL. The web view spawns one over ACP and puts it in a chat panel.
-* the web UI is a VIEW -- htmx, pushed over SSE: save a file and every open tab redraws itself. It still does not WRITE — capture and check-off in the browser are next. Until then the chat panel is how you change an outline without an editor.
+* the web UI is a VIEW -- htmx, pushed over SSE: save a file and every open tab redraws itself, morphed in place, so nothing that did not change is replaced. It still does not WRITE — capture and check-off in the browser are next. Until then the chat panel is how you change an outline without an editor.
 
 Mirrors fall out of the language for free: a node is a binding, referencing it twice is a mirror. define-before-use kills most cycles before they exist.
 
@@ -77,7 +77,7 @@ Single user, many devices. The server runs on your headless box behind Caddy or 
 
 ## STATUS
 
-Outline `#lang olai` + sexp core + agent CLI (`check` / `tree` / `agenda` / `calendar` / `add` / `done` / `doing` / `move` / `daily` / `ics` / `serve` — all JSON but `ics` and `serve`; the human-facing plain output and the `css` dump are retired). Three node states (open / doing / done), mirrors and `@include` composition are first class; the agenda groups what is in flight above what is due today, and mirrors reach anchors anywhere in the loaded tree, fragments included. The human view is the web app served by `olai serve` — htmx, no auth (bind it to localhost or Tailscale). Every node has a permalink that zooms to it, breadcrumbs and all. It reloads an outline when the file changes and pushes that over SSE, so open tabs redraw with no refresh, and it carries a chat panel driving Claude Code over ACP (`OLAI_ACP_AGENT`). Installable as a PWA (manifest, icons, theme-color; no offline shell). The page itself still writes nothing; there is no static HTML export. (Ancestor: srid/Tend.)
+Outline `#lang olai` + sexp core + agent CLI (`check` / `tree` / `agenda` / `calendar` / `add` / `done` / `doing` / `move` / `daily` / `ics` / `serve` — all JSON but `ics` and `serve`; the human-facing plain output and the `css` dump are retired). Three node states (open / doing / done), mirrors and `@include` composition are first class; the agenda groups what is in flight above what is due today, and mirrors reach anchors anywhere in the loaded tree, fragments included. The human view is the web app served by `olai serve` — htmx, no auth (bind it to localhost or Tailscale). Every node has a permalink that zooms to it, breadcrumbs and all. It reloads an outline when the file changes and pushes that over SSE, so open tabs redraw with no refresh — morphed into place, so scroll, selection and focus survive, and links navigate the outline region rather than rebuilding the page. A tab that was asleep, or open across a server restart, catches up on reconnect and says so while the stream is down ([docs/live.md](docs/live.md)). It carries a chat panel driving Claude Code over ACP (`OLAI_ACP_AGENT`). Installable as a PWA (manifest, icons, theme-color; no offline shell). The page itself still writes nothing; there is no static HTML export. (Ancestor: srid/Tend.)
 
 ## ROADMAP
 
@@ -114,7 +114,9 @@ Machine-readable contract (JSON shapes, exit codes, `add`): **[docs/cli.md](docs
 
 **No hand-rolling where a library exists.** Prefer maintained packages (`racket/cmdline`, `json`, `gregor`, `markdown`, `xml` xexprs, `web-server` for routing and static files) over home-grown parsers, routers and escape codes.
 
-Toolchain traps, css-expr spelling, and the stale-`.zo` symptom: **[docs/hacking.md](docs/hacking.md)**.
+Toolchain traps, css-expr spelling, and the stale-`.zo` symptom: **[docs/hacking.md](docs/hacking.md)**. The stream's frames, ids and heartbeat: **[docs/live.md](docs/live.md)**.
+
+The repo holds a second Racket package: `live/`, the live-view framework the web app is built on — an SSE hub with reconnect catch-up and an htmx + idiomorph browser runtime, with no olai imports at all. olai is its first consumer, not its definition; **[live/README.md](live/README.md)** is written for anyone else who wants one.
 
 Patches welcome. Keep it small, keep it boring. The interesting part is the DSL; write good expander error messages -- the agents read them.
 

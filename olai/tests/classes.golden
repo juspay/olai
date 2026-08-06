@@ -40,7 +40,6 @@ ol-chat-pop
 ol-chat-send
 ol-chat-sep
 ol-chat-session
-ol-chat-sink
 ol-chat-spop
 ol-chat-stop
 ol-chat-title
@@ -90,6 +89,9 @@ ol-sidebar-empty
 ol-sidebar-heading
 ol-sidebar-nav
 ol-sidebar-section
+ol-stream
+ol-stream-connecting
+ol-stream-stale
 ol-tag
 ol-title
 ol-toggle

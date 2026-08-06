@@ -269,7 +269,7 @@
 
 ;; A class with no rules of its own. Two kinds wear it: a STATE (is-done,
 ;; has-children, is-open) that appears inside other components' selectors and
-;; in the JS that toggles it, and a HOOK (ol-pane, ol-chat-sink) that only JS
+;; in the JS that toggles it, and a HOOK (ol-pane, ol-zoom) that only JS
 ;; or a test addresses. Binding it is the whole point: the string exists once,
 ;; and both sides spell it from there. It binds only, and no longer stands in
 ;; for a rule with several subjects — define-style takes a list for that.

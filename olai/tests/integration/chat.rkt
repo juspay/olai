@@ -23,6 +23,7 @@
          racket/list
          racket/port
          racket/string
+         (only-in live/hub heartbeat-event)
          olai/acp
          olai/ops
          olai/web/chat
@@ -216,8 +217,10 @@
   (when through (events-through in through))
   in)
 
-;; Next real event on the stream: -> (cons name data) | #f. Heartbeats are
-;; framing, not news.
+;; Next real event on the stream: -> (cons name data) | #f. The heartbeat is
+;; framing, not news — it is a named event (a client has to be able to notice
+;; it stopping, and a comment is invisible to one), and this is where it stops
+;; being anything a test about the conversation has to know.
 (define (next-event in #:timeout [timeout 30])
   (define deadline (+ (current-inexact-milliseconds) (* 1000.0 timeout)))
   (let loop ([name #f] [data '()])
@@ -227,7 +230,10 @@
     (cond
       [(or (not line) (eof-object? line)) #f]
       [(string=? line "")
-       (if name (cons name (string-join (reverse data) "\n")) (loop #f '()))]
+       (cond
+         [(equal? name heartbeat-event) (loop #f '())]
+         [name (cons name (string-join (reverse data) "\n"))]
+         [else (loop #f '())])]
       [(string-prefix? line "event: ") (loop (substring line 7) data)]
       [(string-prefix? line "data: ") (loop name (cons (substring line 6) data))]
       [else (loop name data)])))
@@ -1158,8 +1164,9 @@
        (check-true (string-contains? body "data-chat-sessions=\"/chat/sessions\"") body)
        (check-true (string-contains? body "data-chat-load=\"/chat/load\"") body)
        ;; the panel borrows the page's connection: it subscribes to the chat
-       ;; event on the body's stream, and opens nothing of its own
-       (check-true (string-contains? body "sse-swap=\"chat\"") body)
+       ;; event on the body's stream, and opens nothing of its own. The name
+       ;; is carried, not spelled by the script — one owner of the wire format
+       (check-true (string-contains? body "data-chat-event=\"chat\"") body)
        (check-equal? (length (regexp-match* #rx"sse-connect=" body)) 1 body)
        ;; and the script it does that with is a file, not an inline blob
        (define-values (jcode js) (GET port "/static/chat.js"))

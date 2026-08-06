@@ -2,11 +2,26 @@
 
 Facts an agent cannot infer from the code and would otherwise probe for. Not a tutorial. Read [README](../README.md) and [docs/cli.md](cli.md) first.
 
+## Two collections
+
+The repo holds two Racket packages, and the order between them is the dependency:
+
+* `live/` — the live-view framework: an SSE hub with reconnect catch-up, and an htmx + idiomorph browser runtime. It imports NOTHING from olai and never will; olai is its first consumer, not its definition. Its own README is the consumer contract ([live/README.md](../live/README.md)), and [docs/live.md](live.md) is what olai puts through it.
+* `olai/` — everything else.
+
+So `just install` links `live` before `olai`, and `just build` is `raco setup --pkgs live olai`. A change to `live/` that only makes sense for olai is a change in the wrong place.
+
+`live/static/` holds the browser runtime, and three of its four files are NOT in git: htmx, htmx's SSE extension and idiomorph are pinned in `npins/sources.json` and built by `live/default.nix` (its own Nix, next to it, like `acp/` and `e2e/`). `just vendor` copies them into place from `$OLAI_LIVE_ASSETS` — every recipe that needs them depends on it, so you never run it by hand. Consequences worth knowing:
+
+* A checkout outside `nix develop` has no browser runtime, and `live/tests/client.rkt` says so by failing on a missing file.
+* `git status` stays clean: the three are gitignored by name (`live/static/live.js` is ours and tracked). An upgrade that renames an artifact shows up as untracked rather than silently replacing anything.
+* Upgrading is `npins update htmx` — a revision and a hash in the diff, not a minified blob. Then `just test && just e2e`.
+
 ## Toolchain
 
-* Racket comes from `nix develop` (nixpkgs 9.2). `just` recipes set `PLTUSERHOME` to `$PWD/.plt-user` so user packages and the `olai` link live in the worktree, not `~`. That directory must be writable.
-* `just install` — deps + `raco pkg install --skip-installed --link olai/`. Cheap to repeat. Does **not** recompile after you edit sources.
-* `just build` — `raco setup --pkgs olai`. Writes `compiled/*.zo` for the collection and its tests, and keeps them coherent after edits. Incremental when nothing changed. `just test` / `test-integration` / `test-all` depend on it.
+* Racket comes from `nix develop` (nixpkgs 9.2). `just` recipes set `PLTUSERHOME` to `$PWD/.plt-user` so user packages and the two links live in the worktree, not `~`. That directory must be writable.
+* `just install` — deps + `raco pkg install --skip-installed --link` for `live/` then `olai/`. Cheap to repeat. Does **not** recompile after you edit sources.
+* `just build` — `raco setup --pkgs live olai`. Writes `compiled/*.zo` for both collections and their tests, and keeps them coherent after edits. Incremental when nothing changed. `just test` / `test-integration` / `test-all` depend on it.
 * `just clean` — delete every `olai/**/compiled`. Escape hatch only.
 
 ### Why build exists
@@ -63,7 +78,7 @@ Class-name renames: run `just css-classes` to regenerate `olai/tests/classes.gol
 
 ## Tests
 
-* `just test` — unit, in-process, `olai/tests/*.rkt`
+* `just test` — unit, in-process, `live/tests/*.rkt` + `olai/tests/*.rkt`
 * `just test-integration` — spawns `olai`, boots servers
 * `just test-all` — both, one `-j` pool
 * `just e2e` — browser journeys (see below); never in `just test`
@@ -80,7 +95,8 @@ Class-name renames: run `just css-classes` to regenerate `olai/tests/classes.gol
 * `e2e/package.json` pins `playwright` to the same version as nixpkgs' `playwright-driver` (the browser bundle `PLAYWRIGHT_BROWSERS_PATH` points at). Bump them together or scenario one says "Executable doesn't exist".
 * Deps are a derivation (`e2e/default.nix`, one fixed-output `fetchNpmDeps`, like `acp/`); the regenerate-the-hash recipe is in that file's header, next to the hash it is about.
 * The fixture outline is a real file, `e2e/fixtures/Tasks.rkt`, checked by the `smoke` lane like any other committed outline.
-* Each scenario gets its own temp outline, its own `olai serve` on an ephemeral port (`--port 0`; the server prints the port it took), and a fresh browser context — so localStorage, folds and prefs start empty every time.
+* Each scenario gets its own temp outline, its own `olai serve` on an ephemeral port (`--port 0`; the server prints the port it took), and a fresh browser context — so localStorage, folds and prefs start empty every time. One scenario stops that server and starts another at the SAME port (`world.stopServer` / `startServerAgain`): a stream that died is only worth testing if the socket actually went away, and a second process is also the case a per-process revision counter gets wrong (see the cursor in [docs/live.md](live.md)).
+* A link does not load a document — it fetches the live region and morphs it in — so a step that clicks one waits for the SWAP to settle (`world.follow`). Not for the address bar: htmx pushes the URL and then renames the tab and settles, so waiting on the earlier moment leaves every following step to discover the difference on its own.
 * The agent is ALWAYS `olai/tests/integration/fake-acp-agent.rkt` (`e2e/support/server.js` sets `OLAI_ACP_AGENT`). No real Claude Code is ever spawned by a test. What it woke up with is a scenario TAG — `@stored-sessions`, `@foreign-sessions` — because stored conversations are a fact about the machine, not something a step can arrange later (`e2e/support/hooks.js`).
 * `serve` answers requests while the agent is still booting. What the panel comes up knowing is not a page's to say — `/events` catches a connection up as it is made — so `Given the agent has woken up` (`world.waitForAgent`, which reads the stream) is for scenarios about the AGENT: the picker asks it, and there is nothing to ask until it is up.
 * `@skip` is the regression harness for known-broken behaviour: the scenario is written and excluded. `CUCUMBER_TAGS=@skip just e2e` runs exactly those. `CUCUMBER_RETRY` (CI sets 1) and `CUCUMBER_PARALLEL` are the other two knobs.

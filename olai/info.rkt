@@ -1,7 +1,11 @@
 #lang info
 
 (define collection "olai")
-(define deps '("base" "css-expr" "gregor" "markdown" "web-server-lib"))
+;; "live" is the live-view framework in this repo's own live/ directory, not a
+;; catalog package: olai is its first consumer, and the two are installed
+;; together (justfile, nix/olai.nix). It is listed anyway — a dependency the
+;; package file does not name is one a build can forget.
+(define deps '("base" "css-expr" "gregor" "live" "markdown" "web-server-lib"))
 (define build-deps '("rackunit-lib"))
 (define pkg-desc "Self-hosted outliner: #lang olai + CLI")
 (define version "0.1")

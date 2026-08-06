@@ -11,6 +11,8 @@
          racket/port
          racket/string
          racket/tcp
+         (only-in live/hub heartbeat-event)
+         (only-in olai/web/live live-asset-prefix live-script-srcs outline-event)
          olai/web/serve)
 
 ;; Sizes differ on every write below: the store's staleness probe is mtime +
@@ -70,29 +72,53 @@
 ;; /events never ends, so this keeps the port: -> (values code headers in).
 ;; net/http-client de-chunks for us, which is the only reason a test can read
 ;; the stream a frame at a time.
-(define (open-events port)
+;;
+;; #:last-event-id is what a reconnecting EventSource sends: the id of the last
+;; frame it managed to dispatch before the connection went away. A test that
+;; passes one is a browser that has been asleep.
+(define (open-events port #:path [path "/events"] #:last-event-id [last-event-id #f])
   (define-values (status headers in)
-    (http-sendrecv "127.0.0.1" "/events" #:port port #:method #"GET"))
+    (http-sendrecv "127.0.0.1" path #:port port #:method #"GET"
+                   #:headers (if last-event-id
+                                 (list (string->bytes/utf-8
+                                        (string-append "Last-Event-ID: " last-event-id)))
+                                 '())))
   (values (string->number (cadr (string-split (bytes->string/utf-8 status) " ")))
           (map bytes->string/utf-8 headers)
           in))
 
-;; Next real event on the stream: -> (cons name data) | #f on timeout.
-;; Heartbeat comments are skipped — they are framing, not news. Waited on,
-;; never slept for.
+;; Next real event on the stream: -> (list name data id) | #f on timeout.
+;; Heartbeats are skipped — they are the transport keeping itself honest, not
+;; news about an outline. Waited on, never slept for.
 (define (next-event in #:timeout [timeout 20])
   (define deadline (+ (current-inexact-milliseconds) (* 1000.0 timeout)))
-  (let loop ([name #f] [data '()])
+  (let loop ([name #f] [data '()] [id #f])
     (define left (/ (- deadline (current-inexact-milliseconds)) 1000.0))
     (define line (and (positive? left)
                       (sync/timeout left (read-line-evt in 'linefeed))))
     (cond
       [(or (not line) (eof-object? line)) #f]
       [(string=? line "")
-       (if name (cons name (string-join (reverse data) "\n")) (loop #f '()))]
-      [(string-prefix? line "event: ") (loop (substring line 7) data)]
-      [(string-prefix? line "data: ") (loop name (cons (substring line 6) data))]
-      [else (loop name data)])))
+       (cond
+         [(equal? name heartbeat-event) (loop #f '() #f)]
+         [name (list name (string-join (reverse data) "\n") id)]
+         [else (loop #f '() #f)])]
+      [(string-prefix? line "event: ") (loop (substring line 7) data id)]
+      [(string-prefix? line "data: ") (loop name (cons (substring line 6) data) id)]
+      [(string-prefix? line "id: ") (loop name data (substring line 4))]
+      [else (loop name data id)])))
+
+;; The stream a PAGE would open: the URL is the one in its own markup, cursor
+;; and all. A test that rebuilt that URL itself would be testing its own
+;; arithmetic; this opens what the browser would.
+(define (open-events/page port page-body)
+  (define m (regexp-match #px"sse-connect=\"([^\"]+)\"" page-body))
+  (check-not-false m "the page carries no stream")
+  (open-events port #:path (cadr m)))
+
+(define (event-name ev) (car ev))
+(define (event-data ev) (cadr ev))
+(define (event-id ev) (caddr ev))
 
 (module+ test
   ;; The port the CLI did not have to be told (its default): taken means take
@@ -215,12 +241,15 @@
        (check-true (string-contains? pane "Buy milk") pane)
        (define crumbs (car (string-split pane "</nav>")))
        ;; home, the file, then the ancestor — a link to ITS page, not an
-       ;; in-page anchor on the home page
+       ;; in-page anchor on the home page. The plain href is what matters
+       ;; here: the partial-navigation attributes beside it are the live
+       ;; view's, and tests/render.rkt is where they are asserted
        (check-true (string-contains? crumbs "Tasks.rkt") crumbs)
        (check-true (string-contains?
                     crumbs
-                    (string-append "href=\"/n/" (hash-ref inbox 'key) "\">Inbox"))
-                   crumbs))))
+                    (string-append "href=\"/n/" (hash-ref inbox 'key) "\""))
+                   crumbs)
+       (check-true (string-contains? crumbs ">Inbox</a>") crumbs))))
 
   (test-case "a key the snapshot does not have says so, and stays a page"
     (with-server
@@ -391,7 +420,7 @@
 
   ;; ---- live updates --------------------------------------------------------
 
-  (test-case "GET /events is an event stream that opens with a heartbeat"
+  (test-case "GET /events opens with a reconnect policy and a beat"
     (with-server
      (λ (port f)
        (define-values (code headers in) (open-events port))
@@ -399,16 +428,44 @@
        (check-true (string-contains? (or (header-value headers "content-type:") "")
                                      "text/event-stream")
                    (format "~a" headers))
-       ;; bytes before anything happens: a client's `open` waits for them,
-       ;; and so does a buffering proxy
-       (check-equal? (sync/timeout 20 (read-line-evt in 'linefeed)) ":hb")
+       ;; bytes before anything happens: a client's `open` waits for them, and
+       ;; so does a buffering proxy. The reconnect delay comes first — a
+       ;; connection that drops before the first beat should still come back
+       ;; promptly — and then the beat the watchdog is armed from, carrying the
+       ;; cadence to expect the next one within
+       (check-regexp-match #px"^retry: [0-9]+$"
+                           (sync/timeout 20 (read-line-evt in 'linefeed)))
+       (check-equal? (sync/timeout 20 (read-line-evt in 'linefeed)) "")
+       (check-equal? (sync/timeout 20 (read-line-evt in 'linefeed))
+                     (string-append "event: " heartbeat-event))
+       (check-regexp-match #px"^data: [0-9.]+$"
+                           (sync/timeout 20 (read-line-evt in 'linefeed)))
        (close-input-port in))))
+
+  (test-case "the client runtime is served, and from its own prefix"
+    (with-server
+     (λ (port f)
+       (for ([src (in-list live-script-srcs)])
+         (define-values (code headers body) (GET port src))
+         (check-equal? code 200 src)
+         (check-true (string-contains?
+                      (or (header-value headers "content-type:") "")
+                      "javascript")
+                     (format "~a ~a" src headers)))
+       ;; and it is a mount, not a hole: nothing climbs out of it
+       (define-values (code _h _b) (GET port (string-append live-asset-prefix
+                                                            "../olai/info.rkt")))
+       (check-equal? code 404))))
 
   (test-case "the page wires itself to the stream and knows its own href"
     (with-server
      (λ (port f)
        (define-values (_c _h body) (GET port "/"))
-       (check-true (string-contains? body "sse-connect=\"/events\"") body)
+       ;; the stream, and the revision the markup around it was drawn from:
+       ;; a page whose EventSource connects after an edit is behind, and this
+       ;; is the only thing that lets it be told so
+       (check-true (string-contains? body "sse-connect=\"/events?last-event-id=")
+                   body)
        (check-true (string-contains? body "hx-trigger=\"sse:outline\"") body)
        (check-true (string-contains? body "id=\"ol-live\" hx-get=\"/\"") body)
        ;; /today refreshes /today, not the home page
@@ -423,12 +480,92 @@
                         f #:exists 'truncate)
        (define ev (next-event in))
        (check-not-false ev "no outline event within the timeout")
-       (check-equal? (car ev) "outline")
-       ;; the payload is the store revision: a number that moved
-       (check-true (exact-positive-integer? (string->number (cdr ev))) (cdr ev))
+       (check-equal? (event-name ev) outline-event)
+       ;; the payload is the cursor the outlines are now at, and it is also
+       ;; the stream's id — the one thing a client that goes away has to
+       ;; remember, and the one thing it hands back on the way in
+       (check-true (non-empty-string? (event-data ev)) (event-data ev))
+       (check-equal? (event-id ev) (event-data ev))
        ;; what the client re-fetches has the edit in it
        (define-values (_c _h body) (GET port "/"))
        (check-true (string-contains? body "Water the plants") body)
+       (close-input-port in))))
+
+  ;; ---- catching up ---------------------------------------------------------
+  ;;
+  ;; The disease: a laptop sleeps, iOS suspends a tab, a network blips. The
+  ;; EventSource dies, the file moves while nobody is listening, and the
+  ;; connection that comes back is told nothing — so the page sits on content
+  ;; from before the sleep, looking live.
+
+  (test-case "a connection that comes back behind is caught up"
+    (with-server
+     (λ (port f)
+       ;; a page loads and its stream opens
+       (define-values (_c1 _h1 in1) (open-events port))
+       (display-to-file (string-append outline "Water the plants\n")
+                        f #:exists 'truncate)
+       (define ev (next-event in1))
+       (check-not-false ev "no outline event for the first edit")
+       (define seen (event-id ev))
+       ;; ...then the connection dies, and the file moves without it
+       (close-input-port in1)
+       (display-to-file (string-append outline "Water the plants\nFeed the cat\n")
+                        f #:exists 'truncate)
+       ;; the browser comes back saying what it last saw
+       (define-values (_c2 _h2 in2) (open-events port #:last-event-id seen))
+       (define caught (next-event in2))
+       (check-not-false caught "nothing owed to a connection that was behind")
+       (check-equal? (event-name caught) outline-event)
+       (check-not-equal? (event-data caught) seen (format "~a -> ~a" seen caught))
+       ;; and what it re-fetches is the CURRENT state, not the one it missed
+       (define-values (_c3 _h3 body) (GET port "/"))
+       (check-true (string-contains? body "Feed the cat") body)
+       (close-input-port in2))))
+
+  (test-case "a connection that missed nothing is told nothing"
+    (with-server
+     (λ (port f)
+       (define-values (_c1 _h1 in1) (open-events port))
+       (display-to-file (string-append outline "Water the plants\n")
+                        f #:exists 'truncate)
+       (define ev (next-event in1))
+       (check-not-false ev "no outline event for the edit")
+       (close-input-port in1)
+       ;; back at the same revision: a page that re-fetched here would be
+       ;; drawing what it is already showing
+       (define-values (_c2 _h2 in2) (open-events port #:last-event-id (event-id ev)))
+       (check-false (next-event in2 #:timeout 2)
+                    "a caught-up connection was sent an event anyway")
+       (close-input-port in2))))
+
+  (test-case "a connection at the page's own revision is not behind"
+    (with-server
+     (λ (port f)
+       ;; the cursor the page carries, taken from the page itself
+       (define-values (_c _h body) (GET port "/"))
+       (define-values (_c2 _h2 in) (open-events/page port body))
+       (check-false (next-event in #:timeout 2)
+                    "a page whose stream opened with nothing missed was told to re-fetch")
+       (close-input-port in))))
+
+  ;; The hole a Last-Event-ID alone cannot close: a page is RENDERED at one
+  ;; moment and its EventSource connects at a later one. An edit in between is
+  ;; broadcast to a connection that does not exist yet, and the browser has no
+  ;; id to say it is behind with — so the page would sit on pre-edit content
+  ;; forever, looking live.
+  (test-case "an edit between rendering a page and its stream opening is caught"
+    (with-server
+     (λ (port f)
+       (define-values (_c _h body) (GET port "/"))
+       (display-to-file (string-append outline "Feed the cat\n") f #:exists 'truncate)
+       ;; the page's stream connects only now, with the cursor it was drawn at
+       (define-values (_c2 _h2 in) (open-events/page port body))
+       (define caught (next-event in))
+       (check-not-false caught "the page was never told about the edit it missed")
+       (check-equal? (event-name caught) outline-event)
+       (define-values (_c3 _h3 fresh) (GET port "/"))
+       (check-true (string-contains? fresh "Feed the cat") fresh)
        (close-input-port in))))
 
   ;; The acceptance test for the whole work package: a file breaks and heals
@@ -442,14 +579,15 @@
        ;; a reload that FAILED is still news: the banner has to appear
        (define broke (next-event in))
        (check-not-false broke "no event when the file broke")
-       (check-equal? (car broke) "outline")
+       (check-equal? (event-name broke) outline-event)
        (define-values (_c1 _h1 b1) (GET port "/"))
        (check-true (string-contains? b1 "ol-error") b1)
        (display-to-file (string-append outline "Healed\n") f #:exists 'truncate)
        (define healed (next-event in))
        (check-not-false healed "no event when the file healed")
-       (check-true (> (string->number (cdr healed)) (string->number (cdr broke)))
-                   (format "~a -> ~a" broke healed))
+       ;; a different state, so a client sitting on the broken one is behind
+       (check-not-equal? (event-data healed) (event-data broke)
+                         (format "~a -> ~a" broke healed))
        (define-values (_c2 _h2 b2) (GET port "/"))
        (check-false (string-contains? b2 "ol-error") b2)
        (check-true (string-contains? b2 "Healed") b2)
