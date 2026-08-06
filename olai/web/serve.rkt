@@ -20,6 +20,8 @@
 ;;   GET  /api/agenda   byte-identical to `olai agenda --json`
 ;;   GET  /static/app.css  the generated stylesheet (olai/web/skin)
 ;;   GET  /static/*     files from web/static/ (icons, scripts, manifest)
+;;   GET  /media/*      pictures from the outlines' own directory, and only
+;;                      those: what a note's `![](shot.png)` asks for
 ;;   anything else      404, terse text/plain
 ;;
 ;; No auth: the network is the auth (Tailscale / Caddy in front of it).
@@ -89,6 +91,9 @@
          ;; lands, from the module that owns them
          (only-in olai/web/theme theme-color-scheme theme-default-paper)
          olai/web/render
+         ;; where the pictures a note draws are asked for; the module that
+         ;; writes the src owns the prefix, this one mounts it
+         (only-in olai/web/markdown media-prefix media-extensions)
          (only-in olai/web/chat-panel render-chat-panel)
          olai/web/watch)
 
@@ -540,9 +545,10 @@
 
 ;; /<prefix>/foo.js -> that directory's foo.js. make-url->path refuses anything
 ;; that climbs out of the base ("/static/../..") — we turn that into a plain
-;; 404 instead of an error page. Two directories are mounted this way and they
-;; have different owners: /static/ is olai's own assets, /live/ is the
-;; framework's client runtime, which this app ships and never edits.
+;; 404 instead of an error page. Three directories are mounted this way and
+;; they have different owners: /static/ is olai's own assets, /live/ is the
+;; framework's client runtime, which this app ships and never edits, and
+;; /media/ is the user's own — the directory the outlines are in.
 ;; make-url->path is built ONCE per mount, not once per request: it is the
 ;; per-directory part, and the λ below is the per-request part.
 (define (dir-url->path dir)
@@ -555,20 +561,39 @@
 (define static-url->path (dir-url->path (web-static-dir)))
 (define live-url->path (dir-url->path (live-static-dir)))
 
-;; One MIME table for both mounts; building it walks a file, so it is built
+;; One MIME table for every mount; building it walks a file, so it is built
 ;; once rather than per request.
 (define the-mime-type (delay (make-path->mime-type mime-types-path)))
 
-(define (static-files-dispatcher prefix url->path)
-  (filter:make (regexp (string-append "^" (regexp-quote prefix)))
+;; A directory, mounted: what matches `rx` is served out of it, anything else
+;; is somebody else's request. One helper, so the three mounts cannot come to
+;; differ in what a directory means (no indices, one MIME table).
+(define (files-dispatcher rx url->path)
+  (filter:make rx
                (files:make #:url->path url->path
                            #:path->mime-type (λ (p) ((force the-mime-type) p))
                            #:indices '())))
 
+(define (prefix-rx prefix) (regexp (string-append "^" (regexp-quote prefix))))
+
+;; The pictures a note draws: the directory the OUTLINES are in, so
+;; `![](shot.png)` in a note is the file beside them.
+;;
+;; Three things bound it, and the route is only one of them. web/markdown will
+;; not write a src that is not a relative path to a picture; a request that
+;; arrives anyway meets the same make-url->path that refuses to climb out of
+;; /static/; and what is left is this filter — the same list of formats, from
+;; the same module, because this route hands bytes to a browser with no reading
+;; of them and a document that can script is not a picture. Anything else under
+;; the prefix falls through to the 404 a missing file gets.
+(define media-file-rx
+  (regexp (string-append "^" (regexp-quote media-prefix)
+                         "(?i:.*\\.(" (string-join media-extensions "|") "))$")))
+
 ;; The stylesheet the page links is generated, not a file (olai/web/skin owns
 ;; the URL). It wins that path ahead of the static directory, which no longer
 ;; holds an app.css to serve.
-(define (make-dispatcher st hub agent)
+(define (make-dispatcher st hub agent media-dir)
   (sequencer:make
    (filter:make (regexp (string-append "^" (regexp-quote stylesheet-href) "$"))
                 (lift:make (λ (req) (css-response))))
@@ -576,8 +601,9 @@
    ;; does not know
    (filter:make #rx"^/static/manifest\\.webmanifest$"
                 (lift:make (λ (_req) (manifest-response))))
-   (static-files-dispatcher web-static-prefix static-url->path)
-   (static-files-dispatcher live-asset-prefix live-url->path)
+   (files-dispatcher (prefix-rx web-static-prefix) static-url->path)
+   (files-dispatcher (prefix-rx live-asset-prefix) live-url->path)
+   (files-dispatcher media-file-rx (dir-url->path media-dir))
    (lift:make (make-router st hub agent))))
 
 ;; ---- server ---------------------------------------------------------------
@@ -630,22 +656,26 @@
                       #:on-agent [on-agent void])
   (define st (make-store files))
   (define hub (make-hub))
+  ;; Where the outlines LIVE: the deepest directory that holds them all (the
+  ;; same base node keys are minted against). It is the whole extent of what
+  ;; /media/ can reach, which is why it is derived from the FILES and from
+  ;; nothing that can be pointed elsewhere.
+  (define outline-dir (roots-base files))
   ;; The agent's working directory: the one it was given, else the outlines'
-  ;; own — one file means its directory, several mean the deepest one that
-  ;; holds them all (the same base node keys are minted against). It is worth
-  ;; naming rather than deriving: an agent's stored sessions are keyed by it,
-  ;; so a cwd that moves when the file set moves is a conversation history that
-  ;; moves with it. Nothing is spawned here; construction stays cheap.
+  ;; own. It is worth naming rather than deriving: an agent's stored sessions
+  ;; are keyed by it, so a cwd that moves when the file set moves is a
+  ;; conversation history that moves with it. Nothing is spawned here;
+  ;; construction stays cheap.
   (define agent
     (and acp-command
          (make-chat #:command acp-command
-                    #:cwd (or agent-cwd (roots-base files))
+                    #:cwd (or agent-cwd outline-dir)
                     ;; the conversation speaks (name, payload) and has never
                     ;; heard of the transport; this is where that becomes wire
                     #:broadcast (λ (name data)
                                   (hub-broadcast! hub (make-frame name data))))))
   (define-values (stop bound)
-    (listen (make-dispatcher st hub agent) port bind port-fallback?))
+    (listen (make-dispatcher st hub agent outline-dir) port bind port-fallback?))
   ;; Only once there is a listener: a watcher with nobody to tell is a
   ;; thread that reloads outlines for its own amusement.
   ;;

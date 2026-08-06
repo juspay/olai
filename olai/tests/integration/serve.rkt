@@ -356,6 +356,84 @@
          (check-equal? code 404 (format "~a -> ~a" p body))
          (check-false (string-contains? body "#lang") body)))))
 
+  ;; ---- pictures --------------------------------------------------------------
+  ;;
+  ;; A note draws `![](shot.png)` and the page asks for /media/shot.png: the
+  ;; file beside the outline, served same-origin by the one route that reaches
+  ;; that directory — and reaches nothing above it, and nothing in it that is
+  ;; not a picture.
+
+  ;; A file under the outline's own directory; `rel` may name a subdirectory.
+  (define (write-media! outline-file rel [content "not really a png\n"])
+    (define p (build-path (path-only outline-file) rel))
+    (make-parent-directory* p)
+    (display-to-file content p #:exists 'truncate))
+
+  (test-case "GET /media/<file> serves a picture beside the outline"
+    (with-server
+     (λ (port f)
+       (write-media! f "shot.png")
+       (write-media! f "images/deep.png")
+       ;; the page asks for exactly what the route answers: the note is the
+       ;; source of the URL, not this test
+       (display-to-file (string-append outline "  : a shot ![shot](shot.png)\n")
+                        f #:exists 'truncate)
+       (define-values (_pc _ph page) (GET port "/"))
+       (check-true (string-contains? page "src=\"/media/shot.png\"") page)
+       (define-values (code headers body) (GET port "/media/shot.png"))
+       (check-equal? code 200 body)
+       (check-true (string-contains? (or (header-value headers "content-type:") "")
+                                     "image/png")
+                   (format "~a" headers))
+       (check-true (string-contains? body "not really a png") body)
+       ;; a subdirectory of the outline's is still the outline's
+       (define-values (dcode _dh dbody) (GET port "/media/images/deep.png"))
+       (check-equal? dcode 200 dbody))))
+
+  (test-case "a media miss is a 404, not an error page"
+    (with-server
+     (λ (port f)
+       (define-values (code headers body) (GET port "/media/nothing-here.png"))
+       (check-equal? code 404 body)
+       (check-true (string-contains? (or (header-value headers "content-type:") "")
+                                     "text/plain")
+                   (format "~a" headers))
+       (check-true (string-contains? body "404") body))))
+
+  (test-case "media path traversal is rejected"
+    (with-server
+     (λ (port f)
+       ;; a real file, one level above the outline's directory: what a
+       ;; traversal would be reaching for
+       (define above (build-path (path-only f) 'up "outside.png"))
+       (display-to-file "outside\n" above #:exists 'truncate)
+       (for ([p (in-list '("/media/../outside.png"
+                           "/media/../../outside.png"
+                           "/media/images/../../outside.png"
+                           "/media/%2e%2e/outside.png"
+                           "/media/..%2Foutside.png"))])
+         (define-values (code _h body) (GET port p))
+         (check-equal? code 404 (format "~a -> ~a" p body))
+         (check-false (string-contains? body "outside") (format "~a -> ~a" p body)))
+       (delete-file (simple-form-path above)))))
+
+  ;; The route hands bytes to a browser with no reading of them, so what it
+  ;; will serve is a list of picture formats — an .svg is a document that can
+  ;; script, and the outline's own files are not pictures at all.
+  (test-case "media serves pictures and nothing else"
+    (with-server
+     (λ (port f)
+       (for ([rel (in-list '("diagram.svg" "notes.md" "secrets.env"))])
+         (write-media! f rel "keep out\n")
+         (define-values (code _h body) (GET port (string-append "/media/" rel)))
+         (check-equal? code 404 (format "~a -> ~a" rel body))
+         (check-false (string-contains? body "keep out") body))
+       ;; including the outline itself, which is the one file that is
+       ;; certainly there
+       (define-values (code _h body) (GET port "/media/Tasks.rkt"))
+       (check-equal? code 404 body)
+       (check-false (string-contains? body "#lang") body))))
+
   ;; This server has no agent (the CLI refuses to start one that way; see
   ;; tests/integration/acp.rkt for the wired-up chat routes). Everything chat
   ;; says so rather than pretending: no panel on the page, 503 on the routes.

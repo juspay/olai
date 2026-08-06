@@ -5,6 +5,7 @@
 
 (require json
          racket/file
+         racket/list
          racket/string
          xml
          file/sha1
@@ -342,6 +343,168 @@
     (define n (xstr* (note->xexprs "- one\n- two\n")))
     (check-true (string-contains? n "<ul") n)
     (check-true (string-contains? n "one") n))
+
+  ;; ---- fenced code: the language, and only the language -------------------
+  ;;
+  ;; The parser hands the fence's info string over as class="brush: …" on the
+  ;; <pre>. It is the one place a note carries a word straight from its author
+  ;; into an attribute, so what survives is the FIRST word, on the <code>, and
+  ;; only when it is a bare language name.
+
+  (test-case "a fence names its language on the code element"
+    (define n (xstr* (note->xexprs "```racket\n(define x 1)\n```\n")))
+    (check-true (string-contains? n "<pre class=\"ol-pre\"") n)
+    (check-true (string-contains? n "class=\"ol-code language-racket\"") n)
+    (check-true (string-contains? n "(define x 1)") n)
+    ;; a fence with no info string says nothing about a language
+    (define plain (xstr* (note->xexprs "```\nblock\n```\n")))
+    (check-true (string-contains? plain "class=\"ol-code\"") plain)
+    (check-false (string-contains? plain "language-") plain))
+
+  (test-case "an info string cannot smuggle markup through the fence"
+    (define n (xstr* (note->xexprs "```js onload=\"alert(1)\" evil\ncode\n```\n")))
+    ;; the first word is the language; the rest of the line is gone
+    (check-true (string-contains? n "class=\"ol-code language-js\"") n)
+    (check-false (string-contains? n "onload") n)
+    (check-false (string-contains? n "alert(1)") n)
+    ;; and a first word that is not a language name is no class at all
+    (for ([info (in-list '("\"><script>alert(1)</script>"
+                           "-leading-dash"
+                           "语言"))])
+      (define s (xstr* (note->xexprs (string-append "```" info "\ncode\n```\n"))))
+      (check-false (string-contains? s "language-") s)
+      (check-false (string-contains? s "<script") s))
+    ;; nor is a language name longer than any language has ever been
+    (define long (xstr* (note->xexprs
+                         (string-append "```" (make-string 64 #\a) "\ncode\n```\n"))))
+    (check-false (string-contains? long "language-") long))
+
+  ;; ---- pictures ------------------------------------------------------------
+  ;;
+  ;; An image's src is a path inside the outline's own directory, rewritten to
+  ;; the one route that serves it. Everything else is not a picture this view
+  ;; draws — not a remote one, not an inline one, and not one that climbs.
+
+  (test-case "a relative image is served from the outline's directory"
+    (define n (xstr* (note->xexprs "![a shot](images/pic.png)")))
+    (check-true (string-contains? n "<img") n)
+    (check-true (string-contains? n "src=\"/media/images/pic.png\"") n)
+    (check-true (string-contains? n "alt=\"a shot\"") n)
+    (check-true (string-contains? n "class=\"ol-image\"") n))
+
+  (test-case "an image that is not a file beside the outline is not drawn"
+    (for ([src (in-list '("https://evil.example/a.png"
+                          "http://evil.example/a.png"
+                          "//evil.example/a.png"
+                          "data:text/html;base64,PHNjcmlwdD4="
+                          "javascript:alert(1)"
+                          "JavaScript:alert(1)"
+                          "/etc/passwd"
+                          "../../secret.png"
+                          "images/../../secret.png"
+                          "a.png?x=1"
+                          ;; not a picture: the route will not serve these, so
+                          ;; drawing one would be drawing a broken icon
+                          "diagram.svg"
+                          "Tasks.rkt"
+                          "notes"))])
+      (define n (xstr* (note->xexprs (format "![x](~a)" src))))
+      (check-false (string-contains? n "<img") (format "~a -> ~a" src n))
+      (check-false (string-contains? n "javascript") (format "~a -> ~a" src n))
+      (check-false (string-contains? n "data:") (format "~a -> ~a" src n)))
+    ;; The sanitizer is the border, so it is asked directly too — an xexpr can
+    ;; hold what a Markdown source cannot express (the parser eats a backslash
+    ;; before it ever gets here).
+    (for ([src (in-list '("..\\secret.png" "\\\\host\\share\\a.png" ""))])
+      (check-equal? (sanitize-xexpr `(p (img ((src ,src) (alt "x"))))) '(p) src))
+    ;; and a src that survives is always under the route, never verbatim
+    (check-false (string-contains? (xstr (sanitize-xexpr '(img ((src "a.png")))))
+                                   "\"a.png\"")))
+
+  ;; A title is one line of an outline row, and a picture is not one line.
+  (test-case "a title draws no picture"
+    (define s (xstr* (title->inline-xexprs "hi ![x](a.png) there")))
+    (check-false (string-contains? s "<img") s)
+    (check-true (string-contains? s "hi") s))
+
+  ;; ---- footnotes -----------------------------------------------------------
+  ;;
+  ;; The parser wires a footnote by id, and mints those ids itself. The
+  ;; structure survives; the names do not — the number is all that is read out
+  ;; of an upstream id, and both ends are spelled from a prefix this view chose.
+
+  (define (attr-values s name)
+    (regexp-match* (pregexp (string-append name "=\"([^\"]*)\"")) s #:match-select cadr))
+
+  (test-case "a footnote survives, and both ends point at each other"
+    (define n (xstr* (note->xexprs "text[^1] and more[^2]\n\n[^1]: first\n\n[^2]: second\n")))
+    (check-true (string-contains? n "<sup") n)
+    (check-true (string-contains? n "ol-footnotes") n)
+    (check-true (string-contains? n "first") n)
+    ;; every id is one this module minted, and no id the parser made
+    (define ids (attr-values n "id"))
+    (check-equal? (length ids) 4 n)
+    (for ([id (in-list ids)])
+      (check-true (regexp-match? #px"^fn[0-9a-f]{8}-(fn|fnref)-[0-9]+$" id) id))
+    ;; and every jump link lands on one of them
+    (define jumps
+      (for/list ([h (in-list (attr-values n "href"))]
+                 #:when (string-prefix? h "#"))
+        (substring h 1)))
+    (check-equal? (length jumps) 4 n)
+    (for ([j (in-list jumps)])
+      (check-not-false (member j ids) (format "~a is a link to nothing" j))))
+
+  (test-case "two notes on a page number their footnotes apart"
+    (define a (xstr* (note->xexprs "a[^1]\n\n[^1]: first\n")))
+    (define b (xstr* (note->xexprs "b[^1]\n\n[^1]: second\n")))
+    (check-equal? (length (remove-duplicates (append (attr-values a "id")
+                                                     (attr-values b "id"))))
+                  4 (string-append a b))
+    ;; and the same note twice is the same markup: an id that moved between
+    ;; renders is markup a live update would have to replace rather than morph
+    (check-equal? (xstr* (note->xexprs "a[^1]\n\n[^1]: first\n")) a))
+
+  (test-case "a forged footnote id never reaches the page"
+    (define s
+      (xstr (sanitize-xexpr
+             '(div ((class "footnotes"))
+                   (ol ()
+                       (li ((id "x\"><script>alert(1)</script>-footnote-1-definition"))
+                           (a ((href "#evil") (name "javascript:alert(1)")) "back")
+                           (a ((href "#g1-footnote-1-return")
+                               (name "g1-footnote-2-return"))
+                              "↩")))))))
+    (check-false (string-contains? s "<script") s)
+    (check-false (string-contains? s "javascript:") s)
+    (check-false (string-contains? s "g1-") s)
+    ;; an id that is not a footnote's NAME is not a footnote's id: the <li>
+    ;; keeps nothing at all
+    (check-false (string-contains? s "<li id") s)
+    ;; a well-formed one is re-minted, both ends of it
+    (check-true (string-contains? s "href=\"#fnref-1\"") s)
+    (check-true (string-contains? s "id=\"fnref-2\"") s)
+    ;; an href that is not a footnote's is still just an href
+    (check-true (string-contains? s "href=\"#evil\"") s))
+
+  ;; ---- the scripts a rendered page pulls in --------------------------------
+
+  ;; Three of them are vendored — highlight.js and two of its grammars, pinned
+  ;; upstream and staged by nix (nix/highlight-js.nix), never committed — so a
+  ;; checkout that skipped `just vendor` fails HERE, the way live/tests/client
+  ;; fails for the browser runtime, rather than in a browser with no colour.
+  (test-case "every script the page links is a file under static/"
+    (for ([name (in-list web-scripts)])
+      (check-true (file-exists? (build-path (web-static-dir) name)) name))
+    (define page (xstr (render-page '(div))))
+    (for ([name (in-list web-scripts)])
+      (check-true (string-contains? page (string-append "src=\"/static/" name "\""))
+                  name))
+    ;; the bundle before the grammars that register into it, and ours after both
+    (check-true (< (string-index page "hljs/highlight.min.js")
+                   (string-index page "hljs/scheme.min.js")))
+    (check-true (< (string-index page "hljs/scheme.min.js")
+                   (string-index page "highlight-init.js"))))
 
   ;; ---- outline ------------------------------------------------------------
 
