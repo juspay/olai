@@ -4,50 +4,50 @@ Status: brainstorm. Nothing here is built. The live-view framework (worktree `li
 
 Context: [The Bottlenecks for AI-Driven System Design](https://maheshba.bitbucket.io/blog/2026/07/22/agentdesign.html). Agents are not bottlenecked on correctness or codegen; they are bottlenecked on evolution (changing a system safely), frangibility (you cannot learn by breaking production), and entropy (many agents with partial context accumulate special cases faster than any one of them can see). The remedy the post names: abstractions that let agents reason in a precise language instead of conventions. This repo is built by exactly such a swarm.
 
-The whole argument fits in one toy app. Meet `ptop`: htop in the browser.
+The whole argument fits in one toy app. Meet `counters`: the hello-world of live pages — three counters racing, sorted by who's winning.
 
 ## The toy, wired by hand
 
-One page, two live surfaces. A process table the server resamples every second, and a load-average ticker in the header, fed by its own stream. Your sort column, your selected row, and the filter you typed all survive each refresh. Clicking a process opens its detail view without rebuilding the filter — or the ticker, which must not so much as flinch. This is htmx + SSE, the way olai's live view is wired today.
+One page, two live surfaces. Three counters (`alpha`, `beta`, `gamma`) incrementing at random rates on the server, listed sorted by value — rows reorder constantly. A clock ticker in the header, fed by its own stream. Your selected row and the half-typed text in the header's input box survive every swap. Clicking a counter opens its detail view without rebuilding the input box — or the ticker, which must not so much as flinch. This is htmx + SSE, the way olai's live view is wired today.
 
 Three files:
 
 ```racket
-;; sampler.rkt — takes a sample once a second
-(define (sample!)
-  (broadcast! hub 'procs-changed (render-table (take-sample))))
+;; counters.rkt — bumps three counters at random rates
+(define (bump!)
+  (broadcast! hub 'counts-changed (render-list (counter-values))))
 
-;; table.rkt — draws the page
-(define (render-table procs)
-  `(div ([id "ptable"] [hx-ext "sse"]
+;; list.rkt — draws the page
+(define (render-list cs)
+  `(div ([id "clist"] [hx-ext "sse"]
          [sse-connect "/events"]
-         [sse-swap "procs-changed"]
+         [sse-swap "counts-changed"]
          [hx-swap "morph"])
-     ,@(for/list ([p procs]) (proc-row p))))
+     ,@(for/list ([c cs]) (counter-row c))))
 
-(define (proc-link p)
-  `(a ([href ,(proc-href p)] [hx-get ,(proc-href p)]
-       [hx-target "#ptable"] [hx-select "#ptable"]
+(define (counter-link c)
+  `(a ([href ,(counter-href c)] [hx-get ,(counter-href c)]
+       [hx-target "#clist"] [hx-select "#clist"]
        [hx-swap "morph"] [hx-push-url "true"])
-     ,(proc-name p)))
+     ,(counter-name c)))
 
-;; app.rkt — serves "/", "/p/<pid>", and "/events" off the hub
+;; app.rkt — serves "/", "/c/<name>", and "/events" off the hub
 ```
 
 It works. Now count the agreements that make it work — each one a pair of spellings in different files that nothing checks:
 
-1. `"ptable"` the id, and `"#ptable"` twice over in every link.
-2. `'procs-changed` in sampler.rkt, and `"procs-changed"` in an attribute in table.rkt.
+1. `"clist"` the id, and `"#clist"` twice over in every link.
+2. `'counts-changed` in counters.rkt, and `"counts-changed"` in an attribute in list.rkt.
 3. `"morph"` on the region, and `"morph"` again on every link that targets it — disagree and a click repaints what an event morphs.
 4. `"/events"` in the attribute, and the route app.rkt actually serves.
 
 Four conventions. Zero checkers. The compiler sees six string literals with nothing in common.
 
-And that is ONE surface. The ticker repeats all four agreements with its own spellings — `"ticker"`, `'load-changed`, its own morph, its own stream URL. Eight coincidences for two surfaces, two more for every surface after that, forever.
+And that is ONE surface. The ticker repeats all four agreements with its own spellings — `"ticker"`, `'clock-tick`, its own morph, its own stream URL. Eight coincidences for two surfaces, two more for every surface after that, forever.
 
 ## How it breaks
 
-Write `sse-swap "procs-change"` — no error. The server compiles, the page renders, the table silently freezes. A frozen monitor does not look broken; it looks calm. Write `hx-target "#ptabel"` — no error; clicking a process now replaces the whole body, filter, ticker and all. And with two live surfaces on one page, a careless target on a table link rebuilds the ticker as collateral — nothing checks that a link touches only its own region. And when sorted by CPU the rows reorder every second, so the row under your cursor — the one you are about to kill — keeps its identity only if morph is actually in play on both the event and the link. Every failure is runtime, in a browser, visible only to an eyeball that knows what SHOULD have happened.
+Write `sse-swap "count-changed"` — no error. The server compiles, the page renders, the counters silently freeze. A stalled counter does not look broken; it looks idle. Write `hx-target "#clsit"` — no error; clicking a counter now replaces the whole body, input box, ticker and all. And with two live surfaces on one page, a careless target on a counter link rebuilds the ticker as collateral — nothing checks that a link touches only its own region. And since the list is sorted by value and reorders every second, the row you selected stays the same COUNTER — not whatever moved into that position — only if morph is actually in play on both the event and the link. Every failure is runtime, in a browser, visible only to an eyeball that knows what SHOULD have happened.
 
 Now put a swarm on it. Each agent arrives with partial context and must REDISCOVER the four conventions from source before touching anything. The post calls the result entropy: special cases and near-misses accumulating faster than any one agent can see. And the only net under them is the e2e suite — simulation, in the post's terms: expensive, late, and only as good as its scenario coverage. This is not hypothetical; olai's sidebar-rebuilds-chat bug was convention 3 misapplied, shipped green, and caught by a human.
 
@@ -58,81 +58,81 @@ Frangibility says what the fix must feel like: an agent cannot learn by breaking
 Same three files. The conventions become bindings:
 
 ```racket
-;; sampler.rkt — the PRODUCER owns the stream vocabulary
-(define-stream samples
+;; counters.rkt — the PRODUCER owns the stream vocabulary
+(define-stream counts
   #:version 1
-  #:events (procs-changed)
-  #:id tick                ; SSE id: field = the sample counter
+  #:events (counts-changed)
+  #:id tick                ; SSE id: field = the bump counter
   #:heartbeat 15)
 
-(define (sample!)
-  (stream-send! samples 'procs-changed (render-table (take-sample))))
+(define (bump!)
+  (stream-send! counts 'counts-changed (render-list (counter-values))))
 
-;; table.rkt — the DRAWER owns the region
-(require (only-in "sampler.rkt" samples))
+;; list.rkt — the DRAWER owns the region
+(require (only-in "counters.rkt" counts))
 
-(define-live-region ptable
+(define-live-region clist
   #:swap morph
-  #:stream samples)
+  #:stream counts)
 
-(define (render-table procs)
-  (live-region ptable
-    (for/list ([p procs]) (proc-row p))))
+(define (render-list cs)
+  (live-region clist
+    (for/list ([c cs]) (counter-row c))))
 
-(define (proc-link p)
-  (live-link ptable (proc-href p) (proc-name p)))
+(define (counter-link c)
+  (live-link clist (counter-href c) (counter-name c)))
 
-;; loadavg.rkt — a SECOND producer, its own stream
-(define-stream loadavg
+;; clock.rkt — a SECOND producer, its own stream
+(define-stream clock
   #:version 1
-  #:events (load-changed)
+  #:events (clock-tick)
   #:id tick
   #:heartbeat 15)
 
 ;; header.rkt — a second drawer, its own region
-(require (only-in "loadavg.rkt" loadavg))
+(require (only-in "clock.rkt" clock))
 
 (define-live-region ticker
   #:swap morph
-  #:stream loadavg)
+  #:stream clock)
 ```
 
 What expands out is the exact HTML you read in the hand-wired version — attributes, nothing else:
 
 ```racket
-(div ([id "ptable"] [hx-ext "sse"]
-      [sse-connect "/events?stream=samples&v=1"]
-      [sse-swap "procs-changed"] [hx-swap "morph"]
+(div ([id "clist"] [hx-ext "sse"]
+      [sse-connect "/events?stream=counts&v=1"]
+      [sse-swap "counts-changed"] [hx-swap "morph"]
       [data-live-heartbeat "15"]) ...)
 
-(a ([href "/p/4242"] [hx-get "/p/4242"]
-    [hx-target "#ptable"] [hx-select "#ptable"]
-    [hx-swap "morph"] [hx-push-url "true"]) "raco")
+(a ([href "/c/beta"] [hx-get "/c/beta"]
+    [hx-target "#clist"] [hx-select "#clist"]
+    [hx-swap "morph"] [hx-push-url "true"]) "beta")
 ```
 
 No new runtime. The macro's entire contribution is that the four conventions are now written ONCE each, and every other appearance is a reference the compiler resolves — or refuses:
 
 ```racket
-(live-link ptabel (proc-href p) (proc-name p))
-;; table.rkt:31:15: ptabel: unbound live region
+(live-link clsit (counter-href c) (counter-name c))
+;; list.rkt:31:15: clsit: unbound live region
 
-(stream-send! samples 'procs-change html)
-;; sampler.rkt:12:24: procs-change: not an event of samples
+(stream-send! counts 'count-changed html)
+;; counters.rkt:12:24: count-changed: not an event of counts
 ```
 
 Both die at expansion, srcloc first, before a server boots. That error message IS the agent interface: a misinformed agent gets a file:line:col and a name, not a silently dead page.
 
-And the two surfaces cannot collide: a `live-link` on `ptable` expands to `hx-target "#ptable"` and nothing else. A table link that rebuilds the ticker is not merely unwritten — it is unwritable.
+And the two surfaces cannot collide: a `live-link` on `clist` expands to `hx-target "#clist"` and nothing else. A counter link that rebuilds the ticker is not merely unwritten — it is unwritable.
 
 ## The questions, asked of the code
 
-**Should each process row be a region?** Tempting — rows are what actually change, and the kill race raises the stakes: sorted by CPU, rows reorder every second, and the row you are about to act on must stay the same PROCESS, not the same position. But look at what the two concepts do in the expansion: the REGION is the swap target, the unit a link or event replaces (`#ptable`). What preserves a row's identity across that swap is morph, and morph needs only a stable `id` on each row — the PID. Declaring per-row regions would complect the two. Resolved: a region is one element; stable per-row ids are an obligation the consumer contract states, not a declaration — the framework cannot check what `proc-row` emits without becoming the renderer.
+**Should each counter row be a region?** Tempting — rows are what actually change, and the reorder raises the stakes: sorted by value, rows move every second, and the row you selected must stay the same COUNTER, not the same position. But look at what the two concepts do in the expansion: the REGION is the swap target, the unit a link or event replaces (`#clist`). What preserves a row's identity across that swap is morph, and morph needs only a stable `id` on each row — the counter's name. Declaring per-row regions would complect the two. Resolved: a region is one element; stable per-row ids are an obligation the consumer contract states, not a declaration — the framework cannot check what `counter-row` emits without becoming the renderer.
 
-**Where does `define-stream samples` go — a central registry.rkt?** Follow the `require` line in table.rkt: the module graph already IS the registry. The producer defines and provides; drawers require; the compiler resolves the name or fails. A registry module would reintroduce the disease one level up — agents agreeing about registry keys instead of id strings. Precedent in this house decides it anyway: `define-style` lives with the module that draws. Resolved: streams live with their producer (samples in sampler.rkt, loadavg in loadavg.rkt), regions with their drawer.
+**Where does `define-stream counts` go — a central registry.rkt?** Follow the `require` line in list.rkt: the module graph already IS the registry. The producer defines and provides; drawers require; the compiler resolves the name or fails. A registry module would reintroduce the disease one level up — agents agreeing about registry keys instead of id strings. Precedent in this house decides it anyway: `define-style` lives with the module that draws. Resolved: streams live with their producer (counts in counters.rkt, clock in clock.rkt), regions with their drawer.
 
 **Should `define-live-region` generate the JavaScript?** The watchdog that flags a frozen table when heartbeats stop has to run client-side, so the temptation is a macro that emits JS. But the expansion above already shows the answer: `data-live-heartbeat "15"` is DATA on the DOM, and one generic, vendored, hand-written client file reads it — the same bet htmx itself makes (HTML is the interface). Resolved: declarations expand to attributes only; no DSL emits JavaScript. This is also what keeps the client reusable by any consumer app.
 
-**A tab loaded yesterday's ptop; the server now speaks v2. Then what?** For a monitoring page this consumer is the rule, not the edge — the tab stays open for weeks. Racket-side, evolution is already safe: delete `procs-changed` from `#:events` while table.rkt still references it and expansion fails. But a browser tab is a consumer OUTSIDE the module graph — the compiler cannot see it. So the version travels on the wire: `#:version 1` is stamped into the connect URL (`/events?stream=samples&v=1`), and a v2 server answering a v1 connect sends one mismatch frame telling the tab to hard-reload. Resolved: define-stream owns the version, the wire enforces it, stale tabs self-heal on reconnect — which quietly fixes deploy-time skew, a glitch nobody had even listed.
+**A tab loaded yesterday's page; the server now speaks v2. Then what?** A tab left open across a redeploy is the rule for any live page, not the edge. Racket-side, evolution is already safe: delete `counts-changed` from `#:events` while list.rkt still references it and expansion fails. But a browser tab is a consumer OUTSIDE the module graph — the compiler cannot see it. So the version travels on the wire: `#:version 1` is stamped into the connect URL (`/events?stream=counts&v=1`), and a v2 server answering a v1 connect sends one mismatch frame telling the tab to hard-reload. Resolved: define-stream owns the version, the wire enforces it, stale tabs self-heal on reconnect — which quietly fixes deploy-time skew, a glitch nobody had even listed.
 
 **Still open, recalibrated: will the swarm extend it?** The post's endgame is abstractions agents GENERATE for their own use. [One paper](https://arxiv.org/abs/2506.10021) says a Lisp is the natural medium for that — conceptual framework, zero experiments. The measured record ([agents-and-dsls.md](agents-and-dsls.md), conclusion 8) says otherwise: LLM-authored abstraction libraries deliver nothing where human-curated ones deliver plenty, and LLMs apply stable abstractions well while discovering them badly. So the test splits in two. Third live surface: does the agent reach for `define-live-region` unprompted? Expect yes. Uncovered convention: does it propose a form for a human to ratify? Maybe. Autonomous grammar growth: don't design for it.
 
@@ -142,15 +142,15 @@ The measured record on LLM agents and custom DSLs lives in its own doc — [agen
 
 1. *The prior fights you* → the vocabulary stays at three macros, and the Racket baseline gets taught separately — the repo is adopting [racket-skills SKILL.md](https://tangled.org/notjack.space/racket-skills/blob/main/racket/SKILL.md).
 2. *The cost is the compile loop* → ours measures fast (2026-08: ~5 s no-op `just build`, ~8 s edit to 263 green tests, ~13 s worst-case clean rebuild), and DSL checks run at expansion, inside that loop. Also: hand-writing raw htmx attributes must never be easier than using the macros, or agents will route around them.
-3. *Teach with grammar plus worked examples* → each macro's docs carry its mini-grammar; `live/README.md` gains a grammar section; ptop graduates from this doc into a runnable `live/examples/ptop/`, built by CI like `examples/` — a worked example that cannot go stale. The thin expansion is itself this channel: the macros expand to plain htmx attributes, vocabulary the model already knows.
+3. *Teach with grammar plus worked examples* → each macro's docs carry its mini-grammar; `live/README.md` gains a grammar section; counters graduates from this doc into a runnable `live/examples/counters/`, built by CI like `examples/` — a worked example that cannot go stale. The thin expansion is itself this channel: the macros expand to plain htmx attributes, vocabulary the model already knows.
 4. *Errors explain, not point* → the message format becomes a tested contract, like srcloc fidelity already is: rule name, offending form quoted, candidates in scope, a did-you-mean. The failure examples earlier in this doc are too terse; the checker should say:
 
     ```racket
-    (live-link ptabel (proc-href p) (proc-name p))
-    ;; table.rkt:31:15: ptabel: unbound live region
+    (live-link clsit (counter-href c) (counter-name c))
+    ;; list.rkt:31:15: clsit: unbound live region
     ;;   live-link's first argument must be a region bound by define-live-region
-    ;;   regions in scope in this module: ptable (defined at table.rkt:14)
-    ;;   did you mean: ptable?
+    ;;   regions in scope in this module: clist (defined at list.rkt:14)
+    ;;   did you mean: clist?
     ```
 
 5. *No standing prose* → when the DSL lands, CLAUDE.md's live-view bullets shrink to one pointer at `live/`'s docs, and any rule the checker enforces gets deleted from CLAUDE.md rather than restated.
@@ -173,6 +173,6 @@ The measured record on LLM agents and custom DSLs lives in its own doc — [agen
 
 ## And olai?
 
-Substitute names: `ptable` is `#ol-live`, `samples` is `outline-events` in `web/watch.rkt`, `proc-link` is every sidebar, crumb, and permalink the renderer draws — and the `ticker` is the chat panel: the second live surface a navigation must not rebuild. The sidebar-click that rebuilt the chat was the bug that started this doc; declared, it is unwritable. `serve.rkt` requires both drawers; the module graph wires the rest.
+Substitute names: `clist` is `#ol-live`, `counts` is `outline-events` in `web/watch.rkt`, `counter-link` is every sidebar, crumb, and permalink the renderer draws — and the `ticker` is the chat panel: the second live surface a navigation must not rebuild. The sidebar-click that rebuilt the chat was the bug that started this doc; declared, it is unwritable. `serve.rkt` requires both drawers; the module graph wires the rest.
 
 The in-flight live-view PR ships the functional core. The DSL is a possible second PR, judged then by the same lenses: build it only if the declarations CHECK something a swarm actually trips on.

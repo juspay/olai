@@ -134,6 +134,13 @@ olai roadmap #project
         : the outline catches up; the indicator shows stale while the
         : stream is down and clears on recovery.
     declare-and-check DSL
+      [/] counters example
+        : Hello-world of live pages: three counters racing + a clock
+        : ticker, hand-wired against live/'s functions as
+        : [live-dsl.md](https://github.com/juspay/olai/blob/master/docs/brainstorming/live-dsl.md)'s
+        : toy made real — the human reads it line by line to judge the
+        : DSL. In flight: terminal a7600741, worktree counters-example,
+        : Claude Opus.
       : Anti-entropy for a swarm-built wiring: this repo is written by many agents with partial context, and every id/event string is a convention each one must rediscover — e2e catches the drift late, at simulation prices. Regions and streams as compile-time bindings instead: a dead link or undeclared frame fails at expand time with a srcloc (the agent interface), and stream evolution is append-only at one declaration site. The functional core to macro over shipped in [#29](https://github.com/juspay/olai/pull/29) (`live/`: frame, hub, client attributes); build the forms only if the declarations CHECK something a swarm actually trips on. Brainstorm: [docs/brainstorming/live-dsl.md](https://github.com/juspay/olai/blob/master/docs/brainstorming/live-dsl.md); the research behind it, general to any future DSL: [docs/brainstorming/agents-and-dsls.md](https://github.com/juspay/olai/blob/master/docs/brainstorming/agents-and-dsls.md) (make these @doc when that lands).
     0.6 micro-edits
       : Capture box + check-off from the browser (done status already in the
