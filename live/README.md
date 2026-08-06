@@ -95,6 +95,21 @@ Three things to wire: mount the assets, put the attributes on the page, answer t
 
 Serve `(live-static-dir)` at whatever prefix you passed to `live-script-hrefs`. That directory holds htmx, its SSE extension, idiomorph and this framework's own runtime — four files, vendored, no CDN, no inline script, so a strict CSP is satisfied by a nonce or a hash on nothing at all.
 
+## A worked example
+
+[`examples/counters`](examples/counters/README.md) is the whole model on one
+page: two live surfaces (a list that reorders under you, a clock in the header
+that a navigation must not rebuild), two producers, one stream, and an input
+box that keeps what you typed through every swap. Five short files, hand-wired
+against the functions above and nothing else. `nix run .#counters` runs it, and
+it carries its own test.
+
+It is not part of this collection: `examples/` is not in the source this
+package is built from (`default.nix`), so installing `live` never carries the
+demo, and editing the demo never rebuilds `live`. It shares the directory
+because raco will not link a package inside another package's directory —
+nothing else.
+
 ## The contract
 
 ### What your app provides

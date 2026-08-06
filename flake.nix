@@ -87,6 +87,11 @@
           # live/default.nix, next to the collection it is about.
           live = pkgs.callPackage ./live { inherit sources; };
 
+          # The framework's worked example, as its own artifact: it consumes
+          # `live` and is not part of it. Its nix, its just module and its
+          # test all live in that directory — this line is the mount.
+          counters = pkgs.callPackage ./live/examples/counters { inherit live; };
+
           # The build (racket build, TZDIR dance, raco exe stub, ACP
           # default) lives in nix/olai.nix; src is a flake-level decision.
           olai = pkgs.callPackage ./nix/olai.nix {
@@ -97,7 +102,7 @@
         in
         {
           default = olai;
-          inherit olai live;
+          inherit olai live counters;
           racket-deps = racketDepsPkg.racketDeps;
           acp-agent = acpAgent;
           # cucumber + playwright for the browser journeys (e2e/default.nix).

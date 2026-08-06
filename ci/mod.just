@@ -12,6 +12,11 @@
 
 set working-directory := '..'
 
+# live/'s worked example is CI's to run and nobody else's, so it is mounted
+# HERE and not in the root justfile. This line is all that is known about it
+# outside its own directory: where it lives, never what it runs.
+mod counters '../live/examples/counters/mod.just'
+
 # Re-enter the flake devShell when a remote odu lane lacks racket/just on PATH.
 # Skipped when already inside the shell (`just ci` under direnv / nix develop).
 nix_shell := if env('IN_NIX_SHELL', '') != '' { '' } else { 'nix develop --accept-flake-config -c' }
@@ -22,7 +27,7 @@ nix_shell := if env('IN_NIX_SHELL', '') != '' { '' } else { 'nix develop --accep
 [macos]
 [parallel]
 [metadata("ci")]
-default: smoke test test-integration e2e
+default: smoke test test-integration e2e counters::check
 
 # One install + raco setup per lane — funnel every racket test through this.
 build:

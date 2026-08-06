@@ -11,6 +11,8 @@ The repo holds two Racket packages, and the order between them is the dependency
 
 So `just install` links `live` before `olai`, and `just build` is `raco setup --pkgs live olai`. A change to `live/` that only makes sense for olai is a change in the wrong place.
 
+`live/examples/*` is in neither package. Each example is its own derivation (`nix run .#counters`) and runs its own test as `installCheckPhase`, so CI builds it and nothing else touches it. `live`'s source is a `lib.fileset` that excludes it, so installing the framework never carries an example and editing one rebuilds neither `live` nor olai. `raco` has no such split — it refuses to link a package inside another package's directory — so `just build` compiles examples along with `live`, and a broken one fails it.
+
 `live/static/` holds the browser runtime, and three of its four files are NOT in git: htmx, htmx's SSE extension and idiomorph are pinned in `npins/sources.json` and built by `live/default.nix` (its own Nix, next to it, like `acp/` and `e2e/`). `just vendor` copies them into place from `$OLAI_LIVE_ASSETS` — every recipe that needs them depends on it, so you never run it by hand. Consequences worth knowing:
 
 * A checkout outside `nix develop` has no browser runtime, and `live/tests/client.rkt` says so by failing on a missing file.
@@ -78,7 +80,7 @@ Class-name renames: run `just css-classes` to regenerate `olai/tests/classes.gol
 
 ## Tests
 
-* `just test` — unit, in-process, `live/tests/*.rkt` + `olai/tests/*.rkt`
+* `just test` — unit, in-process: `live/tests/*.rkt` + `olai/tests/*.rkt`, and every example's own test (a dependency, so the command stays one)
 * `just test-integration` — spawns `olai`, boots servers
 * `just test-all` — both, one `-j` pool
 * `just e2e` — browser journeys (see below); never in `just test`
