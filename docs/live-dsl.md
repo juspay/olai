@@ -50,7 +50,7 @@ Write `sse-swap "score-change"` — no error. The server compiles, the page rend
 
 Now put a swarm on it. Each agent arrives with partial context and must REDISCOVER the four conventions from source before touching anything. The post calls the result entropy: special cases and near-misses accumulating faster than any one agent can see. And the only net under them is the e2e suite — simulation, in the post's terms: expensive, late, and only as good as its scenario coverage. This is not hypothetical; olai's sidebar-rebuilds-chat bug was convention 3 misapplied, shipped green, and caught by a human.
 
-Frangibility says what the fix must feel like: an agent cannot learn by breaking your browser session, so the feedback has to arrive before anything runs. The cheapest such feedback in Racket is expansion failure with a srcloc — already this repo's agent interface (`#lang olai` is a closed grammar with one checker; css-expr makes stylesheets checked s-expressions; CLAUDE.md holds tests to srcloc fidelity). The cure below is the same one, applied to the wiring.
+Frangibility says what the fix must feel like: an agent cannot learn by breaking your browser session, so the feedback has to arrive before anything runs. The cheapest such feedback in Racket is expansion failure with a srcloc — already this repo's agent interface (`#lang olai` is a closed grammar with one checker; css-expr makes stylesheets checked s-expressions; [CLAUDE.md](../CLAUDE.md) holds tests to srcloc fidelity). The cure below is the same one, applied to the wiring.
 
 ## The toy, declared
 
@@ -129,6 +129,6 @@ Both die at expansion, srcloc first, before a server boots. That error message I
 
 ## And olai?
 
-Substitute names: `board` is `#ol-live`, `scores` is `outline-events` in web/watch.rkt, `player-link` is every sidebar, crumb, and permalink the renderer draws — and the chat panel is the second consumer of the same three forms, riding the same hub. serve.rkt requires both drawers; the module graph wires the rest.
+Substitute names: `board` is `#ol-live`, `scores` is `outline-events` in `web/watch.rkt`, `player-link` is every sidebar, crumb, and permalink the renderer draws — and the chat panel is the second consumer of the same three forms, riding the same hub. `serve.rkt` requires both drawers; the module graph wires the rest.
 
 The in-flight live-view PR ships the functional core. The DSL is a possible second PR, judged then by the same lenses: build it only if the declarations CHECK something a swarm actually trips on.
