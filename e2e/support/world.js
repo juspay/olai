@@ -12,11 +12,16 @@ import { World } from "@cucumber/cucumber";
 import { FIXTURE } from "./outline.js";
 import { startServer } from "./server.js";
 
-// A desktop, because the layout the scenarios assert is the desktop one: the
+// A desktop, because the layout most scenarios assert is the desktop one: the
 // sidebar is a column, and the chat panel sits BESIDE the outline rather than
 // over it (the phone rules are a @media away and would make the geometry
 // assertions say nothing).
 const VIEWPORT = { width: 1280, height: 900 };
+
+// And the other layout, for the scenarios that are about it: an iPhone 14 in
+// CSS pixels, well under phone-max (48rem), where the panel is a sheet OVER
+// the outline. A scenario asks for it with @phone (hooks.js).
+export const PHONE_VIEWPORT = { width: 390, height: 844 };
 
 // The sentinel a mark leaves on the page. A reload wipes it; an htmx swap does
 // not — which is the whole difference "without a reload" is about.
@@ -25,8 +30,9 @@ const MARK = "__olai_e2e_mark";
 export class OlaiWorld extends World {
   /** Temp outline + server + a fresh browser context. `browser` is the run's
    *  (hooks.js owns it): a context per scenario is what makes localStorage —
-   *  the fold state, the theme, the chat panel's open bit — start empty. */
-  async boot(browser, env = {}) {
+   *  the fold state, the theme, the chat panel's open bit — start empty. The
+   *  viewport is a desktop unless the scenario asked for the other one. */
+  async boot(browser, env = {}, viewport = VIEWPORT) {
     this.dir = await fs.mkdtemp(path.join(os.tmpdir(), "olai-e2e-"));
     this.outlinePath = path.join(this.dir, "Tasks.rkt");
     await this.rewrite(FIXTURE);
@@ -35,7 +41,7 @@ export class OlaiWorld extends World {
     // second the scenario actually waits for; it may as well cover both.
     const [server, context] = await Promise.all([
       startServer(this.dir, env),
-      browser.newContext({ viewport: VIEWPORT }),
+      browser.newContext({ viewport }),
     ]);
     this.server = server;
     this.context = context;

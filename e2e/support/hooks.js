@@ -16,7 +16,7 @@ import {
 } from "@cucumber/cucumber";
 import { chromium } from "playwright";
 
-import { OlaiWorld } from "./world.js";
+import { OlaiWorld, PHONE_VIEWPORT } from "./world.js";
 
 // A step here can be waiting on a racket start-up, a filesystem watcher's
 // 2-second poll fallback, and an agent subprocess. Cucumber's 5s default is a
@@ -45,12 +45,18 @@ const STORED_SESSIONS = {
   "@foreign-sessions": "foreign",
 };
 
+// The screen is the other thing a scenario asks for by tag. Not an assertion
+// but a LAYOUT: below phone-max the skin puts the sidebar above the outline and
+// the chat panel over it (web/chat-panel, sheet mode), and a scenario about
+// that has to be run there.
 Before(async function ({ pickle }) {
   const env = {};
+  let viewport;
   for (const { name } of pickle.tags) {
     if (name in STORED_SESSIONS) env.OLAI_FAKE_ACP_STORED = STORED_SESSIONS[name];
+    if (name === "@phone") viewport = PHONE_VIEWPORT;
   }
-  await this.boot(browser, env);
+  await this.boot(browser, env, viewport);
 });
 
 // The server's own output is the first thing worth reading when a scenario
