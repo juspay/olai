@@ -17,7 +17,9 @@
          olai/web/theme
          ;; what a rendered title or note wears
          olai/web/markdown
-         ;; the outline
+         ;; the outline: one module per surface, and web/render is where THEIR
+         ;; order is written out. Nested composition, single owner at each
+         ;; level — two files naming one order would be two to keep in step
          olai/web/render
          ;; the panel that overlays it
          olai/web/chat-panel

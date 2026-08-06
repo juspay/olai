@@ -43,7 +43,19 @@
 ;; one page, one EventSource, every event name on it.
 (define-stream outline-events #:events (outline) #:heartbeat 15)
 
-(provide outline-events)
+;; And the region that redraws on it. The binding's name IS the element id, so
+;; `#ol-live` is never written: the swap target, the select and every link on
+;; the page are derived from this line.
+;;
+;; It is declared HERE rather than in the module that draws the element,
+;; because four of them need it — web/page draws it, and web/node, web/crumbs
+;; and web/sidebar each aim links at it. A region is a fact about the PAGE, and
+;; this is the module that holds the page's live vocabulary. (The sidebar's own
+;; region is the other way round: one module draws it and nothing links to it,
+;; so it is declared where it is drawn.)
+(define-live-region ol-live #:stream outline-events)
+
+(provide outline-events ol-live)
 
 (provide (contract-out
           ;; where the client runtime is mounted, and what the page pulls in

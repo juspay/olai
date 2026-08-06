@@ -15,16 +15,18 @@ olai/web/live             what a revision MEANS      -> a cursor, a frame
     |
 live/hub                  WHO is listening           -> SSE, generic
     |
-GET /events               the stream
+GET /live/<boot>/events    the stream
     |
 live/static/live.js       the browser's half
 ```
 
 They meet in `olai/web/serve`, and nowhere else.
 
-## GET /events
+## GET /live/<boot-id>/events
 
 A `text/event-stream` that never ends. One per page — the chat panel rides the same connection.
+
+The address carries the boot id of the process that drew the page (`live-stream-path`, [live/README.md](../live/README.md)). A connect naming any other process is a tab that outlived a restart: its markup, its scripts and this address all belong to a server that is gone, so it is ANSWERED — one `live:reload` frame, then the end of the stream — and never refused. `EventSource` hides an HTTP status from the page and would retry a refusal forever. A same-code restart reloads every open tab; that is the price, and it is paid on purpose.
 
 It opens with two things, always:
 
@@ -78,20 +80,25 @@ The conversation catches up the same way and on the same connection, in the chat
 
 ## What the page does
 
-Every page carries `sse-connect` on `<body>` and one live region, `#ol-live`, holding the error banner slot and the outline pane. The sidebar, the chat panel and the skin sit outside it and are never rebuilt.
+Every page carries `sse-connect` on `<body>` and TWO live regions: `#ol-live`, holding the error banner slot and the outline pane, and `#ol-sidebar`, the file tree. The chat panel and the skin sit outside both and are never rebuilt.
+
+Both are declared, not spelled: `olai/web/live` declares the stream and the outline's region, `olai/web/sidebar` declares its own, and every link, target and selector on the page is derived from those bindings ([live/README.md](../live/README.md) — raw htmx attributes are banned in app code).
 
 * **An `outline` event** makes `#ol-live` re-fetch the page's own address and morph the reply onto itself. Morph, not replace: scroll position, text selection, focus and running transitions survive an update that did not concern them.
+* **The same event** makes `#ol-sidebar` do it too. The tree draws the same node titles the outline does, so a rename that reached only one of them left the other lying. It yields the history element to `#ol-live` (htmx honours the first in the document, and Back has to restore the outline), and no link targets it — so a navigation still never rebuilds it.
 * **A link** — sidebar tree, breadcrumb, bullet, Today, the brand — does the same fetch, aimed at the same region, and pushes the address. The plain `href` is still on it, so no-JS, middle-click and copy-link are unharmed. Back and Forward restore the region, not the page.
-* **The stream's health** is one class on `<html>`, written by the framework's runtime: `live-connecting` while a drop is being reconnected, `live-stale` once it has been down long enough (five seconds after a drop the browser noticed; two and a half missed beats for a socket that stayed open and went quiet). Neither class is a healthy stream. `#ol-stream` is what those look like — "reconnecting…" and "showing last known state", the store's own last-good vocabulary. Catch-up clears it: the reconnect brings the content back and the class goes with it.
+* **The stream's health** is one class on `<html>`, written by the framework's runtime: `live-connecting` while a drop is being reconnected, `live-stale` once it has been down long enough (five seconds after a drop the browser noticed; two and a half missed beats for a socket that stayed open and went quiet). Neither class is a healthy stream. `#ol-stream` is the pill that reads them, and it is ALWAYS on the page in one of three states — green "live", amber "reconnecting…", rose "showing last known state". An indicator that appears only when something is wrong cannot be told apart from one that never worked, so healthy has a look of its own rather than being the absence of the other two. Catch-up clears it: the reconnect brings the content back and the class goes with it.
 
 ## Reading it by hand
 
 ```bash
-curl -N localhost:8080/events
-curl -N -H 'Last-Event-ID: 1786025954450.3' localhost:8080/events
+curl -N "localhost:8080$(curl -s localhost:8080/ | grep -o 'sse-connect="[^"]*"' | cut -d'"' -f2)"
+curl -N localhost:8080/live/yesterday/events    # one reload frame, then EOF
 ```
 
-The first is a fresh connection: heartbeats, and events as they happen. The second is a browser claiming to have been away, and answers immediately with the `outline` frame it is owed.
+The address is not one to type: it holds this process's boot id, so the first line reads it off a page the way a browser does — heartbeats, and events as they happen. The second line is yesterday's tab: one reload frame and the end of the stream.
+
+A browser claiming to have been away sends `Last-Event-ID` instead, and is answered immediately with the `outline` frame it is owed.
 
 ## Client assets
 
