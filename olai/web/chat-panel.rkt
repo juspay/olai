@@ -75,10 +75,12 @@
 
 (define-style ol-chat-open
   #:position fixed
-  #:right 1rem
-  #:bottom 1rem
+  ;; clear the home indicator / notch on phones (viewport-fit=cover)
+  #:right (apply max 1rem (apply env safe-area-inset-right))
+  #:bottom (apply max 1rem (apply env safe-area-inset-bottom))
   #:z-index 20
-  #:padding (0.3125rem 0.75rem)
+  #:padding (0.5rem 0.875rem)
+  #:min-height 2.75rem
   #:border (1px solid ,line)
   #:border-radius 9999px
   #:background ,paper-2
@@ -122,6 +124,10 @@
   ;; its own surface, one step up the paper ramp (paper -> paper-2 -> panel):
   ;; the panel is a layer over the outline, not more of the same sheet
   #:background ,panel
+  ;; fixed, so body padding does not protect it: pad for the notch / home bar
+  #:padding-top (apply env safe-area-inset-top)
+  #:padding-right (apply env safe-area-inset-right)
+  #:padding-bottom (apply env safe-area-inset-bottom)
   [,(sel '& is-open) #:display flex]
   ;; a phone has no room beside the outline: the panel is a sheet over it
   [@ media (#:max-width ,phone-max) #:width 100% #:left 0 #:border-left 0])

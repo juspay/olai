@@ -411,7 +411,8 @@ Routes:
 | `GET /api/tree` | byte-identical to `olai tree` |
 | `GET /api/agenda` | byte-identical to `olai agenda --json` |
 | `GET /static/app.css` | the skin, `text/css`, `Cache-Control: no-cache`. Generated from the Racket modules that draw the page — `olai/web/skin` composes them — not a file on disk. `olai css` prints the same bytes |
-| `GET /static/*` | files under `olai/web/static/` |
+| `GET /static/manifest.webmanifest` | web app manifest (`application/manifest+json`); name, icons, `display: standalone`, default theme colours |
+| `GET /static/*` | files under `olai/web/static/` (icons, htmx, scripts, `pwa.js`) |
 | anything else | `404`, terse `text/plain` |
 
 A node's permalink is `/#n-<key>` (`key` as in `tree` JSON). Anchored nodes and
@@ -431,6 +432,14 @@ default theme (the sheet's bare `:root`) and that chip is the lit one; the OS's
 longer carries is forgotten on sight. A tiny inline script in `<head>` restores
 stored prefs before the first paint (`static/prefs.js` is the picker); each
 theme declares its own `color-scheme`, so scrollbars and form controls follow.
+`<meta name="theme-color">` starts as the default theme's paper and is rewritten
+from `--paper` by `static/pwa.js` whenever a chip flips, so the browser chrome
+tracks the page.
+
+**PWA.** The page links the manifest and icons and is installable (Add to
+Home Screen / install prompt) when served over HTTPS or localhost. There is
+no service worker and no offline mode: the view is live-or-nothing (SSE,
+agent). `static/pwa.js` only keeps `theme-color` in step with the picked theme.
 
 The chat panel (a `>_ agent` button, bottom right; open state remembered in
 `localStorage`) is server-rendered from the bridge's transcript on every page
