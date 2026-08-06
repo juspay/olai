@@ -22,6 +22,7 @@ Inbox #capture
     @done 2026-08-02
   Agent work ^agent
     : Anchored sample for mirrors
+    @doc docs/agent-work.md
   This week
     *agent
 

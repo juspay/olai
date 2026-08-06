@@ -11,6 +11,12 @@
 ;; what it is given and looks nothing up — an unresolved mirror is a state a
 ;; marker is drawn in, not a hash miss in the middle of a recursion.
 ;;
+;; DOCUMENTS — a node's @doc names a file, and this module never opens one:
+;; `docs` is a hash of absolute path -> text the store read at load time, and
+;; a path with no entry is a state to draw. Same discipline as the mirrors —
+;; the I/O and the drawing are different layers, and only one of them is
+;; allowed a filesystem.
+;;
 ;; IDS — a node's identity is `task-key`, minted by the load layer (its
 ;; ^anchor, else a hash of its defining file + child ordinals). This module
 ;; never computes an id: it only decorates one, so renaming a title cannot
@@ -35,6 +41,9 @@
          ;; the resolved shape of a mirror site (core owns the binding)
          (only-in olai/lang/walk mirror-site? mirror-site-of mirror-site-task)
          olai/dates
+         ;; what a @doc path means: where it points, which of the two document
+         ;; formats it is, and the one line a collapsed node shows of it
+         (only-in olai/doc doc-path doc-kind doc-lead)
          ;; one owner for how a file is named in the UI (core, not web)
          (only-in olai/paths file-label)
          ;; how a page opts into the live view: the attributes that make an
@@ -69,17 +78,19 @@
                  #:zoom-base (or/c string? #f)
                  #:toggle-base (or/c string? #f)
                  #:live (or/c live-view? #f)
+                 #:docs hash?
+                 #:doc-expanded? boolean?
                  #:collapsed? boolean?)
                 list?)]
           [render-outline
            (->* (list? #:today string?)
                 (#:zoom-base (or/c string? #f) #:toggle-base (or/c string? #f)
-                 #:live (or/c live-view? #f))
+                 #:live (or/c live-view? #f) #:docs hash?)
                 list?)]
           [render-file-section
            (->* (any/c #:today string?)
                 (#:zoom-base (or/c string? #f) #:toggle-base (or/c string? #f)
-                 #:live (or/c live-view? #f))
+                 #:live (or/c live-view? #f) #:docs hash?)
                 list?)]
           [render-breadcrumbs
            (->* (list? #:home-href (or/c string? #f))
@@ -113,7 +124,8 @@
            (->* (task? list? #:today string? #:home-href string?)
                 (#:zoom-base (or/c string? #f)
                  #:toggle-base (or/c string? #f)
-                 #:live (or/c live-view? #f))
+                 #:live (or/c live-view? #f)
+                 #:docs hash?)
                 list?)]
           [render-empty-pane
            (->* (string? #:home-href string?) (#:live (or/c live-view? #f)) list?)]
@@ -373,6 +385,10 @@
                     #:status [status 'open]
                     #:before-row [before-row '()]
                     #:row row
+                    ;; between the node's own line and its children: what
+                    ;; belongs to this node but is not one line of it. The
+                    ;; document a @doc attaches is the only such thing today
+                    #:after-row [after-row '()]
                     #:children [children '()])
   (define has-kids? (pair? children))
   `(li ((class ,(classes ol-node
@@ -388,6 +404,7 @@
        (div ((class ,ol-row))
             ,(toggle-xexpr has-kids? collapsed?)
             ,@row)
+       ,@after-row
        ,@(if has-kids?
              (list `(ul ((class ,ol-children)) ,@children))
              '())))
@@ -533,6 +550,132 @@
    #:padding-left 0.75rem
    #:border-left (2px solid ,line)])
 
+;; ---- the document a node expands into --------------------------------------
+;;
+;; @doc attaches a FILE to a node. In the outline the node shows one line of
+;; it; zoomed, it shows the whole thing. Same block either way, and only its
+;; contents differ — a document that looked like one thing collapsed and
+;; something unrelated expanded would be two features wearing one field.
+;;
+;; It sits between the node's row and its children (node-shell's after-row):
+;; the document belongs to this node, and the nodes under it are still under
+;; it. Indented to the content column, not to the gutter the bullet sits in.
+
+(define-style ol-doc
+  #:margin (0.25rem 0 0.375rem 3.5rem)
+  #:min-width 0
+  [@ media (#:max-width ,phone-max) #:margin-left 2rem])
+
+(define-style ol-doc-name
+  #:font-family ,mono
+  #:font-size ,micro-size
+  #:color ,dim
+  #:text-decoration none)
+
+;; The name is a link in the outline and plain text on the node's own page.
+;; Only the link answers a hover, and CSS nesting cannot spell "the parent,
+;; but only when it is an <a>" — same shape as .ol-crumb below.
+(register-fragment!
+ (css-expr [(: ,(sel 'a ol-doc-name) hover)
+            #:color ,ink
+            #:text-decoration underline]))
+
+;; One line, and one line only: the rest of the document is a click away, so
+;; a preview that wrapped would be spending three rows saying so.
+(define-style ol-doc-lead
+  #:display inline-block
+  #:max-width 100%
+  #:margin-left 0.5rem
+  #:vertical-align bottom
+  #:color ,dim
+  #:font-size 0.8125rem
+  #:white-space nowrap
+  #:overflow hidden
+  #:text-overflow ellipsis)
+
+;; The document itself. Markdown at render time, like every other string this
+;; view draws — the file on disk is the data, and this is one reading of it.
+(define-style ol-doc-body
+  #:margin-top 0.375rem
+  #:padding-left 0.75rem
+  #:border-left (1px solid ,line)
+  #:font-size 0.875rem
+  #:color ,ink
+  [(& p) #:margin (0.375rem 0)]
+  [(& h1) (& h2) (& h3) (& h4) (& h5) (& h6)
+   #:margin (0.75rem 0 0.25rem)
+   #:font-size 0.9375rem
+   #:font-weight 600
+   #:letter-spacing -0.01em]
+  [(& ul) (& ol) #:margin (0.375rem 0) #:padding-left 1.25rem]
+  [(& li) #:margin (0.125rem 0)]
+  [(& blockquote)
+   #:margin (0.375rem 0)
+   #:padding-left 0.75rem
+   #:border-left (2px solid ,line)
+   #:color ,dim]
+  [(& hr) #:margin (0.75rem 0) #:border 0 #:border-top (1px solid ,line)])
+
+;; The file's name — a link to the node's own page while you are looking at
+;; the outline, and plain text once you are on it.
+(define (doc-name-xexpr rel key live zoom-base link?)
+  (define label (file-label rel))
+  (if link?
+      `(a ((class ,ol-doc-name)
+           ,@(node-link-attributes live zoom-base key)
+           (title ,rel))
+          ,label)
+      `(span ((class ,ol-doc-name) (title ,rel)) ,label)))
+
+;; A state to draw, not a thing to fix: a document that is not there, or one
+;; in a format this view has no reading of yet.
+(define (doc-note-xexpr message)
+  `(p ((class ,ol-empty)) ,message))
+
+(define (doc-lead-xexprs text)
+  (define lead (and text (doc-lead text)))
+  (if (and lead (non-empty-string? lead))
+      (list `(span ((class ,ol-doc-lead)) ,lead))
+      '()))
+
+(define (doc-body-xexprs rel text)
+  (case (doc-kind rel)
+    [(md)
+     (if text
+         (list `(article ((class ,ol-doc-body)) ,@(note->xexprs text)))
+         (list (doc-note-xexpr
+                (format "~a could not be read." (file-label rel)))))]
+    ;; .scrbl is IN the language and not yet on the page. A Scribble document
+    ;; is a Racket module, so drawing one means expanding and running it while
+    ;; a request is open — arbitrary code out of a data file, inside the
+    ;; server. That is a decision with a blast radius rather than a renderer
+    ;; detail, so the view says what it is looking at and stops.
+    [(scrbl)
+     (list (doc-note-xexpr
+            (format "~a is a Scribble document; the web view does not render one yet."
+                    (file-label rel))))]
+    ;; The language rejects any other extension, so nothing loaded reaches
+    ;; here — but a switch whose last clause is somebody else's message is a
+    ;; switch that lies the day the set grows.
+    [else
+     (list (doc-note-xexpr
+            (format "~a is not a document this view draws." (file-label rel))))]))
+
+;; `docs` is path -> text, read by the store; this only looks in it.
+(define (doc-block tk docs expanded? live zoom-base)
+  (define rel (task-doc tk))
+  (cond
+    [(not rel) '()]
+    [else
+     (define path (doc-path rel (task-file tk)))
+     (define text (and path (hash-ref docs path #f)))
+     (list
+      `(div ((class ,ol-doc))
+            ,(doc-name-xexpr rel (task-key tk) live zoom-base (not expanded?))
+            ,@(if expanded?
+                  (doc-body-xexprs rel text)
+                  (doc-lead-xexprs text))))]))
+
 ;; A permalink target, not a thing to see.
 (define-style ol-anchor #:position absolute #:width 0 #:height 0 #:overflow hidden)
 
@@ -572,7 +715,8 @@
                       #:today today
                       #:zoom-base zoom-base
                       #:toggle-base toggle-base
-                      #:live live)
+                      #:live live
+                      #:docs docs)
   (cond
     [(mirror-site? child)
      (define target (mirror-site-task child))
@@ -583,7 +727,8 @@
                                #:mirror-of (mirror-site-of child)
                                #:zoom-base zoom-base
                                #:toggle-base toggle-base
-                               #:live live)
+                               #:live live
+                               #:docs docs)
          (unresolved-mirror-xexpr (mirror-site-of child)))]
     [(task? child)
      (render-node-fragment child
@@ -591,7 +736,8 @@
                            #:today today
                            #:zoom-base zoom-base
                            #:toggle-base toggle-base
-                           #:live live)]
+                           #:live live
+                           #:docs docs)]
     [else `(li ((class ,(classes ol-node ol-unresolved))) "???")]))
 
 ;; One subtree, self-contained: this is the unit SSE re-swaps.
@@ -602,6 +748,11 @@
                               #:zoom-base [zoom-base #f]
                               #:toggle-base [toggle-base #f]
                               #:live [live #f]
+                              #:docs [docs (hash)]
+                              ;; the whole document, not one line of it: true
+                              ;; for the node a zoom page is ABOUT, and for
+                              ;; nothing else on it
+                              #:doc-expanded? [doc-expanded? #f]
                               #:collapsed? [collapsed? #f])
   (define title (task-title tk))
   (define key (task-key tk))
@@ -659,6 +810,7 @@
                      (list `(div ((class ,(classes ol-note (and done? is-done))))
                                  ,@(note->xexprs (task-description tk))))
                      '())))
+   #:after-row (doc-block tk docs doc-expanded? live zoom-base)
    #:children (for/list ([c (in-list kids)])
                 (render-child c
                               #:site site
@@ -666,7 +818,8 @@
                               #:today today
                               #:zoom-base zoom-base
                               #:toggle-base toggle-base
-                              #:live live))))
+                              #:live live
+                              #:docs docs))))
 
 
 ;; ---- main pane ------------------------------------------------------------
@@ -693,7 +846,8 @@
                              #:today today
                              #:zoom-base [zoom-base #f]
                              #:toggle-base [toggle-base #f]
-                             #:live [live #f])
+                             #:live [live #f]
+                             #:docs [docs (hash)])
   (match-define (list label tasks) (car (normalize-files-data (list entry))))
   `(section ((class ,ol-file)
              (id ,(string-append "ol-file-" (id-safe label)))
@@ -707,20 +861,23 @@
                                   #:today today
                                   #:zoom-base zoom-base
                                   #:toggle-base toggle-base
-                                  #:live live)))))
+                                  #:live live
+                                  #:docs docs)))))
 
 (define (render-outline files-data
                         #:today today
                         #:zoom-base [zoom-base #f]
                         #:toggle-base [toggle-base #f]
-                        #:live [live #f])
+                        #:live [live #f]
+                        #:docs [docs (hash)])
   `(div ((class ,ol-pane) (id "ol-outline"))
         ,@(for/list ([e (in-list files-data)])
             (render-file-section e
                                  #:today today
                                  #:zoom-base zoom-base
                                  #:toggle-base toggle-base
-                                 #:live live))))
+                                 #:live live
+                                 #:docs docs))))
 
 ;; ---- chrome ---------------------------------------------------------------
 
@@ -1165,7 +1322,8 @@
                      #:home-href home-href
                      #:zoom-base [zoom-base #f]
                      #:toggle-base [toggle-base #f]
-                     #:live [live #f])
+                     #:live [live #f]
+                     #:docs [docs (hash)])
   `(div ((class ,(classes ol-pane ol-zoom)) (id "ol-outline"))
         ,(render-breadcrumbs crumbs
                              #:zoom-base zoom-base
@@ -1176,4 +1334,8 @@
                                    #:today today
                                    #:zoom-base zoom-base
                                    #:toggle-base toggle-base
-                                   #:live live))))
+                                   #:live live
+                                   #:docs docs
+                                   ;; the page IS this node: its document is
+                                   ;; what you came here to read
+                                   #:doc-expanded? #t))))

@@ -11,7 +11,7 @@ import * as path from "node:path";
 import { promisify } from "node:util";
 import { World } from "@cucumber/cucumber";
 
-import { FIXTURE } from "./outline.js";
+import { DOC, DOC_PATH, FIXTURE } from "./outline.js";
 import { OLAI_BIN, startServer } from "./server.js";
 
 const run = promisify(execFile);
@@ -40,6 +40,10 @@ export class OlaiWorld extends World {
     this.serverEnv = env;
     this.dir = await fs.mkdtemp(path.join(os.tmpdir(), "olai-e2e-"));
     this.outlinePath = path.join(this.dir, "Tasks.rkt");
+    this.docPath = path.join(this.dir, DOC_PATH);
+    // the document first: the outline's @doc names it, and the language
+    // refuses an outline whose document is not there
+    await this.rewriteDoc(DOC);
     await this.rewrite(FIXTURE);
 
     // The context does not depend on the URL, and the racket boot is the
@@ -125,6 +129,14 @@ export class OlaiWorld extends World {
   /** Add to the outline under the running server (see outline.js on sizes). */
   async append(text) {
     await this.rewrite(this.outline + text);
+  }
+
+  /** Rewrite the document a node's @doc attaches. Not an outline edit at all —
+   *  the .rkt does not move — which is the whole point of the scenario that
+   *  uses it: the page still has to redraw. */
+  async rewriteDoc(text) {
+    await fs.mkdir(path.dirname(this.docPath), { recursive: true });
+    await fs.writeFile(this.docPath, text, "utf8");
   }
 
   /** A write command against this scenario's outline, as an agent would run

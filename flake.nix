@@ -145,11 +145,12 @@
         build = self.packages.${system}.olai;
         # The runCommand script lives in nix/smoke.nix; example + fake-agent
         # paths are repo-root relative, so the flake passes them in rather
-        # than nix/smoke.nix guessing its own location.
+        # than nix/smoke.nix guessing its own location. The examples go in as
+        # a DIRECTORY: an outline names its siblings (@include fragments,
+        # @doc documents), so one .rkt on its own is not a loadable outline.
         smoke = pkgs.callPackage ./nix/smoke.nix {
           olai = self.packages.${system}.olai;
-          exampleOutline = ./examples/Example.rkt;
-          exampleSexpOutline = ./examples/Example.sexp.rkt;
+          examples = ./examples;
           fakeAcpAgentSrc = ./olai/tests/integration/fake-acp-agent.rkt;
         };
       });

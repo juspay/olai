@@ -8,6 +8,7 @@
 ;; regexp failing four frames deep inside someone else's regexp.
 
 (require racket/string
+         olai/doc
          (except-in olai/lang/expander #%module-begin)
          olai/index
          olai/lang/line
@@ -44,6 +45,16 @@
     ;; minting keys is over outlines, not over bare task lists
     (check-exn (blames "load.rkt")
                (λ () (mint-outline-keys (list "not an outline")))))
+
+  ;; The document layer answers about PATHS and takes anything for one — a
+  ;; node's @doc field is #f most of the time. What it will not take is a
+  ;; document to read that is not a path at all, or text to preview that is
+  ;; not text.
+  (test-case "doc: a document is read by path, and previewed from a string"
+    (check-exn (blames "doc.rkt")
+               (λ () (doc-text 42)))
+    (check-exn (blames "doc.rkt")
+               (λ () (doc-lead #f))))
 
   (test-case "index: files-data in, and a key is a string"
     (check-exn (blames "index.rkt")

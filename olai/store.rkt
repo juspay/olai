@@ -10,8 +10,9 @@
 ;;   * one current snapshot — the loaded outlines plus everything derived from
 ;;     them (render input, node index, merged anchors), computed once per load
 ;;     instead of once per request;
-;;   * the transitive set of files the outlines are built from (roots plus
-;;     @include fragments), which is what a watcher must watch;
+;;   * the transitive set of files the outlines are built from (roots, @include
+;;     fragments, and the documents @doc attaches), which is what a watcher
+;;     must watch;
 ;;   * last-good + current-error: a file is transiently broken during every
 ;;     edit, so a failed load keeps serving the last good snapshot and records
 ;;     the error instead of blanking the page.
@@ -32,6 +33,10 @@
          (except-in olai/lang/expander #%module-begin)
          olai/lang/walk
          olai/load
+         ;; where a @doc path points and what is in it; the store is the one
+         ;; layer that reads one, because it is the one that knows when to
+         ;; read it again
+         (only-in olai/doc doc-path doc-text)
          ;; how a node is addressed, and what sits above it
          (only-in olai/index outline-index))
 
@@ -49,6 +54,7 @@
           [struct snapshot ([outlines (listof outline?)]
                             [files-data list?]
                             [index hash?]
+                            [docs hash?]
                             [watch (listof path?)])]
           [snapshot-day-key (-> snapshot? string? (or/c string? #f))]
           [call-in-outline-namespace (-> (-> any) any)]))
@@ -61,10 +67,13 @@
 ;;                with every mirror site already bound to its node
 ;;                (olai/lang/walk, resolve-mirrors)
 ;;   index      : hash key -> node-entry (olai/index) — every node, addressed
-;;   watch      : (listof path) roots + transitive @include fragments
-(struct snapshot (outlines files-data index watch) #:transparent)
+;;   docs       : hash absolute-path-string -> text, the @doc documents as
+;;                they read right now (see read-docs below)
+;;   watch      : (listof path) roots, transitive @include fragments, and
+;;                every document @doc named
+(struct snapshot (outlines files-data index docs watch) #:transparent)
 
-(define empty-snapshot (snapshot '() '() (hash) '()))
+(define empty-snapshot (snapshot '() '() (hash) (hash) '()))
 
 ;; probe : hash path -> (cons mtime size) | #f, for cheap staleness checks
 ;; rev   : bumped by every reload, so "did anything happen?" is a comparison
@@ -173,6 +182,39 @@
                   (or acc (and (equal? (task-title tk) iso-day) (task-key tk))))
                 #f)))
 
+;; ---- @doc documents -------------------------------------------------------
+;;
+;; A document is a file, so it belongs to this layer twice over: it is read
+;; ONCE per load rather than once per request (the renderer is pure and must
+;; be handed text, not a path), and it joins the watch set beside the @include
+;; fragments, because editing a document is editing what the page shows.
+;;
+;; Keyed by the absolute path rather than by node: two nodes may attach the
+;; same document, and a document reached through two roots is one file.
+
+;; Every document the loaded outlines name, sorted so a watch set built twice
+;; from the same outlines is the same list.
+(define (doc-paths outs)
+  (sort
+   (remove-duplicates
+    (for/fold ([acc '()]) ([o (in-list outs)])
+      (fold-tasks (outline-tasks o)
+                  (λ (tk _path acc)
+                    (define p (doc-path (task-doc tk) (task-file tk)))
+                    (if p (cons p acc) acc))
+                  acc)))
+   string<?))
+
+;; A document that cannot be read is simply absent, and the view draws that
+;; state. It is not an error the way a broken outline is: the language already
+;; refused an outline naming a document that is not there, so getting here
+;; means the file moved between the load and this read — and the watcher is
+;; about to say so anyway.
+(define (read-docs paths)
+  (for/fold ([acc (hash)]) ([p (in-list paths)])
+    (define text (doc-text p))
+    (if text (hash-set acc p text) acc)))
+
 ;; Node keys are minted here, over the whole loaded set at once (see
 ;; mint-outline-keys): a fragment shared by two roots is one node with one
 ;; key, and the index below can be a plain invertible hash.
@@ -186,10 +228,14 @@
     (for/list ([o (in-list outs)])
       (list (outline-path o)
             (resolve-mirrors (outline-tasks o) (outline-anchors o)))))
+  (define docs (doc-paths outs))
   (snapshot outs
             files-data
             (outline-index files-data)
-            watch))
+            (read-docs docs)
+            ;; watched whether or not the read succeeded: the file coming
+            ;; back is exactly the change nobody would otherwise hear about
+            (append watch (map string->path docs))))
 
 ;; -> (values (listof outline) #f (listof path)) | (values #f load-error '())
 (define (load-all files)
@@ -239,9 +285,14 @@
   (define-values (outs err watch) (load-all files))
   (cond
     [outs
-     (set-store-snap! st (build-snapshot outs watch))
+     ;; probe what the SNAPSHOT says it is built from, not what load-all
+     ;; found: the module graph is only half of it — the documents come off
+     ;; the loaded tasks, and a set that is probed and a set that is watched
+     ;; being two different lists is how a saved document goes unnoticed.
+     (define snap (build-snapshot outs watch))
+     (set-store-snap! st snap)
      (set-store-err! st #f)
-     (set-store-probe! st (probe-for watch))]
+     (set-store-probe! st (probe-for (snapshot-watch snap)))]
     [else
      ;; Keep last-good. Probe the files we know about anyway, so a broken
      ;; file is retried on the next edit and not on every request.

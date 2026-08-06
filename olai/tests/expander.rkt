@@ -1,6 +1,7 @@
 #lang racket/base
 
 (require racket/file
+         racket/path
          racket/string
          (except-in olai/lang/expander #%module-begin)
          olai/load)
@@ -29,7 +30,21 @@
        (define r (try-load-outline tmp))
        (check-true (load-error? r) (format "expected a load error, got ~a" r))
        (values (or (load-error-where r) "") (load-error-message r)))
-     (λ () (delete-file tmp)))))
+     (λ () (delete-file tmp))))
+
+  ;; A @doc names a file, and the language checks that it is there — so a test
+  ;; about #:doc has to put one on disk. Both helpers above build their outline
+  ;; in the system temp directory, which is therefore where the document goes;
+  ;; `proc` is handed its BASENAME, the relative path an outline in the same
+  ;; directory would write.
+  (define (call-with-doc proc #:suffix [suffix "olai-doc~a.md"])
+    (define doc (make-temporary-file suffix))
+    (dynamic-wind
+     void
+     (λ ()
+       (display-to-file "# Doc\n\nthe body\n" doc #:exists 'truncate)
+       (proc (path->string (file-name-from-path doc))))
+     (λ () (delete-file doc)))))
 
 (module+ test
   (test-case "empty module yields empty task list"
@@ -153,6 +168,69 @@ EOF
       (load-failure "#lang olai\n[x] Task\n  @doing 2026-08-01\n"))
     (check-true (string-contains? where3 ":3:") where3)
     (check-true (regexp-match? #rx"(?i:not both)" msg3) msg3))
+
+  ;; ---- #:doc ---------------------------------------------------------------
+  ;;
+  ;; The sexp surface says the same thing the outline's @doc does, and is
+  ;; checked by the same closed grammar: a path this view can draw, naming a
+  ;; file that exists.
+
+  (test-case "#:doc is stored verbatim"
+    (call-with-doc
+     (λ (name)
+       (define tasks
+         (eval-tasks (format "#lang olai/sexp\n(t \"x\" #:doc ~s)\n" name)))
+       (check-equal? (task-doc (car tasks)) name))))
+
+  (test-case "an extension outside the closed set is a syntax error"
+    (call-with-doc
+     #:suffix "olai-doc~a.txt"
+     (λ (name)
+       (check-exn
+        (λ (e)
+          (and (exn:fail:syntax? e)
+               (regexp-match? #rx"\\.md" (exn-message e))
+               (regexp-match? #rx"\\.scrbl" (exn-message e))))
+        (λ ()
+          (eval-tasks (format "#lang olai/sexp\n(t \"x\" #:doc ~s)\n" name)))))))
+
+  (test-case "a #:doc naming nothing is a syntax error"
+    (check-exn
+     (λ (e)
+       (and (exn:fail:syntax? e)
+            (regexp-match? #rx"(?i:file not found)" (exn-message e))))
+     (λ ()
+       (eval-tasks "#lang olai/sexp\n(t \"x\" #:doc \"no-such-doc.md\")\n"))))
+
+  (test-case "a bad #:doc carries file:line:col, both surfaces"
+    ;; sexp: the offending form is on line 3
+    (define-values (where1 msg1)
+      (load-failure
+       "#lang olai/sexp\n(t \"ok\")\n(t \"x\" #:doc \"no-such-doc.md\")\n"))
+    (check-true (string-contains? where1 ":3:") where1)
+    (check-true (regexp-match? #rx"(?i:file not found)" msg1) msg1)
+    ;; outline: the @doc line, not the title above it
+    (define-values (where2 msg2)
+      (load-failure "#lang olai\nTask\n  : note\n  @doc no-such-doc.md\n"))
+    (check-true (string-contains? where2 ":4:") where2)
+    (check-true (regexp-match? #rx"(?i:file not found)" msg2) msg2))
+
+  (test-case "duplicate #:doc rejected"
+    (call-with-doc
+     (λ (name)
+       (check-exn
+        (λ (e)
+          (and (exn:fail:syntax? e)
+               (regexp-match? #rx"(?i:too many|#:doc|doc)" (exn-message e))))
+        (λ ()
+          (eval-tasks
+           (format "#lang olai/sexp\n(t \"x\" #:doc ~s #:doc ~s)\n" name name)))))))
+
+  (test-case "non-string #:doc is a syntax error"
+    (check-exn
+     (λ (e) (exn:fail:syntax? e))
+     (λ ()
+       (eval-tasks "#lang olai/sexp\n(t \"x\" #:doc 42)\n"))))
 
   (test-case "bad #:doing timestamp rejected"
     (check-exn
