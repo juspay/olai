@@ -183,6 +183,28 @@ olai roadmap #project
       : collapse #bug becomes its regression test); chat panel open
       : keeps .ol-main readable (the #14 wrap bug); theme flip
       : persists across reload.
+    chat boot frames race the assertions #bug
+      : integration/chat.rkt fails intermittently, on either runner, with an
+      : extra LEADING frame: ("commands" "session" "user" "chunk") for
+      : ("user" "chunk") at chat.rkt:886, and ("commands" "reset" ...) for
+      : ("reset" ...) at chat.rkt:949.
+      : Not a commit: it failed on master at 46cf193a — a Roadmap.rkt-only
+      : commit — with f6d1b71c before it and c609691d after it both green,
+      : and once on PR #17's macOS lane, green on re-run with no chat or acp
+      : change. Two different assertions, two different runners, always the
+      : same shape.
+      : Cause: with-server gates on wait-booted (chat.rkt:167), which waits
+      : for chat-session-id — set from the session/new RESULT. The fake
+      : agent emits commands! and session-info! one round trip LATER, on
+      : session/set_mode (fake-acp-agent.rkt:349). chat-boot! runs in its
+      : own thread (serve.rkt), so those two frames can land after the test
+      : opens /events and inside its assertion window. The fake agent pins
+      : the order AMONG boot frames; nothing pins boot against the test's
+      : own subscription, which is the ordering that breaks.
+      : Fix: gate on the LAST boot signal, not the first — wait-booted
+      : answers (and (chat-session-id ag) (pair? (chat-commands ag))), since
+      : chat-commands is populated by the very frame that races and the fake
+      : agent ships a non-empty list at boot. One line, no product change.
     refactor pass ^pre-squash
       : Structural cleanups batched together, done just prior to squashing
       : master into one root commit.
