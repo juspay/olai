@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>olai — an outliner for people who think the filesystem was right all along</title>
+<meta name="description" content="Alpha. Self-hosted, AI-native alternative to Workflowy: your outline is a bunch of #lang olai files in a git repo.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAFAF6">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta property="og:title" content="olai">
+<meta property="og:description" content="Alpha. Self-hosted, AI-native alternative to Workflowy: your outline is a bunch of #lang olai files in a git repo.">
+<meta property="og:type" content="website">
+<style>
+/* Palette: the skin's own tokens (olai/web/theme.rkt).
+   Light = "chalk" (the web app's default theme), dark = "pitch". */
+:root {
+  --paper:    #FAFAF6;
+  --paper-2:  #F2F2EC;
+  --panel:    #F5F5F0;
+  --ink:      #15180F;
+  --dim:      #555E4C;
+  --line:     #C9CDBF;
+  --pill-bg:  #EDEFE6;
+  --green:    #2A6626;
+  --amber-fg: #8F5200;
+  --amber-bg: #F5E4BE;
+  --blue-fg:  #134F75;
+  --rose-fg:  #8E3348;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+          "Liberation Mono", monospace;
+  --radius: 0.375rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper:    #000000;
+    --paper-2:  #0D110A;
+    --panel:    #10140C;
+    --ink:      #C9D6B4;
+    --dim:      #77836A;
+    --line:     #242B1E;
+    --pill-bg:  #161B10;
+    --green:    #7FC97A;
+    --amber-fg: #D9A85A;
+    --amber-bg: #2C230B;
+    --blue-fg:  #6FAECE;
+    --rose-fg:  #D68B9A;
+  }
+}
+
+* { box-sizing: border-box }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100% }
+body {
+  margin: 0 auto;
+  max-width: 46rem;
+  padding: 3rem 1.25rem 4rem;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.55;
+}
+a { color: var(--blue-fg) }
+a:hover { text-decoration: none }
+:focus-visible { outline: 2px solid var(--green); outline-offset: 2px }
+
+header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem }
+header img { width: 72px; height: 72px; border-radius: var(--radius) }
+h1 { margin: 0; font-size: 2.25rem; line-height: 1.1; letter-spacing: -0.02em }
+.leaf { margin: 0; color: var(--dim); font-size: 0.9375rem }
+
+/* The skin's pill shape, in its amber reading. A status, not a badge farm. */
+.alpha {
+  display: inline-block;
+  vertical-align: 0.45em;
+  margin-left: 0.5rem;
+  padding: 0.0625rem 0.5rem;
+  border-radius: 9999px;
+  background: var(--amber-bg);
+  color: var(--amber-fg);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+h2 {
+  margin: 2.75rem 0 0.75rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0.35rem;
+}
+p { margin: 0 0 1rem }
+.lede { font-size: 1.0625rem }
+.dim { color: var(--dim) }
+
+ul { margin: 0 0 1rem; padding-left: 1.1rem }
+li { margin-bottom: 0.35rem }
+li > b { font-weight: 600 }
+
+pre, code { font-family: var(--mono) }
+pre {
+  margin: 0 0 1rem;
+  padding: 0.9rem 1rem;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  overflow-x: auto;
+}
+p code, li code, td code {
+  background: var(--pill-bg);
+  border-radius: 0.25rem;
+  padding: 0.05rem 0.3rem;
+  font-size: 0.875em;
+}
+.kw   { color: var(--rose-fg) }
+.note { color: var(--dim) }
+.tag  { color: var(--amber-fg) }
+.dt   { color: var(--blue-fg) }
+.ok   { color: var(--green) }
+.mir  { color: var(--rose-fg) }
+.cm   { color: var(--dim) }
+
+.cta { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1.5rem 0 0 }
+.cta a {
+  display: inline-block;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  text-decoration: none;
+}
+.cta a:hover { border-color: var(--green); color: var(--green) }
+
+table { border-collapse: collapse; width: 100%; font-size: 0.9375rem;
+        margin: 0 0 1rem }
+th, td { text-align: left; padding: 0.3rem 0.6rem 0.3rem 0;
+         border-bottom: 1px solid var(--line); vertical-align: top }
+th { font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase;
+     color: var(--dim); font-weight: 600 }
+
+footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line);
+         color: var(--dim); font-size: 0.875rem }
+
+@media (max-width: 30rem) {
+  body { padding-top: 2rem }
+  h1 { font-size: 1.75rem }
+  header img { width: 56px; height: 56px }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <img src="icon.svg" width="72" height="72" alt="">
+  <div>
+    <h1>olai <span class="alpha">alpha</span></h1>
+    <p class="leaf">ஓலை — the palm leaf Tamil was written on for two
+      millennia. Nodes are leaves; your files are the manuscript.</p>
+  </div>
+</header>
+
+<p class="lede">An outliner for people who think the filesystem was right
+all along.</p>
+
+<p>Self-hosted, AI-native alternative to
+<a href="https://workflowy.com/">Workflowy</a>. Your outline is a bunch
+of <code>#lang olai</code> files in a git repo. You edit them with
+<code>$EDITOR</code> or point a coding agent at them. A small
+<a href="https://racket-lang.org/">Racket</a> server renders the tree to your
+phone. That's it. No cloud, no accounts, no Electron.</p>
+
+<div class="cta">
+  <a href="https://github.com/juspay/olai">github.com/juspay/olai</a>
+  <a href="https://github.com/juspay/olai/blob/master/docs/syntax.md">docs/syntax.md</a>
+  <a href="https://github.com/juspay/olai/blob/master/docs/cli.md">docs/cli.md</a>
+</div>
+
+<h2>Why</h2>
+
+<p>Workflowy got the data model right (one big tree, mirrors, dates) and the
+ownership model wrong (their server, their format, their AI). olai inverts
+it:</p>
+
+<ul>
+  <li><b>tasks are CODE</b> — a Racket
+    <a href="https://docs.racket-lang.org/guide/hash-lang_reader.html"><code>#lang</code></a>;
+    the expander is the validator.</li>
+  <li><b>git is the HISTORY</b> — no sync protocol, no CRDT, no vendor.</li>
+  <li><b>agents are USERS</b> —
+    <a href="https://claude.com/claude-code">Claude Code</a> &amp; friends
+    edit your files; the DSL's error messages are their REPL. The web view
+    spawns one over <a href="https://agentclientprotocol.com/">ACP</a> and
+    puts it in a chat panel.</li>
+  <li><b>the web UI is a VIEW</b> — <a href="https://htmx.org/">htmx</a>,
+    pushed over
+    <a href="https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events">SSE</a>:
+    save a file and every open tab redraws itself.</li>
+</ul>
+
+<p>Mirrors fall out of the language for free: a node is a binding,
+referencing it twice is a mirror. Define-before-use kills most cycles before
+they exist.</p>
+
+<h2>Syntax</h2>
+
+<p>Quoteless outline, the flagship surface. Nest with 2 spaces; attach notes
+and dates under a title.</p>
+
+<pre><code><span class="kw">#lang olai</span>
+
+Inbox <span class="tag">#capture</span>
+  <span class="note">: Quick capture landing zone</span>
+  Buy milk — don't quote me
+    <span class="dt">@date 2026-08-04T18:00</span>
+  <span class="ok">[x]</span> Already shipped the pitch
+  Agent work <span class="mir">^agent</span>
+  Wired the CLI
+    <span class="ok">@done 2026-08-03</span>
+  This week
+    <span class="mir">*agent</span>          <span class="cm">; a mirror, not a copy</span>
+</code></pre>
+
+<p>Titles and notes are Markdown at <em>render</em> time (web view only);
+stored strings stay raw. Check off with <code>[x]</code> or
+<code>@done</code> — one node, one of them. A title-trailing
+<code>^anchor</code> declares a node; a line that is only <code>*anchor</code>
+is a mirror of it, reaching anywhere in the loaded tree,
+<code>@include</code>d fragments too.</p>
+
+<p>Under the hood every outline becomes s-expressions. Same expander, same
+error messages:</p>
+
+<pre><code><span class="kw">#lang olai/sexp</span>
+(t "Inbox <span class="tag">#capture</span>"
+   #:description "Quick capture landing zone"
+   (t "Buy milk" #:date "2026-08-04T18:00")
+   (t "Already shipped the pitch" #:done)
+   (t "Wired the CLI" #:done "2026-08-03"))
+</code></pre>
+
+<h2>Agents are the primary CLI users</h2>
+
+<p>Every command that can carry <code>--json</code> does. Errors are JSON on
+stderr in <code>--json</code> mode. Exit codes are contract: <b>0</b> ok,
+<b>1</b> usage, <b>2</b> the outline said no, <b>3</b> file not found. JSON
+fields are append-only within a <code>version</code>. No ANSI, no terminal
+tree — the human view is the web app.</p>
+
+<pre><code>$ olai tree examples/Example.rkt
+{
+  "version": 1,
+  "file": ".../Example.rkt",
+  "tasks": [
+    {
+      "title": "Inbox #capture",
+      "date": null,
+      "description": "Quick capture landing zone",
+      "done": null,
+      "status": "open",
+      "id": null,
+      "key": "pd076e677",
+      "tags": ["capture"],
+      "children": [ ... ]
+    }
+  ],
+  "anchors": { "agent": { "title": "Agent work", ... } },
+  "task_count": 12, "mirror_count": 1, "anchor_count": 1
+}
+</code></pre>
+
+<p><code>key</code> is a node's stable identity — its <code>^anchor</code>,
+else a hash of its defining file plus the ordinals that reach it. It survives
+renaming the node or any ancestor. The web view addresses nodes by it.</p>
+
+<table>
+  <tr><th>command</th><th>what it does</th></tr>
+  <tr><td><code>check</code></td><td>validate the module(s); the language is the only validator</td></tr>
+  <tr><td><code>tree</code></td><td>the task forest, JSON-only</td></tr>
+  <tr><td><code>agenda</code></td><td>overdue / today / upcoming, merged across files</td></tr>
+  <tr><td><code>calendar</code>, <code>ics</code></td><td>dated tasks by day; feed for your calendar app</td></tr>
+  <tr><td><code>add</code>, <code>done</code>, <code>move</code>, <code>daily</code></td><td>the write path — auto-commits when the file's dir is a git work tree</td></tr>
+  <tr><td><code>serve</code></td><td>the web view</td></tr>
+</table>
+
+<h2>The view</h2>
+
+<p><code>olai serve</code> renders your outline over htmx and pushes changes
+over SSE: a file moves on disk, every open tab redraws with no refresh. It is
+installable as a
+<a href="https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps">PWA</a>
+(manifest, icons, theme-color) — live view only, no offline shell, so it
+still wants the network. No auth; the network is the auth, so bind it to
+localhost or put it behind <a href="https://tailscale.com/">Tailscale</a> or
+<a href="https://caddyserver.com/">Caddy</a>.</p>
+
+<p>The page itself writes nothing yet. Capture and check-off in the browser
+are next; until then the chat panel — Claude Code driven over the
+<a href="https://agentclientprotocol.com/">Agent Client Protocol</a>, one turn
+at a time — is how you change an outline without an editor.</p>
+
+<pre><code>$OLAI_HOME/*.rkt                 <span class="cm">&lt;- personal data (#lang olai)</span>
+    |                                 ^
+    v                                 | <span class="cm">edits your files</span>
+olai CLI (Racket)                     |   <span class="cm">&lt;- validate / query / capture</span>
+    |                                 |
+    v                                 |
+racket web-server --- spawns ---&gt; ACP agent (JSON-RPC on stdio)
+    |
+    +-- SSE ---&gt; browser (htmx): a file moved, or the agent said something
+</code></pre>
+
+<h2>Run it</h2>
+
+<p>With <a href="https://nixos.asia/en/install">Nix</a>, nothing to
+install:</p>
+
+<pre><code>$ nix run github:juspay/olai              <span class="cm"># the web view, on :8080</span>
+$ nix run github:juspay/olai#cli -- check Tasks.rkt   <span class="cm"># the CLI</span>
+</code></pre>
+
+<p>Or from a clone:</p>
+
+<pre><code>$ nix develop        <span class="cm"># racket 9.2 + just; or install them yourself</span>
+$ just install       <span class="cm"># gregor + markdown, then --link olai/</span>
+$ just serve         <span class="cm"># $OLAI_HOME on http://127.0.0.1:8080</span>
+$ just check         <span class="cm"># validates $OLAI_HOME/*.rkt</span>
+$ just tree examples/Example.rkt
+</code></pre>
+
+<p>To leave it running, the flake ships a
+<a href="https://nix-community.github.io/home-manager/">home-manager</a>
+module — a systemd user unit on Linux, a launchd agent on macOS. It puts the
+CLI on your <code>PATH</code> too, so the binary you query with cannot skew
+from the service you read:</p>
+
+<pre><code><span class="cm"># inputs.olai.url = "github:juspay/olai";</span>
+{
+  imports = [ olai.homeManagerModules.default ];
+  services.olai = {
+    enable = true;
+    dataDir = "${config.home.homeDirectory}/outlines";  <span class="cm"># required</span>
+    <span class="cm"># host = "127.0.0.1";  port = 8080;   the defaults</span>
+  };
+}
+</code></pre>
+
+<p>Your data lives outside the repo: point <code>OLAI_HOME</code> at the
+directory holding your <code>*.rkt</code> outlines. There is no default —
+unset, the write commands say so, and the repo serves its own
+<code>examples/</code> plus <code>Roadmap.rkt</code> instead. Sync that
+directory however you like: git, Dropbox, rsync. Single user, many devices.</p>
+
+<h2>Status</h2>
+
+<p><b>Alpha — the author's daily driver, and nobody else's yet.</b> No
+release, no version number, no upgrade path promised: this is a repo you
+clone at a commit. Nothing here is a product.</p>
+
+<p>What works today: outline <code>#lang olai</code> + sexp core + agent CLI.
+Done status, mirrors and <code>@include</code> composition are first class.
+The web view reloads on file change, pushes over SSE, installs as a PWA, and
+carries the chat panel. What does not: the page writes nothing — capture and
+check-off in the browser are still to come — there is no static HTML export,
+no auth, and no multi-user story (there will not be one; it is single user by
+design). Ancestor: <a href="https://github.com/srid/Tend">srid/Tend</a>.</p>
+
+<p>The project tracks its own plan the way it wants you to track yours:
+<a href="https://github.com/juspay/olai/blob/master/Roadmap.rkt">Roadmap.rkt</a>
+at the repo root is a <code>#lang olai</code> outline, edited and committed
+like any other file.</p>
+
+<footer>
+  AGPL-3.0. Self-host it, fork it, but keep the network service free. —
+  <a href="https://github.com/juspay/olai">source</a>
+</footer>
+
+</body>
+</html>
