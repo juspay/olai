@@ -85,12 +85,12 @@ olai roadmap #project
         : ancestor path; node permalinks point at the zoom instead of
         : home.
       collapse state lost on live re-swap #bug
-        : sse.js swaps via api.swap directly, so htmx:afterSwap never
-        : fires and collapse.js's re-apply pass is skipped — an SSE
-        : re-render arrives with server-default fold state. Fix: a
-        : MutationObserver on the outline container re-running apply()
-        : over added subtrees (mechanism-independent; also covers the
-        : midnight re-render). localStorage + task-key stay as-is.
+        : collapse.js re-applied on htmx:afterSwap, where the settle
+        : phase then restores the server's class attribute (and the
+        : unvisited-key branch read htmx's copy of the OLD class).
+        : Fix: the pass moved to htmx:afterSettle — one line, both
+        : panes (apply() is document-wide; the sidebar renders outside
+        : the #ol-live swap target and was never in the line of fire).
     0.6 micro-edits
       : Capture box + check-off from the browser (done status already in the
       : language + CLI). The phone loop closes: capture, complete, ask the
@@ -105,10 +105,17 @@ olai roadmap #project
       hide completed
         : Workflowy's Ctrl+O checkmark toggle — [x]/@done nodes stop
         : rendering (the agenda already excludes done); a Done subtree
-        : vanishes from view without deletion.
-      starred views
-        : Star a zoom or search into the sidebar's STARRED section for
-        : one-click return.
+        : vanishes from view without deletion. A root class + one CSS
+        : rule, so re-swaps can't lose it.
+    starred nodes
+      : Not view state — curated data, so it lives in the file: a
+      : #starred tag on the node (tags are the language's open boolean
+      : axis; no grammar change, indexed, rename-proof). The sidebar's
+      : STARRED section is a pure query over the snapshot, like the
+      : agenda. `olai star TITLE|^anchor` writes it with done-style
+      : safety — agents can star from day one; the browser's star
+      : toggle rides 0.6's write path. If ordering ever matters, a
+      : mirror list supersedes the tag once 0.2b.2 lands.
     node views
       : One language field says how a node DRAWS its children (heading |
       : numbered | board | table); the checker owns the closed set,
@@ -139,6 +146,22 @@ olai roadmap #project
       : already are that for us. Rides 0.9's search index.
     chat
       : The panel becomes the outline's other half.
+      panel opened during boot misses its conversation #bug
+        : Found by the e2e suite (PR #22, @skip scenario): serve answers
+        : requests while the agent boots in its own thread, and boot
+        : frames broadcast only to subscribers already on /events — a
+        : panel opened mid-boot never learns its session. Same family as
+        : the #19 boot-frame race; a fix should cover both.
+      mobile chat unusable #bug
+        : On iPhone the chat panel is completely broken (reported
+        : 2026-08-05). The panel is desktop-first: position fixed,
+        : --chat-w = max(21rem, 33vw) — 21rem is nearly the whole of a
+        : 390px screen — and the #14 gutter squeezes .ol-main to
+        : nothing beside it. On a narrow viewport the panel likely
+        : wants to be a full-width sheet instead of a side panel;
+        : reproduce in a phone-sized viewport, then fix. An e2e
+        : scenario at mobile viewport should pin whatever the fix
+        : establishes.
       tool-output folding
         : ACP tool-call frames (and similar chatter) collapse by default
         : in the chat panel; a toggle unfolds any of them on demand. The
@@ -218,6 +241,7 @@ olai roadmap #project
       : collapse #bug becomes its regression test); chat panel open
       : keeps .ol-main readable (the #14 wrap bug); theme flip
       : persists across reload.
+      @done 2026-08-05
     chat boot frames race the assertions #bug
       : integration/chat.rkt fails intermittently, on either runner, with an
       : extra LEADING frame: ("commands" "session" "user" "chunk") for
@@ -240,6 +264,7 @@ olai roadmap #project
       : answers (and (chat-session-id ag) (pair? (chat-commands ag))), since
       : chat-commands is populated by the very frame that races and the fake
       : agent ships a non-empty list at boot. One line, no product change.
+      @done 2026-08-05
     refactor pass ^pre-squash
       : Structural cleanups batched together, done just prior to squashing
       : master into one root commit.
