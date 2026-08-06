@@ -12,6 +12,11 @@
 
 set working-directory := '..'
 
+# live/'s worked example is CI's to run and nobody else's, so it is mounted
+# HERE and not in the root justfile. This line is all that is known about it
+# outside its own directory: where it lives, never what it runs.
+mod counters '../live/examples/counters/mod.just'
+
 # Re-enter the flake devShell when a remote odu lane lacks racket/just on PATH.
 # Skipped when already inside the shell (`just ci` under direnv / nix develop).
 nix_shell := if env('IN_NIX_SHELL', '') != '' { '' } else { 'nix develop --accept-flake-config -c' }
@@ -22,7 +27,7 @@ nix_shell := if env('IN_NIX_SHELL', '') != '' { '' } else { 'nix develop --accep
 [macos]
 [parallel]
 [metadata("ci")]
-default: smoke test test-integration e2e counters
+default: smoke test test-integration e2e counters::check
 
 # One install + raco setup per lane — funnel every racket test through this.
 build:
@@ -31,13 +36,6 @@ build:
 # Package the CLI. Leaves ./result for smoke (gitignored).
 nix:
     nix build -L
-
-# live/'s worked example, whose derivation builds the program AND runs its own
-# test (live/examples/counters/default.nix). One node, one command: nothing
-# here says what the example is, when its test runs, or which files it has —
-# and nothing outside that directory has to be kept in step with it.
-counters:
-    nix build -L --no-link .#counters
 
 # Packaged binary can load and check committed outlines.
 smoke: nix
@@ -50,7 +48,6 @@ test: build
 # Integration tests: subprocess CLI + real servers (olai/tests/integration/).
 test-integration: build
     {{ nix_shell }} raco test -j {{ num_cpus() }} olai/tests/integration/
-
 
 # Its own devShell (node + the browser), so the prefix here is not nix_shell —
 # and its own node in the DAG, never part of `test`. It calls the RUNNER, not
