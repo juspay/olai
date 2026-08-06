@@ -6,9 +6,9 @@ always — `--json` is still accepted and does nothing. Fields within a
 
 **Human view is the web app** (`olai/web`). There is no ANSI terminal tree, no
 static HTML export, and no plain-text mode: what was printed for a person to
-read at a terminal is gone. The two commands that do not answer JSON are the
-ones whose output IS a format — `ics` (RFC 5545) — and `serve`, which serves
-the web view; their errors are `olai: message` on stderr.
+read at a terminal is gone. Two commands do not answer JSON — `ics`, whose
+output IS a format (RFC 5545), and `serve`, which serves the web view. Their
+errors are `olai: message` on stderr.
 
 ## Exit codes
 
