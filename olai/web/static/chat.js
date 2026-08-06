@@ -302,7 +302,15 @@
       toolLine(f.id,f.title,f.status);
     }
     else if(f.type==='done'){
-      if(agentEl&&typeof f.html==='string')agentEl.innerHTML=f.html;
+      if(agentEl&&typeof f.html==='string'){
+        agentEl.innerHTML=f.html;
+        // Markup arrived without a swap, so nothing on the page would
+        // otherwise hear about it: an htmx settle is what every other pass
+        // over new markup listens for, and this is the one moment there is no
+        // htmx in it. Announced, not called: who cares is theirs to say
+        // (static/highlight-init.js is the one who does).
+        agentEl.dispatchEvent(new CustomEvent('olai:drawn',{bubbles:true}));
+      }
       if(f.stopReason&&f.stopReason!=='end_turn')
         append(line('ol-chat-note',f.stopReason));
       endTurn();

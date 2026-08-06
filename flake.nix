@@ -46,6 +46,11 @@
               # `just` stages it into live/static/ where the collection's own
               # define-runtime-path expects it; the files are gitignored.
               export OLAI_LIVE_ASSETS="${self.packages.${system}.live}/static"
+              # olai's own vendored asset, on the same terms: the highlighter
+              # the web view paints a fenced code block with
+              # (nix/highlight-js.nix). `just` stages it into
+              # olai/web/static/hljs/.
+              export OLAI_HLJS_ASSETS="${self.packages.${system}.highlight-js}"
             '';
           };
         in
@@ -87,6 +92,11 @@
           # live/default.nix, next to the collection it is about.
           live = pkgs.callPackage ./live { inherit sources; };
 
+          # The web view's other vendored asset: highlight.js, picked out of
+          # the pinned cdn-release checkout. Which files and what they are
+          # called lives in nix/highlight-js.nix, beside the choice.
+          highlightJs = pkgs.callPackage ./nix/highlight-js.nix { inherit sources; };
+
           # The framework's worked example, as its own artifact: it consumes
           # `live` and is not part of it. Its nix, its just module and its
           # test all live in that directory — this line is the mount.
@@ -96,13 +106,14 @@
           # default) lives in nix/olai.nix; src is a flake-level decision.
           olai = pkgs.callPackage ./nix/olai.nix {
             inherit (racketDepsPkg) racketPkgs racketDeps;
-            inherit acpAgent live;
+            inherit acpAgent live highlightJs;
             src = ./.;
           };
         in
         {
           default = olai;
           inherit olai live counters;
+          highlight-js = highlightJs;
           racket-deps = racketDepsPkg.racketDeps;
           acp-agent = acpAgent;
           # cucumber + playwright for the browser journeys (e2e/default.nix).

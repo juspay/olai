@@ -19,6 +19,8 @@ So `just install` links `live` before `olai`, and `just build` is `raco setup --
 * `git status` stays clean: the three are gitignored by name (`live/static/live.js` is ours and tracked). An upgrade that renames an artifact shows up as untracked rather than silently replacing anything.
 * Upgrading is `npins update htmx` — a revision and a hash in the diff, not a minified blob. Then `just test && just e2e`.
 
+`olai/web/static/hljs/` is the same arrangement one directory over: highlight.js and the two grammars the common bundle leaves out (`scheme`, for `racket`; `nix`), pinned as `highlight-js` and picked out of the checkout by `nix/highlight-js.nix`. The same `just vendor` stages them, the whole directory is gitignored (nothing in it is ours — `static/highlight-init.js` is, and is tracked), and `nix/olai.nix` installs them into the package the same way `live` arrives from its own derivation. Which files, and what they are called once they land, is that nix file's table; the list the page pulls in is `highlight-scripts` in `olai/web/markdown.rkt`, and `olai/tests/render.rkt` fails if the two disagree.
+
 ## Toolchain
 
 * Racket comes from `nix develop` (nixpkgs 9.2). `just` recipes set `PLTUSERHOME` to `$PWD/.plt-user` so user packages and the two links live in the worktree, not `~`. That directory must be writable.
