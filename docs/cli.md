@@ -416,7 +416,7 @@ Routes:
 | `GET /` | HTML page (Workflowy-style skin from `olai/web/render.rkt`) |
 | `GET /n/<key>` | one node, zoomed: breadcrumbs (home, the file, each ancestor) plus that subtree and nothing else. `key` as in `tree` JSON. A key the current snapshot has no node for is a page saying so, with a `200` — a node can be deleted while a tab sits zoomed on it, and that tab re-fetches this page to find out |
 | `GET /today` | the first node titled with today's ISO date (the Daily day node), zoomed — the same view as `/n/<key>`, with today's key looked up per request; terse empty state when there is none yet |
-| `GET /events` | `text/event-stream`, never ends. `event: outline` with the store revision as its data whenever a watched file reloaded, plus one at local midnight; `event: chat` with one JSON frame from the agent per line; a `:hb` comment on connect and every 15s after, so a client knows it is subscribed and proxies leave it alone. **A new connection is caught up first**: a `reset`, the conversation's `session` / `model` / `commands` as they stand, and the transcript as the frames that built it (`mark` for a break a live `reset` already cleared). Sent to that connection alone, before anything live, so a page opened while the agent was still waking up — or reloaded, or reconnected — knows exactly what one opened a minute earlier does |
+| `GET /events` | `text/event-stream`, never ends; full contract in **docs/live.md**. `event: outline` whenever a watched file reloaded, plus one at local midnight — its data and its `id:` are both the cursor the outlines are now at; `event: chat` with one JSON frame from the agent per line, and no id (a message is not a checkpoint). Opens with `retry:` and an `event: live:hb` carrying its own cadence in seconds, repeated at that cadence, so proxies leave the connection alone and a client can notice it stopping. **A new connection is caught up first**, to that connection alone and before anything live: one `outline` if it names any cursor but the current one (`Last-Event-ID`, or `?last-event-id=` for a page's first connection — so sleep, tab suspension and a server restart all heal), then a `reset`, the conversation's `session` / `model` / `commands` as they stand, and the transcript as the frames that built it (`mark` for a break a live `reset` already cleared). A page opened while the agent was still waking up — or reloaded, or reconnected — knows exactly what one opened a minute earlier does |
 | `POST /chat` | prompt the agent; form field `text` (empty after trimming is `400`). `204` — what the panel draws comes back over `/events`, so every open tab stays in step. `409` with a terse `text/plain` body while a turn is running, `503` when the agent is gone |
 | `POST /chat/new` | new chat: the agent-side context goes away, `204`, and a `reset` frame clears every panel |
 | `POST /chat/cancel` | cancel the turn in flight, `204` (also while the agent is still booting); the `done` frame (`stopReason` `cancelled`) follows on its own |
@@ -426,7 +426,8 @@ Routes:
 | `GET /api/agenda` | byte-identical to `olai agenda` |
 | `GET /static/app.css` | the skin, `text/css`, `Cache-Control: no-cache`. Generated from the Racket modules that draw the page — `olai/web/skin` composes them — not a file on disk. This route is the only way to get those bytes; there is no `css` command |
 | `GET /static/manifest.webmanifest` | web app manifest (`application/manifest+json`); name, icons, `display: standalone`, default theme colours |
-| `GET /static/*` | files under `olai/web/static/` (icons, htmx, scripts, `pwa.js`) |
+| `GET /static/*` | files under `olai/web/static/` — olai's own assets: icons, `collapse.js`, `prefs.js`, `chat.js`, `pwa.js` |
+| `GET /live/*` | files under the `live` collection's `static/` — the live-view client runtime this app ships and never edits: htmx, its SSE extension, idiomorph, and the health watchdog (`live/README.md`) |
 | anything else | `404`, terse `text/plain` |
 
 A node's permalink is `/n/<key>` (`key` as in `tree` JSON): every bullet in the
@@ -490,7 +491,10 @@ fresh namespace, so the module registry cannot serve you yesterday's file. A
 watcher holds a `filesystem-change-evt` on each watched file's *directory*
 (saves are atomic renames, which fire there), debounces the flurry, and pushes
 an `outline` event on `/events` when the store actually reloaded. Open pages
-re-fetch themselves and swap the pane and the error banner — no refresh.
+re-fetch themselves and MORPH the pane and the error banner onto what is
+already there — no refresh, and nothing that did not change is replaced, so
+scroll, selection and focus survive. A page that was not listening when the
+file moved is told on the way back in (docs/live.md).
 
 A file is broken for a moment during every edit, so the two surfaces differ:
 

@@ -14,17 +14,19 @@ const NODE_URL = /\/n\/[^/]+$/;
 const CRUMBS = "nav.ol-breadcrumbs";
 
 When("I zoom into {string}", async function (title) {
-  await this.node(title).first().locator(":scope > .ol-row .ol-bullet-link").click();
+  await this.follow(this.node(title).first().locator(":scope > .ol-row .ol-bullet-link"));
   await this.page.waitForURL(NODE_URL);
 });
 
 When("I zoom into the sidebar's {string}", async function (title) {
-  await this.treeNode(title).first().locator(".ol-tree-link").first().click();
+  await this.follow(this.treeNode(title).first().locator(".ol-tree-link").first());
   await this.page.waitForURL(NODE_URL);
 });
 
 When("I follow the breadcrumb {string}", async function (label) {
-  await this.page.locator(`${CRUMBS} a.ol-crumb`, { hasText: label }).first().click();
+  await this.follow(
+    this.page.locator(`${CRUMBS} a.ol-crumb`, { hasText: label }).first(),
+  );
 });
 
 Then("I am on a node's own page", async function () {
@@ -37,8 +39,10 @@ Then("I am back on the home page", async function () {
 
 // The tab is what a permalink is pasted into, so the node's title has to be on
 // it — a page called "olai" says nothing about which node you sent someone.
+// Waited for rather than read: a partial navigation renames the tab from the
+// reply it swapped in, which is one turn after the address moved.
 Then("the tab is named for {string}", async function (title) {
-  assert.match(await this.page.title(), new RegExp(title));
+  await this.page.waitForFunction((t) => document.title.includes(t), title);
 });
 
 // The trail above the node, in order, as it reads: "home" first (it is always

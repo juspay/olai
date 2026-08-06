@@ -21,15 +21,21 @@ mod ci 'ci/mod.just'
 default:
     @just --list
 
-# Deps + raco link ./olai (cheap; does not recompile — use `just build`)
+# Two collections, and the order is the dependency: `live` is the live-view
+# framework (its own package, no olai imports), `olai` is its first consumer.
+# Linking live first is what keeps olai's declared dep on it from sending raco
+# to a catalog for a package that lives in this repo.
+
+# Deps + raco link ./live and ./olai (cheap; does not recompile — use `just build`)
 install:
     mkdir -p "{{PLTUSERHOME}}"
     raco pkg install --auto --skip-installed gregor markdown css-expr
+    raco pkg install --auto --skip-installed --link {{justfile_directory()}}/live
     raco pkg install --auto --skip-installed --link {{justfile_directory()}}/olai
 
-# raco setup --pkgs olai: write .zo and keep them coherent (see docs/hacking.md)
+# raco setup: write .zo and keep them coherent (see docs/hacking.md)
 build: install
-    raco setup --pkgs olai
+    raco setup --pkgs live olai
 
 # Drop olai/**/compiled (linklet-mismatch escape hatch; prefer `just build`)
 clean:
@@ -64,9 +70,9 @@ serve *args: install
 css-classes: install
     racket -e '(require olai/web/skin (only-in olai/web/style class-names)) (for-each displayln (sort (class-names) string<?))' > olai/tests/classes.golden
 
-# Unit tests: in-process, no subprocesses (olai/tests/*.rkt)
+# Unit tests: in-process, no subprocesses (live/tests/ + olai/tests/*.rkt)
 test: build
-    raco test -j {{ num_cpus() }} olai/tests/*.rkt
+    raco test -j {{ num_cpus() }} live/tests/*.rkt olai/tests/*.rkt
 
 # Integration tests: subprocess CLI + real servers (olai/tests/integration/)
 test-integration: build
@@ -74,7 +80,7 @@ test-integration: build
 
 # Everything, in one -j pool so the slow files start first
 test-all: build
-    raco test -j {{ num_cpus() }} olai/tests/integration/ olai/tests/*.rkt
+    raco test -j {{ num_cpus() }} olai/tests/integration/ live/tests/*.rkt olai/tests/*.rkt
 
 # Browser journeys: what the wire tests cannot see, because no JS runs there
 # (folding, prefs, the live swap, the chat panel). NEVER part of `just test` —

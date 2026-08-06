@@ -37,6 +37,15 @@
          olai/dates
          ;; one owner for how a file is named in the UI (core, not web)
          (only-in olai/paths file-label)
+         ;; how a page opts into the live view: the attributes that make an
+         ;; element a live region and a link a partial navigation. The
+         ;; framework spells the mechanism; olai/web/live picks the names
+         (only-in live/client live-view? live-region-attributes
+                  live-link-attributes live-connect-attributes
+                  ;; the two states its runtime reports; the paint below is
+                  ;; olai's, and these names are the whole border
+                  live-connecting-class live-stale-class)
+         (only-in olai/web/live live-region-id live-script-srcs)
          ;; the skin, first: tokens and the document's own rules come before
          ;; anything that leans on them (see style.rkt on ordering)
          olai/web/theme
@@ -59,23 +68,28 @@
                  #:mirror-of (or/c string? #f)
                  #:zoom-base (or/c string? #f)
                  #:toggle-base (or/c string? #f)
+                 #:live (or/c live-view? #f)
                  #:collapsed? boolean?)
                 list?)]
           [render-outline
            (->* (list? #:today string?)
-                (#:zoom-base (or/c string? #f) #:toggle-base (or/c string? #f))
+                (#:zoom-base (or/c string? #f) #:toggle-base (or/c string? #f)
+                 #:live (or/c live-view? #f))
                 list?)]
           [render-file-section
            (->* (any/c #:today string?)
-                (#:zoom-base (or/c string? #f) #:toggle-base (or/c string? #f))
+                (#:zoom-base (or/c string? #f) #:toggle-base (or/c string? #f)
+                 #:live (or/c live-view? #f))
                 list?)]
           [render-breadcrumbs
            (->* (list? #:home-href (or/c string? #f))
-                (#:zoom-base (or/c string? #f))
+                (#:zoom-base (or/c string? #f)
+                 #:live (or/c live-view? #f))
                 list?)]
           [render-sidebar
            (->* (list? #:home-href string? #:today-href (or/c string? #f))
-                (#:zoom-base (or/c string? #f))
+                (#:zoom-base (or/c string? #f)
+                 #:live (or/c live-view? #f))
                 list?)]
           [render-page
            (->* (any/c)
@@ -89,7 +103,9 @@
                  #:theme-color (or/c string? #f)
                  #:sidebar (or/c list? #f)
                  #:banner (or/c list? #f)
-                 #:sse-connect (or/c string? #f)
+                 ;; the live view this page is part of, and the page's OWN
+                 ;; address within it — the one thing the region re-fetches
+                 #:live (or/c live-view? #f)
                  #:live-href (or/c string? #f)
                  #:head-extra list?
                  #:body-extra list?)
@@ -97,9 +113,11 @@
           [render-zoom
            (->* (task? list? #:today string? #:home-href string?)
                 (#:zoom-base (or/c string? #f)
-                 #:toggle-base (or/c string? #f))
+                 #:toggle-base (or/c string? #f)
+                 #:live (or/c live-view? #f))
                 list?)]
-          [render-empty-pane (-> string? #:home-href string? list?)]
+          [render-empty-pane
+           (->* (string? #:home-href string?) (#:live (or/c live-view? #f)) list?)]
           [render-error-banner (->* (string?) (#:where (or/c string? #f)) list?)]
           [page->html-string (-> any/c string?)]
           [node-element-id (->* (string?) (#:site (or/c string? #f)) string?)]
@@ -135,8 +153,11 @@
 
 (define web-static-prefix "/static/")
 
+;; olai's own scripts. The client runtime (htmx, its SSE extension, idiomorph
+;; and the health watchdog) is the framework's, mounted at its own prefix and
+;; listed by it — see olai/web/live. These come after, and lean on it.
 (define web-scripts
-  '("htmx.min.js" "sse.js" "collapse.js" "prefs.js" "chat.js" "pwa.js"))
+  '("collapse.js" "prefs.js" "chat.js" "pwa.js"))
 
 (define (static-href name) (string-append web-static-prefix name))
 
@@ -167,10 +188,17 @@
       [(list label (? list? tasks)) (list (file-label label) tasks)]
       [_ (error 'render "bad files-data entry: ~e" e)])))
 
-(define (href-for base fid)
-  (if base
-      (string-append base fid)
-      (string-append "#" (node-element-id fid))))
+;; Where a node lives, as the attributes a link to it wears. With a `live`
+;; view those are a partial navigation — fetch the region, swap it morphed,
+;; push the address — and WITHOUT one they are the href and nothing else,
+;; which is also what a browser running no JS sees either way (live/client).
+;; No zoom-base is a page that has no addresses to give, so a node link is a
+;; jump to the element instead.
+(define (node-link-attributes live base fid)
+  (live-link-attributes live
+                        (if base
+                            (string-append base fid)
+                            (string-append "#" (node-element-id fid)))))
 
 ;; ---- states ---------------------------------------------------------------
 ;;
@@ -544,7 +572,8 @@
                       #:owner owner
                       #:today today
                       #:zoom-base zoom-base
-                      #:toggle-base toggle-base)
+                      #:toggle-base toggle-base
+                      #:live live)
   (cond
     [(mirror-site? child)
      (define target (mirror-site-task child))
@@ -554,14 +583,16 @@
                                #:today today
                                #:mirror-of (mirror-site-of child)
                                #:zoom-base zoom-base
-                               #:toggle-base toggle-base)
+                               #:toggle-base toggle-base
+                               #:live live)
          (unresolved-mirror-xexpr (mirror-site-of child)))]
     [(task? child)
      (render-node-fragment child
                            #:site site
                            #:today today
                            #:zoom-base zoom-base
-                           #:toggle-base toggle-base)]
+                           #:toggle-base toggle-base
+                           #:live live)]
     [else `(li ((class ,(classes ol-node ol-unresolved))) "???")]))
 
 ;; One subtree, self-contained: this is the unit SSE re-swaps.
@@ -571,6 +602,7 @@
                               #:mirror-of [mirror-of #f]
                               #:zoom-base [zoom-base #f]
                               #:toggle-base [toggle-base #f]
+                              #:live [live #f]
                               #:collapsed? [collapsed? #f])
   (define title (task-title tk))
   (define key (task-key tk))
@@ -594,7 +626,7 @@
                        (aria-hidden "true")))])
       (if zoom-base
           `(a ((class ,ol-bullet-link)
-               (href ,(href-for zoom-base key))
+               ,@(node-link-attributes live zoom-base key)
                (title "zoom in"))
               ,dot)
           dot)))
@@ -634,7 +666,8 @@
                               #:owner qkey
                               #:today today
                               #:zoom-base zoom-base
-                              #:toggle-base toggle-base))))
+                              #:toggle-base toggle-base
+                              #:live live))))
 
 
 ;; ---- main pane ------------------------------------------------------------
@@ -660,7 +693,8 @@
 (define (render-file-section entry
                              #:today today
                              #:zoom-base [zoom-base #f]
-                             #:toggle-base [toggle-base #f])
+                             #:toggle-base [toggle-base #f]
+                             #:live [live #f])
   (match-define (list label tasks) (car (normalize-files-data (list entry))))
   `(section ((class ,ol-file)
              (id ,(string-append "ol-file-" (id-safe label)))
@@ -673,18 +707,21 @@
                                   #:owner (id-safe label)
                                   #:today today
                                   #:zoom-base zoom-base
-                                  #:toggle-base toggle-base)))))
+                                  #:toggle-base toggle-base
+                                  #:live live)))))
 
 (define (render-outline files-data
                         #:today today
                         #:zoom-base [zoom-base #f]
-                        #:toggle-base [toggle-base #f])
+                        #:toggle-base [toggle-base #f]
+                        #:live [live #f])
   `(div ((class ,ol-pane) (id "ol-outline"))
         ,@(for/list ([e (in-list files-data)])
             (render-file-section e
                                  #:today today
                                  #:zoom-base zoom-base
-                                 #:toggle-base toggle-base))))
+                                 #:toggle-base toggle-base
+                                 #:live live))))
 
 ;; ---- chrome ---------------------------------------------------------------
 
@@ -716,16 +753,20 @@
 ;; (olai/paths) and nothing to click. A crumb never carries a ready-made href:
 ;; where a key points is the route layer's answer, and it hands it down as
 ;; `zoom-base` like every other address in this module.
-(define (render-breadcrumbs path #:home-href home-href #:zoom-base [zoom-base #f])
+(define (render-breadcrumbs path
+                            #:home-href home-href
+                            #:zoom-base [zoom-base #f]
+                            #:live [live #f])
   (define (crumb->xexpr c)
     (match c
       [(list title key)
-       `(a ((class ,ol-crumb) (href ,(href-for zoom-base key)))
+       `(a ((class ,ol-crumb) ,@(node-link-attributes live zoom-base key))
            ,@(map style-md-xexpr (title->inline-xexprs title)))]
       [file `(span ((class ,ol-crumb)) ,(file-label file))]))
   `(nav ((class ,ol-breadcrumbs) (aria-label "breadcrumbs"))
         ,@(if home-href
-              (list `(a ((class ,(classes ol-crumb ol-crumb-home)) (href ,home-href))
+              (list `(a ((class ,(classes ol-crumb ol-crumb-home))
+                         ,@(live-link-attributes live home-href))
                         "home"))
               '())
         ,@(append*
@@ -837,7 +878,8 @@
 (define (render-sidebar files-data
                         #:home-href home-href
                         #:today-href today-href
-                        #:zoom-base [zoom-base #f])
+                        #:zoom-base [zoom-base #f]
+                        #:live [live #f])
   (define entries (normalize-files-data files-data))
   ;; Disclosure only, and mirror sites stay out of it: the tree is for finding
   ;; a node, and a node is listed where it is defined.
@@ -854,7 +896,8 @@
          ;; in the main pane and folded here
          #:collapse-key (string-append "tree-" key)
          #:collapsed? (> depth 0)
-         #:row (list `(a ((class ,ol-tree-link) (href ,(href-for zoom-base key)))
+         #:row (list `(a ((class ,ol-tree-link)
+                          ,@(node-link-attributes live zoom-base key))
                          ,@(map style-md-xexpr (title->inline-xexprs (task-title tk)))))
          #:children (append*
                      (for/list ([c (in-list kids)])
@@ -862,10 +905,11 @@
       [else '()]))
   `(aside ((class ,ol-sidebar) (id "ol-sidebar"))
           (div ((class ,ol-brand))
-               (a ((class ,ol-brand-link) (href ,home-href)) "olai"))
+               (a ((class ,ol-brand-link) ,@(live-link-attributes live home-href))
+                  "olai"))
           (nav ((class ,ol-sidebar-nav))
                ,(if today-href
-                    `(a ((class ,ol-nav-item) (href ,today-href))
+                    `(a ((class ,ol-nav-item) ,@(live-link-attributes live today-href))
                         (span ((class ,ol-nav-icon) (aria-hidden "true")) "◉")
                         "Today")
                     `(span ((class ,ol-nav-item))
@@ -925,36 +969,84 @@
 
 (define-style ol-error-detail #:font-family ,mono #:overflow-wrap anywhere)
 
-;; What an `outline` event re-swaps: the banner slot AND the pane, in one
-;; container, because a save can change either and they must not be able to
-;; disagree about which snapshot they are showing.
+;; ---- the stream's health --------------------------------------------------
+;;
+;; A page whose stream is down looks exactly like a page nobody has edited, and
+;; that is the one lie this view can tell. The framework's runtime knows the
+;; difference — a clean drop, or a beat that never came — and says so by
+;; writing one class on <html>; what that LOOKS like is olai's, and it is
+;; nothing at all while the stream is healthy.
+;;
+;; Two states, two sentences, both of them chrome: this sits outside the live
+;; region, because it is about the connection rather than the content, and a
+;; swap that replaced it would be the swap it exists to report the absence of.
+
+(define-style ol-stream
+  #:display none
+  #:position fixed
+  #:left 1rem
+  #:bottom (apply calc (+ 1rem (apply env safe-area-inset-bottom)))
+  #:z-index 18
+  #:padding (0.375rem 0.75rem)
+  #:border-radius ,radius
+  #:border (1px solid ,line)
+  #:font-size 0.75rem
+  #:box-shadow (0 2px 8px (apply color-mix (in srgb) (,ink 12%) transparent)))
+
+;; One line per state, and the state on <html> picks which. Hidden by default
+;; so the healthy page — no class at all — shows neither.
+(define-style (ol-stream-connecting ol-stream-stale) #:display none)
+
+(register-fragment!
+ (css-expr
+  [(,(sel 'html live-connecting-class) ,(sel ol-stream))
+   #:display block
+   #:border-color ,amber-fg
+   #:background ,amber-bg
+   #:color ,amber-fg]
+  [(,(sel 'html live-connecting-class) ,(sel ol-stream-connecting)) #:display inline]
+  [(,(sel 'html live-stale-class) ,(sel ol-stream))
+   #:display block
+   #:border-color ,rose-fg
+   #:background ,rose-bg
+   #:color ,rose-fg]
+  [(,(sel 'html live-stale-class) ,(sel ol-stream-stale)) #:display inline]))
+
+;; role=status, not alert: this is a condition to notice, not one to interrupt
+;; for, and both sentences are already on the page for a reader to reach.
+(define (render-stream-status)
+  `(div ((class ,ol-stream) (id "ol-stream") (role "status") (aria-live "polite"))
+        (span ((class ,ol-stream-connecting)) "reconnecting…")
+        (span ((class ,ol-stream-stale)) "showing last known state")))
+
+;; What the live region holds: the banner slot AND the pane, in one container,
+;; because a save can change either and they must not be able to disagree about
+;; which snapshot they are showing. Everything else on the page — the sidebar,
+;; the chat panel, the skin — sits outside it and is never rebuilt.
 ;;
 ;; `live-href` is the page's OWN address, and it comes from the route layer —
 ;; a renderer that guessed it would be guessing a URL, which is how the
-;; sidebar's Today link once came to 404. The container re-fetches that page
-;; and lifts itself back out of the reply (hx-select), so one handler serves
-;; both the first load and every swap.
+;; sidebar's Today link once came to 404. The attributes that make it re-fetch
+;; that address, morph the reply onto itself, and own the back button are the
+;; framework's (live/client); what they are pointed AT is olai's.
 ;; Fixed slot: empty while the outlines load clean, filled while a file is
 ;; mid-edit. The page keeps showing the last good content underneath, and an
 ;; empty slot must not leave a gap where the banner would be.
 (define-style ol-banner-slot [(: & empty) #:display none])
 
-(define (live-region live-href banner main)
+(define (live-region live live-href banner main)
   (define slot
     ;; fixed slot: the banner is swapped in and out, so it must exist
     ;; (empty) even on a healthy page
     `(div ((class ,ol-banner-slot) (id "ol-banner"))
           ,@(if banner (list banner) '())))
-  (if live-href
-      `(div ((id "ol-live")
-             (hx-get ,live-href)
-             (hx-trigger "sse:outline")
-             (hx-select "#ol-live")
-             (hx-target "#ol-live")
-             (hx-swap "outerHTML"))
-            ,slot
-            ,main)
-      `(div ((id "ol-live")) ,slot ,main)))
+  `(div ,(if (and live live-href)
+             (live-region-attributes live live-href)
+             ;; a page with no stream (a fragment test) still has the region:
+             ;; it is where the content lives, not just where a swap lands
+             `((id ,live-region-id)))
+        ,slot
+        ,main))
 
 ;; The reading column: it takes what the sidebar leaves and stops growing
 ;; where a line stops being readable.
@@ -986,7 +1078,11 @@
                      #:theme-color [theme-color #f]
                      #:sidebar [sidebar #f]
                      #:banner [banner #f]
-                     #:sse-connect [sse-connect #f]
+                     ;; The live view this page belongs to (olai/web/live
+                     ;; picks its names, the route layer hands it over), and
+                     ;; the address of THIS page inside it. #f for both is a
+                     ;; page with no stream: a fragment, a test.
+                     #:live [live #f]
                      #:live-href [live-href #f]
                      #:head-extra [head-extra '()]
                      #:body-extra [body-extra '()])
@@ -1028,16 +1124,20 @@
           ,@(if stylesheet-href
                 (list `(link ((rel "stylesheet") (href ,stylesheet-href))))
                 '())
-          ,@(for/list ([name (in-list web-scripts)])
-              `(script ((src ,(static-href name)) (defer "defer"))))
+          ;; the client runtime first, then what leans on it: an extension
+          ;; cannot register into an htmx that has not been defined, and
+          ;; chat.js listens to the SSE extension's events
+          ,@(for/list ([src (in-list (append live-script-srcs
+                                             (map static-href web-scripts)))])
+              `(script ((src ,src) (defer "defer"))))
           ,@head-extra)
          (body ((class ,ol-body)
-                ,@(if sse-connect
-                      `((hx-ext "sse") (sse-connect ,sse-connect))
-                      '()))
+                ,@(if live (live-connect-attributes live) '()))
                ,@(if sidebar (list sidebar) '())
                (main ((class ,ol-main))
-                     ,(live-region live-href banner main))
+                     ,(live-region live live-href banner main))
+               ;; only a page that HAS a stream can report one being down
+               ,@(if live (list (render-stream-status)) '())
                ,@body-extra)))
 
 ;; Serve this, not a bare xexpr: without the doctype browsers fall into
@@ -1051,9 +1151,9 @@
 (define-style ol-empty #:color ,dim #:font-style italic)
 
 ;; A pane with nothing to show: breadcrumbs home, one line saying why.
-(define (render-empty-pane message #:home-href home-href)
+(define (render-empty-pane message #:home-href home-href #:live [live #f])
   `(div ((class ,(classes ol-pane ol-zoom)) (id "ol-outline"))
-        ,(render-breadcrumbs '() #:home-href home-href)
+        ,(render-breadcrumbs '() #:home-href home-href #:live live)
         (p ((class ,ol-empty)) ,message)))
 
 ;; Breadcrumbs + the focused subtree.
@@ -1066,11 +1166,16 @@
                      #:today today
                      #:home-href home-href
                      #:zoom-base [zoom-base #f]
-                     #:toggle-base [toggle-base #f])
+                     #:toggle-base [toggle-base #f]
+                     #:live [live #f])
   `(div ((class ,(classes ol-pane ol-zoom)) (id "ol-outline"))
-        ,(render-breadcrumbs crumbs #:zoom-base zoom-base #:home-href home-href)
+        ,(render-breadcrumbs crumbs
+                             #:zoom-base zoom-base
+                             #:home-href home-href
+                             #:live live)
         (ul ((class ,(classes ol-outline ol-zoom-root)))
             ,(render-node-fragment tk
                                    #:today today
                                    #:zoom-base zoom-base
-                                   #:toggle-base toggle-base))))
+                                   #:toggle-base toggle-base
+                                   #:live live))))

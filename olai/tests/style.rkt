@@ -42,6 +42,9 @@
          ;; the renderers: what the skin is FOR, and the only honest answer to
          ;; "does anything wear this class"
          olai/web/render
+         ;; the live view a served page is drawn with — the chrome that only
+         ;; exists on a page that has a stream
+         (only-in olai/web/live outline-live-view)
          olai/web/chat-panel
          olai/store
          olai/index
@@ -145,12 +148,17 @@
 
 (define (example-pages)
   (list
+   ;; a LIVE page: the served one. The stream's health is chrome only a page
+   ;; with a stream carries, so a page drawn without one would leave those
+   ;; rules looking like rules for markup that does not exist
    (render-page (render-outline example-files
                                 #:today example-today
                                 #:zoom-base "/z/" #:toggle-base "/toggle/")
                 #:sidebar (render-sidebar example-files
                                           #:home-href "/" #:today-href "/today"
                                           #:zoom-base "/z/")
+                #:live (outline-live-view "/events" #:cursor "boot.1")
+                #:live-href "/"
                 #:banner (render-error-banner "expected ISO date"
                                               #:where "/tmp/Tasks.rkt:3:4"))
    (let* ([index (snapshot-index example-snapshot)]
@@ -207,10 +215,13 @@
    (map (λ (s) (string->symbol (substring s 2)))
         (regexp-match* #px"--[a-z][a-z0-9-]*" (file->string path)))))
 
-;; olai's own scripts plus the vendored sse extension. htmx itself is not in
-;; the list: it spells no olai class, and scanning a minified bundle for
-;; class-shaped names would find noise, not a border.
-(define script-names '("chat.js" "collapse.js" "prefs.js" "pwa.js" "sse.js"))
+;; olai's own scripts, which is all of them under /static/. The client runtime
+;; (htmx, its SSE extension, idiomorph, the health watchdog) is the `live`
+;; collection's: it spells no olai class — the two state classes it DOES write
+;; are its own vocabulary, and the skin styles them from the binding — and
+;; scanning a minified bundle for class-shaped names would find noise, not a
+;; border.
+(define script-names '("chat.js" "collapse.js" "prefs.js" "pwa.js"))
 
 (define scripted-classes
   (for/fold ([acc (set)]) ([js (in-list script-names)])

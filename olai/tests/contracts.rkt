@@ -13,7 +13,7 @@
          olai/index
          olai/lang/line
          olai/load
-         olai/web/events
+         olai/web/live
          olai/web/render
          olai/web/watch)
 
@@ -64,11 +64,19 @@
                (λ () (render-node-fragment (make-task #:title "T" #:key "k")
                                            #:today #f))))
 
-  (test-case "web/events: an event is a name and a payload, both strings"
-    (check-exn (blames "events.rkt")
-               (λ () (sse-frame 'outline "1")))
-    (check-exn (blames "events.rkt")
-               (λ () (hub-broadcast! (make-hub) "outline" 7))))
+  ;; The transport's own boundary is the framework's to police
+  ;; (live/tests/hub.rkt); this is olai's side — a revision is a number, a
+  ;; cursor is the string it becomes, and an id off the wire is a string or
+  ;; nothing at all.
+  (test-case "web/live: a revision is an integer, a cursor is a string"
+    (check-exn (blames "live.rkt")
+               (λ () (outline-cursor "boot" "7")))
+    (check-exn (blames "live.rkt")
+               (λ () (outline-frame 7)))
+    (check-exn (blames "live.rkt")
+               (λ () (outline-catch-up "boot.7" 8)))
+    (check-exn (blames "live.rkt")
+               (λ () (outline-catch-up 7 "boot.8"))))
 
   (test-case "web/watch: the midnight boundary is a moment, not a clock reading"
     (check-exn (blames "watch.rkt")

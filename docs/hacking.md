@@ -3,17 +3,34 @@
 Facts an agent cannot infer from the code and would otherwise probe for.
 Not a tutorial. Read README and docs/cli.md first.
 
+## Two collections
+
+The repo holds two Racket packages, and the order between them is the
+dependency:
+
+* `live/` — the live-view framework: an SSE hub with reconnect catch-up,
+  and an htmx + idiomorph browser runtime. It imports NOTHING from olai
+  and never will; olai is its first consumer, not its definition. Its
+  own README is the consumer contract (`live/README.md`), and
+  `docs/live.md` is what olai puts through it.
+* `olai/` — everything else.
+
+So `just install` links `live` before `olai`, and `just build` is
+`raco setup --pkgs live olai`. A change to `live/` that only makes sense
+for olai is a change in the wrong place.
+
 ## Toolchain
 
 * Racket comes from `nix develop` (nixpkgs 9.2). `just` recipes set
-  `PLTUSERHOME` to `$PWD/.plt-user` so user packages and the `olai` link
+  `PLTUSERHOME` to `$PWD/.plt-user` so user packages and the two links
   live in the worktree, not `~`. That directory must be writable.
-* `just install` — deps + `raco pkg install --skip-installed --link olai/`.
-  Cheap to repeat. Does **not** recompile after you edit sources.
-* `just build` — `raco setup --pkgs olai`. Writes `compiled/*.zo` for the
-  collection and its tests, and keeps them coherent after edits.
-  Incremental when nothing changed. `just test` / `test-integration` /
-  `test-all` depend on it.
+* `just install` — deps + `raco pkg install --skip-installed --link` for
+  `live/` then `olai/`. Cheap to repeat. Does **not** recompile after
+  you edit sources.
+* `just build` — `raco setup --pkgs live olai`. Writes `compiled/*.zo`
+  for both collections and their tests, and keeps them coherent after
+  edits. Incremental when nothing changed. `just test` /
+  `test-integration` / `test-all` depend on it.
 * `just clean` — delete every `olai/**/compiled`. Escape hatch only.
 
 ### Why build exists
@@ -88,7 +105,7 @@ Class-name renames: run `just css-classes` to regenerate
 
 ## Tests
 
-* `just test` — unit, in-process, `olai/tests/*.rkt`
+* `just test` — unit, in-process, `live/tests/*.rkt` + `olai/tests/*.rkt`
 * `just test-integration` — spawns `olai`, boots servers
 * `just test-all` — both, one `-j` pool
 * `just e2e` — browser journeys (see below); never in `just test`
@@ -125,7 +142,15 @@ panel's geometry.
 * Each scenario gets its own temp outline, its own `olai serve` on an
   ephemeral port (`--port 0`; the server prints the port it took), and
   a fresh browser context — so localStorage, folds and prefs start
-  empty every time.
+  empty every time. One scenario stops that server and starts another
+  at the SAME port (`world.stopServer` / `startServerAgain`): a stream
+  that died is only worth testing if the socket actually went away, and
+  a second process is also the case a per-process revision counter gets
+  wrong (docs/live.md, the cursor).
+* A link does not load a document — it fetches the live region and
+  pushes the address — so a step that clicks one waits for the URL to
+  move (`world.follow`). A step that clicked and then read the page
+  would be reading the page it clicked on.
 * The agent is ALWAYS `olai/tests/integration/fake-acp-agent.rkt`
   (`e2e/support/server.js` sets `OLAI_ACP_AGENT`). No real Claude Code
   is ever spawned by a test. What it woke up with is a scenario TAG —

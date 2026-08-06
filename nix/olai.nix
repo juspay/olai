@@ -46,8 +46,9 @@ stdenv.mkDerivation {
     ln -sfn "${tzdata}/share/zoneinfo" \
       "$PLTUSERHOME/.local/share/racket/9.2/share/tzdata/zoneinfo"
 
+    cp -a "$src/live" ./live-pkg
     cp -a "$src/olai" ./olai-pkg
-    chmod -R u+w ./olai-pkg
+    chmod -R u+w ./live-pkg ./olai-pkg
 
     # Offline install of npins-vendored deps (order matters).
     # --deps force: markdown wants package name "parsack"; we ship
@@ -60,6 +61,9 @@ stdenv.mkDerivation {
 
     # --copy, not --link: a link would keep $src (or /build) paths in the
     # package catalog and raco exe would bake those into the stub.
+    # `live` before `olai`: the live-view framework is a package of its own
+    # (this repo's live/), and olai declares a dependency on it.
+    raco pkg install --copy --no-docs --deps force ./live-pkg
     raco pkg install --copy --no-docs --deps force ./olai-pkg
 
     mkdir -p $out/bin

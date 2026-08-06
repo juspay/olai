@@ -36,9 +36,9 @@ nix:
 smoke: nix
     ./result/bin/olai check examples/Example.rkt Roadmap.rkt e2e/fixtures/Tasks.rkt
 
-# Unit tests: in-process (olai/tests/*.rkt).
+# Unit tests: in-process (live/tests/ + olai/tests/*.rkt).
 test: build
-    {{ nix_shell }} raco test -j {{ num_cpus() }} olai/tests/*.rkt
+    {{ nix_shell }} raco test -j {{ num_cpus() }} live/tests/*.rkt olai/tests/*.rkt
 
 # Integration tests: subprocess CLI + real servers (olai/tests/integration/).
 test-integration: build

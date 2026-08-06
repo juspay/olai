@@ -49,9 +49,13 @@ const URL_RX = /(http:\/\/[\d.]+:\d+)/;
  *  `env` is what this scenario wants the agent to have woken up to — what the
  *  machine had stored, and nothing else. It is a boot-time fact for the same
  *  reason it is one for a real agent: no step can put a conversation in the
- *  past after the panel has already asked what is there. */
-export async function startServer(dir, env = {}) {
-  const child = spawn(OLAI_BIN, ["serve", "--port", "0", dir], {
+ *  past after the panel has already asked what is there.
+ *
+ *  `port` is 0 — "pick one, and say which" — for every scenario but the one
+ *  that stops a server and starts another in its place: a browser waiting for
+ *  its stream to come back is waiting for THAT address. */
+export async function startServer(dir, env = {}, port = 0) {
+  const child = spawn(OLAI_BIN, ["serve", "--port", String(port), dir], {
     cwd: dir,
     env: { ...serverEnv(), ...env },
     stdio: ["ignore", "pipe", "pipe"],

@@ -5,10 +5,12 @@
 ;;   GET  /             the html page: sidebar + outline + chat panel
 ;;   GET  /n/<key>      one node, zoomed: breadcrumbs + that subtree
 ;;   GET  /today        today's Daily day node, zoomed
-;;   GET  /events       SSE stream; `outline` (data: store revision) per reload,
-;;                      `chat` (data: one JSON frame) per agent frame — and,
-;;                      first, the conversation this connection was not there
-;;                      for, in those same frames
+;;   GET  /events       SSE stream; `outline` (data and id: the cursor the
+;;                      outlines are at) per reload, `chat` (data: one JSON
+;;                      frame) per agent frame — and, first, whatever this
+;;                      connection missed: the conversation it was not there
+;;                      for, and an `outline` if the file moved while it was
+;;                      away (docs/live.md)
 ;;   POST /chat         prompt the agent (form field `text`) -> 204
 ;;   POST /chat/new     new chat -> 204
 ;;   POST /chat/cancel  cancel the turn in flight -> 204
@@ -25,12 +27,14 @@
 ;; content comes from olai/store — this module owns routes and responses,
 ;; never a load.
 ;;
-;; Live updates are three parts that only meet here: the store knows WHAT the
-;; outlines are, the watcher knows WHEN they moved, the hub knows WHO is
-;; listening. None of them knows about the other two. The agent conversation
-;; (web/chat, over olai/acp) is a fourth of the same kind — it pushes
-;; `chat` through the same hub and has never heard of HTTP; the /chat routes
-;; below are the only place the two meet.
+;; Live updates are four parts that only meet here: the store knows WHAT the
+;; outlines are, the watcher knows WHEN they moved, the hub (the `live`
+;; collection — a framework, and olai is its first consumer) knows WHO is
+;; listening, and web/live knows what a revision MEANS to a client that has
+;; been away. None of them knows about the others. The agent conversation
+;; (web/chat, over olai/acp) is a fifth of the same kind — it pushes `chat`
+;; through the same hub and has never heard of HTTP; the /chat routes below are
+;; the only place the two meet.
 ;;
 ;; The chat routes answer with a STATUS, never with content: what a panel
 ;; draws arrives over the stream, so every open tab shows the same
@@ -69,8 +73,15 @@
          (only-in olai/ops exn:fail:op? exn:fail:op-kind)
          (only-in olai/paths file-label roots-base)
          olai/store
+         ;; the transport, and the assets that drive it in the browser: a
+         ;; framework this app is only a consumer of (live/README.md)
+         live/hub
+         (only-in live/frame make-frame)
+         (only-in live/client live-static-dir)
          olai/web/chat
-         olai/web/events
+         ;; olai's side of that contract: the event name, the region's id, and
+         ;; what a store revision means to a client that has been away
+         olai/web/live
          ;; the sheet and its URL; which modules it is made of is skin's
          olai/web/skin
          ;; the facts about the palettes a page carries before the sheet
@@ -145,7 +156,16 @@
 ;; ---- the store ------------------------------------------------------------
 
 ;; Every route starts here: refresh the store (a cheap mtime probe unless a
-;; file actually changed), then hand the handler ONE consistent snapshot.
+;; file actually changed), then hand the handler ONE consistent snapshot and
+;; the revision it is.
+;;
+;; The revision is read BEFORE the snapshot, and that order is not a
+;; preference. The watcher reloads on its own thread; read the other way round,
+;; a reload landing between the two reads would have a page claiming a revision
+;; NEWER than the markup it is showing — and a page that claims to be current
+;; is a page nothing will ever tell to catch up. Read this way the worst case
+;; is a page that understates where it is, and is told to re-fetch something it
+;; already has.
 ;;
 ;; A live load error means the file is mid-edit. JSON routes fail loudly —
 ;; agents must never be handed stale data quietly — while the page keeps the
@@ -153,11 +173,12 @@
 ;; no last-good snapshot at all, everything fails.
 (define (with-snapshot st fail proc #:stale-ok? [stale-ok? #f])
   (store-invalidate! st)
+  (define rev (store-revision st))
   (define snap (store-snapshot st))
   (define err (store-error st))
   (if (and err (or (not stale-ok?) (null? (snapshot-outlines snap))))
-      (fail err)
-      (proc snap err)))
+      (fail rev err)
+      (proc rev snap err)))
 
 (define (load-error->json err)
   (err-hash (load-error-message err)
@@ -165,25 +186,30 @@
             #:line (load-error-line err)
             #:col (load-error-col err)))
 
-(define (json-failure err)
+;; A JSON route has no live view and no page: the revision is a fact about a
+;; page's markup, and there is none here.
+(define (json-failure _rev err)
   (json-response (load-error->json err) #:code 500))
 
 (define (error-banner err)
   (render-error-banner (load-error-detail err) #:where (load-error-where err)))
 
-;; Nothing to show at all — the FIRST load failed. Still an SSE page: the
-;; next save is what fixes it, and the client should not have to reload to
-;; find that out.
-(define (page-failure err #:live-href live-href #:chat [chat #f])
+;; Nothing to show at all — the FIRST load failed. Still a live page: the next
+;; save is what fixes it, and the client should not have to reload to find that
+;; out.
+(define (page-failure rev err #:live-href live-href #:chat [chat #f])
+  (define live (live-view-at rev))
   (html-response
    (page->html-string
-    (render-page (render-empty-pane "No outline loaded." #:home-href home-href)
+    (render-page (render-empty-pane "No outline loaded."
+                                    #:home-href home-href
+                                    #:live live)
                  #:title "olai"
                  #:stylesheet-href stylesheet-href
                  #:color-scheme theme-color-scheme
                  #:theme-color theme-default-paper
                  #:banner (error-banner err)
-                 #:sse-connect events-href
+                 #:live live
                  #:live-href live-href
                  #:body-extra (if chat (list chat) '())))
    #:code 500))
@@ -201,6 +227,31 @@
 ;; href it re-fetches is whichever of the two above rendered it — handed to
 ;; the renderer, never guessed by it.
 (define events-href "/events")
+
+;; Where the framework's client runtime is mounted. Its own prefix, beside
+;; /static/ rather than inside it: those files are the `live` collection's, and
+;; the only thing this layer decides about them is the URL.
+(define live-href-prefix live-asset-prefix)
+
+;; Which process this is. A revision counts from one per server, so a token
+;; that did not also name the server would call two different outlines by the
+;; same name across a restart — and every tab open across that restart would be
+;; told it was up to date (see web/live's outline-cursor). A clock reading is
+;; the shell layer's to take, and one per process is all this needs.
+(define the-boot-id
+  (number->string (inexact->exact (round (current-inexact-milliseconds)))))
+
+;; The live view a page is drawn with. The region's id and the event that means
+;; it is behind are web/live's, the stream's address is this module's, and the
+;; cursor is the page's own — which is why this is a function and not a
+;; constant. A page that did not say where it was drawn from could not be told
+;; that the file moved in the moment between drawing it and its stream opening.
+(define (live-view-at rev)
+  (outline-live-view events-href #:cursor (outline-cursor the-boot-id rev)))
+
+;; The state the outlines are in right now, as the wire names it. Both the
+;; broadcast and the catch-up ask this, so neither can invent a spelling.
+(define (cursor-now st) (outline-cursor the-boot-id (store-revision st)))
 
 ;; A node's address: its own zoom page, keyed by the key the load layer minted
 ;; (olai/load). Stable across a rename — that is what makes it a permalink —
@@ -311,6 +362,7 @@
 ;; the person typing into it.
 (define (chrome files-data main
                 #:title title
+                #:live live
                 #:live-href live-href
                 #:banner [banner #f]
                 #:chat [chat #f]
@@ -325,37 +377,42 @@
                  #:sidebar (render-sidebar files-data
                                            #:home-href home-href
                                            #:today-href today-href
-                                           #:zoom-base node-href-base)
+                                           #:zoom-base node-href-base
+                                           #:live live)
                  #:banner banner
-                 #:sse-connect events-href
+                 #:live live
                  #:live-href live-href
                  #:body-extra (if chat (list chat) '())))
    #:code code))
 
-;; Every page here is the same shape: one snapshot, the chrome around it, and
-;; a live region that re-fetches THIS url on an `outline` event. `view` is
-;; handed the snapshot and answers (values main title) — the only thing three
-;; pages differ in.
+;; Every page here is the same shape: one snapshot, the chrome around it, and a
+;; live region that re-fetches THIS url on an `outline` event. `view` is handed
+;; the live view (every link on the page wears it) and the snapshot, and answers
+;; (values main title) — the only thing three pages differ in.
 (define (outline-page st agent live-href view)
   (define chat (and agent the-chat-panel))
-  (with-snapshot st (λ (err) (page-failure err #:live-href live-href #:chat chat))
+  (with-snapshot st
+    (λ (rev err) (page-failure rev err #:live-href live-href #:chat chat))
     #:stale-ok? #t
-    (λ (snap err)
-      (define-values (main title) (view snap))
+    (λ (rev snap err)
+      (define live (live-view-at rev))
+      (define-values (main title) (view live snap))
       (chrome (snapshot-files-data snap) main
               #:title title
+              #:live live
               #:live-href live-href
               #:chat chat
               #:banner (and err (error-banner err))))))
 
 ;; One node, zoomed: the node and the trail above it, both asked of the
 ;; snapshot's index — the only thing that knows either.
-(define (zoom-pane index entry today)
+(define (zoom-pane live index entry today)
   (render-zoom (node-entry-task entry)
                (node-ancestors index entry)
                #:today today
                #:home-href home-href
-               #:zoom-base node-href-base))
+               #:zoom-base node-href-base
+               #:live live))
 
 ;; The key a page was asked for, as a node, or #f. Both zoom routes go through
 ;; here, and each says in its own words what #f means.
@@ -364,10 +421,11 @@
 
 (define (page-handler st agent)
   (outline-page st agent home-href
-   (λ (snap)
+   (λ (live snap)
      (values (render-outline (snapshot-files-data snap)
                              #:today (today-iso-string)
-                             #:zoom-base node-href-base)
+                             #:zoom-base node-href-base
+                             #:live live)
              (page-title (store-files st))))))
 
 ;; A node's permalink.
@@ -379,14 +437,16 @@
 ;; exists; this route only asks it, and says what it heard.
 (define (node-handler st agent key)
   (outline-page st agent (node-href key)
-   (λ (snap)
+   (λ (live snap)
      (define index (snapshot-index snap))
      (define entry (node-at index key))
      (if entry
          ;; a tab zoomed on one node should say which
-         (values (zoom-pane index entry (today-iso-string))
+         (values (zoom-pane live index entry (today-iso-string))
                  (task-title (node-entry-task entry)))
-         (values (render-empty-pane "No such node." #:home-href home-href)
+         (values (render-empty-pane "No such node."
+                                    #:home-href home-href
+                                    #:live live)
                  "olai")))))
 
 ;; Today's Daily day node, zoomed. Finding today's key is a question about the
@@ -400,26 +460,27 @@
 ;; frozen to the key today HAD would be neither.
 (define (today-handler st agent)
   (outline-page st agent today-href
-   (λ (snap)
+   (λ (live snap)
      (define today (today-iso-string))
      (define index (snapshot-index snap))
      (define entry (node-at index (snapshot-day-key snap today)))
      (values (if entry
-                 (zoom-pane index entry today)
+                 (zoom-pane live index entry today)
                  ;; no day node yet is the normal state before the first
                  ;; capture of the day, not an error
                  (render-empty-pane
                   (format "No day node for ~a. Run: olai daily" today)
-                  #:home-href home-href))
+                  #:home-href home-href
+                  #:live live))
              (string-append "today " today)))))
 
 (define (tree-handler st)
   (with-snapshot st json-failure
-    (λ (snap _err) (json-response (outlines->jsexpr (snapshot-outlines snap))))))
+    (λ (_rev snap _err) (json-response (outlines->jsexpr (snapshot-outlines snap))))))
 
 (define (agenda-handler st)
   (with-snapshot st json-failure
-    (λ (snap _err)
+    (λ (_rev snap _err)
       (define today (today-iso-string))
       (define groups
         (agenda-groups-from-files
@@ -427,6 +488,41 @@
            (cons (outline-path o) (outline-tasks o)))
          today))
       (json-response (agenda-groups->jsexpr groups today)))))
+
+;; ---- handlers: the stream -------------------------------------------------
+
+;; What a connection is owed before the stream proper — the one place the
+;; outline's story and the conversation's are told to the same socket.
+;;
+;; ORDER IS THE CONTRACT, and it is subscribe-then-read, both times. The chat
+;; subscribes inside its own lock, which is what makes its answer exact
+;; (web/chat). The revision is read AFTER that subscription exists, and that
+;; direction is not a preference: a revision read first could move — and be
+;; broadcast to nobody — in the gap before subscribing, and this connection
+;; would sit on stale content with nothing coming. Read second, the worst case
+;; is a duplicate `outline`, which costs one re-fetch of what is already right.
+;;
+;; `store-invalidate!` first for the same reason every route starts with it:
+;; the revision this answers with has to be the revision of the files as they
+;; are now, not as they were when something last asked.
+(define (events-handler st hub agent req)
+  (hub-response
+   hub
+   #:last-event-id (request-last-event-id req)
+   #:catch-up
+   (λ (last-event-id subscribe!)
+     ;; web/chat answers in the same (name . data) pairs it broadcasts in — it
+     ;; has never heard of the transport, and this is the one line that turns a
+     ;; conversation into wire. No ids: a chat frame is not a checkpoint, and
+     ;; moving the cursor to one would tell a reconnect it had seen an outline
+     ;; revision it never did.
+     (define chat-frames
+       (for/list ([p (in-list (if agent (chat-catch-up agent subscribe!) '()))])
+         (make-frame (car p) (cdr p))))
+     (subscribe!)
+     (store-invalidate! st)
+     (append (outline-catch-up last-event-id (cursor-now st))
+             chat-frames))))
 
 ;; ---- dispatch -------------------------------------------------------------
 
@@ -437,14 +533,10 @@
      ;; one page per node, addressed by the key the load layer minted
      [("n" (string-arg)) (λ (req key) (node-handler st agent key))]
      [("today") (λ (req) (today-handler st agent))]
-     ;; Mounted, not understood: what an event MEANS lives in web/events. The
-     ;; one thing this layer knows is that a new connection has a conversation
-     ;; to catch up on, and which module it asks for it.
-     [("events") (λ (req)
-                   (hub-response hub
-                                 #:catch-up (and agent
-                                                 (λ (subscribe!)
-                                                   (chat-catch-up agent subscribe!)))))]
+     ;; Mounted, not understood: the hub moves frames and the two modules
+     ;; below say what any of them mean. All this layer knows is that a
+     ;; connection is born mid-story, and who to ask what it missed.
+     [("events") (λ (req) (events-handler st hub agent req))]
      ;; the chat panel's verbs. What they DO lives in web/chat; this layer
      ;; only turns a request into a call and a failure into a status.
      [("chat") #:method "post" (λ (req) (chat-handler agent req))]
@@ -457,15 +549,29 @@
      [else (λ (req) (not-found-response))]))
   route)
 
-;; /static/foo.css -> the render collection's static/foo.css. make-url->path
-;; refuses anything that climbs out of the base ("/static/../..") — we turn
-;; that into a plain 404 instead of an error page.
-(define static-url->path
-  (let ([u->p (make-url->path (web-static-dir))])
-    (λ (u)
-      (define rest (if (pair? (url-path u)) (cdr (url-path u)) '()))
-      (with-handlers ([exn:fail? (λ (_e) (next-dispatcher))])
-        (u->p (struct-copy url u [path rest]))))))
+;; /<prefix>/foo.js -> that directory's foo.js. make-url->path refuses anything
+;; that climbs out of the base ("/static/../..") — we turn that into a plain
+;; 404 instead of an error page. Two directories are mounted this way and they
+;; have different owners: /static/ is olai's own assets, /live/ is the
+;; framework's client runtime, which this app ships and never edits.
+(define ((dir-url->path dir) u)
+  (define u->p (make-url->path dir))
+  (define rest (if (pair? (url-path u)) (cdr (url-path u)) '()))
+  (with-handlers ([exn:fail? (λ (_e) (next-dispatcher))])
+    (u->p (struct-copy url u [path rest]))))
+
+(define static-url->path (dir-url->path (web-static-dir)))
+(define live-url->path (dir-url->path (live-static-dir)))
+
+;; One MIME table for both mounts; building it walks a file, so it is built
+;; once rather than per request.
+(define the-mime-type (delay (make-path->mime-type mime-types-path)))
+
+(define (static-files-dispatcher prefix url->path)
+  (filter:make (regexp (string-append "^" (regexp-quote prefix)))
+               (files:make #:url->path url->path
+                           #:path->mime-type (λ (p) ((force the-mime-type) p))
+                           #:indices '())))
 
 ;; The stylesheet the page links is generated, not a file (olai/web/skin owns
 ;; the URL). It wins that path ahead of the static directory, which no longer
@@ -478,10 +584,8 @@
    ;; does not know
    (filter:make #rx"^/static/manifest\\.webmanifest$"
                 (lift:make (λ (_req) (manifest-response))))
-   (filter:make (regexp (string-append "^" (regexp-quote web-static-prefix)))
-                (files:make #:url->path static-url->path
-                            #:path->mime-type (make-path->mime-type mime-types-path)
-                            #:indices '()))
+   (static-files-dispatcher web-static-prefix static-url->path)
+   (static-files-dispatcher live-href-prefix live-url->path)
    (lift:make (make-router st hub agent))))
 
 ;; ---- server ---------------------------------------------------------------
@@ -544,20 +648,23 @@
     (and acp-command
          (make-chat #:command acp-command
                     #:cwd (or agent-cwd (roots-base files))
-                    #:broadcast (λ (name data) (hub-broadcast! hub name data)))))
+                    ;; the conversation speaks (name, payload) and has never
+                    ;; heard of the transport; this is where that becomes wire
+                    #:broadcast (λ (name data)
+                                  (hub-broadcast! hub (make-frame name data))))))
   (define-values (stop bound)
     (listen (make-dispatcher st hub agent) port bind port-fallback?))
   ;; Only once there is a listener: a watcher with nobody to tell is a
   ;; thread that reloads outlines for its own amusement.
   ;;
-  ;; The payload is the store revision — the browser only needs "re-fetch",
-  ;; but a revision makes the stream readable by hand (curl) and gives a
-  ;; client something to compare.
+  ;; The revision goes out twice — as the payload, which makes the stream
+  ;; readable by hand (curl) and gives a client something to compare, and as
+  ;; the stream's ID, which is what a browser hands back on the way in after
+  ;; it has been asleep. Both spellings are web/live's; this only pushes it.
   (define stop-watcher
     (start-watcher st
                    #:on-change
-                   (λ () (hub-broadcast! hub "outline"
-                                         (number->string (store-revision st))))))
+                   (λ () (hub-broadcast! hub (outline-frame (cursor-now st))))))
   (when agent (on-agent agent))
   ;; And only once there is a listener here too: the agent boots in its own
   ;; thread, so pages serve while the agent starts and the last conversation

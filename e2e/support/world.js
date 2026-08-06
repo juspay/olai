@@ -37,6 +37,7 @@ export class OlaiWorld extends World {
    *  the fold state, the theme, the chat panel's open bit — start empty. The
    *  viewport is a desktop unless the scenario asked for the other one. */
   async boot(browser, env = {}, viewport = VIEWPORT) {
+    this.serverEnv = env;
     this.dir = await fs.mkdtemp(path.join(os.tmpdir(), "olai-e2e-"));
     this.outlinePath = path.join(this.dir, "Tasks.rkt");
     await this.rewrite(FIXTURE);
@@ -50,6 +51,24 @@ export class OlaiWorld extends World {
     this.server = server;
     this.context = context;
     this.page = await context.newPage();
+  }
+
+  /** Take the server away, and put one back at the same address.
+   *
+   *  The honest way to test a stream that died: not an app pretending, but the
+   *  socket actually gone — a restart, a deploy, a box that rebooted. What the
+   *  page has to do about it is the whole feature, and a second process is
+   *  also the case a naive revision counter gets wrong (it starts at one
+   *  again, so a tab that reconnects looks caught up when it is not). */
+  async stopServer() {
+    this.serverPort = Number(new URL(this.server.url).port);
+    this.serverEnv = this.serverEnv ?? {};
+    await this.server.stop();
+    this.server = null;
+  }
+
+  async startServerAgain() {
+    this.server = await startServer(this.dir, this.serverEnv, this.serverPort);
   }
 
   async shutdown() {
@@ -68,6 +87,19 @@ export class OlaiWorld extends World {
 
   async open(pathname = "/") {
     await this.page.goto(this.url(pathname));
+  }
+
+  /** Click a link that navigates the live view.
+   *
+   *  A link here does NOT load a document: it fetches the region, morphs it in
+   *  and pushes the address (live/client). So there is no navigation for
+   *  playwright to wait on, and the thing that HAS happened when the click has
+   *  landed is the URL moving — every such link pushes one. A step that
+   *  clicked and then read the page would be reading the page it clicked on. */
+  async follow(locator) {
+    const before = this.page.url();
+    await locator.click();
+    await this.page.waitForFunction((u) => location.href !== u, before);
   }
 
   // ---- the outline file ---------------------------------------------------
