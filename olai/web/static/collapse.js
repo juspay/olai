@@ -9,8 +9,8 @@
     var t=n.querySelector(':scope > .ol-row > .ol-toggle');
     if(t)t.setAttribute('aria-expanded',c?'false':'true');
   }
-  function apply(root){
-    (root||document).querySelectorAll('[data-collapse-key]').forEach(function(n){
+  function apply(){
+    document.querySelectorAll('[data-collapse-key]').forEach(function(n){
       var v=state[n.dataset.collapseKey];
       set(n,v===undefined?n.classList.contains('is-collapsed'):v);
     });
@@ -26,9 +26,11 @@
     // fold that threw would leave the click half-done
     try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}
   });
-  // An outerHTML swap replaces the element the event would name, so re-apply
-  // over the whole document rather than over e.target: a live re-render must
-  // not silently unfold what you folded.
-  document.addEventListener('htmx:afterSwap',function(){apply()});
+  // afterSETTLE, not afterSwap: the nodes carry ids, so htmx's settle phase
+  // restores the class attribute the SERVER sent, undoing any pass that ran
+  // earlier. It is also the first moment that attribute IS the server's, which
+  // is what the unvisited-key branch above reads. Whole document, not
+  // e.target: an outerHTML swap replaces the element the event would name.
+  document.addEventListener('htmx:afterSettle',apply);
   apply();
 })();
