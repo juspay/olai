@@ -35,11 +35,11 @@
          collect-dated
          agenda-groups
          agenda-groups-from-files
-         ;; node identity, inverted: key -> node, and the trail above it
+         ;; node identity, inverted: key -> node, and the trail above it. The
+         ;; entry's other fields are how the trail is walked, not something to
+         ;; read — ask node-ancestors instead.
          node-entry?
          node-entry-task
-         node-entry-parent
-         node-entry-file
          outline-index
          node-ancestors
          render-node-fragment

@@ -661,21 +661,19 @@
 
 (define-style ol-crumb-sep #:color ,line)
 
-;; path: (listof crumb) where crumb is "Label" (a file, nowhere to go) or
-;; (list "Label" key) — a NODE, addressed the one way nodes are addressed
-;; here. A crumb never carries a ready-made href: where a key points is the
-;; route layer's answer, and it hands it down as `zoom-base` like every other
-;; address in this module.
+;; path: (listof crumb), two shapes and no third. `(list "Title" key)` is a
+;; NODE — a title, which is Markdown, at the one address nodes have; anything
+;; else is the FILE the trail hangs off, drawn the way files are named here
+;; (olai/paths) and nothing to click. A crumb never carries a ready-made href:
+;; where a key points is the route layer's answer, and it hands it down as
+;; `zoom-base` like every other address in this module.
 (define (render-breadcrumbs path #:home-href home-href #:zoom-base [zoom-base #f])
-  (define (label->xexprs label)
-    (map style-md-xexpr (title->inline-xexprs label)))
   (define (crumb->xexpr c)
     (match c
-      [(list label key)
+      [(list title key)
        `(a ((class ,ol-crumb) (href ,(href-for zoom-base key)))
-           ,@(label->xexprs label))]
-      [(? string? label) `(span ((class ,ol-crumb)) ,@(label->xexprs label))]
-      [_ `(span ((class ,ol-crumb)) ,(format "~a" c))]))
+           ,@(map style-md-xexpr (title->inline-xexprs title)))]
+      [file `(span ((class ,ol-crumb)) ,(file-label file))]))
   `(nav ((class ,ol-breadcrumbs) (aria-label "breadcrumbs"))
         ,@(if home-href
               (list `(a ((class ,(classes ol-crumb ol-crumb-home)) (href ,home-href))

@@ -11,7 +11,6 @@
          file/sha1
          (except-in olai/lang/expander #%module-begin)
          (only-in olai/lang/walk resolve-mirrors)
-         olai/index
          olai/web/render
          ;; the list the picker draws: the themes the sheet carries, and the
          ;; one a page that picked nothing reads in
@@ -385,48 +384,39 @@
                                         #:zoom-base "/z/")))
     (check-true (string-contains? z "href=\"/z/p1234abcd\"") z))
 
-  ;; What a zoom PAGE is drawn from: the node, and the trail above it. Which
-  ;; node a key names is olai/index's answer (tests/index.rkt), not this
-  ;; module's — here it is only the input.
-  (define (zoom-of fd key #:zoom-base [zoom-base #f])
-    (define idx (outline-index fd))
-    (define entry (hash-ref idx key))
-    (xstr (render-zoom (node-entry-task entry)
-                       (node-ancestors idx entry)
-                       #:today "2026-08-04"
-                       #:home-href "/"
-                       #:zoom-base zoom-base)))
-
+  ;; A zoom is GIVEN its node and the trail above it (olai/index answers which
+  ;; node a key names; tests/index.rkt asks it). Here both are literals.
   (test-case "zoom shows breadcrumbs plus the focused subtree only"
-    (define fd (files (list "Tasks.rkt"
-                            (list (tk "Inbox" #f #f
-                                      (list (tk "Buy milk" #f #f
-                                                (list (tk "2% please" #f #f '())))))
-                                  (tk "Elsewhere" #f #f '())))))
-    (define fid (task-key (tk "Buy milk" #f #f '())))
-    (define s (zoom-of fd fid))
+    (define milk (tk "Buy milk" #f #f (list (tk "2% please" #f #f '()))))
+    (define inbox-key (task-key (tk "Inbox" #f #f '())))
+    (define (zoom-of #:zoom-base [zoom-base #f])
+      (xstr (render-zoom milk (list "Tasks.rkt" (list "Inbox" inbox-key))
+                         #:today "2026-08-04"
+                         #:home-href "/"
+                         #:zoom-base zoom-base)))
+    (define s (zoom-of))
     (check-true (string-contains? s "ol-breadcrumbs") s)
     (check-true (string-contains? s "Tasks.rkt") s)
     (check-true (string-contains? s "Inbox") s)
-    (check-true (string-contains? s (string-append "id=\"n-" fid "\"")) s)
+    (check-true (string-contains? s (string-append "id=\"n-" (task-key milk) "\"")) s)
     (check-true (string-contains? s "2% please") s)
+    ;; the focused subtree, and only it
     (check-false (string-contains? s "Elsewhere") s)
-    ;; the ancestor crumb is clickable, the file label is not
-    (check-true (string-contains? s (string-append
-                                     "href=\"#n-" (task-key (tk "Inbox" #f #f '())) "\""))
-                s)
+    ;; the ancestor crumb is clickable, the file is not
+    (check-true (string-contains? s (string-append "href=\"#n-" inbox-key "\"")) s)
     ;; and with a zoom base, every ancestor crumb is that ancestor's own page
-    (define z (zoom-of fd fid #:zoom-base "/n/"))
-    (check-true (string-contains?
-                 z (string-append "href=\"/n/" (task-key (tk "Inbox" #f #f '())) "\""))
-                z))
+    (define z (zoom-of #:zoom-base "/n/"))
+    (check-true (string-contains? z (string-append "href=\"/n/" inbox-key "\"")) z))
 
-  (test-case "zoom by anchor"
-    (define fd (files (list "Tasks.rkt"
-                            (list (tk "Root" #f #f (list (tk "Kid" #f #f '() #:id "kid")))))))
-    (define s (zoom-of fd "kid"))
+  (test-case "a file crumb is drawn by its basename, whole path or not"
+    ;; the trail carries the file as the loaded set named it (olai/index); how
+    ;; it READS is this module's call
+    (define s (xstr (render-zoom (tk "Kid" #f #f '() #:id "kid")
+                                 (list (string->path "/tmp/outlines/Tasks.rkt"))
+                                 #:today "2026-08-04" #:home-href "/")))
     (check-true (string-contains? s "id=\"n-kid\"") s)
-    (check-true (string-contains? s "Kid") s))
+    (check-true (string-contains? s "<span class=\"ol-crumb\">Tasks.rkt</span>") s)
+    (check-false (string-contains? s "/tmp/outlines") s))
 
   ;; ---- page shell ---------------------------------------------------------
 

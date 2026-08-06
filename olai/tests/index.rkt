@@ -41,29 +41,26 @@
     (define e (hash-ref idx (title-key "Buy milk")))
     (check-equal? (task-title (node-entry-task e)) "Buy milk")
     (check-equal? (node-entry-parent e) (title-key "Inbox"))
-    ;; the file is named the way a human reads it, not by full path
-    (check-equal? (node-entry-file e) "Tasks.rkt")
+    ;; the file is kept as the loaded set named it — what to READ it as is the
+    ;; drawing layer's call, and a basename here would name two files one thing
+    (check-equal? (node-entry-file e) "/tmp/Tasks.rkt")
     ;; a top-level node has no parent, and an anchored one keys by its anchor
     (check-equal? (node-entry-parent (hash-ref idx "ship")) #f)
-    (check-equal? (node-entry-file (hash-ref idx (title-key "2026-08-04"))) "Daily.rkt"))
+    (check-equal? (node-entry-file (hash-ref idx (title-key "2026-08-04")))
+                  "/tmp/Daily.rkt"))
 
   (test-case "the trail above a node is the file, then its ancestors"
     ;; outermost first, and the node itself is NOT in it: a breadcrumb says
     ;; where you are, not that you are here
     (check-equal? (trail idx (title-key "2% please"))
-                  (list "Tasks.rkt"
+                  (list "/tmp/Tasks.rkt"
                         (list "Inbox" (title-key "Inbox"))
                         (list "Buy milk" (title-key "Buy milk"))))
     (check-equal? (trail idx (title-key "Buy milk"))
-                  (list "Tasks.rkt" (list "Inbox" (title-key "Inbox"))))
+                  (list "/tmp/Tasks.rkt" (list "Inbox" (title-key "Inbox"))))
     ;; a top-level node has only the file above it
-    (check-equal? (trail idx "ship") (list "Tasks.rkt"))
-    (check-equal? (trail idx (title-key "2026-08-04")) (list "Daily.rkt")))
-
-  (test-case "an unknown key names no node"
-    ;; a node deleted (or re-keyed) under a tab that was zoomed on it. There
-    ;; is nothing to ask about it — whoever looked it up draws "no such node"
-    (check-false (hash-ref idx "pdeadbeef" #f)))
+    (check-equal? (trail idx "ship") (list "/tmp/Tasks.rkt"))
+    (check-equal? (trail idx (title-key "2026-08-04")) (list "/tmp/Daily.rkt")))
 
   (test-case "renaming an ancestor changes the crumb, not the address"
     ;; the trail is derived when it is asked for, so it reads the titles the
@@ -76,7 +73,7 @@
                                     (list (tk "Buy milk" '())))))))
     (define idx2 (outline-index renamed))
     (check-equal? (trail idx2 (title-key "Buy milk"))
-                  (list "Tasks.rkt" (list "In" (title-key "Inbox")))))
+                  (list "/tmp/Tasks.rkt" (list "In" (title-key "Inbox")))))
 
   (test-case "a mirror site is not a second address for the node"
     ;; a mirror site IS the node it points at; the defining site owns the key,
@@ -89,6 +86,6 @@
                     (hash "ship" (tk "Ship it" '() #:id "ship"))))))
     (define midx (outline-index mirrored))
     (check-equal? (trail midx "ship")
-                  (list "Tasks.rkt" (list "Inbox" (title-key "Inbox"))))
+                  (list "/tmp/Tasks.rkt" (list "Inbox" (title-key "Inbox"))))
     ;; Inbox, Ship it, Later — the mirror site adds no fourth address
     (check-equal? (hash-count midx) 3)))

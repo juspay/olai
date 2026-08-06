@@ -348,17 +348,17 @@
 
 ;; One node, zoomed: the node and the trail above it, both asked of the
 ;; snapshot's index — the only thing that knows either.
-(define (zoom-pane snap entry today)
+(define (zoom-pane index entry today)
   (render-zoom (node-entry-task entry)
-               (node-ancestors (snapshot-index snap) entry)
+               (node-ancestors index entry)
                #:today today
                #:home-href home-href
                #:zoom-base node-href-base))
 
 ;; The key a page was asked for, as a node, or #f. Both zoom routes go through
 ;; here, and each says in its own words what #f means.
-(define (node-at snap key)
-  (and key (hash-ref (snapshot-index snap) key #f)))
+(define (node-at index key)
+  (and key (hash-ref index key #f)))
 
 (define (page-handler st agent)
   (outline-page st agent home-href
@@ -378,10 +378,11 @@
 (define (node-handler st agent key)
   (outline-page st agent (node-href key)
    (λ (snap)
-     (define entry (node-at snap key))
+     (define index (snapshot-index snap))
+     (define entry (node-at index key))
      (if entry
          ;; a tab zoomed on one node should say which
-         (values (zoom-pane snap entry (today-iso-string))
+         (values (zoom-pane index entry (today-iso-string))
                  (task-title (node-entry-task entry)))
          (values (render-empty-pane "No such node." #:home-href home-href)
                  "olai")))))
@@ -399,9 +400,10 @@
   (outline-page st agent today-href
    (λ (snap)
      (define today (today-iso-string))
-     (define entry (node-at snap (snapshot-day-key snap today)))
+     (define index (snapshot-index snap))
+     (define entry (node-at index (snapshot-day-key snap today)))
      (values (if entry
-                 (zoom-pane snap entry today)
+                 (zoom-pane index entry today)
                  ;; no day node yet is the normal state before the first
                  ;; capture of the day, not an error
                  (render-empty-pane
