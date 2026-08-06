@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="olai/web/static/icon.svg" width="128" height="128" alt="olai">
+</p>
+
 # olai
 
 ஓலை: the palm leaf Tamil was written on for two millennia — nodes are
