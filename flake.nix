@@ -21,29 +21,53 @@
       }) systems);
     in
     {
-      devShells = forAllSystems ({ pkgs, system }: {
-        default = pkgs.mkShell {
-          packages = [
-            pkgs.racket
-            pkgs.just
-            pkgs.watchexec
-            pkgs.tzdata
-            pkgs.npins
-            self.packages.${system}.acp-agent
-          ];
-          shellHook = ''
-            export PLTUSERHOME="''${PLTUSERHOME:-$PWD/.plt-user}"
-            mkdir -p "$PLTUSERHOME"
-            if [ -d "${pkgs.tzdata}/share/zoneinfo" ]; then
-              export TZDIR="${pkgs.tzdata}/share/zoneinfo"
-            fi
-            # `serve` refuses to start without an ACP agent; hand it the
-            # bundled one so `just serve` works out of the box. Set the var
-            # yourself to point at a different agent.
-            export OLAI_ACP_AGENT="''${OLAI_ACP_AGENT:-${pkgs.lib.getExe self.packages.${system}.acp-agent}}"
-          '';
-        };
-      });
+      devShells = forAllSystems ({ pkgs, system }:
+        let
+          racketShell = {
+            packages = [
+              pkgs.racket
+              pkgs.just
+              pkgs.watchexec
+              pkgs.tzdata
+              pkgs.npins
+              self.packages.${system}.acp-agent
+            ];
+            shellHook = ''
+              export PLTUSERHOME="''${PLTUSERHOME:-$PWD/.plt-user}"
+              mkdir -p "$PLTUSERHOME"
+              if [ -d "${pkgs.tzdata}/share/zoneinfo" ]; then
+                export TZDIR="${pkgs.tzdata}/share/zoneinfo"
+              fi
+              # `serve` refuses to start without an ACP agent; hand it the
+              # bundled one so `just serve` works out of the box. Set the var
+              # yourself to point at a different agent.
+              export OLAI_ACP_AGENT="''${OLAI_ACP_AGENT:-${pkgs.lib.getExe self.packages.${system}.acp-agent}}"
+            '';
+          };
+        in
+        {
+          default = pkgs.mkShell racketShell;
+
+          # The browser lane, and only it: node, a pinned chromium, and the
+          # harness's node_modules. Kept OUT of the default shell because
+          # nothing else here has any use for a 500M browser — `just e2e`
+          # enters this one itself (OLAI_E2E_SHELL says it is already in).
+          # The racket side comes along whole: e2e boots the `olai` the dev
+          # shell builds, against the repo's own fake ACP agent (racket).
+          e2e = pkgs.mkShell {
+            packages = racketShell.packages ++ [ pkgs.nodejs ];
+            shellHook = racketShell.shellHook + ''
+              export OLAI_E2E_SHELL=1
+              export OLAI_E2E_NODE_MODULES="${self.packages.${system}.e2e-node-modules}/node_modules"
+              # playwright the npm package and playwright-driver the browser
+              # bundle are ONE version (e2e/package.json pins the same
+              # ${pkgs.playwright-driver.version}); a drift is "Executable
+              # doesn't exist" at scenario one.
+              export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright-driver.browsers}"
+              export PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1
+            '';
+          };
+        });
 
       packages = forAllSystems ({ pkgs, system }:
         let
@@ -67,6 +91,10 @@
           inherit olai;
           racket-deps = racketDepsPkg.racketDeps;
           acp-agent = acpAgent;
+          # cucumber + playwright for the browser journeys (e2e/default.nix).
+          # Nothing in the olai package or its checks depends on it: `nix
+          # build` stays what it was.
+          e2e-node-modules = pkgs.callPackage ./e2e { };
         });
 
       # `nix run` starts the web view; `nix run .#cli -- check ...` is the CLI.

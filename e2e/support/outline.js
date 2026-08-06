@@ -1,0 +1,32 @@
+// The outline a scenario boots against, and the breakage one scenario feeds
+// it.
+//
+// The fixture is a REAL `#lang olai` file (e2e/fixtures/Tasks.rkt), read once
+// per run and written into each scenario's temp dir: the language is the only
+// validator, so a typo in it is a srcloc out of `olai check` — which the CI
+// smoke lane runs over this file — and not a browser-level mystery three
+// layers away. The quoteless outline has no comment syntax, which is why what
+// the fixture is FOR is written here rather than in it.
+//
+// Fiction, like examples/: no personal data reaches this suite. Every title in
+// it is distinct enough that a step can name a node by a SUBSTRING of its
+// title and mean one node.
+//
+// EVERY edit a step makes to it changes the file's SIZE. The store's staleness
+// probe is mtime (whole seconds) + size, so a same-second same-size rewrite is
+// invisible to a running server — the same discipline
+// olai/tests/integration/serve.rkt keeps.
+
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+
+export const FIXTURE = await fs.readFile(
+  path.join(import.meta.dirname, "..", "fixtures", "Tasks.rkt"),
+  "utf8",
+);
+
+// A form the expander rejects — `@date` wants an ISO date — with a srcloc the
+// banner can name. A string, not a file: it must not parse, so it cannot be
+// one of the repo's checked outlines. The same broken form stands in for "a
+// file mid-edit" in olai/tests/integration/serve.rkt and nix/smoke.nix.
+export const BREAKAGE = "Broken\n  @date not-a-date\n";

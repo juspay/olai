@@ -262,6 +262,9 @@ olai serve http://127.0.0.1:8080 files: /.../examples/Example.rkt
   instead, says so on stderr (`olai: port 8080 is taken; serving on 41235`),
   and the URL it prints is the port it actually bound. A port you typed is a
   request — taken, `serve` refuses to start (exit 1).
+  The printed URL is a contract: the e2e harness reads the port back out of
+  it (`e2e/support/server.js`), which is how a scenario gets a server nobody
+  else can collide with.
 - `--bind ADDR` — default `127.0.0.1`. `--bind ""` listens on all interfaces.
 - **No auth.** The network is the auth: put it behind Tailscale or Caddy.
 

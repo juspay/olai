@@ -75,3 +75,30 @@ test-integration: build
 # Everything, in one -j pool so the slow files start first
 test-all: build
     raco test -j {{ num_cpus() }} olai/tests/integration/ olai/tests/*.rkt
+
+# Browser journeys: what the wire tests cannot see, because no JS runs there
+# (folding, prefs, the live swap, the chat panel). NEVER part of `just test` —
+# that stays the fast racket set. Its own nix shell (node + a pinned chromium),
+# entered here rather than by the caller; OLAI_E2E_SHELL says we are in it.
+e2e_shell := if env('OLAI_E2E_SHELL', '') != '' { '' } else { 'nix develop .#e2e --accept-flake-config -c' }
+
+# `build` runs INSIDE that shell rather than as a dependency of this recipe:
+# a dependency runs in whatever shell the caller had, and the racket-less one
+# is exactly the shell a developer types `just e2e` from. One entry, not two —
+# a flake eval is a couple of seconds, and this is an edit-loop recipe.
+
+# Browser journeys (args are cucumber's: FILE, FILE:LINE, --tags '@skip')
+e2e *args:
+    {{ e2e_shell }} bash -euc 'just build && just e2e-run "$@"' -- {{ args }}
+
+# The runner, inside the e2e shell: link the nix-built node_modules into place
+# (ESM resolution walks up from the importing file and ignores NODE_PATH) and
+# hand the rest to cucumber. CI calls this one directly — its `build` is a
+# separate DAG node, and a lane body that rebuilt would race the others
+# (ci/mod.just).
+e2e-run *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ln -sfn "$OLAI_E2E_NODE_MODULES" e2e/node_modules
+    cd e2e
+    exec node_modules/.bin/cucumber-js {{ args }}
