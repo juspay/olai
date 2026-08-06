@@ -226,11 +226,51 @@
 
 (define-style ol-dim #:color ,dim)
 
+;; THE NOTE, folded to one line.
+;;
+;; Folded is what a note is drawn as, and the fold is a BOX one line tall —
+;; never a shorter string. The whole note is in the markup either way, so
+;; find-in-page still finds the rest of it and a live re-swap morphs the same
+;; text it always did. A note that IS one line overflows nothing, and so gets
+;; no ellipsis and has nothing to open: the overflow is the affordance, and
+;; only an overflow draws one.
+;;
+;; It opens while the pointer is in the NODE — its own row, and the gutter
+;; beside its children — rather than only while it is on the row. Opening
+;; pushes the page down under the cursor, and a note that folded again the
+;; moment the pointer wobbled off the line it had just moved would do that
+;; twice. A node UNDER this one opens its own note instead of its ancestors',
+;; which is what the :not(:has()) says.
+;;
+;; And it opens on focus, which is the tap: a touch screen has no pointer to
+;; hover with, so the note is a focusable region (the tabindex the markup
+;; below puts on it) — a tap opens it, a tap elsewhere closes it, and a
+;; keyboard gets the same door for free. No script: a class a script toggled
+;; would be view state to put back after every morph, and this is state the
+;; browser is already keeping.
+;;
+;; The @doc lead (web/document) wears the same one-line look and is not the
+;; same mechanism — that one is one line because the rest of the document is a
+;; page away, and it does not open at all.
 (define-style ol-note
   #:margin-top 0.125rem
   #:color ,dim
   #:font-size 0.875rem
+  ;; folded: the first rendered line, and the ellipsis that says there is more
+  #:display -webkit-box
+  #:-webkit-box-orient vertical
+  #:-webkit-line-clamp 1
+  #:overflow hidden
   [,(sel '& is-done) #:opacity 0.65 #:text-decoration line-through]
+  ;; open: the pointer is in this node and in no node under it, or the note
+  ;; itself has the focus
+  [(> (: (: ,(sel ol-node) hover)
+         (apply not (: (apply has (: ,(sel ol-node) hover)))))
+      (,(sel ol-row) &))
+   (: & focus-within)
+   #:display block
+   #:-webkit-line-clamp none
+   #:overflow visible]
   ;; Markdown blocks inside a note: tightened, never the browser's defaults
   [(& p) #:margin (0.25rem 0)]
   [(& ul) (& ol) #:margin (0.25rem 0) #:padding-left 1.25rem]
@@ -366,7 +406,10 @@
                           (list (date-pill-xexpr (task-date tk) today done?))
                           '()))
                ,@(if (task-description tk)
-                     (list `(div ((class ,(classes ol-note (and done? is-done))))
+                     ;; folded to one line, and focusable so a touch screen
+                     ;; has a way to open it (the styles above say why)
+                     (list `(div ((class ,(classes ol-note (and done? is-done)))
+                                  (tabindex "0"))
                                  ,@(note->xexprs (task-description tk))))
                      '())))
    #:after-row (doc-block tk docs doc-expanded? zoom-base)
