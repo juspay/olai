@@ -5,7 +5,10 @@
 ;;   GET  /             the html page: sidebar + outline + chat panel
 ;;   GET  /n/<key>      one node, zoomed: breadcrumbs + that subtree
 ;;   GET  /today        today's Daily day node, zoomed
-;;   GET  /events       SSE stream; `outline` (data and id: the cursor the
+;;   GET  /live/<boot>/events
+;;                      SSE stream, under the boot id of the process that drew
+;;                      the page (a stale one gets one reload frame and the end
+;;                      of the stream); `outline` (data and id: the cursor the
 ;;                      outlines are at) per reload, `chat` (data: one JSON
 ;;                      frame) per agent frame — and, first, whatever this
 ;;                      connection missed: the conversation it was not there
@@ -76,7 +79,7 @@
          ;; the transport, and the assets that drive it in the browser: a
          ;; framework this app is only a consumer of (live/README.md)
          live/hub
-         (only-in live/frame make-frame)
+         (only-in live/frame make-frame live-boot-current?)
          (only-in live/client live-static-dir)
          olai/web/chat
          ;; olai's side of that contract: the event name, the region's id, and
@@ -199,18 +202,17 @@
 ;; save is what fixes it, and the client should not have to reload to find that
 ;; out.
 (define (page-failure rev err #:live-href live-href #:chat [chat #f])
-  (define live (live-view-at rev live-href))
   (html-response
    (page->html-string
     (render-page (render-empty-pane "No outline loaded."
-                                    #:home-href home-href
-                                    #:live live)
+                                    #:home-href home-href)
                  #:title "olai"
                  #:stylesheet-href stylesheet-href
                  #:color-scheme theme-color-scheme
                  #:theme-color theme-default-paper
                  #:banner (error-banner err)
-                 #:live live
+                 #:href live-href
+                 #:cursor (outline-cursor rev)
                  #:body-extra (if chat (list chat) '())))
    #:code 500))
 
@@ -223,19 +225,15 @@
 (define home-href "/")
 (define today-href "/today")
 
-;; The push channel. A page re-fetches ITSELF on an `outline` event, so the
-;; href it re-fetches is whichever of the two above rendered it — handed to
-;; the renderer, never guessed by it.
-(define events-href "/events")
-
-;; The live view a page is drawn with. The region's id and the event that means
-;; it is behind are web/live's, the stream's address is this module's, and the
-;; page's own address and cursor are the PAGE's — which is why this is a
-;; function and not a constant. A page that did not say where it was drawn from
-;; could not be told that the file moved in the moment between drawing it and
-;; its stream opening.
-(define (live-view-at rev href)
-  (outline-live-view events-href #:href href #:cursor (outline-cursor rev)))
+;; The push channel is NOT in this table, and that is the point: its address is
+;; the transport's (`live-stream-path`, /live/<boot-id>/events), it carries the
+;; identity of the process that drew the page, and web/render puts it on the
+;; body. This layer only answers at it — and answers a request naming some
+;; other process with one frame that means reload (see the route below).
+;;
+;; A page re-fetches ITSELF on an `outline` event, so the href it re-fetches is
+;; whichever of the two above rendered it — handed to the renderer, never
+;; guessed by it.
 
 ;; The state the outlines are in right now, as the wire names it. Both the
 ;; broadcast and the catch-up ask this, so neither can invent a spelling.
@@ -352,7 +350,8 @@
 ;; the person typing into it.
 (define (chrome files-data main
                 #:title title
-                #:live live
+                #:href href
+                #:cursor cursor
                 #:banner [banner #f]
                 #:chat [chat #f]
                 #:code [code 200])
@@ -366,40 +365,43 @@
                  #:sidebar (render-sidebar files-data
                                            #:home-href home-href
                                            #:today-href today-href
-                                           #:zoom-base node-href-base
-                                           #:live live)
+                                           #:href href
+                                           #:zoom-base node-href-base)
                  #:banner banner
-                 #:live live
+                 #:href href
+                 #:cursor cursor
                  #:body-extra (if chat (list chat) '())))
    #:code code))
 
 ;; Every page here is the same shape: one snapshot, the chrome around it, and a
 ;; live region that re-fetches THIS url on an `outline` event. `view` is handed
-;; the live view (every link on the page wears it) and the snapshot, and answers
-;; (values main title) — the only thing three pages differ in.
+;; the snapshot and answers (values main title) — the only thing three pages
+;; differ in. It is handed nothing about the live view: every link on the page
+;; names the region it aims at (web/render declares it), so there is no longer
+;; a per-page value for a drawer to be given, or to forget.
 (define (outline-page st agent live-href view)
   (define chat (and agent the-chat-panel))
   (with-snapshot st
     (λ (rev err) (page-failure rev err #:live-href live-href #:chat chat))
     #:stale-ok? #t
     (λ (rev snap err)
-      (define live (live-view-at rev live-href))
-      (define-values (main title) (view live snap))
+      (define-values (main title) (view snap))
       (chrome (snapshot-files-data snap) main
               #:title title
-              #:live live
+              #:href live-href
+              #:cursor (outline-cursor rev)
               #:chat chat
               #:banner (and err (error-banner err))))))
 
 ;; One node, zoomed: the node and the trail above it, both asked of the
 ;; snapshot's index — the only thing that knows either.
-(define (zoom-pane live snap entry today)
+(define (zoom-pane snap entry today)
   (render-zoom (node-entry-task entry)
                (node-ancestors (snapshot-index snap) entry)
                #:today today
                #:home-href home-href
                #:zoom-base node-href-base
-               #:live live
+
                ;; the @doc documents as of this snapshot; the renderer opens
                ;; no files (web/render)
                #:docs (snapshot-docs snap)))
@@ -411,11 +413,10 @@
 
 (define (page-handler st agent)
   (outline-page st agent home-href
-   (λ (live snap)
+   (λ (snap)
      (values (render-outline (snapshot-files-data snap)
                              #:today (today-iso-string)
                              #:zoom-base node-href-base
-                             #:live live
                              #:docs (snapshot-docs snap))
              (page-title (store-files st))))))
 
@@ -428,15 +429,14 @@
 ;; exists; this route only asks it, and says what it heard.
 (define (node-handler st agent key)
   (outline-page st agent (node-href key)
-   (λ (live snap)
+   (λ (snap)
      (define entry (node-at (snapshot-index snap) key))
      (if entry
          ;; a tab zoomed on one node should say which
-         (values (zoom-pane live snap entry (today-iso-string))
+         (values (zoom-pane snap entry (today-iso-string))
                  (task-title (node-entry-task entry)))
          (values (render-empty-pane "No such node."
-                                    #:home-href home-href
-                                    #:live live)
+                                    #:home-href home-href)
                  "olai")))))
 
 ;; Today's Daily day node, zoomed. Finding today's key is a question about the
@@ -450,17 +450,16 @@
 ;; frozen to the key today HAD would be neither.
 (define (today-handler st agent)
   (outline-page st agent today-href
-   (λ (live snap)
+   (λ (snap)
      (define today (today-iso-string))
      (define entry (node-at (snapshot-index snap) (snapshot-day-key snap today)))
      (values (if entry
-                 (zoom-pane live snap entry today)
+                 (zoom-pane snap entry today)
                  ;; no day node yet is the normal state before the first
                  ;; capture of the day, not an error
                  (render-empty-pane
                   (format "No day node for ~a. Run: olai daily" today)
-                  #:home-href home-href
-                  #:live live))
+                  #:home-href home-href))
              (string-append "today " today)))))
 
 (define (tree-handler st)
@@ -498,6 +497,10 @@
   (hub-response
    hub
    #:last-event-id (request-last-event-id req)
+   ;; the cadence off the declaration, not out of a default: the client sizes
+   ;; its watchdog by this number, and it is worth being able to point at the
+   ;; line that chose it (web/live)
+   #:heartbeat-seconds outline-heartbeat-seconds
    #:catch-up
    (λ (last-event-id subscribe!)
      ;; web/chat answers in the same (name . data) pairs it broadcasts in — it
@@ -525,7 +528,17 @@
      ;; Mounted, not understood: the hub moves frames and the two modules
      ;; below say what any of them mean. All this layer knows is that a
      ;; connection is born mid-story, and who to ask what it missed.
-     [("events") (λ (req) (events-handler st hub agent req))]
+     ;;
+     ;; Under the boot id of the process that drew the page. One that names
+     ;; some OTHER process is a tab that outlived a restart: its markup, its
+     ;; scripts and this address all belong to a server that is gone, so it is
+     ;; ANSWERED — one frame that means reload — and never refused. EventSource
+     ;; hides an HTTP status from the page and would retry a refusal forever.
+     [("live" (string-arg) "events")
+      (λ (req boot)
+        (if (live-boot-current? boot)
+            (events-handler st hub agent req)
+            (live-reload-response)))]
      ;; the chat panel's verbs. What they DO lives in web/chat; this layer
      ;; only turns a request into a call and a failure into a status.
      [("chat") #:method "post" (λ (req) (chat-handler agent req))]

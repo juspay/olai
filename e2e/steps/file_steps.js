@@ -34,6 +34,21 @@ When(
   },
 );
 
+// A rename touches the one thing BOTH panes draw. The node's key is its
+// ^anchor, or a hash of its file and child ordinals (docs/cli.md) — never its
+// title — so renaming leaves the key alone and every copy of the node is the
+// same element afterwards, morphed rather than replaced.
+When(
+  "I rename the title {string} to {string} in the outline",
+  async function (from, to) {
+    const lines = this.outline.split("\n");
+    const at = lines.findIndex((l) => l.trim().startsWith(from));
+    assert.notEqual(at, -1, `${from} is not in the outline`);
+    lines[at] = lines[at].replace(from, to);
+    await this.rewrite(lines.join("\n"));
+  },
+);
+
 // By its own line, at whatever depth it sits: a title is unique in the
 // fixture, so "the line that says this" means one line.
 When("I remove the title {string} from the outline", async function (title) {

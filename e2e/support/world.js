@@ -168,6 +168,21 @@ export class OlaiWorld extends World {
     return (await res.json()).today;
   }
 
+  /** The stream a PAGE would open, read out of a page's own markup.
+   *
+   *  The address is not a route this harness may know: it carries the boot id
+   *  of the process that drew the page (`/live/<boot-id>/events`), which is
+   *  how a tab that outlived a restart is told to reload instead of sitting
+   *  subscribed to a server that is gone. A harness that spelled it would be
+   *  spelling one server's identity at another one. */
+  async streamUrl() {
+    const res = await fetch(this.url("/"));
+    const html = await res.text();
+    const m = /sse-connect="([^"]+)"/.exec(html);
+    if (!m) throw new Error("the page carries no stream");
+    return new URL(m[1], this.url("/")).toString();
+  }
+
   // ---- the agent's boot ---------------------------------------------------
 
   /** Wait until the agent's boot frames have landed ON THE SERVER.
@@ -187,7 +202,7 @@ export class OlaiWorld extends World {
     const control = new AbortController();
     const timer = setTimeout(() => control.abort(), timeout);
     try {
-      const res = await fetch(this.url("/events"), { signal: control.signal });
+      const res = await fetch(await this.streamUrl(), { signal: control.signal });
       for await (const frame of sseFrames(res.body)) {
         if (frame.event === "chat" && JSON.parse(frame.data).type === "commands") return;
       }
@@ -246,6 +261,14 @@ export class OlaiWorld extends World {
 
   async marked() {
     return await this.page.evaluate((k) => window[k] === true, MARK);
+  }
+
+  /** Wait for the mark to go, which is the one thing only a reload does.
+   *  Polled in the page rather than asserted once: a reload the SERVER asked
+   *  for arrives when its frame does, and the step that triggered it only
+   *  started the process that will send it. */
+  async waitForReload(timeout = 15_000) {
+    await this.page.waitForFunction((k) => !window[k], MARK, { timeout });
   }
 }
 

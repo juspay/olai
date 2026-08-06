@@ -23,6 +23,7 @@
 ;;   (live-link clist "/c/alpha")              ; on a link into it
 ;;   (live-item clist li "alpha" ...)          ; on one row of it
 ;;   (stream-frame counts 'counts-changed cursor #:id cursor)
+;;   (stream-event counts 'counts-changed)     ; the name, where DATA carries it
 ;;
 ;; Two rules shape everything below.
 ;;
@@ -47,6 +48,7 @@
 
 (provide define-stream
          stream-frame
+         stream-event
          stream-heartbeat
          define-live-region
          live-connect
@@ -227,14 +229,15 @@
        ev)))
 
   ;; `'counts-changed`, and nothing that has to be run to find out.
-  (define (literal-event e)
+  (define (literal-event e who)
     (syntax-parse e
       [((~literal quote) name:id) #'name]
       [_ (raise-syntax-error
           #f
           (string-append
            "not a literal event\n"
-           "  stream-frame's event must be a quoted name, like 'counts-changed\n"
+           "  " (symbol->string who)
+           "'s event must be a quoted name, like 'counts-changed\n"
            "  an event name that is computed is an event name nothing can check")
           e)]))
 
@@ -318,9 +321,29 @@
     [(_ stream:id event:expr data:expr
         (~optional (~seq #:id id:expr) #:defaults ([id #'#f])))
      (define sd (live-lookup 'stream #'stream 'stream-frame "first argument"))
-     (define ev (literal-event #'event))
+     (define ev (literal-event #'event 'stream-frame))
      (check-event sd #'stream ev 'stream-frame)
      (tag stx #`(make-frame #,(symbol->string (syntax-e ev)) data #:id id))]))
+
+;; (stream-event stream 'event) -> string?
+;;
+;; One event name, as the string it is on the wire — for the places a name has
+;; to travel as DATA rather than as a frame. The page has one stream and every
+;; event rides it, so a panel whose payload is not markup subscribes to a name
+;; in the browser (`live.on`); the name reaches it on an attribute, and this is
+;; the checked way to write one.
+;;
+;;   (span ((data-chat-event ,(stream-event chat-events 'chat))))
+;;
+;; The alternative is a string literal in the drawer and the same string in the
+;; producer, which is the coincidence this whole module exists to refuse.
+(define-syntax (stream-event stx)
+  (syntax-parse stx
+    [(_ stream:id event:expr)
+     (define sd (live-lookup 'stream #'stream 'stream-event "first argument"))
+     (define ev (literal-event #'event 'stream-event))
+     (check-event sd #'stream ev 'stream-event)
+     (tag stx #`#,(symbol->string (syntax-e ev)))]))
 
 ;; (stream-heartbeat stream) -> (>/c 0)
 ;;
@@ -337,7 +360,8 @@
 
 ;; ---- the drawer's end --------------------------------------------------------
 
-;; (define-live-region name #:stream stream [#:event event-name] [#:history? bool])
+;; (define-live-region name #:stream stream
+;;                          [#:event event-name] [#:history? bool] [#:id string])
 ;;
 ;; Declares the region a module DRAWS: one element that re-fetches its own
 ;; address and morphs the reply onto itself. `name` is the element's id, so it
@@ -345,6 +369,13 @@
 ;;
 ;;   (define-live-region clist #:stream counts)
 ;;   (define-live-region ticker #:stream clock #:history? #f)
+;;
+;; `#:id` is for the one case the default cannot serve: a module that already
+;; binds that name for something else — a CSS class of the same spelling, most
+;; likely, since an element's class and its id often want the same word. Then
+;; the BINDING is renamed and the id stays what the page has always called it.
+;; Spelled out on one line rather than left to drift, and a literal, so it is
+;; still written exactly once.
 ;;
 ;; `#:event` names which of the stream's events this region redraws on, and may
 ;; be left out when the stream declares exactly one — with two or more, leaving
@@ -358,11 +389,15 @@
     [(_ name:id
         (~alt (~once (~seq #:stream stream:id))
               (~optional (~seq #:event event:id))
-              (~optional (~seq #:history? history:boolean)))
+              (~optional (~seq #:history? history:boolean))
+              (~optional (~seq #:id element-id:str)))
         ...)
      (define sd (live-lookup 'stream #'stream 'define-live-region "#:stream"))
      (define events (stream-decl-events sd))
-     (define name-str (symbol->string (syntax-e #'name)))
+     (define name-str
+       (if (attribute element-id)
+           (syntax-e (attribute element-id))
+           (symbol->string (syntax-e #'name))))
      (define chosen
        (cond
          [(attribute event)

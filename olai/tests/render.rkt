@@ -16,7 +16,10 @@
          olai/web/render
          ;; olai's side of the live-view contract: the names a page is drawn
          ;; with, and the scripts it pulls in for them
-         (only-in olai/web/live outline-live-view live-script-srcs)
+         (only-in olai/web/live live-script-srcs)
+         ;; the stream address a page connects to: the transport's, carrying
+         ;; the boot id of the process that drew the markup
+         (only-in live/frame live-stream-path)
          ;; the list the picker draws: the themes the sheet carries, and the
          ;; one a page that picked nothing reads in
          (only-in olai/web/theme theme-names theme-default theme-default-paper)
@@ -49,11 +52,12 @@
 
   (define (xstr x) (xexpr->string x))
 
-  ;; The live view a served page is drawn with — the same value web/serve builds,
-  ;; so a test asserting markup is asserting the shipped markup. It is per-PAGE
-  ;; (it carries the page's own address), which is why this is a function.
-  (define (live-at href) (outline-live-view "/events" #:href href #:cursor "boot.1"))
-  (define the-live-view (live-at "/"))
+  ;; What a page's stream address looks like once the transport has put this
+  ;; process's boot id in it. Asked of the framework rather than rebuilt here:
+  ;; a test that spelled the shape would pin this file's arithmetic instead of
+  ;; the page's markup.
+  (define (stream-href cursor)
+    (string-append live-stream-path "?last-event-id=" cursor))
 
   ;; Where `needle` starts in `s`, for the assertions that are about ORDER.
   (define (string-index s needle)
@@ -68,7 +72,8 @@
   (define (sidebar-html)
     (xstr (render-sidebar (files (list "/tmp/Tasks.rkt" (list (tk "Inbox" #f #f '()))))
                           #:home-href "/"
-                          #:today-href "/today"))))
+                          #:today-href "/today"
+                          #:href "/"))))
 
 (module+ test
 
@@ -373,7 +378,8 @@
                                         (tk "Someday" #f #f '())))
                             (list "/tmp/Roadmap.rkt" (list (tk "WP2" #f #f '()))))
                      #:home-href "/"
-                     #:today-href "/today")))
+                     #:today-href "/today"
+                     #:href "/")))
     (check-true (string-contains? s "href=\"/today\"") s)
     (check-true (string-contains? s "Today") s)
     (check-true (string-contains? s "Starred") s)
@@ -562,6 +568,7 @@
                                  #:title "olai"
                                  #:stylesheet-href "/static/app.css"
                                  #:sidebar (render-sidebar fd #:home-href "/"
+                                                           #:href "/"
                                                            #:today-href "/today"))))
     (check-true (string-contains? s "<title>olai</title>") s)
     (check-true (string-contains? s "href=\"/static/app.css\"") s)
@@ -612,63 +619,58 @@
   ;; there); these are the four places olai puts it, and the one thing this
   ;; layer decides — that the region, and only the region, is the live one.
 
-  (test-case "a live view opts the body into the stream"
-    (define s (xstr (render-page '(div) #:live the-live-view)))
+  (test-case "the page opts into the stream the transport addresses"
+    (define s (xstr (render-page '(div) #:cursor "boot.1")))
     ;; the stream, and what this page was rendered at — so an edit that lands
-    ;; between drawing the page and its EventSource connecting is not lost
-    (check-true (string-contains? s "sse-connect=\"/events?last-event-id=boot.1\"") s)
+    ;; between drawing the page and its EventSource connecting is not lost.
+    ;; The address carries the boot id of THIS process: a tab that outlives a
+    ;; restart connects somewhere the new server does not answer, and is told
+    ;; to reload rather than left subscribed to nothing.
+    (check-true (string-contains? s (format "sse-connect=\"~a\"" (stream-href "boot.1"))) s)
     (check-true (string-contains? s "hx-ext=\"sse,morph\"") s)
-    ;; and without one there is no stream on the page at all
-    (check-false (string-contains? (xstr (render-page '(div))) "sse-connect")))
+    ;; a page drawn from no cursor still connects — it just carries the old gap
+    (check-true (string-contains? (xstr (render-page '(div))) "sse-connect")))
 
   (test-case "the live region re-fetches its own address and morphs itself"
-    (define s (xstr (render-page '(div) #:live (live-at "/today"))))
+    (define s (xstr (render-page '(div) #:href "/today" #:cursor "boot.1")))
     (check-true (string-contains? s "id=\"ol-live\"") s)
     (check-true (string-contains? s "hx-get=\"/today\"") s)
     (check-true (string-contains? s "hx-trigger=\"sse:outline\"") s)
     (check-true (string-contains? s "hx-select=\"#ol-live\"") s)
     (check-true (string-contains? s "hx-swap=\"morph:outerHTML\"") s)
     ;; back and forward restore the region, not the chrome around it
-    (check-true (string-contains? s "hx-history-elt") s)
-    ;; and with no live view the region is still there — it is where the
-    ;; content lives, not just where a swap lands
-    (define plain (xstr (render-page '(div))))
-    (check-true (string-contains? plain "id=\"ol-live\"") plain)
-    (check-false (string-contains? plain "hx-get") plain))
+    (check-true (string-contains? s "hx-history-elt") s))
 
-  (test-case "a page with a stream can say the stream is down"
-    (define s (xstr (render-page '(div) #:live the-live-view)))
+  (test-case "a page can say its stream is down"
+    (define s (xstr (render-page '(div) #:cursor "boot.1")))
     (check-true (string-contains? s "showing last known state") s)
     ;; the report sits OUTSIDE the region it reports on
-    (check-true (> (string-index s "ol-stream") (string-index s "ol-live")) s)
-    (check-false (string-contains? (xstr (render-page '(div))) "ol-stream")))
+    (check-true (> (string-index s "ol-stream") (string-index s "ol-live")) s))
 
   (test-case "links navigate partially and keep their plain href"
     (define fd (files (list "Tasks.rkt" (list (tk "Milk" #f #f '())))))
-    (define s (xstr (render-sidebar fd #:home-href "/" #:today-href "/today"
-                                    #:zoom-base "/n/" #:live the-live-view)))
+    (define s (xstr (render-sidebar fd #:home-href "/" #:today-href "/today" #:href "/"
+                                    #:zoom-base "/n/")))
     ;; no-JS, middle-click and copy-link all still read the href
     (check-true (string-contains? s (format "href=\"/n/~a\"" (title-key "Milk"))) s)
     (check-true (string-contains? s (format "hx-get=\"/n/~a\"" (title-key "Milk"))) s)
     (check-true (string-contains? s "hx-push-url=\"true\"") s)
+    ;; every link on the page names the region it aims at, and there is only
+    ;; one to name: a sidebar click that rebuilt the chat panel is the bug
+    ;; this is here to keep unwritable
     (check-true (string-contains? s "hx-target=\"#ol-live\"") s)
+    (check-false (string-contains? s "hx-target=\"#ol-chat\"") s)
     ;; the chrome links too: Today and the brand are navigation like any other
-    (check-true (string-contains? s "hx-get=\"/today\"") s)
-    ;; and without a live view they are ordinary links
-    (define plain (xstr (render-sidebar fd #:home-href "/" #:today-href "/today"
-                                        #:zoom-base "/n/")))
-    (check-false (string-contains? plain "hx-get") plain))
+    (check-true (string-contains? s "hx-get=\"/today\"") s))
 
   (test-case "the bullet and the crumbs navigate the same way"
     (define bullet (xstr (render-node-fragment (tk "T" #f #f '() #:id "t1")
                                                #:today "2026-08-04"
-                                               #:zoom-base "/n/"
-                                               #:live the-live-view)))
+                                               #:zoom-base "/n/")))
     (check-true (string-contains? bullet "hx-get=\"/n/t1\"") bullet)
     (define crumbs (xstr (render-breadcrumbs (list (list "Ship" "t1"))
                                              #:home-href "/"
-                                             #:zoom-base "/n/"
-                                             #:live the-live-view)))
+                                             #:zoom-base "/n/")))
     (check-true (string-contains? crumbs "hx-get=\"/n/t1\"") crumbs)
     ;; home is a crumb like any other
     (check-true (string-contains? crumbs "hx-get=\"/\"") crumbs))

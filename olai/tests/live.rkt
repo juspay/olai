@@ -7,10 +7,9 @@
 ;; without.
 
 (require racket/string
+         live/dsl
          live/frame
          (only-in live/hub live-boot-id)
-         (only-in live/client live-view-region live-view-event live-view-stream
-                  live-view-href live-view-cursor)
          olai/web/live)
 
 (module+ test
@@ -22,6 +21,11 @@
     (define fs (outline-catch-up last-id (outline-cursor rev)))
     (and (pair? fs)
          (list (frame-name (car fs)) (frame-data (car fs)) (frame-id (car fs)))))
+
+  ;; The event's name comes off the declaration (`outline-events`, web/live)
+  ;; rather than out of a literal here: the point of declaring it is that this
+  ;; file cannot be the second place it is spelled.
+  (define outline-event (stream-event outline-events 'outline))
 
   (define (frame-of rev) (list outline-event (outline-cursor rev) (outline-cursor rev))))
 
@@ -62,18 +66,15 @@
     ;; Re-fetching is a cheap wrong answer; stale content is an expensive one
     (check-equal? (owed "banana" 3) (frame-of 3)))
 
-  (test-case "the view a page is drawn with names the region and the event"
-    (define lv (outline-live-view "/events" #:href "/today" #:cursor "boot.41"))
-    (check-equal? (live-view-region lv) live-region-id)
-    (check-equal? (live-view-event lv) outline-event)
-    (check-equal? (live-view-stream lv) "/events")
-    ;; the page's own address, which is what the region re-fetches — a
-    ;; per-page fact, on the per-page value
-    (check-equal? (live-view-href lv) "/today")
-    ;; and what the page was drawn from, so its FIRST connection is a
-    ;; reconnect like any other: an edit landing between the render and the
-    ;; stream opening is a state the page can be told it is behind
-    (check-equal? (live-view-cursor lv) "boot.41"))
+  ;; The stream's vocabulary is declared here and referenced everywhere else,
+  ;; so `outline` is spelled once in the whole app. What a page WEARS because
+  ;; of that is tests/render.rkt's; this only pins the declaration.
+  (test-case "the outline stream declares one event and a cadence"
+    (check-equal? (stream-event outline-events 'outline) "outline")
+    ;; the beat the client sizes its watchdog by, off the declaration rather
+    ;; than out of the response's default
+    (check-equal? outline-heartbeat-seconds (stream-heartbeat outline-events))
+    (check-true (positive? outline-heartbeat-seconds)))
 
   (test-case "the client runtime is mounted somewhere of its own"
     ;; not among olai's assets: those files are the framework's, and a host

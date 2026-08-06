@@ -38,6 +38,9 @@
 (require json
          racket/contract
          racket/list
+         ;; this module is the conversation's PRODUCER, so its stream's
+         ;; vocabulary is declared here (live/README.md)
+         live/dsl
          olai/acp
          (only-in olai/ops exn:fail:op)
          ;; render-time Markdown has one owner; this module only asks it for
@@ -76,9 +79,22 @@
           [chat-catch-up (-> chat? (-> any) (listof (cons/c string? string?)))]
           [chat-handle-event! (-> chat? acp-event? void?)]))
 
-;; The SSE event name chat frames ride under. One owner: the page that
-;; subscribes and the module that broadcasts agree by requiring it.
-(define acp-event-name "chat")
+;; The stream the conversation rides. It shares the page's ONE connection with
+;; the outline's (web/live) — a page has one EventSource and every event name
+;; is on it — and it is declared here because this is where the frames come
+;; from.
+;;
+;; The payload is JSON rather than markup, so nothing SWAPS on this name: the
+;; panel subscribes to it in the browser (`live.on`, static/chat.js), which is
+;; why the name has to travel as data. `stream-event` is that trip, checked.
+(define-stream chat-events #:events (chat))
+
+(provide chat-events)
+
+;; The SSE event name chat frames ride under, as the string the wire and the
+;; page's data- attribute both want. One owner, and now one declaration behind
+;; it: a typo here does not compile.
+(define acp-event-name (stream-event chat-events 'chat))
 
 ;; A wedged turn must not make "new chat" hang: cancel, wait this long, then
 ;; take the subprocess away from it.

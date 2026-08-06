@@ -16,10 +16,13 @@ import { isMarkedElement, markElement } from "../support/dom.js";
 
 // Enough nodes that the page is taller than the window. One write, and its own
 // swap, before the scenario's real one.
+// Scoped to the outline pane: the sidebar tree is a live region of its own
+// now and lists the same top-level nodes, so an unscoped match finds the title
+// twice — once in each surface that followed the write.
 When("the outline is long enough to scroll", async function () {
   const filler = Array.from({ length: 60 }, (_, i) => `Filler ${i}`).join("\n");
   await this.append(`${filler}\n`);
-  await this.page.getByText("Filler 59", { exact: true }).waitFor();
+  await this.node("Filler 59").first().waitFor();
 });
 
 When("I scroll the outline down", async function () {
@@ -118,8 +121,10 @@ Then("the page says it is showing last known state", async function () {
   await this.page.getByText("showing last known state").waitFor({ state: "visible" });
 });
 
-// Quiet is the healthy state: nothing on the page about the stream at all.
-// Waited for — the reconnect is the browser's own, on its own clock.
-Then("the page says nothing about the stream", async function () {
-  await this.page.locator("#ol-stream").waitFor({ state: "hidden" });
+// Healthy is a state with a look of its own, not the absence of the other
+// two: an indicator that shows nothing while things are fine cannot be told
+// apart from an indicator that never worked. Waited for — a reconnect is the
+// browser's own, on its own clock.
+Then("the page says the stream is live", async function () {
+  await this.page.getByText("live", { exact: true }).waitFor({ state: "visible" });
 });
