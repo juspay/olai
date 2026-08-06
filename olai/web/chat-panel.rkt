@@ -285,19 +285,76 @@
   #:font-family ,mono
   #:font-size ,micro-size)
 
-;; one line per tool call, updated in place by id
+;; ---- one tool call ----------------------------------------------------------
+;;
+;; One line, and the line is a BUTTON. What you came to the panel for is what
+;; the agent SAID, and a turn that ran a dozen tools used to bury it under a
+;; dozen wrapped paragraphs of machine chatter. So a call comes up FOLDED: the
+;; title clamped to its line, whatever the agent called it, until you ask for
+;; the rest of it. A frame carries a title, a status and an id (web/chat), so
+;; the title is what there is to unfold — which is why the button's own label
+;; is what its aria-expanded is about, and there is no region to name.
+;;
+;; VIEW state, exactly like the outline's collapse: the transcript keeps every
+;; call in full whatever a browser is showing, no frame changes shape, and
+;; nothing on the wire knows a line is folded. static/chat.js writes it, and
+;; updates the line in place by id — same id, same line.
 (define-style ol-chat-tool
   #:display flex
   #:align-items baseline
   #:gap 0.375rem
+  ;; everything a button brings with it, undone: this is a line of the
+  ;; transcript that happens to be pressable, not a control of the chrome
+  #:width 100%
+  #:padding 0
+  #:border 0
+  #:background none
+  #:text-align left
+  #:cursor pointer
   #:font-family ,mono
   #:font-size 0.75rem
   #:color ,dim
   [(attribute & (= data-status ,tool-failed)) #:color ,rose-fg])
 
-(define-style ol-chat-tool-title #:overflow-wrap anywhere)
+;; The outline's disclosure triangle at the panel's scale — render.rkt's
+;; .ol-toggle is the original, and a second idiom for one gesture would be a
+;; second thing to learn. Pointing right while folded, a quarter turn open.
+;;
+;; What it does NOT copy is hiding until hover: the outline's triangle marks a
+;; node you CAN fold, and every line here is one and starts folded, so a
+;; triangle that appeared on hover would be an affordance a touch screen never
+;; finds. Quieter than its line instead — and by opacity, not by a colour,
+;; because a failed call paints the whole line and the triangle is part of it.
+(define-style ol-chat-tool-fold
+  #:flex none
+  #:font-size 0.625rem
+  #:line-height 1
+  #:opacity 0.55
+  #:transition (transform 120ms ease) (opacity 120ms ease)
+  [((: ,(sel ol-chat-tool) hover) &)
+   ((: ,(sel ol-chat-tool) focus-visible) &)
+   #:opacity 1]
+  [((attribute ,(sel ol-chat-tool) (= aria-expanded "true")) &)
+   #:opacity 1
+   #:transform (apply rotate 90deg)]
+  [@ media (#:prefers-reduced-motion reduce) #:transition none])
+
+;; Folded, ONE line whatever the agent called it: a shell command or an
+;; absolute path used to wrap into a paragraph, and a paragraph of chatter is
+;; the thing being fixed. Unfolded, the whole of it, spelled the way the agent
+;; spelled it.
+(define-style ol-chat-tool-title
+  #:flex (1 1 auto)
+  #:min-width 0
+  #:overflow hidden
+  #:text-overflow ellipsis
+  #:white-space nowrap
+  [((attribute ,(sel ol-chat-tool) (= aria-expanded "true")) &)
+   #:white-space pre-wrap
+   #:overflow-wrap anywhere])
 
 (define-style ol-chat-tool-glyph
+  #:flex none
   [((attribute ,(sel ol-chat-tool) (= data-status ,tool-completed)) &) #:color ,green]
   ;; a call still in flight spins; a finished one is a mark
   [((attribute ,(sel ol-chat-tool) (= data-status ,tool-pending)) &)

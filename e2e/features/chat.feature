@@ -79,3 +79,63 @@ Feature: the agent panel
     And the page has not reloaded
     And the chat panel is open
     And the last turn reads "hello world"
+
+  # Tool calls are machine chatter: they arrive folded, one compact line each,
+  # and unfold when asked. Folding is the browser's, like the outline's
+  # collapse — the transcript keeps every call in full either way, and no
+  # frame on the wire knows a line is shut.
+  Scenario: a tool call arrives folded and unfolds when I ask
+    When I open the home page
+    And I press the agent toggle
+    And I send "what is in the outline" to the agent
+    Then the last turn ran the tool "read Tasks.rkt"
+    And the last turn's tool call is folded
+    When I unfold the last turn's tool call
+    Then the last turn's tool call is unfolded
+    And the last turn ran the tool "read Tasks.rkt"
+
+  # What folding is FOR. A real agent's tool titles are shell commands and
+  # absolute paths, and they used to wrap into paragraphs that buried the
+  # answer above them. Folded, a title with more to say than the line has room
+  # for is cut off at the line; unfolded, all of it is there. LONGTOOL is what
+  # asks the fake agent for one of those (olai/tests/integration).
+  Scenario: a title too long for its line is cut off until I unfold it
+    When I open the home page
+    And I press the agent toggle
+    And I send "LONGTOOL what did you run" to the agent
+    Then the last turn's tool call is folded
+    And the tool call's title is cut off
+    When I unfold the last turn's tool call
+    Then the last turn's tool call is unfolded
+    And unfolding put the whole title on screen
+
+  # Only the chatter folds. What the agent SAID is what the panel is for, and
+  # there is nothing in it to press.
+  Scenario: the agent's own words never fold
+    When I open the home page
+    And I press the agent toggle
+    And I send "what is in the outline" to the agent
+    Then the last turn reads "hello world"
+    And the agent's words have nothing to unfold
+
+  # A line you unfolded must not shut under you. Two things move the panel
+  # after it: the outline's live re-swap beneath it, and another turn arriving
+  # in it — and the fold is keyed by the call's own id, so even the transcript
+  # being rebuilt around it brings it back open.
+  Scenario: an unfolded tool call stays unfolded while the panel keeps moving
+    When I open the home page
+    And I press the agent toggle
+    And I send "what is in the outline" to the agent
+    Then the last turn ran the tool "read Tasks.rkt"
+    When I unfold the last turn's tool call
+    And I add the title "Renew the passport" to the outline
+    Then I see the title "Renew the passport"
+    And the first turn's tool call is unfolded
+    When I send "anything else" to the agent
+    Then the chat panel is idle
+    And the first turn's tool call is unfolded
+    # Same id, same line: that is the frame vocabulary's own rule (web/chat),
+    # and the fake agent reuses one. So the line drawn into the new turn is a
+    # new element that comes up OPEN — which is the keyed re-apply a rebuilt
+    # transcript rides on, with nothing to rebuild it here but a second turn.
+    And the last turn's tool call is unfolded

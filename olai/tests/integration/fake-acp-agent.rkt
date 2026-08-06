@@ -242,6 +242,16 @@
                  'toolCallId "call-replay"
                  'status "completed")))
 
+;; What the one tool call is called. Short by default, because that is what a
+;; test asserting a title wants to read — and, on LONGTOOL, the other thing a
+;; real agent hands a panel: a shell command no line has room for. A folded
+;; tool call is one line whatever it was called, and only a long one shows it.
+(define (tool-title text)
+  (if (string-contains? text "LONGTOOL")
+      (string-append "bash find . -name '*.rkt' -newer Roadmap.rkt "
+                     "| xargs grep -n 'tool_call' | sort -u | head -40")
+      "read Tasks.rkt"))
+
 ;; Sleep in slices so a cancel lands promptly. -> #t if it ran to the end.
 (define (dawdle seconds)
   (let loop ([left seconds])
@@ -304,7 +314,7 @@
      (chunk! "world")
      (update! (hash 'sessionUpdate "tool_call"
                     'toolCallId "call-1"
-                    'title "read Tasks.rkt"
+                    'title (tool-title text)
                     'kind "read"
                     'status "pending"))
      (update! (hash 'sessionUpdate "tool_call_update"
