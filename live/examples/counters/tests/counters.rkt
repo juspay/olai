@@ -4,9 +4,10 @@
 ;;
 ;; A worked example that nothing runs is a worked example that rots, so this
 ;; is the net under it: the page serves, both surfaces deliver a frame on the
-;; one stream, a client that says it has been away is caught up, and the two
-;; regions keep the properties the example exists to show — a link that aims
-;; only at its own region, and rows keyed by counter rather than by position.
+;; one stream, a client that says it has been away is caught up, a client that
+;; names a server that is gone is told to reload, and the two regions keep the
+;; properties the example exists to show — a link that aims only at its own
+;; region, and rows keyed by counter rather than by position.
 ;;
 ;; It lives with the example and not in live/tests: the example consumes the
 ;; framework, so a framework test that reached the other way would invert the
@@ -19,11 +20,15 @@
 (require net/http-client
          racket/port
          racket/string
+         live/client
+         live/dsl
+         (only-in live/frame live-stream-path live-reload-event)
          (only-in live/hub heartbeat-event)
          (only-in "../app.rkt" start-counters-server)
-         (only-in "../counters.rkt" counter)
-         (only-in "../list.rkt" clist-view render-list)
-         (only-in "../header.rkt" ticker-view render-header))
+         (only-in "../clock.rkt" clock)
+         (only-in "../counters.rkt" counter counts)
+         (only-in "../list.rkt" render-list)
+         (only-in "../header.rkt" render-header))
 
 (module+ test
   (require rackunit))
@@ -42,10 +47,11 @@
     (values (string->number (cadr (string-split (bytes->string/utf-8 status) " ")))
             body))
 
-  ;; /events never ends, so this keeps the port. #:last-event-id is what a
+  ;; The stream never ends, so this keeps the port. #:last-event-id is what a
   ;; reconnecting EventSource sends; a test that passes one is a browser that
-  ;; has been asleep.
-  (define (open-events port #:path [path "/events"] #:last-event-id [last-id #f])
+  ;; has been asleep. The path defaults to this process's own — the same
+  ;; string the page puts on itself, boot id and all.
+  (define (open-events port #:path [path live-stream-path] #:last-event-id [last-id #f])
     (define-values (status _headers in)
       (http-sendrecv "127.0.0.1" path #:port port #:method #"GET"
                      #:headers (if last-id
@@ -99,7 +105,10 @@
        ;; the input box the demo asks you to type in, outside both regions
        (check-true (string-contains? body "id=\"scratch\"") body)
        ;; one EventSource for the page: two surfaces, one connection
-       (check-equal? (length (regexp-match* #px"sse-connect=" body)) 1 body))))
+       (check-equal? (length (regexp-match* #px"sse-connect=" body)) 1 body)
+       ;; and it names THIS process: a page drawn by another one connects
+       ;; somewhere this server does not answer
+       (check-true (string-contains? body live-stream-path) body))))
 
   (test-case "a counter's own page answers with the region its link targets"
     (with-server
@@ -142,21 +151,38 @@
        (check-equal? (cadr ev) (caddr ev))
        (close-input-port in))))
 
+  ;; The skew a cursor cannot see: a tab drawn by a process that is gone. Its
+  ;; markup names a boot id nobody answers to, and the answer is a frame and
+  ;; not a status — EventSource hides the code from the page and retries a
+  ;; refusal forever.
+  (test-case "a stream from a server that is gone is answered, not refused"
+    (with-server
+     (λ (port)
+       (define-values (code in) (open-events port #:path "/live/yesterday/events"))
+       (check-equal? code 200)
+       (define ev (next-event in))
+       (check-not-false ev "the stale stream said nothing at all")
+       (check-equal? (car ev) live-reload-event)
+       ;; and then it ends: the page is on its way to a new document
+       (check-false (next-event in #:timeout 5) "the stale stream stayed open")
+       (close-input-port in))))
+
   ;; ---- what the two regions promise each other -------------------------------
 
   (test-case "every counter link aims at the list, and rows are keyed by counter"
-    (define lv (clist-view "/" "boot.1"))
-    (define region (render-list lv (list (counter "alpha" 7 3) (counter "beta" 2 5))))
+    (define region (render-list "/" (list (counter "alpha" 7 3) (counter "beta" 2 5))))
     (check-equal? (attr region 'id) "clist")
     (check-equal? (attr region 'hx-swap) "morph:outerHTML")
     ;; (div ATTRS (ol ROW ...)), and a row is (li ATTRS LINK VALUE)
     (define rows (cdr (caddr region)))
+    ;; minted by live-item from the region and the counter's name — no id
+    ;; string is written in list.rkt at all
     (check-equal? (for/list ([r (in-list rows)]) (attr r 'id))
-                  '("row-alpha" "row-beta"))
+                  (list (live-item-id "clist" "alpha") (live-item-id "clist" "beta")))
     (for ([r (in-list rows)])
       (define link (caddr r))
-      ;; never "#ticker": a link is built from the view it belongs to, which
-      ;; is what makes the second surface unreachable from the first
+      ;; never "#ticker": a link names the region it aims at, which is what
+      ;; makes the second surface unreachable from the first
       (check-equal? (attr link 'hx-target) "#clist")
       (check-equal? (attr link 'hx-swap) "morph:outerHTML")))
 
@@ -165,8 +191,38 @@
   ;; the ticker gives the list the history and keeps the swap.
   (test-case "the ticker yields the history element to the list"
     ;; (header REGION INPUT HEALTH): the region is the first of the three
-    (define ticker (cadr (render-header (ticker-view "/" "boot.1") "00:00:00")))
+    (define ticker (cadr (render-header "/" "00:00:00")))
     (check-equal? (attr ticker 'id) "ticker")
     (check-equal? (attr ticker 'hx-trigger) "sse:clock-tick")
     (check-false (attr ticker 'hx-history-elt))
-    (check-not-false (attr (render-list (clist-view "/" "boot.1") '()) 'hx-history-elt))))
+    (check-not-false (attr (render-list "/" '()) 'hx-history-elt)))
+
+  ;; ---- declared is what hand-wired was ---------------------------------------
+
+  ;; The example was built against live/client's functions and migrated to the
+  ;; forms; this is the assertion that the migration changed the SOURCE and not
+  ;; the page. Two things did change, both on purpose and both below: the
+  ;; stream's address now carries the server's boot id, and a row's id is
+  ;; minted from its region instead of written as "row-<name>".
+  (test-case "the declared forms emit what the hand-wired view did"
+    (define hand
+      (make-live-view #:region "clist"
+                      #:event "counts-changed"
+                      ;; was "/events", spelled in the drawer and again in the
+                      ;; route table
+                      #:stream live-stream-path
+                      #:href "/"
+                      #:cursor "boot.1"))
+    ;; the page's connection: two vocabularies named, one EventSource
+    (check-equal? (live-connect counts clock #:cursor "boot.1")
+                  (live-connect-attributes hand))
+    (define drawn (render-list "/" (list (counter "alpha" 7 3))))
+    (check-equal? (cadr drawn) (live-region-attributes hand))
+    (define link (caddr (car (cdr (caddr drawn)))))
+    (check-equal? (cadr link) (live-link-attributes hand "/c/alpha"))
+    ;; the second region, which yields the history element and nothing else
+    (define ticker-hand
+      (make-live-view #:region "ticker" #:event "clock-tick"
+                      #:stream live-stream-path #:href "/" #:cursor "boot.1"))
+    (check-equal? (cadr (cadr (render-header "/" "00:00:00")))
+                  (live-region-attributes ticker-hand #:history? #f))))

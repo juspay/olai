@@ -2,6 +2,11 @@
 
 ;; SSE framing: the wire vocabulary, and nothing that knows who is listening.
 ;;
+;; Everything both ENDS have to agree on is here — the framing, the cursor's
+;; query parameter, the beat's cadence, and the identity of the process itself
+;; (`live-boot-id` and the stream address it rides in). live/hub reads those;
+;; live/client writes them; neither requires the other, and this is why.
+;;
 ;; A frame is (name, data, id). The name is what a client subscribes to, the
 ;; data is a string this module never reads, and the id is the STREAM CURSOR —
 ;; the last id a client saw is what its browser sends back as `Last-Event-ID`
@@ -35,7 +40,17 @@
           ;; Spelled here, with the rest of the wire's vocabulary, so the end
           ;; that writes it (live/client) and the end that reads it (live/hub)
           ;; share a binding and not a coincidence.
-          [live-cursor-param string?]))
+          [live-cursor-param string?]
+          ;; how often the stream beats when nobody says otherwise. Both ends
+          ;; hold this number — the server sends it, the browser sizes its
+          ;; watchdog by it — so it is one binding here rather than two
+          ;; literals that agree today
+          [live-default-heartbeat-seconds (>/c 0)]
+          ;; WHICH SERVER this is, and where its stream lives. See below.
+          [live-boot-id string?]
+          [live-stream-path string?]
+          [live-boot-current? (-> string? boolean?)]
+          [live-reload-event string?]))
 
 ;; ---- what a field may hold --------------------------------------------------
 
@@ -91,3 +106,57 @@
 ;; Named for the header it stands in for: it is the same question ("what did
 ;; you last see"), asked of a connection that has not seen anything yet.
 (define live-cursor-param "last-event-id")
+
+;; The beat says how often to expect the next one, so this number is the
+;; stream's rather than the watchdog's. It lives here because BOTH ends read
+;; it: live/hub writes it into every beat, and static/live.js starts its
+;; watchdog on it before the first beat lands.
+(define live-default-heartbeat-seconds 15)
+
+;; ---- which server this is ---------------------------------------------------
+
+;; Catch-up rests on one property of an id: two different states must never be
+;; called the same thing. A host whose state is a COUNTER breaks that without
+;; noticing, because a counter restarts with the process — so `3` names one
+;; thing before a restart and another after it, and every client that
+;; reconnects across one is told it is up to date when it is not.
+;;
+;; That hazard is the framework's to fix, not each host's to remember: a
+;; process can identify itself, and this is that string. Combine it with
+;; whatever counts (`(string-append live-boot-id "." n)`) and the property
+;; holds. A host whose state is already globally unique — a commit hash, a
+;; ULID, a log offset — has no use for it.
+;;
+;; Reading a clock is not interpreting an id: this hands one out, and still
+;; never looks at one.
+(define live-boot-id
+  (number->string (inexact->exact (round (current-inexact-milliseconds)))))
+
+;; And the same string again, in the one place a browser cannot help but send
+;; it back: the address it connects to.
+;;
+;; The cursor heals a client that is BEHIND. It cannot heal a client that is
+;; from another BUILD — a deploy that renames an event leaves yesterday's tab
+;; holding an EventSource that is open, beating, healthy-looking and subscribed
+;; to a name nothing sends any more. Nothing about that state is visible from
+;; either end, because both ends are behaving.
+;;
+;; So the server's identity rides the URL. A tab that connects to a boot id
+;; this process does not answer to is, by construction, a tab drawn by another
+;; process, whatever it thinks it knows — and the answer to it is one frame
+;; saying reload (live/hub's `live-reload-response`), never an HTTP error:
+;; `EventSource` hides status codes from the page and retries forever, so a 404
+;; is a stale tab hammering a server that has no way to tell it so.
+;;
+;; The cost is honest and accepted: a restart of the SAME code is a new boot id
+;; too, so every open tab reloads. Keying on a hash of the build instead would
+;; spare those — and would put a build system in the middle of a transport.
+(define live-stream-path (string-append "/live/" live-boot-id "/events"))
+
+(define (live-boot-current? boot) (equal? boot live-boot-id))
+
+;; Namespaced away from a host's event names, like the heartbeat: the transport
+;; must not be able to collide with an app's vocabulary. The payload is the
+;; boot id this server DOES answer to, so a human reading the stream by hand
+;; can see which two processes disagreed.
+(define live-reload-event "live:reload")
