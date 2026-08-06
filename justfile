@@ -21,10 +21,11 @@ mod ci 'ci/mod.just'
 default:
     @just --list
 
-# Two collections, and the order is the dependency: `live` is the live-view
+# Three collections, and the order is the dependency: `arch` is the declaration
+# language every package here writes its arch.rkt in, `live` is the live-view
 # framework (its own package, no olai imports), `olai` is its first consumer.
-# Linking live first is what keeps olai's declared dep on it from sending raco
-# to a catalog for a package that lives in this repo.
+# Linking them in that order is what keeps a declared dep from sending raco to
+# a catalog for a package that lives in this repo.
 
 # The browser runtime `live/` ships is pinned upstream (npins) and built by
 # live/default.nix, not committed. The devShell exports where it landed; this
@@ -47,22 +48,25 @@ vendor:
     install -d {{justfile_directory()}}/olai/web/static/hljs
     install -m 0644 "$OLAI_HLJS_ASSETS"/* {{justfile_directory()}}/olai/web/static/hljs/
 
-# Deps + raco link ./live and ./olai (cheap; does not recompile — use `just build`)
+# Deps + raco link ./arch, ./live and ./olai (cheap; does not recompile — use `just build`)
+# `arch` first: every package here carries arch.rkt declarations, and those are
+# `#lang arch` modules the other two cannot compile without it (arch/README.md).
 install: vendor
     mkdir -p "{{PLTUSERHOME}}"
     raco pkg install --auto --skip-installed gregor markdown css-expr
+    raco pkg install --auto --skip-installed --link {{justfile_directory()}}/arch
     raco pkg install --auto --skip-installed --link {{justfile_directory()}}/live
     raco pkg install --auto --skip-installed --link {{justfile_directory()}}/olai
 
 # raco setup: write .zo and keep them coherent (see docs/hacking.md)
 build: install
-    raco setup --pkgs live olai
+    raco setup --pkgs arch live olai
 
-# Drop olai/**/compiled (linklet-mismatch escape hatch; prefer `just build`)
+# Drop every compiled/ (linklet-mismatch escape hatch; prefer `just build`)
 clean:
     #!/usr/bin/env bash
     set -euo pipefail
-    find olai -type d -name compiled -print0 | xargs -0 rm -rf
+    find arch live olai -type d -name compiled -print0 | xargs -0 rm -rf
 
 # The CLI answers in JSON (the human view is `just serve`); these recipes only
 # spell the default outlines.
@@ -87,6 +91,23 @@ serve *args: install
 expand file: build
     racket {{justfile_directory()}}/live/expand.rkt {{file}}
 
+# The layering, checked against the arch.rkt declarations beside the code:
+# which way dependencies point, who owns which ambient authority, one owner per
+# tagged concept, and whether `git log` agrees with the clocks (arch/README.md).
+#
+# `build` first, for the same reason `test` does it: the checker asks compiled
+# modules what they import and export, and with .zo on disk the whole tree is
+# about two seconds — the edit loop's cost class, not CI's.
+#
+# Arguments are the checker's: `--explain FILE` prints one module's effective
+# declaration after defaults and overrides, `--window N` audits N commits.
+# The checker is only worth having if you can see what it thinks, so --explain
+# is interface and not a debug aid.
+
+# Check the declared architecture (args: --explain FILE, --window N)
+arch *args: build
+    racket {{justfile_directory()}}/arch/main.rkt {{args}} {{justfile_directory()}}
+
 # The two sets differ in what they cost: unit tests run in this VM, the
 # integration ones spawn `olai` subprocesses and boot real servers. Both are
 # parallel-safe (ephemeral ports, temp dirs), so -j is free speed.
@@ -98,9 +119,9 @@ expand file: build
 css-classes: install
     racket -e '(require olai/web/skin (only-in olai/web/style class-names)) (for-each displayln (sort (class-names) string<?))' > olai/tests/classes.golden
 
-# Unit tests: in-process, no subprocesses (live/tests/ + olai/tests/*.rkt)
+# Unit tests: in-process, no subprocesses (arch/tests/ + live/tests/ + olai/tests/*.rkt)
 test: build
-    raco test -j {{ num_cpus() }} live/tests/*.rkt olai/tests/*.rkt
+    raco test -j {{ num_cpus() }} arch/tests/*.rkt live/tests/*.rkt olai/tests/*.rkt
 
 # Integration tests: subprocess CLI + real servers (olai/tests/integration/)
 test-integration: build
@@ -108,7 +129,7 @@ test-integration: build
 
 # Everything, in one -j pool so the slow files start first
 test-all: build
-    raco test -j {{ num_cpus() }} olai/tests/integration/ live/tests/*.rkt olai/tests/*.rkt
+    raco test -j {{ num_cpus() }} olai/tests/integration/ arch/tests/*.rkt live/tests/*.rkt olai/tests/*.rkt
 
 # Browser journeys: what the wire tests cannot see, because no JS runs there
 # (folding, prefs, the live swap, the chat panel). NEVER part of `just test` —

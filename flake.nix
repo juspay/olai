@@ -87,6 +87,11 @@
           # package-lock.json it builds from.
           acpAgent = pkgs.callPackage ./acp { };
 
+          # The declaration language every package here writes its arch.rkt in
+          # (arch/README.md). Under both of the collections below, so it is
+          # built first and installed first everywhere they are.
+          arch = pkgs.callPackage ./arch { };
+
           # The live-view collection with its vendored browser runtime staged
           # in. Which upstream, which artifact, which name lives in
           # live/default.nix, next to the collection it is about.
@@ -100,19 +105,19 @@
           # The framework's worked example, as its own artifact: it consumes
           # `live` and is not part of it. Its nix, its just module and its
           # test all live in that directory — this line is the mount.
-          counters = pkgs.callPackage ./live/examples/counters { inherit live; };
+          counters = pkgs.callPackage ./live/examples/counters { inherit arch live; };
 
           # The build (racket build, TZDIR dance, raco exe stub, ACP
           # default) lives in nix/olai.nix; src is a flake-level decision.
           olai = pkgs.callPackage ./nix/olai.nix {
             inherit (racketDepsPkg) racketPkgs racketDeps;
-            inherit acpAgent live highlightJs;
+            inherit acpAgent arch live highlightJs;
             src = ./.;
           };
         in
         {
           default = olai;
-          inherit olai live counters;
+          inherit olai arch live counters;
           highlight-js = highlightJs;
           racket-deps = racketDepsPkg.racketDeps;
           acp-agent = acpAgent;

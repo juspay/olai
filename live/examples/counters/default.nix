@@ -5,21 +5,23 @@
 #
 # The Nix file lives beside what it is about, like acp/, e2e/ and live/ do;
 # flake.nix only callPackages it (`nix run .#counters`).
-{ lib, stdenv, racket, live }:
+{ lib, stdenv, racket, arch, live }:
 
 stdenv.mkDerivation {
   pname = "counters";
   version = "0.1";
 
-  # The program is these five modules and the test that says they work,
-  # stated positively: the README, this file and the just module are about the
-  # example without being part of it, so editing any of them rebuilds nothing.
-  # A sixth module is one line here — the right amount of ceremony for a
-  # directory whose whole point is that a human reads all of it.
+  # The program is these five modules, the declaration that says what they may
+  # depend on and reach for, and the test that says they work — stated
+  # positively: the README, this file and the just module are about the example
+  # without being part of it, so editing any of them rebuilds nothing. A sixth
+  # module is one line here — the right amount of ceremony for a directory
+  # whose whole point is that a human reads all of it.
   src = lib.fileset.toSource {
     root = ./.;
     fileset = lib.fileset.unions [
       ./app.rkt
+      ./arch.rkt
       ./clock.rkt
       ./counters.rkt
       ./header.rkt
@@ -48,8 +50,10 @@ stdenv.mkDerivation {
     # --copy, not --link: a link would leave /build paths in the catalog for
     # raco exe to bake in. The framework comes from its own derivation, with
     # its vendored static/ already staged (live/default.nix).
+    cp -a "${arch}" ./arch-pkg
     cp -a "${live}" ./live-pkg
-    chmod -R u+w ./live-pkg
+    chmod -R u+w ./arch-pkg ./live-pkg
+    raco pkg install --copy --no-docs --deps force ./arch-pkg
     raco pkg install --copy --no-docs --deps force ./live-pkg
 
     mkdir -p $out/bin
