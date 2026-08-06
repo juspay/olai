@@ -36,6 +36,7 @@
    "body{font:14px/1.7 ui-monospace,monospace;margin:2rem;}"
    "header{display:flex;gap:1.5rem;align-items:center;margin-bottom:1.5rem;}"
    "#ticker{font-weight:bold;}"
+   "#about{color:#666;max-width:48rem;margin:0 0 1.5rem;}"
    "#clist ol{margin:0;padding-left:2rem;}"
    "#clist .v{margin-left:.75rem;color:#666;}"
    "#health::after{content:'live';color:green;}"
@@ -62,6 +63,14 @@
      ;; surfaces, and either view spells the same stream and the same cursor
      (body (,@(live-connect-attributes ticker))
            ,(render-header ticker (clock-now))
+           ;; what the reader is looking at. Chrome like the header: outside
+           ;; both regions, so nothing ever swaps it
+           (p ((id "about"))
+              "Three counters bump on the server and are listed by value, so"
+              " the rows reorder twice a second. The clock has its own producer"
+              " and its own event. Click a counter: the address changes and"
+              " only the list is swapped — the ticker, and whatever you typed"
+              " in the box, are never rebuilt.")
            ,(draw (clist-view href cursor))))))
 
 ;; A connection is born mid-story. The counters answer for their own ids; the
