@@ -26,8 +26,25 @@ default:
 # Linking live first is what keeps olai's declared dep on it from sending raco
 # to a catalog for a package that lives in this repo.
 
+# The browser runtime `live/` ships is pinned upstream (npins) and built by
+# live/default.nix, not committed. The devShell exports where it landed; this
+# copies it into live/static/, beside the collection's own live.js, which is
+# where define-runtime-path looks. Copied rather than symlinked: `raco pkg
+# install --copy` and `raco exe` both follow the directory, and a dangling
+# link into /nix/store after a GC is a worse failure than a stale byte.
+# Gitignored, so a stale copy is invisible to git and cheap to redo.
+[private]
+vendor:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -z "${OLAI_LIVE_ASSETS:-}" ]; then
+      echo "vendor: OLAI_LIVE_ASSETS unset — run inside \`nix develop\`" >&2
+      exit 1
+    fi
+    install -m 0644 "$OLAI_LIVE_ASSETS"/* {{justfile_directory()}}/live/static/
+
 # Deps + raco link ./live and ./olai (cheap; does not recompile — use `just build`)
-install:
+install: vendor
     mkdir -p "{{PLTUSERHOME}}"
     raco pkg install --auto --skip-installed gregor markdown css-expr
     raco pkg install --auto --skip-installed --link {{justfile_directory()}}/live
@@ -97,12 +114,16 @@ e2e_shell := if env('OLAI_E2E_SHELL', '') != '' { '' } else { 'nix develop .#e2e
 e2e *args:
     {{ e2e_shell }} bash -euc 'just build && just e2e-run "$@"' -- {{ args }}
 
+# The runner, inside the e2e shell. `vendor` and not `build`: the browser
+# runtime has to be on disk for the page to work, and staging it is a copy
+# rather than a package operation — so this node stays independent of the
+# racket lanes even when odu runs it with --no-deps (see the header).
 # The runner, inside the e2e shell: link the nix-built node_modules into place
 # (ESM resolution walks up from the importing file and ignores NODE_PATH) and
 # hand the rest to cucumber. CI calls this one directly — its `build` is a
 # separate DAG node, and a lane body that rebuilt would race the others
 # (ci/mod.just).
-e2e-run *args:
+e2e-run *args: vendor
     #!/usr/bin/env bash
     set -euo pipefail
     ln -sfn "$OLAI_E2E_NODE_MODULES" e2e/node_modules

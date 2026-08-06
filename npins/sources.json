@@ -98,6 +98,51 @@
       "hash": "sha256-4TIeinXk7ak7sbT2lwfWYdwIwFD9S7whBrR2KEajW30=",
       "frozen": true
     },
+    "htmx": {
+      "type": "GitRelease",
+      "repository": {
+        "type": "GitHub",
+        "owner": "bigskysoftware",
+        "repo": "htmx"
+      },
+      "pre_releases": false,
+      "version_upper_bound": null,
+      "release_prefix": null,
+      "submodules": false,
+      "version": "v2.0.6",
+      "revision": "7529444e86b4454cb068914821277c89bf6c1654",
+      "url": "https://api.github.com/repos/bigskysoftware/htmx/tarball/refs/tags/v2.0.6",
+      "hash": "sha256-nEr3s3RXfD0Etkh2fM/YemBf0UY1g7thXLjRB30Zxq0="
+    },
+    "htmx-extensions": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "bigskysoftware",
+        "repo": "htmx-extensions"
+      },
+      "branch": "main",
+      "submodules": false,
+      "revision": "fd25e2462911f6e8b6c6050bbe4a44e252148017",
+      "url": "https://github.com/bigskysoftware/htmx-extensions/archive/fd25e2462911f6e8b6c6050bbe4a44e252148017.tar.gz",
+      "hash": "sha256-gXxUK6EFSS/s2QgURVCL2romRmZahv86RAAyG2NXiBk="
+    },
+    "idiomorph": {
+      "type": "GitRelease",
+      "repository": {
+        "type": "GitHub",
+        "owner": "bigskysoftware",
+        "repo": "idiomorph"
+      },
+      "pre_releases": false,
+      "version_upper_bound": null,
+      "release_prefix": null,
+      "submodules": false,
+      "version": "v0.7.3",
+      "revision": "163d9fb31e5a0fc6980aa9c44630b1e440d84d38",
+      "url": "https://api.github.com/repos/bigskysoftware/idiomorph/tarball/refs/tags/v0.7.3",
+      "hash": "sha256-eFlw6cmE4oJyq1Y/wA0MLVhGAKhGflvmye2MhMn6tos="
+    },
     "markdown": {
       "type": "Git",
       "repository": {

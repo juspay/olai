@@ -11,6 +11,12 @@ The repo holds two Racket packages, and the order between them is the dependency
 
 So `just install` links `live` before `olai`, and `just build` is `raco setup --pkgs live olai`. A change to `live/` that only makes sense for olai is a change in the wrong place.
 
+`live/static/` holds the browser runtime, and three of its four files are NOT in git: htmx, htmx's SSE extension and idiomorph are pinned in `npins/sources.json` and built by `live/default.nix` (its own Nix, next to it, like `acp/` and `e2e/`). `just vendor` copies them into place from `$OLAI_LIVE_ASSETS` — every recipe that needs them depends on it, so you never run it by hand. Consequences worth knowing:
+
+* A checkout outside `nix develop` has no browser runtime, and `live/tests/client.rkt` says so by failing on a missing file.
+* `git status` stays clean: the three are gitignored by name (`live/static/live.js` is ours and tracked). An upgrade that renames an artifact shows up as untracked rather than silently replacing anything.
+* Upgrading is `npins update htmx` — a revision and a hash in the diff, not a minified blob. Then `just test && just e2e`.
+
 ## Toolchain
 
 * Racket comes from `nix develop` (nixpkgs 9.2). `just` recipes set `PLTUSERHOME` to `$PWD/.plt-user` so user packages and the two links live in the worktree, not `~`. That directory must be writable.

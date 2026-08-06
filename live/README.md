@@ -38,6 +38,8 @@ raco pkg install --link path/to/live
 
 Deps: `base`, `web-server-lib`. `rackunit-lib` to run the tests.
 
+Three of the four files under `static/` are pinned upstream rather than committed (see [Vendored assets](#vendored-assets)); in this repo `just vendor` stages them from `live/default.nix`. A consumer taking the collection some other way has to put htmx, its SSE extension and idiomorph-ext into `static/` under the names `live-scripts` lists, or serve them itself and skip `live-script-hrefs`.
+
 ## Usage
 
 Three things to wire: mount the assets, put the attributes on the page, answer the stream.
@@ -151,16 +153,18 @@ A page's first connection has no `Last-Event-ID` to send, so the cursor in `live
 
 ## Vendored assets
 
-`live/static/`, all four served as-is:
+Four files under `live/static/`, all served as-is. One of them is ours; the other three are pinned upstream checkouts, staged in by `live/default.nix`.
 
-| file | version | license |
+| file | source | license |
 |---|---|---|
-| `htmx.min.js` | [htmx](https://htmx.org) 2.0.6 | BSD-2-Clause |
-| `sse.js` | [htmx SSE extension](https://github.com/bigskysoftware/htmx-extensions) 2.x | BSD-2-Clause |
-| `idiomorph.min.js` | [idiomorph](https://github.com/bigskysoftware/idiomorph) 0.7.3 (`idiomorph-ext`, morph + the htmx extension) | BSD-2-Clause |
-| `live.js` | this framework | AGPL-3.0-or-later |
+| `htmx.min.js` | [htmx](https://htmx.org) `dist/htmx.min.js` | BSD-2-Clause |
+| `sse.js` | [htmx-extensions](https://github.com/bigskysoftware/htmx-extensions) `src/sse/sse.js` — the SSE extension moved out of the htmx repo for 2.x, and is unversioned, so it is pinned by revision | BSD-2-Clause |
+| `idiomorph.min.js` | [idiomorph](https://github.com/bigskysoftware/idiomorph) `dist/idiomorph-ext.min.js` — the bundle that also registers the htmx extension, NOT plain `idiomorph` | BSD-2-Clause |
+| `live.js` | this framework, and the only tracked file of the four | AGPL-3.0-or-later |
 
-Committed rather than fetched: a live view that needs a CDN is a live view that stops working when someone else's DNS does.
+Vendored rather than pulled from a CDN at runtime: a live view that needs somebody else's DNS is a live view that stops working when that DNS does. But pinned rather than committed as blobs — the versions and their hashes are in `npins/sources.json`, so "which htmx is this" has an answer that cannot drift from the bytes. The three are gitignored and staged into place by `just vendor`; `live.js` is source.
+
+Upgrading is `npins update idiomorph` (or `htmx`, or `htmx-extensions`), then `just test && just e2e`. The diff is a revision and a hash rather than 10,000 columns of unreviewable minified JavaScript. If an upgrade renames an artifact, the new name is not in `.gitignore` and shows up as untracked — which is the reminder to update the table above and the `assets` list in `live/default.nix`.
 
 ## Tests
 

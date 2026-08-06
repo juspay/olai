@@ -37,3 +37,11 @@ compiled/
 /.claude/
 
 /.worktrees
+
+# live/'s browser runtime: pinned upstream (npins) and staged by `just vendor`
+# from live/default.nix, never committed. live/static/live.js IS ours and is
+# tracked — hence three names rather than the directory. An upgrade that
+# renames an artifact shows up as untracked, which is the point.
+/live/static/htmx.min.js
+/live/static/sse.js
+/live/static/idiomorph.min.js

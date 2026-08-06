@@ -42,6 +42,10 @@
               # bundled one so `just serve` works out of the box. Set the var
               # yourself to point at a different agent.
               export OLAI_ACP_AGENT="''${OLAI_ACP_AGENT:-${pkgs.lib.getExe self.packages.${system}.acp-agent}}"
+              # The vendored browser runtime, pinned and built (live/default.nix).
+              # `just` stages it into live/static/ where the collection's own
+              # define-runtime-path expects it; the files are gitignored.
+              export OLAI_LIVE_ASSETS="${self.packages.${system}.live}/static"
             '';
           };
         in
@@ -78,17 +82,22 @@
           # package-lock.json it builds from.
           acpAgent = pkgs.callPackage ./acp { };
 
+          # The live-view collection with its vendored browser runtime staged
+          # in. Which upstream, which artifact, which name lives in
+          # live/default.nix, next to the collection it is about.
+          live = pkgs.callPackage ./live { inherit sources; };
+
           # The build (racket build, TZDIR dance, raco exe stub, ACP
           # default) lives in nix/olai.nix; src is a flake-level decision.
           olai = pkgs.callPackage ./nix/olai.nix {
             inherit (racketDepsPkg) racketPkgs racketDeps;
-            inherit acpAgent;
+            inherit acpAgent live;
             src = ./.;
           };
         in
         {
           default = olai;
-          inherit olai;
+          inherit olai live;
           racket-deps = racketDepsPkg.racketDeps;
           acp-agent = acpAgent;
           # cucumber + playwright for the browser journeys (e2e/default.nix).
