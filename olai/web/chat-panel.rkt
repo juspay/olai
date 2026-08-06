@@ -136,13 +136,21 @@
 ;; it takes. The SUBJECT here is another module's — the document and the
 ;; outline's pane — which is what 'overlay says, and what puts this after
 ;; everything web/render registered.
+;;
+;; MARGIN, not padding. .ol-main is border-box with `max-width: 56rem`, so a
+;; padding gutter is taken out of that cap rather than out of the free space
+;; beside it: --chat-w is max(21rem, 33vw), so on a 1920px screen the gutter ate
+;; 41rem of the 56rem and the text wrapped into what was left, three words to a
+;; line, with the gutter sitting empty next to it. A margin is outside the
+;; border box, so the cap still measures the reading column and the flex box
+;; gives up the width the panel takes.
 (register-fragment!
  #:layer 'overlay
  (css-expr
   [((: ,(sel 'body ol-body) (apply has ,(sel ol-chat is-open))) ,(sel ol-main))
-   #:padding-right (apply calc (+ ,chat-w 1.5rem))
+   #:margin-right (apply calc (+ ,chat-w 1.5rem))
    ;; on a phone the sheet covers it anyway, so there is nothing to make room for
-   [@ media (#:max-width ,phone-max) #:padding-right 1rem]]))
+   [@ media (#:max-width ,phone-max) #:margin-right 0]]))
 
 (define-style ol-chat-head
   #:display flex
