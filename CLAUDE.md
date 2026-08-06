@@ -82,18 +82,8 @@ edit-verify loop and css-expr). This file is only what you can't infer.
   runs everything else on the PR.
 * Branch + PR for every change (agents included); CI green before merge.
   Master rejects direct pushes.
-* Other agents work this repo concurrently (Grok in a kolu terminal). git pull
-  --rebase before starting; don't assume a clean tree is yours.
-* Driving that terminal: `padi-tui status` lists terminals + agent state;
-  `padi-tui wait <id> --until awaiting,waiting` blocks until its turn ends.
-  `kaval-tui snapshot <id>` reads the screen; to prompt it: `kaval-tui send
-  <id> "text"`, pause ~2s, then `kaval-tui send <id> --key Enter` (separate
-  sends — same-breath Enter gets eaten by the paste debounce). Long briefs:
-  write a file, send a short "read <path>" prompt. Never kill that terminal.
-* CI = `just ci` (odu DAG in ci/mod.just: nix build + binary smoke + unit +
-  integration). GHA and odu both run that recipe. Keep `nix build`
-  offline-clean when possible; external racket deps (gregor, markdown) need
-  vendoring or impure install until fixed-output derivations land.
+* CI = https://github.com/juspay/odu/blob/master/.apm/skills/odu/SKILL.md 
+  * GitHub Workflows may eventually be retired in favour of Odu; so look for Odu status checks green.
 * Tests parse JSON output with read-json. Never string-match JSON.
 
 ## VOICE
