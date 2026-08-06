@@ -130,7 +130,7 @@ olai roadmap #project
         : declaration site. Thin macros over the framework's
         : functional core; second PR, only if the declarations CHECK
         : something a swarm actually trips on. Brainstorm:
-        : [docs/live-dsl.md](https://github.com/juspay/olai/blob/master/docs/live-dsl.md)
+        : [docs/brainstorming/live-dsl.md](https://github.com/juspay/olai/blob/master/docs/brainstorming/live-dsl.md)
         : (make this an @doc when that lands).
       stream health indicator
         : The user must know when they are reading a stale app. Two
