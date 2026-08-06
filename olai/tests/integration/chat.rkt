@@ -163,12 +163,23 @@
      (stop)
      (delete-directory/files dir))))
 
-;; -> #t once the bridge has a session.
+;; -> #t once the bridge has said everything a boot says (see `boot-frames`).
+;;
+;; The session id is the FIRST of those, not the last: it comes off the
+;; session/new RESULT, while the commands and the conversation's name are still
+;; a round trip away, on session/set_mode. Waiting for the id alone let those
+;; two land after the body opened /events and inside its assertions. So wait
+;; for all three — whichever way the session was got, the last frame of the
+;; boot is one of them (a new session names itself last, an adopted one already
+;; had its name and finishes on the commands).
 (define (wait-booted ag [seconds 30])
   (define deadline (+ (current-inexact-milliseconds) (* 1000.0 seconds)))
   (let loop ()
     (cond
-      [(chat-session-id ag) #t]
+      [(and (chat-session-id ag)
+            (pair? (chat-commands ag))
+            (chat-session-title ag))
+       #t]
       [(>= (current-inexact-milliseconds) deadline) #f]
       [else (sleep 0.02) (loop)])))
 
