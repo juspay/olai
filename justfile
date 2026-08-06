@@ -33,20 +33,23 @@ clean:
     set -euo pipefail
     find olai -type d -name compiled -print0 | xargs -0 rm -rf
 
+# The CLI answers in JSON (the human view is `just serve`); these recipes only
+# spell the default outlines.
+
 # Validate outline(s) (default: $OLAI_HOME/*.rkt, else the repo's own)
 check *args: install
     olai check {{if args == "" { default_outlines } else { args }}}
 
-# Outline(s) as JSON (agents; human view is the web app)
+# Outline(s) as JSON
 tree *args: install
     olai tree {{if args == "" { default_outlines } else { args }}}
 
-# Dated tasks: OVERDUE / TODAY / UPCOMING (merged across files, done excluded)
+# Dated tasks as JSON: overdue / today / upcoming (merged, done excluded)
 agenda *args: install
     olai agenda {{if args == "" { default_outlines } else { args }}}
 
 # Flags-only invocations (e.g. --month 2026-08) keep the default outlines.
-# Calendar days with dated items (default: current month, done included)
+# Calendar days as JSON (default: current month, done included)
 calendar *args: install
     #!/usr/bin/env bash
     set -euo pipefail

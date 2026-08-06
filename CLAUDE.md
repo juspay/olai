@@ -16,18 +16,20 @@ edit-verify loop and css-expr). This file is only what you can't infer.
 * No hand-rolling where a maintained library exists. In use: racket/cmdline,
   json (write-json/read-json), xml (xexprs), gregor (dates), markdown
   (title/note formatting in the web view only).
-* No ANSI. Human view is the web app: `olai serve` (routes in
+* No ANSI, no plain mode. Human view is the web app: `olai serve` (routes in
   docs/cli.md; `just serve` / `just run` / `just watch` all launch it).
-  Agents use `--json` (and `tree`, which is JSON-only).
+  The CLI is the agent surface and the write-safety layer: every command
+  answers JSON but `ics` (the format IS the reply) and `serve`. `--json` is
+  accepted everywhere it used to be, and does nothing.
 * The LANGUAGE is the only validator (closed grammar): one checker
   (lang/graph) runs over a module's syntax at compile time, and over the whole
   spliced tree at run time when it has `@include`s (cross-file anchors exist
   only after the splice). Same rules, same messages, both ways. Readers just
   translate to (t ...) forms. Never validate in the reader, the CLI, the
   store, or the web layer.
-* Agents are the primary CLI users: every command gets --json where it makes
-  sense; errors are JSON on stderr in --json mode; exit codes are contract
-  (see docs/cli.md). JSON fields are append-only within a "version".
+* Agents are the only CLI users: replies and errors are JSON (errors on
+  stderr); exit codes are contract (see docs/cli.md). JSON fields are
+  append-only within a "version".
 * Error messages carry file:line:col of the OFFENDING form. srcloc fidelity
   has tests; keep them passing.
 * Module boundaries ship with `contract-out` (flat, cheap checks — never a

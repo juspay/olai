@@ -1,24 +1,28 @@
 # olai CLI — agent contract
 
-Agents are the primary users. Prefer `--json`. Fields within a `version` are
-**append-only**; a bump of `version` is a breaking change.
+Agents are the only users. Every command that has a reply emits **JSON**,
+always — `--json` is still accepted and does nothing. Fields within a
+`version` are **append-only**; a bump of `version` is a breaking change.
 
-**Human view is the web app** (`olai/web`). There is no ANSI terminal
-tree and no static HTML export. Agents use `tree` / `check` / `agenda --json`.
+**Human view is the web app** (`olai/web`). There is no ANSI terminal tree, no
+static HTML export, and no plain-text mode: what was printed for a person to
+read at a terminal is gone. The two commands that do not answer JSON are the
+ones whose output IS a format — `ics` (RFC 5545) — and `serve`, which serves
+the web view; their errors are `olai: message` on stderr.
 
 ## Exit codes
 
 | Code | Meaning |
 |------|---------|
 | 0 | success |
-| 1 | usage: unknown command, bad flags, missing TITLE, a malformed `--date` / `--month` / `--port` |
+| 1 | usage: unknown command (`css` and `html` are retired), bad flags, missing TITLE, a malformed `--date` / `--month` / `--port` |
 | 2 | the outline said no: load or validation error, no such task, ambiguous title, already done, a write aimed at a `#lang olai/sexp` file |
 | 3 | file not found |
 
-Same codes for plain and `--json` modes. The write commands know nothing about
-exit codes: an op (`olai/ops`) fails with a KIND — usage, validation,
-not-found — and the CLI maps the kind to a code. The codes are the contract;
-the kinds are how the layer below talks about failure.
+The write commands know nothing about exit codes: an op (`olai/ops`) fails with
+a KIND — usage, validation, not-found — and the CLI maps the kind to a code.
+The codes are the contract; the kinds are how the layer below talks about
+failure.
 
 ## Global
 
@@ -26,11 +30,12 @@ the kinds are how the layer below talks about failure.
   `add` / `done` / `move` always target one file via `--file`, same default.
 - **`OLAI_HOME` has no default.** Unset, any command that would need it —
   the file defaults above, `daily` without `--home` — is a **usage error**
-  (exit 1, JSON on stderr under `--json`), nothing is read or written:
+  (exit 1, the error object on stderr), nothing is read or written:
 
-  ```console
-  $ olai add --no-commit "buy milk"
-  olai: OLAI_HOME is not set; set it to your outline directory, or name the outline explicitly (a path argument, --file, --home)
+  ```json
+  {"version":1,"ok":false,
+   "error":{"file":null,"line":null,"col":null,
+            "message":"OLAI_HOME is not set; set it to your outline directory, or name the outline explicitly (a path argument, --file, --home)"}}
   ```
 
   Naming files (or `--file` / `--home`) works with the variable unset.
@@ -43,22 +48,15 @@ the kinds are how the layer below talks about failure.
   names. Auto-commit (`add` / `done` / `move` / `daily`) only runs
   when the directory of the file actually written is a git work tree;
   otherwise it no-ops (`committed: false`) and Dropbox (or your sync) is the history layer.
-- `--json` may appear after the subcommand where supported.
+- `--json` may appear after the subcommand everywhere it used to; it is a
+  no-op, kept so an invocation an agent already knows does not become a
+  usage error.
 
-## `check [--json] [file ...]`
+## `check [file ...]`
 
 Validate `#lang olai` or `#lang olai/sexp` module(s).
 
-Plain — one ok-line per file; if any fail, all are reported then exit 2.
-Anchor / mirror / include counts are appended only when non-zero:
-
-```console
-$ olai check examples/Example.rkt examples/Daily.rkt
-ok: .../Example.rkt (12 tasks, 1 anchor, 1 mirror)
-ok: .../Daily.rkt (18 tasks, 2 anchors, 1 mirror, 2 includes)
-```
-
-JSON — **single file** keeps the historical shape:
+**Single file** keeps the historical shape:
 
 ```json
 {"version":1,"ok":true,"file":".../Example.rkt","tasks":12,"anchors":1,"mirrors":1}
@@ -92,10 +90,9 @@ Top-level `ok` is false if any file failed. Per-file errors ride in the array
 on **stdout** and nothing goes to stderr — the single-file shape is the one
 that reports on stderr (see *Errors*). Exit is still 2.
 
-## `tree [--json] [file ...]`
+## `tree [file ...]`
 
-**Always JSON** (the task forest). `--json` is accepted as a no-op for compat.
-Humans should use the web app.
+The task forest.
 
 Single file:
 
@@ -181,24 +178,15 @@ Load the files you always load (`serve` keys against the set it was given) and
 keys are stable. The web view addresses nodes by this key (element ids,
 permalinks, stored collapse state).
 
-## `agenda [--json] [file ...]`
+## `agenda [file ...]`
 
 Dated tasks relative to local today, **merged across all given files**. **Done
 tasks are excluded** even if they still have a `@date`. When more than one file
 is given, breadcrumbs are rooted at each file's basename
-(`Tasks.rkt > Inbox > Buy milk`). Plain mode is unstyled text. Empty groups are
-omitted in plain mode, and an agenda with nothing in it prints `no dated tasks`;
-JSON always includes all three arrays (possibly empty).
+(`Tasks.rkt > Inbox > Buy milk`). All three arrays are always present, possibly
+empty.
 
-Plain:
-
-```text
-OVERDUE
-  [2026-01-15T08:00]  Buy milk
-         Tasks.rkt > Inbox > Buy milk
-```
-
-JSON stdout:
+Stdout:
 
 ```json
 {
@@ -210,7 +198,7 @@ JSON stdout:
 }
 ```
 
-## `calendar [--json] [--month YYYY-MM] [file ...]`
+## `calendar [--month YYYY-MM] [file ...]`
 
 Group **dated** tasks by calendar day for one month (default: current).
 **Done tasks are included** (JSON `done` is `true` or a timestamp, `status` is
@@ -409,8 +397,8 @@ Routes:
 | `GET /chat/sessions` | the agent's stored conversations for this directory, JSON (see *Sessions*); `503` while the agent is gone |
 | `POST /chat/load` | load one of them; form field `id` (missing is `400`). `204` — the reset, the replayed turns and the `session` frame come back over `/events`. `409` while a turn or another load is running, `503` when the agent is gone |
 | `GET /api/tree` | byte-identical to `olai tree` |
-| `GET /api/agenda` | byte-identical to `olai agenda --json` |
-| `GET /static/app.css` | the skin, `text/css`, `Cache-Control: no-cache`. Generated from the Racket modules that draw the page — `olai/web/skin` composes them — not a file on disk. `olai css` prints the same bytes |
+| `GET /api/agenda` | byte-identical to `olai agenda` |
+| `GET /static/app.css` | the skin, `text/css`, `Cache-Control: no-cache`. Generated from the Racket modules that draw the page — `olai/web/skin` composes them — not a file on disk. This route is the only way to get those bytes; there is no `css` command |
 | `GET /static/manifest.webmanifest` | web app manifest (`application/manifest+json`); name, icons, `display: standalone`, default theme colours |
 | `GET /static/*` | files under `olai/web/static/` (icons, htmx, scripts, `pwa.js`) |
 | anything else | `404`, terse `text/plain` |
@@ -470,7 +458,7 @@ re-fetch themselves and swap the pane and the error banner — no refresh.
 
 A file is broken for a moment during every edit, so the two surfaces differ:
 
-- `/api/*` answers `500` with the JSON error object (same shape as `--json`
+- `/api/*` answers `500` with the JSON error object (same shape as the CLI's
   errors, `file` / `line` / `col` / `message`) — agents never get stale data
   quietly.
 - `/` keeps rendering the **last good** snapshot and puts the error, with its
@@ -488,13 +476,7 @@ exist, or a directory holds no top-level `*.rkt`.
 There is no static HTML export — `curl http://127.0.0.1:8080/ > snap.html`
 if you want one.
 
-## `css`
-
-The generated stylesheet on stdout — byte for byte what `GET /static/app.css`
-serves, composed by `olai/web/skin` out of the modules that draw the page. No
-`--json`: CSS is the output. Exit 0.
-
-## `add [--json] [--file F] [--date ISO] [--description TEXT] [--parent TITLE|^anchor] [--no-commit] TITLE...`
+## `add [--file F] [--date ISO] [--description TEXT] [--parent TITLE|^anchor] [--no-commit] TITLE...`
 
 `--date` accepts `YYYY-MM-DD` or a datetime (`YYYY-MM-DDTHH:MM` / `…:SS`; a space
 instead of `T` is fine).
@@ -508,14 +490,7 @@ words join with spaces (no shell quoting required).
   message `capture: TITLE` unless `--no-commit`.
 - Never prompts; never opens an editor.
 
-Plain:
-
-```console
-$ olai add --no-commit buy oat milk
-added "buy oat milk" under Inbox in .../Tasks.rkt (line 12)
-```
-
-JSON stdout:
+Stdout:
 
 ```json
 {
@@ -536,7 +511,7 @@ JSON stdout:
 the file actually written — with `--parent ^anchor` that may be an `@include`
 fragment, not `--file`.
 
-## `done [--json] [--file F] [--undo] [--no-commit] TITLE...|^anchor`
+## `done [--file F] [--undo] [--no-commit] TITLE...|^anchor`
 
 Mark a task done by exact title match or `^anchor` (or undo). **One file only**
 (`--file`). Writes **outline** syntax only — same safety as `add`: write temp →
@@ -554,14 +529,7 @@ re-validate → rename; restore on failure.
 - Auto-commit `done: TITLE` / `undone: TITLE` in a git work tree unless
   `--no-commit`.
 
-Plain:
-
-```console
-$ olai done --no-commit Buy milk
-done "Buy milk" in .../Tasks.rkt (line 5)
-```
-
-JSON stdout:
+Stdout:
 
 ```json
 {
@@ -578,7 +546,7 @@ JSON stdout:
 
 On `--undo`, `done` is `null` and `undone` is `true`.
 
-## `move [--json] [--file F] [--no-commit] [--clear] TITLE...|^anchor DATE`
+## `move [--file F] [--no-commit] [--clear] TITLE...|^anchor DATE`
 
 Set or rewrite `@date` on a task (same write-safety as `add`/`done`). `DATE`
 is ISO date or datetime. `--clear` removes `@date` instead (no DATE arg).
@@ -593,11 +561,16 @@ never the raw `^anchor` you passed.
 
 ## `ics [--out PATH] [file ...]`
 
-RFC 5545 `VCALENDAR` of all dated tasks (done included). Minimal writer —
-no catalog ics package. UID is `anchor@olai` when present, else a
-stable hash of path/title/date. `DTSTART` is `VALUE=DATE` or local datetime.
+RFC 5545 `VCALENDAR` of all dated tasks (done included) on stdout, or into
+`--out PATH` (which prints the path it wrote). Minimal writer — no catalog ics
+package. UID is `anchor@olai` when present, else a stable hash of
+path/title/date. `DTSTART` is `VALUE=DATE` or local datetime.
 
-## `daily [--json] [--date YYYY-MM-DD] [--home DIR] [--no-commit]`
+The one command whose output is neither JSON nor the web view: nothing else
+produces a calendar feed, so a calendar client is the consumer and the format
+is the reply. Errors are plain (`olai: ...`), exit codes as above.
+
+## `daily [--date YYYY-MM-DD] [--home DIR] [--no-commit]`
 
 Ensure a day node exists in the personal Daily structure under `$OLAI_HOME`
 (or `--home`):
@@ -624,9 +597,10 @@ Both `created_*` are `false` on every run after the first for that day, and
 tree (including fragments), then edit the **defining file** of that node.
 JSON `file` fields on tree nodes show where agents should write.
 
-## Errors (`--json`)
+## Errors
 
-Single object on **stderr**, exit non-zero:
+Single object on **stderr**, exit non-zero — for every command that replies in
+JSON, which is every one but `ics` and `serve`:
 
 ```json
 {
@@ -663,6 +637,22 @@ prefix in front of the answer. Agents must not regex pretty-printed messages.
 - Top-level objects always include `"version": 1`.
 - Within v1, new keys may appear; existing keys keep meaning and type.
 - Removing or renaming a key requires a version bump.
+- The JSON is the contract; the plain text that used to come out without
+  `--json` was not, and is gone. No key changed with it.
+
+## Retired
+
+The web app is the daily surface, so the CLI keeps only what an agent calls and
+what guards a write:
+
+| Gone | Instead |
+|------|---------|
+| plain output on `check` / `agenda` / `calendar` / `add` / `done` / `move` / `daily` | the same command, which now always emits its JSON |
+| `css` | `GET /static/app.css` from a running `serve`; in-tree, `racket -e '(require olai/web/skin) (displayln (stylesheet))'` |
+| `html` (earlier) | `serve`, or `curl http://127.0.0.1:8080/ > snap.html` |
+
+`--json` still parses everywhere it did. An invocation of a retired COMMAND is
+an unknown command: exit 1.
 
 ## Nix build note
 

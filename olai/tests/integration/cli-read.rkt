@@ -9,20 +9,43 @@
          "cli-util.rkt")
 
 (module+ test
-  (test-case "check example succeeds"
+  ;; There is no plain mode left to test: the reply is JSON with or without
+  ;; the flag agents already type.
+  (test-case "check is always JSON (with or without --json)"
     (define-values (code out err) (run-olai (list "check" (path->string example))))
-    (check-equal? code 0 out)
-    (check-regexp-match #rx"^ok:" out))
-
-  (test-case "check --json shape"
-    (define-values (code out err)
-      (run-olai (list "check" "--json" (path->string example))))
     (check-equal? code 0 (string-append out err))
     (define j (parse-json out))
     (check-equal? (hash-ref j 'version) 1)
     (check-equal? (hash-ref j 'ok) #t)
     (check-true (hash-has-key? j 'file))
-    (check-true (exact-positive-integer? (hash-ref j 'tasks))))
+    (check-true (exact-positive-integer? (hash-ref j 'tasks)))
+    (define-values (c2 o2 e2)
+      (run-olai (list "check" "--json" (path->string example))))
+    (check-equal? c2 0 (string-append o2 e2))
+    (check-equal? (hash-ref (parse-json o2) 'ok) #t))
+
+  (test-case "agenda is always JSON"
+    (define-values (code out err)
+      (run-olai (list "agenda" (path->string example))))
+    (check-equal? code 0 (string-append out err))
+    (define j (parse-json out))
+    (check-equal? (hash-ref j 'version) 1)
+    (check-true (list? (hash-ref j 'overdue))))
+
+  (test-case "calendar is always JSON"
+    (define-values (code out err)
+      (run-olai (list "calendar" "--month" "2026-08" (path->string example))))
+    (check-equal? code 0 (string-append out err))
+    (define j (parse-json out))
+    (check-equal? (hash-ref j 'version) 1)
+    (check-equal? (hash-ref j 'month) "2026-08")
+    (check-true (list? (hash-ref j 'days))))
+
+  ;; The retired commands are gone, not quietly ignored.
+  (test-case "css is not a command"
+    (define-values (code out err) (run-olai (list "css")))
+    (check-equal? code 1)
+    (check-true (regexp-match? #rx"unknown command" err) err))
 
   (test-case "tree is always JSON (with or without --json)"
     (define-values (code out err)
@@ -62,20 +85,17 @@
     (check-true (hash-has-key? item 'date))
     (check-true (hash-has-key? item 'breadcrumb)))
 
-  (test-case "check missing file exits 3"
-    (define-values (code out err)
-      (run-olai (list "check" "/tmp/olai-no-such-file-xyz.rkt")))
-    (check-equal? code 3)
-    (check-regexp-match #rx"not found" err))
-
-  (test-case "check missing file --json exits 3 with error object"
-    (define-values (code out err)
-      (run-olai (list "check" "--json" "/tmp/olai-no-such-file-xyz.rkt")))
-    (check-equal? code 3)
-    (define j (parse-json err))
-    (check-equal? (hash-ref j 'ok) #f)
-    (check-equal? (hash-ref j 'version) 1)
-    (check-true (hash-has-key? (hash-ref j 'error) 'message)))
+  ;; Errors are the error object on stderr, flag or no flag.
+  (test-case "check missing file exits 3 with error object"
+    (for ([args (in-list (list (list "check" "/tmp/olai-no-such-file-xyz.rkt")
+                               (list "check" "--json"
+                                     "/tmp/olai-no-such-file-xyz.rkt")))])
+      (define-values (code out err) (run-olai args))
+      (check-equal? code 3)
+      (define j (parse-json err))
+      (check-equal? (hash-ref j 'ok) #f)
+      (check-equal? (hash-ref j 'version) 1)
+      (check-true (hash-has-key? (hash-ref j 'error) 'message))))
 
   (test-case "check invalid date exits 2"
     (define tmp (make-temporary-file "sf~a.rkt"))

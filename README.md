@@ -100,9 +100,10 @@ needs the network (SSE + agent). Live with it, or open your laptop.
 
 ## STATUS
 
-Outline `#lang olai` + sexp core + agent CLI (`check` / `tree` JSON /
-`agenda` / `calendar` / `add` / `done` / `move` / `daily` / `ics` /
-`serve` / `css`). Done status, mirrors and `@include` composition are first class;
+Outline `#lang olai` + sexp core + agent CLI (`check` / `tree` / `agenda` /
+`calendar` / `add` / `done` / `move` / `daily` / `ics` / `serve` — all JSON but
+`ics` and `serve`; the human-facing plain output and the `css` dump are
+retired). Done status, mirrors and `@include` composition are first class;
 mirrors reach anchors anywhere in the loaded tree, fragments included. The
 human view is the web app served by `olai serve` — htmx, no auth (bind
 it to localhost or Tailscale). It reloads an outline when the file changes
@@ -155,8 +156,9 @@ to the bundled, pinned Claude Code adapter (`--set-default`); `nix develop`
 
 ## CLI (agents)
 
-Machine-readable contract (`--json`, exit codes, `add`): **docs/cli.md**.
-No ANSI. Humans use the web app.
+Machine-readable contract (JSON shapes, exit codes, `add`): **docs/cli.md**.
+No ANSI, no plain mode — the CLI is the agent surface and the write-safety
+layer, and it answers in JSON. Humans use the web app.
 
 ## HACKING
 
