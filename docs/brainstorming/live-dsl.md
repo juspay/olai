@@ -1,10 +1,10 @@
 # live: a declare-and-check DSL (brainstorm)
 
-Status: brainstorm. Nothing here is built. The live-view framework (worktree `live-view`, in flight) ships functions + contracts first; this doc asks what a macro layer on top would buy — and for whom.
+Status: brainstorm. The DSL is not built. The functional core it would sit on landed as `live/` (PR #29), and the toy example below is now real, hand-wired code: [`live/examples/counters/`](../../live/examples/counters/) (PR #32). This doc asks what a macro layer on top would buy — and for whom. The questions section names the exact lines to read before answering.
 
 Context: [The Bottlenecks for AI-Driven System Design](https://maheshba.bitbucket.io/blog/2026/07/22/agentdesign.html). Agents are not bottlenecked on correctness or codegen; they are bottlenecked on evolution (changing a system safely), frangibility (you cannot learn by breaking production), and entropy (many agents with partial context accumulate special cases faster than any one of them can see). The remedy the post names: abstractions that let agents reason in a precise language instead of conventions. This repo is built by exactly such a swarm.
 
-The whole argument fits in one toy app. Meet `counters`: the hello-world of live pages — three counters racing, sorted by who's winning.
+The whole argument fits in one toy app. Meet `counters`: the hello-world of live pages — three counters racing, sorted by who's winning. It runs: `just counters`, then read [`live/examples/counters/`](../../live/examples/counters/). The snippets in this doc are simplified from those files; where the two disagree, the shipped code is the reference, and the disagreements are themselves findings — see the questions section.
 
 ## The toy, wired by hand
 
@@ -55,86 +55,172 @@ Frangibility says what the fix must feel like: an agent cannot learn by breaking
 
 ## The toy, declared
 
-Same three files. The conventions become bindings:
+The conventions become bindings, over the same files as [`live/examples/counters/`](../../live/examples/counters/):
 
 ```racket
 ;; counters.rkt — the PRODUCER owns the stream vocabulary
-(define-stream counts
-  #:version 1
-  #:events (counts-changed)
-  #:id tick                ; SSE id: field = the bump counter
-  #:heartbeat 15)
-
-(define (bump!)
-  (stream-send! counts 'counts-changed (render-list (counter-values))))
+(define-stream counts #:events (counts-changed) #:heartbeat 15)
+(stream-send! counts 'counts-changed)     ; payload stays what live/ ships: the cursor
 
 ;; list.rkt — the DRAWER owns the region
 (require (only-in "counters.rkt" counts))
+(define-live-region clist #:stream counts)
 
-(define-live-region clist
-  #:swap morph
-  #:stream counts)
-
-(define (render-list cs)
-  (live-region clist
-    (for/list ([c cs]) (counter-row c))))
-
-(define (counter-link c)
-  (live-link clist (counter-href c) (counter-name c)))
-
-;; clock.rkt — a SECOND producer, its own stream
-(define-stream clock
-  #:version 1
-  #:events (clock-tick)
-  #:id tick
-  #:heartbeat 15)
-
-;; header.rkt — a second drawer, its own region
-(require (only-in "clock.rkt" clock))
-
-(define-live-region ticker
-  #:swap morph
-  #:stream clock)
+;; clock.rkt / header.rkt — the second surface: same two forms, its own names
 ```
 
-What expands out is the exact HTML you read in the hand-wired version — attributes, nothing else:
-
-```racket
-(div ([id "clist"] [hx-ext "sse"]
-      [sse-connect "/events?stream=counts&v=1"]
-      [sse-swap "counts-changed"] [hx-swap "morph"]
-      [data-live-heartbeat "15"]) ...)
-
-(a ([href "/c/beta"] [hx-get "/c/beta"]
-    [hx-target "#clist"] [hx-select "#clist"]
-    [hx-swap "morph"] [hx-push-url "true"]) "beta")
-```
-
-No new runtime. The macro's entire contribution is that the four conventions are now written ONCE each, and every other appearance is a reference the compiler resolves — or refuses:
+What expands out is exactly what `make-live-view` writes in the shipped example — attributes, nothing else, no new runtime. The macro's whole contribution: each convention is written ONCE, every other appearance is a reference the compiler resolves — or refuses:
 
 ```racket
 (live-link clsit (counter-href c) (counter-name c))
 ;; list.rkt:31:15: clsit: unbound live region
 
-(stream-send! counts 'count-changed html)
+(stream-send! counts 'count-changed)
 ;; counters.rkt:12:24: count-changed: not an event of counts
 ```
 
-Both die at expansion, srcloc first, before a server boots. That error message IS the agent interface: a misinformed agent gets a file:line:col and a name, not a silently dead page.
-
-And the two surfaces cannot collide: a `live-link` on `clist` expands to `hx-target "#clist"` and nothing else. A counter link that rebuilds the ticker is not merely unwritten — it is unwritable.
+Both die at expansion, srcloc first, before a server boots. That error IS the agent interface: file:line:col and a name, not a silently dead page.
 
 ## The questions, asked of the code
 
-**Should each counter row be a region?** Tempting — rows are what actually change, and the reorder raises the stakes: sorted by value, rows move every second, and the row you selected must stay the same COUNTER, not the same position. But look at what the two concepts do in the expansion: the REGION is the swap target, the unit a link or event replaces (`#clist`). What preserves a row's identity across that swap is morph, and morph needs only a stable `id` on each row — the counter's name. Declaring per-row regions would complect the two. Resolved: a region is one element; stable per-row ids are an obligation the consumer contract states, not a declaration — the framework cannot check what `counter-row` emits without becoming the renderer.
+The toy is built — [`live/examples/counters/`](../../live/examples/counters/), PR #32, hand-wired. Each question below is a choice between code blocks. Pick one.
 
-**Where does `define-stream counts` go — a central registry.rkt?** Follow the `require` line in list.rkt: the module graph already IS the registry. The producer defines and provides; drawers require; the compiler resolves the name or fails. A registry module would reintroduce the disease one level up — agents agreeing about registry keys instead of id strings. Precedent in this house decides it anyway: `define-style` lives with the module that draws. Resolved: streams live with their producer (counts in counters.rkt, clock in clock.rkt), regions with their drawer.
+### First, the recount
 
-**Should `define-live-region` generate the JavaScript?** The watchdog that flags a frozen table when heartbeats stop has to run client-side, so the temptation is a macro that emits JS. But the expansion above already shows the answer: `data-live-heartbeat "15"` is DATA on the DOM, and one generic, vendored, hand-written client file reads it — the same bet htmx itself makes (HTML is the interface). Resolved: declarations expand to attributes only; no DSL emits JavaScript. This is also what keeps the client reusable by any consumer app.
+The sketch above counts four loose strings per surface. Shipped code:
 
-**A tab loaded yesterday's page; the server now speaks v2. Then what?** A tab left open across a redeploy is the rule for any live page, not the edge. Racket-side, evolution is already safe: delete `counts-changed` from `#:events` while list.rkt still references it and expansion fails. But a browser tab is a consumer OUTSIDE the module graph — the compiler cannot see it. So the version travels on the wire: `#:version 1` is stamped into the connect URL (`/events?stream=counts&v=1`), and a v2 server answering a v1 connect sends one mismatch frame telling the tab to hard-reload. Resolved: define-stream owns the version, the wire enforces it, stale tabs self-heal on reconnect — which quietly fixes deploy-time skew, a glitch nobody had even listed.
+```racket
+;; the sketch — four agreements, all loose
+[id "clist"] [sse-connect "/events"] [sse-swap "counts-changed"] [hx-swap "morph"]
 
-**Still open, recalibrated: will the swarm extend it?** The post's endgame is abstractions agents GENERATE for their own use. [One paper](https://arxiv.org/abs/2506.10021) says a Lisp is the natural medium for that — conceptual framework, zero experiments. The measured record ([agents-and-dsls.md](agents-and-dsls.md), conclusion 8) says otherwise: LLM-authored abstraction libraries deliver nothing where human-curated ones deliver plenty, and LLMs apply stable abstractions well while discovering them badly. So the test splits in two. Third live surface: does the agent reach for `define-live-region` unprompted? Expect yes. Uncovered convention: does it propose a form for a human to ratify? Maybe. Autonomous grammar growth: don't design for it.
+;; shipped (list.rkt:15) — one value; region, targets, selects, links all derived from it.
+;; Swap mode: not even a parameter. The sidebar bug is unwritable here.
+(make-live-view #:region "clist" #:event "counts-changed" #:stream "/events" ...)
+```
+
+Still loose: `"counts-changed"` (list.rkt:23 ↔ counters.rkt:48) and `"/events"` (list.rkt:24 ↔ app.rkt:100). **Two per surface, not four.** The DSL competes against half the disease it was sketched for.
+
+And one agreement nobody counted, found by the agent that built the example:
+
+```racket
+;; header.rkt:43 — htmx honours only the FIRST hx-history-elt on a page.
+;; Two regions = one must yield, or Back restores the wrong thing.
+;; "A ninth agreement, uncounted by the brainstorm and unspellable in live/'s API today."
+(define (without-history attrs)
+  (filter (λ (a) (not (eq? (car a) 'hx-history-elt))) attrs))
+```
+
+### Should each counter row be a region?
+
+```racket
+;; A — shipped (list.rkt:42): a stable id; morph keeps your selection on the COUNTER,
+;; not the position, through two reorders a second
+(li ((id ,(string-append "row-" (counter-name c)))) ...)
+
+;; B — a declaration per row. Broken, twice:
+;; 1. on counts-changed each row re-fetches its own fragment — 3 requests per bump
+;; 2. a region swaps its own CONTENT; it cannot move itself in its parent.
+;;    Nobody reorders the rows. The sort freezes at first paint.
+(define-live-region row #:swap morph #:stream counts)
+
+;; B′ — the itch B was scratching, minus the region: A's id is an UNCHECKED
+;; obligation, so give it a form that MINTS the identity — a drawer cannot forget
+;; what it never writes
+(live-item (counter-name c)          ; ⇒ (li ((id "row-alpha")) ...)
+  (a ...) (span ...))
+```
+
+**Verdict: B′.** Hardcoding id strings in drawers is a HARD NO — the form mints the identity.
+
+### What does `define-stream` buy — and over what?
+
+```racket
+;; A — shipped: spelled twice, nothing checks. Typo = counters freeze, silently.
+(define counts-event "counts-changed")    ; counters.rkt:48 — not provided
+#:event "counts-changed"                  ; list.rkt:23    — spelled again
+
+;; B — two lines, no macro: provide the name, use the binding
+(provide counts-event)                    ; counters.rkt
+#:event counts-event                      ; list.rkt — typo = unbound id, compile time
+
+;; C — the DSL
+(define-stream counts #:events (counts-changed))
+(stream-send! counts 'count-changed ...)
+;; counters.rkt:12: count-changed: not an event of counts
+```
+
+list.rkt already requires counters.rkt (line 8) — B is available TODAY. C beats B only when a stream carries several events; counts carries one. The real fight is B vs C, not A vs C.
+
+**Verdict: C.** `define-stream` earns its macro.
+
+### Should the DSL generate JavaScript?
+
+```racket
+;; A — shipped: declarations put DATA on the DOM; one generic vendored client reads it
+(div ([data-live-heartbeat "15"] ...))
+(span ((id "health")))                                        ; header.rkt:53
+"html." live-stale-class " #health::after{content:'stale'}"   ; app.rkt:44
+
+;; B — each region expands to markup PLUS its own inline script
+(define-live-region clist #:swap morph #:stream counts)
+;; ⇒ (script "live.watch('#clist',{heartbeat:15,...})")
+
+;; C — a build step compiles ALL declarations into the client bundle it serves,
+;; replacing the vendored file (typed-RPC style)
+```
+
+Costs. **B**: JS as strings inside Racket, one watchdog copy per region, inline scripts die under any CSP. **C**: a JS build step in a Racket house, and the client stops being reusable by non-DSL consumers. **A**'s real weakness, proven by the ninth agreement: anything the data vocabulary cannot say (`hx-history-elt` yielding) forces a hacky filter until the client grows a `data-live-history="no"`.
+
+**Verdict: A.** Grow the client's data vocabulary whenever an app is caught hacking around it. Revisit if that stops scaling.
+
+### A tab loaded yesterday's page; the server now speaks v2
+
+```racket
+;; A — shipped: the payload is a CURSOR, the region re-fetches its own address
+(string-append live-boot-id "." (number->string (unbox bumps)))   ; counters.rkt:44
+;; redeploy → new boot id → every reconnect mismatches → re-fetch draws v2 markup.
+;; Stale tabs already self-heal. No #:version anywhere.
+```
+
+The one skew A cannot see: v2 RENAMES the event. The v1 tab keeps its EventSource, heartbeats arrive, health shows green, the list freezes forever.
+
+```racket
+;; B — version on the wire: a v2 server answering a v1 connect sends one frame: reload
+[sse-connect "/events?stream=counts&v=1"]
+
+;; C — no mechanism, one rule: events are append-only, never renamed
+;; (the rule the JSON replies already live by)
+
+;; D — human's proposal: the server's identity IS the URL. No hand-counted
+;; versions; live-boot-id already exists.
+[sse-connect ,(string-append "/live/" live-boot-id "/events")]
+
+;; app.rkt — a UUID nothing answers to gets ONE frame: reload
+[("live" (string-arg) "events")
+ (λ (req boot)
+   (if (equal? boot live-boot-id)
+       (events-response hub req)
+       (one-frame-response "live-reload")))]
+```
+
+D covers the renamed-event skew that the cursor cannot see. Two caveats:
+
+1. **Never 404 the stale URL.** Browser `EventSource` hides HTTP status; on error it retries forever. The dead UUID must be ANSWERED — one reload frame, then close.
+2. **A boot UUID reloads every tab on every restart, even same-code** — and a hard reload eats the half-typed input box that cursor catch-up preserves today. Refinement: key on a HASH of the code/assets instead. Same-code restart keeps the URL valid and the cursor heals it gently; only a real deploy reloads.
+
+**Verdict: D as-is, boot UUID.** A same-code restart reloads every tab; accepted. This also retires `#:version` on `define-stream` — the wire carries the server's identity, not a hand-counted number.
+
+### Will the swarm extend it?
+
+When an agent adds live surface number three (olai's chat panel, say), it does one of:
+
+- **(a)** uses `define-stream` / `define-live-region` correctly, unprompted
+- **(b)** hits something the forms cannot say, proposes a new form, waits for the human to ratify
+- **(c)** hand-rolls raw htmx attributes and routes around the DSL
+
+The research ([agents-and-dsls.md](agents-and-dsls.md), conclusion 8) says: expect (a), gate (b) on the human, prevent (c) by keeping the forms easier than raw attributes. One data point already: the counters agent did (b) — found the `hx-history-elt` clash (block above), hacked around it locally, flagged it as unsayable in the API.
+
+**Verdict: (c) is BANNED.** Raw htmx attributes in app code fail review; the forms are the only door. Gaps take path (b): propose the form, the human ratifies. Watch what surface three does with (a). The ban lands in live/README.md, with one pointer line in CLAUDE.md's hard rules, in the same PR as the forms.
 
 ## What the research says, applied here
 
@@ -157,7 +243,7 @@ The measured record on LLM agents and custom DSLs lives in its own doc — [agen
 6. *Docstrings are load-bearing* → no macro merges without its docstring and a worked example in the same PR.
 7. *Tiny, human-curated vocabulary* → a fourth macro starts life as a Roadmap.rkt item, ratified by the human before any PR — the roadmap is the proposal queue.
 8. *Dumpable expansion* → `just expand FILE`, `raco expand` trimmed to the live forms, ships in the same PR as the macros.
-9. *Never reject reasonable code* → the checker checks only the cross-file coincidences (region names, event names, swap modes, stream versions), nothing stylistic, and every rejection ends by showing the plain-function spelling of the same thing.
+9. *Never reject reasonable code* → the checker checks only the cross-file coincidences (region names, event names, row identities), nothing stylistic, and every rejection ends by showing the plain-function spelling of the same thing.
 10. *Past the edge of the literature* → count checker errors per PR from CI logs, watch whether the third live surface uses the macros unprompted, and write up what happens — the first agents-on-Racket account would be worth publishing.
 
 ## The rules that fall out
@@ -165,7 +251,7 @@ The measured record on LLM agents and custom DSLs lives in its own doc — [agen
 - **Thin DSL over a functional core.** Every form expands into calls on a documented, contract-out'd runtime API. A consumer who doesn't want the sugar uses the functions; the forms can evolve without trapping them. The framework's reuse story rides the functions, not the forms.
 - **No macro without a check.** Sugar for terseness alone is entropy wearing a uniform — it rots like a comment. Each form above earns its place by refusing a specific misspelling.
 - **Macros own compile time, contracts own runtime.** Blame + srcloc already police the module boundary at runtime; the forms police names before it. Complementary, not competing.
-- **Streams are one-way doors.** `#:events` is append-only and versioned like the JSON replies; removing an event is an expand-time error until every requirer is gone. Evolution pressure lands on one declaration site instead of a grep across three languages.
+- **Streams are one-way doors.** `#:events` is append-only, like the JSON replies; removing an event is an expand-time error until every requirer is gone. Wire skew is the boot UUID's job, not a version number's. Evolution pressure lands on one declaration site instead of a grep across three languages.
 - **Errors explain the violated rule, at length.** srcloc first, then the constraint, the candidates in scope, and a suggestion — the agent-facing optimum is more verbose than the human-facing one, and location alone measures at zero.
 - **Every form ships documented and exampled.** A docstring per form and 3–5 worked examples in the repo; undocumented abstractions measurably make agents worse than no abstractions.
 - **The expansion is dumpable.** A command that prints what any form expands to (`raco expand` dressed for the purpose) is part of the interface — the one verified metaprogramming-debugging success depended on exactly this.
@@ -175,4 +261,4 @@ The measured record on LLM agents and custom DSLs lives in its own doc — [agen
 
 Substitute names: `clist` is `#ol-live`, `counts` is `outline-events` in `web/watch.rkt`, `counter-link` is every sidebar, crumb, and permalink the renderer draws — and the `ticker` is the chat panel: the second live surface a navigation must not rebuild. The sidebar-click that rebuilt the chat was the bug that started this doc; declared, it is unwritable. `serve.rkt` requires both drawers; the module graph wires the rest.
 
-The in-flight live-view PR ships the functional core. The DSL is a possible second PR, judged then by the same lenses: build it only if the declarations CHECK something a swarm actually trips on.
+The functional core shipped (`live/`, PR #29); the worked example was built hand-wired (PR #32) and shrank the target — two unchecked strings per surface plus one page-global history decision, not four. Verdicts are in (above), and the build is decided: ONE PR ships it all — the boot-UUID wire in live/, the forms (`define-stream`, `define-live-region`, `live-item`), and the raw-attribute ban in live/README.md plus its pointer in CLAUDE.md.
