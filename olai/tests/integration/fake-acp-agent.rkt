@@ -13,11 +13,13 @@
 ;; a property of the machine the agent woke up on, not of anything a client
 ;; says:
 ;;
-;;   OLAI_FAKE_ACP_STORED   non-empty -> session/list answers with two
-;;                               conversations and session/load replays the
-;;                               one that is asked for; unset (the default) ->
-;;                               nothing is stored, so a client boots the way
-;;                               it always did, with session/new
+;;   OLAI_FAKE_ACP_STORED   unset (the default) -> nothing is stored, so a
+;;                               client boots the way it always did, with
+;;                               session/new. Set -> session/list answers and
+;;                               session/load replays what it is asked for:
+;;                               "foreign" is only other directories'
+;;                               conversations, anything else is two of the
+;;                               client's own plus a newer foreign one
 ;;
 ;; Behaviour is keyed on the prompt text, so a test asks for what it needs:
 ;;
@@ -74,22 +76,47 @@
 ;; sends carry the loaded id, the way a real one's do.
 (define session-id (box "fake-session-1"))
 
-;; What this machine has stored, newest LAST on purpose — a client that takes
-;; the first entry instead of the most recently updated one gets the wrong
-;; conversation, and a test says so.
-(define stored-sessions
-  (list (hash 'sessionId "fake-stored-old"
-              'cwd "/tmp"
-              'title "an older conversation"
-              'updatedAt "2026-07-01T09:00:00.000Z")
-        (hash 'sessionId "fake-stored-new"
-              'cwd "/tmp"
-              'title "the last conversation"
-              'updatedAt "2026-08-01T17:30:00.000Z")))
+;; The name each stored conversation goes by, wherever it was worked in.
+(define stored-titles
+  (hash "fake-stored-old" "an older conversation"
+        "fake-stored-new" "the last conversation"
+        "fake-foreign" "another checkout's conversation"))
+
+;; The same directory, spelled with a trailing slash; and one beneath it.
+(define (as-dir cwd) (path->string (path->directory-path (string->path cwd))))
+(define (beneath cwd . parts) (path->string (apply build-path (string->path cwd) parts)))
+
+;; What this machine has stored, given the directory a client asked about.
+;; Three things here are deliberate:
+;;
+;;   * the client's own two are newest LAST, so a client that takes the first
+;;     entry instead of the most recently updated one gets the wrong one;
+;;   * one of them spells that directory with a trailing slash — an agent
+;;     stores the spelling it was handed, and it is the same place;
+;;   * the FOREIGN one is newer than either and sits UNDERNEATH the directory
+;;     asked about. A real adapter scopes session/list by PREFIX, which is how
+;;     another checkout's agent (a worktree, an orchestrator) turns up in the
+;;     answer; a client that trusts the list adopts THAT.
+(define (stored-sessions cwd)
+  (define (entry id dir stamp)
+    (hash 'sessionId id 'cwd dir 'title (hash-ref stored-titles id) 'updatedAt stamp))
+  (define foreign
+    (list (entry "fake-foreign" (beneath cwd ".worktrees" "other")
+                 "2026-08-04T11:00:00.000Z")))
+  (if (foreign-only?)
+      foreign
+      (append (list (entry "fake-stored-old" cwd "2026-07-01T09:00:00.000Z")
+                    (entry "fake-stored-new" (as-dir cwd) "2026-08-01T17:30:00.000Z"))
+              foreign)))
+
+(define (stored-mode)
+  (or (getenv "OLAI_FAKE_ACP_STORED") ""))
 
 (define (stored?)
-  (define v (getenv "OLAI_FAKE_ACP_STORED"))
-  (and v (not (string=? v ""))))
+  (not (string=? (stored-mode) "")))
+
+(define (foreign-only?)
+  (string=? (stored-mode) "foreign"))
 
 ;; Set by a session/cancel notification, cleared when a prompt is accepted —
 ;; both in the reading loop, so the two stay in the order they arrived.
@@ -189,12 +216,8 @@
 ;; pushes it when it moved; this one says it once, as soon as there is a
 ;; session to say it about, so the frame it becomes is where a test can find it.
 (define (session-info!)
-  (define stored
-    (for/or ([s (in-list stored-sessions)])
-      (and (equal? (hash-ref s 'sessionId) (unbox session-id))
-           (hash-ref s 'title))))
   (update! (hash 'sessionUpdate "session_info_update"
-                 'title (or stored "a fake conversation")
+                 'title (hash-ref stored-titles (unbox session-id) "a fake conversation")
                  'updatedAt "2026-08-05T12:00:00.000Z")))
 
 ;; ---- replaying a stored session ---------------------------------------------
@@ -323,8 +346,12 @@
                         'agentCapabilities (hash 'loadSession #t
                                                  'sessionCapabilities (hash 'list (hash)))
                         'agentInfo (hash 'name "fake-acp-agent" 'version "1")))]
+    ;; Answered for the directory the client asked about, and NOT filtered to
+    ;; it: see `stored-sessions`.
     [(equal? method "session/list")
-     (respond! id (hash 'sessions (if (stored?) stored-sessions '())))]
+     (respond! id (hash 'sessions (if (stored?)
+                                      (stored-sessions (hash-ref params 'cwd))
+                                      '())))]
     [(equal? method "session/new")
      (remember-raw-filter! params)
      (respond! id (hash 'sessionId (unbox session-id) 'configOptions (config-options)))]
@@ -335,8 +362,7 @@
     [(equal? method "session/load")
      (define sid (hash-ref params 'sessionId #f))
      (cond
-       [(and (stored?) (for/or ([s (in-list stored-sessions)])
-                         (equal? (hash-ref s 'sessionId) sid)))
+       [(and (stored?) (hash-ref stored-titles sid #f))
         (remember-raw-filter! params)
         (set-box! session-id sid)
         (replay!)
