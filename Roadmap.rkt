@@ -92,47 +92,34 @@ olai roadmap #project
         : panes (apply() is document-wide; the sidebar renders outside
         : the #ol-live swap target and was never in the line of fire).
         @done 2026-08-05
-    [/] live view glitches #bug
-      : In flight: terminal 322a5e1f, worktree live-view, Claude Opus.
+    [x] live view glitches #bug
+      : Fixed by [#29](https://github.com/juspay/olai/pull/29): a `live/` package (frame, hub, client; vendored htmx + sse + idiomorph + one generic live.js) with olai as its first consumer. Cursor is `<boot>.<revision>` — a token, compared not parsed — and a page carries the cursor it was drawn at, closing the render-to-connect gap.
       : One disease behind them all: DOM that did not change is replaced
       : anyway — full page loads on sidebar clicks, whole-container
       : swaps on SSE. Seen: chat panel rebuilt by sidebar navigation;
       : scroll jumps on live re-swap; selection/focus loss; CSS
       : transition replay; click-vs-swap race; stale outline after
       : sleep (the stream has no reconnect catch-up).
-      partial navigation
+      [x] partial navigation
         : Sidebar/crumb/permalink links hx-get the same URL with
         : hx-target/hx-select #ol-live, morph swap, hx-push-url; the
         : chat panel, sidebar, and skin live outside #ol-live and are
         : never rebuilt. The plain href stays — no-JS and deep links
         : keep working.
-      morph swaps
+      [x] morph swaps
         : Vendor idiomorph beside htmx+sse; outline swaps (navigation
         : and SSE alike) become morphs keyed on the stable node ids.
         : Kills scroll jump, selection/focus loss, transition replay,
         : and the click-vs-swap race by construction; the afterSettle
         : re-apply stays for genuinely new subtrees.
-      outline stream catch-up
+      [x] outline stream catch-up
         : What chat got in [#24](https://github.com/juspay/olai/pull/24), via the protocol: the snapshot gains a
         : revision, events.rkt stamps it as the SSE id:, reconnects
         : send Last-Event-ID, and a behind client gets one fresh
         : outline-changed. Sleep, iOS tab suspension, network blips
         : heal with zero client JS. The hub stays generic — ids are
         : its vocabulary; what a revision MEANS stays the store's.
-      declare-and-check DSL
-        : Anti-entropy for a swarm-built wiring: this repo is written
-        : by many agents with partial context, and every id/event
-        : string is a convention each one must rediscover — e2e catches
-        : the drift late, at simulation prices. Regions and streams as
-        : compile-time bindings instead: a dead link or undeclared
-        : frame fails at expand time with a srcloc (the agent
-        : interface), and stream evolution is append-only at one
-        : declaration site. Thin macros over the framework's
-        : functional core; second PR, only if the declarations CHECK
-        : something a swarm actually trips on. Brainstorm:
-        : [docs/brainstorming/live-dsl.md](https://github.com/juspay/olai/blob/master/docs/brainstorming/live-dsl.md)
-        : (make this an @doc when that lands).
-      stream health indicator
+      [x] stream health indicator
         : The user must know when they are reading a stale app. Two
         : layers: htmx:sseOpen/sseClose for clean drops, and a
         : heartbeat + client watchdog for half-dead connections (the
@@ -140,12 +127,14 @@ olai roadmap #project
         : when live; subtle while reconnecting; the store's last-good
         : banner vocabulary ("showing last known state") when the
         : watchdog trips. Catch-up clears it on reconnect.
-      e2e coverage
+      [x] e2e coverage
         : Pin the class dead: scroll survives a live re-swap; a text
         : selection survives; chat DOM identity survives sidebar
         : navigation; kill the connection, edit the file, reconnect —
         : the outline catches up; the indicator shows stale while the
         : stream is down and clears on recovery.
+    declare-and-check DSL
+      : Anti-entropy for a swarm-built wiring: this repo is written by many agents with partial context, and every id/event string is a convention each one must rediscover — e2e catches the drift late, at simulation prices. Regions and streams as compile-time bindings instead: a dead link or undeclared frame fails at expand time with a srcloc (the agent interface), and stream evolution is append-only at one declaration site. The functional core to macro over shipped in [#29](https://github.com/juspay/olai/pull/29) (`live/`: frame, hub, client attributes); build the forms only if the declarations CHECK something a swarm actually trips on. Brainstorm: [docs/brainstorming/live-dsl.md](https://github.com/juspay/olai/blob/master/docs/brainstorming/live-dsl.md); the research behind it, general to any future DSL: [docs/brainstorming/agents-and-dsls.md](https://github.com/juspay/olai/blob/master/docs/brainstorming/agents-and-dsls.md) (make these @doc when that lands).
     0.6 micro-edits
       : Capture box + check-off from the browser (done status already in the
       : language + CLI). The phone loop closes: capture, complete, ask the
