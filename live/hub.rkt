@@ -176,9 +176,10 @@
   (define h (headers-assq* #"Last-Event-ID" (request-headers/raw req)))
   (and h (present (bytes->string/utf-8 (header-value h) #\?))))
 
+(define cursor-param-bytes (string->bytes/utf-8 live-cursor-param))
+
 (define (query-cursor req)
-  (define b (bindings-assq (string->bytes/utf-8 live-cursor-param)
-                           (request-bindings/raw req)))
+  (define b (bindings-assq cursor-param-bytes (request-bindings/raw req)))
   (and (binding:form? b)
        (present (bytes->string/utf-8 (binding:form-value b) #\?))))
 
