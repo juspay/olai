@@ -4,13 +4,12 @@
 ;;
 ;; The transport (the `live` collection) knows about ids and heartbeats and
 ;; nothing else: an id is an opaque string to it, and a client that comes back
-;; saying "I last saw 41" is a question it hands straight back. This module is
-;; the answer, for olai — the one place that knows an id is a STORE REVISION, a
-;; counter that only goes up (olai/store), and that a client behind it is owed
-;; exactly one thing: "you are behind, re-fetch". Never the content: the live
-;; region fetches its own page, so one handler serves the first render and every
-;; update, and the stream stays a notification channel rather than a second
-;; renderer.
+;; saying "I last saw this" is a question it hands straight back. This module is
+;; the answer, for olai — the one place that knows an id names a state of the
+;; outlines, and that a client anywhere else is owed exactly one thing: "you are
+;; behind, re-fetch". Never the content: the live region fetches its own page,
+;; so one handler serves the first render and every update, and the stream stays
+;; a notification channel rather than a second renderer.
 ;;
 ;; It is deliberately pure, and deliberately does not require olai/store: it is
 ;; told a revision. The store owns the number; this owns what the number means
@@ -35,7 +34,7 @@
           [live-asset-prefix string?]
           [live-script-srcs (listof string?)]
           ;; the view a page is drawn with: where its stream is, and which
-          ;; revision the markup around it came from
+          ;; state the markup around it came from
           [outline-live-view (-> string? #:cursor (or/c string? #f) live-view?)]
           ;; the token a state of the outlines is named by on the wire
           [outline-cursor (-> string? exact-integer? string?)]

@@ -80,7 +80,8 @@
          (only-in live/client live-static-dir)
          olai/web/chat
          ;; olai's side of that contract: the event name, the region's id, and
-         ;; what a store revision means to a client that has been away
+         ;; what a store revision means on the wire, and to a client that has
+         ;; been away
          olai/web/live
          ;; the sheet and its URL; which modules it is made of is skin's
          olai/web/skin
