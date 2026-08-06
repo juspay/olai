@@ -97,6 +97,38 @@ olai roadmap #project
       : agent for everything else.
     0.9 search
       : Text search + keyboard nav in the web view.
+    command palette
+      : Ctrl+K (and Ctrl+; fallback), the Workflowy "Jump To": one box
+      : that fuzzy-jumps to any node by title, ^anchor, or #tag, and
+      : runs commands (theme flip, collapse all, /today). Workflowy
+      : pairs it with user-assigned shortcut codes on bullets — anchors
+      : already are that for us. Rides 0.9's search index.
+    chat
+      : The panel becomes the outline's other half.
+      tool-output folding
+        : ACP tool-call frames (and similar chatter) collapse by default
+        : in the chat panel; a toggle unfolds any of them on demand. The
+        : transcript stays complete — folding is view state, like the
+        : outline's collapse.
+      edit flash-and-jump
+        : When a chat-driven edit lands (the SSE re-swap already fires),
+        : flash the changed node in the outline pane; the tool-call line
+        : (`Edit Tasks.rkt`) clicks through to the affected node's zoom.
+      chat about this node
+        : An affordance on any node opens the panel with that node's key
+        : and subtree as context — "reschedule these" without spelling
+        : the node out. Pairs with WP7 zoom.
+      markdown replies
+        : Full Markdown in agent replies — fenced code with highlighting,
+        : via the vendored markdown lib. Render-time only; transcript
+        : strings stay verbatim.
+      session picker adopts foreign sessions #bug
+        : session/list is trusted unfiltered and the adapter scopes by
+        : prefix, so sessions from other checkouts of the repo (agent
+        : worktrees, an orchestrator in the root) show in the picker —
+        : and boot ADOPTS the newest as the web conversation. The raw
+        : entries carry cwd (acp.rkt:370); filter list-sessions to exact
+        : server-cwd matches before the picker or adopt logic sees them.
   language
     : The grammar grows; the expander stays the only validator.
     0.2b.2 cross-file mirrors
