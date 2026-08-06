@@ -22,7 +22,6 @@
 ;; tests read. Instantiation order is the cascade; that is the contract.
 
 (require rackunit
-         json
          racket/file
          racket/list
          racket/runtime-path
@@ -133,7 +132,7 @@
 
 ;; The pages the renderers can draw, from the demo outlines: the outline pane
 ;; with a sidebar and a banner, a zoom, an empty pane, a mirror site that names
-;; nothing, and the chat panel mid-turn. Between them they draw every state the
+;; nothing, and the chat panel's chrome. Between them they draw every state the
 ;; skin paints — which is what makes "nothing wears this class" mean something.
 (define example-today "2026-08-03")
 
@@ -168,18 +167,15 @@
                            #:children (list (mirror-ref "no-such-anchor" #f))))
           (hash)))
     #:today example-today)
+   ;; Markdown at render time: the anchor and the code a note (or a finished
+   ;; turn) makes are the classes the demo outlines never happen to contain.
+   (note->xexprs "see [the manual](https://example.com), `inline`\n\n```\nblock\n```\n")
+   ;; The panel is chrome: what a conversation looks like is chat.js's markup,
+   ;; and the classes it spells are read off the script (scripted-classes).
    (render-chat-panel
-    (list (hash 'type "turn"
-                'text "run it"
-                'agent "a **note**, `code`, [a link](https://example.com)\n\n```\nblock\n```\n"
-                'tools (list (hash 'id "call-1" 'title "read Tasks.rkt" 'status "completed"))
-                'status "done" 'stopReason "cancelled" 'error "the agent exited (code 1)")
-          (hash 'type "reset" 'message (json-null)))
-    #:busy? #t
     #:send-href "/chat" #:new-href "/chat/new" #:cancel-href "/chat/cancel"
     #:sessions-href "/chat/sessions" #:load-href "/chat/load"
-    #:event "chat" #:model "fake-model-1" #:session-title "the last conversation"
-    #:commands (list (hash 'name "fake-init" 'description "start something")))))
+    #:event "chat")))
 
 (define rendered-classes
   (for/fold ([acc (set)]) ([page (in-list (example-pages))])

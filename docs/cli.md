@@ -307,7 +307,10 @@ olai: OLAI_ACP_AGENT does not exist: /nope
 
 — exit 1, the usage code. The agent is spawned **at startup**, in a background
 thread: the listener is up first, so pages serve while the subprocess starts
-and the last conversation replays into them (see *Sessions*). A boot that fails
+and the last conversation replays (see *Sessions*). A page answered inside that
+window is not behind for it — it carries no conversation to be stale, and the
+stream tells it what the boot said, whichever side of the boot it connected on.
+A boot that fails
 is an `error` frame and a log line, and the next chat message retries it — the
 same path a crashed agent takes, which is likewise replaced on the next message.
 Its stderr is a log sink, drained into the server's own stderr with an `acp:`
@@ -413,7 +416,7 @@ Routes:
 | `GET /` | HTML page (Workflowy-style skin from `olai/web/render.rkt`) |
 | `GET /n/<key>` | one node, zoomed: breadcrumbs (home, the file, each ancestor) plus that subtree and nothing else. `key` as in `tree` JSON. A key the current snapshot has no node for is a page saying so, with a `200` — a node can be deleted while a tab sits zoomed on it, and that tab re-fetches this page to find out |
 | `GET /today` | the first node titled with today's ISO date (the Daily day node), zoomed — the same view as `/n/<key>`, with today's key looked up per request; terse empty state when there is none yet |
-| `GET /events` | `text/event-stream`, never ends. `event: outline` with the store revision as its data whenever a watched file reloaded, plus one at local midnight; `event: chat` with one JSON frame from the agent per line; a `:hb` comment on connect and every 15s after, so a client knows it is subscribed and proxies leave it alone |
+| `GET /events` | `text/event-stream`, never ends. `event: outline` with the store revision as its data whenever a watched file reloaded, plus one at local midnight; `event: chat` with one JSON frame from the agent per line; a `:hb` comment on connect and every 15s after, so a client knows it is subscribed and proxies leave it alone. **A new connection is caught up first**: a `reset`, the conversation's `session` / `model` / `commands` as they stand, and the transcript as the frames that built it (`mark` for a break a live `reset` already cleared). Sent to that connection alone, before anything live, so a page opened while the agent was still waking up — or reloaded, or reconnected — knows exactly what one opened a minute earlier does |
 | `POST /chat` | prompt the agent; form field `text` (empty after trimming is `400`). `204` — what the panel draws comes back over `/events`, so every open tab stays in step. `409` with a terse `text/plain` body while a turn is running, `503` when the agent is gone |
 | `POST /chat/new` | new chat: the agent-side context goes away, `204`, and a `reset` frame clears every panel |
 | `POST /chat/cancel` | cancel the turn in flight, `204` (also while the agent is still booting); the `done` frame (`stopReason` `cancelled`) follows on its own |
@@ -459,10 +462,14 @@ no service worker and no offline mode: the view is live-or-nothing (SSE,
 agent). `static/pwa.js` only keeps `theme-color` in step with the picked theme.
 
 The chat panel (a `>_ agent` button, bottom right; open state remembered in
-`localStorage`) is server-rendered from the bridge's transcript on every page
-load — frames are ephemeral, so a reload or a second tab replays instead of
-missing the conversation — and kept live by `static/chat.js` off the page's one
-SSE connection. Its header names the model when the agent has reported one, and
+`localStorage`) comes out of the server EMPTY and in none of its states. Every
+word in it and every class on it arrives as a frame on the page's one SSE
+connection, `static/chat.js` drawing them — including the conversation that
+happened before the page existed, which `/events` replays down the connection
+as it is made. Nothing about the conversation is server-rendered: a page is
+answered while the agent may still be waking up, so a panel drawn from what was
+known then would be a panel that never finds out.
+Its header names the model when the agent has reported one, and
 the conversation when it has a title. The `chats` button beside `+ new` opens a
 popover over `GET /chat/sessions` — newest first, the current one marked, ↑/↓
 and Enter or a click to load one, Esc to close.
@@ -471,8 +478,8 @@ and a tool's title never are.
 
 Typing `/` in the panel's input — or pressing the `/` button on the input row,
 which shows the whole list — opens a completion popover over the agent's
-slash commands (replayed onto the panel as `data-commands`, kept live by the
-`commands` frame): ↑/↓ move, Enter or Tab accept the highlighted one into the
+slash commands (the whole list, from the `commands` frame — the catch-up's
+included): ↑/↓ move, Enter or Tab accept the highlighted one into the
 input, Esc closes, and Enter with nothing open sends the message as always.
 Accepting only writes `/name ` — sending is what invokes it.
 

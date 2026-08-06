@@ -118,23 +118,32 @@ export class OlaiWorld extends World {
    *
    *  `serve` prints its URL and starts answering while the agent is still
    *  waking up in its own thread, so the first second of a server's life is a
-   *  panel that does not know its model, its conversation or its commands yet.
-   *  A page opened in that window never learns: the frames are broadcast to
-   *  whoever is listening, and it was not born yet (see the @skip scenario in
-   *  features/sessions.feature).
+   *  conversation with no name, no model and no commands yet. A page opened in
+   *  that window does not miss them — the stream catches a connection up on
+   *  the way in, which is what features/sessions.feature's last scenario is
+   *  about — but the PICKER is a question for the agent itself, and a scenario
+   *  about what it can offer waits here first.
    *
-   *  The command list is the LAST boot frame — the same signal Roadmap.rkt
-   *  names for the racket suite's version of this race — so the page carrying
-   *  a non-empty one is the agent being all the way up. */
+   *  Asked of the stream, which is where the answer is: a connection is told
+   *  the conversation as it stands, and the command list is the last thing a
+   *  boot has to say about it. Frames are JSON; this parses them. */
   async waitForAgent(timeout = 20_000) {
-    const deadline = Date.now() + timeout;
-    for (;;) {
-      const html = await (await fetch(this.url("/"))).text();
-      if (/data-commands="\[\{/.test(html)) return;
-      if (Date.now() > deadline) {
+    const control = new AbortController();
+    const timer = setTimeout(() => control.abort(), timeout);
+    try {
+      const res = await fetch(this.url("/events"), { signal: control.signal });
+      for await (const frame of sseFrames(res.body)) {
+        if (frame.event === "chat" && JSON.parse(frame.data).type === "commands") return;
+      }
+      throw new Error("the event stream ended before the agent woke up");
+    } catch (e) {
+      if (control.signal.aborted) {
         throw new Error(`the agent was still waking up after ${timeout}ms`);
       }
-      await new Promise((r) => setTimeout(r, 50));
+      throw e;
+    } finally {
+      clearTimeout(timer);
+      control.abort();
     }
   }
 
@@ -181,5 +190,30 @@ export class OlaiWorld extends World {
 
   async marked() {
     return await this.page.evaluate((k) => window[k] === true, MARK);
+  }
+}
+
+// ---- reading a stream -------------------------------------------------------
+
+/** The events on an SSE body, one at a time: `{event, data}`, blank-line
+ *  framed, every `data:` line of a multi-line payload joined back up. The
+ *  heartbeat is a comment, which is framing rather than an event. */
+async function* sseFrames(body) {
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for await (const chunk of body) {
+    buffer += decoder.decode(chunk, { stream: true });
+    let end;
+    while ((end = buffer.indexOf("\n\n")) !== -1) {
+      const block = buffer.slice(0, end);
+      buffer = buffer.slice(end + 2);
+      let event = null;
+      const data = [];
+      for (const line of block.split("\n")) {
+        if (line.startsWith("event: ")) event = line.slice(7);
+        else if (line.startsWith("data: ")) data.push(line.slice(6));
+      }
+      if (event !== null) yield { event, data: data.join("\n") };
+    }
   }
 }

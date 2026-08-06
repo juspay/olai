@@ -1,29 +1,25 @@
 #lang racket/base
 
-;; The agent panel, drawn: the dock, the conversation, the input row, and
-;; every rule that paints them.
+;; The agent panel, drawn: the dock, the header, the room the conversation
+;; goes in, the input row, and every rule that paints them.
 ;;
-;; PRESENTATION ONLY. What a turn IS, what a frame means, whether the agent is
-;; busy — that is web/chat.rkt over olai/acp. It is handed a transcript (plain
-;; JSON hashes), that busy flag, and a handful of URLs, and it gives back an
-;; xexpr. The route layer is what puts the two together. The one thing it takes
+;; PRESENTATION ONLY, and CHROME only. What a turn IS, what a frame means,
+;; whether the agent is busy — that is web/chat.rkt over olai/acp. This module
+;; is handed a handful of URLs and gives back an xexpr. The one thing it takes
 ;; from web/chat is the WORDS: a status is that module's vocabulary, and a
 ;; selector that spelled one by hand would be a second owner of it.
 ;;
-;; The panel is replayed from that transcript on every page load (frames are
-;; ephemeral: a browser that connects late, or reloads, missed them). From
-;; there static/chat.js keeps it live off the page's ONE SSE connection, and
-;; several classes below exist only for that script to build — style with no
-;; markup on this side, which is exactly why they are still defined here.
+;; Nothing about the conversation is drawn here. A page is served while the
+;; agent may still be waking up, so anything this rendered about the
+;; conversation would be as old as the request; what a panel shows arrives on
+;; the page's ONE SSE connection, which web/chat catches up the moment it
+;; exists (`chat-catch-up`) and keeps live from there. So the dock, the header,
+;; the empty conversation and the input row are markup, and every class inside
+;; the conversation is style with no markup on this side — static/chat.js
+;; builds them, which is exactly why they are still defined here.
 ;;
 ;; The URLs are the route layer's, and so is the SSE event name — a renderer
 ;; that spelled "chat" here would be a second owner of the wire format.
-;;
-;; What is Markdown and what is not: a FINISHED turn's agent text gets the
-;; same treatment a note gets. A running or failed turn's text is a fragment,
-;; so it stays verbatim (chat.js accumulates chunks as text and swaps in the
-;; server's HTML when the `done` frame lands). User text and tool titles are
-;; never Markdown — they are strings in an xexpr, which is what escapes them.
 ;;
 ;; The panel is an overlay on the outline, so its rules land after the
 ;; outline's: the require below is what puts them there, and the one rule whose
@@ -31,7 +27,6 @@
 ;; style.rkt on ordering).
 
 (require racket/contract
-         (only-in json jsexpr->string)
          olai/web/style
          ;; the skin's tokens and constants, and the page's own class — the
          ;; panel is positioned against the document
@@ -39,29 +34,21 @@
          ;; the words a transcript is written in: what a status MEANS is
          ;; web/chat's, and a selector here spells the same binding
          (only-in olai/web/chat
-                  turn-done tool-pending tool-in-progress tool-completed
-                  tool-failed stop-end-turn)
-         ;; the pane the panel makes room in, and the note renderer a finished
-         ;; turn is run through
-         (only-in olai/web/render ol-main note->xexprs))
+                  tool-pending tool-in-progress tool-completed tool-failed)
+         ;; the pane the panel makes room in
+         (only-in olai/web/render ol-main))
 
 (provide (contract-out
           [render-chat-panel
-           (->* ((listof hash?)
-                 #:busy? boolean?
-                 #:send-href string? #:new-href string? #:cancel-href string?
-                 #:sessions-href string? #:load-href string?
-                 #:event string?)
-                (#:model (or/c string? #f)
-                 #:session-title (or/c string? #f)
-                 #:commands (listof hash?))
-                list?)]))
+           (-> #:send-href string? #:new-href string? #:cancel-href string?
+               #:sessions-href string? #:load-href string?
+               #:event string?
+               list?)]))
 
 ;; ---- states ---------------------------------------------------------------
 ;;
-;; The panel's states. chat.js toggles all of them; the server sets is-busy
-;; and has-commands on the first draw so a reloaded page comes up in the state
-;; the conversation is actually in.
+;; The panel's states. chat.js owns every one of them: the panel is drawn in
+;; none of them and put into the ones the stream says it is in.
 
 (define-modifier is-open is-busy has-commands is-picked
                  is-user is-agent is-error)
@@ -487,106 +474,34 @@
 
 ;; ---- the markup -----------------------------------------------------------
 
-(define tool-glyphs (hash tool-completed "✓" tool-failed "✗"))
-
-(define (chat-tool-xexpr t)
-  (define status (chat-string t 'status tool-pending))
-  `(div ((class ,ol-chat-tool)
-         (data-tool-id ,(chat-string t 'id ""))
-         (data-status ,status))
-        (span ((class ,ol-chat-tool-glyph)) ,(hash-ref tool-glyphs status "⚙"))
-        (span ((class ,ol-chat-tool-title)) ,(chat-string t 'title ""))))
-
-;; A transcript field is JSON: a missing one and an explicit null are the
-;; same nothing, and neither may reach xexpr->string.
-(define (chat-string h k [default #f])
-  (define v (hash-ref h k #f))
-  (if (string? v) v default))
-
-(define (chat-turn-xexpr e)
-  (define status (chat-string e 'status turn-done))
-  (define text (chat-string e 'agent ""))
-  (define stop (chat-string e 'stopReason))
-  (define err (chat-string e 'error))
-  `(div ((class ,ol-chat-turn))
-        (div ((class ,(classes ol-chat-msg is-user))) ,(chat-string e 'text ""))
-        (div ((class ,(classes ol-chat-msg is-agent)))
-             ,@(if (equal? status turn-done)
-                   (note->xexprs text)
-                   (list text)))
-        ,@(for/list ([t (in-list (hash-ref e 'tools '()))]
-                     #:when (hash? t))
-            (chat-tool-xexpr t))
-        ,@(if err
-              (list `(div ((class ,(classes ol-chat-msg is-error))) ,err))
-              '())
-        ,@(if (and stop (not (equal? stop stop-end-turn)))
-              (list `(div ((class ,ol-chat-note)) ,stop))
-              '())))
-
-;; Not a turn: the conversation moved. A live `reset` clears the panel; a
-;; replayed one is a line across it, because the turns above it happened.
-(define (chat-marker-xexpr e)
-  (define type (chat-string e 'type ""))
-  `(div ((class ,ol-chat-sep))
-        ,(or (chat-string e 'message) (if (equal? type "reset") "new chat" type))))
-
-(define (chat-entry-xexpr e)
-  (if (equal? (chat-string e 'type "") "turn")
-      (chat-turn-xexpr e)
-      (chat-marker-xexpr e)))
-
-(define (render-chat-panel transcript
-                           ;; A turn was still running when this page was
-                           ;; rendered: the panel comes up in that state (input
-                           ;; disabled, stop showing) rather than idle. Whether
-                           ;; it is running is the conversation's to say — a
-                           ;; transcript read for it would be a second answer
-                           ;; to a question web/chat already has one for.
-                           #:busy? busy?
-                           #:send-href send-href
+(define (render-chat-panel #:send-href send-href
                            #:new-href new-href
                            #:cancel-href cancel-href
                            #:sessions-href sessions-href
                            #:load-href load-href
-                           #:event event
-                           #:model [model #f]
-                           #:session-title [session-title #f]
-                           #:commands [commands '()])
+                           #:event event)
   `(div ((class ,ol-chat-dock))
         (button ((type "button") (class ,ol-chat-open) (data-chat-toggle "")
                  (aria-label "open the agent panel"))
                 ">_ agent")
-        ;; The agent's slash commands, replayed onto the panel: chat.js reads
-        ;; them at init so a reloaded page completes immediately, and a
-        ;; `commands` frame replaces them from there. JSON in an attribute —
-        ;; the xexpr layer is what escapes it, same as any other string here.
-        (aside ((class ,(classes ol-chat (and busy? is-busy)
-                                 ;; nothing to offer, nothing to press: the
-                                 ;; commands button is one class away, so a
-                                 ;; `commands` frame can bring it back
-                                 (and (pair? commands) has-commands)))
-                (id "ol-chat")
-                (data-commands ,(jsexpr->string commands)))
+        ;; In none of its states: closed, idle, and with nothing to offer. Each
+        ;; of them is one class away, and the frames this connection is caught
+        ;; up with are what put it in the right ones.
+        (aside ((class ,ol-chat) (id "ol-chat"))
                (div ((class ,ol-chat-head))
-                    ;; Which model, when the bridge has heard one — never a
-                    ;; placeholder. Its own span, and the separator is the
-                    ;; span's, so a `model` frame sets one string.
+                    ;; Which model — never a placeholder: an empty span for a
+                    ;; `model` frame to fill, and the separator is the span's
+                    ;; own, so filling it is setting one string.
                     (span ((class ,ol-chat-title)) "agent · claude code"
-                          (span ((class ,ol-chat-model) (id "ol-chat-model"))
-                                ,(or model ""))
+                          (span ((class ,ol-chat-model) (id "ol-chat-model")))
                           ;; A running turn is visible on the floating toggle,
                           ;; which an OPEN panel hides — so the header carries
-                          ;; the same signal. Always drawn, shown by is-busy,
-                          ;; which the server sets for a turn in flight and
-                          ;; chat.js moves from there.
+                          ;; the same signal. Always drawn, shown by is-busy.
                           (span ((class ,ol-chat-working) (title "working")))
-                          ;; Which conversation, when it has a name. Same
-                          ;; pattern as the model, one line down: a `session`
-                          ;; frame sets one string, and an empty one takes the
-                          ;; line away with it.
-                          (span ((class ,ol-chat-session) (id "ol-chat-session"))
-                                ,(or session-title "")))
+                          ;; Which conversation. Same pattern as the model, one
+                          ;; line down: a `session` frame sets one string, and
+                          ;; an empty one takes the line away with it.
+                          (span ((class ,ol-chat-session) (id "ol-chat-session"))))
                     (div ((class ,ol-chat-actions))
                          ;; The conversations the agent has stored for this
                          ;; directory. The popover it opens is drawn by
@@ -614,8 +529,9 @@
                ;; connection, two consumers.
                (div ((class ,ol-chat-sink) (id "ol-chat-sink")
                      (sse-swap ,event) (hidden "hidden")))
-               (div ((class ,ol-chat-body) (id "ol-chat-body"))
-                    ,@(for/list ([e (in-list transcript)]) (chat-entry-xexpr e)))
+               ;; Empty, always: the conversation is what the stream says it
+               ;; is, from the frames it catches this connection up with.
+               (div ((class ,ol-chat-body) (id "ol-chat-body")))
                (form ((class ,ol-chat-form) (id "ol-chat-form")
                       (action ,send-href) (method "post"))
                      ;; The same popover a typed "/" opens, unfiltered: the
@@ -625,8 +541,7 @@
                               (aria-label "show the agent's commands"))
                              "/")
                      (input ((class ,ol-chat-input) (name "text") (type "text")
-                             (autocomplete "off") (placeholder "message the agent")
-                             ,@(if busy? '((disabled "disabled")) '())))
+                             (autocomplete "off") (placeholder "message the agent")))
                      (button ((type "submit") (class ,ol-chat-send)) "send")
                      (button ((type "button") (class ,ol-chat-stop)
                               (data-post ,cancel-href))

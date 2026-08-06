@@ -16,7 +16,7 @@
 ;;     ops use (the CLI maps kinds to exit codes, a route maps them to statuses).
 ;;   * the transcript. Frames are ephemeral — a browser that connects late
 ;;     missed them — so a turn is also accumulated here, and that is what a
-;;     page load replays.
+;;     connection is caught up with (`chat-catch-up`).
 ;;   * what a header SAYS: which model, which slash commands, which
 ;;     conversation. Each of those is learned from the agent and pushed only
 ;;     when it actually moved, so a session that re-announces the same model on
@@ -37,6 +37,7 @@
 
 (require json
          racket/contract
+         racket/list
          olai/acp
          (only-in olai/ops exn:fail:op)
          ;; render-time Markdown has one owner; this module only asks it for
@@ -49,14 +50,10 @@
 (provide (contract-out
           [acp-event-name string?]
           ;; the words a transcript is written in (see "the vocabulary")
-          [turn-running string?]
-          [turn-done string?]
-          [turn-error string?]
           [tool-pending string?]
           [tool-in-progress string?]
           [tool-completed string?]
           [tool-failed string?]
-          [stop-end-turn string?]
           [make-chat (->* (#:command (or/c path? string?)
                            #:cwd (or/c path? string?)
                            #:broadcast (-> string? string? any))
@@ -76,6 +73,7 @@
           [chat-session-id (-> chat? (or/c string? #f))]
           [chat-session-title (-> chat? (or/c string? #f))]
           [chat-transcript (-> chat? (listof hash?))]
+          [chat-catch-up (-> chat? (-> any) (listof (cons/c string? string?)))]
           [chat-handle-event! (-> chat? acp-event? void?)]))
 
 ;; The SSE event name chat frames ride under. One owner: the page that
@@ -88,27 +86,18 @@
 
 ;; ---- the vocabulary ---------------------------------------------------------
 ;;
-;; The words a transcript is written in. What a turn's status IS, and what a
-;; tool call's means, is this module's business — so the panel that draws one
-;; and the selector that reacts to it spell a binding, not a string that
-;; happens to match. Append-only, like the frames themselves.
+;; The words a transcript is written in. What a tool call's status MEANS is
+;; this module's business — so the panel that draws one and the selector that
+;; reacts to it spell a binding, not a string that happens to match. The tool
+;; statuses are the agent's, passed through olai/acp unchanged.
 ;;
-;; A turn's status is a symbol in the struct below and these on the wire
-;; (symbol->string of the same word). The tool statuses are the agent's, passed
-;; through olai/acp unchanged.
-
-(define turn-running "running")
-(define turn-done "done")
-(define turn-error "error")
+;; A turn's status is a symbol in the struct below, and `symbol->string` of the
+;; same word on the wire.
 
 (define tool-pending "pending")
 (define tool-in-progress "in_progress")
 (define tool-completed "completed")
 (define tool-failed "failed")
-
-;; how a turn ends when nothing happened to it. Any other ending is worth
-;; saying out loud.
-(define stop-end-turn "end_turn")
 
 ;; ---- what a transcript remembers -------------------------------------------
 
@@ -119,9 +108,14 @@
 ;; `sent?` is whether the prompt is on the wire yet. A turn is accepted long
 ;; before that (the subprocess may not even exist), and a cancel that arrives in
 ;; between has nothing the agent could match it against.
+;;
+;; `html` is what the finished text came out as, rendered once when the turn
+;; ended — every connection told about that turn afterwards is owed the same
+;; frame, and Markdown is not a thing to render twice. #f until it ends; the
+;; transcript and the JSON keep the text verbatim, as they do everywhere else.
 (struct turn (text [agent #:mutable] [tools #:mutable]
                    [status #:mutable] [stop #:mutable] [err #:mutable]
-                   [sent? #:mutable]))
+                   [sent? #:mutable] [html #:mutable]))
 
 (struct tool (id [title #:mutable] [status #:mutable]))
 
@@ -203,6 +197,13 @@
 ;;                                            plain text the chunks built
 ;;   {"type":"error","message"}               the turn ended badly
 ;;   {"type":"reset"}                         new chat: panels clear
+;;   {"type":"mark","mark","message"}         a break that already happened,
+;;                                            replayed: the turns above it are
+;;                                            still there, so it is a line
+;;                                            across the conversation rather
+;;                                            than the clearing a live `reset`
+;;                                            is. `message` is null when the
+;;                                            break speaks for itself
 ;;   {"type":"model","name"}                  which model the session runs,
 ;;                                            the moment the agent says so —
 ;;                                            with the session, and again
@@ -221,6 +222,44 @@
 ;;                                            until the agent has one — it
 ;;                                            writes one for you, a turn or so
 ;;                                            in
+;;
+;; One constructor each, below, and every one of them has two callers: the
+;; thing happening, and a connection being caught up on it after the fact. A
+;; frame that grew a key on one of those paths and not the other would be two
+;; browsers in different conversations, depending on when they arrived.
+
+(define (reset-jsexpr) (hash 'type "reset"))
+
+(define (mark-jsexpr type message)
+  (hash 'type "mark" 'mark type 'message (or message (json-null))))
+
+(define (user-jsexpr text) (hash 'type "user" 'text text))
+
+(define (chunk-jsexpr text) (hash 'type "chunk" 'text text))
+
+(define (tool-jsexpr id title status)
+  (hash 'type "tool" 'id id 'title title 'status status))
+
+(define (error-jsexpr message) (hash 'type "error" 'message message))
+
+(define (model-jsexpr name) (hash 'type "model" 'name name))
+
+(define (commands-jsexpr commands) (hash 'type "commands" 'commands commands))
+
+;; Append-only, like every other frame: a title the agent has not written yet
+;; is null, never a placeholder.
+(define (session-jsexpr sid title)
+  (hash 'type "session" 'id (or sid (json-null)) 'title (or title (json-null))))
+
+;; How a turn ended. The Markdown is rendered the first time this is asked for
+;; — which is when the turn ends — and kept, because every connection told
+;; about the turn afterwards is owed the same frame. Callers hold `sema`.
+(define (done-jsexpr tn)
+  (unless (turn-html tn)
+    (set-turn-html! tn (note->html-string (turn-agent tn))))
+  (hash 'type "done"
+        'stopReason (or (turn-stop tn) (json-null))
+        'html (turn-html tn)))
 
 (define (broadcast! ch js)
   (with-handlers ([exn:fail? (λ (e) (log! ch (format "broadcast failed: ~a" (exn-message e))))])
@@ -236,7 +275,7 @@
 ;; Something went wrong outside a turn (a boot, a load): the panel is where it
 ;; is said, because there is no request left to answer.
 (define (error-frame! ch message)
-  (with-state ch (λ () (broadcast! ch (hash 'type "error" 'message message)))))
+  (with-state ch (λ () (broadcast! ch (error-jsexpr message)))))
 
 ;; ---- transcript ------------------------------------------------------------
 
@@ -259,13 +298,86 @@
 ;; A consistent copy, safe to read while a turn is streaming: the structs stay
 ;; behind the lock and what leaves is plain JSON values.
 (define (chat-transcript ch)
-  (with-state ch
-    (λ ()
-      (for/list ([e (in-list (reverse (conversation-entries ch)))])
-        (if (turn? e) (turn->jsexpr e) (marker->jsexpr e))))))
+  (with-state ch (λ () (transcript-jsexprs ch))))
+
+;; Callers hold `sema`.
+(define (transcript-jsexprs ch)
+  (for/list ([e (in-list (reverse (conversation-entries ch)))])
+    (if (turn? e) (turn->jsexpr e) (marker->jsexpr e))))
 
 (define (chat-busy? ch)
   (with-state ch (λ () (and (conversation-busy? ch) #t))))
+
+;; ---- catching up -------------------------------------------------------------
+;;
+;; A browser is born mid-conversation. It opens a page while the agent is still
+;; waking up, it reloads, its EventSource drops and comes back — and every
+;; frame it was not there for is gone, because frames are ephemeral and this is
+;; the only thing that remembers.
+;;
+;; So a connection is told the conversation on the way in, as the frames that
+;; built it, to that connection alone. This is the ONE path: the page renders
+;; the panel's chrome and nothing about the conversation, because a panel drawn
+;; from state read at render time is only as current as that instant — and the
+;; agent boots in its own thread, so the instant a page is served may be before
+;; the conversation has a name, a model or a command list. What is drawn from
+;; here cannot be early: it is read when the connection exists.
+;;
+;; The subscription is made INSIDE the lock, which is what makes it exact
+;; rather than nearly right: a frame broadcast after it is queued for this
+;; connection, a frame broadcast before it is in what is read here, and no
+;; frame can be both or neither. Nothing under that lock renders anything — a
+;; finished turn's Markdown was rendered when the turn ended (`done-jsexpr`),
+;; and this hands out the same HTML the browsers that were here got.
+
+(define (chat-catch-up ch subscribe!)
+  (define frames
+    (with-state ch
+      (λ ()
+        (subscribe!)
+        (append
+         ;; a clean slate first: what this connection has drawn (a reload's
+         ;; markup, a reconnect's) is not the conversation, and what follows is
+         (list (reset-jsexpr))
+         (header-frames ch)
+         (append* (map entry-frames (reverse (conversation-entries ch))))))))
+  (for/list ([js (in-list frames)])
+    (cons acp-event-name (jsexpr->string js))))
+
+;; What the header says, for a header that has heard none of it said. Each of
+;; these is a fact or it is nothing: an unknown model, an unnamed conversation
+;; and an empty command list are the state a panel comes up in. Callers hold
+;; `sema`.
+(define (header-frames ch)
+  (append
+   (if (conversation-session ch)
+       (list (session-jsexpr (conversation-session ch) (conversation-title ch)))
+       '())
+   (if (conversation-model ch)
+       (list (model-jsexpr (conversation-model ch)))
+       '())
+   (if (pair? (conversation-commands ch))
+       (list (commands-jsexpr (conversation-commands ch)))
+       '())))
+
+;; One transcript entry, as the frames it was assembled from. A turn that is
+;; still RUNNING ends in no frame at all — a turn is open until something ends
+;; it, which is exactly the state the conversation is in. Callers hold `sema`.
+(define (entry-frames e)
+  (cond
+    [(marker? e) (list (mark-jsexpr (marker-type e) (marker-message e)))]
+    [else
+     (append
+      (list (user-jsexpr (turn-text e)))
+      ;; the whole of what was said, as one chunk: a panel that accumulated it
+      ;; letter by letter ends up with the same string
+      (if (string=? (turn-agent e) "") '() (list (chunk-jsexpr (turn-agent e))))
+      (for/list ([t (in-list (reverse (turn-tools e)))])
+        (tool-jsexpr (tool-id t) (tool-title t) (tool-status t)))
+      (case (turn-status e)
+        [(done) (list (done-jsexpr e))]
+        [(error) (list (error-jsexpr (or (turn-err e) "")))]
+        [else '()]))]))
 
 ;; ---- the seam ---------------------------------------------------------------
 ;;
@@ -321,7 +433,7 @@
 (define (show-model! ch name)
   (unless (equal? name (conversation-model ch))
     (set-conversation-model! ch name)
-    (broadcast! ch (hash 'type "model" 'name name))))
+    (broadcast! ch (model-jsexpr name))))
 
 ;; The picked model, and the picker to label the live one with.
 (define (learn-config-model! ch name labels)
@@ -363,12 +475,9 @@
 (define (chat-session-title ch)
   (with-state ch (λ () (conversation-title ch))))
 
-;; Callers hold `sema`. Append-only, like every other frame: a title the agent
-;; has not written yet is null, never a placeholder.
+;; Callers hold `sema`.
 (define (broadcast-session! ch)
-  (broadcast! ch (hash 'type "session"
-                       'id (or (conversation-session ch) (json-null))
-                       'title (or (conversation-title ch) (json-null)))))
+  (broadcast! ch (session-jsexpr (conversation-session ch) (conversation-title ch))))
 
 ;; A session, however it was got. The title is only ever SET here, never
 ;; cleared (that happened when the last one ended): a name that landed while the
@@ -415,7 +524,7 @@
     (λ ()
       (unless (equal? commands (conversation-commands ch))
         (set-conversation-commands! ch commands)
-        (broadcast! ch (hash 'type "commands" 'commands commands))))))
+        (broadcast! ch (commands-jsexpr commands))))))
 
 ;; ---- turn bookkeeping ------------------------------------------------------
 
@@ -434,7 +543,7 @@
       (cond
         [tn
          (set-turn-agent! tn (string-append (turn-agent tn) text))
-         (broadcast! ch (hash 'type "chunk" 'text text))]
+         (broadcast! ch (chunk-jsexpr text))]
         [else (log! ch "text arrived outside a turn; dropped")]))))
 
 (define (tool-call! ch id title status)
@@ -448,7 +557,7 @@
                         t)))
         (set-tool-title! t title)
         (set-tool-status! t status)
-        (broadcast! ch (hash 'type "tool" 'id id 'title title 'status status))))))
+        (broadcast! ch (tool-jsexpr id title status))))))
 
 ;; An update carries only what changed; the line keeps whatever it had.
 (define (tool-update! ch id title status)
@@ -460,14 +569,12 @@
         [t
          (when title (set-tool-title! t title))
          (when status (set-tool-status! t status))
-         (broadcast! ch (hash 'type "tool" 'id id
-                              'title (tool-title t) 'status (tool-status t)))]
+         (broadcast! ch (tool-jsexpr id (tool-title t) (tool-status t)))]
         [tn
          ;; an update for a call we never saw: still a line worth showing
          (define t2 (tool id (or title "tool") (or status tool-in-progress)))
          (set-turn-tools! tn (cons t2 (turn-tools tn)))
-         (broadcast! ch (hash 'type "tool" 'id id
-                              'title (tool-title t2) 'status (tool-status t2)))]
+         (broadcast! ch (tool-jsexpr id (tool-title t2) (tool-status t2)))]
         [else (void)]))))
 
 (define (find-tool tn id)
@@ -501,16 +608,16 @@
       (set-conversation-replay-turn! ch #f)
       (set-conversation-replay-user! ch #f)
       (set-conversation-replaying?! ch #t)
-      (broadcast! ch (hash 'type "reset")))))
+      (broadcast! ch (reset-jsexpr)))))
 
 ;; Callers hold `sema`.
 (define (open-replay-turn! ch)
   (define text (or (conversation-replay-user ch) ""))
-  (define tn (turn text "" '() 'running #f #f #t))
+  (define tn (turn text "" '() 'running #f #f #t #f))
   (set-conversation-replay-user! ch #f)
   (set-conversation-replay-turn! ch tn)
   (push-entry! ch tn)
-  (broadcast! ch (hash 'type "user" 'text text))
+  (broadcast! ch (user-jsexpr text))
   tn)
 
 ;; Callers hold `sema`.
@@ -519,9 +626,7 @@
   (when tn
     (set-turn-status! tn 'done)
     (set-conversation-replay-turn! ch #f)
-    (broadcast! ch (hash 'type "done"
-                         'stopReason (json-null)
-                         'html (note->html-string (turn-agent tn))))))
+    (broadcast! ch (done-jsexpr tn))))
 
 (define (replay-user-chunk! ch text)
   (with-state ch
@@ -589,14 +694,14 @@
       (λ ()
         (when (acp-stopped? (client ch)) (stopped-fail))
         (when (conversation-busy? ch) (busy-fail))
-        (define tn (turn text "" '() 'running #f #f #f))
+        (define tn (turn text "" '() 'running #f #f #f #f))
         ;; a cancel left over from a turn that died before it could be sent
         ;; belongs to that turn, not this one
         (set-conversation-cancel-pending?! ch #f)
         (set-conversation-busy?! ch #t)
         (set-conversation-live-turn! ch tn)
         (push-entry! ch tn)
-        (broadcast! ch (hash 'type "user" 'text text))
+        (broadcast! ch (user-jsexpr text))
         tn)))
   (in-custodian ch (λ () (thread (λ () (run-turn ch tn)))))
   (void))
@@ -615,12 +720,11 @@
          ;; Markdown is render-time only: the turn keeps the raw text, and the
          ;; frame carries a rendered COPY so a panel that accumulated plain
          ;; chunks can swap in the real thing without parsing anything.
-         (broadcast! ch (hash 'type "done" 'stopReason (cdr outcome)
-                              'html (note->html-string (turn-agent tn))))]
+         (broadcast! ch (done-jsexpr tn))]
         [else
          (set-turn-status! tn 'error)
          (set-turn-err! tn (cdr outcome))
-         (broadcast! ch (hash 'type "error" 'message (cdr outcome)))])
+         (broadcast! ch (error-jsexpr (cdr outcome)))])
       (set-conversation-live-turn! ch #f)
       (set-conversation-busy?! ch #f))))
 
@@ -707,7 +811,7 @@
   (with-state ch
     (λ ()
       (push-entry! ch (marker "reset" #f))
-      (broadcast! ch (hash 'type "reset"))))
+      (broadcast! ch (reset-jsexpr))))
   (void))
 
 (define (chat-stop! ch)

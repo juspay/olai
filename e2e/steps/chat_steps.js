@@ -9,9 +9,10 @@ import { Given, Then, When } from "@cucumber/cucumber";
 
 import { SLOW_PROMPT } from "../support/server.js";
 
-// Before the page is opened, not after: what the panel comes up KNOWING is
-// server-rendered, and a page opened mid-boot misses the frames that would
-// have told it (world.waitForAgent).
+// Before the page is opened, not after: a panel catches up on whatever the
+// agent has already said (that is the stream's job, and the last scenario in
+// features/sessions.feature is about it), but the PICKER asks the agent
+// itself, and there is nothing to ask until it is up (world.waitForAgent).
 Given("the agent has woken up", async function () {
   await this.waitForAgent();
 });

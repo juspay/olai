@@ -6,7 +6,9 @@
 ;;   GET  /n/<key>      one node, zoomed: breadcrumbs + that subtree
 ;;   GET  /today        today's Daily day node, zoomed
 ;;   GET  /events       SSE stream; `outline` (data: store revision) per reload,
-;;                      `chat` (data: one JSON frame) per agent frame
+;;                      `chat` (data: one JSON frame) per agent frame — and,
+;;                      first, the conversation this connection was not there
+;;                      for, in those same frames
 ;;   POST /chat         prompt the agent (form field `text`) -> 204
 ;;   POST /chat/new     new chat -> 204
 ;;   POST /chat/cancel  cancel the turn in flight -> 204
@@ -32,7 +34,8 @@
 ;;
 ;; The chat routes answer with a STATUS, never with content: what a panel
 ;; draws arrives over the stream, so every open tab shows the same
-;; conversation whichever one typed into it.
+;; conversation whichever one typed into it — including the tab that has just
+;; opened, which the stream catches up before anything else.
 
 (require racket/async-channel
          racket/path
@@ -217,23 +220,21 @@
 
 ;; ---- handlers: the chat panel ---------------------------------------------
 
-;; Replayed from the conversation's transcript on every page load: frames are
-;; ephemeral, and web/chat is the only thing that remembers a turn. No agent,
-;; no panel — `serve` refuses to start without one (docs/cli.md), so that is a
-;; test's server, not a user's.
-(define (chat-panel agent)
-  (and agent
-       (render-chat-panel (chat-transcript agent)
-                          #:busy? (chat-busy? agent)
-                          #:send-href chat-href
-                          #:new-href chat-new-href
-                          #:cancel-href chat-cancel-href
-                          #:sessions-href chat-sessions-href
-                          #:load-href chat-load-href
-                          #:event acp-event-name
-                          #:model (chat-model agent)
-                          #:session-title (chat-session-title agent)
-                          #:commands (chat-commands agent))))
+;; The panel's chrome, and nothing about the conversation: what a page load
+;; could say about one is only as current as the moment it was drawn, and the
+;; agent boots in its own thread. The conversation arrives on the stream, which
+;; catches a connection up on the way in (web/chat) — which is also why this is
+;; one value rather than a render: every page gets the same markup, and only
+;; the routes it names could ever change it. No agent, no panel — `serve`
+;; refuses to start without one (docs/cli.md), so that is a test's server, not
+;; a user's.
+(define the-chat-panel
+  (render-chat-panel #:send-href chat-href
+                     #:new-href chat-new-href
+                     #:cancel-href chat-cancel-href
+                     #:sessions-href chat-sessions-href
+                     #:load-href chat-load-href
+                     #:event acp-event-name))
 
 ;; The conversation's failure kinds, as statuses: 'busy is a second prompt
 ;; while a turn runs, 'validation is an agent that has been stopped. Terse
@@ -336,7 +337,7 @@
 ;; handed the snapshot and answers (values main title) — the only thing three
 ;; pages differ in.
 (define (outline-page st agent live-href view)
-  (define chat (chat-panel agent))
+  (define chat (and agent the-chat-panel))
   (with-snapshot st (λ (err) (page-failure err #:live-href live-href #:chat chat))
     #:stale-ok? #t
     (λ (snap err)
@@ -436,8 +437,14 @@
      ;; one page per node, addressed by the key the load layer minted
      [("n" (string-arg)) (λ (req key) (node-handler st agent key))]
      [("today") (λ (req) (today-handler st agent))]
-     ;; mounted, not understood: what an event MEANS lives in web/events
-     [("events") (λ (req) (hub-response hub))]
+     ;; Mounted, not understood: what an event MEANS lives in web/events. The
+     ;; one thing this layer knows is that a new connection has a conversation
+     ;; to catch up on, and which module it asks for it.
+     [("events") (λ (req)
+                   (hub-response hub
+                                 #:catch-up (and agent
+                                                 (λ (subscribe!)
+                                                   (chat-catch-up agent subscribe!)))))]
      ;; the chat panel's verbs. What they DO lives in web/chat; this layer
      ;; only turns a request into a call and a failure into a status.
      [("chat") #:method "post" (λ (req) (chat-handler agent req))]

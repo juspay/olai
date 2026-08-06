@@ -566,46 +566,23 @@
 
   ;; ---- chat panel ----------------------------------------------------------
   ;;
-  ;; The panel is rendered from the bridge's transcript (jsexprs; see
-  ;; tests/integration/acp.rkt for the real ones). Hand-built here so the
-  ;; drawing is the only thing under test.
+  ;; The panel is CHROME: the dock, the header, an empty conversation and the
+  ;; input row. Nothing about the conversation is drawn here — a page is served
+  ;; while the agent may still be waking up, so anything it said about one
+  ;; would be as old as the request. What a panel shows is the stream's, which
+  ;; catches a connection up the moment it exists (web/chat's chat-catch-up;
+  ;; tests/integration/chat.rkt is where that is asserted).
 
-  (define (turn text agent
-                #:tools [tools '()] #:status [status "done"]
-                #:stop [stop "end_turn"] #:error [err (json-null)])
-    (hash 'type "turn" 'text text 'agent agent 'tools tools
-          'status status 'stopReason stop 'error err))
-
-  (define (panel transcript #:model [model #f] #:commands [commands '()]
-                 #:session-title [session-title #f] #:busy? [busy? #f])
-    (xstr (render-chat-panel transcript
-                             #:busy? busy?
-                             #:send-href "/chat"
+  (define (panel)
+    (xstr (render-chat-panel #:send-href "/chat"
                              #:new-href "/chat/new"
                              #:cancel-href "/chat/cancel"
                              #:sessions-href "/chat/sessions"
                              #:load-href "/chat/load"
-                             #:event "chat"
-                             #:model model
-                             #:session-title session-title
-                             #:commands commands)))
+                             #:event "chat")))
 
-  ;; The commands ride in an attribute as JSON, which means two escapings meet
-  ;; there. Reading it back the way a browser does is the only assertion that
-  ;; says the round trip works.
-  (define (unescape s)
-    (for/fold ([s s]) ([pair (in-list '(("&quot;" "\"") ("&lt;" "<") ("&gt;" ">")
-                                        ;; last: an escaped ampersand is what
-                                        ;; the others are made of
-                                        ("&amp;" "&")))])
-      (string-replace s (car pair) (cadr pair))))
-
-  (define (panel-commands s)
-    (define m (regexp-match #rx"data-commands=\"([^\"]*)\"" s))
-    (and m (string->jsexpr (unescape (cadr m)))))
-
-  (test-case "an empty panel is a form, a sink and the routes it was told"
-    (define s (panel '()))
+  (test-case "the panel is a form, a sink and the routes it was told"
+    (define s (panel))
     (check-true (string-contains? s "id=\"ol-chat\"") s)
     (check-true (string-contains? s "action=\"/chat\"") s)
     (check-true (string-contains? s "data-post=\"/chat/new\"") s)
@@ -616,118 +593,40 @@
     ;; an open panel covers the floating toggle, so the header carries a way
     ;; out of its own — two buttons, one toggle path
     (check-equal? (length (regexp-match* #rx"data-chat-toggle" s)) 2 s)
-    ;; idle: the input is live and there is nothing to stop
+    ;; the picker's button, with the routes it drives
+    (check-true (string-contains? s "data-chat-sessions=\"/chat/sessions\"") s)
+    (check-true (string-contains? s "data-chat-load=\"/chat/load\"") s)
+    ;; the commands button is drawn once and shown by a class, so a `commands`
+    ;; frame is all it takes to put it there
+    (check-true (string-contains? s "data-chat-commands") s))
+
+  ;; Every state the panel has is a class, and it comes out of the renderer in
+  ;; none of them: a page drawn while the agent was still waking up would be
+  ;; claiming something it cannot know.
+  (test-case "the panel is drawn in none of its states, and carries no conversation"
+    (define s (panel))
     (check-false (string-contains? s "is-busy") s)
-    (check-false (string-contains? s "disabled") s))
+    (check-false (string-contains? s "is-open") s)
+    (check-false (string-contains? s "has-commands") s)
+    (check-false (string-contains? s "disabled") s)
+    ;; nothing of the conversation: no turns, and no copy of the command list
+    (check-false (string-contains? s "ol-chat-turn") s)
+    (check-false (string-contains? s "data-commands") s)
+    (check-true (string-contains? s "<div class=\"ol-chat-body\" id=\"ol-chat-body\"></div>") s))
 
-  (test-case "a finished turn replays: user text verbatim, agent text Markdown"
-    (define s (panel (list (turn "do **not** bold me" "and **this** is bold"
-                                 #:tools (list (hash 'id "call-1"
-                                                     'title "read Tasks.rkt"
-                                                     'status "completed"))))))
-    ;; what the user typed is a string, not a document
-    (check-true (string-contains? s "do **not** bold me") s)
-    ;; what the agent said gets the same treatment a note gets
-    (check-true (string-contains? s "<strong>this</strong>") s)
-    (check-true (string-contains? s "data-tool-id=\"call-1\"") s)
-    (check-true (string-contains? s "data-status=\"completed\"") s)
-    (check-true (string-contains? s "✓") s)
-    ;; end_turn is the ordinary ending: it says nothing
-    (check-false (string-contains? s "ol-chat-note") s))
-
-  (test-case "a running turn comes up busy, with its text still verbatim"
-    (define s (panel (list (turn "go" "half a **sent"
-                                 #:status "running" #:stop (json-null)))
-                     #:busy? #t))
-    (check-true (string-contains? s "ol-chat is-busy") s)
-    ;; an open panel hides the toggle that breathes, so the header carries the
-    ;; working dot — drawn either way, and shown by that is-busy class
-    (check-true (string-contains? s "ol-chat-working") s)
-    (check-true (string-contains? (panel '()) "ol-chat-working") s)
-    (check-true (string-contains? s "disabled=\"disabled\"") s)
-    ;; mid-stream text is a fragment; Markdown waits for the done frame
-    (check-true (string-contains? s "half a **sent") s)
-    (check-false (string-contains? s "<strong") s))
-
-  (test-case "a failed turn keeps its error, and an odd ending says which"
-    (define s (panel (list (turn "go" "" #:status "error" #:stop (json-null)
-                                 #:error "the agent exited (code 1)")
-                           (turn "again" "" #:stop "cancelled"))))
-    (check-true (string-contains? s "the agent exited (code 1)") s)
-    (check-true (string-contains? s "ol-chat-msg is-error") s)
-    (check-true (string-contains? s "cancelled") s))
-
-  (test-case "markers draw a break in the conversation, not a turn"
-    (define s (panel (list (hash 'type "reset" 'message (json-null))
-                           (hash 'type "restart" 'message "the agent exited"))))
-    (check-true (string-contains? s "ol-chat-sep") s)
-    (check-true (string-contains? s "new chat") s)
-    (check-true (string-contains? s "the agent exited") s)
-    (check-false (string-contains? s "ol-chat-turn") s))
-
-  ;; User text and tool titles are never Markdown and never HTML. The xexpr
-  ;; is what guarantees it, so this is the test that says so.
-  (test-case "script payloads land as text, in messages and tool titles alike"
-    (define s (panel (list (turn "<script>alert(1)</script>" "<b>no</b>"
-                                 #:tools (list (hash 'id "c<1"
-                                                     'title "rm -rf <script>"
-                                                     'status "failed"))))))
-    (check-false (string-contains? s "<script>") s)
-    (check-true (string-contains? s "&lt;script&gt;alert(1)&lt;/script&gt;") s)
-    ;; the agent's Markdown is sanitized by the markdown module, raw HTML and all
-    (check-false (regexp-match? #rx"<b[ >]" s) s)
-    (check-true (string-contains? s "data-tool-id=\"c&lt;1\"") s)
-    (check-true (string-contains? s "✗") s))
-
-  ;; The model is the agent's word, replayed. Unknown is not "unknown": the
-  ;; span is there for a `model` frame to fill, and empty until one lands.
-  (test-case "the header names the model when there is one, and omits it when not"
-    (define named (panel '() #:model "fake-model-1"))
-    (check-true (string-contains? named "agent · claude code") named)
-    (check-true (string-contains? named
-                                  "<span class=\"ol-chat-model\" id=\"ol-chat-model\">fake-model-1</span>")
-                named)
-    (define bare (panel '()))
-    (check-true (string-contains? bare "id=\"ol-chat-model\"") bare)
-    (check-false (string-contains? bare "fake-model") bare)
-    (check-false (string-contains? bare "unknown") bare))
-
-  ;; Which conversation, same discipline as the model: the agent's word for it,
-  ;; replayed, and an empty span waiting for a `session` frame when there is
-  ;; none. The picker's button carries the routes it drives.
-  (test-case "the header names the conversation when it has one, and offers the others"
-    (define named (panel '() #:session-title "the last conversation"))
+  ;; The header's two live strings are empty spans waiting for the frames that
+  ;; name them. Unknown is not "unknown": an empty one the sheet takes away.
+  (test-case "the header has a slot for the model and one for the conversation"
+    (define s (panel))
+    (check-true (string-contains? s "agent · claude code") s)
     (check-true (string-contains?
-                 named
-                 "<span class=\"ol-chat-session\" id=\"ol-chat-session\">the last conversation</span>")
-                named)
-    (check-true (string-contains? named "data-chat-sessions=\"/chat/sessions\"") named)
-    (check-true (string-contains? named "data-chat-load=\"/chat/load\"") named)
-    (define bare (panel '()))
-    (check-true (string-contains? bare "id=\"ol-chat-session\"") bare)
-    (check-false (string-contains? bare "conversation") bare))
-
-  ;; The agent's slash commands, replayed so a reloaded page completes before
-  ;; the agent says anything. An empty list is an empty list, not a missing
-  ;; attribute: chat.js parses one thing.
-  (test-case "the panel carries the commands the agent offers, JSON in an attribute"
-    (define offered (list (hash 'name "fake-init" 'description "start something")
-                          (hash 'name "quote\"me" 'description "<b>not html</b>")))
-    (define s (panel '() #:commands offered))
-    ;; read back the way a browser reads it: unescape the attribute, parse the
-    ;; JSON (which is read-json's hasheq, not the hash that went in)
-    (check-equal? (panel-commands s)
-                  (list (hasheq 'name "fake-init" 'description "start something")
-                        (hasheq 'name "quote\"me" 'description "<b>not html</b>")))
-    ;; the attribute is escaped, so nothing in it can end the tag
-    (check-false (string-contains? s "<b>not html</b>") s)
-    ;; a list to show is what puts the commands button on the input row
-    (check-true (string-contains? s "ol-chat has-commands") s)
-    (check-true (string-contains? s "data-chat-commands") s)
-    (define bare (panel '()))
-    (check-equal? (panel-commands bare) '())
-    (check-true (string-contains? bare "data-commands=\"[]\"") bare)
-    (check-false (string-contains? bare "has-commands") bare))
+                 s "<span class=\"ol-chat-model\" id=\"ol-chat-model\"></span>") s)
+    (check-true (string-contains?
+                 s "<span class=\"ol-chat-session\" id=\"ol-chat-session\"></span>") s)
+    ;; an open panel hides the toggle that breathes, so the header carries the
+    ;; working dot — drawn either way, and shown by is-busy
+    (check-true (string-contains? s "ol-chat-working") s)
+    (check-false (string-contains? s "unknown") s))
 
   (test-case "the chat script stays tiny, framework-free and connection-free"
     (define js (file->string (build-path (web-static-dir) "chat.js")))
