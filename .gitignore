@@ -17,6 +17,9 @@ compiled/
 /result-*
 .direnv/
 
+# odu run state (socket, per-SHA logs, run records)
+.ci/
+
 # Local Racket user home for nix/dev
 .plt-user/
 

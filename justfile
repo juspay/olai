@@ -14,6 +14,10 @@ olai_home := env_var_or_default("OLAI_HOME", "")
 repo_outlines := "examples/Example.rkt Roadmap.rkt"
 default_outlines := if olai_home == "" { repo_outlines } else { olai_home + "/*.rkt" }
 
+# odu CI DAG: [metadata("ci")] lives in ci/mod.just. `just ci` is the local
+# pipeline; `nix run github:juspay/odu -- run` is the attachable runner.
+mod ci 'ci/mod.just'
+
 default:
     @just --list
 
@@ -40,56 +44,6 @@ clean:
 check *args: install
     olai check {{if args == "" { default_outlines } else { args }}}
 
-# Outline(s) as JSON
-tree *args: install
-    olai tree {{if args == "" { default_outlines } else { args }}}
-
-# Dated tasks as JSON: overdue / today / upcoming (merged, done excluded)
-agenda *args: install
-    olai agenda {{if args == "" { default_outlines } else { args }}}
-
-# Flags-only invocations (e.g. --month 2026-08) keep the default outlines.
-# Calendar days as JSON (default: current month, done included)
-calendar *args: install
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [ -z "{{args}}" ]; then
-      olai calendar {{default_outlines}}
-    elif [[ "{{args}}" != *".rkt"* ]]; then
-      olai calendar {{args}} {{default_outlines}}
-    else
-      olai calendar {{args}}
-    fi
-
-# Bare `just ics` writes ./Tasks.ics; --out or explicit paths override.
-# RFC 5545 VCALENDAR of dated tasks (done included)
-ics *args: install
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [ -z "{{args}}" ]; then
-      olai ics --out Tasks.ics {{default_outlines}}
-    elif [[ "{{args}}" != *".rkt"* ]]; then
-      olai ics {{args}} {{default_outlines}}
-    else
-      olai ics {{args}}
-    fi
-
-# Capture under Inbox in $OLAI_HOME/Tasks.rkt; never commits
-add *args: install
-    olai add --no-commit {{args}}
-
-# Done by exact title or ^anchor (--undo reverses); never commits
-done *args: install
-    olai done --no-commit {{args}}
-
-# Set @date by exact title or ^anchor (--clear removes it); never commits
-move *args: install
-    olai move --no-commit {{args}}
-
-# Ensure today's day node in $OLAI_HOME Daily/YYYY-MM.rkt
-daily *args: install
-    olai daily {{args}}
-
 # With OLAI_HOME set, serve takes the DIRECTORY, not the glob: it globs the
 # top level itself, and the agent then works in $OLAI_HOME (which is what makes
 # its stored sessions survive a restart). Unset, it serves the repo's own two
@@ -98,10 +52,6 @@ daily *args: install
 # Serve the web view (default: $OLAI_HOME, else the repo's own, on 127.0.0.1:8080)
 serve *args: install
     olai serve {{if args != "" { args } else if olai_home != "" { olai_home } else { repo_outlines } }}
-
-# The server is how you run olai; it reloads an outline when it changes.
-alias run := serve
-alias watch := serve
 
 # The two sets differ in what they cost: unit tests run in this VM, the
 # integration ones spawn `olai` subprocesses and boot real servers. Both are

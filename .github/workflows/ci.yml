@@ -31,14 +31,6 @@ jobs:
           purge-last-accessed: 604800
           purge-primary-key: never
 
-      - name: Build
-        run: nix build -L
-
-      - name: Smoke-check the built CLI
-        run: ./result/bin/olai check examples/Example.rkt Roadmap.rkt
-
-      - name: Unit tests
-        run: nix develop -c just test
-
-      - name: Integration tests
-        run: nix develop -c just test-integration
+      # Same DAG odu consumes: [metadata("ci")] in ci/mod.just.
+      - name: CI
+        run: nix develop -c just ci
