@@ -257,7 +257,11 @@ $ olai serve examples/Example.rkt
 olai serve http://127.0.0.1:8080 files: /.../examples/Example.rkt
 ```
 
-- `--port N` — default `8080`. `0` binds a free port and logs which one.
+- `--port N` — default `8080`. `0` binds a free port and logs which one. The
+  default is a preference: with `8080` taken, `serve` binds a free port
+  instead, says so on stderr (`olai: port 8080 is taken; serving on 41235`),
+  and the URL it prints is the port it actually bound. A port you typed is a
+  request — taken, `serve` refuses to start (exit 1).
 - `--bind ADDR` — default `127.0.0.1`. `--bind ""` listens on all interfaces.
 - **No auth.** The network is the auth: put it behind Tailscale or Caddy.
 
