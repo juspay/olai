@@ -53,12 +53,12 @@ stdenvNoCC.mkDerivation {
   # What the collection IS, said once — not everything in this directory
   # minus what we regret afterwards. Two things here are not part of it: this
   # file, which is about producing the package rather than in it, and
-  # examples/, where each example is its own artifact with its own default.nix
-  # (examples/counters). Stating it as the source has a second effect worth
-  # more than the tidiness: an edit under examples/ is not an input to this
-  # derivation, so it cannot rebuild the framework — or olai, which consumes
-  # it. They share a directory (raco refuses to link a package inside another
-  # package's directory) and nothing else.
+  # examples/, where each example is its own artifact with its own
+  # default.nix. Stating it as the source has a second effect worth more than
+  # the tidiness: an edit under examples/ is not an input to this derivation,
+  # so it cannot rebuild the framework — or olai, which consumes it. They
+  # share a directory (raco refuses to link a package inside another package's
+  # directory) and nothing else.
   src = lib.fileset.toSource {
     root = ./.;
     fileset = lib.fileset.difference ./. (lib.fileset.unions [ ./default.nix ./examples ]);

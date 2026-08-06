@@ -11,6 +11,8 @@ The repo holds two Racket packages, and the order between them is the dependency
 
 So `just install` links `live` before `olai`, and `just build` is `raco setup --pkgs live olai`. A change to `live/` that only makes sense for olai is a change in the wrong place.
 
+A worked example (`live/examples/*`) is part of neither package. Each is its own artifact with its own `default.nix` beside it — `nix run .#counters` runs one, and its derivation runs its own test, so CI needs one node and no lane has to remember it exists. `live/default.nix` states the collection's source with `lib.fileset` rather than copying the directory, so `examples/` is not an input: installing the framework never carries a demo, and editing a demo never rebuilds the framework (or olai). What it cannot be is its own **raco** package — `raco pkg install --link` refuses a directory inside an existing package's ("cannot link a directory that overlaps with existing packages"), which is why the split is drawn in Nix, and why `just build` compiles the examples along with `live` and fails on a broken one.
+
 `live/static/` holds the browser runtime, and three of its four files are NOT in git: htmx, htmx's SSE extension and idiomorph are pinned in `npins/sources.json` and built by `live/default.nix` (its own Nix, next to it, like `acp/` and `e2e/`). `just vendor` copies them into place from `$OLAI_LIVE_ASSETS` — every recipe that needs them depends on it, so you never run it by hand. Consequences worth knowing:
 
 * A checkout outside `nix develop` has no browser runtime, and `live/tests/client.rkt` says so by failing on a missing file.

@@ -101,8 +101,8 @@ Serve `(live-static-dir)` at whatever prefix you passed to `live-script-hrefs`. 
 page: two live surfaces (a list that reorders under you, a clock in the header
 that a navigation must not rebuild), two producers, one stream, and an input
 box that keeps what you typed through every swap. Five short files, hand-wired
-against the functions above and nothing else. `just counters` runs it, and it
-carries its own test.
+against the functions above and nothing else. `nix run .#counters` runs it, and
+it carries its own test.
 
 It is not part of this collection: `examples/` is not in the source this
 package is built from (`default.nix`), so installing `live` never carries the

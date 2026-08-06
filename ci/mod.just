@@ -22,7 +22,7 @@ nix_shell := if env('IN_NIX_SHELL', '') != '' { '' } else { 'nix develop --accep
 [macos]
 [parallel]
 [metadata("ci")]
-default: smoke test test-integration e2e counters-test counters-nix
+default: smoke test test-integration e2e counters
 
 # One install + raco setup per lane — funnel every racket test through this.
 build:
@@ -31,6 +31,13 @@ build:
 # Package the CLI. Leaves ./result for smoke (gitignored).
 nix:
     nix build -L
+
+# live/'s worked example, whose derivation builds the program AND runs its own
+# test (live/examples/counters/default.nix). One node, one command: nothing
+# here says what the example is, when its test runs, or which files it has —
+# and nothing outside that directory has to be kept in step with it.
+counters:
+    nix build -L --no-link .#counters
 
 # Packaged binary can load and check committed outlines.
 smoke: nix
@@ -44,22 +51,6 @@ test: build
 test-integration: build
     {{ nix_shell }} raco test -j {{ num_cpus() }} olai/tests/integration/
 
-# live/'s example is its own unit, so it gets its own nodes rather than a ride
-# in somebody else's. Both bodies are one delegation: the module owns WHAT to
-# run (live/examples/counters/mod.just) and this file owns three things that
-# are CI's and not the example's — that these are nodes at all, the edge to
-# `build` (a body that built for itself would take the package lock while the
-# other lanes read .zo), and the devShell a remote lane may lack. `just` is
-# also why a body and not a dependency: a module cannot name a sibling
-# module's recipe, so the reference has to go back through the root justfile.
-
-# The example's test (live/examples/counters).
-counters-test: build
-    {{ nix_shell }} just counters::test-run
-
-# The example's derivation: a nix file nobody builds is a nix file that rots.
-counters-nix:
-    just counters::nix
 
 # Its own devShell (node + the browser), so the prefix here is not nix_shell —
 # and its own node in the DAG, never part of `test`. It calls the RUNNER, not

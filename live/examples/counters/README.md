@@ -17,18 +17,21 @@ read off working code.
 ## Run it
 
 ```bash
-just counters                        # http://127.0.0.1:8080
-just counters run --port 9000        # somewhere else
-nix run .#counters                   # the built program, no dev shell
-just counters::test                  # its own test
+nix run .#counters                   # http://127.0.0.1:8080
+nix run .#counters -- --port 9000    # somewhere else
 ```
+
+That is the whole interface. There is no `just` recipe to run it: the example
+is a package, and running a package is `nix run`.
 
 ## Where it lives
 
-Everything the example is — its five modules, its test, its `just` module, its
-nix derivation — is in this directory, and the repo mounts it in three lines:
-`mod counters` in the justfile, a `callPackage` in `flake.nix`, and two nodes
-in `ci/mod.just` that say when to run its test and build its derivation.
+Everything the example is — its five modules, its test, its nix derivation and
+the two commands CI runs against it (`mod.just`) — is in this directory. Two
+lines outside it know the example exists: a `callPackage` in `flake.nix`, which
+is what makes `nix run .#counters` a thing, and a mount in `ci/mod.just`, which
+runs the test and builds the derivation on every commit. The root justfile
+knows nothing about it.
 
 It is a directory under `live/` and no part of that package. `live`'s source
 (`live/default.nix`) excludes `examples/`, so the framework ships without the
