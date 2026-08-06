@@ -5,6 +5,8 @@ import assert from "node:assert/strict";
 import * as path from "node:path";
 import { Given, Then, When } from "@cucumber/cucumber";
 
+import { escapeRx } from "../support/dom.js";
+
 // ---- navigation -------------------------------------------------------------
 
 When("I open the home page", async function () {
@@ -64,7 +66,7 @@ Then(
     await banner.waitFor({ state: "visible" });
     const where = banner.locator(".ol-error-where");
     // which file it is, is the world's to say — it named the temp outline
-    const file = path.basename(this.outlinePath).replace(/\./g, "\\.");
+    const file = escapeRx(path.basename(this.outlinePath));
     assert.match((await where.innerText()).trim(), new RegExp(`${file}:\\d+:\\d+$`));
   },
 );

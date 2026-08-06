@@ -22,8 +22,15 @@ export async function assertClass(locator, cls, want, what) {
   );
 }
 
+/** A string, as regexp source: every metacharacter escaped, backslash first
+ *  among them. For building a pattern that has a literal PART — a filename, a
+ *  title — and a real pattern around it. */
+export function escapeRx(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /** A literal, as a regexp. innerText carries whatever the markup put around
  *  it, so a step that means "this text is in there" says so with a match. */
 export function literal(s) {
-  return new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(escapeRx(s));
 }
