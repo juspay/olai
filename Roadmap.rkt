@@ -134,14 +134,38 @@ olai roadmap #project
         : the outline catches up; the indicator shows stale while the
         : stream is down and clears on recovery.
     declare-and-check DSL
-      [/] counters example
+      @doc docs/brainstorming/live-dsl.md
+      [x] counters example
         : Hello-world of live pages: three counters racing + a clock
         : ticker, hand-wired against live/'s functions as
         : [live-dsl.md](https://github.com/juspay/olai/blob/master/docs/brainstorming/live-dsl.md)'s
         : toy made real — the human reads it line by line to judge the
-        : DSL. In flight: terminal a7600741, worktree counters-example,
-        : Claude Opus.
-      : Anti-entropy for a swarm-built wiring: this repo is written by many agents with partial context, and every id/event string is a convention each one must rediscover — e2e catches the drift late, at simulation prices. Regions and streams as compile-time bindings instead: a dead link or undeclared frame fails at expand time with a srcloc (the agent interface), and stream evolution is append-only at one declaration site. The functional core to macro over shipped in [#29](https://github.com/juspay/olai/pull/29) (`live/`: frame, hub, client attributes); build the forms only if the declarations CHECK something a swarm actually trips on. Brainstorm: [docs/brainstorming/live-dsl.md](https://github.com/juspay/olai/blob/master/docs/brainstorming/live-dsl.md); the research behind it, general to any future DSL: [docs/brainstorming/agents-and-dsls.md](https://github.com/juspay/olai/blob/master/docs/brainstorming/agents-and-dsls.md) (make these @doc when that lands).
+        : DSL. Merged: [#32](https://github.com/juspay/olai/pull/32).
+        : Reading it settled the brainstorm's verdicts (6063ba6).
+      [/] live-dsl
+        : One PR ([#33](https://github.com/juspay/olai/pull/33)): boot-UUID
+        : connect URL (retires #:version, stale tabs get one reload
+        : frame), define-stream / define-live-region / live-item + usage
+        : forms expanding to live/client calls, tutor-format expansion
+        : errors as tested contract, `just expand FILE`, counters
+        : migrated as the worked example, blanket raw-htmx ban
+        : (live/README.md + CLAUDE.md), and olai/web itself rewired
+        : through the forms (human widened the scope; the orchestrator
+        : had wrongly deferred that to a follow-up). In flight: terminal
+        : 73729cfd, worktree live-dsl, Claude Opus.
+      : Anti-entropy for a swarm-built wiring: this repo is written by many agents with partial context, and every id/event string is a convention each one must rediscover — e2e catches the drift late, at simulation prices. Regions and streams as compile-time bindings instead: a dead link or undeclared frame fails at expand time with a srcloc (the agent interface), and stream evolution is append-only at one declaration site. The functional core to macro over shipped in [#29](https://github.com/juspay/olai/pull/29) (`live/`: frame, hub, client attributes); verdicts settled against the counters code (2026-08): ONE PR ships the boot-UUID connect URL (retires `#:version`), the forms (`define-stream`, `define-live-region`, `live-item`), and the raw-htmx-attribute ban (live/README.md + CLAUDE.md pointer). Brainstorm: [docs/brainstorming/live-dsl.md](https://github.com/juspay/olai/blob/master/docs/brainstorming/live-dsl.md); the research behind it, general to any future DSL: [docs/brainstorming/agents-and-dsls.md](https://github.com/juspay/olai/blob/master/docs/brainstorming/agents-and-dsls.md) (make these @doc when that lands).
+    [/] markdown fidelity
+      : In flight: terminal 39a0a40b, worktree markdown-fidelity, Claude
+      : Opus.
+      : One PR over olai/web/markdown.rkt + assets, absorbing chat's
+      : "markdown replies" item. (1) Fenced-code highlighting: stop
+      : stripping the language class; vendor highlight.js via Nix like
+      : the other browser assets. (2) Images: allowlist img, RELATIVE
+      : paths only, served same-origin by a route confined to
+      : $OLAI_HOME — no external fetches, no data: URIs. (3) Footnotes:
+      : allowlist sup and the anchor id/name pairs so markers and jump
+      : links survive sanitize. Ceiling stays the markdown package (no
+      : tables, strikethrough, task lists).
     0.6 micro-edits
       : Capture box + check-off from the browser (done status already in the
       : language + CLI). The phone loop closes: capture, complete, ask the
@@ -230,9 +254,10 @@ olai roadmap #project
         : and subtree as context — "reschedule these" without spelling
         : the node out. Pairs with WP7 zoom.
       markdown replies
-        : Full Markdown in agent replies — fenced code with highlighting,
-        : via the vendored markdown lib. Render-time only; transcript
-        : strings stay verbatim.
+        : Folded into "markdown fidelity" (web app): replies already
+        : render through the markdown lib; what's missing — fenced-code
+        : highlighting — is the sanitizer stripping the language class,
+        : fixed there for all four surfaces at once.
       session picker adopts foreign sessions #bug
         : session/list is trusted unfiltered and the adapter scopes by
         : prefix, so sessions from other checkouts of the repo (agent
@@ -276,7 +301,12 @@ olai roadmap #project
       : doing. Who/where lives in notes, not grammar — an orchestrator
       : marks a task [/] and notes the terminal id under it.
       @done 2026-08-06
-    \@doc documents
+    [x] \@doc documents
+      : Merged: [#34](https://github.com/juspay/olai/pull/34) — .md
+      : complete, .scrbl in grammar but not drawn (server won't run
+      : data-file code); existence checked at language time; absolute
+      : paths now a grammar rule (same latent bug noted in @include).
+      : The roadmap itself uses it: see the declare-and-check DSL node.
       : Expand a node into a full document: a @doc field attaches a file,
       : rendered inline when the node is zoomed; one-line preview collapsed.
       : Two tiers by extension: .md (default; agents are fluent) and .scrbl
