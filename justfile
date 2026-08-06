@@ -76,6 +76,15 @@ check *args: install
 serve *args: install
     olai serve {{if args != "" { args } else if olai_home != "" { olai_home } else { repo_outlines } }}
 
+# The live/ framework's worked example: two live surfaces on one page, wired
+# by hand against its functional API (live/examples/counters/README.md). Its
+# own program, on its own port — it shares nothing with `serve` but the
+# collection.
+
+# Run the counters example (http://127.0.0.1:8080, --port to move it)
+counters *args: install
+    racket live/examples/counters/app.rkt {{args}}
+
 # The two sets differ in what they cost: unit tests run in this VM, the
 # integration ones spawn `olai` subprocesses and boot real servers. Both are
 # parallel-safe (ephemeral ports, temp dirs), so -j is free speed.
