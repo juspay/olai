@@ -401,6 +401,24 @@
                                box)
                 "the home-bar inset is padded for even where a keyboard covers it"))
 
+  ;; A note is FOLDED to one line by a box that is one line tall, never by a
+  ;; shorter string: the whole note is in the markup, and find-in-page and the
+  ;; morph both see it. What opens it is the other half — the node the pointer
+  ;; is in (and not its ancestors, which is what the :not(:has()) is for), and
+  ;; the note's own focus, which is the door a touch screen has instead of a
+  ;; hover. Behaviour is e2e/features/note.feature's; this is the rule staying
+  ;; the shape those journeys are about.
+  (test-case "a note is one line until the node is pointed at, or it has focus"
+    (define note (fragment->css (cdr (list-ref ordered-fragments (at "ol-note")))))
+    (check-true (regexp-match? #px"-webkit-line-clamp\\s*:\\s*1" note)
+                "the note is not clamped to its first line any more")
+    (check-false (regexp-match? #px"max-height|text-overflow" note)
+                 "the note is folded by something other than the line clamp")
+    (check-true (regexp-match? #px"\\.ol-node:hover:not\\(:has\\(\\.ol-node:hover\\)\\)" note)
+                "pointing into a subtree opens every ancestor's note too")
+    (check-true (regexp-match? #px"\\.ol-note:focus-within" note)
+                "the note does not open on focus: a touch screen has no other door"))
+
   ;; Sheet mode: below phone-max there is no room beside the outline, so the
   ;; panel covers it instead. That is ONE decision, and this is the test that
   ;; it stays one — every phone-width rule about the panel is in that block,
