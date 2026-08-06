@@ -25,6 +25,7 @@
 ;;   (meta date VALUE OFFSET)    OFFSET: chars before VALUE (for srclocs)
 ;;   (meta done VALUE OFFSET)    VALUE #t for a bare @done
 ;;   (meta doing VALUE OFFSET)   VALUE #t for a bare @doing
+;;   (meta doc REL-PATH OFFSET)  the document this node expands into
 ;;   (meta bad MESSAGE)
 
 (require racket/contract
@@ -50,7 +51,7 @@
           [line-mirror? (-> classification/c boolean?)]
           [line-include? (-> classification/c boolean?)]
           [line-meta? (-> classification/c boolean?)]
-          [meta-field (-> classification/c (or/c 'desc 'date 'done 'doing 'bad #f))]
+          [meta-field (-> classification/c (or/c 'desc 'date 'done 'doing 'doc 'bad #f))]
           [title-text (-> classification/c (or/c string? #f))]
           [title-flag (-> classification/c (or/c 'done 'doing 'open #f))]
           [title-anchor (-> classification/c (or/c string? #f))]
@@ -116,13 +117,21 @@
      (list 'meta 'doing (string-trim value) (string-length field))]
     [(regexp #px"^@doing\\s*$")
      (list 'meta 'doing #t 0)]
+    ;; A DOCUMENT the node expands into. Metadata, not a child: it names a
+    ;; file the way @include does, but nothing of it joins the tree — the
+    ;; language only checks it, and the web view draws it.
+    [(regexp #px"^(@doc[ \t]+)(\\S.*)$" (list _ field value))
+     (list 'meta 'doc (string-trim value) (string-length field))]
+    [(regexp #px"^@doc\\s*$")
+     (list 'meta 'bad "expected a relative path after @doc")]
     [(regexp #px"^@include[ \t]+(\\S.*)$" (list _ rel))
      (list 'include (string-trim rel))]
     [(regexp #px"^@include\\s*$")
      (list 'meta 'bad "expected a relative path after @include")]
     [(regexp #px"^@(\\S+)" (list _ name))
      (list 'meta 'bad
-           (format "unknown @~a; known fields: @date, @done, @doing, @include"
+           (format (string-append "unknown @~a; known fields: @date, @done, "
+                                  "@doing, @doc, @include")
                    name))]
     [_
      (define-values (title0 flag) (strip-checkbox-prefix content))
@@ -142,7 +151,7 @@
 ;; hang under a title, and an editor must not mistake them for one.
 (define line-meta? (kind? 'meta))
 
-;; 'desc | 'date | 'done | 'doing | 'bad for a meta line, #f otherwise.
+;; 'desc | 'date | 'done | 'doing | 'doc | 'bad for a meta line, #f otherwise.
 (define (meta-field k)
   (match k
     [(list 'meta field _ ...) field]

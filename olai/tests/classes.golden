@@ -59,6 +59,10 @@ ol-date
 ol-date-time
 ol-day
 ol-dim
+ol-doc
+ol-doc-body
+ol-doc-lead
+ol-doc-name
 ol-doing
 ol-empty
 ol-error

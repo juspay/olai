@@ -6,6 +6,7 @@
 ;;
 ;;   (t "title" [#:id "anchor"]
 ;;              [#:date "YYYY-MM-DD[THH:MM[:SS]]"]
+;;              [#:doc "relative/path.md"]
 ;;              [#:description "..."]
 ;;              [#:done] | [#:done "ISO"]
 ;;              [#:doing] | [#:doing "ISO"]
@@ -29,6 +30,9 @@
                      ;; the date grammar has one owner; the expander is a
                      ;; consumer of it, at phase 1 like the tag grammar
                      olai/dates
+                     ;; and what a @doc path means — which extensions are
+                     ;; documents, and where a relative one resolves to
+                     olai/doc
                      syntax/parse
                      racket/string
                      racket/list
@@ -45,6 +49,7 @@
          task-title
          task-date
          task-description
+         task-doc
          task-done
          task-doing
          task-status
@@ -69,6 +74,11 @@
 
 ;; done / doing: #f | #t | ISO date/datetime string. Mutually exclusive on a
 ;;      node — the `t` macro rejects the pair (see below).
+;; doc: #f | the document path the source wrote, VERBATIM and relative to the
+;;      defining file. Never resolved here and never read: the string is data
+;;      (it is what the JSON carries), and turning it into bytes on a screen
+;;      is the web view's business — see olai/doc for the one place that
+;;      knows how the two relate.
 ;; id: #f | non-empty anchor string
 ;; file: #f | absolute path string of defining outline
 ;; key: stable node identity — the ^anchor here, #f for an unanchored node
@@ -78,18 +88,20 @@
 ;; loc: srcloc of the form that defined this node. Kept because a tree that
 ;;      came through @include has no syntax left by the time it is checked,
 ;;      and an error still has to say file:line:col.
-(struct task (title date description done doing id tags children file key loc)
+(struct task (title date description doc done doing id tags children file key loc)
   #:transparent)
 
 ;; Build one BY NAME. Ten positional arguments in the macro template below
-;; meant every new field (loc and key so far, @doc next) had to be threaded
-;; through the struct, the template and every construction site, in the same
-;; order, with nothing to say when a site got it wrong. With keywords the
-;; field order stops being an interface: a new field is a new optional
-;; argument that every existing caller already gets right.
+;; meant every new field (loc, key, and now doc) had to be threaded through
+;; the struct, the template and every construction site, in the same order,
+;; with nothing to say when a site got it wrong. With keywords the field order
+;; stops being an interface: a new field is a new optional argument that every
+;; existing caller already gets right — which is exactly what @doc turned out
+;; to be.
 (define (make-task #:title title
                    #:date [date #f]
                    #:description [description #f]
+                   #:doc [doc #f]
                    #:done [done #f]
                    #:doing [doing #f]
                    #:id [id #f]
@@ -99,7 +111,7 @@
                    ;; the ^anchor, or #f until the load layer mints one
                    #:key [key #f]
                    #:loc [loc #f])
-  (task title date description done doing id tags children file key loc))
+  (task title date description doc done doing id tags children file key loc))
 
 ;; `done` / `doing` are STORAGE — #f, #t, or the ISO day the mark was written
 ;; with. What a consumer wants is the STATE, and it is derived here, once.
@@ -146,6 +158,13 @@
                        (syntax-position stx)
                        (syntax-span stx))))
 
+;; Does the document `stx` names exist? Resolved against the file `stx` was
+;; WRITTEN in — a fragment spliced into two roots names the same document from
+;; either one.
+(define-for-syntax (doc-file-exists?/stx stx)
+  (define p (doc-path (syntax-e stx) (syntax-source-path stx)))
+  (and p (file-exists? p)))
+
 (define-for-syntax (syntax-source-path stx)
   (define s (syntax-source stx))
   (cond
@@ -166,6 +185,29 @@
     (pattern d:str
              #:fail-unless (valid-anchor-id?/stx (syntax-e #'d))
              "expected anchor id matching [A-Za-z0-9_-]+"))
+
+  ;; A DOCUMENT PATH, and the three things that make one: it is relative, it
+  ;; ends in an extension the view can draw, and the file is there. All three
+  ;; are checked HERE, in the language, and nowhere else — a typo in a @doc
+  ;; must reach an agent through `olai check` like every other malformed form,
+  ;; not as a grey line in a browser nothing machine-readable ever sees.
+  ;;
+  ;; Existence is the same call @include already makes, for the same reason:
+  ;; the field names a file, and a name that resolves to nothing is not a
+  ;; document with a problem, it is a form that is wrong.
+  ;;
+  ;; In this order, because each one is what makes the next answerable: an
+  ;; absolute path has no defining file to resolve against, and a path in no
+  ;; format this view reads is not worth going to the disk about.
+  (define-syntax-class doc-str
+    #:description "a document path relative to this file"
+    (pattern d:str
+             #:fail-unless (doc-relative? (syntax-e #'d))
+             "expected a path relative to this file, not an absolute one"
+             #:fail-unless (doc-kind (syntax-e #'d))
+             (format "expected a document path ending in ~a" doc-extensions-phrase)
+             #:fail-unless (doc-file-exists?/stx #'d)
+             (format "file not found: ~a" (syntax-e #'d))))
 
   ;; A MARK — #:done, #:doing — is a keyword, optionally stamped with an ISO
   ;; date. The two are the same shape and are still written out, because the
@@ -198,9 +240,11 @@
   (define-splicing-syntax-class t-kwargs
     ;; doing-loc is #f or the #:doing keyword — where "done and doing" is
     ;; reported (see doing-kw above).
-    #:attributes (date description done doing doing-loc id)
+    #:attributes (date description doc done doing doing-loc id)
     (pattern (~seq (~alt (~optional (~seq #:date d:date-str)
                                     #:name "#:date")
+                         (~optional (~seq #:doc doc-p:doc-str)
+                                    #:name "#:doc")
                          (~optional (~seq #:description desc:str)
                                     #:name "#:description")
                          (~optional dk:done-kw
@@ -214,6 +258,7 @@
                              (datum->syntax #'d (attribute d.normalized) #'d)
                              #'#f)
              #:attr description (or (attribute desc) #'#f)
+             #:attr doc (if (attribute doc-p) #'doc-p #'#f)
              #:attr done (if (attribute dk)
                              (attribute dk.value)
                              #'#f)
@@ -501,8 +546,8 @@
 ;; The shape of `t`, spelled once for the two clauses that answer with it.
 (define-for-syntax t-shape
   (string-append "expected (t \"title\" [#:id anchor] [#:date iso-date] "
-                 "[#:description \"...\"] [#:done [iso-date]] "
-                 "[#:doing [iso-date]] child ...)"))
+                 "[#:doc \"path.md\"] [#:description \"...\"] "
+                 "[#:done [iso-date]] [#:doing [iso-date]] child ...)"))
 
 ;; What a malformed `t` is blamed on: the title the source wrote, when it
 ;; wrote one, else the whole form.
@@ -545,6 +590,7 @@
        #'(make-task #:title title
                     #:date kw.date
                     #:description kw.description
+                    #:doc kw.doc
                     #:done kw.done
                     #:doing kw.doing
                     #:id kw.id
