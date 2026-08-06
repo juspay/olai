@@ -98,6 +98,22 @@
       "hash": "sha256-4TIeinXk7ak7sbT2lwfWYdwIwFD9S7whBrR2KEajW30=",
       "frozen": true
     },
+    "highlight-js": {
+      "type": "GitRelease",
+      "repository": {
+        "type": "GitHub",
+        "owner": "highlightjs",
+        "repo": "cdn-release"
+      },
+      "pre_releases": false,
+      "version_upper_bound": null,
+      "release_prefix": null,
+      "submodules": false,
+      "version": "11.11.1",
+      "revision": "91724c0adaf7bea7e5c5c85e4ea1d672f6c0ed23",
+      "url": "https://api.github.com/repos/highlightjs/cdn-release/tarball/refs/tags/11.11.1",
+      "hash": "sha256-dZsMdL6MhxuugtSfUBkeNXmD2pn5ZvFAqWFXH0MfF/4="
+    },
     "htmx": {
       "type": "GitRelease",
       "repository": {

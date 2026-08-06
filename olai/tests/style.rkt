@@ -182,9 +182,14 @@
                            #:children (list (mirror-ref "no-such-anchor" #f))))
           (hash)))
     #:today example-today)
-   ;; Markdown at render time: the anchor and the code a note (or a finished
-   ;; turn) makes are the classes the demo outlines never happen to contain.
-   (note->xexprs "see [the manual](https://example.com), `inline`\n\n```\nblock\n```\n")
+   ;; Markdown at render time: the anchor, the code, the picture and the
+   ;; footnotes a note (or a finished turn) makes are the classes the demo
+   ;; outlines never happen to contain.
+   (note->xexprs (string-append
+                  "see [the manual](https://example.com), `inline`\n\n"
+                  "```\nblock\n```\n\n"
+                  "![a screenshot](shot.png)\n\n"
+                  "a claim[^1]\n\n[^1]: and what it rests on\n"))
    ;; The panel is chrome: what a conversation looks like is chat.js's markup,
    ;; and the classes it spells are read off the script (scripted-classes).
    (render-chat-panel
@@ -228,7 +233,11 @@
 ;; are its own vocabulary, and the skin styles them from the binding — and
 ;; scanning a minified bundle for class-shaped names would find noise, not a
 ;; border.
-(define script-names '("chat.js" "collapse.js" "prefs.js" "pwa.js"))
+;; (highlight-init.js is ours too; the bundle it drives is not, and neither
+;; are the language files beside it — they are vendored under static/hljs/,
+;; and scanning a minified grammar for class-shaped names would find noise.)
+(define script-names
+  '("chat.js" "collapse.js" "prefs.js" "pwa.js" "highlight-init.js"))
 
 (define scripted-classes
   (for/fold ([acc (set)]) ([js (in-list script-names)])

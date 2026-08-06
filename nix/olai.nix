@@ -16,6 +16,10 @@
 # the live-view collection with its vendored browser runtime already staged
 # (live/default.nix) — a drop-in for $src/live
 , live
+# the highlighter the web view paints fenced code with, as the files it is
+# served as (nix/highlight-js.nix). Pinned upstream rather than committed, so
+# it is not in $src either
+, highlightJs
 }:
 
 stdenv.mkDerivation {
@@ -54,6 +58,13 @@ stdenv.mkDerivation {
     cp -a "${live}" ./live-pkg
     cp -a "$src/olai" ./olai-pkg
     chmod -R u+w ./live-pkg ./olai-pkg
+
+    # …and the highlighter under olai's own static/, for the same reason: the
+    # bytes are a pin, not a file in the repo, so they join the collection
+    # here rather than coming along with $src. `just vendor` stages the same
+    # files into the same place for a working tree.
+    mkdir -p ./olai-pkg/web/static/hljs
+    install -m 0644 "${highlightJs}"/* ./olai-pkg/web/static/hljs/
 
     # Offline install of npins-vendored deps (order matters).
     # --deps force: markdown wants package name "parsack"; we ship

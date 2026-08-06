@@ -88,12 +88,14 @@
     if(stick)body.scrollTop=body.scrollHeight;
   }
 
-  function line(cls,text){
-    var d=document.createElement('div');
+  function make(tag,cls,text){
+    var d=document.createElement(tag);
     d.className=cls;
     if(text!==undefined)d.textContent=text;
     return d;
   }
+
+  function line(cls,text){return make('div',cls,text)}
 
   // A turn owns its user bubble, the agent's text, and its tool lines, so a
   // tool id is only ever looked up inside the turn it belongs to.
@@ -110,20 +112,65 @@
 
   var GLYPH={completed:'✓',failed:'✗'};
 
+  // ---- tool calls, folded ------------------------------------------------
+  //
+  // A tool call is chatter, and it comes up folded: the line is a button, and
+  // the title is clamped to it until you ask for the rest (web/chat-panel
+  // draws all of that). Only tool calls — what the agent SAID is what the
+  // panel is for, and prose never folds.
+  //
+  // Which calls are open is the PAGE's, not localStorage's: unfolding one is a
+  // reading act, not a preference, so a reload comes back to a quiet panel.
+  // Keyed by the call's own id, which is what carries a fold through a
+  // REBUILD — a reconnect replays the whole conversation into an emptied body
+  // (web/chat's catch-up), so the line you were reading is a new element by
+  // the time you look back at it, under the same id. Same idea as collapse.js's
+  // afterSettle pass, at the one moment a chat line is drawn: there is no htmx
+  // swap to hook here, because the panel sits outside the region the outline's
+  // events re-swap and is never swapped itself.
+  var unfolded={};
+
+  // The one place a fold is written, and it has one spelling: the button's own
+  // ARIA state. What expands is the button's own label, so there is no region
+  // to name and no class to keep in step with it.
+  function setFold(el,open){
+    el.setAttribute('aria-expanded',open?'true':'false');
+  }
+
+  function toggleFold(el){
+    var id=el.getAttribute('data-tool-id');
+    if(unfolded[id])delete unfolded[id];else unfolded[id]=true;
+    setFold(el,!!unfolded[id]);
+  }
+
+  // The shape of a line, once. The triangle and the glyph are hidden from
+  // assistive tech, which leaves the button's name as the title — what the
+  // line IS.
+  function makeToolLine(id){
+    var el=make('button','ol-chat-tool');
+    el.type='button';
+    el.setAttribute('data-tool-id',id);
+    el.appendChild(quiet(make('span','ol-chat-tool-fold','▸')));
+    el.appendChild(quiet(make('span','ol-chat-tool-glyph')));
+    el.appendChild(make('span','ol-chat-tool-title'));
+    // folded, unless this same call was open before the body was rebuilt
+    setFold(el,!!unfolded[id]);
+    return el;
+  }
+
+  // One line per tool call, updated in place by id — same id, same line.
   function toolLine(id,title,status){
     var sel='[data-tool-id="'+(window.CSS&&CSS.escape?CSS.escape(id):id)+'"]';
     var el=turn?turn.querySelector(sel):null;
-    if(!el){
-      el=line('ol-chat-tool');
-      el.setAttribute('data-tool-id',id);
-      el.appendChild(line('ol-chat-tool-glyph'));
-      el.appendChild(line('ol-chat-tool-title'));
-      append(el);
-    }
+    if(!el)append(el=makeToolLine(id));
     el.setAttribute('data-status',status);
     el.querySelector('.ol-chat-tool-glyph').textContent=GLYPH[status]||'⚙';
     el.querySelector('.ol-chat-tool-title').textContent=title;
   }
+
+  // Decoration, to a screen reader: a mark and a triangle that say what the
+  // words beside them already say.
+  function quiet(el){el.setAttribute('aria-hidden','true');return el}
 
   // ---- slash commands ----------------------------------------------------
   //
@@ -302,7 +349,15 @@
       toolLine(f.id,f.title,f.status);
     }
     else if(f.type==='done'){
-      if(agentEl&&typeof f.html==='string')agentEl.innerHTML=f.html;
+      if(agentEl&&typeof f.html==='string'){
+        agentEl.innerHTML=f.html;
+        // Markup arrived without a swap, so nothing on the page would
+        // otherwise hear about it: an htmx settle is what every other pass
+        // over new markup listens for, and this is the one moment there is no
+        // htmx in it. Announced, not called: who cares is theirs to say
+        // (static/highlight-init.js is the one who does).
+        agentEl.dispatchEvent(new CustomEvent('olai:drawn',{bubbles:true}));
+      }
       if(f.stopReason&&f.stopReason!=='end_turn')
         append(line('ol-chat-note',f.stopReason));
       endTurn();
@@ -439,6 +494,14 @@
         return;
       }
       post(t.getAttribute('data-post'));
+    });
+
+    // The transcript's one control of its own, and its own listener for it:
+    // the handler above is the chrome's, and threading a fold through it would
+    // buy an ordering invariant kept in prose. collapse.js is the same shape.
+    document.addEventListener('click',function(e){
+      var tool=e.target.closest('.ol-chat-tool');
+      if(tool)toggleFold(tool);
     });
 
     form.addEventListener('submit',function(e){

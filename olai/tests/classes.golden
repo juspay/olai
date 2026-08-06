@@ -44,6 +44,7 @@ ol-chat-spop
 ol-chat-stop
 ol-chat-title
 ol-chat-tool
+ol-chat-tool-fold
 ol-chat-tool-glyph
 ol-chat-tool-title
 ol-chat-turn
@@ -70,6 +71,8 @@ ol-error-detail
 ol-error-where
 ol-file
 ol-file-title
+ol-footnotes
+ol-image
 ol-line
 ol-link
 ol-main

@@ -252,7 +252,8 @@ Routes:
 | `GET /api/agenda` | byte-identical to `olai agenda` |
 | `GET /static/app.css` | the skin, `text/css`, `Cache-Control: no-cache`. Generated from the Racket modules that draw the page — `olai/web/skin` composes them — not a file on disk. This route is the only way to get those bytes; there is no `css` command |
 | `GET /static/manifest.webmanifest` | web app manifest (`application/manifest+json`); name, icons, `display: standalone`, default theme colours |
-| `GET /static/*` | files under `olai/web/static/` — olai's own assets: icons, `collapse.js`, `prefs.js`, `chat.js`, `pwa.js` |
+| `GET /static/*` | files under `olai/web/static/` — olai's own assets: icons, `collapse.js`, `prefs.js`, `chat.js`, `pwa.js`, `highlight-init.js`, and the vendored highlighter under `hljs/` |
+| `GET /media/*` | pictures under the directory being served — what a note's `![](shot.png)` asks for. Same rules as `/static/`: a path that climbs out is a `404`, and so is a miss. Only picture extensions are served (`png`, `jpe?g`, `gif`, `webp`, `avif`, `bmp`, `ico`); an `.svg` is a document that can script, and the outline's own files are not pictures |
 | `GET /live/*` | files under the `live` collection's `static/` — the live-view client runtime this app ships and never edits: htmx, its SSE extension, idiomorph, and the health watchdog ([live/README.md](../live/README.md)) |
 | anything else | `404`, terse `text/plain` |
 
@@ -261,6 +262,14 @@ A node's permalink is `/n/<key>` (`key` as in `tree` JSON): every bullet in the 
 Within a page, anchored nodes and bare-ISO day nodes also keep a plain `#<anchor>` / `#<YYYY-MM-DD>` target, so links people wrote by hand still resolve, and every node carries `id="n-<key>"`.
 
 Paths that climb out of `static/` are 404, not files.
+
+**Markdown** is render-time only: the strings in the struct and in every JSON reply stay verbatim. A title is INLINE (block syntax in one is just characters — a leading `#tag` is a tag, not an `<h1>`); a note, an agent's finished turn and a `@doc` document are full Markdown. What comes out is sanitized against an allowlist — anything not on it is dropped, attributes included — and three things ride through it:
+
+* **Fenced code** keeps its language: the fence's first word, if it is a bare language name, becomes `class="language-<lang>"` on the `<code>`, and the browser paints it with highlight.js. That bundle is vendored (pinned in `npins/sources.json`, built by `nix/highlight-js.nix`, served from `/static/hljs/`) — never a CDN, and never a hand-committed blob. The colours are the skin's, so they follow the theme you picked; `racket` and `rkt` read as Scheme. A word that is not a language hljs has is a block left as plain text.
+* **Images** are files beside the outline: a RELATIVE `src` naming a picture becomes `/media/<path>`, and nothing else is drawn at all — no `http(s):`, no `data:`, no `//host`, no absolute path, no `..`, and no format the route will not serve (the list is `olai/web/markdown`'s, and the route is built from the same one). A picture is a note's, a document's or an agent turn's; a title stays one line and draws none.
+* **Footnotes** (`text[^1]` + `[^1]: …`) work, both ways. The ids are re-minted per piece of Markdown — the parser's own are never trusted onto the page — so the same note draws the same ids on every render and two notes on one page cannot collide.
+
+No tables, no strikethrough, no task lists: that is the `markdown` package's ceiling, and the parser is not ours to replace.
 
 **Prefs** are a sidebar section, one row per preference — client state, stored in `localStorage` under `olai.<pref>`, never sent to the server (same standing as the collapse state) and therefore per browser. The first row is `theme`: one chip per theme in `olai/web/theme`'s table, and nothing else. The sheet carries all of them, so picking one is a value on `<html data-theme>` and nothing else — no round trip, no re-render. A page that has picked nothing reads in the default theme (the sheet's bare `:root`) and that chip is the lit one; the OS's `prefers-color-scheme` is never consulted, and a stored theme the sheet no longer carries is forgotten on sight. A tiny inline script in `<head>` restores stored prefs before the first paint (`static/prefs.js` is the picker); each theme declares its own `color-scheme`, so scrollbars and form controls follow. `<meta name="theme-color">` starts as the default theme's paper and is rewritten from `--paper` by `static/pwa.js` whenever a chip flips, so the browser chrome tracks the page.
 

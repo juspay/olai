@@ -45,3 +45,8 @@ compiled/
 /live/static/htmx.min.js
 /live/static/sse.js
 /live/static/idiomorph.min.js
+
+# olai's own vendored asset, on the same terms: highlight.js, pinned (npins)
+# and built by nix/highlight-js.nix. A DIRECTORY this time — everything under
+# it is upstream's, so there is no name here to get wrong.
+/olai/web/static/hljs/

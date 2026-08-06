@@ -42,7 +42,7 @@ Inbox #capture
     @doc docs/agent-work.md
 ```
 
-Titles and notes are Markdown at **render** time (web view only); stored strings stay raw. Check off with `[x] ` OR `@done` — one node, one of them (or `olai done TITLE`). `[/] ` / `@doing` is the state in between, same rules (`olai doing TITLE`); done clears it. A node that is not a line gets `@doc`: it expands into that file — `.md` or `.scrbl`, greppable, diffable, still yours. Full rules: [docs/syntax.md](docs/syntax.md).
+Titles and notes are Markdown at **render** time (web view only); stored strings stay raw. A fenced block keeps its language and is highlighted in the browser, `![](shot.png)` draws the file beside the outline, and footnotes work. Check off with `[x] ` OR `@done` — one node, one of them (or `olai done TITLE`). `[/] ` / `@doing` is the state in between, same rules (`olai doing TITLE`); done clears it. A node that is not a line gets `@doc`: it expands into that file — `.md` or `.scrbl`, greppable, diffable, still yours. Full rules: [docs/syntax.md](docs/syntax.md).
 
 Under the hood every outline becomes s-expressions. Same expander:
 

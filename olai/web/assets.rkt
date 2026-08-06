@@ -8,7 +8,12 @@
 ;; they are not in one.
 
 (require racket/contract
-         racket/runtime-path)
+         racket/runtime-path
+         ;; which files paint a fenced code block is the business of the module
+         ;; that draws one, the same way the framework's runtime is
+         ;; live/client's. All that is decided here is that they are mounted
+         ;; with the rest of /static/
+         (only-in olai/web/markdown highlight-scripts))
 
 (provide (contract-out
           [web-static-dir (-> path?)]
@@ -35,8 +40,11 @@
 ;; olai's own scripts. The client runtime (htmx, its SSE extension, idiomorph
 ;; and the health watchdog) is the framework's, mounted at its own prefix and
 ;; listed by it — see olai/web/live. These come after, and lean on it.
+;; The highlighter is under this prefix and not in this literal: which files
+;; paint a fenced code block is web/markdown's to say (see the require above).
 (define web-scripts
-  '("collapse.js" "prefs.js" "chat.js" "pwa.js"))
+  (append '("collapse.js" "prefs.js" "chat.js" "pwa.js")
+          highlight-scripts))
 
 (define (static-href name) (string-append web-static-prefix name))
 

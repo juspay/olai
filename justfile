@@ -37,11 +37,15 @@ default:
 vendor:
     #!/usr/bin/env bash
     set -euo pipefail
-    if [ -z "${OLAI_LIVE_ASSETS:-}" ]; then
-      echo "vendor: OLAI_LIVE_ASSETS unset — run inside \`nix develop\`" >&2
+    if [ -z "${OLAI_LIVE_ASSETS:-}" ] || [ -z "${OLAI_HLJS_ASSETS:-}" ]; then
+      echo "vendor: OLAI_LIVE_ASSETS / OLAI_HLJS_ASSETS unset — run inside \`nix develop\`" >&2
       exit 1
     fi
     install -m 0644 "$OLAI_LIVE_ASSETS"/* {{justfile_directory()}}/live/static/
+    # olai's own vendored asset (nix/highlight-js.nix): a directory of its
+    # own, gitignored whole, so nothing here is ever mistaken for ours.
+    install -d {{justfile_directory()}}/olai/web/static/hljs
+    install -m 0644 "$OLAI_HLJS_ASSETS"/* {{justfile_directory()}}/olai/web/static/hljs/
 
 # Deps + raco link ./live and ./olai (cheap; does not recompile — use `just build`)
 install: vendor
