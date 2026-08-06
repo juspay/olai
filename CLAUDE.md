@@ -34,8 +34,7 @@ Read [README.md](README.md) and `docs/*.md` first (especially [docs/hacking.md](
 * `just test` runs `just build` first (`raco setup --pkgs olai`) so `compiled/*.zo` exist and stay coherent after edits. `just install` alone does not recompile. Linklet mismatch → `just clean && just build` (see [docs/hacking.md](docs/hacking.md)). Repo-specific facts agents rediscover otherwise live in [docs/hacking.md](docs/hacking.md) — read it before probing css-expr or the toolchain.
 * `just test` is the only test command you run. It is the fast set; CI runs everything else on the PR.
 * Branch + PR for every change (agents included); CI green before merge. Master rejects direct pushes.
-* CI = [juspay/odu `.apm/skills/odu/SKILL.md`](https://github.com/juspay/odu/blob/master/.apm/skills/odu/SKILL.md)
-  * GitHub Workflows may eventually be retired in favour of Odu; so look for Odu status checks green.
+* CI = [juspay/odu `.apm/skills/odu/SKILL.md`](https://github.com/juspay/odu/blob/master/.apm/skills/odu/SKILL.md) run on both Linux and macOS.
 * Tests parse JSON output with `read-json`. Never string-match JSON.
 
 ## VOICE
