@@ -27,7 +27,8 @@ failure.
 ## Global
 
 - Default outline file when no paths given: `$OLAI_HOME/Tasks.rkt`.
-  `add` / `done` / `move` always target one file via `--file`, same default.
+  `add` / `done` / `doing` / `move` always target one file via `--file`, same
+  default.
 - **`OLAI_HOME` has no default.** Unset, any command that would need it —
   the file defaults above, `daily` without `--home` — is a **usage error**
   (exit 1, the error object on stderr), nothing is read or written:
@@ -45,7 +46,7 @@ failure.
   when `OLAI_HOME` is unset. `serve` also takes the DIRECTORY and globs it
   itself — that is its front door, see below.
 - Personal data lives outside the repo, in the directory `OLAI_HOME`
-  names. Auto-commit (`add` / `done` / `move` / `daily`) only runs
+  names. Auto-commit (`add` / `done` / `doing` / `move` / `daily`) only runs
   when the directory of the file actually written is a git work tree;
   otherwise it no-ops (`committed: false`) and Dropbox (or your sync) is the history layer.
 - `--json` may appear after the subcommand everywhere it used to; it is a
@@ -106,6 +107,7 @@ Single file:
       "date": null,
       "description": "Quick capture landing zone",
       "done": null,
+      "doing": null,
       "status": "open",
       "id": null,
       "key": "pd076e677",
@@ -145,11 +147,12 @@ Multiple files:
 ```
 
 `date` / `description` are raw strings or `null` (Markdown is not interpreted
-here). `done` is the stored field: `null` (open), `true` (completed, no
-timestamp), or an ISO timestamp string. `status` is what that field MEANS —
-`"open"` or `"done"` — and is the one to switch on: it is where a future
-state would show up, while `done` keeps its type. `id` is `null` or the anchor
-string. `tags` is always an array.
+here). `done` and `doing` are the stored marks: `null` (not in that state),
+`true` (marked, no timestamp), or an ISO timestamp string. A node carries at
+most one of them — the language rejects both. `status` is what they MEAN —
+`"open"`, `"doing"` or `"done"` — and is the one to switch on: it is where a
+future state would show up, while `done` / `doing` keep their type. `id` is
+`null` or the anchor string. `tags` is always an array.
 
 `key` is the node's stable identity — its `^anchor` when it has one, else a
 hash of its **defining** file plus the child ordinals that reach it inside
@@ -180,10 +183,10 @@ permalinks, stored collapse state).
 
 ## `agenda [file ...]`
 
-Dated tasks relative to local today, **merged across all given files**. **Done
-tasks are excluded** even if they still have a `@date`. When more than one file
-is given, breadcrumbs are rooted at each file's basename
-(`Tasks.rkt > Inbox > Buy milk`). All three arrays are always present, possibly
+What is on the plate, relative to local today, **merged across all given
+files**. **Done tasks are excluded** even if they still have a `@date`. When
+more than one file is given, breadcrumbs are rooted at each file's basename
+(`Tasks.rkt > Inbox > Buy milk`). All four arrays are always present, possibly
 empty.
 
 Stdout:
@@ -192,11 +195,23 @@ Stdout:
 {
   "version": 1,
   "today": "2026-08-03",
-  "overdue": [{"title":"...","date":"2026-01-15T08:00","breadcrumb":"..."}],
+  "overdue": [{"title":"...","date":"2026-01-15T08:00","breadcrumb":"...",
+               "status":"open"}],
+  "doing": [{"title":"...","date":null,"breadcrumb":"...","status":"doing"}],
   "today_items": [],
   "upcoming": []
 }
 ```
+
+`doing` sits above `today_items` in the reading order the groups have.
+An item's `status` is why it is in the group it is in: `"open"` for the three
+date buckets, `"doing"` for that one.
+
+A node in flight is on the agenda **whether or not anyone dated it** — that is
+the point of the group — so `date` is `null` there where the date buckets
+always have one, and a dated `@doing` node appears in `doing` and nowhere
+else. Within the group, dated items come first by date and undated ones follow
+in tree order.
 
 ## `calendar [--month YYYY-MM] [file ...]`
 
@@ -216,7 +231,7 @@ web deep-links). Multi-file merge like agenda.
       "day_node": true,
       "items": [
         {"title":"Buy milk","date":"2026-08-04T18:00","breadcrumb":"...","done":null,
-         "status":"open","id":null}
+         "doing":null,"status":"open","id":null}
       ]
     }
   ]
@@ -531,14 +546,17 @@ Mark a task done by exact title match or `^anchor` (or undo). **One file only**
 (`--file`). Writes **outline** syntax only — same safety as `add`: write temp →
 re-validate → rename; restore on failure.
 
-- Exact title match across the file (a `[x] ` checkbox prefix and a trailing
-  `^anchor` are not part of the matched title), or a single `^id` addressing
-  the defining site.
+- Exact title match across the file (a `[x] ` / `[/] ` checkbox prefix and a
+  trailing `^anchor` are not part of the matched title), or a single `^id`
+  addressing the defining site.
 - **0 matches** → exit 2.
 - **>1 matches** → exit 2; message lists each `file:line` and suggests
   `add a ^anchor to disambiguate`.
 - On success: inserts `@done YYYY-MM-DD` (today) after the task's metadata,
   preserving the rest of the file. Rejects tasks already done.
+- **Clears doing**: an `@doing` line goes with the edit and a `[/] ` prefix is
+  stripped off the title. A node carrying both marks is a form the language
+  rejects, so this is not tidiness — it is what makes the write valid.
 - `--undo`: remove `@done` metadata and strip a leading `[x] ` / `[X] ` prefix.
 - Auto-commit `done: TITLE` / `undone: TITLE` in a git work tree unless
   `--no-commit`.
@@ -559,6 +577,30 @@ Stdout:
 ```
 
 On `--undo`, `done` is `null` and `undone` is `true`.
+
+## `doing [--file F] [--undo] [--no-commit] TITLE...|^anchor`
+
+Put a task in the third state, between open and done (or take it back out).
+Same resolver, same write safety and same shape as `done` — it is the same op
+with a different mark.
+
+- On success: inserts `@doing YYYY-MM-DD` (today) after the task's metadata.
+- Rejects a task **already doing**, and a task **already done** — undo the
+  done first, so nothing decides for you that finished work is not. Both are
+  exit 2.
+- `--undo`: remove `@doing` metadata and strip a leading `[/] ` prefix.
+- Auto-commit `doing: TITLE` / `not-doing: TITLE` in a git work tree unless
+  `--no-commit`.
+
+```json
+{"version":1,"ok":true,"file":".../Tasks.rkt","title":"Buy milk","line":5,
+ "doing":"2026-08-03","undone":false,"committed":false}
+```
+
+On `--undo`, `doing` is `null` and `undone` is `true`.
+
+Who is doing it, and where, live in the node's notes — not in the grammar. An
+orchestrator marks a task `[/]` and writes the terminal id under it.
 
 ## `move [--file F] [--no-commit] [--clear] TITLE...|^anchor DATE`
 
@@ -607,7 +649,7 @@ Both `created_*` are `false` on every run after the first for that day, and
 
 ## Write routing under `@include`
 
-`done` / `move` / `add --parent ^anchor` resolve the target against the loaded
+`done` / `doing` / `move` / `add --parent ^anchor` resolve the target against the loaded
 tree (including fragments), then edit the **defining file** of that node.
 JSON `file` fields on tree nodes show where agents should write.
 
@@ -661,7 +703,7 @@ what guards a write:
 
 | Gone | Instead |
 |------|---------|
-| plain output on `check` / `agenda` / `calendar` / `add` / `done` / `move` / `daily` | the same command, which now always emits its JSON |
+| plain output on `check` / `agenda` / `calendar` / `add` / `done` / `doing` / `move` / `daily` | the same command, which now always emits its JSON |
 | `css` | `GET /static/app.css` from a running `serve`; in-tree, `racket -e '(require olai/web/skin) (displayln (stylesheet))'` |
 | `html` (earlier) | `serve`, or `curl http://127.0.0.1:8080/ > snap.html` |
 

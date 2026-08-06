@@ -16,8 +16,10 @@
          task-date
          task-description
          task-done
+         task-doing
          task-status
          task-done-at
+         task-doing-at
          task-id
          task-tags
          task-children
@@ -31,8 +33,8 @@
          find-task-by-id
          find-tasks-by-title
          validate-task-tree!
-         (struct-out dated-task)
-         collect-dated
+         (struct-out agenda-item)
+         collect-agenda
          agenda-groups
          agenda-groups-from-files
          ;; node identity, inverted: key -> node, and the trail above it. The

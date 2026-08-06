@@ -6,23 +6,28 @@
          olai/calendar
          olai/dates)
 
-(define (tk title date desc kids #:done [done #f] #:id [id #f])
+(define (tk title date desc kids #:done [done #f] #:doing [doing #f] #:id [id #f])
   (make-task #:title title #:date date #:description desc #:done done
-             #:id id #:children kids #:key (or id title)))
+             #:doing doing #:id id #:children kids #:key (or id title)))
 
 (module+ test
-  (test-case "collect includes done; mirrors once"
+  (test-case "collect keeps every state; mirrors once"
     (define t
       (list
        (tk "A" "2026-08-01" #f
            (list (tk "B" "2026-08-02" #f '() #:done #t #:id "b")
+                 (tk "C" "2026-08-02" #f '() #:doing "2026-08-01")
                  (mirror-ref "b" #f)))))
     (define items (collect-cal-items t))
-    (check-equal? (length items) 2)
+    (check-equal? (length items) 3)
     (check-equal? (sort (map (λ (it) (symbol->string (cal-item-status it)))
                              items)
                         string<?)
-                  '("done" "open"))
+                  '("doing" "done" "open"))
+    ;; the stored mark rides along beside what it means
+    (define c (findf (λ (i) (equal? (cal-item-title i) "C")) items))
+    (check-equal? (cal-item-doing c) "2026-08-01")
+    (check-false (cal-item-done c))
     (check-equal? (length (filter (λ (i) (equal? (cal-item-title i) "B")) items))
                   1))
 
@@ -41,9 +46,9 @@
 
   (test-case "calendar-for-month groups and marks day_node"
     (define items
-      (list (cal-item "2026-08-04T09:30" "Dentist" "Inbox > Dentist" #f 'open #f)
-            (cal-item "2026-07-01" "Old" "Old" #f 'open #f)
-            (cal-item "2026-08-10" "Ship" "Ship" #t 'done "ship")))
+      (list (cal-item "2026-08-04T09:30" "Dentist" "Inbox > Dentist" #f #f 'open #f)
+            (cal-item "2026-07-01" "Old" "Old" #f #f 'open #f)
+            (cal-item "2026-08-10" "Ship" "Ship" #t #f 'done "ship")))
     (define nodes (set "2026-08-03" "2026-08-04"))
     (define cal (calendar-for-month items nodes "2026-08"))
     (check-equal? (hash-ref cal 'month) "2026-08")

@@ -17,7 +17,7 @@
          olai/load
          olai/web/render
          xml
-         olai/done
+         olai/status
          olai/capture)
 
 ;; Keys are minted by the load layer, not the module, so these go through it.
@@ -137,8 +137,8 @@ EOF
     (define groups (agenda-groups tasks "2026-08-03"))
     (define ov (cdr (assq 'overdue groups)))
     (check-equal? (length ov) 1)
-    (check-equal? (dated-task-title (car ov)) "Milk")
-    (check-equal? (dated-task-breadcrumb (car ov)) "Milk"))
+    (check-equal? (agenda-item-title (car ov)) "Milk")
+    (check-equal? (agenda-item-breadcrumb (car ov)) "Milk"))
 
   ;; Binding happens once, in core, before anything is drawn: a mirror site
   ;; comes out carrying its node, and an anchor that names nothing comes out

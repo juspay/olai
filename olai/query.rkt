@@ -15,7 +15,8 @@
          olai/lang/walk
          olai/paths)
 
-(provide (struct-out dated-node)
+(provide (struct-out crumbed-node)
+         collect-nodes
          collect-dated-nodes
          breadcrumb-of
          with-file-roots
@@ -36,7 +37,9 @@
               #:mirrors 'visit))
 
 ;; task: the node itself; breadcrumb: "Tasks.rkt > Inbox > Buy milk"
-(struct dated-node (task breadcrumb) #:transparent)
+;; Named for what it carries and not for why it was picked: the agenda's DOING
+;; group asks for nodes that have no @date at all.
+(struct crumbed-node (task breadcrumb) #:transparent)
 
 ;; #:root — a label prepended to the trail (a file's name, when more than one
 ;; file is loaded).
@@ -46,17 +49,21 @@
            (map task-title (task-path path tk)))
    " > "))
 
-;; Every dated node, at its DEFINING site: a mirror site is the same node, so
-;; a mirrored dated task appears once, with the breadcrumb it was defined at.
-(define (collect-dated-nodes tasks #:root [root #f])
+;; Every node `keep?` says yes to, in tree order, at its DEFINING site: a
+;; mirror site is the same node, so a mirrored node appears once, with the
+;; breadcrumb it was defined at.
+(define (collect-nodes tasks keep? #:root [root #f])
   (reverse
    (fold-tasks tasks
                (λ (tk path acc)
-                 (if (task-date tk)
-                     (cons (dated-node tk (breadcrumb-of path tk #:root root))
+                 (if (keep? tk)
+                     (cons (crumbed-node tk (breadcrumb-of path tk #:root root))
                            acc)
                      acc))
                '())))
+
+(define (collect-dated-nodes tasks #:root [root #f])
+  (collect-nodes tasks task-date #:root root))
 
 ;; file-entries: (listof (cons path tasks)). Calls `proc` with each entry's
 ;; tasks and the root label to prefix breadcrumbs with — the file's name when

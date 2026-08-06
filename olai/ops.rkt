@@ -17,7 +17,7 @@
          olai/capture
          olai/daily
          olai/dates
-         olai/done
+         olai/status
          olai/edit
          olai/load
          olai/move
@@ -38,10 +38,11 @@
                               [line exact-positive-integer?]
                               [created-inbox? boolean?]
                               [committed? boolean?])]
-          [struct done-result ([file string?]
+          [struct mark-result ([file string?]
                                [title string?]
                                [line exact-positive-integer?]
-                               [done (or/c string? #f)]
+                               [state mark-state/c]
+                               [stamp (or/c string? #f)]
                                [undone? boolean?]
                                [committed? boolean?])]
           [struct move-result ([file string?]
@@ -61,9 +62,10 @@
                           #:parent (or/c string? #f)
                           #:commit? boolean?)
                          add-result?)]
-          [ops-done! (->* ((or/c path? string?) string? string?)
+          [mark-state/c flat-contract?]
+          [ops-mark! (->* ((or/c path? string?) mark-state/c string? string?)
                           (#:undo? boolean? #:commit? boolean?)
-                          done-result?)]
+                          mark-result?)]
           [ops-move! (->* ((or/c path? string?) string? (or/c string? #f))
                           (#:clear? boolean? #:commit? boolean?)
                           move-result?)]
@@ -165,33 +167,52 @@
   (add-result (path->string path) title date* desc parent
               line created-inbox? committed?))
 
-;; ---- done / undo ----------------------------------------------------------
+;; ---- done / doing ---------------------------------------------------------
+;;
+;; ONE op. Marking a node done and marking it doing are the same four steps —
+;; resolve TITLE|^anchor against the loaded tree, edit the DEFINING file's
+;; text with the usual write safety, commit, answer — and they differ only in
+;; the row of the table below. Written twice, a new flag on one of them (or a
+;; fourth state) would be an edit nobody makes to the other.
 
-;; done: #f when undone, else the ISO day it was marked with.
-(struct done-result (file title line done undone? committed?) #:transparent)
+(define mark-state/c (or/c 'done 'doing))
 
-(define (ops-done! file spec today
+;; state -> (mark undo commit-verb undo-verb), where mark/undo are the text
+;; mutators olai/status owns. The commit verbs are what a `git log` reads
+;; like, which is the only reason they are not just the state's name.
+(define marks
+  (hash 'done (list mark-done-in-text undo-done-in-text "done" "undone")
+        'doing (list mark-doing-in-text undo-doing-in-text "doing" "not-doing")))
+
+;; state: which mark this is, so a caller (and the CLI's JSON) need not be
+;;        told twice
+;; stamp: #f when undone, else the ISO day the mark was written with
+(struct mark-result (file title line state stamp undone? committed?)
+  #:transparent)
+
+(define (ops-mark! file state spec today
                    #:undo? [undo? #f]
                    #:commit? [commit? #t])
+  (define row (hash-ref marks state))
   (define root-path (existing-file file))
   (define hit
     (as-validation root-path
                    (λ () (locate (load-outline-or-fail root-path) spec))))
   (define path (located-file hit))
   (define title (located-title hit))
+  (define at (located-index hit))
   (define original (file->string path))
   (define-values (new-text line)
     (as-validation
      path
      (λ ()
        (if undo?
-           (undo-done-in-text original spec #:at (located-index hit))
-           (mark-done-in-text original spec today #:at (located-index hit))))))
+           ((cadr row) original spec #:at at)
+           ((car row) original spec today #:at at)))))
+  (define verb (if undo? (cadddr row) (caddr row)))
   (define committed?
-    (write! path new-text
-            #:commit (and commit?
-                          (format "~a: ~a" (if undo? "undone" "done") title))))
-  (done-result (path->string path) title line
+    (write! path new-text #:commit (and commit? (format "~a: ~a" verb title))))
+  (mark-result (path->string path) title line state
                (and (not undo?) today) undo? committed?))
 
 ;; ---- move (set / clear @date) ---------------------------------------------

@@ -1,8 +1,10 @@
 // Every write to the outline file, and nothing else.
 //
-// This is the only file in the suite that edits Tasks.rkt. The scenarios that
-// lean on it are about three different things — the live swap, the error
-// banner, the /today zoom, a fold surviving a re-render — and they all mean
+// This is the only file in the suite that edits Tasks.rkt — by hand, and via
+// `olai` itself, which is the other way a file changes under a running server
+// and the one an agent actually uses. The scenarios that lean on it are about
+// four different things — the live swap, the error banner, the /today zoom, a
+// fold surviving a re-render, a state cleared from the CLI — and they all mean
 // the same act, so they say it the same way.
 //
 // Nothing here waits for the page: the watcher turns a save into an `outline`
@@ -46,6 +48,13 @@ When("I remove the title {string} from the outline", async function (title) {
 // decides which day /today is looking for.
 When("I add a day node for today holding {string}", async function (child) {
   await this.append(`${await this.today()}\n  ${child}\n`);
+});
+
+// The CLI writing the file the server is reading: the same binary, the same
+// write safety, and the page is not told — it finds out the way it finds out
+// about an editor's save.
+When("I check off {string} from the CLI", async function (title) {
+  await this.olai("done", title);
 });
 
 When("I break the outline", async function () {

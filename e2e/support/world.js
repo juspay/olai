@@ -4,13 +4,17 @@
 // any scenario is about. The page is the only thing steps assert against —
 // this suite is the one place in the repo that runs the JS.
 
+import { execFile } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { promisify } from "node:util";
 import { World } from "@cucumber/cucumber";
 
 import { FIXTURE } from "./outline.js";
-import { startServer } from "./server.js";
+import { OLAI_BIN, startServer } from "./server.js";
+
+const run = promisify(execFile);
 
 // A desktop, because the layout the scenarios assert is the desktop one: the
 // sidebar is a column, and the chat panel sits BESIDE the outline rather than
@@ -73,6 +77,27 @@ export class OlaiWorld extends World {
     await this.rewrite(this.outline + text);
   }
 
+  /** A write command against this scenario's outline, as an agent would run
+   *  it — the same binary the server is, editing the file under it. `git` is
+   *  not in a temp dir, so `--no-commit` is only saying so out loud.
+   *
+   *  Flags first, then `rest`: TITLE is the trailing words, so anything after
+   *  it is another word of the title (docs/cli.md).
+   *
+   *  The file is read back afterwards: the CLI, not `rewrite`, is what wrote
+   *  it, and a later step that edits the text has to start from what is
+   *  actually there. */
+  async olai(command, ...rest) {
+    await run(OLAI_BIN, [
+      command,
+      "--no-commit",
+      "--file",
+      this.outlinePath,
+      ...rest,
+    ]);
+    this.outline = await fs.readFile(this.outlinePath, "utf8");
+  }
+
   /** The server's idea of today, asked of the server: an ISO day the outline
    *  can be given a node for. A harness that computed one itself would be a
    *  second clock, and the two disagree for an hour twice a year. */
@@ -124,8 +149,16 @@ export class OlaiWorld extends World {
     return this.paneNode("#ol-sidebar", ".ol-tree-link", title);
   }
 
-  paneNode(pane, row, text) {
-    return this.page.locator(`${pane} .ol-node`).filter({
+  /** The same node, but only while it wears a state class. This is what a
+   *  step waits on when the state is ARRIVING over SSE: waiting for an
+   *  element to appear is sound, where reading a class off the element that
+   *  is there now is a coin toss mid-swap. */
+  nodeInState(title, cls) {
+    return this.paneNode("#ol-outline", ".ol-title", title, `.${cls}`);
+  }
+
+  paneNode(pane, row, text, nodeClass = "") {
+    return this.page.locator(`${pane} .ol-node${nodeClass}`).filter({
       has: this.page.locator(`:scope > .ol-row ${row}`, { hasText: text }),
     });
   }

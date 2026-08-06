@@ -17,12 +17,14 @@
 ;;
 ;;   (blank)                     only whitespace
 ;;   (lang)                      the #lang line
-;;   (title TEXT FLAG ANCHOR)    FLAG: 'done | 'open | #f  ANCHOR: string | #f
+;;   (title TEXT FLAG ANCHOR)    FLAG: 'done | 'doing | 'open | #f
+;;                               ANCHOR: string | #f
 ;;   (mirror ANCHOR)
 ;;   (include REL-PATH)
 ;;   (meta desc TEXT)
 ;;   (meta date VALUE OFFSET)    OFFSET: chars before VALUE (for srclocs)
 ;;   (meta done VALUE OFFSET)    VALUE #t for a bare @done
+;;   (meta doing VALUE OFFSET)   VALUE #t for a bare @doing
 ;;   (meta bad MESSAGE)
 
 (require racket/contract
@@ -47,7 +49,7 @@
           [line-mirror? (-> classification/c boolean?)]
           [line-include? (-> classification/c boolean?)]
           [line-meta? (-> classification/c boolean?)]
-          [meta-field (-> classification/c (or/c 'desc 'date 'done 'bad #f))]
+          [meta-field (-> classification/c (or/c 'desc 'date 'done 'doing 'bad #f))]
           [strip-checkbox-prefix (-> string? any)]
           [strip-trailing-anchor (-> string? any)]))
 
@@ -59,11 +61,16 @@
   (define m (regexp-match #px"^( *)(.*)$" s))
   (values (string-length (cadr m)) (caddr m)))
 
-;; Title checkbox sugar: "[x] " / "[X] " → done (#t); "[ ] " → open (stripped).
+;; Title checkbox sugar: "[x] " / "[X] " → done, "[/] " → doing (the Obsidian
+;; community spelling for in-progress; "[-] " is left unclaimed for a future
+;; cancelled), "[ ] " → open (stripped). All #t-valued marks; the timestamped
+;; form is the @field.
 (define (strip-checkbox-prefix title)
   (cond
     [(regexp-match #px"^\\[[xX]\\] (.*)$" title)
      => (λ (m) (values (cadr m) 'done))]
+    [(regexp-match #px"^\\[/\\] (.*)$" title)
+     => (λ (m) (values (cadr m) 'doing))]
     [(regexp-match #px"^\\[ \\] (.*)$" title)
      => (λ (m) (values (cadr m) 'open))]
     [else (values title #f)]))
@@ -102,6 +109,12 @@
      => (λ (m) (list 'meta 'done (string-trim (caddr m)) (string-length (cadr m))))]
     [(regexp-match? #px"^@done\\s*$" content)
      (list 'meta 'done #t 0)]
+    ;; @done's own regexps want whitespace after the name, so @doing cannot be
+    ;; read as one of them however this cond is ordered.
+    [(regexp-match #px"^(@doing[ \t]+)(\\S.*)$" content)
+     => (λ (m) (list 'meta 'doing (string-trim (caddr m)) (string-length (cadr m))))]
+    [(regexp-match? #px"^@doing\\s*$" content)
+     (list 'meta 'doing #t 0)]
     [(regexp-match #px"^@include[ \t]+(\\S.*)$" content)
      => (λ (m) (list 'include (string-trim (cadr m))))]
     [(regexp-match? #px"^@include\\s*$" content)
@@ -109,7 +122,7 @@
     [(regexp-match #px"^@(\\S+)" content)
      => (λ (m)
           (list 'meta 'bad
-                (format "unknown @~a; known fields: @date, @done, @include"
+                (format "unknown @~a; known fields: @date, @done, @doing, @include"
                         (cadr m))))]
     [else
      (define-values (title0 flag) (strip-checkbox-prefix content))
@@ -127,6 +140,6 @@
 ;; hang under a title, and an editor must not mistake them for one.
 (define line-meta? (kind? 'meta))
 
-;; 'desc | 'date | 'done | 'bad for a meta line, #f otherwise.
+;; 'desc | 'date | 'done | 'doing | 'bad for a meta line, #f otherwise.
 (define (meta-field k)
   (and (line-meta? k) (cadr k)))

@@ -62,12 +62,23 @@
     (if date-only?
         (format "DTSTART;VALUE=DATE:~a" (dt-value n))
         (format "DTSTART:~a" (dt-value n))))
+  ;; The node's state, when it is in one: the mark's name, plus the day it
+  ;; was written if the mark carries one. Every state gets a clause — this
+  ;; line is all a calendar client is told about where the task has got to.
+  (define state (cal-item-status it))
+  (define stamp
+    (case state
+      [(done) (cal-item-done it)]
+      [(doing) (cal-item-doing it)]
+      [else #f]))
+  (define state-line
+    (cond
+      [(string? stamp) (format "~a: ~a" state stamp)]
+      [stamp (format "~a" state)]
+      [else ""]))
   (define desc-parts
     (filter non-empty-string?
-            (list (cal-item-breadcrumb it)
-                  (case (cal-item-status it)
-                    [(done) (format "done: ~a" (cal-item-done it))]
-                    [else ""]))))
+            (list (cal-item-breadcrumb it) state-line)))
   (define lines
     (list "BEGIN:VEVENT"
           (format "UID:~a" (uid-for path-str title date (cal-item-id it)))

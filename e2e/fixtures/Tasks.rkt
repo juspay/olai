@@ -9,3 +9,5 @@ Ship the server ^serve
   Write the tests
 This week
   *serve
+[/] Draft the migration plan
+  : who is on it lives here, not in the grammar

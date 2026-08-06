@@ -6,9 +6,10 @@
 ;; parallel, one does not. No tests of its own.
 
 (require json
-         racket/port)
+         racket/port
+         racket/system)
 
-(provide example run-olai parse-json)
+(provide example run-olai parse-json git git-subject find-node)
 
 (define root
   (simplify-path
@@ -34,3 +35,26 @@
 
 (define (parse-json s)
   (read-json (open-input-string s)))
+
+;; ---- what a write test needs around the write ------------------------------
+
+;; A repo to write into, and a way to read back what the write committed:
+;; auto-commit is part of the contract (docs/cli.md), so every test of a write
+;; command wants both.
+(define (git . args)
+  (apply system* (find-executable-path "git") args))
+
+;; The subject of the last commit, read in `dir`.
+(define (git-subject dir)
+  (with-output-to-string
+    (λ () (parameterize ([current-directory dir]) (git "log" "-1" "--pretty=%s")))))
+
+;; The node titled `title` in a `tree` reply, wherever it sits. Drilling in by
+;; index instead pins a test to the fixture's shape, and breaks when a sibling
+;; is added above the node it meant.
+(define (find-node tasks title)
+  (for/or ([t (in-list tasks)])
+    (cond
+      [(not (hash? t)) #f]
+      [(equal? (hash-ref t 'title #f) title) t]
+      [else (find-node (hash-ref t 'children '()) title)])))

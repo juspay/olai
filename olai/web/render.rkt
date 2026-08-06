@@ -178,7 +178,7 @@
 ;; qualify the components below, and collapse.js toggles is-collapsed — so
 ;; they are defined up here where the selectors can reach them.
 
-(define-modifier is-done is-today is-tree is-collapsed has-children)
+(define-modifier is-done is-doing is-today is-tree is-collapsed has-children)
 
 ;; Hooks, not looks: a pane wrapper the SSE swap and the tests address, and a
 ;; mirror site whose anchor named nothing. Nothing paints them.
@@ -213,6 +213,31 @@
   #:opacity 0.75
   #:font-family ,mono
   #:font-size ,micro-size)
+
+;; DOING has no date to hang off and no strikethrough to read it from, so it
+;; says itself: italic and pulsing, and the pulse drops out under
+;; prefers-reduced-motion, which is why the slant is there too. Amber like a
+;; #tag — the palette's attention colour — but bordered, uppercase and micro,
+;; which no tag is.
+(define-component (doing-pill-xexpr)
+  #:class ol-doing
+  #:css (#:background ,amber-bg
+         #:color ,amber-fg
+         #:border-color ,amber-fg
+         #:font-style italic
+         #:font-size ,micro-size
+         #:letter-spacing 0.06em
+         #:text-transform uppercase
+         #:animation (ol-doing-pulse ,busy-beat ease-in-out infinite)
+         ;; the pill still says doing; only the breathing drops out
+         [@ media (#:prefers-reduced-motion reduce) #:animation none])
+  `(span ((class ,(classes ol-pill ol-doing)) (title "in progress")) "doing"))
+
+(register-fragment!
+ (css-expr
+  [@ keyframes ol-doing-pulse
+     [0% 100% #:opacity 1]
+     [50% #:opacity 0.55]]))
 
 ;; ---- one node -------------------------------------------------------------
 
@@ -298,6 +323,16 @@
 
 (define-style ol-toggle-empty #:cursor default)
 
+;; The node's state as the class it wears, or #f for the state nothing marks.
+;; One switch, so a fourth state is a clause here rather than a boolean loose
+;; in the markup — and the shell and the checkbox below cannot disagree about
+;; what a state looks like.
+(define (state-class status)
+  (case status
+    [(done) is-done]
+    [(doing) is-doing]
+    [else #f]))
+
 ;; The collapsible shell both panes wear: the node <li> with its collapse
 ;; state, the disclosure toggle, the row, and the child list. The main pane
 ;; and the sidebar tree differ in what goes IN the row and in one modifier
@@ -308,7 +343,7 @@
                     #:collapse-key collapse-key
                     #:collapsed? collapsed?
                     #:tree? [tree? #f]
-                    #:done? [done? #f]
+                    #:status [status 'open]
                     #:before-row [before-row '()]
                     #:row row
                     #:children [children '()])
@@ -318,7 +353,7 @@
                          (and has-kids? has-children)
                          ;; a leaf has nothing to fold
                          (and has-kids? collapsed? is-collapsed)
-                         (and done? is-done)))
+                         (state-class status)))
         ,@(if element-id `((id ,element-id)) '())
         (data-fragment-id ,key)
         ,@(if has-kids? `((data-collapse-key ,collapse-key)) '()))
@@ -388,8 +423,8 @@
   #:min-width 0)
 
 ;; The bullet is the node; the box only shows up when it matters — on hover,
-;; on focus, or once it is checked.
-(define-component (checkbox-xexpr key elt-key done? toggle-base)
+;; on focus, or once the node is in a state.
+(define-component (checkbox-xexpr key elt-key status toggle-base)
   #:class ol-check
   #:css (#:flex (0 0 1.125rem)
          #:width 1.125rem
@@ -407,20 +442,30 @@
          #:user-select none
          #:opacity 0
          #:transition (opacity 120ms ease)
-         [((: ,(sel ol-row) hover) &) (: & focus-visible) ,(sel '& is-done) #:opacity 1]
+         [((: ,(sel ol-row) hover) &) (: & focus-visible)
+          ,(sel '& is-done) ,(sel '& is-doing) #:opacity 1]
          [,(sel '& is-done) #:color ,green]
+         [,(sel '& is-doing) #:color ,amber-fg]
          ;; no hover on a phone: the box has to stay put, and a finger needs
-         ;; room around it. Done was already visible; open ones were not
+         ;; room around it. A node in a state was already visible; open ones
+         ;; were not
          [@ media (#:max-width ,phone-max)
             #:opacity 1
             #:flex (0 0 1.75rem)
             #:width 1.75rem
             #:height 1.75rem
             #:font-size 1rem])
-  (define label (if done? "☑" "☐"))
+  ;; the same box in three readings: empty, half-filled, checked. One switch,
+  ;; so what a state looks like and what it is called cannot drift apart
+  (define-values (label hint)
+    (case status
+      [(done) (values "☑" "done")]
+      [(doing) (values "◧" "doing")]
+      [else (values "☐" "not done")]))
+  (define done? (eq? status 'done))
   (define common
-    `((class ,(classes ol-check (and done? is-done)))
-      (title ,(if done? "done" "not done"))))
+    `((class ,(classes ol-check (state-class status)))
+      (title ,hint)))
   (if toggle-base
       ;; post against the node (its key), swap the copy you clicked (elt-key)
       `(button ((type "button")
@@ -531,8 +576,11 @@
   (define key (task-key tk))
   ;; where this copy of the node sits: #f at its defining site
   (define qkey (site-key site key))
-  ;; one switch on the node's state; everything below is drawing
-  (define done? (eq? (task-status tk) 'done))
+  ;; one switch on the node's state; everything below is drawing. `done?` is
+  ;; narrower on purpose — the strikethrough is about being finished, not
+  ;; about being in some state
+  (define status (task-status tk))
+  (define done? (eq? status 'done))
   (define kids (task-children tk))
   (define iso-day (and (bare-iso-date-title? title) title))
   (define title-el
@@ -555,14 +603,14 @@
    #:element-id (node-element-id key #:site site)
    #:collapse-key qkey
    #:collapsed? collapsed?
-   #:done? done?
+   #:status status
    ;; the legacy #anchor target belongs to the defining site only
    #:before-row (if site '() (legacy-anchor-xexpr tk))
    #:row
    (list bullet
          ;; the check sits in the gutter, not in the text run, so a title
          ;; and its note stay flush left of each other
-         (checkbox-xexpr key qkey done? toggle-base)
+         (checkbox-xexpr key qkey status toggle-base)
          `(div ((class ,ol-content))
                (div ((class ,ol-line))
                     ,@(if mirror-of
@@ -572,6 +620,7 @@
                                     "↗"))
                           '())
                     ,title-el
+                    ,@(if (eq? status 'doing) (list (doing-pill-xexpr)) '())
                     ,@(if (task-date tk)
                           (list (date-pill-xexpr (task-date tk) today done?))
                           '()))

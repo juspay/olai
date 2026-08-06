@@ -19,7 +19,7 @@
   (define-values (new line title)
     (update-meta! text title-or-anchor
                   #:at at
-                  #:drop-field 'date
+                  #:drop-fields '(date)
                   #:insert-line (λ (pad) (string-append pad "@date " date*))))
   (values new line title date*))
 
@@ -27,7 +27,7 @@
 (define (clear-date-in-text text title-or-anchor #:at [at #f])
   (update-meta! text title-or-anchor
                 #:at at
-                #:drop-field 'date
+                #:drop-fields '(date)
                 #:check!
                 (λ (m label dropped)
                   (when (null? dropped)

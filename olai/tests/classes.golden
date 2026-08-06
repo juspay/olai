@@ -3,6 +3,7 @@ has-commands
 is-agent
 is-busy
 is-collapsed
+is-doing
 is-done
 is-error
 is-on
@@ -59,6 +60,7 @@ ol-date
 ol-date-time
 ol-day
 ol-dim
+ol-doing
 ol-empty
 ol-error
 ol-error-detail

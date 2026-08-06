@@ -227,6 +227,7 @@ Inbox <span class="tag">#capture</span>
   Buy milk — don't quote me
     <span class="dt">@date 2026-08-04T18:00</span>
   <span class="ok">[x]</span> Already shipped the pitch
+  <span class="dt">[/]</span> Wiring the third state
   Agent work <span class="mir">^agent</span>
   Wired the CLI
     <span class="ok">@done 2026-08-03</span>
@@ -236,8 +237,9 @@ Inbox <span class="tag">#capture</span>
 
 <p>Titles and notes are Markdown at <em>render</em> time (web view only);
 stored strings stay raw. Check off with <code>[x]</code> or
-<code>@done</code> — one node, one of them. A title-trailing
-<code>^anchor</code> declares a node; a line that is only <code>*anchor</code>
+<code>@done</code> — one node, one of them; <code>[/]</code> or
+<code>@doing</code> is the state in between, and <code>done</code> clears it. A
+title-trailing <code>^anchor</code> declares a node; a line that is only <code>*anchor</code>
 is a mirror of it, reaching anywhere in the loaded tree,
 <code>@include</code>d fragments too.</p>
 
@@ -248,6 +250,7 @@ error messages:</p>
 (t "Inbox <span class="tag">#capture</span>"
    #:description "Quick capture landing zone"
    (t "Buy milk" #:date "2026-08-04T18:00")
+   (t "Wiring the third state" #:doing)
    (t "Already shipped the pitch" #:done)
    (t "Wired the CLI" #:done "2026-08-03"))
 </code></pre>
@@ -271,6 +274,7 @@ tree, no plain mode — the human view is the web app.</p>
       "date": null,
       "description": "Quick capture landing zone",
       "done": null,
+      "doing": null,
       "status": "open",
       "id": null,
       "key": "pd076e677",
@@ -291,9 +295,9 @@ renaming the node or any ancestor. The web view addresses nodes by it.</p>
   <tr><th>command</th><th>what it does</th></tr>
   <tr><td><code>check</code></td><td>validate the module(s); the language is the only validator</td></tr>
   <tr><td><code>tree</code></td><td>the task forest</td></tr>
-  <tr><td><code>agenda</code></td><td>overdue / today / upcoming, merged across files</td></tr>
+  <tr><td><code>agenda</code></td><td>overdue / doing / today / upcoming, merged across files</td></tr>
   <tr><td><code>calendar</code>, <code>ics</code></td><td>dated tasks by day; feed for your calendar app</td></tr>
-  <tr><td><code>add</code>, <code>done</code>, <code>move</code>, <code>daily</code></td><td>the write path — auto-commits when the file's dir is a git work tree</td></tr>
+  <tr><td><code>add</code>, <code>done</code>, <code>doing</code>, <code>move</code>, <code>daily</code></td><td>the write path — auto-commits when the file's dir is a git work tree</td></tr>
   <tr><td><code>serve</code></td><td>the web view</td></tr>
 </table>
 

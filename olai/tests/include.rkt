@@ -11,7 +11,7 @@
          olai/json/model
          olai/json/reply
          (only-in olai/query count-tasks)
-         olai/done
+         olai/status
          olai/daily)
 
 (define (write-outline dir name body)
