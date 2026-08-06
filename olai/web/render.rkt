@@ -946,8 +946,16 @@
   `(html ((lang "en"))
          (head
           (meta ((charset "utf-8")))
+          ;; viewport-fit=cover puts the page under the notch and the home bar
+          ;; (the insets are then real). interactive-widget says what an
+          ;; on-screen keyboard should do to it: shrink the viewport, so a
+          ;; panel fixed to the bottom stays above the keyboard. Where it is
+          ;; honoured that is the whole fix; iOS ignores it, and static/chat.js
+          ;; measures visualViewport for those (web/chat-panel, --visible-*).
           (meta ((name "viewport")
-                 (content "width=device-width, initial-scale=1, viewport-fit=cover")))
+                 (content ,(string-append "width=device-width, initial-scale=1"
+                                          ", viewport-fit=cover"
+                                          ", interactive-widget=resizes-content"))))
           ,@(if color-scheme
                 (list `(meta ((name "color-scheme") (content ,color-scheme))))
                 '())

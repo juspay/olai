@@ -38,7 +38,7 @@
          ;; tables, their blocks, and which of them promise AA
          (only-in olai/web/theme
                   ol-body ol-pill theme-names theme-default
-                  palette-tokens layout-tokens
+                  palette-tokens layout-tokens phone-max touch-min
                   theme-entries theme-blocks aa-theme-names)
          ;; the renderers: what the skin is FOR, and the only honest answer to
          ;; "does anything wear this class"
@@ -203,10 +203,18 @@
   (remove-duplicates
    (regexp-match* class-rx (strip-element-ids (file->string path)) #:match-select cadr)))
 
+;; The other name a script and the skin have to spell the same way: a custom
+;; property. Same broad scan as the classes above — anywhere in the file, so a
+;; selector string or a getPropertyValue argument counts alike.
+(define (js-custom-properties path)
+  (remove-duplicates
+   (map (λ (s) (string->symbol (substring s 2)))
+        (regexp-match* #px"--[a-z][a-z0-9-]*" (file->string path)))))
+
 ;; olai's own scripts plus the vendored sse extension. htmx itself is not in
 ;; the list: it spells no olai class, and scanning a minified bundle for
 ;; class-shaped names would find noise, not a border.
-(define script-names '("chat.js" "collapse.js" "prefs.js" "sse.js"))
+(define script-names '("chat.js" "collapse.js" "prefs.js" "pwa.js" "sse.js"))
 
 (define scripted-classes
   (for/fold ([acc (set)]) ([js (in-list script-names)])
@@ -352,6 +360,63 @@
                 "the panel's gutter is no longer a margin on the reading column")
     (check-false (regexp-match? #px"padding-right" overlay)
                  "the gutter is padding again: border-box takes it out of max-width"))
+
+  ;; The other thing a fixed panel gets wrong on a phone, and the one the
+  ;; report was about: `top: 0; bottom: 0` is as tall as the LAYOUT viewport,
+  ;; and an on-screen keyboard covers the bottom of that without shrinking it,
+  ;; so the input row spent the whole turn behind the keyboard. The panel is
+  ;; sized by the visible strip instead, and the home-bar inset it pads for is
+  ;; only the part no keyboard is over.
+  (test-case "the panel is as tall as what the browser is showing"
+    (define box (fragment->css (cdr (list-ref ordered-fragments (at "ol-chat")))))
+    (check-true (regexp-match? #px"height\\s*:\\s*var\\(--visible-h\\)" box)
+                "the panel's height is not the visible viewport's")
+    (check-true (regexp-match? #px"bottom\\s*:\\s*var\\(--visible-bottom\\)" box)
+                "the panel's bottom edge is not the visible viewport's")
+    (check-false (regexp-match? #px"top\\s*:\\s*0" box)
+                 "the panel is pinned to the layout viewport's top again")
+    (check-true (regexp-match? #px"padding-bottom[^;]*safe-area-inset-bottom[^;]*--visible-bottom"
+                               box)
+                "the home-bar inset is padded for even where a keyboard covers it"))
+
+  ;; Sheet mode: below phone-max there is no room beside the outline, so the
+  ;; panel covers it instead. That is ONE decision, and this is the test that
+  ;; it stays one — every phone-width rule about the panel is in that block,
+  ;; save the outline's gutter, whose subject is another module's class and
+  ;; which therefore has to sit in the 'overlay fragment.
+  (define phone-media-rx
+    (pregexp (string-append "@media\\s*\\(max-width\\s*:\\s*"
+                            (regexp-quote (format "~a" phone-max)))))
+
+  (test-case "everything the panel does at phone width is in one block"
+    (define chat-phone
+      (for/list ([f (in-list ordered-fragments)]
+                 #:when (and (ormap (λ (c) (string-prefix? c "ol-chat"))
+                                    (fragment-classes (cdr f)))
+                             (regexp-match? phone-media-rx (fragment->css (cdr f)))))
+        (cons (car f) (fragment->css (cdr f)))))
+    (check-equal? (map car chat-phone) '(component overlay)
+                  "a phone-width rule about the panel landed outside sheet mode")
+    ;; the 'overlay one is the outline's gutter, which a sheet does not need
+    (check-true (regexp-match? #px"margin-right\\s*:\\s*0" (cdr (last chat-phone)))
+                "the outline still reserves a gutter for a panel that covers it")
+    (define sheet (cdr (car chat-phone)))
+    (check-true (regexp-match? #px"width\\s*:\\s*100%" sheet) "the sheet is not full-bleed")
+    ;; the header's × is the only way out of a sheet — the toggle it would
+    ;; otherwise be is underneath it — so it is a target, not an 11px glyph
+    (check-true (regexp-match? (pregexp (string-append "min-height\\s*:\\s*"
+                                                       (regexp-quote (format "~a" touch-min))))
+                               sheet)
+                "the panel's controls are back to mouse-sized")
+    ;; iOS Safari zooms the page in when a focused input's type is under 16px
+    ;; and does not zoom back out: the sheet ends up wider than the screen
+    (check-true (regexp-match? #px"font-size\\s*:\\s*1rem" sheet)
+                "the input is small enough for iOS to zoom the page into it")
+    ;; and `display` is the panel's own states (a stop button that hides while
+    ;; idle, a commands button with nothing to offer): a rule here would land
+    ;; after them and show both
+    (check-false (regexp-match? #px"display\\s*:" sheet)
+                 "sheet mode has an opinion about display; the panel's states own that"))
 
   ;; ---- theme --------------------------------------------------------------
 
@@ -527,6 +592,19 @@
       (for ([c (in-list (js-class-names (build-path (web-static-dir) js)))])
         (check-true (or (set-member? known c) (set-member? allowed c))
                     (format "~a spells .~a; no module defines it" js c)))))
+
+  ;; The same border one level down. A custom property is the other name two
+  ;; sides spell — pwa.js reads --paper to paint the browser chrome, chat.js
+  ;; writes the two the panel's height is measured in — and a script spelling
+  ;; one no module defines is the same silent nothing a class would be. Asked
+  ;; of the VOCABULARY, the way the theme tests are: the token lists are what
+  ;; the skin has to say on the subject, and the sheet is downstream of them.
+  (test-case "every custom property the scripts spell is one of the skin's tokens"
+    (define tokens (list->set (append palette-tokens layout-tokens chat-viewport-tokens)))
+    (for* ([js (in-list script-names)]
+           [property (in-list (js-custom-properties (build-path (web-static-dir) js)))])
+      (check-true (set-member? tokens property)
+                  (format "~a spells --~a; no module defines that token" js property))))
 
   ;; ---- the border the other way -------------------------------------------
 

@@ -184,6 +184,89 @@ Then("the outline column stops before the chat panel", async function () {
   );
 });
 
+// ---- the same panel, on a phone -------------------------------------------
+//
+// Below phone-max the panel is a sheet OVER the outline, so the desktop
+// geometry above reads the other way: it takes the whole width, and the
+// reading column it used to make room for is covered rather than narrowed.
+
+Then("the chat panel is as wide as the screen", async function () {
+  const m = await sheet(this.page);
+  assert.equal(Math.round(m.width), Math.round(m.screen),
+    `the panel is ${m.width}px on a ${m.screen}px screen`);
+});
+
+Then("the outline reserves no gutter for the chat panel", async function () {
+  const gutter = await this.page.evaluate(
+    () => getComputedStyle(document.querySelector(".ol-main")).marginRight);
+  assert.equal(gutter, "0px", `the outline still gives up ${gutter} to a sheet that covers it`);
+});
+
+// Every control the sheet actually shows — a stop button that is hidden while
+// the panel is idle is not something anyone has to hit.
+Then("every chat control is at least {int} pixels tall", async function (px) {
+  const small = await this.page.evaluate(() =>
+    [...document.querySelectorAll("#ol-chat button, #ol-chat input")]
+      .map((el) => ({ what: (el.textContent || el.placeholder || "").trim(),
+                      h: Math.round(el.getBoundingClientRect().height) }))
+      .filter((c) => c.h > 0));
+  const under = small.filter((c) => c.h < px);
+  assert.deepEqual(under, [], `${under.map((c) => `"${c.what}" is ${c.h}px`).join(", ")}`);
+});
+
+Then("the chat input is at least {int} pixels of type", async function (px) {
+  const size = await this.page.evaluate(() =>
+    parseFloat(getComputedStyle(document.querySelector("#ol-chat-form .ol-chat-input")).fontSize));
+  assert.ok(size >= px, `the input's type is ${size}px, under the ${px}px iOS zooms at`);
+});
+
+// What a keyboard IS, to a page: the visual viewport shrinks and the layout
+// viewport does not. Chromium has no on-screen keyboard to raise, so the
+// scenario says that in the only place it is observable — and a page that
+// listens to visualViewport (static/chat.js) cannot tell the difference, which
+// is the point. A page that does not listen fails the two assertions after it,
+// exactly as an iPhone did.
+When("the on-screen keyboard covers the bottom of the screen", async function () {
+  await this.page.evaluate(() => {
+    const vv = window.visualViewport;
+    Object.defineProperty(vv, "height", {
+      value: Math.round(vv.height * 0.55), configurable: true,
+    });
+    document.querySelector("#ol-chat-form .ol-chat-input").focus();
+    vv.dispatchEvent(new Event("resize"));
+  });
+});
+
+Then("the chat input is on screen", async function () {
+  const m = await sheet(this.page);
+  assert.ok(m.input.bottom <= m.visible + 1,
+    `the input row ends ${Math.round(m.input.bottom - m.visible)}px below the visible screen`);
+  assert.ok(m.input.top >= -1, `the input row starts ${Math.round(m.input.top)}px above it`);
+});
+
+Then("the chat panel stops above the keyboard", async function () {
+  const m = await sheet(this.page);
+  assert.ok(m.bottom <= m.visible + 1,
+    `the sheet ends ${Math.round(m.bottom - m.visible)}px below the visible screen`);
+});
+
+/** The sheet's box, its input row, and the strip of screen the browser is
+ *  actually showing (which an on-screen keyboard is what shrinks). */
+async function sheet(page) {
+  await page.locator(OPEN).waitFor({ state: "visible" });
+  return await page.evaluate(() => {
+    const box = document.querySelector("#ol-chat").getBoundingClientRect();
+    const input = document.querySelector("#ol-chat-form .ol-chat-input").getBoundingClientRect();
+    const vv = window.visualViewport;
+    return {
+      width: box.width, bottom: box.bottom,
+      input: { top: input.top - vv.offsetTop, bottom: input.bottom },
+      screen: vv.width,
+      visible: vv.offsetTop + vv.height,
+    };
+  });
+}
+
 // ---- the conversation -----------------------------------------------------
 
 /** The turn being drawn. A turn owns its user bubble, the agent's text and its
