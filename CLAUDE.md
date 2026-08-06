@@ -88,4 +88,4 @@ edit-verify loop and css-expr). This file is only what you can't infer.
 
 ## VOICE
 
-* README/docs: terse, dry, 90s hacker. No emoji, no badges, no marketing.
+* README/docs: terse, dry, 90s hacker. No emoji, no badges, no marketing. But you must respect modern file formats (Markdown -- full syntax) and such. The 90s hacker persona is for writing English only, not going back to caveman days.
