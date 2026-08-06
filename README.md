@@ -38,9 +38,11 @@ Inbox #capture
   [x] Already shipped the pitch
   Wired the CLI
     @done 2026-08-03
+  Agent work
+    @doc docs/agent-work.md
 ```
 
-Titles and notes are Markdown at **render** time (web view only); stored strings stay raw. Check off with `[x] ` OR `@done` — one node, one of them (or `olai done TITLE`). `[/] ` / `@doing` is the state in between, same rules (`olai doing TITLE`); done clears it. Full rules: [docs/syntax.md](docs/syntax.md).
+Titles and notes are Markdown at **render** time (web view only); stored strings stay raw. Check off with `[x] ` OR `@done` — one node, one of them (or `olai done TITLE`). `[/] ` / `@doing` is the state in between, same rules (`olai doing TITLE`); done clears it. A node that is not a line gets `@doc`: it expands into that file — `.md` or `.scrbl`, greppable, diffable, still yours. Full rules: [docs/syntax.md](docs/syntax.md).
 
 Under the hood every outline becomes s-expressions. Same expander:
 
@@ -51,7 +53,8 @@ Under the hood every outline becomes s-expressions. Same expander:
    (t "Buy milk" #:date "2026-08-04T18:00")
    (t "Writing the third state" #:doing)
    (t "Already shipped the pitch" #:done)
-   (t "Wired the CLI" #:done "2026-08-03"))
+   (t "Wired the CLI" #:done "2026-08-03")
+   (t "Agent work" #:doc "docs/agent-work.md"))
 ```
 
 ## HOW IT WORKS
@@ -77,7 +80,7 @@ Single user, many devices. The server runs on your headless box behind Caddy or 
 
 ## STATUS
 
-Outline `#lang olai` + sexp core + agent CLI (`check` / `tree` / `agenda` / `calendar` / `add` / `done` / `doing` / `move` / `daily` / `ics` / `serve` — all JSON but `ics` and `serve`; the human-facing plain output and the `css` dump are retired). Three node states (open / doing / done), mirrors and `@include` composition are first class; the agenda groups what is in flight above what is due today, and mirrors reach anchors anywhere in the loaded tree, fragments included. The human view is the web app served by `olai serve` — htmx, no auth (bind it to localhost or Tailscale). Every node has a permalink that zooms to it, breadcrumbs and all. It reloads an outline when the file changes and pushes that over SSE, so open tabs redraw with no refresh — morphed into place, so scroll, selection and focus survive, and links navigate the outline region rather than rebuilding the page. A tab that was asleep, or open across a server restart, catches up on reconnect and says so while the stream is down ([docs/live.md](docs/live.md)). It carries a chat panel driving Claude Code over ACP (`OLAI_ACP_AGENT`). Installable as a PWA (manifest, icons, theme-color; no offline shell). The page itself still writes nothing; there is no static HTML export. (Ancestor: srid/Tend.)
+Outline `#lang olai` + sexp core + agent CLI (`check` / `tree` / `agenda` / `calendar` / `add` / `done` / `doing` / `move` / `daily` / `ics` / `serve` — all JSON but `ics` and `serve`; the human-facing plain output and the `css` dump are retired). Three node states (open / doing / done), mirrors, `@include` composition and `@doc` documents are first class; the agenda groups what is in flight above what is due today, and mirrors reach anchors anywhere in the loaded tree, fragments included. The human view is the web app served by `olai serve` — htmx, no auth (bind it to localhost or Tailscale). Every node has a permalink that zooms to it, breadcrumbs and all. It reloads an outline when the file changes and pushes that over SSE, so open tabs redraw with no refresh — morphed into place, so scroll, selection and focus survive, and links navigate the outline region rather than rebuilding the page. A tab that was asleep, or open across a server restart, catches up on reconnect and says so while the stream is down ([docs/live.md](docs/live.md)). It carries a chat panel driving Claude Code over ACP (`OLAI_ACP_AGENT`). Installable as a PWA (manifest, icons, theme-color; no offline shell). The page itself still writes nothing; there is no static HTML export. (Ancestor: srid/Tend.)
 
 ## ROADMAP
 

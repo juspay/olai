@@ -110,7 +110,8 @@ EOF
        (and (exn:fail:read? e)
             (regexp-match? #rx"(?i:unknown|@layout|@date|@done)" (exn-message e))
             ;; the message lists what IS known, so a new field shows up there
-            (regexp-match? #rx"@doing" (exn-message e))))
+            (regexp-match? #rx"@doing" (exn-message e))
+            (regexp-match? #rx"@doc" (exn-message e))))
      (λ ()
        (eval-tasks "#lang olai\nTask\n  @layout wide\n"))))
 
@@ -332,6 +333,130 @@ EOF
          (dynamic-require `(file ,(path->string tmp)) 'tasks)
          (fail "expected syntax error for bad date")))
      (λ () (delete-file tmp))))
+
+  ;; ---- @doc ----------------------------------------------------------------
+  ;;
+  ;; The field names a FILE, so every case here needs one on disk: the language
+  ;; checks the extension and the existence, and both answers have to carry the
+  ;; srcloc of the path the outline wrote.
+
+  ;; Write `files` (relative path -> text) into a temp dir, then load
+  ;; Tasks.rkt out of it. -> whatever `proc` makes of the outline's path.
+  (define (in-doc-dir files proc)
+    (define dir (make-temporary-file "sf-doc~a" 'directory))
+    (dynamic-wind
+     void
+     (λ ()
+       (for ([f (in-list files)])
+         (define p (build-path dir (car f)))
+         (make-parent-directory* p)
+         (display-to-file (cdr f) p #:exists 'truncate))
+       (proc (build-path dir "Tasks.rkt")))
+     (λ () (delete-directory/files dir))))
+
+  ;; The tasks a doc-bearing outline loads to.
+  (define (doc-tasks files)
+    (in-doc-dir files (λ (p) (dynamic-require `(file ,(path->string p)) 'tasks))))
+
+  ;; The syntax error a doc-bearing outline raises, as (values line col message).
+  (define (doc-failure files)
+    (in-doc-dir
+     files
+     (λ (p)
+       (with-handlers
+           ([exn:fail:syntax?
+             (λ (e)
+               (define with-src
+                 (filter (λ (s) (and (syntax-source s) (syntax-line s)))
+                         (exn:fail:syntax-exprs e)))
+               (check-true (pair? with-src) "expected syntax objects with source")
+               (define s (last with-src))
+               (values (syntax-line s) (syntax-column s) (exn-message e)))])
+         (dynamic-require `(file ,(path->string p)) 'tasks)
+         (fail "expected a syntax error")
+         (values #f #f "")))))
+
+  (test-case "@doc is stored verbatim, relative to the defining file"
+    (define tasks
+      (doc-tasks
+       (list (cons "notes/plan.md" "# Plan\n")
+             (cons "Tasks.rkt" "#lang olai\nShip it\n  @doc notes/plan.md\n"))))
+    (check-equal? (task-doc (car tasks)) "notes/plan.md"))
+
+  (test-case ".scrbl is the other half of the closed set"
+    (define tasks
+      (doc-tasks
+       (list (cons "deep.scrbl" "#lang scribble/manual\n@title{Deep}\n")
+             (cons "Tasks.rkt" "#lang olai\nShip it\n  @doc deep.scrbl\n"))))
+    (check-equal? (task-doc (car tasks)) "deep.scrbl"))
+
+  (test-case "a node with no @doc has none"
+    (check-false (task-doc (car (eval-tasks "#lang olai\nShip it\n")))))
+
+  ;; The two rules the language owns, each reported AT the path — line 3,
+  ;; column 7 is where `notes.txt` starts under "  @doc ".
+  (test-case "@doc names .md or .scrbl and nothing else"
+    (define-values (line col msg)
+      (doc-failure
+       (list (cons "notes.txt" "plain\n")
+             (cons "Tasks.rkt" "#lang olai\nShip it\n  @doc notes.txt\n"))))
+    (check-equal? line 3)
+    (check-equal? col 7)
+    (check-true (regexp-match? #rx"\\.md" msg) msg)
+    (check-true (regexp-match? #rx"\\.scrbl" msg) msg))
+
+  (test-case "@doc is a relative path, and says so rather than crashing"
+    ;; left to build-path this is an internal error with no srcloc at all,
+    ;; which is the one thing an olai error may not be
+    (define-values (line col msg)
+      (doc-failure
+       (list (cons "Tasks.rkt" "#lang olai\nShip it\n  @doc /etc/hostname.md\n"))))
+    (check-equal? line 3)
+    (check-equal? col 7)
+    (check-true (regexp-match? #rx"(?i:relative)" msg) msg))
+
+  (test-case "@doc naming a file that is not there is a language error"
+    (define-values (line col msg)
+      (doc-failure
+       (list (cons "Tasks.rkt" "#lang olai\nShip it\n  @doc gone.md\n"))))
+    (check-equal? line 3)
+    (check-equal? col 7)
+    (check-true (regexp-match? #rx"(?i:file not found)" msg) msg)
+    (check-true (regexp-match? #rx"gone\\.md" msg) msg))
+
+  (test-case "@doc resolves against the DEFINING file, not the loading root"
+    ;; the fragment sits in a subdirectory and names its document from there
+    (define tasks
+      (doc-tasks
+       (list (cons "frag/notes.md" "# Fragment notes\n")
+             (cons "frag/Frag.rkt" "#lang olai\nSpliced\n  @doc notes.md\n")
+             (cons "Tasks.rkt" "#lang olai\nRoot\n  @include frag/Frag.rkt\n"))))
+    (define spliced (car (task-children (car tasks))))
+    (check-equal? (task-title spliced) "Spliced")
+    (check-equal? (task-doc spliced) "notes.md"))
+
+  (test-case "two @doc lines on one task is a reader error"
+    (check-exn
+     (λ (e)
+       (and (exn:fail:read? e)
+            (regexp-match? #rx"(?i:duplicate|@doc)" (exn-message e))))
+     (λ ()
+       (doc-tasks
+        (list (cons "a.md" "a\n")
+              (cons "b.md" "b\n")
+              (cons "Tasks.rkt" "#lang olai\nShip it\n  @doc a.md\n  @doc b.md\n"))))))
+
+  (test-case "@doc with no path is a reader error"
+    (check-exn
+     (λ (e)
+       (and (exn:fail:read? e)
+            (regexp-match? #rx"(?i:path|@doc)" (exn-message e))))
+     (λ ()
+       (eval-tasks "#lang olai\nShip it\n  @doc\n"))))
+
+  (test-case "the reader emits #:doc"
+    (check-equal? (syntax->datum (car (parse-string "A\n  @doc notes.md\n")))
+                  '(t "A" #:doc "notes.md")))
 
   (test-case "parse-outline-string builds t forms"
     (define forms

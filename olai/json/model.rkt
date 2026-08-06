@@ -53,6 +53,12 @@
     (hash 'title (task-title tk)
           'date (nullish (task-date tk))
           'description (nullish (task-description tk))
+          ;; The @doc path, exactly as the outline wrote it — relative to the
+          ;; node's defining file (the `file` key below, when it differs from
+          ;; the root). Never resolved and never rendered: the document is a
+          ;; file on disk, and a serializer that inlined it would be shipping
+          ;; a copy of something an agent can already read, diff and edit.
+          'doc (nullish (task-doc tk))
           'done (mark->json (task-done tk))
           'doing (mark->json (task-doing tk))
           ;; the state the marks mean: "open" | "doing" | "done". `done` and

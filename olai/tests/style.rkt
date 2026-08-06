@@ -155,7 +155,11 @@
    ;; rules looking like rules for markup that does not exist
    (render-page (render-outline example-files
                                 #:today example-today
-                                #:zoom-base "/z/" #:toggle-base "/toggle/")
+                                #:zoom-base "/z/" #:toggle-base "/toggle/"
+                                ;; the demo outline attaches a @doc, and the
+                                ;; store read it: what a document looks like
+                                ;; collapsed is a state the skin paints
+                                #:docs (snapshot-docs example-snapshot))
                 #:sidebar (render-sidebar example-files
                                           #:home-href "/" #:today-href "/today"
                                           #:zoom-base "/z/")
@@ -164,9 +168,12 @@
                                               #:where "/tmp/Tasks.rkt:3:4"))
    (let* ([index (snapshot-index example-snapshot)]
           [entry (hash-ref index "agent")])
+     ;; ^agent is the demo outline's documented node, so this is also the
+     ;; page a whole @doc document is drawn on
      (render-zoom (node-entry-task entry)
                   (node-ancestors index entry)
-                  #:today example-today #:home-href "/" #:zoom-base "/z/"))
+                  #:today example-today #:home-href "/" #:zoom-base "/z/"
+                  #:docs (snapshot-docs example-snapshot)))
    (render-empty-pane "No such node." #:home-href "/")
    ;; a mirror site whose anchor named nothing: the outline still says
    ;; something belongs here, and the marker is drawn in that state

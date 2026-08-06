@@ -1,7 +1,17 @@
 # Repo-root paths resolve from the caller's dir, not nix/; the flake passes
-# them in (`exampleOutline`, `exampleSexpOutline`, `fakeAcpAgentSrc`).
+# them in (`examples`, `fakeAcpAgentSrc`).
+#
+# `examples` is the whole DIRECTORY, not one outline out of it: an outline
+# names its siblings — @include fragments under Daily/, the documents @doc
+# attaches under docs/ — and a lone .rkt in the store is an outline whose
+# neighbours are all missing.
 { runCommand, olai, racket, curl, tzdata
-, exampleOutline, exampleSexpOutline, fakeAcpAgentSrc }:
+, examples, fakeAcpAgentSrc }:
+
+let
+  exampleOutline = "${examples}/Example.rkt";
+  exampleSexpOutline = "${examples}/Example.sexp.rkt";
+in
 
 runCommand "olai-smoke"
   {
@@ -36,21 +46,25 @@ runCommand "olai-smoke"
                             (pair? (hash-ref j (quote tasks))))
                  (error (quote smoke) "unexpected tree JSON"))'
 
+    # A writable copy of the whole example directory: what is written below
+    # is an outline, and an outline is only valid where its siblings are.
+    cp -r ${examples} ex
+    chmod -R u+w ex
+
     # The write path validates in a fresh namespace, so it has to work
     # from the packaged binary too.
-    cp ${exampleOutline} edit.rkt
-    chmod u+w edit.rkt
-    olai add --json --no-commit --file edit.rkt "Smoke capture" > add.json
+    cp ex/Example.rkt ex/edit.rkt
+    olai add --json --no-commit --file ex/edit.rkt "Smoke capture" > add.json
     racket -e '(require json)
                (unless (hash-ref (call-with-input-file "add.json" read-json)
                                  (quote ok))
                  (error (quote smoke) "add failed"))'
-    olai check edit.rkt
+    olai check ex/edit.rkt
 
     # The server has to work from the packaged binary too: static files
     # and the language readers resolve differently there.
-    cp ${exampleOutline} live.rkt
-    chmod u+w live.rkt
+    cp ex/Example.rkt ex/live.rkt
+    live_rkt="$PWD/ex/live.rkt"
 
     # Packaged `olai` defaults OLAI_ACP_AGENT to the bundled adapter
     # (--set-default); override with the scripted fake for a real
@@ -82,7 +96,7 @@ runCommand "olai-smoke"
       return 1
     }
 
-    olai serve --port 8099 live.rkt &
+    olai serve --port 8099 "$live_rkt" &
     serve_pid=$!
     for i in $(seq 1 60); do
       curl -sf -o page.html http://127.0.0.1:8099/ && break
@@ -104,11 +118,13 @@ runCommand "olai-smoke"
     grep -qi "<html" today.html
 
     # One stream for the rest of the run: saves and the agent both
-    # ride it. It opens with a heartbeat comment, which is also how we
-    # know the subscription exists before anything is pushed.
+    # ride it. It opens with a heartbeat, which is also how we know the
+    # subscription exists before anything is pushed. A real EVENT and not
+    # a comment — a comment is invisible to EventSource, so a client could
+    # not notice the beat stopping (live/hub.rkt, docs/live.md).
     curl -sN --max-time 120 http://127.0.0.1:8099/events > events.txt &
     events_pid=$!
-    wait_for '^:hb' events.txt
+    wait_for '^event: live:hb' events.txt
 
     # Reload after a save. This is the check that matters in the
     # PACKAGED binary: the store loads outlines in a fresh namespace,
@@ -118,7 +134,7 @@ runCommand "olai-smoke"
     # The push comes first on purpose: a request would reload the store
     # itself, and then the watcher would have nothing to announce.
     ! grep -q "Smoke reload marker" page.html
-    printf 'Smoke reload marker\n' >> live.rkt
+    printf 'Smoke reload marker\n' >> "$live_rkt"
     wait_for '^event: outline' events.txt
     curl -sf -o page2.html http://127.0.0.1:8099/
     grep -q "Smoke reload marker" page2.html
@@ -135,29 +151,40 @@ runCommand "olai-smoke"
     # Frames are JSON: parse them. `data:` lines carry both event
     # names' payloads, so anything that is not an object is somebody
     # else's (the outline event's revision counter).
-    racket -e '(require json racket/port racket/string)
-               (define frames
-                 (for*/list ([l (in-list (with-input-from-file "events.txt" port->lines))]
-                             #:when (string-prefix? l "data: ")
-                             [j (in-value
-                                 (with-handlers ([exn:fail? (lambda (_e) #f)])
-                                   (read-json (open-input-string (substring l 6)))))]
-                             #:when (hash? j))
-                   j))
-               (unless (for/or ([f (in-list frames)])
-                         (and (equal? (hash-ref f (quote type) #f) "user")
-                              (equal? (hash-ref f (quote text) #f) "smoke hello")))
-                 (error (quote smoke) "no chat frame for the prompt on /events"))'
-
-    # Frames are ephemeral; the page is where the turn comes back. The
-    # scripted agent answers "hello world".
+    #
+    # The STREAM is where a turn comes back, and the only place: the panel
+    # is served empty and in none of its states, so every word in it is a
+    # frame (docs/cli.md). The prompt goes out as a `user` frame, the
+    # scripted agent answers "hello world", and `done` ends the turn — so
+    # this is polled until the turn has finished rather than read once.
+    turn_came_back() {
+      racket -e '(require json racket/port racket/string)
+                 (define frames
+                   (for*/list ([l (in-list (with-input-from-file "events.txt" port->lines))]
+                               #:when (string-prefix? l "data: ")
+                               [j (in-value
+                                   (with-handlers ([exn:fail? (lambda (_e) #f)])
+                                     (read-json (open-input-string (substring l 6)))))]
+                               #:when (hash? j))
+                     j))
+                 (define (typed t)
+                   (for/list ([f (in-list frames)]
+                              #:when (equal? (hash-ref f (quote type) #f) t))
+                     f))
+                 (unless (for/or ([f (in-list (typed "user"))])
+                           (equal? (hash-ref f (quote text) #f) "smoke hello"))
+                   (error (quote smoke) "no chat frame for the prompt on /events"))
+                 (unless (for/or ([f (in-list (append (typed "chunk") (typed "done")))])
+                           (for/or ([k (in-list (list (quote text) (quote html)))])
+                             (define v (hash-ref f k #f))
+                             (and (string? v) (regexp-match? #rx"hello world" v))))
+                   (error (quote smoke) "the turn has not come back on /events"))'
+    }
     for i in $(seq 1 60); do
-      curl -sf -o chat.html http://127.0.0.1:8099/ \
-        && grep -q "hello world" chat.html && break
+      turn_came_back 2> turn.err && break
       sleep 0.5
     done
-    grep -q "hello world" chat.html
-    grep -q "smoke hello" chat.html
+    turn_came_back
 
     # Nothing to say is not a turn.
     test "$(curl -s -o /dev/null -w '%{http_code}' \
@@ -166,7 +193,7 @@ runCommand "olai-smoke"
 
     # A broken file keeps the last good page (with an error banner)
     # and fails the JSON route loudly.
-    printf '  @date not-a-date\n' >> live.rkt
+    printf '  @date not-a-date\n' >> "$live_rkt"
     curl -sf -o page3.html http://127.0.0.1:8099/
     grep -q "Smoke reload marker" page3.html
     grep -q "ol-error" page3.html

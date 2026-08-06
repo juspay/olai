@@ -10,6 +10,9 @@
          file/sha1
          (except-in olai/lang/expander #%module-begin)
          (only-in olai/lang/walk resolve-mirrors)
+         ;; the one thing the store and the renderer have to agree about: the
+         ;; key a document is filed under
+         (only-in olai/doc doc-path)
          olai/web/render
          ;; olai's side of the live-view contract: the names a page is drawn
          ;; with, and the scripts it pulls in for them
@@ -35,9 +38,13 @@
 
   (define (tk title date desc kids
               #:tags [tags '()] #:done [done #f] #:doing [doing #f]
-              #:id [id #f] #:key [key #f])
+              #:id [id #f] #:key [key #f]
+              ;; a documented node needs both halves of the answer: the path
+              ;; the outline wrote, and the file it wrote it in
+              #:doc [doc #f] #:file [file #f])
     (make-task #:title title #:date date #:description desc #:done done
                #:doing doing #:id id #:tags tags #:children kids
+               #:doc doc #:file file
                #:key (or key id (title-key title))))
 
   (define (xstr x) (xexpr->string x))
@@ -450,6 +457,92 @@
     ;; and with a zoom base, every ancestor crumb is that ancestor's own page
     (define z (zoom-of #:zoom-base "/n/"))
     (check-true (string-contains? z (string-append "href=\"/n/" inbox-key "\"")) z))
+
+  ;; ---- @doc: one line in the outline, the whole thing zoomed ---------------
+  ;;
+  ;; No file is ever opened here: `docs` is what the store read, keyed the one
+  ;; way both sides spell it (olai/doc, doc-path).
+
+  (define doc-file "/tmp/outlines/Tasks.rkt")
+
+  (define (documented rel #:key [key "doc-node"])
+    (tk "Ship it" #f #f '() #:key key #:doc rel #:file doc-file))
+
+  (define (doc-table rel text)
+    (hash (doc-path rel doc-file) text))
+
+  (define plan-md "# The plan\n\nA paragraph, and a `span` of code.\n")
+
+  (test-case "a documented node shows one line of its document in the outline"
+    (define s (xstr (render-node-fragment (documented "notes/plan.md")
+                                          #:today "2026-08-04"
+                                          #:zoom-base "/n/"
+                                          #:docs (doc-table "notes/plan.md" plan-md))))
+    ;; the file, by name, linking to the page that has all of it
+    (check-true (string-contains? s "ol-doc-name") s)
+    (check-true (string-contains? s ">plan.md<") s)
+    (check-true (string-contains? s "href=\"/n/doc-node\"") s)
+    ;; one line of it, markers stripped, as TEXT
+    (check-true (string-contains? s "<span class=\"ol-doc-lead\">The plan</span>") s)
+    ;; and not the document
+    (check-false (string-contains? s "ol-doc-body") s)
+    (check-false (string-contains? s "A paragraph") s))
+
+  (test-case "a node with no @doc draws no document block"
+    (define s (xstr (render-node-fragment (tk "Plain" #f #f '())
+                                          #:today "2026-08-04")))
+    (check-false (string-contains? s "ol-doc") s))
+
+  (test-case "zooming a documented node renders the document inline"
+    (define s (xstr (render-zoom (documented "notes/plan.md") '()
+                                 #:today "2026-08-04"
+                                 #:home-href "/"
+                                 #:zoom-base "/n/"
+                                 #:docs (doc-table "notes/plan.md" plan-md))))
+    (check-true (string-contains? s "<article class=\"ol-doc-body\">") s)
+    ;; Markdown at render time, same as a note: blocks included
+    (check-true (string-contains? s "<h1>The plan</h1>") s)
+    (check-true (string-contains? s "A paragraph") s)
+    (check-true (string-contains? s "class=\"ol-code\"") s)
+    ;; the preview is what the outline shows; this page is not the outline
+    (check-false (string-contains? s "ol-doc-lead") s)
+    ;; and the name is not a link to the page you are already on
+    (check-false (string-contains? s "<a class=\"ol-doc-name\"") s))
+
+  (test-case "a .scrbl document is named and not drawn"
+    (define s (xstr (render-zoom (documented "deep.scrbl") '()
+                                 #:today "2026-08-04"
+                                 #:home-href "/"
+                                 #:docs (doc-table "deep.scrbl"
+                                                   "#lang scribble/manual\n"))))
+    (check-true (string-contains? s ">deep.scrbl<") s)
+    (check-true (string-contains? s "does not render one yet") s)
+    (check-false (string-contains? s "ol-doc-body") s)
+    ;; never the source, verbatim, on the page
+    (check-false (string-contains? s "scribble/manual\n") s))
+
+  (test-case "a document the store could not read is a state, not a blank"
+    ;; the language refuses an outline naming a file that is not there, so
+    ;; this is the race: it went away between the load and the read
+    (define s (xstr (render-zoom (documented "notes/plan.md") '()
+                                 #:today "2026-08-04"
+                                 #:home-href "/"
+                                 #:docs (hash))))
+    (check-true (string-contains? s "plan.md") s)
+    (check-true (string-contains? s "could not be read") s)
+    (check-false (string-contains? s "ol-doc-body") s))
+
+  (test-case "a mirror site shows the document of the node it is a mirror of"
+    (define holder
+      (car (resolve-mirrors
+            (list (tk "Holder" #f #f (list (mirror-ref "shipped" #f))))
+            (hash "shipped" (documented "notes/plan.md" #:key "shipped")))))
+    (define s (xstr (render-node-fragment holder
+                                          #:today "2026-08-04"
+                                          #:docs (doc-table "notes/plan.md"
+                                                            plan-md))))
+    (check-true (string-contains? s ">plan.md<") s)
+    (check-true (string-contains? s "The plan") s))
 
   (test-case "a file crumb is drawn by its basename, whole path or not"
     ;; the trail carries the file as the loaded set named it (olai/index); how

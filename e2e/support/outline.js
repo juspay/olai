@@ -20,10 +20,20 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
+const FIXTURES = path.join(import.meta.dirname, "..", "fixtures");
+
 export const FIXTURE = await fs.readFile(
-  path.join(import.meta.dirname, "..", "fixtures", "Tasks.rkt"),
+  path.join(FIXTURES, "Tasks.rkt"),
   "utf8",
 );
+
+// The document the fixture's `@doc` names, and where it names it from. The
+// LANGUAGE requires the file to be there, so it is staged into every
+// scenario's temp dir beside the outline — an outline without it does not
+// load at all, and nothing else in this suite would ever get to run.
+export const DOC_PATH = path.join("notes", "serve.md");
+
+export const DOC = await fs.readFile(path.join(FIXTURES, DOC_PATH), "utf8");
 
 // A form the expander rejects — `@date` wants an ISO date — with a srcloc the
 // banner can name. A string, not a file: it must not parse, so it cannot be

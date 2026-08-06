@@ -28,10 +28,11 @@ olai roadmap #project
 | Description | Indented continuation `: text` — colon **and space**; a bare `:` or `:text` is a reader error. Multiple `: ` lines join with `\n` into one `#:description`. |
 | Date/time | Indented `@date …` → `#:date`. Accepts `YYYY-MM-DD` or datetime `YYYY-MM-DDTHH:MM[:SS]` (space instead of `T` ok; normalized to `T`). Validated by gregor in the expander. |
 | Include | `@include RELATIVE/PATH.rkt` at a title position → `(include "…")`. Require+splice of the fragment's **top-level** tasks (no redundant root in the fragment). Path relative to the including file. Cycles rejected. |
+| Document | Indented `@doc RELATIVE/PATH.md` → `#:doc`. The node expands into that file (see [Documents](#documents-doc)). Extension must be `.md` or `.scrbl`; the file must exist. Path relative to the **defining** file. |
 | Done | Indented `@done` or `@done …` → `#:done` / `#:done` timestamp. Bare means completed (`#t`); with a value, same ISO forms as `@date`. |
 | Doing | Indented `@doing` or `@doing …` → `#:doing` / `#:doing` timestamp. The third state, between open and done: same rules as `@done`, one node cannot be both. |
 | Checkbox sugar | Title prefix `[x] ` / `[X] ` desugars to bare `@done`, `[/] ` to bare `@doing` (prefix **not** part of the title). `[ ] ` is an explicit not-done marker (stripped, no-op). `[-] ` is **not** sugar — it stays part of the title, unclaimed for a future cancelled. Escape with `\` if the title should literally start with `[x] `. |
-| At most once | A second `@date`, `@done` or `@doing` under one title is a reader error. `[x] ` counts as the node's `@done` and `[/] ` as its `@doing`, so checkbox **and** field on the same node is a duplicate. |
+| At most once | A second `@date`, `@done`, `@doing` or `@doc` under one title is a reader error. `[x] ` counts as the node's `@done` and `[/] ` as its `@doing`, so checkbox **and** field on the same node is a duplicate. |
 | One state | Done and doing exclude each other: `[x] ` with an `@doing`, `[/] ` with an `@done`, or both fields, is an expander error at the offending mark's `file:line:col`. |
 | Escape | Line starting with `\` (after indent) is a title beginning with the rest. It turns off **all** line sugar for that line — checkbox, mirror, trailing `^anchor` — so titles may start with `:`, `@`, `*`, `[x] `, or `\` and may end in `^word`. |
 | Blank lines | Insignificant. |
@@ -65,13 +66,51 @@ Formatting is **interpretation at render time**, not data. The reader, expander,
 
 Mark these clearly so agents do not invent them:
 
-- `@layout` and other `@` fields beyond `@date` / `@done` / `@doing` / `@include`
+- `@layout` and other `@` fields beyond `@date` / `@done` / `@doing` / `@doc` / `@include`
+- `.scrbl` **rendering**. The extension is in the language and the path is in the JSON; the web view names the file and says it does not draw one yet (see [Documents](#documents-doc))
 - `[-] ` as cancelled — the spelling is left unclaimed, but nothing reads it yet
 - UI state in the outline file, or in a sidecar next to it. Collapse state is real but lives in the browser (`localStorage`, keyed by node); zoom is a URL (`/today`, `/#n-<key>`). Nothing on disk records either.
 - Check-off from the web view — it renders a static checkbox, and done already renders checked/dimmed. Structure edits go through the CLI or your editor.
 - Live push: the page loads the htmx SSE extension but the server opens no event stream yet; edits show up on the next request.
 
-Unknown `@field` is a **reader error** today (names the known fields: `@date`, `@done`, `@doing`, `@include`).
+Unknown `@field` is a **reader error** today (names the known fields: `@date`, `@done`, `@doing`, `@doc`, `@include`).
+
+### Documents (`@doc`)
+
+Some nodes are not a line. `@doc` attaches a **file** to one, and the node
+expands into it:
+
+```racket
+#lang olai
+
+Agent work ^agent
+  : one line here, the rest in the file
+  @doc docs/agent-work.md
+```
+
+- **Two extensions and no third**: `.md` (the default — agents are fluent, and
+  the view already parses Markdown for titles and notes) and `.scrbl` (Scribble,
+  for a code-heavy document that wants real sections and cross-references).
+  Anything else is a checker error naming the set.
+- **The file has to be there.** The language checks existence, exactly the way
+  `@include` does: a path that resolves to nothing is not a document with a
+  problem, it is a form that is wrong, and `olai check` is where an agent hears
+  about it — with the `file:line:col` of the path it wrote.
+- **Relative to the DEFINING file**, like `@include` — and relative is a rule,
+  not a convention: an absolute path is a checker error. A fragment spliced
+  into two roots names the same document from either one.
+- **Documents stay files.** The string in the outline is data and is what `tree`
+  JSON carries (`"doc"`); nothing renders into the JSON. `grep`, `git diff` and
+  `$EDITOR` go on working, and the same file can be included elsewhere.
+- **Web view**: zoomed (`/n/<key>`), the document is drawn inline below the
+  node — Markdown at render time, same as a note. Anywhere else the node shows
+  one line of it: the file's name, linking to that page, and the document's
+  first line as plain text. A `.scrbl` is named and not drawn; a Scribble
+  document is a Racket module, and expanding one inside the server while a
+  request is open is a decision with a blast radius rather than a renderer
+  detail.
+- Editing a document redraws every open page: documents join the watch set
+  beside the `@include` fragments.
 
 ### Includes (file composition)
 
@@ -105,4 +144,4 @@ The underlying form the expander sees. Useful for tests and for agents that pref
    (t "Shipped" #:done "2026-08-03"))
 ```
 
-Keywords `#:id`, `#:date`, `#:description`, `#:done` and `#:doing` are optional, any order, at most once each. `#:done` / `#:doing` may be bare or take an ISO date/datetime, and a node may carry at most one of the two. Children are `(t ...)`, `(mirror "anchor")`, or `(include "relative/path.rkt")` — closed grammar, same three forms allowed at top level. Module exports `tasks`, `anchors` (hash id → task), and `includes` (absolute paths spliced in).
+Keywords `#:id`, `#:date`, `#:doc`, `#:description`, `#:done` and `#:doing` are optional, any order, at most once each. `#:done` / `#:doing` may be bare or take an ISO date/datetime, and a node may carry at most one of the two. Children are `(t ...)`, `(mirror "anchor")`, or `(include "relative/path.rkt")` — closed grammar, same three forms allowed at top level. Module exports `tasks`, `anchors` (hash id → task), and `includes` (absolute paths spliced in).

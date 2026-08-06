@@ -393,13 +393,16 @@
 
 ;; One node, zoomed: the node and the trail above it, both asked of the
 ;; snapshot's index — the only thing that knows either.
-(define (zoom-pane live index entry today)
+(define (zoom-pane live snap entry today)
   (render-zoom (node-entry-task entry)
-               (node-ancestors index entry)
+               (node-ancestors (snapshot-index snap) entry)
                #:today today
                #:home-href home-href
                #:zoom-base node-href-base
-               #:live live))
+               #:live live
+               ;; the @doc documents as of this snapshot; the renderer opens
+               ;; no files (web/render)
+               #:docs (snapshot-docs snap)))
 
 ;; The key a page was asked for, as a node, or #f. Both zoom routes go through
 ;; here, and each says in its own words what #f means.
@@ -412,7 +415,8 @@
      (values (render-outline (snapshot-files-data snap)
                              #:today (today-iso-string)
                              #:zoom-base node-href-base
-                             #:live live)
+                             #:live live
+                             #:docs (snapshot-docs snap))
              (page-title (store-files st))))))
 
 ;; A node's permalink.
@@ -425,11 +429,10 @@
 (define (node-handler st agent key)
   (outline-page st agent (node-href key)
    (λ (live snap)
-     (define index (snapshot-index snap))
-     (define entry (node-at index key))
+     (define entry (node-at (snapshot-index snap) key))
      (if entry
          ;; a tab zoomed on one node should say which
-         (values (zoom-pane live index entry (today-iso-string))
+         (values (zoom-pane live snap entry (today-iso-string))
                  (task-title (node-entry-task entry)))
          (values (render-empty-pane "No such node."
                                     #:home-href home-href
@@ -449,10 +452,9 @@
   (outline-page st agent today-href
    (λ (live snap)
      (define today (today-iso-string))
-     (define index (snapshot-index snap))
-     (define entry (node-at index (snapshot-day-key snap today)))
+     (define entry (node-at (snapshot-index snap) (snapshot-day-key snap today)))
      (values (if entry
-                 (zoom-pane live index entry today)
+                 (zoom-pane live snap entry today)
                  ;; no day node yet is the normal state before the first
                  ;; capture of the day, not an error
                  (render-empty-pane

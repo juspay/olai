@@ -49,8 +49,27 @@
     (check-equal? (hash-ref h 'doing) (json-null))
     (check-equal? (hash-ref h 'status) "done"))
 
+  ;; ---- the document a node attaches -----------------------------------------
+  ;;
+  ;; The path, and only the path: the document is a file an agent can already
+  ;; read, diff and edit, so a serializer that inlined it would be shipping a
+  ;; second copy of it that nothing keeps in step.
+
+  (test-case "doc is the path the outline wrote, verbatim"
+    (define h (task->jsexpr (make-task #:title "Ship it" #:key "k"
+                                       #:doc "docs/plan.md")))
+    (check-equal? (hash-ref h 'doc) "docs/plan.md")
+    ;; nothing of the file itself
+    (check-false (hash-has-key? h 'doc_html))
+    (check-false (hash-has-key? h 'doc_text)))
+
+  (test-case "a node with no document says so with null, not by omission"
+    (define h (task->jsexpr (tk "Plain")))
+    (check-equal? (hash-ref h 'doc) (json-null)))
+
   ;; Append-only within a version (docs/cli.md): the third state added keys,
-  ;; it did not move the counter or reshape anything already there.
+  ;; and so did @doc — neither moved the counter or reshaped anything already
+  ;; there.
   (test-case "the model version did not move for a new field"
     (check-equal? json-model-version 1)
     (check-equal? json-reply-version 1))

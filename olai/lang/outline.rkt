@@ -21,10 +21,11 @@
 
 ;; descs: list of (list text line col) newest-first
 ;; date-info / done-info / doing-info: #f or (list value line col)
+;; doc-info: #f or (list relative-path line col) — the document @doc named
 ;; id-info: #f or (list id-string line col)
 ;; mirror-anchor: #f or anchor string (when set, this node is a mirror leaf)
 ;; include-path: #f or relative path string (when set, this node is an include leaf)
-(struct node (title date-info done-info doing-info id-info descs children
+(struct node (title date-info done-info doing-info doc-info id-info descs children
               line col span src mirror-anchor include-path)
   #:mutable #:transparent)
 
@@ -150,14 +151,20 @@
           (list (datum->syntax #f '#:date (loc-vec src dline dcol 5))
                 (datum->syntax #f d (loc-vec src dline dcol (string-length d))))]
          [#f '()]))
+     (define doc-part
+       (match (node-doc-info nd)
+         [(list p pline pcol)
+          (list (datum->syntax #f '#:doc (loc-vec src pline pcol 4))
+                (datum->syntax #f p (loc-vec src pline pcol (string-length p))))]
+         [#f '()]))
      (define done-part (mark-part src '#:done (node-done-info nd)))
      (define doing-part (mark-part src '#:doing (node-doing-info nd)))
      (define desc-part (description-part src (node-descs nd)))
      (define kids (map node->syntax (reverse (node-children nd))))
      (define form
        (cons (datum->syntax #f 't (loc-vec src line col span))
-             (append (list title-stx) id-part date-part done-part doing-part
-                     desc-part kids)))
+             (append (list title-stx) id-part date-part doc-part done-part
+                     doing-part desc-part kids)))
      (datum->syntax #f form (loc-vec src line col span))]))
 
 (define (parse-lines src lines)
@@ -236,14 +243,16 @@
           (check-leaf-parent! level n col)
           (set! stack (take stack level))
           (define nd
-            (node #f #f #f #f #f '() '() n col (string-length content) src anchor #f))
+            (node #f #f #f #f #f #f '() '() n col (string-length content) src
+                  anchor #f))
           (push-node! nd level)]
          [`(include ,path)
           (check-level! level n col)
           (check-leaf-parent! level n col)
           (set! stack (take stack level))
           (define nd
-            (node #f #f #f #f #f '() '() n col (string-length content) src #f path))
+            (node #f #f #f #f #f #f '() '() n col (string-length content) src
+                  #f path))
           (push-node! nd level)]
          [`(title ,title ,flag ,anchor)
           (check-level! level n col)
@@ -255,7 +264,7 @@
           (define id-info
             (and anchor (list anchor n col)))
           (define nd
-            (node title #f done-info doing-info id-info '() '() n col
+            (node title #f done-info doing-info #f id-info '() '() n col
                   (string-length title) src #f #f))
           (push-node! nd level)]
          [`(meta desc ,text)
@@ -273,6 +282,15 @@
             (reader-error src n col #f
                           "duplicate @done on this task"))
           (set-node-done-info! parent (list d n (+ col off)))]
+         ;; Whether the file exists and whether the language draws its format
+         ;; are LANGUAGE questions, not reader ones (lang/expander) — the
+         ;; reader only knows that no title carries two of these.
+         [`(meta doc ,p ,off)
+          (define parent (require-task-parent! level n col "@doc"))
+          (when (node-doc-info parent)
+            (reader-error src n col #f
+                          "duplicate @doc on this task"))
+          (set-node-doc-info! parent (list p n (+ col off)))]
          ;; A node that is both done and doing is a LANGUAGE error, not a
          ;; reader one — the reader only knows that neither field is here
          ;; twice. The expander is what rejects the pair (lang/expander).

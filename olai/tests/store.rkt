@@ -119,6 +119,67 @@
        (define day (car (task-children (car (task-children t)))))
        (check-equal? (map task-title (task-children day)) '("Ship the store")))))
 
+  ;; ---- @doc documents ------------------------------------------------------
+  ;;
+  ;; A document is a file the outline points at, so it is this layer's twice
+  ;; over: read once per load (the renderer is pure and gets text, not a path)
+  ;; and watched, because editing one is editing what a page shows.
+
+  (test-case "the snapshot carries the documents @doc named, keyed by path"
+    (with-temp-dir
+     (λ (dir)
+       (define doc (build-path dir "notes" "plan.md"))
+       (define f (build-path dir "Tasks.rkt"))
+       (write-file! doc "# Plan\n\nthe body\n")
+       (write-file! f "#lang olai\nShip it\n  @doc notes/plan.md\n")
+       (define st (make-store (list f)))
+       (define docs (snapshot-docs (store-snapshot st)))
+       (check-equal? (hash-ref docs (path->string (simple-form-path doc)) #f)
+                     "# Plan\n\nthe body\n")
+       ;; and the file is watched, so a save to it is news
+       (check-not-false
+        (member (path->string (simple-form-path doc))
+                (map path->string (snapshot-watch (store-snapshot st))))))))
+
+  (test-case "editing a document reloads the snapshot"
+    (with-temp-dir
+     (λ (dir)
+       (define doc (build-path dir "plan.md"))
+       (define f (build-path dir "Tasks.rkt"))
+       (write-file! doc "# Plan\n")
+       (write-file! f "#lang olai\nShip it\n  @doc plan.md\n")
+       (define st (make-store (list f)))
+       (define rev (store-revision st))
+       ;; nothing changed: no reload, no news
+       (store-invalidate! st)
+       (check-equal? (store-revision st) rev)
+       ;; the outline did not move, and the page still has to redraw
+       (write-file! doc "# Plan\n\nrewritten\n")
+       (store-invalidate! st)
+       (check-true (> (store-revision st) rev))
+       (check-equal? (hash-ref (snapshot-docs (store-snapshot st))
+                               (path->string (simple-form-path doc)) #f)
+                     "# Plan\n\nrewritten\n"))))
+
+  (test-case "a document that goes away breaks the outline, and last-good stands"
+    (with-temp-dir
+     (λ (dir)
+       (define doc (build-path dir "plan.md"))
+       (define f (build-path dir "Tasks.rkt"))
+       (write-file! doc "# Plan\n")
+       (write-file! f "#lang olai\nShip it\n  @doc plan.md\n")
+       (define st (make-store (list f)))
+       (check-false (store-error st))
+       ;; @doc names a file, and the LANGUAGE is what says it has to be there
+       (delete-file doc)
+       (store-invalidate! st)
+       (define err (store-error st))
+       (check-true (load-error? err))
+       (check-true (regexp-match? #rx"(?i:file not found)" (load-error-message err))
+                   (format "~a" err))
+       ;; the page keeps drawing what it had
+       (check-equal? (titles (store-snapshot st)) '("Ship it")))))
+
   ;; ---- node identity -------------------------------------------------------
 
   (define (all-keys snap)
