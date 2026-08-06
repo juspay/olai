@@ -32,6 +32,10 @@
 
   (define idx (outline-index fd))
 
+  ;; the trail above the node a key names — the two questions the index
+  ;; answers, asked the way a zoom route asks them
+  (define (trail index key) (node-ancestors index (hash-ref index key)))
+
   (test-case "every node is indexed, by its own key, with its parent's"
     (check-equal? (hash-count idx) 5)
     (define e (hash-ref idx (title-key "Buy milk")))
@@ -46,20 +50,19 @@
   (test-case "the trail above a node is the file, then its ancestors"
     ;; outermost first, and the node itself is NOT in it: a breadcrumb says
     ;; where you are, not that you are here
-    (check-equal? (node-ancestors idx (title-key "2% please"))
+    (check-equal? (trail idx (title-key "2% please"))
                   (list "Tasks.rkt"
                         (list "Inbox" (title-key "Inbox"))
                         (list "Buy milk" (title-key "Buy milk"))))
-    (check-equal? (node-ancestors idx (title-key "Buy milk"))
+    (check-equal? (trail idx (title-key "Buy milk"))
                   (list "Tasks.rkt" (list "Inbox" (title-key "Inbox"))))
     ;; a top-level node has only the file above it
-    (check-equal? (node-ancestors idx "ship") (list "Tasks.rkt"))
-    (check-equal? (node-ancestors idx (title-key "2026-08-04")) (list "Daily.rkt")))
+    (check-equal? (trail idx "ship") (list "Tasks.rkt"))
+    (check-equal? (trail idx (title-key "2026-08-04")) (list "Daily.rkt")))
 
-  (test-case "an unknown key has no trail at all"
-    ;; a node deleted (or re-keyed) under a tab that was zoomed on it: the
-    ;; caller draws "no such node", and has nothing to ask about it
-    (check-equal? (node-ancestors idx "pdeadbeef") '())
+  (test-case "an unknown key names no node"
+    ;; a node deleted (or re-keyed) under a tab that was zoomed on it. There
+    ;; is nothing to ask about it — whoever looked it up draws "no such node"
     (check-false (hash-ref idx "pdeadbeef" #f)))
 
   (test-case "renaming an ancestor changes the crumb, not the address"
@@ -72,7 +75,7 @@
                                     #:children
                                     (list (tk "Buy milk" '())))))))
     (define idx2 (outline-index renamed))
-    (check-equal? (node-ancestors idx2 (title-key "Buy milk"))
+    (check-equal? (trail idx2 (title-key "Buy milk"))
                   (list "Tasks.rkt" (list "In" (title-key "Inbox")))))
 
   (test-case "a mirror site is not a second address for the node"
@@ -85,7 +88,7 @@
                           (tk "Later" (list (mirror-ref "ship" #f))))
                     (hash "ship" (tk "Ship it" '() #:id "ship"))))))
     (define midx (outline-index mirrored))
-    (check-equal? (node-ancestors midx "ship")
+    (check-equal? (trail midx "ship")
                   (list "Tasks.rkt" (list "Inbox" (title-key "Inbox"))))
     ;; Inbox, Ship it, Later — the mirror site adds no fourth address
     (check-equal? (hash-count midx) 3)))

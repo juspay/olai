@@ -154,9 +154,10 @@
                                           #:zoom-base "/z/")
                 #:banner (render-error-banner "expected ISO date"
                                               #:where "/tmp/Tasks.rkt:3:4"))
-   (let ([index (snapshot-index example-snapshot)])
-     (render-zoom (node-entry-task (hash-ref index "agent"))
-                  (node-ancestors index "agent")
+   (let* ([index (snapshot-index example-snapshot)]
+          [entry (hash-ref index "agent")])
+     (render-zoom (node-entry-task entry)
+                  (node-ancestors index entry)
                   #:today example-today #:home-href "/" #:zoom-base "/z/"))
    (render-empty-pane "No such node." #:home-href "/")
    ;; a mirror site whose anchor named nothing: the outline still says

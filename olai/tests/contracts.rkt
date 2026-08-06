@@ -45,7 +45,10 @@
   (test-case "index: files-data in, and a key is a string"
     (check-exn (blames "index.rkt")
                (λ () (outline-index "not files-data")))
-    ;; the trail above a node is asked for by key, not by node
+    ;; the trail is asked about a node you HAVE — an indexed one, not a key
+    ;; and not a bare task
+    (check-exn (blames "index.rkt")
+               (λ () (node-ancestors (hash) "ship")))
     (check-exn (blames "index.rkt")
                (λ () (node-ancestors (hash) (make-task #:title "T" #:key "k")))))
 

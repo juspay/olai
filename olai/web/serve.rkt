@@ -346,28 +346,19 @@
               #:chat chat
               #:banner (and err (error-banner err))))))
 
-;; One node, zoomed, with the trail above it — or `missing`, said plainly.
-;;
-;; A key the snapshot does not have is not a 404: a node can be deleted, or an
-;; unanchored one re-keyed, while a tab sits zoomed on it, and that tab
-;; re-fetches this very page to find out. An error status would leave it
-;; showing a node that is gone. The snapshot is the source of truth about what
-;; exists; the route only asks it.
-(define (zoom-pane snap key today #:missing missing)
-  (define index (snapshot-index snap))
-  (define entry (and key (hash-ref index key #f)))
-  (if entry
-      (render-zoom (node-entry-task entry)
-                   (node-ancestors index key)
-                   #:today today
-                   #:home-href home-href
-                   #:zoom-base node-href-base)
-      (render-empty-pane missing #:home-href home-href)))
+;; One node, zoomed: the node and the trail above it, both asked of the
+;; snapshot's index — the only thing that knows either.
+(define (zoom-pane snap entry today)
+  (render-zoom (node-entry-task entry)
+               (node-ancestors (snapshot-index snap) entry)
+               #:today today
+               #:home-href home-href
+               #:zoom-base node-href-base))
 
-;; A tab zoomed on one node should say which; an unknown key is just olai.
-(define (zoom-title snap key)
-  (define entry (hash-ref (snapshot-index snap) key #f))
-  (if entry (task-title (node-entry-task entry)) "olai"))
+;; The key a page was asked for, as a node, or #f. Both zoom routes go through
+;; here, and each says in its own words what #f means.
+(define (node-at snap key)
+  (and key (hash-ref (snapshot-index snap) key #f)))
 
 (define (page-handler st agent)
   (outline-page st agent home-href
@@ -378,11 +369,22 @@
              (page-title (store-files st))))))
 
 ;; A node's permalink.
+;;
+;; A key the snapshot has no node for is not a 404: a node can be deleted, or
+;; an unanchored one re-keyed, while a tab sits zoomed on it, and that tab
+;; re-fetches this very page to find out. An error status would leave it
+;; showing a node that is gone. The snapshot is the source of truth about what
+;; exists; this route only asks it, and says what it heard.
 (define (node-handler st agent key)
   (outline-page st agent (node-href key)
    (λ (snap)
-     (values (zoom-pane snap key (today-iso-string) #:missing "No such node.")
-             (zoom-title snap key)))))
+     (define entry (node-at snap key))
+     (if entry
+         ;; a tab zoomed on one node should say which
+         (values (zoom-pane snap entry (today-iso-string))
+                 (task-title (node-entry-task entry)))
+         (values (render-empty-pane "No such node." #:home-href home-href)
+                 "olai")))))
 
 ;; Today's Daily day node, zoomed. Finding today's key is a question about the
 ;; DAY; the answer goes through the same zoom pane as any permalink, and
@@ -397,8 +399,14 @@
   (outline-page st agent today-href
    (λ (snap)
      (define today (today-iso-string))
-     (values (zoom-pane snap (snapshot-day-key snap today) today
-                        #:missing (format "No day node for ~a. Run: olai daily" today))
+     (define entry (node-at snap (snapshot-day-key snap today)))
+     (values (if entry
+                 (zoom-pane snap entry today)
+                 ;; no day node yet is the normal state before the first
+                 ;; capture of the day, not an error
+                 (render-empty-pane
+                  (format "No day node for ~a. Run: olai daily" today)
+                  #:home-href home-href))
              (string-append "today " today)))))
 
 (define (tree-handler st)

@@ -390,8 +390,9 @@
   ;; module's — here it is only the input.
   (define (zoom-of fd key #:zoom-base [zoom-base #f])
     (define idx (outline-index fd))
-    (xstr (render-zoom (node-entry-task (hash-ref idx key))
-                       (node-ancestors idx key)
+    (define entry (hash-ref idx key))
+    (xstr (render-zoom (node-entry-task entry)
+                       (node-ancestors idx entry)
                        #:today "2026-08-04"
                        #:home-href "/"
                        #:zoom-base zoom-base)))
