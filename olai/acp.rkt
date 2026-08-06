@@ -367,16 +367,55 @@
 (define (session-stamp s)
   (or (string-or-false (hash-ref s 'updatedAt #f)) ""))
 
+;; A directory, canonically: complete, links resolved, and one spelling for "/x"
+;; and "/x/". Two of these are the same place when they are `equal?`. Not
+;; `simple-form-path`, which leaves a link spelled the way it was written: the
+;; agent reports the directory its own process is in, which the kernel already
+;; resolved, and a server started through a symlink would match nothing.
+;; Raises for a directory that is not there — a place that does not exist is
+;; not one to compare against.
+(define (as-directory p)
+  (path->directory-path (normalize-path p)))
+
+;; -> #t when `c`, a cwd off the wire, names `dir`. Compared as directories and
+;; not as strings: an agent stores the spelling it was handed.
+(define (same-directory? c dir)
+  (and (string? c)
+       (with-handlers ([exn:fail? (λ (_e) #f)])
+         (equal? (as-directory (string->path c)) dir))))
+
 ;; The agent's stored sessions for THIS cwd, newest first. Raw entries —
 ;; {sessionId, cwd, title, updatedAt} — the picker's shape is minted below.
+;;
+;; The `cwd` sent is a REQUEST, not a filter: the Claude Code adapter scopes its
+;; answer by PREFIX, so a server started in a checkout is told about every agent
+;; working under it — a worktree, an orchestrator in the root. Boot adopts the
+;; newest of what comes back, so trusting the list is how a task agent's coding
+;; session becomes the web chat's conversation. The entries say where they were
+;; worked in; only that exact directory is ours, and an entry that names none
+;; cannot be shown to be.
+;;
+;; Filtered HERE because everything downstream — the picker, the title a load
+;; shows, and boot's adopt-the-newest — draws from this one list.
 (define (list-sessions cl)
   (define r (request! cl "session/list"
                       (hash 'cwd (path->string (acp-client-cwd cl)))))
   (define raw (let ([ss (hash-ref r 'sessions '())]) (if (list? ss) ss '())))
-  (sort (for/list ([s (in-list raw)]
-                   #:when (and (hash? s) (string? (hash-ref s 'sessionId #f))))
-          s)
-        string>? #:key session-stamp))
+  (define here (as-directory (acp-client-cwd cl)))
+  (define mine
+    (for/list ([s (in-list raw)]
+               #:when (and (hash? s)
+                           (string? (hash-ref s 'sessionId #f))
+                           (same-directory? (hash-ref s 'cwd #f) here)))
+      s))
+  ;; A list that was emptied by the filter looks exactly like a machine with
+  ;; nothing stored — a fresh panel every boot, and no way to tell which it was.
+  ;; Said once: the picker asks again every time it is drawn.
+  (when (and (pair? raw) (null? mine))
+    (acp-log-once! cl "sessions-elsewhere"
+                   (format "~a stored session(s), none of them in ~a"
+                           (length raw) (path->string here))))
+  (sort mine string>? #:key session-stamp))
 
 ;; The name the picker showed for a session, off the same list it drew. Worth
 ;; a round trip on a button press: the agent pushes a title only when it

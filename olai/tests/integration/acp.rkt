@@ -78,13 +78,13 @@
 (define (event-of evs name)
   (for/or ([ev (in-list evs)]) (and (eq? (event-name ev) name) ev)))
 
-;; The fake agent keeps stored sessions only when it is told to (see its
-;; header): the environment is what the subprocess inherits, so this is set
-;; around the whole of a test, agent and all.
-(define (with-stored-sessions thunk)
+;; The fake agent keeps stored sessions only when it is told to, and `mode`
+;; says whose (see its header): the environment is what the subprocess
+;; inherits, so this is set around the whole of a test, agent and all.
+(define (with-stored-sessions thunk [mode #"1"])
   (define env (current-environment-variables))
   (dynamic-wind
-   (λ () (environment-variables-set! env #"OLAI_FAKE_ACP_STORED" #"1"))
+   (λ () (environment-variables-set! env #"OLAI_FAKE_ACP_STORED" mode))
    thunk
    (λ () (environment-variables-set! env #"OLAI_FAKE_ACP_STORED" #f))))
 
@@ -136,12 +136,19 @@
                           user-said said said tool tool-moved
                           replay-ended session config-model commands session-titled))
           (check-equal? (acp-user-said-text (event-of evs 'user-said)) "what did we do")
-          ;; the newer of the two stored sessions, not the first one listed,
-          ;; and it comes with the name it was listed under
+          ;; The newer of this client's two, and it comes with the name it was
+          ;; listed under. Not the first one listed, and not the newest thing
+          ;; the agent knows about: session/list is scoped by PREFIX, so the
+          ;; fake answers with a session from a directory UNDERNEATH this one
+          ;; (another checkout's agent) that is newer than either. Adopting
+          ;; that is the bug. `fake-stored-new` also spells its cwd with a
+          ;; trailing slash — the same directory, said differently.
           (define s (event-of evs 'session))
           (check-equal? (acp-session-id s) "fake-stored-new")
           (check-equal? (acp-session-title s) "the last conversation"))))))
 
+  ;; The picker draws this list, so the foreign session must not be in it
+  ;; either: these are the ids, whole, and there are two of them.
   (test-case "the stored sessions are listed, newest first, with the current one marked"
     (with-stored-sessions
      (λ ()
@@ -156,6 +163,24 @@
                         '(#t #f))
           (check-equal? (hash-ref (car ss) 'title) "the last conversation")
           (check-true (string? (hash-ref (car ss) 'updatedAt))))))))
+
+  ;; With NOTHING but somebody else's stored, there is nothing to adopt: a
+  ;; fresh session, exactly as on a machine that has none at all.
+  (test-case "a boot that finds only other directories' sessions starts a new one"
+    (with-stored-sessions
+     (λ ()
+       (with-client
+        (λ (cl events log)
+          (acp-boot! cl)
+          (define evs (events-through events 'session-titled))
+          (check-equal? (event-names evs) boot-events)
+          (check-equal? (acp-session-id (event-of evs 'session)) "fake-session-1")
+          (check-equal? (acp-sessions cl) '())
+          ;; and the log says which of the two this was: a list emptied by the
+          ;; filter looks exactly like a machine with nothing stored
+          (check-true (string-contains? (get-output-string log) "none of them in")
+                      (get-output-string log)))))
+     #"foreign"))
 
   ;; An agent that is not running is not a list that is empty.
   (test-case "asking a dead agent for its sessions is a validation failure"
