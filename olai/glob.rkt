@@ -29,13 +29,15 @@
          racket/path
          racket/string)
 
+;; Everything below the grammar takes an ABSOLUTE pattern. Resolving one
+;; against the file that wrote it is the include form's business, not the
+;; pattern's — it is the same resolution a literal @include gets, and the
+;; expander does it once for both (lang/expander, include-absolute).
 (provide (contract-out
           [include-glob? (-> string? boolean?)]
           [include-glob-problem (-> string? (or/c string? #f))]
-          [glob-absolute (-> string? (or/c path? #f) path?)]
           [glob-dir (-> path? path?)]
-          [glob-expand (-> path? (listof path?))]
-          [glob-match-rel (-> string? path? string?)]))
+          [glob-expand (-> path? (listof path?))]))
 
 ;; A path the source wrote is a glob when it stars something. Nothing else
 ;; promotes one: a file really called `notes[1].rkt` is a file, and an
@@ -71,22 +73,10 @@
      "only the file name may be starred; the directory part of an @include is literal"]
     [else #f]))
 
-;; The pattern as an absolute path, resolved against the file that wrote it —
-;; the same resolution a literal @include gets, because a glob is relative for
-;; the same reason: a fragment spliced into two roots reads the same directory
-;; from either one.
-(define (glob-absolute rel base-dir)
-  (define dir (or base-dir (current-directory)))
-  (simplify-path (path->complete-path (build-path dir rel) dir)))
-
 ;; The one directory an absolute pattern reads. This is the thing to watch:
 ;; the files in it are what the pattern's answer is made of.
 (define (glob-dir pattern)
   (or (path-only pattern) pattern))
-
-(define (pattern-name pattern)
-  (define-values (_base name _dir?) (split-path pattern))
-  (path->string name))
 
 ;; `*` is any run of characters; everything else in the name is itself.
 (define (name-rx name)
@@ -110,29 +100,24 @@
 ;; here that is load-bearing rather than a convention: `.#2026-08.rkt` is the
 ;; lock file Emacs leaves beside a file it is editing, it is a dangling
 ;; symlink, and globbing it in would break an outline nobody had touched.
+;; Names are sorted as STRINGS and only then turned back into paths: within
+;; one directory the two orders are the same, and `sort #:key path->string`
+;; re-converts on both sides of every comparison. This runs on every staleness
+;; check (olai/store), so the allocation is not theoretical.
 (define (glob-expand pattern)
   (define dir (glob-dir pattern))
-  (define rx (name-rx (pattern-name pattern)))
+  (define rx (name-rx (path->string (file-name-from-path pattern))))
   (cond
     [(not (directory-exists? dir)) '()]
     [else
-     (sort (for*/list ([p (in-list (directory-list dir))]
-                       [name (in-value (path->string p))]
-                       #:unless (string-prefix? name ".")
-                       #:when (regexp-match? rx name)
-                       [full (in-value (build-path dir p))]
-                       #:when (file-exists? full))
-             full)
-           string<?
-           #:key path->string)]))
-
-;; What one match is CALLED: the path the source would have written for it, so
-;; an error about a matched file names it the way the outline names its
-;; siblings ("Daily/2026-01.rkt", not the whole absolute path).
-(define (glob-match-rel rel matched)
-  (define-values (base _name) (pattern-parts rel))
-  (define name (file-name-from-path matched))
-  (path->string (cond
-                  [(and base name) (build-path base name)]
-                  [name name]
-                  [else matched])))
+     (define names
+       (sort (for*/list ([p (in-list (directory-list dir))]
+                         [name (in-value (path->string p))]
+                         #:unless (string-prefix? name ".")
+                         #:when (regexp-match? rx name))
+               name)
+             string<?))
+     (for*/list ([name (in-list names)]
+                 [full (in-value (build-path dir name))]
+                 #:when (file-exists? full))
+       full)]))

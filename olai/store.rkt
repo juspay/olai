@@ -163,49 +163,64 @@
 
 (define empty-probe (probe (hash) (hash)))
 
-(define (file-stamp p)
-  (define full (simple-form-path p))
-  (and (file-exists? full)
-       (cons (file-or-directory-modify-seconds full #f (λ () #f))
-             (file-size full))))
+;; Both take a KEY — an absolute, simplified path string (path-key) — rather
+;; than a path: this runs over every watched file on every request, and the
+;; hash already holds the normalized form.
+(define (file-stamp key)
+  (define p (string->path key))
+  (and (file-exists? p)
+       (cons (file-or-directory-modify-seconds p #f (λ () #f))
+             (file-size p))))
+
+(define (glob-answer key)
+  (glob-expand (string->path key)))
 
 (define (take-probe paths globs)
-  (probe (for/hash ([p (in-list paths)]) (values (path-key p) (file-stamp p)))
-         (for/hash ([g (in-list globs)]) (values (path-key g) (glob-expand g)))))
+  (define (stamped xs f)
+    (for/hash ([x (in-list xs)])
+      (define k (path-key x))
+      (values k (f k))))
+  (probe (stamped paths file-stamp) (stamped globs glob-answer)))
 
 ;; Does everything still answer the way it did? An empty probe never does:
 ;; before the first successful load there is nothing to have changed, and that
 ;; is exactly the state a store has to keep trying to get out of.
 (define (probe-current? pr)
+  (define (all-agree? h f)
+    (for/and ([(k v) (in-hash h)]) (equal? v (f k))))
   (and (positive? (hash-count (probe-files pr)))
-       (for/and ([(k v) (in-hash (probe-files pr))])
-         (equal? v (file-stamp (string->path k))))
-       (for/and ([(k v) (in-hash (probe-globs pr))])
-         (equal? v (glob-expand (string->path k))))))
+       (all-agree? (probe-files pr) file-stamp)
+       (all-agree? (probe-globs pr) glob-answer)))
 
-;; A module reports only the includes it spliced directly, and only the globs
-;; it starred itself: a fragment's own includes were flattened before it
-;; exported `tasks`. Walk the graph so both sets cover every file the outline
-;; is built from and every directory it is still watching for more.
-(define (module-paths p export)
-  (with-handlers ([exn:fail? (λ (_e) '())])
-    (for/list ([s (in-list (dynamic-require
-                            `(file ,(path->string (simple-form-path p)))
-                            export))])
-      (simple-form-path (string->path s)))))
+;; What one module says it was built from: the files it spliced DIRECTLY, and
+;; the patterns it starred itself. A fragment's own includes were flattened
+;; before it exported `tasks`, which is why the graph is walked below rather
+;; than read off the root.
+;; -> (values (listof path) (listof path))
+(define (module-sources full)
+  (define mod `(file ,full))
+  (define (export name)
+    (with-handlers ([exn:fail? (λ (_e) '())])
+      (for/list ([s (in-list (dynamic-require mod name))])
+        (simple-form-path (string->path s)))))
+  (values (export 'includes) (export 'include-globs)))
 
-;; -> (values (listof path) (listof path)) — the files, then the patterns.
+;; Every file the outlines are built from, and every pattern they are still
+;; watching a directory for.
+;; -> (values (listof path) (listof path))
 (define (watch-set outlines)
   (define seen (make-hash))
   (define files '())
   (define globs '())
   (define (visit p)
-    (define k (path-key p))
+    (define full (simple-form-path p))
+    (define k (path->string full))
     (unless (hash-ref seen k #f)
       (hash-set! seen k #t)
-      (set! files (cons (simple-form-path p) files))
-      (set! globs (append (reverse (module-paths p 'include-globs)) globs))
-      (for ([q (in-list (module-paths p 'includes))]) (visit q))))
+      (set! files (cons full files))
+      (define-values (includes patterns) (module-sources k))
+      (set! globs (append (reverse patterns) globs))
+      (for ([q (in-list includes)]) (visit q))))
   (for ([o (in-list outlines)]) (visit (outline-path o)))
   (values (reverse files) (remove-duplicates (reverse globs) #:key path->string)))
 

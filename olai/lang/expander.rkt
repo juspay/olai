@@ -377,9 +377,9 @@
       (path->string name)
       (format "~a" p)))
 
-;; One file's top-level tasks, with the cycle guard around it. The two include
-;; spellings below differ in WHICH files they call this for, and in nothing
-;; else — a glob is not a second kind of include, it is a set of them.
+;; One file's top-level tasks, with the cycle guard around it. `rel` is what
+;; the error calls the file: the path the source wrote for a literal include,
+;; and the absolute path for a glob match, which the source never named.
 (define (load-include-file abs-path rel)
   (define abs* (path->string (simplify-path (string->path abs-path) #t)))
   (define stack (current-include-stack))
@@ -414,21 +414,19 @@
         (dynamic-require `(file ,abs*) 'tasks)))
     (values abs* tasks)))
 
-(define (load-include-tasks abs-path rel)
-  (define-values (abs* tasks) (load-include-file abs-path rel))
-  (include-splice #f (list abs*) tasks))
-
-;; A GLOB site: the files the pattern matched at expansion time, spliced flat
-;; and in the order they were matched in — exactly what the same number of
-;; literal @include lines in that order would have done. Zero matches is zero
-;; lines, which is a legal thing to write: `Daily/2027-*.rkt` on the first of
+;; ONE include site, however it was spelled: the files it named — one for a
+;; literal path, however many the pattern matched for a glob — spliced flat
+;; and in that order. A glob is not a second kind of include, it is a set of
+;; them, so there is not a second loader either. `pattern` is #f unless the
+;; site was a glob.
+;;
+;; Zero entries is a legal thing to write: `Daily/2027-*.rkt` on the first of
 ;; January names the files that year is about to have.
-(define (load-include-glob pattern entries)
-  (define loaded
-    (for/list ([e (in-list entries)])
-      (define-values (abs* tasks) (load-include-file (car e) (cdr e)))
-      (cons abs* tasks)))
-  (include-splice pattern (map car loaded) (append* (map cdr loaded))))
+(define (load-include-splice pattern entries)
+  (define-values (files taskss)
+    (for/lists (files taskss) ([e (in-list entries)])
+      (load-include-file (car e) (cdr e))))
+  (include-splice pattern files (append* taskss)))
 
 (define (rebuild-task tk kids)
   (struct-copy task tk [children kids]))
@@ -512,27 +510,28 @@
   (for ([t (in-list tasks)]) (walk t))
   h)
 
-;; What every include site in this module contributed, in source order: the
-;; files it spliced, then the patterns it found them with (a literal site has
-;; none). One walk for both — they are read off the same sites, and two walks
-;; is two chances for them to disagree about which sites there were.
-;; -> (values (listof string) (listof string))
-(define (collect-includes forms)
-  (define files '())
-  (define globs '())
+;; Every include site in this module, in source order.
+(define (include-sites forms)
+  (define sites '())
   (define (walk x)
     (cond
       [(include-splice? x)
-       (set! files (append (reverse (include-splice-files x)) files))
-       (let ([p (include-splice-pattern x)])
-         (when p (set! globs (cons p globs))))
+       (set! sites (cons x sites))
        (for-each walk (include-splice-tasks x))]
       [(task? x)
        (for-each walk (task-children x))]
       [else (void)]))
   (for-each walk forms)
-  (values (remove-duplicates (reverse files))
-          (remove-duplicates (reverse globs))))
+  (reverse sites))
+
+;; What those sites contributed: the files they spliced, then the patterns
+;; they found them with (a literal site has none). Read off one walk — two
+;; walks is two chances to disagree about which sites there were.
+;; -> (values (listof string) (listof string))
+(define (collect-includes forms)
+  (define sites (include-sites forms))
+  (values (remove-duplicates (append* (map include-splice-files sites)))
+          (remove-duplicates (filter values (map include-splice-pattern sites)))))
 
 (define-syntax (mirror stx)
   (syntax-parse stx
@@ -554,15 +553,20 @@
     [(string? src) (path-only (string->path src))]
     [else #f]))
 
+;; What an @include path names, wherever it is written. A pattern resolves the
+;; same way a file name does — relative to the DEFINING file, so a fragment
+;; spliced into two roots reads the same directory from either one — which is
+;; why both branches below go through here and not through two spellings of
+;; it.
+(define-for-syntax (include-absolute rel dir)
+  (define base (or dir (current-directory)))
+  (simplify-path (path->complete-path (build-path base rel) base)))
+
 (define-for-syntax (expand-literal-include stx rel dir)
-  (define full
-    (simplify-path
-     (path->complete-path
-      (if dir (build-path dir rel) (string->path rel))
-      (or dir (current-directory)))))
+  (define full (include-absolute rel dir))
   (unless (file-exists? full)
     (raise-syntax-error 'include (format "file not found: ~a" rel) stx))
-  #`(load-include-tasks #,(path->string full) #,rel))
+  #`(load-include-splice #f (list (cons #,(path->string full) #,rel))))
 
 ;; A GLOB is expanded HERE, once per compile, so the module graph is static
 ;; for the life of a load: what the pattern matched is what got required, and
@@ -581,16 +585,21 @@
   (define problem (include-glob-problem rel))
   (when problem
     (raise-syntax-error 'include problem stx))
-  (define pattern (glob-absolute rel dir))
+  (define pattern (include-absolute rel dir))
   (define gdir (glob-dir pattern))
   (unless (directory-exists? gdir)
     (raise-syntax-error 'include
                         (format "no such directory: ~a" (path->string gdir))
                         stx))
+  ;; A match names ITSELF in an error: the source wrote a pattern, not this
+  ;; file, and if it is gone by the time the require runs — a race, since the
+  ;; directory was read a moment ago — the absolute path is what a reader
+  ;; needs to go look.
   (define entries
     (for/list ([m (in-list (glob-expand pattern))])
-      #`(cons #,(path->string m) #,(glob-match-rel rel m))))
-  #`(load-include-glob #,(path->string pattern) (list #,@entries)))
+      (define s (path->string m))
+      #`(cons #,s #,s)))
+  #`(load-include-splice #,(path->string pattern) (list #,@entries)))
 
 (define-syntax (include stx)
   (syntax-parse stx
