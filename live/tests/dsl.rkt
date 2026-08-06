@@ -258,6 +258,24 @@
     (check-not-false e "a stream that beats never expanded")
     (check-says e "not a cadence"))
 
+  ;; Every form that names a declaration goes through the same door, so the
+  ;; rest of the vocabulary is the door being checked once per form rather than
+  ;; each message spelled out again.
+  (test-case "every form refuses a declaration nobody made"
+    (for ([use (in-list '("(live-connect nope #:cursor c)"
+                          "(live-item nope li \"k\")"
+                          "(stream-heartbeat nope)"))]
+          [who (in-list '("live-connect" "live-item" "stream-heartbeat"))]
+          [n (in-naturals)])
+      (define lines
+        (list "#lang racket/base"
+              "(require live/dsl)"
+              (format "(define (f c) ~a)" use)))
+      (define e (refusal (format "undeclared-~a.rkt" n) lines))
+      (check-not-false e use)
+      (check-points-at e (format "undeclared-~a.rkt" n) lines "nope")
+      (check-says e "nope: unbound live" who)))
+
   ;; A declaration is compile-time and has no runtime value at all. The error
   ;; for using one as an expression says which forms it IS for, because
   ;; "illegal use of syntax" tells an agent nothing it can act on.

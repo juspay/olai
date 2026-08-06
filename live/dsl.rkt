@@ -400,7 +400,7 @@
   (syntax-parse stx
     [(_ stream:id ...+ (~optional (~seq #:cursor cursor:expr) #:defaults ([cursor #'#f])))
      (for ([s (in-list (syntax->list #'(stream ...)))])
-       (live-lookup 'stream s 'live-connect "arguments"))
+       (live-lookup 'stream s 'live-connect "argument"))
      (tag stx #'(live-stream-attributes live-stream-path cursor))]))
 
 ;; (live-region region #:href href) -> attributes
