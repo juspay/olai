@@ -3,8 +3,8 @@
 # The runner discovers the recipe tagged [metadata("ci")] (exactly one across
 # this justfile and its submodules), expands its reachable dependency subgraph,
 # and fans every (recipe × platform) pair out as a pipeline node. Local
-# equivalent: `just ci`. Matches .github/workflows/ci.yml:
-#   nix build + binary smoke + unit tests + integration tests.
+# equivalent: `just ci`. Full DAG:
+#   nix build + binary smoke + unit tests + integration tests + e2e (linux).
 #
 # build is a single shared node (install + raco setup): concurrent raco pkg
 # install races on LOCKpkgs.rktd, and tests need coherent .zo (docs/hacking.md).
@@ -13,7 +13,7 @@
 set working-directory := '..'
 
 # Re-enter the flake devShell when a remote odu lane lacks racket/just on PATH.
-# Skipped when already inside the shell (GHA `nix develop -c just ci`, direnv).
+# Skipped when already inside the shell (`just ci` under direnv / nix develop).
 nix_shell := if env('IN_NIX_SHELL', '') != '' { '' } else { 'nix develop --accept-flake-config -c' }
 
 # Pipeline root: every recipe listed here becomes a (recipe × platform) node.
