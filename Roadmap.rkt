@@ -91,6 +91,47 @@ olai roadmap #project
         : Fix: the pass moved to htmx:afterSettle — one line, both
         : panes (apply() is document-wide; the sidebar renders outside
         : the #ol-live swap target and was never in the line of fire).
+        @done 2026-08-05
+    live view glitches #bug
+      : One disease behind them all: DOM that did not change is replaced
+      : anyway — full page loads on sidebar clicks, whole-container
+      : swaps on SSE. Seen: chat panel rebuilt by sidebar navigation;
+      : scroll jumps on live re-swap; selection/focus loss; CSS
+      : transition replay; click-vs-swap race; stale outline after
+      : sleep (the stream has no reconnect catch-up).
+      partial navigation
+        : Sidebar/crumb/permalink links hx-get the same URL with
+        : hx-target/hx-select #ol-live, morph swap, hx-push-url; the
+        : chat panel, sidebar, and skin live outside #ol-live and are
+        : never rebuilt. The plain href stays — no-JS and deep links
+        : keep working.
+      morph swaps
+        : Vendor idiomorph beside htmx+sse; outline swaps (navigation
+        : and SSE alike) become morphs keyed on the stable node ids.
+        : Kills scroll jump, selection/focus loss, transition replay,
+        : and the click-vs-swap race by construction; the afterSettle
+        : re-apply stays for genuinely new subtrees.
+      outline stream catch-up
+        : What chat got in #24, via the protocol: the snapshot gains a
+        : revision, events.rkt stamps it as the SSE id:, reconnects
+        : send Last-Event-ID, and a behind client gets one fresh
+        : outline-changed. Sleep, iOS tab suspension, network blips
+        : heal with zero client JS. The hub stays generic — ids are
+        : its vocabulary; what a revision MEANS stays the store's.
+      stream health indicator
+        : The user must know when they are reading a stale app. Two
+        : layers: htmx:sseOpen/sseClose for clean drops, and a
+        : heartbeat + client watchdog for half-dead connections (the
+        : outline stream grows the heartbeat chat already has). Quiet
+        : when live; subtle while reconnecting; the store's last-good
+        : banner vocabulary ("showing last known state") when the
+        : watchdog trips. Catch-up clears it on reconnect.
+      e2e coverage
+        : Pin the class dead: scroll survives a live re-swap; a text
+        : selection survives; chat DOM identity survives sidebar
+        : navigation; kill the connection, edit the file, reconnect —
+        : the outline catches up; the indicator shows stale while the
+        : stream is down and clears on recovery.
     0.6 micro-edits
       : Capture box + check-off from the browser (done status already in the
       : language + CLI). The phone loop closes: capture, complete, ask the
@@ -150,8 +191,10 @@ olai roadmap #project
         : Found by the e2e suite (PR #22, @skip scenario): serve answers
         : requests while the agent boots in its own thread, and boot
         : frames broadcast only to subscribers already on /events — a
-        : panel opened mid-boot never learns its session. Same family as
-        : the #19 boot-frame race; a fix should cover both.
+        : panel opened mid-boot never learns its session. Fixed by
+        : catch-up on connect: one frame constructor for live broadcast
+        : and replay (PR #24).
+        @done 2026-08-06
       mobile chat unusable #bug
         : On iPhone the chat panel is completely broken (reported
         : 2026-08-05). The panel is desktop-first: position fixed,
@@ -162,6 +205,7 @@ olai roadmap #project
         : reproduce in a phone-sized viewport, then fix. An e2e
         : scenario at mobile viewport should pin whatever the fix
         : establishes.
+        @done 2026-08-06
       tool-output folding
         : ACP tool-call frames (and similar chatter) collapse by default
         : in the chat panel; a toggle unfolds any of them on demand. The
@@ -213,12 +257,15 @@ olai roadmap #project
       : stays static per load, the watcher already re-reads the include
       : set.
     doing status
-      : A third state between open and done: `[~]` title sugar + `@doing`
-      : field (#:doing in the core), same desugar rules as [x]/@done.
-      : Rendered distinctly (pulsing/slanted pill); agenda gains a DOING
-      : group above TODAY; `olai doing TITLE|^anchor` flips it with
-      : the usual write safety; done clears doing. Would have replaced the
-      : "In progress" prose notes this roadmap has been faking.
+      : A third state between open and done: `[/]` title sugar (the
+      : Obsidian community standard for in-progress; [-] stays free for
+      : a future cancelled) + `@doing` field (#:doing in the core), same
+      : desugar rules as [x]/@done. Rendered distinctly (pulsing/slanted
+      : pill); agenda gains a DOING group above TODAY; `olai doing
+      : TITLE|^anchor` flips it with the usual write safety; done clears
+      : doing. Who/where lives in notes, not grammar — an orchestrator
+      : marks a task [/] and notes the terminal id under it.
+      @done 2026-08-06
     \@doc documents
       : Expand a node into a full document: a @doc field attaches a file,
       : rendered inline when the node is zoomed; one-line preview collapsed.
