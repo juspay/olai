@@ -2,7 +2,6 @@
 
 (require rackunit
          racket/set
-         racket/string
          (except-in olai/lang/expander #%module-begin)
          olai/calendar
          olai/dates)
@@ -75,15 +74,4 @@
   (test-case "shift-year-month"
     (check-equal? (shift-year-month "2026-08" -1) "2026-07")
     (check-equal? (shift-year-month "2026-01" -1) "2025-12")
-    (check-equal? (shift-year-month "2026-12" 1) "2027-01"))
-
-  (test-case "format-calendar plain"
-    (define cal
-      (calendar-for-month
-       (list (cal-item "2026-08-04" "X" "A > X" #f 'open #f))
-       (set)
-       "2026-08"))
-    (define s (format-calendar cal))
-    (check-true (string-contains? s "CALENDAR 2026-08") s)
-    (check-true (string-contains? s "2026-08-04") s)
-    (check-true (string-contains? s "X") s)))
+    (check-equal? (shift-year-month "2026-12" 1) "2027-01")))

@@ -100,9 +100,10 @@ needs the network (SSE + agent). Live with it, or open your laptop.
 
 ## STATUS
 
-Outline `#lang olai` + sexp core + agent CLI (`check` / `tree` JSON /
-`agenda` / `calendar` / `add` / `done` / `move` / `daily` / `ics` /
-`serve` / `css`). Done status, mirrors and `@include` composition are first class;
+Outline `#lang olai` + sexp core + agent CLI (`check` / `tree` / `agenda` /
+`calendar` / `add` / `done` / `move` / `daily` / `ics` / `serve` — all JSON but
+`ics` and `serve`; the human-facing plain output and the `css` dump are
+retired). Done status, mirrors and `@include` composition are first class;
 mirrors reach anchors anywhere in the loaded tree, fragments included. The
 human view is the web app served by `olai serve` — htmx, no auth (bind
 it to localhost or Tailscale). Every node has a permalink that zooms to
@@ -116,8 +117,7 @@ still writes nothing; there is no static HTML export. (Ancestor: srid/Tend.)
 
 The project tracks its own plan the same way it wants you to track yours:
 `Roadmap.rkt` at the repo root is a `#lang olai` outline, edited and
-committed like any other file. `olai tree Roadmap.rkt` (or `just tree
-Roadmap.rkt`) gives the JSON view.
+committed like any other file. `olai tree Roadmap.rkt` gives the JSON view.
 
 Track your own plan as a `#lang olai` outline wherever you like
 (`$OLAI_HOME`) — a private `Tasks.rkt` can `@include` the repo's
@@ -132,14 +132,11 @@ nix develop        # racket 9.2 + just; or install them yourself
 just install       # gregor + markdown, then --link olai/
 just build         # raco setup --pkgs olai (bytecode; test depends on it)
 just check         # validates $OLAI_HOME/*.rkt (unset: examples + Roadmap)
-just tree examples/Example.rkt   # JSON forest for agents
 just serve                       # $OLAI_HOME on http://127.0.0.1:8080
-just agenda
-just calendar --month 2026-08
-just daily                       # today's node in Daily/YYYY-MM.rkt
 just test                        # unit tests (in-process; builds first)
 just test-integration            # subprocess CLI + servers
 just test-all                    # both
+just ci                          # full CI DAG (nix + smoke + tests; odu root)
 just clean                       # drop olai/**/compiled
 just css-classes                 # regenerate olai/tests/classes.golden
 ```
@@ -156,8 +153,9 @@ to the bundled, pinned Claude Code adapter (`--set-default`); `nix develop`
 
 ## CLI (agents)
 
-Machine-readable contract (`--json`, exit codes, `add`): **docs/cli.md**.
-No ANSI. Humans use the web app.
+Machine-readable contract (JSON shapes, exit codes, `add`): **docs/cli.md**.
+No ANSI, no plain mode — the CLI is the agent surface and the write-safety
+layer, and it answers in JSON. Humans use the web app.
 
 ## HACKING
 

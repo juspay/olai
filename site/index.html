@@ -254,11 +254,12 @@ error messages:</p>
 
 <h2>Agents are the primary CLI users</h2>
 
-<p>Every command that can carry <code>--json</code> does. Errors are JSON on
-stderr in <code>--json</code> mode. Exit codes are contract: <b>0</b> ok,
+<p>They are the only ones. Every command replies in JSON — always, with or
+without <code>--json</code>, which is still accepted and does nothing — and
+errors are the error object on stderr. Exit codes are contract: <b>0</b> ok,
 <b>1</b> usage, <b>2</b> the outline said no, <b>3</b> file not found. JSON
 fields are append-only within a <code>version</code>. No ANSI, no terminal
-tree — the human view is the web app.</p>
+tree, no plain mode — the human view is the web app.</p>
 
 <pre><code>$ olai tree examples/Example.rkt
 {
@@ -289,7 +290,7 @@ renaming the node or any ancestor. The web view addresses nodes by it.</p>
 <table>
   <tr><th>command</th><th>what it does</th></tr>
   <tr><td><code>check</code></td><td>validate the module(s); the language is the only validator</td></tr>
-  <tr><td><code>tree</code></td><td>the task forest, JSON-only</td></tr>
+  <tr><td><code>tree</code></td><td>the task forest</td></tr>
   <tr><td><code>agenda</code></td><td>overdue / today / upcoming, merged across files</td></tr>
   <tr><td><code>calendar</code>, <code>ics</code></td><td>dated tasks by day; feed for your calendar app</td></tr>
   <tr><td><code>add</code>, <code>done</code>, <code>move</code>, <code>daily</code></td><td>the write path — auto-commits when the file's dir is a git work tree</td></tr>

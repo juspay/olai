@@ -26,8 +26,7 @@
          month-grid-cells
          parse-year-month
          shift-year-month
-         format-year-month
-         format-calendar)
+         format-year-month)
 
 ;; done:   the stored field, #f | #t | ISO timestamp (what JSON serializes)
 ;; status: what that MEANS — 'open | 'done, derived once (lang/expander)
@@ -139,27 +138,3 @@
   (if (zero? rem)
       cells
       (append cells (make-list (- 7 rem) #f))))
-
-(define (format-calendar cal-hash)
-  (define lines
-    (cons
-     (format "CALENDAR ~a" (hash-ref cal-hash 'month))
-     (append*
-      (for/list ([d (in-list (hash-ref cal-hash 'days))])
-        (define date (hash-ref d 'date))
-        (define node? (hash-ref d 'day_node #f))
-        (define head
-          (string-append date (if node? "  (day notes)" "")))
-        (cons head
-              (for/list ([it (in-list (hash-ref d 'items))])
-                (define mark
-                  (case (cal-item-status it)
-                    [(done) "  [x] "]
-                    [else "  - "]))
-                (string-append
-                 mark (cal-item-title it)
-                 "  [" (cal-item-date it) "]"
-                 (if (non-empty-string? (cal-item-breadcrumb it))
-                     (string-append "\n         " (cal-item-breadcrumb it))
-                     ""))))))))
-  (string-join lines "\n"))

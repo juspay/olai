@@ -159,6 +159,7 @@ olai roadmap #project
         : Once the web app is the daily surface, retire the human-facing
         : CLI commands; the CLI remains as the agent tool surface and
         : write-safety layer.
+        @done 2026-08-05
     architecture as data
       : Half-mechanize the Hickey/Lowy lenses: each module carries an `arch`
       : submodule declaring its volatility clock and owned ambient
