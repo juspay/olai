@@ -35,8 +35,22 @@ AfterAll(async () => {
   if (browser) await browser.close();
 });
 
-Before(async function () {
-  await this.boot(browser);
+// What the fake agent had stored when it woke up. A property of the machine,
+// not of anything a client says (fake-acp-agent.rkt), so it is a property of
+// the server a scenario boots — and a tag is how a scenario asks for one.
+// "foreign" is only other directories' conversations; anything else is two of
+// this directory's own plus a newer foreign one.
+const STORED_SESSIONS = {
+  "@stored-sessions": "1",
+  "@foreign-sessions": "foreign",
+};
+
+Before(async function ({ pickle }) {
+  const env = {};
+  for (const { name } of pickle.tags) {
+    if (name in STORED_SESSIONS) env.OLAI_FAKE_ACP_STORED = STORED_SESSIONS[name];
+  }
+  await this.boot(browser, env);
 });
 
 // The server's own output is the first thing worth reading when a scenario

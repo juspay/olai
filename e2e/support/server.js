@@ -42,11 +42,16 @@ const BOOT_TIMEOUT_MS = 20_000;
 
 const URL_RX = /(http:\/\/[\d.]+:\d+)/;
 
-/** Boot a server on `dir`. Resolves once it says which port it took. */
-export async function startServer(dir) {
+/** Boot a server on `dir`. Resolves once it says which port it took.
+ *
+ *  `env` is what this scenario wants the agent to have woken up to — what the
+ *  machine had stored, and nothing else. It is a boot-time fact for the same
+ *  reason it is one for a real agent: no step can put a conversation in the
+ *  past after the panel has already asked what is there. */
+export async function startServer(dir, env = {}) {
   const child = spawn(OLAI_BIN, ["serve", "--port", "0", dir], {
     cwd: dir,
-    env: serverEnv(),
+    env: { ...serverEnv(), ...env },
     stdio: ["ignore", "pipe", "pipe"],
   });
 

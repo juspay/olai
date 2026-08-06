@@ -18,6 +18,20 @@ When("I add the title {string} to the outline", async function (title) {
   await this.append(`${title}\n`);
 });
 
+// Nesting is two spaces (docs/syntax.md), so a child is the parent's line
+// again with two more of them, on the line after it.
+When(
+  "I add the title {string} under {string} in the outline",
+  async function (title, parent) {
+    const lines = this.outline.split("\n");
+    const at = lines.findIndex((l) => l.trim() === parent);
+    assert.notEqual(at, -1, `${parent} is not in the outline`);
+    const indent = " ".repeat(lines[at].search(/\S/) + 2);
+    lines.splice(at + 1, 0, `${indent}${title}`);
+    await this.rewrite(lines.join("\n"));
+  },
+);
+
 // By its own line, at whatever depth it sits: a title is unique in the
 // fixture, so "the line that says this" means one line.
 When("I remove the title {string} from the outline", async function (title) {

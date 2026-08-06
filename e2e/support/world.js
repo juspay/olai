@@ -26,7 +26,7 @@ export class OlaiWorld extends World {
   /** Temp outline + server + a fresh browser context. `browser` is the run's
    *  (hooks.js owns it): a context per scenario is what makes localStorage —
    *  the fold state, the theme, the chat panel's open bit — start empty. */
-  async boot(browser) {
+  async boot(browser, env = {}) {
     this.dir = await fs.mkdtemp(path.join(os.tmpdir(), "olai-e2e-"));
     this.outlinePath = path.join(this.dir, "Tasks.rkt");
     await this.rewrite(FIXTURE);
@@ -34,7 +34,7 @@ export class OlaiWorld extends World {
     // The context does not depend on the URL, and the racket boot is the
     // second the scenario actually waits for; it may as well cover both.
     const [server, context] = await Promise.all([
-      startServer(this.dir),
+      startServer(this.dir, env),
       browser.newContext({ viewport: VIEWPORT }),
     ]);
     this.server = server;
@@ -79,6 +79,32 @@ export class OlaiWorld extends World {
   async today() {
     const res = await fetch(this.url("/api/agenda"));
     return (await res.json()).today;
+  }
+
+  // ---- the agent's boot ---------------------------------------------------
+
+  /** Wait until the agent's boot frames have landed ON THE SERVER.
+   *
+   *  `serve` prints its URL and starts answering while the agent is still
+   *  waking up in its own thread, so the first second of a server's life is a
+   *  panel that does not know its model, its conversation or its commands yet.
+   *  A page opened in that window never learns: the frames are broadcast to
+   *  whoever is listening, and it was not born yet (see the @skip scenario in
+   *  features/sessions.feature).
+   *
+   *  The command list is the LAST boot frame — the same signal Roadmap.rkt
+   *  names for the racket suite's version of this race — so the page carrying
+   *  a non-empty one is the agent being all the way up. */
+  async waitForAgent(timeout = 20_000) {
+    const deadline = Date.now() + timeout;
+    for (;;) {
+      const html = await (await fetch(this.url("/"))).text();
+      if (/data-commands="\[\{/.test(html)) return;
+      if (Date.now() > deadline) {
+        throw new Error(`the agent was still waking up after ${timeout}ms`);
+      }
+      await new Promise((r) => setTimeout(r, 50));
+    }
   }
 
   // ---- addressing a node --------------------------------------------------

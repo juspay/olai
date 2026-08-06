@@ -128,7 +128,13 @@ panel's geometry.
   empty every time.
 * The agent is ALWAYS `olai/tests/integration/fake-acp-agent.rkt`
   (`e2e/support/server.js` sets `OLAI_ACP_AGENT`). No real Claude Code
-  is ever spawned by a test.
+  is ever spawned by a test. What it woke up with is a scenario TAG —
+  `@stored-sessions`, `@foreign-sessions` — because stored
+  conversations are a fact about the machine, not something a step can
+  arrange later (`e2e/support/hooks.js`).
+* `serve` answers requests while the agent is still booting, so a
+  scenario about what the panel comes up KNOWING says `Given the agent
+  has woken up` first (`world.waitForAgent`).
 * `@skip` is the regression harness for known-broken behaviour: the
   scenario is written and excluded. `CUCUMBER_TAGS=@skip just e2e` runs
   exactly those. `CUCUMBER_RETRY` (CI sets 1) and `CUCUMBER_PARALLEL`

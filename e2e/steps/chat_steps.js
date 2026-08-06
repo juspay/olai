@@ -5,9 +5,16 @@
 // pretending to test something slower than it is.
 
 import assert from "node:assert/strict";
-import { Then, When } from "@cucumber/cucumber";
+import { Given, Then, When } from "@cucumber/cucumber";
 
 import { SLOW_PROMPT } from "../support/server.js";
+
+// Before the page is opened, not after: what the panel comes up KNOWING is
+// server-rendered, and a page opened mid-boot misses the frames that would
+// have told it (world.waitForAgent).
+Given("the agent has woken up", async function () {
+  await this.waitForAgent();
+});
 
 // The panel's own state, as a selector: matched means open, no match means
 // closed. `detached` is how playwright spells "nothing matches this", which is
@@ -62,6 +69,74 @@ Then("the chat panel is busy", async function () {
 
 Then("the chat panel is idle", async function () {
   await this.page.locator(BUSY).waitFor({ state: "detached" });
+});
+
+// ---- past conversations ---------------------------------------------------
+//
+// The picker is drawn by chat.js from what the server asks the agent, every
+// time it is opened — a cached list would be wrong the moment another client
+// wrote a session. Rows are .ol-chat-cmd, the same shape the slash-command
+// popover uses; the title is the name a conversation goes by.
+
+const PICKER = "#ol-chat-spop";
+const PICKER_ROW = `${PICKER} .ol-chat-cmd`;
+
+When("I press the sessions button", async function () {
+  await this.page.locator("#ol-chat [data-chat-sessions]").click();
+  await this.page.locator(PICKER).waitFor({ state: "visible" });
+});
+
+When("I pick the conversation {string}", async function (title) {
+  await this.page
+    .locator(PICKER_ROW, { hasText: title })
+    .first()
+    .click();
+});
+
+Then("the picker offers {string}", async function (title) {
+  await this.page
+    .locator(PICKER_ROW, { hasText: title })
+    .first()
+    .waitFor({ state: "visible" });
+});
+
+// The picker is open and drawn by the time this runs (pressing the button
+// waits for it), so a row that is not there now is not coming.
+Then("the picker does not offer {string}", async function (title) {
+  assert.equal(
+    await this.page.locator(PICKER_ROW, { hasText: title }).count(),
+    0,
+    `${title} is in the picker`,
+  );
+});
+
+Then("the picker says there are no past chats here", async function () {
+  await this.page
+    .locator(PICKER)
+    .getByText("no past chats here")
+    .waitFor({ state: "visible" });
+});
+
+// Which conversation the panel is in. The agent is what knows its name, so it
+// arrives as a frame — and an unnamed conversation is an empty line, which the
+// sheet takes away entirely (so it is read, not waited for as a visible thing).
+Then("the chat is titled {string}", async function (title) {
+  await this.page
+    .locator("#ol-chat-session")
+    .filter({ hasText: title })
+    .waitFor();
+});
+
+Then("the chat is not titled {string}", async function (title) {
+  const line = this.page.locator("#ol-chat-session");
+  await line.waitFor({ state: "attached" });
+  assert.notEqual((await line.textContent()).trim(), title);
+});
+
+// Nothing was replayed into it: this conversation is new, not one adopted from
+// somewhere else.
+Then("the transcript is empty", async function () {
+  assert.equal(await this.page.locator("#ol-chat-body .ol-chat-turn").count(), 0);
 });
 
 // ---- geometry -------------------------------------------------------------
