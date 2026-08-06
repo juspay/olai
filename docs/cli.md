@@ -130,7 +130,7 @@ Multiple files:
 }
 ```
 
-Two `anchors` objects, two scopes, and the nesting says which: the one inside a file entry is what THAT file declares (`anchor_count` counts it), and the top-level one is the whole set's — where a `{"mirror":"agent"}` in any of these files points, and, via each entry's `file`, which file a write to it edits.
+Two `anchors` objects, two scopes, and the nesting says which: the one inside a file entry is what THAT file's tree declares — its own and its `@include` fragments' (`anchor_count` counts them) — and the top-level one is the whole set's, which is where a `{"mirror":"agent"}` in any of these files points, and, via each entry's `file`, which file a write to it edits.
 
 `date` / `description` are raw strings or `null` (Markdown is not interpreted here). `doc` is the `@doc` path the outline wrote, **verbatim** — relative to the node's **defining** file (the `file` key, when it differs from the loaded one), never resolved and never rendered: the document is a file you can already read, diff and edit. `done` and `doing` are the stored marks: `null` (not in that state), `true` (marked, no timestamp), or an ISO timestamp string. A node carries at most one of them — the language rejects both. `status` is what they MEAN — `"open"`, `"doing"` or `"done"` — and is the one to switch on: it is where a future state would show up, while `done` / `doing` keep their type. `id` is `null` or the anchor string. `tags` is always an array.
 

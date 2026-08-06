@@ -29,6 +29,7 @@
                            [includes list?])]
           [struct linked ([outlines (listof outline?)]
                           [anchors hash?])]
+          [empty-linked linked?]
           [struct load-error ([message string?]
                               [file (or/c path? string? #f)]
                               [line (or/c exact-positive-integer? #f)]
@@ -58,6 +59,11 @@
 ;;   outlines : (listof outline), in load order, keys minted
 ;;   anchors  : hash id -> task, over every file at once
 (struct linked (outlines anchors) #:transparent)
+
+;; No files loaded yet — what a store serves before its first load. Named here
+;; rather than built by the caller, so what a linked set CARRIES stays this
+;; module's to change (an edge index is the next thing to go in one).
+(define empty-linked (linked '() (hash)))
 
 ;; A load failure, with the srcloc of the offending form (CLAUDE.md: errors
 ;; carry file:line:col). line/col may be #f when the exn had no source.
@@ -197,17 +203,6 @@
         [else x])))
   (walk-forest tasks #f '()))
 
-;; Anchors index the minted trees, not the module's originals: a mirror site
-;; renders the node it finds here, and it must carry the same key.
-(define (tree-anchors tasks)
-  (define h (make-hash))
-  (define (walk x)
-    (when (task? x)
-      (when (task-id x) (hash-set! h (task-id x) x))
-      (for ([c (in-list (task-children x))]) (walk c))))
-  (for ([t (in-list tasks)]) (walk t))
-  h)
-
 ;; ---- linking --------------------------------------------------------------
 ;;
 ;; Loading is per file; LINKING is what makes the files a set. Both steps here
@@ -233,4 +228,6 @@
   (for/list ([o (in-list outs)])
     (define tasks
       (mint-task-keys (outline-tasks o) #:label (λ (f) (key-label base f))))
-    (outline (outline-path o) tasks (tree-anchors tasks) (outline-includes o))))
+    ;; Anchors index the MINTED trees, not the module's originals: a mirror
+    ;; site renders the node it finds here, and it must carry the same key.
+    (outline (outline-path o) tasks (anchors-of tasks) (outline-includes o))))

@@ -69,6 +69,7 @@
          tag-rx
          valid-anchor-id?
          check-task-graph
+         anchors-of
          #%app #%datum #%top #%top-interaction
          quote)
 
@@ -486,17 +487,18 @@
   (check-task-graph flat)
   (values flat includes))
 
-(define (build-anchors-hash tasks)
+;; id -> the node that declares it, over whatever forest you hand it: a
+;; module's own tasks (the `anchors` it exports), one file's minted trees
+;; (olai/load), or every loaded file at once (olai/lang/link). One walk,
+;; because "which node is ^agent" is one question — only the forest differs.
+;; A mirror site declares nothing, and is not a task, so it is skipped.
+(define (anchors-of tasks)
   (define h (make-hash))
   (define (walk x)
-    (cond
-      [(task? x)
-       (define id (task-id x))
-       (when id (hash-set! h id x))
-       (for ([c (in-list (task-children x))])
-         (walk c))]
-      [else (void)]))
-  (for ([t (in-list tasks)]) (walk t))
+    (when (task? x)
+      (when (task-id x) (hash-set! h (task-id x) x))
+      (for-each walk (task-children x))))
+  (for-each walk tasks)
   h)
 
 (define (collect-include-paths forms)
@@ -624,5 +626,5 @@
         (define raw-forms (list form ...))
         (define-values (tasks includes)
           (finalize-tasks raw-forms #,(syntax-source-path stx)))
-        (define anchors (build-anchors-hash tasks))
+        (define anchors (anchors-of tasks))
         (void))]))

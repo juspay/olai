@@ -21,8 +21,7 @@
          (only-in olai/paths dir-roots))
 
 (provide (struct-out located)
-         locate
-         resolution-outline)
+         locate)
 
 ;; file  : path of the file that DEFINES the node (what a write must edit)
 ;; index : 0-based index of its title line in that file
@@ -62,9 +61,9 @@
 ;; checking it off from either side has to reach the file that defines it.
 ;;
 ;; So: the targeted outline, unless the spec is an anchor that outline cannot
-;; see — then the sibling root that declares it. `locate` does the rest
-;; unchanged; it already writes to a node's own `task-file`, which is the same
-;; routing @include has always had.
+;; see — then the sibling root that declares it. Part of `locate` rather than a
+;; step before it: "where is this spec" has one answer, and a caller that had
+;; to remember to widen first is a caller that can forget.
 (define (resolution-outline out spec)
   (define a (anchor-spec spec))
   (cond
@@ -94,7 +93,12 @@
 
 ;; -> located; raises exn:fail naming file:line for every candidate when the
 ;; spec does not pick out exactly one node.
-(define (locate out spec)
+;;
+;; `out` is the outline the command NAMED; the node may be in another file
+;; either way — an @include fragment of this one, or (for an anchor) the
+;; sibling root that declares it (resolution-outline above).
+(define (locate out0 spec)
+  (define out (resolution-outline out0 spec))
   (define hits
     (append*
      (for/list ([f (in-list (candidate-files out spec))])

@@ -27,8 +27,7 @@
 ;; the same lookup against the same hash.
 
 (require racket/contract
-         (except-in olai/lang/expander #%module-begin)
-         olai/lang/walk)
+         (except-in olai/lang/expander #%module-begin))
 
 (provide (contract-out
           [link-anchors (-> (listof list?) hash?)]))
@@ -47,12 +46,6 @@
 (define (link-anchors forests)
   (define roots (apply append forests))
   (check-task-graph roots #:scope set-scope)
-  (anchor-index roots))
-
-;; The index the whole set shares. Built after the check, so a duplicate is an
-;; error rather than a silent overwrite of one node by another.
-(define (anchor-index roots)
-  (fold-tasks roots
-              (λ (tk _path acc)
-                (if (task-id tk) (hash-set acc (task-id tk) tk) acc))
-              (hash)))
+  ;; The index is built AFTER the check, so a duplicate is an error rather
+  ;; than one node silently overwriting another.
+  (anchors-of roots))

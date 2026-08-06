@@ -80,7 +80,7 @@
 (define (snapshot-outlines snap) (linked-outlines (snapshot-linked snap)))
 (define (snapshot-anchors snap) (linked-anchors (snapshot-linked snap)))
 
-(define empty-snapshot (snapshot (linked '() (hash)) '() (hash) (hash) '()))
+(define empty-snapshot (snapshot empty-linked '() (hash) (hash) '()))
 
 ;; probe : hash path -> (cons mtime size) | #f, for cheap staleness checks
 ;; rev   : bumped by every reload, so "did anything happen?" is a comparison

@@ -128,6 +128,9 @@
 ;; `anchors` stays what it always was: the anchors that file declares.
 (define (linked->jsexpr lk)
   (define entries (linked-outlines lk))
+  ;; The one file, when there is exactly one: both the shape below and the
+  ;; index above turn on it, and asking twice is two places to disagree.
+  (define only (and (= (length entries) 1) (car entries)))
   (define (one o)
     (outline->jsexpr (outline-path o) (outline-tasks o) (outline-anchors o)
                      #:includes (outline-includes o)))
@@ -137,12 +140,9 @@
   ;; again on every anchor would be noise (the rule tasks follow, above).
   (define set-anchors
     (anchors->jsexpr (linked-anchors lk)
-                     #:root-file (and (= (length entries) 1)
-                                      (outline-path (car entries)))))
-  (if (= (length entries) 1)
-      (hash-set* (one (car entries))
-                 'version json-model-version
-                 'anchors set-anchors)
+                     #:root-file (and only (outline-path only))))
+  (if only
+      (hash-set* (one only) 'version json-model-version 'anchors set-anchors)
       (hash 'version json-model-version
             'files (map one entries)
             'anchors set-anchors)))

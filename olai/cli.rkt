@@ -76,22 +76,19 @@
   (define raw (if (null? file-args) (list (run-op json? default-file)) file-args))
   (map (λ (p) (resolve-path p json?)) raw))
 
-(define (load-outline path json?)
-  (match (try-load-outline path)
-    [(outline _p tasks anchors includes) (values tasks anchors includes)]
-    [(load-error msg src line col)
-     (die exit-validation
-          (if json?
-              msg
-              (format "failed to load ~a\n~a" path msg))
-          #:json? json?
-          #:file src
-          #:line line
-          #:col col)]))
-
-(define (load-tasks path json?)
-  (define-values (tasks _anchors _includes) (load-outline path json?))
-  tasks)
+;; The one way a load failure ends a command: the four fields it already
+;; carries, in the mode the command answers in. `what` is what the plain-text
+;; surface calls the thing that would not load — the two that speak plain
+;; (`ics`, `serve`) say so before the message.
+(define (die-load-error err json? what)
+  (die exit-validation
+       (if json?
+           (load-error-message err)
+           (format "failed to load ~a\n~a" what (load-error-message err)))
+       #:json? json?
+       #:file (load-error-file err)
+       #:line (load-error-line err)
+       #:col (load-error-col err)))
 
 ;; The files as a linked SET — which is what the read commands are given, and
 ;; what an anchor's scope is (olai/lang/link). A set that does not link is a
@@ -100,20 +97,12 @@
 (define (link-or-die paths json?)
   (define outs
     (for/list ([path (in-list paths)])
-      (define-values (tasks anchors includes) (load-outline path json?))
-      (outline path tasks anchors includes)))
+      (define r (try-load-outline path))
+      (when (load-error? r) (die-load-error r json? path))
+      r))
   (define lk (link-outlines outs))
   (when (load-error? lk)
-    (die exit-validation
-         (if json?
-             (load-error-message lk)
-             (format "failed to load ~a\n~a"
-                     (or (load-error-where lk) "the outlines")
-                     (load-error-message lk)))
-         #:json? json?
-         #:file (load-error-file lk)
-         #:line (load-error-line lk)
-         #:col (load-error-col lk)))
+    (die-load-error lk json? (or (load-error-where lk) "the outlines")))
   lk)
 
 ;; What a query reads: one (file . tasks) per outline, linked first so a
@@ -125,23 +114,34 @@
 (define (today-iso)
   (today-iso-string))
 
+;; What one file's verdict SAYS, as the fields both shapes carry it in. Two
+;; shapes, one set of facts: the single-file reply is an envelope around these
+;; and a file's entry in the multi-file array is these plus its own `ok`.
+(define (file-facts path out)
+  (append
+   (list 'file (path->string path)
+         'tasks (count-tasks (outline-tasks out))
+         'anchors (hash-count (outline-anchors out))
+         'mirrors (count-mirrors (outline-tasks out)))
+   ;; The @include list rides along only when the file has one — an absent
+   ;; key and an empty list are not the same answer.
+   (if (null? (outline-includes out))
+       '()
+       (list 'includes (for/list ([p (in-list (outline-includes out))])
+                         (hash 'file p))))))
+
+(define (load-error->object err)
+  (error-object (load-error-message err)
+                #:file (load-error-file err)
+                #:line (load-error-line err)
+                #:col (load-error-col err)))
+
 (define (cmd-check paths)
+  ;; Each file on its own terms, then the SET.
   (define loaded
     (for/list ([path (in-list paths)]) (cons path (try-load-outline path))))
-  (define results
-    (for/list ([e (in-list loaded)])
-      (match (cdr e)
-        [(outline _p tasks anchors includes)
-         (list 'ok (car e)
-               (count-tasks tasks)
-               (hash-count anchors)
-               (count-mirrors tasks)
-               includes)]
-        [(load-error msg src line col)
-         (list 'error (car e) msg src line col)])))
-  (define any-bad?
-    (for/or ([r (in-list results)]) (eq? (first r) 'error)))
-  ;; Every file may parse and the SET still not link: a `*mirror` naming
+  (define any-bad? (for/or ([e (in-list loaded)]) (load-error? (cdr e))))
+  ;; Every file may parse and the set still not link: a `*mirror` naming
   ;; nothing anywhere, an `^anchor` two of them declare. That failure belongs
   ;; to no single file, so in the multi-file shape it is the reply's own
   ;; `error` (with the file:line:col of the offending form, as always) rather
@@ -151,62 +151,28 @@
     (and (not any-bad?)
          (let ([lk (link-outlines (map cdr loaded))])
            (and (load-error? lk) lk))))
-  ;; The @include list rides along only when the file has one — an absent key
-  ;; and an empty list are not the same answer.
-  (define (with-includes h includes)
-    (if (null? includes)
-        h
-        (hash-set h 'includes
-                  (for/list ([p (in-list includes)]) (hash 'file p)))))
-  ;; A load-error, as the object every JSON reply carries one in.
-  (define (error-hash msg src line col)
-    (hash 'file (nullish (and src (if (path? src) (path->string src) src)))
-          'line (nullish line)
-          'col (nullish col)
-          'message msg))
   (cond
     [(= (length paths) 1)
-     (match (first results)
-       [(list 'ok path n ac mc includes)
-        (when link-err
-          (die exit-validation (load-error-message link-err) #:json? #t
-               #:file (load-error-file link-err)
-               #:line (load-error-line link-err)
-               #:col (load-error-col link-err)))
-        (write-json-stdout
-         (with-includes (ok-hash 'file (path->string path)
-                                 'tasks n
-                                 'anchors ac
-                                 'mirrors mc)
-                        includes))]
-       [(list 'error path msg src line col)
-        (die exit-validation msg #:json? #t #:file src #:line line #:col col)])]
+     (match-define (cons path r) (car loaded))
+     (when (load-error? r) (die-load-error r #t path))
+     (when link-err (die-load-error link-err #t path))
+     (write-json-stdout (apply ok-hash (file-facts path r)))]
     [else
      (define files
-       (for/list ([r (in-list results)])
-         (match r
-           [(list 'ok path n ac mc includes)
-            (with-includes (hash 'file (path->string path)
-                                 'ok #t
-                                 'tasks n
-                                 'anchors ac
-                                 'mirrors mc)
-                           includes)]
-           [(list 'error path msg src line col)
-            (hash 'file (path->string path)
-                  'ok #f
-                  'error (error-hash msg src line col))])))
+       (for/list ([e (in-list loaded)])
+         (match-define (cons path r) e)
+         (if (load-error? r)
+             (hash 'file (path->string path)
+                   'ok #f
+                   'error (load-error->object r))
+             (apply hash 'ok #t (file-facts path r)))))
      (define reply
        (hash 'version json-reply-version
              'ok (and (not any-bad?) (not link-err))
              'files files))
      (write-json-stdout
       (if link-err
-          (hash-set reply 'error
-                    (error-hash (load-error-message link-err)
-                                (load-error-file link-err)
-                                (load-error-line link-err)
-                                (load-error-col link-err)))
+          (hash-set reply 'error (load-error->object link-err))
           reply))
      (when (or any-bad? link-err) (exit exit-validation))]))
 

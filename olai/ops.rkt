@@ -123,12 +123,11 @@
              (load-error-message r)))
   r)
 
-;; Where the node a command named actually is. The file it targeted answers
-;; for a title; an `^anchor` is a name the whole loaded set shares, so the
-;; answer may come from the file that DECLARES it — and the write lands there
-;; (olai/resolve), the same routing @include has always had.
+;; Where the node a command named actually is — which may be another file:
+;; an @include fragment, or the sibling root that declares the `^anchor`
+;; (olai/resolve). The write lands wherever that is.
 (define (locate-in-set root-path spec)
-  (locate (resolution-outline (load-outline-or-fail root-path) spec) spec))
+  (locate (load-outline-or-fail root-path) spec))
 
 (define (existing-file path)
   (define full (simple-form-path (path->complete-path path)))
