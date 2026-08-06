@@ -27,6 +27,10 @@ compiled/
 # leaves behind is nix's business, not the repo's.
 /acp/node_modules/
 
+# The e2e harness's deps are a derivation (e2e/default.nix); `just e2e`
+# symlinks them here so ESM resolution can find them.
+/e2e/node_modules
+
 /.direnv
 
 # Agent scratch worktrees

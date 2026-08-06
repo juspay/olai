@@ -258,6 +258,9 @@ olai serve http://127.0.0.1:8080 files: /.../examples/Example.rkt
 ```
 
 - `--port N` — default `8080`. `0` binds a free port and logs which one.
+  That startup line is a contract: the e2e harness reads the port back
+  out of it (`e2e/support/server.js`), which is how a scenario gets a
+  server nobody else can collide with.
 - `--bind ADDR` — default `127.0.0.1`. `--bind ""` listens on all interfaces.
 - **No auth.** The network is the auth: put it behind Tailscale or Caddy.
 

@@ -22,7 +22,7 @@ nix_shell := if env('IN_NIX_SHELL', '') != '' { '' } else { 'nix develop --accep
 [macos]
 [parallel]
 [metadata("ci")]
-default: smoke test test-integration
+default: smoke test test-integration e2e
 
 # One install + raco setup per lane — funnel every racket test through this.
 build:
@@ -34,7 +34,7 @@ nix:
 
 # Packaged binary can load and check committed outlines.
 smoke: nix
-    ./result/bin/olai check examples/Example.rkt Roadmap.rkt
+    ./result/bin/olai check examples/Example.rkt Roadmap.rkt e2e/fixtures/Tasks.rkt
 
 # Unit tests: in-process (olai/tests/*.rkt).
 test: build
@@ -43,3 +43,25 @@ test: build
 # Integration tests: subprocess CLI + real servers (olai/tests/integration/).
 test-integration: build
     {{ nix_shell }} raco test -j {{ num_cpus() }} olai/tests/integration/
+
+# Its own devShell (node + the browser), so the prefix here is not nix_shell —
+# and its own node in the DAG, never part of `test`. It calls the RUNNER, not
+# `just e2e`: that recipe builds first, and a lane body that rebuilt would take
+# the pkg lock while the other lanes are reading .zo (see the header).
+#
+# CUCUMBER_RETRY is the CI-only budget for a browser that lost a frame on a
+# loaded runner; a developer sees the first failure instead. CUCUMBER_PARALLEL
+# is small on purpose: two racket test lanes are already running beside this
+# one, each with -j num_cpus().
+
+# Browser journeys: cucumber + playwright, one `olai serve` per scenario.
+[linux]
+e2e: build
+    CUCUMBER_RETRY=1 CUCUMBER_PARALLEL=4 nix develop .#e2e --accept-flake-config -c just e2e-run
+
+# The browser bundle is nixpkgs' (playwright-driver), and only its Linux one
+# is exercised here: a second browser to keep trusting buys no coverage the
+# racket lanes do not already have on macOS.
+[macos]
+e2e:
+    @echo "e2e: linux only (see ci/mod.just)"

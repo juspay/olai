@@ -135,6 +135,7 @@ just serve                       # $OLAI_HOME on http://127.0.0.1:8080
 just test                        # unit tests (in-process; builds first)
 just test-integration            # subprocess CLI + servers
 just test-all                    # both
+just e2e                         # browser journeys (cucumber + playwright)
 just ci                          # full CI DAG (nix + smoke + tests; odu root)
 just clean                       # drop olai/**/compiled
 just css-classes                 # regenerate olai/tests/classes.golden

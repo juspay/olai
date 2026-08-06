@@ -91,6 +91,46 @@ Class-name renames: run `just css-classes` to regenerate
 * `just test` — unit, in-process, `olai/tests/*.rkt`
 * `just test-integration` — spawns `olai`, boots servers
 * `just test-all` — both, one `-j` pool
+* `just e2e` — browser journeys (see below); never in `just test`
 * Parse JSON with `read-json`. Never string-match JSON.
 * Personal outline data is `$OLAI_HOME` (outside the repo). CI and
   tests use `examples/` only.
+
+## e2e (browser)
+
+`e2e/` is cucumber-js + Playwright over a real headless Chromium: the
+journeys the racket tests cannot see, because they stop at HTTP and no
+JS runs there — folding, the theme picker, the live re-swap, the chat
+panel's geometry.
+
+* `just e2e` runs the suite; arguments go straight to cucumber, so
+  `just e2e features/chat.feature` and `just e2e features/chat.feature:12`
+  both work. `--tags` on the command line is ANDed with the profile's
+  `not @skip`, so it can only ever narrow: to run a skipped scenario,
+  replace the filter — `CUCUMBER_TAGS='@skip' just e2e`.
+* It is **not** in `just test` (that stays the fast racket set) and it
+  is its own CI node (`ci/mod.just`, Linux only).
+* Node, the browser and the harness's `node_modules` come from a
+  SEPARATE devShell (`nix develop .#e2e`); the recipe enters it itself.
+  Nothing racket-only pays for a 500 MB browser.
+* `e2e/package.json` pins `playwright` to the same version as nixpkgs'
+  `playwright-driver` (the browser bundle `PLAYWRIGHT_BROWSERS_PATH`
+  points at). Bump them together or scenario one says "Executable
+  doesn't exist".
+* Deps are a derivation (`e2e/default.nix`, one fixed-output
+  `fetchNpmDeps`, like `acp/`); the regenerate-the-hash recipe is in
+  that file's header, next to the hash it is about.
+* The fixture outline is a real file, `e2e/fixtures/Tasks.rkt`, checked
+  by the `smoke` lane like any other committed outline.
+* Each scenario gets its own temp outline, its own `olai serve` on an
+  ephemeral port (`--port 0`; the server prints the port it took), and
+  a fresh browser context — so localStorage, folds and prefs start
+  empty every time.
+* The agent is ALWAYS `olai/tests/integration/fake-acp-agent.rkt`
+  (`e2e/support/server.js` sets `OLAI_ACP_AGENT`). No real Claude Code
+  is ever spawned by a test.
+* `@skip` is the regression harness for known-broken behaviour: the
+  scenario is written and excluded. `CUCUMBER_TAGS=@skip just e2e` runs
+  exactly those. `CUCUMBER_RETRY` (CI sets 1) and `CUCUMBER_PARALLEL`
+  are the other two knobs.
+* Assert behaviour and geometry, never pixel snapshots.

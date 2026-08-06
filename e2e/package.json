@@ -1,0 +1,10 @@
+{
+  "name": "olai-e2e",
+  "private": true,
+  "type": "module",
+  "description": "browser journeys for the olai web view (cucumber + playwright)",
+  "devDependencies": {
+    "@cucumber/cucumber": "13.2.1",
+    "playwright": "1.61.1"
+  }
+}
