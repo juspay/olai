@@ -18,6 +18,11 @@ default_outlines := if olai_home == "" { repo_outlines } else { olai_home + "/*.
 # pipeline; `nix run github:juspay/odu -- run` is the attachable runner.
 mod ci 'ci/mod.just'
 
+# live/'s worked example: its own program, its own test, its own nix
+# derivation, all beside it. `just counters` runs it; `just counters::test`
+# tests it. This line is the whole of it outside that directory.
+mod counters 'live/examples/counters/mod.just'
+
 default:
     @just --list
 
@@ -76,15 +81,6 @@ check *args: install
 serve *args: install
     olai serve {{if args != "" { args } else if olai_home != "" { olai_home } else { repo_outlines } }}
 
-# The live/ framework's worked example: two live surfaces on one page, wired
-# by hand against its functional API (live/examples/counters/README.md). Its
-# own program, on its own port — it shares nothing with `serve` but the
-# collection.
-
-# Run the counters example (http://127.0.0.1:8080, --port to move it)
-counters *args: install
-    racket live/examples/counters/app.rkt {{args}}
-
 # The two sets differ in what they cost: unit tests run in this VM, the
 # integration ones spawn `olai` subprocesses and boot real servers. Both are
 # parallel-safe (ephemeral ports, temp dirs), so -j is free speed.
@@ -96,8 +92,10 @@ counters *args: install
 css-classes: install
     racket -e '(require olai/web/skin (only-in olai/web/style class-names)) (for-each displayln (sort (class-names) string<?))' > olai/tests/classes.golden
 
-# Unit tests: in-process, no subprocesses (live/tests/ + olai/tests/*.rkt)
-test: build
+# Unit tests: in-process, no subprocesses (live/tests/ + olai/tests/*.rkt,
+# and live/'s example, which owns its own — a dependency, not a line in the
+# body: `just test` is still the whole fast set, and still one command each)
+test: build counters::test-run
     raco test -j {{ num_cpus() }} live/tests/*.rkt olai/tests/*.rkt
 
 # Integration tests: subprocess CLI + real servers (olai/tests/integration/)

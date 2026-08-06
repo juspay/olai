@@ -1,6 +1,6 @@
 #lang racket/base
 
-;; The counters example, booted (live/examples/counters).
+;; The counters example, booted.
 ;;
 ;; A worked example that nothing runs is a worked example that rots, so this
 ;; is the net under it: the page serves, both surfaces deliver a frame on the
@@ -8,17 +8,22 @@
 ;; regions keep the properties the example exists to show — a link that aims
 ;; only at its own region, and rows keyed by counter rather than by position.
 ;;
+;; It lives with the example and not in live/tests: the example consumes the
+;; framework, so a framework test that reached the other way would invert the
+;; dependency it is here to demonstrate. Relative requires for the same
+;; reason — this directory is the unit.
+;;
 ;; In-process on an ephemeral port: no subprocess, so it stays in the fast set
-;; with the rest of live/tests.
+;; with the rest of the racket tests (`just counters::test`).
 
 (require net/http-client
          racket/port
          racket/string
          (only-in live/hub heartbeat-event)
-         (only-in live/examples/counters/app start-counters-server)
-         (only-in live/examples/counters/counters counter)
-         (only-in live/examples/counters/list clist-view render-list)
-         (only-in live/examples/counters/header ticker-view render-header))
+         (only-in "../app.rkt" start-counters-server)
+         (only-in "../counters.rkt" counter)
+         (only-in "../list.rkt" clist-view render-list)
+         (only-in "../header.rkt" ticker-view render-header))
 
 (module+ test
   (require rackunit))

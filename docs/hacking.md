@@ -78,7 +78,7 @@ Class-name renames: run `just css-classes` to regenerate `olai/tests/classes.gol
 
 ## Tests
 
-* `just test` — unit, in-process, `live/tests/*.rkt` + `olai/tests/*.rkt`
+* `just test` — unit, in-process: `live/tests/*.rkt` + `olai/tests/*.rkt`, and every example's own test (a dependency, so the command stays one)
 * `just test-integration` — spawns `olai`, boots servers
 * `just test-all` — both, one `-j` pool
 * `just e2e` — browser journeys (see below); never in `just test`

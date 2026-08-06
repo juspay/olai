@@ -28,6 +28,7 @@ Read [README.md](README.md) and `docs/*.md` first (especially [docs/hacking.md](
 * JSON is two modules, two version counters: `json/model` (what a node/tree IS, durable) and `json/reply` (command envelopes, agenda, calendar).
 * CSS cascade = layer (`'base` | `'component` | `'overlay`) then instantiation order; a class is defined in the module that DRAWS it. No native `@layer`.
 * `web/skin.rkt` composes the sheet (require order = cascade) and owns its URL; `render-page` is TOLD the href, so nothing downstream requires skin.
+* Packaging is layering: anything with its own reason to be built — library, example, app — is its own package with its own `default.nix` beside it, never a directory riding along inside another's.
 
 ## WORKFLOW
 

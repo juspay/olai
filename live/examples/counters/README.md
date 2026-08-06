@@ -17,9 +17,25 @@ read off working code.
 ## Run it
 
 ```bash
-just counters              # http://127.0.0.1:8080
-just counters --port 9000
+just counters                        # http://127.0.0.1:8080
+just counters run --port 9000        # somewhere else
+nix run .#counters                   # the built program, no dev shell
+just counters::test                  # its own test
 ```
+
+## Where it lives
+
+Everything the example is — its five modules, its test, its `just` module, its
+nix derivation — is in this directory, and the repo mounts it in three lines:
+`mod counters` in the justfile, a `callPackage` in `flake.nix`, and two nodes
+in `ci/mod.just` that say when to run its test and build its derivation.
+
+It is a directory under `live/` and no part of that package. `live`'s source
+(`live/default.nix`) excludes `examples/`, so the framework ships without the
+demo and an edit here rebuilds neither `live` nor olai. The one thing it
+cannot be is its own **raco** package: raco refuses to link a package inside
+another package's directory, so in the source tree these files compile with
+`live` — which is also what makes `just build` catch a broken example.
 
 ## What to try
 
@@ -89,7 +105,9 @@ them is contracted at every edge. Everything the browser does is in the four
 attribute sets `live/client` writes — `view-source` on the page and the
 expansion the brainstorm sketches is right there.
 
-`live/tests/counters.rkt` boots all of it on an ephemeral port: the page
-serves, both surfaces deliver a frame on the one stream, a client that says it
-has been away is caught up, and the two regions keep their promises to each
-other.
+`tests/counters.rkt` boots all of it on an ephemeral port: the page serves,
+both surfaces deliver a frame on the one stream, a client that says it has
+been away is caught up, and the two regions keep their promises to each other.
+It lives here rather than in `live/tests/` because the example consumes the
+framework, and a framework test that reached back the other way would invert
+the dependency this is here to show.
