@@ -308,8 +308,7 @@
        #:describe ir-loc
        #:fail (λ (who ir msg)
                 (raise-syntax-error who msg (and ir (ir-stx ir))))))
-    (void))
-  )
+    (void)))
 
 ;; ---- runtime include load + tree validation ------------------------------
 
@@ -499,6 +498,19 @@
       "expected (include \"relative/path.rkt\")"
       stx)]))
 
+;; The shape of `t`, spelled once for the two clauses that answer with it.
+(define-for-syntax t-shape
+  (string-append "expected (t \"title\" [#:id anchor] [#:date iso-date] "
+                 "[#:description \"...\"] [#:done [iso-date]] "
+                 "[#:doing [iso-date]] child ...)"))
+
+;; What a malformed `t` is blamed on: the title the source wrote, when it
+;; wrote one, else the whole form.
+(define-for-syntax (t-title-stx stx)
+  (match (syntax-e stx)
+    [(list-rest _ title _) title]
+    [_ stx]))
+
 (define-syntax (t stx)
   (syntax-parse stx
     [(_ title:str kw:t-kwargs child:child-form ...)
@@ -544,15 +556,10 @@
     [(_ title . _)
      (raise-syntax-error
       't
-      "expected (t \"title\" [#:id anchor] [#:date iso-date] [#:description \"...\"] [#:done [iso-date]] [#:doing [iso-date]] child ...); title must be a string literal"
+      (string-append t-shape "; title must be a string literal")
       stx
-      (let ([e (syntax-e stx)])
-        (if (and (pair? e) (pair? (cdr e))) (cadr e) stx)))]
-    [_
-     (raise-syntax-error
-      't
-      "expected (t \"title\" [#:id anchor] [#:date iso-date] [#:description \"...\"] [#:done [iso-date]] [#:doing [iso-date]] child ...)"
-      stx)]))
+      (t-title-stx stx))]
+    [_ (raise-syntax-error 't t-shape stx)]))
 
 (define-syntax (module-begin stx)
   (syntax-parse stx

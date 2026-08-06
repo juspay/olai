@@ -1,8 +1,10 @@
 #lang racket/base
 
-(require rackunit
-         racket/string
+(require racket/string
          olai/capture)
+
+(module+ test
+  (require rackunit))
 
 (module+ test
   (test-case "format-capture-lines"

@@ -108,52 +108,53 @@
                includes)]
         [(load-error msg src line col)
          (list 'error path msg src line col)])))
-  (define any-bad? (ormap (λ (r) (eq? (car r) 'error)) results))
-  (if (= (length paths) 1)
-      (match (car results)
-        [(list 'ok path n ac mc includes)
-         (write-json-stdout
-          (let ([h (ok-hash 'file (path->string path)
-                            'tasks n
-                            'anchors ac
-                            'mirrors mc)])
-            (if (null? includes)
-                h
-                (hash-set h 'includes
-                          (for/list ([p includes])
-                            (hash 'file p))))))]
-        [(list 'error path msg src line col)
-         (die exit-validation msg #:json? #t #:file src #:line line #:col col)])
-      (let ([files
-             (for/list ([r (in-list results)])
-               (match r
-                 [(list 'ok path n ac mc includes)
-                  (define h
-                    (hash 'file (path->string path)
-                          'ok #t
-                          'tasks n
-                          'anchors ac
-                          'mirrors mc))
-                  (if (null? includes)
-                      h
-                      (hash-set h 'includes
-                                (for/list ([p includes])
-                                  (hash 'file p))))]
-                 [(list 'error path msg src line col)
-                  (hash 'file (path->string path)
-                        'ok #f
-                        'error (hash 'file (nullish (and src
-                                                         (if (path? src)
-                                                             (path->string src)
-                                                             src)))
-                                     'line (nullish line)
-                                     'col (nullish col)
-                                     'message msg))]))])
+  (define any-bad?
+    (for/or ([r (in-list results)]) (eq? (first r) 'error)))
+  ;; The @include list rides along only when the file has one — an absent key
+  ;; and an empty list are not the same answer.
+  (define (with-includes h includes)
+    (if (null? includes)
+        h
+        (hash-set h 'includes
+                  (for/list ([p (in-list includes)]) (hash 'file p)))))
+  (cond
+    [(= (length paths) 1)
+     (match (first results)
+       [(list 'ok path n ac mc includes)
         (write-json-stdout
-         (hash 'version json-reply-version
-               'ok (not any-bad?)
-               'files files))
-        (when any-bad? (exit exit-validation)))))
+         (with-includes (ok-hash 'file (path->string path)
+                                 'tasks n
+                                 'anchors ac
+                                 'mirrors mc)
+                        includes))]
+       [(list 'error path msg src line col)
+        (die exit-validation msg #:json? #t #:file src #:line line #:col col)])]
+    [else
+     (define files
+       (for/list ([r (in-list results)])
+         (match r
+           [(list 'ok path n ac mc includes)
+            (with-includes (hash 'file (path->string path)
+                                 'ok #t
+                                 'tasks n
+                                 'anchors ac
+                                 'mirrors mc)
+                           includes)]
+           [(list 'error path msg src line col)
+            (hash 'file (path->string path)
+                  'ok #f
+                  'error (hash 'file (nullish (and src
+                                                   (if (path? src)
+                                                       (path->string src)
+                                                       src)))
+                               'line (nullish line)
+                               'col (nullish col)
+                               'message msg))])))
+     (write-json-stdout
+      (hash 'version json-reply-version
+            'ok (not any-bad?)
+            'files files))
+     (when any-bad? (exit exit-validation))]))
 
 (define (cmd-tree paths)
   (define entries

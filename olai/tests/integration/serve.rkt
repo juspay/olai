@@ -3,8 +3,7 @@
 ;; Web server routes. Boots the real server on an ephemeral port against a
 ;; temp outline; no personal data, no fixed ports.
 
-(require rackunit
-         json
+(require json
          net/http-client
          racket/file
          racket/path
@@ -15,110 +14,114 @@
          (only-in olai/web/live live-asset-prefix live-script-srcs outline-event)
          olai/web/serve)
 
-;; Sizes differ on every write below: the store's staleness probe is mtime +
-;; size, and a same-second same-size rewrite is invisible to it.
+(module+ test
+  (require rackunit))
 
-(define outline
-  (string-append
-   "#lang olai\n"
-   "Inbox\n"
-   "  Buy milk\n"
-   "    @date 2026-01-15\n"
-   "Ship the server ^serve\n"))
+(module+ test
+  ;; Sizes differ on every write below: the store's staleness probe is mtime +
+  ;; size, and a same-second same-size rewrite is invisible to it.
 
-;; Run body with the server up: (proc port outline-path). The path is handed
-;; back so a test can edit the outline underneath a running server. The temp
-;; dir goes whether or not the server came up, which is a case here.
-(define (with-server proc #:port [port 0] #:port-fallback? [fallback? #f])
-  (define dir (make-temporary-file "sfserve~a" 'directory))
-  (define f (build-path dir "Tasks.rkt"))
-  (display-to-file outline f #:exists 'truncate)
-  (dynamic-wind
-   void
-   (λ ()
-     (define bound #f)
-     (define stop
-       (start-server #:port port
-                     #:port-fallback? fallback?
-                     #:bind "127.0.0.1"
-                     #:files (list f)
-                     #:on-listen (λ (p) (set! bound p))))
-     (dynamic-wind void (λ () (proc bound f)) stop))
-   (λ () (delete-directory/files dir))))
+  (define outline
+    (string-append
+     "#lang olai\n"
+     "Inbox\n"
+     "  Buy milk\n"
+     "    @date 2026-01-15\n"
+     "Ship the server ^serve\n"))
 
-;; A port that is already bound, for the two "taken" cases: (proc port).
-(define (with-taken-port proc)
-  (define l (tcp-listen 0 4 #t "127.0.0.1"))
-  (define-values (_h port _rh _rp) (tcp-addresses l #t))
-  (dynamic-wind void (λ () (proc port)) (λ () (tcp-close l))))
+  ;; Run body with the server up: (proc port outline-path). The path is handed
+  ;; back so a test can edit the outline underneath a running server. The temp
+  ;; dir goes whether or not the server came up, which is a case here.
+  (define (with-server proc #:port [port 0] #:port-fallback? [fallback? #f])
+    (define dir (make-temporary-file "sfserve~a" 'directory))
+    (define f (build-path dir "Tasks.rkt"))
+    (display-to-file outline f #:exists 'truncate)
+    (dynamic-wind
+     void
+     (λ ()
+       (define bound #f)
+       (define stop
+         (start-server #:port port
+                       #:port-fallback? fallback?
+                       #:bind "127.0.0.1"
+                       #:files (list f)
+                       #:on-listen (λ (p) (set! bound p))))
+       (dynamic-wind void (λ () (proc bound f)) stop))
+     (λ () (delete-directory/files dir))))
 
-;; -> (values status-code headers body-string)
-(define (GET port path)
-  (define-values (status headers in)
-    (http-sendrecv "127.0.0.1" path #:port port #:method #"GET"))
-  (define body (port->string in))
-  (close-input-port in)
-  (values (string->number (cadr (string-split (bytes->string/utf-8 status) " ")))
-          (map bytes->string/utf-8 headers)
-          body))
+  ;; A port that is already bound, for the two "taken" cases: (proc port).
+  (define (with-taken-port proc)
+    (define l (tcp-listen 0 4 #t "127.0.0.1"))
+    (define-values (_h port _rh _rp) (tcp-addresses l #t))
+    (dynamic-wind void (λ () (proc port)) (λ () (tcp-close l))))
 
-(define (header-value headers name)
-  (for/or ([h (in-list headers)])
-    (and (string-prefix? (string-downcase h) (string-downcase name))
-         h)))
+  ;; -> (values status-code headers body-string)
+  (define (GET port path)
+    (define-values (status headers in)
+      (http-sendrecv "127.0.0.1" path #:port port #:method #"GET"))
+    (define body (port->string in))
+    (close-input-port in)
+    (values (string->number (cadr (string-split (bytes->string/utf-8 status) " ")))
+            (map bytes->string/utf-8 headers)
+            body))
 
-;; ---- the SSE stream --------------------------------------------------------
+  (define (header-value headers name)
+    (for/or ([h (in-list headers)])
+      (and (string-prefix? (string-downcase h) (string-downcase name))
+           h)))
 
-;; /events never ends, so this keeps the port: -> (values code headers in).
-;; net/http-client de-chunks for us, which is the only reason a test can read
-;; the stream a frame at a time.
-;;
-;; #:last-event-id is what a reconnecting EventSource sends: the id of the last
-;; frame it managed to dispatch before the connection went away. A test that
-;; passes one is a browser that has been asleep.
-(define (open-events port #:path [path "/events"] #:last-event-id [last-event-id #f])
-  (define-values (status headers in)
-    (http-sendrecv "127.0.0.1" path #:port port #:method #"GET"
-                   #:headers (if last-event-id
-                                 (list (string->bytes/utf-8
-                                        (string-append "Last-Event-ID: " last-event-id)))
-                                 '())))
-  (values (string->number (cadr (string-split (bytes->string/utf-8 status) " ")))
-          (map bytes->string/utf-8 headers)
-          in))
+  ;; ---- the SSE stream --------------------------------------------------------
 
-;; Next real event on the stream: -> (list name data id) | #f on timeout.
-;; Heartbeats are skipped — they are the transport keeping itself honest, not
-;; news about an outline. Waited on, never slept for.
-(define (next-event in #:timeout [timeout 20])
-  (define deadline (+ (current-inexact-milliseconds) (* 1000.0 timeout)))
-  (let loop ([name #f] [data '()] [id #f])
-    (define left (/ (- deadline (current-inexact-milliseconds)) 1000.0))
-    (define line (and (positive? left)
-                      (sync/timeout left (read-line-evt in 'linefeed))))
-    (cond
-      [(or (not line) (eof-object? line)) #f]
-      [(string=? line "")
-       (cond
-         [(equal? name heartbeat-event) (loop #f '() #f)]
-         [name (list name (string-join (reverse data) "\n") id)]
-         [else (loop #f '() #f)])]
-      [(string-prefix? line "event: ") (loop (substring line 7) data id)]
-      [(string-prefix? line "data: ") (loop name (cons (substring line 6) data) id)]
-      [(string-prefix? line "id: ") (loop name data (substring line 4))]
-      [else (loop name data id)])))
+  ;; /events never ends, so this keeps the port: -> (values code headers in).
+  ;; net/http-client de-chunks for us, which is the only reason a test can read
+  ;; the stream a frame at a time.
+  ;;
+  ;; #:last-event-id is what a reconnecting EventSource sends: the id of the last
+  ;; frame it managed to dispatch before the connection went away. A test that
+  ;; passes one is a browser that has been asleep.
+  (define (open-events port #:path [path "/events"] #:last-event-id [last-event-id #f])
+    (define-values (status headers in)
+      (http-sendrecv "127.0.0.1" path #:port port #:method #"GET"
+                     #:headers (if last-event-id
+                                   (list (string->bytes/utf-8
+                                          (string-append "Last-Event-ID: " last-event-id)))
+                                   '())))
+    (values (string->number (cadr (string-split (bytes->string/utf-8 status) " ")))
+            (map bytes->string/utf-8 headers)
+            in))
 
-;; The stream a PAGE would open: the URL is the one in its own markup, cursor
-;; and all. A test that rebuilt that URL itself would be testing its own
-;; arithmetic; this opens what the browser would.
-(define (open-events/page port page-body)
-  (define m (regexp-match #px"sse-connect=\"([^\"]+)\"" page-body))
-  (check-not-false m "the page carries no stream")
-  (open-events port #:path (cadr m)))
+  ;; Next real event on the stream: -> (list name data id) | #f on timeout.
+  ;; Heartbeats are skipped — they are the transport keeping itself honest, not
+  ;; news about an outline. Waited on, never slept for.
+  (define (next-event in #:timeout [timeout 20])
+    (define deadline (+ (current-inexact-milliseconds) (* 1000.0 timeout)))
+    (let loop ([name #f] [data '()] [id #f])
+      (define left (/ (- deadline (current-inexact-milliseconds)) 1000.0))
+      (define line (and (positive? left)
+                        (sync/timeout left (read-line-evt in 'linefeed))))
+      (cond
+        [(or (not line) (eof-object? line)) #f]
+        [(string=? line "")
+         (cond
+           [(equal? name heartbeat-event) (loop #f '() #f)]
+           [name (list name (string-join (reverse data) "\n") id)]
+           [else (loop #f '() #f)])]
+        [(string-prefix? line "event: ") (loop (substring line 7) data id)]
+        [(string-prefix? line "data: ") (loop name (cons (substring line 6) data) id)]
+        [(string-prefix? line "id: ") (loop name data (substring line 4))]
+        [else (loop name data id)])))
 
-(define (event-name ev) (car ev))
-(define (event-data ev) (cadr ev))
-(define (event-id ev) (caddr ev))
+  ;; The stream a PAGE would open: the URL is the one in its own markup, cursor
+  ;; and all. A test that rebuilt that URL itself would be testing its own
+  ;; arithmetic; this opens what the browser would.
+  (define (open-events/page port page-body)
+    (define m (regexp-match #px"sse-connect=\"([^\"]+)\"" page-body))
+    (check-not-false m "the page carries no stream")
+    (open-events port #:path (cadr m)))
+
+  (define (event-name ev) (car ev))
+  (define (event-data ev) (cadr ev))
+  (define (event-id ev) (caddr ev)))
 
 (module+ test
   ;; The port the CLI did not have to be told (its default): taken means take

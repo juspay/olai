@@ -290,9 +290,11 @@
 ;; A form field, trimmed, or #f when it is missing or blank.
 (define (form-field req name)
   (define b (bindings-assq name (request-bindings/raw req)))
-  (and (binding:form? b)
-       (let ([s (string-trim (bytes->string/utf-8 (binding:form-value b)))])
-         (and (non-empty-string? s) s))))
+  (cond
+    [(binding:form? b)
+     (define s (string-trim (bytes->string/utf-8 (binding:form-value b))))
+     (and (non-empty-string? s) s)]
+    [else #f]))
 
 (define (no-agent-response)
   (text-response "no agent\n" #:code 503))

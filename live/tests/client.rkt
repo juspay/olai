@@ -8,24 +8,27 @@
 ;; those is a string that has to be the same string in both files, and nothing
 ;; but this suite would notice the day it stopped being.
 
-(require rackunit
-         racket/file
+(require racket/file
          racket/string
          live/client
          (only-in live/hub heartbeat-event))
 
-;; live/tests/frame.rkt owns the wire format; this file owns the markup. The
-;; one thing both ends of the cursor have to agree on is asserted in each.
+(module+ test
+  (require rackunit))
 
-(define lv (make-live-view #:region "app" #:event "changed" #:stream "/events"
-                           #:href "/today"))
+(module+ test
+  ;; live/tests/frame.rkt owns the wire format; this file owns the markup. The
+  ;; one thing both ends of the cursor have to agree on is asserted in each.
 
-;; -> the value of `key`, or #f. Attributes are xexpr pairs: (name "value").
-(define (attr attrs key)
-  (cond [(assq key attrs) => cadr] [else #f]))
+  (define lv (make-live-view #:region "app" #:event "changed" #:stream "/events"
+                             #:href "/today"))
 
-(define (script-source name)
-  (file->string (build-path (live-static-dir) name)))
+  ;; -> the value of `key`, or #f. Attributes are xexpr pairs: (name "value").
+  (define (attr attrs key)
+    (cond [(assq key attrs) => cadr] [else #f]))
+
+  (define (script-source name)
+    (file->string (build-path (live-static-dir) name))))
 
 (module+ test
   ;; ---- the three attribute sets --------------------------------------------

@@ -21,8 +21,7 @@
 ;; global registry theme.rkt does, and after it, which is what the ordering
 ;; tests read. Instantiation order is the cascade; that is the contract.
 
-(require rackunit
-         racket/file
+(require racket/file
          racket/list
          racket/runtime-path
          racket/set
@@ -50,6 +49,9 @@
          olai/index
          (only-in olai/lang/walk resolve-mirrors)
          (except-in olai/lang/expander #%module-begin))
+
+(module+ test
+  (require rackunit))
 
 ;; The skin's classes, captured BEFORE this module's fixtures register: a
 ;; module body runs in order, so this is every class olai/web/skin defines and

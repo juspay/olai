@@ -6,15 +6,18 @@
 ;; tests/integration/; this file is about the fields, and especially about a
 ;; field a reader is told is append-only.
 
-(require rackunit
-         json
+(require json
          (except-in olai/lang/expander #%module-begin)
          olai/agenda
          olai/json/model
          olai/json/reply)
 
-(define (tk title #:date [date #f] #:done [done #f] #:doing [doing #f])
-  (make-task #:title title #:date date #:done done #:doing doing #:key title))
+(module+ test
+  (require rackunit))
+
+(module+ test
+  (define (tk title #:date [date #f] #:done [done #f] #:doing [doing #f])
+    (make-task #:title title #:date date #:done done #:doing doing #:key title)))
 
 (module+ test
 

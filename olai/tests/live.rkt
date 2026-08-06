@@ -6,21 +6,24 @@
 ;; module that reads one, and every case below is a client the outline moved
 ;; without.
 
-(require rackunit
-         racket/string
+(require racket/string
          live/frame
          (only-in live/hub live-boot-id)
          (only-in live/client live-view-region live-view-event live-view-stream
                   live-view-href live-view-cursor)
          olai/web/live)
 
-;; -> (list name data id) of the single owed frame, or #f for "nothing owed".
-(define (owed last-id rev)
-  (define fs (outline-catch-up last-id (outline-cursor rev)))
-  (and (pair? fs)
-       (list (frame-name (car fs)) (frame-data (car fs)) (frame-id (car fs)))))
+(module+ test
+  (require rackunit))
 
-(define (frame-of rev) (list outline-event (outline-cursor rev) (outline-cursor rev)))
+(module+ test
+  ;; -> (list name data id) of the single owed frame, or #f for "nothing owed".
+  (define (owed last-id rev)
+    (define fs (outline-catch-up last-id (outline-cursor rev)))
+    (and (pair? fs)
+         (list (frame-name (car fs)) (frame-data (car fs)) (frame-id (car fs)))))
+
+  (define (frame-of rev) (list outline-event (outline-cursor rev) (outline-cursor rev))))
 
 (module+ test
   ;; A revision counts from one per process, so it names a different outline

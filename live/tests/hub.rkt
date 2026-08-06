@@ -3,28 +3,31 @@
 ;; The fan-out, and the catch-up seam. No server: a subscriber is a channel,
 ;; and everything below is a local hop.
 
-(require rackunit
-         net/url
+(require net/url
          racket/promise
          web-server/http
          live/frame
          live/hub)
 
-;; -> frame string | #f. Generous: these are all local channel hops.
-(define (take-frame s [timeout 5])
-  (sync/timeout timeout (subscriber-evt s)))
+(module+ test
+  (require rackunit))
 
-(define (say name data #:id [id #f]) (make-frame name data #:id id))
+(module+ test
+  ;; -> frame string | #f. Generous: these are all local channel hops.
+  (define (take-frame s [timeout 5])
+    (sync/timeout timeout (subscriber-evt s)))
 
-;; A GET on the stream: `url` may carry the cursor a page put there, `headers`
-;; the one a reconnecting EventSource sets.
-(define (request-with #:url [u "/events"] . headers)
-  (define parsed (string->url u))
-  (request #"GET" parsed headers
-           (delay (for/list ([q (in-list (url-query parsed))])
-                    (binding:form (string->bytes/utf-8 (symbol->string (car q)))
-                                  (string->bytes/utf-8 (or (cdr q) "")))))
-           #f "1.2.3.4" 80 "1.2.3.4"))
+  (define (say name data #:id [id #f]) (make-frame name data #:id id))
+
+  ;; A GET on the stream: `url` may carry the cursor a page put there, `headers`
+  ;; the one a reconnecting EventSource sets.
+  (define (request-with #:url [u "/events"] . headers)
+    (define parsed (string->url u))
+    (request #"GET" parsed headers
+             (delay (for/list ([q (in-list (url-query parsed))])
+                      (binding:form (string->bytes/utf-8 (symbol->string (car q)))
+                                    (string->bytes/utf-8 (or (cdr q) "")))))
+             #f "1.2.3.4" 80 "1.2.3.4")))
 
 (module+ test
   ;; ---- subscription --------------------------------------------------------

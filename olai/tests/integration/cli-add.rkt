@@ -3,12 +3,14 @@
 ;; The capture path: `add`, what it leaves on disk, and what the write path
 ;; refuses. Real subprocess (cli-util.rkt), temp dirs only.
 
-(require rackunit
-         racket/file
+(require racket/file
          racket/port
          racket/string
          racket/system
          "cli-util.rkt")
+
+(module+ test
+  (require rackunit))
 
 (module+ test
   (test-case "add creates Inbox and preserves content"

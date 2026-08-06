@@ -619,16 +619,16 @@
         (day-pill-xexpr iso-day today done?)
         `(span ((class ,(classes ol-title (and done? is-done))))
                ,@(map style-md-xexpr (title->inline-xexprs title)))))
+  (define dot
+    `(span ((class ,(classes ol-bullet (and (pair? kids) has-children)))
+            (aria-hidden "true"))))
   (define bullet
-    (let ([dot `(span ((class ,(classes ol-bullet
-                                        (and (pair? kids) has-children)))
-                       (aria-hidden "true")))])
-      (if zoom-base
-          `(a ((class ,ol-bullet-link)
-               ,@(node-link-attributes live zoom-base key)
-               (title "zoom in"))
-              ,dot)
-          dot)))
+    (if zoom-base
+        `(a ((class ,ol-bullet-link)
+             ,@(node-link-attributes live zoom-base key)
+             (title "zoom in"))
+            ,dot)
+        dot))
   (node-shell
    #:key key
    #:element-id (node-element-id key #:site site)

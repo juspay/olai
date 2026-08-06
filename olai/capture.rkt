@@ -35,20 +35,19 @@
     [(line-blank? k) 'blank]
     [(line-lang? k) 'lang]
     [(and (line-title? k) (even? ind))
-     (list 'title level (cadr k) (cadddr k))]
+     (list 'title level (title-text k) (title-anchor k))]
     [else (list 'other level content)]))
 
 ;; Returns (values insert-pos has-parent? task-line-1-based parent-indent)
 ;; parent-spec: #f | string title | (cons 'anchor id-string)
 (define (find-parent-insert text parent-spec)
   (define lines (string-split text "\n" #:trim? #f))
-  (define want-title
-    (cond
-      [(not parent-spec) "Inbox"]
-      [(string? parent-spec) parent-spec]
-      [else #f]))
-  (define want-anchor
-    (and (pair? parent-spec) (eq? (car parent-spec) 'anchor) (cdr parent-spec)))
+  (define-values (want-title want-anchor)
+    (match parent-spec
+      [#f (values "Inbox" #f)]
+      [(? string? title) (values title #f)]
+      [(cons 'anchor anchor) (values #f anchor)]
+      [_ (values #f #f)]))
 
   (define-values (parent-line parent-indent end-line)
     (let loop ([i 0] [pline #f] [pind 0] [seen? #f])
@@ -108,12 +107,10 @@
                         #:description [desc #f]
                         #:parent [parent #f])
   (define parent-spec
-    (cond
-      [(not parent) #f]
-      [(and (string? parent) (regexp-match #px"^\\^([A-Za-z0-9_-]+)$" parent))
-       => (λ (m) (cons 'anchor (cadr m)))]
-      [(string? parent) parent]
-      [else parent]))
+    (match parent
+      [#f #f]
+      [(regexp #px"^\\^([A-Za-z0-9_-]+)$" (list _ anchor)) (cons 'anchor anchor)]
+      [_ parent]))
   (define-values (pos has-parent? line-no parent-indent)
     (find-parent-insert text parent-spec))
   (define child-indent
@@ -123,13 +120,13 @@
   (define create-inbox?
     (and (not has-parent?) (not parent-spec)))
   (define block
-    (if has-parent?
-        (string-append (string-join body-lines "\n") "\n")
-        (if create-inbox?
-            (string-append "Inbox\n" (string-join body-lines "\n") "\n")
-            (if (pair? parent-spec)
-                (user-fail "no task with anchor ^~a" (cdr parent-spec))
-                (user-fail "no task titled ~s" parent-spec)))))
+    (cond
+      [has-parent? (string-append (string-join body-lines "\n") "\n")]
+      [create-inbox?
+       (string-append "Inbox\n" (string-join body-lines "\n") "\n")]
+      [(pair? parent-spec)
+       (user-fail "no task with anchor ^~a" (cdr parent-spec))]
+      [else (user-fail "no task titled ~s" parent-spec)]))
   (define prefix (substring text 0 pos))
   (define suffix (substring text pos))
   (define new-text
@@ -139,14 +136,18 @@
                        suffix)
         (string-append (if (string=? text "") "" (ensure-nl text))
                        block)))
-  (define actual-line
-    (if has-parent?
-        line-no
-        (let* ([base-text (if (string=? text "") "" (ensure-nl text))]
-               [lines (string-split base-text "\n" #:trim? #f)]
-               [line-count (if (and (pair? lines) (string=? (last lines) ""))
-                               (sub1 (length lines))
-                               (length lines))])
-          (+ line-count 2))))
-  (values new-text actual-line create-inbox?))
+  (values new-text
+          (if has-parent? line-no (appended-line-number text))
+          create-inbox?))
+
+;; Where a block appended to the end of `text` starts, 1-based: past every
+;; line the text already has, plus the "Inbox" line written above the task.
+(define (appended-line-number text)
+  (define base-text (if (string=? text "") "" (ensure-nl text)))
+  (define lines (string-split base-text "\n" #:trim? #f))
+  (define line-count
+    (if (and (pair? lines) (string=? (last lines) ""))
+        (sub1 (length lines))
+        (length lines)))
+  (+ line-count 2))
 

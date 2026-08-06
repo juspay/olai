@@ -29,11 +29,13 @@
 ;; ---- xexpr helpers --------------------------------------------------------
 
 (define (xexpr-tag x)
-  (and (list? x) (pair? x) (symbol? (car x)) (car x)))
+  (match x
+    [(cons (? symbol? tag) (? list?)) tag]
+    [_ #f]))
 
 (define (xexpr-attrs x)
   (match x
-    [(list _ (list (list (? symbol?) _) ...) _ ...) (cadr x)]
+    [(list _ (and attrs (list (list (? symbol?) _) ...)) _ ...) attrs]
     [_ '()]))
 
 (define (xexpr-kids x)
@@ -58,6 +60,12 @@
                            (blockquote . #t) (h1 . #t) (h2 . #t) (h3 . #t)
                            (h4 . #t) (h5 . #t) (h6 . #t) (hr . #t) (div . #t))))
 
+;; The value of an xexpr attribute, or `missing` when the tag does not wear it.
+(define (attr-value attrs name [missing #f])
+  (match (assq name attrs)
+    [(list-rest _ value _) value]
+    [_ missing]))
+
 (define (safe-href href)
   (and (string? href)
        (or (regexp-match? #px"^(https?|mailto):" href)
@@ -67,7 +75,7 @@
 (define (sanitize-attrs tag attrs)
   (case tag
     [(a)
-     (define href (safe-href (cond [(assq 'href attrs) => cadr] [else #f])))
+     (define href (safe-href (attr-value attrs 'href)))
      (if href `((href ,href)) '())]
     [else '()]))
 
@@ -258,7 +266,7 @@
          [(code) (make-xexpr 'code `((class ,ol-code)) kids)]
          [(pre) (make-xexpr 'pre `((class ,ol-pre)) kids)]
          [(a)
-          (define href (cond [(assq 'href attrs) => cadr] [else "#"]))
+          (define href (attr-value attrs 'href "#"))
           (make-xexpr 'a `((href ,href) (class ,ol-link)) kids)]
          [else (make-xexpr tag attrs kids)])]
       [(list? x) (map loop x)]

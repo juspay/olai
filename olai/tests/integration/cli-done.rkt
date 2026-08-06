@@ -3,11 +3,13 @@
 ;; The `done` path: the round trip, and what a miss tells the user. Real
 ;; subprocess (cli-util.rkt), temp dirs only.
 
-(require rackunit
-         json
+(require json
          racket/file
          racket/string
          "cli-util.rkt")
+
+(module+ test
+  (require rackunit))
 
 (module+ test
   (test-case "done / undo round-trip with git commit"

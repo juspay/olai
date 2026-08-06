@@ -3,10 +3,12 @@
 ;; Read-only commands over one file: check / tree / agenda, and the exit codes
 ;; a bad invocation earns. The CLI runs as a real subprocess (cli-util.rkt).
 
-(require rackunit
-         json
+(require json
          racket/file
          "cli-util.rkt")
+
+(module+ test
+  (require rackunit))
 
 (module+ test
   ;; There is no plain mode left to test: the reply is JSON with or without

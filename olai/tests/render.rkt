@@ -3,8 +3,7 @@
 ;; xexpr-level tests for the web renderers. No files, no server, no clocks:
 ;; `today` is always passed in.
 
-(require rackunit
-         json
+(require json
          racket/file
          racket/string
          xml
@@ -23,42 +22,46 @@
          olai/web/chat-panel
          olai/web/markdown)
 
-;; Hand-built tasks, so the key has to be minted here too. Keying off the
-;; title keeps these tests readable: two `tk` calls with the same title stand
-;; for the same node. Real keys come from the expander (see tests/expander).
-(define (title-key title)
-  (string-append
-   "p" (substring (sha1 (open-input-bytes (string->bytes/utf-8 title))) 0 8)))
+(module+ test
+  (require rackunit))
 
-(define (tk title date desc kids
-            #:tags [tags '()] #:done [done #f] #:doing [doing #f]
-            #:id [id #f] #:key [key #f])
-  (make-task #:title title #:date date #:description desc #:done done
-             #:doing doing #:id id #:tags tags #:children kids
-             #:key (or key id (title-key title))))
+(module+ test
+  ;; Hand-built tasks, so the key has to be minted here too. Keying off the
+  ;; title keeps these tests readable: two `tk` calls with the same title stand
+  ;; for the same node. Real keys come from the expander (see tests/expander).
+  (define (title-key title)
+    (string-append
+     "p" (substring (sha1 (open-input-bytes (string->bytes/utf-8 title))) 0 8)))
 
-(define (xstr x) (xexpr->string x))
+  (define (tk title date desc kids
+              #:tags [tags '()] #:done [done #f] #:doing [doing #f]
+              #:id [id #f] #:key [key #f])
+    (make-task #:title title #:date date #:description desc #:done done
+               #:doing doing #:id id #:tags tags #:children kids
+               #:key (or key id (title-key title))))
 
-;; The live view a served page is drawn with — the same value web/serve builds,
-;; so a test asserting markup is asserting the shipped markup. It is per-PAGE
-;; (it carries the page's own address), which is why this is a function.
-(define (live-at href) (outline-live-view "/events" #:href href #:cursor "boot.1"))
-(define the-live-view (live-at "/"))
+  (define (xstr x) (xexpr->string x))
 
-;; Where `needle` starts in `s`, for the assertions that are about ORDER.
-(define (string-index s needle)
-  (caar (regexp-match-positions (regexp (regexp-quote needle)) s)))
+  ;; The live view a served page is drawn with — the same value web/serve builds,
+  ;; so a test asserting markup is asserting the shipped markup. It is per-PAGE
+  ;; (it carries the page's own address), which is why this is a function.
+  (define (live-at href) (outline-live-view "/events" #:href href #:cursor "boot.1"))
+  (define the-live-view (live-at "/"))
 
-(define (xstr* xs) (string-join (map xstr xs) ""))
+  ;; Where `needle` starts in `s`, for the assertions that are about ORDER.
+  (define (string-index s needle)
+    (caar (regexp-match-positions (regexp (regexp-quote needle)) s)))
 
-(define (files . entries) entries)
+  (define (xstr* xs) (string-join (map xstr xs) ""))
 
-;; The sidebar over one trivial outline — what the prefs tests below read. The
-;; outline is not the subject there; the chrome around it is.
-(define (sidebar-html)
-  (xstr (render-sidebar (files (list "/tmp/Tasks.rkt" (list (tk "Inbox" #f #f '()))))
-                        #:home-href "/"
-                        #:today-href "/today")))
+  (define (files . entries) entries)
+
+  ;; The sidebar over one trivial outline — what the prefs tests below read. The
+  ;; outline is not the subject there; the chrome around it is.
+  (define (sidebar-html)
+    (xstr (render-sidebar (files (list "/tmp/Tasks.rkt" (list (tk "Inbox" #f #f '()))))
+                          #:home-href "/"
+                          #:today-href "/today"))))
 
 (module+ test
 

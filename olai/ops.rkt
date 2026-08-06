@@ -177,12 +177,15 @@
 
 (define mark-state/c (or/c 'done 'doing))
 
-;; state -> (mark undo commit-verb undo-verb), where mark/undo are the text
-;; mutators olai/status owns. The commit verbs are what a `git log` reads
-;; like, which is the only reason they are not just the state's name.
+;; mark/undo are the text mutators olai/status owns. The verbs are what a
+;; `git log` reads like, which is the only reason they are not just the
+;; state's name.
+(struct mark-ops (mark undo verb undo-verb) #:transparent)
+
 (define marks
-  (hash 'done (list mark-done-in-text undo-done-in-text "done" "undone")
-        'doing (list mark-doing-in-text undo-doing-in-text "doing" "not-doing")))
+  (hash 'done (mark-ops mark-done-in-text undo-done-in-text "done" "undone")
+        'doing (mark-ops mark-doing-in-text undo-doing-in-text
+                         "doing" "not-doing")))
 
 ;; state: which mark this is, so a caller (and the CLI's JSON) need not be
 ;;        told twice
@@ -193,7 +196,7 @@
 (define (ops-mark! file state spec today
                    #:undo? [undo? #f]
                    #:commit? [commit? #t])
-  (define row (hash-ref marks state))
+  (define ops (hash-ref marks state))
   (define root-path (existing-file file))
   (define hit
     (as-validation root-path
@@ -207,9 +210,9 @@
      path
      (λ ()
        (if undo?
-           ((cadr row) original spec #:at at)
-           ((car row) original spec today #:at at)))))
-  (define verb (if undo? (cadddr row) (caddr row)))
+           ((mark-ops-undo ops) original spec #:at at)
+           ((mark-ops-mark ops) original spec today #:at at)))))
+  (define verb (if undo? (mark-ops-undo-verb ops) (mark-ops-verb ops)))
   (define committed?
     (write! path new-text #:commit (and commit? (format "~a: ~a" verb title))))
   (mark-result (path->string path) title line state

@@ -551,10 +551,7 @@
     (λ ()
       (define tn (current-turn ch))
       (when tn
-        (define t (or (find-tool tn id)
-                      (let ([t (tool id title status)])
-                        (set-turn-tools! tn (cons t (turn-tools tn)))
-                        t)))
+        (define t (or (find-tool tn id) (add-tool! tn id title status)))
         (set-tool-title! t title)
         (set-tool-status! t status)
         (broadcast! ch (tool-jsexpr id title status))))))
@@ -580,6 +577,12 @@
 (define (find-tool tn id)
   (for/or ([t (in-list (turn-tools tn))])
     (and (equal? (tool-id t) id) t)))
+
+;; Newest-first, like the turn's other lists; the transcript reverses.
+(define (add-tool! tn id title status)
+  (define t (tool id title status))
+  (set-turn-tools! tn (cons t (turn-tools tn)))
+  t)
 
 ;; ---- replaying a loaded session ---------------------------------------------
 ;;

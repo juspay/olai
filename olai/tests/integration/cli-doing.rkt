@@ -9,11 +9,13 @@
 ;; marks is a form the language rejects, so the op would fail rather than
 ;; write it.
 
-(require rackunit
-         json
+(require json
          racket/file
          racket/string
          "cli-util.rkt")
+
+(module+ test
+  (require rackunit))
 
 (module+ test
   (test-case "doing / undo round-trip with git commit"

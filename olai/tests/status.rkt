@@ -1,8 +1,10 @@
 #lang racket/base
 
-(require rackunit
-         racket/string
+(require racket/string
          olai/status)
+
+(module+ test
+  (require rackunit))
 
 (module+ test
   (define sample

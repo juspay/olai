@@ -54,6 +54,7 @@
 (require json
          racket/async-channel
          racket/contract
+         racket/match
          racket/path
          racket/string
          (only-in olai/fail user-fail)
@@ -349,7 +350,7 @@
 (define (read-config-model! cl opts)
   (define o (model-config opts))
   (when o
-    (define options (let ([os (hash-ref o 'options '())]) (if (list? os) os '())))
+    (define options (list-or-empty (hash-ref o 'options '())))
     (define labels (option-labels options))
     (define current (string-or-false (hash-ref o 'currentValue #f)))
     (emit! cl (acp-config-model (and current (or (hash-ref labels current #f) current))
@@ -400,7 +401,7 @@
 (define (list-sessions cl)
   (define r (request! cl "session/list"
                       (hash 'cwd (path->string (acp-client-cwd cl)))))
-  (define raw (let ([ss (hash-ref r 'sessions '())]) (if (list? ss) ss '())))
+  (define raw (list-or-empty (hash-ref r 'sessions '())))
   (define here (as-directory (acp-client-cwd cl)))
   (define mine
     (for/list ([s (in-list raw)]
@@ -573,8 +574,8 @@
   (define err (hash-ref js 'error #f))
   (define answer
     (if (hash? err)
-        (cons 'error (let ([m (hash-ref err 'message #f)])
-                       (if (string? m) m (jsexpr->string err))))
+        (cons 'error (or (string-or-false (hash-ref err 'message #f))
+                         (jsexpr->string err)))
         (cons 'ok (hash-ref js 'result (hash)))))
   (if ch
       (async-channel-put ch answer)
@@ -608,8 +609,7 @@
          (define kind (hash-ref o 'kind ""))
          (and (string? kind)
               (string-prefix? kind "allow")
-              (let ([oid (hash-ref o 'optionId #f)])
-                (and (string? oid) oid))))))
+              (string-or-false (hash-ref o 'optionId #f))))))
 
 ;; ---- incoming notifications ------------------------------------------------
 
@@ -681,7 +681,12 @@
     [(member kind ignored-update-kinds) (void)]
     [else (log-kind-once! cl (format "session/update ~a" kind))]))
 
+;; A field the agent sent with the wrong type is a misbehaving agent, not a
+;; reason to take the client down: read it as absent. Three shapes, because
+;; the protocol only ever promises a string, a list or an object.
 (define (string-or-false v) (and (string? v) v))
+(define (list-or-empty v) (if (list? v) v '()))
+(define (hash-or-empty v) (if (hash? v) v (hash)))
 
 ;; A content block, as much of it as a chat line can show.
 (define (content-text c)
@@ -740,8 +745,8 @@
   (define r (request! cl "initialize"
                       (hash 'protocolVersion protocol-version
                             'clientCapabilities client-capabilities)))
-  (define caps (let ([c (hash-ref r 'agentCapabilities (hash))]) (if (hash? c) c (hash))))
-  (define scaps (let ([c (hash-ref caps 'sessionCapabilities (hash))]) (if (hash? c) c (hash))))
+  (define caps (hash-or-empty (hash-ref r 'agentCapabilities (hash))))
+  (define scaps (hash-or-empty (hash-ref caps 'sessionCapabilities (hash))))
   (with-state cl
     (λ ()
       (set-acp-client-can-load?! cl (eq? (hash-ref caps 'loadSession #f) #t))
@@ -758,7 +763,9 @@
                                       (log-line cl (format "session/list failed: ~a"
                                                            (exn-message e)))
                                       #f)])
-           (let ([ss (list-sessions cl)]) (and (pair? ss) (car ss))))))
+           (match (list-sessions cl)
+             [(cons newest _) newest]
+             ['() #f]))))
   (cond
     [latest (load-session! cl
                            (hash-ref latest 'sessionId)

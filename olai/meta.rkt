@@ -48,7 +48,7 @@
 
 ;; 'desc | 'date | 'done | 'doing | 'bad, or #f when the line is not metadata.
 (define (line-field s)
-  (define-values (_ind k) (scan s))
+  (define-values (_ k) (scan s))
   (meta-field k))
 
 ;; Lines that are metadata for the title at title-idx (same indent+2, until
@@ -80,7 +80,7 @@
 ;; classify-line per entry is not a thing to do twice for a two-state answer.
 (define (title-status k meta-idxs lines)
   (define marks
-    (cons (caddr k)
+    (cons (title-flag k)
           (for/list ([i (in-list meta-idxs)]) (line-field (list-ref lines i)))))
   (cond
     [(memq 'done marks) 'done]
@@ -98,25 +98,23 @@
      (and (line-title? k)
           (even? ind)
           (keep? k)
-          (let ([meta (metadata-indices lines i ind)])
-            (title-match (add1 i) i ind
-                         (title-status k meta lines)
-                         (cadr k)))))))
+          (title-match (add1 i) i ind
+                       (title-status k (metadata-indices lines i ind) lines)
+                       (title-text k))))))
 
 ;; Find all title lines whose effective title equals `title` exactly.
 (define (find-title-matches text title)
-  (find-title-lines text (λ (k) (equal? (cadr k) title))))
+  (find-title-lines text (λ (k) (equal? (title-text k) title))))
 
 ;; Find the title line declaring ^anchor (at most one if the file is valid).
 (define (find-anchor-matches text anchor)
-  (find-title-lines text (λ (k) (equal? (cadddr k) anchor))))
+  (find-title-lines text (λ (k) (equal? (title-anchor k) anchor))))
 
 ;; 'title | 'anchor
 (define (parse-title-or-anchor s)
-  (cond
-    [(regexp-match #px"^\\^([A-Za-z0-9_-]+)$" (string-trim s))
-     => (λ (m) (cons 'anchor (cadr m)))]
-    [else (cons 'title s)]))
+  (match (string-trim s)
+    [(regexp #px"^\\^([A-Za-z0-9_-]+)$" (list _ anchor)) (cons 'anchor anchor)]
+    [_ (cons 'title s)]))
 
 ;; How a spec is quoted in messages: ^anchors bare, titles quoted.
 (define (spec-label spec)

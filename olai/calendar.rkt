@@ -4,6 +4,7 @@
 ;; Day nodes (bare ISO titles in Daily.rkt) are tracked separately for links.
 
 (require racket/list
+         racket/match
          racket/set
          racket/string
          racket/format
@@ -49,16 +50,14 @@
 
 ;; "2026-08" -> (values 2026 8) or (values #f #f)
 (define (parse-year-month s)
-  (cond
-    [(and (string? s)
-          (regexp-match #px"^([0-9]{4})-([0-9]{2})$" s))
-     => (λ (m)
-          (define y (string->number (cadr m)))
-          (define mo (string->number (caddr m)))
-          (if (and y mo (<= 1 mo 12))
-              (values y mo)
-              (values #f #f)))]
-    [else (values #f #f)]))
+  (match s
+    [(regexp #px"^([0-9]{4})-([0-9]{2})$" (list _ year month))
+     (define y (string->number year))
+     (define mo (string->number month))
+     (if (and y mo (<= 1 mo 12))
+         (values y mo)
+         (values #f #f))]
+    [_ (values #f #f)]))
 
 (define (format-year-month y m)
   (format "~a-~a" y (~r m #:min-width 2 #:pad-string "0")))

@@ -2,34 +2,37 @@
 
 ;; The shared write path. Temp dirs only, never personal data.
 
-(require rackunit
-         racket/file
+(require racket/file
          racket/list
          racket/path
          racket/string
          olai/edit
          olai/load)
 
-(define (with-temp-dir proc)
-  (define dir (make-temporary-file "sfedit~a" 'directory))
-  (dynamic-wind void (λ () (proc dir)) (λ () (delete-directory/files dir))))
+(module+ test
+  (require rackunit))
 
-(define (write-file! path text)
-  (make-parent-directory* path)
-  (display-to-file text path #:exists 'truncate/replace))
+(module+ test
+  (define (with-temp-dir proc)
+    (define dir (make-temporary-file "sfedit~a" 'directory))
+    (dynamic-wind void (λ () (proc dir)) (λ () (delete-directory/files dir))))
 
-(define (leftovers dir)
-  (filter (λ (p) (regexp-match? #px"sf-edit|sf-tmp" (path->string p)))
-          (directory-list dir)))
+  (define (write-file! path text)
+    (make-parent-directory* path)
+    (display-to-file text path #:exists 'truncate/replace))
 
-;; Collect the load-error instead of raising.
-(define (try-edit! path text)
-  (define err #f)
-  (define applied '())
-  (apply-outline-edit! path text
-                       #:on-invalid (λ (e) (set! err e))
-                       #:on-applied (λ (p) (set! applied (cons p applied))))
-  (values err (reverse applied)))
+  (define (leftovers dir)
+    (filter (λ (p) (regexp-match? #px"sf-edit|sf-tmp" (path->string p)))
+            (directory-list dir)))
+
+  ;; Collect the load-error instead of raising.
+  (define (try-edit! path text)
+    (define err #f)
+    (define applied '())
+    (apply-outline-edit! path text
+                         #:on-invalid (λ (e) (set! err e))
+                         #:on-applied (λ (p) (set! applied (cons p applied))))
+    (values err (reverse applied))))
 
 (module+ test
   (test-case "a valid edit is applied atomically and announced"

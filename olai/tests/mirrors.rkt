@@ -1,7 +1,6 @@
 #lang racket/base
 
-(require rackunit
-         racket/file
+(require racket/file
          racket/list
          racket/hash
          racket/string
@@ -20,22 +19,26 @@
          olai/status
          olai/capture)
 
-;; Keys are minted by the load layer, not the module, so these go through it.
-(define (eval-mod src)
-  (define tmp (make-temporary-file "sf-mir~a.rkt"))
-  (dynamic-wind
-   void
-   (λ ()
-     (display-to-file src tmp #:exists 'truncate)
-     (define tasks (dynamic-require `(file ,(path->string tmp)) 'tasks))
-     (define anchors (dynamic-require `(file ,(path->string tmp)) 'anchors))
-     (define o (car (mint-outline-keys (list (outline tmp tasks anchors '())))))
-     (values (outline-tasks o) (outline-anchors o)))
-   (λ () (delete-file tmp))))
+(module+ test
+  (require rackunit))
 
-(define (eval-tasks src)
-  (define-values (t a) (eval-mod src))
-  t)
+(module+ test
+  ;; Keys are minted by the load layer, not the module, so these go through it.
+  (define (eval-mod src)
+    (define tmp (make-temporary-file "sf-mir~a.rkt"))
+    (dynamic-wind
+     void
+     (λ ()
+       (display-to-file src tmp #:exists 'truncate)
+       (define tasks (dynamic-require `(file ,(path->string tmp)) 'tasks))
+       (define anchors (dynamic-require `(file ,(path->string tmp)) 'anchors))
+       (define o (car (mint-outline-keys (list (outline tmp tasks anchors '())))))
+       (values (outline-tasks o) (outline-anchors o)))
+     (λ () (delete-file tmp))))
+
+  (define (eval-tasks src)
+    (define-values (t a) (eval-mod src))
+    t))
 
 (module+ test
   (test-case "sexp #:id and mirror resolve"

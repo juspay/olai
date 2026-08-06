@@ -4,6 +4,7 @@
 
 (require racket/file
          racket/list
+         racket/match
          racket/path
          racket/string
          racket/format
@@ -43,15 +44,23 @@
   (define k (classify-line content))
   (and (line-title? k)
        (even? ind)
-       (list ind (cadr k))))
+       (list ind (title-text k))))
 
-(define (find-title-line lines title indent)
-  (for/or ([i (in-range (length lines))])
-    (define info (scan-title-line (list-ref lines i)))
-    (and info
-         (= (car info) indent)
-         (equal? (cadr info) title)
-         i)))
+;; The year node of a monolithic Daily.rkt: a top-level 4-digit title.
+;; Takes a scan-title-line answer, gives back the year string or #f.
+(define (year-node-title info)
+  (match info
+    [(list 0 (and year (regexp #px"^[0-9]{4}$"))) year]
+    [_ #f]))
+
+;; The first line in [start, end) that is `title` at `indent`, or #f.
+(define (find-title-line lines title indent
+                         #:from [start 0]
+                         #:to [end (length lines)])
+  (for/or ([i (in-range start end)])
+    (match (scan-title-line (list-ref lines i))
+      [(list (== indent) (== title)) i]
+      [_ #f])))
 
 (define (section-end lines parent-idx parent-indent)
   (define child-indent (+ parent-indent 2))
@@ -60,13 +69,11 @@
       [(>= i (length lines)) i]
       [(blank-line? (list-ref lines i)) (loop (add1 i))]
       [else
-       (define info (scan-title-line (list-ref lines i)))
-       (cond
-         [(not info)
+       (match (scan-title-line (list-ref lines i))
+         [(list indent _) (if (< indent child-indent) i (loop (add1 i)))]
+         [#f
           (define-values (ind _) (line-indent+content (list-ref lines i)))
-          (if (< ind child-indent) i (loop (add1 i)))]
-         [(< (car info) child-indent) i]
-         [else (loop (add1 i))])])))
+          (if (< ind child-indent) i (loop (add1 i)))])])))
 
 (define (lines->text lines original)
   (define body (string-join lines "\n"))
@@ -153,44 +160,35 @@
   (define year-i (find-title-line root-lines* year-title 0))
   (unless year-i (error 'daily "internal: year node missing"))
 
+  (define year-end (section-end root-lines* year-i 0))
   (define mon-i
-    (let ([end (section-end root-lines* year-i 0)])
-      (for/or ([i (in-range (add1 year-i) end)])
-        (define info (scan-title-line (list-ref root-lines* i)))
-        (and info (= (car info) 2) (equal? (cadr info) mon-title) i))))
+    (find-title-line root-lines* mon-title 2 #:from (add1 year-i) #:to year-end))
 
   (define root-lines**
     (if mon-i
         root-lines*
-        (let ([end (section-end root-lines* year-i 0)])
-          (append (take root-lines* end)
-                  (list (string-append "  " mon-title))
-                  (drop root-lines* end)))))
+        (append (take root-lines* year-end)
+                (list (string-append "  " mon-title))
+                (drop root-lines* year-end))))
 
-  (define mon-i*
-    (or mon-i
-        (for/or ([i (in-range (length root-lines**))])
-          (define info (scan-title-line (list-ref root-lines** i)))
-          (and info (= (car info) 2) (equal? (cadr info) mon-title) i))))
+  (define mon-i* (or mon-i (find-title-line root-lines** mon-title 2)))
   (unless mon-i* (error 'daily "internal: month node missing"))
 
   (define include-line (string-append "    @include " rel))
+  (define mon-end (section-end root-lines** mon-i* 2))
   (define has-include?
-    (let ([end (section-end root-lines** mon-i* 2)])
-      (for/or ([i (in-range (add1 mon-i*) end)])
-        (regexp-match?
-         (pregexp (string-append "^\\s*@include\\s+" (regexp-quote rel) "\\s*$"))
-         (list-ref root-lines** i)))))
+    (for/or ([i (in-range (add1 mon-i*) mon-end)])
+      (regexp-match?
+       (pregexp (string-append "^\\s*@include\\s+" (regexp-quote rel) "\\s*$"))
+       (list-ref root-lines** i))))
 
-  (define added-include? #f)
+  (define added-include? (not has-include?))
   (define root-lines***
     (if has-include?
         root-lines**
-        (let ([end (section-end root-lines** mon-i* 2)])
-          (set! added-include? #t)
-          (append (take root-lines** end)
-                  (list include-line)
-                  (drop root-lines** end)))))
+        (append (take root-lines** mon-end)
+                (list include-line)
+                (drop root-lines** mon-end))))
 
   (define root-text* (lines->text root-lines*** root-text))
   (unless (equal? root-text* root-text)
@@ -232,39 +230,37 @@
     (set! day-buf '())
     (set! current-day #f))
 
+  ;; A line under a day node moves up two levels when the day becomes the
+  ;; fragment's top node.
+  (define (dedented s)
+    (define-values (ind content) (line-indent+content s))
+    (string-append (make-string (max 0 (- ind 4)) #\space) content))
+
   (for ([s (in-list lines)])
     (define info (scan-title-line s))
-    (cond
-      [(and info (zero? (car info)) (regexp-match? #px"^[0-9]{4}$" (cadr info)))
+    (match info
+      [(app year-node-title (? string? year))
        (flush-day!)
-       (set! current-year (string->number (cadr info)))
+       (set! current-year (string->number year))
        (set! current-month #f)]
-      [(and info (= (car info) 2) current-year)
+      [(list 2 month)
+       #:when current-year
        (flush-day!)
-       (define m
-         (for/or ([i (in-range 1 13)])
-           (and (equal? (month-name i) (cadr info)) i)))
-       (set! current-month m)]
-      [(and info (= (car info) 4) current-year current-month
-            (bare-iso-date-title? (cadr info)))
+       (set! current-month
+             (for/or ([i (in-range 1 13)])
+               (and (equal? (month-name i) month) i)))]
+      [(list 4 (? bare-iso-date-title? day))
+       #:when (and current-year current-month)
        (flush-day!)
-       (set! current-day (cadr info))
-       (set! day-buf (list (cadr info)))]
-      [(and current-day info)
-       (define-values (ind content) (line-indent+content s))
-       (define new-ind (max 0 (- ind 4)))
-       (set! day-buf
-             (cons (string-append (make-string new-ind #\space) content)
-                   day-buf))]
-      [(and current-day (not info) (not (blank-line? s)))
-       (define-values (ind content) (line-indent+content s))
-       (define new-ind (max 0 (- ind 4)))
-       (set! day-buf
-             (cons (string-append (make-string new-ind #\space) content)
-                   day-buf))]
-      [(and current-day (blank-line? s))
-       (set! day-buf (cons "" day-buf))]
-      [else (void)]))
+       (set! current-day day)
+       (set! day-buf (list day))]
+      [_
+       (cond
+         [(and current-day (or info (not (blank-line? s))))
+          (set! day-buf (cons (dedented s) day-buf))]
+         [(and current-day (blank-line? s))
+          (set! day-buf (cons "" day-buf))]
+         [else (void)])]))
   (flush-day!)
 
   (when (hash-empty? result)
@@ -285,17 +281,11 @@
     (display-to-file body frag #:exists 'truncate/replace)
     (dynamic-require `(file ,(path->string frag)) 'tasks))
 
+  ;; Everything above the first year node stays at the root, verbatim.
   (define header-lines
-    (let loop ([i 0] [acc '()])
-      (cond
-        [(>= i (length lines)) (reverse acc)]
-        [else
-         (define s (list-ref lines i))
-         (define info (scan-title-line s))
-         (cond
-           [(and info (zero? (car info)) (regexp-match? #px"^[0-9]{4}$" (cadr info)))
-            (reverse acc)]
-           [else (loop (add1 i) (cons s acc))])])))
+    (for/list ([s (in-list lines)]
+               #:break (year-node-title (scan-title-line s)))
+      s))
 
   (define years
     (sort (remove-duplicates

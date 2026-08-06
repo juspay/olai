@@ -18,6 +18,7 @@
 
 (require racket/contract
          racket/list
+         racket/match
          (except-in olai/lang/expander #%module-begin)
          olai/lang/walk)
 
@@ -43,9 +44,9 @@
 (define (outline-index files-data)
   (define idx (make-hash))
   (for ([e (in-list files-data)])
-    (define file (car e))
+    (match-define (list file tasks) e)
     (fold-tasks
-     (cadr e)
+     tasks
      (λ (tk path acc)
        (define key (task-key tk))
        (unless (hash-has-key? idx key)
