@@ -10,6 +10,7 @@
 (require rackunit
          racket/string
          (except-in olai/lang/expander #%module-begin)
+         olai/index
          olai/lang/line
          olai/load
          olai/web/events
@@ -41,9 +42,20 @@
     (check-exn (blames "load.rkt")
                (λ () (mint-outline-keys (list "not an outline")))))
 
+  (test-case "index: files-data in, and a key is a string"
+    (check-exn (blames "index.rkt")
+               (λ () (outline-index "not files-data")))
+    ;; the trail above a node is asked for by key, not by node
+    (check-exn (blames "index.rkt")
+               (λ () (node-ancestors (hash) (make-task #:title "T" #:key "k")))))
+
   (test-case "web/render: the renderer draws tasks, not titles"
     (check-exn (blames "render.rkt")
                (λ () (render-node-fragment "Buy milk" #:today "2026-08-04")))
+    ;; a zoom is a node and the trail above it, both given: this layer draws
+    ;; one, it does not look one up
+    (check-exn (blames "render.rkt")
+               (λ () (render-zoom "ship" '() #:today "2026-08-04" #:home-href "/")))
     ;; `today` is an argument, and it is a string: no clock, no #f
     (check-exn (blames "render.rkt")
                (λ () (render-node-fragment (make-task #:title "T" #:key "k")

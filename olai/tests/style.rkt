@@ -45,6 +45,7 @@
          olai/web/render
          olai/web/chat-panel
          olai/store
+         olai/index
          (only-in olai/lang/walk resolve-mirrors)
          (except-in olai/lang/expander #%module-begin))
 
@@ -153,8 +154,10 @@
                                           #:zoom-base "/z/")
                 #:banner (render-error-banner "expected ISO date"
                                               #:where "/tmp/Tasks.rkt:3:4"))
-   (render-zoom (snapshot-index example-snapshot) "agent"
-                #:today example-today #:home-href "/" #:zoom-base "/z/")
+   (let ([index (snapshot-index example-snapshot)])
+     (render-zoom (node-entry-task (hash-ref index "agent"))
+                  (node-ancestors index "agent")
+                  #:today example-today #:home-href "/" #:zoom-base "/z/"))
    (render-empty-pane "No such node." #:home-href "/")
    ;; a mirror site whose anchor named nothing: the outline still says
    ;; something belongs here, and the marker is drawn in that state

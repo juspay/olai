@@ -144,6 +144,85 @@
        (check-true (string-contains? pane "ol-zoom") pane)
        (check-false (string-contains? pane "Buy milk") pane))))
 
+  ;; ---- zoom ------------------------------------------------------------------
+
+  ;; ^serve is the node's key, so the permalink is one a test can spell.
+  (test-case "GET /n/<key> is that node, zoomed, with the trail above it"
+    (with-server
+     (λ (port f)
+       (define-values (code _h body) (GET port "/n/serve"))
+       (check-equal? code 200 body)
+       (define pane (cadr (string-split body "<main class=\"ol-main\">")))
+       (check-true (string-contains? pane "ol-zoom") pane)
+       (check-true (string-contains? pane "Ship the server") pane)
+       ;; the focused subtree and nothing else
+       (check-false (string-contains? pane "Buy milk") pane)
+       ;; breadcrumbs: home, then the file it is defined in
+       (check-true (string-contains? pane "ol-breadcrumbs") pane)
+       (check-true (string-contains? pane "Tasks.rkt") pane)
+       (check-true (string-contains? pane "href=\"/\"") pane)
+       ;; the tab says which node
+       (check-true (string-contains? body "<title>Ship the server</title>") body))))
+
+  (test-case "a node's permalink is its zoom page, not the home page"
+    (with-server
+     (λ (port f)
+       (define-values (_c _h home) (GET port "/"))
+       ;; every bullet is a link to that node's page — the sidebar's tree too
+       (check-true (string-contains? home "href=\"/n/serve\"") home)
+       (check-false (string-contains? home "href=\"/#n-serve\"") home))))
+
+  (test-case "an ancestor crumb links to the ancestor's own zoom page"
+    (with-server
+     (λ (port f)
+       ;; Buy milk is a child of Inbox, so its trail has a node in it. The
+       ;; keys come from the JSON surface — the same ones the page draws with
+       (define j (read-json (open-input-string
+                             (let-values ([(_c _h b) (GET port "/api/tree")]) b))))
+       (define inbox (car (hash-ref j 'tasks)))
+       (define milk (car (hash-ref inbox 'children)))
+       (check-equal? (hash-ref milk 'title) "Buy milk")
+       (define-values (code _h2 body) (GET port (string-append "/n/" (hash-ref milk 'key))))
+       (check-equal? code 200 body)
+       (define pane (cadr (string-split body "<main class=\"ol-main\">")))
+       (check-true (string-contains? pane "Buy milk") pane)
+       (define crumbs (car (string-split pane "</nav>")))
+       ;; home, the file, then the ancestor — a link to ITS page, not an
+       ;; in-page anchor on the home page
+       (check-true (string-contains? crumbs "Tasks.rkt") crumbs)
+       (check-true (string-contains?
+                    crumbs
+                    (string-append "href=\"/n/" (hash-ref inbox 'key) "\">Inbox"))
+                   crumbs))))
+
+  (test-case "a key the snapshot does not have says so, and stays a page"
+    (with-server
+     (λ (port f)
+       ;; not a 404: a tab zoomed on a node that was deleted re-fetches THIS
+       ;; page to find out, and htmx swaps nothing on an error status
+       (define-values (code headers body) (GET port "/n/nope"))
+       (check-equal? code 200 body)
+       (check-true (string-contains? (or (header-value headers "content-type:") "")
+                                     "text/html")
+                   (format "~a" headers))
+       (check-true (string-contains? body "No such node.") body)
+       ;; still a live page, still pointing at itself
+       (check-true (string-contains? body "id=\"ol-live\" hx-get=\"/n/nope\"") body))))
+
+  (test-case "an edit under a zoomed node lands on the zoom page"
+    (with-server
+     (λ (port f)
+       (define-values (_code _headers in) (open-events port))
+       (display-to-file (string-append outline "  Write the docs\n") f #:exists 'truncate)
+       (check-not-false (next-event in) "no outline event for the edit")
+       ;; the page an open tab re-fetches on that event is this one, and it
+       ;; has the new child in it
+       (define-values (code _h body) (GET port "/n/serve"))
+       (check-equal? code 200 body)
+       (check-true (string-contains? body "Write the docs") body)
+       (check-true (string-contains? body "id=\"ol-live\" hx-get=\"/n/serve\"") body)
+       (close-input-port in))))
+
   (test-case "GET /api/tree matches the tree JSON contract"
     (with-server
      (λ (port f)

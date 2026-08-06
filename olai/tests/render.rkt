@@ -11,7 +11,7 @@
          file/sha1
          (except-in olai/lang/expander #%module-begin)
          (only-in olai/lang/walk resolve-mirrors)
-         olai/store
+         olai/index
          olai/web/render
          ;; the list the picker draws: the themes the sheet carries, and the
          ;; one a page that picked nothing reads in
@@ -385,6 +385,17 @@
                                         #:zoom-base "/z/")))
     (check-true (string-contains? z "href=\"/z/p1234abcd\"") z))
 
+  ;; What a zoom PAGE is drawn from: the node, and the trail above it. Which
+  ;; node a key names is olai/index's answer (tests/index.rkt), not this
+  ;; module's — here it is only the input.
+  (define (zoom-of fd key #:zoom-base [zoom-base #f])
+    (define idx (outline-index fd))
+    (xstr (render-zoom (node-entry-task (hash-ref idx key))
+                       (node-ancestors idx key)
+                       #:today "2026-08-04"
+                       #:home-href "/"
+                       #:zoom-base zoom-base)))
+
   (test-case "zoom shows breadcrumbs plus the focused subtree only"
     (define fd (files (list "Tasks.rkt"
                             (list (tk "Inbox" #f #f
@@ -392,7 +403,7 @@
                                                 (list (tk "2% please" #f #f '())))))
                                   (tk "Elsewhere" #f #f '())))))
     (define fid (task-key (tk "Buy milk" #f #f '())))
-    (define s (xstr (render-zoom (outline-index fd) fid #:today "2026-08-04" #:home-href "/")))
+    (define s (zoom-of fd fid))
     (check-true (string-contains? s "ol-breadcrumbs") s)
     (check-true (string-contains? s "Tasks.rkt") s)
     (check-true (string-contains? s "Inbox") s)
@@ -402,17 +413,19 @@
     ;; the ancestor crumb is clickable, the file label is not
     (check-true (string-contains? s (string-append
                                      "href=\"#n-" (task-key (tk "Inbox" #f #f '())) "\""))
-                s))
+                s)
+    ;; and with a zoom base, every ancestor crumb is that ancestor's own page
+    (define z (zoom-of fd fid #:zoom-base "/n/"))
+    (check-true (string-contains?
+                 z (string-append "href=\"/n/" (task-key (tk "Inbox" #f #f '())) "\""))
+                z))
 
-  (test-case "zoom by anchor and unknown key"
+  (test-case "zoom by anchor"
     (define fd (files (list "Tasks.rkt"
                             (list (tk "Root" #f #f (list (tk "Kid" #f #f '() #:id "kid")))))))
-    (define s (xstr (render-zoom (outline-index fd) "kid" #:today "2026-08-04" #:home-href "/")))
+    (define s (zoom-of fd "kid"))
     (check-true (string-contains? s "id=\"n-kid\"") s)
-    (check-true (string-contains? s "Kid") s)
-    (define miss (xstr (render-zoom (outline-index fd) "pdeadbeef" #:today "2026-08-04"
-                                #:home-href "/")))
-    (check-true (string-contains? miss "No such node.") miss))
+    (check-true (string-contains? s "Kid") s))
 
   ;; ---- page shell ---------------------------------------------------------
 

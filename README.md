@@ -105,7 +105,8 @@ Outline `#lang olai` + sexp core + agent CLI (`check` / `tree` JSON /
 `serve` / `css`). Done status, mirrors and `@include` composition are first class;
 mirrors reach anchors anywhere in the loaded tree, fragments included. The
 human view is the web app served by `olai serve` — htmx, no auth (bind
-it to localhost or Tailscale). It reloads an outline when the file changes
+it to localhost or Tailscale). Every node has a permalink that zooms to
+it, breadcrumbs and all. It reloads an outline when the file changes
 and pushes that over SSE, so open tabs redraw with no refresh, and it carries
 a chat panel driving Claude Code over ACP (`OLAI_ACP_AGENT`). Installable
 as a PWA (manifest, icons, theme-color; no offline shell). The page itself

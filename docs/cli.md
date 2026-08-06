@@ -401,7 +401,8 @@ Routes:
 | Route | Body |
 |-------|------|
 | `GET /` | HTML page (Workflowy-style skin from `olai/web/render.rkt`) |
-| `GET /today` | the first node titled with today's ISO date (the Daily day node), zoomed; terse empty state when there is none yet |
+| `GET /n/<key>` | one node, zoomed: breadcrumbs (home, the file, each ancestor) plus that subtree and nothing else. `key` as in `tree` JSON. A key the current snapshot has no node for is a page saying so, with a `200` — a node can be deleted while a tab sits zoomed on it, and that tab re-fetches this page to find out |
+| `GET /today` | the first node titled with today's ISO date (the Daily day node), zoomed — the same view as `/n/<key>`, with today's key looked up per request; terse empty state when there is none yet |
 | `GET /events` | `text/event-stream`, never ends. `event: outline` with the store revision as its data whenever a watched file reloaded, plus one at local midnight; `event: chat` with one JSON frame from the agent per line; a `:hb` comment on connect and every 15s after, so a client knows it is subscribed and proxies leave it alone |
 | `POST /chat` | prompt the agent; form field `text` (empty after trimming is `400`). `204` — what the panel draws comes back over `/events`, so every open tab stays in step. `409` with a terse `text/plain` body while a turn is running, `503` when the agent is gone |
 | `POST /chat/new` | new chat: the agent-side context goes away, `204`, and a `reset` frame clears every panel |
@@ -415,9 +416,15 @@ Routes:
 | `GET /static/*` | files under `olai/web/static/` (icons, htmx, scripts, `pwa.js`) |
 | anything else | `404`, terse `text/plain` |
 
-A node's permalink is `/#n-<key>` (`key` as in `tree` JSON). Anchored nodes and
-bare-ISO day nodes also keep a plain `#<anchor>` / `#<YYYY-MM-DD>` target, so
-links people wrote by hand still resolve.
+A node's permalink is `/n/<key>` (`key` as in `tree` JSON): every bullet in the
+outline and every entry in the sidebar tree links to that node's own zoom page.
+A key survives a rename — of the node or of any ancestor — but an unanchored
+node keys off its position, so moving it to a new ordinal mints a new key and
+the old link stops resolving. `^anchor` a node whose link has to outlive that.
+
+Within a page, anchored nodes and bare-ISO day nodes also keep a plain
+`#<anchor>` / `#<YYYY-MM-DD>` target, so links people wrote by hand still
+resolve, and every node carries `id="n-<key>"`.
 
 Paths that climb out of `static/` are 404, not files.
 

@@ -31,8 +31,8 @@
          (except-in olai/lang/expander #%module-begin)
          olai/lang/walk
          olai/load
-         ;; one owner for how a file is named in the UI
-         (only-in olai/paths file-label))
+         ;; how a node is addressed, and what sits above it
+         (only-in olai/index outline-index))
 
 ;; Handlers hold a store for the life of the process and read a snapshot per
 ;; request: the two things that must not be confused with each other, or with
@@ -49,7 +49,6 @@
                             [files-data list?]
                             [index hash?]
                             [watch (listof path?)])]
-          [outline-index (-> list? hash?)]
           [snapshot-day-key (-> snapshot? string? (or/c string? #f))]
           [call-in-outline-namespace (-> (-> any) any)]))
 
@@ -60,7 +59,7 @@
 ;;   files-data : (listof (list path tasks)) — render's input: the same trees
 ;;                with every mirror site already bound to its node
 ;;                (olai/lang/walk, resolve-mirrors)
-;;   index      : hash node-id -> (list task breadcrumb)
+;;   index      : hash key -> node-entry (olai/index) — every node, addressed
 ;;   watch      : (listof path) roots + transitive @include fragments
 (struct snapshot (outlines files-data index watch) #:transparent)
 
@@ -162,29 +161,6 @@
       (for ([q (in-list (module-includes p))]) (visit q))))
   (for ([o (in-list outlines)]) (visit (outline-path o)))
   (reverse acc))
-
-;; key -> (list task crumbs) for every node, where crumbs is the trail from
-;; the file label down to and including the node itself, each crumb a
-;; (list label key) with key #f for the file label. Keys come from the model
-;; (task-key), so this is a plain invertible hash: no id formula restated
-;; anywhere, no scan when a lookup misses. Mirrors are not indexed — a mirror
-;; site is the same node as its defining site, and that site owns the key.
-(define (outline-index files-data)
-  (define idx (make-hash))
-  (for ([e (in-list files-data)])
-    (define file-crumb (list (list (file-label (car e)) #f)))
-    (fold-tasks
-     (cadr e)
-     (λ (tk path _acc)
-       (unless (hash-has-key? idx (task-key tk))
-         (hash-set! idx (task-key tk)
-                    (list tk
-                          (append file-crumb
-                                  (for/list ([n (in-list (task-path path tk))])
-                                    (list (task-title n) (task-key n)))))))
-       idx)
-     idx))
-  idx)
 
 ;; The key of the day node titled `iso-day` (Daily.rkt keeps one per day), or
 ;; #f. First match in file order, so the answer does not depend on hash order.
