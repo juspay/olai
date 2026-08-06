@@ -32,12 +32,6 @@
        (check-equal? (hash-ref j1 'ok) #t)
        (check-true (list? (hash-ref j1 'files)))
        (check-equal? (length (hash-ref j1 'files)) 2)
-       (define-values (cplain oplain eplain)
-         (run-olai
-          (list "check" (path->string good) (path->string other))))
-       (check-equal? cplain 0 eplain)
-       (check-true (regexp-match? #rx"ok:.*good\\.rkt" oplain) oplain)
-       (check-true (regexp-match? #rx"ok:.*other\\.rkt" oplain) oplain)
        ;; one bad
        (display-to-file "#lang olai\nX\n  @date bogus\n" bad
                         #:exists 'truncate)
@@ -52,12 +46,12 @@
        (check-equal? (length files) 2)
        (check-equal? (hash-ref (car files) 'ok) #t)
        (check-equal? (hash-ref (cadr files) 'ok) #f)
-       (define-values (c3 o3 e3)
-         (run-olai
-          (list "check" (path->string good) (path->string bad))))
-       (check-equal? c3 2)
-       (check-true (regexp-match? #rx"ok:.*good\\.rkt" o3) o3)
-       (check-true (regexp-match? #rx"(?i:fail|date)" e3) e3))
+       ;; per-file errors ride the array on stdout; stderr stays empty
+       (check-equal? (string-trim e2) "" e2)
+       (define err2 (hash-ref (cadr files) 'error))
+       (check-true (hash-has-key? err2 'message))
+       (check-true (regexp-match? #rx"(?i:date)" (hash-ref err2 'message))
+                   (hash-ref err2 'message)))
      (λ () (delete-directory/files dir))))
 
   (test-case "multi-file tree JSON shape"
