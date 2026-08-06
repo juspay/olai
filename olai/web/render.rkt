@@ -494,7 +494,10 @@
     `((class ,(classes ol-check (state-class status)))
       (title ,hint)))
   (if toggle-base
-      ;; post against the node (its key), swap the copy you clicked (elt-key)
+      ;; post against the node (its key), swap the copy you clicked (elt-key).
+      ;; DORMANT and grandfathered: no route serves a toggle, so nothing but a
+      ;; test reaches this. Raw htmx attributes are banned (live/README.md) —
+      ;; 0.6's write path brings a ratified write FORM, and this goes with it.
       `(button ((type "button")
                 ,@common
                 (hx-post ,(string-append toggle-base key))

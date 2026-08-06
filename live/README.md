@@ -210,11 +210,11 @@ Every live form in the file, beside what it became — one level, the macro's ow
 
 ### Raw htmx attributes are banned
 
-The attributes a live view is made of — `hx-get`, `hx-select`, `hx-push-url`, `hx-history-elt`, `sse-connect`, `sse-swap`, and the `hx-target` and `hx-swap` that go with them — are the forms' output in app code and nobody else's. Writing one by hand, or filtering one back out of what a form produced, fails review. Consumers outside this repo have the documented functions instead; both doors are checked, and neither is a hand-written attribute.
+In app code, htmx and SSE attributes are the forms' output and nobody else's. All of them — `hx-get`, `hx-target`, `hx-select`, `hx-swap`, `hx-push-url`, `hx-history-elt`, `sse-connect`, `sse-swap`, and every verb this framework has never mentioned. Writing one by hand, or filtering one back out of what a form produced, fails review. Consumers outside this repo have the documented functions instead; both doors are checked, and neither is a hand-written attribute.
 
-Writes are the exception, and this framework already named it: it says nothing about forms and mutations (see [What it does not do](#what-it-does-not-do)). An `hx-post` and the target and swap that belong to it are ordinary htmx and none of this rule's business. What the rule covers is everything that DRAWS or NAVIGATES a region.
+A gap in the vocabulary is not a licence to reach past it. It is proposed to the human, ratified, and then it is a form. That is how `#:history?` got here: the counters example hit htmx's one-history-element rule, filtered the attribute back out by hand, and flagged it as unsayable.
 
-A gap in the vocabulary is not a licence to hack around it. It is proposed to the human, ratified, and then it is a form — which is how `#:history?` got here: the counters example hit htmx's one-history-element rule, filtered the attribute back out by hand, and flagged it as unsayable. The vocabulary stays tiny and human-curated for the same reason; an abstraction library nobody prunes sinks below having none.
+The obvious open gap is writes — `hx-post` and its relatives. This framework says nothing about them today ([What it does not do](#what-it-does-not-do)), and "says nothing" is exactly the case the rule is for: when olai's write path arrives it brings a proposed write FORM with it, not a hand-rolled attribute. Same door as everything else. The vocabulary stays tiny and human-curated because that is what keeps it worth using; an abstraction library nobody prunes sinks below having none.
 
 ## The contract
 
@@ -239,7 +239,7 @@ A gap in the vocabulary is not a licence to hack around it. It is proposed to th
 * **It does not reconnect for you.** EventSource does that, and the stream tells it how soon (`retry:`). What the runtime adds is noticing: a heartbeat carries its own cadence, and a beat that does not arrive is how a half-open socket — one that looks connected and is not — becomes `live-stale` instead of looking like a quiet afternoon. A socket that never errors is REPORTED, not forced; the browser owns the connection and this owns the story about it.
 * **It is not a component model.** There is no client state, no reactivity, no diffing of your data. The server renders HTML; this decides what to re-fetch and how it lands.
 * **It does not multiplex.** One page, one stream, and every event name rides it — the region swaps on one name, `live.on` hears any of the others. Two EventSources to the same origin is a browser connection limit waiting to happen, and two stories about health.
-* **It says nothing about writes.** This is a push channel. Forms, mutations and their responses are ordinary htmx, or ordinary anything.
+* **It says nothing about writes.** This is a push channel. Forms, mutations and their responses are ordinary htmx, or ordinary anything — though in this repo, ordinary htmx still means a ratified form rather than a hand-written attribute ([Raw htmx attributes are banned](#raw-htmx-attributes-are-banned)).
 
 ## The modules
 
