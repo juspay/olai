@@ -84,6 +84,13 @@ olai roadmap #project
         : Per-node zoom route keyed by task-key (render-zoom exists, wired
         : only to /today); breadcrumbs from the ancestor path; node
         : permalinks point at the zoom instead of home.
+      collapse state lost on live re-swap #bug
+        : sse.js swaps via api.swap directly, so htmx:afterSwap never
+        : fires and collapse.js's re-apply pass is skipped — an SSE
+        : re-render arrives with server-default fold state. Fix: a
+        : MutationObserver on the outline container re-running apply()
+        : over added subtrees (mechanism-independent; also covers the
+        : midnight re-render). localStorage + task-key stay as-is.
     0.6 micro-edits
       : Capture box + check-off from the browser (done status already in the
       : language + CLI). The phone loop closes: capture, complete, ask the
@@ -131,6 +138,19 @@ olai roadmap #project
       : $EDITOR and agents, includable elsewhere.
   codebase
     : The repo's own shape and workflow.
+    e2e tests
+      : Browser-level journeys the wire tests can't see (integration/
+      : stops at HTTP: HTML strings, SSE frames, JSON — no JS runs).
+      : The kolu pattern: cucumber-js features + step definitions,
+      : Playwright headless Chromium from support hooks, @skip tags,
+      : env retry budget; own `just e2e` recipe + CI lane, never in
+      : `just test`. Node dev-deps provisioned by nix
+      : (playwright-driver pins the browser). Each scenario boots
+      : `olai serve` on an ephemeral port against a temp outline.
+      : First features: fold survives an SSE re-swap (the parked
+      : collapse #bug becomes its regression test); chat panel open
+      : keeps .ol-main readable (the #14 wrap bug); theme flip
+      : persists across reload.
     refactor pass ^pre-squash
       : Structural cleanups batched together, done just prior to squashing
       : master into one root commit.
