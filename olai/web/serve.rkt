@@ -39,6 +39,7 @@
          racket/port
          racket/promise
          racket/string
+         racket/tcp
          (for-syntax racket/base)
          json
          net/url
@@ -478,8 +479,38 @@
 
 ;; ---- server ---------------------------------------------------------------
 
+;; Bind the dispatcher. -> (values stop bound-port). #:port 0 means "pick
+;; one"; fallback? means the port asked for is a preference, not a request —
+;; taken, we take a free one instead. Without it a taken port is an error,
+;; which is what a port asked for by name deserves.
+;;
+;; The probe is what keeps the fallback quiet: the web server's listener
+;; thread re-raises a failed bind after reporting it, so walking into one
+;; dumps a stack trace on the way to an ordinary "that port was taken". The
+;; handler is still there, for the race between probing and binding.
+(define (listen dispatch port bind fallback?)
+  (define (free? port)
+    (with-handlers ([exn:fail:network? (λ (_e) #f)])
+      (tcp-close (tcp-listen port 4 #t bind))
+      #t))
+  (define (go port)
+    (define confirm (make-async-channel 1))
+    (define stop
+      (serve #:dispatch dispatch
+             #:port port
+             #:listen-ip bind
+             #:confirmation-channel confirm))
+    (define bound (async-channel-get confirm))
+    (when (exn? bound)
+      (stop)
+      (raise bound))
+    (values stop bound))
+  (with-handlers ([(λ (e) (and fallback? (exn:fail:network? e)))
+                   (λ (_e) (go 0))])
+    (go (if (and fallback? (not (free? port))) 0 port))))
+
 ;; Returns a stop procedure. #:on-listen gets the port actually bound (useful
-;; when #:port is 0, i.e. "pick one").
+;; when #:port is 0, i.e. "pick one", or when #:port-fallback? took over).
 ;;
 ;; #:acp-command is the agent `serve` chats with — #f means there is none, and
 ;; the CLI never passes #f (it refuses to start without one; see docs/cli.md).
@@ -487,6 +518,7 @@
 ;; #:on-agent is handed the conversation once it exists: the seam for tests,
 ;; and for anything that wants to prompt the agent without an HTTP request.
 (define (start-server #:port [port 8080]
+                      #:port-fallback? [port-fallback? #f]
                       #:bind [bind "127.0.0.1"]
                       #:files files
                       #:acp-command [acp-command #f]
@@ -506,16 +538,8 @@
          (make-chat #:command acp-command
                     #:cwd (or agent-cwd (roots-base files))
                     #:broadcast (λ (name data) (hub-broadcast! hub name data)))))
-  (define confirm (make-async-channel 1))
-  (define stop
-    (serve #:dispatch (make-dispatcher st hub agent)
-           #:port port
-           #:listen-ip bind
-           #:confirmation-channel confirm))
-  (define bound (async-channel-get confirm))
-  (when (exn? bound)
-    (stop)
-    (raise bound))
+  (define-values (stop bound)
+    (listen (make-dispatcher st hub agent) port bind port-fallback?))
   ;; Only once there is a listener: a watcher with nobody to tell is a
   ;; thread that reloads outlines for its own amusement.
   ;;

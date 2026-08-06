@@ -84,12 +84,51 @@ olai roadmap #project
         : Per-node zoom route keyed by task-key (render-zoom exists, wired
         : only to /today); breadcrumbs from the ancestor path; node
         : permalinks point at the zoom instead of home.
+      collapse state lost on live re-swap #bug
+        : sse.js swaps via api.swap directly, so htmx:afterSwap never
+        : fires and collapse.js's re-apply pass is skipped — an SSE
+        : re-render arrives with server-default fold state. Fix: a
+        : MutationObserver on the outline container re-running apply()
+        : over added subtrees (mechanism-independent; also covers the
+        : midnight re-render). localStorage + task-key stay as-is.
     0.6 micro-edits
       : Capture box + check-off from the browser (done status already in the
       : language + CLI). The phone loop closes: capture, complete, ask the
       : agent for everything else.
     0.9 search
       : Text search + keyboard nav in the web view.
+    command palette
+      : Ctrl+K (and Ctrl+; fallback), the Workflowy "Jump To": one box
+      : that fuzzy-jumps to any node by title, ^anchor, or #tag, and
+      : runs commands (theme flip, collapse all, /today). Workflowy
+      : pairs it with user-assigned shortcut codes on bullets — anchors
+      : already are that for us. Rides 0.9's search index.
+    chat
+      : The panel becomes the outline's other half.
+      tool-output folding
+        : ACP tool-call frames (and similar chatter) collapse by default
+        : in the chat panel; a toggle unfolds any of them on demand. The
+        : transcript stays complete — folding is view state, like the
+        : outline's collapse.
+      edit flash-and-jump
+        : When a chat-driven edit lands (the SSE re-swap already fires),
+        : flash the changed node in the outline pane; the tool-call line
+        : (`Edit Tasks.rkt`) clicks through to the affected node's zoom.
+      chat about this node
+        : An affordance on any node opens the panel with that node's key
+        : and subtree as context — "reschedule these" without spelling
+        : the node out. Pairs with WP7 zoom.
+      markdown replies
+        : Full Markdown in agent replies — fenced code with highlighting,
+        : via the vendored markdown lib. Render-time only; transcript
+        : strings stay verbatim.
+      session picker adopts foreign sessions #bug
+        : session/list is trusted unfiltered and the adapter scopes by
+        : prefix, so sessions from other checkouts of the repo (agent
+        : worktrees, an orchestrator in the root) show in the picker —
+        : and boot ADOPTS the newest as the web conversation. The raw
+        : entries carry cwd (acp.rkt:370); filter list-sessions to exact
+        : server-cwd matches before the picker or adopt logic sees them.
   language
     : The grammar grows; the expander stays the only validator.
     0.2b.2 cross-file mirrors
@@ -131,6 +170,41 @@ olai roadmap #project
       : $EDITOR and agents, includable elsewhere.
   codebase
     : The repo's own shape and workflow.
+    e2e tests
+      : Browser-level journeys the wire tests can't see (integration/
+      : stops at HTTP: HTML strings, SSE frames, JSON — no JS runs).
+      : The kolu pattern: cucumber-js features + step definitions,
+      : Playwright headless Chromium from support hooks, @skip tags,
+      : env retry budget; own `just e2e` recipe + CI lane, never in
+      : `just test`. Node dev-deps provisioned by nix
+      : (playwright-driver pins the browser). Each scenario boots
+      : `olai serve` on an ephemeral port against a temp outline.
+      : First features: fold survives an SSE re-swap (the parked
+      : collapse #bug becomes its regression test); chat panel open
+      : keeps .ol-main readable (the #14 wrap bug); theme flip
+      : persists across reload.
+    chat boot frames race the assertions #bug
+      : integration/chat.rkt fails intermittently, on either runner, with an
+      : extra LEADING frame: ("commands" "session" "user" "chunk") for
+      : ("user" "chunk") at chat.rkt:886, and ("commands" "reset" ...) for
+      : ("reset" ...) at chat.rkt:949.
+      : Not a commit: it failed on master at 46cf193a — a Roadmap.rkt-only
+      : commit — with f6d1b71c before it and c609691d after it both green,
+      : and once on PR #17's macOS lane, green on re-run with no chat or acp
+      : change. Two different assertions, two different runners, always the
+      : same shape.
+      : Cause: with-server gates on wait-booted (chat.rkt:167), which waits
+      : for chat-session-id — set from the session/new RESULT. The fake
+      : agent emits commands! and session-info! one round trip LATER, on
+      : session/set_mode (fake-acp-agent.rkt:349). chat-boot! runs in its
+      : own thread (serve.rkt), so those two frames can land after the test
+      : opens /events and inside its assertion window. The fake agent pins
+      : the order AMONG boot frames; nothing pins boot against the test's
+      : own subscription, which is the ordering that breaks.
+      : Fix: gate on the LAST boot signal, not the first — wait-booted
+      : answers (and (chat-session-id ag) (pair? (chat-commands ag))), since
+      : chat-commands is populated by the very frame that races and the fake
+      : agent ships a non-empty list at boot. One line, no product change.
     refactor pass ^pre-squash
       : Structural cleanups batched together, done just prior to squashing
       : master into one root commit.

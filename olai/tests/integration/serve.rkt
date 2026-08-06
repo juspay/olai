@@ -10,6 +10,7 @@
          racket/path
          racket/port
          racket/string
+         racket/tcp
          olai/web/serve)
 
 ;; Sizes differ on every write below: the store's staleness probe is mtime +
@@ -24,23 +25,30 @@
    "Ship the server ^serve\n"))
 
 ;; Run body with the server up: (proc port outline-path). The path is handed
-;; back so a test can edit the outline underneath a running server.
-(define (with-server proc)
+;; back so a test can edit the outline underneath a running server. The temp
+;; dir goes whether or not the server came up, which is a case here.
+(define (with-server proc #:port [port 0] #:port-fallback? [fallback? #f])
   (define dir (make-temporary-file "sfserve~a" 'directory))
   (define f (build-path dir "Tasks.rkt"))
   (display-to-file outline f #:exists 'truncate)
-  (define bound #f)
-  (define stop
-    (start-server #:port 0
-                  #:bind "127.0.0.1"
-                  #:files (list f)
-                  #:on-listen (λ (p) (set! bound p))))
   (dynamic-wind
    void
-   (λ () (proc bound f))
    (λ ()
-     (stop)
-     (delete-directory/files dir))))
+     (define bound #f)
+     (define stop
+       (start-server #:port port
+                     #:port-fallback? fallback?
+                     #:bind "127.0.0.1"
+                     #:files (list f)
+                     #:on-listen (λ (p) (set! bound p))))
+     (dynamic-wind void (λ () (proc bound f)) stop))
+   (λ () (delete-directory/files dir))))
+
+;; A port that is already bound, for the two "taken" cases: (proc port).
+(define (with-taken-port proc)
+  (define l (tcp-listen 0 4 #t "127.0.0.1"))
+  (define-values (_h port _rh _rp) (tcp-addresses l #t))
+  (dynamic-wind void (λ () (proc port)) (λ () (tcp-close l))))
 
 ;; -> (values status-code headers body-string)
 (define (GET port path)
@@ -87,6 +95,25 @@
       [else (loop name data)])))
 
 (module+ test
+  ;; The port the CLI did not have to be told (its default): taken means take
+  ;; another one, and on-listen hears which.
+  (test-case "a taken port falls back to a free one when it was only a default"
+    (with-taken-port
+     (λ (taken)
+       (with-server
+        #:port taken #:port-fallback? #t
+        (λ (bound f)
+          (check-not-equal? bound taken)
+          (define-values (code _h body) (GET bound "/"))
+          (check-equal? code 200 body))))))
+
+  ;; A port asked for by name is a request, not a preference.
+  (test-case "a taken port without the fallback is an error"
+    (with-taken-port
+     (λ (taken)
+       (check-exn exn:fail:network?
+                  (λ () (with-server #:port taken (λ (bound f) (void))))))))
+
   (test-case "GET / is an html page with the outline in it"
     (with-server
      (λ (port f)
