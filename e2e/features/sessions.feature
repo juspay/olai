@@ -60,16 +60,14 @@ Feature: past conversations, and whose they are
     And I send "what is in the outline" to the agent
     Then the last turn reads "hello world"
 
-  # KNOWN BROKEN: the panel a page opens with is only as current as the agent.
-  # `serve` prints its URL and answers requests while the agent is still waking
-  # up in its own thread, and its boot frames (model, session, commands) are
-  # BROADCAST — a page opened in that window is not listening yet, and the
-  # server-rendered panel it did get was drawn before any of them landed. The
-  # conversation is there; the panel does not say which one until something
-  # else makes it redraw. Every other scenario here waits the boot out
-  # (`the agent has woken up`), which is the harness admitting it.
-  # Same shape as the racket suite's parked boot-frame race (Roadmap.rkt).
-  @skip @stored-sessions
+  # No `Given the agent has woken up`, on purpose. `serve` prints its URL and
+  # answers requests while the agent is still waking up in its own thread, and
+  # its boot frames (session, model, commands) go out to whoever is listening —
+  # which a page opened in that window is not, and the panel it was served says
+  # nothing about the conversation either. So the conversation is not the
+  # page's to tell: the panel comes up empty and the stream catches the
+  # connection up on the way in, whichever side of the boot it lands on.
+  @stored-sessions
   Scenario: a page opened while the agent is still waking up says which chat it is in
     When I open the home page
     And I press the agent toggle

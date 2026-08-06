@@ -23,6 +23,21 @@ Feature: the agent panel
     And I reload the page
     Then the chat panel is open
 
+  # The page carries no conversation at all — it comes out of the server empty,
+  # because what it could say about one would be as old as the request (the
+  # agent may still be waking up). So the conversation a reload comes back to
+  # is the one the new connection is caught up with, and nothing else.
+  Scenario: a reload comes back to the conversation
+    When I open the home page
+    And I press the agent toggle
+    And I send "what is in the outline" to the agent
+    Then the last turn reads "hello world"
+    When I reload the page
+    Then the last turn quotes me "what is in the outline"
+    And the last turn reads "hello world"
+    And the last turn ran the tool "read Tasks.rkt"
+    And the chat panel is idle
+
   # Issue #14: the gutter the panel needs was PADDING on .ol-main, and .ol-main
   # is border-box under `max-width: 56rem` — so --chat-w came out of the reading
   # column's own cap instead of out of the free space beside it. The outline

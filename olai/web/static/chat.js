@@ -2,6 +2,13 @@
 // page (the body's sse-connect), so this hooks the htmx sse extension rather
 // than opening an EventSource of its own — browsers cap those per origin.
 //
+// The panel comes out of the server empty and in none of its states. Every
+// word in it, and every class on it, arrives as a frame — including the ones
+// for what happened before this page existed, which the server replays down
+// the connection the moment it is made (web/chat's catch-up). So there is no
+// state to read out of the markup at init, and nothing here has to agree with
+// a renderer about what a turn looks like.
+//
 // Frames are JSON, one per event, and land as TEXT: user text, agent chunks
 // and tool titles are set with textContent, never innerHTML. The one
 // exception is the `html` a `done` frame carries — Markdown the server
@@ -86,11 +93,11 @@
 
   // ---- slash commands ----------------------------------------------------
   //
-  // The agent's own command list: server-rendered onto the panel as
-  // data-commands (a reloaded page completes right away) and replaced live by
-  // a `commands` frame. Typing "/" opens a popover over the input row; picking
-  // a row only WRITES "/name " into the input — a command is invoked by
-  // sending ordinary prompt text, so nothing about the send path changes.
+  // The agent's own command list: the whole of it in every `commands` frame,
+  // one of which this connection was caught up with. Typing "/" opens a
+  // popover over the input row; picking a row only WRITES "/name " into the
+  // input — a command is invoked by sending ordinary prompt text, so nothing
+  // about the send path changes.
   var commands=[],matches=[],picked=-1;
 
   // Two strings per command, and only what has a name: this list is drawn.
@@ -274,8 +281,15 @@
       endTurn();
       body.textContent='';
     }
+    // A break that already happened, replayed with the conversation: the turns
+    // above it are still there, so it draws a line rather than clearing. What
+    // the break WAS is the frame's; the word on the line is this side's.
+    else if(f.type==='mark'){
+      endTurn();
+      append(line('ol-chat-sep',f.message||(f.mark==='reset'?'new chat':f.mark)));
+    }
     // the header's one live bit: which model, learned with the session and
-    // again if it changes under one. The page renders whatever was known then.
+    // again if it changes under one.
     else if(f.type==='model'){
       if(modelEl)modelEl.textContent=typeof f.name==='string'?f.name:'';
     }
@@ -329,9 +343,6 @@
     sink=document.getElementById('ol-chat-sink');
     modelEl=document.getElementById('ol-chat-model');
     sessionEl=document.getElementById('ol-chat-session');
-    // What the server knew when it drew the page. Bad JSON is no commands,
-    // not a broken panel.
-    try{setCommands(JSON.parse(panel.getAttribute('data-commands')||'[]'))}catch(e){}
     // The popover belongs to the input row and to nothing else, so it is made
     // here rather than rendered: there is no server state in it.
     pop=line('ol-chat-pop');
@@ -353,16 +364,6 @@
     var open='0';
     try{open=localStorage.getItem(KEY)||'0'}catch(e){}
     setOpen(open==='1');
-    // A turn was still running when the page was rendered: the panel comes
-    // up in the state the server says it is in, not idle. Adopt the
-    // replayed turn too, or the next live frame would start a duplicate.
-    if(panel.classList.contains('is-busy')){
-      setBusy(true);
-      var turns=body?body.querySelectorAll('.ol-chat-turn'):[];
-      turn=turns[turns.length-1]||null;
-      agentEl=turn?turn.querySelector('.ol-chat-msg.is-agent'):null;
-    }
-    if(body)body.scrollTop=body.scrollHeight;
 
     document.addEventListener('click',function(e){
       var t=e.target.closest('[data-post],[data-chat-toggle],[data-chat-commands],[data-chat-sessions]');

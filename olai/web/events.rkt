@@ -24,6 +24,12 @@
 ;;     the next broadcast.
 ;;   * an idle stream must not look dead to a proxy: a heartbeat comment
 ;;     goes out every heartbeat-seconds.
+;;   * a connection is born mid-story. What it missed is not the hub's to know,
+;;     so it ASKS: `hub-response`'s `#:catch-up` is handed the subscribe thunk
+;;     and answers with the frames this connection alone is owed (see
+;;     web/chat). Subscribing inside it is the point — a caller whose state
+;;     moves under a lock takes that lock around both, and then nothing can
+;;     fall between the two.
 
 (require racket/async-channel
          racket/contract
@@ -44,7 +50,11 @@
           [hub-unsubscribe! (-> hub? subscriber? void?)]
           [subscriber? (-> any/c boolean?)]
           [subscriber-evt (-> subscriber? evt?)]
-          [hub-response (->* (hub?) (#:heartbeat-seconds (>/c 0)) response?)]
+          [hub-response (->* (hub?)
+                             (#:heartbeat-seconds (>/c 0)
+                              #:catch-up (or/c #f (-> (-> any)
+                                                      (listof (cons/c string? string?)))))
+                             response?)]
           [sse-frame (-> string? string? string?)]
           [sse-heartbeat string?]))
 
@@ -131,9 +141,15 @@
 ;; chunked encoding, and pumps whatever this writes as it is written — and it
 ;; leases the connection another response-send-timeout on every chunk, which
 ;; is the other reason the heartbeat exists.
-(define (hub-response h #:heartbeat-seconds [heartbeat-seconds default-heartbeat-seconds])
+;; #:catch-up is what this connection is owed before the stream proper: it is
+;; handed a `subscribe!` thunk to call once (inside whatever lock makes its
+;; answer consistent) and returns (name . data) pairs. #f is a subscriber that
+;; is owed nothing, which is what the outline stream is.
+(define (hub-response h
+                      #:heartbeat-seconds [heartbeat-seconds default-heartbeat-seconds]
+                      #:catch-up [catch-up #f])
   (response/output
-   (λ (out) (stream-events h out heartbeat-seconds))
+   (λ (out) (stream-events h out heartbeat-seconds catch-up))
    #:code 200
    #:mime-type #"text/event-stream; charset=utf-8"
    ;; no-store for caches; X-Accel-Buffering for an nginx that would
@@ -141,15 +157,25 @@
    #:headers (list (make-header #"Cache-Control" #"no-store")
                    (make-header #"X-Accel-Buffering" #"no"))))
 
-(define (stream-events h out heartbeat-seconds)
-  (define s (hub-subscribe! h))
+(define (stream-events h out heartbeat-seconds catch-up)
+  (define sub #f)
+  (define (subscribe!) (unless sub (set! sub (hub-subscribe! h))) sub)
+  ;; Asked BEFORE a byte goes out: the answer is read under somebody else's
+  ;; lock, and a socket written while that lock is held would stop the thing
+  ;; the lock protects. A catch-up that forgot to subscribe still gets one.
+  (define owed (if catch-up (catch-up subscribe!) '()))
+  (define s (subscribe!))
   (define dead (subscriber-dead-evt s))
   (define (emit! str) (write-string str out) (flush-output out))
   ;; A broken socket is how these streams normally end, not a fault.
   (with-handlers ([exn:fail? void])
     ;; Open the stream before waiting for anything: the client's `open` does
-    ;; not fire until bytes land, and neither does a proxy's.
-    (emit! sse-heartbeat)
+    ;; not fire until bytes land, and neither does a proxy's. One write, owed
+    ;; frames and all — they are already in hand, and a flush apiece would be
+    ;; a chunk apiece on the wire.
+    (emit! (apply string-append
+                  sse-heartbeat
+                  (for/list ([f (in-list owed)]) (sse-frame (car f) (cdr f)))))
     (let loop ()
       (define woke (sync/timeout heartbeat-seconds (subscriber-evt s) dead))
       (cond

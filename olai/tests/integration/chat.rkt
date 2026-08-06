@@ -70,8 +70,13 @@
          [(equal? (hash-ref (cdr f) 'type #f) type) (reverse (cons f acc))]
          [else (loop (cons f acc) (add1 n))])])))
 
-(define (frame-types fs)
-  (for/list ([f (in-list fs)]) (hash-ref (cdr f) 'type #f)))
+;; What a list of frames SAYS it is, in order. Two spellings because frames
+;; come two ways: named pairs off the broadcast channel, and bare jsexprs off
+;; a stream or a catch-up.
+(define (frame-types fs) (jsexpr-types (map cdr fs)))
+
+(define (jsexpr-types fs)
+  (for/list ([f (in-list fs)]) (hash-ref f 'type #f)))
 
 ;; The frames of one type, in order — an assertion about WHAT a frame said
 ;; rather than about where in the sequence it landed (the sequence has its own
@@ -140,8 +145,10 @@
 ;; The server boots the agent itself now, in the background, so the body runs
 ;; only once that has finished: everything the boot says (the session, the
 ;; model, the commands) is already out, and what a test then asserts on the
-;; stream is the turn it asked for.
-(define (with-server proc)
+;; stream is the turn it asked for. #:booted? #f is the other side of that —
+;; the window in which `serve` answers requests while the agent is still waking
+;; up, which is a test's business only when it is about that window.
+(define (with-server proc #:booted? [booted? #t])
   (define dir (make-temporary-file "sfacp~a" 'directory))
   (define f (build-path dir "Tasks.rkt"))
   (display-to-file outline f #:exists 'truncate)
@@ -157,7 +164,7 @@
   (dynamic-wind
    void
    (λ ()
-     (check-true (wait-booted agent) "the agent never booted")
+     (when booted? (check-true (wait-booted agent) "the agent never booted"))
      (proc bound agent))
    (λ ()
      (stop)
@@ -195,9 +202,18 @@
 
 ;; /events never ends, so this keeps the port. Same shape as
 ;; tests/integration/serve.rkt.
-(define (open-events port)
+;;
+;; A connection is told the conversation on the way in (web/chat's catch-up),
+;; and every test here opens one after the boot — so what a test is ABOUT
+;; starts after that, and this reads it off. #:caught-up-through is the last
+;; frame of the catch-up: the command list is the last thing a booted, empty
+;; conversation has to say, and a server that adopted a stored session ends on
+;; the replayed turn's `done`. #f keeps the whole stream, which is what the
+;; tests about the catch-up itself want.
+(define (open-events port #:caught-up-through [through "commands"])
   (define-values (_status _headers in)
     (http-sendrecv "127.0.0.1" "/events" #:port port #:method #"GET"))
+  (when through (events-through in through))
   in)
 
 ;; Next real event on the stream: -> (cons name data) | #f. Heartbeats are
@@ -751,6 +767,83 @@
        (check-equal? (drain frames) '())
        (check-equal? (chat-transcript ch) '()))))
 
+  ;; ---- catching a connection up --------------------------------------------
+  ;;
+  ;; Frames are ephemeral; a browser is not. What it missed — the whole
+  ;; conversation, however long ago it started — it is told on the way in, in
+  ;; the same frames, and there is no other way it learns any of it.
+
+  (define (caught-up ch)
+    (define subscribed 0)
+    (define fs (chat-catch-up ch (λ () (set! subscribed (add1 subscribed)))))
+    ;; subscribed exactly once, and by the catch-up itself: that is what puts
+    ;; the subscription and the reading of this state under one lock
+    (check-equal? subscribed 1)
+    (for/list ([f (in-list fs)])
+      (check-equal? (car f) acp-event-name)
+      (string->jsexpr (cdr f))))
+
+  (test-case "a new connection is told the conversation: the header, then the turns"
+    (with-events
+     (λ (ch frames)
+       (feed! ch
+              (acp-session "fake-stored-new" "the last conversation")
+              (acp-config-model "fake-model-1" (hash))
+              (acp-commands (list (hash 'name "fake-init" 'description "start something")))
+              (acp-replay-started)
+              (acp-user-said "what did we do")
+              (acp-said "we **shipped** it")
+              (acp-tool "call-replay" "read Roadmap.rkt" "completed")
+              (acp-replay-ended))
+       (drain frames)
+       (define fs (caught-up ch))
+       (check-equal? (jsexpr-types fs)
+                     '("reset" "session" "model" "commands"
+                       "user" "chunk" "tool" "done"))
+       ;; a slate first: whatever this connection had drawn is not this
+       (check-equal? (hash-ref (car fs) 'type) "reset")
+       (check-equal? (hash-ref (list-ref fs 1) 'id) "fake-stored-new")
+       (check-equal? (hash-ref (list-ref fs 1) 'title) "the last conversation")
+       (check-equal? (hash-ref (list-ref fs 2) 'name) "fake-model-1")
+       (check-equal? (hash-ref (list-ref fs 4) 'text) "what did we do")
+       ;; the whole of what was said, as one chunk
+       (check-equal? (hash-ref (list-ref fs 5) 'text) "we **shipped** it")
+       (check-equal? (hash-ref (list-ref fs 6) 'status) "completed")
+       ;; and how it ended, Markdown and all — the same frame a lived turn ends
+       ;; with, so a panel needs to know nothing about any of this
+       (check-equal? (hash-ref (last fs) 'html) (note->html-string "we **shipped** it"))
+       (check-equal? (hash-ref (last fs) 'stopReason) (json-null)))))
+
+  ;; The states a conversation can be caught up in that are not "a finished
+  ;; turn": nothing said yet, a turn still running, and a break behind it.
+  (test-case "a conversation with nothing in it is caught up with a clean slate"
+    (with-events
+     (λ (ch frames)
+       (check-equal? (jsexpr-types (caught-up ch)) '("reset")))))
+
+  (test-case "a running turn is replayed open, and a break is a line across it"
+    (with-agent
+     (λ (ag frames _log)
+       ;; a break the panel draws a line for, and a turn that has said
+       ;; something but has not ended
+       (feed! ag (acp-gone "the agent exited (code 1)"))
+       (chat-prompt! ag "SLOW down and read it all")
+       (frames-through frames "chunk")
+       (define fs (caught-up ag))
+       (check-equal? (jsexpr-types fs)
+                     '("reset" "session" "model" "commands" "mark" "user" "chunk"))
+       ;; what the break was, and what it said. Which WORD goes on the line is
+       ;; the panel's business, so both are handed over.
+       (check-equal? (hash-ref (list-ref fs 4) 'mark) "restart")
+       (check-true (string-contains? (hash-ref (list-ref fs 4) 'message) "exited")
+                   (format "~a" (list-ref fs 4)))
+       ;; the turn ends in NO frame: it has not ended, and a panel caught up
+       ;; with it comes up busy, which is the state the conversation is in
+       (check-equal? (hash-ref (list-ref fs 5) 'text) "SLOW down and read it all")
+       (check-equal? (hash-ref (list-ref fs 6) 'text) "hello ")
+       (chat-cancel! ag)
+       (check-true (wait-idle ag)))))
+
   ;; Two sources for one header (see web/chat): whichever moved last wins, and
   ;; the first live id agrees with the config option by construction.
   (test-case "the live model and the picked one are one header, debounced"
@@ -863,9 +956,9 @@
        ;; 204 means 204: nothing to render, because the stream renders it
        (check-equal? body "" body)
        (define fs (events-through in "done"))
-       ;; the boot frames are not in here: the server booted the agent when it
-       ;; came up, which is before this connection existed
-       (check-equal? (for/list ([f (in-list fs)]) (hash-ref f 'type))
+       ;; the boot frames are not in here: this connection was caught up with
+       ;; them before the POST, and what follows is the turn it asked for
+       (check-equal? (jsexpr-types fs)
                      '("user" "chunk" "chunk" "tool" "tool" "done"))
        (check-equal? (hash-ref (car fs) 'text) "hello there")
        (define done (last fs))
@@ -894,8 +987,7 @@
        ;; Under way, not merely accepted: the `user` frame goes out before the
        ;; subprocess even exists. The first chunk is the agent actually
        ;; talking, which is the state this 409 is about.
-       (check-equal? (for/list ([f (in-list (events-through in "chunk"))])
-                       (hash-ref f 'type))
+       (check-equal? (jsexpr-types (events-through in "chunk"))
                      '("user" "chunk"))
        (define-values (busy body) (POST port "/chat" '((text . "and another"))))
        (check-equal? busy 409 body)
@@ -918,8 +1010,7 @@
        (check-equal? code 204 body)
        ;; the new session says which one it is on the way past; the reset is
        ;; the frame the panels act on
-       (define fs (for/list ([f (in-list (events-through in "reset"))])
-                    (hash-ref f 'type)))
+       (define fs (jsexpr-types (events-through in "reset")))
        (check-equal? (last fs) "reset" (format "~a" fs))
        (check-true (and (member "session" fs) #t) (format "~a" fs))
        (close-input-port in))))
@@ -952,12 +1043,14 @@
         (λ (port agent)
           ;; booted into the newest; move to the other one
           (check-equal? (chat-session-id agent) "fake-stored-new")
-          (define in (open-events port))
+          ;; the conversation this connection was caught up with is the adopted
+          ;; one, so its catch-up ends on that turn's `done`
+          (define in (open-events port #:caught-up-through "done"))
           (define-values (code body) (POST port "/chat/load" '((id . "fake-stored-old"))))
           (check-equal? code 204 body)
           (check-equal? body "" body)
           (define fs (events-through in "session"))
-          (check-equal? (for/list ([f (in-list fs)]) (hash-ref f 'type))
+          (check-equal? (jsexpr-types fs)
                         '("reset" "user" "chunk" "chunk" "tool" "tool" "done" "session"))
           (check-equal? (hash-ref (car fs) 'type) "reset")
           (check-equal? (hash-ref (last fs) 'id) "fake-stored-old")
@@ -973,7 +1066,7 @@
         (λ (port agent)
           (define-values (code body) (POST port "/chat/load" '()))
           (check-equal? code 400 body)
-          (define in (open-events port))
+          (define in (open-events port #:caught-up-through "done"))
           ;; accepted (there is nothing to know yet), and the failure is where
           ;; everything else about the conversation is: on the stream
           (define-values (c2 b2) (POST port "/chat/load" '((id . "nope"))))
@@ -983,10 +1076,15 @@
                       (format "~a" err))
           (close-input-port in))))))
 
-  ;; A browser that reloads (or connects late) missed the frames. The page is
-  ;; where the conversation comes back, and everything the agent or the user
-  ;; wrote is TEXT in it — an xexpr is what escapes it.
-  (test-case "the page replays the transcript, escaped"
+  ;; ---- what a connection is told on the way in -----------------------------
+  ;;
+  ;; A browser that reloads, connects late, or opens a page while the agent is
+  ;; still waking up missed the frames. The STREAM is where the conversation
+  ;; comes back: /events replays it to the connection being made, and the page
+  ;; itself says nothing about it (the panel comes out of the renderer empty,
+  ;; because what it could say would be as old as the request).
+
+  (test-case "a connection is caught up with the conversation, in frames"
     (with-server
      (λ (port agent)
        (define in (open-events port))
@@ -995,21 +1093,56 @@
        (events-through in "done")
        (check-true (wait-idle agent))
        (close-input-port in)
+       ;; a second browser, arriving now: it is told the whole thing
+       (define in2 (open-events port #:caught-up-through #f))
+       (define fs (events-through in2 "done"))
+       ;; one tool frame, not the two the live turn sent: a line is a line, and
+       ;; what a browser is caught up with is its latest state
+       (check-equal? (jsexpr-types fs)
+                     '("reset" "session" "model" "commands"
+                       "user" "chunk" "tool" "done"))
+       ;; the header the boot frames were ephemeral about: said again, to this
+       ;; connection alone
+       (check-equal? (hash-ref (list-ref fs 2) 'name) "fake-model-1")
+       (check-equal? (command-pairs (hash-ref (list-ref fs 3) 'commands))
+                     (command-pairs (chat-commands agent)))
+       ;; the turn, in the frames that built it: the prompt verbatim, the whole
+       ;; of what was said as one chunk, the tool line, and the Markdown the
+       ;; panel swaps in when the turn ends
+       (check-equal? (hash-ref (list-ref fs 4) 'text)
+                     "run <script>alert(1)</script> please")
+       (check-equal? (hash-ref (list-ref fs 5) 'text) "hello world")
+       (check-equal? (hash-ref (list-ref fs 6) 'id) "call-1")
+       (define done (last fs))
+       (check-equal? (hash-ref done 'stopReason) "end_turn")
+       (check-equal? (hash-ref done 'html) (note->html-string "hello world"))
+       (close-input-port in2)
+       ;; and none of it is in the page: what a browser was typed at rides as
+       ;; JSON on the stream, so there is nothing to escape into the markup
        (define-values (code body) (GET port "/"))
        (check-equal? code 200)
-       (check-true (string-contains? body "&lt;script&gt;alert(1)&lt;/script&gt;") body)
-       (check-false (string-contains? body "<script>alert(1)") body)
-       ;; the agent's finished text is Markdown; the tool line is one line
-       (check-true (string-contains? body "<p>hello world</p>") body)
-       (check-true (string-contains? body "data-tool-id=\"call-1\"") body)
-       (check-true (string-contains? body "data-status=\"completed\"") body)
-       ;; the header is replayed too: the model frame was ephemeral, the model
-       ;; the bridge learned from it is not
-       (check-true (string-contains? body "id=\"ol-chat-model\">fake-model-1<") body)
-       ;; and so are the commands, so a reloaded panel completes without
-       ;; waiting for the agent to say anything again
-       (check-true (string-contains? body "fake-init") body)
-       (check-true (string-contains? body "fake-review") body))))
+       (check-false (string-contains? body "alert(1)") body)
+       (check-false (string-contains? body "fake-model-1") body)
+       (check-false (string-contains? body "fake-init") body))))
+
+  ;; The window this is all about: `serve` prints its URL and answers requests
+  ;; while the agent is still waking up in its own thread. A browser born in it
+  ;; used to miss every frame the boot broadcast — the conversation was there
+  ;; and the panel could not say which one it was in until something else made
+  ;; it redraw. It cannot miss them now, whichever side of the boot it lands
+  ;; on: earlier, and the frames arrive live; later, and the catch-up carries
+  ;; them.
+  (test-case "a connection made while the agent is waking up still learns the conversation"
+    (with-stored-sessions
+     (λ ()
+       (with-server
+        #:booted? #f
+        (λ (port _agent)
+          (define in (open-events port #:caught-up-through #f))
+          (define session (last (events-through in "session")))
+          (check-equal? (hash-ref session 'id) "fake-stored-new")
+          (check-equal? (hash-ref session 'title) "the last conversation")
+          (close-input-port in))))))
 
   (test-case "the page carries the panel, its script, and ONE sse connection"
     (with-server
@@ -1021,9 +1154,6 @@
        (check-true (string-contains? body "action=\"/chat\"") body)
        (check-true (string-contains? body "data-post=\"/chat/new\"") body)
        (check-true (string-contains? body "data-post=\"/chat/cancel\"") body)
-       ;; the server booted the agent when it came up, so the panel is drawn
-       ;; knowing what it offers — no turn has been taken to learn it
-       (check-true (string-contains? body "fake-init") body)
        ;; and the picker's button, with the routes it drives
        (check-true (string-contains? body "data-chat-sessions=\"/chat/sessions\"") body)
        (check-true (string-contains? body "data-chat-load=\"/chat/load\"") body)

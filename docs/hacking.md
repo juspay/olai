@@ -132,9 +132,12 @@ panel's geometry.
   `@stored-sessions`, `@foreign-sessions` — because stored
   conversations are a fact about the machine, not something a step can
   arrange later (`e2e/support/hooks.js`).
-* `serve` answers requests while the agent is still booting, so a
-  scenario about what the panel comes up KNOWING says `Given the agent
-  has woken up` first (`world.waitForAgent`).
+* `serve` answers requests while the agent is still booting. What the
+  panel comes up knowing is not a page's to say — `/events` catches a
+  connection up as it is made — so `Given the agent has woken up`
+  (`world.waitForAgent`, which reads the stream) is for scenarios about
+  the AGENT: the picker asks it, and there is nothing to ask until it
+  is up.
 * `@skip` is the regression harness for known-broken behaviour: the
   scenario is written and excluded. `CUCUMBER_TAGS=@skip just e2e` runs
   exactly those. `CUCUMBER_RETRY` (CI sets 1) and `CUCUMBER_PARALLEL`
