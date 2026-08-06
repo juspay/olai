@@ -73,26 +73,29 @@ answer the stream.
 (require web-server/servlet-env
          live/client live/frame live/hub)
 
-;; What your app's live view is called. All four names are yours.
-(define (view-at cursor)
+;; What your app's live view is called. Every name in it is yours. It is a
+;; PER-PAGE value: `href` is the page being drawn and `cursor` is the state it
+;; was drawn from.
+(define (view-for href cursor)
   (make-live-view #:region "app"          ; the element that redraws itself
                   #:event  "changed"      ; "this region is behind"
                   #:stream "/events"      ; where the stream lives
+                  #:href   href           ; what the region re-fetches
                   #:cursor cursor))       ; what THIS page was rendered at
 
 (define hub (make-hub))
 
 ;; Your app's notion of "what state is this". Anything, as long as two
-;; different states are two different strings.
-(define state (box "0"))
+;; different states are two different strings — see the contract below.
+(define state (box (string-append live-boot-id ".0")))
 
 (define (page req)
-  (define live (view-at (unbox state)))
+  (define live (view-for "/" (unbox state)))
   (response/xexpr
    `(html (head ,@(for/list ([src (live-script-hrefs "/live/")])
                     `(script ((src ,src) (defer "defer")))))
           (body ,(live-connect-attributes live)
-                (div ,(live-region-attributes live "/")
+                (div ,(live-region-attributes live)
                      ;; ...whatever the region shows...
                      )
                 (a ,(live-link-attributes live "/other") "elsewhere")))))
@@ -127,8 +130,12 @@ on nothing at all.
 * **A cursor**: a string naming the state a page was rendered at. Any
   two different states must be different strings. A counter is not
   enough on its own — one that restarts with the process names two
-  different states "3" — so include something per-process if your
-  cursor is a counter.
+  different states "3", and every client that reconnects across a
+  restart is then told it is up to date when it is not. `live-boot-id`
+  is the answer: a string this process alone will use, so
+  `(string-append live-boot-id "." n)` holds the property. A state that
+  is already globally unique — a commit hash, a ULID, a log offset —
+  needs nothing.
 * **An answer to "what did this client miss?"**: the `#:catch-up`
   procedure. It is handed the client's last id and a `subscribe!` thunk,
   and returns the frames this one connection is owed. Call `subscribe!`
@@ -154,6 +161,11 @@ on nothing at all.
   suspension, network blips and server restarts with no client code.
 * A health signal: the runtime writes `live-connecting` or `live-stale`
   on `<html>`, and neither when the stream is fine.
+* One way to hear a named event whose payload is not markup:
+  `live.on(name, fn)` in the browser, handed the frame's data as a
+  string. The page has one stream and everything rides it, so a panel
+  that draws its own JSON does not need — and must not open — a second
+  EventSource.
 
 ### What it does not do
 
@@ -173,7 +185,8 @@ on nothing at all.
   reactivity, no diffing of your data. The server renders HTML; this
   decides what to re-fetch and how it lands.
 * **It does not multiplex.** One page, one stream, and every event name
-  rides it. Two EventSources to the same origin is a browser connection
+  rides it — the region swaps on one name, `live.on` hears any of the
+  others. Two EventSources to the same origin is a browser connection
   limit waiting to happen, and two stories about health.
 * **It says nothing about writes.** This is a push channel. Forms,
   mutations and their responses are ordinary htmx, or ordinary anything.

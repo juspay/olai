@@ -199,7 +199,7 @@
 ;; save is what fixes it, and the client should not have to reload to find that
 ;; out.
 (define (page-failure rev err #:live-href live-href #:chat [chat #f])
-  (define live (live-view-at rev))
+  (define live (live-view-at rev live-href))
   (html-response
    (page->html-string
     (render-page (render-empty-pane "No outline loaded."
@@ -211,7 +211,6 @@
                  #:theme-color theme-default-paper
                  #:banner (error-banner err)
                  #:live live
-                 #:live-href live-href
                  #:body-extra (if chat (list chat) '())))
    #:code 500))
 
@@ -229,30 +228,18 @@
 ;; the renderer, never guessed by it.
 (define events-href "/events")
 
-;; Where the framework's client runtime is mounted. Its own prefix, beside
-;; /static/ rather than inside it: those files are the `live` collection's, and
-;; the only thing this layer decides about them is the URL.
-(define live-href-prefix live-asset-prefix)
-
-;; Which process this is. A revision counts from one per server, so a token
-;; that did not also name the server would call two different outlines by the
-;; same name across a restart — and every tab open across that restart would be
-;; told it was up to date (see web/live's outline-cursor). A clock reading is
-;; the shell layer's to take, and one per process is all this needs.
-(define the-boot-id
-  (number->string (inexact->exact (round (current-inexact-milliseconds)))))
-
 ;; The live view a page is drawn with. The region's id and the event that means
 ;; it is behind are web/live's, the stream's address is this module's, and the
-;; cursor is the page's own — which is why this is a function and not a
-;; constant. A page that did not say where it was drawn from could not be told
-;; that the file moved in the moment between drawing it and its stream opening.
-(define (live-view-at rev)
-  (outline-live-view events-href #:cursor (outline-cursor the-boot-id rev)))
+;; page's own address and cursor are the PAGE's — which is why this is a
+;; function and not a constant. A page that did not say where it was drawn from
+;; could not be told that the file moved in the moment between drawing it and
+;; its stream opening.
+(define (live-view-at rev href)
+  (outline-live-view events-href #:href href #:cursor (outline-cursor rev)))
 
 ;; The state the outlines are in right now, as the wire names it. Both the
 ;; broadcast and the catch-up ask this, so neither can invent a spelling.
-(define (cursor-now st) (outline-cursor the-boot-id (store-revision st)))
+(define (cursor-now st) (outline-cursor (store-revision st)))
 
 ;; A node's address: its own zoom page, keyed by the key the load layer minted
 ;; (olai/load). Stable across a rename — that is what makes it a permalink —
@@ -364,7 +351,6 @@
 (define (chrome files-data main
                 #:title title
                 #:live live
-                #:live-href live-href
                 #:banner [banner #f]
                 #:chat [chat #f]
                 #:code [code 200])
@@ -382,7 +368,6 @@
                                            #:live live)
                  #:banner banner
                  #:live live
-                 #:live-href live-href
                  #:body-extra (if chat (list chat) '())))
    #:code code))
 
@@ -396,12 +381,11 @@
     (λ (rev err) (page-failure rev err #:live-href live-href #:chat chat))
     #:stale-ok? #t
     (λ (rev snap err)
-      (define live (live-view-at rev))
+      (define live (live-view-at rev live-href))
       (define-values (main title) (view live snap))
       (chrome (snapshot-files-data snap) main
               #:title title
               #:live live
-              #:live-href live-href
               #:chat chat
               #:banner (and err (error-banner err))))))
 
@@ -555,11 +539,14 @@
 ;; 404 instead of an error page. Two directories are mounted this way and they
 ;; have different owners: /static/ is olai's own assets, /live/ is the
 ;; framework's client runtime, which this app ships and never edits.
-(define ((dir-url->path dir) u)
+;; make-url->path is built ONCE per mount, not once per request: it is the
+;; per-directory part, and the λ below is the per-request part.
+(define (dir-url->path dir)
   (define u->p (make-url->path dir))
-  (define rest (if (pair? (url-path u)) (cdr (url-path u)) '()))
-  (with-handlers ([exn:fail? (λ (_e) (next-dispatcher))])
-    (u->p (struct-copy url u [path rest]))))
+  (λ (u)
+    (define rest (if (pair? (url-path u)) (cdr (url-path u)) '()))
+    (with-handlers ([exn:fail? (λ (_e) (next-dispatcher))])
+      (u->p (struct-copy url u [path rest])))))
 
 (define static-url->path (dir-url->path (web-static-dir)))
 (define live-url->path (dir-url->path (live-static-dir)))
@@ -586,7 +573,7 @@
    (filter:make #rx"^/static/manifest\\.webmanifest$"
                 (lift:make (λ (_req) (manifest-response))))
    (static-files-dispatcher web-static-prefix static-url->path)
-   (static-files-dispatcher live-href-prefix live-url->path)
+   (static-files-dispatcher live-asset-prefix live-url->path)
    (lift:make (make-router st hub agent))))
 
 ;; ---- server ---------------------------------------------------------------

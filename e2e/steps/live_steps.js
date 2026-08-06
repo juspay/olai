@@ -10,16 +10,7 @@
 import assert from "node:assert/strict";
 import { Then, When } from "@cucumber/cucumber";
 
-// The two classes the framework's runtime writes on <html>, and neither of
-// them is a healthy stream (live/client.rkt owns the names; the skin paints
-// them). Spelled here because a browser cannot require a Racket module —
-// live/tests/client.rkt is what keeps this end and that one the same words.
-const CONNECTING = "live-connecting";
-const STALE = "live-stale";
-
-// An expando on a DOM node: it dies with the element and nothing else, which
-// makes it the only honest answer to "is this the same element".
-const NODE_MARK = "__olai_e2e_node";
+import { isMarkedElement, markElement } from "../support/dom.js";
 
 // ---- what a swap must not disturb ------------------------------------------
 
@@ -79,16 +70,15 @@ function selectedText(page) {
 // ---- the same element, or a new one ----------------------------------------
 
 When("I mark the chat panel", async function () {
-  await this.page.locator("#ol-chat").evaluate((el, k) => {
-    el[k] = true;
-  }, NODE_MARK);
+  await markElement(this.page.locator("#ol-chat"));
 });
 
 Then("the chat panel is the one I marked", async function () {
-  const same = await this.page
-    .locator("#ol-chat")
-    .evaluate((el, k) => el[k] === true, NODE_MARK);
-  assert.equal(same, true, "the chat panel was rebuilt by navigating");
+  assert.equal(
+    await isMarkedElement(this.page.locator("#ol-chat")),
+    true,
+    "the chat panel was rebuilt by navigating",
+  );
 });
 
 // A link that lost its href is a link no-JS, middle-click and copy-link can
@@ -120,17 +110,16 @@ When("the server comes back", async function () {
   await this.startServerAgain();
 });
 
+// Asserted through what a reader SEES, not through the class behind it. The
+// class is the framework's vocabulary (live/client.rkt) and the sentence is
+// olai's (web/render); a step that read the class would pass on a page that
+// paints nothing, which is the failure it exists to catch.
 Then("the page says it is showing last known state", async function () {
-  await this.page.waitForFunction((c) => document.documentElement.classList.contains(c), STALE);
   await this.page.getByText("showing last known state").waitFor({ state: "visible" });
 });
 
-// Quiet is the healthy state: no class, and nothing on the page about a
-// stream. Waited for — the reconnect is the browser's own, on its own clock.
+// Quiet is the healthy state: nothing on the page about the stream at all.
+// Waited for — the reconnect is the browser's own, on its own clock.
 Then("the page says nothing about the stream", async function () {
-  await this.page.waitForFunction(
-    (cs) => cs.every((c) => !document.documentElement.classList.contains(c)),
-    [CONNECTING, STALE],
-  );
   await this.page.locator("#ol-stream").waitFor({ state: "hidden" });
 });

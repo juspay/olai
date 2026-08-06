@@ -62,7 +62,6 @@ export class OlaiWorld extends World {
    *  again, so a tab that reconnects looks caught up when it is not). */
   async stopServer() {
     this.serverPort = Number(new URL(this.server.url).port);
-    this.serverEnv = this.serverEnv ?? {};
     await this.server.stop();
     this.server = null;
   }
@@ -93,13 +92,26 @@ export class OlaiWorld extends World {
    *
    *  A link here does NOT load a document: it fetches the region, morphs it in
    *  and pushes the address (live/client). So there is no navigation for
-   *  playwright to wait on, and the thing that HAS happened when the click has
-   *  landed is the URL moving — every such link pushes one. A step that
-   *  clicked and then read the page would be reading the page it clicked on. */
+   *  playwright to wait on, and a step that clicked and then read the page
+   *  would be reading the page it clicked on.
+   *
+   *  What it waits for is the SWAP settling, not the address moving. Those are
+   *  not the same moment — htmx pushes the URL and then renames the tab and
+   *  runs the settle phase — and waiting on the earlier one would leave every
+   *  step written after this to discover the difference on its own. */
   async follow(locator) {
-    const before = this.page.url();
+    await this.page.evaluate(() => {
+      window.__olai_e2e_settled = false;
+      document.addEventListener(
+        "htmx:afterSettle",
+        () => {
+          window.__olai_e2e_settled = true;
+        },
+        { once: true },
+      );
+    });
     await locator.click();
-    await this.page.waitForFunction((u) => location.href !== u, before);
+    await this.page.waitForFunction(() => window.__olai_e2e_settled === true);
   }
 
   // ---- the outline file ---------------------------------------------------
@@ -229,7 +241,8 @@ export class OlaiWorld extends World {
 
 /** The events on an SSE body, one at a time: `{event, data}`, blank-line
  *  framed, every `data:` line of a multi-line payload joined back up. The
- *  heartbeat is a comment, which is framing rather than an event. */
+ *  heartbeat comes through as an event like any other (it is one — a client
+ *  has to be able to notice it stopping); the one caller filters by name. */
 async function* sseFrames(body) {
   const decoder = new TextDecoder();
   let buffer = "";

@@ -60,7 +60,10 @@ render and every update.
 
 `chat` carries no id on purpose. It is not a checkpoint: a client that
 reconnects should be told the last state it can be BEHIND, and the
-conversation is replayed in full on the way in regardless.
+conversation is replayed in full on the way in regardless. Its payload
+is JSON rather than markup, so the panel subscribes to it through the
+runtime (`live.on`, `static/chat.js`) instead of swapping it anywhere —
+one connection, two consumers, no swap to cancel.
 
 ## The cursor
 
@@ -73,9 +76,10 @@ A cursor is an opaque string naming one state of one server:
 
 The revision is `store-revision` — a counter that moves on every reload,
 including a reload that FAILED (a file that just broke is a change every
-reader has to see). The boot half is the server's start time in
-milliseconds. Both halves are needed: a revision counts from one per
-process, so `7` would name a different outline before and after a
+reader has to see). The boot half is `live-boot-id`, the transport's own
+answer to "two different states must never be called the same thing"
+(`live/README.md`). Both halves are needed: a revision counts from one
+per process, so `7` would name a different outline before and after a
 restart, and every tab open across that restart would be told it was up
 to date.
 

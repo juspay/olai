@@ -16,9 +16,7 @@
 ;; reconnects should be told about the last state it can be BEHIND, not the
 ;; last thing that happened.
 
-(require racket/contract
-         racket/list
-         racket/string)
+(require racket/contract)
 
 (provide (contract-out
           [struct frame ([name string?] [data string?] [id (or/c string? #f)])]
@@ -26,8 +24,6 @@
           [make-frame (->* (string? string?) (#:id (or/c string? #f)) frame?)]
           [frame->string (-> frame? string?)]
           [frames->string (-> (listof frame?) string?)]
-          ;; a comment line: bytes on the wire that are not an event
-          [sse-comment (-> string? string?)]
           ;; how long a client should wait before reconnecting, as a frame's
           ;; worth of wire — a field, not an event
           [sse-retry (-> exact-positive-integer? string?)]
@@ -85,11 +81,6 @@
   (apply string-append (map frame->string fs)))
 
 ;; ---- the fields that are not events -----------------------------------------
-
-;; Syntactically an event with no fields, so a client ignores it — but it is
-;; bytes on the wire, which is the whole point.
-(define (sse-comment text)
-  (string-append ":" (string-replace text "\n" " ") "\n\n"))
 
 ;; The client's reconnect delay, in milliseconds, set by the server. A stream
 ;; that says nothing gets the browser's default (three seconds in most), which

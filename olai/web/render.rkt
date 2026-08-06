@@ -103,10 +103,9 @@
                  #:theme-color (or/c string? #f)
                  #:sidebar (or/c list? #f)
                  #:banner (or/c list? #f)
-                 ;; the live view this page is part of, and the page's OWN
-                 ;; address within it — the one thing the region re-fetches
+                 ;; the live view this page is part of — which carries the
+                 ;; page's own address, the one thing the region re-fetches
                  #:live (or/c live-view? #f)
-                 #:live-href (or/c string? #f)
                  #:head-extra list?
                  #:body-extra list?)
                 list?)]
@@ -1024,24 +1023,24 @@
 ;; which snapshot they are showing. Everything else on the page — the sidebar,
 ;; the chat panel, the skin — sits outside it and is never rebuilt.
 ;;
-;; `live-href` is the page's OWN address, and it comes from the route layer —
-;; a renderer that guessed it would be guessing a URL, which is how the
-;; sidebar's Today link once came to 404. The attributes that make it re-fetch
-;; that address, morph the reply onto itself, and own the back button are the
-;; framework's (live/client); what they are pointed AT is olai's.
+;; The page's OWN address rides on the live view, and it comes from the route
+;; layer — a renderer that guessed it would be guessing a URL, which is how the
+;; sidebar's Today link once came to 404. The attributes that make the region
+;; re-fetch that address, morph the reply onto itself, and own the back button
+;; are the framework's (live/client); what they are pointed AT is olai's.
 ;; Fixed slot: empty while the outlines load clean, filled while a file is
 ;; mid-edit. The page keeps showing the last good content underneath, and an
 ;; empty slot must not leave a gap where the banner would be.
 (define-style ol-banner-slot [(: & empty) #:display none])
 
-(define (live-region live live-href banner main)
+(define (live-region live banner main)
   (define slot
     ;; fixed slot: the banner is swapped in and out, so it must exist
     ;; (empty) even on a healthy page
     `(div ((class ,ol-banner-slot) (id "ol-banner"))
           ,@(if banner (list banner) '())))
-  `(div ,(if (and live live-href)
-             (live-region-attributes live live-href)
+  `(div ,(if live
+             (live-region-attributes live)
              ;; a page with no stream (a fragment test) still has the region:
              ;; it is where the content lives, not just where a swap lands
              `((id ,live-region-id)))
@@ -1078,12 +1077,11 @@
                      #:theme-color [theme-color #f]
                      #:sidebar [sidebar #f]
                      #:banner [banner #f]
-                     ;; The live view this page belongs to (olai/web/live
-                     ;; picks its names, the route layer hands it over), and
-                     ;; the address of THIS page inside it. #f for both is a
-                     ;; page with no stream: a fragment, a test.
+                     ;; The live view this page belongs to: olai/web/live picks
+                     ;; its names, the route layer builds it, and it carries
+                     ;; the address of THIS page. #f is a page with no stream —
+                     ;; a fragment, a test.
                      #:live [live #f]
-                     #:live-href [live-href #f]
                      #:head-extra [head-extra '()]
                      #:body-extra [body-extra '()])
   ;; No data-theme here: which theme you read in is the BROWSER's, and the boot
@@ -1135,7 +1133,7 @@
                 ,@(if live (live-connect-attributes live) '()))
                ,@(if sidebar (list sidebar) '())
                (main ((class ,ol-main))
-                     ,(live-region live live-href banner main))
+                     ,(live-region live banner main))
                ;; only a page that HAS a stream can report one being down
                ,@(if live (list (render-stream-status)) '())
                ,@body-extra)))

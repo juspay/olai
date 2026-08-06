@@ -29,7 +29,7 @@
 ;; behaviour; how it LOOKS is the host app's, styled from these names. A
 ;; framework that shipped paint would be a framework you have to override.
 
-(require net/uri-codec
+(require net/url
          racket/contract
          racket/runtime-path
          ;; the wire's vocabulary: where a cursor goes when the browser has no
@@ -38,13 +38,14 @@
 
 (provide (contract-out
           [struct live-view ([region string?] [event string?] [stream string?]
-                             [cursor (or/c string? #f)])]
-          [make-live-view (->* (#:region string? #:event string? #:stream string?)
+                             [href string?] [cursor (or/c string? #f)])]
+          [make-live-view (->* (#:region string? #:event string? #:stream string?
+                                #:href string?)
                                (#:cursor (or/c string? #f))
                                live-view?)]
           ;; the three attribute sets, as xexpr attributes
           [live-connect-attributes (-> live-view? (listof (list/c symbol? string?)))]
-          [live-region-attributes (-> live-view? string? (listof (list/c symbol? string?)))]
+          [live-region-attributes (-> live-view? (listof (list/c symbol? string?)))]
           [live-link-attributes (-> (or/c live-view? #f) string?
                                     (listof (list/c symbol? string?)))]
           ;; the assets that make the above mean anything: the directory to
@@ -86,10 +87,17 @@
 ;; region : the id of the element that re-fetches and morphs itself
 ;; event  : the SSE event name that means "this region is behind"
 ;; stream : the URL of the event stream
+;; href   : this PAGE's own address — what the region re-fetches
 ;; cursor : what this PAGE was rendered at, or #f
 ;;
-;; All four are the HOST's: the framework never invents an id, an event name, a
+;; All five are the HOST's: the framework never invents an id, an event name, a
 ;; route or a revision. What it owns is what they add up to.
+;;
+;; A live view is a PER-PAGE value, not a per-app one: `href` and `cursor` are
+;; both facts about the page being drawn, and they have the same lifetime.
+;; Carrying the address here rather than passing it beside the view is what
+;; makes "a live view with nowhere to re-fetch from" unspellable rather than
+;; guarded against.
 ;;
 ;; The cursor closes the gap nobody sees until it bites. A page is rendered at
 ;; one moment and its EventSource connects at a later one, and an edit that
@@ -98,11 +106,11 @@
 ;; page was DRAWN from makes the first connection a reconnect like any other:
 ;; it says where it is, and catch-up answers with what it missed. A host that
 ;; passes no cursor gets the old behaviour and the old gap.
-(struct live-view (region event stream cursor) #:transparent)
+(struct live-view (region event stream href cursor) #:transparent)
 
-(define (make-live-view #:region region #:event event #:stream stream
+(define (make-live-view #:region region #:event event #:stream stream #:href href
                         #:cursor [cursor #f])
-  (live-view region event stream cursor))
+  (live-view region event stream href cursor))
 
 (define (region-selector lv) (string-append "#" (live-view-region lv)))
 
@@ -124,22 +132,27 @@
   (list (list 'hx-ext "sse,morph")
         (list 'sse-connect (stream-href lv))))
 
+;; net/url composes it: a stream URL is a URL, it may already have a query, and
+;; a cursor is an opaque string that may hold anything a URL cannot. Guessing
+;; at "?" versus "&" and escaping by hand is a URL builder, and there is one.
 (define (stream-href lv)
-  (define stream (live-view-stream lv))
   (define cursor (live-view-cursor lv))
+  (define stream (string->url (live-view-stream lv)))
   (if cursor
-      (string-append stream
-                     (if (regexp-match? #rx"[?]" stream) "&" "?")
-                     live-cursor-param "=" (uri-encode cursor))
-      stream))
+      (url->string
+       (struct-copy url stream
+                    [query (append (url-query stream)
+                                   (list (cons (string->symbol live-cursor-param)
+                                               cursor)))]))
+      (live-view-stream lv)))
 
-;; On the region: it re-fetches `href` — its own page's address, which the host
-;; passes down rather than the framework guessing — whenever the stream says
-;; the region is behind, and selects itself out of the reply, so ONE handler
-;; serves both the first render and every update.
-(define (live-region-attributes lv href)
+;; On the region: it re-fetches its own page's address — which the host put on
+;; the view rather than the framework guessing — whenever the stream says the
+;; region is behind, and selects itself out of the reply, so ONE handler serves
+;; both the first render and every update.
+(define (live-region-attributes lv)
   (list (list 'id (live-view-region lv))
-        (list 'hx-get href)
+        (list 'hx-get (live-view-href lv))
         (list 'hx-trigger (string-append "sse:" (live-view-event lv)))
         (list 'hx-select (region-selector lv))
         (list 'hx-target (region-selector lv))

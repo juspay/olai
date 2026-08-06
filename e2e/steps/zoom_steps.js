@@ -39,10 +39,10 @@ Then("I am back on the home page", async function () {
 
 // The tab is what a permalink is pasted into, so the node's title has to be on
 // it — a page called "olai" says nothing about which node you sent someone.
-// Waited for rather than read: a partial navigation renames the tab from the
-// reply it swapped in, which is one turn after the address moved.
+// Read, not waited for: `follow` already waited for the swap to settle, and
+// the tab is renamed before that (world.js).
 Then("the tab is named for {string}", async function (title) {
-  await this.page.waitForFunction((t) => document.title.includes(t), title);
+  assert.match(await this.page.title(), new RegExp(title));
 });
 
 // The trail above the node, in order, as it reads: "home" first (it is always

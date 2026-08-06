@@ -21,7 +21,10 @@
 
 (require racket/contract
          live/client
-         live/frame)
+         live/frame
+         ;; a string this process alone will use: the transport's answer to
+         ;; "two different states must never be called the same thing"
+         (only-in live/hub live-boot-id))
 
 (provide (contract-out
           ;; the event that means "the outline moved"
@@ -33,11 +36,12 @@
           ;; from there
           [live-asset-prefix string?]
           [live-script-srcs (listof string?)]
-          ;; the view a page is drawn with: where its stream is, and which
-          ;; state the markup around it came from
-          [outline-live-view (-> string? #:cursor (or/c string? #f) live-view?)]
+          ;; the view a page is drawn with: where its stream is, its own
+          ;; address, and which state the markup around it came from
+          [outline-live-view (-> string? #:href string? #:cursor (or/c string? #f)
+                                 live-view?)]
           ;; the token a state of the outlines is named by on the wire
-          [outline-cursor (-> string? exact-integer? string?)]
+          [outline-cursor (-> exact-integer? string?)]
           ;; a reload, as a frame: the cursor is both the payload (so the
           ;; stream is readable by hand) and the stream's id
           [outline-frame (-> string? frame?)]
@@ -63,23 +67,22 @@
 ;; counts from one per process, so "3" names a different outline before and
 ;; after a restart — and a tab that reconnects to a restarted server saying "I
 ;; last saw 3" would be told it is up to date, and would sit on markup from the
-;; previous process forever. Naming the process too makes every token stand for
-;; exactly one state of one server, which is the only property the comparison
-;; below needs.
-;;
-;; `boot` is the shell layer's to mint (web/serve): it is a fact about a
-;; process, and this module is told it like every other fact it is told.
-(define (outline-cursor boot revision)
-  (string-append boot "." (number->string revision)))
+;; previous process forever. `live-boot-id` is the transport's answer to
+;; exactly that hazard (a string this process alone will use), so the pairing
+;; here is the whole of what olai has to say about it.
+(define (outline-cursor revision)
+  (string-append live-boot-id "." (number->string revision)))
 
 ;; The cursor travels with the PAGE rather than being read again when the
 ;; stream connects, and the difference is the whole point: those are two
 ;; different moments, and an edit between them is exactly what a page cannot
-;; find out about by asking later.
-(define (outline-live-view stream-href #:cursor cursor)
+;; find out about by asking later. `href` is the page's own address, on the
+;; view for the same reason — a per-page fact, with the same lifetime.
+(define (outline-live-view stream-href #:href href #:cursor cursor)
   (make-live-view #:region live-region-id
                   #:event outline-event
                   #:stream stream-href
+                  #:href href
                   #:cursor cursor))
 
 (define (outline-frame cursor)

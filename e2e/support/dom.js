@@ -22,6 +22,24 @@ export async function assertClass(locator, cls, want, what) {
   );
 }
 
+// An expando on a DOM node. It dies with the element and with nothing else,
+// which makes it the only honest answer to "is this still the same element" —
+// a question the live view exists to make answerable with yes.
+const NODE_MARK = "__olai_e2e_node";
+
+/** Mark the element this locator resolves to. */
+export async function markElement(locator) {
+  await locator.evaluate((el, k) => {
+    el[k] = true;
+  }, NODE_MARK);
+}
+
+/** Whether the element this locator resolves to is the one that was marked —
+ *  not one that looks like it. */
+export async function isMarkedElement(locator) {
+  return await locator.evaluate((el, k) => el[k] === true, NODE_MARK);
+}
+
 /** A string, as regexp source: every metacharacter escaped, backslash first
  *  among them. For building a pattern that has a literal PART — a filename, a
  *  title — and a real pattern around it. */

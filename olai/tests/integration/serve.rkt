@@ -76,9 +76,9 @@
 ;; #:last-event-id is what a reconnecting EventSource sends: the id of the last
 ;; frame it managed to dispatch before the connection went away. A test that
 ;; passes one is a browser that has been asleep.
-(define (open-events port #:last-event-id [last-event-id #f])
+(define (open-events port #:path [path "/events"] #:last-event-id [last-event-id #f])
   (define-values (status headers in)
-    (http-sendrecv "127.0.0.1" "/events" #:port port #:method #"GET"
+    (http-sendrecv "127.0.0.1" path #:port port #:method #"GET"
                    #:headers (if last-event-id
                                  (list (string->bytes/utf-8
                                         (string-append "Last-Event-ID: " last-event-id)))
@@ -114,11 +114,7 @@
 (define (open-events/page port page-body)
   (define m (regexp-match #px"sse-connect=\"([^\"]+)\"" page-body))
   (check-not-false m "the page carries no stream")
-  (define-values (status headers in)
-    (http-sendrecv "127.0.0.1" (cadr m) #:port port #:method #"GET"))
-  (values (string->number (cadr (string-split (bytes->string/utf-8 status) " ")))
-          (map bytes->string/utf-8 headers)
-          in))
+  (open-events port #:path (cadr m)))
 
 (define (event-name ev) (car ev))
 (define (event-data ev) (cadr ev))

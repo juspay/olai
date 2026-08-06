@@ -42,10 +42,5 @@
                   "event: a\ndata: 1\n\nevent: b\ndata: 2\n\n")
     (check-equal? (frames->string '()) ""))
 
-  (test-case "a comment is bytes on the wire and not an event"
-    (check-equal? (sse-comment "hb") ":hb\n\n")
-    ;; a comment with a newline in it would end the comment and start data
-    (check-equal? (sse-comment "one\ntwo") ":one two\n\n"))
-
   (test-case "retry is a field of its own"
     (check-equal? (sse-retry 1000) "retry: 1000\n\n")))

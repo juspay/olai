@@ -17,7 +17,8 @@
 ;; live/tests/frame.rkt owns the wire format; this file owns the markup. The
 ;; one thing both ends of the cursor have to agree on is asserted in each.
 
-(define lv (make-live-view #:region "app" #:event "changed" #:stream "/events"))
+(define lv (make-live-view #:region "app" #:event "changed" #:stream "/events"
+                           #:href "/today"))
 
 ;; -> the value of `key`, or #f. Attributes are xexpr pairs: (name "value").
 (define (attr attrs key)
@@ -43,25 +44,33 @@
   (test-case "a cursor rides in the stream's URL"
     (define with-cursor
       (make-live-view #:region "app" #:event "changed" #:stream "/events"
+                      #:href "/"
                       #:cursor "41"))
     (check-equal? (attr (live-connect-attributes with-cursor) 'sse-connect)
                   "/events?last-event-id=41")
     ;; a stream URL that already has a query keeps it
     (define queried
       (make-live-view #:region "app" #:event "changed" #:stream "/events?tab=2"
+                      #:href "/"
                       #:cursor "41"))
     (check-equal? (attr (live-connect-attributes queried) 'sse-connect)
                   "/events?tab=2&last-event-id=41")
-    ;; an id is an opaque string, so it may contain anything a URL cannot
+    ;; an id is an opaque string, so it may contain anything a URL cannot.
+    ;; net/url escapes it form-urlencoded (a space is "+"), which is what the
+    ;; other end decodes it as — live/hub reads it out of the request's
+    ;; bindings, not by hand
     (define odd
       (make-live-view #:region "app" #:event "changed" #:stream "/events"
+                      #:href "/"
                       #:cursor "a b&c"))
     (check-equal? (attr (live-connect-attributes odd) 'sse-connect)
-                  "/events?last-event-id=a%20b%26c"))
+                  "/events?last-event-id=a+b%26c"))
 
   (test-case "the region re-fetches its own page and lifts itself out of it"
-    (define a (live-region-attributes lv "/today"))
+    (define a (live-region-attributes lv))
     (check-equal? (attr a 'id) "app")
+    ;; the page's own address, off the view: a live view with nowhere to
+    ;; re-fetch from is not a state this can be in
     (check-equal? (attr a 'hx-get) "/today")
     ;; the event is the host's word, prefixed with the one htmx knows
     (check-equal? (attr a 'hx-trigger) "sse:changed")
@@ -114,4 +123,13 @@
   ;; registered under that name.
   (test-case "the vendored idiomorph registers the extension the swap names"
     (check-true (string-contains? (script-source "idiomorph.min.js")
-                                  "defineExtension(\"morph\""))))
+                                  "defineExtension(\"morph\"")))
+
+  ;; A page has one stream and every event name rides it. An app whose payload
+  ;; is not markup has to be able to hear one without declaring a swap it then
+  ;; has to cancel — that is what this offers, and it is the only reason
+  ;; anything but this collection touches the EventSource.
+  (test-case "the runtime offers one way to listen to a named event"
+    (define src (script-source "live.js"))
+    (check-true (string-contains? src "window.live="))
+    (check-true (string-contains? src "on:function"))))

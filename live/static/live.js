@@ -1,8 +1,16 @@
-// The live-view runtime: history policy, and the health of the stream.
+// The live-view runtime: history policy, the health of the stream, and the one
+// way to listen to it.
 //
 // Everything ELSE this framework does is attributes (live/client.rkt) and the
 // two vendored extensions beside this file. What is left over is what an
 // attribute cannot say:
+//
+//   * a page has ONE stream and every event name rides it, but the SSE
+//     extension only knows how to SWAP a payload into an element. An event
+//     whose payload is not markup — a JSON frame a script draws itself — had
+//     no way in but to declare a swap and then cancel it. `live.on(name, fn)`
+//     is that way in: the connection is still htmx's, and this is the only
+//     thing holding the EventSource.
 //
 //   * Back and Forward must show the CURRENT state, not a snapshot. htmx caches
 //     the history element's markup and restores it verbatim, which is right for
@@ -46,6 +54,10 @@
   var root=document.documentElement;
   var cadence=DEFAULT_CADENCE,lastBeat=0,timer=null,watched=null;
 
+  // name -> [handler]. Kept here rather than on the EventSource because the
+  // source is replaced on a reconnect and a subscriber must not have to know.
+  var handlers={};
+
   function windowMs(){return cadence*GRACE*1000+SLACK}
 
   function setState(s){
@@ -72,18 +84,44 @@
   // it back); this only listens. `sseOpen` hands over the EventSource, which is
   // the only way to hear an event nothing on the page swaps on.
 
+  // Everything this page wants to hear, attached to whichever source is
+  // current. A reconnect makes a new EventSource; the subscriber list is ours,
+  // so it survives that and nothing re-registers.
+  function attach(source){
+    source.addEventListener(BEAT,function(ev){
+      var n=parseFloat(ev.data);
+      if(n>0)cadence=n;
+      alive();
+    });
+    Object.keys(handlers).forEach(function(name){
+      source.addEventListener(name,function(ev){
+        handlers[name].forEach(function(fn){fn(ev.data,ev)});
+      });
+    });
+  }
+
   document.body.addEventListener('htmx:sseOpen',function(e){
     var source=e.detail&&e.detail.source;
     if(source&&source!==watched){
       watched=source;
-      source.addEventListener(BEAT,function(ev){
-        var n=parseFloat(ev.data);
-        if(n>0)cadence=n;
-        alive();
-      });
+      attach(source);
     }
     alive();
   });
+
+  // Subscribe to one event name on the page's stream. `fn` is handed the
+  // frame's data as a string — what it MEANS is the caller's, exactly as it is
+  // on the server. Register before the stream opens (a deferred script does);
+  // a name registered later is picked up on the next reconnect.
+  window.live={
+    on:function(name,fn){
+      (handlers[name]=handlers[name]||[]).push(fn);
+      if(watched&&handlers[name].length===1)
+        watched.addEventListener(name,function(ev){
+          handlers[name].forEach(function(f){f(ev.data,ev)});
+        });
+    }
+  };
 
   // A drop the browser noticed. EventSource is already coming back (the stream
   // says how soon, `retry:`), so the first thing this is, is reconnecting —

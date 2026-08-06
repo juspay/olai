@@ -39,9 +39,11 @@
 
 (define (xstr x) (xexpr->string x))
 
-;; The live view a served page is drawn with: the same three names web/serve
-;; passes, so a test asserting markup is asserting the shipped markup.
-(define the-live-view (outline-live-view "/events" #:cursor "boot.1"))
+;; The live view a served page is drawn with — the same value web/serve builds,
+;; so a test asserting markup is asserting the shipped markup. It is per-PAGE
+;; (it carries the page's own address), which is why this is a function.
+(define (live-at href) (outline-live-view "/events" #:href href #:cursor "boot.1"))
+(define the-live-view (live-at "/"))
 
 ;; Where `needle` starts in `s`, for the assertions that are about ORDER.
 (define (string-index s needle)
@@ -515,7 +517,7 @@
   ;; layer decides — that the region, and only the region, is the live one.
 
   (test-case "a live view opts the body into the stream"
-    (define s (xstr (render-page '(div) #:live the-live-view #:live-href "/")))
+    (define s (xstr (render-page '(div) #:live the-live-view)))
     ;; the stream, and what this page was rendered at — so an edit that lands
     ;; between drawing the page and its EventSource connecting is not lost
     (check-true (string-contains? s "sse-connect=\"/events?last-event-id=boot.1\"") s)
@@ -524,7 +526,7 @@
     (check-false (string-contains? (xstr (render-page '(div))) "sse-connect")))
 
   (test-case "the live region re-fetches its own address and morphs itself"
-    (define s (xstr (render-page '(div) #:live the-live-view #:live-href "/today")))
+    (define s (xstr (render-page '(div) #:live (live-at "/today"))))
     (check-true (string-contains? s "id=\"ol-live\"") s)
     (check-true (string-contains? s "hx-get=\"/today\"") s)
     (check-true (string-contains? s "hx-trigger=\"sse:outline\"") s)
@@ -539,7 +541,7 @@
     (check-false (string-contains? plain "hx-get") plain))
 
   (test-case "a page with a stream can say the stream is down"
-    (define s (xstr (render-page '(div) #:live the-live-view #:live-href "/")))
+    (define s (xstr (render-page '(div) #:live the-live-view)))
     (check-true (string-contains? s "showing last known state") s)
     ;; the report sits OUTSIDE the region it reports on
     (check-true (> (string-index s "ol-stream") (string-index s "ol-live")) s)
@@ -657,14 +659,15 @@
                              #:load-href "/chat/load"
                              #:event "chat")))
 
-  (test-case "the panel is a form, a sink and the routes it was told"
+  (test-case "the panel is a form and the routes it was told"
     (define s (panel))
     (check-true (string-contains? s "id=\"ol-chat\"") s)
     (check-true (string-contains? s "action=\"/chat\"") s)
     (check-true (string-contains? s "data-post=\"/chat/new\"") s)
     (check-true (string-contains? s "data-post=\"/chat/cancel\"") s)
-    ;; frames arrive on the page's own connection, under the name it is given
-    (check-true (string-contains? s "sse-swap=\"chat\"") s)
+    ;; frames arrive on the page's own connection, under the name it is given —
+    ;; carried, not spelled by the script that subscribes to it
+    (check-true (string-contains? s "data-chat-event=\"chat\"") s)
     (check-false (string-contains? s "sse-connect") s)
     ;; an open panel covers the floating toggle, so the header carries a way
     ;; out of its own — two buttons, one toggle path
@@ -707,10 +710,10 @@
   (test-case "the chat script stays tiny, framework-free and connection-free"
     (define js (file->string (build-path (web-static-dir) "chat.js")))
     (check-false (string-contains? js "require") js)
-    ;; ONE connection per page: the panel hooks the htmx sse extension's
-    ;; messages instead of opening a second EventSource
+    ;; ONE connection per page: the panel subscribes to the framework's
+    ;; stream instead of opening a second EventSource
     (check-false (string-contains? js "new EventSource") js)
-    (check-true (string-contains? js "htmx:sseBeforeMessage") js)
+    (check-true (string-contains? js "live.on") js)
     (check-true (string-contains? js "olai.chat") js)
     ;; chunk and user text are inserted as TEXT
     (check-true (string-contains? js "textContent") js))

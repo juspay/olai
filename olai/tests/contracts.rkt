@@ -70,7 +70,7 @@
   ;; nothing at all.
   (test-case "web/live: a revision is an integer, a cursor is a string"
     (check-exn (blames "live.rkt")
-               (λ () (outline-cursor "boot" "7")))
+               (λ () (outline-cursor "7")))
     (check-exn (blames "live.rkt")
                (λ () (outline-frame 7)))
     (check-exn (blames "live.rkt")

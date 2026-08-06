@@ -1164,8 +1164,9 @@
        (check-true (string-contains? body "data-chat-sessions=\"/chat/sessions\"") body)
        (check-true (string-contains? body "data-chat-load=\"/chat/load\"") body)
        ;; the panel borrows the page's connection: it subscribes to the chat
-       ;; event on the body's stream, and opens nothing of its own
-       (check-true (string-contains? body "sse-swap=\"chat\"") body)
+       ;; event on the body's stream, and opens nothing of its own. The name
+       ;; is carried, not spelled by the script — one owner of the wire format
+       (check-true (string-contains? body "data-chat-event=\"chat\"") body)
        (check-equal? (length (regexp-match* #rx"sse-connect=" body)) 1 body)
        ;; and the script it does that with is a file, not an inline blob
        (define-values (jcode js) (GET port "/static/chat.js"))

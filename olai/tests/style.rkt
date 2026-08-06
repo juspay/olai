@@ -157,8 +157,7 @@
                 #:sidebar (render-sidebar example-files
                                           #:home-href "/" #:today-href "/today"
                                           #:zoom-base "/z/")
-                #:live (outline-live-view "/events" #:cursor "boot.1")
-                #:live-href "/"
+                #:live (outline-live-view "/events" #:href "/" #:cursor "boot.1")
                 #:banner (render-error-banner "expected ISO date"
                                               #:where "/tmp/Tasks.rkt:3:4"))
    (let* ([index (snapshot-index example-snapshot)]
@@ -237,8 +236,7 @@
     "ol-zoom"        ; marks a pane as zoomed — the crumbs above it are the difference
     "ol-zoom-root"   ; the zoomed subtree's root list; .ol-outline is what paints it
     "ol-unresolved"  ; a mirror site naming nothing; the marker inside says so
-    "ol-crumb-home"  ; the first crumb, drawn like any other crumb
-    "ol-chat-sink")) ; where SSE frames land, hidden: nothing to see by design
+    "ol-crumb-home")); the first crumb, drawn like any other crumb
 
 ;; A name a script uses and nothing styles. Empty, and meant to stay that way:
 ;; an entry here is a promise that the class is a hook with no look.

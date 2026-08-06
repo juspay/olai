@@ -69,7 +69,10 @@
           ;; the beat's name and payload shape, so a client runtime and a test
           ;; spell one binding instead of two matching strings
           [heartbeat-event string?]
-          [heartbeat-frame (-> (>/c 0) frame?)]))
+          [heartbeat-frame (-> (>/c 0) frame?)]
+          ;; a string this process alone will ever use, for a host whose own
+          ;; notion of state is a counter (see below)
+          [live-boot-id string?]))
 
 ;; How many undelivered frames a subscriber may owe before the hub gives up on
 ;; it. Small on purpose: these are notifications, not a log.
@@ -93,6 +96,25 @@
 ;; is no second place holding a number that has to agree.
 (define (heartbeat-frame seconds)
   (make-frame heartbeat-event (number->string seconds)))
+
+;; ---- telling one process from another ---------------------------------------
+
+;; Catch-up rests on one property of an id: two different states must never be
+;; called the same thing. A host whose state is a COUNTER breaks that without
+;; noticing, because a counter restarts with the process — so `3` names one
+;; thing before a restart and another after it, and every client that
+;; reconnects across one is told it is up to date when it is not.
+;;
+;; That hazard is the framework's to fix, not each host's to remember: a
+;; process can identify itself, and this is that string. Combine it with
+;; whatever counts (`(string-append live-boot-id "." n)`) and the property
+;; holds. A host whose state is already globally unique — a commit hash, a
+;; ULID, a log offset — has no use for it.
+;;
+;; Reading a clock is not interpreting an id: this hands one out, and still
+;; never looks at one.
+(define live-boot-id
+  (number->string (inexact->exact (round (current-inexact-milliseconds)))))
 
 ;; ---- the hub ----------------------------------------------------------------
 
