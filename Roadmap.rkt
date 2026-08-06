@@ -92,7 +92,8 @@ olai roadmap #project
         : panes (apply() is document-wide; the sidebar renders outside
         : the #ol-live swap target and was never in the line of fire).
         @done 2026-08-05
-    live view glitches #bug
+    [/] live view glitches #bug
+      : In flight: terminal 322a5e1f, worktree live-view, Claude Opus.
       : One disease behind them all: DOM that did not change is replaced
       : anyway — full page loads on sidebar clicks, whole-container
       : swaps on SSE. Seen: chat panel rebuilt by sidebar navigation;
@@ -112,12 +113,25 @@ olai roadmap #project
         : and the click-vs-swap race by construction; the afterSettle
         : re-apply stays for genuinely new subtrees.
       outline stream catch-up
-        : What chat got in #24, via the protocol: the snapshot gains a
+        : What chat got in [#24](https://github.com/juspay/olai/pull/24), via the protocol: the snapshot gains a
         : revision, events.rkt stamps it as the SSE id:, reconnects
         : send Last-Event-ID, and a behind client gets one fresh
         : outline-changed. Sleep, iOS tab suspension, network blips
         : heal with zero client JS. The hub stays generic — ids are
         : its vocabulary; what a revision MEANS stays the store's.
+      declare-and-check DSL
+        : Anti-entropy for a swarm-built wiring: this repo is written
+        : by many agents with partial context, and every id/event
+        : string is a convention each one must rediscover — e2e catches
+        : the drift late, at simulation prices. Regions and streams as
+        : compile-time bindings instead: a dead link or undeclared
+        : frame fails at expand time with a srcloc (the agent
+        : interface), and stream evolution is append-only at one
+        : declaration site. Thin macros over the framework's
+        : functional core; second PR, only if the declarations CHECK
+        : something a swarm actually trips on. Brainstorm:
+        : [docs/live-dsl.md](https://github.com/juspay/olai/blob/master/docs/live-dsl.md)
+        : (make this an @doc when that lands).
       stream health indicator
         : The user must know when they are reading a stale app. Two
         : layers: htmx:sseOpen/sseClose for clean drops, and a
@@ -188,18 +202,18 @@ olai roadmap #project
     chat
       : The panel becomes the outline's other half.
       panel opened during boot misses its conversation #bug
-        : Found by the e2e suite (PR #22, @skip scenario): serve answers
+        : Found by the e2e suite ([#22](https://github.com/juspay/olai/pull/22), @skip scenario): serve answers
         : requests while the agent boots in its own thread, and boot
         : frames broadcast only to subscribers already on /events — a
         : panel opened mid-boot never learns its session. Fixed by
         : catch-up on connect: one frame constructor for live broadcast
-        : and replay (PR #24).
+        : and replay ([#24](https://github.com/juspay/olai/pull/24)).
         @done 2026-08-06
       mobile chat unusable #bug
         : On iPhone the chat panel is completely broken (reported
         : 2026-08-05). The panel is desktop-first: position fixed,
         : --chat-w = max(21rem, 33vw) — 21rem is nearly the whole of a
-        : 390px screen — and the #14 gutter squeezes .ol-main to
+        : 390px screen — and the [#14](https://github.com/juspay/olai/pull/14) gutter squeezes .ol-main to
         : nothing beside it. On a narrow viewport the panel likely
         : wants to be a full-width sheet instead of a side panel;
         : reproduce in a phone-sized viewport, then fix. An e2e
@@ -286,7 +300,7 @@ olai roadmap #project
       : `olai serve` on an ephemeral port against a temp outline.
       : First features: fold survives an SSE re-swap (the parked
       : collapse #bug becomes its regression test); chat panel open
-      : keeps .ol-main readable (the #14 wrap bug); theme flip
+      : keeps .ol-main readable (the [#14](https://github.com/juspay/olai/pull/14) wrap bug); theme flip
       : persists across reload.
       @done 2026-08-05
     chat boot frames race the assertions #bug
@@ -296,7 +310,7 @@ olai roadmap #project
       : ("reset" ...) at chat.rkt:949.
       : Not a commit: it failed on master at 46cf193a — a Roadmap.rkt-only
       : commit — with f6d1b71c before it and c609691d after it both green,
-      : and once on PR #17's macOS lane, green on re-run with no chat or acp
+      : and once on [#17](https://github.com/juspay/olai/pull/17)'s macOS lane, green on re-run with no chat or acp
       : change. Two different assertions, two different runners, always the
       : same shape.
       : Cause: with-server gates on wait-booted (chat.rkt:167), which waits
