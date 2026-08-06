@@ -6,6 +6,7 @@
 (require (except-in olai/lang/expander #%module-begin)
          (only-in olai/lang/walk find-task-by-id find-tasks-by-title)
          olai/agenda
+         olai/index
          olai/web/render)
 
 (provide task
@@ -34,6 +35,13 @@
          collect-dated
          agenda-groups
          agenda-groups-from-files
+         ;; node identity, inverted: key -> node, and the trail above it. The
+         ;; entry's other fields are how the trail is walked, not something to
+         ;; read — ask node-ancestors instead.
+         node-entry?
+         node-entry-task
+         outline-index
+         node-ancestors
          render-node-fragment
          render-outline
          render-breadcrumbs

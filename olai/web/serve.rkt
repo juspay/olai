@@ -3,6 +3,7 @@
 ;; The read-mostly web view.
 ;;
 ;;   GET  /             the html page: sidebar + outline + chat panel
+;;   GET  /n/<key>      one node, zoomed: breadcrumbs + that subtree
 ;;   GET  /today        today's Daily day node, zoomed
 ;;   GET  /events       SSE stream; `outline` (data: store revision) per reload,
 ;;                      `chat` (data: one JSON frame) per agent frame
@@ -55,6 +56,10 @@
          (only-in web-server/private/mime-types make-path->mime-type)
          olai/agenda
          olai/dates
+         ;; a node's title, for the tab a zoom page opens in
+         (only-in olai/lang/expander task-title)
+         ;; key -> node, and the trail above it (what a breadcrumb is drawn from)
+         (only-in olai/index node-entry-task node-ancestors)
          olai/json/model
          olai/json/reply
          olai/load
@@ -194,9 +199,12 @@
 ;; the renderer, never guessed by it.
 (define events-href "/events")
 
-;; A node's address. There is no zoom route yet, so it is the home page
-;; anchored at the node — every node carries id="n-<key>" there.
-(define node-href-base "/#n-")
+;; A node's address: its own zoom page, keyed by the key the load layer minted
+;; (olai/load). Stable across a rename — that is what makes it a permalink —
+;; and across an ancestor's rename; NOT stable across an unanchored node moving
+;; to a new ordinal, which is what ^anchor is for (docs/cli.md).
+(define node-href-base "/n/")
+(define (node-href key) (string-append node-href-base key))
 
 ;; The chat panel's verbs. All POST, all 204: the reply the panel renders comes
 ;; back over `events-href`. The one GET is the picker's list, which is a thing
@@ -323,41 +331,86 @@
                  #:body-extra (if chat (list chat) '())))
    #:code code))
 
-(define (page-handler st agent)
+;; Every page here is the same shape: one snapshot, the chrome around it, and
+;; a live region that re-fetches THIS url on an `outline` event. `view` is
+;; handed the snapshot and answers (values main title) — the only thing three
+;; pages differ in.
+(define (outline-page st agent live-href view)
   (define chat (chat-panel agent))
-  (with-snapshot st (λ (err) (page-failure err #:live-href home-href #:chat chat))
+  (with-snapshot st (λ (err) (page-failure err #:live-href live-href #:chat chat))
     #:stale-ok? #t
     (λ (snap err)
-      (define files-data (snapshot-files-data snap))
-      (chrome files-data
-              (render-outline files-data #:today (today-iso-string))
-              #:title (page-title (store-files st))
-              #:live-href home-href
+      (define-values (main title) (view snap))
+      (chrome (snapshot-files-data snap) main
+              #:title title
+              #:live-href live-href
               #:chat chat
               #:banner (and err (error-banner err))))))
 
-;; Today's Daily day node, zoomed. No day node yet is the normal state before
-;; the first capture of the day, not an error.
+;; One node, zoomed: the node and the trail above it, both asked of the
+;; snapshot's index — the only thing that knows either.
+(define (zoom-pane index entry today)
+  (render-zoom (node-entry-task entry)
+               (node-ancestors index entry)
+               #:today today
+               #:home-href home-href
+               #:zoom-base node-href-base))
+
+;; The key a page was asked for, as a node, or #f. Both zoom routes go through
+;; here, and each says in its own words what #f means.
+(define (node-at index key)
+  (and key (hash-ref index key #f)))
+
+(define (page-handler st agent)
+  (outline-page st agent home-href
+   (λ (snap)
+     (values (render-outline (snapshot-files-data snap)
+                             #:today (today-iso-string)
+                             #:zoom-base node-href-base)
+             (page-title (store-files st))))))
+
+;; A node's permalink.
+;;
+;; A key the snapshot has no node for is not a 404: a node can be deleted, or
+;; an unanchored one re-keyed, while a tab sits zoomed on it, and that tab
+;; re-fetches this very page to find out. An error status would leave it
+;; showing a node that is gone. The snapshot is the source of truth about what
+;; exists; this route only asks it, and says what it heard.
+(define (node-handler st agent key)
+  (outline-page st agent (node-href key)
+   (λ (snap)
+     (define index (snapshot-index snap))
+     (define entry (node-at index key))
+     (if entry
+         ;; a tab zoomed on one node should say which
+         (values (zoom-pane index entry (today-iso-string))
+                 (task-title (node-entry-task entry)))
+         (values (render-empty-pane "No such node." #:home-href home-href)
+                 "olai")))))
+
+;; Today's Daily day node, zoomed. Finding today's key is a question about the
+;; DAY; the answer goes through the same zoom pane as any permalink, and
+;; nothing under this line knows what day it is.
+;;
+;; It stays a page rather than a redirect to /n/<key>: the key it resolves to
+;; changes at local midnight (the watcher pushes an `outline` event then, which
+;; this page re-fetches on), and before the first capture of the day there is
+;; no key to redirect to. Both are ordinary states of "today", and a page
+;; frozen to the key today HAD would be neither.
 (define (today-handler st agent)
-  (define chat (chat-panel agent))
-  (with-snapshot st (λ (err) (page-failure err #:live-href today-href #:chat chat))
-    #:stale-ok? #t
-    (λ (snap err)
-      (define today (today-iso-string))
-      (define key (snapshot-day-key snap today))
-      (chrome (snapshot-files-data snap)
-              (if key
-                  (render-zoom (snapshot-index snap) key
-                               #:today today
-                               #:home-href home-href
-                               #:zoom-base node-href-base)
-                  (render-empty-pane
-                   (format "No day node for ~a. Run: olai daily" today)
-                   #:home-href home-href))
-              #:title (string-append "today " today)
-              #:live-href today-href
-              #:chat chat
-              #:banner (and err (error-banner err))))))
+  (outline-page st agent today-href
+   (λ (snap)
+     (define today (today-iso-string))
+     (define index (snapshot-index snap))
+     (define entry (node-at index (snapshot-day-key snap today)))
+     (values (if entry
+                 (zoom-pane index entry today)
+                 ;; no day node yet is the normal state before the first
+                 ;; capture of the day, not an error
+                 (render-empty-pane
+                  (format "No day node for ~a. Run: olai daily" today)
+                  #:home-href home-href))
+             (string-append "today " today)))))
 
 (define (tree-handler st)
   (with-snapshot st json-failure
@@ -380,6 +433,8 @@
   (define-values (route _url)
     (dispatch-rules
      [("") (λ (req) (page-handler st agent))]
+     ;; one page per node, addressed by the key the load layer minted
+     [("n" (string-arg)) (λ (req key) (node-handler st agent key))]
      [("today") (λ (req) (today-handler st agent))]
      ;; mounted, not understood: what an event MEANS lives in web/events
      [("events") (λ (req) (hub-response hub))]
