@@ -351,7 +351,7 @@
    (list bullet
          ;; the check sits in the gutter, not in the text run, so a title
          ;; and its note stay flush left of each other
-         (checkbox-xexpr key qkey status toggle-base)
+         (checkbox-xexpr key (node-element-id key #:site site) status toggle-base)
          `(div ((class ,ol-content))
                (div ((class ,ol-line))
                     ,@(if mirror-of

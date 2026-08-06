@@ -20,7 +20,7 @@
          ;; happens to be about this box
          ol-check)
 
-(define-component (checkbox-xexpr key elt-key status toggle-base)
+(define-component (checkbox-xexpr key element-id status toggle-base)
   #:class ol-check
   #:css (#:flex (0 0 1.125rem)
          #:width 1.125rem
@@ -64,14 +64,16 @@
     `((class ,(classes ol-check (state-class status)))
       (title ,hint)))
   (if toggle-base
-      ;; post against the node (its key), swap the copy you clicked (elt-key).
+      ;; post against the node (its key), swap the copy you clicked (its
+      ;; element id, minted by the region that drew it — this never computes
+      ;; an id shape).
       ;; DORMANT and grandfathered: no route serves a toggle, so nothing but a
       ;; test reaches this. Raw htmx attributes are banned (live/README.md) —
       ;; 0.6's write path brings a ratified write FORM, and this goes with it.
       `(button ((type "button")
                 ,@common
                 (hx-post ,(string-append toggle-base key))
-                (hx-target ,(string-append "#n-" elt-key))
+                (hx-target ,(string-append "#" element-id))
                 (hx-swap "outerHTML")
                 (aria-label ,(if done? "mark not done" "mark done")))
                ,label)

@@ -143,13 +143,14 @@ So: write each name once, as a declaration, and let every other appearance be a 
 (live-region region #:href href)                                     -> attributes
 (live-link region href)                                              -> attributes
 (live-item region tag key body ...)                                  -> xexpr
+(live-id region key)                                                 -> string
 ```
 
 * **`define-stream`** declares a stream's vocabulary, in the module that PRODUCES it. The events are the complete set of names anything may send on it or trigger from it, and the list is append-only: removing one is an expansion error at every use until the last of them is gone. `#:heartbeat` is the cadence in seconds, read back by `stream-heartbeat` where the app answers the stream — a page has one connection and every event name rides it, so declare the beat on the stream the app answers with and leave it off the others.
 * **`stream-frame`** is `make-frame` with the event checked against the declaration. A frame rather than a send, because a frame is what both places want: one goes to `hub-broadcast!` when something moves, and the same one goes to the connection that missed it in `#:catch-up`.
 * **`define-live-region`** declares the region a module DRAWS. The name IS the element id, so the selector, the target, the swap and every link derive from one line. `#:event` says which of the stream's events redraws it, and may be left out when the stream declares exactly one — with two or more, leaving it out is an error rather than a guess. `#:history?` is the page-global decision htmx forces (it honours the FIRST history element in the document): with two regions on a page, one of them must yield or Back restores the wrong one.
 * **`live-connect`** is the page's connection, for an ancestor of every region and link on it. It names every stream riding it and takes the cursor the markup was drawn from. The address is the transport's, not the app's — see **Boot id** above.
-* **`live-region`**, **`live-link`** and **`live-item`** are the three places a name would otherwise be retyped. A link names the region it aims at, which is what makes a link into the wrong surface unwritable rather than merely unwritten; an item's id is MINTED from its region and a key, because a written id is an obligation a drawer can forget and a forgotten one fails by preserving nothing rather than by failing.
+* **`live-region`**, **`live-link`**, **`live-item`** and **`live-id`** are the four places a name would otherwise be retyped. A link names the region it aims at, which is what makes a link into the wrong surface unwritable rather than merely unwritten. An item's id is MINTED from its region and a key, because a written id is an obligation a drawer can forget and a forgotten one fails by preserving nothing rather than by failing — and namespacing it by region is what lets two surfaces draw the same thing without claiming one element between them. `live-id` is that id without the element, for a drawer whose element carries classes and data- attributes of its own; same rule, same namespace, same refusal.
 
 ### Declared, end to end
 

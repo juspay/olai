@@ -259,7 +259,7 @@ Routes:
 
 A node's permalink is `/n/<key>` (`key` as in `tree` JSON): every bullet in the outline and every entry in the sidebar tree links to that node's own zoom page. A key survives a rename — of the node or of any ancestor — but an unanchored node keys off its position, so moving it to a new ordinal mints a new key and the old link stops resolving. `^anchor` a node whose link has to outlive that.
 
-Within a page, anchored nodes and bare-ISO day nodes also keep a plain `#<anchor>` / `#<YYYY-MM-DD>` target, so links people wrote by hand still resolve, and every node carries `id="n-<key>"`.
+Within a page, anchored nodes and bare-ISO day nodes also keep a plain `#<anchor>` / `#<YYYY-MM-DD>` target, so links people wrote by hand still resolve, and every node in a live region carries an element id minted by that region (`ol-live-<key>` in the outline, `ol-sidebar-<key>` in the tree). Those are the live view's, not addresses: a node's permanent names are its `^anchor` and its `/n/<key>` permalink.
 
 Paths that climb out of `static/` are 404, not files.
 

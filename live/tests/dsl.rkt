@@ -72,6 +72,14 @@
     ;; two regions cannot mint the same id for two different things
     (check-not-equal? (live-item app li "ship") (live-item second li "ship")))
 
+  ;; A drawer whose element carries its own classes and data- attributes cannot
+  ;; be handed a wrapper, and must not be sent back to writing the id by hand.
+  (test-case "the same id without the element around it"
+    (check-equal? (live-id app "ship") (live-item-id "app" "ship"))
+    (check-equal? (cadr (assq 'id (cadr (live-item app li "ship"))))
+                  (live-id app "ship"))
+    (check-not-equal? (live-id app "ship") (live-id second "ship")))
+
   (test-case "a frame in a stream's vocabulary is a frame"
     (check-equal? (stream-frame counts 'counts-changed "7" #:id "7")
                   (make-frame "counts-changed" "7" #:id "7"))
@@ -264,8 +272,9 @@
   (test-case "every form refuses a declaration nobody made"
     (for ([use (in-list '("(live-connect nope #:cursor c)"
                           "(live-item nope li \"k\")"
+                          "(live-id nope \"k\")"
                           "(stream-heartbeat nope)"))]
-          [who (in-list '("live-connect" "live-item" "stream-heartbeat"))]
+          [who (in-list '("live-connect" "live-item" "live-id" "stream-heartbeat"))]
           [n (in-naturals)])
       (define lines
         (list "#lang racket/base"

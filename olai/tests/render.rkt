@@ -80,11 +80,11 @@
 
   ;; ---- node fragment ------------------------------------------------------
 
-  (test-case "node fragment wraps in n-{task-key}"
+  (test-case "a node fragment carries the id its region mints"
     (define fid (task-key (tk "Leaf" #f #f '())))
     (define s (xstr (render-node-fragment (tk "Leaf" #f #f '())
                                           #:today "2026-08-04")))
-    (check-true (string-contains? s (string-append "id=\"n-" fid "\"")) s)
+    (check-true (string-contains? s (format "id=\"~a\"" (node-element-id fid))) s)
     (check-true (string-contains? s (string-append "data-fragment-id=\"" fid "\"")) s)
     (check-true (string-contains? s "class=\"ol-node\"") s)
     (check-true (string-contains? s "Leaf") s)
@@ -109,7 +109,7 @@
     (check-false (string-contains?
                   s (string-append "data-collapse-key=\"" kid-id "\""))
                  s)
-    (check-true (string-contains? s (string-append "id=\"n-" kid-id "\"")) s)
+    (check-true (string-contains? s (format "id=\"~a\"" (node-element-id kid-id))) s)
     (check-true (string-contains? s "Child") s))
 
   (test-case "collapsed node carries is-collapsed and aria-expanded=false"
@@ -122,7 +122,7 @@
   (test-case "anchored node keeps a plain #anchor target for mirror links"
     (define s (xstr (render-node-fragment (tk "Ship" #f #f (quote ()) #:id "ship")
                                           #:today "2026-08-04")))
-    (check-true (string-contains? s "id=\"n-ship\"") s)
+    (check-true (string-contains? s (format "id=\"~a\"" (node-element-id "ship"))) s)
     (check-true (string-contains? s "class=\"ol-anchor\" id=\"ship\"") s))
 
   ;; The renderer is handed a RESOLVED tree: binding happens in core (see
@@ -152,7 +152,7 @@
                                            #:today "2026-08-04"
                                            #:toggle-base "/toggle/")))
     (check-true (string-contains? hx "hx-post=\"/toggle/t1\"") hx)
-    (check-true (string-contains? hx "hx-target=\"#n-t1\"") hx)
+    (check-true (string-contains? hx (format "hx-target=\"#~a\"" (node-element-id "t1"))) hx)
     (check-true (string-contains? hx "hx-swap=\"outerHTML\"") hx))
 
   (test-case "zoom-base makes the bullet a zoom link"
@@ -528,7 +528,7 @@
     (check-true (string-contains? s "Ship") s)
     ;; roots are keyed off the file label
     (define fid (task-key (tk "Milk" #f #f (quote ()))))
-    (check-true (string-contains? s (string-append "id=\"n-" fid "\"")) s))
+    (check-true (string-contains? s (format "id=\"~a\"" (node-element-id fid))) s))
 
   ;; ---- sidebar ------------------------------------------------------------
 
@@ -597,7 +597,7 @@
     (check-true (string-contains? s "ol-breadcrumbs") s)
     (check-true (string-contains? s "href=\"/\"") s)
     (check-true (string-contains? s "<span class=\"ol-crumb\">Tasks.rkt</span>") s)
-    (check-true (string-contains? s "href=\"#n-p1234abcd\"") s)
+    (check-true (string-contains? s (format "href=\"#~a\"" (node-element-id "p1234abcd"))) s)
     (define z (xstr (render-breadcrumbs (list (list "Inbox" "p1234abcd"))
                                         #:home-href "/"
                                         #:zoom-base "/z/")))
@@ -617,12 +617,12 @@
     (check-true (string-contains? s "ol-breadcrumbs") s)
     (check-true (string-contains? s "Tasks.rkt") s)
     (check-true (string-contains? s "Inbox") s)
-    (check-true (string-contains? s (string-append "id=\"n-" (task-key milk) "\"")) s)
+    (check-true (string-contains? s (format "id=\"~a\"" (node-element-id (task-key milk)))) s)
     (check-true (string-contains? s "2% please") s)
     ;; the focused subtree, and only it
     (check-false (string-contains? s "Elsewhere") s)
     ;; the ancestor crumb is clickable, the file is not
-    (check-true (string-contains? s (string-append "href=\"#n-" inbox-key "\"")) s)
+    (check-true (string-contains? s (format "href=\"#~a\"" (node-element-id inbox-key))) s)
     ;; and with a zoom base, every ancestor crumb is that ancestor's own page
     (define z (zoom-of #:zoom-base "/n/"))
     (check-true (string-contains? z (string-append "href=\"/n/" inbox-key "\"")) z))
@@ -719,7 +719,7 @@
     (define s (xstr (render-zoom (tk "Kid" #f #f '() #:id "kid")
                                  (list (string->path "/tmp/outlines/Tasks.rkt"))
                                  #:today "2026-08-04" #:home-href "/")))
-    (check-true (string-contains? s "id=\"n-kid\"") s)
+    (check-true (string-contains? s (format "id=\"~a\"" (node-element-id "kid"))) s)
     (check-true (string-contains? s "<span class=\"ol-crumb\">Tasks.rkt</span>") s)
     (check-false (string-contains? s "/tmp/outlines") s))
 

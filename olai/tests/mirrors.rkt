@@ -186,7 +186,7 @@ EOF
       (xexpr->string (render-outline (list (list "T.rkt" (resolve-mirrors tasks anchors)))
                                      #:today "2026-08-03")))
     ;; the node id is namespaced; the bare ^anchor stays linkable
-    (check-true (string-contains? html "id=\"n-agent\"") html)
+    (check-true (string-contains? html (format "id=\"~a\"" (node-element-id "agent"))) html)
     (check-true (string-contains? html "id=\"agent\"") html)
     (check-true (string-contains? html "href=\"#agent\"") html)
     (check-true (string-contains? html "↗") html))
@@ -208,13 +208,13 @@ EOF
       (length (regexp-match* (regexp (regexp-quote needle)) html)))
     ;; one node, three sites: same fragment id everywhere, one id each
     (check-equal? (count-of "data-fragment-id=\"agent\"") 3 html)
-    (check-equal? (count-of "id=\"n-agent\"") 1 html)
+    (check-equal? (count-of (format "id=\"~a\"" (node-element-id "agent"))) 1 html)
     ;; the legacy plain #anchor target belongs to the defining site only
     (check-equal? (count-of "class=\"ol-anchor\" id=\"agent\"") 1 html)
     ;; the mirrored subtree is qualified too, not just its root
     (define sub-key (task-key (car (task-children (car tasks)))))
     (check-equal? (count-of (string-append "data-fragment-id=\"" sub-key "\"")) 3 html)
-    (check-equal? (count-of (string-append "id=\"n-" sub-key "\"")) 1 html)
+    (check-equal? (count-of (format "id=\"~a\"" (node-element-id sub-key))) 1 html)
     ;; every id in the document is unique
     (define ids
       (regexp-match* #px"(?<![-a-z])id=\"([^\"]+)\"" html #:match-select cadr))

@@ -22,6 +22,7 @@
 ;;   (live-region clist #:href href)           ; on the element that redraws
 ;;   (live-link clist "/c/alpha")              ; on a link into it
 ;;   (live-item clist li "alpha" ...)          ; on one row of it
+;;   (live-id clist "alpha")                   ; the same id, element yours
 ;;   (stream-frame counts 'counts-changed cursor #:id cursor)
 ;;   (stream-event counts 'counts-changed)     ; the name, where DATA carries it
 ;;
@@ -54,7 +55,8 @@
          live-connect
          live-region
          live-link
-         live-item)
+         live-item
+         live-id)
 
 ;; ---- what a declaration leaves behind ---------------------------------------
 
@@ -97,7 +99,7 @@
   (struct region-decl (id event history?)
     #:property prop:procedure
     (λ (self stx)
-      (not-a-value stx "live region" "live-region, live-link, live-item")))
+      (not-a-value stx "live region" "live-region, live-link, live-item, live-id")))
 
   ;; ---- what is in scope, for the error messages ------------------------------
 
@@ -473,7 +475,9 @@
 ;;
 ;; The id is MINTED — region name, then key — rather than written, because a
 ;; written id is an obligation a drawer can forget, and a forgotten one fails
-;; by preserving nothing rather than by failing.
+;; by preserving nothing rather than by failing. Namespaced by the region so
+;; two surfaces drawing the SAME node — an outline and a tree of it — cannot
+;; mint one id for two elements.
 (define-syntax (live-item stx)
   (syntax-parse stx
     [(_ region:id elem:id key:expr body:expr ...)
@@ -482,3 +486,20 @@
           #`(list 'elem
                   (list (list 'id (live-item-id #,(region-decl-id rd) key)))
                   body ...))]))
+
+;; (live-id region key) -> string?
+;;
+;; The id `live-item` would mint, for a drawer that builds the element itself.
+;; The wrapper cannot serve an element that carries its own classes and data-
+;; attributes — an outline node carries three — and the answer to that is not
+;; to write the id by hand:
+;;
+;;   (li ((id ,(live-id ol-live key)) (class ...) (data-fragment-id ,key)) ...)
+;;
+;; Same rule, same namespace, same refusal when the region is not one. What is
+;; given up is only the element, which the app was drawing anyway.
+(define-syntax (live-id stx)
+  (syntax-parse stx
+    [(_ region:id key:expr)
+     (define rd (live-lookup 'region #'region 'live-id "first argument"))
+     (tag stx #`(live-item-id #,(region-decl-id rd) key))]))

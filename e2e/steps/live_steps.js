@@ -123,8 +123,12 @@ Then("the page says it is showing last known state", async function () {
 
 // Healthy is a state with a look of its own, not the absence of the other
 // two: an indicator that shows nothing while things are fine cannot be told
-// apart from an indicator that never worked. Waited for — a reconnect is the
+// apart from an indicator that never worked. It is a DOT and not a sentence,
+// so this asks for it by the name it carries rather than by its text — which
+// is also what a screen reader would be told. Waited for: a reconnect is the
 // browser's own, on its own clock.
 Then("the page says the stream is live", async function () {
-  await this.page.getByText("live", { exact: true }).waitFor({ state: "visible" });
+  await this.page
+    .getByRole("img", { name: "live" })
+    .waitFor({ state: "visible" });
 });

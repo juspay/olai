@@ -69,7 +69,7 @@ Mark these clearly so agents do not invent them:
 - `@layout` and other `@` fields beyond `@date` / `@done` / `@doing` / `@doc` / `@include`
 - `.scrbl` **rendering**. The extension is in the language and the path is in the JSON; the web view names the file and says it does not draw one yet (see [Documents](#documents-doc))
 - `[-] ` as cancelled — the spelling is left unclaimed, but nothing reads it yet
-- UI state in the outline file, or in a sidecar next to it. Collapse state is real but lives in the browser (`localStorage`, keyed by node); zoom is a URL (`/today`, `/#n-<key>`). Nothing on disk records either.
+- UI state in the outline file, or in a sidecar next to it. Collapse state is real but lives in the browser (`localStorage`, keyed by node); zoom is a URL (`/today`, `/n/<key>`). Nothing on disk records either.
 - Check-off from the web view — it renders a static checkbox, and done already renders checked/dimmed. Structure edits go through the CLI or your editor.
 - Live push: the page loads the htmx SSE extension but the server opens no event stream yet; edits show up on the next request.
 

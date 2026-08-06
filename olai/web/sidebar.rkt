@@ -170,6 +170,11 @@
        (list
         (node-shell
          #:key key
+         ;; This region's own id for the node, which is the point of minting
+         ;; them by region: the outline is showing the same node under
+         ;; `ol-live-<key>`, and morph has to be able to tell the two copies
+         ;; apart or a swap of one would go looking in the other.
+         #:element-id (live-id ol-sidebar key)
          #:tree? #t
          ;; sidebar collapse state is its own; the same node can sit expanded
          ;; in the main pane and folded here

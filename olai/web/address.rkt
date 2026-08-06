@@ -7,10 +7,11 @@
 ;; that draws a node or points at one asks here, which is what keeps the answer
 ;; from being spelled four times.
 ;;
-;; `n-<key>` is a documented address — `/#n-<key>` is a link people write by
-;; hand (docs/cli.md) — so it is minted here rather than by the live view's
-;; `live-item`: that form namespaces an id by its region, and these ids belong
-;; to the outline, not to whichever surface is showing it.
+;; An element id is NOT an address anybody saved. `^anchor` is the permanent
+;; name of a node and `/n/<key>` is its permalink; both are untouched by what
+;; the DOM calls an element. So the id is the live view's to mint — namespaced
+;; by the region that drew it, `live-id` — and a surface that draws the same
+;; node twice cannot claim one element for both.
 
 (require racket/contract
          ;; a link into the live region, by the name web/live declares it
@@ -31,8 +32,13 @@
 ;; first copy. The defining site owns the bare id; a mirror site qualifies it
 ;; with the site it hangs under. Every site keeps data-fragment-id=<key>, so
 ;; a swap can address them all as [data-fragment-id="…"].
+;;
+;; The id is the live view's to mint, and this is the OUTLINE region's: the
+;; sidebar draws the same nodes and mints its own (web/sidebar), which is what
+;; keeps two surfaces showing one node from claiming one element between them.
+;; Nothing here writes a prefix.
 (define (node-element-id key #:site [site #f])
-  (string-append "n-" (site-key site key)))
+  (live-id ol-live (site-key site key)))
 
 (define (site-key site key)
   (if site (string-append site "-" key) key))
