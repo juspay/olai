@@ -30,7 +30,7 @@
                      olai/lang/tags
                      olai/lang/graph
                      ;; what a starred @include path names, and where it reads
-                     olai/lang/glob
+                     olai/glob
                      ;; the date grammar has one owner; the expander is a
                      ;; consumer of it, at phase 1 like the tag grammar
                      olai/dates
@@ -494,8 +494,7 @@
   (void))
 
 (define (finalize-tasks forms src)
-  (define includes (collect-include-paths forms))
-  (define globs (collect-include-globs forms))
+  (define-values (includes globs) (collect-includes forms))
   (define flat (flatten-tree forms))
   (validate-task-tree! flat)
   (values flat includes globs))
@@ -513,30 +512,27 @@
   (for ([t (in-list tasks)]) (walk t))
   h)
 
-;; What every include site in this module contributed, in source order:
-;; `#:of` says which part of a site is being collected — the files it spliced,
-;; or the pattern it found them with (#f at a literal site, and dropped).
-(define (collect-includes forms #:of part)
-  (define acc '())
+;; What every include site in this module contributed, in source order: the
+;; files it spliced, then the patterns it found them with (a literal site has
+;; none). One walk for both — they are read off the same sites, and two walks
+;; is two chances for them to disagree about which sites there were.
+;; -> (values (listof string) (listof string))
+(define (collect-includes forms)
+  (define files '())
+  (define globs '())
   (define (walk x)
     (cond
       [(include-splice? x)
-       (set! acc (append (reverse (part x)) acc))
+       (set! files (append (reverse (include-splice-files x)) files))
+       (let ([p (include-splice-pattern x)])
+         (when p (set! globs (cons p globs))))
        (for-each walk (include-splice-tasks x))]
       [(task? x)
        (for-each walk (task-children x))]
       [else (void)]))
   (for-each walk forms)
-  (remove-duplicates (reverse acc)))
-
-(define (collect-include-paths forms)
-  (collect-includes forms #:of include-splice-files))
-
-(define (collect-include-globs forms)
-  (collect-includes forms
-                    #:of (λ (x)
-                           (define p (include-splice-pattern x))
-                           (if p (list p) '()))))
+  (values (remove-duplicates (reverse files))
+          (remove-duplicates (reverse globs))))
 
 (define-syntax (mirror stx)
   (syntax-parse stx

@@ -35,7 +35,7 @@
          ;; what a starred @include reads, and what it names right now: the
          ;; one thing in the module graph that can move without a file the
          ;; store already probed having been touched
-         (only-in olai/lang/glob glob-expand)
+         (only-in olai/glob glob-expand)
          olai/load
          ;; where a @doc path points and what is in it; the store is the one
          ;; layer that reads one, because it is the one that knows when to
@@ -85,13 +85,10 @@
 
 (define empty-snapshot (snapshot '() '() (hash) (hash) '() '()))
 
-;; probe  : hash path -> (cons mtime size) | #f, for cheap staleness checks
-;; gprobe : hash glob-pattern -> (listof path) it matched when last loaded.
-;;          A second hash and not a second kind of value in the first: these
-;;          are answered by re-asking the question, not by stat'ing a name.
-;; rev    : bumped by every reload, so "did anything happen?" is a comparison
+;; probe : what the last load was built from, as it was then (see below)
+;; rev   : bumped by every reload, so "did anything happen?" is a comparison
 (struct store (files [snap #:mutable] [err #:mutable] [probe #:mutable]
-                     [gprobe #:mutable] [rev #:mutable] sema))
+                     [rev #:mutable] sema))
 
 ;; ---- fresh namespaces -----------------------------------------------------
 
@@ -154,19 +151,37 @@
 (define (path-key p)
   (path->string (simple-form-path p)))
 
-(define (probe-file p)
+;; ---- what a load was built from, as it was then ----------------------------
+;;
+;; Two kinds of dependency and two ways to check one: a FILE is what it was
+;; when its mtime and size are, and a GLOB is what it was when it still names
+;; the same files. Both are taken at the same moment and asked at the same
+;; moment, so they are one value — two fields updated in step by discipline is
+;; how a saved document went unnoticed once already.
+
+(struct probe (files globs) #:transparent)
+
+(define empty-probe (probe (hash) (hash)))
+
+(define (file-stamp p)
   (define full (simple-form-path p))
   (and (file-exists? full)
        (cons (file-or-directory-modify-seconds full #f (λ () #f))
              (file-size full))))
 
-(define (probe-for paths)
-  (for/hash ([p (in-list paths)])
-    (values (path-key p) (probe-file p))))
+(define (take-probe paths globs)
+  (probe (for/hash ([p (in-list paths)]) (values (path-key p) (file-stamp p)))
+         (for/hash ([g (in-list globs)]) (values (path-key g) (glob-expand g)))))
 
-(define (probe-for-globs globs)
-  (for/hash ([g (in-list globs)])
-    (values (path-key g) (glob-expand g))))
+;; Does everything still answer the way it did? An empty probe never does:
+;; before the first successful load there is nothing to have changed, and that
+;; is exactly the state a store has to keep trying to get out of.
+(define (probe-current? pr)
+  (and (positive? (hash-count (probe-files pr)))
+       (for/and ([(k v) (in-hash (probe-files pr))])
+         (equal? v (file-stamp (string->path k))))
+       (for/and ([(k v) (in-hash (probe-globs pr))])
+         (equal? v (glob-expand (string->path k))))))
 
 ;; A module reports only the includes it spliced directly, and only the globs
 ;; it starred itself: a fragment's own includes were flattened before it
@@ -284,8 +299,7 @@
                       (simple-form-path (if (path? f) f (string->path f))))
                     empty-snapshot
                     #f
-                    (hash)
-                    (hash)
+                    empty-probe
                     0
                     (make-semaphore 1)))
   (reload! st)
@@ -318,34 +332,24 @@
      (define snap (build-snapshot outs watch globs))
      (set-store-snap! st snap)
      (set-store-err! st #f)
-     (set-store-probe! st (probe-for (snapshot-watch snap)))
-     (set-store-gprobe! st (probe-for-globs (snapshot-globs snap)))]
+     (set-store-probe! st (take-probe (snapshot-watch snap) (snapshot-globs snap)))]
     [else
      ;; Keep last-good. Probe the files we know about anyway, so a broken
      ;; file is retried on the next edit and not on every request. The globs
      ;; are last-good's too: a file appearing in one's directory is a reason
      ;; to try again, and the outline that failed may be exactly the one that
      ;; was mid-save when the file arrived.
+     (define last-good (store-snap st))
      (set-store-err! st err)
      (set-store-probe!
       st
-      (probe-for (remove-duplicates
-                  (append files (snapshot-watch (store-snap st)))
-                  #:key path-key)))
-     (set-store-gprobe! st (probe-for-globs (snapshot-globs (store-snap st))))])
+      (take-probe (remove-duplicates (append files (snapshot-watch last-good))
+                                     #:key path-key)
+                  (snapshot-globs last-good)))])
   (set-store-rev! st (add1 (store-rev st))))
 
-;; Two questions, because the module graph is built from two kinds of answer:
-;; every file it read is still what it was, and every glob it expanded still
-;; names the same files. The second is the only way a new Daily/2026-09.rkt
-;; gets noticed — nothing already loaded moved when it landed.
 (define (stale? st)
-  (define want (store-probe st))
-  (or (zero? (hash-count want))
-      (for/or ([(k v) (in-hash want)])
-        (not (equal? v (probe-file (string->path k)))))
-      (for/or ([(k v) (in-hash (store-gprobe st))])
-        (not (equal? v (glob-expand (string->path k)))))))
+  (not (probe-current? (store-probe st))))
 
 ;; Reload when any watched file changed on disk (#:force? reloads regardless).
 ;; The watcher and the write path both call this; handlers call it as their

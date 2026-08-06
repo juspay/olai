@@ -1,21 +1,29 @@
 #lang racket/base
 
-;; What `@include Daily/*.rkt` NAMES.
+;; A file-name pattern: what `@include Daily/*.rkt` NAMES.
+;;
+;; Beside olai/doc and olai/dates, and for the same reason: the FIELD belongs
+;; to the language (lang/line reads the line, lang/expander turns a bad
+;; pattern into a syntax error), and what the field MEANS is here, where every
+;; layer that asks can reach it without spelling it twice. Four do — the
+;; expander for-syntax when it splices, the store when it decides a load is
+;; stale, the watcher when it picks directories, and olai/paths, whose
+;; `dir-roots` is this same question with the pattern already chosen.
 ;;
 ;; A literal include is a CLAIM about one file; a glob is a QUERY over one
 ;; directory, and everything that differs between the two follows from that. A
 ;; query answers with a set — the empty one included — and its answer can
-;; change without any file the outline already read being touched. Acting on
-;; either is somebody else's job (the expander splices the set, the store
-;; re-asks the query, the watcher watches the directory it reads); this module
-;; is the only one that knows how to ask.
+;; change without any file the outline already read being touched.
 ;;
 ;; The grammar is smaller than a shell's, on purpose. `*` stands for any run
 ;; of characters inside ONE file name; the directory part is literal, so a
 ;; pattern names exactly one directory — which is what makes "watch where this
 ;; reads" a single answerable question. `**`, `?`, character classes and
 ;; braces are rejected BY NAME rather than quietly taken as literal
-;; characters: a closed grammar says no out loud.
+;; characters: a closed grammar says no out loud. Hand-rolled over the `glob`
+;; package on purpose: nearly all of that package is the syntax this language
+;; refuses, and importing it would mean policing its extras rather than
+;; translating our own four rules.
 
 (require racket/contract
          racket/path

@@ -24,7 +24,7 @@
          (only-in gregor now/moment moment? at-midnight +days ->posix)
          ;; where a starred @include reads: a directory nothing in the watch
          ;; set need sit in yet
-         (only-in olai/lang/glob glob-dir)
+         (only-in olai/glob glob-dir)
          olai/store)
 
 (provide (contract-out

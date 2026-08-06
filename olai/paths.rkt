@@ -12,8 +12,10 @@
 ;;   dir-roots   which files a DIRECTORY contributes as roots.
 
 (require racket/contract
-         racket/list
-         racket/path)
+         racket/path
+         ;; which files in a directory a name names — the same question
+         ;; `@include Daily/*.rkt` asks, with the pattern already chosen
+         (only-in olai/glob glob-expand))
 
 (provide (contract-out
           [file-label (-> any/c string?)]
@@ -60,17 +62,15 @@
 ;;
 ;; Top level only is the outline convention, not a shortcut: roots live in the
 ;; directory, `@include` fragments live in subdirectories of it (Daily/), so a
-;; recursive walk would load every fragment twice. Sorted because a file set is
-;; what node keys are minted against, and "whatever the filesystem said" is not
-;; a stable set.
+;; recursive walk would load every fragment twice.
+;;
+;; Which is to say it is one glob, and it is spelled as one — sorted, one
+;; directory deep, files only, no dotfiles — rather than as a second
+;; implementation of the same directory read. `serve DIR` gets the dotfile
+;; rule out of that for free, and an editor's lock file (`.#Tasks.rkt`) stops
+;; being a root nobody wrote.
 (define (dir-roots dir)
-  (define d (simple-form-path (->path dir)))
-  (sort (for*/list ([p (in-list (directory-list d))]
-                    [full (in-value (build-path d p))]
-                    #:when (and (path-has-extension? p #".rkt") (file-exists? full)))
-          full)
-        string<?
-        #:key path->string))
+  (glob-expand (build-path (simple-form-path (->path dir)) "*.rkt")))
 
 ;; The name of `f` inside a key: relative to `base` when it sits under it,
 ;; else the full path (a fragment outside the root set still gets a name that
