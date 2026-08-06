@@ -37,6 +37,9 @@ clean:
     set -euo pipefail
     find olai -type d -name compiled -print0 | xargs -0 rm -rf
 
+# The CLI answers in JSON (the human view is `just serve`); these recipes only
+# spell the default outlines.
+
 # Validate outline(s) (default: $OLAI_HOME/*.rkt, else the repo's own)
 check *args: install
     olai check {{if args == "" { default_outlines } else { args }}}

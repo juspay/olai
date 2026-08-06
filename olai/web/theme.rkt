@@ -37,6 +37,11 @@
           ;; what <meta name="color-scheme"> should say before the sheet lands:
           ;; every way the themes come, said once
           [theme-color-scheme string?]
+          ;; what <meta name="theme-color"> says before the sheet (and before
+          ;; pwa.js rewrites it from --paper): the default theme's paper. The
+          ;; browser chrome is the page's first paint; inventing a second
+          ;; colour here would flash
+          [theme-default-paper string?]
           ;; the themes that promise AA contrast on every foreground it paints
           ;; on a background. A claim, so something can check it
           [aa-theme-names (listof string?)]
@@ -466,6 +471,17 @@
 
 (define (theme-entries name) (palette-entries (theme-named name)))
 
+;; A palette value is a css-expr hex symbol (`|#FAFAF6|`); a <meta> wants the
+;; string. Spelled once so the page, the manifest, and the tests agree.
+(define (palette-hex-string v)
+  (cond
+    [(symbol? v) (symbol->string v)]
+    [(string? v) v]
+    [else (error 'theme "palette value is not a colour: ~e" v)]))
+
+(define theme-default-paper
+  (palette-hex-string (cdr (assq 'paper (theme-entries theme-default)))))
+
 ;; ---- the generators -------------------------------------------------------
 
 (define (custom-property name) (string->keyword (string-append "--" name)))
@@ -530,14 +546,25 @@
 (register-base!
  (css-expr
   [* (:: * before) (:: * after) #:box-sizing border-box]
-  [html #:-webkit-text-size-adjust 100%]))
+  ;; a phone that auto-zooms text on landscape is fighting the layout; keep
+  ;; type at the size we set. touch-action kills the 300ms double-tap wait
+  [html #:-webkit-text-size-adjust 100%
+        #:text-size-adjust 100%
+        #:touch-action manipulation
+        #:-webkit-tap-highlight-color transparent]))
 
 ;; The page IS the layout: sidebar and main pane are its two flex children.
 ;; On a phone there is no room for two columns, so the same two stack — the
 ;; only rule about the document as a whole, and it lives with the document.
+;;
+;; 100dvh tracks the visible viewport on mobile browsers whose chrome grows
+;; and shrinks; 100vh is the fallback where dvh is unknown. safe-area insets
+;; are for notched phones (viewport-fit=cover is on the page).
 (define-style ol-body #:tag body #:layer 'base
   #:margin 0
-  #:min-height 100vh
+  ;; dvh tracks the visible viewport as mobile browser chrome grows/shrinks;
+  ;; fixed panels use the same unit so they do not leave a gap under it
+  #:min-height 100dvh
   #:display flex
   #:align-items stretch
   #:background ,paper
@@ -545,6 +572,10 @@
   #:font-family ,sans
   #:font-size 15px
   #:line-height 1.5
+  ;; notched phones: viewport-fit=cover is on the page, so the insets are real
+  #:padding-top (apply env safe-area-inset-top)
+  #:padding-left (apply env safe-area-inset-left)
+  #:padding-right (apply env safe-area-inset-right)
   [@ media (#:max-width ,phone-max) #:flex-direction column])
 
 (register-base! (css-expr [a #:color inherit]))

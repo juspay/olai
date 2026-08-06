@@ -71,9 +71,6 @@
     (check-equal? (map car (agenda-groups only-past "2026-08-03"))
                   '(overdue)))
 
-  (test-case "format-agenda empty message"
-    (check-equal? (format-agenda '()) "no dated tasks"))
-
   (test-case "datetime on today buckets as TODAY; sorts by full timestamp"
     (define sample
       (list

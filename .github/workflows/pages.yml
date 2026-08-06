@@ -1,0 +1,57 @@
+name: pages
+
+# The landing site is static: the "build" is copying site/ plus the web app's
+# own icon into _site, so the mark on the page is the mark the app ships and
+# not a second copy of it.
+#
+# The landing-page branch deploys too, so the site can be reviewed at the live
+# Pages URL while its PR is open. Whichever branch pushed last is what is up.
+
+on:
+  push:
+    branches: [master, landing-page]
+    paths:
+      - 'site/**'
+      - 'olai/web/static/icon.svg'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; queue rather than cancel, so a run that is already
+# uploading finishes.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble _site
+        # -L dereferences site/icon.svg, which is a symlink into the web
+        # app's static dir.
+        run: |
+          mkdir -p _site
+          cp -rL site/. _site/
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

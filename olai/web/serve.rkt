@@ -14,7 +14,7 @@
 ;;   GET  /api/tree     byte-identical to `olai tree`
 ;;   GET  /api/agenda   byte-identical to `olai agenda --json`
 ;;   GET  /static/app.css  the generated stylesheet (olai/web/skin)
-;;   GET  /static/*     files from web/static/
+;;   GET  /static/*     files from web/static/ (icons, scripts, manifest)
 ;;   anything else      404, terse text/plain
 ;;
 ;; No auth: the network is the auth (Tailscale / Caddy in front of it).
@@ -35,6 +35,7 @@
 
 (require racket/async-channel
          racket/path
+         racket/port
          racket/promise
          racket/string
          (for-syntax racket/base)
@@ -63,9 +64,9 @@
          olai/web/events
          ;; the sheet and its URL; which modules it is made of is skin's
          olai/web/skin
-         ;; the one fact about the palettes a page carries before the sheet
+         ;; the facts about the palettes a page carries before the sheet
          ;; lands, from the module that owns them
-         (only-in olai/web/theme theme-color-scheme)
+         (only-in olai/web/theme theme-color-scheme theme-default-paper)
          olai/web/render
          (only-in olai/web/chat-panel render-chat-panel)
          olai/web/watch)
@@ -106,6 +107,18 @@
    (λ (out) (write-string (force the-stylesheet) out))
    #:headers (list (make-header #"Cache-Control" #"no-cache"))
    #:mime-type #"text/css; charset=utf-8"))
+
+;; application/manifest+json is not in the stock mime.types table, and a
+;; browser that gets application/octet-stream will not install. The bytes
+;; live next to the other assets; only the MIME is special.
+(define (manifest-response)
+  (define path (build-path (web-static-dir) "manifest.webmanifest"))
+  (response/output
+   (λ (out)
+     (call-with-input-file path
+       (λ (in) (copy-port in out))))
+   #:headers (list (make-header #"Cache-Control" #"no-cache"))
+   #:mime-type #"application/manifest+json; charset=utf-8"))
 
 (define (text-response str #:code [code 200])
   (response/output
@@ -159,6 +172,7 @@
                  #:title "olai"
                  #:stylesheet-href stylesheet-href
                  #:color-scheme theme-color-scheme
+                 #:theme-color theme-default-paper
                  #:banner (error-banner err)
                  #:sse-connect events-href
                  #:live-href live-href
@@ -297,6 +311,7 @@
                  #:title title
                  #:stylesheet-href stylesheet-href
                  #:color-scheme theme-color-scheme
+                 #:theme-color theme-default-paper
                  #:sidebar (render-sidebar files-data
                                            #:home-href home-href
                                            #:today-href today-href
@@ -396,6 +411,10 @@
   (sequencer:make
    (filter:make (regexp (string-append "^" (regexp-quote stylesheet-href) "$"))
                 (lift:make (λ (req) (css-response))))
+   ;; before the static dir: the manifest needs a MIME the stock table
+   ;; does not know
+   (filter:make #rx"^/static/manifest\\.webmanifest$"
+                (lift:make (λ (_req) (manifest-response))))
    (filter:make (regexp (string-append "^" (regexp-quote web-static-prefix)))
                 (files:make #:url->path static-url->path
                             #:path->mime-type (make-path->mime-type mime-types-path)
