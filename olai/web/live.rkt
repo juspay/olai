@@ -17,29 +17,51 @@
 ;; the store, the watcher and the hub have always met.
 ;;
 ;; Everything else here is olai's side of the framework's contract — the names
-;; the host app is required to pick, in the one place that picks them.
+;; the host app is required to pick, in the one place that picks them. Since
+;; the forms landed that is literal: `outline-events` below is the declaration,
+;; and web/render draws its region from the binding rather than from a string
+;; that has to match one.
 
 (require racket/contract
-         live/client
+         ;; the declare-and-check forms: this module is the outline stream's
+         ;; PRODUCER, so the vocabulary is declared here and every other
+         ;; appearance of it is a reference (live/README.md)
+         live/dsl
+         (only-in live/client live-script-hrefs)
          live/frame
          ;; a string this process alone will use: the transport's answer to
          ;; "two different states must never be called the same thing"
          (only-in live/hub live-boot-id))
 
+;; The stream the outlines move on. One event, and its whole meaning is "the
+;; region you are showing is behind" — never content, because the region
+;; re-fetches its own page and one handler serves the first render and every
+;; update. web/render draws the region from this binding; nothing spells the
+;; word "outline" twice.
+;;
+;; The chat rides the same connection under its own vocabulary (web/chat) —
+;; one page, one EventSource, every event name on it.
+(define-stream outline-events #:events (outline) #:heartbeat 15)
+
+;; And the region that redraws on it. The binding's name IS the element id, so
+;; `#ol-live` is never written: the swap target, the select and every link on
+;; the page are derived from this line.
+;;
+;; It is declared HERE rather than in the module that draws the element,
+;; because four of them need it — web/page draws it, and web/node, web/crumbs
+;; and web/sidebar each aim links at it. A region is a fact about the PAGE, and
+;; this is the module that holds the page's live vocabulary. (The sidebar's own
+;; region is the other way round: one module draws it and nothing links to it,
+;; so it is declared where it is drawn.)
+(define-live-region ol-live #:stream outline-events)
+
+(provide outline-events ol-live)
+
 (provide (contract-out
-          ;; the event that means "the outline moved"
-          [outline-event string?]
-          ;; the element that redraws itself, by id: stable, addressed by the
-          ;; page and by the framework's swap alike
-          [live-region-id string?]
           ;; where the client runtime is mounted, and what the page pulls in
           ;; from there
           [live-asset-prefix string?]
           [live-script-srcs (listof string?)]
-          ;; the view a page is drawn with: where its stream is, its own
-          ;; address, and which state the markup around it came from
-          [outline-live-view (-> string? #:href string? #:cursor (or/c string? #f)
-                                 live-view?)]
           ;; the token a state of the outlines is named by on the wire
           [outline-cursor (-> exact-integer? string?)]
           ;; a reload, as a frame: the cursor is both the payload (so the
@@ -47,11 +69,9 @@
           [outline-frame (-> string? frame?)]
           ;; what a connection that last saw `last-event-id` is owed when the
           ;; outlines are at `cursor`
-          [outline-catch-up (-> (or/c string? #f) string? (listof frame?))]))
-
-(define outline-event "outline")
-
-(define live-region-id "ol-live")
+          [outline-catch-up (-> (or/c string? #f) string? (listof frame?))]
+          ;; the beat this app answers its stream with, off the declaration
+          [outline-heartbeat-seconds (>/c 0)]))
 
 ;; Its own prefix, not /static/: these files are the framework's, they are
 ;; versioned with it, and a host that mounted them among its own would have to
@@ -73,20 +93,13 @@
 (define (outline-cursor revision)
   (string-append live-boot-id "." (number->string revision)))
 
-;; The cursor travels with the PAGE rather than being read again when the
-;; stream connects, and the difference is the whole point: those are two
-;; different moments, and an edit between them is exactly what a page cannot
-;; find out about by asking later. `href` is the page's own address, on the
-;; view for the same reason — a per-page fact, with the same lifetime.
-(define (outline-live-view stream-href #:href href #:cursor cursor)
-  (make-live-view #:region live-region-id
-                  #:event outline-event
-                  #:stream stream-href
-                  #:href href
-                  #:cursor cursor))
+;; How often the stream beats, off the declaration rather than out of the
+;; response's default: the number is the cadence the client sizes its watchdog
+;; by, and it is worth being able to point at the line that chose it.
+(define outline-heartbeat-seconds (stream-heartbeat outline-events))
 
 (define (outline-frame cursor)
-  (make-frame outline-event cursor #:id cursor))
+  (stream-frame outline-events 'outline cursor #:id cursor))
 
 ;; A connection is caught up, or it is owed one event — and "caught up" is
 ;; exactly one thing: it last saw the state the outlines are in now.

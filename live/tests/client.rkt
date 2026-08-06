@@ -11,6 +11,7 @@
 (require racket/file
          racket/string
          live/client
+         (only-in live/frame live-default-heartbeat-seconds live-reload-event)
          (only-in live/hub heartbeat-event))
 
 (module+ test
@@ -69,6 +70,15 @@
     (check-equal? (attr (live-connect-attributes odd) 'sse-connect)
                   "/events?last-event-id=a+b%26c"))
 
+  ;; A page has one connection and may have several regions, so the connection
+  ;; is made of the two facts it actually needs and not of any one region's
+  ;; view. `live-connect-attributes` is this, read off a view.
+  (test-case "the connection is a stream and a cursor, with or without a view"
+    (check-equal? (live-stream-attributes "/events" #f)
+                  (live-connect-attributes lv))
+    (check-equal? (attr (live-stream-attributes "/events" "41") 'sse-connect)
+                  "/events?last-event-id=41"))
+
   (test-case "the region re-fetches its own page and lifts itself out of it"
     (define a (live-region-attributes lv))
     (check-equal? (attr a 'id) "app")
@@ -84,6 +94,18 @@
     ;; and back restores THIS, not the page around it
     (check-true (and (assq 'hx-history-elt a) #t)))
 
+  ;; htmx honours the FIRST history element in the document, so a page with two
+  ;; regions has to say which one Back restores. That is a fact about the PAGE,
+  ;; which is why it is a keyword here and not a second kind of region.
+  (test-case "a second region can yield the history element"
+    (define a (live-region-attributes lv #:history? #f))
+    (check-false (assq 'hx-history-elt a))
+    ;; and nothing else moves: it still redraws, still morphs, still selects
+    ;; itself out of its own page
+    (check-equal? (filter (λ (p) (not (eq? (car p) 'hx-history-elt)))
+                          (live-region-attributes lv))
+                  a))
+
   (test-case "a link keeps its href and aims at the region"
     (define a (live-link-attributes lv "/n/ship"))
     ;; first, and always: no-JS, middle-click and copy-link all read this
@@ -94,8 +116,22 @@
     (check-equal? (attr a 'hx-swap) "morph:outerHTML")
     (check-equal? (attr a 'hx-push-url) "true"))
 
+  ;; Nothing but the region's id is read off the view, so a caller that has
+  ;; only the id — which is all a declared link has — spells the same thing.
+  (test-case "a link may name the region rather than carry the view"
+    (check-equal? (live-link-attributes "app" "/n/ship")
+                  (live-link-attributes lv "/n/ship")))
+
   (test-case "with no live view a link is just a link"
     (check-equal? (live-link-attributes #f "/n/ship") '((href "/n/ship"))))
+
+  ;; Idiomorph matches old to new by id before anything else, so a row that is
+  ;; not identified is a row that preserves nothing through a reorder. Minting
+  ;; the id from the region is what makes two regions on one page unable to
+  ;; claim the same one.
+  (test-case "a thing inside a region is identified by its region and a key"
+    (check-equal? (live-item-id "app" "ship") "app-ship")
+    (check-not-equal? (live-item-id "app" "ship") (live-item-id "chat" "ship")))
 
   ;; ---- the assets ----------------------------------------------------------
 
@@ -115,6 +151,22 @@
   (test-case "live.js spells the heartbeat event this collection sends"
     (check-true (string-contains? (script-source "live.js")
                                   (string-append "'" heartbeat-event "'"))))
+
+  ;; The other frame the transport sends on its own behalf. A client that
+  ;; cannot see this one keeps a page whose server is gone.
+  (test-case "live.js spells the reload event this collection sends"
+    (check-true (string-contains? (script-source "live.js")
+                                  (string-append "'" live-reload-event "'"))))
+
+  ;; The beat carries its own cadence, so the window is the stream's number —
+  ;; but a connection that opens and then says nothing at all needs one before
+  ;; the first beat, and that one is a copy. This is what keeps it a copy of
+  ;; the right thing.
+  (test-case "live.js starts on the cadence this collection defaults to"
+    (check-true (string-contains?
+                 (script-source "live.js")
+                 (string-append "DEFAULT_CADENCE="
+                                (number->string live-default-heartbeat-seconds)))))
 
   (test-case "live.js writes the state classes this collection publishes"
     (define src (script-source "live.js"))

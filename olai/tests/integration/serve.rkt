@@ -11,7 +11,9 @@
          racket/string
          racket/tcp
          (only-in live/hub heartbeat-event)
-         (only-in olai/web/live live-asset-prefix live-script-srcs outline-event)
+         live/dsl
+         (only-in live/frame live-stream-path)
+         (only-in olai/web/live live-asset-prefix live-script-srcs outline-events)
          olai/web/serve)
 
 (module+ test
@@ -79,7 +81,9 @@
   ;; #:last-event-id is what a reconnecting EventSource sends: the id of the last
   ;; frame it managed to dispatch before the connection went away. A test that
   ;; passes one is a browser that has been asleep.
-  (define (open-events port #:path [path "/events"] #:last-event-id [last-event-id #f])
+  ;; The address is the transport's and carries this process's boot id — and
+  ;; the server runs IN this process, so the two are the same string.
+  (define (open-events port #:path [path live-stream-path] #:last-event-id [last-event-id #f])
     (define-values (status headers in)
       (http-sendrecv "127.0.0.1" path #:port port #:method #"GET"
                      #:headers (if last-event-id
@@ -118,6 +122,9 @@
     (define m (regexp-match #px"sse-connect=\"([^\"]+)\"" page-body))
     (check-not-false m "the page carries no stream")
     (open-events port #:path (cadr m)))
+
+  ;; the event name off the declaration (web/live), never a literal here
+  (define outline-event (stream-event outline-events 'outline))
 
   (define (event-name ev) (car ev))
   (define (event-data ev) (cadr ev))
@@ -501,7 +508,7 @@
 
   ;; ---- live updates --------------------------------------------------------
 
-  (test-case "GET /events opens with a reconnect policy and a beat"
+  (test-case "the stream opens with a reconnect policy and a beat"
     (with-server
      (λ (port f)
        (define-values (code headers in) (open-events port))
@@ -545,7 +552,7 @@
        ;; the stream, and the revision the markup around it was drawn from:
        ;; a page whose EventSource connects after an edit is behind, and this
        ;; is the only thing that lets it be told so
-       (check-true (string-contains? body "sse-connect=\"/events?last-event-id=")
+       (check-true (string-contains? body (string-append "sse-connect=\"" live-stream-path "?last-event-id="))
                    body)
        (check-true (string-contains? body "hx-trigger=\"sse:outline\"") body)
        (check-true (string-contains? body "id=\"ol-live\" hx-get=\"/\"") body)

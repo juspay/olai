@@ -39,6 +39,15 @@ Then("the page has not reloaded", async function () {
   assert.equal(await this.marked(), true, "the mark is gone: the page reloaded");
 });
 
+// And the one case where a reload is the FEATURE: the page was drawn by a
+// process that is gone, so its markup, its scripts and its stream address all
+// belong to a server that no longer exists. Polled rather than asserted once —
+// the reload is the browser's, on the reload frame's arrival, and the step
+// before this one only started the new server.
+Then("the page has reloaded", async function () {
+  await this.waitForReload();
+});
+
 // ---- the sidebar ------------------------------------------------------------
 
 Then("the sidebar lists {string}", async function (title) {

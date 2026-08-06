@@ -5,13 +5,20 @@
 ;; means — and has never seen a page.
 
 (require racket/list
-         live/frame
+         live/dsl
+         (only-in live/frame live-boot-id)
          live/hub)
 
 (provide (struct-out counter) counter-values counter-named
-         counts-cursor counts-catch-up start-counters!)
+         counts counts-cursor counts-catch-up start-counters!)
 
 (struct counter (name value step) #:transparent)
+
+;; The vocabulary, declared where it is produced: every name this stream will
+;; ever carry, and the cadence the connection beats at. `counts` is what
+;; list.rkt requires — the event name is spelled HERE and nowhere else, and a
+;; drawer that wants it asks for the binding rather than retyping the string.
+(define-stream counts #:events (counts-changed) #:heartbeat 15)
 
 ;; Random rates, seeded: the same demo every boot, so a test that reads a value
 ;; can say what it was looking at.
@@ -43,16 +50,13 @@
 (define (counts-cursor)
   (string-append live-boot-id "." (number->string (unbox bumps))))
 
-;; convention 2 (event name), the PRODUCER's end: list.rkt spells this same
-;; word in the live view it draws the region with.
-(define counts-event "counts-changed")
-
 ;; The payload is the cursor, never markup: the region re-fetches its own page,
 ;; so there is no second renderer to keep in step. The id is the same string —
-;; what a client hands back when it comes home.
+;; what a client hands back when it comes home. Misspell the event and this
+;; does not compile.
 (define (counts-frame)
   (define cursor (counts-cursor))
-  (make-frame counts-event cursor #:id cursor))
+  (stream-frame counts 'counts-changed cursor #:id cursor))
 
 ;; What a connection that last saw `last-id` is owed. Anything but the current
 ;; cursor is owed one re-fetch — not "older than", since an id from a previous

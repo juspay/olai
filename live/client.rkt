@@ -45,9 +45,24 @@
                                live-view?)]
           ;; the three attribute sets, as xexpr attributes
           [live-connect-attributes (-> live-view? (listof (list/c symbol? string?)))]
-          [live-region-attributes (-> live-view? (listof (list/c symbol? string?)))]
-          [live-link-attributes (-> (or/c live-view? #f) string?
+          ;; the same connection, from the two facts it is actually made of —
+          ;; where the stream is, and what the page was drawn at. A page has
+          ;; one connection and may have several regions, so the connection is
+          ;; not any one region's to speak for
+          [live-stream-attributes (-> string? (or/c string? #f)
+                                      (listof (list/c symbol? string?)))]
+          ;; #:history? is the one page-global decision a region takes part in;
+          ;; see below
+          [live-region-attributes (->* (live-view?) (#:history? boolean?)
+                                       (listof (list/c symbol? string?)))]
+          ;; a link needs only the region it aims at, so it takes either the
+          ;; view or the region's id
+          [live-link-attributes (-> (or/c live-view? string? #f) string?
                                     (listof (list/c symbol? string?)))]
+          ;; the id of one thing INSIDE a region, minted from the region and a
+          ;; key the app already has. Morph matches old to new by id first, so
+          ;; this is what makes a selection follow its row through a reorder
+          [live-item-id (-> string? string? string?)]
           ;; the assets that make the above mean anything: the directory to
           ;; mount, and the files to pull in, IN ORDER (htmx before the
           ;; extensions that register into it)
@@ -112,7 +127,18 @@
                         #:cursor [cursor #f])
   (live-view region event stream href cursor))
 
-(define (region-selector lv) (string-append "#" (live-view-region lv)))
+;; A view, or just the region's id: what a link aims at is the region, and the
+;; view is only where the id usually comes from.
+(define (region-id r) (if (live-view? r) (live-view-region r) r))
+
+(define (region-selector r) (string-append "#" (region-id r)))
+
+;; One row, one card, one anything inside a region. Namespaced by the region so
+;; two regions on a page cannot mint the same id for two different things, and
+;; derived rather than written so a drawer cannot forget it: an id that is
+;; absent, or that re-keys itself on every render, morphs correctly and
+;; preserves nothing.
+(define (live-item-id region key) (string-append region "-" key))
 
 ;; The swap every one of these uses. Morph, not replace: idiomorph walks the
 ;; new markup against the old and touches only what differs, which is what
@@ -129,48 +155,59 @@
 ;; no instruction. It rides every reconnect too, which is harmless — the header
 ;; is the fresher answer and wins (live/hub).
 (define (live-connect-attributes lv)
+  (live-stream-attributes (live-view-stream lv) (live-view-cursor lv)))
+
+(define (live-stream-attributes stream cursor)
   (list (list 'hx-ext "sse,morph")
-        (list 'sse-connect (stream-href lv))))
+        (list 'sse-connect (stream-href stream cursor))))
 
 ;; net/url composes it: a stream URL is a URL, it may already have a query, and
 ;; a cursor is an opaque string that may hold anything a URL cannot. Guessing
 ;; at "?" versus "&" and escaping by hand is a URL builder, and there is one.
-(define (stream-href lv)
-  (define cursor (live-view-cursor lv))
-  (define stream (string->url (live-view-stream lv)))
-  (if cursor
-      (url->string
-       (struct-copy url stream
-                    [query (append (url-query stream)
-                                   (list (cons (string->symbol live-cursor-param)
-                                               cursor)))]))
-      (live-view-stream lv)))
+(define (stream-href stream cursor)
+  (cond
+    [(not cursor) stream]
+    [else
+     (define u (string->url stream))
+     (url->string
+      (struct-copy url u
+                   [query (append (url-query u)
+                                  (list (cons (string->symbol live-cursor-param)
+                                              cursor)))]))]))
 
 ;; On the region: it re-fetches its own page's address — which the host put on
 ;; the view rather than the framework guessing — whenever the stream says the
 ;; region is behind, and selects itself out of the reply, so ONE handler serves
 ;; both the first render and every update.
-(define (live-region-attributes lv)
-  (list (list 'id (live-view-region lv))
-        (list 'hx-get (live-view-href lv))
-        (list 'hx-trigger (string-append "sse:" (live-view-event lv)))
-        (list 'hx-select (region-selector lv))
-        (list 'hx-target (region-selector lv))
-        (list 'hx-swap morph-swap)
-        ;; history is the region's too: restoring a whole page from the
-        ;; back button would rebuild exactly the chrome partial navigation
-        ;; exists to keep
-        (list 'hx-history-elt "")))
+;; #:history? is the one thing a region cannot decide alone. htmx honours the
+;; FIRST history element in the document, so a page with two regions has to say
+;; which of them Back restores — and the answer is a fact about the PAGE, not
+;; about either region. Default yes, because one region is the common case and
+;; a page with no history element at all restores the chrome the region exists
+;; to protect. A second region says no.
+(define (live-region-attributes lv #:history? [history? #t])
+  (append
+   (list (list 'id (live-view-region lv))
+         (list 'hx-get (live-view-href lv))
+         (list 'hx-trigger (string-append "sse:" (live-view-event lv)))
+         (list 'hx-select (region-selector lv))
+         (list 'hx-target (region-selector lv))
+         (list 'hx-swap morph-swap))
+   ;; history is the region's too: restoring a whole page from the back
+   ;; button would rebuild exactly the chrome partial navigation exists to
+   ;; keep
+   (if history? (list (list 'hx-history-elt "")) '())))
 
-;; On a link: the ordinary href AND the partial fetch. `lv` may be #f — a page
-;; rendered with no live view at all (a fragment, a test) still makes links,
-;; and they are just links.
-(define (live-link-attributes lv href)
+;; On a link: the ordinary href AND the partial fetch. `r` is the region this
+;; link aims at — a view, or just its id, since nothing else about the view is
+;; read here. It may also be #f: a page rendered with no live view at all (a
+;; fragment, a test) still makes links, and they are just links.
+(define (live-link-attributes r href)
   (cons (list 'href href)
-        (if lv
+        (if r
             (list (list 'hx-get href)
-                  (list 'hx-select (region-selector lv))
-                  (list 'hx-target (region-selector lv))
+                  (list 'hx-select (region-selector r))
+                  (list 'hx-target (region-selector r))
                   (list 'hx-swap morph-swap)
                   ;; the address bar is part of what the page shows
                   (list 'hx-push-url "true"))

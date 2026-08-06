@@ -70,20 +70,31 @@
           ;; spell one binding instead of two matching strings
           [heartbeat-event string?]
           [heartbeat-frame (-> (>/c 0) frame?)]
-          ;; a string this process alone will ever use, for a host whose own
-          ;; notion of state is a counter (see below)
-          [live-boot-id string?]))
+          ;; what a connect to somebody ELSE's boot id is answered with: one
+          ;; frame, then the end of the stream (see below)
+          [live-reload-response (-> response?)]))
+
+;; A string this process alone will ever use, for a host whose own notion of
+;; state is a counter. It moved to live/frame when the stream's address grew
+;; it (`live-stream-path`), because both ends now read it; re-exported here
+;; because a host that only ever required the hub still spells it this way.
+(provide live-boot-id)
 
 ;; How many undelivered frames a subscriber may owe before the hub gives up on
 ;; it. Small on purpose: these are notifications, not a log.
 (define queue-limit 32)
 
-(define default-heartbeat-seconds 15)
-
 ;; Long enough that a server restart does not become a reconnect storm, short
 ;; enough that a laptop waking up is live again before the human looks at it.
 ;; The browser's own default is around three seconds and unstated.
 (define default-retry-milliseconds 1000)
+
+;; And how soon a client that connected to a boot id nobody answers to should
+;; come back. Long, because it has already been told to reload and a client
+;; that DID reload will never use this: it is the budget for one that cannot —
+;; a tab whose runtime predates the reload frame, which would otherwise retry
+;; every second forever against a server with nothing to say to it.
+(define stale-retry-milliseconds 60000)
 
 ;; ---- the heartbeat ----------------------------------------------------------
 
@@ -97,24 +108,31 @@
 (define (heartbeat-frame seconds)
   (make-frame heartbeat-event (number->string seconds)))
 
-;; ---- telling one process from another ---------------------------------------
+;; ---- the stream nobody is answering for -------------------------------------
 
-;; Catch-up rests on one property of an id: two different states must never be
-;; called the same thing. A host whose state is a COUNTER breaks that without
-;; noticing, because a counter restarts with the process — so `3` names one
-;; thing before a restart and another after it, and every client that
-;; reconnects across one is told it is up to date when it is not.
+;; A connect to a boot id this process does not answer to (live/frame), and the
+;; only sane thing to say back.
 ;;
-;; That hazard is the framework's to fix, not each host's to remember: a
-;; process can identify itself, and this is that string. Combine it with
-;; whatever counts (`(string-append live-boot-id "." n)`) and the property
-;; holds. A host whose state is already globally unique — a commit hash, a
-;; ULID, a log offset — has no use for it.
+;; NOT a 404, and not any other status: `EventSource` reports an error to the
+;; page without the code, retries on its own schedule, and never stops — so a
+;; refusal is a stale tab knocking forever and a server with no channel to
+;; explain itself. The channel it HAS is the stream, so the stream is the
+;; answer: one frame that means reload, then the end of it.
 ;;
-;; Reading a clock is not interpreting an id: this hands one out, and still
-;; never looks at one.
-(define live-boot-id
-  (number->string (inexact->exact (round (current-inexact-milliseconds)))))
+;; Closing rather than holding it open is the point. The page is on its way to
+;; a new document; a connection kept alive for a page that is leaving is a
+;; subscriber the hub would have to reap.
+(define (live-reload-response)
+  (response/output
+   (λ (out)
+     (write-string (string-append (sse-retry stale-retry-milliseconds)
+                                  (frame->string (make-frame live-reload-event live-boot-id)))
+                   out)
+     (flush-output out))
+   #:code 200
+   #:mime-type #"text/event-stream; charset=utf-8"
+   #:headers (list (make-header #"Cache-Control" #"no-store")
+                   (make-header #"X-Accel-Buffering" #"no"))))
 
 ;; ---- the hub ----------------------------------------------------------------
 
@@ -217,7 +235,7 @@
 ;; anything, which is a fan-out with no state behind it.
 (define (hub-response h
                       #:last-event-id [last-event-id #f]
-                      #:heartbeat-seconds [heartbeat-seconds default-heartbeat-seconds]
+                      #:heartbeat-seconds [heartbeat-seconds live-default-heartbeat-seconds]
                       #:retry-milliseconds [retry-milliseconds default-retry-milliseconds]
                       #:catch-up [catch-up #f])
   (response/output

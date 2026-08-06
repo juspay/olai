@@ -15,6 +15,7 @@
 ;; line of events and several of scripted agent.
 
 (require json
+         (only-in live/frame live-stream-path)
          net/http-client
          net/uri-codec
          racket/async-channel
@@ -216,7 +217,7 @@
   ;; tests about the catch-up itself want.
   (define (open-events port #:caught-up-through [through "commands"])
     (define-values (_status _headers in)
-      (http-sendrecv "127.0.0.1" "/events" #:port port #:method #"GET"))
+      (http-sendrecv "127.0.0.1" live-stream-path #:port port #:method #"GET"))
     (when through (events-through in through))
     in)
 

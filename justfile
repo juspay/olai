@@ -80,6 +80,13 @@ check *args: install
 serve *args: install
     olai serve {{if args != "" { args } else if olai_home != "" { olai_home } else { repo_outlines } }}
 
+# What the live forms in a file expand to — the source form and the call it
+# becomes, one pair per form (live/expand.rkt). The forms are only worth having
+# if you can see through them, so this is interface and not a debug aid.
+# Print what the live forms in FILE expand to
+expand file: build
+    racket {{justfile_directory()}}/live/expand.rkt {{file}}
+
 # The two sets differ in what they cost: unit tests run in this VM, the
 # integration ones spawn `olai` subprocesses and boot real servers. Both are
 # parallel-safe (ephemeral ports, temp dirs), so -j is free speed.

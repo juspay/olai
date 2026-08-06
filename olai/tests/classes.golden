@@ -91,13 +91,14 @@ ol-pref-opt
 ol-pref-opts
 ol-prefs
 ol-row
-ol-sidebar
+ol-sidebar-col
 ol-sidebar-empty
 ol-sidebar-heading
 ol-sidebar-nav
 ol-sidebar-section
 ol-stream
 ol-stream-connecting
+ol-stream-live
 ol-stream-stale
 ol-tag
 ol-title

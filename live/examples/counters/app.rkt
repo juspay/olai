@@ -4,10 +4,10 @@
 ;; Two producers push onto ONE hub, two drawers each own a region, and one
 ;; stream carries both event names.
 ;;
-;;   GET /            the page: header (ticker, input, health) + the list
-;;   GET /c/<name>    one counter, in the same region the list was in
-;;   GET /events      the stream both surfaces ride
-;;   GET /*.js        the framework's browser runtime, as itself
+;;   GET /                       the page: header (ticker, input, health) + the list
+;;   GET /c/<name>               one counter, in the same region the list was in
+;;   GET /live/<boot>/events     the stream both surfaces ride
+;;   GET /*.js                   the framework's browser runtime, as itself
 
 (require racket/async-channel
          racket/cmdline
@@ -20,6 +20,8 @@
          (prefix-in lift: web-server/dispatchers/dispatch-lift)
          (prefix-in sequencer: web-server/dispatchers/dispatch-sequencer)
          live/client
+         live/dsl
+         live/frame
          live/hub
          "clock.rkt"
          "counters.rkt"
@@ -44,13 +46,12 @@
    "html." live-stale-class " #health::after{content:'stale - last known state';color:red;}"))
 
 ;; Every route draws the same page: the header, and the clist region holding
-;; whatever `draw` puts there. Both views are built from the SAME address and
-;; the same cursor — the address is what a region re-fetches, and the cursor is
-;; the state this markup was drawn from, so a bump landing between rendering
-;; the page and its EventSource connecting is not a hole nothing can heal.
+;; whatever `draw` puts there. Both are drawn from the SAME address — what a
+;; region re-fetches — and the page carries the cursor its markup came from, so
+;; a bump landing between rendering the page and its EventSource connecting is
+;; not a hole nothing can heal.
 (define (page href draw)
   (define cursor (counts-cursor))
-  (define ticker (ticker-view href cursor))
   (response/xexpr
    #:preamble #"<!DOCTYPE html>\n"
    `(html
@@ -60,9 +61,10 @@
            ,@(for/list ([src (in-list (live-script-hrefs "/"))])
                `(script ((src ,src) (defer "defer")))))
      ;; the connection is the PAGE's, not a region's: one EventSource for both
-     ;; surfaces, and either view spells the same stream and the same cursor
-     (body (,@(live-connect-attributes ticker))
-           ,(render-header ticker (clock-now))
+     ;; surfaces, naming both vocabularies that ride it. Its address is the
+     ;; transport's, and carries which process drew this markup.
+     (body (,@(live-connect counts clock #:cursor cursor))
+           ,(render-header href (clock-now))
            ;; what the reader is looking at. Chrome like the header: outside
            ;; both regions, so nothing ever swaps it
            (p ((id "about"))
@@ -71,7 +73,7 @@
               " and its own event. Click a counter: the address changes and"
               " only the list is swapped — the ticker, and whatever you typed"
               " in the box, are never rebuilt.")
-           ,(draw (clist-view href cursor))))))
+           ,(draw href)))))
 
 ;; A connection is born mid-story. The counters answer for their own ids; the
 ;; clock owes nobody anything, because a tick was never a checkpoint.
@@ -79,6 +81,7 @@
   (hub-response
    hub
    #:last-event-id (request-last-event-id req)
+   #:heartbeat-seconds (stream-heartbeat counts)
    #:catch-up (λ (last-id subscribe!)
                 (subscribe!)
                 (counts-catch-up last-id))))
@@ -86,7 +89,7 @@
 (define (make-router hub)
   (define-values (route _url)
     (dispatch-rules
-     [("") (λ (req) (page "/" (λ (lv) (render-list lv (counter-values)))))]
+     [("") (λ (req) (page "/" (λ (h) (render-list h (counter-values)))))]
      ;; the other end of counter-href in list.rkt. A name nothing answers to
      ;; falls back to the list rather than to an error page: the counters are
      ;; the app's whole state, and there is nothing else to say.
@@ -94,10 +97,16 @@
       (λ (req name)
         (define c (counter-named name))
         (page (counter-href name)
-              (λ (lv) (if c (render-detail lv c) (render-list lv (counter-values))))))]
-     ;; convention 4 (events URL), the ROUTE's end: list.rkt and header.rkt
-     ;; both put "/events" on the page.
-     [("events") (λ (req) (events-response hub req))]
+              (λ (h) (if c (render-detail h c) (render-list h (counter-values))))))]
+     ;; The stream, under the boot id the page was drawn by. A request naming
+     ;; some OTHER process is a tab that outlived a deploy: it is answered —
+     ;; one frame that means reload — and never refused, because EventSource
+     ;; hides the status code and would retry a 404 forever.
+     [("live" (string-arg) "events")
+      (λ (req boot)
+        (if (live-boot-current? boot)
+            (events-response hub req)
+            (live-reload-response)))]
      [else (λ (req) (response/output (λ (out) (write-string "404\n" out))
                                      #:code 404
                                      #:mime-type #"text/plain; charset=utf-8"))]))
@@ -129,9 +138,9 @@
   (when (exn? bound) (stop) (raise bound))
   ;; only once there is a listener: a producer with nobody to tell is a thread
   ;; burning a clock
-  (define counters (start-counters! hub))
-  (define clock (start-clock! hub))
-  (values (λ () (kill-thread counters) (kill-thread clock) (stop)) bound))
+  (define counters-thread (start-counters! hub))
+  (define clock-thread (start-clock! hub))
+  (values (λ () (kill-thread counters-thread) (kill-thread clock-thread) (stop)) bound))
 
 (module+ main
   (define port (make-parameter 8080))
@@ -142,8 +151,10 @@
   (define-values (stop bound) (start-counters-server #:port (port)))
   ;; flushed, not just printed: stdout to anything but a terminal is block
   ;; buffered, and this process then sleeps forever with the address in a
-  ;; buffer nobody sees
+  ;; buffer nobody sees. The stream's address goes out too — it holds this
+  ;; process's boot id, so it is not a thing anyone can guess to curl.
   (printf "counters: http://127.0.0.1:~a/\n" bound)
+  (printf "counters: stream at http://127.0.0.1:~a~a\n" bound live-stream-path)
   (flush-output)
   (with-handlers ([exn:break? (λ (_e) (stop))])
     (sync never-evt)))

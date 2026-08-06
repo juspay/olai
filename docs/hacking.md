@@ -6,7 +6,7 @@ Facts an agent cannot infer from the code and would otherwise probe for. Not a t
 
 The repo holds two Racket packages, and the order between them is the dependency:
 
-* `live/` — the live-view framework: an SSE hub with reconnect catch-up, and an htmx + idiomorph browser runtime. It imports NOTHING from olai and never will; olai is its first consumer, not its definition. Its own README is the consumer contract ([live/README.md](../live/README.md)), and [docs/live.md](live.md) is what olai puts through it.
+* `live/` — the live-view framework: an SSE hub with reconnect catch-up, an htmx + idiomorph browser runtime, and `live/dsl`'s declare-and-check forms over both (`just expand FILE` prints what they become). It imports NOTHING from olai and never will; olai is its first consumer, not its definition. Its own README is the consumer contract ([live/README.md](../live/README.md)), and [docs/live.md](live.md) is what olai puts through it.
 * `olai/` — everything else.
 
 So `just install` links `live` before `olai`, and `just build` is `raco setup --pkgs live olai`. A change to `live/` that only makes sense for olai is a change in the wrong place.

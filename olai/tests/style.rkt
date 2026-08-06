@@ -41,9 +41,6 @@
          ;; the renderers: what the skin is FOR, and the only honest answer to
          ;; "does anything wear this class"
          olai/web/render
-         ;; the live view a served page is drawn with — the chrome that only
-         ;; exists on a page that has a stream
-         (only-in olai/web/live outline-live-view)
          olai/web/chat-panel
          olai/store
          olai/index
@@ -162,8 +159,10 @@
                                 #:docs (snapshot-docs example-snapshot))
                 #:sidebar (render-sidebar example-files
                                           #:home-href "/" #:today-href "/today"
+                                          #:href "/"
                                           #:zoom-base "/z/")
-                #:live (outline-live-view "/events" #:href "/" #:cursor "boot.1")
+                #:href "/"
+                #:cursor "boot.1"
                 #:banner (render-error-banner "expected ISO date"
                                               #:where "/tmp/Tasks.rkt:3:4"))
    (let* ([index (snapshot-index example-snapshot)]

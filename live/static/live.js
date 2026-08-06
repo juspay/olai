@@ -17,6 +17,10 @@
 //     a static page and wrong for one whose whole point is that the server
 //     changes under it. Cache size zero makes a restore a fetch — of the same
 //     region, into the same place, so the chrome around it still survives.
+//   * a page can outlive the server that drew it. The stream's address carries
+//     that server's identity, so a connect to a process that is no longer
+//     there is answered — one `live:reload` frame — rather than refused, and
+//     this is the end that acts on it.
 //   * a stream can stop without saying so. `sseOpen` / `sseError` catch the
 //     clean drops; a socket that stays open while nothing comes down it looks
 //     identical to a quiet afternoon, and only a beat that failed to arrive
@@ -33,6 +37,12 @@
   // end spells it in Racket; live/tests/client.rkt is what keeps the two
   // strings the same one.
   var BEAT='live:hb';
+
+  // The other frame the transport sends on its own behalf, live/frame.rkt's
+  // `live-reload-event`. It arrives when this page's stream URL names a server
+  // that is no longer the one answering — a deploy under an open tab. See
+  // below for why the answer is a reload and not a re-fetch.
+  var RELOAD='live:reload';
 
   // Until the first beat says otherwise. The server writes one as it opens the
   // stream, so this is only ever the window for a connection that opened and
@@ -93,6 +103,12 @@
       if(n>0)cadence=n;
       alive();
     });
+    // A HARD reload, not a re-fetch of the region. What is stale here is not
+    // the region's content — it is this document: its scripts, its stylesheet,
+    // and the stream address baked into its markup, which names a server that
+    // no longer exists. Morphing new content into an old page would leave the
+    // page connected to nothing.
+    source.addEventListener(RELOAD,function(){location.reload()});
     Object.keys(handlers).forEach(function(name){
       source.addEventListener(name,function(ev){
         handlers[name].forEach(function(fn){fn(ev.data,ev)});

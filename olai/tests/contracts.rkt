@@ -66,15 +66,18 @@
     (check-exn (blames "index.rkt")
                (λ () (node-ancestors (hash) (make-task #:title "T" #:key "k")))))
 
-  (test-case "web/render: the renderer draws tasks, not titles"
-    (check-exn (blames "render.rkt")
+  ;; The renderers are one module per surface now (web/render composes them),
+  ;; so the blame names the component: that IS the improvement — a violation
+  ;; used to point at a thousand-line file and now points at the thing drawn.
+  (test-case "web/node: the renderer draws tasks, not titles"
+    (check-exn (blames "node.rkt")
                (λ () (render-node-fragment "Buy milk" #:today "2026-08-04")))
     ;; a zoom is a node and the trail above it, both given: this layer draws
     ;; one, it does not look one up
-    (check-exn (blames "render.rkt")
+    (check-exn (blames "zoom.rkt")
                (λ () (render-zoom "ship" '() #:today "2026-08-04" #:home-href "/")))
     ;; `today` is an argument, and it is a string: no clock, no #f
-    (check-exn (blames "render.rkt")
+    (check-exn (blames "node.rkt")
                (λ () (render-node-fragment (make-task #:title "T" #:key "k")
                                            #:today #f))))
 

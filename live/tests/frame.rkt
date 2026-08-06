@@ -3,7 +3,8 @@
 ;; The wire format, in isolation. Every case here is a sentence from the SSE
 ;; spec that a naive implementation gets wrong.
 
-(require live/frame)
+(require racket/string
+         live/frame)
 
 (module+ test
   (require rackunit))
@@ -45,4 +46,25 @@
     (check-equal? (frames->string '()) ""))
 
   (test-case "retry is a field of its own"
-    (check-equal? (sse-retry 1000) "retry: 1000\n\n")))
+    (check-equal? (sse-retry 1000) "retry: 1000\n\n"))
+
+  ;; ---- which server this is --------------------------------------------------
+
+  ;; The cursor heals a client that is behind. It cannot heal one that is from
+  ;; another BUILD, because both ends of that connection are behaving. So the
+  ;; server's identity rides the address the client connects to.
+  (test-case "the stream's address carries this process's boot id"
+    (check-true (regexp-match? #px"^/live/.+/events$" live-stream-path))
+    (check-true (string-contains? live-stream-path live-boot-id)))
+
+  (test-case "a boot id is this process's, and nobody else's"
+    (check-true (live-boot-current? live-boot-id))
+    (check-false (live-boot-current? "yesterday"))
+    ;; not a prefix match, not a parse: two different strings are two
+    ;; different servers, which is the only property an id has here
+    (check-false (live-boot-current? (string-append live-boot-id "0"))))
+
+  ;; Namespaced away from a host's own vocabulary, exactly as the heartbeat is:
+  ;; the transport must not be able to collide with an app's event names.
+  (test-case "the transport's own events are namespaced"
+    (check-true (string-prefix? live-reload-event "live:"))))

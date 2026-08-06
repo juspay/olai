@@ -183,4 +183,30 @@
     (define bytes
       (drain (hub-response h #:heartbeat-seconds 30)
              #:after (λ () (hub-broadcast! h (say "outline" "9" #:id "9")))))
-    (check-regexp-match #px"id: 9\nevent: outline\ndata: 9\n\n" bytes)))
+    (check-regexp-match #px"id: 9\nevent: outline\ndata: 9\n\n" bytes))
+
+  ;; ---- the stream nobody is answering for ------------------------------------
+  ;;
+  ;; A connect to another process's boot id. It is ANSWERED, because
+  ;; EventSource hides an HTTP status from the page and retries a refusal
+  ;; forever — a stale tab would knock until somebody closed it.
+
+  (test-case "a stale boot id is answered with one reload frame, then the end"
+    (define bytes (drain (live-reload-response)))
+    (check-regexp-match #px"^retry: \\d+\n\n" bytes)
+    (check-regexp-match (pregexp (string-append "event: " live-reload-event "\n"))
+                        bytes)
+    ;; the payload is the id this server DOES answer to, so a stream read by
+    ;; hand says which two processes disagreed
+    (check-regexp-match (pregexp (string-append "data: " live-boot-id "\n\n$")) bytes)
+    ;; a 200: the answer is on the stream, and the status carries nothing the
+    ;; page could read anyway
+    (check-equal? (response-code (live-reload-response)) 200))
+
+  ;; It costs a subscription to nothing: the page is on its way to a new
+  ;; document, and a connection held open for it would be a subscriber the hub
+  ;; has to reap.
+  (test-case "a stale stream joins no hub"
+    (define h (make-hub))
+    (drain (live-reload-response))
+    (check-equal? (hub-subscriber-count h) 0)))
