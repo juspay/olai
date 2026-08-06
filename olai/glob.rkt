@@ -100,6 +100,7 @@
 ;; here that is load-bearing rather than a convention: `.#2026-08.rkt` is the
 ;; lock file Emacs leaves beside a file it is editing, it is a dangling
 ;; symlink, and globbing it in would break an outline nobody had touched.
+;;
 ;; Names are sorted as STRINGS and only then turned back into paths: within
 ;; one directory the two orders are the same, and `sort #:key path->string`
 ;; re-converts on both sides of every comparison. This runs on every staleness
