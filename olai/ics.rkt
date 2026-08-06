@@ -5,6 +5,7 @@
 ;; via raco pkg catalog-show ics / icalendar); a thin writer is justified.
 
 (require racket/list
+         racket/match
          racket/path
          racket/string
          file/sha1
@@ -33,17 +34,13 @@
                   (cons (substring rest 0 75) acc))))))
 
 (define (dt-value iso)
-  (define n (normalize-date-string iso))
-  (cond
-    [(regexp-match #px"^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2})(?::([0-9]{2}))?" n)
-     => (λ (m)
-          (format "~a~a~aT~a~a~a"
-                  (cadr m) (caddr m) (cadddr m)
-                  (list-ref m 4) (list-ref m 5)
-                  (or (list-ref m 6) "00")))]
-    [(regexp-match #px"^([0-9]{4})-([0-9]{2})-([0-9]{2})$" n)
-     => (λ (m) (format "~a~a~a" (cadr m) (caddr m) (cadddr m)))]
-    [else n]))
+  (match (normalize-date-string iso)
+    [(regexp #px"^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2})(?::([0-9]{2}))?"
+             (list _ y m d hh mm ss))
+     (format "~a~a~aT~a~a~a" y m d hh mm (or ss "00"))]
+    [(regexp #px"^([0-9]{4})-([0-9]{2})-([0-9]{2})$" (list _ y m d))
+     (format "~a~a~a" y m d)]
+    [n n]))
 
 (define (uid-for path title date id)
   (define base
@@ -108,11 +105,11 @@
   (vcalendar
    (append*
     (for/list ([e (in-list file-entries)])
-      (define path (car e))
+      (match-define (cons path tasks) e)
       ;; ICS events are read outside the outline, so every breadcrumb is
       ;; file-rooted here, single file or not.
       (append*
-       (for/list ([it (in-list (collect-cal-items (cdr e)
+       (for/list ([it (in-list (collect-cal-items tasks
                                                   #:root (file-label path)))])
          (vevent (path-string path) it)))))))
 

@@ -7,21 +7,24 @@
 ;; a test reads as "the node called X". Real keys come from the load layer; see
 ;; tests/store.rkt for those.
 
-(require rackunit
-         file/sha1
+(require file/sha1
          (except-in olai/lang/expander #%module-begin)
          (only-in olai/lang/walk resolve-mirrors)
          olai/index)
 
-(define (title-key title)
-  (string-append
-   "p" (substring (sha1 (open-input-bytes (string->bytes/utf-8 title))) 0 8)))
+(module+ test
+  (require rackunit))
 
-(define (tk title kids #:id [id #f])
-  (make-task #:title title #:id id #:children kids
-             #:key (or id (title-key title))))
+(module+ test
+  (define (title-key title)
+    (string-append
+     "p" (substring (sha1 (open-input-bytes (string->bytes/utf-8 title))) 0 8)))
 
-(define (files . entries) entries)
+  (define (tk title kids #:id [id #f])
+    (make-task #:title title #:id id #:children kids
+               #:key (or id (title-key title))))
+
+  (define (files . entries) entries))
 
 (module+ test
   (define fd

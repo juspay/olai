@@ -7,8 +7,7 @@
 ;; jump to. That is the difference between "expected string?, given 42" and a
 ;; regexp failing four frames deep inside someone else's regexp.
 
-(require rackunit
-         racket/string
+(require racket/string
          (except-in olai/lang/expander #%module-begin)
          olai/index
          olai/lang/line
@@ -17,15 +16,19 @@
          olai/web/render
          olai/web/watch)
 
-(define here "tests/contracts.rkt")
+(module+ test
+  (require rackunit))
 
-;; The caller is blamed, and the module that owns the contract is named.
-(define ((blames owner) e)
-  (define msg (exn-message e))
-  (and (exn:fail:contract? e)
-       (string-contains? msg "blaming:")
-       (string-contains? msg here)
-       (string-contains? msg owner)))
+(module+ test
+  (define here "tests/contracts.rkt")
+
+  ;; The caller is blamed, and the module that owns the contract is named.
+  (define ((blames owner) e)
+    (define msg (exn-message e))
+    (and (exn:fail:contract? e)
+         (string-contains? msg "blaming:")
+         (string-contains? msg here)
+         (string-contains? msg owner))))
 
 (module+ test
   (test-case "lang/line: a classification is a string away, and says so"

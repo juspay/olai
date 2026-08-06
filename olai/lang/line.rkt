@@ -28,6 +28,7 @@
 ;;   (meta bad MESSAGE)
 
 (require racket/contract
+         racket/match
          racket/string)
 
 ;; The grammar is a boundary five modules read across, so it is contracted:
@@ -50,6 +51,9 @@
           [line-include? (-> classification/c boolean?)]
           [line-meta? (-> classification/c boolean?)]
           [meta-field (-> classification/c (or/c 'desc 'date 'done 'doing 'bad #f))]
+          [title-text (-> classification/c (or/c string? #f))]
+          [title-flag (-> classification/c (or/c 'done 'doing 'open #f))]
+          [title-anchor (-> classification/c (or/c string? #f))]
           [strip-checkbox-prefix (-> string? any)]
           [strip-trailing-anchor (-> string? any)]))
 
@@ -58,77 +62,75 @@
 
 ;; Leading spaces are structure; everything after them is the line's content.
 (define (line-indent+content s)
-  (define m (regexp-match #px"^( *)(.*)$" s))
-  (values (string-length (cadr m)) (caddr m)))
+  (match-define (list _ spaces content) (regexp-match #px"^( *)(.*)$" s))
+  (values (string-length spaces) content))
 
 ;; Title checkbox sugar: "[x] " / "[X] " → done, "[/] " → doing (the Obsidian
 ;; community spelling for in-progress; "[-] " is left unclaimed for a future
 ;; cancelled), "[ ] " → open (stripped). All #t-valued marks; the timestamped
 ;; form is the @field.
 (define (strip-checkbox-prefix title)
-  (cond
-    [(regexp-match #px"^\\[[xX]\\] (.*)$" title)
-     => (λ (m) (values (cadr m) 'done))]
-    [(regexp-match #px"^\\[/\\] (.*)$" title)
-     => (λ (m) (values (cadr m) 'doing))]
-    [(regexp-match #px"^\\[ \\] (.*)$" title)
-     => (λ (m) (values (cadr m) 'open))]
-    [else (values title #f)]))
+  (match title
+    [(regexp #px"^\\[[xX]\\] (.*)$" (list _ rest)) (values rest 'done)]
+    [(regexp #px"^\\[/\\] (.*)$" (list _ rest)) (values rest 'doing)]
+    [(regexp #px"^\\[ \\] (.*)$" (list _ rest)) (values rest 'open)]
+    [_ (values title #f)]))
 
 ;; Trailing ^anchor (not part of the verbatim title).
 ;; Returns (values title-without-anchor anchor-or-#f).
 (define (strip-trailing-anchor title)
-  (cond
-    [(regexp-match #px"^(.*\\S)\\s+\\^([A-Za-z0-9_-]+)\\s*$" title)
-     => (λ (m) (values (cadr m) (caddr m)))]
-    [(regexp-match #px"^\\^([A-Za-z0-9_-]+)\\s*$" title)
-     => (λ (m) (values "" (cadr m)))]
-    [else (values title #f)]))
+  (match title
+    [(regexp #px"^(.*\\S)\\s+\\^([A-Za-z0-9_-]+)\\s*$" (list _ text anchor))
+     (values text anchor)]
+    [(regexp #px"^\\^([A-Za-z0-9_-]+)\\s*$" (list _ anchor))
+     (values "" anchor)]
+    [_ (values title #f)]))
 
 ;; content: a line with its indentation already stripped.
 (define (classify-line content)
-  (cond
-    [(blank-line? content) '(blank)]
-    [(regexp-match? #px"^#lang\\s" content) '(lang)]
+  (match content
+    [(? blank-line?) '(blank)]
+    [(regexp #px"^#lang\\s") '(lang)]
     ;; Escape: title is the rest after `\`; no checkbox/mirror/anchor sugar.
-    [(regexp-match? #px"^\\\\" content)
+    [(regexp #px"^\\\\")
      (list 'title (substring content 1) #f #f)]
     ;; Mirror line: *anchor alone (line-initial *).
-    [(regexp-match #px"^\\*([A-Za-z0-9_-]+)\\s*$" content)
-     => (λ (m) (list 'mirror (cadr m)))]
-    [(regexp-match #px"^: (.*)$" content)
-     => (λ (m) (list 'meta 'desc (cadr m)))]
-    [(regexp-match? #px"^:($|[^ ].*)$" content)
+    [(regexp #px"^\\*([A-Za-z0-9_-]+)\\s*$" (list _ anchor))
+     (list 'mirror anchor)]
+    [(regexp #px"^: (.*)$" (list _ text))
+     (list 'meta 'desc text)]
+    [(regexp #px"^:($|[^ ].*)$")
      (list 'meta 'bad "description line must start with \": \" (colon + space)")]
-    [(regexp-match #px"^(@date[ \t]+)(\\S.*)$" content)
-     => (λ (m) (list 'meta 'date (string-trim (caddr m)) (string-length (cadr m))))]
-    [(regexp-match? #px"^@date\\s*$" content)
+    [(regexp #px"^(@date[ \t]+)(\\S.*)$" (list _ field value))
+     (list 'meta 'date (string-trim value) (string-length field))]
+    [(regexp #px"^@date\\s*$")
      (list 'meta 'bad
            "expected a date or datetime after @date (YYYY-MM-DD[THH:MM[:SS]])")]
-    [(regexp-match #px"^(@done[ \t]+)(\\S.*)$" content)
-     => (λ (m) (list 'meta 'done (string-trim (caddr m)) (string-length (cadr m))))]
-    [(regexp-match? #px"^@done\\s*$" content)
+    [(regexp #px"^(@done[ \t]+)(\\S.*)$" (list _ field value))
+     (list 'meta 'done (string-trim value) (string-length field))]
+    [(regexp #px"^@done\\s*$")
      (list 'meta 'done #t 0)]
     ;; @done's own regexps want whitespace after the name, so @doing cannot be
-    ;; read as one of them however this cond is ordered.
-    [(regexp-match #px"^(@doing[ \t]+)(\\S.*)$" content)
-     => (λ (m) (list 'meta 'doing (string-trim (caddr m)) (string-length (cadr m))))]
-    [(regexp-match? #px"^@doing\\s*$" content)
+    ;; read as one of them however this match is ordered.
+    [(regexp #px"^(@doing[ \t]+)(\\S.*)$" (list _ field value))
+     (list 'meta 'doing (string-trim value) (string-length field))]
+    [(regexp #px"^@doing\\s*$")
      (list 'meta 'doing #t 0)]
-    [(regexp-match #px"^@include[ \t]+(\\S.*)$" content)
-     => (λ (m) (list 'include (string-trim (cadr m))))]
-    [(regexp-match? #px"^@include\\s*$" content)
+    [(regexp #px"^@include[ \t]+(\\S.*)$" (list _ rel))
+     (list 'include (string-trim rel))]
+    [(regexp #px"^@include\\s*$")
      (list 'meta 'bad "expected a relative path after @include")]
-    [(regexp-match #px"^@(\\S+)" content)
-     => (λ (m)
-          (list 'meta 'bad
-                (format "unknown @~a; known fields: @date, @done, @doing, @include"
-                        (cadr m))))]
-    [else
+    [(regexp #px"^@(\\S+)" (list _ name))
+     (list 'meta 'bad
+           (format "unknown @~a; known fields: @date, @done, @doing, @include"
+                   name))]
+    [_
      (define-values (title0 flag) (strip-checkbox-prefix content))
      (define-values (title anchor) (strip-trailing-anchor title0))
      (list 'title title flag anchor)]))
 
+;; `car`, not `first`: every scan of a file runs these once per line, and the
+;; head of a classification is there by construction (classification/c).
 (define ((kind? sym) k) (eq? (car k) sym))
 
 (define line-blank? (kind? 'blank))
@@ -142,4 +144,20 @@
 
 ;; 'desc | 'date | 'done | 'doing | 'bad for a meta line, #f otherwise.
 (define (meta-field k)
-  (and (line-meta? k) (cadr k)))
+  (match k
+    [(list 'meta field _ ...) field]
+    [_ #f]))
+
+;; The three parts of a (title TEXT FLAG ANCHOR), #f when k is not a title.
+;; A title line without a checkbox or a ^anchor answers #f for those too, so
+;; ask line-title? first where the difference matters. These exist so that the
+;; modules that EDIT outline text — meta, capture, daily — do not each spell
+;; the position a part sits at; that is this file's job.
+(define (title-text k)
+  (match k [(list 'title text _ _) text] [_ #f]))
+
+(define (title-flag k)
+  (match k [(list 'title _ flag _) flag] [_ #f]))
+
+(define (title-anchor k)
+  (match k [(list 'title _ _ anchor) anchor] [_ #f]))

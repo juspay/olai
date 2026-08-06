@@ -8,6 +8,7 @@
 
 (require racket/contract
          racket/list
+         racket/match
          racket/path
          racket/string
          file/sha1
@@ -90,15 +91,13 @@
          (values fallback-path #f #f))]
     [(exn:fail:read? e)
      (define locs (exn:fail:read-srclocs e))
-     (if (pair? locs)
-         (let ([loc (last locs)])
-           (cond
-             [(srcloc? loc)
-              (values (srcloc-source loc) (srcloc-line loc) (srcloc-column loc))]
-             [(list? loc)
-              (values (list-ref loc 0) (list-ref loc 1) (list-ref loc 2))]
-             [else (values fallback-path #f #f)]))
-         (values fallback-path #f #f))]
+     (cond
+       [(null? locs) (values fallback-path #f #f)]
+       [else
+        (match (last locs)
+          [(srcloc source line column _ _) (values source line column)]
+          [(list source line column _ ...) (values source line column)]
+          [_ (values fallback-path #f #f)])])]
     [else (values fallback-path #f #f)]))
 
 (define (exn-message* e)

@@ -3,8 +3,7 @@
 ;; The snapshot layer: reload on change (fresh namespace), transitive watch
 ;; set, last-good on a broken file. Temp dirs only, never personal data.
 
-(require rackunit
-         racket/file
+(require racket/file
          racket/list
          racket/path
          racket/string
@@ -12,18 +11,22 @@
          olai/load
          olai/store)
 
-(define (with-temp-dir proc)
-  (define dir (make-temporary-file "sfstore~a" 'directory))
-  (dynamic-wind void (λ () (proc dir)) (λ () (delete-directory/files dir))))
+(module+ test
+  (require rackunit))
 
-(define (write-file! path text)
-  (make-parent-directory* path)
-  (display-to-file text path #:exists 'truncate/replace))
+(module+ test
+  (define (with-temp-dir proc)
+    (define dir (make-temporary-file "sfstore~a" 'directory))
+    (dynamic-wind void (λ () (proc dir)) (λ () (delete-directory/files dir))))
 
-(define (titles snap)
-  (for*/list ([o (in-list (snapshot-outlines snap))]
-              [tk (in-list (outline-tasks o))])
-    (task-title tk)))
+  (define (write-file! path text)
+    (make-parent-directory* path)
+    (display-to-file text path #:exists 'truncate/replace))
+
+  (define (titles snap)
+    (for*/list ([o (in-list (snapshot-outlines snap))]
+                [tk (in-list (outline-tasks o))])
+      (task-title tk))))
 
 (module+ test
   (test-case "a store reloads a file that changed on disk"

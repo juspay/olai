@@ -9,7 +9,8 @@
 ;;   YYYY-MM-DD HH:MM[ :SS]   (space ok; normalized to T)
 ;; Optional trailing Z / offset when gregor accepts it.
 
-(require racket/string
+(require racket/match
+         racket/string
          (only-in gregor iso8601->date iso8601->datetime today ~t))
 
 (provide valid-iso-date-string?
@@ -21,20 +22,24 @@
 
 ;; "2026-08-04 14:30" -> "2026-08-04T14:30"
 (define (normalize-date-string s)
-  (cond
-    [(regexp-match #px"^([0-9]{4}-[0-9]{2}-[0-9]{2})[ ]+([0-9].*)$" s)
-     => (λ (m) (string-append (cadr m) "T" (caddr m)))]
-    [else s]))
+  (match s
+    [(regexp #px"^([0-9]{4}-[0-9]{2}-[0-9]{2})[ ]+([0-9].*)$" (list _ day time))
+     (string-append day "T" time)]
+    [_ s]))
+
+;; True when `parse` accepts the string rather than raising.
+(define (parses? parse s)
+  (with-handlers ([exn:fail? (λ (_) #f)])
+    (parse s)
+    #t))
 
 (define (valid-iso-date-string? s)
-  (and (string? s)
-       (let ([s (normalize-date-string s)])
-         (or (with-handlers ([exn:fail? (λ (_) #f)])
-               (iso8601->date s)
-               #t)
-             (with-handlers ([exn:fail? (λ (_) #f)])
-               (iso8601->datetime s)
-               #t)))))
+  (cond
+    [(string? s)
+     (define n (normalize-date-string s))
+     (or (parses? iso8601->date n)
+         (parses? iso8601->datetime n))]
+    [else #f]))
 
 ;; Calendar day for agenda buckets: first 10 chars of a normalized ISO string.
 (define (date-day-prefix s)

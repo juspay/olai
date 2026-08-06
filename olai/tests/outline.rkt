@@ -1,23 +1,26 @@
 #lang racket/base
 
-(require rackunit
-         racket/file
+(require racket/file
          racket/list
          racket/string
          (except-in olai/lang/expander #%module-begin)
          olai/lang/outline)
 
-(define (eval-tasks src)
-  (define tmp (make-temporary-file "sf-outline~a.rkt"))
-  (dynamic-wind
-   void
-   (λ ()
-     (display-to-file src tmp #:exists 'truncate)
-     (dynamic-require `(file ,(path->string tmp)) 'tasks))
-   (λ () (delete-file tmp))))
+(module+ test
+  (require rackunit))
 
-(define (parse-string s)
-  (parse-outline-string 'test s))
+(module+ test
+  (define (eval-tasks src)
+    (define tmp (make-temporary-file "sf-outline~a.rkt"))
+    (dynamic-wind
+     void
+     (λ ()
+       (display-to-file src tmp #:exists 'truncate)
+       (dynamic-require `(file ,(path->string tmp)) 'tasks))
+     (λ () (delete-file tmp))))
+
+  (define (parse-string s)
+    (parse-outline-string 'test s)))
 
 (module+ test
   (test-case "empty outline"

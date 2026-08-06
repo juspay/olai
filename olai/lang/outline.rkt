@@ -24,7 +24,8 @@
 ;; id-info: #f or (list id-string line col)
 ;; mirror-anchor: #f or anchor string (when set, this node is a mirror leaf)
 ;; include-path: #f or relative path string (when set, this node is an include leaf)
-(struct node (title date-info done-info doing-info id-info descs children line col span src mirror-anchor include-path)
+(struct node (title date-info done-info doing-info id-info descs children
+              line col span src mirror-anchor include-path)
   #:mutable #:transparent)
 
 (define (reader-error src line col pos msg . args)
@@ -60,13 +61,13 @@
 (define (classify-content content src line col)
   ;; The reader is handed the body AFTER the #lang line, so a line that looks
   ;; like one here is an ordinary title.
+  (define classified (classify-line content))
   (define k
-    (let ([k (classify-line content)])
-      (if (line-lang? k) (list 'title content #f #f) k)))
+    (if (line-lang? classified) (list 'title content #f #f) classified))
   (match k
     [(list 'meta 'bad msg)
      (reader-error src line col #f "~a" msg)]
-    [(list 'title "" _flag (? string? anchor))
+    [(list 'title "" _ (? string? anchor))
      (reader-error src line col #f "title required before ^~a" anchor)]
     [_ k]))
 
@@ -96,6 +97,17 @@
          (list kw-stx)
          (list kw-stx (datum->syntax #f v (loc-vec src line col
                                                    (string-length v)))))]))
+
+;; descs is newest-first, so the OLDEST is the run's first line — the one the
+;; joined text is blamed on. Empty descs means the node wrote no `:` line.
+(define (description-part src descs)
+  (match (reverse descs)
+    ['() '()]
+    [(and texts (cons (list _ dline dcol) _))
+     (define joined (string-join (map car texts) "\n"))
+     (list (datum->syntax #f '#:description (loc-vec src dline dcol 1))
+           (datum->syntax #f joined
+                          (loc-vec src dline dcol (string-length joined))))]))
 
 (define (node-mirror? nd)
   (and (node-mirror-anchor nd) #t))
@@ -140,18 +152,7 @@
          [#f '()]))
      (define done-part (mark-part src '#:done (node-done-info nd)))
      (define doing-part (mark-part src '#:doing (node-doing-info nd)))
-     (define desc-part
-       (let ([ds (node-descs nd)])
-         (if (null? ds)
-             '()
-             (let* ([texts (map car (reverse ds))]
-                    [joined (string-join texts "\n")]
-                    [first (last ds)]
-                    [dline (cadr first)]
-                    [dcol (caddr first)])
-               (list (datum->syntax #f '#:description (loc-vec src dline dcol 1))
-                     (datum->syntax #f joined
-                                   (loc-vec src dline dcol (string-length joined))))))))
+     (define desc-part (description-part src (node-descs nd)))
      (define kids (map node->syntax (reverse (node-children nd))))
      (define form
        (cons (datum->syntax #f 't (loc-vec src line col span))
@@ -183,6 +184,30 @@
       (set! roots (cons nd roots)))
     (set! stack (append (take stack level) (list nd))))
 
+  ;; Every node kind runs the same two checks before it is pushed, and used to
+  ;; say so three times over: an indent may not skip a level, and a mirror or
+  ;; an include is a leaf.
+  (define (check-level! level n col)
+    (when (> level (current-depth))
+      (reader-error src n col #f
+                    (string-append "indent jumps more than one level "
+                                   "(from ~a to ~a); use 2 spaces per level")
+                    (current-depth) level))
+    (when (and (zero? (current-depth)) (positive? level))
+      (reader-error src n col #f
+                    (string-append "indent jumps more than one level "
+                                   "(from 0 to ~a); top-level tasks must "
+                                   "start at column 0")
+                    level)))
+
+  (define (check-leaf-parent! level n col)
+    (define parent (and (positive? level) (last-node-at (sub1 level))))
+    (when parent
+      (when (node-mirror? parent)
+        (reader-error src n col #f "mirror cannot have children"))
+      (when (node-include? parent)
+        (reader-error src n col #f "include cannot have children"))))
+
   (define (require-task-parent! level n col what)
     (when (zero? level)
       (reader-error src n col #f "~a with no title above" what))
@@ -207,54 +232,21 @@
        (define level (level-of ind src n col))
        (match kind
          [`(mirror ,anchor)
-          (when (> level (current-depth))
-            (reader-error src n col #f
-                          "indent jumps more than one level (from ~a to ~a); use 2 spaces per level"
-                          (current-depth) level))
-          (when (and (zero? (current-depth)) (positive? level))
-            (reader-error src n col #f
-                          "indent jumps more than one level (from 0 to ~a); top-level tasks must start at column 0"
-                          level))
-          (when (and (positive? level)
-                     (let ([p (last-node-at (sub1 level))])
-                       (and p (or (node-mirror? p) (node-include? p)))))
-            (reader-error src n col #f
-                          (if (node-mirror? (last-node-at (sub1 level)))
-                              "mirror cannot have children"
-                              "include cannot have children")))
+          (check-level! level n col)
+          (check-leaf-parent! level n col)
           (set! stack (take stack level))
           (define nd
             (node #f #f #f #f #f '() '() n col (string-length content) src anchor #f))
           (push-node! nd level)]
          [`(include ,path)
-          (when (> level (current-depth))
-            (reader-error src n col #f
-                          "indent jumps more than one level (from ~a to ~a); use 2 spaces per level"
-                          (current-depth) level))
-          (when (and (zero? (current-depth)) (positive? level))
-            (reader-error src n col #f
-                          "indent jumps more than one level (from 0 to ~a); top-level tasks must start at column 0"
-                          level))
-          (when (and (positive? level)
-                     (let ([p (last-node-at (sub1 level))])
-                       (and p (or (node-mirror? p) (node-include? p)))))
-            (reader-error src n col #f
-                          (if (node-mirror? (last-node-at (sub1 level)))
-                              "mirror cannot have children"
-                              "include cannot have children")))
+          (check-level! level n col)
+          (check-leaf-parent! level n col)
           (set! stack (take stack level))
           (define nd
             (node #f #f #f #f #f '() '() n col (string-length content) src #f path))
           (push-node! nd level)]
          [`(title ,title ,flag ,anchor)
-          (when (> level (current-depth))
-            (reader-error src n col #f
-                          "indent jumps more than one level (from ~a to ~a); use 2 spaces per level"
-                          (current-depth) level))
-          (when (and (zero? (current-depth)) (positive? level))
-            (reader-error src n col #f
-                          "indent jumps more than one level (from 0 to ~a); top-level tasks must start at column 0"
-                          level))
+          (check-level! level n col)
           (set! stack (take stack level))
           ;; the checkbox IS the node's mark, so `[x] X` plus `@done` below it
           ;; is a duplicate, exactly as two `@done` lines would be

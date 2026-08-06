@@ -1,7 +1,6 @@
 #lang racket/base
 
-(require rackunit
-         racket/file
+(require racket/file
          racket/path
          racket/string
          racket/port
@@ -14,21 +13,25 @@
          olai/status
          olai/daily)
 
-(define (write-outline dir name body)
-  (define p (build-path dir name))
-  (make-parent-directory* p)
-  (display-to-file body p #:exists 'truncate/replace)
-  p)
+(module+ test
+  (require rackunit))
 
-(define (make-parent-directory* path)
-  (define-values (base name dir?) (split-path path))
-  (when (path? base) (make-directory* base)))
+(module+ test
+  (define (write-outline dir name body)
+    (define p (build-path dir name))
+    (make-parent-directory* p)
+    (display-to-file body p #:exists 'truncate/replace)
+    p)
 
-(define (load-tasks path)
-  (dynamic-require `(file ,(path->string path)) 'tasks))
+  (define (make-parent-directory* path)
+    (define-values (base name dir?) (split-path path))
+    (when (path? base) (make-directory* base)))
 
-(define (load-includes path)
-  (dynamic-require `(file ,(path->string path)) 'includes))
+  (define (load-tasks path)
+    (dynamic-require `(file ,(path->string path)) 'tasks))
+
+  (define (load-includes path)
+    (dynamic-require `(file ,(path->string path)) 'includes)))
 
 (module+ test
   (test-case "include splices fragment top-level tasks"

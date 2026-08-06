@@ -4,12 +4,14 @@
 ;; that writes across two of them at once. Real subprocess (cli-util.rkt),
 ;; temp dirs only.
 
-(require rackunit
-         racket/file
+(require racket/file
          racket/port
          racket/string
          racket/system
          "cli-util.rkt")
+
+(module+ test
+  (require rackunit))
 
 (module+ test
   (test-case "multi-file check: both ok + one-good-one-bad"

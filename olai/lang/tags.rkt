@@ -17,4 +17,4 @@
 ;; "Ship #lang work #lang" -> '("lang")
 (define (title-tags title)
   (remove-duplicates
-   (regexp-match* tag-rx title #:match-select cadr)))
+   (regexp-match* tag-rx title #:match-select second)))

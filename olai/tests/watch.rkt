@@ -5,9 +5,11 @@
 ;; connection that has been away is tested in tests/live.rkt; the wired-up
 ;; version of all three lives in tests/integration/serve.rkt.
 
-(require rackunit
-         gregor
+(require gregor
          olai/web/watch)
+
+(module+ test
+  (require rackunit))
 
 (module+ test
   (test-case "seconds-until-midnight is the distance to the next local one"

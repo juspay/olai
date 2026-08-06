@@ -25,6 +25,7 @@
 
 (require racket/contract
          racket/list
+         racket/match
          racket/path
          racket/port
          syntax/modread
@@ -166,7 +167,8 @@
 ;; #f. First match in file order, so the answer does not depend on hash order.
 (define (snapshot-day-key snap iso-day)
   (for/or ([e (in-list (snapshot-files-data snap))])
-    (fold-tasks (cadr e)
+    (match-define (list _ tasks) e)
+    (fold-tasks tasks
                 (λ (tk _path acc)
                   (or acc (and (equal? (task-title tk) iso-day) (task-key tk))))
                 #f)))

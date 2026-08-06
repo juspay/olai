@@ -3,8 +3,10 @@
 ;; The wire format, in isolation. Every case here is a sentence from the SSE
 ;; spec that a naive implementation gets wrong.
 
-(require rackunit
-         live/frame)
+(require live/frame)
+
+(module+ test
+  (require rackunit))
 
 (module+ test
   (test-case "one event is name, payload, blank line"

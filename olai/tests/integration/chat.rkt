@@ -14,8 +14,7 @@
 ;; model that moved under a session, an agent that died — each of those is one
 ;; line of events and several of scripted agent.
 
-(require rackunit
-         json
+(require json
          net/http-client
          net/uri-codec
          racket/async-channel
@@ -30,294 +29,298 @@
          olai/web/markdown
          olai/web/serve)
 
-(define fake-agent
-  (path->string
-   (collection-file-path "fake-acp-agent.rkt" "olai" "tests" "integration")))
+(module+ test
+  (require rackunit))
 
-;; A file that exists and is not an executable: the other way to get the
-;; agent's path wrong.
-(define example
-  (build-path (simplify-path (build-path (collection-file-path "info.rkt" "olai")
-                                         'up 'up))
-              "examples" "Example.rkt"))
+(module+ test
+  (define fake-agent
+    (path->string
+     (collection-file-path "fake-acp-agent.rkt" "olai" "tests" "integration")))
 
-;; -> (values chat frame-channel log-port). The agent is stopped on the way
-;; out whether the body finished or not.
-(define (with-agent proc)
-  (define frames (make-async-channel))
-  (define log (open-output-string))
-  (define ag (make-chat #:command fake-agent
-                             #:cwd (find-system-path 'temp-dir)
-                             #:broadcast (λ (name data) (async-channel-put frames (cons name data)))
-                             #:log-port log))
-  (dynamic-wind void (λ () (proc ag frames log)) (λ () (chat-stop! ag))))
+  ;; A file that exists and is not an executable: the other way to get the
+  ;; agent's path wrong.
+  (define example
+    (build-path (simplify-path (build-path (collection-file-path "info.rkt" "olai")
+                                           'up 'up))
+                "examples" "Example.rkt"))
 
-;; Next frame as (cons event-name jsexpr), or #f. Generous: a subprocess boot
-;; is in here the first time.
-(define (next-frame frames [timeout 30])
-  (define f (sync/timeout timeout frames))
-  (and f (cons (car f) (string->jsexpr (cdr f)))))
+  ;; -> (values chat frame-channel log-port). The agent is stopped on the way
+  ;; out whether the body finished or not.
+  (define (with-agent proc)
+    (define frames (make-async-channel))
+    (define log (open-output-string))
+    (define ag (make-chat #:command fake-agent
+                               #:cwd (find-system-path 'temp-dir)
+                               #:broadcast (λ (name data) (async-channel-put frames (cons name data)))
+                               #:log-port log))
+    (dynamic-wind void (λ () (proc ag frames log)) (λ () (chat-stop! ag))))
 
-;; Every frame up to and including the first one of `type` — the whole turn as
-;; one value, so a test can assert the SEQUENCE rather than poll for parts.
-(define (frames-through frames type [timeout 30])
-  (let loop ([acc '()] [n 0])
-    (cond
-      [(> n 20) (reverse acc)]
-      [else
-       (define f (next-frame frames timeout))
-       (cond
-         [(not f) (reverse acc)]
-         [(equal? (hash-ref (cdr f) 'type #f) type) (reverse (cons f acc))]
-         [else (loop (cons f acc) (add1 n))])])))
+  ;; Next frame as (cons event-name jsexpr), or #f. Generous: a subprocess boot
+  ;; is in here the first time.
+  (define (next-frame frames [timeout 30])
+    (define f (sync/timeout timeout frames))
+    (and f (cons (car f) (string->jsexpr (cdr f)))))
 
-;; What a list of frames SAYS it is, in order. Two spellings because frames
-;; come two ways: named pairs off the broadcast channel, and bare jsexprs off
-;; a stream or a catch-up.
-(define (frame-types fs) (jsexpr-types (map cdr fs)))
+  ;; Every frame up to and including the first one of `type` — the whole turn as
+  ;; one value, so a test can assert the SEQUENCE rather than poll for parts.
+  (define (frames-through frames type [timeout 30])
+    (let loop ([acc '()] [n 0])
+      (cond
+        [(> n 20) (reverse acc)]
+        [else
+         (define f (next-frame frames timeout))
+         (cond
+           [(not f) (reverse acc)]
+           [(equal? (hash-ref (cdr f) 'type #f) type) (reverse (cons f acc))]
+           [else (loop (cons f acc) (add1 n))])])))
 
-(define (jsexpr-types fs)
-  (for/list ([f (in-list fs)]) (hash-ref f 'type #f)))
+  ;; What a list of frames SAYS it is, in order. Two spellings because frames
+  ;; come two ways: named pairs off the broadcast channel, and bare jsexprs off
+  ;; a stream or a catch-up.
+  (define (frame-types fs) (jsexpr-types (map cdr fs)))
 
-;; The frames of one type, in order — an assertion about WHAT a frame said
-;; rather than about where in the sequence it landed (the sequence has its own
-;; check, right above every one of these).
-(define (frames-of fs type)
-  (for/list ([f (in-list fs)]
-             #:when (equal? (hash-ref (cdr f) 'type #f) type))
-    (cdr f)))
+  (define (jsexpr-types fs)
+    (for/list ([f (in-list fs)]) (hash-ref f 'type #f)))
 
-(define (frame-of fs type)
-  (define hits (frames-of fs type))
-  (and (pair? hits) (car hits)))
+  ;; The frames of one type, in order — an assertion about WHAT a frame said
+  ;; rather than about where in the sequence it landed (the sequence has its own
+  ;; check, right above every one of these).
+  (define (frames-of fs type)
+    (for/list ([f (in-list fs)]
+               #:when (equal? (hash-ref (cdr f) 'type #f) type))
+      (cdr f)))
 
-;; What a session says about itself the moment it exists: which conversation
-;; (twice — the id as soon as there is one, the name when the agent has written
-;; one), which model it runs, which slash commands it offers. A bridge that
-;; boots lazily says all of it inside the first turn, which is the turn that
-;; booted it.
-(define boot-frames '("session" "model" "commands" "session"))
+  (define (frame-of fs type)
+    (define hits (frames-of fs type))
+    (and (pair? hits) (car hits)))
 
-;; A command list as pairs, and its key count beside it. A frame's hashes come
-;; back from read-json and the bridge's are its own, so the comparison is over
-;; content — and the count is how "and nothing else" is said.
-(define (command-pairs cs)
-  (for/list ([c (in-list cs)])
-    (list (hash-ref c 'name #f) (hash-ref c 'description #f) (hash-count c))))
+  ;; What a session says about itself the moment it exists: which conversation
+  ;; (twice — the id as soon as there is one, the name when the agent has written
+  ;; one), which model it runs, which slash commands it offers. A bridge that
+  ;; boots lazily says all of it inside the first turn, which is the turn that
+  ;; booted it.
+  (define boot-frames '("session" "model" "commands" "session"))
 
-;; A conversation with nothing behind it: the agent is never spawned, and the
-;; events a client would have delivered are handed over by hand.
-;; -> (proc chat frame-channel).
-(define (with-events proc)
-  (define frames (make-async-channel))
-  (define ch (make-chat #:command fake-agent
-                        #:cwd (find-system-path 'temp-dir)
-                        #:broadcast (λ (name data) (async-channel-put frames (cons name data)))
-                        #:log-port (open-output-string)))
-  (dynamic-wind void (λ () (proc ch frames)) (λ () (chat-stop! ch))))
+  ;; A command list as pairs, and its key count beside it. A frame's hashes come
+  ;; back from read-json and the bridge's are its own, so the comparison is over
+  ;; content — and the count is how "and nothing else" is said.
+  (define (command-pairs cs)
+    (for/list ([c (in-list cs)])
+      (list (hash-ref c 'name #f) (hash-ref c 'description #f) (hash-count c))))
 
-(define (feed! ch . events)
-  (for ([ev (in-list events)]) (chat-handle-event! ch ev)))
+  ;; A conversation with nothing behind it: the agent is never spawned, and the
+  ;; events a client would have delivered are handed over by hand.
+  ;; -> (proc chat frame-channel).
+  (define (with-events proc)
+    (define frames (make-async-channel))
+    (define ch (make-chat #:command fake-agent
+                          #:cwd (find-system-path 'temp-dir)
+                          #:broadcast (λ (name data) (async-channel-put frames (cons name data)))
+                          #:log-port (open-output-string)))
+    (dynamic-wind void (λ () (proc ch frames)) (λ () (chat-stop! ch))))
 
-;; Every frame there is, in order. Synchronous by construction: the events were
-;; handed over on this thread, so whatever they broadcast is already here.
-(define (drain frames)
-  (let loop ([acc '()])
-    (define f (async-channel-try-get frames))
-    (if f
-        (loop (cons (cons (car f) (string->jsexpr (cdr f))) acc))
-        (reverse acc))))
+  (define (feed! ch . events)
+    (for ([ev (in-list events)]) (chat-handle-event! ch ev)))
 
-(define (wait-idle ag [seconds 30])
-  (define deadline (+ (current-inexact-milliseconds) (* 1000.0 seconds)))
-  (let loop ()
-    (cond
-      [(not (chat-busy? ag)) #t]
-      [(>= (current-inexact-milliseconds) deadline) #f]
-      [else (sleep 0.02) (loop)])))
+  ;; Every frame there is, in order. Synchronous by construction: the events were
+  ;; handed over on this thread, so whatever they broadcast is already here.
+  (define (drain frames)
+    (let loop ([acc '()])
+      (define f (async-channel-try-get frames))
+      (if f
+          (loop (cons (cons (car f) (string->jsexpr (cdr f))) acc))
+          (reverse acc))))
 
-;; ---- a server with an agent in it ------------------------------------------
+  (define (wait-idle ag [seconds 30])
+    (define deadline (+ (current-inexact-milliseconds) (* 1000.0 seconds)))
+    (let loop ()
+      (cond
+        [(not (chat-busy? ag)) #t]
+        [(>= (current-inexact-milliseconds) deadline) #f]
+        [else (sleep 0.02) (loop)])))
 
-(define outline
-  (string-append "#lang olai\n" "Inbox\n" "  Buy milk\n"))
+  ;; ---- a server with an agent in it ------------------------------------------
 
-;; Boots the real server with the fake agent wired in: (proc port agent).
-;;
-;; The server boots the agent itself now, in the background, so the body runs
-;; only once that has finished: everything the boot says (the session, the
-;; model, the commands) is already out, and what a test then asserts on the
-;; stream is the turn it asked for. #:booted? #f is the other side of that —
-;; the window in which `serve` answers requests while the agent is still waking
-;; up, which is a test's business only when it is about that window.
-(define (with-server proc #:booted? [booted? #t])
-  (define dir (make-temporary-file "sfacp~a" 'directory))
-  (define f (build-path dir "Tasks.rkt"))
-  (display-to-file outline f #:exists 'truncate)
-  (define bound #f)
-  (define agent #f)
-  (define stop
-    (start-server #:port 0
-                  #:bind "127.0.0.1"
-                  #:files (list f)
-                  #:acp-command fake-agent
-                  #:on-listen (λ (p) (set! bound p))
-                  #:on-agent (λ (a) (set! agent a))))
-  (dynamic-wind
-   void
-   (λ ()
-     (when booted? (check-true (wait-booted agent) "the agent never booted"))
-     (proc bound agent))
-   (λ ()
-     (stop)
-     (delete-directory/files dir))))
+  (define outline
+    (string-append "#lang olai\n" "Inbox\n" "  Buy milk\n"))
 
-;; -> #t once the bridge has said everything a boot says (see `boot-frames`).
-;;
-;; The session id is the FIRST of those, not the last: it comes off the
-;; session/new RESULT, while the commands and the conversation's name are still
-;; a round trip away, on session/set_mode. Waiting for the id alone let those
-;; two land after the body opened /events and inside its assertions. So wait
-;; for all three — whichever way the session was got, the last frame of the
-;; boot is one of them (a new session names itself last, an adopted one already
-;; had its name and finishes on the commands).
-(define (wait-booted ag [seconds 30])
-  (define deadline (+ (current-inexact-milliseconds) (* 1000.0 seconds)))
-  (let loop ()
-    (cond
-      [(and (chat-session-id ag)
-            (pair? (chat-commands ag))
-            (chat-session-title ag))
-       #t]
-      [(>= (current-inexact-milliseconds) deadline) #f]
-      [else (sleep 0.02) (loop)])))
+  ;; Boots the real server with the fake agent wired in: (proc port agent).
+  ;;
+  ;; The server boots the agent itself now, in the background, so the body runs
+  ;; only once that has finished: everything the boot says (the session, the
+  ;; model, the commands) is already out, and what a test then asserts on the
+  ;; stream is the turn it asked for. #:booted? #f is the other side of that —
+  ;; the window in which `serve` answers requests while the agent is still waking
+  ;; up, which is a test's business only when it is about that window.
+  (define (with-server proc #:booted? [booted? #t])
+    (define dir (make-temporary-file "sfacp~a" 'directory))
+    (define f (build-path dir "Tasks.rkt"))
+    (display-to-file outline f #:exists 'truncate)
+    (define bound #f)
+    (define agent #f)
+    (define stop
+      (start-server #:port 0
+                    #:bind "127.0.0.1"
+                    #:files (list f)
+                    #:acp-command fake-agent
+                    #:on-listen (λ (p) (set! bound p))
+                    #:on-agent (λ (a) (set! agent a))))
+    (dynamic-wind
+     void
+     (λ ()
+       (when booted? (check-true (wait-booted agent) "the agent never booted"))
+       (proc bound agent))
+     (λ ()
+       (stop)
+       (delete-directory/files dir))))
 
-;; The fake agent keeps stored sessions only when it is told to (see its
-;; header): the environment is what the subprocess inherits, so this is set
-;; around the whole of a test, agent and all.
-(define (with-stored-sessions thunk)
-  (define env (current-environment-variables))
-  (dynamic-wind
-   (λ () (environment-variables-set! env #"OLAI_FAKE_ACP_STORED" #"1"))
-   thunk
-   (λ () (environment-variables-set! env #"OLAI_FAKE_ACP_STORED" #f))))
+  ;; -> #t once the bridge has said everything a boot says (see `boot-frames`).
+  ;;
+  ;; The session id is the FIRST of those, not the last: it comes off the
+  ;; session/new RESULT, while the commands and the conversation's name are still
+  ;; a round trip away, on session/set_mode. Waiting for the id alone let those
+  ;; two land after the body opened /events and inside its assertions. So wait
+  ;; for all three — whichever way the session was got, the last frame of the
+  ;; boot is one of them (a new session names itself last, an adopted one already
+  ;; had its name and finishes on the commands).
+  (define (wait-booted ag [seconds 30])
+    (define deadline (+ (current-inexact-milliseconds) (* 1000.0 seconds)))
+    (let loop ()
+      (cond
+        [(and (chat-session-id ag)
+              (pair? (chat-commands ag))
+              (chat-session-title ag))
+         #t]
+        [(>= (current-inexact-milliseconds) deadline) #f]
+        [else (sleep 0.02) (loop)])))
 
-;; /events never ends, so this keeps the port. Same shape as
-;; tests/integration/serve.rkt.
-;;
-;; A connection is told the conversation on the way in (web/chat's catch-up),
-;; and every test here opens one after the boot — so what a test is ABOUT
-;; starts after that, and this reads it off. #:caught-up-through is the last
-;; frame of the catch-up: the command list is the last thing a booted, empty
-;; conversation has to say, and a server that adopted a stored session ends on
-;; the replayed turn's `done`. #f keeps the whole stream, which is what the
-;; tests about the catch-up itself want.
-(define (open-events port #:caught-up-through [through "commands"])
-  (define-values (_status _headers in)
-    (http-sendrecv "127.0.0.1" "/events" #:port port #:method #"GET"))
-  (when through (events-through in through))
-  in)
+  ;; The fake agent keeps stored sessions only when it is told to (see its
+  ;; header): the environment is what the subprocess inherits, so this is set
+  ;; around the whole of a test, agent and all.
+  (define (with-stored-sessions thunk)
+    (define env (current-environment-variables))
+    (dynamic-wind
+     (λ () (environment-variables-set! env #"OLAI_FAKE_ACP_STORED" #"1"))
+     thunk
+     (λ () (environment-variables-set! env #"OLAI_FAKE_ACP_STORED" #f))))
 
-;; Next real event on the stream: -> (cons name data) | #f. The heartbeat is
-;; framing, not news — it is a named event (a client has to be able to notice
-;; it stopping, and a comment is invisible to one), and this is where it stops
-;; being anything a test about the conversation has to know.
-(define (next-event in #:timeout [timeout 30])
-  (define deadline (+ (current-inexact-milliseconds) (* 1000.0 timeout)))
-  (let loop ([name #f] [data '()])
-    (define left (/ (- deadline (current-inexact-milliseconds)) 1000.0))
-    (define line (and (positive? left)
-                      (sync/timeout left (read-line-evt in 'linefeed))))
-    (cond
-      [(or (not line) (eof-object? line)) #f]
-      [(string=? line "")
-       (cond
-         [(equal? name heartbeat-event) (loop #f '())]
-         [name (cons name (string-join (reverse data) "\n"))]
-         [else (loop #f '())])]
-      [(string-prefix? line "event: ") (loop (substring line 7) data)]
-      [(string-prefix? line "data: ") (loop name (cons (substring line 6) data))]
-      [else (loop name data)])))
+  ;; /events never ends, so this keeps the port. Same shape as
+  ;; tests/integration/serve.rkt.
+  ;;
+  ;; A connection is told the conversation on the way in (web/chat's catch-up),
+  ;; and every test here opens one after the boot — so what a test is ABOUT
+  ;; starts after that, and this reads it off. #:caught-up-through is the last
+  ;; frame of the catch-up: the command list is the last thing a booted, empty
+  ;; conversation has to say, and a server that adopted a stored session ends on
+  ;; the replayed turn's `done`. #f keeps the whole stream, which is what the
+  ;; tests about the catch-up itself want.
+  (define (open-events port #:caught-up-through [through "commands"])
+    (define-values (_status _headers in)
+      (http-sendrecv "127.0.0.1" "/events" #:port port #:method #"GET"))
+    (when through (events-through in through))
+    in)
 
-;; -> (values status-code body-string). A form post, the way the panel sends
-;; one; `fields` is an alist, url-encoded here rather than by hand.
-(define (POST port path [fields '()])
-  (define-values (status _headers in)
-    (http-sendrecv "127.0.0.1" path #:port port #:method #"POST"
-                   #:headers (list #"Content-Type: application/x-www-form-urlencoded")
-                   #:data (alist->form-urlencoded fields)))
-  (define body (port->string in))
-  (close-input-port in)
-  (values (string->number (cadr (string-split (bytes->string/utf-8 status) " ")))
-          body))
+  ;; Next real event on the stream: -> (cons name data) | #f. The heartbeat is
+  ;; framing, not news — it is a named event (a client has to be able to notice
+  ;; it stopping, and a comment is invisible to one), and this is where it stops
+  ;; being anything a test about the conversation has to know.
+  (define (next-event in #:timeout [timeout 30])
+    (define deadline (+ (current-inexact-milliseconds) (* 1000.0 timeout)))
+    (let loop ([name #f] [data '()])
+      (define left (/ (- deadline (current-inexact-milliseconds)) 1000.0))
+      (define line (and (positive? left)
+                        (sync/timeout left (read-line-evt in 'linefeed))))
+      (cond
+        [(or (not line) (eof-object? line)) #f]
+        [(string=? line "")
+         (cond
+           [(equal? name heartbeat-event) (loop #f '())]
+           [name (cons name (string-join (reverse data) "\n"))]
+           [else (loop #f '())])]
+        [(string-prefix? line "event: ") (loop (substring line 7) data)]
+        [(string-prefix? line "data: ") (loop name (cons (substring line 6) data))]
+        [else (loop name data)])))
 
-(define (GET port path)
-  (define-values (status _headers in)
-    (http-sendrecv "127.0.0.1" path #:port port #:method #"GET"))
-  (define body (port->string in))
-  (close-input-port in)
-  (values (string->number (cadr (string-split (bytes->string/utf-8 status) " ")))
-          body))
+  ;; -> (values status-code body-string). A form post, the way the panel sends
+  ;; one; `fields` is an alist, url-encoded here rather than by hand.
+  (define (POST port path [fields '()])
+    (define-values (status _headers in)
+      (http-sendrecv "127.0.0.1" path #:port port #:method #"POST"
+                     #:headers (list #"Content-Type: application/x-www-form-urlencoded")
+                     #:data (alist->form-urlencoded fields)))
+    (define body (port->string in))
+    (close-input-port in)
+    (values (string->number (cadr (string-split (bytes->string/utf-8 status) " ")))
+            body))
 
-;; Frames off a live /events connection, up to and including the first one of
-;; `type`. Same idea as frames-through, one layer out: over HTTP.
-(define (events-through in type)
-  (let loop ([acc '()] [n 0])
-    (cond
-      [(> n 20) (reverse acc)]
-      [else
-       (define ev (next-event in))
-       (cond
-         [(not ev) (reverse acc)]
-         [else
-          (define js (string->jsexpr (cdr ev)))
-          (if (equal? (hash-ref js 'type #f) type)
-              (reverse (cons js acc))
-              (loop (cons js acc) (add1 n)))])])))
+  (define (GET port path)
+    (define-values (status _headers in)
+      (http-sendrecv "127.0.0.1" path #:port port #:method #"GET"))
+    (define body (port->string in))
+    (close-input-port in)
+    (values (string->number (cadr (string-split (bytes->string/utf-8 status) " ")))
+            body))
 
-;; ---- the CLI ---------------------------------------------------------------
+  ;; Frames off a live /events connection, up to and including the first one of
+  ;; `type`. Same idea as frames-through, one layer out: over HTTP.
+  (define (events-through in type)
+    (let loop ([acc '()] [n 0])
+      (cond
+        [(> n 20) (reverse acc)]
+        [else
+         (define ev (next-event in))
+         (cond
+           [(not ev) (reverse acc)]
+           [else
+            (define js (string->jsexpr (cdr ev)))
+            (if (equal? (hash-ref js 'type #f) type)
+                (reverse (cons js acc))
+                (loop (cons js acc) (add1 n)))])])))
 
-;; `olai serve ARGS` with OLAI_ACP_AGENT set to `agent` — or removed
-;; from the environment entirely when it is #f. -> (values sp stdout stderr).
-(define (start-serve agent args)
-  (define env (environment-variables-copy (current-environment-variables)))
-  (environment-variables-set! env #"OLAI_ACP_AGENT"
-                              (and agent (string->bytes/utf-8 agent)))
-  (define-values (sp stdout stdin stderr)
-    (parameterize ([current-environment-variables env])
-      (apply subprocess #f #f #f (find-executable-path "racket")
-             "-l" "olai/cli" "--" "serve" args)))
-  (close-output-port stdin)
-  (values sp stdout stderr))
+  ;; ---- the CLI ---------------------------------------------------------------
 
-;; A serve that is expected to REFUSE: -> (values exit-code stderr).
-(define (run-serve agent [args (list (path->string example))])
-  (define-values (sp stdout stderr) (start-serve agent args))
-  (define _out (port->string stdout))
-  (define err (port->string stderr))
-  (close-input-port stdout)
-  (close-input-port stderr)
-  (subprocess-wait sp)
-  (values (subprocess-status sp) err))
+  ;; `olai serve ARGS` with OLAI_ACP_AGENT set to `agent` — or removed
+  ;; from the environment entirely when it is #f. -> (values sp stdout stderr).
+  (define (start-serve agent args)
+    (define env (environment-variables-copy (current-environment-variables)))
+    (environment-variables-set! env #"OLAI_ACP_AGENT"
+                                (and agent (string->bytes/utf-8 agent)))
+    (define-values (sp stdout stdin stderr)
+      (parameterize ([current-environment-variables env])
+        (apply subprocess #f #f #f (find-executable-path "racket")
+               "-l" "olai/cli" "--" "serve" args)))
+    (close-output-port stdin)
+    (values sp stdout stderr))
 
-;; A serve that is expected to COME UP: (proc port announcement). The port is
-;; read off the announcement line (--port 0 picks one), and the subprocess is
-;; taken down on the way out whether the body finished or not.
-(define (with-serve args proc)
-  (define-values (sp stdout stderr)
-    (start-serve fake-agent (append (list "--port" "0") args)))
-  (dynamic-wind
-   void
-   (λ ()
-     (define line (sync/timeout 60 (read-line-evt stdout 'any)))
-     (check-true (string? line) (format "serve said nothing: ~a" line))
-     (define m (regexp-match #rx"http://[^:]+:([0-9]+)" line))
-     (check-true (and m #t) (format "no url in ~s" line))
-     (proc (string->number (cadr m)) line))
-   (λ ()
-     (subprocess-kill sp #t)
-     (subprocess-wait sp)
-     (close-input-port stdout)
-     (close-input-port stderr))))
+  ;; A serve that is expected to REFUSE: -> (values exit-code stderr).
+  (define (run-serve agent [args (list (path->string example))])
+    (define-values (sp stdout stderr) (start-serve agent args))
+    (define _out (port->string stdout))
+    (define err (port->string stderr))
+    (close-input-port stdout)
+    (close-input-port stderr)
+    (subprocess-wait sp)
+    (values (subprocess-status sp) err))
+
+  ;; A serve that is expected to COME UP: (proc port announcement). The port is
+  ;; read off the announcement line (--port 0 picks one), and the subprocess is
+  ;; taken down on the way out whether the body finished or not.
+  (define (with-serve args proc)
+    (define-values (sp stdout stderr)
+      (start-serve fake-agent (append (list "--port" "0") args)))
+    (dynamic-wind
+     void
+     (λ ()
+       (define line (sync/timeout 60 (read-line-evt stdout 'any)))
+       (check-true (string? line) (format "serve said nothing: ~a" line))
+       (define m (regexp-match #rx"http://[^:]+:([0-9]+)" line))
+       (check-true (and m #t) (format "no url in ~s" line))
+       (proc (string->number (cadr m)) line))
+     (λ ()
+       (subprocess-kill sp #t)
+       (subprocess-wait sp)
+       (close-input-port stdout)
+       (close-input-port stderr)))))
 
 (module+ test
   ;; ---- a whole turn --------------------------------------------------------

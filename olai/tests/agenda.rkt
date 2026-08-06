@@ -1,14 +1,17 @@
 #lang racket/base
 
-(require rackunit
-         racket/list
+(require racket/list
          racket/path
          (except-in olai/lang/expander #%module-begin)
          olai/agenda)
 
-(define (tk title date desc kids #:done [done #f] #:doing [doing #f] #:id [id #f])
-  (make-task #:title title #:date date #:description desc #:done done
-             #:doing doing #:id id #:children kids #:key (or id title)))
+(module+ test
+  (require rackunit))
+
+(module+ test
+  (define (tk title date desc kids #:done [done #f] #:doing [doing #f] #:id [id #f])
+    (make-task #:title title #:date date #:description desc #:done done
+               #:doing doing #:id id #:children kids #:key (or id title))))
 
 (module+ test
   (define sample

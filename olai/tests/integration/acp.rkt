@@ -9,88 +9,91 @@
 ;; Events are compared by name and payload, never by print form: they are
 ;; structs, and a test that matched their printing would be testing racket.
 
-(require rackunit
-         racket/async-channel
+(require racket/async-channel
          racket/string
          olai/acp
          olai/ops)
 
-(define fake-agent
-  (path->string
-   (collection-file-path "fake-acp-agent.rkt" "olai" "tests" "integration")))
+(module+ test
+  (require rackunit))
 
-;; A file that exists and is not an executable: the other way to get the
-;; agent's path wrong.
-(define example
-  (build-path (simplify-path (build-path (collection-file-path "info.rkt" "olai")
-                                         'up 'up))
-              "examples" "Example.rkt"))
+(module+ test
+  (define fake-agent
+    (path->string
+     (collection-file-path "fake-acp-agent.rkt" "olai" "tests" "integration")))
 
-;; -> (values client event-channel log-port). The subprocess is stopped on the
-;; way out whether the body finished or not.
-(define (with-client proc)
-  (define events (make-async-channel))
-  (define log (open-output-string))
-  (define cl (make-acp-client #:command fake-agent
-                              #:cwd (find-system-path 'temp-dir)
-                              #:on-event (λ (ev) (async-channel-put events ev))
-                              #:log-port log))
-  (dynamic-wind void (λ () (proc cl events log)) (λ () (acp-stop! cl))))
+  ;; A file that exists and is not an executable: the other way to get the
+  ;; agent's path wrong.
+  (define example
+    (build-path (simplify-path (build-path (collection-file-path "info.rkt" "olai")
+                                           'up 'up))
+                "examples" "Example.rkt"))
 
-;; What an event IS, in one word, so a sequence can be asserted as one value.
-(define (event-name ev)
-  (cond
-    [(acp-said? ev) 'said]
-    [(acp-user-said? ev) 'user-said]
-    [(acp-tool? ev) 'tool]
-    [(acp-tool-moved? ev) 'tool-moved]
-    [(acp-config-model? ev) 'config-model]
-    [(acp-live-model? ev) 'live-model]
-    [(acp-commands? ev) 'commands]
-    [(acp-session? ev) 'session]
-    [(acp-session-titled? ev) 'session-titled]
-    [(acp-session-over? ev) 'session-over]
-    [(acp-replay-started? ev) 'replay-started]
-    [(acp-replay-ended? ev) 'replay-ended]
-    [(acp-gone? ev) 'gone]
-    [(acp-trouble? ev) 'trouble]
-    [else 'unknown]))
+  ;; -> (values client event-channel log-port). The subprocess is stopped on the
+  ;; way out whether the body finished or not.
+  (define (with-client proc)
+    (define events (make-async-channel))
+    (define log (open-output-string))
+    (define cl (make-acp-client #:command fake-agent
+                                #:cwd (find-system-path 'temp-dir)
+                                #:on-event (λ (ev) (async-channel-put events ev))
+                                #:log-port log))
+    (dynamic-wind void (λ () (proc cl events log)) (λ () (acp-stop! cl))))
 
-(define (next-event events [timeout 30])
-  (sync/timeout timeout events))
-
-;; Every event up to and including the first one named `name` — the whole boot
-;; (or turn) as one value, so a test can assert the SEQUENCE rather than poll
-;; for parts.
-(define (events-through events name [timeout 30])
-  (let loop ([acc '()] [n 0])
+  ;; What an event IS, in one word, so a sequence can be asserted as one value.
+  (define (event-name ev)
     (cond
-      [(> n 20) (reverse acc)]
-      [else
-       (define ev (next-event events timeout))
-       (cond
-         [(not ev) (reverse acc)]
-         [(eq? (event-name ev) name) (reverse (cons ev acc))]
-         [else (loop (cons ev acc) (add1 n))])])))
+      [(acp-said? ev) 'said]
+      [(acp-user-said? ev) 'user-said]
+      [(acp-tool? ev) 'tool]
+      [(acp-tool-moved? ev) 'tool-moved]
+      [(acp-config-model? ev) 'config-model]
+      [(acp-live-model? ev) 'live-model]
+      [(acp-commands? ev) 'commands]
+      [(acp-session? ev) 'session]
+      [(acp-session-titled? ev) 'session-titled]
+      [(acp-session-over? ev) 'session-over]
+      [(acp-replay-started? ev) 'replay-started]
+      [(acp-replay-ended? ev) 'replay-ended]
+      [(acp-gone? ev) 'gone]
+      [(acp-trouble? ev) 'trouble]
+      [else 'unknown]))
 
-(define (event-names evs) (map event-name evs))
+  (define (next-event events [timeout 30])
+    (sync/timeout timeout events))
 
-(define (event-of evs name)
-  (for/or ([ev (in-list evs)]) (and (eq? (event-name ev) name) ev)))
+  ;; Every event up to and including the first one named `name` — the whole boot
+  ;; (or turn) as one value, so a test can assert the SEQUENCE rather than poll
+  ;; for parts.
+  (define (events-through events name [timeout 30])
+    (let loop ([acc '()] [n 0])
+      (cond
+        [(> n 20) (reverse acc)]
+        [else
+         (define ev (next-event events timeout))
+         (cond
+           [(not ev) (reverse acc)]
+           [(eq? (event-name ev) name) (reverse (cons ev acc))]
+           [else (loop (cons ev acc) (add1 n))])])))
 
-;; The fake agent keeps stored sessions only when it is told to, and `mode`
-;; says whose (see its header): the environment is what the subprocess
-;; inherits, so this is set around the whole of a test, agent and all.
-(define (with-stored-sessions thunk [mode #"1"])
-  (define env (current-environment-variables))
-  (dynamic-wind
-   (λ () (environment-variables-set! env #"OLAI_FAKE_ACP_STORED" mode))
-   thunk
-   (λ () (environment-variables-set! env #"OLAI_FAKE_ACP_STORED" #f))))
+  (define (event-names evs) (map event-name evs))
 
-;; What a boot says, once there is a session: which conversation, what it runs,
-;; what it offers, and the name the agent wrote for it.
-(define boot-events '(session-over session config-model commands session-titled))
+  (define (event-of evs name)
+    (for/or ([ev (in-list evs)]) (and (eq? (event-name ev) name) ev)))
+
+  ;; The fake agent keeps stored sessions only when it is told to, and `mode`
+  ;; says whose (see its header): the environment is what the subprocess
+  ;; inherits, so this is set around the whole of a test, agent and all.
+  (define (with-stored-sessions thunk [mode #"1"])
+    (define env (current-environment-variables))
+    (dynamic-wind
+     (λ () (environment-variables-set! env #"OLAI_FAKE_ACP_STORED" mode))
+     thunk
+     (λ () (environment-variables-set! env #"OLAI_FAKE_ACP_STORED" #f))))
+
+  ;; What a boot says, once there is a session: which conversation, what it runs,
+  ;; what it offers, and the name the agent wrote for it.
+  (define boot-events '(session-over session config-model commands session-titled)))
 
 (module+ test
   ;; ---- coming up -----------------------------------------------------------
