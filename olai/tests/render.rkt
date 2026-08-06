@@ -747,7 +747,7 @@
     (check-true (string-contains? s "src=\"/static/pwa.js\"") s)
     (check-false (string-contains? s "tailwind") s)
     (check-false (string-contains? s "cdn.") s)
-    (check-true (string-contains? s "<aside class=\"ol-sidebar\"") s)
+    (check-true (string-contains? s "<aside class=\"ol-sidebar-col\"") s)
     (check-true (string-contains? s "<main class=\"ol-main\">") s)
     ;; PWA install surface: manifest + icons + iOS home-screen meta
     (check-true (string-contains? s "rel=\"manifest\"") s)

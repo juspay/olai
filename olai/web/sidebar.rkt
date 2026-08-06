@@ -45,19 +45,19 @@
                 (#:zoom-base (or/c string? #f))
                 list?)]))
 
-;; `#:id` because this module already binds `ol-sidebar` — the CSS class the
-;; same element wears. The page has always called the element #ol-sidebar and
-;; still does; only the Racket name moves out of the way.
+;; The binding's name IS the element id, always: that is what keeps `#ol-sidebar`
+;; from being written anywhere. The CSS class this element also wears wanted the
+;; same word and gave it up — it is `ol-sidebar-col` below, which says what it
+;; is (the column) rather than what it is called.
 ;;
 ;; `#:history? #f` is the page-global decision two regions force: htmx honours
 ;; the FIRST history element in the document, and Back has to restore the
 ;; outline. This one yields, exactly as the counters example's ticker does.
-(define-live-region sidebar-region #:stream outline-events #:history? #f
-  #:id "ol-sidebar")
+(define-live-region ol-sidebar #:stream outline-events #:history? #f)
 
 ;; A column that stays put while the outline scrolls — until the screen is a
 ;; phone's, where there is only one column and it becomes a header.
-(define-style ol-sidebar
+(define-style ol-sidebar-col
   #:flex (0 0 ,sidebar-w)
   #:width ,sidebar-w
   #:padding (1.25rem 0.75rem 3rem 1rem)
@@ -187,7 +187,7 @@
   ;; page drew it. Harmless, and not luck: the tree is the whole outline and
   ;; says the same thing on every page, so any address answers with the same
   ;; #ol-sidebar.
-  `(aside ((class ,ol-sidebar) ,@(live-region sidebar-region #:href href))
+  `(aside ((class ,ol-sidebar-col) ,@(live-region ol-sidebar #:href href))
           (div ((class ,ol-brand))
                (a ((class ,ol-brand-link) ,@(live-link ol-live home-href))
                   "olai"))

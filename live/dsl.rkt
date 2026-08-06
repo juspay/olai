@@ -360,22 +360,16 @@
 
 ;; ---- the drawer's end --------------------------------------------------------
 
-;; (define-live-region name #:stream stream
-;;                          [#:event event-name] [#:history? bool] [#:id string])
+;; (define-live-region name #:stream stream [#:event event-name] [#:history? bool])
 ;;
 ;; Declares the region a module DRAWS: one element that re-fetches its own
-;; address and morphs the reply onto itself. `name` is the element's id, so it
-;; is written once and every selector, target and link is derived from it.
+;; address and morphs the reply onto itself. The binding's name IS the
+;; element's id — always, with no way to say otherwise — so it is written once
+;; and every selector, target and link is derived from it. A module that
+;; already binds that name for something else renames the something else.
 ;;
 ;;   (define-live-region clist #:stream counts)
 ;;   (define-live-region ticker #:stream clock #:history? #f)
-;;
-;; `#:id` is for the one case the default cannot serve: a module that already
-;; binds that name for something else — a CSS class of the same spelling, most
-;; likely, since an element's class and its id often want the same word. Then
-;; the BINDING is renamed and the id stays what the page has always called it.
-;; Spelled out on one line rather than left to drift, and a literal, so it is
-;; still written exactly once.
 ;;
 ;; `#:event` names which of the stream's events this region redraws on, and may
 ;; be left out when the stream declares exactly one — with two or more, leaving
@@ -389,15 +383,11 @@
     [(_ name:id
         (~alt (~once (~seq #:stream stream:id))
               (~optional (~seq #:event event:id))
-              (~optional (~seq #:history? history:boolean))
-              (~optional (~seq #:id element-id:str)))
+              (~optional (~seq #:history? history:boolean)))
         ...)
      (define sd (live-lookup 'stream #'stream 'define-live-region "#:stream"))
      (define events (stream-decl-events sd))
-     (define name-str
-       (if (attribute element-id)
-           (syntax-e (attribute element-id))
-           (symbol->string (syntax-e #'name))))
+     (define name-str (symbol->string (syntax-e #'name)))
      (define chosen
        (cond
          [(attribute event)
