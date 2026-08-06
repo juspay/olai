@@ -33,6 +33,39 @@
     if(b)closePop();
   }
 
+  // ---- how tall the panel may be -----------------------------------------
+  //
+  // visualViewport is the strip the browser is actually showing, which on a
+  // phone is not the viewport it laid the page out in — the keyboard covers
+  // the bottom of that without shrinking it. --visible-h / --visible-bottom
+  // are that reading, and web/chat-panel is where they are declared and what
+  // the panel is sized by; this is the mirror that keeps them true.
+  var visibleH,visibleBottom;
+
+  function measureViewport(){
+    var vv=window.visualViewport;
+    if(!vv)return;
+    // clientHeight, not innerHeight: the layout viewport a fixed box is placed
+    // in has no room for scrollbars either, and visualViewport does not count
+    // them
+    var h=Math.round(vv.height)+'px';
+    var bottom=Math.max(0,Math.round(document.documentElement.clientHeight
+                                     -vv.height-vv.offsetTop))+'px';
+    // Both properties inherit, so writing one costs every node on the page a
+    // style recalc — and this fires on every frame of a keyboard sliding up
+    // and of an address bar sliding away, most of which move nothing.
+    if(h===visibleH&&bottom===visibleBottom)return;
+    visibleH=h;visibleBottom=bottom;
+    // read before the write that reflows: the panel is about to get shorter,
+    // and a reader at the bottom of the transcript stays there rather than
+    // watching the message they are answering scroll off
+    var stick=body&&panel.classList.contains('is-open')&&nearBottom();
+    var style=document.documentElement.style;
+    style.setProperty('--visible-h',h);
+    style.setProperty('--visible-bottom',bottom);
+    if(stick)body.scrollTop=body.scrollHeight;
+  }
+
   // ---- the message body --------------------------------------------------
 
   function nearBottom(){
@@ -363,6 +396,16 @@
       agentEl=turn?turn.querySelector('.ol-chat-msg.is-agent'):null;
     }
     if(body)body.scrollTop=body.scrollHeight;
+
+    // The keyboard coming up and going down is a visualViewport resize; so is
+    // an address bar sliding away, and so is a rotation. Its `scroll` is the
+    // visible strip moving inside the layout viewport, which moves the panel's
+    // bottom edge just as much.
+    measureViewport();
+    if(window.visualViewport){
+      window.visualViewport.addEventListener('resize',measureViewport);
+      window.visualViewport.addEventListener('scroll',measureViewport);
+    }
 
     document.addEventListener('click',function(e){
       var t=e.target.closest('[data-post],[data-chat-toggle],[data-chat-commands],[data-chat-sessions]');

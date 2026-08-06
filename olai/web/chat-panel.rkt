@@ -69,7 +69,9 @@
 ;; ---- the dock -------------------------------------------------------------
 
 ;; The outline stays the star. The panel is fixed to the right edge, closed
-;; until asked for, and the main pane makes room rather than being covered.
+;; until asked for, and the main pane makes room rather than being covered —
+;; until the screen is too narrow for two columns, where it is a sheet over the
+;; outline instead (sheet mode, at the end of the rules below).
 ;; The dock itself is not a box: its two children place themselves.
 (define-style ol-chat-dock #:display contents)
 
@@ -80,7 +82,8 @@
   #:bottom (apply max 1rem (apply env safe-area-inset-bottom))
   #:z-index 20
   #:padding (0.5rem 0.875rem)
-  #:min-height 2.75rem
+  ;; a thing a thumb aims at, whatever the label says (theme.rkt, touch-min)
+  #:min-height ,touch-min
   #:border (1px solid ,line)
   #:border-radius 9999px
   #:background ,paper-2
@@ -111,13 +114,34 @@
 
 ;; ---- the panel ------------------------------------------------------------
 
+;; What the browser is SHOWING, which on a phone is not what it laid out. The
+;; panel is fixed, so it is placed against the LAYOUT viewport — and an
+;; on-screen keyboard covers the bottom of that without shrinking it. A panel
+;; at `top: 0; bottom: 0` therefore spent the whole time you were typing with
+;; its input row behind the keyboard, which is the one thing you are looking
+;; at. --visible-h is the height of the strip that is actually on screen and
+;; --visible-bottom is how far below it the layout viewport's bottom edge sits,
+;; which is what a fixed box has to be lifted by.
+;;
+;; The panel's own vocabulary, not the theme's: nothing else reads them, and
+;; they are not a design choice but a reading of one browser. static/chat.js
+;; takes that reading (visualViewport) and keeps them in step; the values here
+;; are what a page whose scripts have not run gets, and where a desktop browser
+;; stays — the whole viewport, flush with the bottom, which is what the side
+;; panel always was.
+(define-tokens chat-viewport-tokens visible-h visible-bottom)
+
+(register-fragment!
+ #:layer 'base
+ (css-expr [(: root) #:--visible-h 100dvh #:--visible-bottom 0px]))
+
 (define-style ol-chat
   #:position fixed
-  #:top 0
   #:right 0
-  #:bottom 0
   #:z-index 19
   #:width ,chat-w
+  #:bottom ,visible-bottom
+  #:height ,visible-h
   #:display none
   #:flex-direction column
   #:border-left (1px solid ,line)
@@ -127,10 +151,11 @@
   ;; fixed, so body padding does not protect it: pad for the notch / home bar
   #:padding-top (apply env safe-area-inset-top)
   #:padding-right (apply env safe-area-inset-right)
-  #:padding-bottom (apply env safe-area-inset-bottom)
-  [,(sel '& is-open) #:display flex]
-  ;; a phone has no room beside the outline: the panel is a sheet over it
-  [@ media (#:max-width ,phone-max) #:width 100% #:left 0 #:border-left 0])
+  ;; the home-bar inset, minus whatever a keyboard is already covering: pad for
+  ;; it twice and the input row floats a thumb's width above the keyboard
+  #:padding-bottom (apply max 0px (apply calc (- (apply env safe-area-inset-bottom)
+                                                 ,visible-bottom)))
+  [,(sel '& is-open) #:display flex])
 
 ;; The panel does not cover the outline: the reading column gives up the width
 ;; it takes. The SUBJECT here is another module's — the document and the
@@ -149,7 +174,10 @@
  (css-expr
   [((: ,(sel 'body ol-body) (apply has ,(sel ol-chat is-open))) ,(sel ol-main))
    #:margin-right (apply calc (+ ,chat-w 1.5rem))
-   ;; on a phone the sheet covers it anyway, so there is nothing to make room for
+   ;; The other half of sheet mode (see the block at the end of this module):
+   ;; below phone-max the panel covers the outline instead of sitting beside it,
+   ;; so there is nothing to make room for — and a gutter the width of the
+   ;; panel would leave the reading column with nothing.
    [@ media (#:max-width ,phone-max) #:margin-right 0]]))
 
 (define-style ol-chat-head
@@ -417,6 +445,45 @@
  (css-expr
   [,(sel ol-chat-stop) (,(sel ol-chat is-busy) ,(sel ol-chat-send)) #:display none]
   [(,(sel ol-chat is-busy) ,(sel ol-chat-stop)) #:display inline-block]))
+
+;; ---- sheet mode -----------------------------------------------------------
+;;
+;; A phone has no room beside the outline: below phone-max the panel stops
+;; being a side panel and becomes a SHEET over it. That is ONE decision, so it
+;; is one block — everything that is different about the narrow panel is here,
+;; and nothing anywhere else has a phone-width opinion about it. (The one rule
+;; it cannot hold is the outline's gutter, whose subject is another module's
+;; class and which therefore has to live in the 'overlay fragment above; it
+;; says there that it is the same mode.)
+;;
+;; Last in the module, because every rule here repaints one stated above it,
+;; and a media query adds no specificity to win with.
+;;
+;; What it does NOT touch is `display`: the panel's own states hang off that
+;; (a stop button that hides while idle, a commands button that hides with
+;; nothing to offer), and a phone-width rule landing after them would show
+;; both.
+(register-fragment!
+ (css-expr
+  [@ media (#:max-width ,phone-max)
+     ;; full bleed, and no border against a column that is not beside it
+     [,(sel ol-chat) #:width 100% #:border-left 0]
+     ;; The same target the floating toggle keeps, for the same reason: at the
+     ;; panel's own scale these were 20px boxes around 11px glyphs, and on a
+     ;; phone the header's × is the ONLY way out of the sheet — the toggle it
+     ;; would otherwise be is underneath it. A button centres its own label, so
+     ;; a minimum is all this takes.
+     [,(sel ol-chat-btn) ,(sel ol-chat-send) ,(sel ol-chat-stop)
+      #:min-height ,touch-min
+      #:padding (0.25rem 0.75rem)
+      #:font-size 0.8125rem
+      ;; a two-word label in a box this size wraps, and a wrapped label makes
+      ;; the row it sits in taller than the finger it was widened for
+      #:white-space nowrap]
+     ;; 16px is a threshold, not a taste: iOS Safari zooms the page in when you
+     ;; focus an input whose type is smaller and does not zoom back out, so the
+     ;; sheet ends up wider than the screen with the send button off the edge.
+     [,(sel ol-chat-input) #:min-height ,touch-min #:font-size 1rem]]))
 
 ;; ---- the markup -----------------------------------------------------------
 

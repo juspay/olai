@@ -83,10 +83,10 @@
 (define-tokens layout-tokens
   sans mono sidebar-w chat-w indent radius)
 
-;; Three constants that are not custom properties because CSS cannot read one
-;; where they are used — a media query's width, and two values a rule repeats
+;; Four constants that are not custom properties because CSS cannot read one
+;; where they are used — a media query's width, and three values a rule repeats
 ;; verbatim. They are still the skin's, and still spelled once.
-(provide phone-max busy-beat micro-size)
+(provide phone-max busy-beat micro-size touch-min)
 
 ;; where two columns stop fitting: no sidebar beside the outline, no panel
 ;; beside either
@@ -96,6 +96,10 @@
 (define busy-beat '1.8s)
 ;; the smallest type in the skin: a label, a timestamp, a tool line
 (define micro-size '0.6875rem)
+;; how big a thing a finger aims at has to be — 44px, the number both mobile
+;; platforms print in their guidelines. The floating toggle and the panel's
+;; controls in sheet mode are the same decision, so it is one binding
+(define touch-min '2.75rem)
 
 ;; ---- the themes -----------------------------------------------------------
 ;;
