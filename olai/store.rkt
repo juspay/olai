@@ -38,7 +38,7 @@
          ;; and every pattern an @include starred. The one kind of dependency
          ;; that can move without a file the store already probed having been
          ;; touched, and it is asked, never remembered
-         (only-in olai/paths files-named)
+         (only-in olai/paths files-named root-dir)
          ;; where a @doc path points and what is in it; the store is the one
          ;; layer that reads one, because it is the one that knows when to
          ;; read it again
@@ -53,6 +53,7 @@
           [make-store (-> (or/c path? string?) store?)]
           [store? (-> any/c boolean?)]
           [store-root (-> store? path?)]
+          [store-questions (-> store? (listof path?))]
           [store-snapshot (-> store? snapshot?)]
           [store-error (-> store? (or/c load-error? #f))]
           [store-revision (-> store? exact-positive-integer?)]
@@ -209,15 +210,14 @@
       (values k (f k))))
   (probe (stamped paths file-stamp) (stamped questions question-answer)))
 
-;; Does everything still answer the way it did? An empty probe never does:
-;; before the first successful load there is nothing to have changed, and that
-;; is exactly the state a store has to keep trying to get out of. A store
-;; always has a root to ask about, so the empty case is the one nobody built.
+;; Does everything still answer the way it did? There is always something to
+;; ask — a store is built on a root and probes it whether or not anything
+;; loaded — so "nothing to compare, therefore current" is not a state this can
+;; be in, and the emptiness guard that used to say so is gone with it.
 (define (probe-current? pr)
   (define (all-agree? h f)
     (for/and ([(k v) (in-hash h)]) (equal? v (f k))))
-  (and (positive? (+ (hash-count (probe-files pr)) (hash-count (probe-questions pr))))
-       (all-agree? (probe-files pr) file-stamp)
+  (and (all-agree? (probe-files pr) file-stamp)
        (all-agree? (probe-questions pr) question-answer)))
 
 ;; The key of the day node titled `iso-day` (Daily.rkt keeps one per day), or
@@ -299,18 +299,16 @@
 ;;
 ;; `files` are CANDIDATES, and which of them are roots is load-roots' answer:
 ;; one that another one `@include`s is not one (see there).
-(define (load-all files)
+(define (load-all files base)
   (call-in-outline-namespace
    (λ ()
-     (define lk (load-roots files))
-     (cond
-       [(linked? lk)
-        ;; the same walk the roots were subtracted from, asked for its other
-        ;; two answers: what to watch, and what to ask again (olai/load)
-        (define-values (watch globs _spliced)
-          (include-closure (map outline-path (linked-outlines lk))))
-        (values lk #f watch globs)]
-       [else (values #f lk '() '())]))))
+     ;; one call, one walk: the roots come back subtracted, and with them the
+     ;; two things that walk already knows — what to watch, and what to ask
+     ;; again (olai/load)
+     (define-values (lk watch globs) (load-roots files #:base base))
+     (if (linked? lk)
+         (values lk #f watch globs)
+         (values #f lk '() '())))))
 
 ;; ---- the store ------------------------------------------------------------
 
@@ -344,7 +342,10 @@
   ;; asked again on every reload, never remembered: the whole point of the
   ;; directory form is that this answer moves
   (define files (files-named root))
-  (define-values (lk err watch globs) (load-all files))
+  ;; and keys are minted against the ROOT, not against what the answer had in
+  ;; common this time: an outline appearing higher up the tree must not re-key
+  ;; every node below it (olai/load, mint-outline-keys)
+  (define-values (lk err watch globs) (load-all files (root-dir root)))
   (cond
     [lk
      ;; probe what the SNAPSHOT says it is built from, not what load-all
@@ -356,7 +357,7 @@
      (set-store-err! st #f)
      (set-store-probe!
       st
-      (take-probe (snapshot-watch snap) (cons root (snapshot-globs snap))))]
+      (take-probe (snapshot-watch snap) (questions root (snapshot-globs snap))))]
     [else
      ;; Keep last-good. Probe the files we know about anyway, so a broken
      ;; file is retried on the next edit and not on every request. The globs
@@ -369,11 +370,21 @@
       st
       (take-probe (remove-duplicates (append files (snapshot-watch last-good))
                                      #:key path-key)
-                  (cons root (snapshot-globs last-good))))])
+                  (questions root (snapshot-globs last-good))))])
   (set-store-rev! st (add1 (store-rev st))))
 
 (define (stale? st)
   (not (probe-current? (store-probe st))))
+
+;; Everything this store will ASK again rather than remember: the root it was
+;; pointed at, and every pattern an `@include` starred. One list and one
+;; spelling of it — the probe compares their answers, and the watcher watches
+;; where they read (web/watch). A third kind of standing question is then one
+;; line here rather than a search for everywhere the two were consed together.
+(define (questions root globs) (cons root globs))
+
+(define (store-questions st)
+  (questions (store-root st) (snapshot-globs (store-snapshot st))))
 
 ;; Reload when any watched file changed on disk (#:force? reloads regardless).
 ;; The watcher and the write path both call this; handlers call it as their

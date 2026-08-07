@@ -36,6 +36,7 @@
 (provide (contract-out
           [include-glob? (-> string? boolean?)]
           [include-glob-problem (-> string? (or/c string? #f))]
+          [hidden-name? (-> string? boolean?)]
           [glob-dir (-> path? path?)]
           [glob-expand (-> path? (listof path?))]))
 
@@ -73,6 +74,16 @@
      "only the file name may be starred; the directory part of an @include is literal"]
     [else #f]))
 
+;; A leading dot is not something `*` matches, exactly as in a shell — and
+;; here that is load-bearing rather than a convention: `.#2026-08.rkt` is the
+;; lock file Emacs leaves beside a file it is editing, it is a dangling
+;; symlink, and reading it in would break an outline nobody had touched.
+;;
+;; Named, and not spelled where it is used, because the rule has a second
+;; asker: walking a directory TREE for outlines skips a dot-directory for the
+;; same reason (olai/paths), and two spellings of one rule are two rules.
+(define (hidden-name? name) (string-prefix? name "."))
+
 ;; The one directory an absolute pattern reads. This is the thing to watch:
 ;; the files in it are what the pattern's answer is made of.
 (define (glob-dir pattern)
@@ -96,11 +107,6 @@
 ;; that went away between two loads is a reload, not a crash. The LANGUAGE is
 ;; where a pattern with no directory to read is rejected (lang/expander).
 ;;
-;; A leading dot is not something `*` matches, exactly as in a shell — and
-;; here that is load-bearing rather than a convention: `.#2026-08.rkt` is the
-;; lock file Emacs leaves beside a file it is editing, it is a dangling
-;; symlink, and globbing it in would break an outline nobody had touched.
-;;
 ;; Names are sorted as STRINGS and only then turned back into paths: within
 ;; one directory the two orders are the same, and `sort #:key path->string`
 ;; re-converts on both sides of every comparison. This runs on every staleness
@@ -114,7 +120,7 @@
      (define names
        (sort (for*/list ([p (in-list (directory-list dir))]
                          [name (in-value (path->string p))]
-                         #:unless (string-prefix? name ".")
+                         #:unless (hidden-name? name)
                          #:when (regexp-match? rx name))
                name)
              string<?))

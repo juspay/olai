@@ -24,7 +24,7 @@
          olai/dates
          olai/load
          olai/ops
-         (only-in olai/paths files-named)
+         (only-in olai/paths files-named path-kind)
          (only-in olai/acp acp-command-problem)
          olai/web/serve)
 (define exit-ok 0)
@@ -363,7 +363,7 @@
                                  " (check / tree / agenda take a list)")
                   (length file-args))
           #:json? #f)]
-    [(directory-exists? (car file-args))
+    [(eq? (path-kind (car file-args)) 'dir)
      (define dir (simple-form-path (path->complete-path (car file-args))))
      (when (null? (files-named dir))
        (die exit-not-found
@@ -404,9 +404,7 @@
            ;; a directory's roots are re-asked as they change, so a list
            ;; printed once at boot is a list that stops being true.
            (printf "olai serve http://~a:~a ~a: ~a\n"
-                   (or bind "0.0.0.0") bound
-                   (if (directory-exists? root) "dir" "file")
-                   root)
+                   (or bind "0.0.0.0") bound (path-kind root) root)
            (flush-output))))))
   (with-handlers ([exn:break? (λ (_e) (void))])
     (sync/enable-break never-evt))

@@ -47,9 +47,11 @@
 ;; The archive that holds what `outline-file` archives: the one beside it.
 ;;
 ;; Beside the OUTLINE the command named, never beside the node's defining file
-;; — a fragment lives in a subdirectory (`Daily/2026-08.rkt`), and `serve DIR`
-;; globs the top level only, so an Archive.rkt down there would be a file the
-;; server never loads and every anchor that moved into it would go dark.
+;; — a fragment lives in a subdirectory (`Daily/2026-08.rkt`), and an
+;; Archive.rkt down there is one nobody would think to look for, sitting
+;; between the months. The outline you archived FROM is where you go looking
+;; for what you put away, and a `@doc` path that moved with the node still
+;; resolves from a file in the same directory.
 (define (archive-path-for outline-file)
   (define dir (path-only outline-file))
   (unless dir

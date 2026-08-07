@@ -75,9 +75,14 @@
      (or (sibling-declaring out a) out)]
     [_ out]))
 
-;; The other roots in this outline's directory, as `serve` globs them: top
-;; level only, so @include fragments (which live in subdirectories) are not
-;; loaded twice.
+;; The other outlines in this one's own directory — beside it, not under it.
+;;
+;; A narrower scope than the SET a `serve` loads (every outline under the
+;; directory it was pointed at, minus what something splices), and narrower on
+;; purpose: a write consults its neighbours to find where an `^anchor` it does
+;; not declare lives, and "the files beside this one" is a scope a person can
+;; see. Widening it to the whole tree would make a write's reach depend on how
+;; deep somebody's notes directory goes.
 ;;
 ;; This is deliberately weaker than the linker: first declaration wins, and a
 ;; sibling that does not load is simply not consulted. A READ answers about a

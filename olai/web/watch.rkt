@@ -59,25 +59,22 @@
 
 ;; ---- what to watch --------------------------------------------------------
 
-;; The parent directories of everything the outlines are built from, deduped.
+;; Where everything the store depends on READS, deduped — one question
+;; (olai/paths, dirs-read), asked of both halves of that dependency.
 ;;
-;; Two lists, because the store depends on two kinds of thing. The files it
-;; read are watched through their own directories (a save is a rename, which
-;; fires there). And every QUESTION it will ask again — the root it was
-;; pointed at, and each `@include` pattern — is watched wherever it READS,
-;; which is not the same list: a directory that has answered with nothing has
-;; no file here to take a parent of, and the first fragment of a new year
-;; appearing in one is precisely the event this whole arrangement exists to
-;; catch. That is also the state a watcher has to get out of before the first
-;; successful load, when the snapshot is empty and the root is all there is.
+;; The files it read answer with their own directory: a save is a rename, and
+;; a rename fires on the directory. Each QUESTION it will ask again — the root
+;; it was pointed at, and each `@include` pattern (olai/store, store-questions)
+;; — answers with everywhere it looks, which is not the same list: a directory
+;; that has matched nothing has no file here to take a parent of, and the first
+;; fragment of a new year appearing in one is precisely the event this whole
+;; arrangement exists to catch. It is also the state a watcher has to get out
+;; of before the first successful load, when the watch set is empty and the
+;; root is all there is.
 (define (watch-dirs st)
-  (define snap (store-snapshot st))
   (remove-duplicates
-   (filter values
-           (append
-            (for/list ([p (in-list (snapshot-watch snap))])
-              (path-only (simple-form-path p)))
-            (append-map dirs-read (cons (store-root st) (snapshot-globs snap)))))
+   (append-map dirs-read
+               (append (snapshot-watch (store-snapshot st)) (store-questions st)))
    #:key path->string))
 
 ;; -> evt | 'unsupported | #f (no such directory, nothing to watch yet)

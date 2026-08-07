@@ -36,6 +36,7 @@
 ;; opened, which the stream catches up before anything else.
 
 (require racket/async-channel
+         racket/match
          racket/path
          racket/port
          racket/promise
@@ -314,10 +315,9 @@
 ;; started on — a directory's roots are discovered as they appear, so a second
 ;; outline showing up is a page that stops being named after the first.
 (define (page-title snap)
-  (define files (map car (snapshot-files-data snap)))
-  (if (= (length files) 1)
-      (file-label (car files))
-      "olai"))
+  (match (snapshot-files-data snap)
+    [(list (list file _tasks)) (file-label file)]
+    [_ "olai"]))
 
 ;; EVERY page this module answers with, and the one altitude the <head>, the
 ;; sheet and the palettes are decided at: a route hands over the pane it drew

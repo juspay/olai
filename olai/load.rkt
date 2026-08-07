@@ -44,13 +44,16 @@
           [load-error-detail (-> load-error? string?)]
           [try-load-outline (-> path? (or/c outline? load-error?))]
           [load-set (-> (listof path?) (or/c linked? load-error?))]
-          [load-roots (-> (listof path?) (or/c linked? load-error?))]
-          [include-closure (-> (listof path?) (values (listof path?)
-                                                      (listof path?)
-                                                      hash?))]
+          [load-roots (->* ((listof path?))
+                           (#:base (or/c path? #f))
+                           (values (or/c linked? load-error?)
+                                   (listof path?)
+                                   (listof path?)))]
           [check-written (-> (listof path?) (or/c #f load-error?))]
-          [link-outlines (-> (listof outline?) (or/c linked? load-error?))]
-          [mint-outline-keys (-> (listof outline?) (listof outline?))]
+          [link-outlines (->* ((listof outline?)) (#:base (or/c path? #f))
+                              (or/c linked? load-error?))]
+          [mint-outline-keys (->* ((listof outline?)) (#:base (or/c path? #f))
+                                  (listof outline?))]
           [mint-task-keys (-> list? #:label (-> any/c string?) list?)]
           [exn-location (-> any/c any/c any)]
           [exn-message* (-> any/c string?)]
@@ -249,10 +252,10 @@
 ;; (lang/link) — the same rules and the same messages the module's own passes
 ;; use, and a failure arrives in the same four fields as any other load error,
 ;; because it is one.
-(define (link-outlines outs)
+(define (link-outlines outs #:base [base #f])
   (define fallback (and (pair? outs) (outline-path (car outs))))
   (with-handlers ([exn:fail? (λ (e) (exn->load-error e fallback))])
-    (define minted (mint-outline-keys outs))
+    (define minted (mint-outline-keys outs #:base base))
     (define roots (append* (map outline-tasks minted)))
     ;; The checker runs first and the derivation second, in that order and not
     ;; as a matter of taste: an edge naming nothing is a form that is wrong,
@@ -285,37 +288,49 @@
 ;;
 ;; The closure is walked rather than read off the candidates: a fragment may
 ;; live outside the directory that was served, and what IT includes is spliced
-;; just the same.
+;; just the same. That one walk answers everything the caller needs, which is
+;; why it answers three things:
 ;;
-;; -> linked, or the load-error of the first file that would not load, or of
-;; the set that would not link.
-(define (load-roots paths)
+;;   -> linked (or the load-error of the first file that would not load, or of
+;;      the set that would not link)
+;;   -> every file the set is built from, roots and fragments, in order: what
+;;      a caller must re-read when it changes (olai/store's watch set)
+;;   -> every pattern they starred: not files but QUESTIONS, whose answers the
+;;      graph was built from, so a new file in one's directory is a change no
+;;      file above records
+;;
+;; `#:base` is the directory node keys are minted relative to. A caller that
+;; KNOWS it — a store pointed at one directory — says so, because deriving it
+;; from the files (roots-base, which is right for a list somebody typed) would
+;; move it the day an outline appears higher up the tree, re-keying every node
+;; under it. Permalinks outlive that.
+(define (load-roots paths #:base [base #f])
   (define outs (load-each paths))
   (cond
-    [(load-error? outs) outs]
+    [(load-error? outs) (values outs '() '())]
     [else
-     (define-values (_files _globs spliced)
-       (include-closure (map outline-path outs)))
-     (link-outlines
-      (for/list ([o (in-list outs)]
-                 #:unless (hash-ref spliced (path-string (outline-path o)) #f))
-        o))]))
+     (define-values (files globs spliced) (include-closure (map outline-path outs)))
+     (values (link-outlines
+              (for/list ([o (in-list outs)]
+                         #:unless (hash-ref spliced (path-string (outline-path o)) #f))
+                o)
+              #:base base)
+             files
+             globs)]))
 
-;; The one spelling of a file's identity in every list compared here.
-(define (path-string p)
-  (path->string (simple-form-path (if (path? p) p (string->path p)))))
+;; The two spellings of a file's identity, one derived from the other: every
+;; list compared here is keyed by the string, and every path kept is the
+;; simplified one.
+(define (full-path p)
+  (simple-form-path (if (path? p) p (string->path p))))
 
-;; The `@include` graph reachable from `paths`, walked once and answered three
-;; ways, because the two callers want different halves of the same walk and a
-;; second walk is a second answer waiting to disagree:
-;;
-;;   files   : every file these are built from, starts included, in order.
-;;             What must be re-read when it changes (olai/store's watch set).
-;;   globs   : every pattern they starred, deduped. NOT files but questions:
-;;             their answers are what the graph was built from, so a new file
-;;             in one's directory is a change no file in `files` records.
-;;   spliced : path-string -> #t for every file something else `@include`s.
-;;             Which is to say: the files that are not roots (load-roots).
+(define (path-string p) (path->string (full-path p)))
+
+;; The `@include` graph reachable from `paths`: the files it is built from, the
+;; patterns it starred (deduped), and `spliced` — a path-string set of every
+;; file something else `@include`s, which is to say the ones that are not
+;; roots. One walk, because a second walk is a second answer waiting to
+;; disagree.
 ;;
 ;; A file is visited once — the module registry would hand back the same
 ;; module anyway, and a graph that reaches something twice has to end.
@@ -324,8 +339,7 @@
   (define spliced (make-hash))
   (define files '())
   (define globs '())
-  (define (visit p)
-    (define full (simple-form-path p))
+  (define (visit full)
     (define key (path->string full))
     (unless (hash-ref seen key #f)
       (hash-set! seen key #t)
@@ -334,15 +348,13 @@
       (when (outline? o)
         (set! globs (append (reverse (map full-path (outline-include-globs o))) globs))
         (for ([q (in-list (outline-includes o))])
-          (hash-set! spliced (path-string q) #t)
-          (visit (full-path q))))))
-  (for ([p (in-list paths)]) (visit p))
+          (define full-q (full-path q))
+          (hash-set! spliced (path->string full-q) #t)
+          (visit full-q)))))
+  (for ([p (in-list paths)]) (visit (full-path p)))
   (values (reverse files)
           (remove-duplicates (reverse globs) #:key path->string)
           spliced))
-
-(define (full-path p)
-  (simple-form-path (if (path? p) p (string->path p))))
 
 ;; Every one of them, in order, or the first that would not load. What the two
 ;; callers above then DO with the outlines is the whole of how they differ:
@@ -375,13 +387,20 @@
        (link-written (append* (map outline-tasks outs)))
        #f)]))
 
-;; The whole loaded set at once: labels are relative to what these files have
-;; in common, so the answer does not depend on the machine's $HOME.
-(define (mint-outline-keys outs)
-  (define base (roots-base (map outline-path outs)))
+;; The whole loaded set at once: labels are relative to the directory the set
+;; hangs off, so the answer does not depend on the machine's $HOME.
+;;
+;; `#:base` is that directory when the caller knows it — one served root — and
+;; otherwise it is derived from the files, which is the only thing a typed list
+;; of paths can say. The difference shows the day a set GROWS: a derived base
+;; is the deepest directory the current files share, so an outline appearing
+;; one level up re-labels every file under it and re-keys every unanchored node
+;; in them. A permalink should outlive somebody creating a file.
+(define (mint-outline-keys outs #:base [base #f])
+  (define b (or base (roots-base (map outline-path outs))))
   (for/list ([o (in-list outs)])
     (define tasks
-      (mint-task-keys (outline-tasks o) #:label (λ (f) (key-label base f))))
+      (mint-task-keys (outline-tasks o) #:label (λ (f) (key-label b f))))
     ;; Anchors index the MINTED trees, not the module's originals: a mirror
     ;; site renders the node it finds here, and it must carry the same key.
     (outline (outline-path o) tasks (anchors-of tasks)

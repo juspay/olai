@@ -22,14 +22,16 @@
 ;;   dirs-read    which directories it reads to answer — what a watcher
 ;;                watches, including ones it has matched nothing in yet.
 ;;   root-dir     the one directory a root spec hangs off: where the agent
-;;                works, and the extent of what /media/ can reach.
+;;                works, the extent of what /media/ can reach, and the base
+;;                node keys are minted against.
+;;   path-kind    which of the three shapes it has, for the one caller that
+;;                has to branch on it rather than ask a question.
 
 (require racket/contract
          racket/list
          racket/path
-         racket/string
          ;; the pattern shape: what a starred name matches, and where it reads
-         (only-in olai/glob include-glob? glob-expand glob-dir))
+         (only-in olai/glob include-glob? hidden-name? glob-expand glob-dir))
 
 (provide (contract-out
           [file-label (-> any/c string?)]
@@ -38,6 +40,7 @@
           [files-named (-> (or/c path? string?) (listof path?))]
           [dirs-read (-> (or/c path? string?) (listof path?))]
           [root-dir (-> (or/c path? string?) path?)]
+          [path-kind (-> (or/c path? string?) (or/c (quote pattern) (quote dir) (quote file)))]
           [key-label (-> path? any/c string?)]))
 
 (define (->path p)
@@ -96,9 +99,16 @@
 ;; the store's staleness probe cares about: the answer can move while nothing
 ;; already read has been touched, so it is asked again rather than remembered.
 
-(define (pattern? spec) (include-glob? (path->string (->path spec))))
-
-(define (dir? spec) (directory-exists? (->path spec)))
+;; Which shape a path has: 'pattern | 'dir | 'file. Exported because a caller
+;; that must BRANCH on it — the CLI does, to tell "no outlines in that
+;; directory" from "no such file", and to say which it is on the way up —
+;; would otherwise state the rule again in its own words.
+(define (path-kind spec)
+  (define p (->path spec))
+  (cond
+    [(include-glob? (path->string p)) 'pattern]
+    [(directory-exists? p) 'dir]
+    [else 'file]))
 
 ;; `dir` and every directory under it, outermost first, sorted.
 ;;
@@ -109,7 +119,7 @@
 (define (dir-tree dir)
   (define (subdirs d)
     (for*/list ([name (in-list (sort (map path->string (directory-list d)) string<?))]
-                #:unless (string-prefix? name ".")
+                #:unless (hidden-name? name)
                 [p (in-value (build-path d name))]
                 #:when (and (directory-exists? p) (not (link-exists? p))))
       p))
@@ -126,9 +136,9 @@
 ;; down is still served rather than silently invisible.
 (define (files-named spec)
   (define full (simple-form-path (->path spec)))
-  (cond
-    [(pattern? spec) (glob-expand full)]
-    [(dir? full) (append-map dir-roots (dir-tree full))]
+  (case (path-kind full)
+    [(pattern) (glob-expand full)]
+    [(dir) (append-map dir-roots (dir-tree full))]
     [else (list full)]))
 
 ;; The directories it READS to answer that, which is what a watcher has to
@@ -138,16 +148,18 @@
 ;; there yet — the first fragment of a new year is exactly that event.
 (define (dirs-read spec)
   (define full (simple-form-path (->path spec)))
-  (cond
-    [(pattern? spec) (list (glob-dir full))]
-    [(dir? full) (dir-tree full)]
-    [else (list (root-dir full))]))
+  (case (path-kind full)
+    [(pattern) (list (glob-dir full))]
+    [(dir) (dir-tree full)]
+    [else (list (path->directory-path (path-only full)))]))
 
 ;; The one directory a root spec hangs off: itself, or the file's own. Always
-;; spelled as a directory, so the two answers are the same kind of path.
+;; spelled as a directory, so the two answers are the same kind of path — it
+;; is the base node keys are minted against (olai/load), and two spellings of
+;; one directory would be two bases.
 (define (root-dir spec)
   (define full (simple-form-path (->path spec)))
-  (path->directory-path (if (dir? full) full (path-only full))))
+  (path->directory-path (if (eq? (path-kind full) 'dir) full (path-only full))))
 
 ;; The name of `f` inside a key: relative to `base` when it sits under it,
 ;; else the full path (a fragment outside the root set still gets a name that

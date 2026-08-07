@@ -426,6 +426,23 @@
        (check-equal? (key-in (outline-tasks (car (snapshot-outlines snap))) "Ship it")
                      (key-in (outline-tasks (cadr (snapshot-outlines snap))) "Ship it")))))
 
+  ;; A key is minted from the defining file's path relative to the set's base,
+  ;; so a base that MOVES re-keys everything under it — and with roots
+  ;; discovered live, "the deepest directory the current files share" moves the
+  ;; moment somebody creates a file higher up. The served root is the base
+  ;; instead: it cannot move, because it is what serve was pointed at.
+  (test-case "a root appearing higher up does not re-key what is under it"
+    (with-temp-dir
+     (λ (dir)
+       (write-file! (build-path dir "notes" "Ideas.rkt") "#lang olai\nDeeper\n")
+       (define st (make-store dir))
+       (define before (key-for st "Deeper"))
+       (check-true (string? before))
+       (write-file! (build-path dir "Tasks.rkt") "#lang olai\nInbox\n")
+       (store-invalidate! st)
+       (check-equal? (root-titles st) '("Inbox" "Deeper"))
+       (check-equal? (key-for st "Deeper") before))))
+
   (test-case "two roots with the same basename do not share keys"
     (with-temp-dir
      (λ (dir)
