@@ -13,7 +13,7 @@
          (except-in olai/lang/expander #%module-begin)
          ;; which nodes are done work put away, and therefore not an answer to
          ;; any of the questions below
-         (only-in olai/archive archived-task?)
+         (only-in olai/archive archived-task? live-entries)
          olai/dates
          olai/lang/walk
          olai/paths)
@@ -79,10 +79,16 @@
 ;; tasks and the root label to prefix breadcrumbs with — the file's name when
 ;; several files are loaded, #f when there is only one (nothing to
 ;; disambiguate) — and appends the results.
+;;
+;; The archive is not one of the files: it holds no answers (collect-nodes
+;; drops its nodes above), and counting it would change what "more than one
+;; file is loaded" MEANS — a one-outline home would start reading
+;; `Tasks.rkt > Inbox > …` the day it archived anything.
 (define (with-file-roots file-entries proc)
-  (define multi? (> (length file-entries) 1))
+  (define live (live-entries file-entries))
+  (define multi? (> (length live) 1))
   (append*
-   (for/list ([e (in-list file-entries)])
+   (for/list ([e (in-list live)])
      (proc (cdr e) (and multi? (file-label (car e)))))))
 
 ;; Bare ISO day titles (Daily.rkt day nodes). -> (listof string)

@@ -116,8 +116,10 @@
 ;; The one write: validate-then-rename over every file the op touched (as the
 ;; set they are — olai/edit), then commit them, together, if asked.
 ;; edits: (listof (cons path text)). -> committed?
+;;
+;; The files to commit are the ones the edit named: the write applies all of
+;; them or none, so there is nothing to collect on the way out.
 (define (write! edits #:commit [message #f])
-  (define written '())
   (as-validation
    (car (car edits))
    (λ ()
@@ -127,11 +129,9 @@
       (λ (err)
         (op-fail 'validation "~a" #:file (load-error-file err)
                  #:line (load-error-line err) #:col (load-error-col err)
-                 (load-error-message err)))
-      #:on-applied
-      (λ (applied) (set! written (cons applied written))))))
+                 (load-error-message err))))))
   ;; One change, one commit, however many files it landed in.
-  (and message (try-git-commit (reverse written) message) #t))
+  (and message (try-git-commit (map car edits) message) #t))
 
 (define (load-outline-or-fail path)
   (define r (try-load-outline path))
@@ -162,6 +162,13 @@
     (op-fail 'not-found "file not found: ~a" #:file full full))
   full)
 
+;; The text a write starts from: what is on disk, or what a brand new outline
+;; says before anybody has written a node into it. Two ops create a file that
+;; was not there — `add` its Inbox, `archive` the archive — and they agree here
+;; about what an empty one is.
+(define (outline-text-or-new path)
+  (if (file-exists? path) (file->string path) "#lang olai\n"))
+
 ;; ---- add ------------------------------------------------------------------
 
 (struct add-result (file title date description parent line created-inbox? committed?)
@@ -186,8 +193,7 @@
        (as-validation root-path
                       (λ () (located-file (locate-in-set root-path parent))))]
       [else root-path]))
-  (define original
-    (if (file-exists? path) (file->string path) "#lang olai\n"))
+  (define original (outline-text-or-new path))
   (define-values (new-text line created-inbox?)
     (as-validation path
                    (λ () (append-capture original title
@@ -318,7 +324,7 @@
                                           (located-index hit)))))
   (define-values (dest-text* line)
     (as-validation dest
-                   (λ () (graft-subtree (if created? "#lang olai\n" (file->string dest))
+                   (λ () (graft-subtree (outline-text-or-new dest)
                                         ancestors
                                         block))))
   (define committed?

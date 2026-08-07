@@ -36,7 +36,9 @@
           ;; one field. Nothing here walks a tree.
           [archive-path-for (-> path? path?)]
           [archived-file? (-> any/c boolean?)]
-          [archived-task? (-> any/c boolean?)]))
+          [archived-task? (-> any/c boolean?)]
+          [live-entries (-> list? list?)]
+          [archived-entries (-> list? list?)]))
 
 ;; The one spelling. Capitalised like the other roots an outline home holds
 ;; (Tasks.rkt, Daily.rkt): it IS one of them.
@@ -62,3 +64,18 @@
 ;; node, and it is still archived; that is the point.
 (define (archived-task? x)
   (and (task? x) (archived-file? (task-file x))))
+
+;; The loaded outlines, split the one way a reader cares about. An ENTRY is
+;; whatever the caller pairs a path with — `(path . tasks)` to the queries,
+;; `(path tasks)` to the renderer — so this asks only about its head, which is
+;; the file, which is the whole question.
+;;
+;; Two names rather than one predicate handed around: the two halves are what
+;; every caller actually asks for (draw the live outlines, draw the archive),
+;; and a bare `#:when`/`#:unless` at each of them is where the third spelling
+;; of this rule would come from.
+(define (live-entries entries)
+  (filter (λ (e) (not (archived-file? (car e)))) entries))
+
+(define (archived-entries entries)
+  (filter (λ (e) (archived-file? (car e))) entries))

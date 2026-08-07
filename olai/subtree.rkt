@@ -39,10 +39,6 @@
 
 ;; ---- reading lines ---------------------------------------------------------
 
-(define (indent-of s)
-  (define-values (ind _content) (line-indent+content s))
-  ind)
-
 ;; Re-indent by `n` (which may be negative). A blank line has no indentation to
 ;; move: it comes back empty rather than as a line of spaces.
 (define (shift-line s n)
@@ -89,7 +85,7 @@
   (unless (title-line-text (list-ref lines at))
     (user-fail "line ~a is not a task title" (add1 at)))
   ;; the node's own lines are its section: title plus everything under it
-  (define end (section-end lines at indent))
+  (define end (section-end lines at))
   (values (lines->text (append (take lines at) (drop lines end)) text)
           (for/list ([s (in-list (take (drop lines at) (- end at)))])
             (shift-line s (- indent)))
@@ -143,7 +139,7 @@
        (cond
          [found
           (place lines (cdr titles) (add1 depth)
-                 (add1 found) (section-end lines found indent))]
+                 (add1 found) (section-end lines found))]
          [else
           (define-values (lines* at)
             (splice lines

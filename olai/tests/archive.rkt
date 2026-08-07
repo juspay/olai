@@ -297,7 +297,7 @@
                                        "  [/] Wire it\n"
                                        "  Buy milk\n"
                                        "    @date 2026-01-15\n")))
-       (define (titles . paths)
+       (define (items . paths)
          (define lk (apply loaded paths))
          (for/list ([g (in-list (agenda-groups-from-files
                                  (for/list ([o (in-list (linked-outlines lk))])
@@ -305,12 +305,19 @@
                                  "2026-08-06"))]
                     #:when #t
                     [it (in-list (cdr g))])
-           (agenda-item-title it)))
+           it))
+       (define (titles . paths)
+         (map agenda-item-title (apply items paths)))
        (check-equal? (sort (titles tasks) string<?) '("Buy milk" "Wire it"))
        (void (ops-archive! tasks "Buy milk" #:commit? #f))
        (define archive (build-path dir "Archive.rkt"))
        ;; loaded, keyed, mirrorable — and off the plate
        (check-equal? (titles tasks archive) '("Wire it"))
+       ;; and the archive is not a second FILE either: a breadcrumb is rooted
+       ;; at a file's name only when more than one outline is loaded, and
+       ;; archiving something must not turn a one-outline home into two
+       (check-equal? (agenda-item-breadcrumb (car (items tasks archive)))
+                     "Inbox > Wire it")
        (define lk (loaded tasks archive))
        (define moved
          (for*/or ([o (in-list (linked-outlines lk))]

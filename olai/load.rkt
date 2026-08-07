@@ -44,7 +44,11 @@
           [mint-outline-keys (-> (listof outline?) (listof outline?))]
           [mint-task-keys (-> list? #:label (-> any/c string?) list?)]
           [exn-location (-> any/c any/c any)]
-          [exn-message* (-> any/c string?)]))
+          [exn-message* (-> any/c string?)]
+          ;; any failure of the language, as the four fields every surface
+          ;; reports one in — the write path raises its own and needs the
+          ;; same translation
+          [exn->load-error (-> any/c any/c load-error?)]))
 
 ;; A loaded outline module. Named fields, not a positional tuple: every
 ;; consumer (CLI, JSON, web) reads the same four things and used to
@@ -232,9 +236,16 @@
 ;; -> linked, or the load-error of the first file that would not load, or of
 ;; the set that would not link.
 (define (load-set paths)
+  (define outs (load-each paths))
+  (if (load-error? outs) outs (link-outlines outs)))
+
+;; Every one of them, in order, or the first that would not load. What the two
+;; callers above then DO with the outlines is the whole of how they differ:
+;; a read links them as the set they are, a write holds only the files it wrote.
+(define (load-each paths)
   (let loop ([ps paths] [acc '()])
     (cond
-      [(null? ps) (link-outlines (reverse acc))]
+      [(null? ps) (reverse acc)]
       [else
        (define r (try-load-outline (car ps)))
        (if (outline? r) (loop (cdr ps) (cons r acc)) r)])))
@@ -251,15 +262,13 @@
 ;; -> #f when they are good, else the load-error of the first file that would
 ;; not load, or of the pair that would not hold together.
 (define (check-written paths)
-  (let loop ([ps paths] [acc '()])
-    (cond
-      [(null? ps)
-       (with-handlers ([exn:fail? (λ (e) (exn->load-error e (car paths)))])
-         (link-written (append* (map outline-tasks (reverse acc))))
-         #f)]
-      [else
-       (define r (try-load-outline (car ps)))
-       (if (outline? r) (loop (cdr ps) (cons r acc)) r)])))
+  (define outs (load-each paths))
+  (cond
+    [(load-error? outs) outs]
+    [else
+     (with-handlers ([exn:fail? (λ (e) (exn->load-error e (car paths)))])
+       (link-written (append* (map outline-tasks outs)))
+       #f)]))
 
 ;; The whole loaded set at once: labels are relative to what these files have
 ;; in common, so the answer does not depend on the machine's $HOME.

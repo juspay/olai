@@ -77,7 +77,7 @@
     (for ([tmp (in-list tmps)] [e (in-list edits)])
       (display-to-file (cdr e) tmp #:exists 'truncate/replace)))
   (define err
-    (with-handlers ([exn:fail? (λ (e) (load-error (exn-message* e) (car fulls) #f #f))])
+    (with-handlers ([exn:fail? (λ (e) (exn->load-error e (car fulls)))])
       (call-in-outline-namespace (λ () (check-written tmps)))))
   (cond
     [err (discard!) (on-invalid (as-written err tmps fulls)) #f]

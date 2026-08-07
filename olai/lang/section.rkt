@@ -14,6 +14,12 @@
 ;; PURE, like the line grammar it sits on: lists of lines in, indices out. No
 ;; srclocs, no raising, no I/O. It answers about POSITIONS and never rewrites
 ;; anything — who splices what belongs to the module doing the edit.
+;;
+;; In `lang/` although only the write path reads it, because what it states is
+;; the GRAMMAR's: two spaces is a level, and a node owns what is indented under
+;; it. It changes when that changes — which is a grammar change — and not when a
+;; write command does; the three modules above are consumers of the rule, not
+;; authors of it.
 
 (require racket/contract
          olai/lang/line)
@@ -21,9 +27,9 @@
 ;; Indices into a list of lines, so the contracts are flat and the answers are
 ;; always in range: this runs once per edit, not once per line.
 (provide (contract-out
+          [indent-of (-> string? exact-nonnegative-integer?)]
           [title-line-text (-> string? (or/c string? #f))]
           [section-end (-> (listof string?) exact-nonnegative-integer?
-                           exact-nonnegative-integer?
                            exact-nonnegative-integer?)]
           [append-point (-> (listof string?) exact-nonnegative-integer?
                             exact-nonnegative-integer?
@@ -51,11 +57,16 @@
 ;; everything indented deeper than it. A BLANK line is inside the section when
 ;; something deeper follows it and outside when nothing does — a gap between two
 ;; top-level nodes belongs to the file, not to either of them.
-(define (section-end lines idx indent)
-  (define child-indent (+ indent 2))
+;;
+;; The level is read off the line rather than passed in: it is the node's own
+;; indentation, and an argument for it is an argument that can disagree with the
+;; line it is about.
+(define (section-end lines idx)
+  (define n (length lines))
+  (define child-indent (+ (indent-of (list-ref lines idx)) 2))
   (let loop ([i (add1 idx)] [end (add1 idx)])
     (cond
-      [(>= i (length lines)) end]
+      [(>= i n) end]
       [(blank-line? (list-ref lines i)) (loop (add1 i) end)]
       [(< (indent-of (list-ref lines i)) child-indent) end]
       [else (loop (add1 i) (add1 i))])))
@@ -77,6 +88,7 @@
                          #:from [start 0]
                          #:to [end #f])
   (for/or ([i (in-range start (or end (length lines)))])
-    (and (= (indent-of (list-ref lines i)) indent)
-         (equal? (title-line-text (list-ref lines i)) title)
+    (define s (list-ref lines i))
+    (and (= (indent-of s) indent)
+         (equal? (title-line-text s) title)
          i)))

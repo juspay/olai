@@ -69,7 +69,7 @@
          olai/agenda
          ;; which of the loaded outlines is the archive: the home page draws
          ;; the others, and one page draws it
-         (only-in olai/archive archived-file?)
+         (only-in olai/archive live-entries archived-entries)
          olai/dates
          ;; a node's title, for the tab a zoom page opens in
          (only-in olai/lang/expander task-title)
@@ -354,20 +354,6 @@
       (file-label (car files))
       "olai"))
 
-;; The snapshot, split the one way a READER cares about: the outlines that are
-;; live work, and the archive that is not. Both are loaded — a node that was
-;; archived is still in the set, still keyed, still reachable by an anchor from
-;; a live file — and this is only about which page draws which (olai/archive).
-(define (live-files-data snap)
-  (for/list ([e (in-list (snapshot-files-data snap))]
-             #:unless (archived-file? (car e)))
-    e))
-
-(define (archive-files-data snap)
-  (for/list ([e (in-list (snapshot-files-data snap))]
-             #:when (archived-file? (car e)))
-    e))
-
 ;; The panel sits in body-extra, OUTSIDE #ol-live: an outline event re-swaps
 ;; the live region, and a chat mid-turn must not be swapped out from under
 ;; the person typing into it.
@@ -399,21 +385,24 @@
 
 ;; Every page here is the same shape: one snapshot, the chrome around it, and a
 ;; live region that re-fetches THIS url on an `outline` event. `view` is handed
-;; the snapshot and answers (values main title) — the only thing three pages
-;; differ in. It is handed nothing about the live view: every link on the page
-;; names the region it aims at (web/render declares it), so there is no longer
-;; a per-page value for a drawer to be given, or to forget.
+;; the snapshot — and the live outlines out of it, which the chrome needed
+;; anyway — and answers (values main title), the only thing four pages differ
+;; in. It is handed nothing about the live view: every link on the page names
+;; the region it aims at (web/render declares it), so there is no longer a
+;; per-page value for a drawer to be given, or to forget.
 (define (outline-page st agent live-href view)
   (define chat (and agent the-chat-panel))
   (with-snapshot st
     (λ (rev err) (page-failure rev err #:live-href live-href #:chat chat))
     #:stale-ok? #t
     (λ (rev snap err)
-      (define-values (main title) (view snap))
-      ;; The sidebar draws the LIVE outlines on every page, the archive page
-      ;; included: it is a region of its own, and the tree it holds has to say
-      ;; the same thing whichever address answered (web/sidebar).
-      (chrome (live-files-data snap) main
+      ;; The LIVE outlines, once per page: the sidebar draws them on every one
+      ;; of them, the archive page included — it is a region of its own, and the
+      ;; tree it holds has to say the same thing whichever address answered
+      ;; (web/sidebar) — and the home page's own pane is the same list.
+      (define live (live-entries (snapshot-files-data snap)))
+      (define-values (main title) (view snap live))
+      (chrome live main
               #:title title
               #:href live-href
               #:cursor (outline-cursor rev)
@@ -440,8 +429,8 @@
 
 (define (page-handler st agent)
   (outline-page st agent home-href
-   (λ (snap)
-     (values (render-outline (live-files-data snap)
+   (λ (snap live)
+     (values (render-outline live
                              #:today (today-iso-string)
                              #:zoom-base node-href-base
                              #:docs (snapshot-docs snap))
@@ -456,8 +445,8 @@
 ;; still zoomable, still mirrorable, still there.
 (define (archive-handler st agent)
   (outline-page st agent archive-href
-   (λ (snap)
-     (define entries (archive-files-data snap))
+   (λ (snap _live)
+     (define entries (archived-entries (snapshot-files-data snap)))
      (values (if (null? entries)
                  (render-empty-pane "Nothing archived yet."
                                     #:home-href home-href)
@@ -476,7 +465,7 @@
 ;; exists; this route only asks it, and says what it heard.
 (define (node-handler st agent key)
   (outline-page st agent (node-href key)
-   (λ (snap)
+   (λ (snap _live)
      (define entry (node-at (snapshot-index snap) key))
      (if entry
          ;; a tab zoomed on one node should say which
@@ -497,7 +486,7 @@
 ;; frozen to the key today HAD would be neither.
 (define (today-handler st agent)
   (outline-page st agent today-href
-   (λ (snap)
+   (λ (snap _live)
      (define today (today-iso-string))
      (define entry (node-at (snapshot-index snap) (snapshot-day-key snap today)))
      (values (if entry
