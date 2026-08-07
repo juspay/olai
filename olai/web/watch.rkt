@@ -22,9 +22,10 @@
          racket/list
          racket/path
          (only-in gregor now/moment moment? at-midnight +days ->posix)
-         ;; where a starred @include reads: a directory nothing in the watch
-         ;; set need sit in yet
-         (only-in olai/glob glob-dir)
+         ;; where a question reads — a starred @include's one directory, the
+         ;; whole tree under a served one — which is a place nothing in the
+         ;; watch set need sit in yet
+         (only-in olai/paths dirs-read)
          olai/store)
 
 (provide (contract-out
@@ -58,23 +59,22 @@
 
 ;; ---- what to watch --------------------------------------------------------
 
-;; The parent directories of everything the outlines are built from, deduped.
-;; store-files is in there as well as the snapshot's watch set: before the
-;; first successful load the snapshot is empty, and that is exactly the state
-;; a watcher has to get out of.
+;; Where everything the store depends on READS, deduped — one question
+;; (olai/paths, dirs-read), asked of both halves of that dependency.
 ;;
-;; And where every glob READS, which is not the same list: `Daily/*.rkt` that
-;; matched nothing has no file in the watch set to take a parent of, and the
-;; first fragment of a new year appearing there is precisely the event this
-;; whole arrangement exists to catch.
+;; The files it read answer with their own directory: a save is a rename, and
+;; a rename fires on the directory. Each QUESTION it will ask again — the root
+;; it was pointed at, and each `@include` pattern (olai/store, store-questions)
+;; — answers with everywhere it looks, which is not the same list: a directory
+;; that has matched nothing has no file here to take a parent of, and the first
+;; fragment of a new year appearing in one is precisely the event this whole
+;; arrangement exists to catch. It is also the state a watcher has to get out
+;; of before the first successful load, when the watch set is empty and the
+;; root is all there is.
 (define (watch-dirs st)
-  (define snap (store-snapshot st))
   (remove-duplicates
-   (filter values
-           (append
-            (for/list ([p (in-list (append (store-files st) (snapshot-watch snap)))])
-              (path-only (simple-form-path p)))
-            (map glob-dir (snapshot-globs snap))))
+   (append-map dirs-read
+               (append (snapshot-watch (store-snapshot st)) (store-questions st)))
    #:key path->string))
 
 ;; -> evt | 'unsupported | #f (no such directory, nothing to watch yet)

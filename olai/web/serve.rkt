@@ -36,6 +36,7 @@
 ;; opened, which the stream catches up before anything else.
 
 (require racket/async-channel
+         racket/match
          racket/path
          racket/port
          racket/promise
@@ -66,7 +67,7 @@
          olai/json/reply
          olai/load
          (only-in olai/ops exn:fail:op? exn:fail:op-kind)
-         (only-in olai/paths file-label roots-base)
+         (only-in olai/paths file-label root-dir)
          ;; what the typed-edge graph is asked: which nodes are waiting
          (only-in olai/query blocked-nodes)
          ;; which nodes a query names: a pure question about the snapshot
@@ -308,10 +309,14 @@
 
 ;; ---- handlers: pages and JSON ---------------------------------------------
 
-(define (page-title files)
-  (if (= (length files) 1)
-      (file-label (car files))
-      "olai"))
+;; What the tab says: the outline's own name when the server is showing one,
+;; else the app's. Asked of the SNAPSHOT and not of what the server was
+;; started on — a directory's roots are discovered as they appear, so a second
+;; outline showing up is a page that stops being named after the first.
+(define (page-title snap)
+  (match (snapshot-files-data snap)
+    [(list (list file _tasks)) (file-label file)]
+    [_ "olai"]))
 
 ;; EVERY page this module answers with, and the one altitude the <head>, the
 ;; sheet and the palettes are decided at: a route hands over the pane it drew
@@ -468,7 +473,7 @@
 (define (page-handler st rs chat)
   (outline-page st rs chat (routes-home-href rs)
    (λ (snap live)
-     (values (outline-pane rs snap live) (page-title (store-files st))))))
+     (values (outline-pane rs snap live) (page-title snap)))))
 
 ;; A query, as a page.
 ;;
@@ -740,35 +745,35 @@
 ;; Returns a stop procedure. #:on-listen gets the port actually bound (useful
 ;; when #:port is 0, i.e. "pick one", or when #:port-fallback? took over).
 ;;
+;; #:root is the ONE thing this server was pointed at: a directory whose
+;; outlines it serves — re-asked as they change, so a new one is picked up
+;; without a restart — or a single outline file.
+;;
 ;; #:acp-command is the agent `serve` chats with — #f means there is none, and
 ;; the CLI never passes #f (it refuses to start without one; see docs/cli.md).
-;; #:agent-cwd is the directory it works in; #f means the outlines' own.
 ;; #:on-agent is handed the conversation once it exists: the seam for tests,
 ;; and for anything that wants to prompt the agent without an HTTP request.
 (define (start-server #:port [port 8080]
                       #:port-fallback? [port-fallback? #f]
                       #:bind [bind "127.0.0.1"]
-                      #:files files
+                      #:root root
                       #:acp-command [acp-command #f]
-                      #:agent-cwd [agent-cwd #f]
                       #:on-listen [on-listen void]
                       #:on-agent [on-agent void])
-  (define st (make-store files))
+  (define st (make-store root))
   (define hub (make-hub))
-  ;; Where the outlines LIVE: the deepest directory that holds them all (the
-  ;; same base node keys are minted against). It is the whole extent of what
-  ;; /media/ can reach, which is why it is derived from the FILES and from
-  ;; nothing that can be pointed elsewhere.
-  (define outline-dir (roots-base files))
-  ;; The agent's working directory: the one it was given, else the outlines'
-  ;; own. It is worth naming rather than deriving: an agent's stored sessions
-  ;; are keyed by it, so a cwd that moves when the file set moves is a
-  ;; conversation history that moves with it. Nothing is spawned here;
-  ;; construction stays cheap.
+  ;; Where the outlines LIVE: the directory the root spec hangs off — itself
+  ;; when it is one, else the file's own. It is the whole extent of what
+  ;; /media/ can reach, and it is the directory the AGENT works in, which is
+  ;; what makes "the session you were last in" survive a restart: Claude Code
+  ;; keys its stored conversations by it. One root, one directory, so neither
+  ;; is derived from a file set that can move under it.
+  (define outline-dir (root-dir root))
+  ;; Nothing is spawned here; construction stays cheap.
   (define agent
     (and acp-command
          (make-chat #:command acp-command
-                    #:cwd (or agent-cwd outline-dir)
+                    #:cwd outline-dir
                     ;; the conversation speaks (name, payload) and has never
                     ;; heard of the transport; this is where that becomes wire
                     #:broadcast (λ (name data)

@@ -37,8 +37,8 @@ export const FIXTURE = await fs.readFile(
 
 // The SECOND root, for the scenarios about an anchor whose scope is the
 // loaded set: it mirrors `^serve`, which Tasks.rkt declares. Only staged for
-// a scenario tagged @cross-file (support/hooks.js) — `serve DIR` globs the
-// top level once at startup, so which files a set holds is a boot-time fact.
+// a scenario tagged @cross-file (support/hooks.js), because a set of two is
+// the state those scenarios start in.
 //
 // It is deliberately NOT in the CI smoke lane's `olai check`: that command
 // checks the files it is GIVEN as one set, and this one alone is a set whose
@@ -53,9 +53,10 @@ export const SECOND = await fs.readFile(
 
 // The archive an outline home has once anything has ever been archived: a
 // root like any other, which the home page and the sidebar tree do not draw
-// (olai/archive). Staged only for a scenario tagged @archived, and for the
-// same boot-time reason as the second outline above — `serve DIR` globs its
-// top level once, so a file written later is a file this server never has.
+// (olai/archive). Staged only for a scenario tagged @archived — the ones that
+// start with work already put away. A scenario WITHOUT the tag is the other
+// case, and archive.feature has it: the first archive in a directory is a file
+// the running server has never seen, and it is served without a restart.
 //
 // It arrives holding something, because "already has an archive" is the state
 // every archive after the first one lands in.

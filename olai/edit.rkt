@@ -90,9 +90,12 @@
 ;; Every writer emits outline syntax, so a #lang olai/sexp file would be
 ;; rewritten into a different language. Refuse here rather than in each
 ;; command: the write path is where the rule can actually be enforced.
+;;
+;; Which language a file is in is asked of the one thing that knows (olai/load,
+;; outline-lang) rather than of a regexp over the whole text, which said yes to
+;; a note that happened to quote the line.
 (define (guard-sexp-file! full)
-  (when (and (file-exists? full)
-             (regexp-match? #px"(?m:^#lang olai/sexp)" (file->string full)))
+  (when (eq? (outline-lang full) 'sexp)
     (user-fail
      "~a is #lang olai/sexp; writes emit outline syntax (#lang olai)"
      full)))

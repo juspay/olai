@@ -38,17 +38,16 @@
   ;;
   ;; #:extra is more roots beside it — `(name . text)` — for the tests about a
   ;; SET: which file a node is defined in is the whole of what an archive is,
-  ;; and a server pointed at one file has no set to say it with.
+  ;; and a server pointed at one file has no set to say it with. They are
+  ;; simply written into the directory, which is what the server is given: the
+  ;; roots are whatever is under it.
   (define (with-server proc #:port [port 0] #:port-fallback? [fallback? #f]
                        #:extra [extra '()])
     (define dir (make-temporary-file "sfserve~a" 'directory))
     (define f (build-path dir "Tasks.rkt"))
     (display-to-file outline f #:exists 'truncate)
-    (define others
-      (for/list ([e (in-list extra)])
-        (define p (build-path dir (car e)))
-        (display-to-file (cdr e) p #:exists 'truncate)
-        p))
+    (for ([e (in-list extra)])
+      (display-to-file (cdr e) (build-path dir (car e)) #:exists 'truncate))
     (dynamic-wind
      void
      (λ ()
@@ -57,7 +56,7 @@
          (start-server #:port port
                        #:port-fallback? fallback?
                        #:bind "127.0.0.1"
-                       #:files (cons f others)
+                       #:root dir
                        #:on-listen (λ (p) (set! bound p))))
        (dynamic-wind void (λ () (proc bound f)) stop))
      (λ () (delete-directory/files dir))))

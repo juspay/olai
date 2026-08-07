@@ -6,6 +6,19 @@ Feature: done work leaves the file without dying
   a page of its own draws what is in there. The node did not die: its anchor
   moved with it, so a mirror in a file that is still live goes on drawing it.
 
+  The FIRST one in a directory creates a file the running server has never
+  seen, and it is served anyway: what `serve` was pointed at is a directory,
+  and which outlines that names is a question it asks again.
+
+  Scenario: the first archive is a file the server has never seen
+    When I open the home page
+    And I mark this page load
+    And I archive "Write the tests" from the CLI
+    Then "Write the tests" leaves the page
+    And the page has not reloaded
+    When I follow the sidebar's Archive link
+    Then I see the title "Write the tests"
+
   @archived
   Scenario: an archived node leaves the outline and turns up in the archive
     When I open the home page

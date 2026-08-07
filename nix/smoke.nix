@@ -97,8 +97,8 @@ runCommand "olai-smoke"
     chmod +x fake-acp-agent
     export OLAI_ACP_AGENT="$PWD/fake-acp-agent"
 
-    # Nothing to serve, no server: the DIRECTORY form globs the top
-    # level, and an empty one is refused before anything binds.
+    # Nothing to serve, no server: a directory with no outline under it
+    # is refused before anything binds.
     mkdir -p empty-outlines
     if olai serve --port 8097 empty-outlines \
          > refused-dir.out 2> refused-dir.err; then
