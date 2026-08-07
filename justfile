@@ -17,7 +17,7 @@ olai_home := env_var_or_default("OLAI_HOME", "")
 # (docs/syntax.md, Mirrors). Named apart, Week.rkt's *agent reaches nothing —
 # which is the feature saying so, not a bug in the list. Daily.rkt rides along
 # as the glob-include demo.
-repo_outlines := "examples/Example.rkt examples/Week.rkt examples/Daily.rkt Roadmap.rkt"
+repo_outlines := "examples/Example.rkt examples/Week.rkt examples/Daily.rkt examples/Kitchen.rkt Roadmap.rkt"
 default_outlines := if olai_home == "" { repo_outlines } else { olai_home + "/*.rkt" }
 
 # odu CI DAG: [metadata("ci")] lives in ci/mod.just. `just ci` is the local

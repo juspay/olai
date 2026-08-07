@@ -15,6 +15,9 @@
          json
          racket/path
          (except-in olai/lang/expander #%module-begin)
+         ;; the derived graph, as one value: what a node WROTE is on the node,
+         ;; what the set MEANS by it is the index below
+         (only-in olai/edges edge-index? edge-index-edges)
          olai/load
          ;; task_count / mirror_count are queries, not a JSON concern
          (only-in olai/query count-tasks count-mirrors))
@@ -28,6 +31,7 @@
           [task->jsexpr (->* (task?) (#:root-file file-ref/c) hash?)]
           [child->jsexpr (->* (any/c) (#:root-file file-ref/c) hash?)]
           [tasks->jsexpr (->* (list?) (#:root-file file-ref/c) list?)]
+          [edges->jsexpr (-> edge-index? hash?)]
           [anchors->jsexpr (->* (hash?) (#:root-file file-ref/c) hash?)]
           [outline->jsexpr (->* ((or/c path? string?) list? hash?)
                                 (#:includes list?)
@@ -69,6 +73,14 @@
           'id (nullish (task-id tk))
           'key (nullish (task-key tk))
           'tags (task-tags tk)
+          ;; The typed edges this node WROTE, in source order and in the
+          ;; direction it wrote them: `@blocks` stays `blocks` here. What the
+          ;; set makes of them — one ordering relation, both spellings folded
+          ;; into it — is the `edges` index beside `anchors`, and a reader
+          ;; after the graph wants that one.
+          'edges (for/list ([e (in-list (task-edges tk))])
+                   (hash 'relation (symbol->string (edge-ref-relation e))
+                         'target (edge-ref-anchor e)))
           'children (map (λ (c) (child->jsexpr c #:root-file root-file))
                          (task-children tk))))
   (define tf (task-file tk))
@@ -100,6 +112,20 @@
   ;; hash id -> task; emit object with string keys
   (for/hash ([(id tk) (in-hash anchors)])
     (values (string->symbol id) (task->jsexpr tk #:root-file root-file))))
+
+;; THE GRAPH, as the set derived it: relation -> source key -> target keys,
+;; normalized, so an agent asks "what is this after" instead of grepping two
+;; spellings of it in prose. Keys are node keys, the same ones `tree` addresses
+;; a node by — a target's key is the ^anchor it names.
+;;
+;; Forwards only. `back` is this hash inverted and mirrors ride in it (see
+;; olai/edges); publishing both would be publishing one fact twice, and the one
+;; a reader can invert is the one that says what the file wrote.
+(define (edges->jsexpr idx)
+  (for/hash ([(relation g) (in-hash (edge-index-edges idx))])
+    (values relation
+            (for/hash ([(source targets) (in-hash g)])
+              (values (string->symbol source) targets)))))
 
 ;; Single-file tree payload (version added by the caller, or by
 ;; linked->jsexpr below).
@@ -133,12 +159,16 @@
                      #:includes (outline-includes o)))
   (cond
     ;; A set of ONE file: that file's `anchors` already IS the set's index, at
-    ;; the top level and rooted at the file the reader has. Nothing to add.
+    ;; the top level and rooted at the file the reader has. The graph is the
+    ;; set's either way, so it sits beside that index in both shapes.
     [(= (length entries) 1)
-     (hash-set (one (car entries)) 'version json-model-version)]
+     (hash-set* (one (car entries))
+                'version json-model-version
+                'edges (edges->jsexpr (linked-edges lk)))]
     [else
      (hash 'version json-model-version
            'files (map one entries)
+           'edges (edges->jsexpr (linked-edges lk))
            ;; A node in the set's index carries its own `file`: the index
            ;; spans the files, so the answer differs per anchor and there is
            ;; no one root to leave out (the rule tasks follow, above).

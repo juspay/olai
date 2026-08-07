@@ -36,6 +36,7 @@
          ;; one thing in the module graph that can move without a file the
          ;; store already probed having been touched
          (only-in olai/glob glob-expand)
+         (only-in olai/edges edge-index?)
          olai/load
          ;; where a @doc path points and what is in it; the store is the one
          ;; layer that reads one, because it is the one that knows when to
@@ -62,6 +63,7 @@
                             [watch (listof path?)]
                             [globs (listof path?)])]
           [snapshot-outlines (-> snapshot? (listof outline?))]
+          [snapshot-edges (-> snapshot? edge-index?)]
           [snapshot-day-key (-> snapshot? string? (or/c string? #f))]
           [call-in-outline-namespace (-> (-> any) any)]))
 
@@ -85,10 +87,16 @@
 ;;                moved. The watcher watches where they read (web/watch).
 (struct snapshot (linked files-data index docs watch globs) #:transparent)
 
-;; The question every handler asks the set, without unwrapping it. The anchor
+;; The questions every handler asks the set, without unwrapping it. The anchor
 ;; index has no such reader: mirror sites are bound here, once per load, so
 ;; nothing downstream has to resolve a name.
 (define (snapshot-outlines snap) (linked-outlines (snapshot-linked snap)))
+
+;; The typed-edge graph the load derived (olai/edges). Unwrapped, not asked:
+;; what a caller wants to KNOW from it — which nodes are waiting on something
+;; unfinished — is a pure query (olai/query), and a store that answered it
+;; would be a second door to the same question the CLI already opens itself.
+(define (snapshot-edges snap) (linked-edges (snapshot-linked snap)))
 
 (define empty-snapshot (snapshot empty-linked '() (hash) (hash) '() '()))
 

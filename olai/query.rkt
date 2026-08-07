@@ -15,6 +15,7 @@
          ;; any of the questions below
          (only-in olai/archive archived-task? live-entries)
          olai/dates
+         olai/edges
          olai/lang/walk
          olai/paths)
 
@@ -25,7 +26,61 @@
          with-file-roots
          collect-day-titles
          count-tasks
-         count-mirrors)
+         count-mirrors
+         blocked-nodes)
+
+;; WHAT IS NOT ACTIONABLE YET: key -> the nodes it is waiting on, for every
+;; node with an unfinished `@after` target. Absent from the hash is the answer
+;; for everything else, so membership IS blocked-ness and the value is why —
+;; the nodes themselves, because every surface that draws this wants something
+;; different off them (a key to link to, a name to show, a count).
+;;
+;; `@after` means ORDERING, never scheduling (docs/syntax.md): a blocked node
+;; keeps its `@date` and is overdue on exactly the day it always was — being
+;; blocked is a second fact about it, not a replacement for the first.
+;;
+;; Done-ness does NOT propagate: a target counts as done when it SAYS it is
+;; done, whatever its children say. Deriving it would give the outline two
+;; answers to "is this done" — the one `status` publishes and the one this
+;; function believed — and would make adding a child to a finished parent
+;; silently re-block everything after it. Point `@after` at the child you
+;; actually mean, or mark the parent.
+;;
+;; A DONE node is waiting on nothing, whatever it is after: it has happened,
+;; and the order it happened in is no longer a question. Without that, a
+;; finished node whose blocker is still open wears a "blocked" affordance on
+;; the page — the agenda never showed it, because a done node is off the plate
+;; before this is asked, and the outline would have.
+;;
+;; ARCHIVED is the same answer arrived at from the other side, and it goes both
+;; ways: work that was put away (olai/archive) is neither blocked nor blocking.
+;; Not blocked, because it is not in any live view to be told it cannot start —
+;; and the archive HAS a page, which is where the pill would otherwise turn up.
+;; Not blocking, because archiving is what you do to work that is over: a live
+;; node still waiting on one would be waiting forever, on something no list will
+;; ever show it again.
+;;
+;; This is the graph's half of the rule `collect-nodes` states above; both are
+;; here, in the query layer, because that is where "is this an answer to a
+;; question about live work" is decided (olai/archive).
+;;
+;; idx : the set's edge index (olai/edges), which is also what knows the node
+;;       at the far end of an arrow
+(define (blocked-nodes idx)
+  (for*/hash ([(source targets) (in-hash (edge-graph idx 'after))]
+              #:when (live? (edge-node idx source))
+              [waiting (in-value (filter live? (map (λ (k) (edge-node idx k))
+                                                    targets)))]
+              #:unless (null? waiting))
+    (values source waiting)))
+
+;; STILL IN PLAY: it exists, it is not finished, and it has not been put away.
+;; One predicate for both ends of an arrow — a source this can be said about
+;; and a target that still stands in the way are the same question asked from
+;; either side, and two spellings of it would be two chances to disagree about
+;; what finished means.
+(define (live? tk)
+  (and tk (not (eq? (task-status tk) 'done)) (not (archived-task? tk))))
 
 ;; How big is this outline? Two folds, and the difference between them is the
 ;; whole mirror policy: a node is counted where it is DEFINED, a mirror site

@@ -10,6 +10,7 @@
 ;;              [#:description "..."]
 ;;              [#:done] | [#:done "ISO"]
 ;;              [#:doing] | [#:doing "ISO"]
+;;              [#:after "anchor"] ... [#:blocks "anchor"] ... [#:see "anchor"] ...
 ;;              child ...)
 ;;
 ;;   (mirror "anchor")
@@ -61,6 +62,7 @@
          task-doing-at
          task-id
          task-tags
+         task-edges
          task-children
          task-file
          task-key
@@ -69,6 +71,11 @@
          mirror-ref?
          mirror-ref-anchor
          mirror-ref-loc
+         edge-ref
+         edge-ref?
+         edge-ref-relation
+         edge-ref-anchor
+         edge-ref-loc
          title-tags
          tag-rx
          valid-anchor-id?
@@ -90,10 +97,15 @@
 ;;      until the load layer mints one (olai/load, mint-task-keys). A
 ;;      module cannot mint it: it knows only its own entry point, and the same
 ;;      node reached through a different root must key the same.
+;; edges: the typed edges written on this node, in source order — one edge-ref
+;;      per `@after` / `@blocks` / `@see` line. VERBATIM: `@blocks` stays
+;;      `@blocks` here, because the file keeps whichever direction its writer
+;;      thought in; normalizing to one ordering relation is derivation's job
+;;      (olai/edges), which is the layer that has the whole graph.
 ;; loc: srcloc of the form that defined this node. Kept because a tree that
 ;;      came through @include has no syntax left by the time it is checked,
 ;;      and an error still has to say file:line:col.
-(struct task (title date description doc done doing id tags children file key loc)
+(struct task (title date description doc done doing id tags edges children file key loc)
   #:transparent)
 
 ;; Build one BY NAME. Ten positional arguments in the macro template below
@@ -111,12 +123,13 @@
                    #:doing [doing #f]
                    #:id [id #f]
                    #:tags [tags '()]
+                   #:edges [edges '()]
                    #:children [children '()]
                    #:file [file #f]
                    ;; the ^anchor, or #f until the load layer mints one
                    #:key [key #f]
                    #:loc [loc #f])
-  (task title date description doc done doing id tags children file key loc))
+  (task title date description doc done doing id tags edges children file key loc))
 
 ;; `done` / `doing` are STORAGE — #f, #t, or the ISO day the mark was written
 ;; with. What a consumer wants is the STATE, and it is derived here, once.
@@ -143,6 +156,12 @@
 
 ;; Mirror site: same node as anchors[anchor], not a copy.
 (struct mirror-ref (anchor loc) #:transparent)
+
+;; One typed edge, as written: which relation, which anchor it names, and the
+;; `@after ^x` line it was written on. A REFERENCE, like a mirror site — it
+;; points at a node without carrying one, and what it points at is only
+;; answerable once the whole set is in hand (lang/link).
+(struct edge-ref (relation anchor loc) #:transparent)
 
 ;; What one @include put in the tree, before flatten: the files it named, the
 ;; top-level tasks they contributed, and — when the site was a GLOB — the
@@ -250,10 +269,35 @@
              #:attr value #'#t
              #:attr kw #'k))
 
+  ;; A TYPED EDGE, one keyword and the anchor it names. The three spellings are
+  ;; written out rather than matched as "any keyword in the closed set": a class
+  ;; parameterized over the keyword matches #:date too and rejects it with a
+  ;; #:when, which fails further into the term than #:date's own bad-value
+  ;; failure and costs the srcloc tests — the same measurement done-kw records
+  ;; above. The SET still has one owner (lang/graph): the reader builds its line
+  ;; grammar from it, and the checker refuses a relation that is not in it, so a
+  ;; keyword added here and nowhere else is a keyword nothing accepts.
+  (define-splicing-syntax-class edge-kw
+    #:attributes (relation target)
+    (pattern (~seq #:after a:anchor-str)
+             #:attr relation #'after
+             #:attr target #'a)
+    (pattern (~seq #:blocks a:anchor-str)
+             #:attr relation #'blocks
+             #:attr target #'a)
+    (pattern (~seq #:see a:anchor-str)
+             #:attr relation #'see
+             #:attr target #'a))
+
   (define-splicing-syntax-class t-kwargs
     ;; doing-loc is #f or the #:doing keyword — where "done and doing" is
     ;; reported (see doing-kw above).
-    #:attributes (date description doc done doing doing-loc id)
+    ;;
+    ;; e.relation / e.target are the node's edges, at depth 1: a node carries
+    ;; one date and any number of edges, which is the only structural
+    ;; difference between this and every field above it.
+    #:attributes (date description doc done doing doing-loc id
+                  [e.relation 1] [e.target 1])
     (pattern (~seq (~alt (~optional (~seq #:date d:date-str)
                                     #:name "#:date")
                          (~optional (~seq #:doc doc-p:doc-str)
@@ -265,7 +309,8 @@
                          (~optional gk:doing-kw
                                     #:name "#:doing")
                          (~optional (~seq #:id id-str:anchor-str)
-                                    #:name "#:id"))
+                                    #:name "#:id")
+                         e:edge-kw)
                    ...)
              #:attr date (if (attribute d)
                              (datum->syntax #'d (attribute d.normalized) #'d)
@@ -314,9 +359,10 @@
 
   ;; ---- compile-time IR for local validation ------------------------------
 
-  (struct ir-task (id kids stx) #:transparent)
+  (struct ir-task (id edges kids stx) #:transparent)
   (struct ir-mirror (anchor stx) #:transparent)
   (struct ir-include (path stx) #:transparent)
+  (struct ir-edge (relation target stx) #:transparent)
 
   (define (syntax->ir stx)
     (syntax-parse stx
@@ -328,7 +374,12 @@
       [(t title:str kw:t-kwargs child ...)
        (define id (and (syntax-e #'kw.id) (syntax-e #'kw.id)))
        (define id* (if (string? id) id #f))
-       (ir-task id* (map syntax->ir (syntax->list #'(child ...))) stx)]
+       (ir-task id*
+                (for/list ([r (in-list (syntax->list #'(kw.e.relation ...)))]
+                           [a (in-list (syntax->list #'(kw.e.target ...)))])
+                  (ir-edge (syntax-e r) (syntax-e a) a))
+                (map syntax->ir (syntax->list #'(child ...)))
+                stx)]
       [_ (raise-syntax-error 'olai "internal: bad form for IR" stx)]))
 
   (define (any-include? irs)
@@ -336,7 +387,7 @@
       (match ir
         [(ir-include _ _) #t]
         [(ir-mirror _ _) #f]
-        [(ir-task _ kids _) (ormap walk kids)]))
+        [(ir-task _ _ kids _) (ormap walk kids)]))
     (ormap walk irs))
 
   ;; The compile-time adaptor to the shared checker: an IR node's anchor, its
@@ -347,9 +398,10 @@
 
   (define (ir-stx ir)
     (match ir
-      [(ir-task _ _ stx) stx]
+      [(ir-task _ _ _ stx) stx]
       [(ir-mirror _ stx) stx]
-      [(ir-include _ stx) stx]))
+      [(ir-include _ stx) stx]
+      [(ir-edge _ _ stx) stx]))
 
   (define (validate-body-forms stxs)
     (define irs (map syntax->ir stxs))
@@ -361,12 +413,21 @@
     ;; loaded beside, so a *mirror it cannot resolve is not yet wrong. The
     ;; linker (lang/link) is the pass that can see them all, and it owns that
     ;; rule.
+    ;;
+    ;; Mirror sites and typed edges in one call: both are references to an
+    ;; anchor, and the second is checked against the index the first builds.
+    ;; The open scope is what they share too — an @after target may live in a
+    ;; file this module has never heard of, so "unknown" is the linker's alone,
+    ;; while a cycle among the forms in hand is a cycle wherever it is read.
     (unless (any-include? irs)
       (check-anchor-graph
        irs
        #:id (λ (ir) (and (ir-task? ir) (ir-task-id ir)))
        #:kids (λ (ir) (if (ir-task? ir) (ir-task-kids ir) '()))
        #:mirror (λ (ir) (and (ir-mirror? ir) (ir-mirror-anchor ir)))
+       #:edges (λ (ir) (if (ir-task? ir) (ir-task-edges ir) '()))
+       #:relation ir-edge-relation
+       #:target ir-edge-target
        #:scope #f
        #:describe ir-loc
        #:fail (λ (who ir msg)
@@ -471,6 +532,7 @@
   (cond
     [(task? x) (task-loc x)]
     [(mirror-ref? x) (mirror-ref-loc x)]
+    [(edge-ref? x) (edge-ref-loc x)]
     [else #f]))
 
 ;; Validation over TASKS instead of syntax — the same rules, and the only
@@ -491,14 +553,18 @@
    #:id (λ (x) (and (task? x) (task-id x)))
    #:kids (λ (x) (if (task? x) (task-children x) '()))
    #:mirror (λ (x) (and (mirror-ref? x) (mirror-ref-anchor x)))
+   #:edges (λ (x) (if (task? x) (task-edges x) '()))
+   #:relation edge-ref-relation
+   #:target edge-ref-anchor
    #:scope scope
    #:describe (λ (x) (loc->string (node-loc x)))
-   #:fail
-   (λ (who x msg)
-     (define stx (loc->syntax (and x (node-loc x))))
-     (raise (exn:fail:syntax (format "~a: ~a" who msg)
-                             (current-continuation-marks)
-                             (if stx (list stx) '()))))))
+   ;; `x` is whatever the rule is ABOUT — a node for the mirror rules, an edge
+   ;; for the edge ones — and each carries the srcloc of its own form.
+   #:fail (λ (who x msg)
+            (define stx (loc->syntax (and x (node-loc x))))
+            (raise (exn:fail:syntax (format "~a: ~a" who msg)
+                                    (current-continuation-marks)
+                                    (if stx (list stx) '()))))))
 
 (define (finalize-tasks forms src)
   (define-values (includes globs) (collect-includes forms))
@@ -629,7 +695,8 @@
 (define-for-syntax t-shape
   (string-append "expected (t \"title\" [#:id anchor] [#:date iso-date] "
                  "[#:doc \"path.md\"] [#:description \"...\"] "
-                 "[#:done [iso-date]] [#:doing [iso-date]] child ...)"))
+                 "[#:done [iso-date]] [#:doing [iso-date]] "
+                 "[#:after anchor] [#:blocks anchor] [#:see anchor] child ...)"))
 
 ;; What a malformed `t` is blamed on: the title the source wrote, when it
 ;; wrote one, else the whole form.
@@ -666,7 +733,12 @@
      (define file (syntax-source-path stx))
      (with-syntax ([tags-lit (datum->syntax stx tags)]
                    [file-lit (datum->syntax stx file)]
-                   [(src ln cl ps sp) (loc-parts stx)])
+                   [(src ln cl ps sp) (loc-parts stx)]
+                   ;; every edge keeps the line it was written on, the way a
+                   ;; mirror site does: an @include splice leaves no syntax
+                   ;; behind, and "unknown ^order" still has to say where
+                   [((esrc eln ecl eps esp) ...)
+                    (map loc-parts (syntax->list #'(kw.e.target ...)))])
        ;; Keep include-splice values in the children list until finalize-tasks
        ;; flattens the whole tree (so includes can be recorded).
        #'(make-task #:title title
@@ -677,6 +749,10 @@
                     #:doing kw.doing
                     #:id kw.id
                     #:tags 'tags-lit
+                    #:edges (list (edge-ref 'kw.e.relation
+                                            kw.e.target
+                                            (srcloc esrc eln ecl eps esp))
+                                  ...)
                     #:children (list child ...)
                     #:file file-lit
                     #:key kw.id

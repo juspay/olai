@@ -41,7 +41,7 @@ nix:
 # SET: examples/Week.rkt mirrors an anchor examples/Example.rkt declares, and
 # that only resolves when both are named (docs/syntax.md, Mirrors).
 smoke: nix
-    ./result/bin/olai check examples/Example.rkt examples/Week.rkt Roadmap.rkt e2e/fixtures/Tasks.rkt e2e/fixtures/Archive.rkt
+    ./result/bin/olai check examples/Example.rkt examples/Week.rkt examples/Kitchen.rkt Roadmap.rkt e2e/fixtures/Tasks.rkt e2e/fixtures/Archive.rkt
 
 # The declared architecture, checked against the code (arch/README.md). Its own
 # node and not part of `test`: a layering violation and a failing test are

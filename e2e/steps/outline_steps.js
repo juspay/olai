@@ -27,9 +27,16 @@ Then("{string} leaves the page", async function (title) {
 
 // ---- the rest of a node ----------------------------------------------------
 
-/** A part of a node's OWN row: a descendant's row is another node's. */
+/** Every match for a part of a node's OWN row: a descendant's row is another
+ *  node's. `part` is the one you want; this is for counting, where `.first()`
+ *  would count one of nothing as one of something. */
+function parts(world, title, cls) {
+  return world.node(title).first().locator(`:scope > .ol-row ${cls}`);
+}
+
+/** A part of a node's OWN row. */
 function part(world, title, cls) {
-  return world.node(title).first().locator(`:scope > .ol-row ${cls}`).first();
+  return parts(world, title, cls).first();
 }
 
 Then("the note under {string} reads {string}", async function (title, note) {
@@ -79,6 +86,42 @@ Then("{string} becomes done", async function (title) {
 
 Then("{string} is not doing", async function (title) {
   await assertClass(this.node(title).first(), "is-doing", false, title);
+});
+
+// ---- what is not actionable yet --------------------------------------------
+//
+// Blocked is not a state of the node the way done and doing are — it is a fact
+// about the GRAPH, derived from `@after` and what the far end of it says about
+// itself. So there is no class on the node to read: the pill IS the assertion,
+// and what it is waiting on is its title.
+
+// The pill names what it waits on, and points at that node's own page — the
+// address the route table minted, never a same-page fragment. The key is not
+// typed here; the SHAPE of the address is what a step may know (zoom_steps.js).
+Then("{string} is blocked on {string}", async function (title, waiting) {
+  const pill = part(this, title, ".ol-blocked");
+  await pill.waitFor({ state: "visible" });
+  assert.equal(await pill.getAttribute("title"), `after ${waiting}`);
+  assert.match(await pill.getAttribute("href"), /^\/n\/[^/]+$/);
+});
+
+When("I follow the blocked pill on {string}", async function (title) {
+  await this.follow(part(this, title, ".ol-blocked"));
+});
+
+Then("{string} is not blocked", async function (title) {
+  assert.equal(
+    await parts(this, title, ".ol-blocked").count(),
+    0,
+    `${title} draws a blocked pill`,
+  );
+});
+
+// The waiting one, for a pill that goes away under a live swap: the node is
+// re-drawn without it, so this waits for the pill to leave rather than reading
+// a count off whichever copy the query lands on mid-swap.
+Then("{string} stops being blocked", async function (title) {
+  await part(this, title, ".ol-blocked").waitFor({ state: "detached" });
 });
 
 // ---- mirrors ---------------------------------------------------------------

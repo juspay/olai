@@ -17,6 +17,8 @@
          racket/path
          olai/agenda
          olai/calendar
+         ;; a blocker is a node, and a node is addressed by its key
+         (only-in olai/lang/expander task-key)
          (only-in olai/json/model nullish mark->json))
 
 (provide (contract-out
@@ -34,7 +36,7 @@
                           #:line (or/c exact-integer? #f)
                           #:col (or/c exact-integer? #f))
                          hash?)]
-          [agenda-item->jsexpr (-> agenda-item? hash?)]
+          [agenda-item->jsexpr (-> agenda-item? symbol? hash?)]
           [agenda-groups->jsexpr (-> list? string? hash?)]
           [cal-item->jsexpr (-> cal-item? hash?)]
           [calendar->jsexpr (-> hash? hash?)])
@@ -69,24 +71,45 @@
         'ok #f
         'error (error-object message #:file file #:line line #:col col)))
 
-(define (agenda-item->jsexpr it)
+(define (agenda-item->jsexpr it bucket)
   (hash 'title (agenda-item-title it)
         ;; null in the `doing` group: a node in flight need not be dated
         'date (nullish (agenda-item-date it))
         'breadcrumb (agenda-item-breadcrumb it)
-        'status (symbol->string (agenda-item-status it))))
+        'status (symbol->string (agenda-item-status it))
+        ;; Where the item sits by its own facts (see items-for below): the
+        ;; group it is in, unless it is BLOCKED — and then what it would have
+        ;; been. An overdue node waiting on an unfinished one is both, and an
+        ;; agent that only heard "blocked" would not know it was already late.
+        'bucket (symbol->string bucket)
+        'blocked (agenda-item-blocked? it)
+        ;; What it is waiting on, as KEYS — the way everything else addresses a
+        ;; node (docs/cli.md). An anchored blocker's key IS its anchor, so the
+        ;; common case reads as the outline wrote it, and an unanchored one is
+        ;; still something `tree` can be asked about.
+        'waiting_on (map task-key (agenda-item-waiting it))))
 
 (define (agenda-groups->jsexpr groups today)
+  ;; In four of the five groups the bucket IS the group — `overdue` holds what
+  ;; is overdue, and the agenda put it there by asking exactly that. BLOCKED is
+  ;; the exception the field exists for: those items are here INSTEAD of in the
+  ;; bucket they belong to, so that bucket is the one thing the reply still has
+  ;; to go and ask.
   (define (items-for sym)
     (define p (assq sym groups))
-    (if p (map agenda-item->jsexpr (cdr p)) '()))
+    (if p
+        (for/list ([it (in-list (cdr p))])
+          (agenda-item->jsexpr it (if (eq? sym 'blocked) (agenda-bucket it today) sym)))
+        '()))
   (hash 'version json-reply-version
         'today today
         'overdue (items-for 'overdue)
         ;; above today_items, as the agenda reads it (olai/agenda)
         'doing (items-for 'doing)
         'today_items (items-for 'today)
-        'upcoming (items-for 'upcoming)))
+        'upcoming (items-for 'upcoming)
+        ;; and under all of them: what you cannot act on yet
+        'blocked (items-for 'blocked)))
 
 (define (cal-item->jsexpr it)
   (hash 'title (cal-item-title it)

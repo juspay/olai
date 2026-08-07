@@ -15,3 +15,7 @@ This week
   *serve
 [/] Draft the migration plan
   : who is on it lives here, not in the grammar
+Announce the release
+  @after ^serve
+  : not actionable until the server ships — the graph says so, and the page
+  : draws a pill saying so

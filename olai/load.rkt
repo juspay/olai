@@ -16,6 +16,8 @@
          ;; what an anchor means once several files are held at once — and
          ;; what it means over the files one write touched
          (only-in olai/lang/link link-anchors link-written)
+         ;; and what the typed edges between them derive to, over that same set
+         (only-in olai/edges build-edge-index edge-index? empty-edge-index)
          olai/paths)
 
 ;; This is a seam, so it ships with contracts: a caller that hands us a string
@@ -29,8 +31,10 @@
                            [anchors hash?]
                            [includes list?])]
           [struct linked ([outlines (listof outline?)]
-                          [anchors hash?])]
+                          [anchors hash?]
+                          [edges edge-index?])]
           [empty-linked linked?]
+          [linked-entries (-> linked? list?)]
           [struct load-error ([message string?]
                               [file (or/c path? string? #f)]
                               [line (or/c exact-positive-integer? #f)]
@@ -65,12 +69,23 @@
 ;; per load and it is this hash — not something each file answers for itself.
 ;;   outlines : (listof outline), in load order, keys minted
 ;;   anchors  : hash id -> task, over every file at once
-(struct linked (outlines anchors) #:transparent)
+;;   edges    : the typed-edge graph over the same set (olai/edges) — derived
+;;              here rather than by each reader, for the same reason the anchor
+;;              index is: an edge crosses files, so one load has one answer
+(struct linked (outlines anchors edges) #:transparent)
 
 ;; No files loaded yet — what a store serves before its first load. Named here
 ;; rather than built by the caller, so what a linked set CARRIES stays this
-;; module's to change (an edge index is the next thing to go in one).
-(define empty-linked (linked '() (hash)))
+;; module's to change.
+(define empty-linked (linked '() (hash) empty-edge-index))
+
+;; The set as the pure queries read it: one (file . tasks) per outline, in load
+;; order. Named here because it is what `linked` IS to a reader — the agenda,
+;; the calendar and the ICS writer all wanted it, and each was spelling the
+;; same two accessors into a cons.
+(define (linked-entries lk)
+  (for/list ([o (in-list (linked-outlines lk))])
+    (cons (outline-path o) (outline-tasks o))))
 
 ;; A load failure, with the srcloc of the offending form (CLAUDE.md: errors
 ;; carry file:line:col). line/col may be #f when the exn had no source.
@@ -226,7 +241,13 @@
   (define fallback (and (pair? outs) (outline-path (car outs))))
   (with-handlers ([exn:fail? (λ (e) (exn->load-error e fallback))])
     (define minted (mint-outline-keys outs))
-    (linked minted (link-anchors (append* (map outline-tasks minted))))))
+    (define roots (append* (map outline-tasks minted)))
+    ;; The checker runs first and the derivation second, in that order and not
+    ;; as a matter of taste: an edge naming nothing is a form that is wrong,
+    ;; and a graph built from one would be a graph with a hole in it that
+    ;; nobody was ever told about.
+    (define anchors (link-anchors roots))
+    (linked minted anchors (build-edge-index roots anchors))))
 
 ;; The whole of what "the files you were given" means: each one loaded, then
 ;; linked as the set they are. Every read surface wants exactly this — the CLI

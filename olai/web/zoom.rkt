@@ -21,7 +21,8 @@
            (->* (task? list? #:today string?
                  #:home-href string? #:node-href (-> string? string?))
                 (#:toggle-base (or/c string? #f)
-                 #:docs hash?)
+                 #:docs hash?
+                 #:blocked hash?)
                 list?)]
           ;; The same two addresses the zoom takes: this IS the zoom with
           ;; nothing in it, down to the trail, which here is empty and draws
@@ -51,7 +52,8 @@
                      #:home-href home-href
                      #:node-href node-href
                      #:toggle-base [toggle-base #f]
-                     #:docs [docs (hash)])
+                     #:docs [docs (hash)]
+                     #:blocked [blocked (hash)])
   `(div ((class ,(classes ol-pane ol-zoom)) (id "ol-outline"))
         ,(render-breadcrumbs crumbs
                              #:node-href node-href
@@ -62,6 +64,7 @@
                                    #:node-href node-href
                                    #:toggle-base toggle-base
                                    #:docs docs
+                                   #:blocked blocked
                                    ;; the page IS this node: its document is
                                    ;; what you came here to read
                                    #:doc-expanded? #t))))
