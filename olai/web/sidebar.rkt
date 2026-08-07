@@ -40,10 +40,9 @@
           ;; re-fetches that page and lifts itself out of the reply whenever
           ;; the outline moves
           [render-sidebar
-           (->* (list? #:home-href string? #:today-href (or/c string? #f)
-                 #:href string?)
-                (#:zoom-base (or/c string? #f))
-                list?)]))
+           (-> list? #:home-href string? #:today-href string?
+               #:href string? #:node-href (-> string? string?)
+               list?)]))
 
 ;; The binding's name IS the element id, always: that is what keeps `#ol-sidebar`
 ;; from being written anywhere. The CSS class this element also wears wanted the
@@ -158,7 +157,7 @@
                         #:home-href home-href
                         #:today-href today-href
                         #:href href
-                        #:zoom-base [zoom-base #f])
+                        #:node-href node-href)
   (define entries (normalize-files-data files-data))
   ;; Disclosure only, and mirror sites stay out of it: the tree is for finding
   ;; a node, and a node is listed where it is defined.
@@ -181,7 +180,7 @@
          #:collapse-key (string-append "tree-" key)
          #:collapsed? (> depth 0)
          #:row (list `(a ((class ,ol-tree-link)
-                          ,@(node-link-attributes zoom-base key))
+                          ,@(node-link-attributes node-href key))
                          ,@(map style-md-xexpr (title->inline-xexprs (task-title tk)))))
          #:children (append*
                      (for/list ([c (in-list kids)])
@@ -196,14 +195,14 @@
           (div ((class ,ol-brand))
                (a ((class ,ol-brand-link) ,@(live-link ol-live home-href))
                   "olai"))
+          ;; Today is a ROUTE, so Today is a link — there is no longer a state
+          ;; where the app has the page and the sidebar was not told its
+          ;; address (which is what the dead-link branch here was standing in
+          ;; for). web/routes mints it from the pattern that dispatches it.
           (nav ((class ,ol-sidebar-nav))
-               ,(if today-href
-                    `(a ((class ,ol-nav-item) ,@(live-link ol-live today-href))
-                        (span ((class ,ol-nav-icon) (aria-hidden "true")) "◉")
-                        "Today")
-                    `(span ((class ,ol-nav-item))
-                           (span ((class ,ol-nav-icon) (aria-hidden "true")) "◉")
-                           "Today")))
+               (a ((class ,ol-nav-item) ,@(live-link ol-live today-href))
+                  (span ((class ,ol-nav-icon) (aria-hidden "true")) "◉")
+                  "Today"))
           (section ((class ,ol-sidebar-section))
                    (h3 ((class ,ol-sidebar-heading)) "Starred")
                    (p ((class ,ol-sidebar-empty)) "Nothing starred yet"))

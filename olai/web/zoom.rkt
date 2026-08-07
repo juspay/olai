@@ -18,22 +18,25 @@
 
 (provide (contract-out
           [render-zoom
-           (->* (task? list? #:today string? #:home-href string?)
-                (#:zoom-base (or/c string? #f)
-                 #:toggle-base (or/c string? #f)
+           (->* (task? list? #:today string?
+                 #:home-href string? #:node-href (-> string? string?))
+                (#:toggle-base (or/c string? #f)
                  #:docs hash?)
                 list?)]
+          ;; the same two addresses every pane is drawn with, so the empty one
+          ;; is the zoom with nothing in it rather than a second shape
           [render-empty-pane
-           (-> string? #:home-href string? list?)]))
+           (-> string? #:home-href string? #:node-href (-> string? string?)
+               list?)]))
 
 ;; The zoomed pane, and its root list: hooks the swap and the tests address,
 ;; and the two rules below hang off them.
 (define-modifier ol-zoom ol-zoom-root)
 
 ;; A pane with nothing to show: breadcrumbs home, one line saying why.
-(define (render-empty-pane message #:home-href home-href)
+(define (render-empty-pane message #:home-href home-href #:node-href node-href)
   `(div ((class ,(classes ol-pane ol-zoom)) (id "ol-outline"))
-        ,(render-breadcrumbs '() #:home-href home-href)
+        ,(render-breadcrumbs '() #:home-href home-href #:node-href node-href)
         (p ((class ,ol-empty)) ,message)))
 
 ;; Breadcrumbs + the focused subtree.
@@ -45,17 +48,17 @@
 (define (render-zoom tk crumbs
                      #:today today
                      #:home-href home-href
-                     #:zoom-base [zoom-base #f]
+                     #:node-href node-href
                      #:toggle-base [toggle-base #f]
                      #:docs [docs (hash)])
   `(div ((class ,(classes ol-pane ol-zoom)) (id "ol-outline"))
         ,(render-breadcrumbs crumbs
-                             #:zoom-base zoom-base
+                             #:node-href node-href
                              #:home-href home-href)
         (ul ((class ,(classes ol-outline ol-zoom-root)))
             ,(render-node-fragment tk
                                    #:today today
-                                   #:zoom-base zoom-base
+                                   #:node-href node-href
                                    #:toggle-base toggle-base
                                    #:docs docs
                                    ;; the page IS this node: its document is

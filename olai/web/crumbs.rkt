@@ -6,8 +6,8 @@
 ;; it. Two shapes and no third — a node (a title, which is Markdown, at the one
 ;; address nodes have) or the FILE the trail hangs off, which is nothing to
 ;; click. A crumb never carries a ready-made href either: where a key points is
-;; the route layer's answer, handed down as `zoom-base` like every other
-;; address the web layer draws.
+;; the route table's answer, handed down as `node-href` — the minting
+;; procedure, not a prefix — like every other address the web layer draws.
 
 (require racket/contract
          racket/list
@@ -24,9 +24,9 @@
 
 (provide (contract-out
           [render-breadcrumbs
-           (->* (list? #:home-href (or/c string? #f))
-                (#:zoom-base (or/c string? #f))
-                list?)]))
+           (-> list? #:home-href (or/c string? #f)
+               #:node-href (-> string? string?)
+               list?)]))
 
 ;; home is a crumb, and the only one that is not a node: nothing paints it,
 ;; the shape below does
@@ -58,15 +58,15 @@
 ;; NODE — a title, which is Markdown, at the one address nodes have; anything
 ;; else is the FILE the trail hangs off, drawn the way files are named here
 ;; (olai/paths) and nothing to click. A crumb never carries a ready-made href:
-;; where a key points is the route layer's answer, and it hands it down as
-;; `zoom-base` like every other address in this module.
+;; where a key points is the route table's answer, and it hands the minting
+;; down as `node-href` like every other address in this module.
 (define (render-breadcrumbs path
                             #:home-href home-href
-                            #:zoom-base [zoom-base #f])
+                            #:node-href node-href)
   (define (crumb->xexpr c)
     (match c
       [(list title key)
-       `(a ((class ,ol-crumb) ,@(node-link-attributes zoom-base key))
+       `(a ((class ,ol-crumb) ,@(node-link-attributes node-href key))
            ,@(map style-md-xexpr (title->inline-xexprs title)))]
       [file `(span ((class ,ol-crumb)) ,(file-label file))]))
   `(nav ((class ,ol-breadcrumbs) (aria-label "breadcrumbs"))

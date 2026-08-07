@@ -23,6 +23,13 @@
 ;; date, serves static files off the disk, and mounts everything else.
 (override "serve.rkt" (owns clock filesystem network))
 
+;; WHERE ANYTHING IS. One declaration answers a request and writes every href
+;; that points at it, so "the address of a node" is one thing minted in one
+;; place rather than a prefix four drawers append a key to. Nothing else may
+;; spell a route — a second claimant is a second URL space, which is exactly
+;; how the mirror arrow came to link at a fragment no zoom page had.
+(override "routes.rkt" (concept web-addressing "make-routes" "routes*"))
+
 ;; A conversation, one turn at a time: what the agent's typed events become for
 ;; a reader. Nothing else spells it — the whole `chat-` surface, so a name this
 ;; module has not got yet is covered before anybody writes it.
