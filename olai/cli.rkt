@@ -102,9 +102,12 @@
 
 ;; What a query reads: one (file . tasks) per outline, linked first so a
 ;; dangling `*anchor` is heard about here rather than drawn as a hole.
-(define (linked-file-entries paths json?)
-  (for/list ([o (in-list (linked-outlines (link-or-die paths json?)))])
+(define (file-entries-of lk)
+  (for/list ([o (in-list (linked-outlines lk))])
     (cons (outline-path o) (outline-tasks o))))
+
+(define (linked-file-entries paths json?)
+  (file-entries-of (link-or-die paths json?)))
 
 (define (today-iso)
   (today-iso-string))
@@ -174,11 +177,17 @@
 (define (cmd-tree paths)
   (write-json-stdout (linked->jsexpr (link-or-die paths #t))))
 
+;; The agenda is asked of the SET, not of a list of files: what blocks what
+;; crosses files exactly the way a mirror does, so the graph the set derived is
+;; what says which nodes are waiting.
 (define (cmd-agenda paths)
-  (define entries (linked-file-entries paths #t))
+  (define lk (link-or-die paths #t))
   (define today (today-iso))
-  (write-json-stdout
-   (agenda-groups->jsexpr (agenda-groups-from-files entries today) today)))
+  (define groups
+    (agenda-groups-from-files
+     (file-entries-of lk) today
+     #:blocked (blocked-nodes (linked-edges lk))))
+  (write-json-stdout (agenda-groups->jsexpr groups today)))
 
 (define (cmd-calendar paths month)
   (define entries (linked-file-entries paths #t))

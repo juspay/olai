@@ -20,12 +20,12 @@
           [render-outline
            (->* (list? #:today string?)
                 (#:zoom-base (or/c string? #f) #:toggle-base (or/c string? #f)
-                 #:docs hash?)
+                 #:docs hash? #:blocked hash?)
                 list?)]
           [render-file-section
            (->* (any/c #:today string?)
                 (#:zoom-base (or/c string? #f) #:toggle-base (or/c string? #f)
-                 #:docs hash?)
+                 #:docs hash? #:blocked hash?)
                 list?)]
           ;; the same normalisation the sidebar draws its tree from: two
           ;; surfaces over one files-data, and one answer to what a label is
@@ -66,7 +66,8 @@
                              #:today today
                              #:zoom-base [zoom-base #f]
                              #:toggle-base [toggle-base #f]
-                             #:docs [docs (hash)])
+                             #:docs [docs (hash)]
+                             #:blocked [blocked (hash)])
   (match-define (list label tasks) (car (normalize-files-data (list entry))))
   `(section ((class ,ol-file)
              (id ,(string-append "ol-file-" (id-safe label)))
@@ -80,18 +81,21 @@
                                   #:today today
                                   #:zoom-base zoom-base
                                   #:toggle-base toggle-base
-                                  #:docs docs)))))
+                                  #:docs docs
+                                  #:blocked blocked)))))
 
 (define (render-outline files-data
                         #:today today
                         #:zoom-base [zoom-base #f]
                         #:toggle-base [toggle-base #f]
-                        #:docs [docs (hash)])
+                        #:docs [docs (hash)]
+                        #:blocked [blocked (hash)])
   `(div ((class ,ol-pane) (id "ol-outline"))
         ,@(for/list ([e (in-list files-data)])
             (render-file-section e
                                  #:today today
                                  #:zoom-base zoom-base
                                  #:toggle-base toggle-base
-                                 #:docs docs))))
+                                 #:docs docs
+                                 #:blocked blocked))))
 

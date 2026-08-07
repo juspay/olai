@@ -22,10 +22,14 @@
 ;; descs: list of (list text line col) newest-first
 ;; date-info / done-info / doing-info: #f or (list value line col)
 ;; doc-info: #f or (list relative-path line col) — the document @doc named
+;; edge-infos: list of (list relation anchor line col) newest-first — the typed
+;;   edges written under this title. A LIST, unlike every field above it: a
+;;   node is after one date but may be after any number of other nodes.
 ;; id-info: #f or (list id-string line col)
 ;; mirror-anchor: #f or anchor string (when set, this node is a mirror leaf)
 ;; include-path: #f or relative path string (when set, this node is an include leaf)
-(struct node (title date-info done-info doing-info doc-info id-info descs children
+(struct node (title date-info done-info doing-info doc-info edge-infos id-info
+              descs children
               line col span src mirror-anchor include-path)
   #:mutable #:transparent)
 
@@ -157,6 +161,20 @@
           (list (datum->syntax #f '#:doc (loc-vec src pline pcol 4))
                 (datum->syntax #f p (loc-vec src pline pcol (string-length p))))]
          [#f '()]))
+     ;; Every edge the node wrote, in source order. Both halves of one sit at
+     ;; the LINE's own column: the form an error is about is `@after ^x`
+     ;; entire, and pointing an "unknown anchor" at the anchor alone would
+     ;; underline the half that is not in question.
+     (define edge-part
+       (append*
+        (for/list ([e (in-list (reverse (node-edge-infos nd)))])
+          (match-define (list relation anchor eline ecol) e)
+          (define kw (string->keyword (format "~a" relation)))
+          (list (datum->syntax #f kw
+                               (loc-vec src eline ecol
+                                        (add1 (string-length (symbol->string relation)))))
+                (datum->syntax #f anchor
+                               (loc-vec src eline ecol (string-length anchor)))))))
      (define done-part (mark-part src '#:done (node-done-info nd)))
      (define doing-part (mark-part src '#:doing (node-doing-info nd)))
      (define desc-part (description-part src (node-descs nd)))
@@ -164,7 +182,7 @@
      (define form
        (cons (datum->syntax #f 't (loc-vec src line col span))
              (append (list title-stx) id-part date-part doc-part done-part
-                     doing-part desc-part kids)))
+                     doing-part edge-part desc-part kids)))
      (datum->syntax #f form (loc-vec src line col span))]))
 
 (define (parse-lines src lines)
@@ -243,7 +261,7 @@
           (check-leaf-parent! level n col)
           (set! stack (take stack level))
           (define nd
-            (node #f #f #f #f #f #f '() '() n col (string-length content) src
+            (node #f #f #f #f #f '() #f '() '() n col (string-length content) src
                   anchor #f))
           (push-node! nd level)]
          [`(include ,path)
@@ -251,7 +269,7 @@
           (check-leaf-parent! level n col)
           (set! stack (take stack level))
           (define nd
-            (node #f #f #f #f #f #f '() '() n col (string-length content) src
+            (node #f #f #f #f #f '() #f '() '() n col (string-length content) src
                   #f path))
           (push-node! nd level)]
          [`(title ,title ,flag ,anchor)
@@ -264,7 +282,7 @@
           (define id-info
             (and anchor (list anchor n col)))
           (define nd
-            (node title #f done-info doing-info #f id-info '() '() n col
+            (node title #f done-info doing-info #f '() id-info '() '() n col
                   (string-length title) src #f #f))
           (push-node! nd level)]
          [`(meta desc ,text)
@@ -291,6 +309,17 @@
             (reader-error src n col #f
                           "duplicate @doc on this task"))
           (set-node-doc-info! parent (list p n (+ col off)))]
+         ;; A typed edge, and there is no "duplicate" to report: `@after` twice
+         ;; under one title is a node waiting on two others, which is the
+         ;; ordinary case. What the anchors NAME is the language's question
+         ;; (lang/graph, over the whole loaded set); the reader only collects
+         ;; them, in the order they were written.
+         [`(meta edge ,relation ,anchor)
+          (define parent
+            (require-task-parent! level n col (format "@~a" relation)))
+          (set-node-edge-infos! parent
+                                (cons (list relation anchor n col)
+                                      (node-edge-infos parent)))]
          ;; A node that is both done and doing is a LANGUAGE error, not a
          ;; reader one — the reader only knows that neither field is here
          ;; twice. The expander is what rejects the pair (lang/expander).

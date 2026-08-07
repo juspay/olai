@@ -141,7 +141,10 @@
 (define example-snapshot
   (store-snapshot
    (make-store (list (build-path examples-dir "Example.rkt")
-                     (build-path examples-dir "Daily.rkt")))))
+                     (build-path examples-dir "Daily.rkt")
+                     ;; the typed-edge demo: a node the graph says is blocked
+                     ;; wears a pill, and that pill is a class like any other
+                     (build-path examples-dir "Kitchen.rkt")))))
 
 (define example-files (snapshot-files-data example-snapshot))
 
@@ -156,7 +159,8 @@
                                 ;; the demo outline attaches a @doc, and the
                                 ;; store read it: what a document looks like
                                 ;; collapsed is a state the skin paints
-                                #:docs (snapshot-docs example-snapshot))
+                                #:docs (snapshot-docs example-snapshot)
+                                #:blocked (snapshot-blocked example-snapshot))
                 #:sidebar (render-sidebar example-files
                                           #:home-href "/" #:today-href "/today"
                                           #:href "/"

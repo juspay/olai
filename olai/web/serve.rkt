@@ -409,7 +409,11 @@
 
                ;; the @doc documents as of this snapshot; the renderer opens
                ;; no files (web/render)
-               #:docs (snapshot-docs snap)))
+               #:docs (snapshot-docs snap)
+               ;; and what the graph says is not actionable yet, from the same
+               ;; snapshot: one load, one answer, on every page that draws a
+               ;; node
+               #:blocked (snapshot-blocked snap)))
 
 ;; The key a page was asked for, as a node, or #f. Both zoom routes go through
 ;; here, and each says in its own words what #f means.
@@ -422,7 +426,8 @@
      (values (render-outline (snapshot-files-data snap)
                              #:today (today-iso-string)
                              #:zoom-base node-href-base
-                             #:docs (snapshot-docs snap))
+                             #:docs (snapshot-docs snap)
+                             #:blocked (snapshot-blocked snap))
              (page-title (store-files st))))))
 
 ;; A node's permalink.
@@ -479,7 +484,8 @@
         (agenda-groups-from-files
          (for/list ([o (in-list (snapshot-outlines snap))])
            (cons (outline-path o) (outline-tasks o)))
-         today))
+         today
+         #:blocked (snapshot-blocked snap)))
       (json-response (agenda-groups->jsexpr groups today)))))
 
 ;; ---- handlers: the stream -------------------------------------------------

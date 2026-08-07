@@ -42,6 +42,14 @@
 ;; key the same.
 (override "load.rkt" (concept node-key-minting "mint-*"))
 
+;; The graph beyond containment, derived once per load: what the typed edges
+;; mean once both spellings are folded into one, which way round, and what
+;; points back at a node. One owner, because a second module that inverted
+;; `@blocks` its own way would be a second graph.
+(override "edges.rkt"
+          (concept edge-derivation "build-edge-index" "edge-index*" "edge-targets"
+                   "edge-backlinks" "edge-order" "backlink*"))
+
 ;; Snapshots, and the namespace an outline is loaded in. Addressing is not
 ;; snapshotting — the index is olai/index.rkt's — so the concept here is the
 ;; snapshot and what holds it.

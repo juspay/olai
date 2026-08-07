@@ -1,6 +1,6 @@
 #lang racket/base
 
-;; The anchor/mirror graph rules, once, for every phase.
+;; The anchor graph rules — mirrors and typed edges — once, for every phase.
 ;;
 ;; A module is checked at COMPILE time, over the syntax it was written as, and
 ;; again at RUN time after @include has spliced fragments in; the whole LOADED
@@ -12,16 +12,62 @@
 ;; at all.
 ;;
 ;; So the rules live here, over a NODE PROTOCOL the caller supplies: how to
-;; read a node's anchor, its children, whether it is a mirror site, and how
-;; to fail on one. Nothing in this module knows what a node is.
+;; read a node's anchor, its children, whether it is a mirror site, what edges
+;; it declares, and how to fail on one. Nothing in this module knows what a
+;; node is.
 ;;
 ;; The one thing a phase does change is whether the anchor list it can see is
 ;; the WHOLE list — see #:scope below.
+;;
+;; A TYPED EDGE (`@after ^x`) is a second kind of reference to an anchor, so it
+;; is checked here and by the same machinery: an unknown target is the message
+;; an unknown mirror gets, with its own sigil, and a cycle is the same DFS with
+;; a different graph in it. What it adds is the RELATION SET, which is closed
+;; and lives below — a new relation is a human-ratified event, not an edit a
+;; reader of one call site can make.
 
 (require racket/list
          racket/string)
 
-(provide check-anchor-graph)
+(provide check-anchor-graph
+         check-edge-graph
+         edge-relations
+         edge-relation?
+         normalize-edge
+         derived-relation-acyclic?)
+
+;; ---- the closed relation set ------------------------------------------------
+;;
+;; | written    | means                                   | derives to        |
+;; |------------|-----------------------------------------|-------------------|
+;; | @after ^x  | this node is not actionable until ^x is  | after: node -> x  |
+;; |            | done — ORDERING, never scheduling       |                   |
+;; | @blocks ^y | the same fact from the other end        | after: y -> node  |
+;; | @see ^z    | a plain cross-reference, no semantics   | see: node -> z    |
+;;
+;; Two relations come out of three spellings, which is the whole point of the
+;; normalization: `@blocks` is where the writer thought of it, not a second
+;; edge kind to check, sort and keep in step with the first.
+(define edge-relations '(after blocks see))
+
+(define (edge-relation? r) (and (memq r edge-relations) #t))
+
+;; One edge, as the DERIVED graph has it: which relation it lands in and which
+;; way it runs there. `a @blocks b` is the edge `b after a` — the file keeps
+;; the direction its writer thought in, and everything downstream sees one.
+;;
+;; from/to may be #f: an edge declared by a node with no ^anchor has no name to
+;; be the far end of, and a caller that needs one skips it.
+;; -> (values relation from to)
+(define (normalize-edge relation source target)
+  (case relation
+    [(blocks) (values 'after target source)]
+    [else (values relation source target)]))
+
+;; Ordering must be acyclic — a node cannot be after itself, however long the
+;; way round. A cross-reference need not be: `@see` is a link, and two nodes
+;; may perfectly well point at each other.
+(define (derived-relation-acyclic? r) (eq? r 'after))
 
 ;; roots     : (listof node)
 ;; #:id      : node -> string | #f   (its ^anchor)
@@ -75,19 +121,25 @@
       [(mirror-of n)
        => (λ (a)
             (unless (hash-has-key? decls a)
-              (fail 'mirror n (unknown-anchor-message a known #:scope scope))))]
+              (fail 'mirror n
+                    (unknown-anchor-message a known #:scope scope #:sigil "*"))))]
       [else (for-each walk (kids-of n))]))
   (for-each walk roots))
 
 ;; What a name that resolves to nothing is told: the name, every anchor that
 ;; DOES exist in the scope it was looked up in, and — when one of them is a
 ;; typo away — which one it probably meant.
-(define (unknown-anchor-message name known #:scope scope)
+;;
+;; `sigil` is how the reference was spelled — `*` for a mirror site, `^` for a
+;; typed edge's target. The two kinds of reference are the same lookup in the
+;; same index, so they are the same message, and an agent that learned to read
+;; one has learned to read the other.
+(define (unknown-anchor-message name known #:scope scope #:sigil sigil)
   (define listed (if (null? known) "(none)" (string-join known ", ")))
   (define near (nearest name known))
-  (format "unknown *~a; anchors in ~a: ~a~a"
-          name scope listed
-          (if near (format "; did you mean *~a?" near) "")))
+  (format "unknown ~a~a; anchors in ~a: ~a~a"
+          sigil name scope listed
+          (if near (format "; did you mean ~a~a?" sigil near) "")))
 
 ;; The one candidate close enough to be worth naming, or #f. "Close enough" is
 ;; one edit per three characters (and always at least one), which catches the
@@ -126,7 +178,7 @@
 (define (check-cycles decls id-of kids-of mirror-of fail)
   (define edges (make-hash))
   (define (add-edge! from to node)
-    (hash-set! edges from (cons (cons to node) (hash-ref edges from '()))))
+    (hash-update! edges from (λ (es) (cons (cons to node) es)) '()))
   (define (walk-under n owner)
     (cond
       [(mirror-of n) => (λ (a) (add-edge! owner a n))]
@@ -136,11 +188,29 @@
   (for ([(id n) (in-hash decls)])
     (for ([k (in-list (kids-of n))]) (walk-under k id)))
 
+  (define-values (path closing) (find-cycle edges))
+  (when path
+    (fail 'mirror
+          (or (site-on-path edges path) closing)
+          (format "mirror *~a creates a cycle: ~a"
+                  (car path)
+                  (string-join path " -> ")))))
+
+;; ---- the cycle DFS ----------------------------------------------------------
+;;
+;; One graph walk, two callers. `edges` is a hash from -> (listof (cons to
+;; site)), where a site is whatever form the caller wants an error pointed at
+;; (#f when the edge is structural — containment has no line of its own).
+;;
+;; -> (values path closing-site) | (values #f #f). The path is `a -> … -> a`,
+;; the names the cycle runs through, and `closing-site` is the form of the edge
+;; that closed it.
+(define (find-cycle edges)
   (define WHITE 0) (define GRAY 1) (define BLACK 2)
   (define color (make-hash))
   (define parent (make-hash))
 
-  ;; The trail back to `end` through the parent map, as anchor names.
+  ;; The trail back to `end` through the parent map, as names.
   (define (cycle-path end)
     (let loop ([cur end] [acc (list end)])
       (define p (hash-ref parent cur #f))
@@ -152,32 +222,117 @@
              (cons prev acc)
              (loop prev (cons prev acc)))])))
 
-  ;; A mirror site on the cycle: the form to point the error at.
-  (define (mirror-on-path path)
-    (for/or ([from (in-list path)] [to (in-list (cdr path))])
-      (for/or ([e (in-list (hash-ref edges from '()))])
-        (and (equal? (car e) to) (cdr e)))))
+  (define found #f)
 
   (define (dfs u)
     (hash-set! color u GRAY)
-    (for ([e (in-list (hash-ref edges u '()))])
+    (for ([e (in-list (hash-ref edges u '()))]
+          #:unless found)
       (define v (car e))
       (define site (cdr e))
       (define c (hash-ref color v WHITE))
       (cond
         [(= c GRAY)
          (hash-set! parent v (cons u site))
-         (define path (cycle-path v))
-         (fail 'mirror
-               (or (mirror-on-path path) site)
-               (format "mirror *~a creates a cycle: ~a"
-                       (if site v (car path))
-                       (string-join path " -> ")))]
+         (set! found (cons (cycle-path v) site))]
         [(= c WHITE)
          (hash-set! parent v (cons u site))
          (dfs v)]))
     (hash-set! color u BLACK))
 
-  (for ([id (in-hash-keys decls)])
-    (when (= (hash-ref color id WHITE) WHITE)
-      (dfs id))))
+  ;; Sorted, so the same graph answers with the same cycle twice: hash order is
+  ;; not an order, and an error message is read by a diff as often as by a
+  ;; person.
+  (for ([u (in-list (sort (hash-keys edges) string<?))]
+        #:unless found)
+    (when (= (hash-ref color u WHITE) WHITE)
+      (dfs u)))
+  (if found
+      (values (car found) (cdr found))
+      (values #f #f)))
+
+;; A site on the cycle: the form to point the error at when the edge that
+;; closed it has none (containment reaching an anchor, say).
+(define (site-on-path edges path)
+  (for/or ([from (in-list path)] [to (in-list (cdr path))])
+    (for/or ([e (in-list (hash-ref edges from '()))])
+      (and (equal? (car e) to) (cdr e)))))
+
+;; ---- typed edges ------------------------------------------------------------
+;;
+;; The second kind of reference to an anchor, checked where the first one is
+;; and against the index the first one built (`decls`, which is what
+;; check-anchor-graph answers with).
+;;
+;; roots      : (listof node)
+;; #:id       : node -> string | #f   (its ^anchor — an edge's source name)
+;; #:kids     : node -> (listof node)
+;; #:edges    : node -> (listof edge) (the typed edges written on it)
+;; #:relation : edge -> symbol
+;; #:target   : edge -> string        (the ^anchor it names)
+;; #:decls    : hash anchor -> node
+;; #:scope    : what the anchor list covers, or #f when this pass cannot see
+;;              the whole world (see check-anchor-graph)
+;; #:fail     : who edge message -> ⊥
+;;
+;; Three rules, and the first is what makes the set closed: a relation nobody
+;; ratified is not a relation. The other two are per relation — an unknown
+;; target is wrong for all of them, a cycle only for the ordering one.
+(define (check-edge-graph roots
+                          #:id id-of
+                          #:kids kids-of
+                          #:edges edges-of
+                          #:relation relation-of
+                          #:target target-of
+                          #:decls decls
+                          #:scope scope
+                          #:fail fail)
+  (define known (sort (hash-keys decls) string<?))
+  ;; derived relation -> hash from -> (listof (cons to edge)), for the ones
+  ;; that must be acyclic. Built on the way through the same walk that checks
+  ;; the other two rules.
+  (define graphs (make-hasheq))
+  (define (add-edge! relation from to e)
+    (define g (hash-ref! graphs relation make-hash))
+    (hash-update! g from (λ (es) (cons (cons to e) es)) '()))
+
+  (define (visit n)
+    (define source (id-of n))
+    (for ([e (in-list (edges-of n))])
+      (define relation (relation-of e))
+      (define target (target-of e))
+      (cond
+        [(not (edge-relation? relation))
+         (fail (edge-who relation) e (unknown-relation-message relation))]
+        [else
+         (when (and scope (not (hash-has-key? decls target)))
+           (fail (edge-who relation) e
+                 (unknown-anchor-message target known #:scope scope #:sigil "^")))
+         (define-values (derived from to) (normalize-edge relation source target))
+         ;; An end with no name cannot be reached, so it cannot be on a cycle.
+         (when (and (derived-relation-acyclic? derived) from to)
+           (add-edge! derived from to e))]))
+    (for-each visit (kids-of n)))
+  (for-each visit roots)
+
+  (for ([derived (in-list (sort (hash-keys graphs) symbol<?))])
+    (define-values (path closing) (find-cycle (hash-ref graphs derived)))
+    (when path
+      (define e (or (site-on-path (hash-ref graphs derived) path) closing))
+      (fail (edge-who (and e (relation-of e))) e
+            (format "cycle in @~a: ~a; @~a must be acyclic"
+                    derived
+                    (string-join (map (λ (a) (string-append "^" a)) path) " -> ")
+                    derived)))))
+
+;; A failure is blamed on the FORM the source wrote, so it is named after it
+;; too: `@blocks` closing a cycle in the @after graph says both, which is the
+;; only way to read what the normalization did.
+(define (edge-who relation)
+  (string->symbol (format "@~a" (or relation "edge"))))
+
+(define (unknown-relation-message relation)
+  (format "unknown relation @~a; relations: ~a"
+          relation
+          (string-join (for/list ([r (in-list edge-relations)]) (format "@~a" r))
+                       ", ")))

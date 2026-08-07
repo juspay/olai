@@ -21,7 +21,8 @@
            (->* (task? list? #:today string? #:home-href string?)
                 (#:zoom-base (or/c string? #f)
                  #:toggle-base (or/c string? #f)
-                 #:docs hash?)
+                 #:docs hash?
+                 #:blocked hash?)
                 list?)]
           [render-empty-pane
            (-> string? #:home-href string? list?)]))
@@ -47,7 +48,8 @@
                      #:home-href home-href
                      #:zoom-base [zoom-base #f]
                      #:toggle-base [toggle-base #f]
-                     #:docs [docs (hash)])
+                     #:docs [docs (hash)]
+                     #:blocked [blocked (hash)])
   `(div ((class ,(classes ol-pane ol-zoom)) (id "ol-outline"))
         ,(render-breadcrumbs crumbs
                              #:zoom-base zoom-base
@@ -58,6 +60,7 @@
                                    #:zoom-base zoom-base
                                    #:toggle-base toggle-base
                                    #:docs docs
+                                   #:blocked blocked
                                    ;; the page IS this node: its document is
                                    ;; what you came here to read
                                    #:doc-expanded? #t))))

@@ -17,6 +17,8 @@
          racket/path
          olai/agenda
          olai/calendar
+         ;; a blocker is a node, and a node is addressed by its key
+         (only-in olai/lang/expander task-key)
          (only-in olai/json/model nullish mark->json))
 
 (provide (contract-out
@@ -74,7 +76,18 @@
         ;; null in the `doing` group: a node in flight need not be dated
         'date (nullish (agenda-item-date it))
         'breadcrumb (agenda-item-breadcrumb it)
-        'status (symbol->string (agenda-item-status it))))
+        'status (symbol->string (agenda-item-status it))
+        ;; Where the item sits by its own facts, which is the group it is in
+        ;; unless it is BLOCKED — and then this is what it would have been.
+        ;; An overdue node waiting on an unfinished one is both, and an agent
+        ;; that only heard "blocked" would not know it was already late.
+        'bucket (symbol->string (agenda-item-bucket it))
+        'blocked (pair? (agenda-item-waiting it))
+        ;; What it is waiting on, as KEYS — the way everything else addresses a
+        ;; node (docs/cli.md). An anchored blocker's key IS its anchor, so the
+        ;; common case reads as the outline wrote it, and an unanchored one is
+        ;; still something `tree` can be asked about.
+        'waiting_on (map task-key (agenda-item-waiting it))))
 
 (define (agenda-groups->jsexpr groups today)
   (define (items-for sym)
@@ -86,7 +99,9 @@
         ;; above today_items, as the agenda reads it (olai/agenda)
         'doing (items-for 'doing)
         'today_items (items-for 'today)
-        'upcoming (items-for 'upcoming)))
+        'upcoming (items-for 'upcoming)
+        ;; and under all of them: what you cannot act on yet
+        'blocked (items-for 'blocked)))
 
 (define (cal-item->jsexpr it)
   (hash 'title (cal-item-title it)

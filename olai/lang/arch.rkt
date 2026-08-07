@@ -15,6 +15,12 @@
 ;; a problem. That is the one door to the world this package opens.
 (override "expander.rkt" (owns filesystem))
 
-;; One checker for the anchor/mirror rules, over a node protocol the caller
-;; supplies — compile time and run time go through this and nowhere else.
-(override "graph.rkt" (concept anchor-graph "check-anchor-graph"))
+;; One checker for the anchor rules — mirrors and typed edges — over a node
+;; protocol the caller supplies. Compile time and run time go through this and
+;; nowhere else, and so does the CLOSED RELATION SET: the reader builds its
+;; line grammar from `edge-relations` rather than restating the three names,
+;; and what `@blocks` means is `normalize-edge` and no second opinion.
+(override "graph.rkt"
+          (concept anchor-graph "check-anchor-graph")
+          (concept edge-rules "check-edge-graph" "edge-relations" "edge-relation?"
+                   "normalize-edge" "derived-relation-acyclic?"))

@@ -12,6 +12,7 @@
          racket/string
          (except-in olai/lang/expander #%module-begin)
          olai/dates
+         olai/edges
          olai/lang/walk
          olai/paths)
 
@@ -22,7 +23,38 @@
          with-file-roots
          collect-day-titles
          count-tasks
-         count-mirrors)
+         count-mirrors
+         blocked-nodes)
+
+;; WHAT IS NOT ACTIONABLE YET: key -> the nodes it is waiting on, for every
+;; node with an unfinished `@after` target. Absent from the hash is the answer
+;; for everything else, so membership IS blocked-ness and the value is why —
+;; the nodes themselves, because every surface that draws this wants something
+;; different off them (a key to link to, a name to show, a count).
+;;
+;; `@after` means ORDERING, never scheduling (docs/syntax.md): a blocked node
+;; keeps its `@date` and is overdue on exactly the day it always was — being
+;; blocked is a second fact about it, not a replacement for the first.
+;;
+;; Done-ness does NOT propagate: a target counts as done when it SAYS it is
+;; done, whatever its children say. Deriving it would give the outline two
+;; answers to "is this done" — the one `status` publishes and the one this
+;; function believed — and would make adding a child to a finished parent
+;; silently re-block everything after it. Point `@after` at the child you
+;; actually mean, or mark the parent.
+;;
+;; idx : the set's edge index (olai/edges), which is also what knows the node
+;;       at the far end of an arrow
+(define (blocked-nodes idx)
+  (for*/hash ([(source targets)
+               (in-hash (hash-ref (edge-index-edges idx) 'after (hash)))]
+              [waiting (in-value (filter unfinished? (map (λ (k) (edge-node idx k))
+                                                          targets)))]
+              #:unless (null? waiting))
+    (values source waiting)))
+
+(define (unfinished? tk)
+  (and tk (not (eq? (task-status tk) 'done))))
 
 ;; How big is this outline? Two folds, and the difference between them is the
 ;; whole mirror policy: a node is counted where it is DEFINED, a mirror site
