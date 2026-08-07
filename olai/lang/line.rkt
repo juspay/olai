@@ -42,6 +42,8 @@
 (define classification/c (cons/c line-kind/c list?))
 
 (provide (contract-out
+          [text-lines (-> string? (listof string?))]
+          [lines->text (-> (listof string?) string? string?)]
           [blank-line? (-> string? boolean?)]
           [line-indent+content (-> string? any)]
           [classify-line (-> string? classification/c)]
@@ -57,6 +59,21 @@
           [title-anchor (-> classification/c (or/c string? #f))]
           [strip-checkbox-prefix (-> string? any)]
           [strip-trailing-anchor (-> string? any)]))
+
+;; A file is a list of lines, and back again. Every module that EDITS outline
+;; text does both, and the way back is not `string-join`: whether the file ends
+;; in a newline is a property of the file being edited, and an edit that adds
+;; or drops one is a diff line nobody wrote. Three modules span the same text
+;; the same way because it is spelled once, here, where what a line IS already
+;; lives.
+(define (text-lines text)
+  (string-split text "\n" #:trim? #f))
+
+(define (lines->text lines original)
+  (define body (string-join lines "\n"))
+  (if (regexp-match? #px"\n$" original)
+      (if (regexp-match? #px"\n$" body) body (string-append body "\n"))
+      body))
 
 (define (blank-line? s)
   (regexp-match? #px"^\\s*$" s))

@@ -42,7 +42,7 @@
           [render-sidebar
            (->* (list? #:home-href string? #:today-href (or/c string? #f)
                  #:href string?)
-                (#:zoom-base (or/c string? #f))
+                (#:archive-href (or/c string? #f) #:zoom-base (or/c string? #f))
                 list?)]))
 
 ;; The binding's name IS the element id, always: that is what keeps `#ol-sidebar`
@@ -158,6 +158,7 @@
                         #:home-href home-href
                         #:today-href today-href
                         #:href href
+                        #:archive-href [archive-href #f]
                         #:zoom-base [zoom-base #f])
   (define entries (normalize-files-data files-data))
   ;; Disclosure only, and mirror sites stay out of it: the tree is for finding
@@ -196,6 +197,10 @@
           (div ((class ,ol-brand))
                (a ((class ,ol-brand-link) ,@(live-link ol-live home-href))
                   "olai"))
+          ;; Two ways into the outline that are not a node: the day you are in,
+          ;; and the work you put away. Archive is a LINK like Today and not a
+          ;; section like Starred — what is in it is a whole outline, and the
+          ;; tree below draws the live files only.
           (nav ((class ,ol-sidebar-nav))
                ,(if today-href
                     `(a ((class ,ol-nav-item) ,@(live-link ol-live today-href))
@@ -203,7 +208,13 @@
                         "Today")
                     `(span ((class ,ol-nav-item))
                            (span ((class ,ol-nav-icon) (aria-hidden "true")) "◉")
-                           "Today")))
+                           "Today"))
+               ,@(if archive-href
+                     (list `(a ((class ,ol-nav-item)
+                                ,@(live-link ol-live archive-href))
+                               (span ((class ,ol-nav-icon) (aria-hidden "true")) "▤")
+                               "Archive"))
+                     '()))
           (section ((class ,ol-sidebar-section))
                    (h3 ((class ,ol-sidebar-heading)) "Starred")
                    (p ((class ,ol-sidebar-empty)) "Nothing starred yet"))

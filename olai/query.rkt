@@ -11,6 +11,9 @@
 (require racket/list
          racket/string
          (except-in olai/lang/expander #%module-begin)
+         ;; which nodes are done work put away, and therefore not an answer to
+         ;; any of the questions below
+         (only-in olai/archive archived-task?)
          olai/dates
          olai/lang/walk
          olai/paths)
@@ -52,11 +55,18 @@
 ;; Every node `keep?` says yes to, in tree order, at its DEFINING site: a
 ;; mirror site is the same node, so a mirrored node appears once, with the
 ;; breadcrumb it was defined at.
+;;
+;; ARCHIVED nodes are out of all of them, and this is the line that says so:
+;; the agenda, the calendar and the ICS feed are three ways of asking what is
+;; going on, and work that was put away is not an answer to any of them. It is
+;; a rule about QUERIES and not about loading — the tree still holds every
+;; archived node, `olai tree` still prints it, an anchor in it still resolves,
+;; and the web view has a page of its own for reading them.
 (define (collect-nodes tasks keep? #:root [root #f])
   (reverse
    (fold-tasks tasks
                (λ (tk path acc)
-                 (if (keep? tk)
+                 (if (and (keep? tk) (not (archived-task? tk)))
                      (cons (crumbed-node tk (breadcrumb-of path tk #:root root))
                            acc)
                      acc))

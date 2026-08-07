@@ -75,12 +75,6 @@
           (define-values (ind _) (line-indent+content (list-ref lines i)))
           (if (< ind child-indent) i (loop (add1 i)))])])))
 
-(define (lines->text lines original)
-  (define body (string-join lines "\n"))
-  (if (regexp-match? #px"\n$" original)
-      (if (regexp-match? #px"\n$" body) body (string-append body "\n"))
-      body))
-
 ;; #:on-applied reaches the caller (ops-daily! commits with it).
 (define current-on-applied (make-parameter void))
 
@@ -123,7 +117,7 @@
     (display-to-file "#lang olai\n" frag #:exists 'error))
 
   (define frag-text (file->string frag))
-  (define frag-lines (string-split frag-text "\n" #:trim? #f))
+  (define frag-lines (text-lines frag-text))
   (define day-idx (find-title-line frag-lines day 0))
   (define day-line
     (cond
@@ -146,7 +140,7 @@
   (define root-text (file->string root))
   (unless (regexp-match? #px"(?m:^#lang olai)" root-text)
     (error 'daily "Daily.rkt must be #lang olai"))
-  (define root-lines (string-split root-text "\n" #:trim? #f))
+  (define root-lines (text-lines root-text))
 
   (define root-lines*
     (if (find-title-line root-lines year-title 0)
@@ -211,7 +205,7 @@
     (count-tasks (dynamic-require `(file ,(path->string root)) 'tasks)))
 
   (define text (file->string root))
-  (define lines (string-split text "\n" #:trim? #f))
+  (define lines (text-lines text))
 
   (define result (make-hash)) ; key -> list of day line-groups
   (define current-year #f)

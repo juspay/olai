@@ -67,6 +67,9 @@
          (prefix-in sequencer: web-server/dispatchers/dispatch-sequencer)
          (only-in web-server/private/mime-types make-path->mime-type)
          olai/agenda
+         ;; which of the loaded outlines is the archive: the home page draws
+         ;; the others, and one page draws it
+         (only-in olai/archive archived-file?)
          olai/dates
          ;; a node's title, for the tab a zoom page opens in
          (only-in olai/lang/expander task-title)
@@ -229,6 +232,7 @@
 
 (define home-href "/")
 (define today-href "/today")
+(define archive-href "/archive")
 
 ;; The push channel is NOT in this table, and that is the point: its address is
 ;; the transport's (`live-stream-path`, /live/<boot-id>/events), it carries the
@@ -350,6 +354,20 @@
       (file-label (car files))
       "olai"))
 
+;; The snapshot, split the one way a READER cares about: the outlines that are
+;; live work, and the archive that is not. Both are loaded — a node that was
+;; archived is still in the set, still keyed, still reachable by an anchor from
+;; a live file — and this is only about which page draws which (olai/archive).
+(define (live-files-data snap)
+  (for/list ([e (in-list (snapshot-files-data snap))]
+             #:unless (archived-file? (car e)))
+    e))
+
+(define (archive-files-data snap)
+  (for/list ([e (in-list (snapshot-files-data snap))]
+             #:when (archived-file? (car e)))
+    e))
+
 ;; The panel sits in body-extra, OUTSIDE #ol-live: an outline event re-swaps
 ;; the live region, and a chat mid-turn must not be swapped out from under
 ;; the person typing into it.
@@ -370,6 +388,7 @@
                  #:sidebar (render-sidebar files-data
                                            #:home-href home-href
                                            #:today-href today-href
+                                           #:archive-href archive-href
                                            #:href href
                                            #:zoom-base node-href-base)
                  #:banner banner
@@ -391,7 +410,10 @@
     #:stale-ok? #t
     (λ (rev snap err)
       (define-values (main title) (view snap))
-      (chrome (snapshot-files-data snap) main
+      ;; The sidebar draws the LIVE outlines on every page, the archive page
+      ;; included: it is a region of its own, and the tree it holds has to say
+      ;; the same thing whichever address answered (web/sidebar).
+      (chrome (live-files-data snap) main
               #:title title
               #:href live-href
               #:cursor (outline-cursor rev)
@@ -419,11 +441,31 @@
 (define (page-handler st agent)
   (outline-page st agent home-href
    (λ (snap)
-     (values (render-outline (snapshot-files-data snap)
+     (values (render-outline (live-files-data snap)
                              #:today (today-iso-string)
                              #:zoom-base node-href-base
                              #:docs (snapshot-docs snap))
              (page-title (store-files st))))))
+
+;; What was archived, on a page of its own.
+;;
+;; A page rather than a filter with a toggle: archived work is not a state of
+;; the outline you are reading, it is another outline — one file, drawn the
+;; ordinary way, with the ordinary permalinks under it. Nothing about it is
+;; special except that the home page does not draw it, and every node on it is
+;; still zoomable, still mirrorable, still there.
+(define (archive-handler st agent)
+  (outline-page st agent archive-href
+   (λ (snap)
+     (define entries (archive-files-data snap))
+     (values (if (null? entries)
+                 (render-empty-pane "Nothing archived yet."
+                                    #:home-href home-href)
+                 (render-outline entries
+                                 #:today (today-iso-string)
+                                 #:zoom-base node-href-base
+                                 #:docs (snapshot-docs snap)))
+             "archive"))))
 
 ;; A node's permalink.
 ;;
@@ -530,6 +572,8 @@
      ;; one page per node, addressed by the key the load layer minted
      [("n" (string-arg)) (λ (req key) (node-handler st agent key))]
      [("today") (λ (req) (today-handler st agent))]
+     ;; done work, on demand and nowhere else
+     [("archive") (λ (req) (archive-handler st agent))]
      ;; Mounted, not understood: the hub moves frames and the two modules
      ;; below say what any of them mean. All this layer knows is that a
      ;; connection is born mid-story, and who to ask what it missed.

@@ -13,8 +13,9 @@
          racket/string
          file/sha1
          (except-in olai/lang/expander #%module-begin)
-         ;; what an anchor means once several files are held at once
-         (only-in olai/lang/link link-anchors)
+         ;; what an anchor means once several files are held at once — and
+         ;; what it means over the files one write touched
+         (only-in olai/lang/link link-anchors link-written)
          olai/paths)
 
 ;; This is a seam, so it ships with contracts: a caller that hands us a string
@@ -38,6 +39,7 @@
           [load-error-detail (-> load-error? string?)]
           [try-load-outline (-> path? (or/c outline? load-error?))]
           [load-set (-> (listof path?) (or/c linked? load-error?))]
+          [check-written (-> (listof path?) (or/c #f load-error?))]
           [link-outlines (-> (listof outline?) (or/c linked? load-error?))]
           [mint-outline-keys (-> (listof outline?) (listof outline?))]
           [mint-task-keys (-> list? #:label (-> any/c string?) list?)]
@@ -233,6 +235,28 @@
   (let loop ([ps paths] [acc '()])
     (cond
       [(null? ps) (link-outlines (reverse acc))]
+      [else
+       (define r (try-load-outline (car ps)))
+       (if (outline? r) (loop (cdr ps) (cons r acc)) r)])))
+
+;; What a WRITE validates: the files it just wrote, loaded and then held
+;; together, because a pair can be broken in a way neither half is (olai/edit
+;; calls this on the temp files, before anything is renamed over anything).
+;;
+;; Not `load-set`: no keys are minted (nobody addresses a file that is about to
+;; be renamed away) and the anchor scope stays open — a write must not be
+;; hostage to a file it is not touching. The difference is one word, and it is
+;; lang/link's to say; see link-written there.
+;;
+;; -> #f when they are good, else the load-error of the first file that would
+;; not load, or of the pair that would not hold together.
+(define (check-written paths)
+  (let loop ([ps paths] [acc '()])
+    (cond
+      [(null? ps)
+       (with-handlers ([exn:fail? (λ (e) (exn->load-error e (car paths)))])
+         (link-written (append* (map outline-tasks (reverse acc))))
+         #f)]
       [else
        (define r (try-load-outline (car ps)))
        (if (outline? r) (loop (cdr ps) (cons r acc)) r)])))

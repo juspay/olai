@@ -41,7 +41,7 @@
 ;; Returns (values insert-pos has-parent? task-line-1-based parent-indent)
 ;; parent-spec: #f | string title | (cons 'anchor id-string)
 (define (find-parent-insert text parent-spec)
-  (define lines (string-split text "\n" #:trim? #f))
+  (define lines (text-lines text))
   (define-values (want-title want-anchor)
     (match parent-spec
       [#f (values "Inbox" #f)]
@@ -144,7 +144,7 @@
 ;; line the text already has, plus the "Inbox" line written above the task.
 (define (appended-line-number text)
   (define base-text (if (string=? text "") "" (ensure-nl text)))
-  (define lines (string-split base-text "\n" #:trim? #f))
+  (define lines (text-lines base-text))
   (define line-count
     (if (and (pair? lines) (string=? (last lines) ""))
         (sub1 (length lines))

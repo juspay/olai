@@ -56,12 +56,16 @@ Before(async function ({ pickle }) {
   // reaches across files. Boot-time like the two above: `serve DIR` globs its
   // top level once, so a file written later is a file this server never has.
   let secondOutline = false;
+  // And the archive, for the scenarios about work that has been put away. Same
+  // boot-time reason: the roots are globbed once.
+  let archive = false;
   for (const { name } of pickle.tags) {
     if (name in STORED_SESSIONS) env.OLAI_FAKE_ACP_STORED = STORED_SESSIONS[name];
     if (name === "@phone") viewport = PHONE_VIEWPORT;
     if (name === "@cross-file") secondOutline = true;
+    if (name === "@archived") archive = true;
   }
-  await this.boot(browser, env, viewport, secondOutline);
+  await this.boot(browser, env, viewport, secondOutline, archive);
 });
 
 // The server's own output is the first thing worth reading when a scenario

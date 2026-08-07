@@ -14,6 +14,8 @@
          racket/file
          racket/path
          racket/string
+         ;; where done work goes, and the file name everything agrees on
+         olai/archive
          olai/capture
          olai/daily
          olai/dates
@@ -21,7 +23,12 @@
          olai/edit
          olai/load
          olai/move
-         olai/resolve)
+         olai/resolve
+         ;; the namespace an outline is read in — the store owns it, and a
+         ;; write reads what is on disk now or it is not a write
+         (only-in olai/store call-in-outline-namespace)
+         ;; moving a whole subtree between two outline texts
+         olai/subtree)
 
 ;; The write surface: the CLI calls it, the web mutation routes will. Both
 ;; get told what an op takes and what its result carries — including that a
@@ -50,6 +57,13 @@
                                [line exact-positive-integer?]
                                [date (or/c string? #f)]
                                [committed? boolean?])]
+          [struct archive-result ([file string?]
+                                  [from string?]
+                                  [title string?]
+                                  [line exact-positive-integer?]
+                                  [parents (listof string?)]
+                                  [created-archive? boolean?]
+                                  [committed? boolean?])]
           [struct daily-result ([file string?]
                                 [day string?]
                                 [line exact-positive-integer?]
@@ -69,6 +83,9 @@
           [ops-move! (->* ((or/c path? string?) string? (or/c string? #f))
                           (#:clear? boolean? #:commit? boolean?)
                           move-result?)]
+          [ops-archive! (->* ((or/c path? string?) string?)
+                             (#:commit? boolean?)
+                             archive-result?)]
           [ops-daily! (->* ((or/c path? string?) string?)
                            (#:commit? boolean?)
                            daily-result?)]))
@@ -96,24 +113,25 @@
                                              (exn-message e)))])
     (thunk)))
 
-;; The one write: validate-then-rename, then commit if asked. -> committed?
-(define (write! path text #:commit [message #f])
-  (define committed? #f)
+;; The one write: validate-then-rename over every file the op touched (as the
+;; set they are — olai/edit), then commit them, together, if asked.
+;; edits: (listof (cons path text)). -> committed?
+(define (write! edits #:commit [message #f])
+  (define written '())
   (as-validation
-   path
+   (car (car edits))
    (λ ()
-     (apply-outline-edit!
-      path text
+     (apply-outline-edits!
+      edits
       #:on-invalid
       (λ (err)
         (op-fail 'validation "~a" #:file (load-error-file err)
                  #:line (load-error-line err) #:col (load-error-col err)
                  (load-error-message err)))
       #:on-applied
-      (λ (applied)
-        (when message
-          (set! committed? (and (try-git-commit applied message) #t)))))))
-  committed?)
+      (λ (applied) (set! written (cons applied written))))))
+  ;; One change, one commit, however many files it landed in.
+  (and message (try-git-commit (reverse written) message) #t))
 
 (define (load-outline-or-fail path)
   (define r (try-load-outline path))
@@ -126,8 +144,17 @@
 ;; Where the node a command named actually is — which may be another file:
 ;; an @include fragment, or the sibling root that declares the `^anchor`
 ;; (olai/resolve). The write lands wherever that is.
+;;
+;; In a FRESH namespace, for the same reason the write path validates in one
+;; (olai/edit): the module registry caches a loaded outline for the life of the
+;; process, so a second op in one process would resolve against the trees as
+;; they were before the first one wrote. A CLI process runs one op and never
+;; noticed; `archive` moves a node BETWEEN files, and a caller that holds the
+;; process open — a web mutation route, a test — would be told it is still
+;; where it was.
 (define (locate-in-set root-path spec)
-  (locate (load-outline-or-fail root-path) spec))
+  (call-in-outline-namespace
+   (λ () (locate (load-outline-or-fail root-path) spec))))
 
 (define (existing-file path)
   (define full (simple-form-path (path->complete-path path)))
@@ -168,7 +195,7 @@
                                          #:description desc
                                          #:parent parent))))
   (define committed?
-    (write! path new-text #:commit (and commit? (format "capture: ~a" title))))
+    (write! (list (cons path new-text)) #:commit (and commit? (format "capture: ~a" title))))
   (add-result (path->string path) title date* desc parent
               line created-inbox? committed?))
 
@@ -218,7 +245,7 @@
            ((mark-ops-mark ops) original spec today #:at at)))))
   (define verb (if undo? (mark-ops-undo-verb ops) (mark-ops-verb ops)))
   (define committed?
-    (write! path new-text #:commit (and commit? (format "~a: ~a" verb title))))
+    (write! (list (cons path new-text)) #:commit (and commit? (format "~a: ~a" verb title))))
   (mark-result (path->string path) title line state
                (and (not undo?) today) undo? committed?))
 
@@ -247,12 +274,55 @@
              (values t l ttl #f))
            (set-date-in-text original spec date #:at at)))))
   (define committed?
-    (write! path new-text
+    (write! (list (cons path new-text))
             #:commit (and commit?
                           (if clear?
                               (format "move: ~a (cleared date)" title)
                               (format "move: ~a -> ~a" title date-val)))))
   (move-result (path->string path) title line date-val committed?))
+
+;; ---- archive --------------------------------------------------------------
+;;
+;; The only op that moves a node rather than editing one in place, and the only
+;; one that writes two files: the outline it left and the archive it arrived
+;; in. Both are validated as one set before either moves, and both land in one
+;; commit — it is one change.
+;;
+;; It stamps nothing. Archiving is not finishing: a done node keeps its @done,
+;; an open one stays open, and what changes is only where the node lives.
+
+;; file: the archive it now lives in (the file a reader should open)
+;; from: the outline it left — which may be an @include fragment, not the
+;;       file the command named
+;; parents: the ancestor titles re-created (or merged into) above it
+(struct archive-result (file from title line parents created-archive? committed?)
+  #:transparent)
+
+(define (ops-archive! file spec #:commit? [commit? #t])
+  (define root-path (existing-file file))
+  ;; Beside the outline the command NAMED, never beside the defining file: a
+  ;; fragment lives in a subdirectory and `serve DIR` globs the top level, so
+  ;; an archive down there is one nothing loads (olai/archive).
+  (define dest (archive-path-for root-path))
+  (define hit (as-validation root-path (λ () (locate-in-set root-path spec))))
+  (define src (located-file hit))
+  (define title (located-title hit))
+  (when (equal? src dest)
+    (op-fail 'validation "~s is already archived (~a)" #:file src title dest))
+  (define created? (not (file-exists? dest)))
+  (define-values (src-text* block parents)
+    (as-validation src (λ () (cut-subtree (file->string src)
+                                          (located-index hit)))))
+  (define-values (dest-text* line)
+    (as-validation dest
+                   (λ () (graft-subtree (if created? "#lang olai\n" (file->string dest))
+                                        parents
+                                        block))))
+  (define committed?
+    (write! (list (cons src src-text*) (cons dest dest-text*))
+            #:commit (and commit? (format "archive: ~a" title))))
+  (archive-result (path->string dest) (path->string src) title line parents
+                  created? committed?))
 
 ;; ---- daily ----------------------------------------------------------------
 
