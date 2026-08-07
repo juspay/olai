@@ -7,34 +7,9 @@ olai roadmap #project
     : In flight right now, mirrored — each node's defining site stays in
     : its section below. Maintained by the orchestrator as work starts
     : and lands.
-    *notes-fold
+    *search
   web app
     : The daily surface.
-    [x] declare-and-check DSL
-      @doc docs/brainstorming/live-dsl.md
-      [x] live-dsl
-        : Merged: [#33](https://github.com/juspay/olai/pull/33). One PR: boot-UUID
-        : connect URL (retires #:version, stale tabs get one reload
-        : frame), define-stream / define-live-region / live-item + usage
-        : forms expanding to live/client calls, tutor-format expansion
-        : errors as tested contract, `just expand FILE`, counters
-        : migrated as the worked example, blanket raw-htmx ban
-        : (live/README.md + CLAUDE.md), and olai/web itself rewired
-        : through the forms (human widened the scope; the orchestrator
-        : had wrongly deferred that to a follow-up). Addenda folded in
-        : mid-flight: always-visible health indicator (green live state);
-        : the sidebar becomes a second live region on the outline
-        : stream — fixing the stale-sidebar bug (titles updated in
-        : #ol-live only; sidebar copies went stale until reload); and
-        : render.rkt splits into one file per UI component, each
-        : carrying its declarations and styles, so review reads one
-        : surface per file like counters. Ratification round on the
-        : agent's three (b)-proposals: stream-event RATIFIED; #:id on
-        : define-live-region REJECTED (binding name = DOM id, olai's
-        : class renamed); live-item skip REVERSED — n-<key> element ids
-        : are not a contract (only ^anchors are permanent), so the form
-        : is forced everywhere, routes and task-keys unchanged.
-      : Anti-entropy for a swarm-built wiring: this repo is written by many agents with partial context, and every id/event string is a convention each one must rediscover — e2e catches the drift late, at simulation prices. Regions and streams as compile-time bindings instead: a dead link or undeclared frame fails at expand time with a srcloc (the agent interface), and stream evolution is append-only at one declaration site. The functional core to macro over shipped in [#29](https://github.com/juspay/olai/pull/29) (`live/`: frame, hub, client attributes); the counters example ([#32](https://github.com/juspay/olai/pull/32)) settled the verdicts against real code (2026-08): ONE PR ships the boot-UUID connect URL (retires `#:version`), the forms (`define-stream`, `define-live-region`, `live-item`), and the raw-htmx-attribute ban (live/README.md + CLAUDE.md pointer). Brainstorm: [docs/brainstorming/live-dsl.md](https://github.com/juspay/olai/blob/master/docs/brainstorming/live-dsl.md); the research behind it, general to any future DSL: [docs/brainstorming/agents-and-dsls.md](https://github.com/juspay/olai/blob/master/docs/brainstorming/agents-and-dsls.md).
     [x] markdown fidelity
       : Merged: [#35](https://github.com/juspay/olai/pull/35).
       : One PR over olai/web/markdown.rkt + assets, absorbing chat's
@@ -57,14 +32,30 @@ olai roadmap #project
       : micro-edits' ops layer; order and parent become editable from
       : the view. Sinks with micro-edits' deprioritization (2026-08-06):
       : the agent moves nodes on request.
-    search
-      : Text search + keyboard nav in the web view.
-    [/] notes fold to one line ^notes-fold
-      : Second follow-up in flight (terminal 533b167c, branch
-      : notes-fold-target): the ... at the column edge is a tiny,
-      : distant target. Fix C: the whole note becomes the toggle
-      : (links and text-selection guarded), and the ... hugs the end
-      : of the truncated text as the cue.
+    [/] search ^search
+      : DONE, awaiting approval:
+      : [#46](https://github.com/juspay/olai/pull/46) (terminal
+      : 9d9b14af). / opens, server-rendered, /search?q= permalink,
+      : no-JS fallback, palette has no resting state (its pill collided
+      : with the chat panel's close button — e2e caught it). For
+      : ratification: the NEW FORM live-query (typed input re-fetches a
+      : region; was unsayable, so proposed not hacked), and the ranking
+      : table. Query layer stays pure for the command palette to ride.
+    notes fold to one line ^notes-fold
+      : [#42](https://github.com/juspay/olai/pull/42) (whole-note
+      : toggle) REJECTED and closed 2026-08-07: clicking simply did not
+      : work in the human's real browser, video-proven, unfixed by its
+      : agent despite green e2e — the tests validated the agent's model
+      : of the interaction in a pinned Chromium, not the interaction.
+      : Master stands at [#41](https://github.com/juspay/olai/pull/41)
+      : (click the ... button), which the human confirmed works; the
+      : open complaint is the tiny, distant target. Postmortem verdict:
+      : the minimal fix was always a CSS hit-area enlargement on the
+      : existing button — zero new JS — not an interaction-model
+      : rewrite. Standing rule from this: UI-feel PRs get human
+      : confirmation in the human's browser BEFORE merge, and when
+      : human evidence contradicts green tests, the tests are wrong
+      : until proven otherwise.
       : Merged: [#38](https://github.com/juspay/olai/pull/38) (hover
       : cut), then [#41](https://github.com/juspay/olai/pull/41) —
       : hover judged too jarring (reflow under the pointer, accidental
@@ -145,6 +136,22 @@ olai roadmap #project
         : An affordance on any node opens the panel with that node's key
         : and subtree as context — "reschedule these" without spelling
         : the node out. Pairs with the zoom view.
+    [x] routes as bindings ^routes-as-bindings
+      : Merged: [#43](https://github.com/juspay/olai/pull/43). Mirror
+      : arrow links the defining node's page via the forms;
+      : click-the-arrow e2e verified as real regressions; #:node-href
+      : REQUIRED, ratified. Its blast radius conflicted all three
+      : sibling PRs — resolved by their agents against the minted-route
+      : system rather than around it.
+      : The declare-and-check move, third application: hrefs are MINTED,
+      : never string-appended in drawers. dispatch-rules already returns
+      : a URL generator from the same declaration as the dispatcher —
+      : today bound as _url and discarded; consume it instead, so a
+      : misspelled or dead route is unwritable like a misspelled region.
+      : "The address of a node" becomes one owned concept (arch check 3)
+      : with one spelling — the mirror-arrow bug (an href pointing at a
+      : fragment its page did not contain, 2026-08-06) is this task's
+      : origin story, and the class it retires.
     micro-edits
       : DEPRIORITIZED 2026-08-06: the human edits through the agent
       : anyway — capture and check-off are conveniences, not the loop.
@@ -171,7 +178,15 @@ olai roadmap #project
       : write shows the banner and changes nothing.
   language
     : The grammar grows; the expander stays the only validator.
-    archive
+    [x] archive ^archive
+      : Merged: [#44](https://github.com/juspay/olai/pull/44).
+      : Archived is a FILE, not a node state; queries
+      : exclude in one place; GET /archive; scaffolds merge on title,
+      : anchors never copied. Flagged: first archive in a dir needs a
+      : serve restart (root glob is startup-only — own change); moved
+      : @doc/@include paths not rewritten (srcloc'd rejection when it
+      : would break). En-route fix to ratify: ops resolves in a fresh
+      : namespace (second op in one process read the pre-write tree).
       : Done work leaves the working file WITHOUT dying: `olai archive
       : TITLE|^anchor` moves the subtree into Archive.rkt, re-creating
       : its ancestor chain there so the tree structure reads intact
@@ -221,8 +236,15 @@ olai roadmap #project
       : 2026-08-06 from the orchestrator forgetting to close
       : "declare-and-check DSL" after its last child merged —
       : duplicated state drifts; derived state cannot.
-    typed edges
-      @doc docs/brainstorming/typed-edges.md
+    [x] typed edges ^typed-edges
+      @doc ../brainstorming/typed-edges.md
+      : Merged: [#45](https://github.com/juspay/olai/pull/45) (by the
+      : human directly). En route it tripped the arch churn audit
+      : exactly where the #39 agent predicted (lang/expander at the
+      : stable ceiling); fixed the sanctioned way — declaration changed
+      : to settling, argued in the PR. Ratified calls: done-ness does
+      : NOT propagate (a parent of all-done children keeps blocking),
+      : and @done never reads as blocked. Demo: examples/Kitchen.rkt.
       : The graph beyond containment (the Tend thesis): tree stays the
       : spanning structure; order/dependency/cross-reference become
       : grammar (`@after ^x`, `@blocks ^y`, `@see ^z`), checked by the
@@ -232,26 +254,10 @@ olai roadmap #project
       : subtree targets still open. Second PR after "mirror nodes
       : across files" — same linker (sequencing settled 2026-08-06);
       : the backlinks panel is gated on this.
-    [x] glob includes ^glob-includes
-      : Merged: [#37](https://github.com/juspay/olai/pull/37).
-      : Semantics as ratified in the PR body: lexicographic, one
-      : directory per pattern, metacharacters policed only in starred
-      : paths, dotfiles never match; store re-globs on staleness checks
-      : so new files appear mid-serve. Behavior confirmed by the human
-      : against examples/Daily.rkt (2026-08-06).
-      : `@include Daily/*.rkt` -- one line instead of a line per month.
-      : The sugar has to answer: match order (lexicographic; date-named
-      : fragments sort right), zero matches (empty or error?), and flat
-      : splice vs structure (Daily.rkt's year > month nesting comes from
-      : the index file's own nodes; a flat glob erases it) — the agent
-      : proposes the open answers in its PR body for ratification.
-      : Mechanically easy: the reader expands the glob at read time,
-      : the module graph stays static per load; the watcher must also
-      : catch NEW matching files appearing mid-serve.
   codebase
     : The repo's own shape and workflow.
     [x] architecture as data ^architecture-as-data
-      @doc docs/brainstorming/architecture-as-data.md
+      @doc ../brainstorming/architecture-as-data.md
       : Merged: [#40](https://github.com/juspay/olai/pull/40). arch/ is
       : its own collection (the spec's #lang olai/arch would have made
       : a package cycle with live/); six CLAUDE.md prose rules deleted,
