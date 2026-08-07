@@ -63,6 +63,14 @@
           (owns filesystem)
           (concept outline-snapshots "snapshot*" "store-*" "make-store"))
 
+;; Where done work goes. One file name, and the two predicates everything else
+;; asks instead of spelling it: the op writes it, the queries skip it, the web
+;; view draws it on a page of its own — and none of the three gets to have its
+;; own idea of what "archived" means.
+(override "archive.rkt"
+          (concept archived-work "archive-file-name" "archive-path-for"
+                   "archived-file?" "archived-task?"))
+
 ;; ---- the writes ------------------------------------------------------------------
 
 ;; Every write goes through a file on disk, and one of them also goes through

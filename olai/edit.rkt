@@ -21,7 +21,7 @@
          olai/store)
 
 ;; The callbacks are part of this contract: #:on-invalid is handed a
-;; load-error and #:on-applied the path that was replaced — a caller that
+;; load-error and #:on-applied each path that was replaced — a caller that
 ;; expects the other shape finds out here, not after the rename.
 (provide (contract-out
           [apply-outline-edit!
@@ -29,42 +29,62 @@
                 (#:on-invalid (-> load-error? any)
                  #:on-applied (-> path? any))
                 boolean?)]
+          [apply-outline-edits!
+           (->* ((listof (cons/c (or/c path? string?) string?)))
+                (#:on-invalid (-> load-error? any)
+                 #:on-applied (-> path? any))
+                boolean?)]
           [try-git-commit
            (-> (or/c path? string? (listof (or/c path? string?))) string? boolean?)]))
 
-;; Replace `path` with `text`, but only if `text` still validates.
-;;
-;;   #:on-invalid  called with a load-error when it does not; the file on disk
-;;                 is untouched and nothing is left behind. file/line/col point
-;;                 at `path` — the temp file is an implementation detail and
-;;                 must never reach an agent's JSON.
-;;   #:on-applied  called with `path` after the rename: where a store hooks its
-;;                 invalidation.
-;;
-;; -> #t when applied, #f when rejected (if on-invalid returns at all).
-;; I/O failures raise; the caller reports them as it likes.
+;; Replace `path` with `text`, but only if `text` still validates. The one-file
+;; case of the one below, which is what every write but `archive` is.
 (define (apply-outline-edit! path text
                              #:on-invalid [on-invalid default-invalid]
                              #:on-applied [on-applied void])
-  (define full (simple-form-path path))
-  (guard-sexp-file! full)
-  ;; Same directory, always: rename is atomic only within one filesystem, and
-  ;; a file's @include paths resolve relative to the file being validated.
-  (define tmp (make-temporary-file "sf-edit~a.rkt" #f (path-only full)))
+  (apply-outline-edits! (list (cons path text))
+                        #:on-invalid on-invalid
+                        #:on-applied on-applied))
+
+;; Replace each `(path . text)`, but only if they ALL still validate — and
+;; validate as the set they are, so a pair that is broken in a way neither half
+;; is (an ^anchor that now exists twice) is caught before either file moves.
+;;
+;;   #:on-invalid  called with a load-error when they do not; the files on disk
+;;                 are untouched and nothing is left behind. file/line/col point
+;;                 at the real paths — the temp files are an implementation
+;;                 detail and must never reach an agent's JSON.
+;;   #:on-applied  called with each path after its rename: where a store hooks
+;;                 its invalidation, and where a caller collects what to commit.
+;;
+;; -> #t when applied, #f when rejected (if on-invalid returns at all).
+;; I/O failures raise; the caller reports them as it likes.
+(define (apply-outline-edits! edits
+                              #:on-invalid [on-invalid default-invalid]
+                              #:on-applied [on-applied void])
+  (define fulls (for/list ([e (in-list edits)]) (simple-form-path (car e))))
+  (for ([full (in-list fulls)]) (guard-sexp-file! full))
+  ;; Same directory as the file it will replace, always: rename is atomic only
+  ;; within one filesystem, and a file's @include and @doc paths resolve
+  ;; relative to the file being validated.
+  (define tmps
+    (for/list ([full (in-list fulls)])
+      (make-temporary-file "sf-edit~a.rkt" #f (path-only full))))
   (define (discard!)
-    (when (file-exists? tmp) (delete-file tmp)))
+    (for ([tmp (in-list tmps)])
+      (when (file-exists? tmp) (delete-file tmp))))
   (with-handlers ([(λ (_e) #t) (λ (e) (discard!) (raise e))])
-    (display-to-file text tmp #:exists 'truncate/replace))
+    (for ([tmp (in-list tmps)] [e (in-list edits)])
+      (display-to-file (cdr e) tmp #:exists 'truncate/replace)))
   (define err
-    (with-handlers ([exn:fail? (λ (e) (edit-error e tmp full))])
-      (call-in-outline-namespace
-       (λ () (dynamic-require `(file ,(path->string tmp)) 'tasks)))
-      #f))
+    (with-handlers ([exn:fail? (λ (e) (exn->load-error e (car fulls)))])
+      (call-in-outline-namespace (λ () (check-written tmps)))))
   (cond
-    [err (discard!) (on-invalid err) #f]
+    [err (discard!) (on-invalid (as-written err tmps fulls)) #f]
     [else
-     (rename-file-or-directory tmp full #t)
-     (on-applied full)
+     (for ([tmp (in-list tmps)] [full (in-list fulls)])
+       (rename-file-or-directory tmp full #t)
+       (on-applied full))
      #t]))
 
 ;; Every writer emits outline syntax, so a #lang olai/sexp file would be
@@ -117,14 +137,22 @@
              (zero? (apply git-run "-C" (path->string dir) "commit"
                            "-m" message "--" fulls)))])]))
 
-;; The exn talks about the temp file; the user edited `path`.
-(define (edit-error e tmp path)
-  (define-values (src line col) (exn-location e tmp))
-  (define at (path->string tmp))
-  (load-error (string-replace (exn-message e) at (path->string path))
-              path
-              line
-              col))
+;; The error talks about a temp file; the user edited the file it stands in
+;; for. Every mention of one — the srcloc it carries and every spelling inside
+;; the message — is put back, so what reaches an agent's JSON names a file it
+;; can open.
+(define (as-written err tmps fulls)
+  (define (rebase-path f)
+    (or (for/or ([tmp (in-list tmps)] [full (in-list fulls)])
+          (and f (equal? (path->string (simple-form-path f)) (path->string tmp))
+               full))
+        f))
+  (load-error (for/fold ([m (load-error-message err)])
+                        ([tmp (in-list tmps)] [full (in-list fulls)])
+                (string-replace m (path->string tmp) (path->string full)))
+              (rebase-path (load-error-file err))
+              (load-error-line err)
+              (load-error-col err)))
 
 (define (default-invalid err)
   (user-fail "~a" (load-error-message err)))

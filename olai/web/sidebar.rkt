@@ -41,6 +41,7 @@
           ;; the outline moves
           [render-sidebar
            (-> list? #:home-href string? #:today-href string?
+               #:archive-href string?
                #:href string? #:node-href (-> string? string?)
                list?)]))
 
@@ -157,6 +158,7 @@
                         #:home-href home-href
                         #:today-href today-href
                         #:href href
+                        #:archive-href archive-href
                         #:node-href node-href)
   (define entries (normalize-files-data files-data))
   ;; Disclosure only, and mirror sites stay out of it: the tree is for finding
@@ -199,10 +201,19 @@
           ;; where the app has the page and the sidebar was not told its
           ;; address (which is what the dead-link branch here was standing in
           ;; for). web/routes mints it from the pattern that dispatches it.
+          ;;
+          ;; Archive is the second of them, and the same kind of thing: two ways
+          ;; into the outline that are not a node — the day you are in, and the
+          ;; work you put away. A link and not a section like Starred, because
+          ;; what is behind it is a whole outline; the tree below draws the live
+          ;; files only.
           (nav ((class ,ol-sidebar-nav))
                (a ((class ,ol-nav-item) ,@(live-link ol-live today-href))
                   (span ((class ,ol-nav-icon) (aria-hidden "true")) "◉")
-                  "Today"))
+                  "Today")
+               (a ((class ,ol-nav-item) ,@(live-link ol-live archive-href))
+                  (span ((class ,ol-nav-icon) (aria-hidden "true")) "▤")
+                  "Archive"))
           (section ((class ,ol-sidebar-section))
                    (h3 ((class ,ol-sidebar-heading)) "Starred")
                    (p ((class ,ol-sidebar-empty)) "Nothing starred yet"))

@@ -235,6 +235,14 @@ change to the language, not a field you may invent:
 - **A done node is waiting on nothing.** Being blocked is a fact about what you
   can start; a node that is finished has started. So a `@done` node never reads
   as blocked, whatever its `@after` target says.
+- **An archived node neither blocks nor is blocked.** Work put away in
+  `Archive.rkt` is out of every live view, both ways round: it is not told it
+  cannot start (there is a page that draws it, and a pill there would be
+  nonsense), and it stops standing in anyone's way — archiving is what you do
+  to work that is over, so a live node still waiting on one would wait forever.
+  The **checker** gets no such exemption: an ordering that runs in a circle is
+  wrong wherever its nodes live, so a cycle through the archive is still an
+  error.
 - **Done-ness does not propagate.** A target counts as done when it says so —
   `@done`, or `[x] `. A parent whose children are all done is **not** done, so
   it goes on blocking. Deriving it would give the outline two answers to "is

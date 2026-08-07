@@ -11,6 +11,9 @@
 (require racket/list
          racket/string
          (except-in olai/lang/expander #%module-begin)
+         ;; which nodes are done work put away, and therefore not an answer to
+         ;; any of the questions below
+         (only-in olai/archive archived-task? live-entries)
          olai/dates
          olai/edges
          olai/lang/walk
@@ -49,18 +52,35 @@
 ;; the page — the agenda never showed it, because a done node is off the plate
 ;; before this is asked, and the outline would have.
 ;;
+;; ARCHIVED is the same answer arrived at from the other side, and it goes both
+;; ways: work that was put away (olai/archive) is neither blocked nor blocking.
+;; Not blocked, because it is not in any live view to be told it cannot start —
+;; and the archive HAS a page, which is where the pill would otherwise turn up.
+;; Not blocking, because archiving is what you do to work that is over: a live
+;; node still waiting on one would be waiting forever, on something no list will
+;; ever show it again.
+;;
+;; This is the graph's half of the rule `collect-nodes` states above; both are
+;; here, in the query layer, because that is where "is this an answer to a
+;; question about live work" is decided (olai/archive).
+;;
 ;; idx : the set's edge index (olai/edges), which is also what knows the node
 ;;       at the far end of an arrow
 (define (blocked-nodes idx)
   (for*/hash ([(source targets) (in-hash (edge-graph idx 'after))]
-              #:when (unfinished? (edge-node idx source))
-              [waiting (in-value (filter unfinished? (map (λ (k) (edge-node idx k))
-                                                          targets)))]
+              #:when (live? (edge-node idx source))
+              [waiting (in-value (filter live? (map (λ (k) (edge-node idx k))
+                                                    targets)))]
               #:unless (null? waiting))
     (values source waiting)))
 
-(define (unfinished? tk)
-  (and tk (not (eq? (task-status tk) 'done))))
+;; STILL IN PLAY: it exists, it is not finished, and it has not been put away.
+;; One predicate for both ends of an arrow — a source this can be said about
+;; and a target that still stands in the way are the same question asked from
+;; either side, and two spellings of it would be two chances to disagree about
+;; what finished means.
+(define (live? tk)
+  (and tk (not (eq? (task-status tk) 'done)) (not (archived-task? tk))))
 
 ;; How big is this outline? Two folds, and the difference between them is the
 ;; whole mirror policy: a node is counted where it is DEFINED, a mirror site
@@ -90,11 +110,18 @@
 ;; Every node `keep?` says yes to, in tree order, at its DEFINING site: a
 ;; mirror site is the same node, so a mirrored node appears once, with the
 ;; breadcrumb it was defined at.
+;;
+;; ARCHIVED nodes are out of all of them, and this is the line that says so:
+;; the agenda, the calendar and the ICS feed are three ways of asking what is
+;; going on, and work that was put away is not an answer to any of them. It is
+;; a rule about QUERIES and not about loading — the tree still holds every
+;; archived node, `olai tree` still prints it, an anchor in it still resolves,
+;; and the web view has a page of its own for reading them.
 (define (collect-nodes tasks keep? #:root [root #f])
   (reverse
    (fold-tasks tasks
                (λ (tk path acc)
-                 (if (keep? tk)
+                 (if (and (keep? tk) (not (archived-task? tk)))
                      (cons (crumbed-node tk (breadcrumb-of path tk #:root root))
                            acc)
                      acc))
@@ -107,10 +134,16 @@
 ;; tasks and the root label to prefix breadcrumbs with — the file's name when
 ;; several files are loaded, #f when there is only one (nothing to
 ;; disambiguate) — and appends the results.
+;;
+;; The archive is not one of the files: it holds no answers (collect-nodes
+;; drops its nodes above), and counting it would change what "more than one
+;; file is loaded" MEANS — a one-outline home would start reading
+;; `Tasks.rkt > Inbox > …` the day it archived anything.
 (define (with-file-roots file-entries proc)
-  (define multi? (> (length file-entries) 1))
+  (define live (live-entries file-entries))
+  (define multi? (> (length live) 1))
   (append*
-   (for/list ([e (in-list file-entries)])
+   (for/list ([e (in-list live)])
      (proc (cdr e) (and multi? (file-label (car e)))))))
 
 ;; Bare ISO day titles (Daily.rkt day nodes). -> (listof string)

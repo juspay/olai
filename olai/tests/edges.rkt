@@ -408,6 +408,48 @@ EOF
      (λ (lk)
        (check-equal? (blocked-nodes (linked-edges (linked-or-fail lk))) (hash)))))
 
+  ;; ARCHIVED work is out of the live view, and the graph says so from both
+  ;; ends: a node in Archive.rkt is not blocked (there is a page that draws
+  ;; it, and a pill there would be telling finished work it cannot start), and
+  ;; it does not block (archiving is what you do to work that is over, so a
+  ;; live node waiting on one would wait forever).
+  (test-case "an archived node neither blocks nor is blocked"
+    (in-dir
+     "olai-edge-archived"
+     (λ (dir)
+       (define tasks
+         (write-outline dir "Tasks.rkt"
+                        "#lang olai\ninstall ^install\n  @after ^order\n"))
+       ;; `^order` moved into the archive, still anchored, still one node; and
+       ;; `tidy up` was archived while still after the live `^install`
+       (define archive
+         (write-outline dir "Archive.rkt"
+                        "#lang olai\norder the doors ^order\ntidy up ^tidy\n  @after ^install\n"))
+       (define lk (linked-or-fail (load-set (list tasks archive))))
+       (define blocked (blocked-nodes (linked-edges lk)))
+       ;; the live node is free: what it was after has been put away
+       (check-false (hash-has-key? blocked "install"))
+       ;; and the archived one is not told it is waiting on a live node
+       (check-false (hash-has-key? blocked "tidy"))
+       (check-equal? blocked (hash)))))
+
+  ;; The CHECKER is not a live view, and does not get the same exemption: an
+  ;; ordering that runs in a circle is wrong wherever its nodes live, so a
+  ;; cycle through the archive is still an error. Archiving puts work away; it
+  ;; does not make a contradiction true.
+  (test-case "a cycle through the archive is still a cycle"
+    (in-dir
+     "olai-edge-archived-cycle"
+     (λ (dir)
+       (define tasks
+         (write-outline dir "Tasks.rkt"
+                        "#lang olai\ninstall ^install\n  @after ^order\n"))
+       (define archive
+         (write-outline dir "Archive.rkt"
+                        "#lang olai\norder the doors ^order\n  @after ^install\n"))
+       (define-values (_where msg) (error-of (load-set (list tasks archive))))
+       (check-true (regexp-match? #px"cycle in @after" msg) msg))))
+
   (test-case "and marking that parent done is what unblocks it"
     (link-one
      "olai-edge-parent-done"

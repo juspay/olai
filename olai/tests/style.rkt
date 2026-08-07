@@ -168,7 +168,7 @@
                                 #:docs (snapshot-docs example-snapshot)
                                 #:blocked (blocked-nodes (snapshot-edges example-snapshot)))
                 #:sidebar (render-sidebar example-files
-                                          #:home-href "/" #:today-href "/today"
+                                          #:home-href "/" #:today-href "/today" #:archive-href "/archive"
                                           #:href "/"
                                           #:node-href test-node-href)
                 #:href "/"

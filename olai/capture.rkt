@@ -7,7 +7,10 @@
          racket/match
          racket/string
          olai/fail
-         olai/lang/line)
+         olai/lang/line
+         ;; where a section ends and where an arrival goes at the end of one
+         ;; (the same answers `daily` and `subtree` append by)
+         (only-in olai/lang/section append-point indent-of section-end))
 
 (provide format-capture-lines
          find-inbox-insert
@@ -41,7 +44,7 @@
 ;; Returns (values insert-pos has-parent? task-line-1-based parent-indent)
 ;; parent-spec: #f | string title | (cons 'anchor id-string)
 (define (find-parent-insert text parent-spec)
-  (define lines (string-split text "\n" #:trim? #f))
+  (define lines (text-lines text))
   (define-values (want-title want-anchor)
     (match parent-spec
       [#f (values "Inbox" #f)]
@@ -49,39 +52,30 @@
       [(cons 'anchor anchor) (values #f anchor)]
       [_ (values #f #f)]))
 
-  (define-values (parent-line parent-indent end-line)
-    (let loop ([i 0] [pline #f] [pind 0] [seen? #f])
-      (cond
-        [(>= i (length lines))
-         (values pline pind (length lines))]
-        [else
-         (match (scan-line (list-ref lines i))
-           [(list 'title level title anchor)
-            (define match?
-              (cond
-                [want-anchor (equal? anchor want-anchor)]
-                [else (and (= level 0) (equal? title want-title))]))
-            (cond
-              [(and (not seen?) match?)
-               (loop (add1 i) i (* level 2) #t)]
-              [(and seen? want-title (zero? level))
-               ;; next top-level ends Inbox-style section
-               (values pline pind i)]
-              [(and seen? want-anchor
-                    (<= level (quotient pind 2)))
-               ;; next sibling-or-above ends anchored section
-               (values pline pind i)]
-              [else
-               (loop (add1 i) pline pind seen?)])]
-           [_ (loop (add1 i) pline pind seen?)])])))
+  ;; Two questions, and only the first of them is this module's: WHICH line is
+  ;; the parent (a title at the top level, or the one wearing that ^anchor at
+  ;; whatever depth), and then where its section ends — which is the same
+  ;; question `daily` and `subtree` ask, so it is asked of lang/section rather
+  ;; than answered again here.
+  (define parent-line
+    (for/or ([s (in-list lines)] [i (in-naturals)])
+      (match (scan-line s)
+        [(list 'title level title anchor)
+         (and (if want-anchor
+                  (equal? anchor want-anchor)
+                  (and (= level 0) (equal? title want-title)))
+              i)]
+        [_ #f])))
+  (define parent-indent (if parent-line (indent-of (list-ref lines parent-line)) 0))
+  (define end-line
+    (if parent-line (section-end lines parent-line) (length lines)))
 
+  ;; past the last line of the parent's section, and before the blank lines
+  ;; under it — lang/section says where that is, for every module that appends
   (define insert-line
-    (let loop ([e end-line])
-      (cond
-        [(or (not parent-line) (<= e (add1 parent-line))) e]
-        [(eq? (scan-line (list-ref lines (sub1 e))) 'blank)
-         (loop (sub1 e))]
-        [else e])))
+    (if parent-line
+        (append-point lines (add1 parent-line) end-line)
+        end-line))
   (define (line-start-offset line-idx)
     (for/sum ([j (in-range line-idx)])
       (add1 (string-length (list-ref lines j)))))
@@ -144,7 +138,7 @@
 ;; line the text already has, plus the "Inbox" line written above the task.
 (define (appended-line-number text)
   (define base-text (if (string=? text "") "" (ensure-nl text)))
-  (define lines (string-split base-text "\n" #:trim? #f))
+  (define lines (text-lines base-text))
   (define line-count
     (if (and (pair? lines) (string=? (last lines) ""))
         (sub1 (length lines))
