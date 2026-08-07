@@ -15,6 +15,9 @@
          olai/agenda
          olai/load
          olai/web/render
+         ;; the app's own route table: a renderer is handed the address of a
+         ;; node, so these hand it the one the router answers at
+         (only-in olai/tests/addresses test-node-href)
          xml
          olai/status
          olai/capture)
@@ -185,11 +188,16 @@ EOF
        ))
     (define html
       (xexpr->string (render-outline (list (list "T.rkt" (resolve-mirrors tasks anchors)))
-                                     #:today "2026-08-03")))
-    ;; the node id is namespaced; the bare ^anchor stays linkable
+                                     #:today "2026-08-03"
+                                     #:node-href test-node-href)))
+    ;; the node id is namespaced; the bare ^anchor stays a target something a
+    ;; person wrote in a note can still jump to
     (check-true (string-contains? html (format "id=\"~a\"" (node-element-id "agent"))) html)
     (check-true (string-contains? html "id=\"agent\"") html)
-    (check-true (string-contains? html "href=\"#agent\"") html)
+    ;; but the arrow is a link to the node's own page, not to that target: a
+    ;; fragment is only live on the page the defining site is on
+    (check-true (string-contains? html "href=\"/n/agent\"") html)
+    (check-false (string-contains? html "href=\"#agent\"") html)
     (check-true (string-contains? html "↗") html))
 
   (test-case "a mirror site gets its own element id, never a duplicate"
@@ -204,7 +212,8 @@ EOF
        ))
     (define html
       (xexpr->string (render-outline (list (list "T.rkt" (resolve-mirrors tasks anchors)))
-                                     #:today "2026-08-03")))
+                                     #:today "2026-08-03"
+                                     #:node-href test-node-href)))
     (define (count-of needle)
       (length (regexp-match* (regexp (regexp-quote needle)) html)))
     ;; one node, three sites: same fragment id everywhere, one id each

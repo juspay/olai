@@ -15,6 +15,9 @@
          ;; key a document is filed under
          (only-in olai/doc doc-path)
          olai/web/render
+         ;; the app's own route table: a renderer is handed the address of a
+         ;; node, so these hand it the one the router answers at
+         (only-in olai/tests/addresses test-node-href)
          ;; olai's side of the live-view contract: the names a page is drawn
          ;; with, and the scripts it pulls in for them
          (only-in olai/web/live live-script-srcs)
@@ -74,7 +77,8 @@
     (xstr (render-sidebar (files (list "/tmp/Tasks.rkt" (list (tk "Inbox" #f #f '()))))
                           #:home-href "/"
                           #:today-href "/today"
-                          #:href "/"))))
+                          #:href "/"
+                          #:node-href test-node-href))))
 
 (module+ test
 
@@ -83,7 +87,8 @@
   (test-case "a node fragment carries the id its region mints"
     (define fid (task-key (tk "Leaf" #f #f '())))
     (define s (xstr (render-node-fragment (tk "Leaf" #f #f '())
-                                          #:today "2026-08-04")))
+                                          #:today "2026-08-04"
+                                          #:node-href test-node-href)))
     (check-true (string-contains? s (format "id=\"~a\"" (node-element-id fid))) s)
     (check-true (string-contains? s (string-append "data-fragment-id=\"" fid "\"")) s)
     (check-true (string-contains? s "class=\"ol-node\"") s)
@@ -95,7 +100,8 @@
   (test-case "parent gets a toggle, a children list and nested node ids"
     (define parent (tk "Parent" #f #f (list (tk "Child" #f #f '()))))
     (define s (xstr (render-node-fragment parent
-                                          #:today "2026-08-04")))
+                                          #:today "2026-08-04"
+                                          #:node-href test-node-href)))
     (define kid-id (task-key (tk "Child" #f #f (quote ()))))
     (check-true (string-contains? s "ol-node has-children") s)
     (check-true (string-contains? s "class=\"ol-toggle\"") s)
@@ -115,13 +121,15 @@
   (test-case "collapsed node carries is-collapsed and aria-expanded=false"
     (define s (xstr (render-node-fragment (tk "P" #f #f (list (tk "C" #f #f '())))
                                           #:collapsed? #t
-                                          #:today "2026-08-04")))
+                                          #:today "2026-08-04"
+                                          #:node-href test-node-href)))
     (check-true (string-contains? s "is-collapsed") s)
     (check-true (string-contains? s "aria-expanded=\"false\"") s))
 
   (test-case "anchored node keeps a plain #anchor target for mirror links"
     (define s (xstr (render-node-fragment (tk "Ship" #f #f (quote ()) #:id "ship")
-                                          #:today "2026-08-04")))
+                                          #:today "2026-08-04"
+                                          #:node-href test-node-href)))
     (check-true (string-contains? s (format "id=\"~a\"" (node-element-id "ship"))) s)
     (check-true (string-contains? s "class=\"ol-anchor\" id=\"ship\"") s))
 
@@ -131,51 +139,66 @@
     (define target (tk "Anchored" #f #f '() #:id "a1"))
     (define parent (tk "Holder" #f #f (list (mirror-ref "a1" #f))))
     (define bound (car (resolve-mirrors (list parent) (hash "a1" target))))
-    (define s (xstr (render-node-fragment bound #:today "2026-08-04")))
+    (define s (xstr (render-node-fragment bound #:today "2026-08-04"
+                                          #:node-href test-node-href)))
     (check-true (string-contains? s "Anchored") s)
     (check-true (string-contains? s "class=\"ol-mirror\"") s)
-    (check-true (string-contains? s "href=\"#a1\"") s)
-    ;; an anchor that names nothing is a state the marker is drawn in
+    ;; The arrow goes to the DEFINING node's own page, like every other link to
+    ;; a node. It used to be the same-page fragment `#a1`, which is only ever
+    ;; on the page the defining site is on — so on a zoom, or in the file that
+    ;; only mirrors, the click did nothing at all.
+    (check-true (string-contains? s "href=\"/n/a1\"") s)
+    (check-false (string-contains? s "href=\"#a1\"") s)
+    ;; an anchor that names nothing is a state the marker is drawn in — and
+    ;; not a link, because there is no node to have an address
     (define loose
       (car (resolve-mirrors (list (tk "Holder" #f #f (list (mirror-ref "nope" #f))))
                             (hash))))
-    (define s2 (xstr (render-node-fragment loose #:today "2026-08-04")))
+    (define s2 (xstr (render-node-fragment loose #:today "2026-08-04"
+                                           #:node-href test-node-href)))
     (check-true (string-contains? s2 "ol-unresolved") s2)
-    (check-true (string-contains? s2 "(unresolved)") s2))
+    (check-true (string-contains? s2 "(unresolved)") s2)
+    (check-true (string-contains? s2 "<span class=\"ol-mirror\">") s2)
+    (check-false (string-contains? s2 "href=\"#nope\"") s2))
 
   (test-case "toggle-base wires htmx check-off; default is inert"
     (define plain (xstr (render-node-fragment (tk "T" #f #f (quote ())  #:id "t1")
-                                              #:today "2026-08-04")))
+                                              #:today "2026-08-04"
+                                              #:node-href test-node-href)))
     (check-false (string-contains? plain "hx-post") plain)
     (check-true (string-contains? plain "<span class=\"ol-check\"") plain)
     (define hx (xstr (render-node-fragment (tk "T" #f #f (quote ()) #:id "t1")
                                            #:today "2026-08-04"
-                                           #:toggle-base "/toggle/")))
+                                           #:toggle-base "/toggle/"
+                                           #:node-href test-node-href)))
     (check-true (string-contains? hx "hx-post=\"/toggle/t1\"") hx)
     (check-true (string-contains? hx (format "hx-target=\"#~a\"" (node-element-id "t1"))) hx)
     (check-true (string-contains? hx "hx-swap=\"outerHTML\"") hx))
 
-  (test-case "zoom-base makes the bullet a zoom link"
+  ;; The bullet is the node's PERMALINK, and the address is the route table's
+  ;; (tests/addresses hands over the app's own) — not a prefix this file made
+  ;; up and not a fragment.
+  (test-case "the bullet is a link to the node's own page"
     (define s (xstr (render-node-fragment (tk "T" #f #f (quote ()) #:id "t1")
                                           #:today "2026-08-04"
-                                          #:zoom-base "/z/")))
-    (check-true (string-contains? s "href=\"/z/t1\"") s)
-    (define s2 (xstr (render-node-fragment (tk "T" #f #f (quote ()) #:id "t1")
-                                           #:today "2026-08-04")))
-    (check-false (string-contains? s2 "ol-bullet-link") s2))
+                                          #:node-href test-node-href)))
+    (check-true (string-contains? s "ol-bullet-link") s)
+    (check-true (string-contains? s "href=\"/n/t1\"") s))
 
   ;; ---- done / dates / tags (carried over from the old html tests) ---------
 
   (test-case "done task renders checked box and strikethrough class"
     (define s (xstr (render-node-fragment (tk "Done item" #f #f (quote ()) #:done #t)
-                                          #:today "2026-08-04")))
+                                          #:today "2026-08-04"
+                                          #:node-href test-node-href)))
     (check-true (string-contains? s "☑") s)
     (check-true (string-contains? s "ol-check is-done") s)
     (check-true (string-contains? s "ol-title is-done") s)
     (check-true (string-contains? s "Done item") s)
     (define s2 (xstr (render-node-fragment (tk "Stamped" "2026-01-01" #f (quote ())
                                                #:done "2026-01-02")
-                                           #:today "2026-08-04")))
+                                           #:today "2026-08-04"
+                                           #:node-href test-node-href)))
     (check-true (string-contains? s2 "☑") s2)
     (check-true (string-contains? s2 "ol-node is-done") s2))
 
@@ -184,7 +207,8 @@
   ;; state on the node.
   (test-case "doing task renders its own pill and a half-filled box"
     (define s (xstr (render-node-fragment (tk "In flight" #f #f '() #:doing #t)
-                                          #:today "2026-08-04")))
+                                          #:today "2026-08-04"
+                                          #:node-href test-node-href)))
     (check-true (string-contains? s "ol-pill ol-doing") s)
     (check-true (string-contains? s "◧") s)
     (check-true (string-contains? s "ol-check is-doing") s)
@@ -198,16 +222,19 @@
   (test-case "doing keeps its date pill; done is not doing"
     (define s (xstr (render-node-fragment
                      (tk "Started" "2026-08-04" #f '() #:doing "2026-08-01")
-                     #:today "2026-08-04")))
+                     #:today "2026-08-04"
+                                          #:node-href test-node-href)))
     (check-true (string-contains? s "ol-pill ol-doing") s)
     (check-true (string-contains? s "ol-pill ol-date") s)
     (define done (xstr (render-node-fragment (tk "Shipped" #f #f '() #:done #t)
-                                             #:today "2026-08-04")))
+                                             #:today "2026-08-04"
+                                             #:node-href test-node-href)))
     (check-false (string-contains? done "ol-doing") done))
 
   (test-case "date pill and description present; undone box is empty"
     (define s (xstr (render-node-fragment (tk "T" "2026-01-02" "a **note**" '())
-                                          #:today "2026-08-04")))
+                                          #:today "2026-08-04"
+                                          #:node-href test-node-href)))
     (check-true (string-contains? s "ol-pill ol-date") s)
     (check-true (string-contains? s "title=\"2026-01-02\"") s)
     (check-true (string-contains? s "Fri, Jan 2") s)
@@ -221,7 +248,8 @@
   ;; (olai/web/static/notes.js) — the page is drawn one way, every time.
   (test-case "a note carries its opener, folded, keyed, and pointing at itself"
     (define s (xstr (render-node-fragment (tk "T" #f "a note" '() #:key "k1")
-                                          #:today "2026-08-04")))
+                                          #:today "2026-08-04"
+                                          #:node-href test-node-href)))
     (check-true (string-contains? s "data-note-key=\"k1\"") s)
     (check-true (string-contains? s "ol-note-more") s)
     (check-true (string-contains? s "aria-expanded=\"false\"") s)
@@ -237,19 +265,22 @@
   (test-case "a mirrored note is keyed and identified by its site"
     (define s (xstr (render-node-fragment (tk "T" #f "a note" '() #:key "k1")
                                           #:today "2026-08-04"
-                                          #:site "holder")))
+                                          #:site "holder"
+                                          #:node-href test-node-href)))
     (check-true (string-contains? s "data-note-key=\"holder-k1\"") s)
     (check-true (string-contains? s "aria-controls=\"ol-live-holder-k1-note\"") s))
 
   (test-case "today's date pill is ringed; timed dates keep the clock"
     (define s (xstr (render-node-fragment (tk "T" "2026-08-04T18:00" #f '())
-                                          #:today "2026-08-04")))
+                                          #:today "2026-08-04"
+                                          #:node-href test-node-href)))
     (check-true (string-contains? s "ol-date is-today") s)
     (check-true (string-contains? s "18:00") s))
 
   (test-case "bare ISO day title renders a friendly pill, not mangled hyphens"
     (define s (xstr (render-node-fragment (tk "2026-08-03" #f #f '())
-                                          #:today "2026-08-04")))
+                                          #:today "2026-08-04"
+                                          #:node-href test-node-href)))
     (check-true (string-contains? s "Mon, Aug 3") s)
     (check-true (string-contains? s "title=\"2026-08-03\"") s)
     ;; day nodes stay linkable as #YYYY-MM-DD
@@ -257,22 +288,26 @@
     (check-false (string-contains? s "ndash") s)
     (check-false (regexp-match? #rx">2026-08-03<" s) s)
     (define s-today (xstr (render-node-fragment (tk "2026-08-03" #f #f '())
-                                                #:today "2026-08-03")))
+                                                #:today "2026-08-03"
+                                                #:node-href test-node-href)))
     (check-true (string-contains? s-today "data-today") s-today)
     (check-true (string-contains? s-today "is-today") s-today)
     ;; month / year titles stay plain text
     (define s-month (xstr (render-node-fragment (tk "August" #f #f '())
-                                                #:today "2026-08-03")))
+                                                #:today "2026-08-03"
+                                                #:node-href test-node-href)))
     (check-true (string-contains? s-month "August") s-month)
     (check-false (string-contains? s-month "data-today") s-month)
     (define s-year (xstr (render-node-fragment (tk "2026" #f #f '())
-                                               #:today "2026-08-03")))
+                                               #:today "2026-08-03"
+                                               #:node-href test-node-href)))
     (check-true (string-contains? s-year "2026") s-year)
     (check-false (string-contains? s-year "ol-day") s-year))
 
   (test-case "tag pills outside code; code keeps #tag text"
     (define s1 (xstr (render-node-fragment (tk "Ship #lang work" #f #f (quote ()))
-                                           #:today "2026-08-04")))
+                                           #:today "2026-08-04"
+                                           #:node-href test-node-href)))
     (check-true (string-contains? s1 "ol-pill ol-tag") s1)
     (check-true (string-contains? s1 "#lang") s1)
     (define s2 (xstr* (title->inline-xexprs "see `code #notag` please")))
@@ -301,7 +336,8 @@
     (check-false (string-contains? numbered "<ol") numbered)
     ;; and a node built from such a title draws the text, not a heading
     (define node (xstr (render-node-fragment (tk "#tag first" #f #f '())
-                                             #:today "2026-08-04")))
+                                             #:today "2026-08-04"
+                                             #:node-href test-node-href)))
     (check-true (string-contains? node "#tag") node)
     (check-false (regexp-match? #rx"<h[1-6]" node) node)
     ;; NOTES are still full Markdown: blocks are the point of a note
@@ -358,7 +394,8 @@
     (check-false (string-contains? s "<script") s)
     (check-true (string-contains? s "alert(1)") s)
     (define node (xstr (render-node-fragment (tk "A <b>x</b> & y \"q\"" #f #f (quote ()))
-                                             #:today "2026-08-04")))
+                                             #:today "2026-08-04"
+                                             #:node-href test-node-href)))
     (check-false (regexp-match? #rx"<b[ >]" node) node)
     (check-true (string-contains? node "&amp;") node)
     (check-true (string-contains? node "x") node)
@@ -366,7 +403,8 @@
     (check-false (string-contains? bad "javascript:") bad)
     ;; a scripted title cannot escape its attribute either
     (define attrs (xstr (render-node-fragment (tk "2026-08-03" #f #f (quote ()) #:id "q\"x")
-                                              #:today "2026-08-04")))
+                                              #:today "2026-08-04"
+                                              #:node-href test-node-href)))
     (check-false (regexp-match? #rx"id=\"q\"x\"" attrs) attrs))
 
   (test-case "note markdown lists survive sanitizing"
@@ -544,7 +582,8 @@
                             (list (tk "Milk" #f #f (list (tk "2%" #f #f '())))))
                       (list (string->path "/tmp/Roadmap.rkt")
                             (list (tk "Ship" #f #f '()))))
-               #:today "2026-08-04"))
+               #:today "2026-08-04"
+                              #:node-href test-node-href))
     (define s (xstr x))
     (check-true (string-contains? s "data-file=\"Tasks.rkt\"") s)
     (check-true (string-contains? s "data-file=\"Roadmap.rkt\"") s)
@@ -567,7 +606,8 @@
                             (list "/tmp/Roadmap.rkt" (list (tk "WP2" #f #f '()))))
                      #:home-href "/"
                      #:today-href "/today"
-                     #:href "/")))
+                     #:href "/"
+                                    #:node-href test-node-href)))
     (check-true (string-contains? s "href=\"/today\"") s)
     (check-true (string-contains? s "Today") s)
     (check-true (string-contains? s "Starred") s)
@@ -618,27 +658,24 @@
 
   (test-case "breadcrumbs link the pairs and leave bare strings plain"
     (define s (xstr (render-breadcrumbs (list "Tasks.rkt" (list "Inbox" "p1234abcd"))
-                                        #:home-href "/")))
+                                        #:home-href "/"
+                                        #:node-href test-node-href)))
     (check-true (string-contains? s "ol-breadcrumbs") s)
     (check-true (string-contains? s "href=\"/\"") s)
     (check-true (string-contains? s "<span class=\"ol-crumb\">Tasks.rkt</span>") s)
-    (check-true (string-contains? s (format "href=\"#~a\"" (node-element-id "p1234abcd"))) s)
-    (define z (xstr (render-breadcrumbs (list (list "Inbox" "p1234abcd"))
-                                        #:home-href "/"
-                                        #:zoom-base "/z/")))
-    (check-true (string-contains? z "href=\"/z/p1234abcd\"") z))
+    ;; a node crumb is that node's own page; the file it hangs off is not a
+    ;; link at all
+    (check-true (string-contains? s "href=\"/n/p1234abcd\"") s))
 
   ;; A zoom is GIVEN its node and the trail above it (olai/index answers which
   ;; node a key names; tests/index.rkt asks it). Here both are literals.
   (test-case "zoom shows breadcrumbs plus the focused subtree only"
     (define milk (tk "Buy milk" #f #f (list (tk "2% please" #f #f '()))))
     (define inbox-key (task-key (tk "Inbox" #f #f '())))
-    (define (zoom-of #:zoom-base [zoom-base #f])
-      (xstr (render-zoom milk (list "Tasks.rkt" (list "Inbox" inbox-key))
-                         #:today "2026-08-04"
-                         #:home-href "/"
-                         #:zoom-base zoom-base)))
-    (define s (zoom-of))
+    (define s (xstr (render-zoom milk (list "Tasks.rkt" (list "Inbox" inbox-key))
+                                #:today "2026-08-04"
+                                #:home-href "/"
+                                #:node-href test-node-href)))
     (check-true (string-contains? s "ol-breadcrumbs") s)
     (check-true (string-contains? s "Tasks.rkt") s)
     (check-true (string-contains? s "Inbox") s)
@@ -646,11 +683,8 @@
     (check-true (string-contains? s "2% please") s)
     ;; the focused subtree, and only it
     (check-false (string-contains? s "Elsewhere") s)
-    ;; the ancestor crumb is clickable, the file is not
-    (check-true (string-contains? s (format "href=\"#~a\"" (node-element-id inbox-key))) s)
-    ;; and with a zoom base, every ancestor crumb is that ancestor's own page
-    (define z (zoom-of #:zoom-base "/n/"))
-    (check-true (string-contains? z (string-append "href=\"/n/" inbox-key "\"")) z))
+    ;; every ancestor crumb is that ancestor's own page; the file is not a link
+    (check-true (string-contains? s (string-append "href=\"/n/" inbox-key "\"")) s))
 
   ;; ---- @doc: one line in the outline, the whole thing zoomed ---------------
   ;;
@@ -670,7 +704,7 @@
   (test-case "a documented node shows one line of its document in the outline"
     (define s (xstr (render-node-fragment (documented "notes/plan.md")
                                           #:today "2026-08-04"
-                                          #:zoom-base "/n/"
+                                          #:node-href test-node-href
                                           #:docs (doc-table "notes/plan.md" plan-md))))
     ;; the file, by name, linking to the page that has all of it
     (check-true (string-contains? s "ol-doc-name") s)
@@ -684,14 +718,15 @@
 
   (test-case "a node with no @doc draws no document block"
     (define s (xstr (render-node-fragment (tk "Plain" #f #f '())
-                                          #:today "2026-08-04")))
+                                          #:today "2026-08-04"
+                                          #:node-href test-node-href)))
     (check-false (string-contains? s "ol-doc") s))
 
   (test-case "zooming a documented node renders the document inline"
     (define s (xstr (render-zoom (documented "notes/plan.md") '()
                                  #:today "2026-08-04"
                                  #:home-href "/"
-                                 #:zoom-base "/n/"
+                                 #:node-href test-node-href
                                  #:docs (doc-table "notes/plan.md" plan-md))))
     (check-true (string-contains? s "<article class=\"ol-doc-body\">") s)
     ;; Markdown at render time, same as a note: blocks included
@@ -708,7 +743,8 @@
                                  #:today "2026-08-04"
                                  #:home-href "/"
                                  #:docs (doc-table "deep.scrbl"
-                                                   "#lang scribble/manual\n"))))
+                                                   "#lang scribble/manual\n")
+                                 #:node-href test-node-href)))
     (check-true (string-contains? s ">deep.scrbl<") s)
     (check-true (string-contains? s "does not render one yet") s)
     (check-false (string-contains? s "ol-doc-body") s)
@@ -721,7 +757,8 @@
     (define s (xstr (render-zoom (documented "notes/plan.md") '()
                                  #:today "2026-08-04"
                                  #:home-href "/"
-                                 #:docs (hash))))
+                                 #:docs (hash)
+                                 #:node-href test-node-href)))
     (check-true (string-contains? s "plan.md") s)
     (check-true (string-contains? s "could not be read") s)
     (check-false (string-contains? s "ol-doc-body") s))
@@ -734,7 +771,8 @@
     (define s (xstr (render-node-fragment holder
                                           #:today "2026-08-04"
                                           #:docs (doc-table "notes/plan.md"
-                                                            plan-md))))
+                                                            plan-md)
+                                          #:node-href test-node-href)))
     (check-true (string-contains? s ">plan.md<") s)
     (check-true (string-contains? s "The plan") s))
 
@@ -743,7 +781,8 @@
     ;; it READS is this module's call
     (define s (xstr (render-zoom (tk "Kid" #f #f '() #:id "kid")
                                  (list (string->path "/tmp/outlines/Tasks.rkt"))
-                                 #:today "2026-08-04" #:home-href "/")))
+                                 #:today "2026-08-04" #:home-href "/"
+                                 #:node-href test-node-href)))
     (check-true (string-contains? s (format "id=\"~a\"" (node-element-id "kid"))) s)
     (check-true (string-contains? s "<span class=\"ol-crumb\">Tasks.rkt</span>") s)
     (check-false (string-contains? s "/tmp/outlines") s))
@@ -752,12 +791,14 @@
 
   (test-case "page shell links the static assets and composes sidebar + main"
     (define fd (files (list "Tasks.rkt" (list (tk "Milk" #f #f '())))))
-    (define s (xstr (render-page (render-outline fd #:today "2026-08-04")
+    (define s (xstr (render-page (render-outline fd #:today "2026-08-04"
+                                                 #:node-href test-node-href)
                                  #:title "olai"
                                  #:stylesheet-href "/static/app.css"
                                  #:sidebar (render-sidebar fd #:home-href "/"
                                                            #:href "/"
-                                                           #:today-href "/today"))))
+                                                           #:today-href "/today"
+                                                           #:node-href test-node-href))))
     (check-true (string-contains? s "<title>olai</title>") s)
     (check-true (string-contains? s "href=\"/static/app.css\"") s)
     ;; the client runtime is the framework's, under its own prefix, and it
@@ -839,7 +880,7 @@
   (test-case "links navigate partially and keep their plain href"
     (define fd (files (list "Tasks.rkt" (list (tk "Milk" #f #f '())))))
     (define s (xstr (render-sidebar fd #:home-href "/" #:today-href "/today" #:href "/"
-                                    #:zoom-base "/n/")))
+                                    #:node-href test-node-href)))
     ;; no-JS, middle-click and copy-link all still read the href
     (check-true (string-contains? s (format "href=\"/n/~a\"" (title-key "Milk"))) s)
     (check-true (string-contains? s (format "hx-get=\"/n/~a\"" (title-key "Milk"))) s)
@@ -855,11 +896,11 @@
   (test-case "the bullet and the crumbs navigate the same way"
     (define bullet (xstr (render-node-fragment (tk "T" #f #f '() #:id "t1")
                                                #:today "2026-08-04"
-                                               #:zoom-base "/n/")))
+                                               #:node-href test-node-href)))
     (check-true (string-contains? bullet "hx-get=\"/n/t1\"") bullet)
     (define crumbs (xstr (render-breadcrumbs (list (list "Ship" "t1"))
                                              #:home-href "/"
-                                             #:zoom-base "/n/")))
+                                             #:node-href test-node-href)))
     (check-true (string-contains? crumbs "hx-get=\"/n/t1\"") crumbs)
     ;; home is a crumb like any other
     (check-true (string-contains? crumbs "hx-get=\"/\"") crumbs))
@@ -1018,11 +1059,13 @@
 
   (test-case "a file section is addressable on its own"
     (define entry (list "Tasks.rkt" (list (tk "Milk" #f #f '()))))
-    (define s (xstr (render-file-section entry #:today "2026-08-04")))
+    (define s (xstr (render-file-section entry #:today "2026-08-04"
+                                         #:node-href test-node-href)))
     (check-true (string-prefix? s "<section class=\"ol-file\"") s)
     (check-true (string-contains? s "id=\"ol-file-Tasks_rkt\"") s)
     (check-true (string-contains? s "data-file=\"Tasks.rkt\"") s)
     (check-true (string-contains? s "Milk") s)
     ;; the page is just its sections
-    (define page (xstr (render-outline (list entry) #:today "2026-08-04")))
+    (define page (xstr (render-outline (list entry) #:today "2026-08-04"
+                                       #:node-href test-node-href)))
     (check-true (string-contains? page s) page)))

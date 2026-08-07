@@ -28,9 +28,10 @@
 
 (provide (contract-out
           ;; the node, the documents as of this snapshot, whether this page is
-          ;; ABOUT the node (so the whole document is drawn), and where a node
-          ;; link points. -> the block, or nothing when the node has no @doc
-          [doc-block (-> task? hash? boolean? (or/c string? #f) list?)])
+          ;; ABOUT the node (so the whole document is drawn), and a node's key
+          ;; -> its own page (web/routes). -> the block, or nothing when the
+          ;; node has no @doc
+          [doc-block (-> task? hash? boolean? (-> string? string?) list?)])
          ;; the "nothing here" line, drawn once here and again by a pane with
          ;; nothing in it (web/zoom): one sentence, one look, and this is the
          ;; module that draws it first
@@ -93,11 +94,11 @@
 
 ;; The file's name — a link to the node's own page while you are looking at
 ;; the outline, and plain text once you are on it.
-(define (doc-name-xexpr rel key zoom-base link?)
+(define (doc-name-xexpr rel key node-href link?)
   (define label (file-label rel))
   (if link?
       `(a ((class ,ol-doc-name)
-           ,@(node-link-attributes zoom-base key)
+           ,@(node-link-attributes node-href key)
            (title ,rel))
           ,label)
       `(span ((class ,ol-doc-name) (title ,rel)) ,label)))
@@ -142,7 +143,7 @@
             (format "~a is not a document this view draws." (file-label rel))))]))
 
 ;; `docs` is path -> text, read by the store; this only looks in it.
-(define (doc-block tk docs expanded? zoom-base)
+(define (doc-block tk docs expanded? node-href)
   (define rel (task-doc tk))
   (cond
     [(not rel) '()]
@@ -151,7 +152,7 @@
      (define text (and path (hash-ref docs path #f)))
      (list
       `(div ((class ,ol-doc))
-            ,(doc-name-xexpr rel (task-key tk) zoom-base (not expanded?))
+            ,(doc-name-xexpr rel (task-key tk) node-href (not expanded?))
             ,@(if expanded?
                   (doc-body-xexprs rel text)
                   (doc-lead-xexprs text))))]))
