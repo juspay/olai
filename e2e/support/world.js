@@ -40,7 +40,6 @@ export class OlaiWorld extends World {
     this.serverEnv = env;
     this.dir = await fs.mkdtemp(path.join(os.tmpdir(), "olai-e2e-"));
     this.outlinePath = path.join(this.dir, "Tasks.rkt");
-    this.docPath = path.join(this.dir, DOC_PATH);
     // the document first: the outline's @doc names it, and the language
     // refuses an outline whose document is not there
     await this.rewriteDoc(DOC);
@@ -131,12 +130,21 @@ export class OlaiWorld extends World {
     await this.rewrite(this.outline + text);
   }
 
-  /** Rewrite the document a node's @doc attaches. Not an outline edit at all —
-   *  the .rkt does not move — which is the whole point of the scenario that
-   *  uses it: the page still has to redraw. */
+  /** Write a file BESIDE the outline, parents and all.
+   *
+   *  Not an outline edit — the .rkt the server was started on does not move —
+   *  and both scenarios that need one are about exactly that: an @include
+   *  fragment simply appearing in a directory a glob reads, and a @doc
+   *  document rewritten under a page that still has to redraw. */
+  async write(rel, text) {
+    const p = path.join(this.dir, rel);
+    await fs.mkdir(path.dirname(p), { recursive: true });
+    await fs.writeFile(p, text, "utf8");
+  }
+
+  /** Rewrite the document a node's @doc attaches. */
   async rewriteDoc(text) {
-    await fs.mkdir(path.dirname(this.docPath), { recursive: true });
-    await fs.writeFile(this.docPath, text, "utf8");
+    await this.write(DOC_PATH, text);
   }
 
   /** A write command against this scenario's outline, as an agent would run

@@ -32,6 +32,10 @@
          syntax/modread
          (except-in olai/lang/expander #%module-begin)
          olai/lang/walk
+         ;; what a starred @include reads, and what it names right now: the
+         ;; one thing in the module graph that can move without a file the
+         ;; store already probed having been touched
+         (only-in olai/glob glob-expand)
          olai/load
          ;; where a @doc path points and what is in it; the store is the one
          ;; layer that reads one, because it is the one that knows when to
@@ -55,7 +59,8 @@
                             [files-data list?]
                             [index hash?]
                             [docs hash?]
-                            [watch (listof path?)])]
+                            [watch (listof path?)]
+                            [globs (listof path?)])]
           [snapshot-day-key (-> snapshot? string? (or/c string? #f))]
           [call-in-outline-namespace (-> (-> any) any)]))
 
@@ -71,11 +76,16 @@
 ;;                they read right now (see read-docs below)
 ;;   watch      : (listof path) roots, transitive @include fragments, and
 ;;                every document @doc named
-(struct snapshot (outlines files-data index docs watch) #:transparent)
+;;   globs      : (listof path) every glob pattern an @include expanded, as an
+;;                absolute path. Not files but QUESTIONS: their answers are
+;;                what the module graph above was built from, so a new file in
+;;                one's directory is a reload even though nothing in `watch`
+;;                moved. The watcher watches where they read (web/watch).
+(struct snapshot (outlines files-data index docs watch globs) #:transparent)
 
-(define empty-snapshot (snapshot '() '() (hash) (hash) '()))
+(define empty-snapshot (snapshot '() '() (hash) (hash) '() '()))
 
-;; probe : hash path -> (cons mtime size) | #f, for cheap staleness checks
+;; probe : what the last load was built from, as it was then (see below)
 ;; rev   : bumped by every reload, so "did anything happen?" is a comparison
 (struct store (files [snap #:mutable] [err #:mutable] [probe #:mutable]
                      [rev #:mutable] sema))
@@ -141,36 +151,78 @@
 (define (path-key p)
   (path->string (simple-form-path p)))
 
-(define (probe-file p)
-  (define full (simple-form-path p))
-  (and (file-exists? full)
-       (cons (file-or-directory-modify-seconds full #f (λ () #f))
-             (file-size full))))
+;; ---- what a load was built from, as it was then ----------------------------
+;;
+;; Two kinds of dependency and two ways to check one: a FILE is what it was
+;; when its mtime and size are, and a GLOB is what it was when it still names
+;; the same files. Both are taken at the same moment and asked at the same
+;; moment, so they are one value — two fields updated in step by discipline is
+;; how a saved document went unnoticed once already.
 
-(define (probe-for paths)
-  (for/hash ([p (in-list paths)])
-    (values (path-key p) (probe-file p))))
+(struct probe (files globs) #:transparent)
 
-;; A module reports only the includes it spliced directly: a fragment's own
-;; includes were flattened before it exported `tasks`. Walk the graph so the
-;; watch set covers every file the outline is built from.
-(define (module-includes p)
-  (with-handlers ([exn:fail? (λ (_e) '())])
-    (for/list ([s (in-list (dynamic-require `(file ,(path->string (simple-form-path p)))
-                                            'includes))])
-      (simple-form-path (string->path s)))))
+(define empty-probe (probe (hash) (hash)))
 
+;; Both take a KEY — an absolute, simplified path string (path-key) — rather
+;; than a path: this runs over every watched file on every request, and the
+;; hash already holds the normalized form.
+(define (file-stamp key)
+  (define p (string->path key))
+  (and (file-exists? p)
+       (cons (file-or-directory-modify-seconds p #f (λ () #f))
+             (file-size p))))
+
+(define (glob-answer key)
+  (glob-expand (string->path key)))
+
+(define (take-probe paths globs)
+  (define (stamped xs f)
+    (for/hash ([x (in-list xs)])
+      (define k (path-key x))
+      (values k (f k))))
+  (probe (stamped paths file-stamp) (stamped globs glob-answer)))
+
+;; Does everything still answer the way it did? An empty probe never does:
+;; before the first successful load there is nothing to have changed, and that
+;; is exactly the state a store has to keep trying to get out of.
+(define (probe-current? pr)
+  (define (all-agree? h f)
+    (for/and ([(k v) (in-hash h)]) (equal? v (f k))))
+  (and (positive? (hash-count (probe-files pr)))
+       (all-agree? (probe-files pr) file-stamp)
+       (all-agree? (probe-globs pr) glob-answer)))
+
+;; What one module says it was built from: the files it spliced DIRECTLY, and
+;; the patterns it starred itself. A fragment's own includes were flattened
+;; before it exported `tasks`, which is why the graph is walked below rather
+;; than read off the root.
+;; -> (values (listof path) (listof path))
+(define (module-sources full)
+  (define mod `(file ,full))
+  (define (export name)
+    (with-handlers ([exn:fail? (λ (_e) '())])
+      (for/list ([s (in-list (dynamic-require mod name))])
+        (simple-form-path (string->path s)))))
+  (values (export 'includes) (export 'include-globs)))
+
+;; Every file the outlines are built from, and every pattern they are still
+;; watching a directory for.
+;; -> (values (listof path) (listof path))
 (define (watch-set outlines)
   (define seen (make-hash))
-  (define acc '())
+  (define files '())
+  (define globs '())
   (define (visit p)
-    (define k (path-key p))
+    (define full (simple-form-path p))
+    (define k (path->string full))
     (unless (hash-ref seen k #f)
       (hash-set! seen k #t)
-      (set! acc (cons (simple-form-path p) acc))
-      (for ([q (in-list (module-includes p))]) (visit q))))
+      (set! files (cons full files))
+      (define-values (includes patterns) (module-sources k))
+      (set! globs (append (reverse patterns) globs))
+      (for ([q (in-list includes)]) (visit q))))
   (for ([o (in-list outlines)]) (visit (outline-path o)))
-  (reverse acc))
+  (values (reverse files) (remove-duplicates (reverse globs) #:key path->string)))
 
 ;; The key of the day node titled `iso-day` (Daily.rkt keeps one per day), or
 ;; #f. First match in file order, so the answer does not depend on hash order.
@@ -222,7 +274,7 @@
 ;; Mirror sites are bound here too, once per load rather than once per render:
 ;; what handlers get is a tree of already-bound nodes, and the renderer never
 ;; holds an anchors hash.
-(define (build-snapshot outlines watch)
+(define (build-snapshot outlines watch globs)
   (define outs (mint-outline-keys outlines))
   (define files-data
     (for/list ([o (in-list outs)])
@@ -235,9 +287,11 @@
             (read-docs docs)
             ;; watched whether or not the read succeeded: the file coming
             ;; back is exactly the change nobody would otherwise hear about
-            (append watch (map string->path docs))))
+            (append watch (map string->path docs))
+            globs))
 
-;; -> (values (listof outline) #f (listof path)) | (values #f load-error '())
+;; -> (values (listof outline) #f (listof path) (listof path))
+;;  | (values #f load-error '() '())
 (define (load-all files)
   (call-in-outline-namespace
    (λ ()
@@ -245,12 +299,13 @@
        (cond
          [(null? fs)
           (define outs (reverse acc))
-          (values outs #f (watch-set outs))]
+          (define-values (watch globs) (watch-set outs))
+          (values outs #f watch globs)]
          [else
           (define r (try-load-outline (car fs)))
           (if (outline? r)
               (loop (cdr fs) (cons r acc))
-              (values #f r '()))])))))
+              (values #f r '() '()))])))))
 
 ;; ---- the store ------------------------------------------------------------
 
@@ -259,7 +314,7 @@
                       (simple-form-path (if (path? f) f (string->path f))))
                     empty-snapshot
                     #f
-                    (hash)
+                    empty-probe
                     0
                     (make-semaphore 1)))
   (reload! st)
@@ -282,33 +337,34 @@
 
 (define (reload! st)
   (define files (store-files st))
-  (define-values (outs err watch) (load-all files))
+  (define-values (outs err watch globs) (load-all files))
   (cond
     [outs
      ;; probe what the SNAPSHOT says it is built from, not what load-all
      ;; found: the module graph is only half of it — the documents come off
      ;; the loaded tasks, and a set that is probed and a set that is watched
      ;; being two different lists is how a saved document goes unnoticed.
-     (define snap (build-snapshot outs watch))
+     (define snap (build-snapshot outs watch globs))
      (set-store-snap! st snap)
      (set-store-err! st #f)
-     (set-store-probe! st (probe-for (snapshot-watch snap)))]
+     (set-store-probe! st (take-probe (snapshot-watch snap) (snapshot-globs snap)))]
     [else
      ;; Keep last-good. Probe the files we know about anyway, so a broken
-     ;; file is retried on the next edit and not on every request.
+     ;; file is retried on the next edit and not on every request. The globs
+     ;; are last-good's too: a file appearing in one's directory is a reason
+     ;; to try again, and the outline that failed may be exactly the one that
+     ;; was mid-save when the file arrived.
+     (define last-good (store-snap st))
      (set-store-err! st err)
      (set-store-probe!
       st
-      (probe-for (remove-duplicates
-                  (append files (snapshot-watch (store-snap st)))
-                  #:key path-key)))])
+      (take-probe (remove-duplicates (append files (snapshot-watch last-good))
+                                     #:key path-key)
+                  (snapshot-globs last-good)))])
   (set-store-rev! st (add1 (store-rev st))))
 
 (define (stale? st)
-  (define want (store-probe st))
-  (or (zero? (hash-count want))
-      (for/or ([(k v) (in-hash want)])
-        (not (equal? v (probe-file (string->path k)))))))
+  (not (probe-current? (store-probe st))))
 
 ;; Reload when any watched file changed on disk (#:force? reloads regardless).
 ;; The watcher and the write path both call this; handlers call it as their

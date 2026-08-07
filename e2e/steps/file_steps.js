@@ -12,7 +12,7 @@
 // assertions that follow are what wait.
 
 import assert from "node:assert/strict";
-import { When } from "@cucumber/cucumber";
+import { Given, When } from "@cucumber/cucumber";
 
 import { BREAKAGE, FIXTURE } from "../support/outline.js";
 
@@ -70,6 +70,27 @@ When("I add a day node for today holding {string}", async function (child) {
 // about an editor's save.
 When("I check off {string} from the CLI", async function (title) {
   await this.olai("done", title);
+});
+
+// ---- @include fragments ----------------------------------------------------
+//
+// A fragment is one node in a `#lang olai` file of its own; the outline names
+// it, or names the directory it sits in with a glob (docs/syntax.md). What a
+// scenario is about is never the writing — it is whether the outline already
+// had a pattern matching what appeared — so the two phrasings below are the
+// setup and the event, and one body.
+const fragment = (title) => `#lang olai\n${title}\n`;
+
+Given("a fragment {string} holding {string}", async function (rel, title) {
+  await this.write(rel, fragment(title));
+});
+
+When("a fragment {string} appears holding {string}", async function (rel, title) {
+  await this.write(rel, fragment(title));
+});
+
+When("the outline includes the fragments in {string}", async function (pattern) {
+  await this.append(`@include ${pattern}\n`);
 });
 
 When("I break the outline", async function () {

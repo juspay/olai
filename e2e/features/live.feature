@@ -20,6 +20,22 @@ Feature: the outline, live
     And I see the title "Ship the server"
     And the page has not reloaded
 
+  # And the file the page follows does not have to exist when the page is
+  # drawn. `@include Daily/*.rkt` names a DIRECTORY's worth of fragments, so
+  # the first one of a new month arriving is a change with nothing in it that
+  # the server had already read — no mtime moved, nothing was saved over. The
+  # pattern is what gets asked again (docs/syntax.md, Globs).
+
+  Scenario: a file appearing in a glob's directory joins the outline
+    Given a fragment "Daily/2026-01.rkt" holding "January standup"
+    When I open the home page
+    And I mark this page load
+    And the outline includes the fragments in "Daily/*.rkt"
+    Then I see the title "January standup"
+    When a fragment "Daily/2026-02.rkt" appears holding "February standup"
+    Then I see the title "February standup"
+    And the page has not reloaded
+
   # The sidebar tree draws the same node titles the outline does, from the same
   # file. It is a SECOND live region on the same stream — chrome as far as
   # navigation goes (no link targets it, so clicking through the outline still
