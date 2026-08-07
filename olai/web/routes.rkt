@@ -36,7 +36,8 @@
           ;; business, and web-server's.
           [make-routes
            (-> #:home procedure? #:node procedure? #:today procedure?
-               #:search procedure? #:events procedure?
+               #:archive procedure? #:search procedure?
+               #:events procedure?
                #:chat procedure? #:chat-new procedure? #:chat-cancel procedure?
                #:chat-sessions procedure? #:chat-load procedure?
                #:tree procedure? #:agenda procedure?
@@ -45,6 +46,7 @@
           [struct routes ([dispatch procedure?]
                           [home-href string?]
                           [today-href string?]
+                          [archive-href string?]
                           ;; a node's key -> its own page. The one address that
                           ;; takes an argument, and the only way to write one —
                           ;; so it is the one that says its shape, where the
@@ -68,6 +70,7 @@
 (struct routes (dispatch
                 home-href
                 today-href
+                archive-href
                 node-href
                 search-href
                 chat-href
@@ -96,6 +99,10 @@
 ;;                  moving to a new ordinal, which is what ^anchor is for
 ;;                  (docs/cli.md)
 ;;   /today         today's Daily day node, zoomed
+;;   /archive       what `olai archive` put away: the outlines' Archive.rkt,
+;;                  drawn the ordinary way. A page rather than a filter on the
+;;                  home one — archived work is another outline, not a state of
+;;                  the one you are reading (olai/archive)
 ;;   /search?q=…    the same outline with the search palette open on what the
 ;;                  query names. The one route whose address carries something
 ;;                  that is not a path segment, so it is the one field that
@@ -114,7 +121,8 @@
 ;; Handlers take a request and whatever the pattern captured, the way
 ;; `dispatch-rules` calls them.
 (define (make-routes #:home home #:node node #:today today
-                     #:search search #:events events
+                     #:archive archive #:search search
+                     #:events events
                      #:chat chat #:chat-new chat-new #:chat-cancel chat-cancel
                      #:chat-sessions chat-sessions #:chat-load chat-load
                      #:tree tree #:agenda agenda
@@ -124,6 +132,7 @@
      [("") home]
      [("n" (string-arg)) node]
      [("today") today]
+     [("archive") archive]
      [("search") search]
      [("live" (string-arg) "events") events]
      [("chat") #:method "post" chat]
@@ -141,6 +150,7 @@
   (routes dispatch
           (url home)
           (url today)
+          (url archive)
           (λ (key) (url node key))
           (λ (query) (query-href (url search) query))
           (url chat)

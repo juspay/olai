@@ -46,6 +46,7 @@
           ;; the outline moves
           [render-sidebar
            (-> list? #:home-href string? #:today-href string?
+               #:archive-href string?
                #:href string? #:node-href (-> string? string?)
                list?)]))
 
@@ -172,6 +173,7 @@
                         #:home-href home-href
                         #:today-href today-href
                         #:href href
+                        #:archive-href archive-href
                         #:node-href node-href)
   (define entries (normalize-files-data files-data))
   ;; Disclosure only, and mirror sites stay out of it: the tree is for finding
@@ -214,14 +216,24 @@
           ;; where the app has the page and the sidebar was not told its
           ;; address (which is what the dead-link branch here was standing in
           ;; for). web/routes mints it from the pattern that dispatches it.
+          ;;
+          ;; Archive is the second of them, and the same kind of thing: two ways
+          ;; into the outline that are not a node — the day you are in, and the
+          ;; work you put away. A link and not a section like Starred, because
+          ;; what is behind it is a whole outline; the tree below draws the live
+          ;; files only.
           (nav ((class ,ol-sidebar-nav))
                (a ((class ,ol-nav-item) ,@(live-link ol-live today-href))
                   (span ((class ,ol-nav-icon) (aria-hidden "true")) "◉")
                   "Today")
-               ;; Search is NOT a route the way Today is — there is nowhere to
-               ;; go. The palette opens over the page you are on, and `/` opens
-               ;; it without coming here at all; this is the way in for a
-               ;; finger, and for anyone who has not learned the slash.
+               (a ((class ,ol-nav-item) ,@(live-link ol-live archive-href))
+                  (span ((class ,ol-nav-icon) (aria-hidden "true")) "▤")
+                  "Archive")
+               ;; And the third row is not a link at all: Search has nowhere to
+               ;; GO. The palette opens over the page you are on, and `/` opens
+               ;; it without coming here — this is the way in for a finger, and
+               ;; for anyone who has not learned the slash. Last of the three,
+               ;; because the two above it are places and this is an action.
                (button ((type "button") (class ,(classes ol-nav-item ol-nav-button))
                         ,@(search-toggle-attributes))
                        (span ((class ,ol-nav-icon) (aria-hidden "true")) "⌕")

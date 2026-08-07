@@ -34,10 +34,20 @@
   ;; Run body with the server up: (proc port outline-path). The path is handed
   ;; back so a test can edit the outline underneath a running server. The temp
   ;; dir goes whether or not the server came up, which is a case here.
-  (define (with-server proc #:port [port 0] #:port-fallback? [fallback? #f])
+  ;;
+  ;; #:extra is more roots beside it — `(name . text)` — for the tests about a
+  ;; SET: which file a node is defined in is the whole of what an archive is,
+  ;; and a server pointed at one file has no set to say it with.
+  (define (with-server proc #:port [port 0] #:port-fallback? [fallback? #f]
+                       #:extra [extra '()])
     (define dir (make-temporary-file "sfserve~a" 'directory))
     (define f (build-path dir "Tasks.rkt"))
     (display-to-file outline f #:exists 'truncate)
+    (define others
+      (for/list ([e (in-list extra)])
+        (define p (build-path dir (car e)))
+        (display-to-file (cdr e) p #:exists 'truncate)
+        p))
     (dynamic-wind
      void
      (λ ()
@@ -46,7 +56,7 @@
          (start-server #:port port
                        #:port-fallback? fallback?
                        #:bind "127.0.0.1"
-                       #:files (list f)
+                       #:files (cons f others)
                        #:on-listen (λ (p) (set! bound p))))
        (dynamic-wind void (λ () (proc bound f)) stop))
      (λ () (delete-directory/files dir))))
@@ -206,6 +216,52 @@
        (define pane (cadr (string-split body2 "<main class=\"ol-main\">")))
        (check-true (string-contains? pane "ol-zoom") pane)
        (check-false (string-contains? pane "Buy milk") pane))))
+
+  ;; ---- the archive -----------------------------------------------------------
+  ;;
+  ;; Archived work is a FILE, not a state, so the view splits on the file: the
+  ;; home page and the sidebar tree draw the live outlines, one page draws the
+  ;; archive, and the JSON draws everything — because loading never excluded
+  ;; anything.
+
+  (define archived
+    (string-append "#lang olai\n"
+                   "kitchen remodel\n"
+                   "  gutted the kitchen\n"
+                   "    @done 2026-08-01\n"))
+
+  (test-case "the archive is a page of its own, and off the home page"
+    (with-server
+     #:extra (list (cons "Archive.rkt" archived))
+     (λ (port f)
+       (define-values (_c _h home) (GET port "/"))
+       (check-true (string-contains? home "Buy milk") home)
+       (check-false (string-contains? home "gutted the kitchen") home)
+       ;; the way in is a link, beside Today
+       (check-true (string-contains? home "href=\"/archive\"") home)
+       ;; and the file's own section is not on the home page either
+       (check-false (string-contains? home "Archive.rkt") home)
+       ;; the page itself draws it, with the chain it was archived under
+       (define-values (code _h2 body) (GET port "/archive"))
+       (check-equal? code 200 body)
+       (check-true (string-contains? body "gutted the kitchen") body)
+       (check-true (string-contains? body "kitchen remodel") body)
+       ;; the sidebar is the same tree on both pages: it is a region, and the
+       ;; tree it holds is the live outlines wherever it was fetched from
+       (define (sidebar page)
+         (car (string-split (cadr (string-split page "<aside")) "</aside>")))
+       (check-false (string-contains? (sidebar body) "gutted the kitchen")
+                    (sidebar body))
+       ;; nothing is hidden from an agent: the model has every node
+       (define-values (_c3 _h3 tree) (GET port "/api/tree"))
+       (check-true (string-contains? tree "gutted the kitchen") tree))))
+
+  (test-case "an outline with no archive still has the page, and it says so"
+    (with-server
+     (λ (port f)
+       (define-values (code _h body) (GET port "/archive"))
+       (check-equal? code 200 body)
+       (check-true (string-contains? body "Nothing archived yet") body))))
 
   ;; ---- zoom ------------------------------------------------------------------
 

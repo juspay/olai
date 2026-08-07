@@ -11,7 +11,7 @@ import * as path from "node:path";
 import { promisify } from "node:util";
 import { World } from "@cucumber/cucumber";
 
-import { DOC, DOC_PATH, FIXTURE, SECOND, SECOND_OUTLINE } from "./outline.js";
+import { DOC, DOC_PATH, FIXTURE } from "./outline.js";
 import { OLAI_BIN, startServer } from "./server.js";
 
 const run = promisify(execFile);
@@ -37,10 +37,11 @@ export class OlaiWorld extends World {
    *  the fold state, the theme, the chat panel's open bit — start empty. The
    *  viewport is a desktop unless the scenario asked for the other one.
    *
-   *  `secondOutline` stages the second root beside the first, for the
-   *  scenarios about an anchor reaching across files. A boot-time choice
-   *  because `serve DIR` globs the directory once, at startup. */
-  async boot(browser, env = {}, viewport = VIEWPORT, secondOutline = false) {
+   *  `extras` is more roots staged beside the outline — `[name, text]` pairs,
+   *  chosen by the scenario's tags (hooks.js). Boot-time, because `serve DIR`
+   *  globs the directory once, at startup: a root written later is a root this
+   *  server never has. */
+  async boot(browser, env = {}, viewport = VIEWPORT, extras = []) {
     this.serverEnv = env;
     this.dir = await fs.mkdtemp(path.join(os.tmpdir(), "olai-e2e-"));
     this.outlinePath = path.join(this.dir, "Tasks.rkt");
@@ -48,8 +49,8 @@ export class OlaiWorld extends World {
     // refuses an outline whose document is not there
     await this.rewriteDoc(DOC);
     await this.rewrite(FIXTURE);
-    if (secondOutline) {
-      await fs.writeFile(path.join(this.dir, SECOND_OUTLINE), SECOND, "utf8");
+    for (const [name, text] of extras) {
+      await fs.writeFile(path.join(this.dir, name), text, "utf8");
     }
 
     // The context does not depend on the URL, and the racket boot is the

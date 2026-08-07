@@ -55,6 +55,9 @@
          (prefix-in sequencer: web-server/dispatchers/dispatch-sequencer)
          (only-in web-server/private/mime-types make-path->mime-type)
          olai/agenda
+         ;; which of the loaded outlines is the archive: the home page draws
+         ;; the others, and one page draws it
+         (only-in olai/archive live-entries archived-entries)
          olai/dates
          ;; a node's title, for the tab a zoom page opens in
          (only-in olai/lang/expander task-title)
@@ -334,11 +337,15 @@
                  #:body-extra overlays))
    #:code code))
 
-;; The file tree and the chrome above it, over one snapshot.
+;; The file tree and the chrome above it, over one snapshot. `files-data` is
+;; the LIVE outlines: the archive has a page of its own and is not in the tree
+;; on any of them (olai/archive), this one included — the sidebar is a region,
+;; and the tree it holds has to say the same thing whichever address answered.
 (define (page-sidebar rs files-data #:href href)
   (render-sidebar files-data
                   #:home-href (routes-home-href rs)
                   #:today-href (routes-today-href rs)
+                  #:archive-href (routes-archive-href rs)
                   #:href href
                   #:node-href (routes-node-href rs)))
 
@@ -367,10 +374,11 @@
 
 ;; Every page here is the same shape: one snapshot, the chrome around it, and a
 ;; live region that re-fetches THIS url on an `outline` event. `view` is handed
-;; the snapshot and answers (values main title) — the only thing three pages
-;; differ in. It is handed nothing about the live view: every link on the page
-;; names the region it aims at (web/render declares it), so there is no longer
-;; a per-page value for a drawer to be given, or to forget.
+;; the snapshot — and the live outlines out of it, which the chrome needed
+;; anyway — and answers (values main title), the only thing four pages differ
+;; in. It is handed nothing about the live view: every link on the page names
+;; the region it aims at (web/render declares it), so there is no longer a
+;; per-page value for a drawer to be given, or to forget.
 ;;
 ;; `rs` is the route table, and it is what every page draws its links out of.
 ;; `chat` is the panel, or #f when there is no agent to talk to.
@@ -394,12 +402,19 @@
               #:code 500))
     #:stale-ok? #t
     (λ (rev snap err)
-      (define-values (main title) (view snap))
+      ;; The LIVE outlines, once per page: the sidebar draws them on every one
+      ;; of them, the archive page included, and the home page's own pane is
+      ;; the same list.
+      (define live (live-entries (snapshot-files-data snap)))
+      (define-values (main title) (view snap live))
       (chrome main
               #:title title
               #:href live-href
               #:cursor (outline-cursor rev)
-              #:sidebar (page-sidebar rs (snapshot-files-data snap) #:href live-href)
+              #:sidebar (page-sidebar rs live #:href live-href)
+              ;; the palette searches the LIVE outlines too: archived work has
+              ;; a page of its own and is not an answer to a query (Roadmap,
+              ;; archive; olai/search)
               #:overlays (page-overlays rs snap query chat)
               #:banner (and err (error-banner err))))))
 
@@ -430,15 +445,18 @@
 
 ;; The whole outline, as a pane. The home page is this, and so is a search:
 ;; the palette is over the page you were reading, not instead of it.
-(define (outline-pane rs snap)
-  (render-outline (snapshot-files-data snap)
+;; The live outlines, as a pane. The home page is this, and so is a search:
+;; the palette is over the page you were reading, not instead of it.
+(define (outline-pane rs snap live)
+  (render-outline live
                   #:today (today-iso-string)
                   #:node-href (routes-node-href rs)
                   #:docs (snapshot-docs snap)))
 
 (define (page-handler st rs chat)
   (outline-page st rs chat (routes-home-href rs)
-   (λ (snap) (values (outline-pane rs snap) (page-title (store-files st))))))
+   (λ (snap live)
+     (values (outline-pane rs snap live) (page-title (store-files st))))))
 
 ;; A query, as a page.
 ;;
@@ -454,9 +472,28 @@
 (define (search-handler st rs chat req)
   (define q (form-field req #"q"))
   (outline-page st rs chat ((routes-search-href rs) q) #:query q
-   (λ (snap)
-     (values (outline-pane rs snap)
+   (λ (snap live)
+     (values (outline-pane rs snap live)
              (if q (string-append "search " q) "olai")))))
+
+;; What was archived, on a page of its own.
+;;
+;; A page rather than a filter with a toggle: archived work is not a state of
+;; the outline you are reading, it is another outline — one file, drawn the
+;; ordinary way, with the ordinary permalinks under it. Nothing about it is
+;; special except that the home page does not draw it, and every node on it is
+;; still zoomable, still mirrorable, still there.
+(define (archive-handler st rs chat)
+  (outline-page st rs chat (routes-archive-href rs)
+   (λ (snap _live)
+     (define entries (archived-entries (snapshot-files-data snap)))
+     (values (if (null? entries)
+                 (empty-pane rs "Nothing archived yet.")
+                 (render-outline entries
+                                 #:today (today-iso-string)
+                                 #:node-href (routes-node-href rs)
+                                 #:docs (snapshot-docs snap)))
+             "archive"))))
 
 ;; A node's permalink.
 ;;
@@ -467,7 +504,7 @@
 ;; exists; this route only asks it, and says what it heard.
 (define (node-handler st rs chat key)
   (outline-page st rs chat ((routes-node-href rs) key)
-   (λ (snap)
+   (λ (snap _live)
      (define entry (node-at (snapshot-index snap) key))
      (if entry
          ;; a tab zoomed on one node should say which
@@ -486,7 +523,7 @@
 ;; frozen to the key today HAD would be neither.
 (define (today-handler st rs chat)
   (outline-page st rs chat (routes-today-href rs)
-   (λ (snap)
+   (λ (snap _live)
      (define today (today-iso-string))
      (define entry (node-at (snapshot-index snap) (snapshot-day-key snap today)))
      (values (if entry
@@ -581,6 +618,8 @@
      ;; one page per node, addressed by the key the load layer minted
      #:node (λ (req key) (node-handler st rs panel key))
      #:today (λ (req) (today-handler st rs panel))
+     ;; done work, on demand and nowhere else
+     #:archive (λ (req) (archive-handler st rs panel))
      ;; the palette, as an address: `q` is what was typed into it
      #:search (λ (req) (search-handler st rs panel req))
      ;; Mounted, not understood: the hub moves frames and web/live and web/chat

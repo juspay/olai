@@ -153,6 +153,31 @@
     (check-equal? (search-hit-trail (car hits)) '("Work"))
     (check-equal? (search-hit-file (car hits)) "/tmp/Tasks.rkt"))
 
+  ;; ---- what was put away ------------------------------------------------------
+  ;;
+  ;; The other half of the rule the roadmap states with the agenda's: archived
+  ;; work is out of the answers. It is not the done rule one step further —
+  ;; a done node is still in the outline you are reading, and an archived one
+  ;; was moved out of it, into the file the archive page draws.
+  (test-case "an archived node is not a hit, whatever it says"
+    (define fd2
+      (list (list "/tmp/Tasks.rkt" (list (tk "Ship the server")))
+            (list "/tmp/Archive.rkt" (list (tk "Ship the pitch")))))
+    (check-equal? (find fd2 "ship") '("Ship the server"))
+    ;; and a query only the archive could answer answers with nothing at all
+    (check-equal? (search-outlines fd2 "pitch") '()))
+
+  ;; A node that moved into the archive is still one node — the live file that
+  ;; mirrors it goes on drawing it (that is what the linker bought). What it is
+  ;; not is an answer: the mirror SITE is the node it points at, counted where
+  ;; it is defined, and where it is defined is the archive.
+  (test-case "a live file mirroring an archived node does not resurrect it"
+    (define fd2
+      (list (list "/tmp/Tasks.rkt"
+                  (list (tk "This week" #:kids (list (mirror-ref "pitch" #f)))))
+            (list "/tmp/Archive.rkt" (list (tk "Ship the pitch" #:id "pitch")))))
+    (check-equal? (search-outlines fd2 "pitch") '()))
+
   ;; ---- ties -------------------------------------------------------------------
   ;;
   ;; Two nodes that score the same come out in the order they are written, and

@@ -17,7 +17,7 @@ The write commands know nothing about exit codes: an op (`olai/ops`) fails with 
 
 ## Global
 
-- Default outline file when no paths given: `$OLAI_HOME/Tasks.rkt`. `add` / `done` / `doing` / `move` always target one file via `--file`, same default.
+- Default outline file when no paths given: `$OLAI_HOME/Tasks.rkt`. `add` / `done` / `doing` / `move` / `archive` always target one file via `--file`, same default.
 - **`OLAI_HOME` has no default.** Unset, any command that would need it — the file defaults above, `daily` without `--home` — is a **usage error** (exit 1, the error object on stderr), nothing is read or written:
 
   ```json
@@ -28,7 +28,7 @@ The write commands know nothing about exit codes: an op (`olai/ops`) fails with 
 
   Naming files (or `--file` / `--home`) works with the variable unset.
 - **Read commands** (`check` / `tree` / `agenda` / `calendar` / `ics` / `serve`) accept **one or more** outline paths. They are read as one **SET**: node keys are minted against it, and it is the scope an `^anchor` has, so a `*mirror` reaches a node another named file defines and one that reaches nothing is an error ([Mirrors](syntax.md#mirrors)). Load the files you always load. The justfile defaults to `$OLAI_HOME/*.rkt`, or the repo's own `examples/Example.rkt examples/Week.rkt Roadmap.rkt` when `OLAI_HOME` is unset — the two examples are a set on purpose, since `Week.rkt` mirrors an anchor `Example.rkt` declares. `serve` also takes the DIRECTORY and globs it itself — that is its front door, see below.
-- Personal data lives outside the repo, in the directory `OLAI_HOME` names. Auto-commit (`add` / `done` / `doing` / `move` / `daily`) only runs when the directory of the file actually written is a git work tree; otherwise it no-ops (`committed: false`) and Dropbox (or your sync) is the history layer.
+- Personal data lives outside the repo, in the directory `OLAI_HOME` names. Auto-commit (`add` / `done` / `doing` / `move` / `archive` / `daily`) only runs when the directory of the file actually written is a git work tree; otherwise it no-ops (`committed: false`) and Dropbox (or your sync) is the history layer.
 - `--json` may appear after the subcommand everywhere it used to; it is a no-op, kept so an invocation an agent already knows does not become a usage error.
 
 ## `check [file ...]`
@@ -257,6 +257,7 @@ Routes:
 |-------|------|
 | `GET /` | HTML page (Workflowy-style skin from `olai/web/render.rkt`) |
 | `GET /n/<key>` | one node, zoomed: breadcrumbs (home, the file, each ancestor) plus that subtree and nothing else. `key` as in `tree` JSON. A node with a `@doc` has its document drawn inline here, in full; everywhere else it shows one line of it. A key the current snapshot has no node for is a page saying so, with a `200` — a node can be deleted while a tab sits zoomed on it, and that tab re-fetches this page to find out |
+| `GET /archive` | what `olai archive` put away: the outlines' `Archive.rkt`, drawn the ordinary way, with the ordinary permalinks under it. Linked from the sidebar beside Today, and drawn nowhere else — the home page and the sidebar tree are the LIVE outlines. A directory with no archive is a page saying so, with a `200` |
 | `GET /today` | the first node titled with today's ISO date (the Daily day node), zoomed — the same view as `/n/<key>`, with today's key looked up per request; terse empty state when there is none yet |
 | `GET /search?q=…` | the outline with the search palette open on what `q` names — a page, so a query is a permalink and a browser running no JS gets it by submitting the box. `q` missing, blank, or matching nothing are all `200`: an empty box says what it is for, and a query with no hits says so (see [Search](#search)). A browser that IS running JS rarely loads this page; the box re-fetches the results region alone |
 | `GET /live/<boot-id>/events` | `text/event-stream`, never ends. The address carries this process's boot id, so a tab that outlived a restart gets one `live:reload` frame and the end of the stream rather than a refusal; full contract in **[docs/live.md](live.md)**. `event: outline` whenever a watched file reloaded, plus one at local midnight — its data and its `id:` are both the cursor the outlines are now at; `event: chat` with one JSON frame from the agent per line, and no id (a message is not a checkpoint). Opens with `retry:` and an `event: live:hb` carrying its own cadence in seconds, repeated at that cadence, so proxies leave the connection alone and a client can notice it stopping. **A new connection is caught up first**, to that connection alone and before anything live: one `outline` if it names any cursor but the current one (`Last-Event-ID`, or `?last-event-id=` for a page's first connection — so sleep, tab suspension and a server restart all heal), then a `reset`, the conversation's `session` / `model` / `commands` as they stand, and the transcript as the frames that built it (`mark` for a break a live `reset` already cleared). A page opened while the agent was still waking up — or reloaded, or reconnected — knows exactly what one opened a minute earlier does |
@@ -290,9 +291,9 @@ No tables, no strikethrough, no task lists: that is the `markdown` package's cei
 
 ### Search
 
-A `⌕ search` button, top right, and a palette under it. `/` opens it from anywhere on the page (not while you are typing in something else — the chat input takes its own slash), ↑/↓ walk the hits, Enter lands on the first one from the box and on the focused one from the list, Esc puts it away, and so does a click outside it. On a phone the button is the entry point and the palette is a full-width sheet under it.
+A **Search** row in the sidebar, under Today and Archive, and a palette it opens over the page. Nothing of the palette is on the screen until it is asked for — a control parked in a corner is parked on top of whatever else lives there. `/` opens it from anywhere on the page (not while you are typing in something else — the chat input takes its own slash), ↑/↓ walk the hits, Enter lands on the first one from the box and on the focused one from the list, Esc puts it away, and so does a click outside it. The row is the entry point a finger uses; on a phone the palette is near-full-width under it.
 
-What is searched is what a node SAYS about itself: its **title**, its **`^anchor`**, its **`#tags`** and its **note**. Not its ancestors' — a query that matched everything under one heading would answer with the file — and not the document a `@doc` attaches. Every node of every file in the served set is in it, done ones included: search is not the agenda, and the reason to look for a node you finished is usually that you finished it.
+What is searched is what a node SAYS about itself: its **title**, its **`^anchor`**, its **`#tags`** and its **note**. Not its ancestors' — a query that matched everything under one heading would answer with the file — and not the document a `@doc` attaches. Every node of every LIVE file in the served set is in it, done ones included: search is not the agenda, and the reason to look for a node you finished is usually that you finished it. **Archived** nodes are not — what `olai archive` put away is read on `/archive`, not found among live work (the same rule the agenda, the calendar and the ICS feed keep), and a live file that mirrors an archived node does not bring it back: a mirror site is the node it points at, counted where it is defined.
 
 The matching is case-folded substrings, and there are no operators: a query is words, and every word has to appear somewhere in the same node, in any order and in any of the four fields. Ranking says one thing — the closer a hit is to what a node CALLS itself, the higher it goes: a title hit beats an `^anchor` hit beats a tag beats a note, a term that starts a field beats one that starts a word inside it beats one buried mid-word, and a done node is demoted by about a field's worth (enough to lose a tie, not enough to disappear). Nodes that score the same come out in the order the outline is written, so an answer never moves under the cursor between two keystrokes. A mirror site is the same node as its defining site: one hit, at the site that defines it. Twelve hits are drawn and the rest are counted (`+ 7 more`). The whole of it is `olai/search.rkt`, a pure function over the loaded set — the command palette on the roadmap asks the same one.
 
@@ -405,6 +406,70 @@ Set or rewrite `@date` on a task (same write-safety as `add`/`done`). `DATE` is 
 
 With `--clear`, `date` is `null`. `title` is always the node's resolved title, never the raw `^anchor` you passed.
 
+## `archive [--file F] [--no-commit] TITLE...|^anchor`
+
+Move a node's whole subtree out of the working outline and into `Archive.rkt`,
+**re-creating the chain it hung off** so the tree still reads years later.
+Same resolver as `done` / `move`, same write safety.
+
+```bash
+$ olai archive --file Tasks.rkt install
+```
+
+```json
+{"version":1,"ok":true,
+ "file":".../Archive.rkt","from":".../Tasks.rkt","title":"install","line":4,
+ "ancestors":["kitchen remodel"],"created_archive":false,"committed":true}
+```
+
+`file` is where the node lives **now**; `from` is the outline it left — which
+may be an `@include` fragment, not the file you named ([Write
+routing](#write-routing-the-defining-file)). `ancestors` is the chain that was
+re-created or merged into, outermost first. `line` is the node's line in the
+archive.
+
+- **Where the archive is**: `Archive.rkt` beside the outline **you named**
+  (`--file`, or the default `$OLAI_HOME/Tasks.rkt`) — never beside the defining
+  file. A fragment lives in a subdirectory and `serve DIR` globs the top level
+  only, so an archive down there is one nothing loads. Created on first use.
+- **The scaffold**: one node per ancestor, carrying its **title and nothing
+  else** — no `^anchor` (a name is unique across the set, and copying one would
+  break the link an archived node keeps resolving through), no dates, notes or
+  state. A chain node the archive already has is **merged** into, matched by
+  exact title at that level; new arrivals **append** at the end of it, so the
+  file reads in the order things were put away.
+- **The chain is the DEFINING file's**: the titles indented above the node in
+  the file it lives in. A fragment spliced into two roots hangs off two
+  different things depending on which root you read it through; the file's own
+  ancestry is the one that is not a guess.
+- **Nothing is stamped.** Archiving is not finishing: a `@done` node keeps its
+  timestamp, an open node stays open. What changes is where the node lives.
+- **Anchors move with the node** and go on resolving: `^install` archived out of
+  `Tasks.rkt` is still what `*install` in `Daily.rkt` means, as long as both
+  files are loaded — which `serve DIR` and `olai tree DIR/*.rkt` both do.
+- **Both files are validated as one set** before either is written (a `^anchor`
+  that would now exist twice is a failure neither file has on its own), and both
+  land in **one commit**, `archive: TITLE`.
+- Archiving a node that is already in the archive is exit 2, as is a title that
+  matches nothing.
+- A node's `key` is its `^anchor`, or a hash of its **defining file** and
+  ordinals — so an anchored node keeps its `/n/<key>` permalink through the
+  move, and an unanchored one does not. `^anchor` what has to outlive it.
+- **A `@doc` or `@include` path inside the subtree is not rewritten.** It is
+  relative to the defining file, so it survives when the archive sits in the
+  same directory (the usual case) and is a validation error — the write is
+  refused, both files untouched — when it does not.
+- A running `serve` picks the archive up when it is a root it globbed at
+  startup. The **first** archive in a directory creates a file that server never
+  saw: restart it (the same rule an `@include` glob's directory does not have —
+  see [`serve`](#serve---port-n---bind-addr-dir--file-)).
+
+**Archived work is a file, not a state**, and that is the whole design: the
+queries below skip it (`agenda`, `calendar`, `ics` — done work is not an answer
+to "what is going on"), the web view draws it at `GET /archive` and nowhere
+else, and **loading excludes nothing** — `tree` and `check` report every
+archived node, its key, and its anchor, because the model is the model.
+
 ## `ics [--out PATH] [file ...]`
 
 RFC 5545 `VCALENDAR` of all dated tasks (done included) on stdout, or into `--out PATH` (which prints the path it wrote). Minimal writer — no catalog ics package. UID is `anchor@olai` when present, else a stable hash of path/title/date. `DTSTART` is `VALUE=DATE` or local datetime.
@@ -429,7 +494,7 @@ Both `created_*` are `false` on every run after the first for that day, and `com
 
 ## Write routing: the defining file
 
-`done` / `doing` / `move` / `add --parent ^anchor` resolve the target, then edit the **defining file** of that node — which may not be the file you named. JSON `file` fields on tree nodes (and on the set's `anchors` entries) show where agents should write.
+`done` / `doing` / `move` / `archive` / `add --parent ^anchor` resolve the target, then edit the **defining file** of that node — which may not be the file you named. JSON `file` fields on tree nodes (and on the set's `anchors` entries) show where agents should write.
 
 Two scopes, because the two kinds of spec are different things:
 

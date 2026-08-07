@@ -79,7 +79,7 @@
   (define (sidebar-html)
     (xstr (render-sidebar (files (list "/tmp/Tasks.rkt" (list (tk "Inbox" #f #f '()))))
                           #:home-href "/"
-                          #:today-href "/today"
+                          #:today-href "/today" #:archive-href "/archive"
                           #:href "/"
                           #:node-href test-node-href))))
 
@@ -608,7 +608,7 @@
                                         (tk "Someday" #f #f '())))
                             (list "/tmp/Roadmap.rkt" (list (tk "WP2" #f #f '()))))
                      #:home-href "/"
-                     #:today-href "/today"
+                     #:today-href "/today" #:archive-href "/archive"
                      #:href "/"
                                     #:node-href test-node-href)))
     (check-true (string-contains? s "href=\"/today\"") s)
@@ -800,7 +800,7 @@
                                  #:stylesheet-href "/static/app.css"
                                  #:sidebar (render-sidebar fd #:home-href "/"
                                                            #:href "/"
-                                                           #:today-href "/today"
+                                                           #:today-href "/today" #:archive-href "/archive"
                                                            #:node-href test-node-href))))
     (check-true (string-contains? s "<title>olai</title>") s)
     (check-true (string-contains? s "href=\"/static/app.css\"") s)
@@ -882,7 +882,7 @@
 
   (test-case "links navigate partially and keep their plain href"
     (define fd (files (list "Tasks.rkt" (list (tk "Milk" #f #f '())))))
-    (define s (xstr (render-sidebar fd #:home-href "/" #:today-href "/today" #:href "/"
+    (define s (xstr (render-sidebar fd #:home-href "/" #:today-href "/today" #:archive-href "/archive" #:href "/"
                                     #:node-href test-node-href)))
     ;; no-JS, middle-click and copy-link all still read the href
     (check-true (string-contains? s (format "href=\"/n/~a\"" (title-key "Milk"))) s)

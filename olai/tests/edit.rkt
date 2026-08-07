@@ -27,11 +27,14 @@
 
   ;; Collect the load-error instead of raising.
   (define (try-edit! path text)
+    (try-edits! (list (cons path text))))
+
+  (define (try-edits! edits)
     (define err #f)
     (define applied '())
-    (apply-outline-edit! path text
-                         #:on-invalid (λ (e) (set! err e))
-                         #:on-applied (λ (p) (set! applied (cons p applied))))
+    (apply-outline-edits! edits
+                          #:on-invalid (λ (e) (set! err e))
+                          #:on-applied (λ (p) (set! applied (cons p applied))))
     (values err (reverse applied))))
 
 (module+ test
@@ -82,6 +85,80 @@
        (define-values (err3 _a3) (try-edit! f "#lang olai\nInbox\n  third\n"))
        (check-false err3)
        (check-true (string-contains? (file->string f) "third")))))
+
+  ;; ---- two files, one write ------------------------------------------------
+  ;;
+  ;; `archive` moves a node out of one file and into another, so the write path
+  ;; has to be able to hold both — and to hold them as the SET they are, which
+  ;; is the only scope a pair can be broken in.
+
+  (test-case "two files land together, or neither does"
+    (with-temp-dir
+     (λ (dir)
+       (define a (build-path dir "Tasks.rkt"))
+       (define b (build-path dir "Archive.rkt"))
+       (write-file! a "#lang olai\nInbox\n  Buy milk\n")
+       (write-file! b "#lang olai\n")
+       (define-values (err applied)
+         (try-edits! (list (cons a "#lang olai\nInbox\n")
+                           (cons b "#lang olai\nInbox\n  Buy milk\n"))))
+       (check-false err (format "~a" err))
+       (check-equal? (length applied) 2)
+       (check-equal? (file->string a) "#lang olai\nInbox\n")
+       (check-true (string-contains? (file->string b) "Buy milk"))
+       ;; and one bad half keeps the other's edit off the disk
+       (define before-a (file->string a))
+       (define before-b (file->string b))
+       (define-values (err2 applied2)
+         (try-edits! (list (cons a "#lang olai\nInbox\n  later\n")
+                           (cons b "#lang olai\nBroken\n  @date nope\n"))))
+       (check-true (load-error? err2))
+       (check-equal? applied2 '())
+       (check-equal? (file->string a) before-a)
+       (check-equal? (file->string b) before-b)
+       (check-equal? (leftovers dir) '())
+       (check-equal? (load-error-file err2) (simple-form-path b))
+       (check-false (regexp-match? #px"sf-edit" (load-error-message err2))
+                    (load-error-message err2)))))
+
+  ;; The whole reason the pair is validated together: an ^anchor is unique
+  ;; across files, so a name that now exists in both is a failure neither file
+  ;; has on its own.
+  (test-case "a pair that collides is rejected, though each half loads"
+    (with-temp-dir
+     (λ (dir)
+       (define a (build-path dir "Tasks.rkt"))
+       (define b (build-path dir "Archive.rkt"))
+       (write-file! a "#lang olai\nShip it ^ship\n")
+       (write-file! b "#lang olai\n")
+       (define-values (err applied)
+         (try-edits! (list (cons a "#lang olai\nShip it ^ship\n")
+                           (cons b "#lang olai\nShip it ^ship\n"))))
+       (check-true (load-error? err) (format "~a" err))
+       (check-equal? applied '())
+       (check-true (regexp-match? #px"duplicate \\^ship" (load-error-message err))
+                   (load-error-message err))
+       (check-false (regexp-match? #px"sf-edit" (load-error-message err))
+                    (load-error-message err))
+       (check-equal? (leftovers dir) '()))))
+
+  ;; And the rule that stays OPEN: a write is not a load. The mirror below
+  ;; names an anchor in a file this write is not touching, which is the whole
+  ;; point of cross-file mirrors — refusing it would make every write hostage
+  ;; to every other outline in the directory.
+  (test-case "a mirror into a file the write does not touch is not its problem"
+    (with-temp-dir
+     (λ (dir)
+       (define a (build-path dir "Daily.rkt"))
+       (define b (build-path dir "Archive.rkt"))
+       (write-file! (build-path dir "Tasks.rkt") "#lang olai\nMeeting ^meeting\n")
+       (write-file! a "#lang olai\n2026-08-06\n")
+       (write-file! b "#lang olai\n")
+       (define-values (err _applied)
+         (try-edits! (list (cons a "#lang olai\n2026-08-06\n  *meeting\n")
+                           (cons b "#lang olai\nold\n"))))
+       (check-false err (format "~a" err))
+       (check-true (string-contains? (file->string a) "*meeting")))))
 
   (test-case "validation sees the file's @include fragments"
     (with-temp-dir

@@ -30,7 +30,8 @@
          (except-in olai/lang/expander #%module-begin))
 
 (provide (contract-out
-          [link-anchors (-> list? hash?)]))
+          [link-anchors (-> list? hash?)]
+          [link-written (-> list? hash?)]))
 
 ;; The set's task forests as ONE forest — nothing about these rules is per
 ;; file, and a duplicate that spans two of them is exactly the case the
@@ -41,3 +42,18 @@
 ;; error rather than one node silently overwriting another.
 (define (link-anchors roots)
   (check-task-graph roots #:scope "the loaded set"))
+
+;; The same rules over the files a WRITE just wrote, held together.
+;;
+;; A write touches one file, or — since `archive` — two: the outline a node
+;; left and the archive it arrived in. Held apart they would each pass while
+;; the pair was broken (an ^anchor that now exists twice is a fact about
+;; neither file alone), so the write path validates them as the set they are.
+;;
+;; But the scope stays OPEN, exactly as a module's own passes leave it: a
+;; write's set is the files under the pen, not the set somebody will load, and
+;; a `*mirror` naming an anchor in a file this write is not touching is not
+;; wrong — it is the feature. "Unknown" is an answer about a LOAD, and only
+;; the linker above is closed enough to give it.
+(define (link-written roots)
+  (check-task-graph roots))

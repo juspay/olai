@@ -23,11 +23,21 @@
 ;; node you finished is precisely that you finished it. They are pushed down a
 ;; field's worth, which is enough for an open node to win a tie and not enough
 ;; to lose a node somebody is actually looking for.
+;;
+;; ARCHIVED work is not, and the difference is not a contradiction. A done node
+;; is still in the outline you are reading; an archived one was MOVED OUT of it,
+;; into a file whose whole purpose is that it is somewhere else (olai/archive),
+;; and it has a page of its own to be read on. So the archive is dropped here,
+;; a file at a time, exactly as the agenda drops it — the roadmap says the two
+;; together, and it is one rule about queries either way.
 
 (require racket/contract
          racket/list
          racket/match
          racket/string
+         ;; which of the loaded files is the archive. A query is about live
+         ;; work, and this is the module that says which files are
+         (only-in olai/archive live-entries)
          (except-in olai/lang/expander #%module-begin)
          olai/lang/walk)
 
@@ -48,9 +58,10 @@
                               [trail (listof string?)]
                               [score real?]
                               [fields (listof symbol?)])]
-          ;; files-data (olai/store) + what was typed -> the hits, best first.
-          ;; An empty query names no nodes: a search box with nothing in it is
-          ;; not a request for the whole outline.
+          ;; files-data (olai/store) + what was typed -> the hits, best first,
+          ;; over the LIVE outlines: the archive is a page, not an answer.
+          ;; An empty query names no nodes either — a search box with nothing
+          ;; in it is not a request for the whole outline.
           [search-outlines (-> list? string? (listof search-hit?))]))
 
 ;; One node a query named. See the contract above for what each field is.
@@ -170,8 +181,14 @@
   (cond
     [(null? terms) '()]
     [else
+     ;; A file at a time, and the archive is not one of them: what was put
+     ;; away is read on its own page, not found among live work. Dropped by
+     ;; FILE rather than per node, because that is what archived means —
+     ;; and a mirror of an archived node is never visited here anyway (a
+     ;; mirror site is the node it points at, already counted where it is
+     ;; defined).
      (define hits
-       (for/fold ([acc '()]) ([entry (in-list files-data)])
+       (for/fold ([acc '()]) ([entry (in-list (live-entries files-data))])
          (match-define (list file tasks) entry)
          (fold-tasks tasks
                      (λ (tk path acc)

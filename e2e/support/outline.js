@@ -51,6 +51,21 @@ export const SECOND = await fs.readFile(
   "utf8",
 );
 
+// The archive an outline home has once anything has ever been archived: a
+// root like any other, which the home page and the sidebar tree do not draw
+// (olai/archive). Staged only for a scenario tagged @archived, and for the
+// same boot-time reason as the second outline above — `serve DIR` globs its
+// top level once, so a file written later is a file this server never has.
+//
+// It arrives holding something, because "already has an archive" is the state
+// every archive after the first one lands in.
+export const ARCHIVE_OUTLINE = "Archive.rkt";
+
+export const ARCHIVE = await fs.readFile(
+  path.join(FIXTURES, ARCHIVE_OUTLINE),
+  "utf8",
+);
+
 // The document the fixture's `@doc` names, and where it names it from. The
 // LANGUAGE requires the file to be there, so it is staged into every
 // scenario's temp dir beside the outline — an outline without it does not

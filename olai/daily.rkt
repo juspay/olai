@@ -11,6 +11,9 @@
          olai/dates
          olai/edit
          olai/lang/line
+         ;; where a section ends and which line is a given title: the same two
+         ;; questions `capture` and `subtree` ask, asked of the same module
+         olai/lang/section
          (except-in olai/lang/expander #%module-begin)
          (only-in olai/query count-tasks))
 
@@ -38,13 +41,12 @@
   (define m (string->number (substring day 5 7)))
   (values y m))
 
-;; -> (list indent title) for a title line, #f for anything else.
+;; -> (list indent title) for a title line, #f for anything else. What a title
+;; line SAYS is lang/section's answer; the migration below wants it paired with
+;; the level, which is the only reason this exists.
 (define (scan-title-line s)
-  (define-values (ind content) (line-indent+content s))
-  (define k (classify-line content))
-  (and (line-title? k)
-       (even? ind)
-       (list ind (title-text k))))
+  (define text (title-line-text s))
+  (and text (list (indent-of s) text)))
 
 ;; The year node of a monolithic Daily.rkt: a top-level 4-digit title.
 ;; Takes a scan-title-line answer, gives back the year string or #f.
@@ -52,40 +54,6 @@
   (match info
     [(list 0 (and year (regexp #px"^[0-9]{4}$"))) year]
     [_ #f]))
-
-;; The first line in [start, end) that is `title` at `indent`, or #f.
-(define (find-title-line lines title indent
-                         #:from [start 0]
-                         #:to [end (length lines)])
-  (for/or ([i (in-range start end)])
-    (match (scan-title-line (list-ref lines i))
-      [(list (== indent) (== title)) i]
-      [_ #f])))
-
-(define (section-end lines parent-idx parent-indent)
-  (define child-indent (+ parent-indent 2))
-  (let loop ([i (add1 parent-idx)])
-    (cond
-      [(>= i (length lines)) i]
-      [(blank-line? (list-ref lines i)) (loop (add1 i))]
-      [else
-       (match (scan-title-line (list-ref lines i))
-         [(list indent _) (if (< indent child-indent) i (loop (add1 i)))]
-         [#f
-          (define-values (ind _) (line-indent+content (list-ref lines i)))
-          (if (< ind child-indent) i (loop (add1 i)))])])))
-
-(define (lines->text lines original)
-  (define body (string-join lines "\n"))
-  (if (regexp-match? #px"\n$" original)
-      (if (regexp-match? #px"\n$" body) body (string-append body "\n"))
-      body))
-
-;; #:on-applied reaches the caller (ops-daily! commits with it).
-(define current-on-applied (make-parameter void))
-
-(define (write-validated path text)
-  (apply-outline-edit! path text #:on-applied (current-on-applied)))
 
 (define (make-parent-directory* path)
   (define-values (base name dir?) (split-path path))
@@ -100,11 +68,20 @@
 ;; Ensure day node exists. Returns hash of result fields (no version/ok).
 ;; #:on-applied is called with every file actually rewritten (0, 1 or 2 of
 ;; them: the month fragment and the root that includes it).
+;;
+;; Those two are ONE change, so they are one write: both texts are computed,
+;; then validated and renamed together (olai/edit). Written one at a time, a
+;; fragment could land while the root that includes it was rejected — a day
+;; node nothing points at.
 (define (ensure-daily-day! home day #:on-applied [on-applied void])
-  (parameterize ([current-on-applied on-applied])
-    (ensure-daily-day!* home day)))
+  (define edits (box '()))
+  (define result (ensure-daily-day!* home day edits))
+  (unless (null? (unbox edits))
+    (apply-outline-edits! (reverse (unbox edits)) #:on-applied on-applied))
+  result)
 
-(define (ensure-daily-day!* home day)
+(define (ensure-daily-day!* home day edits)
+  (define (edit! path text) (set-box! edits (cons (cons path text) (unbox edits))))
   (define-values (y m) (parse-iso-day day))
   (define home-path (simple-form-path (expand-user-path home)))
   (define root (build-path home-path "Daily.rkt"))
@@ -123,7 +100,7 @@
     (display-to-file "#lang olai\n" frag #:exists 'error))
 
   (define frag-text (file->string frag))
-  (define frag-lines (string-split frag-text "\n" #:trim? #f))
+  (define frag-lines (text-lines frag-text))
   (define day-idx (find-title-line frag-lines day 0))
   (define day-line
     (cond
@@ -140,13 +117,13 @@
                  (list day)
                  (drop frag-lines at)))
        (define new-text (lines->text new-lines frag-text))
-       (write-validated frag new-text)
+       (edit! frag new-text)
        (add1 at)]))
 
   (define root-text (file->string root))
   (unless (regexp-match? #px"(?m:^#lang olai)" root-text)
     (error 'daily "Daily.rkt must be #lang olai"))
-  (define root-lines (string-split root-text "\n" #:trim? #f))
+  (define root-lines (text-lines root-text))
 
   (define root-lines*
     (if (find-title-line root-lines year-title 0)
@@ -160,7 +137,7 @@
   (define year-i (find-title-line root-lines* year-title 0))
   (unless year-i (error 'daily "internal: year node missing"))
 
-  (define year-end (section-end root-lines* year-i 0))
+  (define year-end (section-end root-lines* year-i))
   (define mon-i
     (find-title-line root-lines* mon-title 2 #:from (add1 year-i) #:to year-end))
 
@@ -175,7 +152,7 @@
   (unless mon-i* (error 'daily "internal: month node missing"))
 
   (define include-line (string-append "    @include " rel))
-  (define mon-end (section-end root-lines** mon-i* 2))
+  (define mon-end (section-end root-lines** mon-i*))
   (define has-include?
     (for/or ([i (in-range (add1 mon-i*) mon-end)])
       (regexp-match?
@@ -192,7 +169,7 @@
 
   (define root-text* (lines->text root-lines*** root-text))
   (unless (equal? root-text* root-text)
-    (write-validated root root-text*))
+    (edit! root root-text*))
 
   (hash 'day day
         'file (path->string (simple-form-path frag))
@@ -211,7 +188,7 @@
     (count-tasks (dynamic-require `(file ,(path->string root)) 'tasks)))
 
   (define text (file->string root))
-  (define lines (string-split text "\n" #:trim? #f))
+  (define lines (text-lines text))
 
   (define result (make-hash)) ; key -> list of day line-groups
   (define current-year #f)
@@ -317,7 +294,7 @@
     (string-append (string-join hdr "\n")
                    (string-join body-lines "\n")
                    "\n"))
-  (write-validated root new-root)
+  (apply-outline-edit! root new-root)
 
   (define n-after
     (count-tasks (dynamic-require `(file ,(path->string root)) 'tasks)))
