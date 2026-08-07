@@ -20,7 +20,6 @@
   // hits below are looked up per keystroke and these are not.
   var panel=document.querySelector('[data-search-panel]');
   if(!panel)return;
-  var dock=panel.parentElement;
   var input=panel.querySelector('.ol-search-input');
 
   function open(o){
@@ -103,6 +102,6 @@
     // Landing on a hit is a navigation: the outline behind the palette is what
     // you asked to see, so the palette gets out of the way.
     if(e.target.closest('[data-search-hit]')){open(false);return}
-    if(!dock.contains(e.target))open(false);
+    if(!panel.contains(e.target))open(false);
   });
 })();

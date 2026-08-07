@@ -79,6 +79,7 @@ ol-line
 ol-link
 ol-main
 ol-mirror
+ol-nav-button
 ol-nav-icon
 ol-nav-item
 ol-node
@@ -96,7 +97,6 @@ ol-pref-opts
 ol-prefs
 ol-row
 ol-search-close
-ol-search-dock
 ol-search-empty
 ol-search-form
 ol-search-hit
@@ -104,7 +104,6 @@ ol-search-input
 ol-search-list
 ol-search-more
 ol-search-note
-ol-search-open
 ol-search-panel
 ol-search-results
 ol-search-title

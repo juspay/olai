@@ -30,6 +30,11 @@
          (only-in olai/web/states is-tree)
          (only-in olai/web/node node-shell ol-node ol-children ol-row ol-toggle)
          (only-in olai/web/outline normalize-files-data)
+         ;; what makes a row open the search palette. The palette itself is
+         ;; drawn outside every region and is not on the screen until it is
+         ;; asked for (web/search); this is where it is asked for, next to the
+         ;; other ways around the outline
+         (only-in olai/web/search search-toggle-attributes)
          ;; the picker this places, and the boot script that restores what it
          ;; picked. Required here rather than by the page: the sidebar is the
          ;; one thing that draws it
@@ -100,6 +105,16 @@
   [(: & hover) #:background ,pill-bg])
 
 (define-style ol-nav-icon #:color ,green #:font-size 0.75rem)
+
+;; A row that is a BUTTON and not a link: everything a button brings with it,
+;; undone, so it reads as one more line of the nav and not as a control.
+(define-style ol-nav-button
+  #:width 100%
+  #:border 0
+  #:background none
+  #:font-family inherit
+  #:text-align left
+  #:cursor pointer)
 
 (define-style ol-sidebar-section #:margin-top 1.5rem)
 
@@ -203,7 +218,15 @@
                         "Today")
                     `(span ((class ,ol-nav-item))
                            (span ((class ,ol-nav-icon) (aria-hidden "true")) "◉")
-                           "Today")))
+                           "Today"))
+               ;; Not a link: there is nowhere to go. The palette opens over
+               ;; the page you are on, and `/` opens it without coming here at
+               ;; all — this is the way in for a finger, and for anyone who has
+               ;; not learned the slash.
+               (button ((type "button") (class ,(classes ol-nav-item ol-nav-button))
+                        ,@(search-toggle-attributes))
+                       (span ((class ,ol-nav-icon) (aria-hidden "true")) "⌕")
+                       "Search"))
           (section ((class ,ol-sidebar-section))
                    (h3 ((class ,ol-sidebar-heading)) "Starred")
                    (p ((class ,ol-sidebar-empty)) "Nothing starred yet"))

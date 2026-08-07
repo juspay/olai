@@ -56,6 +56,14 @@
                  #:hits (listof search-hit?)
                  #:zoom-base (or/c string? #f))
                 list?)]
+          ;; What makes an element open the palette. The palette is not on the
+          ;; screen until it is asked for, so the ASKING is somewhere else —
+          ;; the sidebar draws a nav row with these on it (web/sidebar), and
+          ;; the palette's own × wears the same ones. One owner for a word
+          ;; static/search.js reads: a second spelling of it is a button that
+          ;; does nothing, in a browser, which is the one place a compiler
+          ;; cannot look.
+          [search-toggle-attributes (-> (listof (list/c symbol? string?)))]
           ;; how many hits a screen gets. The rest are counted, not drawn: a
           ;; palette you scroll is a palette you stopped reading
           [search-shown-limit exact-positive-integer?]))
@@ -71,43 +79,30 @@
 ;; how much of a note is worth reading on one line of a result list
 (define note-excerpt-chars 120)
 
-;; ---- the dock ---------------------------------------------------------------
+;; ---- the panel --------------------------------------------------------------
 ;;
-;; Top right, fixed, and out of the outline's way — the same idiom as the chat
-;; panel's toggle at the other corner, because they are the same kind of thing:
-;; a surface you call up, not part of the page you are reading.
+;; Nothing of the palette is on the screen until it is asked for, and that is
+;; not only taste: a control parked in a corner is a control parked on top of
+;; whatever else lives there — the chat panel's way out is one such corner, and
+;; a search button covering it is a page you cannot get out of. So there is no
+;; resting state to place. What opens it is a row in the sidebar, where the
+;; other ways around the outline already are (web/sidebar), and `/`.
+;;
+;; Over the middle, near the top: a palette belongs to the whole page rather
+;; than to an edge of it, and reading down from the box to the hits is the one
+;; thing it is for.
 
-(define-style ol-search-dock
+(define-style ol-search-panel
   #:position fixed
-  #:top (apply max 1rem (apply env safe-area-inset-top))
-  #:right (apply max 1rem (apply env safe-area-inset-right))
+  #:top (apply max 4rem (apply calc (+ (apply env safe-area-inset-top) 1rem)))
+  #:left 50%
+  #:transform (apply translateX -50%)
   ;; over the chat panel: a palette is the thing you just asked for, and it
   ;; goes away by itself
   #:z-index 21
   #:display flex
   #:flex-direction column
-  #:align-items flex-end
-  #:gap 0.5rem)
-
-(define-style ol-search-open
-  #:padding (0.5rem 0.875rem)
-  ;; a thing a thumb aims at, whatever the label says (theme.rkt, touch-min)
-  #:min-height ,touch-min
-  #:border (1px solid ,line)
-  #:border-radius 9999px
-  #:background ,paper-2
-  #:color ,dim
-  #:font-family ,mono
-  #:font-size 0.75rem
-  #:cursor pointer
-  [(: & hover) #:color ,ink #:border-color ,dim])
-
-;; ---- the panel --------------------------------------------------------------
-
-(define-style ol-search-panel
-  #:display flex
-  #:flex-direction column
-  #:width (apply min 26rem (apply calc (- 100vw 2rem)))
+  #:width (apply min 32rem (apply calc (- 100vw 2rem)))
   #:max-height (apply min 60dvh 30rem)
   #:overflow hidden
   #:border (1px solid ,line)
@@ -120,6 +115,7 @@
   ;; sets it, and a page whose scripts never ran gets the same answer
   [(attribute & hidden) #:display none]
   [@ media (#:max-width ,phone-max)
+     #:top (apply max 1rem (apply env safe-area-inset-top))
      #:width (apply calc (- 100vw 1.5rem))])
 
 (define-style ol-search-form
@@ -295,6 +291,11 @@
 (define (non-empty-query? q)
   (and q (non-empty-string? (string-trim q))))
 
+;; What opens the palette, wherever it is drawn. One word, one owner: the
+;; sidebar's row and the palette's own × wear the same attribute, and
+;; static/search.js reads it off both.
+(define (search-toggle-attributes) '((data-search-toggle "")))
+
 ;; The palette. Closed unless this page WAS a query — which is what makes
 ;; /search?q=… a page you can paste at someone, and what a browser running no
 ;; JS gets when it submits the form.
@@ -303,23 +304,19 @@
                              #:query [query #f]
                              #:hits [hits '()]
                              #:zoom-base [zoom-base #f])
-  `(div ((class ,ol-search-dock))
-        (button ((type "button") (class ,ol-search-open) (data-search-toggle "")
-                 (aria-label "search the outline"))
-                "⌕ search")
-        (div ((class ,ol-search-panel) (data-search-panel "")
-              ,@(if (non-empty-query? query) '() '((hidden "hidden"))))
-             (form ((class ,ol-search-form) (role "search")
-                    (action ,action-href) (method "get"))
-                   (input ((class ,ol-search-input) (type "search") (name "q")
-                           (value ,(or query "")) (autocomplete "off")
-                           (placeholder "find a node")
-                           (aria-label "search the outline")
-                           ;; as it is typed, the region below re-fetches
-                           ;; itself with what is in here (live/README.md)
-                           ,@(live-query ol-search action-href)))
-                   (button ((type "button") (class ,ol-search-close)
-                            (data-search-toggle "")
-                            (aria-label "close search"))
-                           "×"))
-             ,(results-xexpr query hits zoom-base results-href))))
+  `(div ((class ,ol-search-panel) (data-search-panel "")
+         ,@(if (non-empty-query? query) '() '((hidden "hidden"))))
+        (form ((class ,ol-search-form) (role "search")
+               (action ,action-href) (method "get"))
+              (input ((class ,ol-search-input) (type "search") (name "q")
+                      (value ,(or query "")) (autocomplete "off")
+                      (placeholder "find a node")
+                      (aria-label "search the outline")
+                      ;; as it is typed, the region below re-fetches itself
+                      ;; with what is in here (live/README.md)
+                      ,@(live-query ol-search action-href)))
+              (button ((type "button") (class ,ol-search-close)
+                       ,@(search-toggle-attributes)
+                       (aria-label "close search"))
+                      "×"))
+        ,(results-xexpr query hits zoom-base results-href)))

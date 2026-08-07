@@ -21,10 +21,8 @@
          ;; order is written out. Nested composition, single owner at each
          ;; level — two files naming one order would be two to keep in step
          olai/web/render
-         ;; the two surfaces that overlay it: the agent's panel, and the
-         ;; palette a query opens
+         ;; the panel that overlays it
          olai/web/chat-panel
-         olai/web/search
          (only-in olai/web/style stylesheet))
 
 (provide ;; the sheet those modules add up to. Re-exported, not wrapped: the
