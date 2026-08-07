@@ -45,8 +45,8 @@ olai roadmap #project
 ### Derived state
 
 **A parent does not store what its children already say.** A node with task
-children and no mark of its own is **done when all of them are**, computed
-every time anybody asks — the agenda, the web view, `tree` JSON, the typed-edge
+children and no mark of its own **takes its state from them**, computed every
+time anybody asks — the agenda, the web view, `tree` JSON, the typed-edge
 graph. Nothing writes it down, so it cannot go stale.
 
 ```racket
@@ -55,9 +55,12 @@ graph. Nothing writes it down, so it cannot go stale.
 0.5 the write path            ; derives DONE — every child is
   [x] ratify the form
   [x] wire the route
-0.6 the command palette       ; derives OPEN — one child is not
+0.6 the command palette       ; derives DOING — started, not finished
   [x] the search index
   the palette itself
+0.7 the mobile view           ; derives OPEN — nobody has begun
+  pick a layout
+  ship it
 ```
 
 The rules, in the order they are asked:
@@ -70,22 +73,24 @@ The rules, in the order they are asked:
   `*mirror`.
 - **All task children done ⇒ done.** Recursively: a child that itself derives
   done counts as done.
-- **Anything else ⇒ open.** Mixed done and open is open. Half a list is not a
-  state of its own.
-- **`[/] ` is never derived.** A parent of an in-flight child is *open*, not
-  doing. Being in flight is a claim about somebody's attention (who and where
-  live in the node's notes), not a fact about what a node contains — and it
-  would propagate to the root, so the file's own top node would read as work in
-  progress the moment anyone started anything, and land there in the agenda's
-  `doing` group, which ignores dates. The child is already in that group, under
-  a breadcrumb that names its parents. Write `@doing` on the parent if you mean
-  it.
+- **Started but not finished ⇒ `[/] `.** A child in flight, or a child finished
+  beside one that is not — both say the same thing about the parent: somebody
+  began it and nobody ended it, which is the whole of what the third state
+  means.
+- **Nothing started ⇒ open.**
 - **A `*mirror` child derives nothing.** A mirror is a reference, resolvable
   only once the whole set is in hand; counting one would make a module answer
   this question differently at compile time than the linker does. Containment
   is what the tree says, and containment is what a state is derived from.
 - **An `@include` splices real children in**, and they count like any others:
   a month node above a fragment of finished days derives done.
+
+`[/] ` **propagates and that is deliberate**: an ancestor of one node in flight
+is in flight, all the way to the file's own top node, because the work under it
+has started. That is a fact about the tree, and it is not the same question as
+"what are you on" — so the agenda's `doing` group holds only nodes somebody
+CLAIMED with a mark, and a dated node that merely derives `[/] ` sits in the
+date bucket its date puts it in (see [docs/cli.md](cli.md)).
 
 The one thing the checker adds: **a stored `@done` may not sit above unfinished
 work.** Same message from every entry point (compile time, after the splice,

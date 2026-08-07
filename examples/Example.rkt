@@ -27,9 +27,9 @@ Inbox #capture
 
 Derived state
   : Fiction, like the rest of examples/ — and the demo of what a parent does
-  : NOT store. Neither heading below wears a checkbox; both have one anyway,
-  : computed from what is under them every time anybody asks, so neither can
-  : go stale. See docs/syntax.md#derived-state.
+  : NOT store. None of the three headings below wears a checkbox; each has one
+  : anyway, computed from what is under it every time anybody asks, so none of
+  : them can go stale. See docs/syntax.md#derived-state.
   0.5 the write path
     : all children done, so this reads done — checked, struck through — and
     : nothing in the file says so. `olai done` on it is refused (exit 4):
@@ -37,10 +37,16 @@ Derived state
     [x] ratify the form
     [x] wire the route
   0.6 the command palette
-    : one child to go, so this is open. `olai done` on it names that child
-    : instead of marking the parent, and marks nothing.
+    : started and not finished, so this reads [/] — half-filled box, no
+    : strikethrough. `olai done` on it names the child that is left instead of
+    : marking the parent, and marks nothing.
     [x] the search index
     the palette itself
+  0.7 the mobile view
+    : nobody has begun, so this reads open. Deriving [/] here would be a claim
+    : about somebody's attention that nobody made.
+    pick a layout
+    ship it
 
 Someday
   Calendar view

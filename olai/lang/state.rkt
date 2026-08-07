@@ -46,23 +46,27 @@
 ;;   * nothing to derive from is `open`, exactly as today. A leaf keeps no
 ;;     state it did not write.
 ;;   * all children done is done. This is the drift the whole feature is about.
-;;   * anything else — mixed done and open, all open — is OPEN.
+;;   * STARTED BUT NOT FINISHED is `doing` — a child in flight, or a child
+;;     finished beside one that is not. Both say the same thing about the
+;;     parent: somebody has begun it and nobody has ended it, which is the
+;;     whole of what the third state means.
+;;   * nothing started is open.
 ;;
-;; DONE-NESS IS THE ONLY THING DERIVED. A parent of an `[/]` child does not
-;; become `[/]`: being in flight is a claim about somebody's attention (who and
-;; where live in the node's notes, docs/cli.md), not a fact about what a node
-;; contains, and it is not one this file may make on their behalf. It would
-;; also propagate to the root — every ancestor of one in-flight leaf, up to and
-;; including the file's own top node, reading as work in progress — and land
-;; every one of them in the agenda's `doing` group, which ignores dates. The
-;; child is already in that group, with a breadcrumb that names its parents.
-;; Done-ness has neither problem: it stops at the first parent that is not
-;; finished, and the agenda's answer to a finished node is to say nothing.
+;; The three states derive, not just done-ness, and `doing` is the one that
+;; costs something: it propagates, so an ancestor of one in-flight leaf is in
+;; flight all the way to the file's own top node. That is TRUE — the work under
+;; it has started — and it is a fact about a node, which is this module's only
+;; business. What it must not become is an agenda full of ancestors, and that
+;; is the agenda's rule to make rather than a reason for the tree to answer
+;; wrongly: `doing` there means somebody CLAIMED a node (olai/agenda), which is
+;; a stored mark and never a derived one.
 (define (derive-status stored kid-states)
+  (define (any? s) (memq s kid-states))
   (cond
     [(not (eq? stored 'open)) stored]
     [(null? kid-states) 'open]
     [(andmap (λ (s) (eq? s 'done)) kid-states) 'done]
+    [(or (any? 'doing) (any? 'done)) 'doing]
     [else 'open]))
 
 ;; The rule over a whole node, which is the recursion the rule implies: a

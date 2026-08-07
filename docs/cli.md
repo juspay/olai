@@ -144,7 +144,7 @@ Two `anchors` objects, two scopes, and the nesting says which: the one inside a 
 
 `date` / `description` are raw strings or `null` (Markdown is not interpreted here). `doc` is the `@doc` path the outline wrote, **verbatim** — relative to the node's **defining** file (the `file` key, when it differs from the loaded one), never resolved and never rendered: the document is a file you can already read, diff and edit. `done` and `doing` are the stored marks: `null` (not in that state), `true` (marked, no timestamp), or an ISO timestamp string. A node carries at most one of them — the language rejects both. `status` is what they MEAN — `"open"`, `"doing"` or `"done"` — and is the one to switch on: it is where a future state would show up, while `done` / `doing` keep their type. `id` is `null` or the anchor string. `tags` is always an array.
 
-`status_source` is where that `status` came from: `"stored"` when the node wrote a mark, `"derived"` when it has task children and none of its own, so its state is computed from theirs every time it is asked ([Derived state](syntax.md#derived-state)). A derived `"done"` therefore has `done: null` — the mark is genuinely not in the file, and nothing will ever write it there. Switch on this rather than inferring it: a write aimed at a derived state is refused (see [`done`](#done---file-f---undo---no-commit-titleanchor)), and this field is what says so in advance. Derivation is a query, so it moves the moment a child does: `agenda` stops answering with a finished parent, `calendar` and `ics` report it done, `search` demotes it, and the web view draws its box checked.
+`status_source` is where that `status` came from: `"stored"` when the node wrote a mark, `"derived"` when it has task children and none of its own, so its state is computed from theirs every time it is asked ([Derived state](syntax.md#derived-state)). A derived `"done"` or `"doing"` therefore has `done` / `doing` `null` — the mark is genuinely not in the file, and nothing will ever write it there. Switch on this rather than inferring it: a write aimed at a derived state is refused (see [`done`](#done---file-f---undo---no-commit-titleanchor)), and this field is what says so in advance. Derivation is a query, so it moves the moment a child does: `agenda` stops answering with a finished parent, `calendar` and `ics` report it done, `search` demotes it, and the web view draws its box checked.
 
 `key` is the node's stable identity — its `^anchor` when it has one, else a hash of its **defining** file plus the child ordinals that reach it inside that file. Only the anchor case comes from the expander (a module sees one entry point and would key a spliced node twice); the rest are minted by the load layer, over the whole set of files you loaded, at once. A key survives renaming the node or any ancestor and cannot collide between same-titled siblings; it changes when siblings are reordered (anchor the node if you need more). Because the file is the one that DEFINES the node, an `@include`d node keys the same through any root that includes it, and two roots sharing a fragment agree about it.
 
@@ -168,10 +168,11 @@ Stdout:
   "version": 1,
   "today": "2026-08-03",
   "overdue": [{"title":"...","date":"2026-01-15T08:00","breadcrumb":"...",
-               "status":"open","bucket":"overdue","blocked":false,
-               "waiting_on":[]}],
+               "status":"open","status_source":"stored","bucket":"overdue",
+               "blocked":false,"waiting_on":[]}],
   "doing": [{"title":"...","date":null,"breadcrumb":"...","status":"doing",
-             "bucket":"doing","blocked":false,"waiting_on":[]}],
+             "status_source":"stored","bucket":"doing","blocked":false,
+             "waiting_on":[]}],
   "today_items": [],
   "upcoming": [],
   "blocked": [{"title":"...","date":"2026-08-01","breadcrumb":"...",
@@ -180,7 +181,9 @@ Stdout:
 }
 ```
 
-`doing` sits above `today_items` in the reading order the groups have, and `blocked` sits under all of them — it is the one group you cannot act on. An item's `status` is what state the node is in: `"open"` for the date buckets, `"doing"` for that one.
+`doing` sits above `today_items` in the reading order the groups have, and `blocked` sits under all of them — it is the one group you cannot act on. An item's `status` is what state the node is in, and `status_source` says where that came from — the same pair `tree` publishes.
+
+**The `doing` group is what somebody CLAIMED**, which is a stored `@doing` / `[/] ` and never a [derived](syntax.md#derived-state) one. `[/] ` propagates up the tree, so without that rule every ancestor of one in-flight leaf would be here — dateless, in the group that ignores dates, saying nothing the leaf below it does not say better under a breadcrumb that already names them. (The other candidate rule, "only leaves", says almost the same thing by accident and gets the case that matters wrong: an orchestrator marks the *parent* `[/] ` and writes the terminal id under it, which is exactly what this group is for.) A node that merely derives `"doing"` is still unfinished work: dated, it appears in the bucket its date puts it in, with `"status":"doing"` and `"status_source":"derived"`; undated, it is not on the plate at all.
 
 **`blocked` holds every node with an unfinished `@after` target** ([Typed edges](syntax.md#typed-edges)) — where unfinished means neither done (stored or [derived](syntax.md#derived-state)) nor archived, at both ends of the arrow — and takes it out of the date buckets: a node waiting on something is not on today's plate, however today its date reads. It still says where it would have been — `bucket` is `"overdue"` / `"doing"` / `"today"` / `"upcoming"` computed from the item's own facts, so an overdue *and* blocked node reports both — and `waiting_on` names the blockers by **key**, which for an anchored one is its anchor. Every item carries `bucket`, `blocked` and `waiting_on`, in every group; outside `blocked` the last two are `false` and `[]`.
 

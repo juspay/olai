@@ -97,6 +97,11 @@
         'date (nullish (agenda-item-date it))
         'breadcrumb (agenda-item-breadcrumb it)
         'status (symbol->string (agenda-item-status it))
+        ;; …and where that state came from, spelled as `tree` spells it
+        ;; (olai/json/model). It is what tells a `"doing"` item in a DATE
+        ;; bucket from one in the `doing` group: the group is about who
+        ;; claimed a node, and a derived state is nobody's claim.
+        'status_source (symbol->string (agenda-item-source it))
         ;; Where the item sits by its own facts (see items-for below): the
         ;; group it is in, unless it is BLOCKED — and then what it would have
         ;; been. An overdue node waiting on an unfinished one is both, and an

@@ -59,16 +59,18 @@
     (check-eq? (derive-status 'open '()) 'open)
     (check-false (status-derived? 'open '())))
 
-  (test-case "all children done is done, anything else is open"
-    (check-eq? (derive-status 'open '(done done)) 'done)
-    (check-eq? (derive-status 'open '(done open)) 'open)
-    (check-eq? (derive-status 'open '(open open)) 'open))
+  (test-case "all children done is done"
+    (check-eq? (derive-status 'open '(done done)) 'done))
 
-  ;; The sub-call, spelled out: `[/]` is a claim about somebody's attention and
-  ;; is never derived. A parent of an in-flight child is open, not doing.
-  (test-case "doing does not propagate"
-    (check-eq? (derive-status 'open '(doing open)) 'open)
-    (check-eq? (derive-status 'open '(done doing)) 'open))
+  ;; Started but not finished is the third state, from either side: a child in
+  ;; flight, or a child finished beside one that is not.
+  (test-case "started and unfinished is doing"
+    (check-eq? (derive-status 'open '(doing open)) 'doing)
+    (check-eq? (derive-status 'open '(done open)) 'doing)
+    (check-eq? (derive-status 'open '(done doing)) 'doing))
+
+  (test-case "nothing started is open"
+    (check-eq? (derive-status 'open '(open open)) 'open))
 
   (test-case "derived is open plus children, whatever they say"
     (check-true (status-derived? 'open '(done open)))
@@ -83,9 +85,14 @@
      (states "#lang olai\nsection\n  [x] a\n  [x] b\n")
      '(done)))
 
-  (test-case "one open child leaves the parent open"
+  (test-case "one open child leaves the parent unfinished"
     (check-equal?
      (states "#lang olai\nsection\n  [x] a\n  b\n")
+     '(doing)))
+
+  (test-case "a parent nobody has started is open"
+    (check-equal?
+     (states "#lang olai\nsection\n  a\n  b\n")
      '(open)))
 
   (test-case "it nests: a middle node that derives done counts as done"
