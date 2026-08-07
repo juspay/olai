@@ -42,6 +42,8 @@
          ;; "does anything wear this class"
          olai/web/render
          olai/web/chat-panel
+         olai/web/search
+         (only-in olai/search search-outlines)
          olai/store
          olai/index
          (only-in olai/lang/walk resolve-mirrors)
@@ -195,7 +197,26 @@
    (render-chat-panel
     #:send-href "/chat" #:new-href "/chat/new" #:cancel-href "/chat/cancel"
     #:sessions-href "/chat/sessions" #:load-href "/chat/load"
-    #:event "chat")))
+    #:event "chat")
+   ;; The palette, in its three readings: nothing typed, a query with hits —
+   ;; one of them found by its NOTE, which is a line only that case draws —
+   ;; and a query the outline has nothing for.
+   (search-panel-page "")
+   (search-panel-page "capture")
+   (search-panel-page "no-such-node-anywhere")
+   ;; and the one a screen cannot hold: what did not fit is counted
+   (render-search-panel #:action-href "/search" #:results-href "/search?q=e"
+                        #:query "e"
+                        #:hits (search-outlines example-files "e")
+                        #:zoom-base "/z/")))
+
+;; One drawing of the palette, over the demo outlines.
+(define (search-panel-page query)
+  (render-search-panel #:action-href "/search"
+                       #:results-href (string-append "/search?q=" query)
+                       #:query query
+                       #:hits (search-outlines example-files query)
+                       #:zoom-base "/z/"))
 
 (define rendered-classes
   (for/fold ([acc (set)]) ([page (in-list (example-pages))])
@@ -237,7 +258,8 @@
 ;; are the language files beside it — they are vendored under static/hljs/,
 ;; and scanning a minified grammar for class-shaped names would find noise.)
 (define script-names
-  '("chat.js" "collapse.js" "notes.js" "prefs.js" "pwa.js" "highlight-init.js"))
+  '("chat.js" "collapse.js" "notes.js" "prefs.js" "search.js" "pwa.js"
+    "highlight-init.js"))
 
 (define scripted-classes
   (for/fold ([acc (set)]) ([js (in-list script-names)])

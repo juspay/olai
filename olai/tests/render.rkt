@@ -27,6 +27,9 @@
          ;; the chat panel is its own module now: presentation for the agent's
          ;; conversation, sitting on top of the outline's skin
          olai/web/chat-panel
+         ;; the palette over the outline, and the pure query it draws
+         olai/web/search
+         (only-in olai/search search-outlines)
          olai/web/markdown)
 
 (module+ test
@@ -1013,6 +1016,87 @@
     (check-true (string-contains? js "olai.chat") js)
     ;; chunk and user text are inserted as TEXT
     (check-true (string-contains? js "textContent") js))
+
+  ;; ---- the search palette --------------------------------------------------
+  ;;
+  ;; Which nodes a query names is olai/tests/search.rkt's; this is the surface
+  ;; over it — the box, the region it re-fetches, and what a hit reads like.
+
+  (define search-files
+    (list (list "/tmp/Tasks.rkt"
+                (list (tk "Inbox" #f "where a thought lands"
+                          (list (tk "Buy oat milk" #f "the barista kind" '())
+                                (tk "Ship the server" #f #f '() #:done #t)))))))
+
+  (define (palette query)
+    (xstr (render-search-panel #:action-href "/search"
+                               #:results-href (string-append "/search?q=" query)
+                               #:query (and (non-empty-string? query) query)
+                               #:hits (search-outlines search-files query)
+                               #:zoom-base "/n/")))
+
+  ;; The box does the fetching, and it is the forms that write it: what this
+  ;; asserts is that the input aims at the region below it and debounces, and
+  ;; that the form still names an action a browser with no JS can submit.
+  (test-case "the box re-fetches the results region as it is typed"
+    (define s (palette ""))
+    (check-true (string-contains? s "action=\"/search\"") s)
+    (check-true (string-contains? s "method=\"get\"") s)
+    (check-true (string-contains? s "name=\"q\"") s)
+    (check-true (string-contains? s "hx-target=\"#ol-search\"") s)
+    (check-true (string-contains? s "hx-select=\"#ol-search\"") s)
+    (check-true (string-contains? s "delay:") s)
+    ;; typing is not a navigation: nothing here touches the address bar
+    (check-false (string-contains? s "hx-push-url") s))
+
+  ;; The results are a region of their own: a file that moves while a palette
+  ;; is open must not leave it naming a node that has been renamed away.
+  (test-case "the results are a region at this query's own address"
+    (define s (palette "milk"))
+    (check-true (string-contains? s "id=\"ol-search\"") s)
+    (check-true (string-contains? s "hx-get=\"/search?q=milk\"") s)
+    (check-true (string-contains? s "hx-trigger=\"sse:outline\"") s)
+    ;; and Back restores the outline, not a palette
+    (check-false (string-contains? s "hx-history-elt") s))
+
+  (test-case "a hit is a link to the node's own page, with the trail above it"
+    (define s (palette "milk"))
+    (check-true (string-contains? s (string-append "href=\"/n/" (title-key "Buy oat milk")))
+                s)
+    (check-true (string-contains? s "Buy oat milk") s)
+    ;; where it is: the file, then every node above it
+    (check-true (string-contains? s "Tasks.rkt › Inbox") s)
+    ;; a title hit does not drag the note along with it
+    (check-false (string-contains? s "barista") s)
+    ;; and the note IS drawn when the note is why this node is on the screen
+    (check-true (string-contains? (palette "barista") "the barista kind")
+                (palette "barista")))
+
+  ;; Search is not the agenda: a node you finished is a node you may well be
+  ;; looking for, and it says which it is.
+  (test-case "a done node is found, and drawn as done"
+    (define s (palette "server"))
+    (check-true (string-contains? s "Ship the server") s)
+    (check-true (string-contains? s "ol-search-title is-done") s))
+
+  (test-case "a palette says which of its three states it is in"
+    ;; nothing typed: closed, and one line saying what the box is for
+    (check-true (string-contains? (palette "") "hidden=\"hidden\"") (palette ""))
+    (check-true (string-contains? (palette "") "Type to find a node.") (palette ""))
+    ;; a query the outline has nothing for is not an empty palette
+    (define none (palette "nosuchnode"))
+    (check-false (string-contains? none "hidden=\"hidden\"") none)
+    (check-true (string-contains? none "No node matches") none)
+    ;; and a query with hits is open, with no such line
+    (check-false (string-contains? (palette "milk") "Type to find a node.")
+                 (palette "milk")))
+
+  (test-case "the search script fetches nothing and opens no connection"
+    (define js (file->string (build-path (web-static-dir) "search.js")))
+    (check-false (string-contains? js "fetch(") js)
+    (check-false (string-contains? js "new EventSource") js)
+    ;; and writes no htmx attribute of its own: the box came with them
+    (check-false (string-contains? js "hx-") js))
 
   ;; ---- file sections (the watcher's re-render unit) ------------------------
 
