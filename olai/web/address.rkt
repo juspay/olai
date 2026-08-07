@@ -24,7 +24,7 @@
           [node-element-id (->* (string?) (#:site (or/c string? #f)) string?)]
           [note-element-id (->* (string?) (#:site (or/c string? #f)) string?)]
           [site-key (-> (or/c string? #f) string? string?)]
-          [node-link-attributes (-> (or/c string? #f) string? list?)]
+          [node-link-attributes (-> (-> string? string?) string? list?)]
           [id-safe (-> string? string?)]))
 
 ;; A node with an ^anchor is one node rendered at several SITES (its defining
@@ -64,11 +64,12 @@
 ;; this, a sidebar click rebuilding the chat — is now unwritable rather than
 ;; merely unwritten.
 ;;
-;; No zoom-base is a page that has no addresses to give, so a node link is a
-;; jump to the element instead.
-(define (node-link-attributes base fid)
-  (live-link ol-live
-             (if base
-                 (string-append base fid)
-                 (string-append "#" (node-element-id fid)))))
+;; `node-href` is the ADDRESS of a node, minted by the route table that
+;; dispatches it (web/routes). A procedure and not a prefix, so this module —
+;; and every surface above it — asks for an address rather than assembling one.
+;; It is required, because a page with no addresses is not a state the app has:
+;; a link that navigates on one page and scrolls on another is two behaviours
+;; wearing one anchor, which is exactly the bug the mirror arrow shipped with.
+(define (node-link-attributes node-href key)
+  (live-link ol-live (node-href key)))
 
