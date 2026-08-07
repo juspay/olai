@@ -51,11 +51,7 @@
           ;; files-data (olai/store) + what was typed -> the hits, best first.
           ;; An empty query names no nodes: a search box with nothing in it is
           ;; not a request for the whole outline.
-          [search-outlines (-> list? string? (listof search-hit?))]
-          ;; the fields a hit can be found in, in the order a hit in one is
-          ;; worth most. Exported because a drawer that spells them itself is a
-          ;; second list to keep in step with this one
-          [search-fields (listof symbol?)]))
+          [search-outlines (-> list? string? (listof search-hit?))]))
 
 ;; One node a query named. See the contract above for what each field is.
 (struct search-hit (task file trail score fields) #:transparent)
@@ -132,37 +128,40 @@
 (define (word-boundary? text at)
   (not (regexp-match? #px"[[:alnum:]]" (substring text (sub1 at) at))))
 
-;; The best (score . field) this term gets out of the node, or #f — which is
-;; the node not matching at all, since every term has to land somewhere.
-(define (term-hit texts t)
-  (for/fold ([best #f]) ([entry (in-list texts)])
-    (match-define (cons field text) entry)
-    (define s (field-score field text t))
-    (cond
-      [(not s) best]
-      [(or (not best) (> s (car best))) (cons s field)]
-      [else best])))
+;; Where one term landed in this node, and what each landing is worth:
+;; (listof (cons field score)), empty when it landed nowhere — which is the
+;; node not matching at all, since every term has to land somewhere.
+;;
+;; ONE pass answers both questions the caller has. What a term is WORTH is the
+;; best of these; where the query was FOUND is all of them, over every term.
+;; Asking the second question with a second sweep of the same regexps over the
+;; same strings was two derivations of one fact — and two places for the score
+;; and the reported field to come to disagree about what matched.
+(define (term-landings texts t)
+  (for*/list ([entry (in-list texts)]
+              [score (in-value (field-score (car entry) (cdr entry) t))]
+              #:when score)
+    (cons (car entry) score)))
 
-;; Every field any term landed in, in field order: what a drawer reads to know
+;; Every field the query landed in, in field order: what a drawer reads to know
 ;; whether the note is why this node is on the screen.
-(define (hit-fields texts terms)
+(define (landed-fields landings)
+  (define found (append* landings))
   (for/list ([field (in-list search-fields)]
-             #:when (for*/or ([entry (in-list texts)] [t (in-list terms)])
-                      (and (eq? (car entry) field)
-                           (regexp-match? (term-rx t) (cdr entry)))))
+             #:when (assq field found))
     field))
 
 ;; The node, scored — or #f, which is every node in the set but a handful.
 (define (score-node tk file path terms)
   (define texts (node-texts tk))
-  (define hits (for/list ([t (in-list terms)]) (term-hit texts t)))
-  (and (andmap values hits)
+  (define landings (for/list ([t (in-list terms)]) (term-landings texts t)))
+  (and (andmap pair? landings)
        (search-hit tk
                    file
                    (map task-title path)
-                   (- (apply + (map car hits))
+                   (- (for/sum ([l (in-list landings)]) (apply max (map cdr l)))
                       (if (eq? (task-status tk) 'done) done-penalty 0))
-                   (hit-fields texts terms))))
+                   (landed-fields landings))))
 
 ;; ---- the search --------------------------------------------------------------
 

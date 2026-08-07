@@ -1091,6 +1091,19 @@
     (check-false (string-contains? (palette "milk") "Type to find a node.")
                  (palette "milk")))
 
+  ;; The border the class names have, one attribute over: search.js finds the
+  ;; palette, its hits and what opens it by `data-search-*`, and nothing else
+  ;; would notice the day one of them stopped being written.
+  (test-case "every data-search attribute the script reads is one the markup writes"
+    (define js (file->string (build-path (web-static-dir) "search.js")))
+    (define wanted (remove-duplicates (regexp-match* #px"data-search-[a-z-]+" js)))
+    (define drawn (palette "milk"))
+    (check-true (>= (length wanted) 3)
+                (format "search.js reads ~a; it used to read three" wanted))
+    (for ([a (in-list wanted)])
+      (check-true (string-contains? drawn a)
+                  (format "search.js reads ~a; the palette writes no such attribute" a))))
+
   (test-case "the search script fetches nothing and opens no connection"
     (define js (file->string (build-path (web-static-dir) "search.js")))
     (check-false (string-contains? js "fetch(") js)

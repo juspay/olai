@@ -50,9 +50,15 @@
           ;; what the input re-fetches with what you typed on it. #:results-href
           ;; is what THESE hits are the answer to, which is the same address
           ;; carrying this query: the region re-fetches it when a file moves.
+          ;;
+          ;; #:query is what was typed, or #f for a page that was not a query.
+          ;; A BLANK one is not a third state: it is spelled #f like every
+          ;; other way of having asked nothing, and the contract is what keeps
+          ;; the drawer from having to hold an opinion about "" (olai/web/serve
+          ;; trims what a request carried).
           [render-search-panel
            (->* (#:action-href string? #:results-href string?)
-                (#:query (or/c string? #f)
+                (#:query (or/c non-empty-string? #f)
                  #:hits (listof search-hit?)
                  #:zoom-base (or/c string? #f))
                 list?)]
@@ -63,10 +69,7 @@
           ;; static/search.js reads: a second spelling of it is a button that
           ;; does nothing, in a browser, which is the one place a compiler
           ;; cannot look.
-          [search-toggle-attributes (-> (listof (list/c symbol? string?)))]
-          ;; how many hits a screen gets. The rest are counted, not drawn: a
-          ;; palette you scroll is a palette you stopped reading
-          [search-shown-limit exact-positive-integer?]))
+          [search-toggle-attributes (-> (listof (list/c symbol? string?)))]))
 
 ;; The hits are a region of their own, on the same stream as the outline: what
 ;; a query names changes when a file does. `#:history? #f` — Back restores the
@@ -74,6 +77,8 @@
 ;; palette is not a place you navigate to.
 (define-live-region ol-search #:stream outline-events #:history? #f)
 
+;; How many hits a screen gets. The rest are counted, not drawn: a palette you
+;; scroll is a palette you stopped reading.
 (define search-shown-limit 12)
 
 ;; how much of a note is worth reading on one line of a result list
@@ -274,7 +279,7 @@
          (aria-live "polite")
          ,@(live-region ol-search #:href results-href))
         ,@(cond
-            [(not (non-empty-query? query))
+            [(not query)
              (list `(p ((class ,ol-search-empty)) "Type to find a node."))]
             [(null? hits)
              (list `(p ((class ,ol-search-empty))
@@ -287,9 +292,6 @@
                   (list `(p ((class ,ol-search-more))
                             ,(format "+ ~a more" more)))
                   '()))])))
-
-(define (non-empty-query? q)
-  (and q (non-empty-string? (string-trim q))))
 
 ;; What opens the palette, wherever it is drawn. One word, one owner: the
 ;; sidebar's row and the palette's own × wear the same attribute, and
@@ -305,7 +307,7 @@
                              #:hits [hits '()]
                              #:zoom-base [zoom-base #f])
   `(div ((class ,ol-search-panel) (data-search-panel "")
-         ,@(if (non-empty-query? query) '() '((hidden "hidden"))))
+         ,@(if query '() '((hidden "hidden"))))
         (form ((class ,ol-search-form) (role "search")
                (action ,action-href) (method "get"))
               (input ((class ,ol-search-input) (type "search") (name "q")

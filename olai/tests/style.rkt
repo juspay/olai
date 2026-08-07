@@ -210,11 +210,12 @@
                         #:hits (search-outlines example-files "e")
                         #:zoom-base "/z/")))
 
-;; One drawing of the palette, over the demo outlines.
+;; One drawing of the palette, over the demo outlines. An empty query is #f,
+;; the way it travels everywhere else: nothing was asked.
 (define (search-panel-page query)
   (render-search-panel #:action-href "/search"
                        #:results-href (string-append "/search?q=" query)
-                       #:query query
+                       #:query (and (non-empty-string? query) query)
                        #:hits (search-outlines example-files query)
                        #:zoom-base "/z/"))
 

@@ -265,12 +265,13 @@
 ;; Where a query is ASKED, and what one query's answer is AT. Two uses, one
 ;; address, and one function that builds it: the palette's form posts nothing
 ;; and its box re-fetches the first, and the second is both this page's own
-;; address and what its results region re-fetches when a file moves. A blank
-;; query is the bare route — an address with nothing in it says nothing.
+;; address and what its results region re-fetches when a file moves. Having
+;; asked nothing is spelled #f, here and everywhere else it travels, and the
+;; bare route is its address — an address with nothing in it says nothing.
 (define search-href "/search")
 
 (define (search-query-href q)
-  (if (and q (non-empty-string? (string-trim q)))
+  (if q
       (string-append search-href "?" (alist->form-urlencoded (list (cons 'q q))))
       search-href))
 
@@ -282,6 +283,23 @@
 (define chat-cancel-href "/chat/cancel")
 (define chat-sessions-href "/chat/sessions")
 (define chat-load-href "/chat/load")
+
+;; ---- reading a request ------------------------------------------------------
+
+;; What a request CARRIES, as opposed to what its address says. Two surfaces
+;; read one now — a chat message and a query — and both mean the same thing by
+;; a field that is missing, empty, or nothing but spaces: nothing was said. So
+;; there is one answer to it, #f, and nothing downstream holds an opinion about
+;; the empty string. The query string and a posted form are the same table as
+;; far as `request-bindings/raw` is concerned, which is why one reader serves
+;; both.
+(define (form-field req name)
+  (define b (bindings-assq name (request-bindings/raw req)))
+  (cond
+    [(binding:form? b)
+     (define s (string-trim (bytes->string/utf-8 (binding:form-value b))))
+     (and (non-empty-string? s) s)]
+    [else #f]))
 
 ;; ---- handlers: the chat panel ---------------------------------------------
 
@@ -312,15 +330,6 @@
                                              [(busy) 409]
                                              [else 503])))])
     (proc)))
-
-;; A form field, trimmed, or #f when it is missing or blank.
-(define (form-field req name)
-  (define b (bindings-assq name (request-bindings/raw req)))
-  (cond
-    [(binding:form? b)
-     (define s (string-trim (bytes->string/utf-8 (binding:form-value b))))
-     (and (non-empty-string? s) s)]
-    [else #f]))
 
 (define (no-agent-response)
   (text-response "no agent\n" #:code 503))
@@ -483,11 +492,14 @@
 ;; it rarely loads this page — the box re-fetches the results region alone, and
 ;; the page it is on never moves.
 (define (search-handler st agent req)
-  (define q (or (form-field req #"q") ""))
+  ;; `q` missing and `q` blank are the same request: nothing was asked. One
+  ;; spelling for it (#f) all the way down, so nothing below has to hold an
+  ;; opinion about the empty string.
+  (define q (form-field req #"q"))
   (outline-page st agent (search-query-href q) #:query q
    (λ (snap)
      (values (outline-pane snap)
-             (if (non-empty-string? q) (string-append "search " q) "olai")))))
+             (if q (string-append "search " q) "olai")))))
 
 ;; A node's permalink.
 ;;
