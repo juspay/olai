@@ -151,7 +151,7 @@ Two `anchors` objects, two scopes, and the nesting says which: the one inside a 
 The file's name inside that hash is its path **relative to the common directory of the loaded set** — so two roots named `Daily.rkt` in different directories do not collide, and moving the whole outline home does not re-key it. The corollary is that the base moves with the set: load a nested fragment as its own root and its label re-bases, so its nodes key differently than they do under the root that includes them.
 
 ```bash
-$ olai tree examples/Daily.rkt           # "Setup day" -> p8cfece7b
+$ olai tree examples/Daily.jsonl           # "Setup day" -> p8cfece7b
 $ olai tree examples/Daily/2026-08.rkt   # "Setup day" -> p3dd3c447
 ```
 
@@ -163,13 +163,13 @@ Run the web view over an outline directory. Blocks until Ctrl-C, which shuts the
 
 **ONE argument, and it is a place, not a file set.** A directory, a single `.rkt`, or nothing at all (which means `$PWD`). Two or more paths is a **usage error** — exit 1, `olai: serve takes one directory or one outline, not 3 (check and tree take a list)` on stderr — never a set quietly assembled out of them. The read commands above are where a list you typed belongs; `serve` is a server, and what it is pointed at is where it lives: the agent works in that directory, `/media/` reaches into it and nowhere else, and its outlines are re-asked as they change.
 
-**A DIRECTORY names every `*.rkt` under it, at any depth**, sorted, so the node keys minted against the set are stable. Each directory is read with the same glob `@include Daily/*.rkt` is (see [Globs](syntax.md#globs)), so a dotfile is not a root — an editor's `.#Tasks.rkt` lock file is a dangling symlink, not an outline — and a symlinked subdirectory is not descended into (a link back at an ancestor is a walk that never ends). A directory with no outline under it at all is refused, naming the directory, exit 3.
+**A DIRECTORY names every `*.rkt` under it, at any depth**, sorted, so the node keys minted against the set are stable. Each directory is read with the same glob `@include Daily/*.jsonl` is (see [Globs](syntax.md#globs)), so a dotfile is not a root — an editor's `.#Tasks.rkt` lock file is a dangling symlink, not an outline — and a symlinked subdirectory is not descended into (a link back at an ancestor is a walk that never ends). A directory with no outline under it at all is refused, naming the directory, exit 3.
 
 **Only this project's languages are outlines.** A `.rkt` whose `#lang` is not `olai` or `olai/sexp` is **passed over**: a notes directory may hold a script, and one stray module must not take the server down. It is read from the `#lang` line alone — nothing else in a file it is not going to load gets executed, and a file that IS an outline and does not load is as loud an error as ever. That distinction is the point: passed over means "never was one", not "broke".
 
 **A file another one `@include`s is not a root.** That subtraction, not a rule about which directory a file sits in, is what stops a fragment being loaded twice — once through the root that splices it and once on its own, which would key every one of its nodes twice and make its `^anchor` a duplicate. So `Daily/2026-08.rkt` is loaded exactly once, by the `Daily.rkt` that includes it, and an outline three directories down that nothing includes is served rather than silently invisible.
 
-**The roots are re-asked, not remembered.** The directory is a standing question, the same way an `@include` glob is: an outline created under it — the first `Archive.rkt` an `olai archive` writes, a file dropped in by your sync layer — is picked up on the next request or watcher tick, with no restart. So is one that goes away, and so is a file that stops being a root because something started including it.
+**The roots are re-asked, not remembered.** The directory is a standing question, the same way an `@include` glob is: an outline created under it — the first `Archive.jsonl` an `olai archive` writes, a file dropped in by your sync layer — is picked up on the next request or watcher tick, with no restart. So is one that goes away, and so is a file that stops being a root because something started including it.
 
 The agent runs **in that directory** — exactly it. That is the point of the form: Claude Code keys its stored sessions by the directory it was started in, so a stable one is what makes "the session you were last in" a thing that survives a restart (see [Sessions](#sessions) below).
 
@@ -181,8 +181,8 @@ olai serve http://127.0.0.1:8080 dir: /home/me/notes
 **A single file is the plumbing** — that file is the only root (its `@include` fragments still ride along), and the agent works in the directory it sits in.
 
 ```text
-$ olai serve examples/Example.rkt
-olai serve http://127.0.0.1:8080 file: /.../examples/Example.rkt
+$ olai serve examples/Example.jsonl
+olai serve http://127.0.0.1:8080 file: /.../examples/Example.jsonl
 ```
 
 The line names what `serve` was **pointed at**, and not the outlines that answered: a list printed at boot would stop being true the moment one appeared. What is loaded right now is `GET /api/tree`.
@@ -236,7 +236,7 @@ Routes:
 |-------|------|
 | `GET /` | HTML page (Workflowy-style skin from `olai/web/render.rkt`) |
 | `GET /n/<key>` | one node, zoomed: breadcrumbs (home, the file, each ancestor) plus that subtree and nothing else. `key` as in `tree` JSON. A node with a `@doc` has its document drawn inline here, in full; everywhere else it shows one line of it. A key the current snapshot has no node for is a page saying so, with a `200` — a node can be deleted while a tab sits zoomed on it, and that tab re-fetches this page to find out |
-| `GET /archive` | what `olai archive` put away: the outlines' `Archive.rkt`, drawn the ordinary way, with the ordinary permalinks under it. Linked from the sidebar, and drawn nowhere else — the home page and the sidebar tree are the LIVE outlines. A directory with no archive is a page saying so, with a `200` |
+| `GET /archive` | what `olai archive` put away: the outlines' `Archive.jsonl`, drawn the ordinary way, with the ordinary permalinks under it. Linked from the sidebar, and drawn nowhere else — the home page and the sidebar tree are the LIVE outlines. A directory with no archive is a page saying so, with a `200` |
 | `GET /today` | the first node titled with today's ISO date (the Daily day node), zoomed — the same view as `/n/<key>`, with today's key looked up per request; terse empty state when there is none yet. An ADDRESS rather than a row in the sidebar: the journal's month is where a person reaches today (see [The month](#the-month) below), and this is what a bookmark, a home screen and an agent name |
 | `GET /search?q=…` | the outline with the search palette open on what `q` names — a page, so a query is a permalink and a browser running no JS gets it by submitting the box. `q` missing, blank, or matching nothing are all `200`: an empty box says what it is for, and a query with no hits says so (see [Search](#search)). A browser that IS running JS rarely loads this page; the box re-fetches the results region alone |
 | `GET /live/<boot-id>/events` | `text/event-stream`, never ends. The address carries this process's boot id, so a tab that outlived a restart gets one `live:reload` frame and the end of the stream rather than a refusal; full contract in **[docs/live.md](live.md)**. `event: outline` whenever a watched file reloaded, plus one at local midnight — its data and its `id:` are both the cursor the outlines are now at; `event: chat` with one JSON frame from the agent per line, and no id (a message is not a checkpoint). Opens with `retry:` and an `event: live:hb` carrying its own cadence in seconds, repeated at that cadence, so proxies leave the connection alone and a client can notice it stopping. **A new connection is caught up first**, to that connection alone and before anything live: one `outline` if it names any cursor but the current one (`Last-Event-ID`, or `?last-event-id=` for a page's first connection — so sleep, tab suspension and a server restart all heal), then a `reset`, the conversation's `session` / `model` / `commands` as they stand, and the transcript as the frames that built it (`mark` for a break a live `reset` already cleared). A page opened while the agent was still waking up — or reloaded, or reconnected — knows exactly what one opened a minute earlier does |
@@ -269,7 +269,7 @@ No tables, no strikethrough, no task lists: that is the `markdown` package's cei
 
 ### The month
 
-One root is not drawn as a name and a tree: `Daily.rkt` — recognised by that basename, the way `Archive.rkt` is — becomes a mini calendar of the month around today, standing exactly where the file's entry was, and it is the sidebar's way to today (there is no Today row; `/today` is still the address).
+One root is not drawn as a name and a tree: `Daily.rkt` — recognised by that basename, the way `Archive.jsonl` is — becomes a mini calendar of the month around today, standing exactly where the file's entry was, and it is the sidebar's way to today (there is no Today row; `/today` is still the address).
 
 Three marks, and they are three different marks because a reader has to tell them apart at a glance in a 15rem column:
 
@@ -410,7 +410,7 @@ With `--clear`, `date` is `null`. `title` is always the node's resolved title, n
 
 ## `archive [--file F] [--no-commit] TITLE...|^anchor`
 
-Move a node's whole subtree out of the working outline and into `Archive.rkt`,
+Move a node's whole subtree out of the working outline and into `Archive.jsonl`,
 **re-creating the chain it hung off** so the tree still reads years later.
 Same resolver as `done` / `move`, same write safety.
 
@@ -420,7 +420,7 @@ $ olai archive --file Tasks.rkt install
 
 ```json
 {"version":1,"ok":true,
- "file":".../Archive.rkt","from":".../Tasks.rkt","title":"install","line":4,
+ "file":".../Archive.jsonl","from":".../Tasks.rkt","title":"install","line":4,
  "ancestors":["kitchen remodel"],"created_archive":false,"committed":true}
 ```
 
@@ -430,7 +430,7 @@ routing](#write-routing-the-defining-file)). `ancestors` is the chain that was
 re-created or merged into, outermost first. `line` is the node's line in the
 archive.
 
-- **Where the archive is**: `Archive.rkt` beside the outline **you named**
+- **Where the archive is**: `Archive.jsonl` beside the outline **you named**
   (`--file`, or the default `$OLAI_HOME/Tasks.rkt`) — never beside the defining
   file. The outline you named is the one you go looking for its archive beside,
   and a `@doc` or `@include` path inside an archived subtree is relative to a
@@ -476,8 +476,8 @@ archived node, its key, and its anchor, because the model is the model.
 
 Ensure a day node exists in the personal Daily structure under `$OLAI_HOME` (or `--home`):
 
-- Fragment: `Daily/YYYY-MM.rkt` (day nodes only at top level)
-- Root: `Daily.rkt` with `year > MonthName > @include Daily/YYYY-MM.rkt`
+- Fragment: `Daily/YYYY-MM.jsonl` (day nodes only at top level)
+- Root: `Daily.rkt` with `year > MonthName > @include Daily/YYYY-MM.jsonl`
 
 Creates the month fragment and `@include` line on first use in a month; idempotent thereafter. Writes use add-style validate-then-rename, and auto-commit like the other write commands — the fragment and the root that includes it in ONE commit (`daily: YYYY-MM-DD`).
 
@@ -489,11 +489,11 @@ Creates the month fragment and `@include` line on first use in a month; idempote
 
 Both `created_*` are `false` on every run after the first for that day, and `committed` is `false` when there was nothing to write (or `--no-commit`).
 
-**A root that [globs](syntax.md#globs) its fragments is left alone.** `@include Daily/*.rkt` already names `Daily/2026-08.rkt` the moment that file exists, so writing the literal line as well would splice the fragment **twice** — every day node in the month duplicated in the tree. Asked of the pattern, not of the line: any `@include` in the root whose pattern matches the fragment's path covers it, wherever in the root it was written, and then this command creates the fragment and the day node and touches nothing else — not the `@include` line, and not the `year > MonthName` nodes it would have hung under. The shape above a glob is the outline's own.
+**A root that [globs](syntax.md#globs) its fragments is left alone.** `@include Daily/*.jsonl` already names `Daily/2026-08.rkt` the moment that file exists, so writing the literal line as well would splice the fragment **twice** — every day node in the month duplicated in the tree. Asked of the pattern, not of the line: any `@include` in the root whose pattern matches the fragment's path covers it, wherever in the root it was written, and then this command creates the fragment and the day node and touches nothing else — not the `@include` line, and not the `year > MonthName` nodes it would have hung under. The shape above a glob is the outline's own.
 
 ```json
 {"version":1,"ok":true,"day":"2026-08-04","file":".../Daily/2026-08.rkt",
- "created_month":true,"created_day":true,"covered_by_glob":"Daily/*.rkt",
+ "created_month":true,"created_day":true,"covered_by_glob":"Daily/*.jsonl",
  "line":2,"committed":true}
 ```
 

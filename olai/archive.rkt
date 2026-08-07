@@ -27,11 +27,13 @@
 (require racket/contract
          racket/path
          (only-in olai/lang/expander task? task-file)
+         (only-in olai/lang/jsonl jsonl-path?)
          ;; one owner for what a file is CALLED (core, not web)
          (only-in olai/paths file-label))
 
 (provide (contract-out
           [archive-file-name string?]
+          [archive-file-names (listof string?)]
           ;; flat checks: a path in, a path out, and two predicates that read
           ;; one field. Nothing here walks a tree.
           [archive-path-for (-> path? path?)]
@@ -40,26 +42,33 @@
           [live-entries (-> list? list?)]
           [archived-entries (-> list? list?)]))
 
-;; The one spelling. Capitalised like the other roots an outline home holds
-;; (Tasks.rkt, Daily.rkt): it IS one of them.
-(define archive-file-name "Archive.rkt")
+;; Preferred spelling after the flat-record migration. The .rkt form still
+;; counts as archived (a home that has not renamed yet), so queries keep
+;; excluding it.
+(define archive-file-name "Archive.jsonl")
+(define archive-file-names '("Archive.jsonl" "Archive.rkt"))
 
 ;; The archive that holds what `outline-file` archives: the one beside it.
 ;;
 ;; Beside the OUTLINE the command named, never beside the node's defining file
-;; — a fragment lives in a subdirectory (`Daily/2026-08.rkt`), and an
-;; Archive.rkt down there is one nobody would think to look for, sitting
+;; — a fragment lives in a subdirectory (`Daily/2026-08.jsonl`), and an
+;; Archive.* down there is one nobody would think to look for, sitting
 ;; between the months. The outline you archived FROM is where you go looking
 ;; for what you put away, and a `@doc` path that moved with the node still
 ;; resolves from a file in the same directory.
+;;
+;; The archive matches the source's surface: a .jsonl outline archives into
+;; Archive.jsonl; a #lang olai outline still uses Archive.rkt.
 (define (archive-path-for outline-file)
   (define dir (path-only outline-file))
   (unless dir
     (error 'archive-path-for "expected a path with a directory, got ~e" outline-file))
-  (build-path dir archive-file-name))
+  (define name
+    (if (jsonl-path? outline-file) "Archive.jsonl" "Archive.rkt"))
+  (build-path dir name))
 
 (define (archived-file? f)
-  (and f (equal? (file-label f) archive-file-name)))
+  (and f (member (file-label f) archive-file-names) #t))
 
 ;; A node is archived when the file that DEFINES it is an archive — not the
 ;; file it was reached through. A mirror site in a live file draws an archived

@@ -1,0 +1,6 @@
+{"id":"8svv","ord":"a0","title":"Inbox #capture"}
+{"id":"u3ox","parent":"8svv","ord":"a0","title":"Pick a name","done":true,"desc":"done via checkbox sugar (not on agenda)"}
+{"id":"mkwr","parent":"8svv","ord":"a1","title":"Wire the CLI","done":"2026-08-02","desc":"completed with a stamp"}
+{"id":"rgs8","ord":"a1","title":"2026-07-31"}
+{"id":"hl85","parent":"rgs8","ord":"a0","title":"Wrap the month #ship"}
+{"id":"f5so","parent":"hl85","ord":"a0","title":"File taxes","done":true,"date":"2026-07-15"}

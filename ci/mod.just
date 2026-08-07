@@ -38,10 +38,10 @@ nix:
     nix build -L
 
 # Packaged binary can load and check committed outlines. One command, so one
-# SET: examples/Week.rkt mirrors an anchor examples/Example.rkt declares, and
+# SET: examples/Week.jsonl mirrors an anchor examples/Example.jsonl declares, and
 # that only resolves when both are named (docs/syntax.md, Mirrors).
 smoke: nix
-    ./result/bin/olai check examples/Example.rkt examples/Week.rkt examples/Kitchen.rkt examples/Notes.jsonl docs/olai/Roadmap.jsonl docs/olai/Archive.rkt e2e/fixtures/Tasks.rkt e2e/fixtures/Archive.rkt
+    ./result/bin/olai check examples/Example.jsonl examples/Week.jsonl examples/Daily.jsonl examples/Kitchen.jsonl examples/Archive.jsonl docs/olai/Roadmap.jsonl docs/olai/Archive.jsonl e2e/fixtures/Tasks.jsonl e2e/fixtures/Week.jsonl e2e/fixtures/Archive.jsonl
 
 # The declared architecture, checked against the code (arch/README.md). Its own
 # node and not part of `test`: a layering violation and a failing test are

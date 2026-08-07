@@ -43,7 +43,7 @@
   (define example
     (build-path (simplify-path (build-path (collection-file-path "info.rkt" "olai")
                                            'up 'up))
-                "examples" "Example.rkt"))
+                "examples" "Example.jsonl"))
 
   ;; -> (values chat frame-channel log-port). The agent is stopped on the way
   ;; out whether the body finished or not.

@@ -1,0 +1,4 @@
+{"id":"daily","ord":"a0","title":"Daily notes","desc":"Fictional demo of @include composition, now via GLOB: the one line\nbelow matches every fragment under Daily/, spliced in lexicographic\norder — date-named files land chronologically by construction. Drop\na new 2026-09.rkt into the directory while `olai serve` runs and it\nappears live, no restart."}
+{"id":"883t","ord":"a1","title":"2026"}
+{"id":"zef4","parent":"883t","ord":"a0","include":"Daily/*.jsonl"}
+{"id":"3u9g","parent":"883t","ord":"a1","mirror":"standup"}

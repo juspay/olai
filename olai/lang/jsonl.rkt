@@ -26,7 +26,9 @@
          olai/doc
          olai/fail
          olai/frac
-         (only-in olai/glob include-absolute)
+         (only-in olai/glob
+                  include-absolute include-glob? include-glob-problem
+                  glob-dir glob-expand)
          (except-in olai/lang/expander #%module-begin)
          olai/lang/tags)
 
@@ -51,7 +53,19 @@
           [jsonl-update-record (-> string? exact-positive-integer?
                                    (-> hash? hash?)
                                    (values string? exact-positive-integer?))]
-          [jsonl-canonical-keys (listof symbol?)]))
+          [jsonl-canonical-keys (listof symbol?)]
+          ;; archive: cut a record subtree / graft under an ancestor chain
+          [jsonl-cut-subtree (-> string? exact-nonnegative-integer?
+                                 (values string? (listof hash?) (listof string?)))]
+          [jsonl-graft-subtree (-> string? (listof string?) (listof hash?)
+                                   (values string? exact-positive-integer?))]
+          ;; daily helpers
+          [jsonl-include-paths (-> string? (listof string?))]
+          [jsonl-ensure-day (-> string? string?
+                                (values string? exact-positive-integer? boolean?))]
+          [jsonl-root-with-include
+           (-> string? string? string? string?
+               (values string? boolean?))]))
 
 (define jsonl-extension ".jsonl")
 
@@ -291,6 +305,40 @@
           [(string? source) source]
           [else #f]))
   (define includes-acc '())
+  (define globs-acc '())
+  (define (splice-include rel line)
+    (unless file-str
+      (fail-at source line 'jsonl
+               "include requires a file path to resolve against"))
+    (define dir (path-only (string->path file-str)))
+    (cond
+      [(include-glob? rel)
+       (define problem (include-glob-problem rel))
+       (when problem
+         (fail-at source line 'include "~a" problem))
+       (define pattern (include-absolute rel dir))
+       (define gdir (glob-dir pattern))
+       (unless (directory-exists? gdir)
+         (fail-at source line 'include
+                  "no such directory: ~a" (path->string gdir)))
+       (set! globs-acc
+             (cons (path->string (simple-form-path pattern)) globs-acc))
+       ;; Empty match is legal (like the outline grammar). Splice flat,
+       ;; lexicographic order — glob-expand already sorts.
+       (append*
+        (for/list ([m (in-list (glob-expand pattern))])
+          (set! includes-acc
+                (cons (path->string (simple-form-path m)) includes-acc))
+          (define-values (sub-tasks _a _i _g) (load-included m))
+          sub-tasks))]
+      [else
+       (define full (include-absolute rel dir))
+       (unless (file-exists? full)
+         (fail-at source line 'include "file not found: ~a" rel))
+       (set! includes-acc
+             (cons (path->string (simple-form-path full)) includes-acc))
+       (define-values (sub-tasks _a _i _g) (load-included full))
+       sub-tasks]))
   (define (build r)
     (define loc (line-srcloc source (rec-line r)))
     (case (rec-kind r)
@@ -299,18 +347,7 @@
        ;; Splice immediately: the include record is a site, not a node in the
        ;; tree. Return the included top-level tasks as a list to be appended
        ;; into the parent's children (or the root forest).
-       (define rel (rec-payload r))
-       (unless file-str
-         (fail-at source (rec-line r) 'jsonl
-                  "include requires a file path to resolve against"))
-       (define dir (path-only (string->path file-str)))
-       (define full (include-absolute rel dir))
-       (unless (file-exists? full)
-         (fail-at source (rec-line r) 'include "file not found: ~a" rel))
-       (set! includes-acc
-             (cons (path->string (simple-form-path full)) includes-acc))
-       (define-values (sub-tasks _a _i _g) (load-included full))
-       sub-tasks]
+       (splice-include (rec-payload r) (rec-line r))]
       [(task)
        (define p (rec-payload r))
        (define edges
@@ -351,7 +388,9 @@
   (define roots (build-kids 'root))
   (check-task-graph roots)
   (define anchors (anchors-of roots))
-  (values roots anchors (remove-duplicates (reverse includes-acc)) '()))
+  (values roots anchors
+          (remove-duplicates (reverse includes-acc))
+          (remove-duplicates (reverse globs-acc))))
 
 (define (load-jsonl path)
   (define full (simple-form-path path))
@@ -395,19 +434,23 @@
              #:when (equal? (hash-ref (cdr p) 'parent #f) parent-id))
     (hash-ref (cdr p) 'ord)))
 
-;; Content-addressed 4-char hex id (hex ⊂ base62). Deterministic so a write
-;; does not need randomness authority, and a re-run of the same capture lands
-;; on the same id only when the file is unchanged — which it is not, after the
-;; first insert, so the next call advances.
+;; Content-addressed id (hex ⊂ base62). 8 chars so two independent files
+;; written in one op (daily's root + fragment) almost never collide when each
+;; only knows its own used set. Salt advances per call so a second mint in the
+;; same file after the first insert still moves.
+(define mint-seq (box 0))
+
 (define (jsonl-mint-id text)
   (define used
     (for/set ([p (in-list (jsonl-records text))])
       (hash-ref (cdr p) 'id)))
   (let loop ([n 0])
+    (define seq (unbox mint-seq))
+    (set-box! mint-seq (add1 seq))
     (define candidate
       (substring
-       (sha1 (open-input-string (format "~a\n~a" text n)))
-       0 4))
+       (sha1 (open-input-string (format "~a\n~a\n~a" text seq n)))
+       0 8))
     (if (set-member? used candidate) (loop (add1 n)) candidate)))
 
 (define (jsonl-insert-child text parent-id new-fields)
@@ -435,3 +478,187 @@
   (unless found
     (user-fail "jsonl: no record at line ~a" line-1))
   (values (jsonl-text-from-records new-recs) line-1))
+
+;; ---- archive: cut / graft ---------------------------------------------------
+
+(define (jsonl-children-map recs)
+  (define kids (make-hash))
+  (for ([h (in-list recs)])
+    (define p (hash-ref h 'parent #f))
+    (hash-update! kids p (λ (xs) (cons h xs)) '()))
+  kids)
+
+(define (jsonl-descendants-of recs root-id)
+  (define kids (jsonl-children-map recs))
+  (define root
+    (for/first ([h (in-list recs)] #:when (equal? (hash-ref h 'id) root-id)) h))
+  (unless root (error 'jsonl-cut-subtree "no record ~a" root-id))
+  (define acc (list root))
+  (define (walk id)
+    (for ([h (in-list (reverse (hash-ref kids id '())))])
+      (set! acc (append acc (list h)))
+      (walk (hash-ref h 'id))))
+  (walk root-id)
+  acc)
+
+(define (jsonl-ancestor-titles recs start-id)
+  (define by-id
+    (for/hash ([h (in-list recs)]) (values (hash-ref h 'id) h)))
+  (let loop ([id (hash-ref (hash-ref by-id start-id) 'parent #f)] [acc '()])
+    (cond
+      [(not id) acc]
+      [else
+       (define h (hash-ref by-id id #f))
+       (if (and h (hash-has-key? h 'title))
+           (loop (hash-ref h 'parent #f) (cons (hash-ref h 'title) acc))
+           (loop (and h (hash-ref h 'parent #f)) acc))])))
+
+;; at: 0-based index of the title record's line in the file (same as located-index).
+;; -> (values new-text cut-records ancestors)
+(define (jsonl-cut-subtree text at)
+  (define pairs (jsonl-records text))
+  (define line-1 (add1 at))
+  (define hit
+    (for/first ([p (in-list pairs)] #:when (= (car p) line-1)) p))
+  (unless hit
+    (user-fail "line ~a is not in this file" line-1))
+  (define h (cdr hit))
+  (unless (hash-has-key? h 'title)
+    (user-fail "line ~a is not a task title" line-1))
+  (define root-id (hash-ref h 'id))
+  (define all (map cdr pairs))
+  (define cut (jsonl-descendants-of all root-id))
+  (define cut-ids (for/set ([r (in-list cut)]) (hash-ref r 'id)))
+  (define kept
+    (for/list ([r (in-list all)]
+               #:unless (set-member? cut-ids (hash-ref r 'id)))
+      r))
+  (define ancestors (jsonl-ancestor-titles all root-id))
+  ;; Detach the subtree root so graft can reparent it.
+  (define cut*
+    (for/list ([r (in-list cut)])
+      (if (equal? (hash-ref r 'id) root-id)
+          (hash-remove r 'parent)
+          r)))
+  (values (jsonl-text-from-records kept) cut* ancestors))
+
+;; Place cut-records under `ancestors` (title chain, outermost first). Merge
+;; scaffold nodes by title; never copy anchors onto scaffolds.
+(define (jsonl-graft-subtree text ancestors cut-records)
+  (define recs (map cdr (jsonl-records text)))
+  (define parent-id #f)
+  (define new-recs recs)
+  (define (find-child-title pid title)
+    (for/first ([h (in-list new-recs)]
+                #:when (and (equal? (hash-ref h 'parent #f) pid)
+                            (equal? (hash-ref h 'title #f) title)))
+      h))
+  (for ([title (in-list ancestors)])
+    (define existing (find-child-title parent-id title))
+    (cond
+      [existing (set! parent-id (hash-ref existing 'id))]
+      [else
+       (define id (jsonl-mint-id (jsonl-text-from-records new-recs)))
+       (define ords
+         (for/list ([h (in-list new-recs)]
+                    #:when (equal? (hash-ref h 'parent #f) parent-id))
+           (hash-ref h 'ord)))
+       (define ord (if (null? ords) (ord-first) (ord-after (last (sort ords string<?)))))
+       (define scaffold
+         (let* ([h (hash 'id id 'ord ord 'title title)]
+                [h (if parent-id (hash-set h 'parent parent-id) h)])
+           h))
+       (set! new-recs (append new-recs (list scaffold)))
+       (set! parent-id id)]))
+  ;; Attach cut root under parent-id; keep internal parents.
+  (define cut-root-id (hash-ref (car cut-records) 'id))
+  (define sibling-ords
+    (for/list ([h (in-list new-recs)]
+               #:when (equal? (hash-ref h 'parent #f) parent-id))
+      (hash-ref h 'ord)))
+  (define root-ord
+    (if (null? sibling-ords)
+        (ord-first)
+        (ord-after (last (sort sibling-ords string<?)))))
+  (define grafted
+    (for/list ([r (in-list cut-records)])
+      (if (equal? (hash-ref r 'id) cut-root-id)
+          (let* ([h (hash-set r 'ord root-ord)]
+                 [h (if parent-id (hash-set h 'parent parent-id) (hash-remove h 'parent))])
+            h)
+          r)))
+  (define final (append new-recs grafted))
+  (define new-text (jsonl-text-from-records final))
+  ;; Line of the cut root in the new file
+  (define line
+    (for/first ([p (in-list (jsonl-records new-text))]
+                #:when (equal? (hash-ref (cdr p) 'id) cut-root-id))
+      (car p)))
+  (values new-text (or line 1)))
+
+;; ---- daily helpers ----------------------------------------------------------
+
+(define (jsonl-include-paths text)
+  (for/list ([p (in-list (jsonl-records text))]
+             #:when (hash-has-key? (cdr p) 'include))
+    (hash-ref (cdr p) 'include)))
+
+;; Ensure a top-level day record titled `day` exists. -> text, line, created?
+(define (jsonl-ensure-day text day)
+  (define hits (jsonl-find-by-title text day))
+  (cond
+    [(pair? hits) (values text (car (car hits)) #f)]
+    [else
+     (define id (jsonl-mint-id text))
+     (define-values (text* line)
+       (jsonl-insert-child text #f (hash 'id id 'title day)))
+     (values text* line #t)]))
+
+;; Ensure year > month chain and an include record for `rel` under the month.
+;; -> (values text wrote-root?)
+(define (jsonl-root-with-include text year-title mon-title rel)
+  (define recs (map cdr (jsonl-records text)))
+  (define wrote? #f)
+  (define (find-title pid title)
+    (for/first ([h (in-list recs)]
+                #:when (and (equal? (hash-ref h 'parent #f) pid)
+                            (equal? (hash-ref h 'title #f) title)))
+      h))
+  (define year
+    (or (find-title #f year-title)
+        (let ([id (jsonl-mint-id (jsonl-text-from-records recs))])
+          (define h (hash 'id id 'ord (ord-first) 'title year-title))
+          (set! recs (append recs (list h)))
+          (set! wrote? #t)
+          h)))
+  (define year-id (hash-ref year 'id))
+  (define mon
+    (or (find-title year-id mon-title)
+        (let ([id (jsonl-mint-id (jsonl-text-from-records recs))])
+          (define ords
+            (for/list ([h (in-list recs)]
+                       #:when (equal? (hash-ref h 'parent #f) year-id))
+              (hash-ref h 'ord)))
+          (define ord (if (null? ords) (ord-first) (ord-after (last (sort ords string<?)))))
+          (define h (hash 'id id 'parent year-id 'ord ord 'title mon-title))
+          (set! recs (append recs (list h)))
+          (set! wrote? #t)
+          h)))
+  (define mon-id (hash-ref mon 'id))
+  (define already
+    (for/or ([h (in-list recs)])
+      (and (equal? (hash-ref h 'parent #f) mon-id)
+           (equal? (hash-ref h 'include #f) rel)
+           #t)))
+  (unless already
+    (define id (jsonl-mint-id (jsonl-text-from-records recs)))
+    (define ords
+      (for/list ([h (in-list recs)]
+                 #:when (equal? (hash-ref h 'parent #f) mon-id))
+        (hash-ref h 'ord)))
+    (define ord (if (null? ords) (ord-first) (ord-after (last (sort ords string<?)))))
+    (set! recs
+          (append recs
+                  (list (hash 'id id 'parent mon-id 'ord ord 'include rel))))
+    (set! wrote? #t))
+  (values (jsonl-text-from-records recs) wrote?))

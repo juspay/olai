@@ -1,7 +1,7 @@
 Feature: done work leaves the file without dying
 
   `olai archive` moves a node's subtree out of the working outline and into
-  Archive.rkt, re-creating the chain it hung off so the tree still reads years
+  Archive.jsonl, re-creating the chain it hung off so the tree still reads years
   later. The page it left redraws without it — live, like any other edit — and
   a page of its own draws what is in there. The node did not die: its anchor
   moved with it, so a mirror in a file that is still live goes on drawing it.

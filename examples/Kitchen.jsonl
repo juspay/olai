@@ -1,0 +1,7 @@
+{"id":"ol4h","ord":"a0","title":"kitchen remodel #project","desc":"Fiction, like the rest of examples/ — and the demo of the graph beyond\ncontainment. The tree says what CONTAINS what; the lines below say what\ncomes after what, and the checker refuses an ordering that runs in a\ncircle. An edge never moves a node: it points at one."}
+{"id":"demo","parent":"ol4h","ord":"a0","title":"demo the old cabinets","done":true,"desc":"done, so nothing waits on it any more"}
+{"id":"order","parent":"ol4h","ord":"a1","title":"order the new ones","date":"2026-08-10","desc":"blocked by the line under \"clear the driveway\" — the other direction,\nwritten where the writer happened to think of it"}
+{"id":"install","parent":"ol4h","ord":"a2","title":"install","desc":"after two things, one of them still open, so this is blocked and stays\noff today's plate however its date reads","after":["order","demo"]}
+{"id":"kx55","parent":"ol4h","ord":"a3","title":"paint","desc":"@see is a link and nothing more. No ordering, no blocking, and two\nnodes may point at each other all day","after":["install"],"see":["colour"]}
+{"id":"colour","parent":"ol4h","ord":"a4","title":"pick a colour","desc":"Warm white. The samples are in the garage.","see":["install"]}
+{"id":"tyr4","parent":"ol4h","ord":"a5","title":"clear the driveway","blocks":["order"]}

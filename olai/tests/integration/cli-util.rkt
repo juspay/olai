@@ -16,7 +16,7 @@
   (simplify-path
    (build-path (collection-file-path "info.rkt" "olai") 'up 'up)))
 
-(define example (build-path root "examples" "Example.rkt"))
+(define example (build-path root "examples" "Example.jsonl"))
 
 (define (run-olai args)
   (define-values (sp stdout stdin stderr)

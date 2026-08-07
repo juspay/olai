@@ -31,20 +31,24 @@
           ;; flat checks: a name, a predicate over one field, and two strings
           ;; built from a number. Nothing here reads a file.
           [daily-file-name string?]
+          [daily-file-names (listof string?)]
           [daily-file? (-> any/c boolean?)]
           [month-name (-> (integer-in 1 12) string?)]
-          [month-fragment-rel (-> exact-integer? (integer-in 1 12) string?)]
+          [month-fragment-rel (->* (exact-integer? (integer-in 1 12))
+                                   (#:ext string?)
+                                   string?)]
           ;; one month of the journal's own days, on that grid
           [struct day-month ([key (or/c string? #f)] [cells list?])]
           [day-month-for (-> list? string? string? day-month?)]))
 
-;; The one spelling. Capitalised like the other roots an outline home holds
-;; (Tasks.rkt, Archive.rkt): it IS one of them.
-(define daily-file-name "Daily.rkt")
+;; Preferred spelling after the flat-record migration. Daily.rkt still counts
+;; as the journal for a home that has not renamed yet.
+(define daily-file-name "Daily.jsonl")
+(define daily-file-names '("Daily.jsonl" "Daily.rkt"))
 
 ;; A path — or a label a renderer has already reduced to one — that names it.
 (define (daily-file? f)
-  (and f (equal? (file-label f) daily-file-name)))
+  (and f (member (file-label f) daily-file-names) #t))
 
 ;; The month names the journal's own nodes are titled with. English, and the
 ;; outline's rather than the locale's: these are TITLES in a file somebody
@@ -58,10 +62,12 @@
   (vector-ref month-names (sub1 m)))
 
 ;; Where a month's day nodes live, relative to the root that includes them.
-(define (month-fragment-rel year month)
-  (format "Daily/~a-~a.rkt"
+;; `#:ext` matches the journal root's surface (`.jsonl` or `.rkt`).
+(define (month-fragment-rel year month #:ext [ext ".jsonl"])
+  (format "Daily/~a-~a~a"
           year
-          (~r month #:min-width 2 #:pad-string "0")))
+          (~r month #:min-width 2 #:pad-string "0")
+          ext))
 
 ;; ---- a month of it -----------------------------------------------------------
 ;;

@@ -187,7 +187,7 @@ Agent work ^agent
 
 #### Globs
 
-`@include Daily/*.rkt` is the same include with the file names left to the
+`@include Daily/*.jsonl` is the same include with the file names left to the
 directory: one line instead of one per month.
 
 ```racket
@@ -232,7 +232,7 @@ Daily notes ^daily
   server already read being touched.
 
 - **A pattern that covers a fragment is the include.** `olai daily` writes a
-  literal `@include Daily/YYYY-MM.rkt` into `Daily.rkt` — unless a pattern
+  literal `@include Daily/YYYY-MM.jsonl` into `Daily.rkt` — unless a pattern
   already there names that file, in which case it writes the fragment and
   leaves the root alone. Two includes of one file are that file spliced twice
   ([docs/cli.md](cli.md#daily---date-yyyy-mm-dd---home-dir---no-commit)).
@@ -260,7 +260,7 @@ Three phases, one checker (`lang/graph`), same rules and same messages:
 - Unknown `*id` → error at the mirror site, listing the anchors the set does have, and naming the near miss: `unknown *meting-prep; anchors in the loaded set: agent, meeting-prep; did you mean *meeting-prep?`
 - Cycle (direct, via other anchors, or through another file) → error with path, e.g. `agent -> week -> agent`.
 
-The repo's own demo is `examples/Week.rkt`, whose `*agent` is the node `examples/Example.rkt` declares — `just check` and `just serve` load both, and `olai check examples/Week.rkt` on its own is the error above.
+The repo's own demo is `examples/Week.jsonl`, whose `*agent` is the node `examples/Example.jsonl` declares — `just check` and `just serve` load both, and `olai check examples/Week.jsonl` on its own is the error above.
 
 JSON tree sites emit `{"mirror":"id"}` (never inline the subtree). The top-level `anchors` object is the **set's** index — each anchored node once, with the `file` that defines it when the set has more than one root. Agenda counts a dated node once, at its defining breadcrumb, however many files mirror it. Writes go to the defining file: `olai done '^meeting-prep' --file Daily.rkt` edits `Tasks.rkt` (see [docs/cli.md](cli.md)). Web view: the defining site gets `id="anchor"` (a target a hand-written `#anchor` in a note still reaches); mirror sites render with a ↗ link to the node's own page, `/n/<key>`, and follow an edit to the file that defines the node. The arrow is not a fragment: a mirror is usually drawn on a page the defining site is not on at all — every zoom, and every file that only names the anchor — so a `#anchor` there is a click that does nothing.
 
@@ -309,7 +309,7 @@ change to the language, not a field you may invent:
   can start; a node that is finished has started. So a `@done` node never reads
   as blocked, whatever its `@after` target says.
 - **An archived node neither blocks nor is blocked.** Work put away in
-  `Archive.rkt` is out of every live view, both ways round: it is not told it
+  `Archive.jsonl` is out of every live view, both ways round: it is not told it
   cannot start (there is a page that draws it, and a pill there would be
   nonsense), and it stops standing in anyone's way — archiving is what you do
   to work that is over, so a live node still waiting on one would wait forever.
@@ -345,7 +345,7 @@ be after itself, however long the way round), while `@see` cycles are fine —
 two notes may point at each other all day. A node may carry any number of
 edges, and the same node may be written `@after` twice.
 
-The repo's demo is `examples/Kitchen.rkt`.
+The repo's demo is `examples/Kitchen.jsonl`.
 
 ## `#lang olai/sexp` — s-expression core
 
@@ -363,7 +363,7 @@ The underlying form the expander sees. Useful for tests and for agents that pref
    (t "Shipped" #:done "2026-08-03"))
 ```
 
-Keywords `#:id`, `#:date`, `#:doc`, `#:description`, `#:done` and `#:doing` are optional, any order, at most once each. `#:done` / `#:doing` may be bare or take an ISO date/datetime, and a node may carry at most one of the two. `#:after`, `#:blocks` and `#:see` are the [typed edges](#typed-edges) — same three relations, any number of them, and the anchor is a bare string here (the `^` is the outline surface's sigil, like `*` for a mirror). Children are `(t ...)`, `(mirror "anchor")`, or `(include "relative/path.rkt")` — closed grammar, same three forms allowed at top level. `include` takes a [glob](#globs) here too (`(include "Daily/*.rkt")`): one surface syntax does not get language the other does not. Module exports `tasks`, `anchors` (hash id → task), `includes` (absolute paths spliced in) and `include-globs` (the absolute patterns that found them, empty unless a glob was written).
+Keywords `#:id`, `#:date`, `#:doc`, `#:description`, `#:done` and `#:doing` are optional, any order, at most once each. `#:done` / `#:doing` may be bare or take an ISO date/datetime, and a node may carry at most one of the two. `#:after`, `#:blocks` and `#:see` are the [typed edges](#typed-edges) — same three relations, any number of them, and the anchor is a bare string here (the `^` is the outline surface's sigil, like `*` for a mirror). Children are `(t ...)`, `(mirror "anchor")`, or `(include "relative/path.rkt")` — closed grammar, same three forms allowed at top level. `include` takes a [glob](#globs) here too (`(include "Daily/*.jsonl")`): one surface syntax does not get language the other does not. Module exports `tasks`, `anchors` (hash id → task), `includes` (absolute paths spliced in) and `include-globs` (the absolute patterns that found them, empty unless a glob was written).
 
 ## JSONL — flat-record
 

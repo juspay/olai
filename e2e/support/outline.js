@@ -1,12 +1,11 @@
 // The outline a scenario boots against, and the breakage one scenario feeds
 // it.
 //
-// The fixture is a REAL `#lang olai` file (e2e/fixtures/Tasks.rkt), read once
-// per run and written into each scenario's temp dir: the language is the only
-// validator, so a typo in it is a srcloc out of `olai check` — which the CI
-// smoke lane runs over this file — and not a browser-level mystery three
-// layers away. The quoteless outline has no comment syntax, which is why what
-// the fixture is FOR is written here rather than in it.
+// The fixture is a REAL flat-record JSONL file (e2e/fixtures/Tasks.jsonl),
+// read once per run and written into each scenario's temp dir: the language is
+// the only validator, so a typo in it is a srcloc out of `olai check` — which
+// the CI smoke lane runs over this file — and not a browser-level mystery
+// three layers away.
 //
 // Fiction, like examples/: no personal data reaches this suite. Every title in
 // it is distinct enough that a step can name a node by a SUBSTRING of its
@@ -31,12 +30,12 @@ import * as path from "node:path";
 const FIXTURES = path.join(import.meta.dirname, "..", "fixtures");
 
 export const FIXTURE = await fs.readFile(
-  path.join(FIXTURES, "Tasks.rkt"),
+  path.join(FIXTURES, "Tasks.jsonl"),
   "utf8",
 );
 
 // The SECOND root, for the scenarios about an anchor whose scope is the
-// loaded set: it mirrors `^serve`, which Tasks.rkt declares. Only staged for
+// loaded set: it mirrors `^serve`, which Tasks.jsonl declares. Only staged for
 // a scenario tagged @cross-file (support/hooks.js), because a set of two is
 // the state those scenarios start in.
 //
@@ -44,7 +43,7 @@ export const FIXTURE = await fs.readFile(
 // checks the files it is GIVEN as one set, and this one alone is a set whose
 // mirror names nothing. Every @cross-file scenario boots a server on it,
 // which is the check it can actually pass.
-export const SECOND_OUTLINE = "Week.rkt";
+export const SECOND_OUTLINE = "Week.jsonl";
 
 export const SECOND = await fs.readFile(
   path.join(FIXTURES, SECOND_OUTLINE),
@@ -60,7 +59,7 @@ export const SECOND = await fs.readFile(
 //
 // It arrives holding something, because "already has an archive" is the state
 // every archive after the first one lands in.
-export const ARCHIVE_OUTLINE = "Archive.rkt";
+export const ARCHIVE_OUTLINE = "Archive.jsonl";
 
 export const ARCHIVE = await fs.readFile(
   path.join(FIXTURES, ARCHIVE_OUTLINE),
@@ -75,8 +74,9 @@ export const DOC_PATH = path.join("notes", "serve.md");
 
 export const DOC = await fs.readFile(path.join(FIXTURES, DOC_PATH), "utf8");
 
-// A form the expander rejects — `@date` wants an ISO date — with a srcloc the
-// banner can name. A string, not a file: it must not parse, so it cannot be
+// A form the jsonl loader rejects — `date` wants an ISO date — with a srcloc
+// the banner can name. A string, not a file: it must not load, so it cannot be
 // one of the repo's checked outlines. The same broken form stands in for "a
 // file mid-edit" in olai/tests/integration/serve.rkt and nix/smoke.nix.
-export const BREAKAGE = "Broken\n  @date not-a-date\n";
+export const BREAKAGE =
+  '{"id":"broken","ord":"z9","title":"Broken","date":"not-a-date"}\n';

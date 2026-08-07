@@ -48,7 +48,7 @@ export class OlaiWorld extends World {
   async boot(browser, env = {}, viewport = VIEWPORT, extras = []) {
     this.serverEnv = env;
     this.dir = await fs.mkdtemp(path.join(os.tmpdir(), "olai-e2e-"));
-    this.outlinePath = path.join(this.dir, "Tasks.rkt");
+    this.outlinePath = path.join(this.dir, "Tasks.jsonl");
     // the document first: the outline's @doc names it, and the language
     // refuses an outline whose document is not there
     await this.rewriteDoc(DOC);
@@ -177,7 +177,7 @@ export class OlaiWorld extends World {
    *  it, and a later step that edits the text has to start from what is
    *  actually there. */
   async olai(command, ...rest) {
-    await this.olaiOn("Tasks.rkt", command, ...rest);
+    await this.olaiOn("Tasks.jsonl", command, ...rest);
   }
 
   /** The same command pointed at another outline in this scenario's
@@ -202,7 +202,7 @@ export class OlaiWorld extends World {
     await fs.writeFile(path.join(this.dir, name), text, "utf8");
   }
 
-  /** The day journal, written by the product's own command: Daily.rkt, this
+  /** The day journal, written by the product's own command: Daily.jsonl, this
    *  month's fragment, and a day node for today (docs/cli.md, `daily`).
    *
    *  A calendar scenario needs a day that IS today, which no committed fixture

@@ -409,7 +409,7 @@
   (eprintf "           mark in progress ([/]); done clears it\n")
   (eprintf "  move     [--file F] [--no-commit] [--clear] TITLE|^anchor DATE\n")
   (eprintf "  archive  [--file F] [--no-commit] TITLE|^anchor\n")
-  (eprintf "           move the subtree into Archive.rkt, ancestors and all\n")
+  (eprintf "           move the subtree into Archive.jsonl, ancestors and all\n")
   (eprintf "  daily    [--date YYYY-MM-DD] [--home DIR] [--no-commit]\n")
   (eprintf "           ensure today in Daily/\n")
   (eprintf "\n")

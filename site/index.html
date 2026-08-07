@@ -264,7 +264,7 @@ errors are the error object on stderr. Exit codes are contract: <b>0</b> ok,
 fields are append-only within a <code>version</code>. No ANSI, no terminal
 tree, no plain mode — the human view is the web app.</p>
 
-<pre><code>$ olai tree examples/Example.rkt
+<pre><code>$ olai tree examples/Example.jsonl
 {
   "version": 1,
   "file": ".../Example.rkt",
@@ -341,7 +341,7 @@ $ nix run github:juspay/olai#cli -- check Tasks.rkt   <span class="cm"># the CLI
 $ just install       <span class="cm"># gregor + markdown, then --link olai/</span>
 $ just serve         <span class="cm"># $OLAI_HOME on http://127.0.0.1:8080</span>
 $ just check         <span class="cm"># validates $OLAI_HOME/*.rkt</span>
-$ just tree examples/Example.rkt
+$ just tree examples/Example.jsonl
 </code></pre>
 
 <p>To leave it running, the flake ships a
@@ -364,7 +364,7 @@ from the service you read:</p>
 <p>Your data lives outside the repo: point <code>OLAI_HOME</code> at the
 directory holding your <code>*.rkt</code> outlines. There is no default —
 unset, the write commands say so, and the repo serves its own
-<code>examples/</code> plus <code>Roadmap.rkt</code> instead. Sync that
+<code>examples/</code> plus <code>Roadmap.jsonl</code> instead. Sync that
 directory however you like: git, Dropbox, rsync. Single user, many devices.</p>
 
 <h2>Status</h2>
@@ -382,7 +382,7 @@ no auth, and no multi-user story (there will not be one; it is single user by
 design). Ancestor: <a href="https://github.com/srid/Tend">srid/Tend</a>.</p>
 
 <p>The project tracks its own plan the way it wants you to track yours:
-<a href="https://github.com/juspay/olai/blob/master/Roadmap.rkt">Roadmap.rkt</a>
+<a href="https://github.com/juspay/olai/blob/master/Roadmap.jsonl">Roadmap.jsonl</a>
 at the repo root is a <code>#lang olai</code> outline, edited and committed
 like any other file.</p>
 

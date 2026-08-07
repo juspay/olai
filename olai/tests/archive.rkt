@@ -136,14 +136,16 @@
 
 (module+ test
   (test-case "archived is a file, not a state"
-    (check-true (archived-file? (string->path "/home/me/notes/Archive.rkt")))
-    (check-true (archived-file? "/home/me/notes/Archive.rkt"))
-    (check-false (archived-file? "/home/me/notes/Tasks.rkt"))
-    (check-false (archived-file? "/home/me/Archive.rkt.bak"))
+    (check-true (archived-file? (string->path "/home/me/notes/Archive.jsonl")))
+    (check-true (archived-file? "/home/me/notes/Archive.rkt")) ; pre-migration
+    (check-false (archived-file? "/home/me/notes/Tasks.jsonl"))
+    (check-false (archived-file? "/home/me/Archive.jsonl.bak"))
     (check-false (archived-file? #f))
-    ;; beside the outline named, whatever else is in the directory
+    ;; beside the outline named; surface matches the source
     (check-equal? (archive-path-for (string->path "/home/me/notes/Tasks.rkt"))
-                  (string->path "/home/me/notes/Archive.rkt"))))
+                  (string->path "/home/me/notes/Archive.rkt"))
+    (check-equal? (archive-path-for (string->path "/home/me/notes/Tasks.jsonl"))
+                  (string->path "/home/me/notes/Archive.jsonl"))))
 
 ;; ---- the op ----------------------------------------------------------------
 

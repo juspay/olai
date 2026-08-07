@@ -2,7 +2,7 @@ Feature: one node, shown wherever it matters
 
   A `^anchor` names a node across the whole set of outlines the server was
   pointed at, not just inside the file that wrote it. So a second file can
-  put `*serve` in its own list and get the node Tasks.rkt defines — the same
+  put `*serve` in its own list and get the node Tasks.jsonl defines — the same
   node, not a copy: it follows an edit to the file that defines it, and
   checking it off from either side flips the one that is real.
 
@@ -30,7 +30,7 @@ Feature: one node, shown wherever it matters
   Scenario: checking it off from the mirroring file flips the one real node
     When I open the home page
     Then "Ship the server" is not done
-    When I check off "^tests" from the CLI against "Week.rkt"
+    When I check off "^tests" from the CLI against "Week.jsonl"
     Then "Ship the server" becomes done
 
   # THE ARROW. It is a link to the node this site mirrors, and the node is
@@ -45,7 +45,7 @@ Feature: one node, shown wherever it matters
     And I follow the mirror's arrow under "Next week"
     Then I am on a node's own page
     And the tab is named for "Ship the server"
-    And the breadcrumbs read "home > Tasks.rkt"
+    And the breadcrumbs read "home > Tasks.jsonl"
     And I see the title "Write the tests"
 
   # The same arrow on the one page the fragment did work — where it scrolled
@@ -55,5 +55,5 @@ Feature: one node, shown wherever it matters
     And I follow the mirror's arrow under "This week"
     Then I am on a node's own page
     And the tab is named for "Ship the server"
-    And the breadcrumbs read "home > Tasks.rkt"
+    And the breadcrumbs read "home > Tasks.jsonl"
     And I see the title "Write the tests"

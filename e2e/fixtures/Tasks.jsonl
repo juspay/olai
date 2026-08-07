@@ -1,0 +1,9 @@
+{"id":"gfte","ord":"a0","title":"Inbox #capture","desc":"Quick capture landing zone"}
+{"id":"jv9l","parent":"gfte","ord":"a0","title":"Buy milk","date":"2026-01-15"}
+{"id":"5i7h","parent":"gfte","ord":"a1","title":"Ship the pitch","done":true}
+{"id":"serve","ord":"a1","title":"Ship the server","desc":"A fold is only real in a browser, so the note that proves it has to be\nlong enough to wrap several times over on a desktop screen and on a phone\nalike. Every line of it is in the page; only the first is on it.","doc":"notes/serve.md"}
+{"id":"tests","parent":"serve","ord":"a0","title":"Write the tests"}
+{"id":"9zer","ord":"a2","title":"This week"}
+{"id":"zkta","parent":"9zer","ord":"a0","mirror":"serve"}
+{"id":"ewl8","ord":"a3","title":"Draft the migration plan","doing":true,"desc":"who is on it lives here, not in the grammar"}
+{"id":"jbzc","ord":"a4","title":"Announce the release","desc":"not actionable until the server ships — the graph says so, and the page\ndraws a pill saying so","after":["serve"]}

@@ -1,0 +1,10 @@
+{"id":"xsg1","ord":"a0","title":"2026-08-03"}
+{"id":"sfw1","parent":"xsg1","ord":"a0","title":"Setup day"}
+{"id":"o3q9","parent":"sfw1","ord":"a0","title":"Point tools at Dropbox"}
+{"id":"standup","parent":"xsg1","ord":"a1","title":"Standup notes","desc":"Mirrored from Daily.rkt for the week view."}
+{"id":"9up2","parent":"standup","ord":"a0","title":"Ship the include demo"}
+{"id":"t68q","ord":"a1","title":"2026-08-04"}
+{"id":"6dzr","parent":"t68q","ord":"a0","title":"Morning"}
+{"id":"fip7","parent":"6dzr","ord":"a0","title":"Write examples","date":"2026-08-04T09:30"}
+{"id":"2inz","parent":"t68q","ord":"a1","title":"Afternoon"}
+{"id":"8dvl","parent":"2inz","ord":"a0","title":"Review PR queue"}

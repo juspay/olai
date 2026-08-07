@@ -20,8 +20,26 @@ import { isMarkedElement, markElement } from "../support/dom.js";
 // now and lists the same top-level nodes, so an unscoped match finds the title
 // twice — once in each surface that followed the write.
 When("the outline is long enough to scroll", async function () {
-  const filler = Array.from({ length: 60 }, (_, i) => `Filler ${i}`).join("\n");
-  await this.append(`${filler}\n`);
+  // Append 60 top-level JSONL records so the page is taller than the window.
+  const recs = this.outline
+    .split("\n")
+    .filter((l) => l.trim() !== "")
+    .map((l) => JSON.parse(l));
+  const used = new Set(recs.map((r) => r.id));
+  let n = 0;
+  const mint = () => {
+    while (true) {
+      const id = `f${(n++).toString(36)}`;
+      if (!used.has(id)) {
+        used.add(id);
+        return id;
+      }
+    }
+  };
+  for (let i = 0; i < 60; i++) {
+    recs.push({ id: mint(), ord: `z${i.toString(36)}`, title: `Filler ${i}` });
+  }
+  await this.rewrite(recs.map((r) => JSON.stringify(r)).join("\n") + "\n");
   await this.node("Filler 59").first().waitFor();
 });
 

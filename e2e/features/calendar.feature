@@ -1,7 +1,7 @@
 @daily
 Feature: The journal, as a month
 
-  Daily.rkt has no entry of its own in the sidebar: a file name was never a way
+  Daily.jsonl has no entry of its own in the sidebar: a file name was never a way
   into anything, and the days under it are. The month is drawn instead — today
   marked, a day the journal HAS a link to that day's page, a day it has nothing
   for a number and nothing else.
@@ -23,7 +23,7 @@ Feature: The journal, as a month
 
   Scenario: the month header is the way to the whole journal
     When I open the home page
-    Then the sidebar does not list "Daily.rkt"
+    Then the sidebar does not list "Daily.jsonl"
     When I follow the calendar's month
     Then I am on a node's own page
     And the main pane is zoomed

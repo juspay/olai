@@ -6,7 +6,7 @@ Read [README.md](README.md) and `docs/*.md` first (especially [docs/hacking.md](
 
 ## HARD RULES
 
-* Personal outline DATA lives in `$OLAI_HOME` (no default path; unset is a usage error; the repo never names anyone's data dir). NEVER commit or invent it. The repo's public outlines are `docs/olai/` (`Roadmap.rkt`, `Archive.rkt`); `examples/` is demo fiction for CI. Re-validate any outline after editing it.
+* Personal outline DATA lives in `$OLAI_HOME` (no default path; unset is a usage error; the repo never names anyone's data dir). NEVER commit or invent it. The repo's public outlines are `docs/olai/` (`Roadmap.jsonl`, `Archive.jsonl`); `examples/` is demo fiction for CI. Re-validate any outline after editing it.
 * No hand-rolling where a maintained library exists. In use: `racket/cmdline`, `json`, `xml` (xexprs), `gregor`, `markdown` (web view only).
 * The LANGUAGE is the only validator: `lang/graph` at compile time, over the spliced tree at run time, over the whole loaded SET in `lang/link` (an anchor's scope is the set). Never validate in the reader, the CLI, the store, or the web layer.
 * Error messages carry `file:line:col` of the OFFENDING form. srcloc fidelity has tests; keep them passing.

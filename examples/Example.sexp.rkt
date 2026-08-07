@@ -1,6 +1,6 @@
 #lang olai/sexp
 
-;; Same shape as examples/Example.rkt, in the underlying s-expression core.
+;; Same shape as examples/Example.jsonl, in the underlying s-expression core.
 ;; Prefer #lang olai (outline) for day-to-day editing.
 
 (t "Inbox #capture"

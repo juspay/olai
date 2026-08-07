@@ -19,6 +19,11 @@
          ;; questions `capture` and `subtree` ask, asked of the same module
          olai/lang/section
          (except-in olai/lang/expander #%module-begin)
+         (only-in olai/lang/jsonl
+                  jsonl-path?
+                  jsonl-ensure-day
+                  jsonl-root-with-include
+                  jsonl-include-paths)
          ;; what the journal is CALLED, and what its months are: pure naming,
          ;; which every layer asks about and only this one writes (olai/journal)
          olai/journal
@@ -53,10 +58,25 @@
   (when (path? base)
     (make-directory* base)))
 
-(define (ensure-file-lang path)
+(define (ensure-file-outline path)
   (unless (file-exists? path)
     (make-parent-directory* path)
-    (display-to-file "#lang olai\n" path #:exists 'error)))
+    (display-to-file
+     (if (jsonl-path? path) "" "#lang olai\n")
+     path #:exists 'error)))
+
+;; Prefer Daily.jsonl when either exists or neither does; fall back to a
+;; pre-migration Daily.rkt that is still the only journal on disk.
+(define (daily-root-path home-path)
+  (define jl (build-path home-path "Daily.jsonl"))
+  (define rk (build-path home-path "Daily.rkt"))
+  (cond
+    [(file-exists? jl) jl]
+    [(file-exists? rk) rk]
+    [else jl]))
+
+(define (fragment-ext root)
+  (if (jsonl-path? root) ".jsonl" ".rkt"))
 
 ;; Ensure day node exists. Returns hash of result fields (no version/ok).
 ;; #:on-applied is called with every file actually rewritten (0, 1 or 2 of
@@ -77,21 +97,67 @@
   (define (edit! path text) (set-box! edits (cons (cons path text) (unbox edits))))
   (define-values (y m) (parse-iso-day day))
   (define home-path (simple-form-path (expand-user-path home)))
-  (define root (build-path home-path daily-file-name))
-  (define rel (month-fragment-rel y m))
+  (define root (daily-root-path home-path))
+  (define ext (fragment-ext root))
+  (define rel (month-fragment-rel y m #:ext ext))
   (define frag (build-path home-path rel))
   (define year-title (number->string y))
   (define mon-title (month-name m))
 
-  (ensure-file-lang root)
+  (ensure-file-outline root)
   (define created-month? #f)
   (define created-day? #f)
 
   (unless (file-exists? frag)
     (set! created-month? #t)
     (make-parent-directory* frag)
-    (display-to-file "#lang olai\n" frag #:exists 'error))
+    (display-to-file
+     (if (jsonl-path? frag) "" "#lang olai\n")
+     frag #:exists 'error))
 
+  (cond
+    [(jsonl-path? root)
+     (ensure-daily-day-jsonl! home-path root frag rel day year-title mon-title
+                              created-month? edit!)]
+    [else
+     (ensure-daily-day-outline! home-path root frag rel day year-title mon-title
+                                created-month? edit!)]))
+
+(define (ensure-daily-day-jsonl! home-path root frag rel day year-title mon-title
+                                 created-month? edit!)
+  (define created-day? #f)
+  (define frag-text (file->string frag))
+  (define-values (frag-text* day-line created?)
+    (jsonl-ensure-day frag-text day))
+  (when created?
+    (set! created-day? #t)
+    (edit! frag frag-text*))
+  (define root-text (file->string root))
+  (define covered-by (covering-glob-jsonl root-text home-path rel))
+  (define-values (root-text* wrote-root?)
+    (if covered-by
+        (values root-text #f)
+        (jsonl-root-with-include root-text year-title mon-title rel)))
+  (when wrote-root?
+    (edit! root root-text*))
+  (hash 'day day
+        'file (path->string (simple-form-path frag))
+        'created_month (or created-month? wrote-root?)
+        'created_day created-day?
+        'covered_by_glob covered-by
+        'line day-line))
+
+(define (covering-glob-jsonl text dir rel)
+  (define target (include-absolute rel dir))
+  (for/or ([p (in-list (jsonl-include-paths text))])
+    (and (include-glob? p)
+         (relative-path? (string->path p))
+         (glob-match? (include-absolute p dir) target)
+         p)))
+
+(define (ensure-daily-day-outline! home-path root frag rel day year-title mon-title
+                                   created-month? edit!)
+  (define created-day? #f)
   (define frag-text (file->string frag))
   (define frag-lines (text-lines frag-text))
   (define day-idx (find-title-line frag-lines day 0))
@@ -221,7 +287,8 @@
 ;; Returns (list task-count-before task-count-after).
 (define (migrate-monolithic-daily! home)
   (define home-path (simple-form-path (expand-user-path home)))
-  (define root (build-path home-path daily-file-name))
+  ;; Migration is from the pre-jsonl monolithic #lang olai spelling only.
+  (define root (build-path home-path "Daily.rkt"))
   (unless (file-exists? root)
     (error 'migrate "no Daily.rkt at ~a" root))
   (define n-before
@@ -297,6 +364,7 @@
        "\n"))
     (display-to-file body frag #:exists 'truncate/replace)
     (dynamic-require `(file ,(path->string frag)) 'tasks))
+  ;; Fragments stay #lang olai (.rkt); this command is the pre-jsonl rollover.
 
   ;; Everything above the first year node stays at the root, verbatim.
   (define header-lines
@@ -324,7 +392,8 @@
               (for/list ([m (in-list months)])
                 (list (string-append "  " (month-name m))
                       (string-append "    @include "
-                                     (month-fragment-rel (string->number y) m)))))))))
+                                     (month-fragment-rel (string->number y) m
+                                                         #:ext ".rkt")))))))))
 
   (define hdr
     (if (and (pair? header-lines) (blank-line? (last header-lines)))

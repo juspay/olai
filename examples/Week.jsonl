@@ -1,0 +1,4 @@
+{"id":"week","ord":"a0","title":"This week","desc":"Fiction, like the rest of examples/ — and the demo of one node shown in\ntwo files. The node below is not defined here: Example.rkt declares it,\nthis file only names it. Loaded together they are one node; loaded alone\nthis file is an outline whose *agent reaches nothing, and olai says so."}
+{"id":"v5li","parent":"week","ord":"a0","mirror":"agent"}
+{"id":"p0f1","parent":"week","ord":"a1","title":"Write the retro","date":"2026-12-05"}
+{"id":"t8dz","parent":"week","ord":"a2","title":"Read the linker over again","doing":true,"desc":"mirrors resolve across the whole loaded set, not one file"}

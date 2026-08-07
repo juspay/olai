@@ -16,7 +16,7 @@ wants headings, lists and code. Those live in a file next to the outline, so
 - The string in the outline is data; the HTML is a reading of it.
 
 ```bash
-$ olai tree examples/Example.rkt | jq '.. | .doc? // empty'
+$ olai tree examples/Example.jsonl | jq '.. | .doc? // empty'
 "docs/agent-work.md"
 ```
 

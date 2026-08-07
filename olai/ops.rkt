@@ -23,7 +23,10 @@
          ;; all — the rule is the language's, and a write only asks it
          (only-in olai/lang/expander
                   task-title task-status task-child-tasks task-status-derived?)
-         (only-in olai/lang/jsonl jsonl-path?)
+         (only-in olai/lang/jsonl
+                  jsonl-path?
+                  jsonl-cut-subtree
+                  jsonl-graft-subtree)
          olai/jsonl-edit
          olai/status
          olai/edit
@@ -426,22 +429,24 @@
   ;; answers that one.
   (when (archived-file? src)
     (op-fail 'validation "~s is already archived (~a)" #:file src title src))
-  ;; cut/graft are outline-text operations; JSONL archive needs its own
-  ;; subtree rewrite and is not in this PR.
-  (when (or (jsonl-file? src) (jsonl-file? dest))
-    (op-fail 'validation
-             #:file src
-             "archive does not yet support .jsonl outlines (~a); use #lang olai"
-             src))
   (define created? (not (file-exists? dest)))
-  (define-values (src-text* block ancestors)
-    (as-validation src (λ () (cut-subtree (file->string src)
-                                          (located-index hit)))))
-  (define-values (dest-text* line)
-    (as-validation dest
-                   (λ () (graft-subtree (outline-text-or-new dest)
-                                        ancestors
-                                        block))))
+  (define-values (src-text* dest-text* line ancestors)
+    (as-validation
+     src
+     (λ ()
+       (cond
+         [(jsonl-file? src)
+          (define-values (src* cut-recs ancs)
+            (jsonl-cut-subtree (file->string src) (located-index hit)))
+          (define-values (dest* ln)
+            (jsonl-graft-subtree (outline-text-or-new dest) ancs cut-recs))
+          (values src* dest* ln ancs)]
+         [else
+          (define-values (src* block ancs)
+            (cut-subtree (file->string src) (located-index hit)))
+          (define-values (dest* ln)
+            (graft-subtree (outline-text-or-new dest) ancs block))
+          (values src* dest* ln ancs)]))))
   (define committed?
     (write! (list (cons src src-text*) (cons dest dest-text*))
             #:commit (and commit? (format "archive: ~a" title))))

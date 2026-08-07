@@ -17,7 +17,7 @@ Feature: one node, zoomed
   Scenario: the breadcrumbs are the trail above the node
     When I open the home page
     And I zoom into "Buy milk"
-    Then the breadcrumbs read "home > Tasks.rkt > Inbox #capture"
+    Then the breadcrumbs read "home > Tasks.jsonl > Inbox #capture"
     When I follow the breadcrumb "Inbox #capture"
     Then the main pane is zoomed
     And the tab is named for "Inbox"

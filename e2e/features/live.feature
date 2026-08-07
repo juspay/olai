@@ -21,18 +21,18 @@ Feature: the outline, live
     And the page has not reloaded
 
   # And the file the page follows does not have to exist when the page is
-  # drawn. `@include Daily/*.rkt` names a DIRECTORY's worth of fragments, so
+  # drawn. `@include Daily/*.jsonl` names a DIRECTORY's worth of fragments, so
   # the first one of a new month arriving is a change with nothing in it that
   # the server had already read — no mtime moved, nothing was saved over. The
   # pattern is what gets asked again (docs/syntax.md, Globs).
 
   Scenario: a file appearing in a glob's directory joins the outline
-    Given a fragment "Daily/2026-01.rkt" holding "January standup"
+    Given a fragment "Daily/2026-01.jsonl" holding "January standup"
     When I open the home page
     And I mark this page load
-    And the outline includes the fragments in "Daily/*.rkt"
+    And the outline includes the fragments in "Daily/*.jsonl"
     Then I see the title "January standup"
-    When a fragment "Daily/2026-02.rkt" appears holding "February standup"
+    When a fragment "Daily/2026-02.jsonl" appears holding "February standup"
     Then I see the title "February standup"
     And the page has not reloaded
 

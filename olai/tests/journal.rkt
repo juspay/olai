@@ -72,15 +72,17 @@
   ;; The journal is recognised by its BASENAME, the way the archive is
   ;; (olai/archive) — a path or a label a renderer already reduced to one.
   (test-case "which root is the journal"
-    (check-true (daily-file? "Daily.rkt"))
-    (check-true (daily-file? "/home/me/notes/Daily.rkt"))
-    (check-true (daily-file? (string->path "/home/me/notes/Daily.rkt")))
-    (check-false (daily-file? "Tasks.rkt"))
-    (check-false (daily-file? "Daily/2026-08.rkt"))
+    (check-true (daily-file? "Daily.jsonl"))
+    (check-true (daily-file? "Daily.rkt")) ; pre-migration spelling
+    (check-true (daily-file? "/home/me/notes/Daily.jsonl"))
+    (check-true (daily-file? (string->path "/home/me/notes/Daily.jsonl")))
+    (check-false (daily-file? "Tasks.jsonl"))
+    (check-false (daily-file? "Daily/2026-08.jsonl"))
     (check-false (daily-file? #f)))
 
   (test-case "a month's name and its fragment"
     (check-equal? (month-name 1) "January")
     (check-equal? (month-name 8) "August")
-    (check-equal? (month-fragment-rel 2026 8) "Daily/2026-08.rkt")
-    (check-equal? (month-fragment-rel 2026 12) "Daily/2026-12.rkt")))
+    (check-equal? (month-fragment-rel 2026 8) "Daily/2026-08.jsonl")
+    (check-equal? (month-fragment-rel 2026 12) "Daily/2026-12.jsonl")
+    (check-equal? (month-fragment-rel 2026 8 #:ext ".rkt") "Daily/2026-08.rkt")))

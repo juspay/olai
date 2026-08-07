@@ -1,0 +1,22 @@
+{"id":"zptb","ord":"a0","title":"Inbox #capture","desc":"Quick capture landing zone"}
+{"id":"ko1c","parent":"zptb","ord":"a0","title":"Buy milk — don't quote me; 2% \"raw\" milk is fine","date":"2026-01-15T08:00","desc":"overdue sample"}
+{"id":"grz1","parent":"zptb","ord":"a1","title":"Write olai README","desc":"Ship the pitch before the code calcifies. In the web view this\nnote folds to its first line — the ... at the row's edge opens\nthe rest. The pitch: an outliner that is a programming language,\nwhere agents read and write the same files you do, and the\nchecker refuses what would break you."}
+{"id":"kano","parent":"grz1","ord":"a0","title":"Compare Racket vs Rhombus","doing":true,"desc":"in progress via checkbox sugar — on the agenda's DOING group"}
+{"id":"g9pi","parent":"grz1","ord":"a1","title":"Draft the WHY section","doing":"2026-08-03","desc":"in progress with a stamp"}
+{"id":"1uqw","parent":"grz1","ord":"a2","title":"Ship phase 0.1 #lang","date":"2026-08-03T14:30","desc":"today-ish sample with a time"}
+{"id":"agent","parent":"zptb","ord":"a2","title":"Agent work","desc":"Anchored sample for mirrors","doc":"docs/agent-work.md"}
+{"id":"qjzz","parent":"zptb","ord":"a3","title":"This week"}
+{"id":"ms1j","parent":"qjzz","ord":"a0","mirror":"agent"}
+{"id":"m8q0","ord":"a1","title":"Derived state","desc":"Fiction, like the rest of examples/ — and the demo of what a parent does\nNOT store. None of the three headings below wears a checkbox; each has one\nanyway, computed from what is under it every time anybody asks, so none of\nthem can go stale. See docs/syntax.md#derived-state."}
+{"id":"xgck","parent":"m8q0","ord":"a0","title":"0.5 the write path","desc":"all children done, so this reads done — checked, struck through — and\nnothing in the file says so. `olai done` on it is refused (exit 4):\nthere is nothing left to write."}
+{"id":"k1el","parent":"xgck","ord":"a0","title":"ratify the form","done":true}
+{"id":"2539","parent":"xgck","ord":"a1","title":"wire the route","done":true}
+{"id":"akfz","parent":"m8q0","ord":"a1","title":"0.6 the command palette","desc":"started and not finished, so this reads [/] — half-filled box, no\nstrikethrough. `olai done` on it names the child that is left instead of\nmarking the parent, and marks nothing."}
+{"id":"oldp","parent":"akfz","ord":"a0","title":"the search index","done":true}
+{"id":"awvj","parent":"akfz","ord":"a1","title":"the palette itself"}
+{"id":"nql9","parent":"m8q0","ord":"a2","title":"0.7 the mobile view","desc":"nobody has begun, so this reads open. Deriving [/] here would be a claim\nabout somebody's attention that nobody made."}
+{"id":"583c","parent":"nql9","ord":"a0","title":"pick a layout"}
+{"id":"fsnt","parent":"nql9","ord":"a1","title":"ship it"}
+{"id":"aofc","ord":"a2","title":"Someday"}
+{"id":"qiro","parent":"aofc","ord":"a0","title":"Calendar view","date":"2026-12-01","desc":"upcoming sample — agenda over date literals"}
+{"id":"9sys","parent":"aofc","ord":"a1","title":"PWA offline capture","desc":"Manifest + service worker"}

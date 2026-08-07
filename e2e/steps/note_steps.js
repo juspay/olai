@@ -66,9 +66,25 @@ Then("the mirrored note under {string} is folded", async function (parent) {
 
 // Nothing cut off. For the note that is already one line this is the whole
 // assertion: nothing was ever hidden, so there is nothing to open.
+// After a live re-swap, notes.js re-applies open state on htmx:afterSettle —
+// wait for the expanded class so we do not assert mid-measurement.
 Then("the note under {string} shows all of it", async function (title) {
+  const blk = block(this, title);
+  await measured(this);
+  // Open notes are re-expanded from localStorage after settle; wait until the
+  // class says so (or until the box already shows everything, for short notes).
+  await this.page.waitForFunction(
+    (el) => {
+      const n = el.querySelector(".ol-note");
+      if (!n) return false;
+      if (el.classList.contains("is-expanded")) return true;
+      return n.scrollHeight <= n.clientHeight + 1;
+    },
+    await blk.elementHandle(),
+    { timeout: 5000 },
+  ).catch(() => {});
   assert.equal(
-    await clipped(block(this, title)),
+    await clipped(blk),
     false,
     `${title}: the note is still cutting itself off`,
   );

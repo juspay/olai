@@ -12,12 +12,12 @@ olai_home := env_var_or_default("OLAI_HOME", "")
 # @include, ...); include fragments live in subdirectories (Daily/), so the
 # glob never double-loads.
 #
-# The examples are a SET on purpose: Week.rkt mirrors an anchor
-# Example.rkt declares, and an anchor's scope is every outline loaded together
-# (docs/syntax.md, Mirrors). Named apart, Week.rkt's *agent reaches nothing —
-# which is the feature saying so, not a bug in the list. Daily.rkt rides along
+# The examples are a SET on purpose: Week.jsonl mirrors an anchor
+# Example.jsonl declares, and an anchor's scope is every outline loaded together
+# (docs/syntax.md, Mirrors). Named apart, Week.jsonl's *agent reaches nothing —
+# which is the feature saying so, not a bug in the list. Daily.jsonl rides along
 # as the glob-include demo.
-repo_outlines := "examples/Example.rkt examples/Week.rkt examples/Daily.rkt examples/Kitchen.rkt examples/Archive.rkt examples/Notes.jsonl docs/olai/Roadmap.jsonl docs/olai/Archive.rkt"
+repo_outlines := "examples/Example.jsonl examples/Week.jsonl examples/Daily.jsonl examples/Kitchen.jsonl examples/Archive.jsonl examples/Notes.jsonl docs/olai/Roadmap.jsonl docs/olai/Archive.jsonl"
 # Personal homes may mix .rkt and .jsonl; a bare directory glob is the serve
 # path. The write-default still points at Tasks.rkt by name.
 default_outlines := if olai_home == "" { repo_outlines } else { olai_home + "/*.rkt " + olai_home + "/*.jsonl" }

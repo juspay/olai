@@ -16,6 +16,7 @@
          ;; outlines on disk
          olai/tests/outlines)
 
+
 (module+ test
 
   (define (write-jsonl dir name body)
@@ -183,19 +184,26 @@
        (define r2 (try-load-outline p))
        (check-equal? (task-date (car (outline-tasks r2))) #f))))
 
-  (test-case "archive on jsonl is refused clearly"
+  (test-case "archive moves a jsonl subtree into Archive.jsonl"
     (in-dir
      "olai-jsonl-arch"
      (λ (dir)
        (define p
          (write-jsonl
           dir "T.jsonl"
-          "{\"id\":\"t\",\"ord\":\"a0\",\"title\":\"Thing\"}\n"))
-       (check-exn
-        (λ (e)
-          (and (exn:fail:op? e)
-               (string-contains? (exn-message e) "jsonl")))
-        (λ () (ops-archive! p "^t" #:commit? #f))))))
+          (string-append
+           "{\"id\":\"root\",\"ord\":\"a0\",\"title\":\"Project\"}\n"
+           "{\"id\":\"leaf\",\"parent\":\"root\",\"ord\":\"a0\",\"title\":\"Ship it\"}\n")))
+       (define r (ops-archive! p "^leaf" #:commit? #f))
+       (check-equal? (archive-result-title r) "Ship it")
+       (check-equal? (archive-result-ancestors r) '("Project"))
+       (check-true (archive-result-created-archive? r))
+       (define left (try-load-outline p))
+       (check-true (outline? left))
+       (check-false (hash-has-key? (outline-anchors left) "leaf"))
+       (define arch (try-load-outline (string->path (archive-result-file r))))
+       (check-true (outline? arch) (format "~a" arch))
+       (check-true (hash-has-key? (outline-anchors arch) "leaf")))))
 
   (test-case "dir-roots finds jsonl and prefer-jsonl drops rkt twin"
     (in-dir

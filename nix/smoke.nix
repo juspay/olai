@@ -9,8 +9,8 @@
 , examples, fakeAcpAgentSrc }:
 
 let
-  exampleOutline = "${examples}/Example.rkt";
-  weekOutline = "${examples}/Week.rkt";
+  exampleOutline = "${examples}/Example.jsonl";
+  weekOutline = "${examples}/Week.jsonl";
   exampleSexpOutline = "${examples}/Example.sexp.rkt";
 in
 
@@ -76,18 +76,18 @@ runCommand "olai-smoke"
 
     # The write path validates in a fresh namespace, so it has to work
     # from the packaged binary too.
-    cp ex/Example.rkt ex/edit.rkt
-    olai add --json --no-commit --file ex/edit.rkt "Smoke capture" > add.json
+    cp ex/Example.jsonl ex/edit.jsonl
+    olai add --json --no-commit --file ex/edit.jsonl "Smoke capture" > add.json
     racket -e '(require json)
                (unless (hash-ref (call-with-input-file "add.json" read-json)
                                  (quote ok))
                  (error (quote smoke) "add failed"))'
-    olai check ex/edit.rkt
+    olai check ex/edit.jsonl
 
     # The server has to work from the packaged binary too: static files
     # and the language readers resolve differently there.
-    cp ex/Example.rkt ex/live.rkt
-    live_rkt="$PWD/ex/live.rkt"
+    cp ex/Example.jsonl ex/live.jsonl
+    live_rkt="$PWD/ex/live.jsonl"
 
     # Packaged `olai` defaults OLAI_ACP_AGENT to the bundled adapter
     # (--set-default); override with the scripted fake for a real
