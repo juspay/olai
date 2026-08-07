@@ -26,6 +26,7 @@
          breadcrumb-of
          with-file-roots
          collect-day-sites
+         day-site-for
          count-tasks
          count-mirrors
          blocked-nodes)
@@ -172,9 +173,22 @@
                 (define title (task-title tk))
                 (if (and (bare-iso-date-title? title)
                          (not (hash-has-key? acc title)))
-                    (hash-set acc title
-                              (day-site (task-key tk)
-                                        (and (pair? path)
-                                             (task-key (last path)))))
+                    (hash-set acc title (site-of tk path))
                     acc))
               (hash)))
+
+;; ONE day, asked for by name: the same rule, and the same first-wins, without
+;; indexing every day the outline holds to answer about one of them. The title
+;; is the whole test — a day node is a node titled a bare ISO date, and the
+;; caller has just said which date.
+(define (day-site-for tasks iso-day)
+  (and (bare-iso-date-title? iso-day)
+       (fold-tasks tasks
+                   (λ (tk path acc)
+                     (or acc
+                         (and (equal? (task-title tk) iso-day)
+                              (site-of tk path))))
+                   #f)))
+
+(define (site-of tk path)
+  (day-site (task-key tk) (and (pair? path) (task-key (last path)))))

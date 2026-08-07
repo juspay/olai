@@ -78,6 +78,15 @@
           (concept archived-work "archive-file-name" "archive-path-for"
                    "archived-file?" "archived-task?"))
 
+;; What the day journal is CALLED, and how its months are named — the same
+;; split, one root over: the sidebar draws it as a month, `olai daily` fills it
+;; in, and neither gets its own idea of which file the diary is. Pure naming,
+;; so it is here rather than beside the write that uses it — a renderer asking
+;; "is this root the journal" must not pull the write path onto the page.
+(override "journal.rkt"
+          (concept day-journal "daily-file-name" "daily-file?" "month-name"
+                   "month-fragment-rel"))
+
 ;; ---- the writes ------------------------------------------------------------------
 
 ;; Every write goes through a file on disk, and one of them also goes through

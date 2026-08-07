@@ -37,9 +37,9 @@
          ;; store already probed having been touched
          (only-in olai/glob glob-expand)
          (only-in olai/edges edge-index?)
-         ;; what a day node is, and where it sits: the query layer's one walk
-         ;; for it, read rather than repeated
-         (only-in olai/query collect-day-sites day-site-key)
+         ;; what a day node is, and where it sits: the query layer's answer,
+         ;; read rather than repeated
+         (only-in olai/query day-site-for day-site-key)
          olai/load
          ;; where a @doc path points and what is in it; the store is the one
          ;; layer that reads one, because it is the one that knows when to
@@ -245,13 +245,14 @@
 ;; The key of the day node titled `iso-day` (Daily.rkt keeps one per day), or
 ;; #f. First match in file order, so the answer does not depend on hash order.
 ;;
-;; Which nodes are day nodes is not asked here: one walk knows what a day node
-;; is (olai/query, collect-day-sites) and this reads its answer, so /today and
-;; the sidebar's calendar cannot come to disagree about which node a day is.
+;; What a day node IS is not decided here: the query layer owns that (olai/
+;; query, day-site-for), so /today and the sidebar's calendar cannot come to
+;; hold two ideas of which node a day is. Which FILES are searched is this
+;; caller's own scope, and it is every loaded one.
 (define (snapshot-day-key snap iso-day)
   (for/or ([e (in-list (snapshot-files-data snap))])
     (match-define (list _ tasks) e)
-    (define site (hash-ref (collect-day-sites tasks) iso-day #f))
+    (define site (day-site-for tasks iso-day))
     (and site (day-site-key site))))
 
 ;; ---- @doc documents -------------------------------------------------------

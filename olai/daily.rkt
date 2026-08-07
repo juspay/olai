@@ -19,39 +19,13 @@
          ;; questions `capture` and `subtree` ask, asked of the same module
          olai/lang/section
          (except-in olai/lang/expander #%module-begin)
-         ;; one owner for what a file is CALLED (core, not web)
-         (only-in olai/paths file-label)
+         ;; what the journal is CALLED, and what its months are: pure naming,
+         ;; which every layer asks about and only this one writes (olai/journal)
+         olai/journal
          (only-in olai/query count-tasks))
 
-(provide daily-file-name
-         daily-file?
-         month-name
-         month-fragment-rel
-         ensure-daily-day!
+(provide ensure-daily-day!
          migrate-monolithic-daily!)
-
-;; THE DAY JOURNAL, recognised the way the archive is (olai/archive): by its
-;; BASENAME, and by nothing else. Nothing in the language says "this root is
-;; the diary" — `serve DIR` globs a directory and gets a set of outlines — so
-;; the one thing everybody has to agree on is the name, and it is agreed on
-;; here, where the command that writes the file lives.
-(define daily-file-name "Daily.rkt")
-
-;; A path (or a label a renderer already reduced to one) that names it.
-(define (daily-file? f)
-  (and f (equal? (file-label f) daily-file-name)))
-
-(define month-names
-  #("January" "February" "March" "April" "May" "June"
-    "July" "August" "September" "October" "November" "December"))
-
-(define (month-name m) ; 1..12
-  (vector-ref month-names (sub1 m)))
-
-(define (month-fragment-rel year month)
-  (format "Daily/~a-~a.rkt"
-          year
-          (~r month #:min-width 2 #:pad-string "0")))
 
 (define (parse-iso-day day)
   (unless (bare-iso-date-title? day)

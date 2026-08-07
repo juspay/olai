@@ -32,7 +32,9 @@
                   day-month-for day-month-key day-month-cells
                   week-days parse-year-month)
          ;; what a month is called; the module that owns the journal owns that
-         (only-in olai/daily month-name)
+         (only-in olai/journal month-name)
+         ;; and what a weekday is called, which is gregor's to say (olai/dates)
+         (only-in olai/dates weekday-abbrev)
          olai/web/theme
          olai/web/style
          (only-in olai/web/states is-today)
@@ -44,25 +46,16 @@
           [render-month-calendar
            (-> list? #:today string? #:node-href (-> string? string?) list?)]))
 
-;; What a column is CALLED, by gregor's weekday number (0=Sun). Which column
-;; is which is not this module's to remember — `week-days` is the grid's own
-;; order, and these are read off it, so a week that started on Sunday would
-;; relabel itself. Two letters: a column is narrow in a 15rem sidebar, and
-;; three would wrap it.
-(define weekday-abbrevs #("Su" "Mo" "Tu" "We" "Th" "Fr" "Sa"))
-
 (define-style ol-cal #:margin-bottom 0.25rem)
 
-;; The header reads like the file label it replaced — mono, micro, quiet — and
-;; is a link where that one was inert text: it is the way back out to the whole
-;; journal.
+;; The header reads like the file label it replaced — mono, micro, quiet, at
+;; the same indent — and is a link where that one was inert text: it is the way
+;; back out to the whole journal.
 (define-style ol-cal-title
   #:display inline-block
-  #:margin (0 0 0.375rem 0.25rem)
+  #:margin (0 0 0.25rem 0.5rem)
   #:font-family ,mono
   #:font-size ,micro-size
-  #:letter-spacing 0.04em
-  #:text-transform uppercase
   #:text-decoration none
   #:color ,dim
   [(: & hover) #:color ,ink])
@@ -103,13 +96,11 @@
   ;; a finger, on the one screen where the sidebar is the header
   [@ media (#:max-width ,phone-max) #:min-height ,touch-min])
 
-;; A day the journal has nothing for: dim, and not a link — there is no page to
-;; open and nothing here writes one.
+;; A day the journal has nothing for: dim.
 (define-style ol-cal-empty #:color ,dim #:font-weight 400)
 
-;; Which is also why the hover is the LINK's and not the box's: a cell that
-;; lights up under the pointer is a cell promising something to press, and half
-;; of them have nothing.
+;; And the hover is the LINK's, not the box's, so only a cell that goes
+;; somewhere lights up under the pointer.
 (register-fragment!
  (css-expr [(: ,(sel 'a ol-cal-day) hover) #:background ,pill-bg]))
 
@@ -151,8 +142,11 @@
                  ,label)
              `(div ((class ,ol-cal-title)) ,label))
         (div ((class ,ol-cal-grid))
+             ;; the headings are the grid's own column order, named by the
+             ;; library that names days: a week that started on Sunday would
+             ;; relabel itself
              ,@(for/list ([w (in-list week-days)])
                  `(div ((class ,ol-cal-dow) (aria-hidden "true"))
-                       ,(vector-ref weekday-abbrevs w)))
+                       ,(weekday-abbrev w)))
              ,@(for/list ([c (in-list (day-month-cells month))])
                  (day-xexpr c node-href)))))

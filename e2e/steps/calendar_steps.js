@@ -11,36 +11,21 @@ import { Then, When } from "@cucumber/cucumber";
 const CAL = "#ol-sidebar .ol-cal";
 const TODAY_CELL = `${CAL} .ol-cal-day.is-today`;
 
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
-// "2026-08-07" -> "August 2026", which is what the header reads.
+// "2026-08-07" -> "August 2026", which is what the header reads. Built from
+// the parts rather than parsed: `new Date("2026-08-07")` is UTC midnight, and
+// west of Greenwich that is the day before.
 function monthLabel(day) {
-  const [year, month] = day.split("-");
-  return `${MONTHS[Number(month) - 1]} ${year}`;
+  const [year, month] = day.split("-").map(Number);
+  return new Date(year, month - 1, 1).toLocaleString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
 }
 
-// Case-folded: the header is uppercased by the skin, the way the file label it
-// replaced was, and which case a label is drawn in is not what this asserts.
 Then("the calendar shows this month", async function () {
   const title = this.page.locator(`${CAL} .ol-cal-title`);
   await title.waitFor({ state: "visible" });
-  assert.equal(
-    (await title.innerText()).trim().toLowerCase(),
-    monthLabel(await this.today()).toLowerCase(),
-  );
+  assert.equal((await title.innerText()).trim(), monthLabel(await this.today()));
 });
 
 // Marked, and a link: `olai daily` wrote today's node before the server came
@@ -64,7 +49,6 @@ Then("a day the journal has nothing for is not a link", async function () {
     ...new Set(els.map((el) => el.tagName)),
   ]);
   assert.deepEqual(tags, ["SPAN"]);
-  assert.equal(await this.page.locator(`${CAL} a.ol-cal-empty`).count(), 0);
 });
 
 When("I follow today's cell", async function () {
@@ -73,11 +57,4 @@ When("I follow today's cell", async function () {
 
 When("I follow the calendar's month", async function () {
   await this.follow(this.page.locator(`${CAL} a.ol-cal-title`));
-});
-
-// The entry the calendar REPLACED. Read off the whole column, because what is
-// gone is a line of text and not a link a locator could name.
-Then("the sidebar does not name {string}", async function (label) {
-  const text = await this.page.locator("#ol-sidebar").innerText();
-  assert.ok(!text.includes(label), `${label} is still in the sidebar`);
 });

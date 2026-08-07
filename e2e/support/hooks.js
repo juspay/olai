@@ -53,12 +53,19 @@ const STORED_SESSIONS = {
 
 // The roots a scenario wants staged BESIDE the outline, by tag: a second file
 // for the anchors that reach across them, the archive for the work that has
-// been put away. Boot-time like the sessions above, and for a reason of its
-// own — `serve DIR` globs its top level once at startup, so which files a set
-// holds is a fact about the server, not something a step can arrange later.
+// been put away, the day journal for the sidebar's month. Boot-time like the
+// sessions above, and for a reason of its own — `serve DIR` globs its top
+// level once at startup, so which files a set holds is a fact about the
+// server, not something a step can arrange later.
+//
+// Each is a STEP that puts a root in the directory, not a pair of strings,
+// because the journal is the one root no constant can be: it is only worth
+// looking at when one of its days is today, so the product writes it
+// (world.daily) rather than a file in fixtures/ pretending.
 const EXTRA_ROOTS = {
-  "@cross-file": [SECOND_OUTLINE, SECOND],
-  "@archived": [ARCHIVE_OUTLINE, ARCHIVE],
+  "@cross-file": (world) => world.stage(SECOND_OUTLINE, SECOND),
+  "@archived": (world) => world.stage(ARCHIVE_OUTLINE, ARCHIVE),
+  "@daily": (world) => world.daily(),
 };
 
 // The screen is the other thing a scenario asks for by tag. Not an assertion
@@ -69,17 +76,12 @@ Before(async function ({ pickle }) {
   const env = {};
   let viewport;
   const extras = [];
-  // @daily is the one root that cannot be a fixture: a journal is only worth
-  // looking at when one of its days is TODAY, so `olai daily` writes it at
-  // boot rather than a file in fixtures/ pretending (world.daily).
-  let journal = false;
   for (const { name } of pickle.tags) {
     if (name in STORED_SESSIONS) env.OLAI_FAKE_ACP_STORED = STORED_SESSIONS[name];
     if (name === "@phone") viewport = PHONE_VIEWPORT;
     if (name in EXTRA_ROOTS) extras.push(EXTRA_ROOTS[name]);
-    if (name === "@daily") journal = true;
   }
-  await this.boot(browser, env, viewport, extras, journal);
+  await this.boot(browser, env, viewport, extras);
 });
 
 // The server's own output is the first thing worth reading when a scenario

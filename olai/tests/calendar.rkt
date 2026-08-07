@@ -138,14 +138,15 @@
     (check-true (for/and ([c (in-list cells)])
                   (or (not c) (not (hash-ref c 'key))))))
 
-  ;; The columns and the padding are one fact (olai/calendar, week-days): a
-  ;; grid whose first column is Monday has to start the month on the right one.
-  (test-case "the grid's columns are the week it says it lays out"
-    (check-equal? (length week-days) 7)
+  ;; The columns and the padding are one fact (olai/calendar, week-days), and
+  ;; the sidebar's month is laid out on the same grid as the CLI's — so the
+  ;; literal that pins one pins both.
+  (test-case "the sidebar's month lands where the CLI's month does"
     (define cells (day-month-cells (day-month-for '() "2026-08" "2026-08-03")))
-    ;; 2026-08-01 is a Saturday: it lands in the column week-days puts Saturday
-    (check-equal? (index-of week-days 6)
-                  (for/first ([c (in-list cells)] [i (in-naturals)] #:when c) i)))
+    ;; 2026-08-01 is a Saturday: the sixth column of a Monday-first week
+    (check-equal? (for/first ([c (in-list cells)] [i (in-naturals)] #:when c) i)
+                  5)
+    (check-equal? (length week-days) (length (take cells 7))))
 
   (test-case "shift-year-month"
     (check-equal? (shift-year-month "2026-08" -1) "2026-07")

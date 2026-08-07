@@ -11,14 +11,15 @@
 
 (require racket/match
          racket/string
-         (only-in gregor iso8601->date iso8601->datetime today ~t))
+         (only-in gregor date +days iso8601->date iso8601->datetime today ~t))
 
 (provide valid-iso-date-string?
          normalize-date-string
          date-day-prefix
          today-iso-string
          bare-iso-date-title?
-         friendly-date-label)
+         friendly-date-label
+         weekday-abbrev)
 
 ;; "2026-08-04 14:30" -> "2026-08-04T14:30"
 (define (normalize-date-string s)
@@ -60,3 +61,14 @@
 ;; Display-only label for a bare ISO day: "Mon, Aug 3".
 (define (friendly-date-label iso-day)
   (~t (iso8601->date iso-day) "EEE, MMM d"))
+
+;; What a weekday is CALLED, two letters, by gregor's own number for it
+;; (0=Sun … 6=Sat): "Su", "Mo", … A column heading over a calendar is the same
+;; kind of fact as the label above, so it comes from the same place and out of
+;; the same library — a table of day names written by hand is the thing this
+;; module exists to not have. Any week does: the reference is a Sunday, and
+;; gregor names the day `w` days after it.
+(define sunday (date 2026 8 2))
+
+(define (weekday-abbrev w)
+  (~t (+days sunday w) "EEEEEE"))

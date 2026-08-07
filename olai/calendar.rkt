@@ -10,9 +10,6 @@
          racket/format
          (except-in olai/lang/expander #%module-begin)
          olai/dates
-         ;; the one walk over a task tree, and its mirror policy: a day node is
-         ;; counted where it is DEFINED, like everything else here
-         (only-in olai/lang/walk fold-tasks)
          olai/query
          (only-in gregor
                   date
@@ -28,6 +25,7 @@
          collect-day-nodes
          calendar-for-month
          calendar-from-files
+         month-grid-dates
          month-grid-cells
          week-days
          day-month-for
@@ -126,31 +124,45 @@
 ;; same one rather than remembering which day this module starts on.
 (define week-days '(1 2 3 4 5 6 0))
 
-;; Cell: #f (padding) or hash with date/day_num/items/day_node/is_today
-(define (month-grid-cells ym cal-hash today)
+;; WHERE THE DAYS LAND: one month as whole weeks, #f for the padding at either
+;; end (the days of the first and last week that belong to another month).
+;; Cell: hash of date/day_num/is_today.
+;;
+;; The layout and nothing else — which column the 1st is in, how many days the
+;; month has, how far the last week has to be padded. What a cell then SAYS
+;; about its day is the caller's: the CLI's month hangs items off it, the
+;; sidebar's hangs a key. One owner for the shape, two readings of it.
+(define (month-grid-dates ym today)
   (define-values (y m) (parse-year-month ym))
-  (define first (date y m 1))
-  (define lead (index-of week-days (->wday first)))
-  (define dim (days-in-month y m))
-  (define by-date
-    (for/hash ([d (in-list (hash-ref cal-hash 'days))])
-      (values (hash-ref d 'date) d)))
+  (unless y (error 'month-grid-dates "bad year-month: ~s" ym))
+  (define lead (index-of week-days (->wday (date y m 1))))
   (define cells
     (append
      (make-list lead #f)
-     (for/list ([dom (in-range 1 (add1 dim))])
+     (for/list ([dom (in-range 1 (add1 (days-in-month y m)))])
        (define date-str (iso-day y m dom))
-       (define info (hash-ref by-date date-str #f))
        (hash 'date date-str
              'day_num dom
-             'items (if info (hash-ref info 'items) '())
-             'day_node (and info (hash-ref info 'day_node #f))
              'is_today (equal? date-str today)))))
   (define week (length week-days))
   (define rem (remainder (length cells) week))
   (if (zero? rem)
       cells
       (append cells (make-list (- week rem) #f))))
+
+;; The same grid with what a DATED month knows about each day on it: the items
+;; that fall there, and whether the day has a node of its own.
+;; Cell: #f (padding) or hash with date/day_num/items/day_node/is_today
+(define (month-grid-cells ym cal-hash today)
+  (define by-date
+    (for/hash ([d (in-list (hash-ref cal-hash 'days))])
+      (values (hash-ref d 'date) d)))
+  (for/list ([cell (in-list (month-grid-dates ym today))])
+    (and cell
+         (let ([info (hash-ref by-date (hash-ref cell 'date) #f)])
+           (hash-set* cell
+                      'items (if info (hash-ref info 'items) '())
+                      'day_node (and info (hash-ref info 'day_node #f)))))))
 
 ;; ---- the day nodes, as a month ---------------------------------------------
 
@@ -172,29 +184,24 @@
 ;;
 ;; Day NODES and not dated tasks, which is what makes this a different question
 ;; from `calendar-for-month`'s: a cell is a way into a day's own page, and a
-;; `@date` on a task somewhere is not one. The grid itself is that same
-;; function's, asked over the days alone — one owner for where the 1st lands.
+;; `@date` on a task somewhere is not one. Both are laid out on the one grid
+;; above, so there is still one answer to where the 1st lands.
 (struct day-month (key cells) #:transparent)
 
 (define (day-month-for tasks ym today)
   (define sites (collect-day-sites tasks))
-  (define cal (calendar-for-month '() (list->set (hash-keys sites)) ym))
   (define cells
-    (for/list ([cell (in-list (month-grid-cells ym cal today))])
+    (for/list ([cell (in-list (month-grid-dates ym today))])
       (and cell
-           (let* ([date (hash-ref cell 'date)]
-                  [site (hash-ref sites date #f)])
-             (hash 'date date
-                   'day_num (hash-ref cell 'day_num)
-                   'is_today (hash-ref cell 'is_today)
-                   'key (and site (day-site-key site)))))))
-  (day-month (month-holder-key tasks sites ym) cells))
+           (let ([site (hash-ref sites (hash-ref cell 'date) #f)])
+             (hash-set cell 'key (and site (day-site-key site)))))))
+  (day-month (month-holder-key tasks sites cells) cells))
 
-;; What this month hangs under, taken from its own days: the node a reader
-;; zooms to see the whole of it. Dates in order, never hash order — the answer
-;; is the same on every render or the header moves under the pointer.
-(define (month-holder-key tasks sites ym)
-  (or (for/or ([date (in-list (sort (hash-keys sites) string<?))]
-               #:when (string-prefix? date ym))
-        (day-site-parent (hash-ref sites date)))
+;; What this month hangs under, taken from its FIRST day: the node a reader
+;; zooms to see the whole of it. Off the cells, which are already in date
+;; order, so the answer is the same on every render.
+(define (month-holder-key tasks sites cells)
+  (or (for/or ([cell (in-list cells)])
+        (define key (and cell (hash-ref cell 'key)))
+        (and key (day-site-parent (hash-ref sites (hash-ref cell 'date)))))
       (let ([tk (findf task? tasks)]) (and tk (task-key tk)))))

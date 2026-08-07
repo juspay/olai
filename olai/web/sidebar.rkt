@@ -24,8 +24,8 @@
          (only-in olai/web/live outline-events ol-live)
          (except-in olai/lang/expander #%module-begin)
          ;; which of the loaded outlines is the day journal — by its basename,
-         ;; the way the archive is recognised (olai/daily, olai/archive)
-         (only-in olai/daily daily-file?)
+         ;; the way the archive is recognised (olai/journal, olai/archive)
+         (only-in olai/journal daily-file?)
          olai/web/theme
          olai/web/style
          olai/web/markdown

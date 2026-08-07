@@ -645,11 +645,19 @@
                                            (tk "2026-08-06" #f #f '())))))))
            (list "/tmp/Tasks.rkt" (list (tk "Inbox" #f #f '())))))
 
-  (define (daily-sidebar [today "2026-08-06"])
-    (xstr (render-sidebar daily-files
+  (define (sidebar-of fd #:today [today "2026-08-06"])
+    (xstr (render-sidebar fd
                           #:home-href "/" #:today-href "/today"
                           #:archive-href "/archive" #:today today
                           #:href "/" #:node-href test-node-href)))
+
+  (define (daily-sidebar [today "2026-08-06"])
+    (sidebar-of daily-files #:today today))
+
+  ;; the header's address, as the page writes it
+  (define (title-href key)
+    (format "class=\"ol-cal-title\" title=\"the whole journal\" href=\"~a\""
+            (test-node-href key)))
 
   (test-case "the Daily root is a month, not a file name and a tree"
     (define s (daily-sidebar))
@@ -666,7 +674,7 @@
     (define s (daily-sidebar))
     (check-true (string-contains?
                  s (format "title=\"2026-08-03\" href=\"~a\""
-                           (test-node-href (task-key (tk "2026-08-03" #f #f '())))))
+                           (test-node-href (title-key "2026-08-03"))))
                 s)
     ;; and it navigates the outline region like every other link
     (check-true (string-contains? s "hx-target=\"#ol-live\"") s))
@@ -678,35 +686,24 @@
     (check-equal? (length (regexp-match* #px"<a class=\"ol-cal-day" s)) 2 s))
 
   (test-case "today is marked whether or not anything was written on it"
-    (check-true (string-contains? (daily-sidebar "2026-08-06")
-                                  "<a class=\"ol-cal-day is-today\"")
-                (daily-sidebar "2026-08-06"))
+    (define written (daily-sidebar "2026-08-06"))
+    (check-true (string-contains? written "<a class=\"ol-cal-day is-today\"") written)
     ;; a day with no node still says which day it is
-    (define s (daily-sidebar "2026-08-12"))
+    (define blank (daily-sidebar "2026-08-12"))
     (check-true (string-contains?
-                 s "<span class=\"ol-cal-day is-today ol-cal-empty\">12</span>")
-                s))
+                 blank "<span class=\"ol-cal-day is-today ol-cal-empty\">12</span>")
+                blank))
 
   (test-case "the month header zooms to what the days hang under"
     (define s (daily-sidebar))
-    (check-true (string-contains?
-                 s (format "class=\"ol-cal-title\" title=\"the whole journal\" href=\"~a\""
-                           (test-node-href (task-key (tk "August" #f #f '())))))
-                s))
+    (check-true (string-contains? s (title-href (title-key "August"))) s))
 
   ;; A month with no days yet still has to reach the journal: the header falls
   ;; back to the root's first node, which is the file as far as a link goes.
   (test-case "a month with nothing in it still reaches the outline"
-    (define s (xstr (render-sidebar
-                     (files (list "/tmp/Daily.rkt"
-                                  (list (tk "Daily notes" #f #f '()))))
-                     #:home-href "/" #:today-href "/today"
-                     #:archive-href "/archive" #:today "2026-08-06"
-                     #:href "/" #:node-href test-node-href)))
-    (check-true (string-contains?
-                 s (format "class=\"ol-cal-title\" title=\"the whole journal\" href=\"~a\""
-                           (test-node-href (task-key (tk "Daily notes" #f #f '())))))
-                s)
+    (define s (sidebar-of (files (list "/tmp/Daily.rkt"
+                                       (list (tk "Daily notes" #f #f '()))))))
+    (check-true (string-contains? s (title-href (title-key "Daily notes"))) s)
     (check-false (string-contains? s "<a class=\"ol-cal-day") s))
 
   ;; Every theme the sheet carries, and nothing else. Generated from

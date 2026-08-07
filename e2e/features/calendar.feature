@@ -20,7 +20,7 @@ Feature: The journal, as a month
 
   Scenario: the month header is the way to the whole journal
     When I open the home page
-    Then the sidebar does not name "Daily.rkt"
+    Then the sidebar does not list "Daily.rkt"
     When I follow the calendar's month
     Then I am on a node's own page
     And the main pane is zoomed
