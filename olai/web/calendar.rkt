@@ -25,11 +25,12 @@
 ;; loaded outlines is the journal is olai/daily's answer, not this module's.
 
 (require racket/contract
-         racket/list
-         (except-in olai/lang/expander #%module-begin)
-         ;; the days this outline HAS, laid out as a month — the same grid the
-         ;; CLI's calendar is laid out on (olai/calendar)
-         (only-in olai/calendar day-node-cells parse-year-month)
+         ;; the days this outline HAS, laid out as a month, and the order this
+         ;; grid's columns come in — the same grid the CLI's calendar is laid
+         ;; out on (olai/calendar)
+         (only-in olai/calendar
+                  day-month-for day-month-key day-month-cells
+                  week-days parse-year-month)
          ;; what a month is called; the module that owns the journal owns that
          (only-in olai/daily month-name)
          olai/web/theme
@@ -43,10 +44,12 @@
           [render-month-calendar
            (-> list? #:today string? #:node-href (-> string? string?) list?)]))
 
-;; Monday first, because `month-grid-cells` lays the grid out Monday-first
-;; (olai/calendar). Two letters: the column is a day wide in a 15rem sidebar,
-;; and three would wrap it.
-(define weekday-labels '("Mo" "Tu" "We" "Th" "Fr" "Sa" "Su"))
+;; What a column is CALLED, by gregor's weekday number (0=Sun). Which column
+;; is which is not this module's to remember — `week-days` is the grid's own
+;; order, and these are read off it, so a week that started on Sunday would
+;; relabel itself. Two letters: a column is narrow in a 15rem sidebar, and
+;; three would wrap it.
+(define weekday-abbrevs #("Su" "Mo" "Tu" "We" "Th" "Fr" "Sa"))
 
 (define-style ol-cal #:margin-bottom 0.25rem)
 
@@ -64,9 +67,11 @@
   #:color ,dim
   [(: & hover) #:color ,ink])
 
+;; As many columns as the week has days, read off the same list the headings
+;; are: a seven written here is a seven to keep in step with one over there.
 (define-style ol-cal-grid
   #:display grid
-  #:grid-template-columns (apply repeat 7 (apply minmax 0 1fr))
+  #:grid-template-columns (apply repeat ,(length week-days) (apply minmax 0 1fr))
   #:gap 0.0625rem)
 
 (define-style ol-cal-dow
@@ -108,20 +113,9 @@
 (register-fragment!
  (css-expr [(: ,(sel 'a ol-cal-day) hover) #:background ,pill-bg]))
 
-;; The blank cells a Monday-first month begins and ends with.
+;; The blank cells at either end: the days of the month's first and last week
+;; that belong to another month.
 (define-style ol-cal-pad #:min-height 1.5rem)
-
-;; The way OUT of the month, and it is one address: the node this month's days
-;; hang under — the month node in a Daily.rkt, the year in the monolithic shape
-;; — because zooming that is the month as an outline.
-;;
-;; A month whose days have not been written yet has no such node, and the
-;; journal still has to be reachable, so the fallback is the root's first node.
-;; A root with nothing in it at all leaves the header as plain text: there is
-;; genuinely nowhere to go.
-(define (zoom-key tasks cells)
-  (or (for/or ([c (in-list cells)]) (and c (hash-ref c 'parent_key)))
-      (let ([tk (findf task? tasks)]) (and tk (task-key tk)))))
 
 (define (month-label ym)
   (define-values (y m) (parse-year-month ym))
@@ -146,8 +140,8 @@
 (define (render-month-calendar tasks #:today today #:node-href node-href)
   ;; the month is today's, and today is an argument: nothing here reads a clock
   (define ym (substring today 0 7))
-  (define cells (day-node-cells tasks ym today))
-  (define key (zoom-key tasks cells))
+  (define month (day-month-for tasks ym today))
+  (define key (day-month-key month))
   (define label (month-label ym))
   `(div ((class ,ol-cal))
         ,(if key
@@ -157,7 +151,8 @@
                  ,label)
              `(div ((class ,ol-cal-title)) ,label))
         (div ((class ,ol-cal-grid))
-             ,@(for/list ([d (in-list weekday-labels)])
-                 `(div ((class ,ol-cal-dow) (aria-hidden "true")) ,d))
-             ,@(for/list ([c (in-list cells)])
+             ,@(for/list ([w (in-list week-days)])
+                 `(div ((class ,ol-cal-dow) (aria-hidden "true"))
+                       ,(vector-ref weekday-abbrevs w)))
+             ,@(for/list ([c (in-list (day-month-cells month))])
                  (day-xexpr c node-href)))))

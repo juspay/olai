@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require racket/set
+(require racket/list
+         racket/set
          (except-in olai/lang/expander #%module-begin)
          olai/calendar
          olai/dates)
@@ -95,7 +96,7 @@
                               (tk "Dentist" "2026-08-06T09:30" #f '())))))))
 
   (test-case "a day with a node carries its key; every other cell is inert"
-    (define cells (day-node-cells daily-tasks "2026-08" "2026-08-04"))
+    (define cells (day-month-cells (day-month-for daily-tasks "2026-08" "2026-08-04")))
     (define (cell date)
       (findf (λ (c) (and c (equal? (hash-ref c 'date) date))) cells))
     (check-equal? (hash-ref (cell "2026-08-03") 'key) "2026-08-03")
@@ -108,29 +109,43 @@
     (check-equal? (length (filter values cells)) 31))
 
   (test-case "today is the cell it falls on, node or no node"
-    (define cells (day-node-cells daily-tasks "2026-08" "2026-08-20"))
+    (define cells (day-month-cells (day-month-for daily-tasks "2026-08" "2026-08-20")))
     (define today (findf (λ (c) (and c (hash-ref c 'is_today))) cells))
     (check-equal? (hash-ref today 'date) "2026-08-20")
     (check-false (hash-ref today 'key)))
 
-  (test-case "a day says what it hangs under: the way out of one day"
-    (define cells (day-node-cells daily-tasks "2026-08" "2026-08-04"))
-    (define d (findf (λ (c) (and c (equal? (hash-ref c 'date) "2026-08-03")))
-                     cells))
-    (check-equal? (hash-ref d 'parent_key) "August")
-    ;; a day node written at a file's top level has no way out
-    (define flat (day-node-cells (list (tk "2026-08-03" #f #f '()))
-                                 "2026-08" "2026-08-03"))
-    (define top (findf (λ (c) (and c (equal? (hash-ref c 'date) "2026-08-03")))
-                       flat))
-    (check-equal? (hash-ref top 'key) "2026-08-03")
-    (check-false (hash-ref top 'parent_key)))
+  ;; The month as a whole is reached at the node its days hang under: one
+  ;; address, on the month, rather than something a reader picks out of cells.
+  (test-case "the month is addressed by what its days hang under"
+    (check-equal? (day-month-key (day-month-for daily-tasks "2026-08" "2026-08-04"))
+                  "August")
+    ;; a month with no days falls back to the outline's first node, so a fresh
+    ;; month is still a way in
+    (check-equal? (day-month-key (day-month-for daily-tasks "2026-09" "2026-09-15"))
+                  "2026")
+    ;; a day node at a file's top level hangs under nothing, and the fallback
+    ;; is that node itself — the outline's first
+    (check-equal? (day-month-key
+                   (day-month-for (list (tk "2026-08-03" #f #f '()))
+                                  "2026-08" "2026-08-03"))
+                  "2026-08-03")
+    ;; and an outline with nothing in it has nowhere to go
+    (check-false (day-month-key (day-month-for '() "2026-08" "2026-08-03"))))
 
   (test-case "a month the journal has nothing in is all inert"
-    (define cells (day-node-cells daily-tasks "2026-09" "2026-09-15"))
+    (define cells (day-month-cells (day-month-for daily-tasks "2026-09" "2026-09-15")))
     (check-equal? (length (filter values cells)) 30)
     (check-true (for/and ([c (in-list cells)])
                   (or (not c) (not (hash-ref c 'key))))))
+
+  ;; The columns and the padding are one fact (olai/calendar, week-days): a
+  ;; grid whose first column is Monday has to start the month on the right one.
+  (test-case "the grid's columns are the week it says it lays out"
+    (check-equal? (length week-days) 7)
+    (define cells (day-month-cells (day-month-for '() "2026-08" "2026-08-03")))
+    ;; 2026-08-01 is a Saturday: it lands in the column week-days puts Saturday
+    (check-equal? (index-of week-days 6)
+                  (for/first ([c (in-list cells)] [i (in-naturals)] #:when c) i)))
 
   (test-case "shift-year-month"
     (check-equal? (shift-year-month "2026-08" -1) "2026-07")

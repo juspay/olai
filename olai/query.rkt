@@ -20,11 +20,12 @@
          olai/paths)
 
 (provide (struct-out crumbed-node)
+         (struct-out day-site)
          collect-nodes
          collect-dated-nodes
          breadcrumb-of
          with-file-roots
-         collect-day-titles
+         collect-day-sites
          count-tasks
          count-mirrors
          blocked-nodes)
@@ -146,12 +147,34 @@
    (for/list ([e (in-list live)])
      (proc (cdr e) (and multi? (file-label (car e)))))))
 
-;; Bare ISO day titles (Daily.rkt day nodes). -> (listof string)
-(define (collect-day-titles tasks)
-  (reverse
-   (fold-tasks tasks
-               (λ (tk _path acc)
-                 (if (bare-iso-date-title? (task-title tk))
-                     (cons (task-title tk) acc)
-                     acc))
-               '())))
+;; WHERE THE DAY NODES ARE — one walk, and the only one that looks for them.
+;;
+;; A day node is a bare ISO title (Daily.rkt's own shape, olai/dates); this is
+;; where the tree is asked which of them it holds and what each one is. Callers
+;; want three different things off it — which days exist (the calendar's set),
+;; the node to open for one of them (the sidebar's cells), and the node a
+;; month hangs under (its header) — and three walks looking for one kind of
+;; node is three places to disagree about what one is.
+;;
+;;   key    the day node's own key: what addresses that day
+;;   parent the key of the node it hangs under — the month in a Daily.rkt, the
+;;          year in the monolithic shape — or #f at a file's top level, where
+;;          a day has nothing above it
+;;
+;; -> hash "YYYY-MM-DD" -> day-site. FIRST site wins, in tree order, which is
+;; the rule the store's own day lookup keeps: an outline with two nodes titled
+;; one day says one thing twice, and every surface agrees on the first.
+(struct day-site (key parent) #:transparent)
+
+(define (collect-day-sites tasks)
+  (fold-tasks tasks
+              (λ (tk path acc)
+                (define title (task-title tk))
+                (if (and (bare-iso-date-title? title)
+                         (not (hash-has-key? acc title)))
+                    (hash-set acc title
+                              (day-site (task-key tk)
+                                        (and (pair? path)
+                                             (task-key (last path)))))
+                    acc))
+              (hash)))
