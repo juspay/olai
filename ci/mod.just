@@ -27,7 +27,7 @@ nix_shell := if env('IN_NIX_SHELL', '') != '' { '' } else { 'nix develop --accep
 [macos]
 [parallel]
 [metadata("ci")]
-default: smoke test test-integration e2e counters::check
+default: smoke arch test test-integration e2e counters::check
 
 # One install + raco setup per lane — funnel every racket test through this.
 build:
@@ -43,9 +43,18 @@ nix:
 smoke: nix
     ./result/bin/olai check examples/Example.rkt examples/Week.rkt Roadmap.rkt e2e/fixtures/Tasks.rkt
 
-# Unit tests: in-process (live/tests/ + olai/tests/*.rkt).
+# The declared architecture, checked against the code (arch/README.md). Its own
+# node and not part of `test`: a layering violation and a failing test are
+# different failure classes, and a lane that reported them together would make
+# a red build say less than it does now. It reads `git log`, so it needs the
+# history — a lane that fetched only one commit gets the audit's "no history
+# here" note and the other three checks.
+arch: build
+    {{ nix_shell }} racket arch/main.rkt .
+
+# Unit tests: in-process (arch/tests/ + live/tests/ + olai/tests/*.rkt).
 test: build
-    {{ nix_shell }} raco test -j {{ num_cpus() }} live/tests/*.rkt olai/tests/*.rkt
+    {{ nix_shell }} raco test -j {{ num_cpus() }} arch/tests/*.rkt live/tests/*.rkt olai/tests/*.rkt
 
 # Integration tests: subprocess CLI + real servers (olai/tests/integration/).
 test-integration: build

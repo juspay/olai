@@ -276,7 +276,7 @@
                      #:cancel-href chat-cancel-href
                      #:sessions-href chat-sessions-href
                      #:load-href chat-load-href
-                     #:event acp-event-name))
+                     #:event chat-event-name))
 
 ;; The conversation's failure kinds, as statuses: 'busy is a second prompt
 ;; while a turn runs, 'validation is an agent that has been stopped. Terse

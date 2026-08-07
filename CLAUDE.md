@@ -19,13 +19,14 @@ Read [README.md](README.md) and `docs/*.md` first (especially [docs/hacking.md](
 
 ## LAYERING
 
-* `lang/` readers -> `lang/expander` (`t` forms, closed grammar) -> task struct -> `lang/link` (the set: one anchor index over every loaded file)
-* `main.rkt` exports data model + pure queries + web render. CLI is app code, not library. Pure logic takes `today` as an argument (testable, no clocks).
+* Layering is DECLARED, not described: one `arch.rkt` per package (clock, owned authority, owned concepts), checked by `just arch` — dependency direction, ambient authority, one owner per concept, and the clocks against `git log`. Read [arch/README.md](arch/README.md) before adding a module, moving one, or arguing with a finding; the answers are fix the code or change the declaration, and there are no waivers. The rules that used to be prose here — core builds without `web/`, `acp.rkt` has no `web/`, store/watch/hub meet only in `serve.rkt`, pure logic takes `today` as an argument, keys are minted in the load layer, nothing else spells ACP or the conversation — are those checks now.
+* `lang/` readers -> `lang/expander` (`t` forms, closed grammar) -> task struct -> `lang/link` (the whole loaded set: one anchor index over every file, which is what an anchor's scope is)
+* `main.rkt` exports data model + pure queries + web render. CLI is app code, not library.
 * Writes live in `ops.rkt` (`add`/`done`/`move`/`daily` -> result struct, or an `exn:fail:op` naming a kind). `cli.rkt` is a shell: parse, call an op, render, map kind -> exit code. The web mutation routes will call the same ops.
-* Node keys are minted in the load layer, not the expander (see [docs/cli.md](docs/cli.md)); `load.rkt` links the set (keys + the shared anchor index, as one `linked` value) and `store.rkt` owns snapshots and binds mirror sites — against that index, so a mirror reaches another file — before anything draws them. `index.rkt` inverts the keys (key -> node + its parent's key) and derives the trail above a node on demand — what `/n/<key>` and its breadcrumbs are drawn from. Addressing is not snapshotting: the store builds one index per load and asks it nothing.
-* Live view: store (what) -> `web/watch.rkt` (when) -> `web/events.rkt` (generic SSE hub); they meet only in `serve.rkt`, and the chat rides the same hub.
-* `olai/acp.rkt` speaks ACP: one subprocess, typed events out of one handler, no `web/`. `web/chat.rkt` makes those events a conversation — one turn at a time, chat frames, transcript. Nothing else spells either.
-* Core must build without `web/`: file naming is `olai/paths` (`file-label`, `key-label`), not a renderer helper.
+* `load.rkt` links the set — keys minted over every file at once plus the anchor index they share, as one `linked` value. `store.rkt` owns snapshots and binds mirror sites against THAT index, so a mirror reaches another file, before anything draws them (see [docs/cli.md](docs/cli.md) for what a key is). `index.rkt` inverts the keys (key -> node + its parent's key) and derives the trail above a node on demand — what `/n/<key>` and its breadcrumbs are drawn from. Addressing is not snapshotting: the store builds one index per load and asks it nothing.
+* Live view: store (what) -> `web/watch.rkt` (when) -> `live/hub.rkt` (generic SSE hub), and the chat rides the same hub.
+* `olai/acp.rkt` speaks ACP: one subprocess, typed events out of one handler. `web/chat.rkt` makes those events a conversation — one turn at a time, chat frames, transcript.
+* File naming is `olai/paths` (`file-label`, `key-label`), not a renderer helper.
 * JSON is two modules, two version counters: `json/model` (what a node/tree IS, durable) and `json/reply` (command envelopes, agenda, calendar).
 * CSS cascade = layer (`'base` | `'component` | `'overlay`) then instantiation order; a class is defined in the module that DRAWS it. No native `@layer`.
 * `web/skin.rkt` composes the sheet (require order = cascade) and owns its URL; `render-page` is TOLD the href, so nothing downstream requires skin.

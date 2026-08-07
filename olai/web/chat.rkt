@@ -51,7 +51,7 @@
 ;; command, a directory) and where to put frames, and nothing else; every other
 ;; export is a verb or a read.
 (provide (contract-out
-          [acp-event-name string?]
+          [chat-event-name string?]
           ;; the words a transcript is written in (see "the vocabulary")
           [tool-pending string?]
           [tool-in-progress string?]
@@ -94,7 +94,7 @@
 ;; The SSE event name chat frames ride under, as the string the wire and the
 ;; page's data- attribute both want. One owner, and now one declaration behind
 ;; it: a typo here does not compile.
-(define acp-event-name (stream-event chat-events 'chat))
+(define chat-event-name (stream-event chat-events 'chat))
 
 ;; A wedged turn must not make "new chat" hang: cancel, wait this long, then
 ;; take the subprocess away from it.
@@ -197,7 +197,7 @@
 
 ;; ---- frames ----------------------------------------------------------------
 ;;
-;; A frame is one line of JSON under `acp-event-name`. Callers hold `sema`:
+;; A frame is one line of JSON under `chat-event-name`. Callers hold `sema`:
 ;; broadcasting inside the lock is what keeps the stream and the transcript
 ;; telling the same story in the same order.
 ;;
@@ -279,7 +279,7 @@
 
 (define (broadcast! ch js)
   (with-handlers ([exn:fail? (λ (e) (log! ch (format "broadcast failed: ~a" (exn-message e))))])
-    ((conversation-broadcast ch) acp-event-name (jsexpr->string js))))
+    ((conversation-broadcast ch) chat-event-name (jsexpr->string js))))
 
 ;; The agent's log is the server's log: one sink, one prefix, and the client
 ;; owns both because it owns the process filling them.
@@ -358,7 +358,7 @@
          (header-frames ch)
          (append* (map entry-frames (reverse (conversation-entries ch))))))))
   (for/list ([js (in-list frames)])
-    (cons acp-event-name (jsexpr->string js))))
+    (cons chat-event-name (jsexpr->string js))))
 
 ;; What the header says, for a header that has heard none of it said. Each of
 ;; these is a fact or it is nothing: an unknown model, an unnamed conversation

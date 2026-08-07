@@ -13,6 +13,10 @@
 #     ELF patcher arity-mismatches (compiler/private/elf.rkt).
 { lib, stdenv, racket, makeWrapper, tzdata, racketDeps, racketPkgs, src
 , acpAgent
+# the declaration language the arch.rkt files beside every package are written
+# in (arch/default.nix). Installed BEFORE the two collections below, because
+# each of them carries `#lang arch` modules that will not compile without it
+, arch
 # the live-view collection with its vendored browser runtime already staged
 # (live/default.nix) — a drop-in for $src/live
 , live
@@ -54,10 +58,12 @@ stdenv.mkDerivation {
       "$PLTUSERHOME/.local/share/racket/9.2/share/tzdata/zoneinfo"
 
     # live comes from its own derivation, not from $src: the browser runtime
-    # under its static/ is pinned upstream rather than committed.
+    # under its static/ is pinned upstream rather than committed. arch is its
+    # own derivation for the ordinary reason — its own package.
+    cp -a "${arch}" ./arch-pkg
     cp -a "${live}" ./live-pkg
     cp -a "$src/olai" ./olai-pkg
-    chmod -R u+w ./live-pkg ./olai-pkg
+    chmod -R u+w ./arch-pkg ./live-pkg ./olai-pkg
 
     # …and the highlighter under olai's own static/, for the same reason: the
     # bytes are a pin, not a file in the repo, so they join the collection
@@ -77,8 +83,10 @@ stdenv.mkDerivation {
 
     # --copy, not --link: a link would keep $src (or /build) paths in the
     # package catalog and raco exe would bake those into the stub.
-    # `live` before `olai`: the live-view framework is a package of its own
-    # (this repo's live/), and olai declares a dependency on it.
+    # The order is the dependency: `arch` is the declaration language both of
+    # the others carry a `#lang arch` file in, and `live` is the live-view
+    # framework olai declares a dependency on.
+    raco pkg install --copy --no-docs --deps force ./arch-pkg
     raco pkg install --copy --no-docs --deps force ./live-pkg
     raco pkg install --copy --no-docs --deps force ./olai-pkg
 

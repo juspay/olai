@@ -116,7 +116,7 @@
 ;; are what a page whose scripts have not run gets, and where a desktop browser
 ;; stays — the whole viewport, flush with the bottom, which is what the side
 ;; panel always was.
-(define-tokens chat-viewport-tokens visible-h visible-bottom)
+(define-tokens viewport-tokens visible-h visible-bottom)
 
 (register-fragment!
  #:layer 'base
@@ -126,7 +126,7 @@
   #:position fixed
   #:right 0
   #:z-index 19
-  #:width ,chat-w
+  #:width ,panel-w
   #:bottom ,visible-bottom
   #:height ,visible-h
   #:display none
@@ -151,7 +151,7 @@
 ;;
 ;; MARGIN, not padding. .ol-main is border-box with `max-width: 56rem`, so a
 ;; padding gutter is taken out of that cap rather than out of the free space
-;; beside it: --chat-w is max(21rem, 33vw), so on a 1920px screen the gutter ate
+;; beside it: --panel-w is max(21rem, 33vw), so on a 1920px screen the gutter ate
 ;; 41rem of the 56rem and the text wrapped into what was left, three words to a
 ;; line, with the gutter sitting empty next to it. A margin is outside the
 ;; border box, so the cap still measures the reading column and the flex box
@@ -160,7 +160,7 @@
  #:layer 'overlay
  (css-expr
   [((: ,(sel 'body ol-body) (apply has ,(sel ol-chat is-open))) ,(sel ol-main))
-   #:margin-right (apply calc (+ ,chat-w 1.5rem))
+   #:margin-right (apply calc (+ ,panel-w 1.5rem))
    ;; The other half of sheet mode (see the block at the end of this module):
    ;; below phone-max the panel covers the outline instead of sitting beside it,
    ;; so there is nothing to make room for — and a gutter the width of the
