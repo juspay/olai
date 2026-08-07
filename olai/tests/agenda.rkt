@@ -163,6 +163,53 @@
                         string<?)
                   '("doing" "open")))
 
+  ;; ---- derived doing is nobody's claim --------------------------------------
+  ;;
+  ;; `doing` derives and propagates: an ancestor of one node in flight is in
+  ;; flight, up to the file's own top node (olai/lang/state). The tree is right
+  ;; to say so and the agenda is right not to list it — this group is what
+  ;; somebody CLAIMED, and a claim is a mark.
+
+  (test-case "a derived-doing ancestor stays out of the doing group"
+    (define sample
+      (list (tk "Inbox" #f #f
+                (list (tk "Nested" #f #f
+                          (list (tk "In flight" #f #f '() #:doing #t)))))))
+    (define groups (agenda-groups sample "2026-08-03"))
+    (check-equal? (map car groups) '(doing))
+    ;; the leaf, and neither of the two ancestors that derive its state
+    (check-equal? (map agenda-item-title (cdr (assq 'doing groups)))
+                  '("In flight")))
+
+  (test-case "a parent someone marked doing is in the group, children and all"
+    (define sample
+      (list (tk "Orchestrated" #f #f
+                (list (tk "step one" #f #f '() #:done #t)
+                      (tk "step two" #f #f '()))
+                #:doing #t)))
+    (define groups (agenda-groups sample "2026-08-03"))
+    (check-equal? (map agenda-item-title (cdr (assq 'doing groups)))
+                  '("Orchestrated")))
+
+  ;; It is still unfinished work with a date on it, so it is on the plate —
+  ;; in the bucket the date puts it in, saying what state it is in and where
+  ;; that state came from.
+  (test-case "a dated derived-doing node lands in its date bucket"
+    (define sample
+      (list (tk "Half a section" "2026-07-01" #f
+                (list (tk "done bit" #f #f '() #:done #t)
+                      (tk "open bit" #f #f '())))))
+    (define groups (agenda-groups sample "2026-08-03"))
+    (check-equal? (map car groups) '(overdue))
+    (define it (car (cdr (assq 'overdue groups))))
+    (check-equal? (agenda-item-title it) "Half a section")
+    (check-eq? (agenda-item-status it) 'doing)
+    (check-eq? (agenda-item-source it) 'derived))
+
+  (test-case "a claimed item says the claim is stored"
+    (define items (collect-agenda (list (tk "In flight" #f #f '() #:doing #t))))
+    (check-eq? (agenda-item-source (car items)) 'stored))
+
   (test-case "an undated doing node still gets a breadcrumb"
     (define sample
       (list (tk "Inbox" #f #f (list (tk "In flight" #f #f '() #:doing #t)))))

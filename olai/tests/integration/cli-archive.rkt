@@ -46,7 +46,7 @@
                                        "kitchen remodel ^kitchen\n"
                                        "  install\n"
                                        "    @done 2026-08-01\n"
-                                       "    pick tiles\n"
+                                       "    [x] pick tiles\n"
                                        "  paint\n")))
        (commit-all dir)
        (define-values (code out err)

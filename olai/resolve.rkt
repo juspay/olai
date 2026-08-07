@@ -13,7 +13,7 @@
          racket/match
          racket/path
          racket/string
-         (only-in olai/lang/expander task-file)
+         (only-in olai/lang/expander task-file task-loc)
          (only-in olai/lang/walk find-task-by-id find-tasks-by-title)
          olai/fail
          olai/load
@@ -28,29 +28,56 @@
 ;; file  : path of the file that DEFINES the node (what a write must edit)
 ;; index : 0-based index of its title line in that file
 ;; title : the resolved title (never the "^anchor" the user typed)
-(struct located (file index title) #:transparent)
+;; task  : the node itself, out of the loaded tree — what a write asks about
+;;         the SHAPE it is editing (does this node have children, and what
+;;         state are they in). Joined to the title line by srcloc, so it is
+;;         the node written there and not a node that looked like it. #f only
+;;         for a `#lang olai/sexp` file, whose forms are not lines — and a
+;;         write to one of those is refused before it gets here.
+(struct located (file index title task) #:transparent)
 
 ;; Everything below takes the spec ALREADY parsed — `(cons 'anchor a)` or
 ;; `(cons 'title t)` (olai/meta). Four of them used to re-parse the same
 ;; string, which is four places to disagree about what the user typed.
 
-;; The files that could hold this node: the defining file of every model
-;; match. No match in the model means no candidate, which is the "no task"
-;; case — the text is never scanned on a hunch.
-(define (candidate-files out want)
+;; The files that could hold this node, each with the nodes the MODEL found in
+;; it. No match in the model means no candidate, which is the "no task" case —
+;; the text is never scanned on a hunch.
+;;
+;; The nodes ride along because a caller wants more than a line number: a write
+;; that guards on what a node CONTAINS has to ask the tree, where an @include
+;; splice has already happened, not the text, where it has not. Which of them
+;; is which title line is `task-at-line` below.
+;; -> (listof (cons path (listof task)))
+(define (candidates out want)
   (define root (outline-path out))
   (define tasks (outline-tasks out))
   (define (file-of tk)
     (simple-form-path (or (task-file tk) root)))
-  (remove-duplicates
-   (match want
-     [(cons 'anchor a)
-      (define tk (or (hash-ref (outline-anchors out) a #f)
-                     (find-task-by-id tasks a)))
-      (if tk (list (file-of tk)) '())]
-     [(cons 'title t)
-      (map file-of (find-tasks-by-title tasks t))])
-   #:key path->string))
+  (define found
+    (match want
+      [(cons 'anchor a)
+       (define tk (or (hash-ref (outline-anchors out) a #f)
+                      (find-task-by-id tasks a)))
+       (if tk (list tk) '())]
+      [(cons 'title t) (find-tasks-by-title tasks t)]))
+  ;; grouped by defining file, in the order the files first turn up
+  (for/list ([grp (in-list (group-by (λ (tk) (path->string (file-of tk))) found))])
+    (cons (file-of (car grp)) grp)))
+
+;; Which of a file's model nodes is the title line the text scan found: the one
+;; whose form was written there. Every node carries the srcloc of its own form
+;; (olai/lang/expander), and a title line is where a node's form starts, so the
+;; two worlds are joined by a number rather than by a count — a fragment
+;; spliced into one root twice yields two model nodes and one title line, and
+;; they are the SAME node, defined once, at that line.
+;;
+;; #f when nothing matches, which is what a `#lang olai/sexp` file gives (its
+;; forms are not lines) — and writes to one are refused anyway.
+(define (task-at-line tasks line)
+  (for/first ([tk (in-list tasks)]
+              #:when (and (task-loc tk) (equal? (srcloc-line (task-loc tk)) line)))
+    tk))
 
 (define (matches-in text want)
   (match want
@@ -116,10 +143,11 @@
   (define out (resolution-outline out0 want))
   (define hits
     (append*
-     (for/list ([f (in-list (candidate-files out want))])
+     (for/list ([c (in-list (candidates out want))])
+       (define f (car c))
        (define text (file->string f))
        (for/list ([m (in-list (matches-in text want))])
-         (cons f m)))))
+         (list f m (task-at-line (cdr c) (title-match-line m)))))))
   (define label (spec-label spec))
   (cond
     [(null? hits)
@@ -129,9 +157,8 @@
                 label
                 (string-join
                  (for/list ([h (in-list hits)])
-                   (format "~a:~a" (car h) (title-match-line (cdr h))))
+                   (format "~a:~a" (car h) (title-match-line (cadr h))))
                  ", "))]
     [else
-     (define f (car (car hits)))
-     (define m (cdr (car hits)))
-     (located f (title-match-index m) (title-match-title m))]))
+     (match-define (list f m tk) (car hits))
+     (located f (title-match-index m) (title-match-title m) tk)]))

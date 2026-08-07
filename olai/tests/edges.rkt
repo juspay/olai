@@ -377,11 +377,13 @@ EOF
      (λ (lk)
        (check-equal? (blocked-nodes (linked-edges (linked-or-fail lk))) (hash)))))
 
-  ;; THE RATIFIED CALL: done-ness does not propagate. A parent with every child
-  ;; done is not done — done is explicit here, and deriving it would give the
-  ;; outline two answers to one question and re-block everything after a
-  ;; finished node the moment somebody added a child to it.
-  (test-case "a target whose children are all done is still not done"
+  ;; ONE DONE PREDICATE, and the graph reads the same one everything else
+  ;; does: a statusless parent whose children are all done IS done
+  ;; (olai/lang/state), so it stops standing in anyone's way. The earlier call
+  ;; — a parent of all-done children keeps blocking — was made when done-ness
+  ;; was only ever stored, and it now applies to the case that still stores
+  ;; one: an EXPLICIT open parent, below.
+  (test-case "a target whose children are all done blocks nobody"
     (link-one
      "olai-edge-parent"
      #<<EOF
@@ -390,6 +392,23 @@ EOF
 demo the old cabinets ^demo
   [x] haul it to the dump
   [x] sweep up
+install ^install
+  @after ^demo
+EOF
+     (λ (lk)
+       (check-equal? (blocked-nodes (linked-edges (linked-or-fail lk))) (hash)))))
+
+  ;; And the half of it that did not move: a child that is not finished leaves
+  ;; the parent unfinished, so the arrow still holds.
+  (test-case "a target with one open child is still blocking"
+    (link-one
+     "olai-edge-parent-open"
+     #<<EOF
+#lang olai
+
+demo the old cabinets ^demo
+  [x] haul it to the dump
+  sweep up
 install ^install
   @after ^demo
 EOF

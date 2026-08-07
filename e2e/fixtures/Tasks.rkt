@@ -10,7 +10,7 @@ Ship the server ^serve
   : long enough to wrap several times over on a desktop screen and on a phone
   : alike. Every line of it is in the page; only the first is on it.
   @doc notes/serve.md
-  Write the tests
+  Write the tests ^tests
 This week
   *serve
 [/] Draft the migration plan

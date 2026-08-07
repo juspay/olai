@@ -19,6 +19,10 @@
          olai/capture
          olai/daily
          olai/dates
+         ;; what state a node is in, and whether it is one the file stores at
+         ;; all — the rule is the language's, and a write only asks it
+         (only-in olai/lang/expander
+                  task-title task-status task-child-tasks task-status-derived?)
          olai/status
          olai/edit
          olai/load
@@ -35,7 +39,13 @@
 ;; result's `file` is the file actually written, as a string, and that a
 ;; failure arrives as exn:fail:op (not contracted: an exn is not a value the
 ;; caller constructs).
+;; op-fail is exported because a failure of this kind is raised from three
+;; other modules too (the ACP bridge, the chat routes, the CLI's unset-home
+;; check), and they used to build the struct positionally — so the field count
+;; was their problem, and adding `detail` was an edit at four unrelated sites.
+;; One constructor, keyword-defaulted, and the next field is an edit here.
 (provide (struct-out exn:fail:op)
+         op-fail
          (contract-out
           [struct add-result ([file string?]
                               [title string?]
@@ -91,20 +101,28 @@
                            (#:commit? boolean?)
                            daily-result?)]))
 
-;; kind: 'usage | 'validation | 'not-found | 'busy — what the caller should
-;; make of it (the CLI maps kinds to exit codes; a web route maps them to
-;; statuses). 'busy is nobody's fault and reaches no CLI command: the ACP
-;; bridge raises it when a second prompt arrives mid-turn, and a route turns
-;; it into 409.
+;; kind: 'usage | 'validation | 'not-found | 'derived | 'busy — what the caller
+;; should make of it (the CLI maps kinds to exit codes; a web route maps them
+;; to statuses). 'derived is a write that would STORE a state the tree already
+;; answers (olai/lang/state) — its own kind because it is nobody's mistake and
+;; there is something else to do instead, which the detail names. 'busy is
+;; likewise nobody's fault and reaches no CLI command: the ACP bridge raises it
+;; when a second prompt arrives mid-turn, and a route turns it into 409.
 ;; file/line/col carry the srcloc when there is one (CLAUDE.md: errors carry
 ;; file:line:col).
-(struct exn:fail:op exn:fail (kind file line col) #:transparent)
+;; detail: what the failure knows about ITSELF, as keys for the error object
+;; beside the message (olai/json/reply). The values are DOMAIN values — the
+;; unfinished children below are tasks, not JSON — because every other thing
+;; this layer answers with is a domain value and the reply layer renders it.
+;; Empty for most failures.
+(struct exn:fail:op exn:fail (kind file line col detail) #:transparent)
 
 (define (op-fail kind fmt #:file [file #f] #:line [line #f] #:col [col #f]
+                 #:detail [detail (hash)]
                  . args)
   (raise (exn:fail:op (apply format fmt args)
                       (current-continuation-marks)
-                      kind file line col)))
+                      kind file line col detail)))
 
 ;; Anything the layers below raise (append-capture, the metadata engine, the
 ;; resolver) is a validation failure about `file` until proven otherwise.
@@ -232,6 +250,59 @@
 (struct mark-result (file title line state stamp undone? committed?)
   #:transparent)
 
+;; A DERIVED STATE IS NOT A STATE YOU CAN WRITE.
+;;
+;; A parent with task children and no mark of its own is done exactly when they
+;; all are (olai/lang/state), and `done` on it would store the answer the tree
+;; is already giving — the second copy this whole feature exists to delete, and
+;; the one that goes stale. So it is refused before anything is edited, and the
+;; refusal names the unfinished children: doing them one at a time is the thing
+;; to do instead, and marking them all would be inventing a state for each of
+;; them that nobody asked for.
+;;
+;; `doing` is not guarded. It is a claim about somebody's attention, never
+;; derived from anything (olai/lang/state), so writing one on a parent stores
+;; something the tree does not already say.
+;;
+;; It is HERE and not with the other two preconditions (olai/status, which
+;; refuses a node that is already done and demands one that is not), for two
+;; reasons that are the same reason: those are answerable from the file's TEXT,
+;; where this one has to ask the tree — an @include splices children under a
+;; node no text scan sees — and only this layer decides what a failure MEANS.
+;; A precondition with a kind of its own lives where kinds are.
+;;
+;; `hit` is the resolver's answer (olai/resolve): the node, the file it is
+;; defined in, and the line it is on, which is exactly what the refusal needs.
+(define (refuse-derived-done hit undo?)
+  (define tk (located-task hit))
+  (when (and tk (task-status-derived? tk))
+    (define kids (task-child-tasks tk))
+    (define unfinished
+      (for/list ([k (in-list kids)] #:unless (eq? (task-status k) 'done)) k))
+    (define label (format "~s" (located-title hit)))
+    (op-fail
+     'derived
+     #:file (located-file hit)
+     #:line (add1 (located-index hit))
+     #:detail (hash 'children unfinished)
+     "~a"
+     (cond
+       [undo?
+        (format (string-append "~a has no @done to undo: its done-ness is "
+                               "derived from its ~a children")
+                label (length kids))]
+       [(null? unfinished)
+        (format (string-append "~a is already done: all ~a of its children "
+                               "are, so it derives done")
+                label (length kids))]
+       [else
+        (format (string-append "~a derives its done-ness from its children, "
+                               "~a of ~a unfinished: ~a; done those instead")
+                label (length unfinished) (length kids)
+                (string-join (for/list ([k (in-list unfinished)])
+                               (format "~s" (task-title k)))
+                             ", "))]))))
+
 (define (ops-mark! file state spec today
                    #:undo? [undo? #f]
                    #:commit? [commit? #t])
@@ -242,6 +313,7 @@
   (define path (located-file hit))
   (define title (located-title hit))
   (define at (located-index hit))
+  (when (eq? state 'done) (refuse-derived-done hit undo?))
   (define original (file->string path))
   (define-values (new-text line)
     (as-validation

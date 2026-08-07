@@ -30,7 +30,7 @@ olai roadmap #project
 | Include | `@include RELATIVE/PATH.rkt` at a title position → `(include "…")`. Require+splice of the fragment's **top-level** tasks (no redundant root in the fragment). Path relative to the including file. Cycles rejected. |
 | Include glob | `@include RELATIVE/DIR/*.rkt` — one line where a line per file used to be. `*` matches any run of characters inside **one file name**; the directory part is literal. Matches splice flat, in lexicographic order, like that many literal lines. No matches is an empty splice; a directory that is not there is an error. See [Globs](#globs). |
 | Document | Indented `@doc RELATIVE/PATH.md` → `#:doc`. The node expands into that file (see [Documents](#documents-doc)). Extension must be `.md` or `.scrbl`; the file must exist. Path relative to the **defining** file. |
-| Done | Indented `@done` or `@done …` → `#:done` / `#:done` timestamp. Bare means completed (`#t`); with a value, same ISO forms as `@date`. |
+| Done | Indented `@done` or `@done …` → `#:done` / `#:done` timestamp. Bare means completed (`#t`); with a value, same ISO forms as `@date`. On a node with task children it is a claim about the node itself and may not contradict them — see [Derived state](#derived-state). |
 | Doing | Indented `@doing` or `@doing …` → `#:doing` / `#:doing` timestamp. The third state, between open and done: same rules as `@done`, one node cannot be both. |
 | Checkbox sugar | Title prefix `[x] ` / `[X] ` desugars to bare `@done`, `[/] ` to bare `@doing` (prefix **not** part of the title). `[ ] ` is an explicit not-done marker (stripped, no-op). `[-] ` is **not** sugar — it stays part of the title, unclaimed for a future cancelled. Escape with `\` if the title should literally start with `[x] `. |
 | At most once | A second `@date`, `@done`, `@doing` or `@doc` under one title is a reader error. `[x] ` counts as the node's `@done` and `[/] ` as its `@doing`, so checkbox **and** field on the same node is a duplicate. |
@@ -41,6 +41,72 @@ olai roadmap #project
 | Anchor | Title-trailing `^anchor` (`[A-Za-z0-9_-]+`). Stripped from the stored title; becomes `#:id`. Unique across the whole loaded **set**, `@include` fragments and sibling files included. |
 | Mirror | Line that is only `*anchor` → `(mirror "anchor")`. Same node as the `^anchor` declaration (DAG, not a copy), in whichever loaded file declares it. Escape with `\` if a title should start with `*`. |
 | Typed edge | Indented `@after ^x` / `@blocks ^y` / `@see ^z` → an edge to that anchor. **Any number** per node, unlike every field above. The `^` is required. See [Typed edges](#typed-edges). |
+
+### Derived state
+
+**A parent does not store what its children already say.** A node with task
+children and no mark of its own **takes its state from them**, computed every
+time anybody asks — the agenda, the web view, `tree` JSON, the typed-edge
+graph. Nothing writes it down, so it cannot go stale.
+
+```racket
+#lang olai
+
+0.5 the write path            ; derives DONE — every child is
+  [x] ratify the form
+  [x] wire the route
+0.6 the command palette       ; derives DOING — started, not finished
+  [x] the search index
+  the palette itself
+0.7 the mobile view           ; derives OPEN — nobody has begun
+  pick a layout
+  ship it
+```
+
+The rules, in the order they are asked:
+
+- **A mark wins.** A parent may have a completion criterion its children know
+  nothing about ("and then ship it"), and `@done` / `[x] ` on it is how you say
+  so. What is stored is the answer.
+- **No task children, no derivation.** A leaf is exactly what it wrote, as
+  before. So is a parent whose only children are `:` notes, a `@doc`, or a
+  `*mirror`.
+- **All task children done ⇒ done.** Recursively: a child that itself derives
+  done counts as done.
+- **Started but not finished ⇒ `[/] `.** A child in flight, or a child finished
+  beside one that is not — both say the same thing about the parent: somebody
+  began it and nobody ended it, which is the whole of what the third state
+  means.
+- **Nothing started ⇒ open.**
+- **A `*mirror` child derives nothing.** A mirror is a reference, resolvable
+  only once the whole set is in hand; counting one would make a module answer
+  this question differently at compile time than the linker does. Containment
+  is what the tree says, and containment is what a state is derived from.
+- **An `@include` splices real children in**, and they count like any others:
+  a month node above a fragment of finished days derives done.
+
+`[/] ` **propagates and that is deliberate**: an ancestor of one node in flight
+is in flight, all the way to the file's own top node, because the work under it
+has started. That is a fact about the tree, and it is not the same question as
+"what are you on" — so the agenda's `doing` group holds only nodes somebody
+CLAIMED with a mark, and a dated node that merely derives `[/] ` sits in the
+date bucket its date puts it in (see [docs/cli.md](cli.md)).
+
+The one thing the checker adds: **a stored `@done` may not sit above unfinished
+work.** Same message from every entry point (compile time, after the splice,
+the linker), at the `file:line:col` of the parent that stored the mark:
+
+```text
+T.rkt:4:2: @done: marked done above unfinished work: "pick tiles" is open; drop @done / [x] and done-ness derives from the children, or finish them
+```
+
+There is no matching rule for `@doing`: a parent may be in flight above
+anything at all.
+
+Writing a state that would be derived is refused rather than stored — `olai
+done` on such a parent names the unfinished children instead of marking them
+(see [docs/cli.md](cli.md)). `tree` JSON says which kind of answer a node's
+`status` is, in `status_source`.
 
 ### Inline formatting (Markdown)
 
@@ -249,12 +315,15 @@ change to the language, not a field you may invent:
   The **checker** gets no such exemption: an ordering that runs in a circle is
   wrong wherever its nodes live, so a cycle through the archive is still an
   error.
-- **Done-ness does not propagate.** A target counts as done when it says so —
-  `@done`, or `[x] `. A parent whose children are all done is **not** done, so
-  it goes on blocking. Deriving it would give the outline two answers to "is
-  this done", and would silently re-block everything after a finished node the
-  moment somebody added a child to it. Point `@after` at the child you mean, or
-  mark the parent.
+- **One done predicate, and this is it.** A target counts as done when [its
+  state says so](#derived-state) — stored (`@done`, `[x] `) or derived, and the
+  graph cannot tell which. So a statusless parent whose children are all done
+  stops blocking what comes after it, which is the point: the thing you were
+  waiting for has happened. What still blocks is a parent that says it is not
+  finished — an `@doing` one, or any parent with a child that is not done.
+  (Superseded: before derived state, done-ness was only ever stored, and a
+  parent of all-done children kept blocking. That call now reaches only the
+  parents that write a state of their own.)
 - **Scope is the loaded set**, exactly like a mirror's: `@after ^serve` reaches
   the `^serve` any loaded file declares, and one that reaches nothing is an
   error at the edge — which is the linker's rule alone, so a module still

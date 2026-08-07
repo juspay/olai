@@ -54,7 +54,7 @@
                    "  install\n"
                    "    @done 2026-08-01\n"
                    "\n"
-                   "    pick tiles\n"
+                   "    [x] pick tiles\n"
                    "  paint\n"
                    "garage\n")))
 
@@ -63,7 +63,7 @@
 (module+ test
   (test-case "a cut takes the node, its metadata and its children"
     (define-values (rest block ancestors) (cut-subtree sample (line-of sample "install")))
-    (check-equal? block '("install" "  @done 2026-08-01" "" "  pick tiles"))
+    (check-equal? block '("install" "  @done 2026-08-01" "" "  [x] pick tiles"))
     (check-equal? ancestors '("kitchen remodel"))
     ;; what is left is the file minus those lines, parents and all still there
     (check-equal? rest

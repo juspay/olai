@@ -24,10 +24,14 @@ Feature: what is not actionable yet, on the page
     Then I am on a node's own page
     And the tab is named for "Ship the server"
 
-  Scenario: checking the blocker off from the CLI clears it, live
+  # "Ship the server" stores no state of its own: it is done exactly when its
+  # children are (docs/syntax.md#derived-state), so the write that clears the
+  # pill is aimed at the CHILD. One done predicate — the graph reads the same
+  # derived answer the checkbox beside the title draws.
+  Scenario: checking the blocker's last child off from the CLI clears it, live
     When I open the home page
     Then "Announce the release" is blocked on "^serve"
     And I mark this page load
-    When I check off "Ship the server" from the CLI
+    When I check off "Write the tests" from the CLI
     Then "Announce the release" stops being blocked
     And the page has not reloaded

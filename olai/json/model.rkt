@@ -29,6 +29,7 @@
           [nullish (-> any/c any/c)]
           [mark->json (-> any/c any/c)]
           [task->jsexpr (->* (task?) (#:root-file file-ref/c) hash?)]
+          [task-mention->jsexpr (-> task? hash?)]
           [child->jsexpr (->* (any/c) (#:root-file file-ref/c) hash?)]
           [tasks->jsexpr (->* (list?) (#:root-file file-ref/c) list?)]
           [edges->jsexpr (-> edge-index? hash?)]
@@ -70,6 +71,14 @@
           ;; both, so a reader can ask the question it actually has. `status`
           ;; is the one to switch on: it is where a fourth state would show up.
           'status (symbol->string (task-status tk))
+          ;; …and where that answer CAME from: "stored" when the node wrote a
+          ;; mark, "derived" when it has task children and no mark of its own,
+          ;; so its state is computed from theirs (olai/lang/state). The two
+          ;; are already told apart by `done` being null under a `"done"`
+          ;; status, which is exactly the kind of inference an agent should not
+          ;; be left to make — and a write aimed at a derived state is refused
+          ;; (docs/cli.md), so this is the field that says so in advance.
+          'status_source (if (task-status-derived? tk) "derived" "stored")
           'id (nullish (task-id tk))
           'key (nullish (task-key tk))
           'tags (task-tags tk)
@@ -96,6 +105,20 @@
   (if (and tf* (not (equal? tf* root*)))
       (hash-set h 'file tf*)
       h))
+
+;; A node MENTIONED from somewhere that is not the tree: what it is called,
+;; what state it is in, and the name you can address it by. Never its subtree —
+;; a mention is a pointer, and a reader who wants the node asks `tree` for it.
+;;
+;; It lives here rather than at the mention site (today: the children an
+;; `olai done` refusal names, olai/ops) because these are node fields, and what
+;; a node looks like as JSON has one owner and one version counter. A write
+;; layer that spelled the shape itself would be a second, unversioned model of
+;; a node that nothing updates when this one moves.
+(define (task-mention->jsexpr tk)
+  (hash 'title (task-title tk)
+        'status (symbol->string (task-status tk))
+        'id (nullish (task-id tk))))
 
 (define (child->jsexpr x #:root-file [root-file #f])
   (cond
