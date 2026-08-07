@@ -35,6 +35,22 @@ export const FIXTURE = await fs.readFile(
   "utf8",
 );
 
+// The SECOND root, for the scenarios about an anchor whose scope is the
+// loaded set: it mirrors `^serve`, which Tasks.rkt declares. Only staged for
+// a scenario tagged @cross-file (support/hooks.js) — `serve DIR` globs the
+// top level once at startup, so which files a set holds is a boot-time fact.
+//
+// It is deliberately NOT in the CI smoke lane's `olai check`: that command
+// checks the files it is GIVEN as one set, and this one alone is a set whose
+// mirror names nothing. Every @cross-file scenario boots a server on it,
+// which is the check it can actually pass.
+export const SECOND_OUTLINE = "Week.rkt";
+
+export const SECOND = await fs.readFile(
+  path.join(FIXTURES, SECOND_OUTLINE),
+  "utf8",
+);
+
 // The document the fixture's `@doc` names, and where it names it from. The
 // LANGUAGE requires the file to be there, so it is staged into every
 // scenario's temp dir beside the outline — an outline without it does not

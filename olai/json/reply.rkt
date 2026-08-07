@@ -24,6 +24,11 @@
           [write-json-stdout (-> hash? void?)]
           [write-json-stderr (-> hash? void?)]
           [ok-hash (->* () #:rest list? hash?)]
+          [error-object (->* (string?)
+                             (#:file (or/c path? string? #f)
+                              #:line (or/c exact-integer? #f)
+                              #:col (or/c exact-integer? #f))
+                             hash?)]
           [err-hash (->* (string?)
                          (#:file (or/c path? string? #f)
                           #:line (or/c exact-integer? #f)
@@ -49,14 +54,20 @@
 (define (ok-hash . kvs)
   (apply hash 'version json-reply-version 'ok #t kvs))
 
+;; What went wrong, as the four fields every surface reports it in. On its own
+;; because it rides in two places: alone inside a reply that is ABOUT several
+;; things (a multi-file `check`, where a failure may belong to one file or to
+;; the set), and wrapped in the envelope below when the failure IS the reply.
+(define (error-object message #:file [file #f] #:line [line #f] #:col [col #f])
+  (hash 'file (nullish (and file (if (path? file) (path->string file) file)))
+        'line (nullish line)
+        'col (nullish col)
+        'message message))
+
 (define (err-hash message #:file [file #f] #:line [line #f] #:col [col #f])
   (hash 'version json-reply-version
         'ok #f
-        'error (hash 'file (nullish (and file
-                                         (if (path? file) (path->string file) file)))
-                     'line (nullish line)
-                     'col (nullish col)
-                     'message message)))
+        'error (error-object message #:file file #:line line #:col col)))
 
 (define (agenda-item->jsexpr it)
   (hash 'title (agenda-item-title it)

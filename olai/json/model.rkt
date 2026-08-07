@@ -32,7 +32,7 @@
           [outline->jsexpr (->* ((or/c path? string?) list? hash?)
                                 (#:includes list?)
                                 hash?)]
-          [outlines->jsexpr (-> (listof outline?) hash?)]))
+          [linked->jsexpr (-> linked? hash?)]))
 
 (define json-model-version 1)
 
@@ -78,7 +78,10 @@
                         (if (path? root-file) root-file (string->path root-file))))))
   (define tf*
     (and tf (path->string (simple-form-path (string->path tf)))))
-  (if (and tf* root* (not (equal? tf* root*)))
+  ;; `file` says where a write goes, so it rides along whenever it is not the
+  ;; one the reader already has: the payload's own file, or — in an index that
+  ;; spans the set, where there is no one root to compare against — always.
+  (if (and tf* (not (equal? tf* root*)))
       (hash-set h 'file tf*)
       h))
 
@@ -99,7 +102,7 @@
     (values (string->symbol id) (task->jsexpr tk #:root-file root-file))))
 
 ;; Single-file tree payload (version added by the caller, or by
-;; outlines->jsexpr below).
+;; linked->jsexpr below).
 (define (outline->jsexpr path tasks anchors #:includes [includes '()])
   (define path-str (if (path? path) (path->string path) path))
   (define h
@@ -115,13 +118,28 @@
                 (for/list ([p (in-list includes)])
                   (hash 'file p)))))
 
-;; The whole `tree` payload. entries : (listof outline).
+;; The whole `tree` payload, which is a payload about a linked SET.
 ;; One file keeps the historical single-file shape; several nest under 'files.
-(define (outlines->jsexpr entries)
+;;
+;; Top-level `anchors` is the SET's index — every `^id` any of these files
+;; declares, once, with the file that defines it. That is the scope an anchor
+;; actually has (olai/lang/link), so it is the one a mirror site's `{"mirror":
+;; "id"}` is resolved against, whichever file the site is in. A file's own
+;; `anchors` stays what it always was: the anchors that file declares.
+(define (linked->jsexpr lk)
+  (define entries (linked-outlines lk))
   (define (one o)
     (outline->jsexpr (outline-path o) (outline-tasks o) (outline-anchors o)
                      #:includes (outline-includes o)))
-  (if (= (length entries) 1)
-      (hash-set (one (car entries)) 'version json-model-version)
-      (hash 'version json-model-version
-            'files (map one entries))))
+  (cond
+    ;; A set of ONE file: that file's `anchors` already IS the set's index, at
+    ;; the top level and rooted at the file the reader has. Nothing to add.
+    [(= (length entries) 1)
+     (hash-set (one (car entries)) 'version json-model-version)]
+    [else
+     (hash 'version json-model-version
+           'files (map one entries)
+           ;; A node in the set's index carries its own `file`: the index
+           ;; spans the files, so the answer differs per anchor and there is
+           ;; no one root to leave out (the rule tasks follow, above).
+           'anchors (anchors->jsexpr (linked-anchors lk)))]))

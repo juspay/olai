@@ -55,19 +55,21 @@
           [store-error (-> store? (or/c load-error? #f))]
           [store-revision (-> store? exact-positive-integer?)]
           [store-invalidate! (->* (store?) (#:force? any/c) void?)]
-          [struct snapshot ([outlines (listof outline?)]
+          [struct snapshot ([linked linked?]
                             [files-data list?]
                             [index hash?]
                             [docs hash?]
                             [watch (listof path?)]
                             [globs (listof path?)])]
+          [snapshot-outlines (-> snapshot? (listof outline?))]
           [snapshot-day-key (-> snapshot? string? (or/c string? #f))]
           [call-in-outline-namespace (-> (-> any) any)]))
 
 ;; One consistent view of the outlines. Handlers read this once and never see
 ;; a half-reloaded world.
-;;   outlines   : (listof outline) as loaded — mirror sites still unbound,
-;;                which is what the durable JSON serializes
+;;   linked     : the loaded set as olai/load produced it — the outlines with
+;;                mirror sites still unbound (which is what the durable JSON
+;;                serializes), and the anchor index they share
 ;;   files-data : (listof (list path tasks)) — render's input: the same trees
 ;;                with every mirror site already bound to its node
 ;;                (olai/lang/walk, resolve-mirrors)
@@ -81,9 +83,14 @@
 ;;                what the module graph above was built from, so a new file in
 ;;                one's directory is a reload even though nothing in `watch`
 ;;                moved. The watcher watches where they read (web/watch).
-(struct snapshot (outlines files-data index docs watch globs) #:transparent)
+(struct snapshot (linked files-data index docs watch globs) #:transparent)
 
-(define empty-snapshot (snapshot '() '() (hash) (hash) '() '()))
+;; The question every handler asks the set, without unwrapping it. The anchor
+;; index has no such reader: mirror sites are bound here, once per load, so
+;; nothing downstream has to resolve a name.
+(define (snapshot-outlines snap) (linked-outlines (snapshot-linked snap)))
+
+(define empty-snapshot (snapshot empty-linked '() (hash) (hash) '() '()))
 
 ;; probe : what the last load was built from, as it was then (see below)
 ;; rev   : bumped by every reload, so "did anything happen?" is a comparison
@@ -267,21 +274,24 @@
     (define text (doc-text p))
     (if text (hash-set acc p text) acc)))
 
-;; Node keys are minted here, over the whole loaded set at once (see
-;; mint-outline-keys): a fragment shared by two roots is one node with one
-;; key, and the index below can be a plain invertible hash.
+;; The set arrives already LINKED (olai/load, link-outlines): keys minted over
+;; every file at once, so a fragment shared by two roots is one node with one
+;; key and the index below can be a plain invertible hash — and one anchor
+;; index over all of them.
 ;;
-;; Mirror sites are bound here too, once per load rather than once per render:
-;; what handlers get is a tree of already-bound nodes, and the renderer never
-;; holds an anchors hash.
-(define (build-snapshot outlines watch globs)
-  (define outs (mint-outline-keys outlines))
+;; Mirror sites are bound here, once per load rather than once per render, and
+;; against that SET-WIDE index: a `*meeting-prep` in Daily.rkt is the node
+;; Tasks.rkt defines, not an unresolved marker. What handlers get is a tree of
+;; already-bound nodes, and the renderer never holds an anchors hash.
+(define (build-snapshot lk watch globs)
+  (define outs (linked-outlines lk))
+  (define anchors (linked-anchors lk))
   (define files-data
     (for/list ([o (in-list outs)])
       (list (outline-path o)
-            (resolve-mirrors (outline-tasks o) (outline-anchors o)))))
+            (resolve-mirrors (outline-tasks o) anchors))))
   (define docs (doc-paths outs))
-  (snapshot outs
+  (snapshot lk
             files-data
             (outline-index files-data)
             (read-docs docs)
@@ -290,22 +300,22 @@
             (append watch (map string->path docs))
             globs))
 
-;; -> (values (listof outline) #f (listof path) (listof path))
+;; -> (values linked #f (listof path) (listof path))
 ;;  | (values #f load-error '() '())
+;;
+;; The set is olai/load's to assemble; what this layer adds is WHEN — a fresh
+;; namespace, so the module registry cannot hand back yesterday's file — and
+;; what says when to do it again: the files the outlines are built from, and
+;; the patterns whose answers they were built from.
 (define (load-all files)
   (call-in-outline-namespace
    (λ ()
-     (let loop ([fs files] [acc '()])
-       (cond
-         [(null? fs)
-          (define outs (reverse acc))
-          (define-values (watch globs) (watch-set outs))
-          (values outs #f watch globs)]
-         [else
-          (define r (try-load-outline (car fs)))
-          (if (outline? r)
-              (loop (cdr fs) (cons r acc))
-              (values #f r '() '()))])))))
+     (define lk (load-set files))
+     (cond
+       [(linked? lk)
+        (define-values (watch globs) (watch-set (linked-outlines lk)))
+        (values lk #f watch globs)]
+       [else (values #f lk '() '())]))))
 
 ;; ---- the store ------------------------------------------------------------
 
@@ -337,14 +347,14 @@
 
 (define (reload! st)
   (define files (store-files st))
-  (define-values (outs err watch globs) (load-all files))
+  (define-values (lk err watch globs) (load-all files))
   (cond
-    [outs
+    [lk
      ;; probe what the SNAPSHOT says it is built from, not what load-all
      ;; found: the module graph is only half of it — the documents come off
      ;; the loaded tasks, and a set that is probed and a set that is watched
      ;; being two different lists is how a saved document goes unnoticed.
-     (define snap (build-snapshot outs watch globs))
+     (define snap (build-snapshot lk watch globs))
      (set-store-snap! st snap)
      (set-store-err! st #f)
      (set-store-probe! st (take-probe (snapshot-watch snap) (snapshot-globs snap)))]

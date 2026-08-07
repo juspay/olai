@@ -102,6 +102,93 @@
                    (hash-ref up 'breadcrumb)))
      (λ () (delete-directory/files dir))))
 
+  ;; The set is what an anchor's scope is, so the paths on the command line
+  ;; are what a `*mirror` may reach — and a set that does not link fails as a
+  ;; set: every file is fine, the reply is not.
+  (test-case "cross-file mirror: linked as a set, refused one at a time"
+    (define dir (make-temporary-file "sfxfile~a" 'directory))
+    (define tasks-file (build-path dir "Tasks.rkt"))
+    (define daily (build-path dir "Daily.rkt"))
+    (dynamic-wind
+     void
+     (λ ()
+       (display-to-file "#lang olai\nMeeting prep ^meeting-prep\n  @date 2026-07-01\n"
+                        tasks-file #:exists 'truncate)
+       (display-to-file "#lang olai\n2026-08-06\n  *meeting-prep\n"
+                        daily #:exists 'truncate)
+       ;; both files: the set links
+       (define-values (c1 o1 e1)
+         (run-olai (list "check" (path->string tasks-file) (path->string daily))))
+       (check-equal? c1 0 (string-append o1 e1))
+       (check-equal? (hash-ref (parse-json o1) 'ok) #t)
+
+       ;; the tree carries one anchors index over the set, and the site stays
+       ;; a reference to it
+       (define-values (c2 o2 e2)
+         (run-olai (list "tree" (path->string tasks-file) (path->string daily))))
+       (check-equal? c2 0 (string-append o2 e2))
+       (define j (parse-json o2))
+       (define anchored (hash-ref (hash-ref j 'anchors) 'meeting-prep))
+       (check-true (string-contains? (hash-ref anchored 'file) "Tasks.rkt")
+                   (hash-ref anchored 'file))
+       (define day (car (hash-ref (cadr (hash-ref j 'files)) 'tasks)))
+       (check-equal? (hash-ref (car (hash-ref day 'children)) 'mirror)
+                     "meeting-prep")
+
+       ;; one node, so one agenda item
+       (define-values (c3 o3 e3)
+         (run-olai (list "agenda" (path->string tasks-file) (path->string daily))))
+       (check-equal? c3 0 (string-append o3 e3))
+       (check-equal? (length (hash-ref (parse-json o3) 'overdue)) 1)
+
+       ;; checking it off from the file that only MIRRORS it edits the file
+       ;; that defines it
+       (define-values (c4 o4 e4)
+         (run-olai (list "done" "--no-commit" "--file" (path->string daily)
+                         "^meeting-prep")))
+       (check-equal? c4 0 (string-append o4 e4))
+       (check-true (string-contains? (hash-ref (parse-json o4) 'file) "Tasks.rkt")
+                   o4)
+       (check-true (string-contains? (file->string tasks-file) "@done") o4)
+
+       ;; and the mirroring file alone is a set of one: the anchor is not in it
+       (define-values (c5 o5 e5) (run-olai (list "check" (path->string daily))))
+       (check-equal? c5 2 (string-append o5 e5))
+       (define err (hash-ref (parse-json e5) 'error))
+       (check-true (regexp-match? #rx"unknown \\*meeting-prep"
+                                  (hash-ref err 'message))
+                   (hash-ref err 'message))
+       (check-true (string-contains? (hash-ref err 'file) "Daily.rkt")
+                   (hash-ref err 'file))
+       (check-equal? (hash-ref err 'line) 3))
+     (λ () (delete-directory/files dir))))
+
+  ;; Two files that each parse and still do not make a set. The failure is the
+  ;; reply's, not any one file's.
+  (test-case "multi-file check: a set that does not link"
+    (define dir (make-temporary-file "sflink~a" 'directory))
+    (define a (build-path dir "a.rkt"))
+    (define b (build-path dir "b.rkt"))
+    (dynamic-wind
+     void
+     (λ ()
+       (display-to-file "#lang olai\nWork ^agent\n" a #:exists 'truncate)
+       (display-to-file "#lang olai\nAlso ^agent\n" b #:exists 'truncate)
+       (define-values (code out err)
+         (run-olai (list "check" (path->string a) (path->string b))))
+       (check-equal? code 2 (string-append out err))
+       (define j (parse-json out))
+       (check-equal? (hash-ref j 'ok) #f)
+       ;; each file is fine on its own terms
+       (for ([f (in-list (hash-ref j 'files))])
+         (check-equal? (hash-ref f 'ok) #t))
+       (define e (hash-ref j 'error))
+       (check-true (regexp-match? #rx"duplicate \\^agent" (hash-ref e 'message))
+                   (hash-ref e 'message))
+       (check-true (string-contains? (hash-ref e 'file) "b.rkt")
+                   (hash-ref e 'file)))
+     (λ () (delete-directory/files dir))))
+
   ;; daily used to be the one write command that changed the outline behind
   ;; git's back; the day and the @include that reaches it are one commit.
   (test-case "daily auto-commits in a git repo"

@@ -1,18 +1,22 @@
 #lang racket/base
 
-;; The anchor/mirror graph rules, once, for both phases.
+;; The anchor/mirror graph rules, once, for every phase.
 ;;
-;; A module is checked at COMPILE time, over the syntax it was written as;
-;; a whole loaded tree is checked at RUN time, after @include has spliced
-;; fragments in (cross-file anchors only exist then). Those were two DFS
-;; implementations of the same three rules — duplicate ^anchor, unknown
-;; *mirror, mirror cycle — and they drifted: with any @include present the
-;; compile-time pass was skipped and the runtime one had no srclocs, so an
-;; agent got "duplicate ^agent" with no file:line:col at all.
+;; A module is checked at COMPILE time, over the syntax it was written as, and
+;; again at RUN time after @include has spliced fragments in; the whole LOADED
+;; SET is checked by the linker (lang/link), which is the only pass that can
+;; see every file at once. Those were two DFS implementations of the same three
+;; rules — duplicate ^anchor, unknown *mirror, mirror cycle — and they drifted:
+;; with any @include present the compile-time pass was skipped and the runtime
+;; one had no srclocs, so an agent got "duplicate ^agent" with no file:line:col
+;; at all.
 ;;
 ;; So the rules live here, over a NODE PROTOCOL the caller supplies: how to
 ;; read a node's anchor, its children, whether it is a mirror site, and how
 ;; to fail on one. Nothing in this module knows what a node is.
+;;
+;; The one thing a phase does change is whether the anchor list it can see is
+;; the WHOLE list — see #:scope below.
 
 (require racket/list
          racket/string)
@@ -23,9 +27,18 @@
 ;; #:id      : node -> string | #f   (its ^anchor)
 ;; #:kids    : node -> (listof node)
 ;; #:mirror  : node -> string | #f   (non-#f = a *mirror site, no children)
-;; #:scope   : "this file" | "this tree" — what the anchor list covers
+;; #:scope   : what the anchor list covers ("the loaded set"), or #f when this
+;;             pass cannot see the whole world — a module being compiled does
+;;             not know which files it will be loaded beside, so a *mirror it
+;;             cannot resolve is not yet wrong. An OPEN scope checks the two
+;;             rules that are about the nodes in hand (duplicate, cycle) and
+;;             leaves "unknown" to the linker, which is closed by construction.
 ;; #:describe: node -> string        (where it is, for "first declared at")
 ;; #:fail    : who node message -> ⊥ (node may be #f)
+;;
+;; -> hash anchor -> declaring node. The first rule below has to collect that
+;; to check the second and third, and it is the answer a caller wants anyway
+;; ("which node is ^agent"); returning it beats walking the forest again.
 (define (check-anchor-graph roots
                             #:id id-of
                             #:kids kids-of
@@ -34,9 +47,10 @@
                             #:describe describe
                             #:fail fail)
   (define decls (declarations roots id-of kids-of mirror-of describe fail))
-  (check-mirrors-resolve roots kids-of mirror-of decls scope fail)
+  (when scope
+    (check-mirrors-resolve roots kids-of mirror-of decls scope fail))
   (check-cycles decls id-of kids-of mirror-of fail)
-  (void))
+  decls)
 
 ;; anchor -> declaring node; duplicates are the first rule.
 (define (declarations roots id-of kids-of mirror-of describe fail)
@@ -56,16 +70,55 @@
 
 (define (check-mirrors-resolve roots kids-of mirror-of decls scope fail)
   (define known (sort (hash-keys decls) string<?))
-  (define listed (if (null? known) "(none)" (string-join known ", ")))
   (define (walk n)
     (cond
       [(mirror-of n)
        => (λ (a)
             (unless (hash-has-key? decls a)
-              (fail 'mirror n
-                    (format "unknown *~a; anchors in ~a: ~a" a scope listed))))]
+              (fail 'mirror n (unknown-anchor-message a known #:scope scope))))]
       [else (for-each walk (kids-of n))]))
   (for-each walk roots))
+
+;; What a name that resolves to nothing is told: the name, every anchor that
+;; DOES exist in the scope it was looked up in, and — when one of them is a
+;; typo away — which one it probably meant.
+(define (unknown-anchor-message name known #:scope scope)
+  (define listed (if (null? known) "(none)" (string-join known ", ")))
+  (define near (nearest name known))
+  (format "unknown *~a; anchors in ~a: ~a~a"
+          name scope listed
+          (if near (format "; did you mean *~a?" near) "")))
+
+;; The one candidate close enough to be worth naming, or #f. "Close enough" is
+;; one edit per three characters (and always at least one), which catches the
+;; typo an agent actually makes — a dropped letter, a swapped pair — without
+;; offering ^demo for ^order. `known` is sorted and argmin keeps the first of
+;; a tie, so the same mistake is answered the same way twice.
+(define (nearest name known)
+  (and (pair? known)
+       (let ([best (argmin (λ (k) (edit-distance name k)) known)])
+         (and (<= (edit-distance name best)
+                  (max 1 (quotient (string-length name) 3)))
+              best))))
+
+;; Levenshtein, one row at a time: `prev` is the row above and `row` is this
+;; one, each cell consed on, so its head is always the cell just left of the
+;; one being computed. Written out because this Racket ships no edit distance
+;; anywhere — the rule is no hand-rolling where a maintained library exists,
+;; and here none does.
+(define (edit-distance a b)
+  (define bs (string->list b))
+  (last
+   (for/fold ([prev (range (add1 (length bs)))])
+             ([ca (in-string a)] [i (in-naturals 1)])
+     (for/fold ([row (list i)] #:result (reverse row))
+               ([cb (in-list bs)]
+                [diag (in-list prev)]
+                [above (in-list (cdr prev))])
+       (cons (min (add1 (car row))                       ; insert
+                  (add1 above)                           ; delete
+                  (+ diag (if (char=? ca cb) 0 1)))       ; substitute
+             row)))))
 
 ;; A mirror is the same node, so anchors form a graph: ^a owns *b owns ^a is
 ;; a node that contains itself. Edges run from an anchored node to every

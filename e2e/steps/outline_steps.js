@@ -93,14 +93,17 @@ Then("{string} holds a mirror of {string}", async function (parent, anchor) {
   assert.equal(await link.getAttribute("href"), `#${anchor}`);
 });
 
+// Waiting, not reading: the node a mirror site draws is the node another file
+// may have just been edited in, and that title arrives over SSE. Reading the
+// site's text now would be reading it before the swap.
 Then("the mirror under {string} draws {string}", async function (parent, title) {
   const site = this.node(parent)
     .first()
     .locator(".ol-node")
     .filter({ has: this.page.locator(".ol-mirror") })
+    .filter({ hasText: title })
     .first();
   await site.waitFor({ state: "visible" });
-  assert.match(await site.innerText(), literal(title));
 });
 
 // ---- zoom, and nothing to zoom to ------------------------------------------
