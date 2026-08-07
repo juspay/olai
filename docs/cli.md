@@ -211,6 +211,8 @@ Run the web view over an outline directory. Blocks until Ctrl-C, which shuts the
 
 **A DIRECTORY names every `*.rkt` under it, at any depth**, sorted, so the node keys minted against the set are stable. Each directory is read with the same glob `@include Daily/*.rkt` is (see [Globs](syntax.md#globs)), so a dotfile is not a root — an editor's `.#Tasks.rkt` lock file is a dangling symlink, not an outline — and a symlinked subdirectory is not descended into (a link back at an ancestor is a walk that never ends). A directory with no outline under it at all is refused, naming the directory, exit 3.
 
+**Only this project's languages are outlines.** A `.rkt` whose `#lang` is not `olai` or `olai/sexp` is **passed over**: a notes directory may hold a script, and one stray module must not take the server down. It is read from the `#lang` line alone — nothing else in a file it is not going to load gets executed, and a file that IS an outline and does not load is as loud an error as ever. That distinction is the point: passed over means "never was one", not "broke".
+
 **A file another one `@include`s is not a root.** That subtraction, not a rule about which directory a file sits in, is what stops a fragment being loaded twice — once through the root that splices it and once on its own, which would key every one of its nodes twice and make its `^anchor` a duplicate. So `Daily/2026-08.rkt` is loaded exactly once, by the `Daily.rkt` that includes it, and an outline three directories down that nothing includes is served rather than silently invisible.
 
 **The roots are re-asked, not remembered.** The directory is a standing question, the same way an `@include` glob is: an outline created under it — the first `Archive.rkt` an `olai archive` writes, a file dropped in by your sync layer — is picked up on the next request or watcher tick, with no restart. So is one that goes away, and so is a file that stops being a root because something started including it.
@@ -370,11 +372,11 @@ Stdout:
 }
 ```
 
-`parent` echoes `--parent` verbatim (`null` for the default Inbox). `file` is the file actually written — with `--parent ^anchor` that may be an `@include` fragment or a sibling root, not `--file` (see [Write routing](#write-routing-the-defining-file)).
+`parent` echoes `--parent` verbatim (`null` for the default Inbox). `file` is the file actually written — with `--parent ^anchor` that may be an `@include` fragment or another outline under the same directory, not `--file` (see [Write routing](#write-routing-the-defining-file)).
 
 ## `done [--file F] [--undo] [--no-commit] TITLE...|^anchor`
 
-Mark a task done by exact title match or `^anchor` (or undo). **One file named** (`--file`); an `^anchor` may resolve to a sibling root, and the write follows the node (see [Write routing](#write-routing-the-defining-file)). Writes **outline** syntax only — same safety as `add`: write temp → re-validate → rename; restore on failure.
+Mark a task done by exact title match or `^anchor` (or undo). **One file named** (`--file`); an `^anchor` may resolve to another outline under the same directory, and the write follows the node (see [Write routing](#write-routing-the-defining-file)). Writes **outline** syntax only — same safety as `add`: write temp → re-validate → rename; restore on failure.
 
 - Exact title match across the file (a `[x] ` / `[/] ` checkbox prefix and a trailing `^anchor` are not part of the matched title), or a single `^id` addressing the defining site.
 - **0 matches** → exit 2.
@@ -534,7 +536,9 @@ Both `created_*` are `false` on every run after the first for that day, and `com
 Two scopes, because the two kinds of spec are different things:
 
 - A **TITLE** is text, and its scope is the outline you pointed at (`--file`, or the default) plus its `@include` fragments. Unchanged.
-- An **`^anchor`** is a name, and since mirrors reach across files its scope is the set: if the file you named does not declare it, the other top-level `*.rkt` **in that file's directory** are consulted, and the one that declares it is where the write lands. So `olai done '^meeting-prep' --file Daily.rkt` marks the node `Tasks.rkt` defines, which is what "checking a mirror off flips the one real node" means. A sibling that does not load is not consulted — it is not the file being written, and one broken outline must not stop every write to the others.
+- An **`^anchor`** is a name, and since mirrors reach across files its scope is the set: if the file you named does not declare it, **every outline under that file's directory** is consulted — the same set `serve` would load pointed there, so a node the web view draws and links to is a node a write can reach. The one that declares it is where the write lands. So `olai done '^meeting-prep' --file Daily.rkt` marks the node `Tasks.rkt` defines, which is what "checking a mirror off flips the one real node" means, and `olai done '^idea' --file Daily.rkt` reaches `notes/Ideas.rkt`.
+
+  **Nearest first**: the outlines beside the file you named, then what is under them, so a name two files claim resolves to the closer one. A file that is not an outline (`#lang` something else) is passed over, and one that does not load is not consulted — it is not the file being written, and one broken outline must not stop every write to the others.
 
 The file actually written is the reply's `file`.
 

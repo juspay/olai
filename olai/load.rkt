@@ -43,6 +43,8 @@
           [load-error-where (-> load-error? (or/c string? #f))]
           [load-error-detail (-> load-error? string?)]
           [try-load-outline (-> path? (or/c outline? load-error?))]
+          [outline-lang (-> path? (or/c 'outline 'sexp #f))]
+          [outline-files (-> (listof path?) (listof path?))]
           [load-set (-> (listof path?) (or/c linked? load-error?))]
           [load-roots (->* ((listof path?))
                            (#:base (or/c path? #f))
@@ -189,6 +191,57 @@
         (dynamic-require mod name)))
     (outline path tasks anchors (spliced 'includes) (spliced 'include-globs))))
 
+;; ---- which files are outlines at all ---------------------------------------
+;;
+;; `serve DIR` walks a whole tree for `*.rkt`, and a `.rkt` is not necessarily
+;; an outline: a notes directory can hold a script, and somebody's `$PWD` can
+;; be a Racket source tree. One stray module must not take the server down, so
+;; a candidate that is not written in one of this project's languages is not a
+;; root — passed over, not reported, because it was never an outline that
+;; broke. A file that IS an outline and does not load is an error as loud as
+;; ever: that distinction is the whole point of asking first.
+;;
+;; The question is answered from the `#lang` LINE and nothing else:
+;;
+;;   * Loading the file to find out is not an option. It would run whatever
+;;     module-level code the file has, and a server that walks a directory
+;;     must not execute what it finds there. It would also hide a broken
+;;     outline as "not an outline", which is the one mistake this must not
+;;     make.
+;;   * `read-language` is the library answer and has the same problem one
+;;     level down: it resolves and instantiates the reader module the FILE
+;;     names, and our readers publish no info key to ask anyway.
+;;   * The `#lang` line is the only part of a Racket file whose meaning is
+;;     fixed before any code runs, and the languages that are ours are a closed
+;;     list of two — the same closed-grammar bargain the rest of this makes.
+
+(define outline-langs (hash "olai" 'outline "olai/sexp" 'sexp))
+
+;; 'outline | 'sexp | #f. #f for anything else, a file that is not a module,
+;; and a file that is not there.
+(define (outline-lang path)
+  (define line
+    (with-handlers ([exn:fail? (λ (_e) #f)])
+      (call-with-input-file path
+        (λ (in)
+          ;; whitespace and line comments may precede `#lang`; nothing else
+          ;; may, so the first line that is neither is the one that decides
+          (let loop ()
+            (define l (read-line in 'any))
+            (cond
+              [(eof-object? l) #f]
+              [else
+               (define t (string-trim l))
+               (if (or (equal? t "") (string-prefix? t ";")) (loop) t)]))))))
+  (and line
+       (let ([m (regexp-match #px"^#lang[ \t]+([^ \t]+)[ \t]*$" line)])
+         (and m (hash-ref outline-langs (cadr m) #f)))))
+
+;; The outlines among `paths`, in order. What `serve` hands the loader, and
+;; what the CLI counts when it asks whether a directory holds any at all.
+(define (outline-files paths)
+  (filter outline-lang paths))
+
 ;; ---- node identity --------------------------------------------------------
 ;;
 ;; A node's key is what everything downstream addresses it by: element ids,
@@ -286,6 +339,10 @@
 ;; outline invisible rather than wrong) but "an included file is not a root",
 ;; asked of the set itself.
 ;;
+;; A candidate that is not an outline at all is passed over first (see
+;; outline-files): a tree walk finds `.rkt` files, and only the `#lang` line
+;; says which of them this language ever meant to load.
+;;
 ;; The closure is walked rather than read off the candidates: a fragment may
 ;; live outside the directory that was served, and what IT includes is spliced
 ;; just the same. That one walk answers everything the caller needs, which is
@@ -305,7 +362,7 @@
 ;; move it the day an outline appears higher up the tree, re-keying every node
 ;; under it. Permalinks outlive that.
 (define (load-roots paths #:base [base #f])
-  (define outs (load-each paths))
+  (define outs (load-each (outline-files paths)))
   (cond
     [(load-error? outs) (values outs '() '())]
     [else

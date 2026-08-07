@@ -153,6 +153,31 @@
        (check-true (> (store-revision st) rev2))
        (check-equal? (root-titles st) '("Inbox")))))
 
+  ;; A tree walk finds `.rkt` files, and a `.rkt` is not necessarily an
+  ;; outline: a notes directory can hold a script. One of those must not take
+  ;; the server down, and it is not an outline that BROKE — it was never one.
+  (test-case "a .rkt that is not an outline is not a root, and breaks nothing"
+    (with-temp-dir
+     (λ (dir)
+       (write-file! (build-path dir "Tasks.rkt") "#lang olai\nInbox\n")
+       (write-file! (build-path dir "helper.rkt")
+                    "#lang racket/base\n(provide x)\n(define x 1)\n")
+       (write-file! (build-path dir "tools" "gen.rkt")
+                    ";; a comment first, then the language\n#lang racket\n'hello\n")
+       (write-file! (build-path dir "notes.rkt") "no #lang at all\n")
+       (define st (make-store dir))
+       (check-false (store-error st) (format "~a" (store-error st)))
+       (check-equal? (root-titles st) '("Inbox"))
+       ;; and the sexp language is ours, so it IS one
+       (write-file! (build-path dir "Sexp.rkt") "#lang olai/sexp\n(t \"From sexp\")\n")
+       (store-invalidate! st)
+       (check-false (store-error st) (format "~a" (store-error st)))
+       (check-equal? (root-titles st) '("From sexp" "Inbox"))
+       ;; a broken OUTLINE is still an error, loudly: that is the distinction
+       (write-file! (build-path dir "Tasks.rkt") "#lang olai\nInbox\n  @date nope\n")
+       (store-invalidate! st)
+       (check-true (load-error? (store-error st))))))
+
   (test-case "an outline in a subdirectory is a root when nothing includes it"
     (with-temp-dir
      (λ (dir)

@@ -18,7 +18,9 @@
          olai/fail
          olai/load
          olai/meta
-         (only-in olai/paths dir-roots))
+         ;; which outlines a directory holds, at any depth — the set an
+         ;; `^anchor` a write does not find in its own file is looked up in
+         (only-in olai/paths files-named))
 
 (provide (struct-out located)
          locate)
@@ -65,7 +67,8 @@
 ;; checking it off from either side has to reach the file that defines it.
 ;;
 ;; So: the targeted outline, unless the spec is an anchor that outline cannot
-;; see — then the sibling root that declares it. Part of `locate` rather than a
+;; see — then the outline under the same directory that declares it. Part of
+;; `locate` rather than a
 ;; step before it: "where is this spec" has one answer, and a caller that had
 ;; to remember to widen first is a caller that can forget.
 (define (resolution-outline out want)
@@ -75,17 +78,19 @@
      (or (sibling-declaring out a) out)]
     [_ out]))
 
-;; The other outlines in this one's own directory — beside it, not under it.
+;; The other outlines under this one's directory — the same set `serve DIR`
+;; would load from there, and the same one for the same reason: an anchor's
+;; scope is the SET, so "which files could declare this name" has to be one
+;; question with one answer. A node in `notes/Ideas.rkt` that the web view
+;; draws and links to is a node `olai done ^that` must be able to reach.
 ;;
-;; A narrower scope than the SET a `serve` loads (every outline under the
-;; directory it was pointed at, minus what something splices), and narrower on
-;; purpose: a write consults its neighbours to find where an `^anchor` it does
-;; not declare lives, and "the files beside this one" is a scope a person can
-;; see. Widening it to the whole tree would make a write's reach depend on how
-;; deep somebody's notes directory goes.
+;; Nearest first — the directory's own outlines before anything under them
+;; (olai/paths, files-named) — so the file beside you wins a name two files
+;; claim, and a stray `.rkt` that is not an outline at all is passed over
+;; rather than loaded (olai/load, outline-files).
 ;;
 ;; This is deliberately weaker than the linker: first declaration wins, and a
-;; sibling that does not load is simply not consulted. A READ answers about a
+;; file that does not load is simply not consulted. A READ answers about a
 ;; set, and must refuse one that does not link; a WRITE answers about one node,
 ;; and must not be hostage to a file it is not touching. The file under the pen
 ;; is validated before and after, like any other write.
@@ -95,7 +100,7 @@
 ;; for the disk again; that is the seam to widen when they land.
 (define (sibling-declaring out a)
   (define self (simple-form-path (outline-path out)))
-  (for/or ([p (in-list (dir-roots (path-only self)))]
+  (for/or ([p (in-list (outline-files (files-named (path-only self))))]
            #:unless (equal? p self))
     (define r (try-load-outline p))
     (and (outline? r) (hash-ref (outline-anchors r) a #f) r)))

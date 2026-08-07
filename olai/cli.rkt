@@ -368,9 +368,13 @@
           #:json? #f)]
     [(eq? (path-kind (car file-args)) 'dir)
      (define dir (simple-form-path (path->complete-path (car file-args))))
-     (when (null? (files-named dir))
+     ;; the same two questions the store asks, in the same order: which files
+     ;; are under there, and which of them are outlines. A tree of `.rkt` that
+     ;; are somebody's Racket source holds no outline, and saying so before a
+     ;; port is bound is better than a page of load errors
+     (when (null? (outline-files (files-named dir)))
        (die exit-not-found
-            (format "no outlines in ~a (serve wants *.rkt under it)" dir)
+            (format "no outlines in ~a (serve wants #lang olai files under it)" dir)
             #:json? #f))
      dir]
     [else (resolve-path (car file-args) #f)]))

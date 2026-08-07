@@ -1261,6 +1261,28 @@
           (check-false (string-contains? body3 "Put away") body3))))
      (λ () (delete-directory/files dir))))
 
+  ;; A tree walk finds `.rkt` files, and a notes directory may hold a script.
+  ;; One of those must not take the server down.
+  (test-case "a .rkt that is not an outline is passed over, not loaded"
+    (define dir (make-temporary-file "sfstray~a" 'directory))
+    (dynamic-wind
+     void
+     (λ ()
+       (display-to-file "#lang olai\nBuy milk\n" (build-path dir "Tasks.rkt"))
+       (display-to-file "#lang racket/base\n(provide x)\n(define x 1)\n"
+                        (build-path dir "helper.rkt"))
+       (make-directory (build-path dir "tools"))
+       (display-to-file "#lang racket\n(error 'boom \"never run this\")\n"
+                        (build-path dir "tools" "gen.rkt"))
+       (with-serve
+        (list (path->string dir))
+        (λ (port _line)
+          (define-values (code body) (GET port "/"))
+          (check-equal? code 200 body)
+          (check-true (string-contains? body "Buy milk") body)
+          (check-false (string-contains? body "ol-error") body))))
+     (λ () (delete-directory/files dir))))
+
   (test-case "serve with more than one path is a usage error"
     (define-values (code err)
       (run-serve fake-agent (list (path->string example) (path->string example))))
@@ -1286,13 +1308,16 @@
     (dynamic-wind
      void
      (λ ()
-       ;; nothing under it is an outline: a subdirectory of notes, and the
-       ;; lock file an editor leaves (a dotfile, so not an outline either)
+       ;; nothing under it is an outline: a subdirectory of notes, a `.rkt`
+       ;; written in some other language, and the lock file an editor leaves
+       ;; (a dotfile, so not an outline either)
        (make-directory (build-path dir "Daily"))
        (display-to-file "notes\n" (build-path dir "Daily" "2026-08.md"))
+       (display-to-file "#lang racket/base\n" (build-path dir "Daily" "gen.rkt"))
        (display-to-file "#lang olai\n" (build-path dir ".#Tasks.rkt"))
        (define-values (code err) (run-serve fake-agent (list (path->string dir))))
        (check-equal? code 3 err)
        (check-true (string-contains? err (path->string dir)) err)
-       (check-true (string-contains? err "rkt") err))
+       ;; and says what it was looking for, which is not just an extension
+       (check-true (string-contains? err "#lang olai") err))
      (λ () (delete-directory/files dir)))))

@@ -73,6 +73,18 @@
        (check-equal? (dirs-read f) (list (root-dir f)))
        (check-equal? (root-dir f) (path->directory-path (simple-form-path dir))))))
 
+  ;; WHICH of the files under a tree are outlines is not this module's
+  ;; question — a name cannot say what language a file is in — so it answers
+  ;; with every `.rkt` and the load layer discriminates (olai/load,
+  ;; outline-files). This is the seam, written down so it stays one.
+  (test-case "files-named answers with names; the language is asked elsewhere"
+    (with-temp-dir
+     (λ (dir)
+       (touch! (build-path dir "Tasks.rkt"))
+       (touch! (build-path dir "helper.rkt") "#lang racket/base\n")
+       (check-equal? (map file-label (files-named dir))
+                     '("Tasks.rkt" "helper.rkt")))))
+
   ;; A link back at an ancestor is a walk that never ends, and this one runs on
   ;; every staleness probe.
   (test-case "a symlinked subdirectory is not descended into"
