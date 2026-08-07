@@ -1,53 +1,64 @@
 Feature: a note folded to one line
 
-  A node's note is drawn one line tall, ellipsized, with the whole of it still
-  in the page: pointing at the node opens it, and pointing away folds it back.
-  The fold is a box, not a shorter string, so nothing a reader could search for
-  is missing while it is folded.
+  A node's note is drawn one line tall, with the whole of it still in the page.
+  The "…" beside it opens it and folds it again — a click, never a hover: a
+  note that answered the pointer moved the page under the cursor, and crossing
+  the outline opened whatever was on the way.
 
-  A note that already fits on one line has nothing to open, and shows nothing
-  saying it has.
+  A note that already fits on one line carries no "…" at all: there is nothing
+  to open, and nothing says there is.
 
-  Scenario: a long note is one line until you point at the node
+  Scenario: a long note is one line, and says there is more
     When I open the home page
-    Then the note under "Ship the server" is folded to one line
+    Then the note under "Ship the server" is folded
+    And the note under "Ship the server" offers to open
     And the note under "Ship the server" still says "only the first is on it"
-    When I point at "Ship the server"
-    Then the note under "Ship the server" shows all of it
-    When I point away
-    Then the note under "Ship the server" is folded to one line
 
-  # A node opens its OWN note. Were it the whole subtree's, pointing at a leaf
-  # would open every note above it at once — the page moving under the cursor
-  # to say something about nodes it is nowhere near.
-  Scenario: pointing at a child does not open its parent's note
-    When I open the home page
-    And I point at "Write the tests"
-    Then the note under "Ship the server" is folded to one line
-
-  Scenario: a note that fits on one line has nothing to open
+  Scenario: a note that fits on one line offers nothing
     When I open the home page
     Then the note under "Inbox" shows all of it
-    And the note under "Inbox" is one line tall
+    And the note under "Inbox" offers nothing to open
 
-  # The note is focusable, so a tap is what opens it where there is no pointer
-  # to hover with. The pointer is taken off the note afterwards: on a desktop
-  # browser the click hovers it too, and hover is the mechanism this scenario
-  # is not about.
-  @phone
-  Scenario: a tap opens the note where there is no hover
+  Scenario: the button opens the note, and folds it again
     When I open the home page
-    Then the note under "Ship the server" is folded to one line
-    When I tap the note under "Ship the server"
-    And I point away
+    And I open the note under "Ship the server"
+    Then the note under "Ship the server" shows all of it
+    When I fold the note under "Ship the server"
+    Then the note under "Ship the server" is folded
+
+  # Travelling over the outline is not a decision. This is the scenario the
+  # hover version failed.
+  Scenario: pointing at a note does nothing
+    When I open the home page
+    And I point at the note under "Ship the server"
+    Then the note under "Ship the server" is folded
+
+  @phone
+  Scenario: the button is a target for a finger
+    When I open the home page
+    Then the note under "Ship the server" is folded
+    When I tap the note's button under "Ship the server"
     Then the note under "Ship the server" shows all of it
 
-  Scenario: an open note is still open after the live view re-swaps it
+  Scenario: an open note outlives a reload
     When I open the home page
-    And I tap the note under "Ship the server"
-    And I point away
+    And I open the note under "Ship the server"
+    And I reload the page
+    Then the note under "Ship the server" shows all of it
+
+  Scenario: an open note outlives the live view's re-swap
+    When I open the home page
+    And I open the note under "Ship the server"
     And I mark this page load
     And I add the title "Feed the cat" to the outline
     Then I see the title "Feed the cat"
     And the page has not reloaded
     And the note under "Ship the server" shows all of it
+
+  # The same node at two SITES is two notes, and each is opened on its own —
+  # the way the fold is keyed per site.
+  Scenario: opening a note leaves its mirror folded
+    When I open the home page
+    And I open the note under "Ship the server"
+    Then the note under "Ship the server" shows all of it
+    And the mirrored note under "This week" is folded

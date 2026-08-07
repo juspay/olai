@@ -28,6 +28,7 @@ olai roadmap #project
 | Description | Indented continuation `: text` — colon **and space**; a bare `:` or `:text` is a reader error. Multiple `: ` lines join with `\n` into one `#:description`. |
 | Date/time | Indented `@date …` → `#:date`. Accepts `YYYY-MM-DD` or datetime `YYYY-MM-DDTHH:MM[:SS]` (space instead of `T` ok; normalized to `T`). Validated by gregor in the expander. |
 | Include | `@include RELATIVE/PATH.rkt` at a title position → `(include "…")`. Require+splice of the fragment's **top-level** tasks (no redundant root in the fragment). Path relative to the including file. Cycles rejected. |
+| Include glob | `@include RELATIVE/DIR/*.rkt` — one line where a line per file used to be. `*` matches any run of characters inside **one file name**; the directory part is literal. Matches splice flat, in lexicographic order, like that many literal lines. No matches is an empty splice; a directory that is not there is an error. See [Globs](#globs). |
 | Document | Indented `@doc RELATIVE/PATH.md` → `#:doc`. The node expands into that file (see [Documents](#documents-doc)). Extension must be `.md` or `.scrbl`; the file must exist. Path relative to the **defining** file. |
 | Done | Indented `@done` or `@done …` → `#:done` / `#:done` timestamp. Bare means completed (`#t`); with a value, same ISO forms as `@date`. |
 | Doing | Indented `@doing` or `@doing …` → `#:doing` / `#:doing` timestamp. The third state, between open and done: same rules as `@done`, one node cannot be both. |
@@ -116,6 +117,55 @@ Agent work ^agent
 
 `@include` / `(include "path")` is **require + splice**, not textual paste. The included file is a normal `#lang olai` module; its top-level tasks appear in place of the include line. Anchors/mirrors resolve across the whole loaded set, fragments included; duplicate `^id` names both files. Each task records its defining file (`task-file`); writes (`done` / `move` / `add --parent ^anchor`) edit that file, not the root. Node identity (`key` in the JSON) is minted from that defining file too, so a node keys the same through any root that includes it, and two roots sharing a fragment agree about it. The file is named relative to the common directory of the loaded set, so loading a fragment as its own root re-bases that name and re-keys its nodes — see [docs/cli.md](cli.md).
 
+#### Globs
+
+`@include Daily/*.rkt` is the same include with the file names left to the
+directory: one line instead of one per month.
+
+```racket
+#lang olai
+
+Daily notes ^daily
+2026
+  @include Daily/2026-*.rkt
+2027
+  @include Daily/2027-*.rkt
+```
+
+- **`*` stars a file name, never a path.** The directory part is literal, so a
+  pattern names exactly one directory. `**`, `?`, `[...]` and `{...}` are
+  errors naming themselves — the grammar is closed, and a shell's spellings
+  are not quietly taken as literal characters. (A path with **no** `*` in it
+  is a file name, brackets and all: `@include odd[1].rkt` is a literal
+  include of a file with that name.)
+- **The set is expanded once per load**, at compile time, so the module graph
+  is static while a tree is being built. Nothing re-reads a directory
+  mid-splice.
+- **Matches splice flat, in lexicographic order**, exactly where the line sits
+  — the same as that many literal `@include` lines in that order. Date-named
+  fragments (`2026-01.rkt`, `2026-02.rkt`, …) therefore sort by date for free.
+  Structure comes from the including file's own nodes, as above; a glob adds
+  none.
+- **No matches is an empty splice, not an error.** A pattern is a query, and
+  the empty answer is a legal one: `Daily/2027-*.rkt` on the first of January
+  names the files that year is about to have, and an outline that would not
+  load until one existed is an outline that breaks every New Year's Day.
+- **A directory that is not there IS an error**, with the `file:line:col` of
+  the include. The directory part is literal, so it is a claim the same way a
+  literal `@include`'s file name is one; a typo in it must not read as
+  "matched nothing".
+- **A leading dot is not matched**, as in a shell. `.#2026-01.rkt` — the lock
+  file Emacs leaves beside a file being edited, and a dangling symlink — would
+  otherwise break an outline nobody had touched.
+- **A new match while `olai serve` is running is picked up.** The pattern is
+  re-asked on every staleness check and the directory it reads is watched, so
+  the first fragment of a new month joins every open page without a restart.
+  This is the one thing in the module graph that can move without any file the
+  server already read being touched.
+
+`olai check`'s `includes` lists the files a glob matched, one entry each — a
+glob is not visible downstream, only its answer is.
+
 ### Mirrors
 
 A mirror is the **same node**, not a copy: shared title/fields/children. One node, multiple parents (DAG).
@@ -154,4 +204,4 @@ The underlying form the expander sees. Useful for tests and for agents that pref
    (t "Shipped" #:done "2026-08-03"))
 ```
 
-Keywords `#:id`, `#:date`, `#:doc`, `#:description`, `#:done` and `#:doing` are optional, any order, at most once each. `#:done` / `#:doing` may be bare or take an ISO date/datetime, and a node may carry at most one of the two. Children are `(t ...)`, `(mirror "anchor")`, or `(include "relative/path.rkt")` — closed grammar, same three forms allowed at top level. Module exports `tasks`, `anchors` (hash id → task), and `includes` (absolute paths spliced in).
+Keywords `#:id`, `#:date`, `#:doc`, `#:description`, `#:done` and `#:doing` are optional, any order, at most once each. `#:done` / `#:doing` may be bare or take an ISO date/datetime, and a node may carry at most one of the two. Children are `(t ...)`, `(mirror "anchor")`, or `(include "relative/path.rkt")` — closed grammar, same three forms allowed at top level. `include` takes a [glob](#globs) here too (`(include "Daily/*.rkt")`): one surface syntax does not get language the other does not. Module exports `tasks`, `anchors` (hash id → task), `includes` (absolute paths spliced in) and `include-globs` (the absolute patterns that found them, empty unless a glob was written).

@@ -9,6 +9,7 @@
          olai/load
          olai/json/model
          olai/json/reply
+         (only-in olai/paths file-label)
          (only-in olai/query count-tasks)
          olai/status
          olai/daily)
@@ -31,7 +32,16 @@
     (dynamic-require `(file ,(path->string path)) 'tasks))
 
   (define (load-includes path)
-    (dynamic-require `(file ,(path->string path)) 'includes)))
+    (dynamic-require `(file ,(path->string path)) 'includes))
+
+  (define (load-include-globs path)
+    (dynamic-require `(file ,(path->string path)) 'include-globs))
+
+  ;; What the language said about a form it refused, and where.
+  (define (load-failure path)
+    (define r (try-load-outline path))
+    (check-true (load-error? r) (format "~a" r))
+    (values (or (load-error-where r) "") (load-error-message r))))
 
 (module+ test
   (test-case "include splices fragment top-level tasks"
@@ -264,6 +274,162 @@
        (check-false (string-contains? root "2026-07-31") root)
        (void (load-tasks (build-path home "Daily.rkt"))))
      (λ () (delete-directory/files home))))
+
+  ;; ---- globs ---------------------------------------------------------------
+  ;;
+  ;; `@include Daily/*.rkt` is one line where a line per month used to be. It
+  ;; is the same include: the files it names are spliced flat, in the order
+  ;; the pattern matched them, exactly as that many literal lines would.
+
+  (test-case "a glob splices its matches flat, in lexicographic order"
+    (define dir (make-temporary-file "sfglob~a" 'directory))
+    (dynamic-wind
+     void
+     (λ ()
+       ;; written out of order on purpose: the ANSWER is sorted, not the
+       ;; directory's idea of it
+       (write-outline dir "Daily/2026-10.rkt" "#lang olai\nOct\n")
+       (write-outline dir "Daily/2026-01.rkt" "#lang olai\nJan\n  first\n")
+       (write-outline dir "Daily/2026-02.rkt" "#lang olai\nFeb\n")
+       (define root
+         (write-outline dir "Daily.rkt"
+                        "#lang olai\nDaily ^daily\n  @include Daily/*.rkt\n"))
+       (define tasks (load-tasks root))
+       (check-equal? (map task-title (task-children (car tasks)))
+                     '("Jan" "Feb" "Oct"))
+       ;; flat where the line sits: the fragment's own nesting is its own
+       (check-equal? (map task-title (task-children (car (task-children (car tasks)))))
+                     '("first"))
+       ;; every match is a spliced file, and the pattern is remembered as one
+       (check-equal? (map file-label (load-includes root))
+                     '("2026-01.rkt" "2026-02.rkt" "2026-10.rkt"))
+       (check-equal? (map file-label (load-include-globs root)) '("*.rkt")))
+     (λ () (delete-directory/files dir))))
+
+  ;; The reason a glob does not error on the empty set: `Daily/2027-*.rkt` on
+  ;; the first of January names the files that year is about to have, and an
+  ;; outline that will not load until one exists is an outline that breaks
+  ;; every New Year's Day.
+  (test-case "a glob that matches nothing is an empty splice"
+    (define dir (make-temporary-file "sfglobz~a" 'directory))
+    (dynamic-wind
+     void
+     (λ ()
+       (write-outline dir "Daily/2026-01.rkt" "#lang olai\nJan\n")
+       (define root
+         (write-outline dir "Daily.rkt"
+                        (string-append "#lang olai\n"
+                                       "2026\n"
+                                       "  @include Daily/2026-*.rkt\n"
+                                       "2027\n"
+                                       "  @include Daily/2027-*.rkt\n")))
+       (define tasks (load-tasks root))
+       (check-equal? (map task-title tasks) '("2026" "2027"))
+       (check-equal? (map task-title (task-children (car tasks))) '("Jan"))
+       (check-equal? (task-children (cadr tasks)) '())
+       ;; and the empty one is still a question the store has to keep asking
+       (check-equal? (length (load-include-globs root)) 2))
+     (λ () (delete-directory/files dir))))
+
+  ;; The directory part of a pattern is literal, so it is a claim about a
+  ;; directory the way a literal @include is a claim about a file. A typo in
+  ;; it must not read as "matched nothing".
+  (test-case "a glob with no directory to read is an error at the include line"
+    (define dir (make-temporary-file "sfglobd~a" 'directory))
+    (dynamic-wind
+     void
+     (λ ()
+       (define root
+         (write-outline dir "Daily.rkt"
+                        "#lang olai\nDaily\n  @include Dialy/*.rkt\n"))
+       (define-values (where msg) (load-failure root))
+       (check-true (string-contains? where "Daily.rkt") where)
+       (check-true (string-contains? where ":3:") where)
+       (check-true (string-contains? msg "Dialy") msg)
+       (check-true (regexp-match? #px"no such directory" msg) msg))
+     (λ () (delete-directory/files dir))))
+
+  ;; A closed grammar says no out loud: every spelling a shell would take is
+  ;; named and refused, at the line that wrote it, rather than quietly
+  ;; matching a file with a bracket in it.
+  (test-case "the glob grammar is closed, and says so with a srcloc"
+    (define dir (make-temporary-file "sfglobg~a" 'directory))
+    (dynamic-wind
+     void
+     (λ ()
+       (write-outline dir "Daily/2026-01.rkt" "#lang olai\nJan\n")
+       ;; every one of these stars something, which is what makes it a
+       ;; pattern; a path with no `*` in it is a file name, brackets and all
+       (for ([pattern (in-list '("Daily/**/*.rkt"
+                                 "Daily/2026-?*.rkt"
+                                 "Daily/{2026,2027}-*.rkt"
+                                 "Daily/[0-9]*.rkt"
+                                 "*/2026-01.rkt"))]
+             [i (in-naturals)])
+         (define root
+           (write-outline dir (format "root~a.rkt" i)
+                          (format "#lang olai\nDaily\n  @include ~a\n" pattern)))
+         (define-values (where msg) (load-failure root))
+         (check-true (string-contains? where ":3:") (format "~a: ~a" pattern where))
+         (check-true (regexp-match? #px"glob|starred" msg)
+                     (format "~a: ~a" pattern msg))))
+     (λ () (delete-directory/files dir))))
+
+  ;; `*` does not match a leading dot, exactly as in a shell — and here that
+  ;; is load-bearing: `.#2026-01.rkt` is the lock file Emacs leaves beside a
+  ;; file being edited, and it is a dangling symlink.
+  (test-case "a glob does not match a dotfile"
+    (define dir (make-temporary-file "sfglobh~a" 'directory))
+    (dynamic-wind
+     void
+     (λ ()
+       (write-outline dir "Daily/2026-01.rkt" "#lang olai\nJan\n")
+       (write-outline dir "Daily/.#2026-01.rkt" "#lang olai\nLock\n")
+       (define root
+         (write-outline dir "Daily.rkt"
+                        "#lang olai\nDaily\n  @include Daily/*.rkt\n"))
+       (check-equal? (map task-title (task-children (car (load-tasks root))))
+                     '("Jan")))
+     (λ () (delete-directory/files dir))))
+
+  ;; Nothing about a matched file is special: it defines its own nodes, brings
+  ;; its own includes, and declares anchors the whole tree can mirror.
+  (test-case "a globbed fragment is an ordinary include"
+    (define dir (make-temporary-file "sfglobn~a" 'directory))
+    (dynamic-wind
+     void
+     (λ ()
+       (write-outline dir "Daily/nested/deep.rkt" "#lang olai\nDeep ^deep\n")
+       (write-outline dir "Daily/2026-01.rkt"
+                      "#lang olai\nJan\n  @include nested/deep.rkt\n")
+       (define root
+         (write-outline dir "Daily.rkt"
+                        "#lang olai\nDaily\n  @include Daily/*.rkt\n  *deep\n"))
+       (define tasks (load-tasks root))
+       (define kids (task-children (car tasks)))
+       (check-equal? (map task-title (list (car kids))) '("Jan"))
+       (check-true (string-suffix? (task-file (car kids)) "2026-01.rkt")
+                   (task-file (car kids)))
+       ;; the fragment's own include came with it, and the anchor it declares
+       ;; is in scope for a mirror written at the root
+       (check-equal? (map task-title (task-children (car kids))) '("Deep"))
+       (check-true (mirror-ref? (cadr kids)))
+       ;; a module reports the includes it spliced ITSELF: the fragment's own
+       ;; were flattened before it exported anything (olai/store walks the
+       ;; graph for the rest)
+       (check-equal? (map file-label (load-includes root)) '("2026-01.rkt")))
+     (λ () (delete-directory/files dir))))
+
+  (test-case "a glob that matches the file it is written in is a cycle"
+    (define dir (make-temporary-file "sfglobc~a" 'directory))
+    (dynamic-wind
+     void
+     (λ ()
+       (define root (write-outline dir "root.rkt" "#lang olai\n@include *.rkt\n"))
+       (check-exn
+        (λ (e) (regexp-match? #px"include cycle" (exn-message e)))
+        (λ () (load-tasks root))))
+     (λ () (delete-directory/files dir))))
 
   (test-case "sexp include form"
     (define dir (make-temporary-file "sfsexp~a" 'directory))

@@ -119,6 +119,65 @@
        (define day (car (task-children (car (task-children t)))))
        (check-equal? (map task-title (task-children day)) '("Ship the store")))))
 
+  ;; ---- glob includes -------------------------------------------------------
+  ;;
+  ;; The one thing in the module graph that moves without any file the store
+  ;; read being touched: a NEW file matching `Daily/*.rkt`. Nothing in the
+  ;; watch set changed when it landed, so the probe that finds it has to be
+  ;; the pattern itself, asked again.
+
+  (test-case "a file appearing in a glob's directory is a reload"
+    (with-temp-dir
+     (λ (dir)
+       (define root (build-path dir "Daily.rkt"))
+       (write-file! (build-path dir "Daily" "2026-08.rkt") "#lang olai\nAugust\n")
+       (write-file! root "#lang olai\nDaily\n  @include Daily/*.rkt\n")
+       (define st (make-store (list root)))
+       (define (days)
+         (map task-title
+              (task-children
+               (car (outline-tasks (car (snapshot-outlines (store-snapshot st))))))))
+       (check-equal? (days) '("August"))
+       (define rev (store-revision st))
+       ;; nothing moved: no reload
+       (store-invalidate! st)
+       (check-equal? (store-revision st) rev)
+       ;; a month that did not exist when the outline was loaded
+       (write-file! (build-path dir "Daily" "2026-09.rkt") "#lang olai\nSeptember\n")
+       (store-invalidate! st)
+       (check-true (> (store-revision st) rev))
+       (check-equal? (days) '("August" "September"))
+       ;; and one that goes away is the same news
+       (define rev2 (store-revision st))
+       (delete-file (build-path dir "Daily" "2026-08.rkt"))
+       (store-invalidate! st)
+       (check-true (> (store-revision st) rev2))
+       (check-equal? (days) '("September")))))
+
+  ;; A pattern that matched nothing is still a question, and the directory it
+  ;; reads is still a place to watch: with no match there is no file in the
+  ;; watch set to take a parent of, which is exactly the new-year case.
+  (test-case "the snapshot carries the patterns, matched or not"
+    (with-temp-dir
+     (λ (dir)
+       (define root (build-path dir "Daily.rkt"))
+       (make-directory* (build-path dir "Daily"))
+       (write-file! root "#lang olai\n2027\n  @include Daily/2027-*.rkt\n")
+       (define st (make-store (list root)))
+       (check-equal? (map path->string (snapshot-globs (store-snapshot st)))
+                     (list (path->string
+                            (simple-form-path
+                             (build-path dir "Daily" "2027-*.rkt")))))
+       (define rev (store-revision st))
+       (write-file! (build-path dir "Daily" "2027-01.rkt") "#lang olai\nJanuary\n")
+       (store-invalidate! st)
+       (check-true (> (store-revision st) rev))
+       (check-equal?
+        (map task-title
+             (task-children
+              (car (outline-tasks (car (snapshot-outlines (store-snapshot st)))))))
+        '("January")))))
+
   ;; ---- @doc documents ------------------------------------------------------
   ;;
   ;; A document is a file the outline points at, so it is this layer's twice
