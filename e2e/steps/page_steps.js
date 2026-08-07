@@ -21,11 +21,6 @@ When("I reload the page", async function () {
   await this.page.reload();
 });
 
-When("I follow the sidebar's Today link", async function () {
-  await sidebarLink(this, "/today").click();
-  await this.page.waitForURL(this.url("/today"));
-});
-
 When("I follow the sidebar's Archive link", async function () {
   await sidebarLink(this, "/archive").click();
   await this.page.waitForURL(this.url("/archive"));

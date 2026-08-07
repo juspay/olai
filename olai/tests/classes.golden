@@ -4,6 +4,7 @@ has-more
 is-agent
 is-busy
 is-collapsed
+is-current
 is-doing
 is-done
 is-error

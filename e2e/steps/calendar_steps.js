@@ -51,6 +51,19 @@ Then("a day the journal has nothing for is not a link", async function () {
   assert.deepEqual(tags, ["SPAN"]);
 });
 
+// The day you are READING, which is not the same fact as which day is today —
+// the report this exists for is a browser in which the two were indistinguish-
+// able. A class and the ARIA that means it, so the mark is not only paint.
+Then("today's cell is marked as the one I am on", async function () {
+  const cell = this.page.locator(`${TODAY_CELL}.is-current`);
+  await cell.waitFor({ state: "visible" });
+  assert.equal(await cell.getAttribute("aria-current"), "page");
+});
+
+Then("no day is marked as the one I am on", async function () {
+  assert.equal(await this.page.locator(`${CAL} .is-current`).count(), 0);
+});
+
 When("I follow today's cell", async function () {
   await this.follow(this.page.locator(TODAY_CELL));
 });

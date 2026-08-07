@@ -14,9 +14,11 @@ Feature: The journal, as a month
     Then the calendar shows this month
     And today's cell is marked
     And a day the journal has nothing for is not a link
+    And no day is marked as the one I am on
     When I follow today's cell
     Then I am on a node's own page
     And the main pane is zoomed
+    And today's cell is marked as the one I am on
 
   Scenario: the month header is the way to the whole journal
     When I open the home page

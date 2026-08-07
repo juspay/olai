@@ -37,14 +37,19 @@
          (only-in olai/dates weekday-abbrev)
          olai/web/theme
          olai/web/style
-         (only-in olai/web/states is-today)
+         (only-in olai/web/states is-today is-current)
          ;; what a link to a node wears; one owner for that, web/address
          (only-in olai/web/address node-link-attributes))
 
 (provide (contract-out
-          ;; the Daily root's top-level tasks -> the month around `today`
+          ;; the Daily root's top-level tasks -> the month around `today`.
+          ;; `current-key` is the node the PAGE is about, or #f — the calendar
+          ;; is chrome on every page, and on a day's page it is also where you
+          ;; are
           [render-month-calendar
-           (-> list? #:today string? #:node-href (-> string? string?) list?)]))
+           (-> list? #:today string? #:current-key (or/c string? #f)
+               #:node-href (-> string? string?)
+               list?)]))
 
 (define-style ol-cal #:margin-bottom 0.25rem)
 
@@ -72,37 +77,69 @@
   #:font-size ,micro-size
   #:color ,dim)
 
-;; One day. The same box whether or not it leads anywhere, so the month does
-;; not jump about: what differs is the ink and whether it is a link.
+;; ONE DAY, and the three things a reader has to be able to tell apart at a
+;; glance in a 15rem column. They are three different marks on purpose — the
+;; first draft said all of them with ink and weight, and in a real browser you
+;; could not see any of them:
+;;
+;;   has something   full ink, and a dot under the number, the way every
+;;                   calendar marks a day that has entries
+;;   today           a green ring, the accent this app spends on today
+;;                   everywhere else (web/pills)
+;;   you are here    FILLED — ink ground, paper number. The page you are
+;;                   reading is not a shade of a day, it is the day
+;;
+;; The box itself is the same size in every one of them, so the month does not
+;; jump about as you move through it.
 (define-style ol-cal-day
+  #:position relative
   #:display flex
   #:align-items center
   #:justify-content center
-  #:min-height 1.5rem
+  #:min-height 1.75rem
   #:border-radius ,radius
   #:border (1px solid transparent)
   #:font-size 0.75rem
   #:font-variant-numeric tabular-nums
   #:text-decoration none
-  ;; a day with something in it: full ink, and it is a link
-  #:color ,ink
-  #:font-weight 500
-  ;; today, wherever it falls: the accent the date pill wears, so the two read
-  ;; as one idea (web/pills)
+  ;; the day you are reading. Ink on paper, inverted: the one pair every theme
+  ;; guarantees is legible, which a tinted fill is not (matcha and moon put a
+  ;; mid-green and a lilac against their own paper)
+  [,(sel '& is-current)
+   #:background ,ink
+   #:color ,paper
+   #:border-color ,ink
+   #:font-weight 600]
+  ;; today, wherever it falls, and whatever else it is
   [,(sel '& is-today)
    #:border-color ,green
    #:color ,green
    #:font-weight 600]
+  ;; today AND open: the ring says which day it is, the fill says you are on it
+  [,(sel '& is-today is-current) #:color ,paper]
   ;; a finger, on the one screen where the sidebar is the header
   [@ media (#:max-width ,phone-max) #:min-height ,touch-min])
 
-;; A day the journal has nothing for: dim.
+;; A day the journal has nothing for: dim, and that is the whole of it.
 (define-style ol-cal-empty #:color ,dim #:font-weight 400)
 
-;; And the hover is the LINK's, not the box's, so only a cell that goes
-;; somewhere lights up under the pointer.
+;; A day it HAS something for: ink, a dot, and a hover — the only kind of cell
+;; that goes anywhere, so the only kind that answers the pointer. The dot is
+;; currentColor, so it follows the cell into every state above rather than
+;; carrying a colour of its own to keep in step.
 (register-fragment!
- (css-expr [(: ,(sel 'a ol-cal-day) hover) #:background ,pill-bg]))
+ (css-expr
+  [,(sel 'a ol-cal-day) #:color ,ink #:font-weight 600]
+  [(: ,(sel 'a ol-cal-day) hover) #:background ,pill-bg]
+  [(:: ,(sel 'a ol-cal-day) after)
+   #:content ""
+   #:position absolute
+   #:bottom 0.1875rem
+   #:width 4px
+   #:height 4px
+   #:border-radius 50%
+   #:background currentColor
+   #:opacity 0.7]))
 
 ;; The blank cells at either end: the days of the month's first and last week
 ;; that belong to another month.
@@ -112,23 +149,31 @@
   (define-values (y m) (parse-year-month ym))
   (format "~a ~a" (month-name m) y))
 
-(define (day-xexpr cell node-href)
+(define (day-xexpr cell current-key node-href)
   (cond
     [(not cell) `(span ((class ,ol-cal-pad) (aria-hidden "true")))]
     [else
      (define key (hash-ref cell 'key))
      (define label (number->string (hash-ref cell 'day_num)))
+     (define current? (and key (equal? key current-key)))
      (define cls (classes ol-cal-day
                           (and (hash-ref cell 'is_today) is-today)
+                          (and current? is-current)
                           (and (not key) ol-cal-empty)))
      (if key
          `(a ((class ,cls)
               (title ,(hash-ref cell 'date))
+              ;; the day you are on is where you ARE, not somewhere to go;
+              ;; a screen reader is told so rather than left to read a link
+              ,@(if current? '((aria-current "page")) '())
               ,@(node-link-attributes node-href key))
              ,label)
          `(span ((class ,cls)) ,label))]))
 
-(define (render-month-calendar tasks #:today today #:node-href node-href)
+(define (render-month-calendar tasks
+                               #:today today
+                               #:current-key current-key
+                               #:node-href node-href)
   ;; the month is today's, and today is an argument: nothing here reads a clock
   (define ym (substring today 0 7))
   (define month (day-month-for tasks ym today))
@@ -149,4 +194,4 @@
                  `(div ((class ,ol-cal-dow) (aria-hidden "true"))
                        ,(weekday-abbrev w)))
              ,@(for/list ([c (in-list (day-month-cells month))])
-                 (day-xexpr c node-href)))))
+                 (day-xexpr c current-key node-href)))))

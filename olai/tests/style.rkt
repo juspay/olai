@@ -170,7 +170,15 @@
                                 #:docs (snapshot-docs example-snapshot)
                                 #:blocked (blocked-nodes (snapshot-edges example-snapshot)))
                 #:sidebar (render-sidebar example-files
-                                          #:home-href "/" #:today-href "/today" #:archive-href "/archive"
+                                          #:home-href "/" #:archive-href "/archive"
+                                          ;; and one of its days IS the page:
+                                          ;; "you are here" is a state the skin
+                                          ;; paints like any other, so a page
+                                          ;; that draws none of them would
+                                          ;; leave its rules unworn
+                                          #:current-key (snapshot-day-key
+                                                         example-snapshot
+                                                         example-today)
                                           ;; the demo set holds a Daily.rkt, so
                                           ;; this is also the page the journal's
                                           ;; month is drawn on — every cell

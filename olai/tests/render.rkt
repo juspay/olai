@@ -79,7 +79,7 @@
   (define (sidebar-html)
     (xstr (render-sidebar (files (list "/tmp/Tasks.rkt" (list (tk "Inbox" #f #f '()))))
                           #:home-href "/"
-                          #:today-href "/today" #:archive-href "/archive" #:today "2026-08-04"
+                          #:archive-href "/archive" #:today "2026-08-04" #:current-key #f
                           #:href "/"
                           #:node-href test-node-href))))
 
@@ -608,11 +608,14 @@
                                         (tk "Someday" #f #f '())))
                             (list "/tmp/Roadmap.rkt" (list (tk "WP2" #f #f '()))))
                      #:home-href "/"
-                     #:today-href "/today" #:archive-href "/archive" #:today "2026-08-04"
+                     #:archive-href "/archive" #:today "2026-08-04" #:current-key #f
                      #:href "/"
                                     #:node-href test-node-href)))
-    (check-true (string-contains? s "href=\"/today\"") s)
-    (check-true (string-contains? s "Today") s)
+    (check-true (string-contains? s "href=\"/archive\"") s)
+    ;; and NOT a Today row: the journal's month says which day today is, and a
+    ;; second control in the same column that only promises to find out is a
+    ;; row read twice for one meaning
+    (check-false (string-contains? s "href=\"/today\"") s)
     (check-true (string-contains? s "Starred") s)
     (check-true (string-contains? s "Nothing starred yet") s)
     (check-true (string-contains? s "Home") s)
@@ -645,14 +648,14 @@
                                            (tk "2026-08-06" #f #f '())))))))
            (list "/tmp/Tasks.rkt" (list (tk "Inbox" #f #f '())))))
 
-  (define (sidebar-of fd #:today [today "2026-08-06"])
+  (define (sidebar-of fd #:today [today "2026-08-06"] #:current [current #f])
     (xstr (render-sidebar fd
-                          #:home-href "/" #:today-href "/today"
-                          #:archive-href "/archive" #:today today
+                          #:home-href "/" #:archive-href "/archive" #:today today
+                          #:current-key current
                           #:href "/" #:node-href test-node-href)))
 
-  (define (daily-sidebar [today "2026-08-06"])
-    (sidebar-of daily-files #:today today))
+  (define (daily-sidebar [today "2026-08-06"] #:current [current #f])
+    (sidebar-of daily-files #:today today #:current current))
 
   ;; the header's address, as the page writes it
   (define (title-href key)
@@ -876,7 +879,7 @@
                                  #:stylesheet-href "/static/app.css"
                                  #:sidebar (render-sidebar fd #:home-href "/"
                                                            #:href "/"
-                                                           #:today-href "/today" #:archive-href "/archive" #:today "2026-08-04"
+                                                           #:archive-href "/archive" #:today "2026-08-04" #:current-key #f
                                                            #:node-href test-node-href))))
     (check-true (string-contains? s "<title>olai</title>") s)
     (check-true (string-contains? s "href=\"/static/app.css\"") s)
@@ -958,7 +961,7 @@
 
   (test-case "links navigate partially and keep their plain href"
     (define fd (files (list "Tasks.rkt" (list (tk "Milk" #f #f '())))))
-    (define s (xstr (render-sidebar fd #:home-href "/" #:today-href "/today" #:archive-href "/archive" #:today "2026-08-04" #:href "/"
+    (define s (xstr (render-sidebar fd #:home-href "/" #:archive-href "/archive" #:today "2026-08-04" #:current-key #f #:href "/"
                                     #:node-href test-node-href)))
     ;; no-JS, middle-click and copy-link all still read the href
     (check-true (string-contains? s (format "href=\"/n/~a\"" (title-key "Milk"))) s)
@@ -969,8 +972,8 @@
     ;; this is here to keep unwritable
     (check-true (string-contains? s "hx-target=\"#ol-live\"") s)
     (check-false (string-contains? s "hx-target=\"#ol-chat\"") s)
-    ;; the chrome links too: Today and the brand are navigation like any other
-    (check-true (string-contains? s "hx-get=\"/today\"") s))
+    ;; the chrome links too: Archive and the brand are navigation like any other
+    (check-true (string-contains? s "hx-get=\"/archive\"") s))
 
   (test-case "the bullet and the crumbs navigate the same way"
     (define bullet (xstr (render-node-fragment (tk "T" #f #f '() #:id "t1")

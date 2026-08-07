@@ -25,7 +25,7 @@ Feature: navigating without rebuilding the page
 
   Scenario: every navigation link keeps a plain href
     When I open the home page
-    Then the sidebar links to "/today"
+    Then the sidebar links to "/archive"
     And every link in the sidebar tree has an href
 
   Scenario: back and forward go through the same region
