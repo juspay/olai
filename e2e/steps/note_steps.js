@@ -73,6 +73,17 @@ Then("the mirrored note under {string} is folded", async function (parent) {
   await assertFolded(mirrorBlock(this, parent), true, `the mirror under ${parent}`);
 });
 
+Then(
+  "the mirrored note under {string} shows all of it",
+  async function (parent) {
+    assert.equal(
+      await clipped(mirrorBlock(this, parent)),
+      false,
+      `the mirror under ${parent}: the note is still cutting itself off`,
+    );
+  },
+);
+
 // Nothing cut off. For the note that is already one line this is the whole
 // assertion: nothing was ever hidden, so there is nothing to open.
 Then("the note under {string} shows all of it", async function (title) {
@@ -138,6 +149,11 @@ Then("the note under {string} offers nothing to open", async function (title) {
 When("I click the note under {string}", async function (title) {
   await measured(this);
   await text(block(this, title)).click({ position: { x: 8, y: 5 } });
+});
+
+When("I click the mirrored note under {string}", async function (parent) {
+  await measured(this);
+  await text(mirrorBlock(this, parent)).click({ position: { x: 8, y: 5 } });
 });
 
 // Past where the text stops, on the same line. The whole line is the target,

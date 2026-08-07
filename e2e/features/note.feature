@@ -81,6 +81,20 @@ Feature: a note folded to one line
     And the page has not reloaded
     And the note under "Ship the server" shows all of it
 
+  # A note inside a FOLDED node has no box, so there is nothing to measure —
+  # and nothing is not an answer. Most of a real outline is folded most of the
+  # time, and reading a hidden note as "there is nothing to open" is what
+  # "nothing expands at all" was: the note came back on screen with no cue, no
+  # pointer and no click. The reload is what makes the note load hidden, the
+  # way it does for anybody whose folds are the ones they left.
+  Scenario: a note that was out of sight when it was measured still opens
+    When I open the home page
+    And I fold "This week"
+    And I reload the page
+    And I unfold "This week"
+    And I click the mirrored note under "This week"
+    Then the mirrored note under "This week" shows all of it
+
   # The same node at two SITES is two notes, and each is opened on its own —
   # the way the fold is keyed per site.
   Scenario: opening a note leaves its mirror folded

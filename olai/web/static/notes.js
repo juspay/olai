@@ -22,7 +22,7 @@
 // (A double click still folds on its first click, then selects its word in the
 // folded line. Telling the two apart would cost a timer on every open.)
 (function(){
-  var KEY='olai.notes',state={},down=null;
+  var KEY='olai.notes',state={},down=null,pending=false;
   try{state=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){state={}}
   function set(n,open){
     n.classList.toggle('is-expanded',open);
@@ -33,18 +33,38 @@
   // as tall as its own contents, and overflows nothing — so every note is
   // folded, then measured, then put back the way it was. Three passes and not
   // one loop: a write between two reads is a layout per note.
+  //
+  // A note with NO BOX measures nothing, and nothing is not an answer. That is
+  // a note inside a folded node — most of a real outline, most of the time —
+  // and reading it as "there is nothing to open" is how a whole page of notes
+  // stops opening. What was known about one stands until it can be measured
+  // again, which is what the observer below is for.
   function apply(){
     var blocks=[].slice.call(document.querySelectorAll('[data-note-key]'));
     blocks.forEach(function(n){n.classList.remove('is-expanded')});
-    var more=blocks.map(function(n){
+    var sizes=blocks.map(function(n){
       var t=n.querySelector('.ol-note');
-      return !!t&&t.scrollHeight>t.clientHeight+1;
+      if(t&&watch)watch.observe(t);
+      return t?[t.scrollHeight,t.clientHeight]:null;
     });
     blocks.forEach(function(n,i){
-      n.classList.toggle('has-more',more[i]);
-      set(n,more[i]&&state[n.dataset.noteKey]===true);
+      var s=sizes[i];
+      if(s&&s[0]>0)n.classList.toggle('has-more',s[0]>s[1]+1);
+      set(n,n.classList.contains('has-more')&&state[n.dataset.noteKey]===true);
     });
   }
+  function schedule(){
+    if(pending)return;
+    pending=true;
+    requestAnimationFrame(function(){pending=false;apply()});
+  }
+  // Everything that can change the answer is the note's box changing: the
+  // window narrowing, a fold above it opening, a picture arriving inside it, a
+  // font landing. One thing to watch rather than four things to hear about —
+  // and the only one of them that says a note nobody could measure is on the
+  // screen now.
+  var watch=window.ResizeObserver?new ResizeObserver(schedule):null;
+  if(!watch)addEventListener('resize',schedule);
   // Where the press started, so the release can tell a click from a drag. A
   // keyboard's click has no press and no coordinates (detail 0), and is never
   // asked.
@@ -75,14 +95,5 @@
   // document, not e.target — an outerHTML swap replaces the element the event
   // would name.
   document.addEventListener('htmx:afterSettle',apply);
-  // A narrower window wraps a note that fitted before, so what has more in it
-  // is asked again whenever the layout is. Once per frame: a drag fires this
-  // by the dozen.
-  var pending=false;
-  addEventListener('resize',function(){
-    if(pending)return;
-    pending=true;
-    requestAnimationFrame(function(){pending=false;apply()});
-  });
   apply();
 })();
