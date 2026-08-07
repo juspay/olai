@@ -34,7 +34,7 @@
      (λ (dir)
        (define f (build-path dir "Tasks.rkt"))
        (write-file! f "#lang olai\nInbox\n")
-       (define st (make-store (list f)))
+       (define st (make-store f))
        (check-equal? (titles (store-snapshot st)) '("Inbox"))
        (check-false (store-error st))
        ;; the module registry would hand back "Inbox" forever; the store
@@ -50,7 +50,7 @@
      (λ (dir)
        (define f (build-path dir "Tasks.rkt"))
        (write-file! f "#lang olai\nInbox\n  Buy milk\n")
-       (define st (make-store (list f)))
+       (define st (make-store f))
        (write-file! f "#lang olai\nInbox\n  Buy milk\n    @date nope\n")
        (store-invalidate! st)
        (define err (store-error st))
@@ -78,7 +78,7 @@
      (λ (dir)
        (define f (build-path dir "Tasks.rkt"))
        (write-file! f "#lang olai\nInbox\n")
-       (define st (make-store (list f)))
+       (define st (make-store f))
        (define r0 (store-revision st))
        (check-true (exact-positive-integer? r0))
        ;; nothing changed on disk: an invalidate is a probe, not a reload
@@ -107,7 +107,7 @@
        (write-file! leaf "#lang olai\n2026-08-04\n")
        (write-file! mid "#lang olai\nAugust\n  @include extra.rkt\n")
        (write-file! root "#lang olai\n2026\n  @include Daily/2026-08.rkt\n")
-       (define st (make-store (list root)))
+       (define st (make-store root))
        (define watched (map path->string (snapshot-watch (store-snapshot st))))
        (for ([p (in-list (list root mid leaf))])
          (check-not-false (member (path->string (simple-form-path p)) watched)
@@ -118,6 +118,79 @@
        (define t (car (outline-tasks (car (snapshot-outlines (store-snapshot st))))))
        (define day (car (task-children (car (task-children t)))))
        (check-equal? (map task-title (task-children day)) '("Ship the store")))))
+
+  ;; ---- a directory is a question, not a list -------------------------------
+  ;;
+  ;; A store built on a DIRECTORY is built on what that directory holds RIGHT
+  ;; NOW. The roots are re-asked on every staleness probe, exactly like a glob
+  ;; include, because the file that appears is the one nothing already loaded
+  ;; can point at: the first Archive.rkt an `olai archive` writes.
+
+  (define (root-titles st)
+    (for*/list ([o (in-list (snapshot-outlines (store-snapshot st)))]
+                [tk (in-list (outline-tasks o))])
+      (task-title tk)))
+
+  (test-case "an outline created under the served directory is a root, live"
+    (with-temp-dir
+     (λ (dir)
+       (write-file! (build-path dir "Tasks.rkt") "#lang olai\nInbox\n")
+       (define st (make-store dir))
+       (check-equal? (root-titles st) '("Inbox"))
+       (define rev (store-revision st))
+       ;; nothing moved: no reload
+       (store-invalidate! st)
+       (check-equal? (store-revision st) rev)
+       ;; a file no watched file's mtime knows anything about
+       (write-file! (build-path dir "Archive.rkt") "#lang olai\nPut away\n")
+       (store-invalidate! st)
+       (check-true (> (store-revision st) rev))
+       (check-equal? (root-titles st) '("Put away" "Inbox"))
+       ;; and one that goes away is the same news
+       (define rev2 (store-revision st))
+       (delete-file (build-path dir "Archive.rkt"))
+       (store-invalidate! st)
+       (check-true (> (store-revision st) rev2))
+       (check-equal? (root-titles st) '("Inbox")))))
+
+  (test-case "an outline in a subdirectory is a root when nothing includes it"
+    (with-temp-dir
+     (λ (dir)
+       (write-file! (build-path dir "Tasks.rkt") "#lang olai\nInbox\n")
+       (write-file! (build-path dir "notes" "Ideas.rkt") "#lang olai\nDeeper\n")
+       (define st (make-store dir))
+       (check-equal? (root-titles st) '("Inbox" "Deeper")))))
+
+  ;; The subtraction, which is what makes the recursion safe: a fragment read
+  ;; as a root as well as through the file that splices it would define every
+  ;; one of its nodes twice — two keys for one node, and an ^anchor the linker
+  ;; rightly calls a duplicate.
+  (test-case "a file another root includes is not a root of its own"
+    (with-temp-dir
+     (λ (dir)
+       (write-file! (build-path dir "Daily" "2026-08.rkt")
+                    "#lang olai\nAugust ^august\n")
+       ;; and one beside the root, where "it lives in a subdirectory" would
+       ;; not have saved it
+       (write-file! (build-path dir "Frag.rkt") "#lang olai\nShared ^shared\n")
+       (write-file! (build-path dir "Tasks.rkt")
+                    (string-append "#lang olai\nInbox\n"
+                                   "  @include Daily/2026-08.rkt\n"
+                                   "  @include Frag.rkt\n"))
+       (define st (make-store dir))
+       (check-false (store-error st) (format "~a" (store-error st)))
+       (check-equal? (root-titles st) '("Inbox"))
+       ;; one node per anchor, spliced under the root that asked for it
+       (define snap (store-snapshot st))
+       (check-equal? (length (snapshot-files-data snap)) 1)
+       (for ([id (in-list '("august" "shared"))])
+         (check-not-false (hash-ref (snapshot-index snap) id #f) id))
+       ;; and dropping the include makes the fragment a root, live
+       (write-file! (build-path dir "Tasks.rkt")
+                    "#lang olai\nInbox\n  @include Frag.rkt\n")
+       (store-invalidate! st)
+       (check-false (store-error st) (format "~a" (store-error st)))
+       (check-equal? (root-titles st) '("Inbox" "August")))))
 
   ;; ---- glob includes -------------------------------------------------------
   ;;
@@ -132,7 +205,7 @@
        (define root (build-path dir "Daily.rkt"))
        (write-file! (build-path dir "Daily" "2026-08.rkt") "#lang olai\nAugust\n")
        (write-file! root "#lang olai\nDaily\n  @include Daily/*.rkt\n")
-       (define st (make-store (list root)))
+       (define st (make-store root))
        (define (days)
          (map task-title
               (task-children
@@ -163,7 +236,7 @@
        (define root (build-path dir "Daily.rkt"))
        (make-directory* (build-path dir "Daily"))
        (write-file! root "#lang olai\n2027\n  @include Daily/2027-*.rkt\n")
-       (define st (make-store (list root)))
+       (define st (make-store root))
        (check-equal? (map path->string (snapshot-globs (store-snapshot st)))
                      (list (path->string
                             (simple-form-path
@@ -191,7 +264,7 @@
        (define f (build-path dir "Tasks.rkt"))
        (write-file! doc "# Plan\n\nthe body\n")
        (write-file! f "#lang olai\nShip it\n  @doc notes/plan.md\n")
-       (define st (make-store (list f)))
+       (define st (make-store f))
        (define docs (snapshot-docs (store-snapshot st)))
        (check-equal? (hash-ref docs (path->string (simple-form-path doc)) #f)
                      "# Plan\n\nthe body\n")
@@ -207,7 +280,7 @@
        (define f (build-path dir "Tasks.rkt"))
        (write-file! doc "# Plan\n")
        (write-file! f "#lang olai\nShip it\n  @doc plan.md\n")
-       (define st (make-store (list f)))
+       (define st (make-store f))
        (define rev (store-revision st))
        ;; nothing changed: no reload, no news
        (store-invalidate! st)
@@ -227,7 +300,7 @@
        (define f (build-path dir "Tasks.rkt"))
        (write-file! doc "# Plan\n")
        (write-file! f "#lang olai\nShip it\n  @doc plan.md\n")
-       (define st (make-store (list f)))
+       (define st (make-store f))
        (check-false (store-error st))
        ;; @doc names a file, and the LANGUAGE is what says it has to be there
        (delete-file doc)
@@ -256,7 +329,7 @@
      (λ (dir)
        (define f (build-path dir "Tasks.rkt"))
        (write-file! f "#lang olai\nProjects\n  Ship it\n    Write the docs\n")
-       (define st (make-store (list f)))
+       (define st (make-store f))
        (define before (all-keys (store-snapshot st)))
        (define (key-of pairs title) (cadr (assoc title pairs)))
        ;; rename every ancestor of "Write the docs"
@@ -274,7 +347,7 @@
      (λ (dir)
        (define f (build-path dir "Tasks.rkt"))
        (write-file! f "#lang olai\nInbox\n  Call\n    mum\n  Call\n    dad\n")
-       (define st (make-store (list f)))
+       (define st (make-store f))
        (define snap (store-snapshot st))
        (define calls
          (for/list ([c (in-list (task-children
@@ -292,7 +365,7 @@
      (λ (dir)
        (define f (build-path dir "Tasks.rkt"))
        (write-file! f "#lang olai\nInbox\n  Ship it ^ship\n")
-       (define st (make-store (list f)))
+       (define st (make-store f))
        (define tk (car (task-children
                         (car (outline-tasks (car (snapshot-outlines (store-snapshot st))))))))
        (check-equal? (task-key tk) "ship")
@@ -323,8 +396,8 @@
        (define root (build-path dir "root.rkt"))
        (write-file! frag "#lang olai\nDayA\n  child\nDayB\n")
        (write-file! root "#lang olai\nParent\n  @include frag.rkt\n")
-       (define alone (make-store (list frag)))
-       (define via (make-store (list root)))
+       (define alone (make-store frag))
+       (define via (make-store root))
        (for ([title (in-list '("DayA" "child" "DayB"))])
          (check-equal? (key-for via title) (key-for alone title) title))
        ;; the including root's own node is keyed by root.rkt, not by frag
@@ -341,7 +414,7 @@
        (write-file! b "#lang olai\nBeta\n  Filler\n  @include Daily/2026-08.rkt\n")
        ;; both roots in ONE store: the shared node must be one key, so the
        ;; index that keeps first-wins is not hiding a second identity
-       (define st (make-store (list a b)))
+       (define st (make-store dir))
        (define snap (store-snapshot st))
        (define keys
          (for/list ([o (in-list (snapshot-outlines snap))])
@@ -360,7 +433,7 @@
        (define b (build-path dir "b" "Daily.rkt"))
        (write-file! a "#lang olai\nDay\n")
        (write-file! b "#lang olai\nDay\n")
-       (define st (make-store (list a b)))
+       (define st (make-store dir))
        (define snap (store-snapshot st))
        (define keys
          (for/list ([o (in-list (snapshot-outlines snap))])
@@ -400,7 +473,7 @@
        (define b (build-path dir "Roadmap.rkt"))
        (write-file! a "#lang olai\nInbox\n  Buy milk\n")
        (write-file! b "#lang olai\nShip it ^ship\n")
-       (define st (make-store (list a b)))
+       (define st (make-store dir))
        (define snap (store-snapshot st))
        (check-equal? (length (snapshot-files-data snap)) 2)
        (check-true (hash-has-key? (snapshot-index snap) "ship"))

@@ -205,7 +205,7 @@
                                 "#lang olai\nMeeting prep ^meeting-prep\n  slides\n"))
        (define b (write-outline dir "Daily.rkt"
                                 "#lang olai\n2026-08-06\n  *meeting-prep\n"))
-       (define st (make-store (list a b)))
+       (define st (make-store dir))
        (define (mirror-site-in-daily)
          (define snap (store-snapshot st))
          (define daily-tasks (cadr (assoc b (snapshot-files-data snap))))
@@ -216,10 +216,13 @@
        (define bound (mirror-site-task site))
        (check-equal? (task-title bound) "Meeting prep")
        ;; the same node, so the same key: the defining site owns it
+       ;; by file, never by position: the store is pointed at the DIRECTORY
+       ;; and loads what is under it in name order
+       (define (tasks-in file)
+         (for/or ([o (in-list (snapshot-outlines (store-snapshot st)))])
+           (and (equal? (outline-path o) file) (outline-tasks o))))
        (define defining
-         (car (find-tasks-by-title
-               (outline-tasks (car (snapshot-outlines (store-snapshot st))))
-               "Meeting prep")))
+         (car (find-tasks-by-title (tasks-in a) "Meeting prep")))
        (check-equal? (task-key bound) (task-key defining))
        ;; the subtree came along
        (check-equal? (map task-title (task-children bound)) '("slides"))
@@ -240,7 +243,7 @@
      (λ (dir)
        (define a (write-outline dir "Tasks.rkt" "#lang olai\nWork ^agent\n"))
        (define b (write-outline dir "Daily.rkt" "#lang olai\nToday\n  *agent\n"))
-       (define st (make-store (list a b)))
+       (define st (make-store dir))
        (check-false (store-error st))
        ;; the anchor goes away; the mirror in the other file now names nothing
        (display-to-file "#lang olai\nWork\n" a #:exists 'truncate/replace)

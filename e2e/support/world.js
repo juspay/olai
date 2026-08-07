@@ -38,9 +38,11 @@ export class OlaiWorld extends World {
    *  viewport is a desktop unless the scenario asked for the other one.
    *
    *  `extras` is more roots staged beside the outline — `[name, text]` pairs,
-   *  chosen by the scenario's tags (hooks.js). Boot-time, because `serve DIR`
-   *  globs the directory once, at startup: a root written later is a root this
-   *  server never has. */
+   *  chosen by the scenario's tags (hooks.js). Staged at boot because they are
+   *  the state the scenario starts IN — an outline home that already has a
+   *  second file, or an archive with something in it — not because a server
+   *  cannot see one arrive: `serve DIR` re-asks the directory, and
+   *  archive.feature's first scenario is exactly a root written later. */
   async boot(browser, env = {}, viewport = VIEWPORT, extras = []) {
     this.serverEnv = env;
     this.dir = await fs.mkdtemp(path.join(os.tmpdir(), "olai-e2e-"));

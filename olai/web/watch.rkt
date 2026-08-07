@@ -25,6 +25,8 @@
          ;; where a starred @include reads: a directory nothing in the watch
          ;; set need sit in yet
          (only-in olai/glob glob-dir)
+         ;; and where the root spec reads: one directory, or a whole tree
+         (only-in olai/paths root-dirs)
          olai/store)
 
 (provide (contract-out
@@ -59,20 +61,25 @@
 ;; ---- what to watch --------------------------------------------------------
 
 ;; The parent directories of everything the outlines are built from, deduped.
-;; store-files is in there as well as the snapshot's watch set: before the
-;; first successful load the snapshot is empty, and that is exactly the state
-;; a watcher has to get out of.
 ;;
-;; And where every glob READS, which is not the same list: `Daily/*.rkt` that
-;; matched nothing has no file in the watch set to take a parent of, and the
-;; first fragment of a new year appearing there is precisely the event this
+;; Where the ROOT SPEC reads is in there as well as the snapshot's watch set,
+;; and for two reasons. Before the first successful load the snapshot is
+;; empty, and that is exactly the state a watcher has to get out of. And a
+;; directory served is a standing question — every directory under it can
+;; grow an outline, including one that holds none yet — so the tree is
+;; watched, not just the files that answered it last time.
+;;
+;; And where every glob READS, which is not the same list either: `Daily/*.rkt`
+;; that matched nothing has no file in the watch set to take a parent of, and
+;; the first fragment of a new year appearing there is precisely the event this
 ;; whole arrangement exists to catch.
 (define (watch-dirs st)
   (define snap (store-snapshot st))
   (remove-duplicates
    (filter values
            (append
-            (for/list ([p (in-list (append (store-files st) (snapshot-watch snap)))])
+            (root-dirs (store-root st))
+            (for/list ([p (in-list (snapshot-watch snap))])
               (path-only (simple-form-path p)))
             (map glob-dir (snapshot-globs snap))))
    #:key path->string))

@@ -43,6 +43,7 @@
           [load-error-detail (-> load-error? string?)]
           [try-load-outline (-> path? (or/c outline? load-error?))]
           [load-set (-> (listof path?) (or/c linked? load-error?))]
+          [load-roots (-> (listof path?) (or/c linked? load-error?))]
           [check-written (-> (listof path?) (or/c #f load-error?))]
           [link-outlines (-> (listof outline?) (or/c linked? load-error?))]
           [mint-outline-keys (-> (listof outline?) (listof outline?))]
@@ -259,6 +260,54 @@
 (define (load-set paths)
   (define outs (load-each paths))
   (if (load-error? outs) outs (link-outlines outs)))
+
+;; The same, of CANDIDATES rather than of a list somebody typed: every outline
+;; under a directory, of which the roots are the ones no other one splices.
+;;
+;; That subtraction is what makes recursion safe. A fragment is an ordinary
+;; module — it loads on its own, and read as a root as well as through the
+;; file that `@include`s it, it would define every one of its nodes twice: two
+;; keys for one node, and an `^anchor` the linker rightly calls a duplicate.
+;; So the answer is not "don't look in subdirectories" (which makes a stray
+;; outline invisible rather than wrong) but "an included file is not a root",
+;; asked of the set itself.
+;;
+;; The closure is walked rather than read off the candidates: a fragment may
+;; live outside the directory that was served, and what IT includes is spliced
+;; just the same.
+;;
+;; -> linked, or the load-error of the first file that would not load, or of
+;; the set that would not link.
+(define (load-roots paths)
+  (define outs (load-each paths))
+  (cond
+    [(load-error? outs) outs]
+    [else
+     (define spliced (included-closure outs))
+     (link-outlines
+      (for/list ([o (in-list outs)]
+                 #:unless (hash-ref spliced (path-string (outline-path o)) #f))
+        o))]))
+
+;; The one spelling of a file's identity in the two lists compared above.
+(define (path-string p)
+  (path->string (simple-form-path (if (path? p) p (string->path p)))))
+
+;; Every file the given outlines splice, directly or through one another, as a
+;; set of path strings. A file already visited is not loaded again — the
+;; module registry would hand back the same module anyway, and the walk has to
+;; end on an outline that includes something already seen.
+(define (included-closure outs)
+  (define seen (make-hash))
+  (define (visit paths)
+    (for ([p (in-list paths)])
+      (define key (path-string p))
+      (unless (hash-ref seen key #f)
+        (hash-set! seen key #t)
+        (define o (try-load-outline (string->path key)))
+        (when (outline? o) (visit (outline-includes o))))))
+  (for ([o (in-list outs)]) (visit (outline-includes o)))
+  seen)
 
 ;; Every one of them, in order, or the first that would not load. What the two
 ;; callers above then DO with the outlines is the whole of how they differ:

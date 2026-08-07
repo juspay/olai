@@ -162,7 +162,7 @@
     (define stop
       (start-server #:port 0
                     #:bind "127.0.0.1"
-                    #:files (list f)
+                    #:root f
                     #:acp-command fake-agent
                     #:on-listen (λ (p) (set! bound p))
                     #:on-agent (λ (a) (set! agent a))))
@@ -1198,37 +1198,74 @@
 
   ;; ---- serve DIR -----------------------------------------------------------
   ;;
-  ;; The front door: a directory, globbed once at boot, top level only — and
-  ;; the directory itself is where the agent works, which is what the stored
-  ;; sessions hang off.
+  ;; The front door: ONE directory, every outline under it, and the directory
+  ;; itself is where the agent works — which is what the stored sessions hang
+  ;; off. What it is NOT is a file set: two paths is a usage error, not a set
+  ;; assembled behind your back.
 
-  (test-case "serve DIR serves the directory's top-level outlines"
+  (test-case "serve DIR serves every outline under it, each one once"
     (define dir (make-temporary-file "sfdir~a" 'directory))
     (dynamic-wind
      void
      (λ ()
        (display-to-file "#lang olai\nBuy milk\n" (build-path dir "Tasks.rkt"))
-       (display-to-file "#lang olai\nShip it\n" (build-path dir "Roadmap.rkt"))
-       ;; a fragment lives one level down, and is not a root
+       (display-to-file "#lang olai\nDaily\n  @include Daily/2026-08.rkt\n"
+                        (build-path dir "Roadmap.rkt"))
        (make-directory (build-path dir "Daily"))
-       (display-to-file "#lang olai\nNot a root\n"
+       ;; a fragment Roadmap.rkt splices: loaded through it, and NOT a root of
+       ;; its own — twice would be two keys for one node
+       (display-to-file "#lang olai\nSpliced ^spliced\n"
                         (build-path dir "Daily" "2026-08.rkt"))
+       ;; and an outline in a subdirectory that nothing includes, which is a
+       ;; root like any other rather than a file quietly invisible
+       (make-directory (build-path dir "notes"))
+       (display-to-file "#lang olai\nDeeper\n" (build-path dir "notes" "Ideas.rkt"))
        (with-serve
         (list (path->string dir))
         (λ (port line)
-          ;; the announcement names the directory the agent works in, and the
-          ;; roots it globbed — sorted, and only the top level
+          ;; the announcement names what serve was POINTED AT — the roots move
+          ;; while it runs, so a list printed here would stop being true
           (check-true (string-contains? line (path->string dir)) line)
-          (check-true (< (caar (regexp-match-positions #rx"Roadmap[.]rkt" line))
-                         (caar (regexp-match-positions #rx"Tasks[.]rkt" line)))
-                      line)
-          (check-false (string-contains? line "Daily/2026-08.rkt") line)
           (define-values (code body) (GET port "/"))
           (check-equal? code 200 body)
           (check-true (string-contains? body "Buy milk") body)
-          (check-true (string-contains? body "Ship it") body)
-          (check-false (string-contains? body "Not a root") body))))
+          (check-true (string-contains? body "Deeper") body)
+          ;; spliced once: a second load would have been a duplicate ^spliced,
+          ;; which is a broken set and an error banner rather than a page
+          (check-true (string-contains? body "Spliced") body)
+          (check-false (string-contains? body "ol-error") body))))
      (λ () (delete-directory/files dir))))
+
+  ;; The whole point of the directory being a QUESTION: `olai archive` creates
+  ;; a file the server has never seen, and a human should not have to restart
+  ;; it to read what they just put away.
+  (test-case "an outline created under a running serve is a root, no restart"
+    (define dir (make-temporary-file "sfnew~a" 'directory))
+    (dynamic-wind
+     void
+     (λ ()
+       (display-to-file "#lang olai\nBuy milk\n" (build-path dir "Tasks.rkt"))
+       (with-serve
+        (list (path->string dir))
+        (λ (port _line)
+          ;; the archive has a page of its own, and nothing is in it yet
+          (define-values (_c body) (GET port "/archive"))
+          (check-false (string-contains? body "Put away") body)
+          (display-to-file "#lang olai\nPut away\n" (build-path dir "Archive.rkt"))
+          (define-values (code body2) (GET port "/archive"))
+          (check-equal? code 200 body2)
+          (check-true (string-contains? body2 "Put away") body2)
+          ;; and the live outline is still the live outline
+          (define-values (_c3 body3) (GET port "/"))
+          (check-true (string-contains? body3 "Buy milk") body3)
+          (check-false (string-contains? body3 "Put away") body3))))
+     (λ () (delete-directory/files dir))))
+
+  (test-case "serve with more than one path is a usage error"
+    (define-values (code err)
+      (run-serve fake-agent (list (path->string example) (path->string example))))
+    (check-equal? code 1 err)
+    (check-true (string-contains? err "one directory or one outline") err))
 
   (test-case "serve with no arguments serves the working directory"
     (define dir (make-temporary-file "sfcwd~a" 'directory))
@@ -1249,9 +1286,11 @@
     (dynamic-wind
      void
      (λ ()
-       ;; a fragment in a subdirectory is not a root, so this is still empty
+       ;; nothing under it is an outline: a subdirectory of notes, and the
+       ;; lock file an editor leaves (a dotfile, so not an outline either)
        (make-directory (build-path dir "Daily"))
-       (display-to-file "#lang olai\nDeeper\n" (build-path dir "Daily" "2026-08.rkt"))
+       (display-to-file "notes\n" (build-path dir "Daily" "2026-08.md"))
+       (display-to-file "#lang olai\n" (build-path dir ".#Tasks.rkt"))
        (define-values (code err) (run-serve fake-agent (list (path->string dir))))
        (check-equal? code 3 err)
        (check-true (string-contains? err (path->string dir)) err)

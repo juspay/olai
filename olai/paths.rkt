@@ -10,9 +10,20 @@
 ;;               Daily.rkt in different directories mint one key for two
 ;;               different nodes.
 ;;   dir-roots   which files a DIRECTORY contributes as roots.
+;;
+;; And what `serve` was POINTED AT — one path, a directory or a file (the
+;; ROOT SPEC). Three questions are asked of it and all three are here, so
+;; nothing downstream repeats the "is it a directory?" test in its own words:
+;;
+;;   root-outlines  which files it names — the candidate roots.
+;;   root-dirs      which directories it reads — what a watcher watches.
+;;   root-dir       the one directory it hangs off — where the agent works,
+;;                  and the extent of what /media/ can reach.
 
 (require racket/contract
+         racket/list
          racket/path
+         racket/string
          ;; which files in a directory a name names — the same question
          ;; `@include Daily/*.rkt` asks, with the pattern already chosen
          (only-in olai/glob glob-expand))
@@ -21,6 +32,9 @@
           [file-label (-> any/c string?)]
           [roots-base (-> list? path?)]
           [dir-roots (-> (or/c path? string?) (listof path?))]
+          [root-outlines (-> (or/c path? string?) (listof path?))]
+          [root-dirs (-> (or/c path? string?) (listof path?))]
+          [root-dir (-> (or/c path? string?) path?)]
           [key-label (-> path? any/c string?)]))
 
 (define (->path p)
@@ -58,19 +72,69 @@
          (current-directory)
          (apply build-path common))]))
 
-;; The outlines a directory holds: its *.rkt at the TOP level only, sorted.
+;; The outlines a directory holds directly: its *.rkt, sorted.
 ;;
-;; Top level only is the outline convention, not a shortcut: roots live in the
-;; directory, `@include` fragments live in subdirectories of it (Daily/), so a
-;; recursive walk would load every fragment twice.
+;; It is one glob, and it is spelled as one — sorted, files only, no dotfiles
+;; — rather than as a second implementation of the same directory read. The
+;; dotfile rule comes free with it, so an editor's lock file (`.#Tasks.rkt`,
+;; a dangling symlink) is not an outline nobody wrote.
 ;;
-;; Which is to say it is one glob, and it is spelled as one — sorted, one
-;; directory deep, files only, no dotfiles — rather than as a second
-;; implementation of the same directory read. `serve DIR` gets the dotfile
-;; rule out of that for free, and an editor's lock file (`.#Tasks.rkt`) stops
-;; being a root nobody wrote.
+;; Who asks: a write resolving an `^anchor` its own file does not declare
+;; (olai/resolve consults the file's SIBLINGS), and `root-outlines` below,
+;; which asks it at every level of a tree.
 (define (dir-roots dir)
   (glob-expand (build-path (simple-form-path (->path dir)) "*.rkt")))
+
+;; ---- what `serve` was pointed at -------------------------------------------
+;;
+;; One path, and the two shapes it can have. A DIRECTORY is a tree of
+;; outlines; a FILE is one outline. Everything else about the two is the same,
+;; which is why the dispatch lives here once.
+
+(define (dir? spec) (directory-exists? (->path spec)))
+
+;; `dir` and every directory under it, outermost first, sorted.
+;;
+;; A symlinked subdirectory is NOT descended into: a link that points at an
+;; ancestor is a walk that never ends, and this one runs on every staleness
+;; probe. A dot-prefixed name is skipped at every level, the same rule the
+;; glob above keeps.
+(define (dir-tree dir)
+  (define (subdirs d)
+    (for*/list ([name (in-list (sort (map path->string (directory-list d)) string<?))]
+                #:unless (string-prefix? name ".")
+                [p (in-value (build-path d name))]
+                #:when (and (directory-exists? p) (not (link-exists? p))))
+      p))
+  (let walk ([d dir])
+    (cons d (append-map walk (if (directory-exists? d) (subdirs d) '())))))
+
+;; Every outline a root spec names: a file is itself, a directory is every
+;; `*.rkt` under it — the one-directory glob above, asked at every level.
+;;
+;; Recursive, and the double-load a recursive walk used to risk is prevented
+;; where it actually lives: a candidate another one `@include`s is not a root
+;; (olai/load, load-roots). So a fragment under `Daily/` is loaded once, by
+;; the file that splices it, and a stray outline three directories down is
+;; still served rather than silently invisible.
+(define (root-outlines spec)
+  (if (dir? spec)
+      (append-map dir-roots (dir-tree (simple-form-path (->path spec))))
+      (list (simple-form-path (->path spec)))))
+
+;; Every directory a root spec READS, which is what a watcher has to watch:
+;; the whole tree under a directory (a new outline can appear in any of them,
+;; including one that holds none yet), or the one directory a file sits in.
+(define (root-dirs spec)
+  (if (dir? spec)
+      (dir-tree (simple-form-path (->path spec)))
+      (list (root-dir spec))))
+
+;; The one directory a root spec hangs off: itself, or the file's own. Always
+;; spelled as a directory, so the two answers are the same kind of path.
+(define (root-dir spec)
+  (define full (simple-form-path (->path spec)))
+  (path->directory-path (if (dir? full) full (path-only full))))
 
 ;; The name of `f` inside a key: relative to `base` when it sits under it,
 ;; else the full path (a fragment outside the root set still gets a name that
