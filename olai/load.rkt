@@ -10,6 +10,7 @@
          racket/list
          racket/match
          racket/path
+         racket/set
          racket/string
          file/sha1
          (except-in olai/lang/expander #%module-begin)
@@ -18,6 +19,8 @@
          (only-in olai/lang/link link-anchors link-written)
          ;; and what the typed edges between them derive to, over that same set
          (only-in olai/edges build-edge-index edge-index? empty-edge-index)
+         ;; flat-record JSONL surface — same task tree, different on-disk form
+         (only-in olai/lang/jsonl jsonl-path? load-jsonl)
          olai/paths)
 
 ;; This is a seam, so it ships with contracts: a caller that hands us a string
@@ -43,7 +46,7 @@
           [load-error-where (-> load-error? (or/c string? #f))]
           [load-error-detail (-> load-error? string?)]
           [try-load-outline (-> path? (or/c outline? load-error?))]
-          [outline-lang (-> path? (or/c 'outline 'sexp #f))]
+          [outline-lang (-> path? (or/c 'outline 'sexp 'jsonl #f))]
           [outline-files (-> (listof path?) (listof path?))]
           [load-set (-> (listof path?) (or/c linked? load-error?))]
           [load-roots (->* ((listof path?))
@@ -181,15 +184,20 @@
 ;; -> outline | load-error
 (define (try-load-outline path)
   (with-handlers ([exn:fail? (λ (e) (exn->load-error e path))])
-    (define mod `(file ,(path->string path)))
-    (define tasks (dynamic-require mod 'tasks))
-    (define anchors
-      (with-handlers ([exn:fail? (λ (_) (hash))])
-        (dynamic-require mod 'anchors)))
-    (define (spliced name)
-      (with-handlers ([exn:fail? (λ (_) '())])
-        (dynamic-require mod name)))
-    (outline path tasks anchors (spliced 'includes) (spliced 'include-globs))))
+    (cond
+      [(jsonl-path? path)
+       (define-values (tasks anchors includes globs) (load-jsonl path))
+       (outline path tasks anchors includes globs)]
+      [else
+       (define mod `(file ,(path->string path)))
+       (define tasks (dynamic-require mod 'tasks))
+       (define anchors
+         (with-handlers ([exn:fail? (λ (_) (hash))])
+           (dynamic-require mod 'anchors)))
+       (define (spliced name)
+         (with-handlers ([exn:fail? (λ (_) '())])
+           (dynamic-require mod name)))
+       (outline path tasks anchors (spliced 'includes) (spliced 'include-globs))])))
 
 ;; ---- which files are outlines at all ---------------------------------------
 ;;
@@ -217,30 +225,59 @@
 
 (define outline-langs (hash "olai" 'outline "olai/sexp" 'sexp))
 
-;; 'outline | 'sexp | #f. #f for anything else, a file that is not a module,
-;; and a file that is not there.
+;; 'outline | 'sexp | 'jsonl | #f. #f for anything else, a file that is not a
+;; module, and a file that is not there. JSONL is recognised by extension —
+;; there is no #lang line — and the rest still by the #lang line alone (so a
+;; stray .rkt that is not an outline is still passed over, never loaded).
 (define (outline-lang path)
-  (define line
-    (with-handlers ([exn:fail? (λ (_e) #f)])
-      (call-with-input-file path
-        (λ (in)
-          ;; whitespace and line comments may precede `#lang`; nothing else
-          ;; may, so the first line that is neither is the one that decides
-          (let loop ()
-            (define l (read-line in 'any))
-            (cond
-              [(eof-object? l) #f]
-              [else
-               (define t (string-trim l))
-               (if (or (equal? t "") (string-prefix? t ";")) (loop) t)]))))))
-  (and line
-       (let ([m (regexp-match #px"^#lang[ \t]+([^ \t]+)[ \t]*$" line)])
-         (and m (hash-ref outline-langs (cadr m) #f)))))
+  (cond
+    [(jsonl-path? path)
+     (and (file-exists? path) 'jsonl)]
+    [else
+     (define line
+       (with-handlers ([exn:fail? (λ (_e) #f)])
+         (call-with-input-file path
+           (λ (in)
+             ;; whitespace and line comments may precede `#lang`; nothing else
+             ;; may, so the first line that is neither is the one that decides
+             (let loop ()
+               (define l (read-line in 'any))
+               (cond
+                 [(eof-object? l) #f]
+                 [else
+                  (define t (string-trim l))
+                  (if (or (equal? t "") (string-prefix? t ";")) (loop) t)]))))))
+     (and line
+          (let ([m (regexp-match #px"^#lang[ \t]+([^ \t]+)[ \t]*$" line)])
+            (and m (hash-ref outline-langs (cadr m) #f))))]))
+
+;; Stem of a path without its extension — used to pick one of a dual-format
+;; pair (Roadmap.rkt beside Roadmap.jsonl) rather than load both and trip the
+;; linker on every shared ^anchor.
+(define (path-stem p)
+  (define name (path->string (file-name-from-path p)))
+  (define ext (path-get-extension p))
+  (if ext
+      (substring name 0 (- (string-length name) (bytes-length ext)))
+      name))
+
+;; When both Foo.rkt and Foo.jsonl are candidates, keep the .jsonl and drop the
+;; .rkt: they are two spellings of one outline, and loading both is a duplicate
+;; of every anchor. Preferring jsonl is what lets `serve docs/olai` render the
+;; flat-record Roadmap on a branch that still carries the .rkt source of truth.
+(define (prefer-jsonl-twins paths)
+  (define jsonl-stems
+    (for/set ([p (in-list paths)] #:when (jsonl-path? p))
+      (path-stem p)))
+  (filter (λ (p)
+            (or (jsonl-path? p)
+                (not (set-member? jsonl-stems (path-stem p)))))
+          paths))
 
 ;; The outlines among `paths`, in order. What `serve` hands the loader, and
 ;; what the CLI counts when it asks whether a directory holds any at all.
 (define (outline-files paths)
-  (filter outline-lang paths))
+  (prefer-jsonl-twins (filter outline-lang paths)))
 
 ;; ---- node identity --------------------------------------------------------
 ;;

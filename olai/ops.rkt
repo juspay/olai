@@ -23,6 +23,8 @@
          ;; all — the rule is the language's, and a write only asks it
          (only-in olai/lang/expander
                   task-title task-status task-child-tasks task-status-derived?)
+         (only-in olai/lang/jsonl jsonl-path?)
+         olai/jsonl-edit
          olai/status
          olai/edit
          olai/load
@@ -184,9 +186,16 @@
 ;; The text a write starts from: what is on disk, or what a brand new outline
 ;; says before anybody has written a node into it. Two ops create a file that
 ;; was not there — `add` its Inbox, `archive` the archive — and they agree here
-;; about what an empty one is.
+;; about what an empty one is. JSONL's empty file is empty (no header line).
 (define (outline-text-or-new path)
-  (if (file-exists? path) (file->string path) "#lang olai\n"))
+  (cond
+    [(file-exists? path) (file->string path)]
+    [(jsonl-path? path) ""]
+    [else "#lang olai\n"]))
+
+(define (jsonl-file? path)
+  (or (jsonl-path? path)
+      (eq? (outline-lang path) 'jsonl)))
 
 ;; ---- add ------------------------------------------------------------------
 
@@ -214,11 +223,18 @@
       [else root-path]))
   (define original (outline-text-or-new path))
   (define-values (new-text line created-inbox?)
-    (as-validation path
-                   (λ () (append-capture original title
-                                         #:date date*
-                                         #:description desc
-                                         #:parent parent))))
+    (as-validation
+     path
+     (λ ()
+       (if (jsonl-file? path)
+           (jsonl-append-capture original title
+                                 #:date date*
+                                 #:description desc
+                                 #:parent parent)
+           (append-capture original title
+                           #:date date*
+                           #:description desc
+                           #:parent parent)))))
   (define committed?
     (write! (list (cons path new-text)) #:commit (and commit? (format "capture: ~a" title))))
   (add-result (path->string path) title date* desc parent
@@ -319,9 +335,21 @@
     (as-validation
      path
      (λ ()
-       (if undo?
-           ((mark-ops-undo ops) original spec #:at at)
-           ((mark-ops-mark ops) original spec today #:at at)))))
+       (cond
+         [(jsonl-file? path)
+          (case state
+            [(done)
+             (if undo?
+                 (jsonl-undo-done-in-text original spec #:at at)
+                 (jsonl-mark-done-in-text original spec today #:at at))]
+            [(doing)
+             (if undo?
+                 (jsonl-undo-doing-in-text original spec #:at at)
+                 (jsonl-mark-doing-in-text original spec today #:at at))])]
+         [else
+          (if undo?
+              ((mark-ops-undo ops) original spec #:at at)
+              ((mark-ops-mark ops) original spec today #:at at))]))))
   (define verb (if undo? (mark-ops-undo-verb ops) (mark-ops-verb ops)))
   (define committed?
     (write! (list (cons path new-text)) #:commit (and commit? (format "~a: ~a" verb title))))
@@ -348,10 +376,17 @@
     (as-validation
      path
      (λ ()
-       (if clear?
-           (let-values ([(t l ttl) (clear-date-in-text original spec #:at at)])
-             (values t l ttl #f))
-           (set-date-in-text original spec date #:at at)))))
+       (cond
+         [(jsonl-file? path)
+          (if clear?
+              (let-values ([(t l ttl) (jsonl-clear-date-in-text original spec #:at at)])
+                (values t l ttl #f))
+              (jsonl-set-date-in-text original spec date #:at at))]
+         [else
+          (if clear?
+              (let-values ([(t l ttl) (clear-date-in-text original spec #:at at)])
+                (values t l ttl #f))
+              (set-date-in-text original spec date #:at at))]))))
   (define committed?
     (write! (list (cons path new-text))
             #:commit (and commit?
@@ -391,6 +426,13 @@
   ;; answers that one.
   (when (archived-file? src)
     (op-fail 'validation "~s is already archived (~a)" #:file src title src))
+  ;; cut/graft are outline-text operations; JSONL archive needs its own
+  ;; subtree rewrite and is not in this PR.
+  (when (or (jsonl-file? src) (jsonl-file? dest))
+    (op-fail 'validation
+             #:file src
+             "archive does not yet support .jsonl outlines (~a); use #lang olai"
+             src))
   (define created? (not (file-exists? dest)))
   (define-values (src-text* block ancestors)
     (as-validation src (λ () (cut-subtree (file->string src)

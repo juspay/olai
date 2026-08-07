@@ -63,13 +63,18 @@
                               #:on-invalid [on-invalid default-invalid]
                               #:on-applied [on-applied void])
   (define fulls (for/list ([e (in-list edits)]) (simple-form-path (car e))))
-  (for ([full (in-list fulls)]) (guard-sexp-file! full))
+  (for ([full (in-list fulls)]) (guard-write-target! full))
   ;; Same directory as the file it will replace, always: rename is atomic only
   ;; within one filesystem, and a file's @include and @doc paths resolve
-  ;; relative to the file being validated.
+  ;; relative to the file being validated. The temp keeps the target's
+  ;; extension so try-load-outline / load-jsonl pick the right surface.
   (define tmps
     (for/list ([full (in-list fulls)])
-      (make-temporary-file "sf-edit~a.rkt" #f (path-only full))))
+      (define ext (or (path-get-extension full) #".rkt"))
+      (make-temporary-file
+       (string-append "sf-edit~a" (bytes->string/utf-8 ext))
+       #f
+       (path-only full))))
   (define (discard!)
     (for ([tmp (in-list tmps)])
       (when (file-exists? tmp) (delete-file tmp))))
@@ -87,17 +92,18 @@
        (on-applied full))
      #t]))
 
-;; Every writer emits outline syntax, so a #lang olai/sexp file would be
-;; rewritten into a different language. Refuse here rather than in each
-;; command: the write path is where the rule can actually be enforced.
+;; Writers emit either outline syntax or JSONL records, never sexp forms. A
+;; #lang olai/sexp file would be rewritten into a different language; refuse
+;; here rather than in each command. JSONL and #lang olai are both fine — the
+;; op layer picks the mutator that matches the file.
 ;;
 ;; Which language a file is in is asked of the one thing that knows (olai/load,
 ;; outline-lang) rather than of a regexp over the whole text, which said yes to
 ;; a note that happened to quote the line.
-(define (guard-sexp-file! full)
+(define (guard-write-target! full)
   (when (eq? (outline-lang full) 'sexp)
     (user-fail
-     "~a is #lang olai/sexp; writes emit outline syntax (#lang olai)"
+     "~a is #lang olai/sexp; writes emit outline syntax (#lang olai) or JSONL"
      full)))
 
 ;; Auto-commit what a write applied — one path or several (an edit that lands

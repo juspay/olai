@@ -1,6 +1,8 @@
 # olai syntax
 
-Two surface syntaxes share one expander (the validator).
+Two Racket surface syntaxes share one expander (the validator). A third on-disk
+form — flat-record JSONL — loads into the same task tree and runs the same
+checker; see [JSONL](#jsonl--flat-record) at the end.
 
 ## `#lang olai` — outline (default)
 
@@ -362,3 +364,35 @@ The underlying form the expander sees. Useful for tests and for agents that pref
 ```
 
 Keywords `#:id`, `#:date`, `#:doc`, `#:description`, `#:done` and `#:doing` are optional, any order, at most once each. `#:done` / `#:doing` may be bare or take an ISO date/datetime, and a node may carry at most one of the two. `#:after`, `#:blocks` and `#:see` are the [typed edges](#typed-edges) — same three relations, any number of them, and the anchor is a bare string here (the `^` is the outline surface's sigil, like `*` for a mirror). Children are `(t ...)`, `(mirror "anchor")`, or `(include "relative/path.rkt")` — closed grammar, same three forms allowed at top level. `include` takes a [glob](#globs) here too (`(include "Daily/*.rkt")`): one surface syntax does not get language the other does not. Module exports `tasks`, `anchors` (hash id → task), `includes` (absolute paths spliced in) and `include-globs` (the absolute patterns that found them, empty unless a glob was written).
+
+## JSONL — flat-record
+
+A third on-disk form. Not a `#lang` — a `.jsonl` file of one JSON object per
+line, one line per node. The load layer (`olai/lang/jsonl`) builds the same
+`task` tree the expander produces and runs `check-task-graph`, so every rule
+above (duplicates, mirrors, edges, derived-state contradictions) applies with
+the same messages. A record's `id` is its key and its ^anchor. Siblings order
+by `ord` string comparison (writers mint midpoints via `olai/frac`).
+
+```json
+{"id":"root","ord":"V","title":"Inbox #capture"}
+{"id":"milk","parent":"root","ord":"V","title":"Buy milk","date":"2026-08-04"}
+{"id":"site","parent":"root","ord":"i","mirror":"meeting-prep"}
+```
+
+| field | meaning |
+|---|---|
+| `id` | required; node key and anchor |
+| `parent` | parent id; omit at top level |
+| `ord` | sibling order (base62 fractional index) |
+| `title` | task title (tags stay in the string) |
+| `done` / `doing` | `true` or ISO stamp; omit when open / derived |
+| `date` / `desc` / `doc` | as the outline fields |
+| `after` / `blocks` / `see` | arrays of target ids |
+| `mirror` | mirror site → target id (no title) |
+| `include` | include site → relative path (no title) |
+
+`.rkt` and `.jsonl` coexist in one loaded set. When both `Foo.rkt` and
+`Foo.jsonl` would be roots, the loader keeps the `.jsonl` twin so the same
+outline is not loaded twice. `add` / `done` / `doing` / `move` rewrite record
+lines; `archive` and `daily` on JSONL are not yet implemented.

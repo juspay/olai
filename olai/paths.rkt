@@ -78,18 +78,23 @@
          (current-directory)
          (apply build-path common))]))
 
-;; The outlines a directory holds directly: its *.rkt, sorted.
+;; The outlines a directory holds directly: its *.rkt and *.jsonl, sorted.
 ;;
-;; It is one glob, and it is spelled as one — sorted, files only, no dotfiles
-;; — rather than as a second implementation of the same directory read. The
-;; dotfile rule comes free with it, so an editor's lock file (`.#Tasks.rkt`,
-;; a dangling symlink) is not an outline nobody wrote.
+;; Each extension is one glob — sorted, files only, no dotfiles — rather than
+;; a second implementation of the same directory read. The dotfile rule comes
+;; free with it, so an editor's lock file (`.#Tasks.rkt`, a dangling symlink)
+;; is not an outline nobody wrote. Both surfaces are roots; which of a
+;; dual-format pair (Foo.rkt beside Foo.jsonl) actually loads is the load
+;; layer's call (prefer the jsonl twin).
 ;;
 ;; Who asks: a write resolving an `^anchor` its own file does not declare
 ;; (olai/resolve consults the file's SIBLINGS), and `files-named` below, which
 ;; asks it at every level of a tree.
 (define (dir-roots dir)
-  (glob-expand (build-path (simple-form-path (->path dir)) "*.rkt")))
+  (define d (simple-form-path (->path dir)))
+  (sort (append (glob-expand (build-path d "*.rkt"))
+                (glob-expand (build-path d "*.jsonl")))
+        path<?))
 
 ;; ---- a path that names files ------------------------------------------------
 ;;

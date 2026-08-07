@@ -13,7 +13,9 @@
          racket/match
          racket/path
          racket/string
-         (only-in olai/lang/expander task-file task-loc)
+         (only-in olai/lang/expander
+                  task-file task-loc task-title task-stored-status)
+         (only-in olai/lang/jsonl jsonl-path?)
          (only-in olai/lang/walk find-task-by-id find-tasks-by-title)
          olai/fail
          olai/load
@@ -84,6 +86,27 @@
     [(cons 'anchor a) (find-anchor-matches text a)]
     [(cons 'title t) (find-title-matches text t)]))
 
+;; JSONL has no title-line grammar for meta.rkt to scan. The model already
+;; carries the node and its srcloc (the record's line), so locate answers from
+;; the tree alone — same located shape the text path produces.
+(define (jsonl-hits file tasks want)
+  (define found
+    (match want
+      [(cons 'anchor a)
+       (define tk (find-task-by-id tasks a))
+       (if tk (list tk) '())]
+      [(cons 'title t) (find-tasks-by-title tasks t)]))
+  (for/list ([tk (in-list found)]
+             #:when (task-loc tk))
+    (define line (srcloc-line (task-loc tk)))
+    (define m
+      (title-match line
+                   (sub1 line)
+                   0
+                   (task-stored-status tk)
+                   (task-title tk)))
+    (list file m tk)))
+
 ;; ---- which outline a spec is resolved against ------------------------------
 ;;
 ;; A write names ONE file (--file, or the default), and that file is what a
@@ -145,9 +168,11 @@
     (append*
      (for/list ([c (in-list (candidates out want))])
        (define f (car c))
-       (define text (file->string f))
-       (for/list ([m (in-list (matches-in text want))])
-         (list f m (task-at-line (cdr c) (title-match-line m)))))))
+       (if (jsonl-path? f)
+           (jsonl-hits f (cdr c) want)
+           (let ([text (file->string f)])
+             (for/list ([m (in-list (matches-in text want))])
+               (list f m (task-at-line (cdr c) (title-match-line m)))))))))
   (define label (spec-label spec))
   (cond
     [(null? hits)

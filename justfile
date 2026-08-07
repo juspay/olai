@@ -17,8 +17,10 @@ olai_home := env_var_or_default("OLAI_HOME", "")
 # (docs/syntax.md, Mirrors). Named apart, Week.rkt's *agent reaches nothing —
 # which is the feature saying so, not a bug in the list. Daily.rkt rides along
 # as the glob-include demo.
-repo_outlines := "examples/Example.rkt examples/Week.rkt examples/Daily.rkt examples/Kitchen.rkt examples/Archive.rkt docs/olai/*.rkt"
-default_outlines := if olai_home == "" { repo_outlines } else { olai_home + "/*.rkt" }
+repo_outlines := "examples/Example.rkt examples/Week.rkt examples/Daily.rkt examples/Kitchen.rkt examples/Archive.rkt examples/Notes.jsonl docs/olai/Roadmap.jsonl docs/olai/Archive.rkt"
+# Personal homes may mix .rkt and .jsonl; a bare directory glob is the serve
+# path. The write-default still points at Tasks.rkt by name.
+default_outlines := if olai_home == "" { repo_outlines } else { olai_home + "/*.rkt " + olai_home + "/*.jsonl" }
 
 # odu CI DAG: [metadata("ci")] lives in ci/mod.just. `just ci` is the local
 # pipeline; `nix run github:juspay/odu -- run` is the attachable runner.

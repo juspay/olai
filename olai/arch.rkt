@@ -118,6 +118,14 @@
 (override "daily.rkt" (owns filesystem))
 (override "resolve.rkt" (owns filesystem))
 
+;; Sibling `ord` keys: midpoint between two fractional-index strings. Pure;
+;; writers call it when inserting a child. (jsonl-edit.rkt is package-default:
+;; pure text mutators, no ambient authority.)
+(override "frac.rkt"
+          (clock stable)
+          (concept fractional-ord "ord-alphabet" "ord-char?" "ord-string?"
+                   "ord-first" "ord-after" "ord-before" "ord-between"))
+
 ;; ---- the agent -------------------------------------------------------------------
 
 ;; One subprocess, one protocol, no browser. Nothing else spells ACP: the

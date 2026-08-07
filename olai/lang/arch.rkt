@@ -34,6 +34,12 @@
 (override "reader.rkt" (clock settling))
 (override "walk.rkt" (clock settling))
 
+;; Flat-record JSONL surface: parse lines with the `json` library into the same
+;; task tree the expander produces, then run check-task-graph. Settling with
+;; the other readers; owns filesystem because @doc existence and @include
+;; resolution are checked here the way the expander checks them for #lang olai.
+(override "jsonl.rkt" (clock settling) (owns filesystem))
+
 ;; What state a node is in, and the one contradiction that state can be in with
 ;; what it contains. One owner, because a derived answer that two modules
 ;; computed is a stored answer with extra steps: the expander applies it to a
