@@ -29,10 +29,23 @@
     var b=n.querySelector('.ol-note-more');
     if(b)b.setAttribute('aria-expanded',open?'true':'false');
   }
-  // Folded is the only state a measurement means anything in — an open note is
-  // as tall as its own contents, and overflows nothing — so every note is
-  // folded, then measured, then put back the way it was. Three passes and not
-  // one loop: a write between two reads is a layout per note.
+  // THE QUESTION IS WHAT THE FOLD HIDES, and the only honest way to ask it is
+  // to try: every note is folded and measured, then opened and measured, then
+  // put back the way it was. The difference between the two heights is the
+  // answer, and it does not care how the fold is spelled or what the browser
+  // does with the lines it does not draw.
+  //
+  // It used to ask `scrollHeight > clientHeight` — does the content overflow
+  // the box — which is a question about a browser's internals, and browsers
+  // have stopped agreeing on it: a line clamp in Chrome 151 DISCARDS the lines
+  // past the first, so nothing overflows anything and every note on the page
+  // looked like a note with nothing to show. Two heights and a subtraction
+  // cannot go stale that way.
+  //
+  // Four passes and not one loop: a write between two reads is a layout per
+  // note, where this is two for the page. Nothing paints in between — the
+  // whole thing is one turn of the event loop, and every note ends it wearing
+  // what it started with.
   //
   // A note with NO BOX measures nothing, and nothing is not an answer. That is
   // a note inside a folded node — most of a real outline, most of the time —
@@ -41,15 +54,22 @@
   // again, which is what the observer below is for.
   function apply(){
     var blocks=[].slice.call(document.querySelectorAll('[data-note-key]'));
-    blocks.forEach(function(n){n.classList.remove('is-expanded')});
-    var sizes=blocks.map(function(n){
+    function heights(){
+      return blocks.map(function(n){
+        var t=n.querySelector('.ol-note');
+        return t?t.clientHeight:0;
+      });
+    }
+    blocks.forEach(function(n){
+      n.classList.remove('is-expanded');
       var t=n.querySelector('.ol-note');
       if(t&&watch)watch.observe(t);
-      return t?[t.scrollHeight,t.clientHeight]:null;
     });
+    var folded=heights();
+    blocks.forEach(function(n){n.classList.add('is-expanded')});
+    var open=heights();
     blocks.forEach(function(n,i){
-      var s=sizes[i];
-      if(s&&s[0]>0)n.classList.toggle('has-more',s[0]>s[1]+1);
+      if(open[i]>0)n.classList.toggle('has-more',open[i]>folded[i]+1);
       set(n,n.classList.contains('has-more')&&state[n.dataset.noteKey]===true);
     });
   }

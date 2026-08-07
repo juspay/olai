@@ -915,9 +915,15 @@
 
   ;; The note's opener is the same kind of script and holds to the same
   ;; sentence: browser state, stored in the browser, keyed the way the fold is.
+  ;; Its budget is CODE and not lines — the head of that file is where a
+  ;; browser disagreement about what a line clamp does to scrollHeight is
+  ;; written down, and a line count would be a tax on writing it down.
   (test-case "notes script stays tiny and framework-free"
     (define js (file->string (build-path (web-static-dir) "notes.js")))
-    (check-true (< (length (string-split js "\n")) 105) js)
+    (define code
+      (filter (λ (l) (not (regexp-match? #px"^\\s*(//|$)" l)))
+              (string-split js "\n")))
+    (check-true (< (length code) 70) js)
     (check-false (string-contains? js "require") js)
     (check-true (string-contains? js "olai.notes") js)
     (check-true (string-contains? js "localStorage") js))
