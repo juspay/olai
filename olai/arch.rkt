@@ -85,7 +85,8 @@
 ;; "is this root the journal" must not pull the write path onto the page.
 (override "journal.rkt"
           (concept day-journal "daily-file-name" "daily-file?" "month-name"
-                   "month-fragment-rel"))
+                   "month-fragment-rel" "day-month*" "week-days"
+                   "month-grid-dates"))
 
 ;; ---- the writes ------------------------------------------------------------------
 

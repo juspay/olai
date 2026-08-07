@@ -25,16 +25,14 @@
 ;; loaded outlines is the journal is olai/daily's answer, not this module's.
 
 (require racket/contract
-         ;; the days this outline HAS, laid out as a month, and the order this
-         ;; grid's columns come in — the same grid the CLI's calendar is laid
-         ;; out on (olai/calendar)
-         (only-in olai/calendar
+         ;; the journal, as a month: its days laid out on the week this grid
+         ;; lays out, and what a month is called. One module owns all of it
+         (only-in olai/journal
                   day-month-for day-month-key day-month-cells
-                  week-days parse-year-month)
-         ;; what a month is called; the module that owns the journal owns that
-         (only-in olai/journal month-name)
-         ;; and what a weekday is called, which is gregor's to say (olai/dates)
-         (only-in olai/dates weekday-abbrev)
+                  week-days month-name)
+         ;; what a weekday is called, and reading a month back out of a string:
+         ;; the module that owns every date form (olai/dates)
+         (only-in olai/dates weekday-abbrev parse-year-month)
          olai/web/theme
          olai/web/style
          (only-in olai/web/states is-today is-current)

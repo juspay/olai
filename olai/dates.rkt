@@ -9,7 +9,8 @@
 ;;   YYYY-MM-DD HH:MM[ :SS]   (space ok; normalized to T)
 ;; Optional trailing Z / offset when gregor accepts it.
 
-(require racket/match
+(require racket/format
+         racket/match
          racket/string
          (only-in gregor date +days iso8601->date iso8601->datetime today ~t))
 
@@ -19,7 +20,9 @@
          today-iso-string
          bare-iso-date-title?
          friendly-date-label
-         weekday-abbrev)
+         weekday-abbrev
+         parse-year-month
+         iso-day-string)
 
 ;; "2026-08-04 14:30" -> "2026-08-04T14:30"
 (define (normalize-date-string s)
@@ -51,6 +54,27 @@
 
 (define (today-iso-string)
   (~t (today) "yyyy-MM-dd"))
+
+;; "2026-08" -> (values 2026 8), or (values #f #f) for anything that is not a
+;; month. A MONTH is the other date shape this outline names — a calendar is
+;; asked for one, a journal fragment is called one — so reading it lives with
+;; the day forms rather than beside whichever caller asks first.
+(define (parse-year-month s)
+  (match s
+    [(regexp #px"^([0-9]{4})-([0-9]{2})$" (list _ year month))
+     (define y (string->number year))
+     (define mo (string->number month))
+     (if (and y mo (<= 1 mo 12))
+         (values y mo)
+         (values #f #f))]
+    [_ (values #f #f)]))
+
+;; 2026 8 4 -> "2026-08-04": the day form, written rather than parsed.
+(define (iso-day-string y m d)
+  (format "~a-~a-~a"
+          y
+          (~r m #:min-width 2 #:pad-string "0")
+          (~r d #:min-width 2 #:pad-string "0")))
 
 ;; True when `s` is exactly YYYY-MM-DD (a day-node title in Daily.rkt).
 (define (bare-iso-date-title? s)
