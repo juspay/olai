@@ -10,6 +10,7 @@
          olai/query)
 
 (provide (struct-out agenda-item)
+         agenda-bucket
          collect-agenda
          agenda-groups
          agenda-groups-from-files)
@@ -20,13 +21,14 @@
 ;; breadcrumb: "A > B > title" path from root (optional file basename root)
 ;; status: 'open | 'doing — the state the node is in. 'done never reaches
 ;;         here: a finished node has had its say.
-;; bucket: 'overdue | 'doing | 'today | 'upcoming — where the item sits by its
-;;         own facts, filled in against `today` when the groups are made. It is
-;;         kept on the item because a BLOCKED item is in the blocked group and
-;;         still overdue, and the agenda has to be able to say both.
-;; waiting: the anchors this node's unfinished `@after` targets name; empty
-;;         when it is not blocked (olai/query, blocked-nodes)
-(struct agenda-item (date title breadcrumb status bucket waiting) #:transparent)
+;; waiting: the nodes this one's unfinished `@after` targets name; empty when
+;;         it is not blocked (olai/query, blocked-nodes)
+;;
+;; Which GROUP it lands in is not a field: it is `agenda-bucket` below, a
+;; function of these facts and a day. A field would be one more thing to be
+;; right about, and would have to hold some value on an item nobody has asked
+;; the question of yet.
+(struct agenda-item (date title breadcrumb status waiting) #:transparent)
 
 ;; What is on the plate: every node in flight, and any OPEN node someone
 ;; dated. A done node is out even when it still carries a @date.
@@ -45,7 +47,6 @@
     (define tk (crumbed-node-task c))
     (agenda-item (task-date tk) (task-title tk) (crumbed-node-breadcrumb c)
                  (task-status tk)
-                 #f
                  (hash-ref blocked (task-key tk) '()))))
 
 (define (in-flight? it) (eq? (agenda-item-status it) 'doing))
@@ -62,9 +63,14 @@
     [(and da db) (string<? da db)]
     [else (and da #t)]))
 
-;; Where an item sits by its own facts. Bucket by calendar day; the sort still
-;; uses the full timestamp string.
-(define (bucket-of it today)
+;; WHERE AN ITEM SITS BY ITS OWN FACTS: 'overdue | 'doing | 'today | 'upcoming.
+;; Bucket by calendar day; the sort still uses the full timestamp string.
+;;
+;; It is the group an item is in — except for a BLOCKED one, which is in the
+;; blocked group and is still whatever this says. That is the whole reason it
+;; is asked rather than read off the grouping: a node can be overdue AND
+;; blocked, and both surfaces have to be able to say so.
+(define (agenda-bucket it today)
   (cond
     [(in-flight? it) 'doing]
     [else
@@ -76,18 +82,14 @@
 
 ;; items: already-collected (listof agenda-item)
 (define (group-agenda-items items today)
-  (define stamped
-    (for/list ([it (in-list items)])
-      (struct-copy agenda-item it [bucket (bucket-of it today)])))
   ;; BLOCKED comes out first, and that is the whole of what the group does: a
   ;; node waiting on something unfinished is not on today's plate, however
-  ;; today its date is. It keeps its bucket, so the reply can say a thing is
-  ;; overdue AND blocked — which is the state a person most needs to see.
-  (define-values (blocked actionable) (partition blocked? stamped))
+  ;; today its date is.
+  (define-values (blocked actionable) (partition blocked? items))
   (define-values (doing dated) (partition in-flight? actionable))
   (define by-date (sort dated string<? #:key agenda-item-date))
   (define (in-bucket sym)
-    (filter (λ (it) (eq? (agenda-item-bucket it) sym)) by-date))
+    (filter (λ (it) (eq? (agenda-bucket it today) sym)) by-date))
   ;; DOING sits above TODAY: what you are on outranks what you planned for
   ;; the day, and below what is already late. BLOCKED sits under all of them:
   ;; it is the one group you cannot act on.

@@ -48,6 +48,7 @@
           [struct backlink ([source (or/c string? #f)] [kind symbol?])]
           [empty-edge-index edge-index?]
           [build-edge-index (-> list? hash? edge-index?)]
+          [edge-graph (-> edge-index? symbol? hash?)]
           [edge-targets (-> edge-index? symbol? string? list?)]
           [edge-backlinks (-> edge-index? string? list?)]
           [edge-order (-> edge-index? symbol? list?)]
@@ -69,10 +70,16 @@
 ;; most of them: this is the graph's vertices, not the outline's.
 (define (edge-node idx key) (hash-ref (edge-index-nodes idx) key #f))
 
+;; Every arrow of one relation: source key -> target keys. What a reader that
+;; folds over the whole thing wants (a query, a panel); `edge-targets` below is
+;; the same question about one node. Empty for a relation nothing declares.
+(define (edge-graph idx relation)
+  (hash-ref (edge-index-edges idx) relation (hash)))
+
 ;; What `source` is `relation`-ed to, in source order. Empty for a key that
 ;; declares none — asking is not an error, it is the ordinary case.
 (define (edge-targets idx relation source)
-  (hash-ref (hash-ref (edge-index-edges idx) relation (hash)) source '()))
+  (hash-ref (edge-graph idx relation) source '()))
 
 ;; Everything pointing AT `target`, edges and mirror sites alike.
 (define (edge-backlinks idx target)

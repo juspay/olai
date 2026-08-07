@@ -38,6 +38,12 @@
 
 ;; ---- the closed relation set ------------------------------------------------
 ;;
+;; ONE ROW PER RELATION, and the row is the whole of what the language knows
+;; about it: how it is written, which relation it derives to, and which way the
+;; edge runs there. A fourth relation is a human-ratified event, and this table
+;; is where it is ratified — the reader builds its line grammar from the rows
+;; (lang/line), and everything that asks "what does @blocks mean" asks here.
+;;
 ;; | written    | means                                   | derives to        |
 ;; |------------|-----------------------------------------|-------------------|
 ;; | @after ^x  | this node is not actionable until ^x is  | after: node -> x  |
@@ -48,26 +54,46 @@
 ;; Two relations come out of three spellings, which is the whole point of the
 ;; normalization: `@blocks` is where the writer thought of it, not a second
 ;; edge kind to check, sort and keep in step with the first.
-(define edge-relations '(after blocks see))
+(struct relation-rule (written derived flip?) #:transparent)
 
-(define (edge-relation? r) (and (memq r edge-relations) #t))
+(define relation-rules
+  (list (relation-rule 'after  'after #f)
+        (relation-rule 'blocks 'after #t)
+        (relation-rule 'see    'see   #f)))
 
-;; One edge, as the DERIVED graph has it: which relation it lands in and which
-;; way it runs there. `a @blocks b` is the edge `b after a` — the file keeps
-;; the direction its writer thought in, and everything downstream sees one.
+(define edge-relations (map relation-rule-written relation-rules))
+
+(define (edge-relation? r) (and (rule-for r) #t))
+
+(define (rule-for r)
+  (for/first ([rule (in-list relation-rules)]
+              #:when (eq? (relation-rule-written rule) r))
+    rule))
+
+;; One edge, as the DERIVED graph has it. `a @blocks b` is the edge `b after a`
+;; — the file keeps the direction its writer thought in, and everything
+;; downstream sees one.
 ;;
 ;; from/to may be #f: an edge declared by a node with no ^anchor has no name to
-;; be the far end of, and a caller that needs one skips it.
+;; be the far end of, and a caller that needs one skips it. A relation with no
+;; row is left exactly as written, so the caller that checks the set (below)
+;; reports it rather than this one inventing an answer.
 ;; -> (values relation from to)
 (define (normalize-edge relation source target)
-  (case relation
-    [(blocks) (values 'after target source)]
-    [else (values relation source target)]))
+  (define rule (rule-for relation))
+  (cond
+    [(not rule) (values relation source target)]
+    [(relation-rule-flip? rule)
+     (values (relation-rule-derived rule) target source)]
+    [else (values (relation-rule-derived rule) source target)]))
 
 ;; Ordering must be acyclic — a node cannot be after itself, however long the
 ;; way round. A cross-reference need not be: `@see` is a link, and two nodes
-;; may perfectly well point at each other.
-(define (derived-relation-acyclic? r) (eq? r 'after))
+;; may perfectly well point at each other. Keyed by the DERIVED relation, which
+;; is the one a cycle can be in.
+(define acyclic-relations '(after))
+
+(define (derived-relation-acyclic? r) (and (memq r acyclic-relations) #t))
 
 ;; roots     : (listof node)
 ;; #:id      : node -> string | #f   (its ^anchor)

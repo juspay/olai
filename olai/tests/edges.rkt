@@ -18,6 +18,8 @@
          (except-in olai/lang/expander #%module-begin)
          olai/agenda
          olai/edges
+         ;; the closed set itself: what the language says the relations ARE
+         (only-in olai/lang/graph edge-relations)
          olai/json/model
          olai/json/reply
          olai/load
@@ -150,6 +152,28 @@ EOF
      (λ (lk)
        (define-values (_where msg) (error-of lk))
        (check-true (string-contains? msg "unknown @seen") msg))))
+
+  ;; The set has one owner (lang/graph) and the reader reads its line grammar
+  ;; off it — but the expander's keywords are written out, because a class
+  ;; parameterized over the keyword costs the srcloc tests (see edge-kw). So
+  ;; this is the check that keeps the two in step: every RATIFIED relation
+  ;; parses, in both surfaces, and lands on the node as itself.
+  (test-case "every relation in the set parses, in both surfaces"
+    (for ([relation (in-list edge-relations)])
+      (define outline
+        (format "#lang olai\ninstall ^install\n  @~a ^order\norder ^order\n" relation))
+      (define sexp
+        (format "#lang olai/sexp\n(t \"install\" #:id \"install\" #:~a \"order\")\n(t \"order\" #:id \"order\")\n"
+                relation))
+      (for ([src (in-list (list outline sexp))])
+        (link-one
+         (format "olai-edge-set-~a" relation)
+         src
+         (λ (lk)
+           (define install (by-title (tasks-of (linked-or-fail lk)) "install"))
+           (check-equal? (map edge-ref-relation (task-edges install))
+                         (list relation)
+                         (format "~a did not parse as itself" relation)))))))
 
   (test-case "a node may be after any number of others"
     (link-one
@@ -443,7 +467,7 @@ EOF
        (check-equal? (map agenda-item-title blocked) '("install"))
        ;; and it still says it is late — a node can be overdue AND blocked
        (define it (car blocked))
-       (check-equal? (agenda-item-bucket it) 'overdue)
+       (check-equal? (agenda-bucket it "2026-08-06") 'overdue)
        (check-equal? (map task-key (agenda-item-waiting it)) '("order")))))
 
   (test-case "with the blocker done, the node is back on the plate"

@@ -36,7 +36,7 @@
                           #:line (or/c exact-integer? #f)
                           #:col (or/c exact-integer? #f))
                          hash?)]
-          [agenda-item->jsexpr (-> agenda-item? hash?)]
+          [agenda-item->jsexpr (-> agenda-item? string? hash?)]
           [agenda-groups->jsexpr (-> list? string? hash?)]
           [cal-item->jsexpr (-> cal-item? hash?)]
           [calendar->jsexpr (-> hash? hash?)])
@@ -71,7 +71,7 @@
         'ok #f
         'error (error-object message #:file file #:line line #:col col)))
 
-(define (agenda-item->jsexpr it)
+(define (agenda-item->jsexpr it today)
   (hash 'title (agenda-item-title it)
         ;; null in the `doing` group: a node in flight need not be dated
         'date (nullish (agenda-item-date it))
@@ -81,7 +81,7 @@
         ;; unless it is BLOCKED — and then this is what it would have been.
         ;; An overdue node waiting on an unfinished one is both, and an agent
         ;; that only heard "blocked" would not know it was already late.
-        'bucket (symbol->string (agenda-item-bucket it))
+        'bucket (symbol->string (agenda-bucket it today))
         'blocked (pair? (agenda-item-waiting it))
         ;; What it is waiting on, as KEYS — the way everything else addresses a
         ;; node (docs/cli.md). An anchored blocker's key IS its anchor, so the
@@ -92,7 +92,7 @@
 (define (agenda-groups->jsexpr groups today)
   (define (items-for sym)
     (define p (assq sym groups))
-    (if p (map agenda-item->jsexpr (cdr p)) '()))
+    (if p (for/list ([it (in-list (cdr p))]) (agenda-item->jsexpr it today)) '()))
   (hash 'version json-reply-version
         'today today
         'overdue (items-for 'overdue)

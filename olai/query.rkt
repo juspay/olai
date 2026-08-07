@@ -46,8 +46,7 @@
 ;; idx : the set's edge index (olai/edges), which is also what knows the node
 ;;       at the far end of an arrow
 (define (blocked-nodes idx)
-  (for*/hash ([(source targets)
-               (in-hash (hash-ref (edge-index-edges idx) 'after (hash)))]
+  (for*/hash ([(source targets) (in-hash (edge-graph idx 'after))]
               [waiting (in-value (filter unfinished? (map (λ (k) (edge-node idx k))
                                                           targets)))]
               #:unless (null? waiting))
