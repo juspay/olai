@@ -10,9 +10,12 @@
 ;; Optional trailing Z / offset when gregor accepts it.
 
 (require racket/format
+         racket/list
          racket/match
          racket/string
-         (only-in gregor date +days iso8601->date iso8601->datetime today ~t))
+         (only-in gregor
+                  date days-in-month iso8601->date iso8601->datetime today
+                  +days +months ->month ->wday ->year ~t))
 
 (provide valid-iso-date-string?
          normalize-date-string
@@ -22,7 +25,10 @@
          friendly-date-label
          weekday-abbrev
          parse-year-month
-         iso-day-string)
+         format-year-month
+         shift-year-month
+         week-days
+         month-grid-dates)
 
 ;; "2026-08-04 14:30" -> "2026-08-04T14:30"
 (define (normalize-date-string s)
@@ -55,27 +61,6 @@
 (define (today-iso-string)
   (~t (today) "yyyy-MM-dd"))
 
-;; "2026-08" -> (values 2026 8), or (values #f #f) for anything that is not a
-;; month. A MONTH is the other date shape this outline names — a calendar is
-;; asked for one, a journal fragment is called one — so reading it lives with
-;; the day forms rather than beside whichever caller asks first.
-(define (parse-year-month s)
-  (match s
-    [(regexp #px"^([0-9]{4})-([0-9]{2})$" (list _ year month))
-     (define y (string->number year))
-     (define mo (string->number month))
-     (if (and y mo (<= 1 mo 12))
-         (values y mo)
-         (values #f #f))]
-    [_ (values #f #f)]))
-
-;; 2026 8 4 -> "2026-08-04": the day form, written rather than parsed.
-(define (iso-day-string y m d)
-  (format "~a-~a-~a"
-          y
-          (~r m #:min-width 2 #:pad-string "0")
-          (~r d #:min-width 2 #:pad-string "0")))
-
 ;; True when `s` is exactly YYYY-MM-DD (a day-node title in Daily.rkt).
 (define (bare-iso-date-title? s)
   (and (string? s)
@@ -96,3 +81,69 @@
 
 (define (weekday-abbrev w)
   (~t (+days sunday w) "EEEEEE"))
+
+;; ---- a month, and where its days land on a grid -----------------------------
+;;
+;; Here because it is date arithmetic and nothing else: which column the 1st of
+;; a month falls in, how many days it has, how far the last week is padded.
+;; It arrived with `olai calendar` and outlived it — the command is gone and
+;; the LAYOUT is not, because a surface that draws a month still has to ask
+;; where the days go, and there is one answer.
+
+;; "2026-08" -> (values 2026 8), or (values #f #f) for anything else.
+(define (parse-year-month s)
+  (match s
+    [(regexp #px"^([0-9]{4})-([0-9]{2})$" (list _ year month))
+     (define y (string->number year))
+     (define mo (string->number month))
+     (if (and y mo (<= 1 mo 12))
+         (values y mo)
+         (values #f #f))]
+    [_ (values #f #f)]))
+
+(define (format-year-month y m)
+  (format "~a-~a" y (~r m #:min-width 2 #:pad-string "0")))
+
+(define (iso-day y m d)
+  (format "~a-~a-~a"
+          y
+          (~r m #:min-width 2 #:pad-string "0")
+          (~r d #:min-width 2 #:pad-string "0")))
+
+;; The month `delta-months` from this one — what a prev/next link is.
+(define (shift-year-month ym delta-months)
+  (define-values (y m) (parse-year-month ym))
+  (unless y (error 'shift-year-month "bad year-month: ~s" ym))
+  (define d (+months (date y m 1) delta-months))
+  (format-year-month (->year d) (->month d)))
+
+;; THE WEEK, as this grid lays it out: gregor weekdays (0=Sun … 6=Sat), Monday
+;; first. The column order and the lead padding are one fact, so they are read
+;; off one list — and a surface that draws headings over the columns reads the
+;; same one rather than remembering which day this module starts on.
+(define week-days '(1 2 3 4 5 6 0))
+
+;; WHERE THE DAYS LAND: one month as whole weeks, #f for the padding at either
+;; end (the days of the first and last week that belong to another month).
+;; Cell: hash of date / day_num / is_today.
+;;
+;; The layout and nothing else. What a cell then SAYS about its day is the
+;; caller's — a key to open, a count to draw — so the shape has one owner and
+;; any number of readings.
+(define (month-grid-dates ym today)
+  (define-values (y m) (parse-year-month ym))
+  (unless y (error 'month-grid-dates "bad year-month: ~s" ym))
+  (define lead (index-of week-days (->wday (date y m 1))))
+  (define cells
+    (append
+     (make-list lead #f)
+     (for/list ([dom (in-range 1 (add1 (days-in-month y m)))])
+       (define date-str (iso-day y m dom))
+       (hash 'date date-str
+             'day_num dom
+             'is_today (equal? date-str today)))))
+  (define week (length week-days))
+  (define rem (remainder (length cells) week))
+  (if (zero? rem)
+      cells
+      (append cells (make-list (- week rem) #f))))

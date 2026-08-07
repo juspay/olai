@@ -16,12 +16,10 @@
          xml
          (except-in olai/lang/expander #%module-begin)
          (only-in olai/lang/walk find-tasks-by-title)
-         olai/agenda
          olai/edges
          ;; the closed set itself: what the language says the relations ARE
          (only-in olai/lang/graph edge-relations)
          olai/json/model
-         olai/json/reply
          olai/load
          (only-in olai/query blocked-nodes)
          olai/store
@@ -417,9 +415,8 @@ EOF
        (check-equal? (map task-key (hash-ref blocked "install")) '("demo")))))
 
   ;; The other end of the same rule: being done is not a thing you can be
-  ;; blocked out of. The agenda never sees such a node — done is off the plate
-  ;; before this is asked — but the outline draws it, and a finished node
-  ;; wearing "blocked" is the page contradicting the checkbox beside it.
+  ;; blocked out of. The outline draws a finished node, and one wearing
+  ;; "blocked" is the page contradicting the checkbox beside it.
   (test-case "a done node is waiting on nothing, whatever it is after"
     (link-one
      "olai-edge-done-source"
@@ -483,78 +480,6 @@ EOF
      (λ (lk)
        (check-equal? (blocked-nodes (linked-edges (linked-or-fail lk))) (hash))))))
 
-;; ---- the agenda ----------------------------------------------------------------
-
-(module+ test
-  (define agenda-source
-    #<<EOF
-#lang olai
-
-order the doors ^order
-  @date 2026-08-01
-install ^install
-  @after ^order
-  @date 2026-08-02
-sweep up
-  @date 2026-08-02
-EOF
-    )
-
-  ;; The agenda as a read command asks for it. `#:blocked` defaults to what the
-  ;; set's own graph says; a caller passes an empty one to ask what an agenda
-  ;; over a tree nobody linked looks like.
-  (define (groups-of lk today #:blocked [blocked (blocked-nodes (linked-edges lk))])
-    (agenda-groups-from-files (linked-entries lk) today #:blocked blocked))
-
-  (test-case "a blocked node leaves the date buckets and keeps its bucket"
-    (link-one
-     "olai-edge-agenda"
-     agenda-source
-     (λ (lk)
-       (define groups (groups-of (linked-or-fail lk) "2026-08-06"))
-       (define overdue (cdr (assq 'overdue groups)))
-       (define blocked (cdr (assq 'blocked groups)))
-       ;; two nodes are overdue by date; the blocked one is not in that group
-       (check-equal? (map agenda-item-title overdue)
-                     '("order the doors" "sweep up"))
-       (check-equal? (map agenda-item-title blocked) '("install"))
-       ;; and it still says it is late — a node can be overdue AND blocked
-       (define it (car blocked))
-       (check-equal? (agenda-bucket it "2026-08-06") 'overdue)
-       (check-equal? (map task-key (agenda-item-waiting it)) '("order")))))
-
-  (test-case "with the blocker done, the node is back on the plate"
-    (link-one
-     "olai-edge-agenda-clear"
-     #<<EOF
-#lang olai
-
-order the doors ^order
-  @date 2026-08-01
-  @done 2026-08-05
-install ^install
-  @after ^order
-  @date 2026-08-02
-sweep up
-  @date 2026-08-02
-EOF
-     (λ (lk)
-       (define groups (groups-of (linked-or-fail lk) "2026-08-06"))
-       (check-false (assq 'blocked groups))
-       (check-equal? (map agenda-item-title (cdr (assq 'overdue groups)))
-                     '("install" "sweep up")))))
-
-  ;; An agenda over a tree nobody linked has no graph to be blocked by, and
-  ;; says so by having no such group.
-  (test-case "no graph, no blocked group"
-    (link-one
-     "olai-edge-agenda-none"
-     agenda-source
-     (λ (lk)
-       (define groups
-         (groups-of (linked-or-fail lk) "2026-08-06" #:blocked (hash)))
-       (check-false (assq 'blocked groups))))))
-
 ;; ---- what an agent is told -------------------------------------------------------
 
 (module+ test
@@ -578,27 +503,7 @@ EOF
        (define edges (hash-ref j 'edges))
        (check-equal? (hash-ref (hash-ref edges 'after) 'install) '("order" "demo"))
        (check-equal? (hash-ref (hash-ref edges 'see) 'paint) '("colour"))
-       (check-false (hash-has-key? edges 'blocks)))))
-
-  (test-case "agenda JSON: the blocked array, and what it is waiting on"
-    (link-one
-     "olai-edge-json-agenda"
-     agenda-source
-     (λ (lk)
-       (define j
-         (round-trip (agenda-groups->jsexpr (groups-of (linked-or-fail lk) "2026-08-06")
-                                            "2026-08-06")))
-       (define blocked (hash-ref j 'blocked))
-       (check-equal? (length blocked) 1)
-       (define it (car blocked))
-       (check-equal? (hash-ref it 'title) "install")
-       (check-true (hash-ref it 'blocked))
-       (check-equal? (hash-ref it 'bucket) "overdue")
-       (check-equal? (hash-ref it 'waiting_on) '("order"))
-       ;; every item carries the two new fields, blocked or not
-       (define first-overdue (car (hash-ref j 'overdue)))
-       (check-false (hash-ref first-overdue 'blocked))
-       (check-equal? (hash-ref first-overdue 'waiting_on) '())))))
+       (check-false (hash-has-key? edges 'blocks))))))
 
 ;; ---- what a page shows -----------------------------------------------------------
 

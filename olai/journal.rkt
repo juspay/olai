@@ -19,14 +19,13 @@
          racket/format
          racket/list
          (except-in olai/lang/expander #%module-begin)
-         ;; what a month and a day are called in a string, from the module
-         ;; that owns every other date form (olai/dates)
-         (only-in olai/dates parse-year-month iso-day-string)
+         ;; where the days of a month land, which is arithmetic and has one
+         ;; owner whoever draws it (olai/dates, month-layout)
+         (only-in olai/dates month-grid-dates)
          ;; one owner for what a file is CALLED (core, not web)
          (only-in olai/paths file-label)
          ;; where the day nodes are: one walk, in the query layer
-         (only-in olai/query collect-day-sites day-site-key day-site-parent)
-         (only-in gregor date days-in-month ->wday))
+         (only-in olai/query collect-day-sites day-site-key day-site-parent))
 
 (provide (contract-out
           ;; flat checks: a name, a predicate over one field, and two strings
@@ -35,9 +34,7 @@
           [daily-file? (-> any/c boolean?)]
           [month-name (-> (integer-in 1 12) string?)]
           [month-fragment-rel (-> exact-integer? (integer-in 1 12) string?)]
-          ;; the week's columns, and a month laid out on them
-          [week-days (listof (integer-in 0 6))]
-          [month-grid-dates (-> string? string? list?)]
+          ;; one month of the journal's own days, on that grid
           [struct day-month ([key (or/c string? #f)] [cells list?])]
           [day-month-for (-> list? string? string? day-month?)]))
 
@@ -68,41 +65,10 @@
 
 ;; ---- a month of it -----------------------------------------------------------
 ;;
-;; A journal is READ a month at a time — that is what a calendar is — so the
-;; month's shape lives here with the rest of what the journal is, not in
-;; whichever surface draws it and not in the dated-task queries next door,
-;; which are about `@date`s and not about days.
-
-;; THE WEEK, as this grid lays it out: gregor weekdays (0=Sun … 6=Sat), Monday
-;; first. The column order and the lead padding are one fact, so they are read
-;; off one list — and a surface that draws headings over the columns reads the
-;; same one rather than remembering which day this module starts on.
-(define week-days '(1 2 3 4 5 6 0))
-
-;; WHERE THE DAYS LAND: one month as whole weeks, #f for the padding at either
-;; end (the days of the first and last week that belong to another month).
-;; Cell: hash of date/day_num/is_today.
-;;
-;; The layout and nothing else — which column the 1st is in, how many days the
-;; month has, how far the last week has to be padded. What a cell then SAYS
-;; about its day is the caller's.
-(define (month-grid-dates ym today)
-  (define-values (y m) (parse-year-month ym))
-  (unless y (error 'month-grid-dates "bad year-month: ~s" ym))
-  (define lead (index-of week-days (->wday (date y m 1))))
-  (define cells
-    (append
-     (make-list lead #f)
-     (for/list ([dom (in-range 1 (add1 (days-in-month y m)))])
-       (define date-str (iso-day-string y m dom))
-       (hash 'date date-str
-             'day_num dom
-             'is_today (equal? date-str today)))))
-  (define week (length week-days))
-  (define rem (remainder (length cells) week))
-  (if (zero? rem)
-      cells
-      (append cells (make-list (- week rem) #f))))
+;; A journal is READ a month at a time — that is what a calendar is. WHERE the
+;; days land on the grid is not this module's: that is arithmetic over a
+;; year-month, it has one answer whoever draws it, and olai/dates owns it
+;; (month-layout). What is here is one month of THIS journal's days.
 
 ;; ONE MONTH OF THE JOURNAL, whole:
 ;;

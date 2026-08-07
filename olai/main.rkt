@@ -1,11 +1,10 @@
 #lang racket/base
 
-;; Public library surface: task data model, agenda query, web renderers.
+;; Public library surface: task data model, pure queries, web renderers.
 ;; CLI is app code, not re-exported here.
 
 (require (except-in olai/lang/expander #%module-begin)
          (only-in olai/lang/walk find-task-by-id find-tasks-by-title)
-         olai/agenda
          olai/index
          olai/web/render)
 
@@ -33,10 +32,6 @@
          find-task-by-id
          find-tasks-by-title
          check-task-graph
-         (struct-out agenda-item)
-         collect-agenda
-         agenda-groups
-         agenda-groups-from-files
          ;; node identity, inverted: key -> node, and the trail above it. The
          ;; entry's other fields are how the trail is walked, not something to
          ;; read — ask node-ancestors instead.

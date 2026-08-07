@@ -12,7 +12,6 @@
          (only-in olai/query count-tasks count-mirrors)
          (only-in olai/lang/walk resolve-mirrors
                   mirror-site? mirror-site-of mirror-site-task)
-         olai/agenda
          olai/load
          olai/web/render
          ;; the app's own route table: a renderer is handed the address of a
@@ -131,21 +130,6 @@ EOF
     (define kids (hash-ref (cadr (hash-ref j 'tasks)) 'children))
     (check-equal? (hash-ref (car kids) 'mirror) "a")
     (check-true (hash-has-key? (hash-ref j 'anchors) 'a)))
-
-  (test-case "agenda dedupes mirrored dated task"
-    (define-values (tasks anchors)
-      (eval-mod
-       #<<EOF
-#lang olai/sexp
-(t "Milk" #:id "milk" #:date "2026-07-01")
-(t "Elsewhere" (mirror "milk"))
-EOF
-       ))
-    (define groups (agenda-groups tasks "2026-08-03"))
-    (define ov (cdr (assq 'overdue groups)))
-    (check-equal? (length ov) 1)
-    (check-equal? (agenda-item-title (car ov)) "Milk")
-    (check-equal? (agenda-item-breadcrumb (car ov)) "Milk"))
 
   ;; Binding happens once, in core, before anything is drawn: a mirror site
   ;; comes out carrying its node, and an anchor that names nothing comes out

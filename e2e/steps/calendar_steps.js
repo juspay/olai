@@ -25,7 +25,7 @@ function monthLabel(day) {
 Then("the calendar shows this month", async function () {
   const title = this.page.locator(`${CAL} .ol-cal-title`);
   await title.waitFor({ state: "visible" });
-  assert.equal((await title.innerText()).trim(), monthLabel(await this.today()));
+  assert.equal((await title.innerText()).trim(), monthLabel(this.journalDay));
 });
 
 // Marked, and a link: `olai daily` wrote today's node before the server came
@@ -33,7 +33,7 @@ Then("the calendar shows this month", async function () {
 Then("today's cell is marked", async function () {
   const cell = this.page.locator(TODAY_CELL);
   await cell.waitFor({ state: "visible" });
-  const day = await this.today();
+  const day = this.journalDay;
   assert.equal(await cell.getAttribute("title"), day);
   assert.equal(await cell.evaluate((el) => el.tagName), "A");
   assert.equal(Number(await cell.innerText()), Number(day.slice(8)));

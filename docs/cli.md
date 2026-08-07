@@ -2,14 +2,14 @@
 
 Agents are the only users. Every command that has a reply emits **JSON**, always — `--json` is still accepted and does nothing. Fields within a `version` are **append-only**; a bump of `version` is a breaking change.
 
-**Human view is the web app** (`olai/web`). There is no ANSI terminal tree, no static HTML export, and no plain-text mode: what was printed for a person to read at a terminal is gone. Two commands do not answer JSON — `ics`, whose output IS a format (RFC 5545), and `serve`, which serves the web view. Their errors are `olai: message` on stderr.
+**Human view is the web app** (`olai/web`). There is no ANSI terminal tree, no static HTML export, and no plain-text mode: what was printed for a person to read at a terminal is gone. One command does not answer JSON — `serve`, which serves the web view. Its errors are `olai: message` on stderr.
 
 ## Exit codes
 
 | Code | Meaning |
 |------|---------|
 | 0 | success |
-| 1 | usage: unknown command (`css` and `html` are retired), bad flags, missing TITLE, more than one path to `serve`, a malformed `--date` / `--month` / `--port` |
+| 1 | usage: unknown command (`css`, `html`, `agenda`, `calendar` and `ics` are retired), bad flags, missing TITLE, more than one path to `serve`, a malformed `--date` / `--port` |
 | 2 | the outline said no: load or validation error, no such task, ambiguous title, already done, a write aimed at a `#lang olai/sexp` file |
 | 3 | file not found |
 | 4 | the state is DERIVED: a write that would store what the tree already answers (`done` on a statusless parent — see [`done`](#done---file-f---undo---no-commit-titleanchor)). Not a mistake; there is something else to do, and the error object's `children` say what |
@@ -28,7 +28,7 @@ The write commands know nothing about exit codes: an op (`olai/ops`) fails with 
   ```
 
   Naming files (or `--file` / `--home`) works with the variable unset.
-- **Read commands** (`check` / `tree` / `agenda` / `calendar` / `ics`) accept **one or more** outline paths. They are read as one **SET**: node keys are minted against it, and it is the scope an `^anchor` has, so a `*mirror` reaches a node another named file defines and one that reaches nothing is an error ([Mirrors](syntax.md#mirrors)). Load the files you always load. The justfile defaults to `$OLAI_HOME/*.rkt`, or the repo's own `examples/` outlines plus `docs/olai/*.rkt` (the roadmap and its archive) when `OLAI_HOME` is unset — the examples are a set on purpose, since `Week.rkt` mirrors an anchor `Example.rkt` declares. **`serve` is the exception**: it takes exactly ONE argument, a directory or a single file, and asks the disk which outlines that names — see below.
+- **Read commands** (`check` / `tree`) accept **one or more** outline paths. They are read as one **SET**: node keys are minted against it, and it is the scope an `^anchor` has, so a `*mirror` reaches a node another named file defines and one that reaches nothing is an error ([Mirrors](syntax.md#mirrors)). Load the files you always load. The justfile defaults to `$OLAI_HOME/*.rkt`, or the repo's own `examples/` outlines plus `docs/olai/*.rkt` (the roadmap and its archive) when `OLAI_HOME` is unset — the examples are a set on purpose, since `Week.rkt` mirrors an anchor `Example.rkt` declares. **`serve` is the exception**: it takes exactly ONE argument, a directory or a single file, and asks the disk which outlines that names — see below.
 - Personal data lives outside the repo, in the directory `OLAI_HOME` names. Auto-commit (`add` / `done` / `doing` / `move` / `archive` / `daily`) only runs when the directory of the file actually written is a git work tree; otherwise it no-ops (`committed: false`) and Dropbox (or your sync) is the history layer.
 
 - `--json` may appear after the subcommand everywhere it used to; it is a no-op, kept so an invocation an agent already knows does not become a usage error.
@@ -144,7 +144,7 @@ Two `anchors` objects, two scopes, and the nesting says which: the one inside a 
 
 `date` / `description` are raw strings or `null` (Markdown is not interpreted here). `doc` is the `@doc` path the outline wrote, **verbatim** — relative to the node's **defining** file (the `file` key, when it differs from the loaded one), never resolved and never rendered: the document is a file you can already read, diff and edit. `done` and `doing` are the stored marks: `null` (not in that state), `true` (marked, no timestamp), or an ISO timestamp string. A node carries at most one of them — the language rejects both. `status` is what they MEAN — `"open"`, `"doing"` or `"done"` — and is the one to switch on: it is where a future state would show up, while `done` / `doing` keep their type. `id` is `null` or the anchor string. `tags` is always an array.
 
-`status_source` is where that `status` came from: `"stored"` when the node wrote a mark, `"derived"` when it has task children and none of its own, so its state is computed from theirs every time it is asked ([Derived state](syntax.md#derived-state)). A derived `"done"` or `"doing"` therefore has `done` / `doing` `null` — the mark is genuinely not in the file, and nothing will ever write it there. Switch on this rather than inferring it: a write aimed at a derived state is refused (see [`done`](#done---file-f---undo---no-commit-titleanchor)), and this field is what says so in advance. Derivation is a query, so it moves the moment a child does: `agenda` stops answering with a finished parent, `calendar` and `ics` report it done, `search` demotes it, and the web view draws its box checked.
+`status_source` is where that `status` came from: `"stored"` when the node wrote a mark, `"derived"` when it has task children and none of its own, so its state is computed from theirs every time it is asked ([Derived state](syntax.md#derived-state)). A derived `"done"` or `"doing"` therefore has `done` / `doing` `null` — the mark is genuinely not in the file, and nothing will ever write it there. Switch on this rather than inferring it: a write aimed at a derived state is refused (see [`done`](#done---file-f---undo---no-commit-titleanchor)), and this field is what says so in advance. Derivation is a query, so it moves the moment a child does: `search` demotes a finished parent and the web view draws its box checked, with nothing on disk having changed.
 
 `key` is the node's stable identity — its `^anchor` when it has one, else a hash of its **defining** file plus the child ordinals that reach it inside that file. Only the anchor case comes from the expander (a module sees one entry point and would key a spliced node twice); the rest are minted by the load layer, over the whole set of files you loaded, at once. A key survives renaming the node or any ancestor and cannot collide between same-titled siblings; it changes when siblings are reordered (anchor the node if you need more). Because the file is the one that DEFINES the node, an `@include`d node keys the same through any root that includes it, and two roots sharing a fragment agree about it.
 
@@ -156,59 +156,6 @@ $ olai tree examples/Daily/2026-08.rkt   # "Setup day" -> p3dd3c447
 ```
 
 Load the files you always load (`serve` keys against the set it was given) and keys are stable. The web view addresses nodes by this key (element ids, permalinks, stored collapse state).
-
-## `agenda [file ...]`
-
-What is on the plate, relative to local today, **merged across all given files**. **Done tasks are excluded** even if they still have a `@date` — including the ones that are [done by derivation](syntax.md#derived-state), which is the whole point: a dated heading drops off the agenda on the day its last child is finished, without anybody editing it. When more than one file is given, breadcrumbs are rooted at each file's basename (`Tasks.rkt > Inbox > Buy milk`). All five arrays are always present, possibly empty.
-
-Stdout:
-
-```json
-{
-  "version": 1,
-  "today": "2026-08-03",
-  "overdue": [{"title":"...","date":"2026-01-15T08:00","breadcrumb":"...",
-               "status":"open","status_source":"stored","bucket":"overdue",
-               "blocked":false,"waiting_on":[]}],
-  "doing": [{"title":"...","date":null,"breadcrumb":"...","status":"doing",
-             "status_source":"stored","bucket":"doing","blocked":false,
-             "waiting_on":[]}],
-  "today_items": [],
-  "upcoming": [],
-  "blocked": [{"title":"...","date":"2026-08-01","breadcrumb":"...",
-               "status":"open","bucket":"overdue","blocked":true,
-               "waiting_on":["order"]}]
-}
-```
-
-`doing` sits above `today_items` in the reading order the groups have, and `blocked` sits under all of them — it is the one group you cannot act on. An item's `status` is what state the node is in, and `status_source` says where that came from — the same pair `tree` publishes.
-
-**The `doing` group is what somebody CLAIMED**, which is a stored `@doing` / `[/] ` and never a [derived](syntax.md#derived-state) one. `[/] ` propagates up the tree, so without that rule every ancestor of one in-flight leaf would be here — dateless, in the group that ignores dates, saying nothing the leaf below it does not say better under a breadcrumb that already names them. (The other candidate rule, "only leaves", says almost the same thing by accident and gets the case that matters wrong: an orchestrator marks the *parent* `[/] ` and writes the terminal id under it, which is exactly what this group is for.) A node that merely derives `"doing"` is still unfinished work: dated, it appears in the bucket its date puts it in, with `"status":"doing"` and `"status_source":"derived"`; undated, it is not on the plate at all.
-
-**`blocked` holds every node with an unfinished `@after` target** ([Typed edges](syntax.md#typed-edges)) — where unfinished means neither done (stored or [derived](syntax.md#derived-state)) nor archived, at both ends of the arrow — and takes it out of the date buckets: a node waiting on something is not on today's plate, however today its date reads. It still says where it would have been — `bucket` is `"overdue"` / `"doing"` / `"today"` / `"upcoming"` computed from the item's own facts, so an overdue *and* blocked node reports both — and `waiting_on` names the blockers by **key**, which for an anchored one is its anchor. Every item carries `bucket`, `blocked` and `waiting_on`, in every group; outside `blocked` the last two are `false` and `[]`.
-
-A node in flight is on the agenda **whether or not anyone dated it** — that is the point of the group — so `date` is `null` there where the date buckets always have one, and a dated `@doing` node appears in `doing` and nowhere else. Within the group, dated items come first by date and undated ones follow in tree order.
-
-## `calendar [--month YYYY-MM] [file ...]`
-
-Group **dated** tasks by calendar day for one month (default: current). **Done tasks are included** (`status` is `"done"`; `done` is `true` or a timestamp when the node stored the mark, and `null` when it [derives](syntax.md#derived-state) one). Days that have a bare-ISO day node in Daily-style outlines set `day_node: true` (for web deep-links). Multi-file merge like agenda.
-
-```json
-{
-  "version": 1,
-  "month": "2026-08",
-  "days": [
-    {
-      "date": "2026-08-04",
-      "day_node": true,
-      "items": [
-        {"title":"Buy milk","date":"2026-08-04T18:00","breadcrumb":"...","done":null,
-         "doing":null,"status":"open","id":null}
-      ]
-    }
-  ]
-}
-```
 
 ## `serve [--port N] [--bind ADDR] [DIR | file]`
 
@@ -299,7 +246,6 @@ Routes:
 | `GET /chat/sessions` | the agent's stored conversations for this directory, JSON (see [Sessions](#sessions)); `503` while the agent is gone |
 | `POST /chat/load` | load one of them; form field `id` (missing is `400`). `204` — the reset, the replayed turns and the `session` frame come back over the stream. `409` while a turn or another load is running, `503` when the agent is gone |
 | `GET /api/tree` | byte-identical to `olai tree` |
-| `GET /api/agenda` | byte-identical to `olai agenda` |
 | `GET /static/app.css` | the skin, `text/css`, `Cache-Control: no-cache`. Generated from the Racket modules that draw the page — `olai/web/skin` composes them — not a file on disk. This route is the only way to get those bytes; there is no `css` command |
 | `GET /static/manifest.webmanifest` | web app manifest (`application/manifest+json`); name, icons, `display: standalone`, default theme colours |
 | `GET /static/*` | files under `olai/web/static/` — olai's own assets: icons, `collapse.js`, `prefs.js`, `search.js`, `chat.js`, `pwa.js`, `highlight-init.js`, and the vendored highlighter under `hljs/` |
@@ -338,7 +284,7 @@ The month header zooms to the node this month's days hang under — the whole jo
 
 A **Search** row in the sidebar, under Archive, and a palette it opens over the page. Nothing of the palette is on the screen until it is asked for — a control parked in a corner is parked on top of whatever else lives there. `/` opens it from anywhere on the page (not while you are typing in something else — the chat input takes its own slash), ↑/↓ walk the hits, Enter lands on the first one from the box and on the focused one from the list, Esc puts it away, and so does a click outside it. The row is the entry point a finger uses; on a phone the palette is near-full-width under it.
 
-What is searched is what a node SAYS about itself: its **title**, its **`^anchor`**, its **`#tags`** and its **note**. Not its ancestors' — a query that matched everything under one heading would answer with the file — and not the document a `@doc` attaches. Every node of every LIVE file in the served set is in it, done ones included: search is not the agenda, and the reason to look for a node you finished is usually that you finished it. **Archived** nodes are not — what `olai archive` put away is read on `/archive`, not found among live work (the same rule the agenda, the calendar and the ICS feed keep), and a live file that mirrors an archived node does not bring it back: a mirror site is the node it points at, counted where it is defined.
+What is searched is what a node SAYS about itself: its **title**, its **`^anchor`**, its **`#tags`** and its **note**. Not its ancestors' — a query that matched everything under one heading would answer with the file — and not the document a `@doc` attaches. Every node of every LIVE file in the served set is in it, done ones included: the reason to look for a node you finished is usually that you finished it. **Archived** nodes are not — what `olai archive` put away is read on `/archive`, not found among live work, and a live file that mirrors an archived node does not bring it back: a mirror site is the node it points at, counted where it is defined.
 
 The matching is case-folded substrings, and there are no operators: a query is words, and every word has to appear somewhere in the same node, in any order and in any of the four fields. Ranking says one thing — the closer a hit is to what a node CALLS itself, the higher it goes: a title hit beats an `^anchor` hit beats a tag beats a note, a term that starts a field beats one that starts a word inside it beats one buried mid-word, and a done node is demoted by about a field's worth (enough to lose a tie, not enough to disappear). Nodes that score the same come out in the order the outline is written, so an answer never moves under the cursor between two keystrokes. A mirror site is the same node as its defining site: one hit, at the site that defines it. Twelve hits are drawn and the rest are counted (`+ 7 more`). The whole of it is `olai/search.rkt`, a pure function over the loaded set — the command palette on the roadmap asks the same one.
 
@@ -521,17 +467,10 @@ archive.
   names is a question it asks again, not a list it took at boot (see
   [`serve`](#serve---port-n---bind-addr-dir--file)).
 
-**Archived work is a file, not a state**, and that is the whole design: the
-queries below skip it (`agenda`, `calendar`, `ics` — done work is not an answer
-to "what is going on"), the web view draws it at `GET /archive` and nowhere
-else, and **loading excludes nothing** — `tree` and `check` report every
+**Archived work is a file, not a state**, and that is the whole design: the web
+view draws it at `GET /archive` and nowhere else, the search palette does not
+find it, and **loading excludes nothing** — `tree` and `check` report every
 archived node, its key, and its anchor, because the model is the model.
-
-## `ics [--out PATH] [file ...]`
-
-RFC 5545 `VCALENDAR` of all dated tasks (done included) on stdout, or into `--out PATH` (which prints the path it wrote). Minimal writer — no catalog ics package. UID is `anchor@olai` when present, else a stable hash of path/title/date. `DTSTART` is `VALUE=DATE` or local datetime.
-
-The one command whose output is neither JSON nor the web view: nothing else produces a calendar feed, so a calendar client is the consumer and the format is the reply. Errors are plain (`olai: ...`), exit codes as above.
 
 ## `daily [--date YYYY-MM-DD] [--home DIR] [--no-commit]`
 
@@ -575,7 +514,7 @@ The file actually written is the reply's `file`.
 
 ## Errors
 
-Single object on **stderr**, exit non-zero — for every command that replies in JSON, which is every one but `ics` and `serve`:
+Single object on **stderr**, exit non-zero — for every command that replies in JSON, which is every one but `serve`:
 
 ```json
 {
@@ -604,7 +543,7 @@ A failure that knows something about ITSELF carries it as keys **beside** those 
 
 ## Stability
 
-- Two counters, both `1` today and free to move apart: the **model** version rides on `tree` payloads (what a node/tree/anchor IS), the **reply** version on command envelopes (`ok` / `error`, `agenda`, `calendar`, the write commands) — a new node field bumps the first, a reshaped envelope the second.
+- Two counters, both `1` today and free to move apart: the **model** version rides on `tree` payloads (what a node/tree/anchor IS), the **reply** version on command envelopes (`ok` / `error`, the write commands) — a new node field bumps the first, a reshaped envelope the second.
 - Top-level objects always include `"version": 1`.
 - Within v1, new keys may appear; existing keys keep meaning and type.
 - Removing or renaming a key requires a version bump.
@@ -616,7 +555,8 @@ The web app is the daily surface, so the CLI keeps only what an agent calls and 
 
 | Gone | Instead |
 |------|---------|
-| plain output on `check` / `agenda` / `calendar` / `add` / `done` / `doing` / `move` / `daily` | the same command, which now always emits its JSON |
+| plain output on `check` / `add` / `done` / `doing` / `move` / `daily` | the same command, which now always emits its JSON |
+| `agenda`, `calendar`, `ics` — the dated queries | nothing. Dates stay in the outline and `tree` reports them; what was drawn from them is gone |
 | `css` | `GET /static/app.css` from a running `serve`; in-tree, `racket -e '(require olai/web/skin) (displayln (stylesheet))'` |
 | `html` (earlier) | `serve`, or `curl http://127.0.0.1:8080/ > snap.html` |
 

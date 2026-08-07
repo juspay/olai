@@ -2,29 +2,20 @@
 
 ;; Pure queries over a loaded outline. No I/O, no clocks, no JSON.
 ;;
-;; agenda and calendar are the same question asked twice — which nodes carry
-;; a @date, and what is the trail to each — differing only in what they keep
-;; (agenda drops done ones) and what they project it into. That question is
-;; answered here, once, and the same file-rooted breadcrumb rule serves both
-;; and the ICS writer.
+;; What is left after the dated queries were retired: how big an outline is,
+;; and what the typed-edge graph says cannot start yet.
 
 (require racket/list
-         racket/string
          (except-in olai/lang/expander #%module-begin)
-         ;; which nodes are done work put away, and therefore not an answer to
-         ;; any of the questions below
-         (only-in olai/archive archived-task? live-entries)
-         olai/dates
+         ;; which nodes are done work put away, and therefore neither blocking
+         ;; nor blocked
+         (only-in olai/archive archived-task?)
+         ;; what a day node is TITLED, which is the whole of what one is
+         (only-in olai/dates bare-iso-date-title?)
          olai/edges
-         olai/lang/walk
-         olai/paths)
+         olai/lang/walk)
 
-(provide (struct-out crumbed-node)
-         (struct-out day-site)
-         collect-nodes
-         collect-dated-nodes
-         breadcrumb-of
-         with-file-roots
+(provide (struct-out day-site)
          collect-day-sites
          day-site-for
          count-tasks
@@ -96,66 +87,20 @@
               0
               #:mirrors 'visit))
 
-;; task: the node itself; breadcrumb: "Tasks.rkt > Inbox > Buy milk"
-;; Named for what it carries and not for why it was picked: the agenda's DOING
-;; group asks for nodes that have no @date at all.
-(struct crumbed-node (task breadcrumb) #:transparent)
-
-;; #:root — a label prepended to the trail (a file's name, when more than one
-;; file is loaded).
-(define (breadcrumb-of path tk #:root [root #f])
-  (string-join
-   (append (if root (list root) '())
-           (map task-title (task-path path tk)))
-   " > "))
-
-;; Every node `keep?` says yes to, in tree order, at its DEFINING site: a
-;; mirror site is the same node, so a mirrored node appears once, with the
-;; breadcrumb it was defined at.
+;; ARCHIVED work was the other half of this module: the dated queries dropped
+;; it, because the agenda, the calendar and the ICS feed were three ways of
+;; asking what is going on and work that was put away is not an answer to any
+;; of them. Those queries are gone; the rule survives where it still has a
+;; reader, which is the graph above (a node in Archive.rkt neither blocks nor
+;; is blocked) and the web view's own page for reading them.
 ;;
-;; ARCHIVED nodes are out of all of them, and this is the line that says so:
-;; the agenda, the calendar and the ICS feed are three ways of asking what is
-;; going on, and work that was put away is not an answer to any of them. It is
-;; a rule about QUERIES and not about loading — the tree still holds every
-;; archived node, `olai tree` still prints it, an anchor in it still resolves,
-;; and the web view has a page of its own for reading them.
-(define (collect-nodes tasks keep? #:root [root #f])
-  (reverse
-   (fold-tasks tasks
-               (λ (tk path acc)
-                 (if (and (keep? tk) (not (archived-task? tk)))
-                     (cons (crumbed-node tk (breadcrumb-of path tk #:root root))
-                           acc)
-                     acc))
-               '())))
-
-(define (collect-dated-nodes tasks #:root [root #f])
-  (collect-nodes tasks task-date #:root root))
-
-;; file-entries: (listof (cons path tasks)). Calls `proc` with each entry's
-;; tasks and the root label to prefix breadcrumbs with — the file's name when
-;; several files are loaded, #f when there is only one (nothing to
-;; disambiguate) — and appends the results.
-;;
-;; The archive is not one of the files: it holds no answers (collect-nodes
-;; drops its nodes above), and counting it would change what "more than one
-;; file is loaded" MEANS — a one-outline home would start reading
-;; `Tasks.rkt > Inbox > …` the day it archived anything.
-(define (with-file-roots file-entries proc)
-  (define live (live-entries file-entries))
-  (define multi? (> (length live) 1))
-  (append*
-   (for/list ([e (in-list live)])
-     (proc (cdr e) (and multi? (file-label (car e)))))))
-
 ;; WHERE THE DAY NODES ARE — one walk, and the only one that looks for them.
 ;;
 ;; A day node is a bare ISO title (Daily.rkt's own shape, olai/dates); this is
 ;; where the tree is asked which of them it holds and what each one is. Callers
-;; want three different things off it — which days exist (the calendar's set),
-;; the node to open for one of them (the sidebar's cells), and the node a
-;; month hangs under (its header) — and three walks looking for one kind of
-;; node is three places to disagree about what one is.
+;; want different things off it — the node to open for a day (the sidebar's
+;; cells), the node a month hangs under (its header), the one node today is
+;; (/today) — and a walk each is a place each to disagree about what a day is.
 ;;
 ;;   key    the day node's own key: what addresses that day
 ;;   parent the key of the node it hangs under — the month in a Daily.rkt, the

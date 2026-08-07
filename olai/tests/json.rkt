@@ -8,7 +8,6 @@
 
 (require json
          (except-in olai/lang/expander #%module-begin)
-         olai/agenda
          olai/json/model
          olai/json/reply)
 
@@ -74,41 +73,7 @@
     (check-equal? json-model-version 1)
     (check-equal? json-reply-version 1))
 
-  ;; ---- the agenda reply -----------------------------------------------------
-
-  (test-case "the agenda answers with a doing array beside the date buckets"
-    (define tasks
-      (list (tk "Late" #:date "2026-07-01")
-            (tk "In flight" #:doing #t)
-            (tk "Due today" #:date "2026-08-03")))
-    (define h (agenda-groups->jsexpr (agenda-groups tasks "2026-08-03")
-                                     "2026-08-03"))
-    (check-equal? (hash-ref h 'today) "2026-08-03")
-    (for ([k (in-list '(overdue doing today_items upcoming))])
-      (check-true (list? (hash-ref h k)) (format "~a" k)))
-    (define doing (car (hash-ref h 'doing)))
-    (check-equal? (hash-ref doing 'title) "In flight")
-    (check-equal? (hash-ref doing 'status) "doing")
-    ;; an undated node in flight is still on the agenda; its date is null
-    (check-equal? (hash-ref doing 'date) (json-null))
-    (check-equal? (hash-ref doing 'breadcrumb) "In flight")
-    (define late (car (hash-ref h 'overdue)))
-    (check-equal? (hash-ref late 'date) "2026-07-01")
-    (check-equal? (hash-ref late 'status) "open"))
-
-  (test-case "every group is present even when empty"
-    (define h (agenda-groups->jsexpr (agenda-groups '() "2026-08-03")
-                                     "2026-08-03"))
-    (check-equal? (hash-ref h 'overdue) '())
-    (check-equal? (hash-ref h 'doing) '())
-    (check-equal? (hash-ref h 'today_items) '())
-    (check-equal? (hash-ref h 'upcoming) '()))
-
   ;; The whole payload has to survive write-json — a jsexpr with a Racket
   ;; symbol or a #f in it type-checks nowhere until here.
   (test-case "the payloads are writable JSON"
-    (check-true (jsexpr? (task->jsexpr (tk "T" #:doing "2026-08-03"))))
-    (check-true (jsexpr? (agenda-groups->jsexpr
-                          (agenda-groups (list (tk "In flight" #:doing #t))
-                                         "2026-08-03")
-                          "2026-08-03")))))
+    (check-true (jsexpr? (task->jsexpr (tk "T" #:doing "2026-08-03"))))))

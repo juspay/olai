@@ -16,7 +16,17 @@
 ;; is a clock read wearing a different name, so it is declared as one: every
 ;; module that calls it is reading the clock as surely as one calling gregor's
 ;; `(today)`, and check 2 knows it.
-(override "dates.rkt" (clock stable) (owns (clock "today-iso-string")))
+;;
+;; It also owns the MONTH LAYOUT — where the days of a month land on a
+;; Mon-first grid — which arrived with `olai calendar` and outlived it: the
+;; command is gone, and a surface that draws a month still has to be told
+;; where the 1st goes. Pure arithmetic over a year-month, and `today` reaches
+;; it as an argument like everywhere else.
+(override "dates.rkt"
+          (clock stable)
+          (owns (clock "today-iso-string"))
+          (concept month-layout "week-days" "month-grid-dates"
+                   "parse-year-month" "format-year-month" "shift-year-month"))
 
 ;; What a @doc path means, and what a failure a person reads looks like.
 ;; Neither has changed since it was written, and the language depends on the
@@ -91,10 +101,13 @@
 ;; in, and neither gets its own idea of which file the diary is. Pure naming,
 ;; so it is here rather than beside the write that uses it — a renderer asking
 ;; "is this root the journal" must not pull the write path onto the page.
+;; Where the days LAND on a grid is not here: that is arithmetic over a
+;; year-month and it belongs to dates.rkt's month-layout, whoever draws it.
+;; What is here is the journal's own — which file it is, what its months are
+;; called, and one month of ITS days as a value.
 (override "journal.rkt"
           (concept day-journal "daily-file-name" "daily-file?" "month-name"
-                   "month-fragment-rel" "day-month*" "week-days"
-                   "month-grid-dates"))
+                   "month-fragment-rel" "day-month*"))
 
 ;; ---- the writes ------------------------------------------------------------------
 

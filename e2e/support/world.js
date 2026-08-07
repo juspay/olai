@@ -212,15 +212,34 @@ export class OlaiWorld extends World {
    *  beside it, and for the same reason: it is the state these scenarios
    *  start in. */
   async daily() {
-    await run(OLAI_BIN, ["daily", "--no-commit", "--home", this.dir]);
+    const { stdout } = await run(OLAI_BIN, ["daily", "--no-commit", "--home", this.dir]);
+    // WHICH day it wrote, from the command that wrote it. `today()` below
+    // reads the day off /today's EMPTY state, and staging the journal is
+    // exactly what empties that state of an answer — so the scenarios that
+    // have a journal ask this instead. Still one clock: the CLI and the
+    // server are the same binary on the same machine (docs/cli.md, `daily`).
+    this.journalDay = JSON.parse(stdout).day;
   }
 
   /** The server's idea of today, asked of the server: an ISO day the outline
    *  can be given a node for. A harness that computed one itself would be a
-   *  second clock, and the two disagree for an hour twice a year. */
+   *  second clock, and the two disagree for an hour twice a year.
+   *
+   *  Read off `/today`'s empty state, which names the day it went looking for.
+   *  It used to come from `/api/agenda`, and that route retired with the dated
+   *  queries; this is the surface the server still answers the question on —
+   *  so it only answers while there is NO day node yet, which is the only
+   *  moment either caller asks (both are about creating one). */
   async today() {
-    const res = await fetch(this.url("/api/agenda"));
-    return (await res.json()).today;
+    const res = await fetch(this.url("/today"));
+    const html = await res.text();
+    const m = /No day node for (\d{4}-\d{2}-\d{2})/.exec(html);
+    if (!m) {
+      throw new Error(
+        "/today names no day: the outline already has today's node",
+      );
+    }
+    return m[1];
   }
 
   /** The stream a PAGE would open, read out of a page's own markup.

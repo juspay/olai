@@ -55,7 +55,6 @@
          (prefix-in lift: web-server/dispatchers/dispatch-lift)
          (prefix-in sequencer: web-server/dispatchers/dispatch-sequencer)
          (only-in web-server/private/mime-types make-path->mime-type)
-         olai/agenda
          ;; which of the loaded outlines is the archive: the home page draws
          ;; the others, and one page draws it
          (only-in olai/archive live-entries archived-entries)
@@ -577,16 +576,6 @@
   (with-snapshot st json-failure
     (λ (_rev snap _err) (json-response (linked->jsexpr (snapshot-linked snap))))))
 
-(define (agenda-handler st)
-  (with-snapshot st json-failure
-    (λ (_rev snap _err)
-      (define today (today-iso-string))
-      (define groups
-        (agenda-groups-from-files (linked-entries (snapshot-linked snap))
-                                  today
-                                  #:blocked (blocked-of snap)))
-      (json-response (agenda-groups->jsexpr groups today)))))
-
 ;; ---- handlers: the stream -------------------------------------------------
 
 ;; What a connection is owed before the stream proper — the one place the
@@ -675,7 +664,6 @@
      #:chat-sessions (λ (req) (chat-sessions-handler agent))
      #:chat-load (λ (req) (chat-load-handler agent req))
      #:tree (λ (req) (tree-handler st))
-     #:agenda (λ (req) (agenda-handler st))
      #:not-found (λ (req) (not-found-response))))
   (define panel (and agent (chat-panel rs)))
   rs)
