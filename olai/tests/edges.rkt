@@ -608,7 +608,7 @@ EOF
      "olai-edge-page"
      (λ (dir)
        (define p (write-outline dir "T.rkt" graph-source))
-       (define snap (store-snapshot (make-store (list p))))
+       (define snap (store-snapshot (make-store p)))
        (define html
          (xexpr->string
           (render-outline (snapshot-files-data snap)

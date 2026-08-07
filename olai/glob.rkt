@@ -38,6 +38,7 @@
           [include-glob? (-> string? boolean?)]
           [include-glob-problem (-> string? (or/c string? #f))]
           [include-absolute (-> path-string? path? path?)]
+          [hidden-name? (-> string? boolean?)]
           [glob-dir (-> path? path?)]
           [glob-match? (-> path? path? boolean?)]
           [glob-expand (-> path? (listof path?))]))
@@ -87,6 +88,17 @@
      "only the file name may be starred; the directory part of an @include is literal"]
     [else #f]))
 
+;; A leading dot is not something `*` matches, exactly as in a shell — and
+;; here that is load-bearing rather than a convention: `.#2026-08.rkt` is the
+;; lock file Emacs leaves beside a file it is editing, it is a dangling
+;; symlink, and reading it in would break an outline nobody had touched.
+;;
+;; Named rather than spelled where it is used, because the rule has two
+;; askers: what a pattern matches (name-matcher below), and walking a
+;; directory TREE for outlines, which skips a dot-directory for the same
+;; reason (olai/paths). Two spellings of one rule are two rules.
+(define (hidden-name? name) (string-prefix? name "."))
+
 ;; The one directory an absolute pattern reads. This is the thing to watch:
 ;; the files in it are what the pattern's answer is made of.
 (define (glob-dir pattern)
@@ -101,12 +113,9 @@
 ;; name: glob-expand asks this of every file in a directory on every
 ;; staleness check (olai/store), and glob-match? asks it once.
 ;;
-;; A leading dot is not something `*` matches, exactly as in a shell — and
-;; here that is load-bearing rather than a convention: `.#2026-08.rkt` is the
-;; lock file Emacs leaves beside a file it is editing, it is a dangling
-;; symlink, and globbing it in would break an outline nobody had touched. It
-;; is part of what the pattern MEANS, so it lives with the rest of the
-;; meaning and neither caller gets to remember it.
+;; A hidden name is not something `*` matches (see hidden-name? above). It is
+;; part of what the pattern MEANS, so it lives with the rest of the meaning
+;; and neither caller gets to remember it.
 (define (name-matcher pattern)
   (define name (file-name-from-path pattern))
   (and (path? name)
@@ -118,8 +127,7 @@
                                                     #:trim? #f))
                     ".*")
                    "$"))])
-         (λ (n) (and (not (string-prefix? n "."))
-                     (regexp-match? rx n))))))
+         (λ (n) (and (not (hidden-name? n)) (regexp-match? rx n))))))
 
 ;; Two spellings of one directory are one directory. Reads nothing: the
 ;; filesystem is glob-expand's to touch, not a comparison's.

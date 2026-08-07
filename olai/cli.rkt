@@ -24,7 +24,7 @@
          olai/dates
          olai/load
          olai/ops
-         (only-in olai/paths dir-roots)
+         (only-in olai/paths files-named path-kind)
          (only-in olai/acp acp-command-problem)
          olai/web/serve)
 (define exit-ok 0)
@@ -356,42 +356,47 @@
          #:json? #f))
   v)
 
-;; What `serve` was pointed AT: -> (values roots dir), dir being #f unless the
-;; front door was used.
+;; What `serve` was pointed AT: ONE path — a directory, or a single outline.
+;; No argument at all means this directory.
 ;;
-;; A DIRECTORY (or no argument at all, which means this one) is the front door:
-;; the roots are its top-level `*.rkt` and the agent works IN it, which is what
-;; makes "the last session" a thing that survives a restart — Claude Code keys
-;; its stored sessions by the directory the agent runs in, and a derived one
-;; moves when the file set does. Explicit files are the plumbing: the roots are
-;; those files and the agent works from the directory they hang off.
-(define (serve-roots file-args)
-  (define dir-arg
-    (cond
-      [(null? file-args) (path->string (current-directory))]
-      [(and (null? (cdr file-args)) (directory-exists? (car file-args))) (car file-args)]
-      [else #f]))
+;; One, and not a list, because the argument is not a file set: it is the place
+;; the server lives. The agent works in it, which is what makes "the last
+;; session" a thing that survives a restart (Claude Code keys its stored
+;; sessions by the directory the agent runs in), pictures are served out of it,
+;; and its outlines are re-asked as they change. A list would name none of
+;; that, and the read commands that DO take one (`check`, `tree`, `agenda`, …)
+;; are still where a set you typed belongs.
+(define (serve-root file-args)
   (cond
-    [dir-arg
-     (define dir (simple-form-path (path->complete-path dir-arg)))
-     (define roots (dir-roots dir))
-     (when (null? roots)
+    [(null? file-args) (simple-form-path (current-directory))]
+    [(pair? (cdr file-args))
+     (die exit-usage
+          (format (string-append "serve takes one directory or one outline, not ~a"
+                                 " (check and tree take a list)")
+                  (length file-args))
+          #:json? #f)]
+    [(eq? (path-kind (car file-args)) 'dir)
+     (define dir (simple-form-path (path->complete-path (car file-args))))
+     ;; the same two questions the store asks, in the same order: which files
+     ;; are under there, and which of them are outlines. A tree of `.rkt` that
+     ;; are somebody's Racket source holds no outline, and saying so before a
+     ;; port is bound is better than a page of load errors
+     (when (null? (outline-files (files-named dir)))
        (die exit-not-found
-            (format "no outlines in ~a (serve wants *.rkt at its top level)" dir)
+            (format "no outlines in ~a (serve wants #lang olai files under it)" dir)
             #:json? #f))
-     (values roots dir)]
-    [else (values (resolve-files file-args #f) #f)]))
+     dir]
+    [else (resolve-path (car file-args) #f)]))
 
 ;; Blocks until Ctrl-C. No auth: the network is the auth (put it behind
 ;; Tailscale or Caddy). A custodian shutdown drops listeners and connections.
 ;;
-;; `dir` is the directory the agent works in when there was one to name (see
-;; serve-roots); #f leaves it to the outlines' own common base.
+;; `root` is the one path this server was pointed at (see serve-root).
 ;;
 ;; `fallback?` is "nobody asked for this port" — the default. Taken, we bind a
 ;; free one and say which. A port typed on the command line is a request, and
 ;; a taken one is an error.
-(define (cmd-serve paths dir port fallback? bind)
+(define (cmd-serve root port fallback? bind)
   (define acp-command (acp-command-or-die))
   (define cust (make-custodian))
   (define stop
@@ -403,19 +408,19 @@
          #:port port
          #:port-fallback? fallback?
          #:bind bind
-         #:files paths
+         #:root root
          #:acp-command acp-command
-         #:agent-cwd dir
          #:on-listen
          (λ (bound)
            ;; The URL below is always the port actually bound; this line is
            ;; why it is not the one you expected.
            (when (and fallback? (not (= bound port)))
              (eprintf "olai: port ~a is taken; serving on ~a\n" port bound))
-           (printf "olai serve http://~a:~a ~afiles: ~a\n"
-                   (or bind "0.0.0.0") bound
-                   (if dir (format "dir: ~a " dir) "")
-                   (string-join (map path->string paths) " "))
+           ;; What it was pointed at, and not the outlines that answered:
+           ;; a directory's roots are re-asked as they change, so a list
+           ;; printed once at boot is a list that stops being true.
+           (printf "olai serve http://~a:~a ~a: ~a\n"
+                   (or bind "0.0.0.0") bound (path-kind root) root)
            (flush-output))))))
   (with-handlers ([exn:break? (λ (_e) (void))])
     (sync/enable-break never-evt))
@@ -431,8 +436,9 @@
   (eprintf "  tree     [file ...]  outline(s) as JSON\n")
   (eprintf "  agenda   [file ...]  overdue / doing / today / upcoming (merged)\n")
   (eprintf "  calendar [--month YYYY-MM] [file ...]  days with dated items\n")
-  (eprintf "  serve    [--port N] [--bind ADDR] [DIR | file ...]  web view (Ctrl-C to stop)\n")
-  (eprintf "           DIR (default: .) serves DIR/*.rkt; the agent works in DIR\n")
+  (eprintf "  serve    [--port N] [--bind ADDR] [DIR | file]  web view (Ctrl-C to stop)\n")
+  (eprintf "           ONE of them (default: .): every *.rkt under DIR, and the\n")
+  (eprintf "           agent works there. Roots are re-read as they appear.\n")
   (eprintf "  add      [--file F] [--date ISO] [--description TEXT]\n")
   (eprintf "           [--parent TITLE|^anchor] [--no-commit] TITLE...\n")
   (eprintf "  done     [--file F] [--undo] [--no-commit] TITLE|^anchor\n")
@@ -518,8 +524,8 @@
                (set! bind a)]
    #:args paths
    (set! file-args paths))
-  (define-values (roots dir) (serve-roots file-args))
-  (cmd-serve roots dir port (not asked?) (if (string=? bind "") #f bind)))
+  (cmd-serve (serve-root file-args) port (not asked?)
+             (if (string=? bind "") #f bind)))
 
 (define (cli-add)
   (define file-arg #f)

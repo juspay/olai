@@ -53,9 +53,9 @@ const STORED_SESSIONS = {
 
 // The roots a scenario wants staged BESIDE the outline, by tag: a second file
 // for the anchors that reach across them, the archive for the work that has
-// been put away. Boot-time like the sessions above, and for a reason of its
-// own — `serve DIR` globs its top level once at startup, so which files a set
-// holds is a fact about the server, not something a step can arrange later.
+// been put away. Staged at boot because that is the state the scenario starts
+// IN, not because a server cannot see a root arrive — `serve DIR` re-asks the
+// directory, and one scenario is about exactly that.
 const EXTRA_ROOTS = {
   "@cross-file": [SECOND_OUTLINE, SECOND],
   "@archived": [ARCHIVE_OUTLINE, ARCHIVE],

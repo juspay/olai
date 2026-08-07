@@ -9,7 +9,7 @@ Agents are the only users. Every command that has a reply emits **JSON**, always
 | Code | Meaning |
 |------|---------|
 | 0 | success |
-| 1 | usage: unknown command (`css` and `html` are retired), bad flags, missing TITLE, a malformed `--date` / `--month` / `--port` |
+| 1 | usage: unknown command (`css` and `html` are retired), bad flags, missing TITLE, more than one path to `serve`, a malformed `--date` / `--month` / `--port` |
 | 2 | the outline said no: load or validation error, no such task, ambiguous title, already done, a write aimed at a `#lang olai/sexp` file |
 | 3 | file not found |
 | 4 | the state is DERIVED: a write that would store what the tree already answers (`done` on a statusless parent — see [`done`](#done---file-f---undo---no-commit-titleanchor)). Not a mistake; there is something else to do, and the error object's `children` say what |
@@ -28,7 +28,7 @@ The write commands know nothing about exit codes: an op (`olai/ops`) fails with 
   ```
 
   Naming files (or `--file` / `--home`) works with the variable unset.
-- **Read commands** (`check` / `tree` / `agenda` / `calendar` / `ics` / `serve`) accept **one or more** outline paths. They are read as one **SET**: node keys are minted against it, and it is the scope an `^anchor` has, so a `*mirror` reaches a node another named file defines and one that reaches nothing is an error ([Mirrors](syntax.md#mirrors)). Load the files you always load. The justfile defaults to `$OLAI_HOME/*.rkt`, or the repo's own `examples/` outlines plus `docs/olai/*.rkt` (the roadmap and its archive) when `OLAI_HOME` is unset — the examples are a set on purpose, since `Week.rkt` mirrors an anchor `Example.rkt` declares. `serve` also takes the DIRECTORY and globs it itself — that is its front door, see below.
+- **Read commands** (`check` / `tree` / `agenda` / `calendar` / `ics`) accept **one or more** outline paths. They are read as one **SET**: node keys are minted against it, and it is the scope an `^anchor` has, so a `*mirror` reaches a node another named file defines and one that reaches nothing is an error ([Mirrors](syntax.md#mirrors)). Load the files you always load. The justfile defaults to `$OLAI_HOME/*.rkt`, or the repo's own `examples/` outlines plus `docs/olai/*.rkt` (the roadmap and its archive) when `OLAI_HOME` is unset — the examples are a set on purpose, since `Week.rkt` mirrors an anchor `Example.rkt` declares. **`serve` is the exception**: it takes exactly ONE argument, a directory or a single file, and asks the disk which outlines that names — see below.
 - Personal data lives outside the repo, in the directory `OLAI_HOME` names. Auto-commit (`add` / `done` / `doing` / `move` / `archive` / `daily`) only runs when the directory of the file actually written is a git work tree; otherwise it no-ops (`committed: false`) and Dropbox (or your sync) is the history layer.
 
 - `--json` may appear after the subcommand everywhere it used to; it is a no-op, kept so an invocation an agent already knows does not become a usage error.
@@ -210,25 +210,35 @@ Group **dated** tasks by calendar day for one month (default: current). **Done t
 }
 ```
 
-## `serve [--port N] [--bind ADDR] [DIR | file ...]`
+## `serve [--port N] [--bind ADDR] [DIR | file]`
 
 Run the web view over an outline directory. Blocks until Ctrl-C, which shuts the listener down cleanly.
 
-**A DIRECTORY is the front door** — one argument that is a directory, or no argument at all, which means `$PWD`. The roots are that directory's `*.rkt` at the **top level only** (`@include` fragments live in subdirectories, so a recursive walk would load every one of them twice), sorted, so the node keys minted against the set are stable. It is the same glob `@include Daily/*.rkt` is (see [Globs](syntax.md#globs)), so a dotfile is not a root — an editor's `.#Tasks.rkt` lock file is a dangling symlink, not an outline. The glob is evaluated once at startup: a new top-level file is picked up by restarting, not while running. A directory with no `*.rkt` in it is refused, naming the directory, exit 3. `just serve` is this form over `$OLAI_HOME` (with it unset, `just serve` names the repo's own outlines instead).
+**ONE argument, and it is a place, not a file set.** A directory, a single `.rkt`, or nothing at all (which means `$PWD`). Two or more paths is a **usage error** — exit 1, `olai: serve takes one directory or one outline, not 3 (check and tree take a list)` on stderr — never a set quietly assembled out of them. The read commands above are where a list you typed belongs; `serve` is a server, and what it is pointed at is where it lives: the agent works in that directory, `/media/` reaches into it and nowhere else, and its outlines are re-asked as they change.
 
-The agent runs **in that directory** — exactly it, not the base derived from the files. That is the point of the form: Claude Code keys its stored sessions by the directory it was started in, so a stable one is what makes "the session you were last in" a thing that survives a restart (see [Sessions](#sessions) below).
+**A DIRECTORY names every `*.rkt` under it, at any depth**, sorted, so the node keys minted against the set are stable. Each directory is read with the same glob `@include Daily/*.rkt` is (see [Globs](syntax.md#globs)), so a dotfile is not a root — an editor's `.#Tasks.rkt` lock file is a dangling symlink, not an outline — and a symlinked subdirectory is not descended into (a link back at an ancestor is a walk that never ends). A directory with no outline under it at all is refused, naming the directory, exit 3.
+
+**Only this project's languages are outlines.** A `.rkt` whose `#lang` is not `olai` or `olai/sexp` is **passed over**: a notes directory may hold a script, and one stray module must not take the server down. It is read from the `#lang` line alone — nothing else in a file it is not going to load gets executed, and a file that IS an outline and does not load is as loud an error as ever. That distinction is the point: passed over means "never was one", not "broke".
+
+**A file another one `@include`s is not a root.** That subtraction, not a rule about which directory a file sits in, is what stops a fragment being loaded twice — once through the root that splices it and once on its own, which would key every one of its nodes twice and make its `^anchor` a duplicate. So `Daily/2026-08.rkt` is loaded exactly once, by the `Daily.rkt` that includes it, and an outline three directories down that nothing includes is served rather than silently invisible.
+
+**The roots are re-asked, not remembered.** The directory is a standing question, the same way an `@include` glob is: an outline created under it — the first `Archive.rkt` an `olai archive` writes, a file dropped in by your sync layer — is picked up on the next request or watcher tick, with no restart. So is one that goes away, and so is a file that stops being a root because something started including it.
+
+The agent runs **in that directory** — exactly it. That is the point of the form: Claude Code keys its stored sessions by the directory it was started in, so a stable one is what makes "the session you were last in" a thing that survives a restart (see [Sessions](#sessions) below).
 
 ```text
 $ olai serve ~/notes
-olai serve http://127.0.0.1:8080 dir: /home/me/notes files: /.../Daily.rkt /.../Tasks.rkt
+olai serve http://127.0.0.1:8080 dir: /home/me/notes
 ```
 
-**Explicit `.rkt` files are the plumbing** — the roots are those files, and the agent works from the directory they hang off (one file: its directory; several: the deepest directory holding all of them, the base keys are minted against).
+**A single file is the plumbing** — that file is the only root (its `@include` fragments still ride along), and the agent works in the directory it sits in.
 
 ```text
 $ olai serve examples/Example.rkt
-olai serve http://127.0.0.1:8080 files: /.../examples/Example.rkt
+olai serve http://127.0.0.1:8080 file: /.../examples/Example.rkt
 ```
+
+The line names what `serve` was **pointed at**, and not the outlines that answered: a list printed at boot would stop being true the moment one appeared. What is loaded right now is `GET /api/tree`.
 
 - `--port N` — default `8080`. `0` binds a free port and logs which one. The default is a preference: with `8080` taken, `serve` binds a free port instead, says so on stderr (`olai: port 8080 is taken; serving on 41235`), and the URL it prints is the port it actually bound. A port you typed is a request — taken, `serve` refuses to start (exit 1). The printed URL is a contract: the e2e harness reads the port back out of it (`e2e/support/server.js`), which is how a scenario gets a server nobody else can collide with.
 - `--bind ADDR` — default `127.0.0.1`. `--bind ""` listens on all interfaces.
@@ -329,7 +339,7 @@ The chat panel (a `>_ agent` button, bottom right; open state remembered in `loc
 
 Typing `/` in the panel's input — or pressing the `/` button on the input row, which shows the whole list — opens a completion popover over the agent's slash commands (the whole list, from the `commands` frame — the catch-up's included): ↑/↓ move, Enter or Tab accept the highlighted one into the input, Esc closes, and Enter with nothing open sends the message as always. Accepting only writes `/name ` — sending is what invokes it.
 
-**Edits are pushed, and picked up on the next request either way.** The server keeps a snapshot of the outlines (roots, every `@include` fragment, and every document a node's `@doc` attaches) and reloads it when a watched file's mtime or size changes; a reload runs in a fresh namespace, so the module registry cannot serve you yesterday's file. An `@include` [glob](syntax.md#globs) is watched by re-asking it: a new `Daily/2026-09.rkt` moves no file the server had already read, so the pattern's answer is what the staleness check compares — and the directory it reads is watched even before it has matched anything. A watcher holds a `filesystem-change-evt` on each watched file's *directory* (saves are atomic renames, which fire there), debounces the flurry, and pushes an `outline` event on the stream when the store actually reloaded. Open pages re-fetch themselves and MORPH the pane and the error banner onto what is already there — no refresh, and nothing that did not change is replaced, so scroll, selection and focus survive. A page that was not listening when the file moved is told on the way back in ([docs/live.md](live.md)).
+**Edits are pushed, and picked up on the next request either way.** The server keeps a snapshot of the outlines (roots, every `@include` fragment, and every document a node's `@doc` attaches) and reloads it when a watched file's mtime or size changes; a reload runs in a fresh namespace, so the module registry cannot serve you yesterday's file. Two of its dependencies are not files but QUESTIONS, and those are watched by asking them again: an `@include` [glob](syntax.md#globs) — a new `Daily/2026-09.rkt` moves no file the server had already read, so the pattern's answer is what the staleness check compares — and the ROOT SPEC itself, which is why a new outline under the served directory is a root without a restart. The directory a question reads is watched even before it has answered with anything. A watcher holds a `filesystem-change-evt` on each watched file's *directory* (saves are atomic renames, which fire there), debounces the flurry, and pushes an `outline` event on the stream when the store actually reloaded. Open pages re-fetch themselves and MORPH the pane and the error banner onto what is already there — no refresh, and nothing that did not change is replaced, so scroll, selection and focus survive. A page that was not listening when the file moved is told on the way back in ([docs/live.md](live.md)).
 
 A file is broken for a moment during every edit, so the two surfaces differ:
 
@@ -338,7 +348,7 @@ A file is broken for a moment during every edit, so the two surfaces differ:
 
 A broken file pushes an event too — the banner appearing IS the news — so the cursor moves on a failed reload as well as a good one. It is a token, not a version: compare it, do not parse it.
 
-Exit codes: 0 on clean shutdown, 1 on bad flags, a port it cannot bind, or a missing / unusable `OLAI_ACP_AGENT`; 3 when an outline path does not exist, or a directory holds no top-level `*.rkt`.
+Exit codes: 0 on clean shutdown, 1 on bad flags, **more than one path**, a port it cannot bind, or a missing / unusable `OLAI_ACP_AGENT`; 3 when an outline path does not exist, or a directory holds no outline at all.
 
 There is no static HTML export — `curl http://127.0.0.1:8080/ > snap.html` if you want one.
 
@@ -369,11 +379,11 @@ Stdout:
 }
 ```
 
-`parent` echoes `--parent` verbatim (`null` for the default Inbox). `file` is the file actually written — with `--parent ^anchor` that may be an `@include` fragment or a sibling root, not `--file` (see [Write routing](#write-routing-the-defining-file)).
+`parent` echoes `--parent` verbatim (`null` for the default Inbox). `file` is the file actually written — with `--parent ^anchor` that may be an `@include` fragment or another outline under the same directory, not `--file` (see [Write routing](#write-routing-the-defining-file)).
 
 ## `done [--file F] [--undo] [--no-commit] TITLE...|^anchor`
 
-Mark a task done by exact title match or `^anchor` (or undo). **One file named** (`--file`); an `^anchor` may resolve to a sibling root, and the write follows the node (see [Write routing](#write-routing-the-defining-file)). Writes **outline** syntax only — same safety as `add`: write temp → re-validate → rename; restore on failure.
+Mark a task done by exact title match or `^anchor` (or undo). **One file named** (`--file`); an `^anchor` may resolve to another outline under the same directory, and the write follows the node (see [Write routing](#write-routing-the-defining-file)). Writes **outline** syntax only — same safety as `add`: write temp → re-validate → rename; restore on failure.
 
 - Exact title match across the file (a `[x] ` / `[/] ` checkbox prefix and a trailing `^anchor` are not part of the matched title), or a single `^id` addressing the defining site.
 - **0 matches** → exit 2.
@@ -463,8 +473,9 @@ archive.
 
 - **Where the archive is**: `Archive.rkt` beside the outline **you named**
   (`--file`, or the default `$OLAI_HOME/Tasks.rkt`) — never beside the defining
-  file. A fragment lives in a subdirectory and `serve DIR` globs the top level
-  only, so an archive down there is one nothing loads. Created on first use.
+  file. The outline you named is the one you go looking for its archive beside,
+  and a `@doc` or `@include` path inside an archived subtree is relative to a
+  file in that same directory. Created on first use.
 - **The scaffold**: one node per ancestor, carrying its **title and nothing
   else** — no `^anchor` (a name is unique across the set, and copying one would
   break the link an archived node keeps resolving through), no dates, notes or
@@ -492,10 +503,10 @@ archive.
   relative to the defining file, so it survives when the archive sits in the
   same directory (the usual case) and is a validation error — the write is
   refused, both files untouched — when it does not.
-- A running `serve` picks the archive up when it is a root it globbed at
-  startup. The **first** archive in a directory creates a file that server never
-  saw: restart it (the same rule an `@include` glob's directory does not have —
-  see [`serve`](#serve---port-n---bind-addr-dir--file-)).
+- A running `serve` picks the archive up, the **first** one in a directory
+  included: what it was pointed at is a directory, and which outlines that
+  names is a question it asks again, not a list it took at boot (see
+  [`serve`](#serve---port-n---bind-addr-dir--file)).
 
 **Archived work is a file, not a state**, and that is the whole design: the
 queries below skip it (`agenda`, `calendar`, `ics` — done work is not an answer
@@ -543,7 +554,9 @@ Both `created_*` are `false` on every run after the first for that day, and `com
 Two scopes, because the two kinds of spec are different things:
 
 - A **TITLE** is text, and its scope is the outline you pointed at (`--file`, or the default) plus its `@include` fragments. Unchanged.
-- An **`^anchor`** is a name, and since mirrors reach across files its scope is the set: if the file you named does not declare it, the other top-level `*.rkt` **in that file's directory** are consulted, and the one that declares it is where the write lands. So `olai done '^meeting-prep' --file Daily.rkt` marks the node `Tasks.rkt` defines, which is what "checking a mirror off flips the one real node" means. A sibling that does not load is not consulted — it is not the file being written, and one broken outline must not stop every write to the others.
+- An **`^anchor`** is a name, and since mirrors reach across files its scope is the set: if the file you named does not declare it, **every outline under that file's directory** is consulted — the same set `serve` would load pointed there, so a node the web view draws and links to is a node a write can reach. The one that declares it is where the write lands. So `olai done '^meeting-prep' --file Daily.rkt` marks the node `Tasks.rkt` defines, which is what "checking a mirror off flips the one real node" means, and `olai done '^idea' --file Daily.rkt` reaches `notes/Ideas.rkt`.
+
+  **Nearest first**: the outlines beside the file you named, then what is under them, so a name two files claim resolves to the closer one. A file that is not an outline (`#lang` something else) is passed over, and one that does not load is not consulted — it is not the file being written, and one broken outline must not stop every write to the others.
 
 The file actually written is the reply's `file`.
 

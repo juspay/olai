@@ -205,7 +205,7 @@
                                 "#lang olai\nMeeting prep ^meeting-prep\n  slides\n"))
        (define b (write-outline dir "Daily.rkt"
                                 "#lang olai\n2026-08-06\n  *meeting-prep\n"))
-       (define st (make-store (list a b)))
+       (define st (make-store dir))
        (define (mirror-site-in-daily)
          (define snap (store-snapshot st))
          (define daily-tasks (cadr (assoc b (snapshot-files-data snap))))
@@ -216,10 +216,13 @@
        (define bound (mirror-site-task site))
        (check-equal? (task-title bound) "Meeting prep")
        ;; the same node, so the same key: the defining site owns it
+       ;; by file, never by position: the store is pointed at the DIRECTORY
+       ;; and loads what is under it in name order
+       (define (tasks-in file)
+         (for/or ([o (in-list (snapshot-outlines (store-snapshot st)))])
+           (and (equal? (outline-path o) file) (outline-tasks o))))
        (define defining
-         (car (find-tasks-by-title
-               (outline-tasks (car (snapshot-outlines (store-snapshot st))))
-               "Meeting prep")))
+         (car (find-tasks-by-title (tasks-in a) "Meeting prep")))
        (check-equal? (task-key bound) (task-key defining))
        ;; the subtree came along
        (check-equal? (map task-title (task-children bound)) '("slides"))
@@ -240,7 +243,7 @@
      (λ (dir)
        (define a (write-outline dir "Tasks.rkt" "#lang olai\nWork ^agent\n"))
        (define b (write-outline dir "Daily.rkt" "#lang olai\nToday\n  *agent\n"))
-       (define st (make-store (list a b)))
+       (define st (make-store dir))
        (check-false (store-error st))
        ;; the anchor goes away; the mirror in the other file now names nothing
        (display-to-file "#lang olai\nWork\n" a #:exists 'truncate/replace)
@@ -281,3 +284,45 @@
        ;; and the set still links afterwards
        (check-true (linked? (link-outlines (list (try-load-outline a)
                                                  (try-load-outline b)))))))))
+
+;; ---- how far a write looks for the file that declares an anchor ------------
+;;
+;; The same scope `serve DIR` loads: every outline under the directory, at any
+;; depth. A node the web view draws and links to is a node a write can reach —
+;; two answers to "which files could declare this name" would be two sets.
+
+(module+ test
+  (test-case "done via an anchor a SUBDIRECTORY declares edits that file"
+    (in-dir
+     "olai-link-write-deep"
+     (λ (dir)
+       (define root (write-outline dir "Daily.rkt"
+                                   "#lang olai\n2026-08-06\n  *idea\n"))
+       (define deep (write-outline dir "notes/Ideas.rkt"
+                                   "#lang olai\nWrite it up ^idea\n"))
+       ;; and a .rkt that is not an outline at all, in the way
+       (display-to-file "#lang racket/base\n(provide x)\n(define x 1)\n"
+                        (build-path dir "helper.rkt") #:exists 'truncate/replace)
+       (define r (ops-mark! root 'done "^idea" "2026-08-06" #:commit? #f))
+       (check-true (string-suffix? (mark-result-file r) "Ideas.rkt")
+                   (mark-result-file r))
+       (check-equal? (mark-result-title r) "Write it up")
+       (check-true (string-contains? (file->string deep) "@done 2026-08-06")
+                   (file->string deep)))))
+
+  ;; Nearest first: the outline beside you wins a name a deeper one also
+  ;; claims, so widening the scope cannot move a write that already worked.
+  (test-case "an anchor two files declare resolves to the nearer one"
+    (in-dir
+     "olai-link-write-near"
+     (λ (dir)
+       (define root (write-outline dir "Daily.rkt"
+                                   "#lang olai\n2026-08-06\n  *idea\n"))
+       (define near (write-outline dir "Tasks.rkt"
+                                   "#lang olai\nBeside you ^idea\n"))
+       (define far (write-outline dir "notes/Ideas.rkt"
+                                  "#lang olai\nUnder you ^idea\n"))
+       (define r (ops-mark! root 'done "^idea" "2026-08-06" #:commit? #f))
+       (check-true (string-suffix? (mark-result-file r) "Tasks.rkt")
+                   (mark-result-file r))
+       (check-equal? (mark-result-title r) "Beside you")))))
