@@ -42,7 +42,7 @@
          ;; vocabulary is declared here (live/README.md)
          live/dsl
          olai/acp
-         (only-in olai/ops exn:fail:op)
+         (only-in olai/ops op-fail)
          ;; render-time Markdown has one owner; this module only asks it for
          ;; the finished turn's HTML
          (only-in olai/web/markdown note->html-string))
@@ -689,14 +689,10 @@
 ;; ---- prompting -------------------------------------------------------------
 
 (define (busy-fail)
-  (raise (exn:fail:op "the agent is busy with another turn"
-                      (current-continuation-marks)
-                      'busy #f #f #f)))
+  (op-fail 'busy "the agent is busy with another turn"))
 
 (define (stopped-fail)
-  (raise (exn:fail:op "the agent has been stopped"
-                      (current-continuation-marks)
-                      'validation #f #f #f)))
+  (op-fail 'validation "the agent has been stopped"))
 
 ;; Boot now rather than at the first prompt: a panel that is supposed to come
 ;; up showing your last conversation needs one before anybody types. A failure

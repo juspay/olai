@@ -182,7 +182,7 @@
     (cond
       [(task? tk)
        (define key (task-key tk))
-       (define kids (filter task? (task-children tk)))
+       (define kids (task-child-tasks tk))
        (list
         (node-shell
          #:key key
