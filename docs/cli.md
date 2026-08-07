@@ -12,8 +12,9 @@ Agents are the only users. Every command that has a reply emits **JSON**, always
 | 1 | usage: unknown command (`css` and `html` are retired), bad flags, missing TITLE, a malformed `--date` / `--month` / `--port` |
 | 2 | the outline said no: load or validation error, no such task, ambiguous title, already done, a write aimed at a `#lang olai/sexp` file |
 | 3 | file not found |
+| 4 | the state is DERIVED: a write that would store what the tree already answers (`done` on a statusless parent — see [`done`](#done---file-f---undo---no-commit-titleanchor)). Not a mistake; there is something else to do, and the error object's `children` say what |
 
-The write commands know nothing about exit codes: an op (`olai/ops`) fails with a KIND — usage, validation, not-found — and the CLI maps the kind to a code. The codes are the contract; the kinds are how the layer below talks about failure.
+The write commands know nothing about exit codes: an op (`olai/ops`) fails with a KIND — usage, validation, not-found, derived — and the CLI maps the kind to a code. The codes are the contract; the kinds are how the layer below talks about failure.
 
 ## Global
 
@@ -96,6 +97,7 @@ Single file:
       "done": null,
       "doing": null,
       "status": "open",
+      "status_source": "stored",
       "id": null,
       "key": "pd076e677",
       "tags": ["capture"],
@@ -142,6 +144,8 @@ Two `anchors` objects, two scopes, and the nesting says which: the one inside a 
 
 `date` / `description` are raw strings or `null` (Markdown is not interpreted here). `doc` is the `@doc` path the outline wrote, **verbatim** — relative to the node's **defining** file (the `file` key, when it differs from the loaded one), never resolved and never rendered: the document is a file you can already read, diff and edit. `done` and `doing` are the stored marks: `null` (not in that state), `true` (marked, no timestamp), or an ISO timestamp string. A node carries at most one of them — the language rejects both. `status` is what they MEAN — `"open"`, `"doing"` or `"done"` — and is the one to switch on: it is where a future state would show up, while `done` / `doing` keep their type. `id` is `null` or the anchor string. `tags` is always an array.
 
+`status_source` is where that `status` came from: `"stored"` when the node wrote a mark, `"derived"` when it has task children and none of its own, so its state is computed from theirs every time it is asked ([Derived state](syntax.md#derived-state)). A derived `"done"` therefore has `done: null` — the mark is genuinely not in the file, and nothing will ever write it there. Switch on this rather than inferring it: a write aimed at a derived state is refused (see [`done`](#done---file-f---undo---no-commit-titleanchor)), and this field is what says so in advance. Derivation is a query, so it moves the moment a child does: `agenda` stops answering with a finished parent, `calendar` and `ics` report it done, `search` demotes it, and the web view draws its box checked.
+
 `key` is the node's stable identity — its `^anchor` when it has one, else a hash of its **defining** file plus the child ordinals that reach it inside that file. Only the anchor case comes from the expander (a module sees one entry point and would key a spliced node twice); the rest are minted by the load layer, over the whole set of files you loaded, at once. A key survives renaming the node or any ancestor and cannot collide between same-titled siblings; it changes when siblings are reordered (anchor the node if you need more). Because the file is the one that DEFINES the node, an `@include`d node keys the same through any root that includes it, and two roots sharing a fragment agree about it.
 
 The file's name inside that hash is its path **relative to the common directory of the loaded set** — so two roots named `Daily.rkt` in different directories do not collide, and moving the whole outline home does not re-key it. The corollary is that the base moves with the set: load a nested fragment as its own root and its label re-bases, so its nodes key differently than they do under the root that includes them.
@@ -155,7 +159,7 @@ Load the files you always load (`serve` keys against the set it was given) and k
 
 ## `agenda [file ...]`
 
-What is on the plate, relative to local today, **merged across all given files**. **Done tasks are excluded** even if they still have a `@date`. When more than one file is given, breadcrumbs are rooted at each file's basename (`Tasks.rkt > Inbox > Buy milk`). All five arrays are always present, possibly empty.
+What is on the plate, relative to local today, **merged across all given files**. **Done tasks are excluded** even if they still have a `@date` — including the ones that are [done by derivation](syntax.md#derived-state), which is the whole point: a dated heading drops off the agenda on the day its last child is finished, without anybody editing it. When more than one file is given, breadcrumbs are rooted at each file's basename (`Tasks.rkt > Inbox > Buy milk`). All five arrays are always present, possibly empty.
 
 Stdout:
 
@@ -178,13 +182,13 @@ Stdout:
 
 `doing` sits above `today_items` in the reading order the groups have, and `blocked` sits under all of them — it is the one group you cannot act on. An item's `status` is what state the node is in: `"open"` for the date buckets, `"doing"` for that one.
 
-**`blocked` holds every node with an unfinished `@after` target** ([Typed edges](syntax.md#typed-edges)) — where unfinished means neither `@done` nor archived, at both ends of the arrow — and takes it out of the date buckets: a node waiting on something is not on today's plate, however today its date reads. It still says where it would have been — `bucket` is `"overdue"` / `"doing"` / `"today"` / `"upcoming"` computed from the item's own facts, so an overdue *and* blocked node reports both — and `waiting_on` names the blockers by **key**, which for an anchored one is its anchor. Every item carries `bucket`, `blocked` and `waiting_on`, in every group; outside `blocked` the last two are `false` and `[]`.
+**`blocked` holds every node with an unfinished `@after` target** ([Typed edges](syntax.md#typed-edges)) — where unfinished means neither done (stored or [derived](syntax.md#derived-state)) nor archived, at both ends of the arrow — and takes it out of the date buckets: a node waiting on something is not on today's plate, however today its date reads. It still says where it would have been — `bucket` is `"overdue"` / `"doing"` / `"today"` / `"upcoming"` computed from the item's own facts, so an overdue *and* blocked node reports both — and `waiting_on` names the blockers by **key**, which for an anchored one is its anchor. Every item carries `bucket`, `blocked` and `waiting_on`, in every group; outside `blocked` the last two are `false` and `[]`.
 
 A node in flight is on the agenda **whether or not anyone dated it** — that is the point of the group — so `date` is `null` there where the date buckets always have one, and a dated `@doing` node appears in `doing` and nowhere else. Within the group, dated items come first by date and undated ones follow in tree order.
 
 ## `calendar [--month YYYY-MM] [file ...]`
 
-Group **dated** tasks by calendar day for one month (default: current). **Done tasks are included** (JSON `done` is `true` or a timestamp, `status` is `"done"`). Days that have a bare-ISO day node in Daily-style outlines set `day_node: true` (for web deep-links). Multi-file merge like agenda.
+Group **dated** tasks by calendar day for one month (default: current). **Done tasks are included** (`status` is `"done"`; `done` is `true` or a timestamp when the node stored the mark, and `null` when it [derives](syntax.md#derived-state) one). Days that have a bare-ISO day node in Daily-style outlines set `day_node: true` (for web deep-links). Multi-file merge like agenda.
 
 ```json
 {
@@ -372,6 +376,17 @@ Mark a task done by exact title match or `^anchor` (or undo). **One file named**
 - **0 matches** → exit 2.
 - **>1 matches** → exit 2; message lists each `file:line` and suggests `add a ^anchor to disambiguate`.
 - On success: inserts `@done YYYY-MM-DD` (today) after the task's metadata, preserving the rest of the file. Rejects tasks already done.
+- **Refuses a node whose done-ness is DERIVED** — a parent with task children and no mark of its own ([Derived state](syntax.md#derived-state)). Its state is the tree's answer, and storing one would put back the copy that goes stale. Exit **4**, nothing written, and the error names the unfinished children so you can do them one at a time:
+
+  ```json
+  {"version":1,"ok":false,
+   "error":{"file":".../Tasks.rkt","line":2,"col":null,
+            "message":"\"0.6 the command palette\" derives its done-ness from its children, 1 of 2 unfinished: \"the palette itself\"; done those instead",
+            "children":[{"title":"the palette itself","status":"open","id":null}]}}
+  ```
+
+  `children` holds the node's task children that are **not** done — `title` (what `done TITLE` takes), `status`, and `id` (the `^anchor`, or `null`). It is `[]` when the parent already derives done, which is the same refusal with a different sentence: there is nothing to write, because it is already true. `--undo` on such a node is the same exit code — there is no `@done` to take off. No mass mutation: doing the children is a decision per child, not a subtree the CLI rewrites for you.
+- `doing` is not derived from anything, so `olai doing` on a parent stores a state as it always did.
 - **Clears doing**: an `@doing` line goes with the edit and a `[/] ` prefix is stripped off the title. A node carrying both marks is a form the language rejects, so this is not tidiness — it is what makes the write valid.
 - `--undo`: remove `@done` metadata and strip a leading `[x] ` / `[X] ` prefix.
 - Auto-commit `done: TITLE` / `undone: TITLE` in a git work tree unless `--no-commit`.
@@ -543,7 +558,9 @@ Single object on **stderr**, exit non-zero — for every command that replies in
           "message":"\"Wire the CLI\" is already done (line 16)"}}
 ```
 
-`message` is addressed to a person, not to a stack: no `some-private-function:` prefix in front of the answer. Agents must not regex pretty-printed messages.
+A failure that knows something about ITSELF carries it as keys **beside** those four, never instead of them — today only the derived-state refusal, whose `children` array is above. New keys may appear on the same terms as everywhere else: within `version` 1, existing ones keep their meaning.
+
+`message` is addressed to a person, not to a stack: no `some-private-function:` prefix in front of the answer. Agents must not regex pretty-printed messages — a fact you have to act on is a field.
 
 ## Stability
 
