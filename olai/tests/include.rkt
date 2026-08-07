@@ -12,22 +12,16 @@
          (only-in olai/paths file-label)
          (only-in olai/query count-tasks)
          olai/status
-         olai/daily)
+         olai/daily
+         ;; outlines on disk, fragments and all
+         olai/tests/outlines)
 
 (module+ test
   (require rackunit))
 
 (module+ test
-  (define (write-outline dir name body)
-    (define p (build-path dir name))
-    (make-parent-directory* p)
-    (display-to-file body p #:exists 'truncate/replace)
-    p)
-
-  (define (make-parent-directory* path)
-    (define-values (base name dir?) (split-path path))
-    (when (path? base) (make-directory* base)))
-
+  ;; write-outline is tests/outlines'; the dance around a temp directory here
+  ;; is its own, because these cases keep the directory across several loads.
   (define (load-tasks path)
     (dynamic-require `(file ,(path->string path)) 'tasks))
 

@@ -31,7 +31,9 @@
                   is-done is-doing is-tree is-collapsed has-children state-class)
          (only-in olai/web/address
                   node-element-id note-element-id site-key node-link-attributes)
-         (only-in olai/web/pills day-pill-xexpr date-pill-xexpr doing-pill-xexpr)
+         (only-in olai/web/pills
+                  day-pill-xexpr date-pill-xexpr doing-pill-xexpr
+                  blocked-pill-xexpr)
          (only-in olai/web/checkbox checkbox-xexpr ol-check)
          (only-in olai/web/document doc-block))
 
@@ -42,6 +44,7 @@
                  #:mirror-of (or/c string? #f)
                  #:toggle-base (or/c string? #f)
                  #:docs hash?
+                 #:blocked hash?
                  #:doc-expanded? boolean?
                  #:collapsed? boolean?)
                 list?)])
@@ -374,7 +377,8 @@
                       #:today today
                       #:node-href node-href
                       #:toggle-base toggle-base
-                      #:docs docs)
+                      #:docs docs
+                      #:blocked [blocked (hash)])
   (cond
     [(mirror-site? child)
      (define target (mirror-site-task child))
@@ -385,7 +389,8 @@
                                #:mirror-of (mirror-site-of child)
                                #:node-href node-href
                                #:toggle-base toggle-base
-                               #:docs docs)
+                               #:docs docs
+                               #:blocked blocked)
          (unresolved-mirror-xexpr (mirror-site-of child)))]
     [(task? child)
      (render-node-fragment child
@@ -393,7 +398,8 @@
                            #:today today
                            #:node-href node-href
                            #:toggle-base toggle-base
-                           #:docs docs)]
+                           #:docs docs
+                           #:blocked blocked)]
     [else `(li ((class ,(classes ol-node ol-unresolved))) "???")]))
 
 ;; One subtree, self-contained: this is the unit SSE re-swaps.
@@ -407,6 +413,11 @@
                               #:node-href node-href
                               #:toggle-base [toggle-base #f]
                               #:docs [docs (hash)]
+                              ;; key -> the anchors that node is waiting on
+                              ;; (olai/query, blocked-nodes). Handed in like
+                              ;; the documents are: the graph is derived once
+                              ;; per load, and drawing looks nothing up
+                              #:blocked [blocked (hash)]
                               ;; the whole document, not one line of it: true
                               ;; for the node a zoom page is ABOUT, and for
                               ;; nothing else on it
@@ -468,7 +479,13 @@
                     ,@(if (eq? status 'doing) (list (doing-pill-xexpr)) '())
                     ,@(if (task-date tk)
                           (list (date-pill-xexpr (task-date tk) today done?))
-                          '()))
+                          '())
+                    ;; after the date, and both may be there: a node can be
+                    ;; overdue AND blocked, and the row says so
+                    ,@(let ([waiting (hash-ref blocked key '())])
+                        (if (pair? waiting)
+                            (list (blocked-pill-xexpr waiting node-href))
+                            '())))
                ,@(if (task-description tk)
                      (list (note-block-xexpr tk qkey
                                              (note-element-id key #:site site)
@@ -482,5 +499,6 @@
                               #:today today
                               #:node-href node-href
                               #:toggle-base toggle-base
-                              #:docs docs))))
+                              #:docs docs
+                              #:blocked blocked))))
 

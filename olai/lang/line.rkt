@@ -26,11 +26,16 @@
 ;;   (meta done VALUE OFFSET)    VALUE #t for a bare @done
 ;;   (meta doing VALUE OFFSET)   VALUE #t for a bare @doing
 ;;   (meta doc REL-PATH OFFSET)  the document this node expands into
+;;   (meta edge RELATION ANCHOR) a typed edge: @after ^x, @blocks ^y, @see ^z
 ;;   (meta bad MESSAGE)
 
 (require racket/contract
          racket/match
-         racket/string)
+         racket/string
+         ;; the CLOSED relation set — what an @field naming an anchor may be
+         ;; called. The grammar reads it rather than restating it: a fourth
+         ;; relation is one line in one table, not a regexp here as well.
+         (only-in olai/lang/graph edge-relations edge-relations-label))
 
 ;; The grammar is a boundary five modules read across, so it is contracted:
 ;; the input is a line with its indentation already stripped, and the answer
@@ -53,7 +58,7 @@
           [line-mirror? (-> classification/c boolean?)]
           [line-include? (-> classification/c boolean?)]
           [line-meta? (-> classification/c boolean?)]
-          [meta-field (-> classification/c (or/c 'desc 'date 'done 'doing 'doc 'bad #f))]
+          [meta-field (-> classification/c (or/c 'desc 'date 'done 'doing 'doc 'edge 'bad #f))]
           [title-text (-> classification/c (or/c string? #f))]
           [title-flag (-> classification/c (or/c 'done 'doing 'open #f))]
           [title-anchor (-> classification/c (or/c string? #f))]
@@ -77,6 +82,22 @@
 
 (define (blank-line? s)
   (regexp-match? #px"^\\s*$" s))
+
+;; A TYPED EDGE line: one `@relation ^anchor`, and the relations are the
+;; language's closed set (lang/graph), spelled into the pattern rather than
+;; beside it. The `^` is grammar, not decoration — an edge names an anchor, and
+;; a bare word where one belongs is a line that is wrong, exactly as `:x` is.
+;;
+;; The alternation is anchored on both sides by what follows it, so `@seen`
+;; falls through to the unknown-field message instead of reading as `@see`.
+(define relation-alternation
+  (string-join (map symbol->string edge-relations) "|"))
+
+(define edge-line-rx
+  (pregexp (format "^@(~a)[ \t]+\\^([A-Za-z0-9_-]+)\\s*$" relation-alternation)))
+
+(define edge-field-rx
+  (pregexp (format "^@(~a)([ \t].*)?$" relation-alternation)))
 
 ;; Leading spaces are structure; everything after them is the line's content.
 (define (line-indent+content s)
@@ -141,6 +162,13 @@
      (list 'meta 'doc (string-trim value) (string-length field))]
     [(regexp #px"^@doc\\s*$")
      (list 'meta 'bad "expected a relative path after @doc")]
+    ;; The graph beyond containment: what this node is after, what it blocks,
+    ;; what it points at. One rule for all three — they differ in the relation
+    ;; they name and in nothing else.
+    [(regexp edge-line-rx (list _ relation anchor))
+     (list 'meta 'edge (string->symbol relation) anchor)]
+    [(regexp edge-field-rx (list _ relation _))
+     (list 'meta 'bad (format "expected ^anchor after @~a" relation))]
     [(regexp #px"^@include[ \t]+(\\S.*)$" (list _ rel))
      (list 'include (string-trim rel))]
     [(regexp #px"^@include\\s*$")
@@ -148,8 +176,8 @@
     [(regexp #px"^@(\\S+)" (list _ name))
      (list 'meta 'bad
            (format (string-append "unknown @~a; known fields: @date, @done, "
-                                  "@doing, @doc, @include")
-                   name))]
+                                  "@doing, @doc, @include, ~a")
+                   name edge-relations-label))]
     [_
      (define-values (title0 flag) (strip-checkbox-prefix content))
      (define-values (title anchor) (strip-trailing-anchor title0))

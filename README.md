@@ -38,11 +38,13 @@ Inbox #capture
   [x] Already shipped the pitch
   Wired the CLI
     @done 2026-08-03
-  Agent work
+  Agent work ^agent
     @doc docs/agent-work.md
+  Ship the release
+    @after ^agent
 ```
 
-Titles and notes are Markdown at **render** time (web view only); stored strings stay raw. A fenced block keeps its language and is highlighted in the browser, `![](shot.png)` draws the file beside the outline, and footnotes work. Check off with `[x] ` OR `@done` — one node, one of them (or `olai done TITLE`). `[/] ` / `@doing` is the state in between, same rules (`olai doing TITLE`); done clears it. A node that is not a line gets `@doc`: it expands into that file — `.md` or `.scrbl`, greppable, diffable, still yours. Full rules: [docs/syntax.md](docs/syntax.md).
+Titles and notes are Markdown at **render** time (web view only); stored strings stay raw. A fenced block keeps its language and is highlighted in the browser, `![](shot.png)` draws the file beside the outline, and footnotes work. Check off with `[x] ` OR `@done` — one node, one of them (or `olai done TITLE`). `[/] ` / `@doing` is the state in between, same rules (`olai doing TITLE`); done clears it. A node that is not a line gets `@doc`: it expands into that file — `.md` or `.scrbl`, greppable, diffable, still yours. What the tree cannot say — what comes after what, what points at what — is said with typed edges (`@after` / `@blocks` / `@see`), and the checker refuses an ordering that runs in a circle. Full rules: [docs/syntax.md](docs/syntax.md).
 
 Under the hood every outline becomes s-expressions. Same expander:
 
@@ -54,7 +56,8 @@ Under the hood every outline becomes s-expressions. Same expander:
    (t "Writing the third state" #:doing)
    (t "Already shipped the pitch" #:done)
    (t "Wired the CLI" #:done "2026-08-03")
-   (t "Agent work" #:doc "docs/agent-work.md"))
+   (t "Agent work" #:id "agent" #:doc "docs/agent-work.md")
+   (t "Ship the release" #:after "agent"))
 ```
 
 ## HOW IT WORKS
@@ -80,13 +83,13 @@ Single user, many devices. The server runs on your headless box behind Caddy or 
 
 ## STATUS
 
-Outline `#lang olai` + sexp core + agent CLI (`check` / `tree` / `agenda` / `calendar` / `add` / `done` / `doing` / `move` / `archive` / `daily` / `ics` / `serve` — all JSON but `ics` and `serve`; the human-facing plain output and the `css` dump are retired). Three node states (open / doing / done), mirrors, `@include` composition and `@doc` documents are first class; done work is put away rather than deleted — `olai archive` moves a subtree into `Archive.rkt` and re-creates the chain it hung off, anchors and all, so what mirrors it goes on drawing it and the queries stop answering with it; the agenda groups what is in flight above what is due today, and mirrors reach anchors anywhere in the loaded SET — a node defined in `Tasks.rkt` shows up in today's list in `Daily.rkt`, follows every edit to it, and is checked off from either side. The human view is the web app served by `olai serve` — htmx, no auth (bind it to localhost or Tailscale). Every node has a permalink that zooms to it, breadcrumbs and all. It reloads an outline when the file changes and pushes that over SSE, so open tabs redraw with no refresh — morphed into place, so scroll, selection and focus survive, and links navigate the outline region rather than rebuilding the page. A tab that was asleep, or open across a server restart, catches up on reconnect and says so while the stream is down ([docs/live.md](docs/live.md)). It carries a chat panel driving Claude Code over ACP (`OLAI_ACP_AGENT`). Installable as a PWA (manifest, icons, theme-color; no offline shell). The page itself still writes nothing; there is no static HTML export. (Ancestor: srid/Tend.)
+Outline `#lang olai` + sexp core + agent CLI (`check` / `tree` / `agenda` / `calendar` / `add` / `done` / `doing` / `move` / `archive` / `daily` / `ics` / `serve` — all JSON but `ics` and `serve`; the human-facing plain output and the `css` dump are retired). Three node states (open / doing / done), mirrors, typed edges (`@after` / `@blocks` / `@see`), `@include` composition and `@doc` documents are first class; done work is put away rather than deleted — `olai archive` moves a subtree into `Archive.rkt` and re-creates the chain it hung off, anchors and all, so what mirrors it goes on drawing it and the queries stop answering with it; the agenda groups what is in flight above what is due today and holds back what is waiting on something unfinished, and mirrors reach anchors anywhere in the loaded SET — a node defined in `Tasks.rkt` shows up in today's list in `Daily.rkt`, follows every edit to it, and is checked off from either side. The human view is the web app served by `olai serve` — htmx, no auth (bind it to localhost or Tailscale). Every node has a permalink that zooms to it, breadcrumbs and all. It reloads an outline when the file changes and pushes that over SSE, so open tabs redraw with no refresh — morphed into place, so scroll, selection and focus survive, and links navigate the outline region rather than rebuilding the page. A tab that was asleep, or open across a server restart, catches up on reconnect and says so while the stream is down ([docs/live.md](docs/live.md)). It carries a chat panel driving Claude Code over ACP (`OLAI_ACP_AGENT`). Installable as a PWA (manifest, icons, theme-color; no offline shell). The page itself still writes nothing; there is no static HTML export. (Ancestor: srid/Tend.)
 
 ## ROADMAP
 
 The project tracks its own plan the same way it wants you to track yours: `Roadmap.rkt` at the repo root is a `#lang olai` outline, edited and committed like any other file. `olai tree Roadmap.rkt` gives the JSON view.
 
-Track your own plan as a `#lang olai` outline wherever you like (`$OLAI_HOME`) — a private `Tasks.rkt` can `@include` the repo's `Roadmap.rkt` to pull it into your own outline; that's exactly what the author does. Repo demos live in `examples/` (`examples/Daily.rkt` for `@include` composition; `examples/Week.rkt` for a mirror of a node another file defines — `just serve` draws both).
+Track your own plan as a `#lang olai` outline wherever you like (`$OLAI_HOME`) — a private `Tasks.rkt` can `@include` the repo's `Roadmap.rkt` to pull it into your own outline; that's exactly what the author does. Repo demos live in `examples/` (`examples/Daily.rkt` for `@include` composition; `examples/Week.rkt` for a mirror of a node another file defines; `examples/Kitchen.rkt` for typed edges — `just serve` draws them all).
 
 ## BUILDING
 

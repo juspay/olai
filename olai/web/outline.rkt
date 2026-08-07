@@ -19,11 +19,11 @@
 (provide (contract-out
           [render-outline
            (->* (list? #:today string? #:node-href (-> string? string?))
-                (#:toggle-base (or/c string? #f) #:docs hash?)
+                (#:toggle-base (or/c string? #f) #:docs hash? #:blocked hash?)
                 list?)]
           [render-file-section
            (->* (any/c #:today string? #:node-href (-> string? string?))
-                (#:toggle-base (or/c string? #f) #:docs hash?)
+                (#:toggle-base (or/c string? #f) #:docs hash? #:blocked hash?)
                 list?)]
           ;; the same normalisation the sidebar draws its tree from: two
           ;; surfaces over one files-data, and one answer to what a label is
@@ -64,7 +64,8 @@
                              #:today today
                              #:node-href node-href
                              #:toggle-base [toggle-base #f]
-                             #:docs [docs (hash)])
+                             #:docs [docs (hash)]
+                             #:blocked [blocked (hash)])
   (match-define (list label tasks) (car (normalize-files-data (list entry))))
   `(section ((class ,ol-file)
              (id ,(string-append "ol-file-" (id-safe label)))
@@ -78,18 +79,21 @@
                                   #:today today
                                   #:node-href node-href
                                   #:toggle-base toggle-base
-                                  #:docs docs)))))
+                                  #:docs docs
+                                  #:blocked blocked)))))
 
 (define (render-outline files-data
                         #:today today
                         #:node-href node-href
                         #:toggle-base [toggle-base #f]
-                        #:docs [docs (hash)])
+                        #:docs [docs (hash)]
+                        #:blocked [blocked (hash)])
   `(div ((class ,ol-pane) (id "ol-outline"))
         ,@(for/list ([e (in-list files-data)])
             (render-file-section e
                                  #:today today
                                  #:node-href node-href
                                  #:toggle-base toggle-base
-                                 #:docs docs))))
+                                 #:docs docs
+                                 #:blocked blocked))))
 
