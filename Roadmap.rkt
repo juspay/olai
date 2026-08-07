@@ -3,12 +3,17 @@
 olai roadmap #project
   : Weekend-sized phases; every phase leaves the tool usable.
   : git log is the real changelog — done work is pruned from this file.
+  Now
+    : In flight right now, mirrored — each node's defining site stays in
+    : its section below. Maintained by the orchestrator as work starts
+    : and lands.
+    *notes-fold
   web app
     : The daily surface.
-    declare-and-check DSL
+    [x] declare-and-check DSL
       @doc docs/brainstorming/live-dsl.md
-      [/] live-dsl
-        : One PR ([#33](https://github.com/juspay/olai/pull/33)): boot-UUID
+      [x] live-dsl
+        : Merged: [#33](https://github.com/juspay/olai/pull/33). One PR: boot-UUID
         : connect URL (retires #:version, stale tabs get one reload
         : frame), define-stream / define-live-region / live-item + usage
         : forms expanding to live/client calls, tutor-format expansion
@@ -28,8 +33,7 @@ olai roadmap #project
         : define-live-region REJECTED (binding name = DOM id, olai's
         : class renamed); live-item skip REVERSED — n-<key> element ids
         : are not a contract (only ^anchors are permanent), so the form
-        : is forced everywhere, routes and task-keys unchanged. In
-        : flight: terminal 73729cfd, worktree live-dsl, Claude Opus.
+        : is forced everywhere, routes and task-keys unchanged.
       : Anti-entropy for a swarm-built wiring: this repo is written by many agents with partial context, and every id/event string is a convention each one must rediscover — e2e catches the drift late, at simulation prices. Regions and streams as compile-time bindings instead: a dead link or undeclared frame fails at expand time with a srcloc (the agent interface), and stream evolution is append-only at one declaration site. The functional core to macro over shipped in [#29](https://github.com/juspay/olai/pull/29) (`live/`: frame, hub, client attributes); the counters example ([#32](https://github.com/juspay/olai/pull/32)) settled the verdicts against real code (2026-08): ONE PR ships the boot-UUID connect URL (retires `#:version`), the forms (`define-stream`, `define-live-region`, `live-item`), and the raw-htmx-attribute ban (live/README.md + CLAUDE.md pointer). Brainstorm: [docs/brainstorming/live-dsl.md](https://github.com/juspay/olai/blob/master/docs/brainstorming/live-dsl.md); the research behind it, general to any future DSL: [docs/brainstorming/agents-and-dsls.md](https://github.com/juspay/olai/blob/master/docs/brainstorming/agents-and-dsls.md).
     [x] markdown fidelity
       : Merged: [#35](https://github.com/juspay/olai/pull/35).
@@ -42,29 +46,39 @@ olai roadmap #project
       : allowlist sup and the anchor id/name pairs so markers and jump
       : links survive sanitize. Ceiling stays the markdown package (no
       : tables, strikethrough, task lists).
-    [/] always-visible health indicator
-      : The stream pill currently renders nothing while healthy. Human
-      : wants a standing signal instead (2026-08-06): a quiet "live"
-      : state — green dot — joining the existing amber reconnecting and
-      : rose stale states. Still chrome, still outside every live
-      : region. Folded into the live-dsl PR
-      : ([#33](https://github.com/juspay/olai/pull/33)) — that agent
-      : owns render.rkt right now.
-    0.6 micro-edits
-      : Capture box + check-off from the browser (done status already in the
-      : language + CLI). The phone loop closes: capture, complete, ask the
-      : agent for everything else.
+    [x] always-visible health indicator
+      : Merged inside [#33](https://github.com/juspay/olai/pull/33): a
+      : green dot when healthy (nothing to explain, so no words), the
+      : pill with words kept for the amber reconnecting and rose stale
+      : states. Chrome, outside every live region; e2e asserts the
+      : healthy state is visible on load.
     drag-drop reorder
-      : Move and reindent nodes in the browser — the write path is 0.6's
-      : ops layer; order and parent become editable from the view.
-    0.9 search
+      : Move and reindent nodes in the browser — the write path is
+      : micro-edits' ops layer; order and parent become editable from
+      : the view. Sinks with micro-edits' deprioritization (2026-08-06):
+      : the agent moves nodes on request.
+    search
       : Text search + keyboard nav in the web view.
-    notes fold to one line
+    [/] notes fold to one line ^notes-fold
+      : Second follow-up in flight (terminal 533b167c, branch
+      : notes-fold-target): the ... at the column edge is a tiny,
+      : distant target. Fix C: the whole note becomes the toggle
+      : (links and text-selection guarded), and the ... hugs the end
+      : of the truncated text as the cue.
+      : Merged: [#38](https://github.com/juspay/olai/pull/38) (hover
+      : cut), then [#41](https://github.com/juspay/olai/pull/41) —
+      : hover judged too jarring (reflow under the pointer, accidental
+      : triggers), replaced by click-to-toggle: ... affordance,
+      : deliberate expand/fold, same gesture on mobile, open state
+      : survives reload and re-swap. Terminal 533b167c kept alive
+      : pending human behavior confirmation. No JS
+      : state — folded IS the box being shorter than its content (CSS
+      : clamp), opened by node-scoped hover and by focus; tap covers
+      : mobile.
       : A node's description shows only its FIRST line by default and
       : expands on hover (mobile needs a tap affordance — hover does
       : not exist there). Pure view state, CSS-first if possible; the
-      : full note stays in the DOM so search and morph see it. Parked
-      : (2026-08-06).
+      : full note stays in the DOM so search and morph see it.
     view toggles
       : Client view state, like collapse: localStorage, no server.
       hide completed
@@ -79,8 +93,8 @@ olai roadmap #project
       : STARRED section is a pure query over the snapshot, like the
       : agenda. `olai star TITLE|^anchor` writes it with done-style
       : safety — agents can star from day one; the browser's star
-      : toggle rides 0.6's write path. If ordering ever matters, a
-      : mirror list supersedes the tag once "mirror nodes across
+      : toggle rides micro-edits' write path. If ordering ever matters,
+      : a mirror list supersedes the tag once "mirror nodes across
       : files" lands.
     node views
       : One language field says how a node DRAWS its children (heading |
@@ -114,7 +128,7 @@ olai roadmap #project
       : that fuzzy-jumps to any node by title, ^anchor, or #tag, and
       : runs commands (theme flip, collapse all, /today). Workflowy
       : pairs it with user-assigned shortcut codes on bullets — anchors
-      : already are that for us. Rides 0.9's search index.
+      : already are that for us. Rides the search index.
     chat
       : The panel becomes the outline's other half.
       [x] tool-output folding
@@ -131,11 +145,30 @@ olai roadmap #project
         : An affordance on any node opens the panel with that node's key
         : and subtree as context — "reschedule these" without spelling
         : the node out. Pairs with the zoom view.
-      markdown replies
-        : Folded into "markdown fidelity" (web app): replies already
-        : render through the markdown lib; what's missing — fenced-code
-        : highlighting — is the sanitizer stripping the language class,
-        : fixed there for all four surfaces at once.
+    micro-edits
+      : DEPRIORITIZED 2026-08-06: the human edits through the agent
+      : anyway — capture and check-off are conveniences, not the loop.
+      : Sits at the bottom of the queue; the design below stands for
+      : whenever it rises.
+      : Capture box + check-off from the browser. The phone loop
+      : closes: capture, complete, ask the agent for everything else.
+      : Elaborated 2026-08-06, layer by layer. OPS: add/done already
+      : exist in ops.rkt; the web mutation routes call the same ops
+      : (the standing layering promise) — POST for capture (append
+      : under Inbox), POST for check-off by node key; op exn kinds map
+      : to HTTP codes the way the CLI maps them to exit codes; failures
+      : surface in the existing banner vocabulary and leave the file
+      : untouched. WRITE SAFETY: identical to the CLI — re-validate
+      : before keeping the write, auto-commit. UI: the header capture
+      : box finally does something; the checkbox's grandfathered raw
+      : hx-post branch dies here — this feature is the ratification
+      : point for live/'s first WRITE FORM (the (b)-proposal the
+      : blanket ban anticipated), so the DSL grows write vocabulary in
+      : the same PR. NO optimistic UI: a write changes the file, the
+      : watcher fires, the live stream re-swaps — writes ride the read
+      : loop that already exists. e2e: browser capture lands in the
+      : file and the view; check-off flips [x] in the file; an invalid
+      : write shows the banner and changes nothing.
   language
     : The grammar grows; the expander stays the only validator.
     archive
@@ -151,19 +184,43 @@ olai roadmap #project
       : reference into it — archiving is what that should have been.
       : Corollary lesson, no code needed: things worth referencing get
       : ^anchors, not prose numbering.
-    mirror nodes across files
+    [x] mirror nodes across files ^mirror-nodes-across-files
+      : Merged: [#39](https://github.com/juspay/olai/pull/39). Same
+      : checker, third reach: the whole loaded set at once, with
+      : "unknown anchor" and a did-you-mean over the set. Demo:
+      : examples/Week.rkt mirrors *agent from Example.rkt. Behavior
+      : change: a lone file of a linked pair now fails its own check —
+      : checked-as-the-set-you-give. Terminal 1d0e56f9 kept alive
+      : pending human confirmation.
       : The user-facing feature: one node, shown wherever it matters,
       : regardless of which file defines it — put `*meeting-prep` in
       : today's Daily list and the node defined in Tasks.rkt renders
       : there too; checking it off from either site flips the one real
       : node, and the agenda still counts it once. Anchors and mirrors
-      : exist since 0.2b.1, but they resolve only inside one file (or
+      : exist since the in-file mirrors work, but they resolve only
+      : inside one file (or
       : through an @include splice); files loaded side by side cannot
       : point at each other yet. The work is the LINKER: resolve
       : anchors across the whole loaded set, dangling refs srcloc'd.
       : Ships first, built to the typed-edges doc's requirements —
-      : typed edges is the second PR on the same linker. Not
-      : dispatched.
+      : typed edges is the second PR on the same linker.
+    daily + glob double-include #bug
+      : Flagged by the glob PR ([#37](https://github.com/juspay/olai/pull/37)),
+      : out of its scope: `olai daily` writes a literal `@include
+      : Daily/YYYY-MM.rkt` under the month node, so an outline that
+      : also globs `Daily/*.rkt` includes that fragment twice. Likely
+      : fix: daily detects a covering glob and skips writing the line.
+    derived status
+      : Stop storing what the tree already says: a parent with task
+      : children and no status of its own gets NO stored checkbox —
+      : done-ness is computed (done iff all children done) at query
+      : time by agenda, renderer, JSON, so it can never go stale. A
+      : parent with its own completion criterion writes an explicit
+      : status as today, and the checker then rejects the
+      : contradiction ([x] parent above an open child, srcloc'd). Born
+      : 2026-08-06 from the orchestrator forgetting to close
+      : "declare-and-check DSL" after its last child merged —
+      : duplicated state drifts; derived state cannot.
     typed edges
       @doc docs/brainstorming/typed-edges.md
       : The graph beyond containment (the Tend thesis): tree stays the
@@ -175,19 +232,34 @@ olai roadmap #project
       : subtree targets still open. Second PR after "mirror nodes
       : across files" — same linker (sequencing settled 2026-08-06);
       : the backlinks panel is gated on this.
-    glob includes
+    [x] glob includes ^glob-includes
+      : Merged: [#37](https://github.com/juspay/olai/pull/37).
+      : Semantics as ratified in the PR body: lexicographic, one
+      : directory per pattern, metacharacters policed only in starred
+      : paths, dotfiles never match; store re-globs on staleness checks
+      : so new files appear mid-serve. Behavior confirmed by the human
+      : against examples/Daily.rkt (2026-08-06).
       : `@include Daily/*.rkt` -- one line instead of a line per month.
       : The sugar has to answer: match order (lexicographic; date-named
       : fragments sort right), zero matches (empty or error?), and flat
       : splice vs structure (Daily.rkt's year > month nesting comes from
-      : the index file's own nodes; a flat glob erases it). Mechanically
-      : easy: the reader expands the glob at read time, the module graph
-      : stays static per load, the watcher already re-reads the include
-      : set.
+      : the index file's own nodes; a flat glob erases it) — the agent
+      : proposes the open answers in its PR body for ratification.
+      : Mechanically easy: the reader expands the glob at read time,
+      : the module graph stays static per load; the watcher must also
+      : catch NEW matching files appearing mid-serve.
   codebase
     : The repo's own shape and workflow.
-    architecture as data
+    [x] architecture as data ^architecture-as-data
       @doc docs/brainstorming/architecture-as-data.md
+      : Merged: [#40](https://github.com/juspay/olai/pull/40). arch/ is
+      : its own collection (the spec's #lang olai/arch would have made
+      : a package cycle with live/); six CLAUDE.md prose rules deleted,
+      : each replaced by a check; day-one findings were three renames.
+      : Known boundary: check 1 does direction, not sole-consumership.
+      : Known caveat: the churn audit can fail a PR that never touched
+      : the flagged file. Terminal 52e040af kept alive pending human
+      : confirmation.
       : Half-mechanize the Hickey/Lowy lenses: CLAUDE.md's layering
       : prose becomes checked declarations — package-level arch.rkt
       : files (clock + owned authorities + concepts), one walker
@@ -195,5 +267,4 @@ olai roadmap #project
       : exclusivity, and churn-vs-declaration lies. Scope verdicts
       : settled 2026-08-06 (all four checks, package defaults + module
       : overrides, NO waivers, `just arch` + CI lane); design in the
-      : attached doc. Wait for the live-dsl PR to merge first — this
-      : touches every package.
+      : attached doc.

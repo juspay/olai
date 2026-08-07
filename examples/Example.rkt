@@ -6,7 +6,11 @@ Inbox #capture
     : overdue sample
     @date 2026-01-15T08:00
   Write olai README
-    : Ship the pitch before the code calcifies
+    : Ship the pitch before the code calcifies. In the web view this
+    : note folds to its first line — the ... at the row's edge opens
+    : the rest. The pitch: an outliner that is a programming language,
+    : where agents read and write the same files you do, and the
+    : checker refuses what would break you.
     [/] Compare Racket vs Rhombus
       : in progress via checkbox sugar — on the agenda's DOING group
     Draft the WHY section
