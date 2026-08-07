@@ -12,6 +12,14 @@
 // it is distinct enough that a step can name a node by a SUBSTRING of its
 // title and mean one node.
 //
+// Two of its notes are the sizes features/note.feature is about, and their
+// LENGTH is what makes them: "Ship the server" carries one long enough to wrap
+// several times at either viewport (so there is something to fold, and its
+// note-less child is a place to point at that must not open it), and "Inbox"
+// carries one that fits on a line at both (so there is nothing to fold at
+// all). "Write the tests" stays note-less for a second reason — two scenarios
+// delete that line, and a note under it would be orphaned by the same edit.
+//
 // EVERY edit a step makes to it changes the file's SIZE. The store's staleness
 // probe is mtime (whole seconds) + size, so a same-second same-size rewrite is
 // invisible to a running server — the same discipline
