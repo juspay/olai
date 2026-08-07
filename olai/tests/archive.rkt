@@ -62,9 +62,9 @@
 
 (module+ test
   (test-case "a cut takes the node, its metadata and its children"
-    (define-values (rest block parents) (cut-subtree sample (line-of sample "install")))
+    (define-values (rest block ancestors) (cut-subtree sample (line-of sample "install")))
     (check-equal? block '("install" "  @done 2026-08-01" "" "  pick tiles"))
-    (check-equal? parents '("kitchen remodel"))
+    (check-equal? ancestors '("kitchen remodel"))
     ;; what is left is the file minus those lines, parents and all still there
     (check-equal? rest
                   (string-append "#lang olai\n"
@@ -75,17 +75,17 @@
                                  "garage\n")))
 
   (test-case "a cut of a top-level node hangs off nothing"
-    (define-values (rest block parents) (cut-subtree sample (line-of sample "garage")))
+    (define-values (rest block ancestors) (cut-subtree sample (line-of sample "garage")))
     (check-equal? block '("garage"))
-    (check-equal? parents '())
+    (check-equal? ancestors '())
     (check-false (string-contains? rest "garage")))
 
   ;; The scaffold is a shelf label: the ancestor's title, with the ^anchor left
   ;; behind. A name is unique across the loaded set, so copying one would break
   ;; the very link an archived node keeps resolving through.
   (test-case "an ancestor's anchor does not travel with the scaffold"
-    (define-values (_rest _block parents) (cut-subtree sample (line-of sample "paint")))
-    (check-equal? parents '("kitchen remodel")))
+    (define-values (_rest _block ancestors) (cut-subtree sample (line-of sample "paint")))
+    (check-equal? ancestors '("kitchen remodel")))
 
   (test-case "a graft into an empty archive writes the chain"
     (define-values (text line)
@@ -159,7 +159,7 @@
        (check-equal? (archive-result-file r) (path->string archive))
        (check-equal? (archive-result-from r) (path->string tasks))
        (check-equal? (archive-result-title r) "install")
-       (check-equal? (archive-result-parents r) '("kitchen remodel"))
+       (check-equal? (archive-result-ancestors r) '("kitchen remodel"))
        (check-true (archive-result-created-archive? r))
        (check-false (archive-result-committed? r))
        ;; gone from the working file, parents left standing
@@ -248,7 +248,7 @@
        (check-equal? (archive-result-file r)
                      (path->string (build-path dir "Archive.rkt")))
        ;; the chain is the one the FRAGMENT draws — the file the write is about
-       (check-equal? (archive-result-parents r) '("2026-08-04"))
+       (check-equal? (archive-result-ancestors r) '("2026-08-04"))
        (check-false (string-contains? (file->string frag) "ship the thing"))
        (check-true (file-exists? (build-path dir "Archive.rkt")))
        (check-false (file-exists? (build-path dir "Daily" "Archive.rkt")))

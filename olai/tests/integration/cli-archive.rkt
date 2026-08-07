@@ -64,7 +64,7 @@
        (define j (parse-json out))
        (check-equal? (hash-ref j 'ok) #t)
        (check-equal? (hash-ref j 'title) "install")
-       (check-equal? (hash-ref j 'parents) '("kitchen remodel"))
+       (check-equal? (hash-ref j 'ancestors) '("kitchen remodel"))
        (check-equal? (hash-ref j 'created_archive) #t)
        (check-equal? (hash-ref j 'committed) #t)
        (check-equal? (hash-ref j 'from) (path->string tasks))

@@ -11,6 +11,9 @@
          olai/dates
          olai/edit
          olai/lang/line
+         ;; where a section ends and which line is a given title: the same two
+         ;; questions `capture` and `subtree` ask, asked of the same module
+         olai/lang/section
          (except-in olai/lang/expander #%module-begin)
          (only-in olai/query count-tasks))
 
@@ -38,13 +41,13 @@
   (define m (string->number (substring day 5 7)))
   (values y m))
 
-;; -> (list indent title) for a title line, #f for anything else.
+;; -> (list indent title) for a title line, #f for anything else. What a title
+;; line SAYS is lang/section's answer; the migration below wants it paired with
+;; the level, which is the only reason this exists.
 (define (scan-title-line s)
-  (define-values (ind content) (line-indent+content s))
-  (define k (classify-line content))
-  (and (line-title? k)
-       (even? ind)
-       (list ind (title-text k))))
+  (define-values (ind _content) (line-indent+content s))
+  (define text (title-line-text s))
+  (and text (list ind text)))
 
 ;; The year node of a monolithic Daily.rkt: a top-level 4-digit title.
 ;; Takes a scan-title-line answer, gives back the year string or #f.
@@ -52,28 +55,6 @@
   (match info
     [(list 0 (and year (regexp #px"^[0-9]{4}$"))) year]
     [_ #f]))
-
-;; The first line in [start, end) that is `title` at `indent`, or #f.
-(define (find-title-line lines title indent
-                         #:from [start 0]
-                         #:to [end (length lines)])
-  (for/or ([i (in-range start end)])
-    (match (scan-title-line (list-ref lines i))
-      [(list (== indent) (== title)) i]
-      [_ #f])))
-
-(define (section-end lines parent-idx parent-indent)
-  (define child-indent (+ parent-indent 2))
-  (let loop ([i (add1 parent-idx)])
-    (cond
-      [(>= i (length lines)) i]
-      [(blank-line? (list-ref lines i)) (loop (add1 i))]
-      [else
-       (match (scan-title-line (list-ref lines i))
-         [(list indent _) (if (< indent child-indent) i (loop (add1 i)))]
-         [#f
-          (define-values (ind _) (line-indent+content (list-ref lines i)))
-          (if (< ind child-indent) i (loop (add1 i)))])])))
 
 ;; #:on-applied reaches the caller (ops-daily! commits with it).
 (define current-on-applied (make-parameter void))

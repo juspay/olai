@@ -19,13 +19,16 @@
 ;;
 ;; PURE: strings in, strings out. No files, no clocks, no validation — the
 ;; language is the only validator, and it runs over what these two wrote
-;; (olai/edit). The grammar comes from lang/line; nothing here knows a regexp
-;; for what a line is.
+;; (olai/edit). What a line is comes from lang/line and what indentation means
+;; over several of them from lang/section; nothing here knows a regexp for
+;; either, and neither does `daily` or `capture`, which ask the same module the
+;; same questions.
 
 (require racket/contract
          racket/list
          olai/fail
-         olai/lang/line)
+         olai/lang/line
+         olai/lang/section)
 
 ;; The write path's boundary. Flat checks — text, an index, a list of titles,
 ;; a list of lines — because the text is walked once by the function itself and
@@ -40,15 +43,6 @@
   (define-values (ind _content) (line-indent+content s))
   ind)
 
-(define (kind-of s)
-  (define-values (_ind content) (line-indent+content s))
-  (classify-line content))
-
-;; A title line's text (checkbox and ^anchor already stripped), or #f.
-(define (line-title-text s)
-  (define k (kind-of s))
-  (and (line-title? k) (even? (indent-of s)) (title-text k)))
-
 ;; Re-indent by `n` (which may be negative). A blank line has no indentation to
 ;; move: it comes back empty rather than as a line of spaces.
 (define (shift-line s n)
@@ -59,18 +53,6 @@
      (string-append (make-string (max 0 (+ ind n)) #\space) content)]))
 
 ;; ---- cut -------------------------------------------------------------------
-
-;; One past the last line of the node at `at`: everything indented deeper than
-;; its title. A blank line joins the block only when something deeper follows
-;; it — a blank between two top-level nodes belongs to the file, not to either
-;; of them.
-(define (block-end lines at indent)
-  (let loop ([i (add1 at)] [end (add1 at)])
-    (cond
-      [(>= i (length lines)) end]
-      [(blank-line? (list-ref lines i)) (loop (add1 i) end)]
-      [(> (indent-of (list-ref lines i)) indent) (loop (add1 i) (add1 i))]
-      [else end])))
 
 ;; The titles above `at`, outermost first: one per level, the first line at
 ;; each shallower indent going up. That is the chain as the FILE draws it —
@@ -84,7 +66,7 @@
       [(or (< i 0) (< want 0)) acc]
       [else
        (define s (list-ref lines i))
-       (define text (and (= (indent-of s) want) (line-title-text s)))
+       (define text (and (= (indent-of s) want) (title-line-text s)))
        (if text
            (loop (sub1 i) (- want 2) (cons text acc))
            (loop (sub1 i) want acc))])))
@@ -104,9 +86,10 @@
   (unless (< at (length lines))
     (user-fail "line ~a is not in this file" (add1 at)))
   (define indent (indent-of (list-ref lines at)))
-  (unless (line-title-text (list-ref lines at))
+  (unless (title-line-text (list-ref lines at))
     (user-fail "line ~a is not a task title" (add1 at)))
-  (define end (block-end lines at indent))
+  ;; the node's own lines are its section: title plus everything under it
+  (define end (section-end lines at indent))
   (values (lines->text (append (take lines at) (drop lines end)) text)
           (for/list ([s (in-list (take (drop lines at) (- end at)))])
             (shift-line s (- indent)))
@@ -117,39 +100,9 @@
 ;; Where a file's own top-level nodes start: after the #lang line.
 (define (body-start lines)
   (or (for/or ([s (in-list lines)] [i (in-naturals)])
-        (and (line-lang? (kind-of s)) (add1 i)))
+        (define-values (_ind content) (line-indent+content s))
+        (and (line-lang? (classify-line content)) (add1 i)))
       0))
-
-;; The window holding the children of the node at `idx`: everything indented
-;; deeper, blank lines included.
-(define (children-window lines idx indent)
-  (values (add1 idx)
-          (let loop ([i (add1 idx)])
-            (cond
-              [(>= i (length lines)) i]
-              [(blank-line? (list-ref lines i)) (loop (add1 i))]
-              [(> (indent-of (list-ref lines i)) indent) (loop (add1 i))]
-              [else i]))))
-
-;; The scaffold node named `title` at this level, or #f. Exact match on the
-;; stored title at exactly this indent, inside this parent's window — the same
-;; equality `done TITLE` and `add --parent TITLE` use, so a title that names one
-;; node to those names one node here.
-(define (find-child lines from to indent title)
-  (for/or ([i (in-range from to)])
-    (and (= (indent-of (list-ref lines i)) indent)
-         (equal? (line-title-text (list-ref lines i)) title)
-         i)))
-
-;; The end of a window with its trailing blank lines given back to the file: a
-;; new arrival goes after the last thing in the section, not after the gap
-;; below it.
-(define (append-point lines from to)
-  (let loop ([e to])
-    (cond
-      [(<= e from) e]
-      [(blank-line? (list-ref lines (sub1 e))) (loop (sub1 e))]
-      [else e])))
 
 ;; Splice `new` in at `at`, with a blank line above it when `sep?` and there is
 ;; not one already. -> (values lines index-of-first-new-line)
@@ -166,7 +119,7 @@
 ;; -> (values new-text line-1-based) — where the block's own title landed.
 ;;
 ;; MERGE, at every level: a chain node that is already there is descended into
-;; rather than written twice, matched by title at that level (find-child). A
+;; rather than written twice, matched by title at that level (lang/section). A
 ;; scaffold node carries the ancestor's TITLE and nothing else — no ^anchor (a
 ;; name is unique across the loaded set, and copying one would break the very
 ;; link this feature is built on), no dates, no notes, no state. It is a shelf
@@ -185,11 +138,12 @@
                (for/list ([s (in-list block)]) (shift-line s indent))
                (zero? depth))]
       [else
-       (define found (find-child lines from to indent (car titles)))
+       (define found
+         (find-title-line lines (car titles) indent #:from from #:to to))
        (cond
          [found
-          (define-values (f t) (children-window lines found indent))
-          (place lines (cdr titles) (add1 depth) f t)]
+          (place lines (cdr titles) (add1 depth)
+                 (add1 found) (section-end lines found indent))]
          [else
           (define-values (lines* at)
             (splice lines

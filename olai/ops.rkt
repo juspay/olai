@@ -61,7 +61,7 @@
                                   [from string?]
                                   [title string?]
                                   [line exact-positive-integer?]
-                                  [parents (listof string?)]
+                                  [ancestors (listof string?)]
                                   [created-archive? boolean?]
                                   [committed? boolean?])]
           [struct daily-result ([file string?]
@@ -294,8 +294,8 @@
 ;; file: the archive it now lives in (the file a reader should open)
 ;; from: the outline it left — which may be an @include fragment, not the
 ;;       file the command named
-;; parents: the ancestor titles re-created (or merged into) above it
-(struct archive-result (file from title line parents created-archive? committed?)
+;; ancestors: the titles re-created (or merged into) above it
+(struct archive-result (file from title line ancestors created-archive? committed?)
   #:transparent)
 
 (define (ops-archive! file spec #:commit? [commit? #t])
@@ -307,21 +307,24 @@
   (define hit (as-validation root-path (λ () (locate-in-set root-path spec))))
   (define src (located-file hit))
   (define title (located-title hit))
-  (when (equal? src dest)
-    (op-fail 'validation "~s is already archived (~a)" #:file src title dest))
+  ;; Asked of the file, not of "is this the file we were about to write": the
+  ;; question is whether the node is already archived, and olai/archive is what
+  ;; answers that one.
+  (when (archived-file? src)
+    (op-fail 'validation "~s is already archived (~a)" #:file src title src))
   (define created? (not (file-exists? dest)))
-  (define-values (src-text* block parents)
+  (define-values (src-text* block ancestors)
     (as-validation src (λ () (cut-subtree (file->string src)
                                           (located-index hit)))))
   (define-values (dest-text* line)
     (as-validation dest
                    (λ () (graft-subtree (if created? "#lang olai\n" (file->string dest))
-                                        parents
+                                        ancestors
                                         block))))
   (define committed?
     (write! (list (cons src src-text*) (cons dest dest-text*))
             #:commit (and commit? (format "archive: ~a" title))))
-  (archive-result (path->string dest) (path->string src) title line parents
+  (archive-result (path->string dest) (path->string src) title line ancestors
                   created? committed?))
 
 ;; ---- daily ----------------------------------------------------------------

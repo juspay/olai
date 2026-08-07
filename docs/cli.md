@@ -408,12 +408,12 @@ $ olai archive --file Tasks.rkt install
 ```json
 {"version":1,"ok":true,
  "file":".../Archive.rkt","from":".../Tasks.rkt","title":"install","line":4,
- "parents":["kitchen remodel"],"created_archive":false,"committed":true}
+ "ancestors":["kitchen remodel"],"created_archive":false,"committed":true}
 ```
 
 `file` is where the node lives **now**; `from` is the outline it left — which
 may be an `@include` fragment, not the file you named ([Write
-routing](#write-routing-the-defining-file)). `parents` is the chain that was
+routing](#write-routing-the-defining-file)). `ancestors` is the chain that was
 re-created or merged into, outermost first. `line` is the node's line in the
 archive.
 

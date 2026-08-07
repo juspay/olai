@@ -7,7 +7,10 @@
          racket/match
          racket/string
          olai/fail
-         olai/lang/line)
+         olai/lang/line
+         ;; where an arrival goes at the end of a section (the same answer
+         ;; `daily` and `subtree` append by)
+         (only-in olai/lang/section append-point))
 
 (provide format-capture-lines
          find-inbox-insert
@@ -75,13 +78,12 @@
                (loop (add1 i) pline pind seen?)])]
            [_ (loop (add1 i) pline pind seen?)])])))
 
+  ;; past the last line of the parent's section, and before the blank lines
+  ;; under it — lang/section says where that is, for every module that appends
   (define insert-line
-    (let loop ([e end-line])
-      (cond
-        [(or (not parent-line) (<= e (add1 parent-line))) e]
-        [(eq? (scan-line (list-ref lines (sub1 e))) 'blank)
-         (loop (sub1 e))]
-        [else e])))
+    (if parent-line
+        (append-point lines (add1 parent-line) end-line)
+        end-line))
   (define (line-start-offset line-idx)
     (for/sum ([j (in-range line-idx)])
       (add1 (string-length (list-ref lines j)))))

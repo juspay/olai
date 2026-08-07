@@ -294,7 +294,7 @@
             'from (archive-result-from r)
             'title (archive-result-title r)
             'line (archive-result-line r)
-            'parents (archive-result-parents r)
+            'ancestors (archive-result-ancestors r)
             'created_archive (archive-result-created-archive? r)
             'committed (archive-result-committed? r))))
 
