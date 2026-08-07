@@ -81,7 +81,7 @@
 ;; The rest of the vocabulary: shape and type, which do not change with the
 ;; theme, so they are declared once and never mapped.
 (define-tokens layout-tokens
-  sans mono sidebar-w chat-w indent radius)
+  sans mono sidebar-w panel-w indent radius)
 
 ;; Four constants that are not custom properties because CSS cannot read one
 ;; where they are used — a media query's width, and three values a rule repeats
@@ -511,7 +511,7 @@
             "Liberation Mono" monospace
 
    #:--sidebar-w 15rem
-   #:--chat-w (apply max 21rem 33vw)
+   #:--panel-w (apply max 21rem 33vw)
    #:--indent 1.375rem
    #:--radius 0.375rem]))
 

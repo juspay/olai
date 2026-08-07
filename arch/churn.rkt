@@ -17,10 +17,9 @@
 ;; rule, and this is the rule having nothing to apply to.
 
 (require racket/contract
-         racket/list
-         racket/path
          racket/port
-         racket/string)
+         racket/string
+         racket/system)
 
 (provide (struct-out churn)
          (contract-out
@@ -40,14 +39,19 @@
 
 (define (read-churn root window)
   (define git (find-executable-path "git"))
-  (define top (and git (git-line git root "rev-parse" "--show-toplevel")))
-  (and top
-       (let ()
-         ;; Paths in the log are relative to the repository, which is not
-         ;; necessarily the directory being checked.
-         (define repo (path->complete-path (string->path top)))
-         (define log (git-lines git root "log" (format "-n~a" window)
-                                "--pretty=format:@" "--name-only"))
+  ;; Paths in the log are relative to the REPOSITORY, which is not necessarily
+  ;; the directory being checked. `--show-prefix` says where the one sits
+  ;; inside the other, so every path can be rebuilt from `root` — the same path
+  ;; the declarations were found under.
+  ;;
+  ;; Rebuilt from `root` and not from `--show-toplevel` on purpose: git
+  ;; resolves symlinks and Racket's `simple-form-path` does not, so on a macOS
+  ;; temp directory (`/var/folders/…` against `/private/var/folders/…`) the two
+  ;; spellings of one directory would never match and every count would be zero.
+  (define prefix (and git (git-first git root "rev-parse" "--show-prefix")))
+  (and prefix
+       (let ([log (git-lines git root "log" (format "-n~a" window)
+                             "--pretty=format:@" "--name-only")])
          (and log
               (let ([counts (make-hash)]
                     [commits 0])
@@ -55,28 +59,40 @@
                   (cond
                     [(string=? line "@") (set! commits (add1 commits))]
                     [(string=? line "") (void)]
-                    [else
-                     (define p (simplify-path (build-path repo line) #f))
-                     (hash-update! counts p add1 0)]))
+                    [(under-prefix line prefix)
+                     => (λ (rel) (hash-update! counts (build-path root rel) add1 0))]
+                    [else (void)]))
                 (churn (max commits 1) counts))))))
 
+;; A repository-relative path, said relative to the directory being checked —
+;; or #f when it is somewhere else in the repository entirely.
+(define (under-prefix line prefix)
+  (and (string-prefix? line prefix)
+       (> (string-length line) (string-length prefix))
+       (substring line (string-length prefix))))
+
 (define (churn-count c path)
-  (hash-ref (churn-counts c) (simplify-path path) 0))
+  (hash-ref (churn-counts c) path 0))
 
 ;; ---- talking to git -------------------------------------------------------------
 
+;; `system*` and not `system`: no shell, so nothing in a path is ever a word
+;; somebody else gets to parse. `/exit-code` because that is the whole of what
+;; this needs to know about failure — a checkout with no repository in it is
+;; not an error, it is an audit with nothing to audit.
 (define (git-lines git dir . args)
-  (define-values (sp out in err)
-    (apply subprocess #f #f #f git "-C" (path->string (path->complete-path dir)) args))
-  (close-output-port in)
-  (define lines (port->lines out))
-  ;; drained, never read: a subprocess whose stderr pipe fills up stops
-  (void (port->string err))
-  (subprocess-wait sp)
-  (close-input-port out)
-  (close-input-port err)
-  (and (zero? (subprocess-status sp)) lines))
+  (define out (open-output-string))
+  (define code
+    (parameterize ([current-output-port out]
+                   ;; drained, never read: a subprocess whose stderr pipe fills
+                   ;; up stops
+                   [current-error-port (open-output-nowhere)])
+      (apply system*/exit-code git "-C" (path->string (path->complete-path dir)) args)))
+  (and (zero? code) (string-split (get-output-string out) "\n" #:trim? #f)))
 
-(define (git-line git dir . args)
+;; The first line, or "" when the command said nothing — which is what
+;; `--show-prefix` says from the top of a repository, and is not the same
+;; answer as "this is not a repository" (that one is #f).
+(define (git-first git dir . args)
   (define lines (apply git-lines git dir args))
-  (and lines (pair? lines) (string-trim (car lines))))
+  (and lines (if (pair? lines) (string-trim (car lines)) "")))

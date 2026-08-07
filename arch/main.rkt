@@ -16,9 +16,7 @@
 ;; about itself, 1 when it does not.
 
 (require racket/cmdline
-         racket/list
          racket/path
-         racket/string
          arch/check
          arch/churn
          arch/explain
@@ -44,7 +42,7 @@
   (exit (if target (run-explain here target window) (run-check here window))))
 
 (define (run-explain root file window)
-  (define scopes (find-scopes root))
+  (define-values (scopes _governed) (survey root))
   (displayln (explain (path->complete-path (simplify-path (string->path file)))
                       scopes
                       (read-churn root window)

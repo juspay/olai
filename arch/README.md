@@ -9,7 +9,7 @@ Break one and the build stays green — an agent finds out in review, or never.
 
 ```
 $ just arch
-arch: 115 modules in 9 declared packages — the tree agrees with itself
+arch: 120 modules in 10 declared packages — the tree agrees with itself
 ```
 
 ## The grammar
@@ -124,6 +124,12 @@ answer is one module's business:
   instantiating it, so nothing anybody wrote is ever run.
 * [churn.rkt](churn.rkt) shells out to git.
 
+One more module has no business in any of the three: [wording.rkt](wording.rkt)
+says a list of words and guesses at a misspelling, and it is split from
+[vocabulary.rkt](vocabulary.rkt) because the ratified words change when a human
+ratifies one and the phrasing changes whenever somebody watches an agent
+misread a message.
+
 With `.zo` on disk the whole tree is about two seconds, which is why `just
 arch` lives in the edit loop beside `just check` rather than only in CI.
 
@@ -133,12 +139,14 @@ What reading rather than expanding costs, stated so nobody has to discover it:
   depends on is what an architecture check is about, and it is what a reader
   sees too.
 * An authority is counted when its name is in operator position — `(today)`,
-  `(file-exists? p)`, `[current-directory d]` — or right after `apply`. Handing
-  one somewhere as a value (`(map file-exists? ps)`) is missed. The alternative
-  is a scope analysis, which is an expander, which is the cost being avoided.
-  This is also what keeps the rule from punishing the code that obeys it:
-  `(define (agenda-groups tasks today) ...)` takes the day as an argument,
-  which is the whole point, and must not read as a clock.
+  `(file-exists? p)`, `[current-directory d]` — or right after `apply`. Binding
+  positions do not count, so `(for ([today days]) …)` and `(λ (now) …)` are the
+  code taking the thing as an argument, which is what the rule is FOR. The
+  binding forms are a short closed list in [source.rkt](source.rkt); a form
+  nobody listed is walked as ordinary code, which over-reports rather than
+  under-reports. Handing a spelling somewhere as a value (`(map file-exists?
+  ps)`) is missed — the alternative is a scope analysis, which is an expander,
+  which is the cost being avoided.
 * `only-in` narrows what a require brings in and this does not model it, so a
   module that mentions a name it did not quite import is asked to declare an
   authority it does not quite use. The error is on the side of declaring, which

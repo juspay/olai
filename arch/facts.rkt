@@ -17,7 +17,6 @@
 ;; here; neither module computes the other's answer.
 
 (require racket/contract
-         racket/list
          racket/set)
 
 (provide (contract-out
@@ -33,9 +32,13 @@
     (car e)))
 
 ;; Every name `path` exports, at every phase, whether it defined it or not.
-;; This is the set a requiring module gets to see.
+;; This is the set a requiring module gets to see — memoized like the export
+;; list it comes from, because the common answer is racket/base's fifteen
+;; hundred names and nine hundred require edges ask for it.
+(define names-cache (make-hash))
+
 (define (names-from path)
-  (list->seteq (map car (exports path))))
+  (hash-ref! names-cache path (λ () (list->seteq (map car (exports path))))))
 
 ;; ---- the module system ---------------------------------------------------------
 

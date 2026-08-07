@@ -10,10 +10,9 @@
 
 (require racket/contract
          racket/file
-         racket/list
          racket/path
-         racket/port
-         racket/string)
+         racket/string
+         racket/system)
 
 (provide (contract-out
           [call-with-tree (-> (listof (cons/c string? string?)) (-> path? any) any)]
@@ -59,12 +58,9 @@
 (define (git! dir . args)
   (define git (find-executable-path "git"))
   (unless git (error 'git-history! "no git on PATH"))
-  (define-values (sp out in err)
-    (apply subprocess #f #f #f git "-C" (path->string dir) args))
-  (close-output-port in)
-  (define trouble (string-append (port->string out) (port->string err)))
-  (subprocess-wait sp)
-  (close-input-port out)
-  (close-input-port err)
-  (unless (zero? (subprocess-status sp))
-    (error 'git-history! "git ~a failed: ~a" (string-join args " ") trouble)))
+  (define said (open-output-string))
+  (define code
+    (parameterize ([current-output-port said] [current-error-port said])
+      (apply system*/exit-code git "-C" (path->string dir) args)))
+  (unless (zero? code)
+    (error 'git-history! "git ~a failed: ~a" (string-join args " ") (get-output-string said))))

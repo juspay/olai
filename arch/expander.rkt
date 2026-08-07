@@ -33,6 +33,7 @@
                      racket/path
                      racket/string
                      syntax/parse
+                     syntax/srcloc
                      arch/vocabulary
                      arch/wording))
 
@@ -60,9 +61,16 @@
     (define hit (did-you-mean name candidates))
     (if hit (list (format "did you mean: ~a?" hit)) '()))
 
-  ;; '(a b c) -> '(() (a) (a b)): what had already been seen at each element.
-  (define (inits xs)
-    (for/list ([i (in-range (length xs))]) (take xs i)))
+  ;; The first element that repeats something before it: that element, and what
+  ;; came before it. Three rules ask this — an authority owned twice, a module
+  ;; overridden twice — and each wants both halves, the repeat to blame and the
+  ;; list to quote back. `check-duplicates` hands over only the first.
+  (define (first-repeat xs key same?)
+    (let loop ([seen '()] [rest xs])
+      (cond
+        [(null? rest) (values #f '())]
+        [(member (key (car rest)) (map key seen) same?) (values (car rest) (reverse seen))]
+        [else (loop (cons (car rest) seen) (cdr rest))])))
 
   (define (head-of stx)
     (and (pair? (syntax-e stx)) (car (syntax-e stx))))
@@ -138,11 +146,11 @@
       [(owns g ...)
        (define gs (for/list ([g (in-list (syntax->list #'(g ...)))])
                     (parse-grant g #:in-override? in-override?)))
-       (for ([g (in-list gs)] [seen (in-list (inits (map pgrant-authority gs)))])
-         (when (memq (pgrant-authority g) seen)
-           (arch-error (pgrant-stx g) "an authority owned twice"
-                       "one entry per authority; a second is either a typo or a merge that went wrong"
-                       (format "already owned here: ~a" (word-list seen)))))
+       (define-values (again before) (first-repeat gs pgrant-authority eq?))
+       (when again
+         (arch-error (pgrant-stx again) "an authority owned twice"
+                     "one entry per authority; a second is either a typo or a merge that went wrong"
+                     (format "already owned here: ~a" (word-list (map pgrant-authority before)))))
        (clause 'owns gs stx)]
       [(concept name:id glob:str ...+)
        (for ([g (in-list (syntax->list #'(glob ...)))])
@@ -177,16 +185,27 @@
                        (suggestion (syntax-e head) '(clock owns concept override))
                        '()))]))
 
-  (define (clock-clause cs)
-    (for/first ([c (in-list cs)] #:when (eq? 'clock (clause-tag c))) c))
-
-  (define (check-one-clock cs)
+  ;; The one clock in `cs`, and both ways that can go wrong. One slot, one
+  ;; rule, one traversal — "no clock" and "a second clock" are the same
+  ;; question asked of the same list, and answering them in two functions meant
+  ;; a caller could ask one and forget the other.
+  ;;
+  ;; `blame` is what a missing clock is reported against, and #f when a missing
+  ;; one is fine (an override says how a module DIFFERS, and usually not in
+  ;; speed).
+  (define (the-clock cs #:blame [blame #f])
     (define found (for/list ([c (in-list cs)] #:when (eq? 'clock (clause-tag c))) c))
     (when (> (length found) 1)
       (arch-error (clause-loc (cadr found))
                   "a second clock"
                   "one clock per declaration — a module moves at one speed or the other"
-                  (format "the first is at line ~a" (or (syntax-line (clause-loc (car found))) "?")))))
+                  (format "the first is at line ~a" (or (syntax-line (clause-loc (car found))) "?"))))
+    (when (and blame (null? found))
+      (arch-error blame #:who 'arch
+                  "no clock"
+                  "an arch.rkt says how fast the code under it moves, before anything else"
+                  (format "write (clock ~a) at the top; clocks: ~a" (car clocks) (word-list clocks))))
+    (and (pair? found) (car found)))
 
   ;; ---- where a form is, as something the runtime can rebuild -----------------
 
@@ -197,10 +216,13 @@
       [(string? s) s]
       [else #f]))
 
+  ;; The same five fields `build-source-location-list` already knows how to
+  ;; take, emitted as a constructor call the module can rebuild at run time.
+  ;; Only the source needs converting: a declaration is read once and its
+  ;; messages are printed later, so the path travels as a string.
   (define (loc-stx stx)
-    #`(srcloc #,(source-string stx)
-              #,(syntax-line stx) #,(syntax-column stx)
-              #,(syntax-position stx) #,(syntax-span stx)))
+    (define parts (build-source-location-list stx))
+    #`(srcloc #,(source-string stx) #,@(map (λ (v) #`'#,v) (cdr parts))))
 
   ;; ---- clauses -> the constructor calls that build a declaration -------------
 
@@ -212,14 +234,13 @@
                              '#,(pgrant-spellings g)
                              #,(loc-stx (pgrant-stx g))))))))
 
+  ;; No duplicate-concept rule here on purpose. Two arch.rkt files can claim
+  ;; one concept as easily as one file can, so the rule is inherently about the
+  ;; whole tree — and the checker enforces it there, over every scope and every
+  ;; level at once. A compile-time copy would be a second, narrower wording of
+  ;; one rule, and a reader who satisfied it would have learned the wrong rule.
   (define (claims-stx cs)
     (define claims (for/list ([c (in-list cs)] #:when (eq? 'concept (clause-tag c))) c))
-    (for ([c (in-list claims)]
-          [seen (in-list (inits (map (λ (c) (car (clause-payload c))) claims)))])
-      (when (memq (car (clause-payload c)) seen)
-        (arch-error (clause-loc c) "a concept claimed twice"
-                    "one owner per concept, and that includes twice in one file"
-                    "merge the two pattern lists into one (concept ...) form")))
     #`(list #,@(for/list ([c (in-list claims)])
                  #`(claim '#,(car (clause-payload c))
                           '#,(cdr (clause-payload c))
@@ -237,16 +258,14 @@
       [(override file:str clause ...)
        (define cs (for/list ([c (in-list (syntax->list #'(clause ...)))])
                     (parse-clause c #:in-override? #t)))
-       (check-one-clock cs)
-       (define ck (clock-clause cs))
+       (define ck (the-clock cs))
        (parsed-override
         #'file
         #`(module-decl '#,(syntax-e #'file)
                        #,(if ck #`'#,(clause-payload ck) #'#f)
                        #,(if ck (loc-stx (clause-loc ck)) #'#f)
                        #,(grants-stx cs)
-                       #,(claims-stx cs)
-                       #,(loc-stx stx)))]
+                       #,(claims-stx cs)))]
       [(override . _)
        (arch-error stx "malformed override"
                    "override names one module by its path, relative to this arch.rkt"
@@ -255,15 +274,17 @@
   ;; An override names a FILE, and the file has to be there. A rename that
   ;; leaves the declaration behind is the failure this catches, and it is worth
   ;; a compile error rather than a rule that quietly stops applying.
+  (define (override-file o) (syntax-e (parsed-override-file-stx o)))
+
   (define (check-overrides overrides)
-    (for ([o (in-list overrides)]
-          [seen (in-list (inits (map (λ (o) (syntax-e (parsed-override-file-stx o))) overrides)))])
+    (define-values (again before) (first-repeat overrides override-file string=?))
+    (when again
+      (arch-error (parsed-override-file-stx again) #:who 'override "a module overridden twice"
+                  "one override per module; merge the clauses into one form"
+                  (format "already overridden: ~a" (string-join (map override-file before) ", "))))
+    (for ([o (in-list overrides)])
       (define stx (parsed-override-file-stx o))
       (define file (syntax-e stx))
-      (when (member file seen)
-        (arch-error stx #:who 'override "a module overridden twice"
-                    "one override per module; merge the clauses into one form"
-                    (format "already overridden: ~a" (string-join seen ", "))))
       (unless (relative-path? file)
         (arch-error stx #:who 'override "not a relative path"
                     "override names a module underneath this arch.rkt, never an absolute path"))
@@ -286,21 +307,15 @@
        (partition (λ (f) (syntax-parse f #:datum-literals (override) [(override . _) #t] [_ #f]))
                   (syntax->list #'(form ...))))
      (define top (map parse-clause top-forms))
-     (check-one-clock top)
-     (unless (clock-clause top)
-       (arch-error stx #:who 'arch
-                   "no clock"
-                   "an arch.rkt says how fast the code under it moves, before anything else"
-                   (format "write (clock ~a) at the top; clocks: ~a" (car clocks) (word-list clocks))))
+     (define ck (the-clock top #:blame stx))
      (define overrides (map parse-override over-forms))
      (check-overrides overrides)
-     (with-syntax ([clock-word (clause-payload (clock-clause top))]
-                   [clock-loc (loc-stx (clause-loc (clock-clause top)))]
+     (with-syntax ([clock-word (clause-payload ck)]
+                   [clock-loc (loc-stx (clause-loc ck))]
                    [grants (grants-stx top)]
                    [claims (claims-stx top)]
-                   [(over ...) (map parsed-override-code overrides)]
-                   [source (source-string stx)])
+                   [(over ...) (map parsed-override-code overrides)])
        #'(#%module-begin
           (provide declaration)
           (define declaration
-            (scope-decl 'source 'clock-word clock-loc grants claims (list over ...)))))]))
+            (scope-decl 'clock-word clock-loc grants claims (list over ...)))))]))

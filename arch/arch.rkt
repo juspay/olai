@@ -17,7 +17,14 @@
 (override "expander.rkt" (owns filesystem))
 
 ;; One walker over the anchor rules is the pattern this whole tool is about, so
-;; it holds for the tool: the four checks live in one module and nowhere else.
-(override "vocabulary.rkt" (concept arch-vocabulary "authorit*" "clock-rank" "clock-allows"))
+;; it holds for the tool.
+;;
+;; The clock words are enumerated rather than globbed because `live/examples/
+;; counters/clock.rkt` exports `clock` and `clock-now` — a stream named after
+;; what it ticks, in a package that has nothing to do with this one. That is a
+;; real collision between two honest names, and the narrow list is what a
+;; declaration says when the code is right and the words merely coincide.
+(override "vocabulary.rkt"
+          (concept arch-vocabulary "authorit*" "clocks" "clock?" "clock-rank" "clock-allows"))
 (override "wording.rkt" (concept arch-wording "word-list" "did-you-mean"))
-(override "finding.rkt" (concept arch-finding "finding*"))
+(override "finding.rkt" (concept arch-finding "finding*" "make-labeller" "loc-brief"))

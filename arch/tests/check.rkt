@@ -32,9 +32,11 @@
 
 (define (rule f) (finding-rule f))
 (define (why f) (string-join (finding-why f) "\n"))
+;; Said the way a message says it — through the labeller the findings
+;; themselves print with, so a change to how a path is rendered fails here
+;; rather than passing against a second copy of the rendering.
 (define (at f dir)
-  (list (path->string (find-relative-path (simple-form-path dir)
-                                          (simple-form-path (srcloc-source (finding-loc f)))))
+  (list ((make-labeller dir) (srcloc-source (finding-loc f)))
         (srcloc-line (finding-loc f))))
 
 ;; ---- 1: dependencies point volatile -> stable ------------------------------------
@@ -160,6 +162,24 @@
        ;; the definition, not the provide
        (check-equal? (at f dir) (list "view/draw.rkt" 5)))))
 
+  ;; Concepts reach exactly as far as authority does — the modules a package
+  ;; governs, and not the ones a deeper arch.rkt has taken over. Read off
+  ;; `effective-claims` for that reason: derived from the scope tree instead,
+  ;; a claim in the outer declaration owned a module whose own package it had
+  ;; nothing to say about.
+  (test-case "a package's concept stops where the next package starts"
+    (call-with-tree
+     (list (cons "core/arch.rkt"
+                 "#lang arch\n(clock stable)\n(owns)\n(concept node-key-minting \"mint-*\")\n")
+           (cons "core/load.rkt" "#lang racket/base\n(provide mint-keys)\n(define (mint-keys t) t)\n")
+           (cons "core/deep/arch.rkt" "#lang arch\n(clock stable)\n(owns)\n")
+           (cons "core/deep/other.rkt"
+                 "#lang racket/base\n(provide mint-other)\n(define (mint-other t) t)\n"))
+     (λ (dir)
+       (define f (only-finding dir))
+       (check-equal? (rule f) "mint-other: exports into concept `node-key-minting`")
+       (check-true (string-contains? (why f) "that concept is owned by core/load.rkt")))))
+
   (test-case "a re-export is not a second owner"
     (call-with-tree
      (list (cons "core/arch.rkt"
@@ -169,6 +189,20 @@
            (cons "core/facade.rkt"
                  "#lang racket/base\n(require \"load.rkt\")\n(provide (all-from-out \"load.rkt\"))\n"))
      (λ (dir) (check-equal? (findings dir) '()))))
+
+  ;; The rule is the checker's and nowhere else: two arch.rkt files can collide
+  ;; as easily as one file can, so a compile-time copy would be a second,
+  ;; narrower wording of one rule.
+  (test-case "one file claiming a concept twice"
+    (call-with-tree
+     (list (cons "core/arch.rkt"
+                 (string-append "#lang arch\n(clock stable)\n(owns)\n"
+                                "(concept keys \"mint-*\")\n(concept keys \"key-*\")\n"))
+           (cons "core/load.rkt" "#lang racket/base\n"))
+     (λ (dir)
+       (define f (only-finding dir))
+       (check-equal? (rule f) "keys: a concept claimed twice")
+       (check-equal? (at f dir) (list "core/arch.rkt" 5)))))
 
   (test-case "two packages claiming one concept"
     (call-with-tree

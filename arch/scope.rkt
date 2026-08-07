@@ -7,6 +7,12 @@
 ;; and nothing has to say so twice. Deepest wins, which is the rule a reader
 ;; already assumes from where the file sits.
 ;;
+;; `survey` is one walk down the tree carrying the nearest declaration with it,
+;; so a module is assigned as it is met rather than looked up afterwards
+;; against every scope in the repo. That is why there is no `in-directory`
+;; here: the walk has to see a directory's own `arch.rkt` before it descends
+;; into it, and a sequence hands out the files with nothing carried down.
+;;
 ;; A module with no `arch.rkt` above it is not governed and not checked. That
 ;; is a hole with a shape: it can only be opened by MOVING a module out of a
 ;; declared package or by DELETING a declaration, and both are lines in a diff
@@ -22,82 +28,70 @@
 
 (provide (struct-out scope)
          (contract-out
-          [find-scopes (-> path? (listof scope?))]
+          [survey (-> path? (values (listof scope?) (listof (cons/c scope? path?))))]
           [governing (-> (listof scope?) path? (or/c scope? #f))]
           [scope-covers? (-> scope? path? boolean?)]
-          [scope-modules (-> scope? (listof scope?) (listof path?))]
-          [declaration-of (-> (listof scope?) path? (or/c effective? #f))]
-          [scope-relative (-> scope? path? string?)]))
+          [effective-for (-> scope? path? effective?)]))
 
 ;; dir         : the directory the declaration governs, as a directory path
 ;; file        : the arch.rkt itself
 ;; declaration : its scope-decl
 (struct scope (dir file declaration) #:transparent)
 
-;; Every arch.rkt under `root`, loaded. `compiled` and hidden directories are
-;; skipped: one holds bytecode and the other holds tooling, and neither is
-;; anybody's architecture.
-(define (find-scopes root)
-  (sort
-   (for/list ([p (in-list (arch-files (simple-form-path root)))])
-     (scope (path-only p) p (dynamic-require p 'declaration)))
-   >
-   #:key (λ (s) (string-length (path->string (scope-dir s))))))
+;; Every declaration under `root`, and every module each one governs. One walk:
+;; a directory's own arch.rkt becomes the nearest declaration for everything
+;; below it, and a module is assigned to whatever that is when the walk reaches
+;; it. `compiled` and hidden directories are skipped — one holds bytecode and
+;; the other holds tooling, and neither is anybody's architecture.
+(define (survey root)
+  (define scopes '())
+  (define modules '())
+  (let walk ([dir (simple-form-path root)] [nearest #f])
+    (define entries (sort (directory-list dir #:build? #t) path<?))
+    (define here
+      (cond
+        [(for/first ([e (in-list entries)] #:when (declaration-file? e)) e)
+         => (λ (file)
+              (define s (scope dir (simplify-path file) (dynamic-require file 'declaration)))
+              (set! scopes (cons s scopes))
+              s)]
+        [else nearest]))
+    (for ([e (in-list entries)])
+      (define name (path->string (file-name-from-path e)))
+      (cond
+        [(directory-exists? e)
+         (unless (or (string=? name "compiled") (string-prefix? name "."))
+           (walk e here))]
+        [(and here (string-suffix? name ".rkt") (not (string=? name "arch.rkt")))
+         (set! modules (cons (cons here (simplify-path e)) modules))]
+        [else (void)])))
+  (values (reverse scopes) (reverse modules)))
 
-(define (arch-files root)
-  (let walk ([dir root])
-    (append*
-     (for/list ([entry (in-list (directory-list dir #:build? #t))])
-       (cond
-         [(directory-exists? entry)
-          (define name (path->string (file-name-from-path entry)))
-          (if (or (string=? name "compiled") (string-prefix? name "."))
-              '()
-              (walk entry))]
-         [(equal? "arch.rkt" (path->string (file-name-from-path entry)))
-          (list (simplify-path entry))]
-         [else '()])))))
+(define (declaration-file? entry)
+  (and (not (directory-exists? entry))
+       (equal? "arch.rkt" (path->string (file-name-from-path entry)))))
 
-;; The deepest scope whose directory contains `path`. `find-scopes` sorts
-;; deepest-first, so this is the first hit.
+;; The deepest scope whose directory contains `path` — for the one caller that
+;; has a module and no walk to hang it off, `--explain`.
 (define (governing scopes path)
-  (define target (simplify-path path))
-  (for/first ([s (in-list scopes)] #:when (scope-covers? s target)) s))
+  (for/fold ([best #f]) ([s (in-list scopes)] #:when (scope-covers? s path))
+    (if (and best (> (depth (scope-dir best)) (depth (scope-dir s)))) best s)))
 
-;; Does this declaration sit above that path? Exported because check 3 asks the
-;; same question of a package-level concept — "is this module inside the scope
-;; that claimed it" — and two spellings of "under" is one too many.
+(define (depth dir) (length (explode-path dir)))
+
+;; Does this declaration sit above that path? Check 3 asks the same question of
+;; a package-level concept — "is this module inside the scope that claimed it"
+;; — and two spellings of "under" is one too many.
 (define (scope-covers? s path)
   (define rel (find-relative-path (scope-dir s) (simplify-path path)))
   (and (relative-path? rel) (not (string-prefix? (path->string rel) ".."))))
 
-;; Every module this scope actually governs: the .rkt files beneath it that no
-;; deeper scope has taken, minus the declarations themselves.
-(define (scope-modules s scopes)
-  (sort
-   (let walk ([dir (scope-dir s)])
-     (append*
-      (for/list ([entry (in-list (directory-list dir #:build? #t))])
-        (define name (path->string (file-name-from-path entry)))
-        (cond
-          [(directory-exists? entry)
-           (if (or (string=? name "compiled") (string-prefix? name "."))
-               '()
-               (walk entry))]
-          [(not (string-suffix? name ".rkt")) '()]
-          [(string=? name "arch.rkt") '()]
-          [(eq? s (governing scopes entry)) (list (simplify-path entry))]
-          [else '()]))))
-   string<?
-   #:key path->string))
-
-;; The one answer a check asks for: what does this module say about itself,
-;; after its package's defaults and its own override.
-(define (declaration-of scopes path)
-  (define s (governing scopes path))
-  (and s (declaration-for (scope-declaration s) (scope-relative s path))))
-
-;; How an override names this module: its path relative to the arch.rkt, in
-;; unix spelling, which is what somebody types into the declaration.
-(define (scope-relative s path)
-  (path->string (find-relative-path (scope-dir s) (simplify-path path))))
+;; The one answer a check asks for: what this scope says about that module,
+;; after its defaults and the module's own override. Every caller goes through
+;; here, so "effective declaration" is composed in one place AND asked for in
+;; one way.
+(define (effective-for s path)
+  (declaration-for (scope-declaration s)
+                   ;; how an override names it: relative to the arch.rkt, in
+                   ;; the spelling somebody types into the declaration
+                   (path->string (find-relative-path (scope-dir s) (simplify-path path)))))

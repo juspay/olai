@@ -45,27 +45,34 @@
 ;; notes    : what the run could not do — today only "there was no history to
 ;;            audit". Printed, never silent: a check that quietly does not run
 ;;            is the failure mode this whole tool exists to remove.
-(struct report (scopes sites churn findings notes) #:transparent)
+(struct report (scopes sites findings notes) #:transparent)
 
-;; One governed module, with everything anybody needs to say about it.
-(struct site (path source decl) #:transparent)
+;; One governed module, with everything anybody needs to say about it — read
+;; once, declared once, asked once. `defines` is what it exports AND defines,
+;; which three of the four checks want; deriving it per check was the same list
+;; built three times.
+(struct site (path source defines decl) #:transparent)
 
 (define (audit root #:window [window default-churn-window])
-  (define scopes (find-scopes root))
-  (define sites (sites-of scopes))
-  ;; Every module is read, declared and looked up exactly once. A dependency is
-  ;; a path, and check 1 asks about ~500 of them — deriving the far end's
-  ;; effective declaration again at each edge would be the same value computed
-  ;; a second way, which is the bug this tool is named after.
+  (define-values (scopes governed) (survey root))
+  (define sites
+    (for/list ([entry (in-list governed)])
+      (define path (cdr entry))
+      (site path
+            (read-source path)
+            (sort (module-defines path) symbol<?)
+            (effective-for (car entry) path))))
+  ;; A dependency is a path, and check 1 asks about ~900 of them. Deriving the
+  ;; far end's effective declaration again at each edge would be the same value
+  ;; computed a second way, which is the bug this tool is named after.
   (define by-path (for/hash ([s (in-list sites)]) (values (site-path s) s)))
   (define history (read-churn root window))
   (define spellings (spelling-table sites))
-  (define owners (concept-owners scopes))
-  (define (label p) (path-label p root))
+  (define owners (concept-owners sites))
+  (define label (make-labeller root))
   (report scopes
           sites
-          history
-          (sort
+          (sort-findings
            (append
             (spelling-findings sites label)
             (claim-findings owners label)
@@ -74,34 +81,22 @@
             (append* (for/list ([s (in-list sites)]) (check-concepts s owners label)))
             (if history
                 (append* (for/list ([s (in-list sites)]) (check-churn s history label)))
-                '()))
-           finding<?)
+                '())))
           (if history
               '()
               (list (string-append
                      "churn: no git history here, so no declaration was audited against it"
                      " — the other three checks ran")))))
 
-(define (sites-of scopes)
-  (append*
-   (for/list ([s (in-list scopes)])
-     (for/list ([m (in-list (scope-modules s scopes))])
-       (site m (read-source m) (declaration-for (scope-declaration s) (scope-relative s m)))))))
-
-(define (finding<? a b)
-  (define (key f)
-    (define loc (finding-loc f))
-    (list (format "~a" (and loc (srcloc-source loc)))
-          (or (and loc (srcloc-line loc)) 0)
-          (or (and loc (srcloc-column loc)) 0)))
-  (define ka (key a))
-  (define kb (key b))
-  (cond
-    [(string<? (car ka) (car kb)) #t]
-    [(string>? (car ka) (car kb)) #f]
-    [(< (cadr ka) (cadr kb)) #t]
-    [(> (cadr ka) (cadr kb)) #f]
-    [else (< (caddr ka) (caddr kb))]))
+;; File, then line, then column. `sort` is stable, so three passes in reverse
+;; key order say that in three lines and stay right when a fourth key is wanted.
+(define (sort-findings fs)
+  (define (part f get) (or (let ([loc (finding-loc f)]) (and loc (get loc))) 0))
+  (sort (sort (sort fs < #:key (λ (f) (part f srcloc-column)))
+              < #:key (λ (f) (part f srcloc-line)))
+        string<?
+        #:key (λ (f) (format "~a" (let ([loc (finding-loc f)]) (and loc (srcloc-source loc)))))
+        #:cache-keys? #t))
 
 ;; ---- 1: dependencies point volatile -> stable ----------------------------------
 
@@ -148,11 +143,10 @@
 (define (spelling-findings sites label)
   (append*
    (for/list ([s (in-list sites)])
-     (define defined (list->seteq (module-defines (site-path s))))
      (append*
       (for/list ([g (in-list (own-grants (site-decl s)))])
         (for/list ([name (in-list (grant-spellings g))]
-                   #:unless (set-member? defined (string->symbol name)))
+                   #:unless (memq (string->symbol name) (site-defines s)))
           (finding (grant-loc g)
                    (format "~a: not an export of ~a" name (label (site-path s)))
                    (list (format "an authority's spellings name what THIS module hands ~a on as"
@@ -174,14 +168,13 @@
   ;; import brought in. Both halves matter: the source says what it defines
   ;; under any name, and the module system says what a `struct` form defined
   ;; without anybody writing the name down.
-  (define defined
-    (set-union (list->seteq (hash-keys (source-definitions src)))
-               (list->seteq (module-defines (site-path s)))))
+  (define (bound-here? name)
+    (or (hash-has-key? (source-definitions src) name) (memq name (site-defines s))))
   (for*/list ([(name loc) (in-hash (source-mentions src))]
               [a (in-value (hash-ref spellings name #f))]
               #:when (and a
                           (set-member? visible name)
-                          (not (set-member? defined name))
+                          (not (bound-here? name))
                           (not (effective-owns? mine a))))
     (finding loc
              (format "~a: ambient authority `~a` is not owned here" name a)
@@ -218,26 +211,53 @@
 
 ;; ---- 3: one owner per concept -----------------------------------------------------
 
-;; A concept and where it is owned. `module` is #f when the whole package owns
-;; it, and one path when an override does.
-(struct owner (concept globs loc scope module) #:transparent)
+;; A concept, and the modules that may spell it.
+;;
+;; Read off `effective-claims`, exactly the way check 2 reads `effective-owns?`
+;; — so a package-level `(concept …)` reaches the modules that package governs
+;; and no further, which is what a package-level `(owns …)` already did.
+;; Deriving ownership from `scope-decl-modules` instead had made concepts the
+;; one thing in the tool that ignored nesting: `olai/arch.rkt` would own a
+;; concept inside `olai/web/`, where it owns no authority, and an override
+;; naming a module some deeper arch.rkt governs was dead for three checks and
+;; live for this one.
+;;
+;; sites : every module whose effective declaration carries this claim
+(struct owner (concept matchers loc sites) #:transparent)
 
-(define (concept-owners scopes)
-  (append*
-   (for/list ([s (in-list scopes)])
-     (append
-      (for/list ([c (in-list (scope-decl-claims (scope-declaration s)))])
-        (owner (claim-concept c) (claim-globs c) (claim-loc c) s #f))
-      (append*
-       (for/list ([m (in-list (scope-decl-modules (scope-declaration s)))])
-         (for/list ([c (in-list (module-decl-claims m))])
-           (owner (claim-concept c) (claim-globs c) (claim-loc c) s
-                  (simplify-path (build-path (scope-dir s) (module-decl-file m)))))))))))
+(define (concept-owners sites)
+  ;; One entry per DECLARATION, not per module: a package default is inherited
+  ;; by everything under it, and all of those are one claim wearing one srcloc.
+  (define by-loc (make-hash))
+  (for* ([s (in-list sites)] [c (in-list (effective-claims (site-decl s)))])
+    (hash-update! by-loc (claim-loc c)
+                  (λ (prev) (cons (car prev) (cons s (cdr prev))))
+                  (λ () (cons c '()))))
+  (for/list ([(loc entry) (in-hash by-loc)])
+    (define c (car entry))
+    (owner (claim-concept c) (map matcher (claim-globs c)) loc (reverse (cdr entry)))))
+
+;; A pattern and the regexp it is, compiled once when the claim is read rather
+;; than once per (export name x pattern) — which was twenty thousand identical
+;; compilations of thirty-one patterns.
+(struct matcher* (glob rx) #:transparent)
+
+;; `*` and nothing else. A concept names its exports the way a person would say
+;; them out loud — `mint-*`, `acp-*` — and anything richer would be a second
+;; pattern language for a reader to learn, in a file whose whole point is that
+;; it is read at a glance. The literal parts are quoted, so a `.` or a `?` in an
+;; export name is a character and not a metacharacter.
+(define (matcher glob)
+  (matcher* glob
+            (regexp (string-append "^"
+                                   (string-join (map regexp-quote (string-split glob "*" #:trim? #f))
+                                                ".*")
+                                   "$"))))
 
 (define (claim-findings owners label)
   (define seen (make-hasheq))
   (append*
-   (for/list ([o (in-list owners)])
+   (for/list ([o (in-list (sort owners string<? #:key (λ (o) (loc-brief (owner-loc o) label))))])
      (define prev (hash-ref seen (owner-concept o) #f))
      (hash-set! seen (owner-concept o) o)
      (if prev
@@ -249,44 +269,30 @@
 
 (define (check-concepts s owners label)
   (define src (site-source s))
-  (define here (site-path s))
-  (append*
-   (for/list ([name (in-list (module-defines here))])
-     (for*/list ([o (in-list owners)]
-                 [glob (in-value (matching-glob o name))]
-                 #:when (and glob (not (owned-by? o here))))
-       (finding (or (source-where src name) (srcloc here 1 0 1 0))
-                (format "~a: exports into concept `~a`" name (owner-concept o))
-                (list (format "that concept is owned by ~a (~a)"
-                              (owner-label o label) (loc-brief (owner-loc o) label))
-                      (format "the pattern it matched: \"~a\"" glob)
-                      "one owner per concept — require the name from the owner instead"))))))
+  (define mine (map claim-concept (effective-claims (site-decl s))))
+  (for*/list ([name (in-list (site-defines s))]
+              [o (in-list owners)]
+              #:unless (memq (owner-concept o) mine)
+              [hit (in-value (matching o name))]
+              #:when hit)
+    (finding (or (source-where src name) (srcloc (site-path s) 1 0 1 0))
+             (format "~a: exports into concept `~a`" name (owner-concept o))
+             (list (format "that concept is owned by ~a (~a)"
+                           (owner-label o label) (loc-brief (owner-loc o) label))
+                   (format "the pattern it matched: \"~a\"" (matcher*-glob hit))
+                   "one owner per concept — require the name from the owner instead"))))
 
-(define (matching-glob o name)
-  (for/first ([g (in-list (owner-globs o))] #:when (glob-matches? g name)) g))
+(define (matching o name)
+  (define s (symbol->string name))
+  (for/first ([m (in-list (owner-matchers o))] #:when (regexp-match? (matcher*-rx m) s)) m))
 
-;; `*` and nothing else. A concept names its exports the way a person would say
-;; them out loud — `mint-*`, `acp-*` — and anything richer would be a second
-;; pattern language for a reader to learn, in a file whose whole point is that
-;; it is read at a glance. The literal parts are quoted, so a `.` or a `?` in an
-;; export name is a character and not a metacharacter.
-(define (glob-matches? pattern name)
-  (define rx
-    (regexp (string-append "^"
-                           (string-join (map regexp-quote (string-split pattern "*" #:trim? #f))
-                                        ".*")
-                           "$")))
-  (regexp-match? rx (symbol->string name)))
-
-(define (owned-by? o path)
-  (if (owner-module o)
-      (equal? (owner-module o) path)
-      (scope-covers? (owner-scope o) path)))
-
+;; One module owns it, or a package does — which is exactly "how many modules
+;; carry this claim", so the message does not need a second field to say it.
 (define (owner-label o label)
-  (if (owner-module o)
-      (label (owner-module o))
-      (format "~a and everything under it" (label (scope-file (owner-scope o))))))
+  (define sites (owner-sites o))
+  (if (= 1 (length sites))
+      (label (site-path (car sites)))
+      (format "~a and everything under it" (label (srcloc-source (owner-loc o))))))
 
 ;; ---- 4: the declaration against the history ----------------------------------------
 

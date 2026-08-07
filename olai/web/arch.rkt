@@ -24,11 +24,15 @@
 (override "serve.rkt" (owns clock filesystem network))
 
 ;; A conversation, one turn at a time: what the agent's typed events become for
-;; a reader. Nothing else spells it, and the patterns are what "it" is — the
-;; verbs that move a turn, the questions you ask a conversation, the session it
-;; is in, the transcript it leaves. `chat-w` is a layout token in theme.rkt and
-;; not a conversation, which is why the patterns are these and not `chat-*`.
+;; a reader. Nothing else spells it — the whole `chat-` surface, so a name this
+;; module has not got yet is covered before anybody writes it.
+;;
+;; Getting to say `chat-*` cost two renames: the skin's layout token was
+;; `chat-w` and the panel's viewport list was `chat-viewport-tokens`, and
+;; neither is a conversation — one is a width and one is a browser's reading of
+;; the screen. Enumerating the conversation's verbs instead would have left
+;; every export added after today outside its own concept, which is the same
+;; rot in a different place.
 (override "chat.rkt"
           (owns clock threads)
-          (concept chat-conversation
-                   "chat-*!" "chat-*?" "chat?" "chat-session*" "chat-transcript" "make-chat"))
+          (concept chat-conversation "chat-*" "make-chat"))

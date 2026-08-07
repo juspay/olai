@@ -25,8 +25,7 @@
 ;; prints one — goes through these accessors.
 
 (require racket/contract
-         racket/list
-         arch/vocabulary)
+         racket/list)
 
 (provide (struct-out grant)
          (struct-out claim)
@@ -58,16 +57,16 @@
 ;; One `(override "file.rkt" ...)`. `clock` is #f when the override did not
 ;; mention one, which is the ordinary case: a module usually differs in what it
 ;; owns, not in how fast it moves.
-(struct module-decl (file clock clock-loc grants claims loc) #:transparent)
+(struct module-decl (file clock clock-loc grants claims) #:transparent)
 
-;; One `arch.rkt`. `source` is its own path, so every message can say which
-;; declaration it is quoting.
-(struct scope-decl (source clock clock-loc grants claims modules) #:transparent)
+;; One `arch.rkt`, whole.
+(struct scope-decl (clock clock-loc grants claims modules) #:transparent)
 
 ;; The answer for ONE module: what it may depend on, what it may reach for,
-;; what it owns. `scope` is the arch.rkt this came out of; `module` is the
-;; override that applied, or #f when the package default stood.
-(struct effective (path scope module clock clock-loc grants claims) #:transparent)
+;; what it owns. `module` is the override that applied, or #f when the package
+;; default stood — which is the one thing `--explain` needs in order to say
+;; where a line came from.
+(struct effective (module clock clock-loc grants claims) #:transparent)
 
 ;; scope-decl x "web/watch.rkt" -> effective
 ;;
@@ -78,9 +77,7 @@
     (for/first ([m (in-list (scope-decl-modules scope))]
                 #:when (string=? (module-decl-file m) file))
       m))
-  (effective file
-             scope
-             over
+  (effective over
              (or (and over (module-decl-clock over)) (scope-decl-clock scope))
              (or (and over (module-decl-clock-loc over)) (scope-decl-clock-loc scope))
              (append (scope-decl-grants scope)
@@ -88,8 +85,12 @@
              (append (scope-decl-claims scope)
                      (if over (module-decl-claims over) '()))))
 
+;; What it owns, for a message: sorted and said once each.
 (define (effective-owns e)
   (sort (remove-duplicates (map grant-authority (effective-grants e))) symbol<?))
 
+;; Whether it owns one thing, which is a different question and asked far more
+;; often — once per authority-bearing identifier in the tree. A scan over at
+;; most seven grants, not a sort of them.
 (define (effective-owns? e authority)
-  (and (memq authority (effective-owns e)) #t))
+  (for/or ([g (in-list (effective-grants e))]) (eq? authority (grant-authority g))))

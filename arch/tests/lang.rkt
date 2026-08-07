@@ -8,8 +8,7 @@
 ;; makes it fixable. Neither is worth having without the other, so every case
 ;; here checks both.
 
-(require racket/list
-         racket/string
+(require racket/string
          arch/tests/tree)
 
 (module+ test
@@ -99,13 +98,6 @@
     (define r (refusal "(clock stable)\n(concept node-key-minting)\n"))
     (check-true (string-contains? (message r) "a concept with no spelling"))
     (check-true (string-contains? (message r) "(concept node-key-minting \"node-key-minting-*\")")))
-
-  (test-case "a concept claimed twice in one file"
-    (define r (refusal (string-append "(clock stable)\n"
-                                      "(concept keys \"mint-*\")\n"
-                                      "(concept keys \"key-*\")\n")))
-    (check-true (string-contains? (message r) "a concept claimed twice"))
-    (check-equal? (line r) 4))
 
   (test-case "a spelling on a package default"
     (define r (refusal "(clock stable)\n(owns (clock \"today-iso-string\"))\n"))

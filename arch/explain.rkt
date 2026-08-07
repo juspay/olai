@@ -19,8 +19,8 @@
 ;;     requires     olai/store.rkt (settling)
 
 (require racket/contract
+         racket/format
          racket/list
-         racket/path
          racket/string
          arch/churn
          arch/decl
@@ -33,7 +33,7 @@
           [explain (-> path? (listof scope?) (or/c churn? #f) path? string?)]))
 
 (define (explain module scopes history root)
-  (define (label p) (path-label p root))
+  (define label (make-labeller root))
   (define s (governing scopes module))
   (cond
     [(not s)
@@ -44,67 +44,67 @@
             "  put one beside it, or move the module into a package that has one")
       "\n")]
     [else
-     (define decl (declaration-for (scope-declaration s) (scope-relative s module)))
+     (define decl (effective-for s module))
+     (define over (effective-module decl))
      (string-join
       (append
        (list (format "~a" (label module))
              (row "governed by" (label (scope-file s)))
              (row "clock"
-                  (format "~a~a"
-                          (pad (format "~a" (effective-clock decl)) 19)
-                          (origin-of (effective-module decl)
-                                     (and (effective-module decl)
-                                          (module-decl-clock (effective-module decl)))
-                                     (effective-clock-loc decl)
-                                     label))))
-       (owns-rows decl label)
-       (concept-rows decl label)
+                  (said (format "~a" (effective-clock decl))
+                        (origin-of (and over (module-decl-clock over) over)
+                                   (effective-clock-loc decl) label))))
+       (rows "owns"
+             (for/list ([g (in-list (effective-grants decl))])
+               (said (format "~a~a" (grant-authority g) (spelling-note g))
+                     (origin-of (and (memq g (own-grants over)) over) (grant-loc g) label)))
+             #:empty "nothing")
+       (rows "concepts"
+             (for/list ([c (in-list (effective-claims decl))])
+               (said (format "~a ~a" (claim-concept c)
+                             (string-join (map (λ (g) (format "~s" g)) (claim-globs c)) " "))
+                     (loc-brief (claim-loc c) label))))
        (list (churn-row module decl history))
-       (requires-rows module scopes label))
+       (rows "requires" (dependency-lines module scopes label)
+             #:empty "nothing else that is declared"))
       "\n")]))
+
+;; The label sits on the first row and the rest hang under it — one shape for
+;; every column, including the empty case, which was three different
+;; conventions when each list built its own rows.
+(define (rows name values #:empty [empty #f])
+  (cond
+    [(and (null? values) empty) (list (row name empty))]
+    [else (for/list ([v (in-list values)] [i (in-naturals)])
+            (row (if (zero? i) name "") v))]))
 
 (define (row name value)
   (format "  ~a ~a" (pad name 12) value))
 
+;; A value and where it came from, in two columns.
+(define (said value origin)
+  (format "~a~a" (pad value 19) origin))
+
+;; Padded to a column, and always at least one space: a value that overflows
+;; its column still has to separate from the next one.
 (define (pad s n)
-  (string-append s (make-string (max 1 (- n (string-length s))) #\space)))
+  (~a s " " #:min-width n))
 
 ;; Which file said it, and whether it said it about this module or about the
-;; whole package.
-(define (origin-of over from-override? loc label)
-  (format "~a:~a ~a"
-          (label (srcloc-source loc)) (or (srcloc-line loc) "?")
-          (if (and over from-override?)
-              (format "(override ~s)" (module-decl-file over))
-              "(package default)")))
+;; whole package. `over` is the override to attribute it to, or #f — the two
+;; are one fact, and asking for them separately meant a reader had to check
+;; that the second could not contradict the first.
+(define (origin-of over loc label)
+  (format "~a ~a"
+          (loc-brief loc label)
+          (if over (format "(override ~s)" (module-decl-file over)) "(package default)")))
 
-(define (owns-rows decl label)
-  (define over (effective-module decl))
-  (define own (if over (module-decl-grants over) '()))
-  (define grants (effective-grants decl))
-  (cond
-    [(null? grants) (list (row "owns" "nothing"))]
-    [else
-     (for/list ([g (in-list grants)] [i (in-naturals)])
-       (row (if (zero? i) "owns" "")
-            (format "~a~a"
-                    (pad (format "~a~a" (grant-authority g) (spelling-note g)) 19)
-                    (origin-of over (memq g own) (grant-loc g) label))))]))
+(define (own-grants over) (if over (module-decl-grants over) '()))
 
 (define (spelling-note g)
   (if (null? (grant-spellings g))
       ""
       (format " (~a)" (string-join (grant-spellings g) ", "))))
-
-(define (concept-rows decl label)
-  (for/list ([c (in-list (effective-claims decl))] [i (in-naturals)])
-    (row (if (zero? i) "concepts" "")
-         (format "~a~a"
-                 (pad (format "~a ~a" (claim-concept c)
-                              (string-join (for/list ([g (in-list (claim-globs c))]) (format "~s" g)) " "))
-                      19)
-                 (format "~a:~a" (label (srcloc-source (claim-loc c)))
-                         (or (srcloc-line (claim-loc c)) "?"))))))
 
 (define (churn-row module decl history)
   (cond
@@ -122,18 +122,13 @@
 
 ;; What it depends on, inside the declared world, and at what clock — the other
 ;; half of "why is this edge legal".
-(define (requires-rows module scopes label)
-  (define deps
-    (sort
-     (remove-duplicates
-      (for*/list ([entry (in-list (source-requires (read-source module)))]
-                  [dep (in-value (car entry))]
-                  #:unless (equal? dep module)
-                  [d (in-value (declaration-of scopes dep))]
-                  #:when d)
-        (format "~a (~a)" (label dep) (effective-clock d))))
-     string<?))
-  (if (null? deps)
-      (list (row "requires" "nothing else that is declared"))
-      (for/list ([d (in-list deps)] [i (in-naturals)])
-        (row (if (zero? i) "requires" "") d))))
+(define (dependency-lines module scopes label)
+  (sort
+   (remove-duplicates
+    (for*/list ([entry (in-list (source-requires (read-source module)))]
+                [dep (in-value (car entry))]
+                #:unless (equal? dep module)
+                [s (in-value (governing scopes dep))]
+                #:when s)
+      (format "~a (~a)" (label dep) (effective-clock (effective-for s dep)))))
+   string<?))

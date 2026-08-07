@@ -17,7 +17,8 @@
   (require rackunit))
 
 (define (explained dir file)
-  (explain (build-path dir file) (find-scopes dir) (read-churn dir 30) dir))
+  (define-values (scopes _governed) (survey dir))
+  (explain (build-path dir file) scopes (read-churn dir 30) dir))
 
 (module+ test
   (test-case "a module that takes the package default"
