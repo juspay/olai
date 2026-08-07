@@ -5,7 +5,8 @@
 ;;
 ;;   web/assets    the /static/ surface: no look, no markup
 ;;   web/states    the modifiers every surface qualifies its classes with
-;;   web/address   a node's DOM id, and what a link to one wears
+;;   web/address   a node's DOM id, and what a link to one wears (the ADDRESS
+;;                 it wears is minted by web/routes and handed down)
 ;;   web/pills     what a date and an in-progress state read like
 ;;   web/node      the shell both panes wear: row, toggle, title, note
 ;;   web/checkbox  the box you press, in three readings

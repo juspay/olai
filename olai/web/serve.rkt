@@ -1,40 +1,24 @@
 #lang racket/base
 
-;; The read-mostly web view.
+;; The read-mostly web view: what each route ANSWERS, and the socket it
+;; answers on.
 ;;
-;;   GET  /             the html page: sidebar + outline + chat panel
-;;   GET  /n/<key>      one node, zoomed: breadcrumbs + that subtree
-;;   GET  /today        today's Daily day node, zoomed
-;;   GET  /search?q=…   the outline with the search palette open on what the
-;;                      query names — a page, so it is a permalink and a
-;;                      browser running no JS gets it by submitting the form.
-;;                      The palette's results are a live region, and the box
-;;                      re-fetches them as it is typed
-;;   GET  /live/<boot>/events
-;;                      SSE stream, under the boot id of the process that drew
-;;                      the page (a stale one gets one reload frame and the end
-;;                      of the stream); `outline` (data and id: the cursor the
-;;                      outlines are at) per reload, `chat` (data: one JSON
-;;                      frame) per agent frame — and, first, whatever this
-;;                      connection missed: the conversation it was not there
-;;                      for, and an `outline` if the file moved while it was
-;;                      away (docs/live.md)
-;;   POST /chat         prompt the agent (form field `text`) -> 204
-;;   POST /chat/new     new chat -> 204
-;;   POST /chat/cancel  cancel the turn in flight -> 204
-;;   GET  /chat/sessions the agent's stored conversations, as JSON
-;;   POST /chat/load    load one of them (form field `id`) -> 204
-;;   GET  /api/tree     byte-identical to `olai tree`
-;;   GET  /api/agenda   byte-identical to `olai agenda --json`
-;;   GET  /static/app.css  the generated stylesheet (olai/web/skin)
-;;   GET  /static/*     files from web/static/ (icons, scripts, manifest)
-;;   GET  /media/*      pictures from the outlines' own directory, and only
-;;                      those: what a note's `![](shot.png)` asks for
-;;   anything else      404, terse text/plain
+;; The routes themselves are next door (web/routes) and are not restated here —
+;; an enumeration of the URL space in a comment is the same second spelling
+;; this module used to keep in code. This one hands that table its handlers and
+;; gets back both a dispatcher and every address a page draws; nothing here,
+;; and nothing under here, assembles a path out of a prefix and a key.
+;;
+;; Three things ARE mounted here rather than routed, because each is a
+;; directory or a generated file rather than a page: /static/* (web/assets),
+;; /live/* (the framework's client runtime), /media/* (pictures beside the
+;; outlines), and the generated stylesheet at web/skin's own URL. Each is owned
+;; by the module that WRITES the src; this one only mounts them. Anything else
+;; is a 404, terse text/plain.
 ;;
 ;; No auth: the network is the auth (Tailscale / Caddy in front of it).
 ;; Routing, static files, and MIME types come from racket web-server. Outline
-;; content comes from olai/store — this module owns routes and responses,
+;; content comes from olai/store — this module owns handlers and responses,
 ;; never a load.
 ;;
 ;; Live updates are four parts that only meet here: the store knows WHAT the
@@ -60,13 +44,9 @@
          (for-syntax racket/base)
          json
          net/url
-         ;; a query in an address is escaped by the library that owns the
-         ;; escaping, never by hand
-         (only-in net/uri-codec alist->form-urlencoded)
          racket/runtime-path
          web-server/web-server
          web-server/http
-         web-server/dispatch
          web-server/dispatchers/dispatch
          web-server/dispatchers/filesystem-map
          (prefix-in files: web-server/dispatchers/dispatch-files)
@@ -98,6 +78,9 @@
          ;; what a store revision means on the wire, and to a client that has
          ;; been away
          olai/web/live
+         ;; the one declaration every URL in this app comes out of: the
+         ;; dispatcher and every href pointing at it, minted together
+         olai/web/routes
          ;; the sheet and its URL; which modules it is made of is skin's
          olai/web/skin
          ;; the facts about the palettes a page carries before the sheet
@@ -214,81 +197,15 @@
 (define (error-banner err)
   (render-error-banner (load-error-detail err) #:where (load-error-where err)))
 
-;; Nothing to show at all — the FIRST load failed. Still a live page: the next
-;; save is what fixes it, and the client should not have to reload to find that
-;; out.
-(define (page-failure rev err #:live-href live-href #:overlays [overlays '()])
-  (html-response
-   (page->html-string
-    (render-page (render-empty-pane "No outline loaded."
-                                    #:home-href home-href)
-                 #:title "olai"
-                 #:stylesheet-href stylesheet-href
-                 #:color-scheme theme-color-scheme
-                 #:theme-color theme-default-paper
-                 #:banner (error-banner err)
-                 #:href live-href
-                 #:cursor (outline-cursor rev)
-                 #:body-extra overlays))
-   #:code 500))
-
-;; ---- the route table ------------------------------------------------------
-;;
-;; One owner: these are the only URLs the app has, and the renderer is told
-;; them rather than guessing (it used to default to a /today that did not
-;; exist, so the shipped sidebar link 404'd).
-
-(define home-href "/")
-(define today-href "/today")
-
-;; The push channel is NOT in this table, and that is the point: its address is
-;; the transport's (`live-stream-path`, /live/<boot-id>/events), it carries the
-;; identity of the process that drew the page, and web/render puts it on the
-;; body. This layer only answers at it — and answers a request naming some
-;; other process with one frame that means reload (see the route below).
-;;
-;; A page re-fetches ITSELF on an `outline` event, so the href it re-fetches is
-;; whichever of the two above rendered it — handed to the renderer, never
-;; guessed by it.
-
 ;; The state the outlines are in right now, as the wire names it. Both the
 ;; broadcast and the catch-up ask this, so neither can invent a spelling.
 (define (cursor-now st) (outline-cursor (store-revision st)))
 
-;; A node's address: its own zoom page, keyed by the key the load layer minted
-;; (olai/load). Stable across a rename — that is what makes it a permalink —
-;; and across an ancestor's rename; NOT stable across an unanchored node moving
-;; to a new ordinal, which is what ^anchor is for (docs/cli.md).
-(define node-href-base "/n/")
-(define (node-href key) (string-append node-href-base key))
-
-;; Where a query is ASKED, and what one query's answer is AT. Two uses, one
-;; address, and one function that builds it: the palette's form posts nothing
-;; and its box re-fetches the first, and the second is both this page's own
-;; address and what its results region re-fetches when a file moves. Having
-;; asked nothing is spelled #f, here and everywhere else it travels, and the
-;; bare route is its address — an address with nothing in it says nothing.
-(define search-href "/search")
-
-(define (search-query-href q)
-  (if q
-      (string-append search-href "?" (alist->form-urlencoded (list (cons 'q q))))
-      search-href))
-
-;; The chat panel's verbs. All POST, all 204: the reply the panel renders comes
-;; back over `events-href`. The one GET is the picker's list, which is a thing
-;; to draw rather than a thing that happened, so it answers with content.
-(define chat-href "/chat")
-(define chat-new-href "/chat/new")
-(define chat-cancel-href "/chat/cancel")
-(define chat-sessions-href "/chat/sessions")
-(define chat-load-href "/chat/load")
-
 ;; ---- reading a request ------------------------------------------------------
 
 ;; What a request CARRIES, as opposed to what its address says. Two surfaces
-;; read one now — a chat message and a query — and both mean the same thing by
-;; a field that is missing, empty, or nothing but spaces: nothing was said. So
+;; read one — a chat message and a query — and both mean the same thing by a
+;; field that is missing, empty, or nothing but spaces: nothing was said. So
 ;; there is one answer to it, #f, and nothing downstream holds an opinion about
 ;; the empty string. The query string and a posted form are the same table as
 ;; far as `request-bindings/raw` is concerned, which is why one reader serves
@@ -308,15 +225,19 @@
 ;; agent boots in its own thread. The conversation arrives on the stream, which
 ;; catches a connection up on the way in (web/chat) — which is also why this is
 ;; one value rather than a render: every page gets the same markup, and only
-;; the routes it names could ever change it. No agent, no panel — `serve`
-;; refuses to start without one (docs/cli.md), so that is a test's server, not
-;; a user's.
-(define the-chat-panel
-  (render-chat-panel #:send-href chat-href
-                     #:new-href chat-new-href
-                     #:cancel-href chat-cancel-href
-                     #:sessions-href chat-sessions-href
-                     #:load-href chat-load-href
+;; the routes it names could ever change it, and those are minted once beside
+;; the dispatcher. No agent, no panel — `serve` refuses to start without one
+;; (docs/cli.md), so that is a test's server, not a user's.
+;;
+;; All POST, all 204: the reply the panel renders comes back over the stream.
+;; The one GET is the picker's list, which is a thing to draw rather than a
+;; thing that happened, so it answers with content.
+(define (chat-panel rs)
+  (render-chat-panel #:send-href (routes-chat-href rs)
+                     #:new-href (routes-chat-new-href rs)
+                     #:cancel-href (routes-chat-cancel-href rs)
+                     #:sessions-href (routes-chat-sessions-href rs)
+                     #:load-href (routes-chat-load-href rs)
                      #:event chat-event-name))
 
 ;; The conversation's failure kinds, as statuses: 'busy is a second prompt
@@ -382,13 +303,20 @@
       (file-label (car files))
       "olai"))
 
+;; EVERY page this module answers with, and the one altitude the <head>, the
+;; sheet and the palettes are decided at: a route hands over the pane it drew
+;; and what goes around it. The failure page is this too — a pane saying there
+;; is nothing loaded, no sidebar to draw one from, and a 500 — so there is one
+;; place a page's shape is stated rather than two that can come to differ.
+;;
 ;; The overlays sit in body-extra, OUTSIDE #ol-live: an outline event re-swaps
 ;; the live region, and neither a chat mid-turn nor a search box mid-word may
 ;; be swapped out from under the person typing into it.
-(define (chrome files-data main
+(define (chrome main
                 #:title title
                 #:href href
                 #:cursor cursor
+                #:sidebar [sidebar #f]
                 #:banner [banner #f]
                 #:overlays [overlays '()]
                 #:code [code 200])
@@ -399,35 +327,43 @@
                  #:stylesheet-href stylesheet-href
                  #:color-scheme theme-color-scheme
                  #:theme-color theme-default-paper
-                 #:sidebar (render-sidebar files-data
-                                           #:home-href home-href
-                                           #:today-href today-href
-                                           #:href href
-                                           #:zoom-base node-href-base)
+                 #:sidebar sidebar
                  #:banner banner
                  #:href href
                  #:cursor cursor
                  #:body-extra overlays))
    #:code code))
 
+;; The file tree and the chrome above it, over one snapshot.
+(define (page-sidebar rs files-data #:href href)
+  (render-sidebar files-data
+                  #:home-href (routes-home-href rs)
+                  #:today-href (routes-today-href rs)
+                  #:href href
+                  #:node-href (routes-node-href rs)))
+
 ;; The palette, on every page: `/` opens it wherever you are, so it is chrome
 ;; and not a page of its own. What a query NAMES is a question about the
 ;; snapshot the page was drawn from — which is why this is built per request,
-;; where the chat panel above is one value for the life of the process.
-(define (search-panel snap query)
-  (render-search-panel #:action-href search-href
-                       #:results-href (search-query-href query)
+;; where the chat panel is one value for the life of the process. Both of its
+;; addresses come off the one field the route table mints them from: the bare
+;; route is where a query is asked, and this query's own address is what the
+;; results region re-fetches when a file moves.
+(define (search-panel rs snap query)
+  (define search-href (routes-search-href rs))
+  (render-search-panel #:action-href (search-href #f)
+                       #:results-href (search-href query)
                        #:query query
                        #:hits (if (and snap query)
                                   (search-outlines (snapshot-files-data snap) query)
                                   '())
-                       #:zoom-base node-href-base))
+                       #:node-href (routes-node-href rs)))
 
 ;; Everything a page carries outside its regions, in the order they are drawn.
 ;; `snap` is #f when there is nothing loaded at all — the palette is still on
 ;; the page, with nothing to find in it.
-(define (page-overlays snap query chat)
-  (cons (search-panel snap query) (if chat (list chat) '())))
+(define (page-overlays rs snap query chat)
+  (cons (search-panel rs snap query) (if chat (list chat) '())))
 
 ;; Every page here is the same shape: one snapshot, the chrome around it, and a
 ;; live region that re-fetches THIS url on an `outline` event. `view` is handed
@@ -436,36 +372,56 @@
 ;; names the region it aims at (web/render declares it), so there is no longer
 ;; a per-page value for a drawer to be given, or to forget.
 ;;
+;; `rs` is the route table, and it is what every page draws its links out of.
+;; `chat` is the panel, or #f when there is no agent to talk to.
+;;
+;; Nothing loaded AT ALL — the first load failed — is the same page with the
+;; pane saying so, no tree to draw a sidebar from, and a 500. Still live: the
+;; next save is what fixes it, and the client should not have to reload to find
+;; that out.
+;;
 ;; `#:query` is what the search box was drawn with — #f on every page but the
 ;; one a query asked for.
-(define (outline-page st agent live-href view #:query [query #f])
-  (define chat (and agent the-chat-panel))
+(define (outline-page st rs chat live-href view #:query [query #f])
   (with-snapshot st
     (λ (rev err)
-      (page-failure rev err #:live-href live-href
-                    #:overlays (page-overlays #f query chat)))
+      (chrome (empty-pane rs "No outline loaded.")
+              #:title "olai"
+              #:href live-href
+              #:cursor (outline-cursor rev)
+              #:overlays (page-overlays rs #f query chat)
+              #:banner (error-banner err)
+              #:code 500))
     #:stale-ok? #t
     (λ (rev snap err)
       (define-values (main title) (view snap))
-      (chrome (snapshot-files-data snap) main
+      (chrome main
               #:title title
               #:href live-href
               #:cursor (outline-cursor rev)
-              #:overlays (page-overlays snap query chat)
+              #:sidebar (page-sidebar rs (snapshot-files-data snap) #:href live-href)
+              #:overlays (page-overlays rs snap query chat)
               #:banner (and err (error-banner err))))))
 
 ;; One node, zoomed: the node and the trail above it, both asked of the
 ;; snapshot's index — the only thing that knows either.
-(define (zoom-pane snap entry today)
+(define (zoom-pane rs snap entry today)
   (render-zoom (node-entry-task entry)
                (node-ancestors (snapshot-index snap) entry)
                #:today today
-               #:home-href home-href
-               #:zoom-base node-href-base
+               #:home-href (routes-home-href rs)
+               #:node-href (routes-node-href rs)
 
                ;; the @doc documents as of this snapshot; the renderer opens
                ;; no files (web/render)
                #:docs (snapshot-docs snap)))
+
+;; "Nothing here", with the addresses every pane is drawn with: the trail is
+;; empty, and home is still somewhere to go.
+(define (empty-pane rs message)
+  (render-empty-pane message
+                     #:home-href (routes-home-href rs)
+                     #:node-href (routes-node-href rs)))
 
 ;; The key a page was asked for, as a node, or #f. Both zoom routes go through
 ;; here, and each says in its own words what #f means.
@@ -474,15 +430,15 @@
 
 ;; The whole outline, as a pane. The home page is this, and so is a search:
 ;; the palette is over the page you were reading, not instead of it.
-(define (outline-pane snap)
+(define (outline-pane rs snap)
   (render-outline (snapshot-files-data snap)
                   #:today (today-iso-string)
-                  #:zoom-base node-href-base
+                  #:node-href (routes-node-href rs)
                   #:docs (snapshot-docs snap)))
 
-(define (page-handler st agent)
-  (outline-page st agent home-href
-   (λ (snap) (values (outline-pane snap) (page-title (store-files st))))))
+(define (page-handler st rs chat)
+  (outline-page st rs chat (routes-home-href rs)
+   (λ (snap) (values (outline-pane rs snap) (page-title (store-files st))))))
 
 ;; A query, as a page.
 ;;
@@ -491,14 +447,15 @@
 ;; it submits the box, and what a shared link opens. A browser that IS running
 ;; it rarely loads this page — the box re-fetches the results region alone, and
 ;; the page it is on never moves.
-(define (search-handler st agent req)
-  ;; `q` missing and `q` blank are the same request: nothing was asked. One
-  ;; spelling for it (#f) all the way down, so nothing below has to hold an
-  ;; opinion about the empty string.
+;;
+;; `q` missing and `q` blank are the same request: nothing was asked. One
+;; spelling for it (#f) all the way down, so nothing below has to hold an
+;; opinion about the empty string.
+(define (search-handler st rs chat req)
   (define q (form-field req #"q"))
-  (outline-page st agent (search-query-href q) #:query q
+  (outline-page st rs chat ((routes-search-href rs) q) #:query q
    (λ (snap)
-     (values (outline-pane snap)
+     (values (outline-pane rs snap)
              (if q (string-append "search " q) "olai")))))
 
 ;; A node's permalink.
@@ -508,17 +465,15 @@
 ;; re-fetches this very page to find out. An error status would leave it
 ;; showing a node that is gone. The snapshot is the source of truth about what
 ;; exists; this route only asks it, and says what it heard.
-(define (node-handler st agent key)
-  (outline-page st agent (node-href key)
+(define (node-handler st rs chat key)
+  (outline-page st rs chat ((routes-node-href rs) key)
    (λ (snap)
      (define entry (node-at (snapshot-index snap) key))
      (if entry
          ;; a tab zoomed on one node should say which
-         (values (zoom-pane snap entry (today-iso-string))
+         (values (zoom-pane rs snap entry (today-iso-string))
                  (task-title (node-entry-task entry)))
-         (values (render-empty-pane "No such node."
-                                    #:home-href home-href)
-                 "olai")))))
+         (values (empty-pane rs "No such node.") "olai")))))
 
 ;; Today's Daily day node, zoomed. Finding today's key is a question about the
 ;; DAY; the answer goes through the same zoom pane as any permalink, and
@@ -529,18 +484,17 @@
 ;; this page re-fetches on), and before the first capture of the day there is
 ;; no key to redirect to. Both are ordinary states of "today", and a page
 ;; frozen to the key today HAD would be neither.
-(define (today-handler st agent)
-  (outline-page st agent today-href
+(define (today-handler st rs chat)
+  (outline-page st rs chat (routes-today-href rs)
    (λ (snap)
      (define today (today-iso-string))
      (define entry (node-at (snapshot-index snap) (snapshot-day-key snap today)))
      (values (if entry
-                 (zoom-pane snap entry today)
+                 (zoom-pane rs snap entry today)
                  ;; no day node yet is the normal state before the first
                  ;; capture of the day, not an error
-                 (render-empty-pane
-                  (format "No day node for ~a. Run: olai daily" today)
-                  #:home-href home-href))
+                 (empty-pane rs
+                             (format "No day node for ~a. Run: olai daily" today)))
              (string-append "today " today)))))
 
 (define (tree-handler st)
@@ -599,40 +553,55 @@
 
 ;; ---- dispatch -------------------------------------------------------------
 
+;; The route table, with this server's handlers in it. What comes back
+;; dispatches a request AND writes every href that points at one of these
+;; routes — one declaration, so a link cannot name an address the router does
+;; not answer at.
+;;
+;; A handler needs the table (it draws links out of it) and the table needs the
+;; handlers (it finds a route by the identity of one), so the two are defined
+;; in one scope and the cycle is broken by WHEN each is read. Building the
+;; table calls no handler; a handler runs only on a request, which is after
+;; this function has returned. The panel is drawn once, on the line after the
+;; table exists, from the addresses in it.
+;;
+;; The push channel is in the table and has no href in it, which is the point:
+;; its address is the transport's (`live-stream-path`, /live/<boot-id>/events),
+;; it carries the identity of the process that drew the page, and web/page puts
+;; it on the body. This layer only answers at it — and answers a request naming
+;; some OTHER process with one frame that means reload, never a refusal:
+;; EventSource hides an HTTP status from the page and would retry one forever.
+;;
+;; A page re-fetches ITSELF on an `outline` event, so the href it re-fetches is
+;; whichever of the three page routes drew it — minted here, never guessed.
 (define (make-router st hub agent)
-  (define-values (route _url)
-    (dispatch-rules
-     [("") (λ (req) (page-handler st agent))]
+  (define rs
+    (make-routes
+     #:home (λ (req) (page-handler st rs panel))
      ;; one page per node, addressed by the key the load layer minted
-     [("n" (string-arg)) (λ (req key) (node-handler st agent key))]
-     [("today") (λ (req) (today-handler st agent))]
+     #:node (λ (req key) (node-handler st rs panel key))
+     #:today (λ (req) (today-handler st rs panel))
      ;; the palette, as an address: `q` is what was typed into it
-     [("search") (λ (req) (search-handler st agent req))]
-     ;; Mounted, not understood: the hub moves frames and the two modules
-     ;; below say what any of them mean. All this layer knows is that a
-     ;; connection is born mid-story, and who to ask what it missed.
-     ;;
-     ;; Under the boot id of the process that drew the page. One that names
-     ;; some OTHER process is a tab that outlived a restart: its markup, its
-     ;; scripts and this address all belong to a server that is gone, so it is
-     ;; ANSWERED — one frame that means reload — and never refused. EventSource
-     ;; hides an HTTP status from the page and would retry a refusal forever.
-     [("live" (string-arg) "events")
-      (λ (req boot)
-        (if (live-boot-current? boot)
-            (events-handler st hub agent req)
-            (live-reload-response)))]
+     #:search (λ (req) (search-handler st rs panel req))
+     ;; Mounted, not understood: the hub moves frames and web/live and web/chat
+     ;; say what any of them mean. All this layer knows is that a connection is
+     ;; born mid-story, and who to ask what it missed.
+     #:events (λ (req boot)
+                (if (live-boot-current? boot)
+                    (events-handler st hub agent req)
+                    (live-reload-response)))
      ;; the chat panel's verbs. What they DO lives in web/chat; this layer
      ;; only turns a request into a call and a failure into a status.
-     [("chat") #:method "post" (λ (req) (chat-handler agent req))]
-     [("chat" "new") #:method "post" (λ (req) (chat-new-handler agent))]
-     [("chat" "cancel") #:method "post" (λ (req) (chat-cancel-handler agent))]
-     [("chat" "sessions") (λ (req) (chat-sessions-handler agent))]
-     [("chat" "load") #:method "post" (λ (req) (chat-load-handler agent req))]
-     [("api" "tree") (λ (req) (tree-handler st))]
-     [("api" "agenda") (λ (req) (agenda-handler st))]
-     [else (λ (req) (not-found-response))]))
-  route)
+     #:chat (λ (req) (chat-handler agent req))
+     #:chat-new (λ (req) (chat-new-handler agent))
+     #:chat-cancel (λ (req) (chat-cancel-handler agent))
+     #:chat-sessions (λ (req) (chat-sessions-handler agent))
+     #:chat-load (λ (req) (chat-load-handler agent req))
+     #:tree (λ (req) (tree-handler st))
+     #:agenda (λ (req) (agenda-handler st))
+     #:not-found (λ (req) (not-found-response))))
+  (define panel (and agent (chat-panel rs)))
+  rs)
 
 ;; /<prefix>/foo.js -> that directory's foo.js. make-url->path refuses anything
 ;; that climbs out of the base ("/static/../..") — we turn that into a plain
@@ -695,7 +664,7 @@
    (files-dispatcher (prefix-rx web-static-prefix) static-url->path)
    (files-dispatcher (prefix-rx live-asset-prefix) live-url->path)
    (files-dispatcher media-file-rx (dir-url->path media-dir))
-   (lift:make (make-router st hub agent))))
+   (lift:make (routes-dispatch (make-router st hub agent)))))
 
 ;; ---- server ---------------------------------------------------------------
 

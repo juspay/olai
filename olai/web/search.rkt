@@ -51,16 +51,21 @@
           ;; is what THESE hits are the answer to, which is the same address
           ;; carrying this query: the region re-fetches it when a file moves.
           ;;
+          ;; #:node-href is the ADDRESS of a node, minted by the route table
+          ;; that dispatches it (web/routes) — required, like every other
+          ;; surface that draws a link to one: a hit you cannot land on is not
+          ;; a search result.
+          ;;
           ;; #:query is what was typed, or #f for a page that was not a query.
           ;; A BLANK one is not a third state: it is spelled #f like every
           ;; other way of having asked nothing, and the contract is what keeps
           ;; the drawer from having to hold an opinion about "" (olai/web/serve
           ;; trims what a request carried).
           [render-search-panel
-           (->* (#:action-href string? #:results-href string?)
+           (->* (#:action-href string? #:results-href string?
+                 #:node-href (-> string? string?))
                 (#:query (or/c non-empty-string? #f)
-                 #:hits (listof search-hit?)
-                 #:zoom-base (or/c string? #f))
+                 #:hits (listof search-hit?))
                 list?)]
           ;; What makes an element open the palette. The palette is not on the
           ;; screen until it is asked for, so the ASKING is somewhere else —
@@ -251,13 +256,13 @@
 ;; matched. A link into the outline's region — so landing on a hit is the same
 ;; navigation the sidebar and the breadcrumbs make, and the palette is not a
 ;; second way to get anywhere.
-(define (hit-xexpr hit zoom-base)
+(define (hit-xexpr hit node-href)
   (define tk (search-hit-task hit))
   (define note (task-description tk))
   (define show-note? (and note (memq 'note (search-hit-fields hit))))
   `(li ((id ,(live-id ol-search (task-key tk))))
        (a ((class ,ol-search-hit) (data-search-hit "")
-           ,@(node-link-attributes zoom-base (task-key tk)))
+           ,@(node-link-attributes node-href (task-key tk)))
           (span ((class ,(classes ol-search-title (state-class (task-status tk)))))
                 ,@(md-inline (task-title tk)))
           (span ((class ,ol-search-trail)) ,@(trail-xexprs hit))
@@ -268,7 +273,7 @@
 ;; What the region holds: the hits, or the one line that says why there are
 ;; none. Both are the same element, because the element is what the input
 ;; re-fetches and what a save re-draws.
-(define (results-xexpr query hits zoom-base results-href)
+(define (results-xexpr query hits node-href results-href)
   (define found (length hits))
   (define shown (if (> found search-shown-limit) (take hits search-shown-limit) hits))
   (define more (max 0 (- found search-shown-limit)))
@@ -286,7 +291,7 @@
             [else
              (append
               (list `(ul ((class ,ol-search-list))
-                         ,@(for/list ([h (in-list shown)]) (hit-xexpr h zoom-base))))
+                         ,@(for/list ([h (in-list shown)]) (hit-xexpr h node-href))))
               (if (positive? more)
                   (list `(p ((class ,ol-search-more))
                             ,(format "+ ~a more" more)))
@@ -304,7 +309,7 @@
                              #:results-href results-href
                              #:query [query #f]
                              #:hits [hits '()]
-                             #:zoom-base [zoom-base #f])
+                             #:node-href node-href)
   `(div ((class ,ol-search-panel) (data-search-panel "")
          ,@(if query '() '((hidden "hidden"))))
         (form ((class ,ol-search-form) (role "search")
@@ -320,4 +325,4 @@
                        ,@(search-toggle-attributes)
                        (aria-label "close search"))
                       "×"))
-        ,(results-xexpr query hits zoom-base results-href)))
+        ,(results-xexpr query hits node-href results-href)))
