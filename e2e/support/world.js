@@ -111,6 +111,13 @@ export class OlaiWorld extends World {
    *  runs the settle phase — and waiting on the earlier one would leave every
    *  step written after this to discover the difference on its own. */
   async follow(locator) {
+    await this.settle(() => locator.click());
+  }
+
+  /** The same wait around anything else that navigates the live view — a key
+   *  press, rather than a click on something. Two spellings of one moment:
+   *  arm the listener, do the thing, wait for the swap to settle. */
+  async settle(act) {
     await this.page.evaluate(() => {
       window.__olai_e2e_settled = false;
       document.addEventListener(
@@ -121,7 +128,7 @@ export class OlaiWorld extends World {
         { once: true },
       );
     });
-    await locator.click();
+    await act();
     await this.page.waitForFunction(() => window.__olai_e2e_settled === true);
   }
 

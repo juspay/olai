@@ -43,8 +43,10 @@
          olai/web/render
          ;; the app's own route table: a renderer is handed the address of a
          ;; node, so these hand it the one the router answers at
-         (only-in olai/tests/addresses test-node-href)
+         (only-in olai/tests/addresses test-node-href test-search-href)
          olai/web/chat-panel
+         olai/web/search
+         (only-in olai/search search-outlines)
          olai/store
          ;; the blocked pill is drawn from a query over the snapshot's graph,
          ;; the same way the server draws it (olai/web/serve)
@@ -207,7 +209,26 @@
    (render-chat-panel
     #:send-href "/chat" #:new-href "/chat/new" #:cancel-href "/chat/cancel"
     #:sessions-href "/chat/sessions" #:load-href "/chat/load"
-    #:event "chat")))
+    #:event "chat")
+   ;; The palette, in its three readings: nothing typed, a query with hits —
+   ;; one of them found by its NOTE, which is a line only that case draws —
+   ;; and a query the outline has nothing for.
+   (search-panel-page "")
+   (search-panel-page "capture")
+   (search-panel-page "no-such-node-anywhere")
+   ;; and the one a screen cannot hold: what did not fit is counted
+   (search-panel-page "e")))
+
+;; One drawing of the palette, over the demo outlines. An empty query is #f,
+;; the way it travels everywhere else: nothing was asked — and both addresses
+;; come off the app's own table (tests/addresses), like the node links in it.
+(define (search-panel-page query)
+  (define q (and (non-empty-string? query) query))
+  (render-search-panel #:action-href (test-search-href #f)
+                       #:results-href (test-search-href q)
+                       #:query q
+                       #:hits (search-outlines example-files query)
+                       #:node-href test-node-href))
 
 (define rendered-classes
   (for/fold ([acc (set)]) ([page (in-list (example-pages))])
@@ -249,7 +270,8 @@
 ;; are the language files beside it — they are vendored under static/hljs/,
 ;; and scanning a minified grammar for class-shaped names would find noise.)
 (define script-names
-  '("chat.js" "collapse.js" "notes.js" "prefs.js" "pwa.js" "highlight-init.js"))
+  '("chat.js" "collapse.js" "notes.js" "prefs.js" "search.js" "pwa.js"
+    "highlight-init.js"))
 
 (define scripted-classes
   (for/fold ([acc (set)]) ([js (in-list script-names)])

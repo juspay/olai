@@ -125,6 +125,31 @@
   (test-case "with no live view a link is just a link"
     (check-equal? (live-link-attributes #f "/n/ship") '((href "/n/ship"))))
 
+  ;; The same fetch, made by typing. What it must NOT do is push the address:
+  ;; a region redrawing its own content is not a navigation, and one history
+  ;; entry per keystroke is a Back button nobody gets out of.
+  (test-case "a query re-fetches its region as the value is typed"
+    (define a (live-query-attributes lv "/search"))
+    (check-equal? (attr a 'hx-get) "/search")
+    (check-equal? (attr a 'hx-target) "#app")
+    (check-equal? (attr a 'hx-select) "#app")
+    (check-equal? (attr a 'hx-swap) "morph:outerHTML")
+    (check-false (attr a 'hx-push-url))
+    ;; the debounce is in the trigger, and `changed` is what keeps an arrow key
+    ;; from re-asking the same question
+    (check-equal? (attr a 'hx-trigger)
+                  (format "input changed delay:~ams, search" live-default-query-delay-ms))
+    (check-equal? (attr (live-query-attributes lv "/search" #:delay-ms 0) 'hx-trigger)
+                  "input changed delay:0ms, search")
+    ;; and, like a link, it reads nothing off the view but the region's id
+    (check-equal? (live-query-attributes "app" "/search") a))
+
+  ;; No live view, no partial fetch — and no fallback of its own either: the
+  ;; input is in a form, and the form's action is what a browser with no JS
+  ;; submits.
+  (test-case "with no live view a query is a plain input"
+    (check-equal? (live-query-attributes #f "/search") '()))
+
   ;; Idiomorph matches old to new by id before anything else, so a row that is
   ;; not identified is a row that preserves nothing through a reorder. Minting
   ;; the id from the region is what makes two regions on one page unable to

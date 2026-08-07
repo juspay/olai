@@ -59,6 +59,14 @@
           ;; view or the region's id
           [live-link-attributes (-> (or/c live-view? string? #f) string?
                                     (listof (list/c symbol? string?)))]
+          ;; the same fetch, made by an INPUT as it is typed in: the element's
+          ;; own value is the query, and the region it aims at is named the
+          ;; same way a link's is
+          [live-query-attributes (->* ((or/c live-view? string? #f) string?)
+                                      (#:delay-ms (>=/c 0))
+                                      (listof (list/c symbol? string?)))]
+          ;; how long a query waits for the typing to stop, when nobody says
+          [live-default-query-delay-ms (>=/c 0)]
           ;; the id of one thing INSIDE a region, minted from the region and a
           ;; key the app already has. Morph matches old to new by id first, so
           ;; this is what makes a selection follow its row through a reorder
@@ -146,6 +154,17 @@
 ;; that did not concern them.
 (define morph-swap "morph:outerHTML")
 
+;; A FETCH THAT LANDS IN A REGION, which is the one thing all three attribute
+;; sets below are: where to get it, what to lift out of the reply, what to put
+;; it on, and how it goes on. They differ only in what makes it happen — the
+;; stream says so, a click says so, a keystroke says so — so the landing is
+;; said once here and the trigger is each caller's own line.
+(define (region-fetch-attributes r href)
+  (list (list 'hx-get href)
+        (list 'hx-select (region-selector r))
+        (list 'hx-target (region-selector r))
+        (list 'hx-swap morph-swap)))
+
 ;; On the body (or any ancestor of the region and the links): the extensions,
 ;; and the stream they all share. ONE EventSource for the page — browsers cap
 ;; them per origin, and a second one would be a second story about health.
@@ -187,16 +206,40 @@
 ;; to protect. A second region says no.
 (define (live-region-attributes lv #:history? [history? #t])
   (append
-   (list (list 'id (live-view-region lv))
-         (list 'hx-get (live-view-href lv))
-         (list 'hx-trigger (string-append "sse:" (live-view-event lv)))
-         (list 'hx-select (region-selector lv))
-         (list 'hx-target (region-selector lv))
-         (list 'hx-swap morph-swap))
+   (list (list 'id (live-view-region lv)))
+   (region-fetch-attributes lv (live-view-href lv))
+   (list (list 'hx-trigger (string-append "sse:" (live-view-event lv))))
    ;; history is the region's too: restoring a whole page from the back
    ;; button would rebuild exactly the chrome partial navigation exists to
    ;; keep
    (if history? (list (list 'hx-history-elt "")) '())))
+
+;; On an INPUT whose value is a query: as it is typed, the region re-fetches
+;; `href` with this element's value on it, and morphs the reply onto itself.
+;; The same fetch a link makes, aimed the same way, triggered by typing.
+;;
+;; Three things it does NOT do, each for a reason. It pushes no address: a
+;; region redrawing its own content is not a navigation, and a history entry
+;; per keystroke is a Back button nobody can get out of — the LINKS in the
+;; results are where the address moves. It carries no plain fallback of its
+;; own: the input belongs in a form, and that form's action is what a browser
+;; running no JS submits. And it names no event but the two below — `input`
+;; covers typing, pasting and every other way a value changes, `search` is the
+;; native clear button on a type=search input, and `changed` is what keeps an
+;; arrow key from re-asking the same question.
+;;
+;; The delay is the debounce, in milliseconds: what the element waits for the
+;; typing to stop before it asks. A page that wants no debounce says 0.
+(define live-default-query-delay-ms 200)
+
+(define (live-query-attributes r href #:delay-ms [delay-ms live-default-query-delay-ms])
+  (if r
+      (append (region-fetch-attributes r href)
+              (list (list 'hx-trigger (query-trigger delay-ms))))
+      '()))
+
+(define (query-trigger delay-ms)
+  (format "input changed delay:~ams, search" delay-ms))
 
 ;; On a link: the ordinary href AND the partial fetch. `r` is the region this
 ;; link aims at — a view, or just its id, since nothing else about the view is
@@ -205,10 +248,7 @@
 (define (live-link-attributes r href)
   (cons (list 'href href)
         (if r
-            (list (list 'hx-get href)
-                  (list 'hx-select (region-selector r))
-                  (list 'hx-target (region-selector r))
-                  (list 'hx-swap morph-swap)
-                  ;; the address bar is part of what the page shows
-                  (list 'hx-push-url "true"))
+            (append (region-fetch-attributes r href)
+                    ;; the address bar is part of what the page shows
+                    (list (list 'hx-push-url "true")))
             '())))

@@ -70,6 +70,8 @@
          (only-in olai/paths file-label roots-base)
          ;; what the typed-edge graph is asked: which nodes are waiting
          (only-in olai/query blocked-nodes)
+         ;; which nodes a query names: a pure question about the snapshot
+         (only-in olai/search search-outlines)
          olai/store
          ;; the transport, and the assets that drive it in the browser: a
          ;; framework this app is only a consumer of (live/README.md)
@@ -94,6 +96,7 @@
          ;; writes the src owns the prefix, this one mounts it
          (only-in olai/web/markdown media-prefix media-extensions)
          (only-in olai/web/chat-panel render-chat-panel)
+         (only-in olai/web/search render-search-panel)
          olai/web/watch)
 
 (provide start-server)
@@ -209,6 +212,23 @@
 ;; same two calls for the same reason (olai/cli).
 (define (blocked-of snap) (blocked-nodes (snapshot-edges snap)))
 
+;; ---- reading a request ------------------------------------------------------
+
+;; What a request CARRIES, as opposed to what its address says. Two surfaces
+;; read one — a chat message and a query — and both mean the same thing by a
+;; field that is missing, empty, or nothing but spaces: nothing was said. So
+;; there is one answer to it, #f, and nothing downstream holds an opinion about
+;; the empty string. The query string and a posted form are the same table as
+;; far as `request-bindings/raw` is concerned, which is why one reader serves
+;; both.
+(define (form-field req name)
+  (define b (bindings-assq name (request-bindings/raw req)))
+  (cond
+    [(binding:form? b)
+     (define s (string-trim (bytes->string/utf-8 (binding:form-value b))))
+     (and (non-empty-string? s) s)]
+    [else #f]))
+
 ;; ---- handlers: the chat panel ---------------------------------------------
 
 ;; The panel's chrome, and nothing about the conversation: what a page load
@@ -242,15 +262,6 @@
                                              [(busy) 409]
                                              [else 503])))])
     (proc)))
-
-;; A form field, trimmed, or #f when it is missing or blank.
-(define (form-field req name)
-  (define b (bindings-assq name (request-bindings/raw req)))
-  (cond
-    [(binding:form? b)
-     (define s (string-trim (bytes->string/utf-8 (binding:form-value b))))
-     (and (non-empty-string? s) s)]
-    [else #f]))
 
 (define (no-agent-response)
   (text-response "no agent\n" #:code 503))
@@ -309,16 +320,16 @@
 ;; is nothing loaded, no sidebar to draw one from, and a 500 — so there is one
 ;; place a page's shape is stated rather than two that can come to differ.
 ;;
-;; The panel sits in body-extra, OUTSIDE #ol-live: an outline event re-swaps
-;; the live region, and a chat mid-turn must not be swapped out from under
-;; the person typing into it.
+;; The overlays sit in body-extra, OUTSIDE #ol-live: an outline event re-swaps
+;; the live region, and neither a chat mid-turn nor a search box mid-word may
+;; be swapped out from under the person typing into it.
 (define (chrome main
                 #:title title
                 #:href href
                 #:cursor cursor
                 #:sidebar [sidebar #f]
                 #:banner [banner #f]
-                #:chat [chat #f]
+                #:overlays [overlays '()]
                 #:code [code 200])
   (html-response
    (page->html-string
@@ -331,7 +342,7 @@
                  #:banner banner
                  #:href href
                  #:cursor cursor
-                 #:body-extra (if chat (list chat) '())))
+                 #:body-extra overlays))
    #:code code))
 
 ;; The file tree and the chrome above it, over one snapshot. `files-data` is
@@ -345,6 +356,29 @@
                   #:archive-href (routes-archive-href rs)
                   #:href href
                   #:node-href (routes-node-href rs)))
+
+;; The palette, on every page: `/` opens it wherever you are, so it is chrome
+;; and not a page of its own. What a query NAMES is a question about the
+;; snapshot the page was drawn from — which is why this is built per request,
+;; where the chat panel is one value for the life of the process. Both of its
+;; addresses come off the one field the route table mints them from: the bare
+;; route is where a query is asked, and this query's own address is what the
+;; results region re-fetches when a file moves.
+(define (search-panel rs snap query)
+  (define search-href (routes-search-href rs))
+  (render-search-panel #:action-href (search-href #f)
+                       #:results-href (search-href query)
+                       #:query query
+                       #:hits (if (and snap query)
+                                  (search-outlines (snapshot-files-data snap) query)
+                                  '())
+                       #:node-href (routes-node-href rs)))
+
+;; Everything a page carries outside its regions, in the order they are drawn.
+;; `snap` is #f when there is nothing loaded at all — the palette is still on
+;; the page, with nothing to find in it.
+(define (page-overlays rs snap query chat)
+  (cons (search-panel rs snap query) (if chat (list chat) '())))
 
 ;; Every page here is the same shape: one snapshot, the chrome around it, and a
 ;; live region that re-fetches THIS url on an `outline` event. `view` is handed
@@ -361,14 +395,17 @@
 ;; pane saying so, no tree to draw a sidebar from, and a 500. Still live: the
 ;; next save is what fixes it, and the client should not have to reload to find
 ;; that out.
-(define (outline-page st rs chat live-href view)
+;;
+;; `#:query` is what the search box was drawn with — #f on every page but the
+;; one a query asked for.
+(define (outline-page st rs chat live-href view #:query [query #f])
   (with-snapshot st
     (λ (rev err)
       (chrome (empty-pane rs "No outline loaded.")
               #:title "olai"
               #:href live-href
               #:cursor (outline-cursor rev)
-              #:chat chat
+              #:overlays (page-overlays rs #f query chat)
               #:banner (error-banner err)
               #:code 500))
     #:stale-ok? #t
@@ -383,7 +420,10 @@
               #:href live-href
               #:cursor (outline-cursor rev)
               #:sidebar (page-sidebar rs live #:href live-href)
-              #:chat chat
+              ;; the palette searches the LIVE outlines too: archived work has
+              ;; a page of its own and is not an answer to a query (Roadmap,
+              ;; archive; olai/search)
+              #:overlays (page-overlays rs snap query chat)
               #:banner (and err (error-banner err))))))
 
 ;; One node, zoomed: the node and the trail above it, both asked of the
@@ -415,15 +455,39 @@
 (define (node-at index key)
   (and key (hash-ref index key #f)))
 
+;; The whole outline, as a pane. The home page is this, and so is a search:
+;; the palette is over the page you were reading, not instead of it.
+;; The live outlines, as a pane. The home page is this, and so is a search:
+;; the palette is over the page you were reading, not instead of it.
+(define (outline-pane rs snap live)
+  (render-outline live
+                  #:today (today-iso-string)
+                  #:node-href (routes-node-href rs)
+                  #:docs (snapshot-docs snap)
+                  #:blocked (blocked-of snap)))
+
 (define (page-handler st rs chat)
   (outline-page st rs chat (routes-home-href rs)
    (λ (snap live)
-     (values (render-outline live
-                             #:today (today-iso-string)
-                             #:node-href (routes-node-href rs)
-                             #:docs (snapshot-docs snap)
-                             #:blocked (blocked-of snap))
-             (page-title (store-files st))))))
+     (values (outline-pane rs snap live) (page-title (store-files st))))))
+
+;; A query, as a page.
+;;
+;; It answers with the outline and a palette open over it, which makes
+;; /search?q=… a permalink to a query: what a browser running no JS gets when
+;; it submits the box, and what a shared link opens. A browser that IS running
+;; it rarely loads this page — the box re-fetches the results region alone, and
+;; the page it is on never moves.
+;;
+;; `q` missing and `q` blank are the same request: nothing was asked. One
+;; spelling for it (#f) all the way down, so nothing below has to hold an
+;; opinion about the empty string.
+(define (search-handler st rs chat req)
+  (define q (form-field req #"q"))
+  (outline-page st rs chat ((routes-search-href rs) q) #:query q
+   (λ (snap live)
+     (values (outline-pane rs snap live)
+             (if q (string-append "search " q) "olai")))))
 
 ;; What was archived, on a page of its own.
 ;;
@@ -568,6 +632,8 @@
      #:today (λ (req) (today-handler st rs panel))
      ;; done work, on demand and nowhere else
      #:archive (λ (req) (archive-handler st rs panel))
+     ;; the palette, as an address: `q` is what was typed into it
+     #:search (λ (req) (search-handler st rs panel req))
      ;; Mounted, not understood: the hub moves frames and web/live and web/chat
      ;; say what any of them mean. All this layer knows is that a connection is
      ;; born mid-story, and who to ask what it missed.

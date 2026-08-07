@@ -57,6 +57,13 @@
     ;; name it by accident
     (check-equal? (cadr (assq 'hx-target (live-link second "/n/ship"))) "#second"))
 
+  (test-case "a declared query aims at its region and debounces"
+    (check-equal? (live-query app "/search") (live-query-attributes view "/search"))
+    (check-equal? (live-query app "/search" #:delay-ms 40)
+                  (live-query-attributes "app" "/search" #:delay-ms 40))
+    ;; the input aims where it is told, and nowhere else
+    (check-equal? (cadr (assq 'hx-target (live-query second "/search"))) "#second"))
+
   (test-case "a declared connection is the stream's address and the page's cursor"
     (check-equal? (live-connect counts #:cursor "41")
                   (live-stream-attributes live-stream-path "41"))
@@ -178,6 +185,23 @@
     (check-says e
                 "nope: unbound live region"
                 "this module declares no regions: declare one with define-live-region, or require it from the module that does"))
+
+  ;; The same refusal one form over: an input aimed at a surface nobody drew is
+  ;; a box you can type in that answers nothing, and only a browser would say so.
+  (test-case "a query into a region nobody declared is refused like a link"
+    (define lines
+      '("#lang racket/base"
+        "(require live/dsl)"
+        "(define-stream counts #:events (counts-changed))"
+        "(define-live-region hits #:stream counts)"
+        "(define (box) (live-query hts \"/search\"))"))
+    (define e (refusal "unbound-query.rkt" lines))
+    (check-not-false e "a query into a region nobody declared expanded")
+    (check-points-at e "unbound-query.rkt" lines "hts")
+    (check-says e
+                "hts: unbound live region"
+                "live-query's first argument must be a region bound by define-live-region"
+                "did you mean: hits?"))
 
   (test-case "a name bound to something else is told apart from an unbound one"
     (define lines

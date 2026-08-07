@@ -142,6 +142,7 @@ So: write each name once, as a declaration, and let every other appearance be a 
 (live-connect stream ...+ [#:cursor cursor])                         -> attributes
 (live-region region #:href href)                                     -> attributes
 (live-link region href)                                              -> attributes
+(live-query region href [#:delay-ms ms])                             -> attributes
 (live-item region tag key body ...)                                  -> xexpr
 (live-id region key)                                                 -> string
 ```
@@ -150,6 +151,7 @@ So: write each name once, as a declaration, and let every other appearance be a 
 * **`stream-frame`** is `make-frame` with the event checked against the declaration. A frame rather than a send, because a frame is what both places want: one goes to `hub-broadcast!` when something moves, and the same one goes to the connection that missed it in `#:catch-up`.
 * **`define-live-region`** declares the region a module DRAWS. The name IS the element id, so the selector, the target, the swap and every link derive from one line. `#:event` says which of the stream's events redraws it, and may be left out when the stream declares exactly one — with two or more, leaving it out is an error rather than a guess. `#:history?` is the page-global decision htmx forces (it honours the FIRST history element in the document): with two regions on a page, one of them must yield or Back restores the wrong one.
 * **`live-connect`** is the page's connection, for an ancestor of every region and link on it. It names every stream riding it and takes the cursor the markup was drawn from. The address is the transport's, not the app's — see **Boot id** above.
+* **`live-query`** is a link's fetch made by an INPUT instead: the element's own value is the query, the region it aims at re-fetches `href` with that value on it, and `#:delay-ms` is how long it waits for the typing to stop. It pushes no address — a region redrawing its own content is not a navigation, and a history entry per keystroke is a Back button nobody gets out of — so the results carry the links, and a `live-link` in one of them is what moves the page. It writes no fallback either: the input belongs in a form, and that form's `action` is what a browser running no JS submits.
 * **`live-region`**, **`live-link`**, **`live-item`** and **`live-id`** are the four places a name would otherwise be retyped. A link names the region it aims at, which is what makes a link into the wrong surface unwritable rather than merely unwritten. An item's id is MINTED from its region and a key, because a written id is an obligation a drawer can forget and a forgotten one fails by preserving nothing rather than by failing — and namespacing it by region is what lets two surfaces draw the same thing without claiming one element between them. `live-id` is that id without the element, for a drawer whose element carries classes and data- attributes of its own; same rule, same namespace, same refusal.
 
 ### Declared, end to end

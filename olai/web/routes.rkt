@@ -23,6 +23,9 @@
 ;; one address. web/serve is where the handlers and this table are tied.
 
 (require racket/contract
+         ;; a query in an address is escaped by the library that owns the
+         ;; escaping, never by hand
+         (only-in net/uri-codec alist->form-urlencoded)
          web-server/dispatch)
 
 (provide (contract-out
@@ -33,7 +36,7 @@
           ;; business, and web-server's.
           [make-routes
            (-> #:home procedure? #:node procedure? #:today procedure?
-               #:archive procedure?
+               #:archive procedure? #:search procedure?
                #:events procedure?
                #:chat procedure? #:chat-new procedure? #:chat-cancel procedure?
                #:chat-sessions procedure? #:chat-load procedure?
@@ -49,6 +52,12 @@
                           ;; so it is the one that says its shape, where the
                           ;; handlers above cannot
                           [node-href (-> string? string?)]
+                          ;; a query -> the page that answers it, and #f -> the
+                          ;; bare route, which is where a query is ASKED (the
+                          ;; box's form action). A procedure for the same reason
+                          ;; a node's is, and one field rather than two: having
+                          ;; asked nothing is an argument, not a second address
+                          [search-href (-> (or/c string? #f) string?)]
                           [chat-href string?]
                           [chat-new-href string?]
                           [chat-cancel-href string?]
@@ -63,12 +72,23 @@
                 today-href
                 archive-href
                 node-href
+                search-href
                 chat-href
                 chat-new-href
                 chat-cancel-href
                 chat-sessions-href
                 chat-load-href)
   #:transparent)
+
+;; A minted path, plus what was typed into the box that asked for it. Having
+;; asked NOTHING is the bare path: an address with an empty query in it says
+;; the same thing at more length, and the two would then be two addresses for
+;; one page. `dispatch-rules` mints paths and knows nothing about query
+;; strings, which is why this line is here and not in the generator.
+(define (query-href path query)
+  (if query
+      (string-append path "?" (alist->form-urlencoded (list (cons 'q query))))
+      path))
 
 ;; The whole of the app's URL space.
 ;;
@@ -83,6 +103,11 @@
 ;;                  drawn the ordinary way. A page rather than a filter on the
 ;;                  home one — archived work is another outline, not a state of
 ;;                  the one you are reading (olai/archive)
+;;   /search?q=…    the same outline with the search palette open on what the
+;;                  query names. The one route whose address carries something
+;;                  that is not a path segment, so it is the one field that
+;;                  writes a query string — escaped by net/uri-codec, here,
+;;                  where the route it belongs to is
 ;;   /live/<boot>/events
 ;;                  the SSE stream. Mounted here and addressed nowhere: its
 ;;                  address is the TRANSPORT's (live-stream-path), because it
@@ -96,7 +121,7 @@
 ;; Handlers take a request and whatever the pattern captured, the way
 ;; `dispatch-rules` calls them.
 (define (make-routes #:home home #:node node #:today today
-                     #:archive archive
+                     #:archive archive #:search search
                      #:events events
                      #:chat chat #:chat-new chat-new #:chat-cancel chat-cancel
                      #:chat-sessions chat-sessions #:chat-load chat-load
@@ -108,6 +133,7 @@
      [("n" (string-arg)) node]
      [("today") today]
      [("archive") archive]
+     [("search") search]
      [("live" (string-arg) "events") events]
      [("chat") #:method "post" chat]
      [("chat" "new") #:method "post" chat-new]
@@ -126,6 +152,7 @@
           (url today)
           (url archive)
           (λ (key) (url node key))
+          (λ (query) (query-href (url search) query))
           (url chat)
           (url chat-new)
           (url chat-cancel)

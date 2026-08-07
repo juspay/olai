@@ -13,7 +13,9 @@
 ;;   web/document  the file a node's @doc attaches, one line or whole
 ;;   web/outline   the main pane: a section per file, nodes stacked under it
 ;;   web/crumbs    the trail above a zoomed node
-;;   web/sidebar   brand, Today, Starred, prefs, the file tree — a live region
+;;   web/search    the palette a query opens, over everything
+;;   web/sidebar   brand, Today, Search, Starred, prefs, the file tree — a
+;;                 live region
 ;;   web/banner    what a file being broken looks like
 ;;   web/stream    the connection's health, in one pill
 ;;   web/page      the document: head, body, the live region, the composition
@@ -50,6 +52,8 @@
          olai/web/document
          olai/web/outline
          olai/web/crumbs
+         ;; before the sidebar, which draws the row that opens it
+         olai/web/search
          olai/web/sidebar
          olai/web/banner
          olai/web/stream
@@ -69,6 +73,7 @@
                        olai/web/document
                        olai/web/outline
                        olai/web/crumbs
+                       olai/web/search
                        olai/web/sidebar
                        olai/web/banner
                        olai/web/stream

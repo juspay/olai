@@ -14,19 +14,23 @@
 
 (require olai/web/routes)
 
-(provide test-routes test-node-href)
+(provide test-routes test-node-href test-search-href)
 
 (define (stub) (λ _args (void)))
 
 (define test-routes
   (make-routes #:home (stub) #:node (stub) #:today (stub) #:archive (stub)
-               #:events (stub)
+               #:search (stub) #:events (stub)
                #:chat (stub) #:chat-new (stub) #:chat-cancel (stub)
                #:chat-sessions (stub) #:chat-load (stub)
                #:tree (stub) #:agenda (stub) #:not-found (stub)))
 
 ;; A node's key -> its own page, the way every drawer gets it.
 (define test-node-href (routes-node-href test-routes))
+
+;; And a query -> the page that answers it; #f is the bare route, which is
+;; where a query is asked.
+(define test-search-href (routes-search-href test-routes))
 
 ;; ---- the table against the wire ---------------------------------------------
 ;;
@@ -52,6 +56,12 @@
     ;; inside what a path segment may hold — so a minted address is the key,
     ;; unescaped, the way every permalink ever pasted has it
     (check-equal? (test-node-href "meeting-prep") "/n/meeting-prep")
+    ;; the one address that carries something which is not a path segment:
+    ;; having asked nothing is the bare route, and a query is escaped rather
+    ;; than pasted — a search for "a b&c" is one address, not three
+    (check-equal? (test-search-href #f) "/search")
+    (check-equal? (test-search-href "milk") "/search?q=milk")
+    (check-equal? (test-search-href "a b&c") "/search?q=a+b%26c")
     (check-equal? (routes-chat-href test-routes) "/chat")
     (check-equal? (routes-chat-new-href test-routes) "/chat/new")
     (check-equal? (routes-chat-cancel-href test-routes) "/chat/cancel")
