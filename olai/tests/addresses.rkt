@@ -23,7 +23,7 @@
                #:search (stub) #:events (stub)
                #:chat (stub) #:chat-new (stub) #:chat-cancel (stub)
                #:chat-sessions (stub) #:chat-load (stub)
-               #:tree (stub) #:agenda (stub) #:not-found (stub)))
+               #:tree (stub) #:not-found (stub)))
 
 ;; A node's key -> its own page, the way every drawer gets it.
 (define test-node-href (routes-node-href test-routes))

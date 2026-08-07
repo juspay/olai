@@ -12,10 +12,9 @@
 ;;
 ;; What comes back is a `routes`: the dispatcher, and one field per address the
 ;; app DRAWS. A node's is a procedure — the whole of "the address of a node",
-;; and the reason a drawer can no longer assemble one. `/api/tree` and
-;; `/api/agenda` are dispatched and have no field, which is not an oversight:
-;; nothing on a page links to them, and an address nobody draws is an address
-;; nobody needs minted.
+;; and the reason a drawer can no longer assemble one. `/api/tree` is
+;; dispatched and has no field, which is not an oversight: nothing on a page
+;; links to it, and an address nobody draws is an address nobody needs minted.
 ;;
 ;; It knows nothing about what any route DOES. The handlers are arguments, and
 ;; they are what makes the table's entries distinct — `url` finds a route by
@@ -40,7 +39,7 @@
                #:events procedure?
                #:chat procedure? #:chat-new procedure? #:chat-cancel procedure?
                #:chat-sessions procedure? #:chat-load procedure?
-               #:tree procedure? #:agenda procedure?
+               #:tree procedure?
                #:not-found procedure?
                routes?)]
           [struct routes ([dispatch procedure?]
@@ -116,7 +115,6 @@
 ;;                  href for would be this module claiming a name live/ owns
 ;;   /chat…         the panel's verbs, all POST but the picker's list
 ;;   /api/tree      byte-identical to `olai tree`
-;;   /api/agenda    byte-identical to `olai agenda`
 ;;
 ;; Handlers take a request and whatever the pattern captured, the way
 ;; `dispatch-rules` calls them.
@@ -125,7 +123,7 @@
                      #:events events
                      #:chat chat #:chat-new chat-new #:chat-cancel chat-cancel
                      #:chat-sessions chat-sessions #:chat-load chat-load
-                     #:tree tree #:agenda agenda
+                     #:tree tree
                      #:not-found not-found)
   (define-values (dispatch url)
     (dispatch-rules
@@ -141,7 +139,6 @@
      [("chat" "sessions") chat-sessions]
      [("chat" "load") #:method "post" chat-load]
      [("api" "tree") tree]
-     [("api" "agenda") agenda]
      [else not-found]))
   ;; One line per field, each naming the handler it is minted from, in the
   ;; struct's own order — a swap here would put the cancel route in the field
