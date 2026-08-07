@@ -21,6 +21,7 @@
 ;;   (live-connect counts #:cursor cursor)     ; on the body
 ;;   (live-region clist #:href href)           ; on the element that redraws
 ;;   (live-link clist "/c/alpha")              ; on a link into it
+;;   (live-query clist "/c/find")              ; on an input that re-asks it
 ;;   (live-item clist li "alpha" ...)          ; on one row of it
 ;;   (live-id clist "alpha")                   ; the same id, element yours
 ;;   (stream-frame counts 'counts-changed cursor #:id cursor)
@@ -55,6 +56,7 @@
          live-connect
          live-region
          live-link
+         live-query
          live-item
          live-id)
 
@@ -462,6 +464,29 @@
     [(_ region:id href:expr)
      (define rd (live-lookup 'region #'region 'live-link "first argument"))
      (tag stx #`(live-link-attributes #,(region-decl-id rd) href))]))
+
+;; (live-query region href [#:delay-ms ms]) -> attributes
+;;
+;; An input whose VALUE is a query: as it is typed, `region` re-fetches `href`
+;; with that value on it and morphs the reply onto itself. The region is a
+;; BINDING for the same reason a link's is — an input aimed at a surface that
+;; does not exist is a box you can type in that answers nothing, and a browser
+;; is the only place that failure shows.
+;;
+;;   (input ((name "q") ,@(live-query hits "/search")))
+;;
+;; The debounce is `#:delay-ms`, defaulting to live/client's. What this form
+;; will not do is push the address — see live/client on why — so the results
+;; it draws carry the links, and a `live-link` in one of them is what moves the
+;; page.
+(define-syntax (live-query stx)
+  (syntax-parse stx
+    [(_ region:id href:expr (~optional (~seq #:delay-ms ms:expr)))
+     (define rd (live-lookup 'region #'region 'live-query "first argument"))
+     (tag stx
+          (if (attribute ms)
+              #`(live-query-attributes #,(region-decl-id rd) href #:delay-ms ms)
+              #`(live-query-attributes #,(region-decl-id rd) href)))]))
 
 ;; (live-item region tag key body ...) -> xexpr
 ;;
