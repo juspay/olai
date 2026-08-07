@@ -33,6 +33,7 @@
           ;; business, and web-server's.
           [make-routes
            (-> #:home procedure? #:node procedure? #:today procedure?
+               #:archive procedure?
                #:events procedure?
                #:chat procedure? #:chat-new procedure? #:chat-cancel procedure?
                #:chat-sessions procedure? #:chat-load procedure?
@@ -42,6 +43,7 @@
           [struct routes ([dispatch procedure?]
                           [home-href string?]
                           [today-href string?]
+                          [archive-href string?]
                           ;; a node's key -> its own page. The one address that
                           ;; takes an argument, and the only way to write one —
                           ;; so it is the one that says its shape, where the
@@ -59,6 +61,7 @@
 (struct routes (dispatch
                 home-href
                 today-href
+                archive-href
                 node-href
                 chat-href
                 chat-new-href
@@ -76,6 +79,10 @@
 ;;                  moving to a new ordinal, which is what ^anchor is for
 ;;                  (docs/cli.md)
 ;;   /today         today's Daily day node, zoomed
+;;   /archive       what `olai archive` put away: the outlines' Archive.rkt,
+;;                  drawn the ordinary way. A page rather than a filter on the
+;;                  home one — archived work is another outline, not a state of
+;;                  the one you are reading (olai/archive)
 ;;   /live/<boot>/events
 ;;                  the SSE stream. Mounted here and addressed nowhere: its
 ;;                  address is the TRANSPORT's (live-stream-path), because it
@@ -89,6 +96,7 @@
 ;; Handlers take a request and whatever the pattern captured, the way
 ;; `dispatch-rules` calls them.
 (define (make-routes #:home home #:node node #:today today
+                     #:archive archive
                      #:events events
                      #:chat chat #:chat-new chat-new #:chat-cancel chat-cancel
                      #:chat-sessions chat-sessions #:chat-load chat-load
@@ -99,6 +107,7 @@
      [("") home]
      [("n" (string-arg)) node]
      [("today") today]
+     [("archive") archive]
      [("live" (string-arg) "events") events]
      [("chat") #:method "post" chat]
      [("chat" "new") #:method "post" chat-new]
@@ -115,6 +124,7 @@
   (routes dispatch
           (url home)
           (url today)
+          (url archive)
           (λ (key) (url node key))
           (url chat)
           (url chat-new)

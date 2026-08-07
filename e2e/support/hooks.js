@@ -16,6 +16,12 @@ import {
 } from "@cucumber/cucumber";
 import { chromium } from "playwright";
 
+import {
+  ARCHIVE,
+  ARCHIVE_OUTLINE,
+  SECOND,
+  SECOND_OUTLINE,
+} from "./outline.js";
 import { OlaiWorld, PHONE_VIEWPORT } from "./world.js";
 
 // A step here can be waiting on a racket start-up, a filesystem watcher's
@@ -45,6 +51,16 @@ const STORED_SESSIONS = {
   "@foreign-sessions": "foreign",
 };
 
+// The roots a scenario wants staged BESIDE the outline, by tag: a second file
+// for the anchors that reach across them, the archive for the work that has
+// been put away. Boot-time like the sessions above, and for a reason of its
+// own — `serve DIR` globs its top level once at startup, so which files a set
+// holds is a fact about the server, not something a step can arrange later.
+const EXTRA_ROOTS = {
+  "@cross-file": [SECOND_OUTLINE, SECOND],
+  "@archived": [ARCHIVE_OUTLINE, ARCHIVE],
+};
+
 // The screen is the other thing a scenario asks for by tag. Not an assertion
 // but a LAYOUT: below phone-max the skin puts the sidebar above the outline and
 // the chat panel over it (web/chat-panel, sheet mode), and a scenario about
@@ -52,16 +68,13 @@ const STORED_SESSIONS = {
 Before(async function ({ pickle }) {
   const env = {};
   let viewport;
-  // A second root beside the first, for the scenarios about an anchor that
-  // reaches across files. Boot-time like the two above: `serve DIR` globs its
-  // top level once, so a file written later is a file this server never has.
-  let secondOutline = false;
+  const extras = [];
   for (const { name } of pickle.tags) {
     if (name in STORED_SESSIONS) env.OLAI_FAKE_ACP_STORED = STORED_SESSIONS[name];
     if (name === "@phone") viewport = PHONE_VIEWPORT;
-    if (name === "@cross-file") secondOutline = true;
+    if (name in EXTRA_ROOTS) extras.push(EXTRA_ROOTS[name]);
   }
-  await this.boot(browser, env, viewport, secondOutline);
+  await this.boot(browser, env, viewport, extras);
 });
 
 // The server's own output is the first thing worth reading when a scenario

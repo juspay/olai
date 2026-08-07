@@ -72,6 +72,13 @@ When("I check off {string} from the CLI", async function (title) {
   await this.olai("done", title);
 });
 
+// The write that moves a node to another FILE. `--file` is the outline it is
+// leaving; where it lands is the command's own business (Archive.rkt beside
+// it), which is why no step says so.
+When("I archive {string} from the CLI", async function (spec) {
+  await this.olai("archive", spec);
+});
+
 // The same command aimed at the other outline in the directory. An `^anchor`
 // is a name the whole loaded set shares, so this is how a scenario checks a
 // node off from the file that only MIRRORS it — the write lands in the file

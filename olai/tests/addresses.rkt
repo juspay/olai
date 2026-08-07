@@ -19,7 +19,8 @@
 (define (stub) (λ _args (void)))
 
 (define test-routes
-  (make-routes #:home (stub) #:node (stub) #:today (stub) #:events (stub)
+  (make-routes #:home (stub) #:node (stub) #:today (stub) #:archive (stub)
+               #:events (stub)
                #:chat (stub) #:chat-new (stub) #:chat-cancel (stub)
                #:chat-sessions (stub) #:chat-load (stub)
                #:tree (stub) #:agenda (stub) #:not-found (stub)))
@@ -45,6 +46,7 @@
   (test-case "every minted address is the route it is named for"
     (check-equal? (routes-home-href test-routes) "/")
     (check-equal? (routes-today-href test-routes) "/today")
+    (check-equal? (routes-archive-href test-routes) "/archive")
     (check-equal? (test-node-href "p1234abcd") "/n/p1234abcd")
     ;; an ^anchor is a key too, and the anchor grammar ([A-Za-z0-9_-]+) is
     ;; inside what a path segment may hold — so a minted address is the key,

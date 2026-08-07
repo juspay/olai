@@ -277,6 +277,27 @@
             'date (nullish (move-result-date r))
             'committed (move-result-committed? r))))
 
+;; `archive` answers with BOTH files: `file` is where the node lives now, and
+;; `from` is the outline it left — an agent that just moved a node needs to
+;; know where to look for it and which file it should stop looking in.
+(define (cmd-archive file-arg no-commit? title-parts)
+  (when (null? title-parts)
+    (die exit-usage "archive requires TITLE|^anchor" #:json? #t))
+  (define spec (string-join title-parts " "))
+  (define r
+    (run-op #t
+            (λ ()
+              (ops-archive! (or file-arg (default-file)) spec
+                            #:commit? (not no-commit?)))))
+  (write-json-stdout
+   (ok-hash 'file (archive-result-file r)
+            'from (archive-result-from r)
+            'title (archive-result-title r)
+            'line (archive-result-line r)
+            'ancestors (archive-result-ancestors r)
+            'created_archive (archive-result-created-archive? r)
+            'committed (archive-result-committed? r))))
+
 (define (cmd-daily date-arg home-arg no-commit?)
   (define r
     (run-op #t
@@ -401,6 +422,8 @@
   (eprintf "  doing    [--file F] [--undo] [--no-commit] TITLE|^anchor\n")
   (eprintf "           mark in progress ([/]); done clears it\n")
   (eprintf "  move     [--file F] [--no-commit] [--clear] TITLE|^anchor DATE\n")
+  (eprintf "  archive  [--file F] [--no-commit] TITLE|^anchor\n")
+  (eprintf "           move the subtree into Archive.rkt, ancestors and all\n")
   (eprintf "  daily    [--date YYYY-MM-DD] [--home DIR] [--no-commit]\n")
   (eprintf "           ensure today in Daily/\n")
   (eprintf "  ics      [--out PATH] [file ...]  RFC 5545 VCALENDAR of dated tasks\n")
@@ -543,6 +566,20 @@
      (define title-parts (drop-right words 1))
      (cmd-move file-arg no-commit? #f title-parts date-arg)]))
 
+(define (cli-archive)
+  (define file-arg #f)
+  (define no-commit? #f)
+  (define titles '())
+  (command-line
+   #:program "olai archive"
+   #:once-each
+   [("--json") "No-op (the reply is always JSON)" (void)]
+   [("--file") f "Outline file (default: $OLAI_HOME/Tasks.rkt)" (set! file-arg f)]
+   [("--no-commit") "Do not auto-commit even in a git repo" (set! no-commit? #t)]
+   #:args title-words
+   (set! titles title-words))
+  (cmd-archive file-arg no-commit? titles))
+
 (define (cli-ics)
   (define out-path #f)
   (define file-args '())
@@ -597,6 +634,7 @@
            [("done") (cli-mark 'done)]
            [("doing") (cli-mark 'doing)]
            [("move") (cli-move)]
+           [("archive") (cli-archive)]
            [("daily") (cli-daily)]
            [("ics") (cli-ics)]
            [else

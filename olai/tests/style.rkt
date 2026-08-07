@@ -161,7 +161,7 @@
                                 ;; collapsed is a state the skin paints
                                 #:docs (snapshot-docs example-snapshot))
                 #:sidebar (render-sidebar example-files
-                                          #:home-href "/" #:today-href "/today"
+                                          #:home-href "/" #:today-href "/today" #:archive-href "/archive"
                                           #:href "/"
                                           #:node-href test-node-href)
                 #:href "/"

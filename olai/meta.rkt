@@ -90,7 +90,7 @@
 ;; Every title line the file has, as title-matches; `keep?` picks the ones
 ;; the caller asked for.
 (define (find-title-lines text keep?)
-  (define lines (string-split text "\n" #:trim? #f))
+  (define lines (text-lines text))
   (filter
    values
    (for/list ([s (in-list lines)] [i (in-naturals)])
@@ -125,7 +125,7 @@
 ;; The title-match at a line the resolver already picked (see
 ;; olai/resolve): no second search, no second ambiguity error.
 (define (title-match-at text idx)
-  (define lines (string-split text "\n" #:trim? #f))
+  (define lines (text-lines text))
   (unless (and (exact-nonnegative-integer? idx) (< idx (length lines)))
     (user-fail "line ~a is not in this file" (add1 idx)))
   (define-values (ind k) (scan (list-ref lines idx)))
@@ -150,12 +150,6 @@
      (user-fail "ambiguous title ~a (~a matches); add a ^anchor to disambiguate"
                 label (length matches))]
     [else (values (car matches) label)]))
-
-(define (lines->text lines original)
-  (define body (string-join lines "\n"))
-  (if (regexp-match? #px"\n$" original)
-      (if (regexp-match? #px"\n$" body) body (string-append body "\n"))
-      body))
 
 ;; The engine. An op supplies:
 ;;   #:at          the title's 0-based line index when a resolver already
@@ -183,7 +177,7 @@
     (if at
         (values (title-match-at text at) (spec-label spec))
         (locate-one text spec)))
-  (define lines (string-split text "\n" #:trim? #f))
+  (define lines (text-lines text))
   (define idx (title-match-index m))
   (define ind (title-match-indent m))
   (define meta (metadata-indices lines idx ind))

@@ -26,6 +26,11 @@ When("I follow the sidebar's Today link", async function () {
   await this.page.waitForURL(this.url("/today"));
 });
 
+When("I follow the sidebar's Archive link", async function () {
+  await sidebarLink(this, "/archive").click();
+  await this.page.waitForURL(this.url("/archive"));
+});
+
 // ---- one page load ----------------------------------------------------------
 //
 // The live view swaps a region of the page; a reload replaces the page. They
@@ -52,6 +57,16 @@ Then("the page has reloaded", async function () {
 
 Then("the sidebar lists {string}", async function (title) {
   await this.treeNode(title).first().waitFor({ state: "visible" });
+});
+
+// A count now, like "I do not see the title": sound about a page that has
+// finished loading, and says nothing about one mid-swap.
+Then("the sidebar does not list {string}", async function (title) {
+  assert.equal(
+    await this.treeNode(title).count(),
+    0,
+    `${title} is in the sidebar tree`,
+  );
 });
 
 Then("the sidebar links to {string}", async function (href) {
