@@ -37,12 +37,14 @@ export class OlaiWorld extends World {
    *  the fold state, the theme, the chat panel's open bit — start empty. The
    *  viewport is a desktop unless the scenario asked for the other one.
    *
-   *  `extras` is more roots staged beside the outline — `[name, text]` pairs,
-   *  chosen by the scenario's tags (hooks.js). Staged at boot because they are
-   *  the state the scenario starts IN — an outline home that already has a
-   *  second file, or an archive with something in it — not because a server
-   *  cannot see one arrive: `serve DIR` re-asks the directory, and
-   *  archive.feature's first scenario is exactly a root written later. */
+   *  `extras` is more roots staged beside the outline, chosen by the
+   *  scenario's tags (hooks.js) — each one a step that puts a file in the
+   *  directory, whether it writes a constant or runs the product to get one.
+   *  Staged at boot because they are the state the scenario starts IN — an
+   *  outline home that already has a second file, an archive with something in
+   *  it, a journal with today in it — not because a server cannot see one
+   *  arrive: `serve DIR` re-asks the directory, and archive.feature's first
+   *  scenario is exactly a root written later. */
   async boot(browser, env = {}, viewport = VIEWPORT, extras = []) {
     this.serverEnv = env;
     this.dir = await fs.mkdtemp(path.join(os.tmpdir(), "olai-e2e-"));
@@ -51,8 +53,8 @@ export class OlaiWorld extends World {
     // refuses an outline whose document is not there
     await this.rewriteDoc(DOC);
     await this.rewrite(FIXTURE);
-    for (const [name, text] of extras) {
-      await fs.writeFile(path.join(this.dir, name), text, "utf8");
+    for (const stage of extras) {
+      await stage(this);
     }
 
     // The context does not depend on the URL, and the racket boot is the
@@ -192,6 +194,31 @@ export class OlaiWorld extends World {
       ...rest,
     ]);
     this.outline = await fs.readFile(this.outlinePath, "utf8");
+  }
+
+  /** Another root beside the outline, as text: the staging step a constant
+   *  fixture becomes (hooks.js, EXTRA_ROOTS). */
+  async stage(name, text) {
+    await fs.writeFile(path.join(this.dir, name), text, "utf8");
+  }
+
+  /** The day journal, written by the product's own command: Daily.rkt, this
+   *  month's fragment, and a day node for today (docs/cli.md, `daily`).
+   *
+   *  A calendar scenario needs a day that IS today, which no committed fixture
+   *  can hold — and the harness must not be the one deciding which day that
+   *  is. `olai daily` reads the same clock the server will, in the same
+   *  binary, so there is still only one. A staging step like the constants
+   *  beside it, and for the same reason: it is the state these scenarios
+   *  start in. */
+  async daily() {
+    const { stdout } = await run(OLAI_BIN, ["daily", "--no-commit", "--home", this.dir]);
+    // WHICH day it wrote, from the command that wrote it. `today()` below
+    // reads the day off /today's EMPTY state, and staging the journal is
+    // exactly what empties that state of an answer — so the scenarios that
+    // have a journal ask this instead. Still one clock: the CLI and the
+    // server are the same binary on the same machine (docs/cli.md, `daily`).
+    this.journalDay = JSON.parse(stdout).day;
   }
 
   /** The server's idea of today, asked of the server: an ISO day the outline

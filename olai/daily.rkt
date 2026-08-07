@@ -19,24 +19,13 @@
          ;; questions `capture` and `subtree` ask, asked of the same module
          olai/lang/section
          (except-in olai/lang/expander #%module-begin)
+         ;; what the journal is CALLED, and what its months are: pure naming,
+         ;; which every layer asks about and only this one writes (olai/journal)
+         olai/journal
          (only-in olai/query count-tasks))
 
-(provide month-name
-         month-fragment-rel
-         ensure-daily-day!
+(provide ensure-daily-day!
          migrate-monolithic-daily!)
-
-(define month-names
-  #("January" "February" "March" "April" "May" "June"
-    "July" "August" "September" "October" "November" "December"))
-
-(define (month-name m) ; 1..12
-  (vector-ref month-names (sub1 m)))
-
-(define (month-fragment-rel year month)
-  (format "Daily/~a-~a.rkt"
-          year
-          (~r month #:min-width 2 #:pad-string "0")))
 
 (define (parse-iso-day day)
   (unless (bare-iso-date-title? day)
@@ -88,7 +77,7 @@
   (define (edit! path text) (set-box! edits (cons (cons path text) (unbox edits))))
   (define-values (y m) (parse-iso-day day))
   (define home-path (simple-form-path (expand-user-path home)))
-  (define root (build-path home-path "Daily.rkt"))
+  (define root (build-path home-path daily-file-name))
   (define rel (month-fragment-rel y m))
   (define frag (build-path home-path rel))
   (define year-title (number->string y))
@@ -232,7 +221,7 @@
 ;; Returns (list task-count-before task-count-after).
 (define (migrate-monolithic-daily! home)
   (define home-path (simple-form-path (expand-user-path home)))
-  (define root (build-path home-path "Daily.rkt"))
+  (define root (build-path home-path daily-file-name))
   (unless (file-exists? root)
     (error 'migrate "no Daily.rkt at ~a" root))
   (define n-before

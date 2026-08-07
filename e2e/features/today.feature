@@ -1,13 +1,13 @@
 Feature: Today, zoomed
 
-  The sidebar's Today link goes to today's day node. Before the first capture
-  of the day there is no such node, which is the normal state and not an
-  error; once the file has one, the page is that subtree and nothing else.
+  /today is today's day node, zoomed. It is an address rather than a row in
+  the sidebar — the journal's month is where a person reaches today, and this
+  is what a bookmark, a home screen and an agent name. Before the first
+  capture of the day there is no such node, which is the normal state and not
+  an error; once the file has one, the page is that subtree and nothing else.
 
-  Scenario: the sidebar's Today link lands on a day that has not started yet
-    When I open the home page
-    Then the sidebar links to "/today"
-    When I follow the sidebar's Today link
+  Scenario: the day has not started yet
+    When I open the Today page
     Then the main pane says there is no day node for today
     And I do not see the title "Buy milk"
 

@@ -23,6 +23,9 @@
          live/dsl
          (only-in olai/web/live outline-events ol-live)
          (except-in olai/lang/expander #%module-begin)
+         ;; which of the loaded outlines is the day journal — by its basename,
+         ;; the way the archive is recognised (olai/journal, olai/archive)
+         (only-in olai/journal daily-file?)
          olai/web/theme
          olai/web/style
          olai/web/markdown
@@ -30,6 +33,8 @@
          (only-in olai/web/states is-tree)
          (only-in olai/web/node node-shell ol-node ol-children ol-row ol-toggle)
          (only-in olai/web/outline normalize-files-data)
+         ;; the journal's entry, which is a month rather than a file name
+         (only-in olai/web/calendar render-month-calendar)
          ;; what makes a row open the search palette. The palette itself is
          ;; drawn outside every region and is not on the screen until it is
          ;; asked for (web/search); this is where it is asked for, next to the
@@ -45,8 +50,15 @@
           ;; re-fetches that page and lifts itself out of the reply whenever
           ;; the outline moves
           [render-sidebar
-           (-> list? #:home-href string? #:today-href string?
+           (-> list? #:home-href string?
                #:archive-href string?
+               ;; what day it is, as a string: the journal's entry is the month
+               ;; around it, and this layer reads no clock (olai/arch)
+               #:today string?
+               ;; the node THIS page is about, or #f. Chrome that draws the
+               ;; same node the pane does has to be able to say which one you
+               ;; are on; #f is every page that is not about one node
+               #:current-key (or/c string? #f)
                #:href string? #:node-href (-> string? string?)
                list?)]))
 
@@ -171,7 +183,8 @@
 ;; Sidebar: Today, Starred (placeholder), Home tree (disclosure only).
 (define (render-sidebar files-data
                         #:home-href home-href
-                        #:today-href today-href
+                        #:today today
+                        #:current-key current-key
                         #:href href
                         #:archive-href archive-href
                         #:node-href node-href)
@@ -212,28 +225,26 @@
           (div ((class ,ol-brand))
                (a ((class ,ol-brand-link) ,@(live-link ol-live home-href))
                   "olai"))
-          ;; Today is a ROUTE, so Today is a link — there is no longer a state
-          ;; where the app has the page and the sidebar was not told its
-          ;; address (which is what the dead-link branch here was standing in
-          ;; for). web/routes mints it from the pattern that dispatches it.
+          ;; TODAY IS NOT A ROW ANY MORE. It was one when the sidebar had no
+          ;; other way to reach the day you are in; the calendar below is that
+          ;; way, and it says which day today IS rather than promising to find
+          ;; out. A row that duplicates a control three inches down the same
+          ;; column is a row that has to be read twice and means once. The
+          ;; ROUTE stays — /today is an address an agent, a bookmark and a home
+          ;; screen all still name (docs/cli.md).
           ;;
-          ;; Archive is the second of them, and the same kind of thing: two ways
-          ;; into the outline that are not a node — the day you are in, and the
-          ;; work you put away. A link and not a section like Starred, because
-          ;; what is behind it is a whole outline; the tree below draws the live
-          ;; files only.
+          ;; Archive is not that: it is a whole outline nothing else here draws,
+          ;; so it keeps its row. A link and not a section like Starred, because
+          ;; what is behind it is a page.
           (nav ((class ,ol-sidebar-nav))
-               (a ((class ,ol-nav-item) ,@(live-link ol-live today-href))
-                  (span ((class ,ol-nav-icon) (aria-hidden "true")) "◉")
-                  "Today")
                (a ((class ,ol-nav-item) ,@(live-link ol-live archive-href))
                   (span ((class ,ol-nav-icon) (aria-hidden "true")) "▤")
                   "Archive")
-               ;; And the third row is not a link at all: Search has nowhere to
+               ;; And the second row is not a link at all: Search has nowhere to
                ;; GO. The palette opens over the page you are on, and `/` opens
                ;; it without coming here — this is the way in for a finger, and
-               ;; for anyone who has not learned the slash. Last of the three,
-               ;; because the two above it are places and this is an action.
+               ;; for anyone who has not learned the slash. Last of the two,
+               ;; because the one above it is a place and this is an action.
                (button ((type "button") (class ,(classes ol-nav-item ol-nav-button))
                         ,@(search-toggle-attributes))
                        (span ((class ,ol-nav-icon) (aria-hidden "true")) "⌕")
@@ -253,9 +264,22 @@
                    ,@(for/list ([e (in-list entries)])
                        (match-define (list label tasks) e)
                        `(div ((class ,ol-tree-file))
-                             (div ((class ,ol-tree-file-label)) ,label)
-                             (ul ((class ,ol-tree))
-                                 ,@(append*
-                                    (for/list ([tk (in-list tasks)])
-                                      (tree-item tk 0)))))))))
+                             ;; The day journal is the one root whose entry is
+                             ;; not its name. A month IS its table of contents
+                             ;; — the tree under it would be a year, twelve
+                             ;; months and a list of dates to scroll — so the
+                             ;; calendar stands where the label and the tree
+                             ;; would have, and reaches the same nodes.
+                             ,@(if (daily-file? label)
+                                   (list (render-month-calendar
+                                          tasks
+                                          #:today today
+                                          #:current-key current-key
+                                          #:node-href node-href))
+                                   (list
+                                    `(div ((class ,ol-tree-file-label)) ,label)
+                                    `(ul ((class ,ol-tree))
+                                         ,@(append*
+                                            (for/list ([tk (in-list tasks)])
+                                              (tree-item tk 0)))))))))))
 

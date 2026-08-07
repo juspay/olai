@@ -15,7 +15,7 @@
          racket/string
          (only-in gregor
                   date days-in-month iso8601->date iso8601->datetime today
-                  +months ->month ->wday ->year ~t))
+                  +days +months ->month ->wday ->year ~t))
 
 (provide valid-iso-date-string?
          normalize-date-string
@@ -23,6 +23,7 @@
          today-iso-string
          bare-iso-date-title?
          friendly-date-label
+         weekday-abbrev
          parse-year-month
          format-year-month
          shift-year-month
@@ -69,6 +70,17 @@
 ;; Display-only label for a bare ISO day: "Mon, Aug 3".
 (define (friendly-date-label iso-day)
   (~t (iso8601->date iso-day) "EEE, MMM d"))
+
+;; What a weekday is CALLED, two letters, by gregor's own number for it
+;; (0=Sun … 6=Sat): "Su", "Mo", … A column heading over a calendar is the same
+;; kind of fact as the label above, so it comes from the same place and out of
+;; the same library — a table of day names written by hand is the thing this
+;; module exists to not have. Any week does: the reference is a Sunday, and
+;; gregor names the day `w` days after it.
+(define sunday (date 2026 8 2))
+
+(define (weekday-abbrev w)
+  (~t (+days sunday w) "EEEEEE"))
 
 ;; ---- a month, and where its days land on a grid -----------------------------
 ;;

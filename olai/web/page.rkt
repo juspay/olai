@@ -44,6 +44,9 @@
                  ;; its markup was drawn from, which its stream connects with
                  #:href string?
                  #:cursor (or/c string? #f)
+                 ;; and the node it is about, which the chrome outside the
+                 ;; region reads back after every swap
+                 #:current-key (or/c string? #f)
                  #:head-extra list?
                  #:body-extra list?)
                 list?)]
@@ -63,13 +66,28 @@
 ;; underneath, and an empty slot must not leave a gap where the banner would be.
 (define-style ol-banner-slot [(: & empty) #:display none])
 
-(define (region-xexpr href banner main)
+;; WHICH NODE THIS PAGE IS ABOUT rides on the region, as an ordinary data
+;; attribute, and it is the only thing on the page that says so after a
+;; navigation.
+;;
+;; A link swaps THIS region and nothing else — the chrome around it is never
+;; rebuilt, which is the whole point of the live view (docs/live.md). So chrome
+;; that shows you where you are cannot be told by the server past the first
+;; render: the sidebar it drew is the one from the page you came from. What IS
+;; current after every swap is this element, because the swap is what replaced
+;; it. `static/calendar.js` reads it and marks the day; a browser running no JS
+;; still gets the server's mark on the page it loaded.
+;;
+;; Not an htmx attribute and not an address: a key, the same one every
+;; permalink carries, on the element that already carries this page's identity.
+(define (region-xexpr href banner main current-key)
   (define slot
     ;; fixed slot: the banner is swapped in and out, so it must exist
     ;; (empty) even on a healthy page
     `(div ((class ,ol-banner-slot) (id "ol-banner"))
           ,@(if banner (list banner) '())))
-  `(div (,@(live-region ol-live #:href href))
+  `(div (,@(live-region ol-live #:href href)
+         (data-current-key ,(or current-key "")))
         ,slot
         ,main))
 
@@ -113,6 +131,10 @@
                      ;; between. Every route passes one; a fragment test need
                      ;; not care.
                      #:cursor [cursor #f]
+                     ;; the node this page is ABOUT, or #f: chrome that draws
+                     ;; that node too has to be able to say you are on it, and
+                     ;; after a swap the region is the only thing that knows
+                     #:current-key [current-key #f]
                      #:head-extra [head-extra '()]
                      #:body-extra [body-extra '()])
   ;; No data-theme here: which theme you read in is the BROWSER's, and the boot
@@ -173,7 +195,7 @@
                 ,@(live-connect outline-events #:cursor cursor))
                ,@(if sidebar (list sidebar) '())
                (main ((class ,ol-main))
-                     ,(region-xexpr href banner main))
+                     ,(region-xexpr href banner main current-key))
                ,(render-stream-status)
                ,@body-extra)))
 

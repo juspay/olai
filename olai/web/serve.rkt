@@ -333,6 +333,7 @@
                 #:cursor cursor
                 #:sidebar [sidebar #f]
                 #:banner [banner #f]
+                #:current-key [current-key #f]
                 #:overlays [overlays '()]
                 #:code [code 200])
   (html-response
@@ -346,6 +347,7 @@
                  #:banner banner
                  #:href href
                  #:cursor cursor
+                 #:current-key current-key
                  #:body-extra overlays))
    #:code code))
 
@@ -353,11 +355,16 @@
 ;; the LIVE outlines: the archive has a page of its own and is not in the tree
 ;; on any of them (olai/archive), this one included — the sidebar is a region,
 ;; and the tree it holds has to say the same thing whichever address answered.
-(define (page-sidebar rs files-data #:href href)
+(define (page-sidebar rs files-data #:href href #:current-key current-key)
   (render-sidebar files-data
                   #:home-href (routes-home-href rs)
-                  #:today-href (routes-today-href rs)
                   #:archive-href (routes-archive-href rs)
+                  ;; the journal's entry is the month around today, and this is
+                  ;; the layer that is allowed to know what day it is
+                  #:today (today-iso-string)
+                  ;; and which node this page is about, so the chrome can say
+                  ;; you are on it — #f on every page that is not one node's
+                  #:current-key current-key
                   #:href href
                   #:node-href (routes-node-href rs)))
 
@@ -387,8 +394,10 @@
 ;; Every page here is the same shape: one snapshot, the chrome around it, and a
 ;; live region that re-fetches THIS url on an `outline` event. `view` is handed
 ;; the snapshot — and the live outlines out of it, which the chrome needed
-;; anyway — and answers (values main title), the only thing four pages differ
-;; in. It is handed nothing about the live view: every link on the page names
+;; anyway — and answers (values main title current-key), the only three things
+;; five pages differ in. The third is which node the page is ABOUT, #f for the
+;; pages that are about a whole outline: the chrome draws that node too (the
+;; journal's month), and a surface showing you where you are has to be told. It is handed nothing about the live view: every link on the page names
 ;; the region it aims at (web/render declares it), so there is no longer a
 ;; per-page value for a drawer to be given, or to forget.
 ;;
@@ -418,12 +427,17 @@
       ;; of them, the archive page included, and the home page's own pane is
       ;; the same list.
       (define live (live-entries (snapshot-files-data snap)))
-      (define-values (main title) (view snap live))
+      (define-values (main title current-key) (view snap live))
       (chrome main
               #:title title
               #:href live-href
               #:cursor (outline-cursor rev)
-              #:sidebar (page-sidebar rs live #:href live-href)
+              #:sidebar (page-sidebar rs live
+                                      #:href live-href
+                                      #:current-key current-key)
+              ;; and on the region, which is what a swap replaces: the chrome
+              ;; above was drawn once and is never rebuilt by a navigation
+              #:current-key current-key
               ;; the palette searches the LIVE outlines too: archived work has
               ;; a page of its own and is not an answer to a query (Roadmap,
               ;; archive; olai/search)
@@ -473,7 +487,7 @@
 (define (page-handler st rs chat)
   (outline-page st rs chat (routes-home-href rs)
    (λ (snap live)
-     (values (outline-pane rs snap live) (page-title snap)))))
+     (values (outline-pane rs snap live) (page-title snap) #f))))
 
 ;; A query, as a page.
 ;;
@@ -491,7 +505,8 @@
   (outline-page st rs chat ((routes-search-href rs) q) #:query q
    (λ (snap live)
      (values (outline-pane rs snap live)
-             (if q (string-append "search " q) "olai")))))
+             (if q (string-append "search " q) "olai")
+             #f))))
 
 ;; What was archived, on a page of its own.
 ;;
@@ -510,7 +525,8 @@
                                  #:today (today-iso-string)
                                  #:node-href (routes-node-href rs)
                                  #:docs (snapshot-docs snap)))
-             "archive"))))
+             "archive"
+             #f))))
 
 ;; A node's permalink.
 ;;
@@ -524,10 +540,12 @@
    (λ (snap _live)
      (define entry (node-at (snapshot-index snap) key))
      (if entry
-         ;; a tab zoomed on one node should say which
+         ;; a tab zoomed on one node should say which — and so should the
+         ;; chrome, wherever it draws that node too
          (values (zoom-pane rs snap entry (today-iso-string))
-                 (task-title (node-entry-task entry)))
-         (values (empty-pane rs "No such node.") "olai")))))
+                 (task-title (node-entry-task entry))
+                 key)
+         (values (empty-pane rs "No such node.") "olai" #f)))))
 
 ;; Today's Daily day node, zoomed. Finding today's key is a question about the
 ;; DAY; the answer goes through the same zoom pane as any permalink, and
@@ -542,14 +560,17 @@
   (outline-page st rs chat (routes-today-href rs)
    (λ (snap _live)
      (define today (today-iso-string))
-     (define entry (node-at (snapshot-index snap) (snapshot-day-key snap today)))
+     (define key (snapshot-day-key snap today))
+     (define entry (node-at (snapshot-index snap) key))
      (values (if entry
                  (zoom-pane rs snap entry today)
                  ;; no day node yet is the normal state before the first
                  ;; capture of the day, not an error
                  (empty-pane rs
                              (format "No day node for ~a. Run: olai daily" today)))
-             (string-append "today " today)))))
+             (string-append "today " today)
+             ;; this page IS a node's, whichever key today turned out to be
+             (and entry key)))))
 
 (define (tree-handler st)
   (with-snapshot st json-failure

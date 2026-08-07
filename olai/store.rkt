@@ -33,6 +33,9 @@
          (except-in olai/lang/expander #%module-begin)
          olai/lang/walk
          (only-in olai/edges edge-index?)
+         ;; what a day node is, and where it sits: the query layer's answer,
+         ;; read rather than repeated
+         (only-in olai/query day-site-for day-site-key)
          olai/load
          ;; what a path names right now — the root this store was built from,
          ;; and every pattern an @include starred. The one kind of dependency
@@ -222,13 +225,16 @@
 
 ;; The key of the day node titled `iso-day` (Daily.rkt keeps one per day), or
 ;; #f. First match in file order, so the answer does not depend on hash order.
+;;
+;; What a day node IS is not decided here: the query layer owns that (olai/
+;; query, day-site-for), so /today and the sidebar's calendar cannot come to
+;; hold two ideas of which node a day is. Which FILES are searched is this
+;; caller's own scope, and it is every loaded one.
 (define (snapshot-day-key snap iso-day)
   (for/or ([e (in-list (snapshot-files-data snap))])
     (match-define (list _ tasks) e)
-    (fold-tasks tasks
-                (λ (tk _path acc)
-                  (or acc (and (equal? (task-title tk) iso-day) (task-key tk))))
-                #f)))
+    (define site (day-site-for tasks iso-day))
+    (and site (day-site-key site))))
 
 ;; ---- @doc documents -------------------------------------------------------
 ;;

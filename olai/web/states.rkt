@@ -12,10 +12,15 @@
 
 (require olai/web/style)
 
-(provide is-done is-doing is-today is-tree is-collapsed has-children
+;; is-current is not a state of the NODE, it is a state of the page: the node
+;; this page is about, marked wherever the chrome also draws that node. Here
+;; with the rest of them because it qualifies other modules' classes the same
+;; way, and because the tree will want it the day the calendar does.
+(provide is-done is-doing is-today is-current is-tree is-collapsed has-children
          state-class)
 
-(define-modifier is-done is-doing is-today is-tree is-collapsed has-children)
+(define-modifier is-done is-doing is-today is-current is-tree is-collapsed
+  has-children)
 
 ;; One switch, so a fourth state is a clause here rather than a boolean loose
 ;; in the markup — and the shell, the checkbox and the pills cannot disagree

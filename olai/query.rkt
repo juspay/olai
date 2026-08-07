@@ -5,14 +5,20 @@
 ;; What is left after the dated queries were retired: how big an outline is,
 ;; and what the typed-edge graph says cannot start yet.
 
-(require (except-in olai/lang/expander #%module-begin)
+(require racket/list
+         (except-in olai/lang/expander #%module-begin)
          ;; which nodes are done work put away, and therefore neither blocking
          ;; nor blocked
          (only-in olai/archive archived-task?)
+         ;; what a day node is TITLED, which is the whole of what one is
+         (only-in olai/dates bare-iso-date-title?)
          olai/edges
          olai/lang/walk)
 
-(provide count-tasks
+(provide (struct-out day-site)
+         collect-day-sites
+         day-site-for
+         count-tasks
          count-mirrors
          blocked-nodes)
 
@@ -87,3 +93,47 @@
 ;; of them. Those queries are gone; the rule survives where it still has a
 ;; reader, which is the graph above (a node in Archive.rkt neither blocks nor
 ;; is blocked) and the web view's own page for reading them.
+;;
+;; WHERE THE DAY NODES ARE — one walk, and the only one that looks for them.
+;;
+;; A day node is a bare ISO title (Daily.rkt's own shape, olai/dates); this is
+;; where the tree is asked which of them it holds and what each one is. Callers
+;; want different things off it — the node to open for a day (the sidebar's
+;; cells), the node a month hangs under (its header), the one node today is
+;; (/today) — and a walk each is a place each to disagree about what a day is.
+;;
+;;   key    the day node's own key: what addresses that day
+;;   parent the key of the node it hangs under — the month in a Daily.rkt, the
+;;          year in the monolithic shape — or #f at a file's top level, where
+;;          a day has nothing above it
+;;
+;; -> hash "YYYY-MM-DD" -> day-site. FIRST site wins, in tree order, which is
+;; the rule the store's own day lookup keeps: an outline with two nodes titled
+;; one day says one thing twice, and every surface agrees on the first.
+(struct day-site (key parent) #:transparent)
+
+(define (collect-day-sites tasks)
+  (fold-tasks tasks
+              (λ (tk path acc)
+                (define title (task-title tk))
+                (if (and (bare-iso-date-title? title)
+                         (not (hash-has-key? acc title)))
+                    (hash-set acc title (site-of tk path))
+                    acc))
+              (hash)))
+
+;; ONE day, asked for by name: the same rule, and the same first-wins, without
+;; indexing every day the outline holds to answer about one of them. The title
+;; is the whole test — a day node is a node titled a bare ISO date, and the
+;; caller has just said which date.
+(define (day-site-for tasks iso-day)
+  (and (bare-iso-date-title? iso-day)
+       (fold-tasks tasks
+                   (λ (tk path acc)
+                     (or acc
+                         (and (equal? (task-title tk) iso-day)
+                              (site-of tk path))))
+                   #f)))
+
+(define (site-of tk path)
+  (day-site (task-key tk) (and (pair? path) (task-key (last path)))))

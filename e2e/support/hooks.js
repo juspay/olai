@@ -53,12 +53,19 @@ const STORED_SESSIONS = {
 
 // The roots a scenario wants staged BESIDE the outline, by tag: a second file
 // for the anchors that reach across them, the archive for the work that has
-// been put away. Staged at boot because that is the state the scenario starts
-// IN, not because a server cannot see a root arrive — `serve DIR` re-asks the
-// directory, and one scenario is about exactly that.
+// been put away, the day journal for the sidebar's month. Staged at boot
+// because that is the state the scenario starts IN, not because a server
+// cannot see a root arrive — `serve DIR` re-asks the directory, and one
+// scenario is about exactly that.
+//
+// Each is a STEP that puts a root in the directory, not a pair of strings,
+// because the journal is the one root no constant can be: it is only worth
+// looking at when one of its days is today, so the product writes it
+// (world.daily) rather than a file in fixtures/ pretending.
 const EXTRA_ROOTS = {
-  "@cross-file": [SECOND_OUTLINE, SECOND],
-  "@archived": [ARCHIVE_OUTLINE, ARCHIVE],
+  "@cross-file": (world) => world.stage(SECOND_OUTLINE, SECOND),
+  "@archived": (world) => world.stage(ARCHIVE_OUTLINE, ARCHIVE),
+  "@daily": (world) => world.daily(),
 };
 
 // The screen is the other thing a scenario asks for by tag. Not an assertion
