@@ -27,3 +27,28 @@ Feature: one node, shown wherever it matters
     Then "Ship the server" is not done
     When I check off "^serve" from the CLI against "Week.rkt"
     Then "Ship the server" becomes done
+
+  # THE ARROW. It is a link to the node this site mirrors, and the node is
+  # somewhere else — another file, and usually another page. It used to be the
+  # same-page fragment `#serve`, which is in the markup only where the defining
+  # site is: on a zoom page there is no defining site, so the click did nothing
+  # at all. Nothing here clicked it, which is how that shipped.
+  @cross-file
+  Scenario: the arrow on a mirror reaches the file that defines the node
+    When I open the home page
+    And I zoom into "Next week"
+    And I follow the mirror's arrow under "Next week"
+    Then I am on a node's own page
+    And the tab is named for "Ship the server"
+    And the breadcrumbs read "home > Tasks.rkt"
+    And I see the title "Write the tests"
+
+  # The same arrow on the one page the fragment did work — where it scrolled
+  # instead of navigating. One arrow, one behaviour: it goes to the node's page.
+  Scenario: the arrow on an in-file mirror goes to the node's own page
+    When I open the home page
+    And I follow the mirror's arrow under "This week"
+    Then I am on a node's own page
+    And the tab is named for "Ship the server"
+    And the breadcrumbs read "home > Tasks.rkt"
+    And I see the title "Write the tests"

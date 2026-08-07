@@ -15,6 +15,9 @@
          olai/load
          olai/web/live
          olai/web/render
+         ;; the app's own route table: a renderer is handed the address of a
+         ;; node, so these hand it the one the router answers at
+         (only-in olai/tests/addresses test-node-href)
          olai/web/watch)
 
 (module+ test
@@ -71,15 +74,18 @@
   ;; used to point at a thousand-line file and now points at the thing drawn.
   (test-case "web/node: the renderer draws tasks, not titles"
     (check-exn (blames "node.rkt")
-               (λ () (render-node-fragment "Buy milk" #:today "2026-08-04")))
+               (λ () (render-node-fragment "Buy milk" #:today "2026-08-04"
+                                           #:node-href test-node-href)))
     ;; a zoom is a node and the trail above it, both given: this layer draws
     ;; one, it does not look one up
     (check-exn (blames "zoom.rkt")
-               (λ () (render-zoom "ship" '() #:today "2026-08-04" #:home-href "/")))
+               (λ () (render-zoom "ship" '() #:today "2026-08-04" #:home-href "/"
+                                  #:node-href test-node-href)))
     ;; `today` is an argument, and it is a string: no clock, no #f
     (check-exn (blames "node.rkt")
                (λ () (render-node-fragment (make-task #:title "T" #:key "k")
-                                           #:today #f))))
+                                           #:today #f
+                                           #:node-href test-node-href))))
 
   ;; The transport's own boundary is the framework's to police
   ;; (live/tests/hub.rkt); this is olai's side — a revision is a number, a

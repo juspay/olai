@@ -18,14 +18,12 @@
 
 (provide (contract-out
           [render-outline
-           (->* (list? #:today string?)
-                (#:zoom-base (or/c string? #f) #:toggle-base (or/c string? #f)
-                 #:docs hash?)
+           (->* (list? #:today string? #:node-href (-> string? string?))
+                (#:toggle-base (or/c string? #f) #:docs hash?)
                 list?)]
           [render-file-section
-           (->* (any/c #:today string?)
-                (#:zoom-base (or/c string? #f) #:toggle-base (or/c string? #f)
-                 #:docs hash?)
+           (->* (any/c #:today string? #:node-href (-> string? string?))
+                (#:toggle-base (or/c string? #f) #:docs hash?)
                 list?)]
           ;; the same normalisation the sidebar draws its tree from: two
           ;; surfaces over one files-data, and one answer to what a label is
@@ -64,7 +62,7 @@
 ;; save touches one file, and #ol-file-<label> is what it swaps.
 (define (render-file-section entry
                              #:today today
-                             #:zoom-base [zoom-base #f]
+                             #:node-href node-href
                              #:toggle-base [toggle-base #f]
                              #:docs [docs (hash)])
   (match-define (list label tasks) (car (normalize-files-data (list entry))))
@@ -78,20 +76,20 @@
                                   #:site #f
                                   #:owner (id-safe label)
                                   #:today today
-                                  #:zoom-base zoom-base
+                                  #:node-href node-href
                                   #:toggle-base toggle-base
                                   #:docs docs)))))
 
 (define (render-outline files-data
                         #:today today
-                        #:zoom-base [zoom-base #f]
+                        #:node-href node-href
                         #:toggle-base [toggle-base #f]
                         #:docs [docs (hash)])
   `(div ((class ,ol-pane) (id "ol-outline"))
         ,@(for/list ([e (in-list files-data)])
             (render-file-section e
                                  #:today today
-                                 #:zoom-base zoom-base
+                                 #:node-href node-href
                                  #:toggle-base toggle-base
                                  #:docs docs))))
 

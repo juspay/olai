@@ -41,6 +41,9 @@
          ;; the renderers: what the skin is FOR, and the only honest answer to
          ;; "does anything wear this class"
          olai/web/render
+         ;; the app's own route table: a renderer is handed the address of a
+         ;; node, so these hand it the one the router answers at
+         (only-in olai/tests/addresses test-node-href)
          olai/web/chat-panel
          olai/store
          olai/index
@@ -152,15 +155,15 @@
    ;; rules looking like rules for markup that does not exist
    (render-page (render-outline example-files
                                 #:today example-today
-                                #:zoom-base "/z/" #:toggle-base "/toggle/"
+                                #:node-href test-node-href #:toggle-base "/toggle/"
                                 ;; the demo outline attaches a @doc, and the
                                 ;; store read it: what a document looks like
                                 ;; collapsed is a state the skin paints
                                 #:docs (snapshot-docs example-snapshot))
                 #:sidebar (render-sidebar example-files
-                                          #:home-href "/" #:today-href "/today"
+                                          #:home-href "/" #:today-href "/today" #:archive-href "/archive"
                                           #:href "/"
-                                          #:zoom-base "/z/")
+                                          #:node-href test-node-href)
                 #:href "/"
                 #:cursor "boot.1"
                 #:banner (render-error-banner "expected ISO date"
@@ -171,9 +174,10 @@
      ;; page a whole @doc document is drawn on
      (render-zoom (node-entry-task entry)
                   (node-ancestors index entry)
-                  #:today example-today #:home-href "/" #:zoom-base "/z/"
+                  #:today example-today #:home-href "/" #:node-href test-node-href
                   #:docs (snapshot-docs example-snapshot)))
-   (render-empty-pane "No such node." #:home-href "/")
+   (render-empty-pane "No such node." #:home-href "/"
+                      #:node-href test-node-href)
    ;; a mirror site whose anchor named nothing: the outline still says
    ;; something belongs here, and the marker is drawn in that state
    (render-node-fragment
@@ -181,7 +185,8 @@
           (list (make-task #:title "Holder" #:key "probe-holder"
                            #:children (list (mirror-ref "no-such-anchor" #f))))
           (hash)))
-    #:today example-today)
+    #:today example-today
+                         #:node-href test-node-href)
    ;; Markdown at render time: the anchor, the code, the picture and the
    ;; footnotes a note (or a finished turn) makes are the classes the demo
    ;; outlines never happen to contain.
