@@ -1,11 +1,13 @@
 has-children
 has-commands
+has-more
 is-agent
 is-busy
 is-collapsed
 is-doing
 is-done
 is-error
+is-expanded
 is-on
 is-open
 is-picked
@@ -81,6 +83,8 @@ ol-nav-icon
 ol-nav-item
 ol-node
 ol-note
+ol-note-block
+ol-note-more
 ol-outline
 ol-pane
 ol-pill

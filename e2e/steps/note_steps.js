@@ -1,10 +1,10 @@
-// The note's fold: how tall the box is, and whether anything is being cut off
-// by it.
+// The note's fold: how tall the box is, whether anything is being cut off by
+// it, and the button that decides.
 //
-// Both questions are asked of the ELEMENT rather than of a class, because
-// there is no class to ask — the fold is CSS over a hover and a focus
-// (web/node), and nothing writes any state down. So "folded" is the box being
-// shorter than what is in it, and "open" is it no longer being so.
+// "Folded" is asked of the ELEMENT — the box being shorter than what is in it
+// — because that is what a reader sees; the class and the ARIA state are
+// asserted beside it, the way collapse_steps does, so a fold that stopped
+// saying what it is to a screen reader fails here too.
 //
 // A note is addressed through the node it belongs to, like every other part of
 // a node in this suite.
@@ -12,86 +12,143 @@
 import assert from "node:assert/strict";
 import { Then, When } from "@cucumber/cucumber";
 
-// The note of a node's OWN row: a descendant's is another node's.
-function note(world, title) {
-  return world.node(title).first().locator(":scope > .ol-row .ol-note").first();
+import { hasClass } from "../support/dom.js";
+
+// The note block of a node's OWN row: a descendant's is another node's.
+function block(world, title) {
+  return world
+    .node(title)
+    .first()
+    .locator(":scope > .ol-row .ol-note-block")
+    .first();
 }
 
-/** How the box and its contents measure up, in one round trip: whether the
- *  box is cutting anything off, and how many lines tall it is. The line count
- *  is a ratio and not a pixel count — the note's own line-height is what a
- *  line IS, and a rounded font metric would make an assertion about type
- *  sizes out of an assertion about a fold. */
-async function measure(el) {
-  await el.waitFor();
-  return await el.evaluate((n) => {
-    const lineHeight = parseFloat(getComputedStyle(n).lineHeight);
-    return {
-      clipped: n.scrollHeight > n.clientHeight + 1,
-      lines: n.clientHeight / lineHeight,
-      text: n.textContent,
-    };
-  });
+// The same node drawn at a second site, under the node it hangs from.
+function mirrorBlock(world, parent) {
+  return world
+    .node(parent)
+    .first()
+    .locator(".ol-node")
+    .filter({ has: world.page.locator(".ol-mirror") })
+    .first()
+    .locator(":scope > .ol-row .ol-note-block")
+    .first();
 }
 
-// One line tall AND cutting something off: a box that is one line tall
-// because that is all there is would pass half of this and mean the opposite.
-// The line count is generous on purpose — a note's first block carries a
-// margin, so one line of text is a little more than one line-height of box,
-// and two lines are a great deal more than this.
-Then("the note under {string} is folded to one line", async function (title) {
-  const m = await measure(note(this, title));
-  assert.ok(m.clipped, `${title}: the note is showing everything it has`);
-  assert.ok(
-    m.lines < 1.75,
-    `${title}: the note is ${m.lines.toFixed(2)} lines tall, not one`,
-  );
+/** Whether the fold is cutting anything off, in one round trip. Nothing here
+ *  measures a line height: what "one line" is belongs to the stylesheet, and
+ *  the question a reader asks is only whether there is more than is showing. */
+async function clipped(blk) {
+  const note = blk.locator(".ol-note").first();
+  await note.waitFor();
+  return await note.evaluate((n) => n.scrollHeight > n.clientHeight + 1);
+}
+
+/** Wait until notes.js has had its pass over this page.
+ *
+ *  The button is drawn from a MEASUREMENT, so before that pass every note
+ *  looks like a note with nothing to open — which is exactly what half these
+ *  steps assert. The fixture guarantees one note that does have more in it, so
+ *  its button appearing is the honest signal that the pass has happened. */
+async function measured(world) {
+  await world.page.locator(".ol-note-block.has-more").first().waitFor();
+}
+
+// ---- what the fold is doing ------------------------------------------------
+
+Then("the note under {string} is folded", async function (title) {
+  await assertFolded(block(this, title), true, title);
 });
 
-Then("the note under {string} is one line tall", async function (title) {
-  const m = await measure(note(this, title));
-  assert.ok(
-    m.lines < 1.75,
-    `${title}: the note is ${m.lines.toFixed(2)} lines tall, not one`,
-  );
+Then("the mirrored note under {string} is folded", async function (parent) {
+  await assertFolded(mirrorBlock(this, parent), true, `the mirror under ${parent}`);
 });
 
 // Nothing cut off. For the note that is already one line this is the whole
-// assertion: there is no ellipsis, because there is nothing to ellipsize.
+// assertion: nothing was ever hidden, so there is nothing to open.
 Then("the note under {string} shows all of it", async function (title) {
-  const m = await measure(note(this, title));
-  assert.ok(!m.clipped, `${title}: the note is still cutting itself off`);
+  assert.equal(
+    await clipped(block(this, title)),
+    false,
+    `${title}: the note is still cutting itself off`,
+  );
 });
 
 // The point of a fold that is a BOX: folded or not, the text is in the page,
 // so find-in-page finds it and a morph has it to compare against.
 Then("the note under {string} still says {string}", async function (title, text) {
-  const m = await measure(note(this, title));
-  assert.ok(m.clipped, `${title}: the note is not folded, so this proves nothing`);
-  assert.ok(
-    m.text.includes(text),
-    `${title}: the folded note has lost "${text}"`,
+  const blk = block(this, title);
+  assert.equal(await clipped(blk), true, `${title}: the note is not folded`);
+  const said = await blk.locator(".ol-note").first().textContent();
+  assert.ok(said.includes(text), `${title}: the folded note has lost "${text}"`);
+});
+
+// ---- the affordance --------------------------------------------------------
+
+Then("the note under {string} offers to open", async function (title) {
+  await button(block(this, title)).waitFor({ state: "visible" });
+});
+
+Then("the note under {string} offers nothing to open", async function (title) {
+  await measured(this);
+  assert.equal(
+    await button(block(this, title)).isVisible(),
+    false,
+    `${title}: a note that fits on its line is offering to open`,
   );
 });
 
-// ---- the two ways to open one ----------------------------------------------
+// ---- opening and folding ---------------------------------------------------
 
-// The pointer goes on the node's own TITLE: anywhere in the node opens it, and
-// the title is the part of it every node has.
-When("I point at {string}", async function (title) {
-  await this.node(title)
-    .first()
-    .locator(":scope > .ol-row .ol-title")
-    .first()
-    .hover();
+When("I open the note under {string}", async function (title) {
+  await setOpen(this, block(this, title), true);
 });
 
-// Off every node, without leaving the page: the top-left corner is the
-// sidebar's, which has no notes in it.
-When("I point away", async function () {
-  await this.page.mouse.move(0, 0);
+When("I fold the note under {string}", async function (title) {
+  await setOpen(this, block(this, title), false);
 });
 
-When("I tap the note under {string}", async function (title) {
-  await note(this, title).click();
+// The button and nothing else. Named as a tap because the scenario that uses
+// it runs on a phone screen, where it is the whole of the interaction.
+When("I tap the note's button under {string}", async function (title) {
+  await measured(this);
+  await button(block(this, title)).click();
 });
+
+// A pointer that is only passing through. The step exists to be followed by an
+// assertion that nothing happened.
+When("I point at the note under {string}", async function (title) {
+  await measured(this);
+  await block(this, title).locator(".ol-note").first().hover();
+});
+
+// ---- helpers ---------------------------------------------------------------
+
+function button(blk) {
+  return blk.locator(".ol-note-more").first();
+}
+
+/** Press the button only when it is pointing the wrong way: it is a toggle, so
+ *  a step that always clicked would mean "open" or "fold" by luck. */
+async function setOpen(world, blk, want) {
+  await measured(world);
+  if ((await hasClass(blk, "is-expanded")) === want) return;
+  await button(blk).click();
+}
+
+async function assertFolded(blk, want, what) {
+  assert.equal(await clipped(blk), want, `${what}: the fold is the wrong way round`);
+  assert.equal(
+    await hasClass(blk, "is-expanded"),
+    !want,
+    `${what}: the class disagrees with what is on screen`,
+  );
+  const btn = button(blk);
+  if (await btn.isVisible()) {
+    assert.equal(
+      await btn.getAttribute("aria-expanded"),
+      want ? "false" : "true",
+      `${what}: aria-expanded disagrees with the fold`,
+    );
+  }
+}
