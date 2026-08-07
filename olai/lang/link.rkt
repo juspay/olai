@@ -30,22 +30,14 @@
          (except-in olai/lang/expander #%module-begin))
 
 (provide (contract-out
-          [link-anchors (-> (listof list?) hash?)]))
+          [link-anchors (-> list? hash?)]))
 
-;; What the set's anchors cover, as the error messages say it out loud. A
-;; module's own passes have no name for their scope — they are open, and the
-;; rule that would need one is this pass's.
-(define set-scope "the loaded set")
-
-;; forests : one (listof task) per file, in load order.
-;; -> hash id -> task, or raises exn:fail:syntax at the offending form.
-;;
-;; The forests are checked as ONE forest: nothing about these rules is per
+;; The set's task forests as ONE forest — nothing about these rules is per
 ;; file, and a duplicate that spans two of them is exactly the case the
 ;; per-module passes cannot see.
-(define (link-anchors forests)
-  (define roots (apply append forests))
-  (check-task-graph roots #:scope set-scope)
-  ;; The index is built AFTER the check, so a duplicate is an error rather
-  ;; than one node silently overwriting another.
-  (anchors-of roots))
+;;
+;; -> hash id -> task, or raises exn:fail:syntax at the offending form. The
+;; index is what the check collected on its way through, so a duplicate is an
+;; error rather than one node silently overwriting another.
+(define (link-anchors roots)
+  (check-task-graph roots #:scope "the loaded set"))

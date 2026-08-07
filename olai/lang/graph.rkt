@@ -21,11 +21,7 @@
 (require racket/list
          racket/string)
 
-(provide check-anchor-graph
-         ;; the "unknown name" diagnostic, for the next kind of reference to
-         ;; reuse: a typed edge's target is an anchor too (docs/brainstorming/
-         ;; typed-edges.md), and it deserves the same sentence
-         unknown-anchor-message)
+(provide check-anchor-graph)
 
 ;; roots     : (listof node)
 ;; #:id      : node -> string | #f   (its ^anchor)
@@ -39,6 +35,10 @@
 ;;             leaves "unknown" to the linker, which is closed by construction.
 ;; #:describe: node -> string        (where it is, for "first declared at")
 ;; #:fail    : who node message -> ⊥ (node may be #f)
+;;
+;; -> hash anchor -> declaring node. The first rule below has to collect that
+;; to check the second and third, and it is the answer a caller wants anyway
+;; ("which node is ^agent"); returning it beats walking the forest again.
 (define (check-anchor-graph roots
                             #:id id-of
                             #:kids kids-of
@@ -50,7 +50,7 @@
   (when scope
     (check-mirrors-resolve roots kids-of mirror-of decls scope fail))
   (check-cycles decls id-of kids-of mirror-of fail)
-  (void))
+  decls)
 
 ;; anchor -> declaring node; duplicates are the first rule.
 (define (declarations roots id-of kids-of mirror-of describe fail)
@@ -82,27 +82,24 @@
 ;; What a name that resolves to nothing is told: the name, every anchor that
 ;; DOES exist in the scope it was looked up in, and — when one of them is a
 ;; typo away — which one it probably meant.
-;;
-;; `sigil` is how the reference was written: `*` for a mirror site, and an
-;; edge's own spelling when one arrives.
-(define (unknown-anchor-message name known #:scope scope #:sigil [sigil "*"])
+(define (unknown-anchor-message name known #:scope scope)
   (define listed (if (null? known) "(none)" (string-join known ", ")))
   (define near (nearest name known))
-  (format "unknown ~a~a; anchors in ~a: ~a~a"
-          sigil name scope listed
-          (if near (format "; did you mean ~a~a?" sigil near) "")))
+  (format "unknown *~a; anchors in ~a: ~a~a"
+          name scope listed
+          (if near (format "; did you mean *~a?" near) "")))
 
 ;; The one candidate close enough to be worth naming, or #f. "Close enough" is
 ;; one edit per three characters (and always at least one), which catches the
 ;; typo an agent actually makes — a dropped letter, a swapped pair — without
-;; offering ^demo for ^order. Ties go to the first in sorted order, so the same
-;; mistake is answered the same way twice.
+;; offering ^demo for ^order. `known` is sorted and argmin keeps the first of
+;; a tie, so the same mistake is answered the same way twice.
 (define (nearest name known)
-  (define limit (max 1 (quotient (string-length name) 3)))
-  (for/fold ([best #f] [best-d (add1 limit)] #:result best)
-            ([k (in-list known)])
-    (define d (edit-distance name k))
-    (if (< d best-d) (values k d) (values best best-d))))
+  (and (pair? known)
+       (let ([best (argmin (λ (k) (edit-distance name k)) known)])
+         (and (<= (edit-distance name best)
+                  (max 1 (quotient (string-length name) 3)))
+              best))))
 
 ;; Levenshtein, one row at a time: `prev` is the row above and `row` is this
 ;; one, each cell consed on, so its head is always the cell just left of the

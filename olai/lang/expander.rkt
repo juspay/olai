@@ -430,17 +430,6 @@
       [else '()]))
   (append* (map walk tasks)))
 
-;; Validation over TASKS instead of syntax — the same rules, and the only
-;; shape left once @include has spliced or once several files are held side by
-;; side. A node carries the srcloc of the form that defined it, so an error
-;; here says file:line:col even though nothing syntactic is left.
-;;
-;; It raises exn:fail:syntax, which is not a lie: this IS the language
-;; rejecting a form, and it is what makes olai/load report the location
-;; in the same fields as any other read/expand error.
-;;
-;; Exported because the LINKER runs it over the whole loaded set (lang/link),
-;; which is the same check with the scope closed.
 (define (loc->syntax loc)
   (and loc
        (datum->syntax #f 'olai
@@ -465,6 +454,18 @@
     [(mirror-ref? x) (mirror-ref-loc x)]
     [else #f]))
 
+;; Validation over TASKS instead of syntax — the same rules, and the only
+;; shape left once @include has spliced or once several files are held side by
+;; side. A node carries the srcloc of the form that defined it, so an error
+;; here says file:line:col even though nothing syntactic is left.
+;;
+;; It raises exn:fail:syntax, which is not a lie: this IS the language
+;; rejecting a form, and it is what makes olai/load report the location in the
+;; same fields as any other read/expand error. It answers with the anchors it
+;; declared on the way through.
+;;
+;; Exported because the LINKER runs it over the whole loaded set (lang/link),
+;; which is the same check with the scope closed.
 (define (check-task-graph tasks #:scope [scope #f])
   (check-anchor-graph
    tasks
@@ -478,8 +479,7 @@
      (define stx (loc->syntax (and x (node-loc x))))
      (raise (exn:fail:syntax (format "~a: ~a" who msg)
                              (current-continuation-marks)
-                             (if stx (list stx) '())))))
-  (void))
+                             (if stx (list stx) '()))))))
 
 (define (finalize-tasks forms src)
   (define includes (collect-include-paths forms))

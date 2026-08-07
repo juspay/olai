@@ -8,11 +8,10 @@
 ;; and tests/include.rkt.
 
 (require racket/file
-         racket/list
          racket/string
-         json
          (except-in olai/lang/expander #%module-begin)
-         (only-in olai/lang/walk mirror-site? mirror-site-of mirror-site-task)
+         (only-in olai/lang/walk find-tasks-by-title
+                  mirror-site? mirror-site-of mirror-site-task)
          olai/agenda
          olai/json/model
          olai/load
@@ -28,10 +27,8 @@
     (display-to-file body p #:exists 'truncate/replace)
     p)
 
-  ;; What every read command does with the paths it was given: load each,
-  ;; then link them as the one set they are.
-  (define (load-set . paths)
-    (link-outlines (for/list ([p (in-list paths)]) (try-load-outline p))))
+  ;; What every read command does with the paths it was given (olai/load).
+  (define (link . paths) (load-set paths))
 
   (define (linked-or-fail lk)
     (check-true (linked? lk) (format "~a" lk))
@@ -43,15 +40,7 @@
 
   (define (in-dir name proc)
     (define dir (make-temporary-file (string-append name "~a") 'directory))
-    (dynamic-wind void (λ () (proc dir)) (λ () (delete-directory/files dir))))
-
-  ;; The node titled `title` anywhere under `tasks`.
-  (define (find-node tasks title)
-    (for/or ([x (in-list tasks)])
-      (cond
-        [(not (task? x)) #f]
-        [(equal? (task-title x) title) x]
-        [else (find-node (task-children x) title)]))))
+    (dynamic-wind void (λ () (proc dir)) (λ () (delete-directory/files dir)))))
 
 (module+ test
   (test-case "a mirror reaches an anchor another file declares"
@@ -64,7 +53,7 @@
        (define daily
          (write-outline dir "Daily.rkt"
                         "#lang olai\n2026-08-06\n  *meeting-prep\n"))
-       (define lk (linked-or-fail (load-set tasks-file daily)))
+       (define lk (linked-or-fail (link tasks-file daily)))
        ;; the index is the SET's: one entry, from the file that declares it
        (check-equal? (hash-keys (linked-anchors lk)) '("meeting-prep"))
        (define target (hash-ref (linked-anchors lk) "meeting-prep"))
@@ -85,7 +74,7 @@
        (define daily
          (write-outline dir "Daily.rkt"
                         "#lang olai\nToday\n  Standup\n  *meeting-prep\n"))
-       (define-values (where msg) (error-of (load-set daily)))
+       (define-values (where msg) (error-of (link daily)))
        (check-true (string-contains? where "Daily.rkt") where)
        (check-true (string-contains? where ":4:") where)
        (check-true (regexp-match? #px"unknown \\*meeting-prep" msg) msg)
@@ -112,7 +101,7 @@
          (write-outline dir "Tasks.rkt" "#lang olai\nMeeting prep ^meeting-prep\n"))
        (define daily
          (write-outline dir "Daily.rkt" "#lang olai\nToday\n  *meting-prep\n"))
-       (define-values (_where msg) (error-of (load-set tasks-file daily)))
+       (define-values (_where msg) (error-of (link tasks-file daily)))
        (check-true (string-contains? msg "did you mean *meeting-prep?") msg)))
 
     ;; and a name that is nothing like the ones there gets the list, not a guess
@@ -123,7 +112,7 @@
          (write-outline dir "Tasks.rkt" "#lang olai\nWork ^agent\n"))
        (define daily
          (write-outline dir "Daily.rkt" "#lang olai\nToday\n  *groceries\n"))
-       (define-values (_where msg) (error-of (load-set tasks-file daily)))
+       (define-values (_where msg) (error-of (link tasks-file daily)))
        (check-true (string-contains? msg "anchors in the loaded set: agent") msg)
        (check-false (string-contains? msg "did you mean") msg))))
 
@@ -134,7 +123,7 @@
        (define a (write-outline dir "Tasks.rkt" "#lang olai\nWork ^agent\n"))
        (define b (write-outline dir "Other.rkt"
                                 "#lang olai\nSomething else\n  Also ^agent\n"))
-       (define-values (where msg) (error-of (load-set a b)))
+       (define-values (where msg) (error-of (link a b)))
        ;; the error is AT the second declaration
        (check-true (string-contains? where "Other.rkt") where)
        (check-true (string-contains? where ":3:") where)
@@ -148,7 +137,7 @@
      (λ (dir)
        (define a (write-outline dir "A.rkt" "#lang olai\nA ^a\n  *b\n"))
        (define b (write-outline dir "B.rkt" "#lang olai\nB ^b\n  *a\n"))
-       (define-values (where msg) (error-of (load-set a b)))
+       (define-values (where msg) (error-of (link a b)))
        (check-true (regexp-match? #px"a -> b -> a|b -> a -> b" msg) msg)
        (check-true (or (string-contains? where "A.rkt")
                        (string-contains? where "B.rkt"))
@@ -164,7 +153,7 @@
        (define root
          (write-outline dir "root.rkt"
                         "#lang olai\nWeek\n  @include frag.rkt\n  *nope\n"))
-       (define-values (where msg) (error-of (load-set root)))
+       (define-values (where msg) (error-of (link root)))
        (check-true (string-contains? where "root.rkt") where)
        (check-true (string-contains? where ":4:") where)
        (check-true (regexp-match? #px"unknown \\*nope" msg) msg)
@@ -181,7 +170,7 @@
                                 "#lang olai\nMeeting prep ^meeting-prep\n"))
        (define b (write-outline dir "Daily.rkt"
                                 "#lang olai\n2026-08-06\n  *meeting-prep\n"))
-       (define j (linked->jsexpr (linked-or-fail (load-set a b))))
+       (define j (linked->jsexpr (linked-or-fail (link a b))))
        ;; two files, one index over them
        (check-equal? (length (hash-ref j 'files)) 2)
        (define anchors (hash-ref j 'anchors))
@@ -208,7 +197,7 @@
                                 "#lang olai\nMilk ^milk\n  @date 2026-07-01\n"))
        (define b (write-outline dir "Daily.rkt"
                                 "#lang olai\n2026-08-06\n  *milk\n"))
-       (define lk (linked-or-fail (load-set a b)))
+       (define lk (linked-or-fail (link a b)))
        (define groups
          (agenda-groups-from-files
           (for/list ([o (in-list (linked-outlines lk))])
@@ -242,8 +231,9 @@
        (check-equal? (task-title bound) "Meeting prep")
        ;; the same node, so the same key: the defining site owns it
        (define defining
-         (find-node (outline-tasks (car (snapshot-outlines (store-snapshot st))))
-                    "Meeting prep"))
+         (car (find-tasks-by-title
+               (outline-tasks (car (snapshot-outlines (store-snapshot st))))
+               "Meeting prep")))
        (check-equal? (task-key bound) (task-key defining))
        ;; the subtree came along
        (check-equal? (map task-title (task-children bound)) '("slides"))

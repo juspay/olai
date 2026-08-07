@@ -57,7 +57,6 @@
                             [docs hash?]
                             [watch (listof path?)])]
           [snapshot-outlines (-> snapshot? (listof outline?))]
-          [snapshot-anchors (-> snapshot? hash?)]
           [snapshot-day-key (-> snapshot? string? (or/c string? #f))]
           [call-in-outline-namespace (-> (-> any) any)]))
 
@@ -76,9 +75,10 @@
 ;;                every document @doc named
 (struct snapshot (linked files-data index docs watch) #:transparent)
 
-;; The two questions everyone actually asks the set, without unwrapping it.
+;; The question every handler asks the set, without unwrapping it. The anchor
+;; index has no such reader: mirror sites are bound here, once per load, so
+;; nothing downstream has to resolve a name.
 (define (snapshot-outlines snap) (linked-outlines (snapshot-linked snap)))
-(define (snapshot-anchors snap) (linked-anchors (snapshot-linked snap)))
 
 (define empty-snapshot (snapshot empty-linked '() (hash) (hash) '()))
 
@@ -249,25 +249,16 @@
 
 ;; -> (values linked #f (listof path)) | (values #f load-error '())
 ;;
-;; Loading a file at a time and LINKING the result are one step from out here:
-;; a set that does not link is a set that cannot be served, exactly like a file
-;; that does not parse, and it fails in the same fields.
+;; The set is olai/load's to assemble; what this layer adds is WHEN — a fresh
+;; namespace, so the module registry cannot hand back yesterday's file — and
+;; the watch set that says when to do it again.
 (define (load-all files)
   (call-in-outline-namespace
    (λ ()
-     (let loop ([fs files] [acc '()])
-       (cond
-         [(null? fs)
-          (define outs (reverse acc))
-          (define lk (link-outlines outs))
-          (if (linked? lk)
-              (values lk #f (watch-set outs))
-              (values #f lk '()))]
-         [else
-          (define r (try-load-outline (car fs)))
-          (if (outline? r)
-              (loop (cdr fs) (cons r acc))
-              (values #f r '()))])))))
+     (define lk (load-set files))
+     (if (linked? lk)
+         (values lk #f (watch-set (linked-outlines lk)))
+         (values #f lk '())))))
 
 ;; ---- the store ------------------------------------------------------------
 

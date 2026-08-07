@@ -128,21 +128,18 @@
 ;; `anchors` stays what it always was: the anchors that file declares.
 (define (linked->jsexpr lk)
   (define entries (linked-outlines lk))
-  ;; The one file, when there is exactly one: both the shape below and the
-  ;; index above turn on it, and asking twice is two places to disagree.
-  (define only (and (= (length entries) 1) (car entries)))
   (define (one o)
     (outline->jsexpr (outline-path o) (outline-tasks o) (outline-anchors o)
                      #:includes (outline-includes o)))
-  ;; A node in that index carries its own `file`, because the index spans the
-  ;; set and the answer differs per anchor. The one case where it does not is
-  ;; a set of ONE file: there the reader already has the file, and saying it
-  ;; again on every anchor would be noise (the rule tasks follow, above).
-  (define set-anchors
-    (anchors->jsexpr (linked-anchors lk)
-                     #:root-file (and only (outline-path only))))
-  (if only
-      (hash-set* (one only) 'version json-model-version 'anchors set-anchors)
-      (hash 'version json-model-version
-            'files (map one entries)
-            'anchors set-anchors)))
+  (cond
+    ;; A set of ONE file: that file's `anchors` already IS the set's index, at
+    ;; the top level and rooted at the file the reader has. Nothing to add.
+    [(= (length entries) 1)
+     (hash-set (one (car entries)) 'version json-model-version)]
+    [else
+     (hash 'version json-model-version
+           'files (map one entries)
+           ;; A node in the set's index carries its own `file`: the index
+           ;; spans the files, so the answer differs per anchor and there is
+           ;; no one root to leave out (the rule tasks follow, above).
+           'anchors (anchors->jsexpr (linked-anchors lk)))]))

@@ -28,16 +28,20 @@
 ;; title : the resolved title (never the "^anchor" the user typed)
 (struct located (file index title) #:transparent)
 
+;; Everything below takes the spec ALREADY parsed — `(cons 'anchor a)` or
+;; `(cons 'title t)` (olai/meta). Four of them used to re-parse the same
+;; string, which is four places to disagree about what the user typed.
+
 ;; The files that could hold this node: the defining file of every model
 ;; match. No match in the model means no candidate, which is the "no task"
 ;; case — the text is never scanned on a hunch.
-(define (candidate-files out spec)
+(define (candidate-files out want)
   (define root (outline-path out))
   (define tasks (outline-tasks out))
   (define (file-of tk)
     (simple-form-path (or (task-file tk) root)))
   (remove-duplicates
-   (match (parse-title-or-anchor spec)
+   (match want
      [(cons 'anchor a)
       (define tk (or (hash-ref (outline-anchors out) a #f)
                      (find-task-by-id tasks a)))
@@ -46,8 +50,8 @@
       (map file-of (find-tasks-by-title tasks t))])
    #:key path->string))
 
-(define (matches-in text spec)
-  (match (parse-title-or-anchor spec)
+(define (matches-in text want)
+  (match want
     [(cons 'anchor a) (find-anchor-matches text a)]
     [(cons 'title t) (find-title-matches text t)]))
 
@@ -64,26 +68,26 @@
 ;; see — then the sibling root that declares it. Part of `locate` rather than a
 ;; step before it: "where is this spec" has one answer, and a caller that had
 ;; to remember to widen first is a caller that can forget.
-(define (resolution-outline out spec)
-  (define a (anchor-spec spec))
-  (cond
-    [(or (not a) (hash-ref (outline-anchors out) a #f)) out]
-    [else (or (sibling-declaring out a) out)]))
-
-;; The anchor a spec names, or #f when it names a title.
-(define (anchor-spec spec)
-  (match (parse-title-or-anchor spec)
-    [(cons 'anchor a) a]
-    [_ #f]))
+(define (resolution-outline out want)
+  (match want
+    [(cons 'anchor a)
+     #:when (not (hash-ref (outline-anchors out) a #f))
+     (or (sibling-declaring out a) out)]
+    [_ out]))
 
 ;; The other roots in this outline's directory, as `serve` globs them: top
 ;; level only, so @include fragments (which live in subdirectories) are not
 ;; loaded twice.
 ;;
-;; A sibling that does not load is simply not consulted. It is not the file
-;; being written, and one broken outline must not stop every write to the
-;; others — the file under the pen is still validated, before and after, like
-;; any other write.
+;; This is deliberately weaker than the linker: first declaration wins, and a
+;; sibling that does not load is simply not consulted. A READ answers about a
+;; set, and must refuse one that does not link; a WRITE answers about one node,
+;; and must not be hostage to a file it is not touching. The file under the pen
+;; is validated before and after, like any other write.
+;;
+;; A caller that already HOLDS the set — the web mutation routes, over the
+;; store's snapshot — should hand its index down instead of making this reach
+;; for the disk again; that is the seam to widen when they land.
 (define (sibling-declaring out a)
   (define self (simple-form-path (outline-path out)))
   (for/or ([p (in-list (dir-roots (path-only self)))]
@@ -98,12 +102,13 @@
 ;; either way — an @include fragment of this one, or (for an anchor) the
 ;; sibling root that declares it (resolution-outline above).
 (define (locate out0 spec)
-  (define out (resolution-outline out0 spec))
+  (define want (parse-title-or-anchor spec))
+  (define out (resolution-outline out0 want))
   (define hits
     (append*
-     (for/list ([f (in-list (candidate-files out spec))])
+     (for/list ([f (in-list (candidate-files out want))])
        (define text (file->string f))
-       (for/list ([m (in-list (matches-in text spec))])
+       (for/list ([m (in-list (matches-in text want))])
          (cons f m)))))
   (define label (spec-label spec))
   (cond

@@ -95,12 +95,7 @@
 ;; failure of the same kind as a file that does not parse, so it dies the same
 ;; way, at the file:line:col of the form that broke it.
 (define (link-or-die paths json?)
-  (define outs
-    (for/list ([path (in-list paths)])
-      (define r (try-load-outline path))
-      (when (load-error? r) (die-load-error r json? path))
-      r))
-  (define lk (link-outlines outs))
+  (define lk (load-set paths))
   (when (load-error? lk)
     (die-load-error lk json? (or (load-error-where lk) "the outlines")))
   lk)

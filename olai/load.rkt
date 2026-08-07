@@ -37,6 +37,7 @@
           [load-error-where (-> load-error? (or/c string? #f))]
           [load-error-detail (-> load-error? string?)]
           [try-load-outline (-> path? (or/c outline? load-error?))]
+          [load-set (-> (listof path?) (or/c linked? load-error?))]
           [link-outlines (-> (listof outline?) (or/c linked? load-error?))]
           [mint-outline-keys (-> (listof outline?) (listof outline?))]
           [mint-task-keys (-> list? #:label (-> any/c string?) list?)]
@@ -219,7 +220,22 @@
   (define fallback (and (pair? outs) (outline-path (car outs))))
   (with-handlers ([exn:fail? (λ (e) (exn->load-error e fallback))])
     (define minted (mint-outline-keys outs))
-    (linked minted (link-anchors (map outline-tasks minted)))))
+    (linked minted (link-anchors (append* (map outline-tasks minted))))))
+
+;; The whole of what "the files you were given" means: each one loaded, then
+;; linked as the set they are. Every read surface wants exactly this — the CLI
+;; commands, the store, a test — and the two steps have an order (a set cannot
+;; be linked from a file that would not load), so they are one call.
+;;
+;; -> linked, or the load-error of the first file that would not load, or of
+;; the set that would not link.
+(define (load-set paths)
+  (let loop ([ps paths] [acc '()])
+    (cond
+      [(null? ps) (link-outlines (reverse acc))]
+      [else
+       (define r (try-load-outline (car ps)))
+       (if (outline? r) (loop (cdr ps) (cons r acc)) r)])))
 
 ;; The whole loaded set at once: labels are relative to what these files have
 ;; in common, so the answer does not depend on the machine's $HOME.
