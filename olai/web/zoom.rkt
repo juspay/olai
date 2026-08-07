@@ -23,8 +23,9 @@
                 (#:toggle-base (or/c string? #f)
                  #:docs hash?)
                 list?)]
-          ;; the same two addresses every pane is drawn with, so the empty one
-          ;; is the zoom with nothing in it rather than a second shape
+          ;; The same two addresses the zoom takes: this IS the zoom with
+          ;; nothing in it, down to the trail, which here is empty and draws
+          ;; no node crumb to spend an address on.
           [render-empty-pane
            (-> string? #:home-href string? #:node-href (-> string? string?)
                list?)]))

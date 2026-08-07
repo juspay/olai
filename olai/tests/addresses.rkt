@@ -26,3 +26,32 @@
 
 ;; A node's key -> its own page, the way every drawer gets it.
 (define test-node-href (routes-node-href test-routes))
+
+;; ---- the table against the wire ---------------------------------------------
+;;
+;; Two claims, and neither has anything else holding it up.
+;;
+;; The routes are what they have always been. Nothing in the app spells them
+;; any more, so a slip in the patterns would break no build and fail no render
+;; test — it would break every bookmark anybody has.
+;;
+;; And each FIELD carries the route it is named for. `make-routes` fills a
+;; nine-field struct from nine positional expressions, so swapping two lines
+;; type-checks, passes every contract, and ships a panel whose "+ new" cancels
+;; the turn. This is the check that would not let it.
+(module+ test
+  (require rackunit)
+
+  (test-case "every minted address is the route it is named for"
+    (check-equal? (routes-home-href test-routes) "/")
+    (check-equal? (routes-today-href test-routes) "/today")
+    (check-equal? (test-node-href "p1234abcd") "/n/p1234abcd")
+    ;; an ^anchor is a key too, and the anchor grammar ([A-Za-z0-9_-]+) is
+    ;; inside what a path segment may hold — so a minted address is the key,
+    ;; unescaped, the way every permalink ever pasted has it
+    (check-equal? (test-node-href "meeting-prep") "/n/meeting-prep")
+    (check-equal? (routes-chat-href test-routes) "/chat")
+    (check-equal? (routes-chat-new-href test-routes) "/chat/new")
+    (check-equal? (routes-chat-cancel-href test-routes) "/chat/cancel")
+    (check-equal? (routes-chat-sessions-href test-routes) "/chat/sessions")
+    (check-equal? (routes-chat-load-href test-routes) "/chat/load")))

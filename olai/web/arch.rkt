@@ -23,12 +23,20 @@
 ;; date, serves static files off the disk, and mounts everything else.
 (override "serve.rkt" (owns clock filesystem network))
 
-;; WHERE ANYTHING IS. One declaration answers a request and writes every href
+;; THE ROUTE TABLE. One declaration answers a request and writes every href
 ;; that points at it, so "the address of a node" is one thing minted in one
-;; place rather than a prefix four drawers append a key to. Nothing else may
-;; spell a route — a second claimant is a second URL space, which is exactly
-;; how the mirror arrow came to link at a fragment no zoom page had.
-(override "routes.rkt" (concept web-addressing "make-routes" "routes*"))
+;; place rather than a prefix four drawers append a key to. A second claimant
+;; would be a second URL space, which is exactly how the mirror arrow came to
+;; link at a fragment no zoom page had.
+;;
+;; `route-table` and not `web-addressing`: the app writes URLs this module
+;; never sees — the assets prefix (web/assets), the framework's runtime
+;; (web/live), the generated sheet (web/skin), a note's pictures
+;; (web/markdown). Each is a MOUNT rather than a route, each is owned by the
+;; module that writes the src, and each changes when an asset directory does
+;; rather than when a page does. A concept name that claimed all of them would
+;; be claiming four axes and holding one.
+(override "routes.rkt" (concept route-table "make-routes" "routes*"))
 
 ;; A conversation, one turn at a time: what the agent's typed events become for
 ;; a reader. Nothing else spells it — the whole `chat-` surface, so a name this

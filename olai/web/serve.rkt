@@ -1,41 +1,25 @@
 #lang racket/base
 
-;; The read-mostly web view.
+;; The read-mostly web view: what each route ANSWERS, and the socket it
+;; answers on.
 ;;
-;;   GET  /             the html page: sidebar + outline + chat panel
-;;   GET  /n/<key>      one node, zoomed: breadcrumbs + that subtree
-;;   GET  /today        today's Daily day node, zoomed
-;;   GET  /live/<boot>/events
-;;                      SSE stream, under the boot id of the process that drew
-;;                      the page (a stale one gets one reload frame and the end
-;;                      of the stream); `outline` (data and id: the cursor the
-;;                      outlines are at) per reload, `chat` (data: one JSON
-;;                      frame) per agent frame — and, first, whatever this
-;;                      connection missed: the conversation it was not there
-;;                      for, and an `outline` if the file moved while it was
-;;                      away (docs/live.md)
-;;   POST /chat         prompt the agent (form field `text`) -> 204
-;;   POST /chat/new     new chat -> 204
-;;   POST /chat/cancel  cancel the turn in flight -> 204
-;;   GET  /chat/sessions the agent's stored conversations, as JSON
-;;   POST /chat/load    load one of them (form field `id`) -> 204
-;;   GET  /api/tree     byte-identical to `olai tree`
-;;   GET  /api/agenda   byte-identical to `olai agenda --json`
-;;   GET  /static/app.css  the generated stylesheet (olai/web/skin)
-;;   GET  /static/*     files from web/static/ (icons, scripts, manifest)
-;;   GET  /media/*      pictures from the outlines' own directory, and only
-;;                      those: what a note's `![](shot.png)` asks for
-;;   anything else      404, terse text/plain
+;; The routes themselves are next door (web/routes) and are not restated here —
+;; an enumeration of the URL space in a comment is the same second spelling
+;; this module used to keep in code. This one hands that table its handlers and
+;; gets back both a dispatcher and every address a page draws; nothing here,
+;; and nothing under here, assembles a path out of a prefix and a key.
+;;
+;; Three things ARE mounted here rather than routed, because each is a
+;; directory or a generated file rather than a page: /static/* (web/assets),
+;; /live/* (the framework's client runtime), /media/* (pictures beside the
+;; outlines), and the generated stylesheet at web/skin's own URL. Each is owned
+;; by the module that WRITES the src; this one only mounts them. Anything else
+;; is a 404, terse text/plain.
 ;;
 ;; No auth: the network is the auth (Tailscale / Caddy in front of it).
 ;; Routing, static files, and MIME types come from racket web-server. Outline
 ;; content comes from olai/store — this module owns handlers and responses,
 ;; never a load.
-;;
-;; The URLs above are DECLARED next door (web/routes) and minted from that one
-;; declaration: this module hands that table its handlers and gets back both a
-;; dispatcher and every address a page draws. Nothing here — and nothing under
-;; here — assembles a path out of a prefix and a key.
 ;;
 ;; Live updates are four parts that only meet here: the store knows WHAT the
 ;; outlines are, the watcher knows WHEN they moved, the hub (the `live`
@@ -511,10 +495,12 @@
 ;; routes — one declaration, so a link cannot name an address the router does
 ;; not answer at.
 ;;
-;; The knot is deliberate and it only looks like one: `rs` is what the page
-;; handlers draw their links out of, and they are lambdas, so they read it at
-;; request time. The panel is drawn ONCE, right after the table exists, from
-;; the addresses in it.
+;; A handler needs the table (it draws links out of it) and the table needs the
+;; handlers (it finds a route by the identity of one), so the two are defined
+;; in one scope and the cycle is broken by WHEN each is read. Building the
+;; table calls no handler; a handler runs only on a request, which is after
+;; this function has returned. The panel is drawn once, on the line after the
+;; table exists, from the addresses in it.
 ;;
 ;; The push channel is in the table and has no href in it, which is the point:
 ;; its address is the transport's (`live-stream-path`, /live/<boot-id>/events),

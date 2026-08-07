@@ -26,6 +26,11 @@
          web-server/dispatch)
 
 (provide (contract-out
+          ;; The handlers are checked FLAT, and that is not laziness: a `->`
+          ;; contract wraps a procedure, and a wrapper is a second procedure —
+          ;; while the table below finds a route by the identity of its
+          ;; handler. What each one is called with is the dispatcher's
+          ;; business, and web-server's.
           [make-routes
            (-> #:home procedure? #:node procedure? #:today procedure?
                #:events procedure?
@@ -34,15 +39,14 @@
                #:tree procedure? #:agenda procedure?
                #:not-found procedure?
                routes?)]
-          ;; Flat checks on the way out, like every other boundary here: a
-          ;; `->` on the handlers would wrap them, and a wrapper is a second
-          ;; procedure for a table that matches routes by identity.
           [struct routes ([dispatch procedure?]
                           [home-href string?]
                           [today-href string?]
                           ;; a node's key -> its own page. The one address that
-                          ;; takes an argument, and the only way to write one
-                          [node-href procedure?]
+                          ;; takes an argument, and the only way to write one —
+                          ;; so it is the one that says its shape, where the
+                          ;; handlers above cannot
+                          [node-href (-> string? string?)]
                           [chat-href string?]
                           [chat-new-href string?]
                           [chat-cancel-href string?]
@@ -104,6 +108,10 @@
      [("api" "tree") tree]
      [("api" "agenda") agenda]
      [else not-found]))
+  ;; One line per field, each naming the handler it is minted from, in the
+  ;; struct's own order — a swap here would put the cancel route in the field
+  ;; the panel's "+ new" reads. Nothing in Racket makes that mechanical, so
+  ;; the module's own test walks every field against the wire.
   (routes dispatch
           (url home)
           (url today)
