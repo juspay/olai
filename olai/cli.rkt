@@ -372,7 +372,7 @@
     [(pair? (cdr file-args))
      (die exit-usage
           (format (string-append "serve takes one directory or one outline, not ~a"
-                                 " (check / tree / agenda take a list)")
+                                 " (check and tree take a list)")
                   (length file-args))
           #:json? #f)]
     [(eq? (path-kind (car file-args)) 'dir)
