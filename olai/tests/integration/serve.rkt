@@ -191,16 +191,19 @@
        (check-equal? (hash-ref j 'start_url) "/")
        (check-true (pair? (hash-ref j 'icons)) body))))
 
-  (test-case "the sidebar Today link is a real route"
+  ;; /today is an ADDRESS, not a row: the sidebar reaches today through the
+  ;; journal's month (web/calendar), and this route is what a bookmark, a home
+  ;; screen and an agent name. So the page has to answer, and the sidebar has
+  ;; to have stopped linking it.
+  (test-case "today is a real route, and not a row in the sidebar"
     (with-server
      (λ (port f)
        ;; no day node in the outline yet: terse empty state, not a 404
        (define-values (code _h body) (GET port "/today"))
        (check-equal? code 200 body)
        (check-true (string-contains? body "No day node for") body)
-       ;; and the link the page ships points here
        (define-values (_c _hh home) (GET port "/"))
-       (check-true (string-contains? home "href=\"/today\"") home)
+       (check-false (string-contains? home "href=\"/today\"") home)
        ;; add today's day node and it zooms to it
        (define today
          (let ()
