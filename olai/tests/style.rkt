@@ -410,27 +410,41 @@
   ;; journeys are about.
   (test-case "a note is one line until something says it is expanded"
     (define note (fragment->css (cdr (list-ref ordered-fragments (at "ol-note")))))
-    (check-true (regexp-match? #px"max-height\\s*:\\s*1lh" note)
-                "the note is not folded to one line any more")
-    (check-true (regexp-match? #px"\\.ol-note-block\\.is-expanded>\\.ol-note[^{]*\\{[^}]*max-height\\s*:\\s*none"
+    ;; the clamp's own ellipsis is the CUE, drawn where the text stops — so
+    ;; the fold is a line clamp and not a max-height, which cuts silently
+    (check-true (regexp-match? #px"-webkit-line-clamp\\s*:\\s*1" note)
+                "the note is not folded to its first line any more")
+    (check-true (regexp-match? #px"\\.ol-note-block\\.is-expanded>\\.ol-note[^{]*\\{[^}]*line-clamp\\s*:\\s*none"
                                note)
                 "nothing unfolds the note")
     (check-false (regexp-match? #px":hover" note)
-                 "the note answers a hover again")
-    ;; the button is the only ellipsis: a line clamp would draw a second one
-    ;; right beside it
-    (check-false (regexp-match? #px"line-clamp|text-overflow" note)
-                 "the fold draws an ellipsis of its own again"))
+                 "the note answers a hover again"))
 
-  ;; And the affordance is drawn for a note that HAS more only — which nothing
-  ;; here can measure, so the rule waits on the class the script writes.
-  (test-case "the note's button is drawn only where there is more to show"
+  ;; The TARGET is the note, and the pointer is what says so: a control at the
+  ;; edge of the column was a small thing to travel to, which is what this
+  ;; release took away. Only a note with more in it is one, and nothing here
+  ;; can measure that, so the rule waits on the class the script writes.
+  (test-case "the whole note is the target, and only when there is more to show"
+    (define blk (fragment->css (cdr (list-ref ordered-fragments (at "ol-note-block")))))
+    (check-true (regexp-match? #px"\\.ol-note-block\\.has-more\\{[^}]*cursor\\s*:\\s*pointer" blk)
+                "the folded note does not read as something to press")
+    (check-true (regexp-match? #px"\\.ol-note-block\\.is-expanded\\{[^}]*cursor\\s*:\\s*auto" blk)
+                "an open note still reads as a button rather than as prose"))
+
+  ;; And the button is the keyboard's door only: out of sight (and out of the
+  ;; tab order, where there is nothing to open) until it is focused, because a
+  ;; second "…" beside the one the clamp draws is what the cue stopped being.
+  (test-case "the note's button is for the keyboard, and shows itself when focused"
     (define more (fragment->css (cdr (list-ref ordered-fragments (at "ol-note-more")))))
     (check-true (regexp-match? #px"\\.ol-note-more\\{[^}]*display\\s*:\\s*none" more)
-                "the button is drawn before anything has found more to show")
-    (check-true (regexp-match? #px"\\.ol-note-block\\.has-more>\\.ol-note-more[^{]*\\{[^}]*display\\s*:\\s*inline-flex"
+                "the button is reachable before anything has found more to show")
+    (check-true (regexp-match? #px"\\.ol-note-more\\{[^}]*clip-path\\s*:\\s*inset\\(50%\\)" more)
+                "the button is drawn beside the ellipsis again")
+    (check-true (regexp-match? #px"\\.ol-note-block\\.has-more>\\.ol-note-more[^{]*\\{[^}]*display\\s*:\\s*inline-block"
                                more)
-                "nothing draws the button once there is more to show"))
+                "nothing puts the button in reach once there is more to show")
+    (check-true (regexp-match? #px"\\.ol-note-more:focus\\{[^}]*clip-path\\s*:\\s*none" more)
+                "tabbing to the button lands on nothing you can see"))
 
   ;; Sheet mode: below phone-max there is no room beside the outline, so the
   ;; panel covers it instead. That is ONE decision, and this is the test that

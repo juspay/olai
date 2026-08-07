@@ -14,11 +14,15 @@
 //
 // Two of its notes are the sizes features/note.feature is about, and their
 // LENGTH is what makes them: "Ship the server" carries one long enough to wrap
-// several times at either viewport (so there is something to fold, and its
-// note-less child is a place to point at that must not open it), and "Inbox"
-// carries one that fits on a line at both (so there is nothing to fold at
-// all). "Write the tests" stays note-less for a second reason — two scenarios
-// delete that line, and a note under it would be orphaned by the same edit.
+// several times at either viewport (so there is something to fold), and
+// "Inbox" carries one that fits on a line at both (so there is nothing to fold
+// at all). "Write the tests" stays note-less — two scenarios delete that line,
+// and a note under it would be orphaned by the same edit.
+//
+// The long one has a LINK in it, on a line the fold hides: the note is the
+// click target now, and a click that lands on a link has to follow the link
+// instead of folding the note it is in. It points at the fixture's own anchor
+// so that following it goes nowhere but this page.
 //
 // EVERY edit a step makes to it changes the file's SIZE. The store's staleness
 // probe is mtime (whole seconds) + size, so a same-second same-size rewrite is

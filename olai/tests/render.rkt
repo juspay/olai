@@ -876,7 +876,7 @@
   ;; sentence: browser state, stored in the browser, keyed the way the fold is.
   (test-case "notes script stays tiny and framework-free"
     (define js (file->string (build-path (web-static-dir) "notes.js")))
-    (check-true (< (length (string-split js "\n")) 65) js)
+    (check-true (< (length (string-split js "\n")) 95) js)
     (check-false (string-contains? js "require") js)
     (check-true (string-contains? js "olai.notes") js)
     (check-true (string-contains? js "localStorage") js))

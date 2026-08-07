@@ -227,30 +227,40 @@
 
 (define-style ol-dim #:color ,dim)
 
-;; THE NOTE: one line of it, and the "…" that opens the rest.
+;; THE NOTE: one line of it, and a click to see the rest.
 ;;
 ;; A note is drawn folded, and the fold is a BOX one line tall — never a
 ;; shorter string. The whole note is in the markup either way, so find-in-page
 ;; still finds the rest of it and a live re-swap morphs the same text it always
 ;; did.
 ;;
-;; It opens on a CLICK and on nothing else. It opened on hover once, and a
-;; hover is not a decision: the page reflowed under the cursor, and crossing
-;; the outline on the way somewhere opened three notes that nobody asked for.
-;; So the affordance is a button, the state is a state, and travelling over a
-;; note does nothing at all.
+;; THE TARGET IS THE NOTE. Click the folded line anywhere and it opens; click
+;; the open note anywhere and it folds. It was a "…" button at the edge of the
+;; column for one release, and a control you have to travel to and then hit is
+;; a control you stop using — so the thing you were already looking at is the
+;; thing you press. Two clicks are not toggles and notes.js says so: one that
+;; lands on a LINK follows the link, and one that ends a text SELECTION leaves
+;; the note alone, because copying out of an open note is reading, not
+;; folding.
 ;;
-;; Two of the three parts are CSS and the third cannot be. The fold is a
-;; max-height (here), and what it looks like open is a class on the block
-;; (notes.js). Whether there IS more than one line in a note is a MEASUREMENT
-;; — it depends on the note, the type and the width of the window — so the
-;; script asks the layout and says so with .has-more, and this file paints the
-;; answer. A note that fits on its line carries no button, no ellipsis and no
-;; tab stop: the overflow is the affordance, and only an overflow draws one.
+;; And it is still a CLICK, never a hover. The hover version reflowed the page
+;; under the cursor and opened whatever the pointer crossed on its way
+;; somewhere else.
 ;;
-;; The clamp draws no ellipsis of its own (a max-height cuts at a line, and
-;; -webkit-line-clamp would put a "…" right beside the button's). The button IS
-;; the ellipsis, and it is the only one.
+;; THE CUE IS THE ELLIPSIS the clamp itself draws, at the end of the truncated
+;; line, where the text stops — not parked at the far edge of the column. So
+;; there is exactly one "…" on a folded note, and it is CSS.
+;;
+;; Which leaves the button below with one job: the keyboard's, and the screen
+;; reader's. It carries the state (aria-expanded) and names what it opens, and
+;; it is out of sight until it is focused, because a mouse has the whole note
+;; to aim at and does not need a second thing to look at.
+;;
+;; What no stylesheet can answer is whether a note HAS more than its line —
+;; that moves with the note, the type and the width of the window. So notes.js
+;; measures and says so with .has-more, and these rules paint the answer: a
+;; note that fits its line has no ellipsis, no pointer, no tab stop and no
+;; click of its own.
 ;;
 ;; The @doc lead (web/document) wears the same one-line look and is not the
 ;; same mechanism — that one is one line because the rest of the document is a
@@ -260,28 +270,35 @@
 ;; and what you did about it. notes.js is the only writer of either.
 (define-modifier has-more is-expanded)
 
-;; The note and its button, side by side: the button keeps to the first line's
-;; height, so opening the note grows the text and leaves the control where it
-;; was.
+;; The note and the control that belongs to it. Nothing to see: it is what
+;; carries the key, the two states, and the box the control is positioned in.
 (define-style ol-note-block
-  #:display flex
-  #:align-items flex-start
-  #:gap 0.25rem
-  #:min-width 0)
+  #:position relative
+  #:min-width 0
+  ;; folded, with more in it: the whole line is the target, and the pointer
+  ;; says so
+  [,(sel '& has-more) #:cursor pointer]
+  ;; open, it is prose again — a plain click still folds it, but the pointer
+  ;; over text you are about to copy should be the one you copy text with
+  [,(sel '& is-expanded) #:cursor auto])
 
 (define-style ol-note
-  #:flex (1 1 auto)
   #:min-width 0
   #:margin-top 0.125rem
   #:color ,dim
   #:font-size 0.875rem
-  ;; folded: one line tall, and everything else is behind the edge of the box
-  #:max-height 1lh
+  ;; folded: the first rendered line, ellipsized where the text stops
+  #:display -webkit-box
+  #:-webkit-box-orient vertical
+  #:-webkit-line-clamp 1
   #:overflow hidden
-  [(> ,(sel ol-note-block is-expanded) &) #:max-height none #:overflow visible]
+  [(> ,(sel ol-note-block is-expanded) &)
+   #:display block
+   #:-webkit-line-clamp none
+   #:overflow visible]
   [,(sel '& is-done) #:opacity 0.65 #:text-decoration line-through]
   ;; the note's own margin is the space above it; a first block's would be a
-  ;; second one, and it would push the first line out of a one-line box
+  ;; second one, and it would push the first line down inside its own box
   [(> & (: first-child)) #:margin-top 0]
   [(> & (: last-child)) #:margin-bottom 0]
   ;; Markdown blocks inside a note: tightened, never the browser's defaults
@@ -292,37 +309,47 @@
    #:padding-left 0.75rem
    #:border-left (2px solid ,line)])
 
-;; The "…", which is the whole affordance: one line's height beside the note,
-;; drawn only for a note with more in it than that.
+;; The keyboard's door, and the screen reader's. Out of the flow and out of
+;; sight — a mouse aims at the note itself, and a second "…" beside the one the
+;; clamp draws is the thing this release took away — until it is FOCUSED, at
+;; which point it is a chip at the end of the line wearing the skin's focus
+;; ring. Tabbing to it has to land on something you can see.
 (define-style ol-note-more
-  #:flex (0 0 auto)
-  ;; nothing to open until the script has found something to open
+  ;; nothing to open is nothing to reach: not a control, not a tab stop
   #:display none
-  #:align-items center
-  #:justify-content center
-  #:height 1lh
-  #:margin-top 0.125rem
-  #:padding (0 0.25rem)
+  #:position absolute
+  #:top 0
+  #:right 0
+  #:width 1px
+  #:height 1px
+  #:padding 0
+  #:overflow hidden
+  #:clip-path (apply inset 50%)
+  #:white-space nowrap
   #:border 0
   #:border-radius ,radius
   #:background none
   #:color ,dim
   #:font-family ,mono
   #:font-size 0.875rem
+  #:line-height 1.4
   #:cursor pointer
-  [(> ,(sel ol-note-block has-more) &) #:display inline-flex]
-  ;; open, so the button is now the way back: it stays lit saying so
-  [(> ,(sel ol-note-block is-expanded) &) #:color ,ink]
-  [(: & hover) (: & focus-visible) #:color ,ink #:background ,pill-bg]
-  ;; a finger needs a bigger target than a mouse, the way the disclosure
-  ;; triangle above does
-  [@ media (#:max-width ,phone-max)
-     #:height 1.75rem
-     #:min-width 1.75rem
-     #:font-size 1rem])
+  [(> ,(sel ol-note-block has-more) &) #:display inline-block]
+  ;; :focus and not :focus-visible — nothing but a keyboard ever focuses a
+  ;; button with no box to click, so the two mean the same thing here, and
+  ;; only one of them is a thing a test can arrange
+  [(: & focus)
+   #:width auto
+   #:height auto
+   #:padding (0 0.25rem)
+   #:overflow visible
+   #:clip-path none
+   #:background ,pill-bg
+   #:color ,ink])
 
-;; The note, and the control that opens it. `key` is this SITE's key — a
-;; mirror of a node opens and folds on its own, like its fold does.
+;; The note, and the control that says out loud what a click on it does.
+;; `key` is this SITE's key — a mirror of a node opens and folds on its own,
+;; like its fold does.
 (define (note-block-xexpr tk key note-id done?)
   `(div ((class ,ol-note-block) (data-note-key ,key))
         (div ((class ,(classes ol-note (and done? is-done))) (id ,note-id))
@@ -331,8 +358,7 @@
                  (class ,ol-note-more)
                  (aria-expanded "false")
                  (aria-controls ,note-id)
-                 (aria-label "show the whole note")
-                 (title "show the whole note"))
+                 (aria-label "show the whole note"))
                 "…")))
 
 ;; A permalink target, not a thing to see.

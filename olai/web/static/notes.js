@@ -1,14 +1,28 @@
-// A note is one line until you open it: the "…" beside it toggles, and the
-// open ones are remembered per data-note-key, like the fold in collapse.js.
-// Unvisited keys stay the way the server drew them, which is folded.
+// A note is one line until you click it, and the note itself is what you
+// click: anywhere on the folded line opens it, anywhere on the open note folds
+// it again. The open ones are remembered per data-note-key, like the fold in
+// collapse.js; unvisited keys stay the way the server drew them, which is
+// folded.
 //
 // The script owns the two things CSS cannot answer. WHETHER a note has more in
 // it than its line is showing is a measurement — it moves with the window —
-// and it is what puts .has-more on the block, so a note that fits carries no
-// button at all. WHICH notes you opened is a fact about you, not about the
+// and it is what puts .has-more on the block, so a note that fits is not a
+// control at all. WHICH notes you opened is a fact about you, not about the
 // outline, so it is .is-expanded and localStorage and nothing on the wire.
+//
+// Two clicks are not a toggle, and both of them are somebody reading:
+//
+//   * one that lands on a LINK follows the link. A note is prose, and prose
+//     has links in it.
+//   * one that ends a text SELECTION leaves the note where it is — dragging
+//     across an open note to copy out of it must not fold the thing you are
+//     copying. A drag that moved the pointer, and a selection that starts
+//     inside this note, are both that.
+//
+// (A double click still folds on its first click, then selects its word in the
+// folded line. Telling the two apart would cost a timer on every open.)
 (function(){
-  var KEY='olai.notes',state={};
+  var KEY='olai.notes',state={},down=null;
   try{state=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){state={}}
   function set(n,open){
     n.classList.toggle('is-expanded',open);
@@ -31,10 +45,24 @@
       set(n,more[i]&&state[n.dataset.noteKey]===true);
     });
   }
+  // Where the press started, so the release can tell a click from a drag. A
+  // keyboard's click has no press and no coordinates (detail 0), and is never
+  // asked.
+  document.addEventListener('mousedown',function(e){down={x:e.clientX,y:e.clientY}});
+  function dragged(e){
+    return !!down&&Math.abs(e.clientX-down.x)+Math.abs(e.clientY-down.y)>4;
+  }
+  function selecting(n){
+    var s=window.getSelection();
+    return !!s&&!s.isCollapsed&&!!s.toString()&&n.contains(s.anchorNode);
+  }
   document.addEventListener('click',function(e){
-    var b=e.target.closest('.ol-note-more');if(!b)return;
-    var n=b.closest('[data-note-key]');if(!n)return;
-    e.preventDefault();
+    var n=e.target.closest('[data-note-key]');if(!n)return;
+    if(!n.classList.contains('has-more'))return;
+    if(e.target.closest('a'))return;
+    // the second click of a double is not a second decision
+    if(e.detail>1)return;
+    if(e.detail>0&&(dragged(e)||selecting(n)))return;
     var open=!n.classList.contains('is-expanded');
     state[n.dataset.noteKey]=open;
     set(n,open);
