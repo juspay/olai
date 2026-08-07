@@ -27,9 +27,13 @@
          racket/path
          olai/lang/tags
          olai/lang/graph
+         ;; what state a node is in — stored, or derived from its children —
+         ;; and the one contradiction the language rejects
+         olai/lang/state
          (for-syntax racket/base
                      olai/lang/tags
                      olai/lang/graph
+                     olai/lang/state
                      ;; what a starred @include path names, and where it reads
                      olai/glob
                      ;; the date grammar has one owner; the expander is a
@@ -58,6 +62,9 @@
          task-done
          task-doing
          task-status
+         task-stored-status
+         task-status-derived?
+         task-kids
          task-done-at
          task-doing-at
          task-id
@@ -141,11 +148,33 @@
 ;; The language rejects a node carrying both marks, so the order below is not
 ;; a policy: it is what a hand-built task (make-task, a test) gets if it
 ;; ignores the rule.
-(define (task-status tk)
+(define (task-stored-status tk)
   (cond
     [(task-done tk) 'done]
     [(task-doing tk) 'doing]
     [else 'open]))
+
+;; The CHILDREN a state is derived from: the ones that have a state. A mirror
+;; site is a reference and an unspliced include is a promise; neither is a node
+;; this tree can ask (olai/lang/state).
+(define (task-kids tk)
+  (for/list ([c (in-list (task-children tk))] #:when (task? c)) c))
+
+;; THE state — what a consumer switches on. Stored when the node wrote a mark,
+;; derived from its task children when it did not (olai/lang/state owns the
+;; rule; this is the one place that applies it to a task).
+;;
+;; Computed on every ask, and deliberately not cached anywhere: a state that is
+;; stored twice is a state that can drift, which is the whole reason it is
+;; derived at all. It costs one walk of the subtree, and every caller that
+;; walks the tree asking it pays O(nodes x depth) for the lot.
+(define (task-status tk)
+  (derive-status (task-stored-status tk) (map task-status (task-kids tk))))
+
+;; Did that answer come from the children? What the write path refuses to
+;; overwrite and what the JSON publishes beside the state itself.
+(define (task-status-derived? tk)
+  (status-derived? (task-stored-status tk) (map task-status (task-kids tk))))
 
 ;; When the mark was written, if it was recorded: #f for a bare @done /
 ;; @doing, and for a node that does not carry that mark at all.
@@ -359,7 +388,7 @@
 
   ;; ---- compile-time IR for local validation ------------------------------
 
-  (struct ir-task (id edges kids stx) #:transparent)
+  (struct ir-task (id title stored edges kids stx) #:transparent)
   (struct ir-mirror (anchor stx) #:transparent)
   (struct ir-include (path stx) #:transparent)
   (struct ir-edge (relation target stx) #:transparent)
@@ -375,6 +404,11 @@
        (define id (and (syntax-e #'kw.id) (syntax-e #'kw.id)))
        (define id* (if (string? id) id #f))
        (ir-task id*
+                (syntax-e #'title)
+                (cond
+                  [(syntax-e #'kw.done) 'done]
+                  [(syntax-e #'kw.doing) 'doing]
+                  [else 'open])
                 (for/list ([r (in-list (syntax->list #'(kw.e.relation ...)))]
                            [a (in-list (syntax->list #'(kw.e.target ...)))])
                   (ir-edge (syntax-e r) (syntax-e a) a))
@@ -387,7 +421,7 @@
       (match ir
         [(ir-include _ _) #t]
         [(ir-mirror _ _) #f]
-        [(ir-task _ _ kids _) (ormap walk kids)]))
+        [(ir-task _ _ _ _ kids _) (ormap walk kids)]))
     (ormap walk irs))
 
   ;; The compile-time adaptor to the shared checker: an IR node's anchor, its
@@ -398,10 +432,16 @@
 
   (define (ir-stx ir)
     (match ir
-      [(ir-task _ _ _ stx) stx]
+      [(ir-task _ _ _ _ _ stx) stx]
       [(ir-mirror _ stx) stx]
       [(ir-include _ stx) stx]
       [(ir-edge _ _ stx) stx]))
+
+  ;; The task children of an IR node — what a state derives from, and the same
+  ;; exclusion the tree pass makes: a mirror site is a reference, an include is
+  ;; a promise, and neither has a state to read.
+  (define (ir-state-kids ir)
+    (if (ir-task? ir) (filter ir-task? (ir-task-kids ir)) '()))
 
   (define (validate-body-forms stxs)
     (define irs (map syntax->ir stxs))
@@ -420,6 +460,8 @@
     ;; file this module has never heard of, so "unknown" is the linker's alone,
     ;; while a cycle among the forms in hand is a cycle wherever it is read.
     (unless (any-include? irs)
+      (define (fail who ir msg)
+        (raise-syntax-error who msg (and ir (ir-stx ir))))
       (check-anchor-graph
        irs
        #:id (λ (ir) (and (ir-task? ir) (ir-task-id ir)))
@@ -430,8 +472,18 @@
        #:target ir-edge-target
        #:scope #f
        #:describe ir-loc
-       #:fail (λ (who ir msg)
-                (raise-syntax-error who msg (and ir (ir-stx ir))))))
+       #:fail fail)
+      ;; And the STATE rule, over the same forms: a node that says it is done
+      ;; may not contain unfinished work. Skipped with the others under an
+      ;; @include for the same reason — the splice can put a child under a
+      ;; node this pass reads as childless — and caught by the run-time pass
+      ;; over the spliced tree, with the same message.
+      (check-status-tree
+       (filter ir-task? irs)
+       #:stored ir-task-stored
+       #:kids ir-state-kids
+       #:title ir-task-title
+       #:fail fail))
     (void)))
 
 ;; ---- runtime include load + tree validation ------------------------------
@@ -548,6 +600,23 @@
 ;; Exported because the LINKER runs it over the whole loaded set (lang/link),
 ;; which is the same check with the scope closed.
 (define (check-task-graph tasks #:scope [scope #f])
+  ;; `x` is whatever the rule is ABOUT — a node for the mirror and state
+  ;; rules, an edge for the edge ones — and each carries the srcloc of its own
+  ;; form.
+  (define (fail who x msg)
+    (define stx (loc->syntax (and x (node-loc x))))
+    (raise (exn:fail:syntax (format "~a: ~a" who msg)
+                            (current-continuation-marks)
+                            (if stx (list stx) '()))))
+  ;; The state rule runs over the same forest, in every phase this function is
+  ;; (after a splice, and again over the whole loaded set): it needs no scope,
+  ;; since what a node contains is answerable wherever the node is.
+  (check-status-tree
+   (filter task? tasks)
+   #:stored task-stored-status
+   #:kids task-kids
+   #:title task-title
+   #:fail fail)
   (check-anchor-graph
    tasks
    #:id (λ (x) (and (task? x) (task-id x)))
@@ -558,13 +627,7 @@
    #:target edge-ref-anchor
    #:scope scope
    #:describe (λ (x) (loc->string (node-loc x)))
-   ;; `x` is whatever the rule is ABOUT — a node for the mirror rules, an edge
-   ;; for the edge ones — and each carries the srcloc of its own form.
-   #:fail (λ (who x msg)
-            (define stx (loc->syntax (and x (node-loc x))))
-            (raise (exn:fail:syntax (format "~a: ~a" who msg)
-                                    (current-continuation-marks)
-                                    (if stx (list stx) '()))))))
+   #:fail fail))
 
 (define (finalize-tasks forms src)
   (define-values (includes globs) (collect-includes forms))

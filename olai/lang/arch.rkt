@@ -34,6 +34,15 @@
 (override "reader.rkt" (clock settling))
 (override "walk.rkt" (clock settling))
 
+;; What state a node is in, and the one contradiction that state can be in with
+;; what it contains. One owner, because a derived answer that two modules
+;; computed is a stored answer with extra steps: the expander applies it to a
+;; task, the write path applies it to raw text, and neither gets to have its
+;; own idea of when a parent is done.
+(override "state.rkt"
+          (concept node-state "derive-status" "status-derived?"
+                   "check-status-tree"))
+
 ;; One checker for the anchor rules — mirrors and typed edges — over a node
 ;; protocol the caller supplies. Compile time and run time go through this and
 ;; nowhere else, and so does the CLOSED RELATION SET: the reader builds its
