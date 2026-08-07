@@ -11,29 +11,32 @@
 ;;               different nodes.
 ;;   dir-roots   which files a DIRECTORY contributes as roots.
 ;;
-;; And what `serve` was POINTED AT — one path, a directory or a file (the
-;; ROOT SPEC). Three questions are asked of it and all three are here, so
-;; nothing downstream repeats the "is it a directory?" test in its own words:
+;; And what a path NAMES, when it names files rather than being one. Three
+;; shapes — a starred pattern (`Daily/*.rkt`, what an `@include` writes), a
+;; DIRECTORY (what `serve` is pointed at), a FILE (itself) — and one question
+;; asked of all three, so nothing downstream tests the shape in its own words:
 ;;
-;;   root-outlines  which files it names — the candidate roots.
-;;   root-dirs      which directories it reads — what a watcher watches.
-;;   root-dir       the one directory it hangs off — where the agent works,
-;;                  and the extent of what /media/ can reach.
+;;   files-named  which files it names, right now. The answer can change with
+;;                no file anybody already read having moved, which is why the
+;;                store re-asks it on every staleness probe.
+;;   dirs-read    which directories it reads to answer — what a watcher
+;;                watches, including ones it has matched nothing in yet.
+;;   root-dir     the one directory a root spec hangs off: where the agent
+;;                works, and the extent of what /media/ can reach.
 
 (require racket/contract
          racket/list
          racket/path
          racket/string
-         ;; which files in a directory a name names — the same question
-         ;; `@include Daily/*.rkt` asks, with the pattern already chosen
-         (only-in olai/glob glob-expand))
+         ;; the pattern shape: what a starred name matches, and where it reads
+         (only-in olai/glob include-glob? glob-expand glob-dir))
 
 (provide (contract-out
           [file-label (-> any/c string?)]
           [roots-base (-> list? path?)]
           [dir-roots (-> (or/c path? string?) (listof path?))]
-          [root-outlines (-> (or/c path? string?) (listof path?))]
-          [root-dirs (-> (or/c path? string?) (listof path?))]
+          [files-named (-> (or/c path? string?) (listof path?))]
+          [dirs-read (-> (or/c path? string?) (listof path?))]
           [root-dir (-> (or/c path? string?) path?)]
           [key-label (-> path? any/c string?)]))
 
@@ -80,16 +83,20 @@
 ;; a dangling symlink) is not an outline nobody wrote.
 ;;
 ;; Who asks: a write resolving an `^anchor` its own file does not declare
-;; (olai/resolve consults the file's SIBLINGS), and `root-outlines` below,
-;; which asks it at every level of a tree.
+;; (olai/resolve consults the file's SIBLINGS), and `files-named` below, which
+;; asks it at every level of a tree.
 (define (dir-roots dir)
   (glob-expand (build-path (simple-form-path (->path dir)) "*.rkt")))
 
-;; ---- what `serve` was pointed at -------------------------------------------
+;; ---- a path that names files ------------------------------------------------
 ;;
-;; One path, and the two shapes it can have. A DIRECTORY is a tree of
-;; outlines; a FILE is one outline. Everything else about the two is the same,
-;; which is why the dispatch lives here once.
+;; Three shapes, one question each, and the dispatch lives here once. A
+;; PATTERN names what it matches in one directory; a DIRECTORY names the tree
+;; of outlines under it; a FILE names itself. What they have in common is what
+;; the store's staleness probe cares about: the answer can move while nothing
+;; already read has been touched, so it is asked again rather than remembered.
+
+(define (pattern? spec) (include-glob? (path->string (->path spec))))
 
 (define (dir? spec) (directory-exists? (->path spec)))
 
@@ -109,26 +116,32 @@
   (let walk ([d dir])
     (cons d (append-map walk (if (directory-exists? d) (subdirs d) '())))))
 
-;; Every outline a root spec names: a file is itself, a directory is every
-;; `*.rkt` under it — the one-directory glob above, asked at every level.
+;; The files a path names, right now.
 ;;
-;; Recursive, and the double-load a recursive walk used to risk is prevented
-;; where it actually lives: a candidate another one `@include`s is not a root
-;; (olai/load, load-roots). So a fragment under `Daily/` is loaded once, by
-;; the file that splices it, and a stray outline three directories down is
-;; still served rather than silently invisible.
-(define (root-outlines spec)
-  (if (dir? spec)
-      (append-map dir-roots (dir-tree (simple-form-path (->path spec))))
-      (list (simple-form-path (->path spec)))))
+;; A directory is every `*.rkt` under it — the one-directory glob above, asked
+;; at every level. Recursive, and the double-load a recursive walk used to risk
+;; is prevented where it actually lives: a candidate another one `@include`s is
+;; not a root (olai/load, load-roots). So a fragment under `Daily/` is loaded
+;; once, by the file that splices it, and a stray outline three directories
+;; down is still served rather than silently invisible.
+(define (files-named spec)
+  (define full (simple-form-path (->path spec)))
+  (cond
+    [(pattern? spec) (glob-expand full)]
+    [(dir? full) (append-map dir-roots (dir-tree full))]
+    [else (list full)]))
 
-;; Every directory a root spec READS, which is what a watcher has to watch:
-;; the whole tree under a directory (a new outline can appear in any of them,
-;; including one that holds none yet), or the one directory a file sits in.
-(define (root-dirs spec)
-  (if (dir? spec)
-      (dir-tree (simple-form-path (->path spec)))
-      (list (root-dir spec))))
+;; The directories it READS to answer that, which is what a watcher has to
+;; watch: a pattern's one directory, the whole tree under a directory (a new
+;; outline can appear in any of them, including one that holds none yet), or
+;; the directory a file sits in. Watched whether or not anything has matched
+;; there yet — the first fragment of a new year is exactly that event.
+(define (dirs-read spec)
+  (define full (simple-form-path (->path spec)))
+  (cond
+    [(pattern? spec) (list (glob-dir full))]
+    [(dir? full) (dir-tree full)]
+    [else (list (root-dir full))]))
 
 ;; The one directory a root spec hangs off: itself, or the file's own. Always
 ;; spelled as a directory, so the two answers are the same kind of path.

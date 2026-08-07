@@ -24,7 +24,7 @@
          olai/dates
          olai/load
          olai/ops
-         (only-in olai/paths root-outlines)
+         (only-in olai/paths files-named)
          (only-in olai/acp acp-command-problem)
          olai/web/serve)
 (define exit-ok 0)
@@ -365,7 +365,7 @@
           #:json? #f)]
     [(directory-exists? (car file-args))
      (define dir (simple-form-path (path->complete-path (car file-args))))
-     (when (null? (root-outlines dir))
+     (when (null? (files-named dir))
        (die exit-not-found
             (format "no outlines in ~a (serve wants *.rkt under it)" dir)
             #:json? #f))

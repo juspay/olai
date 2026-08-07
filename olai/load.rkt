@@ -29,7 +29,8 @@
           [struct outline ([path path?]
                            [tasks list?]
                            [anchors hash?]
-                           [includes list?])]
+                           [includes list?]
+                           [include-globs list?])]
           [struct linked ([outlines (listof outline?)]
                           [anchors hash?]
                           [edges edge-index?])]
@@ -44,6 +45,9 @@
           [try-load-outline (-> path? (or/c outline? load-error?))]
           [load-set (-> (listof path?) (or/c linked? load-error?))]
           [load-roots (-> (listof path?) (or/c linked? load-error?))]
+          [include-closure (-> (listof path?) (values (listof path?)
+                                                      (listof path?)
+                                                      hash?))]
           [check-written (-> (listof path?) (or/c #f load-error?))]
           [link-outlines (-> (listof outline?) (or/c linked? load-error?))]
           [mint-outline-keys (-> (listof outline?) (listof outline?))]
@@ -56,13 +60,20 @@
           [exn->load-error (-> any/c any/c load-error?)]))
 
 ;; A loaded outline module. Named fields, not a positional tuple: every
-;; consumer (CLI, JSON, web) reads the same four things and used to
-;; destructure them by index.
+;; consumer (CLI, JSON, web) reads the same things and used to destructure
+;; them by index.
 ;;   path     : path of the outline file
 ;;   tasks    : (listof task)
 ;;   anchors  : hash id -> task
 ;;   includes : (listof string) absolute paths spliced in by @include
-(struct outline (path tasks anchors includes) #:transparent)
+;;   include-globs : (listof string) absolute patterns it starred
+;;
+;; The last two are what the file SPLICES, and they are one fact in two
+;; spellings — a claim about a file, and a query over a directory. Both are
+;; here, because a reader that had only the first would have to go back to the
+;; module for the second, which is how the store came to keep its own copy of
+;; this walk.
+(struct outline (path tasks anchors includes include-globs) #:transparent)
 
 ;; A loaded SET, linked: the outlines with their keys minted, and the one
 ;; anchor index they share. An anchor is a name whose scope is the set (see
@@ -170,10 +181,10 @@
     (define anchors
       (with-handlers ([exn:fail? (λ (_) (hash))])
         (dynamic-require mod 'anchors)))
-    (define includes
+    (define (spliced name)
       (with-handlers ([exn:fail? (λ (_) '())])
-        (dynamic-require mod 'includes)))
-    (outline path tasks anchors includes)))
+        (dynamic-require mod name)))
+    (outline path tasks anchors (spliced 'includes) (spliced 'include-globs))))
 
 ;; ---- node identity --------------------------------------------------------
 ;;
@@ -283,31 +294,55 @@
   (cond
     [(load-error? outs) outs]
     [else
-     (define spliced (included-closure outs))
+     (define-values (_files _globs spliced)
+       (include-closure (map outline-path outs)))
      (link-outlines
       (for/list ([o (in-list outs)]
                  #:unless (hash-ref spliced (path-string (outline-path o)) #f))
         o))]))
 
-;; The one spelling of a file's identity in the two lists compared above.
+;; The one spelling of a file's identity in every list compared here.
 (define (path-string p)
   (path->string (simple-form-path (if (path? p) p (string->path p)))))
 
-;; Every file the given outlines splice, directly or through one another, as a
-;; set of path strings. A file already visited is not loaded again — the
-;; module registry would hand back the same module anyway, and the walk has to
-;; end on an outline that includes something already seen.
-(define (included-closure outs)
+;; The `@include` graph reachable from `paths`, walked once and answered three
+;; ways, because the two callers want different halves of the same walk and a
+;; second walk is a second answer waiting to disagree:
+;;
+;;   files   : every file these are built from, starts included, in order.
+;;             What must be re-read when it changes (olai/store's watch set).
+;;   globs   : every pattern they starred, deduped. NOT files but questions:
+;;             their answers are what the graph was built from, so a new file
+;;             in one's directory is a change no file in `files` records.
+;;   spliced : path-string -> #t for every file something else `@include`s.
+;;             Which is to say: the files that are not roots (load-roots).
+;;
+;; A file is visited once — the module registry would hand back the same
+;; module anyway, and a graph that reaches something twice has to end.
+(define (include-closure paths)
   (define seen (make-hash))
-  (define (visit paths)
-    (for ([p (in-list paths)])
-      (define key (path-string p))
-      (unless (hash-ref seen key #f)
-        (hash-set! seen key #t)
-        (define o (try-load-outline (string->path key)))
-        (when (outline? o) (visit (outline-includes o))))))
-  (for ([o (in-list outs)]) (visit (outline-includes o)))
-  seen)
+  (define spliced (make-hash))
+  (define files '())
+  (define globs '())
+  (define (visit p)
+    (define full (simple-form-path p))
+    (define key (path->string full))
+    (unless (hash-ref seen key #f)
+      (hash-set! seen key #t)
+      (set! files (cons full files))
+      (define o (try-load-outline full))
+      (when (outline? o)
+        (set! globs (append (reverse (map full-path (outline-include-globs o))) globs))
+        (for ([q (in-list (outline-includes o))])
+          (hash-set! spliced (path-string q) #t)
+          (visit (full-path q))))))
+  (for ([p (in-list paths)]) (visit p))
+  (values (reverse files)
+          (remove-duplicates (reverse globs) #:key path->string)
+          spliced))
+
+(define (full-path p)
+  (simple-form-path (if (path? p) p (string->path p))))
 
 ;; Every one of them, in order, or the first that would not load. What the two
 ;; callers above then DO with the outlines is the whole of how they differ:
@@ -349,4 +384,5 @@
       (mint-task-keys (outline-tasks o) #:label (λ (f) (key-label base f))))
     ;; Anchors index the MINTED trees, not the module's originals: a mirror
     ;; site renders the node it finds here, and it must carry the same key.
-    (outline (outline-path o) tasks (anchors-of tasks) (outline-includes o))))
+    (outline (outline-path o) tasks (anchors-of tasks)
+             (outline-includes o) (outline-include-globs o))))

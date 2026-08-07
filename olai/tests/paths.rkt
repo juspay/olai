@@ -45,7 +45,7 @@
 
   ;; ---- what `serve` was pointed at ------------------------------------------
 
-  (test-case "root-outlines is every outline under a directory, at any depth"
+  (test-case "files-named is every outline under a directory, at any depth"
     (with-temp-dir
      (λ (dir)
        (touch! (build-path dir "Tasks.rkt"))
@@ -56,11 +56,11 @@
        (touch! (build-path dir "Daily" ".#2026-08.rkt"))
        ;; the directory's own first, then down — and nothing dot-prefixed, at
        ;; any level, because that is the lock file rule the glob already keeps
-       (check-equal? (map file-label (root-outlines dir))
+       (check-equal? (map file-label (files-named dir))
                      '("Tasks.rkt" "2026-08.rkt" "2019-01.rkt"))
        ;; which of those are ROOTS is the loader's answer, not this one:
        ;; an included fragment is subtracted there (olai/load, load-roots)
-       (check-equal? (map file-label (root-dirs dir)) (list (file-label dir) "Daily" "old"))
+       (check-equal? (map file-label (dirs-read dir)) (list (file-label dir) "Daily" "old"))
        (check-equal? (root-dir dir) (path->directory-path (simple-form-path dir))))))
 
   (test-case "a root spec that is a file is itself, and hangs off its own dir"
@@ -69,8 +69,8 @@
        (define f (build-path dir "Tasks.rkt"))
        (touch! f)
        (touch! (build-path dir "Other.rkt"))
-       (check-equal? (root-outlines f) (list (simple-form-path f)))
-       (check-equal? (root-dirs f) (list (root-dir f)))
+       (check-equal? (files-named f) (list (simple-form-path f)))
+       (check-equal? (dirs-read f) (list (root-dir f)))
        (check-equal? (root-dir f) (path->directory-path (simple-form-path dir))))))
 
   ;; A link back at an ancestor is a walk that never ends, and this one runs on
@@ -82,5 +82,5 @@
        (make-directory* (build-path dir "real"))
        (touch! (build-path dir "real" "Deep.rkt"))
        (make-file-or-directory-link (build-path dir "real") (build-path dir "loop"))
-       (check-equal? (map file-label (root-outlines dir))
+       (check-equal? (map file-label (files-named dir))
                      '("Tasks.rkt" "Deep.rkt"))))))

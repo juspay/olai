@@ -35,7 +35,7 @@
        (display-to-file src tmp #:exists 'truncate)
        (define tasks (dynamic-require `(file ,(path->string tmp)) 'tasks))
        (define anchors (dynamic-require `(file ,(path->string tmp)) 'anchors))
-       (define o (car (mint-outline-keys (list (outline tmp tasks anchors '())))))
+       (define o (car (mint-outline-keys (list (outline tmp tasks anchors '() '())))))
        (values (outline-tasks o) (outline-anchors o)))
      (λ () (delete-file tmp))))
 

@@ -22,11 +22,10 @@
          racket/list
          racket/path
          (only-in gregor now/moment moment? at-midnight +days ->posix)
-         ;; where a starred @include reads: a directory nothing in the watch
-         ;; set need sit in yet
-         (only-in olai/glob glob-dir)
-         ;; and where the root spec reads: one directory, or a whole tree
-         (only-in olai/paths root-dirs)
+         ;; where a question reads — a starred @include's one directory, the
+         ;; whole tree under a served one — which is a place nothing in the
+         ;; watch set need sit in yet
+         (only-in olai/paths dirs-read)
          olai/store)
 
 (provide (contract-out
@@ -62,26 +61,23 @@
 
 ;; The parent directories of everything the outlines are built from, deduped.
 ;;
-;; Where the ROOT SPEC reads is in there as well as the snapshot's watch set,
-;; and for two reasons. Before the first successful load the snapshot is
-;; empty, and that is exactly the state a watcher has to get out of. And a
-;; directory served is a standing question — every directory under it can
-;; grow an outline, including one that holds none yet — so the tree is
-;; watched, not just the files that answered it last time.
-;;
-;; And where every glob READS, which is not the same list either: `Daily/*.rkt`
-;; that matched nothing has no file in the watch set to take a parent of, and
-;; the first fragment of a new year appearing there is precisely the event this
-;; whole arrangement exists to catch.
+;; Two lists, because the store depends on two kinds of thing. The files it
+;; read are watched through their own directories (a save is a rename, which
+;; fires there). And every QUESTION it will ask again — the root it was
+;; pointed at, and each `@include` pattern — is watched wherever it READS,
+;; which is not the same list: a directory that has answered with nothing has
+;; no file here to take a parent of, and the first fragment of a new year
+;; appearing in one is precisely the event this whole arrangement exists to
+;; catch. That is also the state a watcher has to get out of before the first
+;; successful load, when the snapshot is empty and the root is all there is.
 (define (watch-dirs st)
   (define snap (store-snapshot st))
   (remove-duplicates
    (filter values
            (append
-            (root-dirs (store-root st))
             (for/list ([p (in-list (snapshot-watch snap))])
               (path-only (simple-form-path p)))
-            (map glob-dir (snapshot-globs snap))))
+            (append-map dirs-read (cons (store-root st) (snapshot-globs snap)))))
    #:key path->string))
 
 ;; -> evt | 'unsupported | #f (no such directory, nothing to watch yet)
