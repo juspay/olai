@@ -1,46 +1,44 @@
 # CLAUDE.md
 
-Read [README.md](README.md) and `docs/*.md` first (especially [docs/hacking.md](docs/hacking.md) for the edit-verify loop and css-expr). This file is only what you can't infer.
+THIS FILE IS HAND-MAINTAINED. Agents may correct facts that have drifted, but never ADD to it — a new rule is proposed to the human (or the orchestrator) for ratification, never written as a side effect of other work.
+
+Read [README.md](README.md) and `docs/*.md` first (especially [docs/hacking.md](docs/hacking.md)). This file is only what you can't infer.
 
 ## HARD RULES
 
-* If your model is Fable, a) use subagents for implementation (typically Opus), b) reserve Fable only where truly necessary.
-* Personal outline DATA lives outside the repo, in `$OLAI_HOME` — `Tasks.rkt`, `Daily.rkt` (+ `Daily/`). No default path: unset is a usage error, and the repo never names anyone's data dir. NEVER commit or invent content for these; user-owned, re-validate after edits. `examples/` is demo fiction for CI. The repo's own outlines are public, in `docs/olai/` (`Roadmap.rkt`, and `Archive.rkt` where its done work retires), committed and re-validated like any file — a private `Tasks.rkt` may `@include` the roadmap.
-* No hand-rolling where a maintained library exists. In use: `racket/cmdline`, `json` (`write-json`/`read-json`), `xml` (xexprs), `gregor` (dates), `markdown` (title/note formatting in the web view only).
-* No ANSI, no plain mode. Human view is the web app: `olai serve` (routes in [docs/cli.md](docs/cli.md); `just serve` launches it). The CLI is the agent surface and the write-safety layer: every command answers JSON but `ics` (the format IS the reply) and `serve`. `--json` is accepted everywhere it used to be, and does nothing.
-* The LANGUAGE is the only validator (closed grammar): one checker (`lang/graph`) runs over a module's syntax at compile time, over the whole spliced tree at run time when it has `@include`s, and over the whole LOADED SET in the linker (`lang/link`) — an anchor's scope is the set, so "unknown `*mirror`" is the linker's rule alone and a module compiles without it. Same rules, same messages, every way. Readers just translate to `(t ...)` forms. Never validate in the reader, the CLI, the store, or the web layer.
-* Agents are the only CLI users: replies and errors are JSON (errors on stderr); exit codes are contract (see [docs/cli.md](docs/cli.md)). JSON fields are append-only within a `"version"`.
+* Personal outline DATA lives in `$OLAI_HOME` (no default path; unset is a usage error; the repo never names anyone's data dir). NEVER commit or invent it. The repo's public outlines are `docs/olai/` (`Roadmap.rkt`, `Archive.rkt`); `examples/` is demo fiction for CI. Re-validate any outline after editing it.
+* No hand-rolling where a maintained library exists. In use: `racket/cmdline`, `json`, `xml` (xexprs), `gregor`, `markdown` (web view only).
+* The LANGUAGE is the only validator: `lang/graph` at compile time, over the spliced tree at run time, over the whole loaded SET in `lang/link` (an anchor's scope is the set). Never validate in the reader, the CLI, the store, or the web layer.
 * Error messages carry `file:line:col` of the OFFENDING form. srcloc fidelity has tests; keep them passing.
-* Module boundaries ship with `contract-out` (flat, cheap checks — never a tree walk); blame + srcloc are part of the error contract, and have tests.
-* ALL raw htmx/SSE attributes in app code are BANNED — the `live/` forms (or its documented functions) are the only door, and a gap in the vocabulary, write verbs included, is PROPOSED to the human as a new form, never hand-rolled: [live/README.md](live/README.md#raw-htmx-attributes-are-banned).
-* Markdown is render-time only (web view). Strings in the struct/JSON stay verbatim.
-* Code organization/review: [kolu.dev/blog/hickey-lowy](https://kolu.dev/blog/hickey-lowy/) — separate spatial (complected concepts, Hickey) and temporal (volatility mismatches, Lowy) passes; ship only when both lenses go quiet.
-* Racket style: [notjack.space/racket-skills `racket/SKILL.md`](https://tangled.org/notjack.space/racket-skills/blob/main/racket/SKILL.md). Read it before writing `.rkt`. Two standing exceptions, both because something else here is already contract: internal invariants keep `error` and its who: (message text ships to agents, and [olai/fail.rkt](olai/fail.rkt) already owns the who:/no-who: split), and `raco fmt` is not run over this tree (the alignment in the css-expr and theme tables is read as a table).
+* Module boundaries ship `contract-out` (flat checks, never a tree walk); blame + srcloc are part of the error contract, with tests.
+* Raw htmx/SSE attributes in app code are BANNED. The `live/` forms are the only door; a vocabulary gap is PROPOSED to the human, never hand-rolled: [live/README.md](live/README.md#raw-htmx-attributes-are-banned).
+* Markdown is render-time only (web view). Stored strings stay verbatim.
+* Code review: [kolu.dev/blog/hickey-lowy](https://kolu.dev/blog/hickey-lowy/) — spatial pass, temporal pass; ship when both go quiet.
+* Racket style: [notjack.space/racket-skills `racket/SKILL.md`](https://tangled.org/notjack.space/racket-skills/blob/main/racket/SKILL.md) — read before writing `.rkt`. Standing exceptions: internal invariants keep `error` + who: ([olai/fail.rkt](olai/fail.rkt)), and `raco fmt` is not run over this tree.
 
 ## LAYERING
 
-* Layering is DECLARED, not described: one `arch.rkt` per package (clock, owned authority, owned concepts), checked by `just arch` — dependency direction, ambient authority, one owner per concept, and the clocks against `git log`. Read [arch/README.md](arch/README.md) before adding a module, moving one, or arguing with a finding; the answers are fix the code or change the declaration, and there are no waivers. The rules that used to be prose here — core builds without `web/`, `acp.rkt` has no `web/`, store/watch/hub meet only in `serve.rkt`, pure logic takes `today` as an argument, keys are minted in the load layer, nothing else spells ACP or the conversation — are those checks now.
-* `lang/` readers -> `lang/expander` (`t` forms, closed grammar) -> task struct -> `lang/link` (the whole loaded set: one anchor index over every file, which is what an anchor's scope is)
+* Layering is DECLARED, not described: one `arch.rkt` per package, checked by `just arch`. Read [arch/README.md](arch/README.md) before adding a module, moving one, or arguing with a finding. Fix the code or change the declaration; there are no waivers.
+* `lang/` readers -> `lang/expander` -> task struct -> `lang/link` (one anchor index over the loaded set).
 * `main.rkt` exports data model + pure queries + web render. CLI is app code, not library.
-* Writes live in `ops.rkt` (`add`/`done`/`move`/`daily` -> result struct, or an `exn:fail:op` naming a kind). `cli.rkt` is a shell: parse, call an op, render, map kind -> exit code. The web mutation routes will call the same ops.
-* `load.rkt` links the set — keys minted over every file at once plus the anchor index they share, as one `linked` value. `store.rkt` owns snapshots and binds mirror sites against THAT index, so a mirror reaches another file, before anything draws them (see [docs/cli.md](docs/cli.md) for what a key is). `index.rkt` inverts the keys (key -> node + its parent's key) and derives the trail above a node on demand — what `/n/<key>` and its breadcrumbs are drawn from. Addressing is not snapshotting: the store builds one index per load and asks it nothing.
-* Live view: store (what) -> `web/watch.rkt` (when) -> `live/hub.rkt` (generic SSE hub), and the chat rides the same hub.
-* `olai/acp.rkt` speaks ACP: one subprocess, typed events out of one handler. `web/chat.rkt` makes those events a conversation — one turn at a time, chat frames, transcript.
+* Writes live in `ops.rkt` (result struct or `exn:fail:op` naming a kind). `cli.rkt` is a shell. Web mutation routes call the same ops.
+* `load.rkt` links the set; `store.rkt` owns snapshots and binds mirror sites; `index.rkt` inverts keys and derives trails ([docs/cli.md](docs/cli.md) for what a key is).
+* Live view: store -> `web/watch.rkt` -> `live/hub.rkt`. The chat rides the same hub.
+* `olai/acp.rkt` speaks ACP; `web/chat.rkt` makes its events a conversation.
 * File naming is `olai/paths` (`file-label`, `key-label`), not a renderer helper.
-* JSON is two modules, two version counters: `json/model` (what a node/tree IS, durable) and `json/reply` (command envelopes, agenda, calendar).
+* JSON is two modules, two version counters: `json/model` (durable) and `json/reply` (envelopes).
 * CSS cascade = layer (`'base` | `'component` | `'overlay`) then instantiation order; a class is defined in the module that DRAWS it. No native `@layer`.
-* `web/skin.rkt` composes the sheet (require order = cascade) and owns its URL; `render-page` is TOLD the href, so nothing downstream requires skin.
-* Packaging is layering: anything with its own reason to be built — library, example, app — is its own package with its own `default.nix` beside it, never a directory riding along inside another's.
+* `web/skin.rkt` composes the sheet and owns its URL; `render-page` is TOLD the href.
+* Packaging is layering: anything with its own reason to be built is its own package with its own `default.nix`.
 
 ## WORKFLOW
 
-* `just check` / `serve` / `test` — recipes handle `PLTUSERHOME` + `raco link`. Racket comes from the nix dev shell (nixpkgs 9.2). Don't fight `raco setup`; `PLTUSERHOME` must be writable.
-* `just test` runs `just build` first (`raco setup --pkgs olai`) so `compiled/*.zo` exist and stay coherent after edits. `just install` alone does not recompile. Linklet mismatch → `just clean && just build` (see [docs/hacking.md](docs/hacking.md)). Repo-specific facts agents rediscover otherwise live in [docs/hacking.md](docs/hacking.md) — read it before probing css-expr or the toolchain.
-* `just test` is the only test command you run. It is the fast set; CI runs everything else on the PR.
+* `just check` / `serve` / `test` — recipes handle `PLTUSERHOME` + `raco link`. Racket comes from the nix dev shell. Toolchain facts live in [docs/hacking.md](docs/hacking.md); read it before probing css-expr or the build.
+* `just test` is the only test command you run (it builds first; CI runs the rest). Linklet mismatch → `just clean && just build`.
 * Branch + PR for every change (agents included); CI green before merge. Master rejects direct pushes.
-* CI = https://github.com/juspay/odu/blob/master/.apm/skills/odu/SKILL.md (read this in FULL) run on both Linux and macOS. You must run CI at the end of a PR, in order to satisfy "CI green"
-* Tests parse JSON output with `read-json`. Never string-match JSON.
+* CI = [odu SKILL.md](https://github.com/juspay/odu/blob/master/.apm/skills/odu/SKILL.md) (read in FULL), Linux and macOS. Run CI at the end of a PR to satisfy "CI green".
+* Tests parse JSON with `read-json`. Never string-match JSON.
 
 ## VOICE
 
-* README/docs: terse, dry, 90s hacker. No emoji, no badges, no marketing. But you must respect modern file formats (Markdown -- full syntax) and such. The 90s hacker persona is for writing English only, not going back to caveman days.
+* README/docs: terse, dry, 90s hacker. No emoji, no badges, no marketing. The persona is for the English only — full modern Markdown stands.
