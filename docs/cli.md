@@ -511,10 +511,21 @@ Creates the month fragment and `@include` line on first use in a month; idempote
 
 ```json
 {"version":1,"ok":true,"day":"2026-08-04","file":".../Daily/2026-08.rkt",
- "created_month":true,"created_day":true,"line":2,"committed":true}
+ "created_month":true,"created_day":true,"covered_by_glob":null,
+ "line":2,"committed":true}
 ```
 
 Both `created_*` are `false` on every run after the first for that day, and `committed` is `false` when there was nothing to write (or `--no-commit`).
+
+**A root that [globs](syntax.md#globs) its fragments is left alone.** `@include Daily/*.rkt` already names `Daily/2026-08.rkt` the moment that file exists, so writing the literal line as well would splice the fragment **twice** — every day node in the month duplicated in the tree. Asked of the pattern, not of the line: any `@include` in the root whose pattern matches the fragment's path covers it, wherever in the root it was written, and then this command creates the fragment and the day node and touches nothing else — not the `@include` line, and not the `year > MonthName` nodes it would have hung under. The shape above a glob is the outline's own.
+
+```json
+{"version":1,"ok":true,"day":"2026-08-04","file":".../Daily/2026-08.rkt",
+ "created_month":true,"created_day":true,"covered_by_glob":"Daily/*.rkt",
+ "line":2,"committed":true}
+```
+
+`covered_by_glob` is that pattern, verbatim as the outline wrote it, and `null` on the run that writes the literal line. The other fields stay what they always were — what was actually written: `created_month` is still the month arriving (the fragment created, or the root gaining the line and the nodes above it), and a run that only created the fragment commits only the fragment.
 
 ## Write routing: the defining file
 

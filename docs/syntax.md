@@ -164,6 +164,12 @@ Daily notes ^daily
   This is the one thing in the module graph that can move without any file the
   server already read being touched.
 
+- **A pattern that covers a fragment is the include.** `olai daily` writes a
+  literal `@include Daily/YYYY-MM.rkt` into `Daily.rkt` — unless a pattern
+  already there names that file, in which case it writes the fragment and
+  leaves the root alone. Two includes of one file are that file spliced twice
+  ([docs/cli.md](cli.md#daily---date-yyyy-mm-dd---home-dir---no-commit)).
+
 `olai check`'s `includes` lists the files a glob matched, one entry each — a
 glob is not visible downstream, only its answer is.
 

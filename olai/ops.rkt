@@ -69,6 +69,7 @@
                                 [line exact-positive-integer?]
                                 [created-month? boolean?]
                                 [created-day? boolean?]
+                                [covered-by-glob (or/c string? #f)]
                                 [committed? boolean?])]
           [ops-add! (->* ((or/c path? string?) string?)
                          (#:date (or/c string? #f)
@@ -335,7 +336,12 @@
 
 ;; ---- daily ----------------------------------------------------------------
 
-(struct daily-result (file day line created-month? created-day? committed?)
+;; covered-by-glob: the @include pattern the root had already written that
+;; names this month's fragment, verbatim — #f when none does, which is the run
+;; that writes the literal line. A covered fragment leaves the root alone: it
+;; is already spliced, and a second include is the same days twice.
+(struct daily-result (file day line created-month? created-day? covered-by-glob
+                           committed?)
   #:transparent)
 
 ;; Ensures today's day node (and the month fragment + @include that hold it).
@@ -362,4 +368,5 @@
                 (hash-ref result 'line)
                 (hash-ref result 'created_month)
                 (hash-ref result 'created_day)
+                (hash-ref result 'covered_by_glob)
                 committed?))

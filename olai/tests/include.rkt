@@ -9,6 +9,7 @@
          olai/load
          olai/json/model
          olai/json/reply
+         (only-in olai/glob glob-match?)
          (only-in olai/paths file-label)
          (only-in olai/query count-tasks)
          olai/status
@@ -385,6 +386,24 @@
        (check-equal? (map task-title (task-children (car (load-tasks root))))
                      '("Jan")))
      (λ () (delete-directory/files dir))))
+
+  ;; The other direction: a WRITER holds one path and asks whether a pattern
+  ;; already names it. `olai daily` is about to create Daily/2026-08.rkt, and
+  ;; a root that globs the directory already reaches it — so nothing is read
+  ;; here (the file need not exist yet) and the rules are the expansion's.
+  (test-case "a pattern answers about one path, reading nothing"
+    (define (m? pattern path)
+      (glob-match? (string->path pattern) (string->path path)))
+    (check-true (m? "/o/Daily/*.rkt" "/o/Daily/2026-08.rkt"))
+    (check-true (m? "/o/Daily/2026-*.rkt" "/o/Daily/2026-08.rkt"))
+    (check-false (m? "/o/Daily/2025-*.rkt" "/o/Daily/2026-08.rkt"))
+    ;; the directory part is literal, and it is the path's own
+    (check-false (m? "/o/Daily/*.rkt" "/o/Weekly/2026-08.rkt"))
+    (check-false (m? "/o/*.rkt" "/o/Daily/2026-08.rkt"))
+    ;; two spellings of one directory are one directory
+    (check-true (m? "/o/./Daily/*.rkt" "/o/Daily/2026-08.rkt"))
+    ;; and a leading dot is not something `*` matches, here either
+    (check-false (m? "/o/Daily/*.rkt" "/o/Daily/.#2026-08.rkt")))
 
   ;; Nothing about a matched file is special: it defines its own nodes, brings
   ;; its own includes, and declares anchors the whole tree can mirror.

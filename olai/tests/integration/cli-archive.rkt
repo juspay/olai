@@ -30,15 +30,6 @@
     (display-to-file body p #:exists 'truncate/replace)
     p)
 
-  ;; What the last commit touched. A move is ONE change in two files, and a
-  ;; commit that carried only one of them would leave the outline mid-move in
-  ;; the history it is supposed to be the record of.
-  (define (last-commit-files dir)
-    (with-output-to-string
-      (λ ()
-        (parameterize ([current-directory dir])
-          (git "show" "--name-only" "--pretty=format:")))))
-
   (define (commit-all dir)
     (parameterize ([current-directory dir])
       (git "add" "-A")
@@ -83,9 +74,9 @@
        (check-true (string-contains? (git-subject dir) "archive: install")
                    (git-subject dir))
        ;; and both files are in it
-       (define touched (last-commit-files dir))
-       (check-true (string-contains? touched "Tasks.rkt") touched)
-       (check-true (string-contains? touched "Archive.rkt") touched)
+       (define touched (committed-files dir))
+       (check-true (and (member "Tasks.rkt" touched) #t) (format "~a" touched))
+       (check-true (and (member "Archive.rkt" touched) #t) (format "~a" touched))
        (define-values (c2 o2 e2)
          (run-olai (list "check" (path->string tasks) archive)))
        (check-equal? c2 0 (string-append o2 e2))
