@@ -696,17 +696,15 @@
     [(string? src) (path-only (string->path src))]
     [else #f]))
 
-;; What an @include path names, wherever it is written. A pattern resolves the
-;; same way a file name does — relative to the DEFINING file, so a fragment
-;; spliced into two roots reads the same directory from either one — which is
-;; why both branches below go through here and not through two spellings of
-;; it.
-(define-for-syntax (include-absolute rel dir)
-  (define base (or dir (current-directory)))
-  (simplify-path (path->complete-path (build-path base rel) base)))
+;; What an @include path names, wherever it is written — olai/glob's answer,
+;; because a pattern and a file name resolve the same way and `daily` asks the
+;; same question of a root it is about to write. All this adds is the
+;; directory a source with no path of its own falls back to.
+(define-for-syntax (include-target rel dir)
+  (include-absolute rel (or dir (current-directory))))
 
 (define-for-syntax (expand-literal-include stx rel dir)
-  (define full (include-absolute rel dir))
+  (define full (include-target rel dir))
   (unless (file-exists? full)
     (raise-syntax-error 'include (format "file not found: ~a" rel) stx))
   #`(load-include-splice #f (list (cons #,(path->string full) #,rel))))
@@ -728,7 +726,7 @@
   (define problem (include-glob-problem rel))
   (when problem
     (raise-syntax-error 'include problem stx))
-  (define pattern (include-absolute rel dir))
+  (define pattern (include-target rel dir))
   (define gdir (glob-dir pattern))
   (unless (directory-exists? gdir)
     (raise-syntax-error 'include

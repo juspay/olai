@@ -62,6 +62,7 @@
           [title-text (-> classification/c (or/c string? #f))]
           [title-flag (-> classification/c (or/c 'done 'doing 'open #f))]
           [title-anchor (-> classification/c (or/c string? #f))]
+          [include-path (-> classification/c (or/c string? #f))]
           [strip-checkbox-prefix (-> string? any)]
           [strip-trailing-anchor (-> string? any)]))
 
@@ -215,3 +216,11 @@
 
 (define (title-anchor k)
   (match k [(list 'title _ _ anchor) anchor] [_ #f]))
+
+;; The path an @include line names — a file or a glob pattern, as the source
+;; wrote it — and #f when the line is not one. Same standing as the three
+;; above: `daily` asks what a root already includes before it writes another
+;; one, and a module that edits outline text does not get to spell where in a
+;; classification the answer sits.
+(define (include-path k)
+  (match k [(list 'include rel) rel] [_ #f]))

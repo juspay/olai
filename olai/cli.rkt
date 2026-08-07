@@ -326,6 +326,9 @@
             'file (daily-result-file r)
             'created_month (daily-result-created-month? r)
             'created_day (daily-result-created-day? r)
+            ;; the pattern that already reached the fragment, so the root was
+            ;; left alone — null on the run that wrote the @include line
+            'covered_by_glob (nullish (daily-result-covered-by-glob r))
             'line (daily-result-line r)
             'committed (daily-result-committed? r))))
 
