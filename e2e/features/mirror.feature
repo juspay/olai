@@ -21,11 +21,16 @@ Feature: one node, shown wherever it matters
     Then the mirror under "Next week" draws "Ship the server first"
     And the page has not reloaded
 
+  # The mirrored node stores no state of its own — it is done when its
+  # children are (docs/syntax.md#derived-state) — so the write lands on the
+  # CHILD, from the file that only mirrors the parent. An anchor's scope is
+  # the set: the write routes into the file that declares it, and the mirror
+  # site draws the answer the tree now gives.
   @cross-file
   Scenario: checking it off from the mirroring file flips the one real node
     When I open the home page
     Then "Ship the server" is not done
-    When I check off "^serve" from the CLI against "Week.rkt"
+    When I check off "^tests" from the CLI against "Week.rkt"
     Then "Ship the server" becomes done
 
   # THE ARROW. It is a link to the node this site mirrors, and the node is

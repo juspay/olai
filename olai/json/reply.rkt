@@ -18,8 +18,8 @@
          olai/agenda
          olai/calendar
          ;; a blocker is a node, and a node is addressed by its key
-         (only-in olai/lang/expander task-key)
-         (only-in olai/json/model nullish mark->json))
+         (only-in olai/lang/expander task-key task?)
+         (only-in olai/json/model nullish mark->json task-mention->jsexpr))
 
 (provide (contract-out
           [json-reply-version exact-positive-integer?]
@@ -29,12 +29,14 @@
           [error-object (->* (string?)
                              (#:file (or/c path? string? #f)
                               #:line (or/c exact-integer? #f)
-                              #:col (or/c exact-integer? #f))
+                              #:col (or/c exact-integer? #f)
+                              #:detail hash?)
                              hash?)]
           [err-hash (->* (string?)
                          (#:file (or/c path? string? #f)
                           #:line (or/c exact-integer? #f)
-                          #:col (or/c exact-integer? #f))
+                          #:col (or/c exact-integer? #f)
+                          #:detail hash?)
                          hash?)]
           [agenda-item->jsexpr (-> agenda-item? symbol? hash?)]
           [agenda-groups->jsexpr (-> list? string? hash?)]
@@ -60,16 +62,46 @@
 ;; because it rides in two places: alone inside a reply that is ABOUT several
 ;; things (a multi-file `check`, where a failure may belong to one file or to
 ;; the set), and wrapped in the envelope below when the failure IS the reply.
-(define (error-object message #:file [file #f] #:line [line #f] #:col [col #f])
-  (hash 'file (nullish (and file (if (path? file) (path->string file) file)))
-        'line (nullish line)
-        'col (nullish col)
-        'message message))
+;;
+;; `detail` is what a failure knows about ITSELF, as keys beside the four: the
+;; refusal to write a derived state names the children the state came from, and
+;; an agent that has to act on them must not be reading them back out of a
+;; sentence (docs/cli.md: agents do not regex pretty-printed messages). Empty
+;; for every failure that has nothing to add, which is most of them.
+;;
+;; Its values arrive as DOMAIN values (olai/ops raises tasks, not JSON) and are
+;; rendered here, which is where every other reply is rendered. The four fields
+;; WIN a collision: a detail may not quietly redefine where the error is.
+(define (error-object message
+                      #:file [file #f] #:line [line #f] #:col [col #f]
+                      #:detail [detail (hash)])
+  (hash-set* (for/hash ([(k v) (in-hash detail)])
+               (values k (detail->jsexpr v)))
+             'file (nullish (and file (if (path? file) (path->string file) file)))
+             'line (nullish line)
+             'col (nullish col)
+             'message message))
 
-(define (err-hash message #:file [file #f] #:line [line #f] #:col [col #f])
+;; A detail value, as JSON. A NODE is published as a mention — what it is
+;; called, what state it is in, the name you can address it by — which is
+;; json/model's shape and not this module's. Everything else is already jsexpr
+;; and rides through. By VALUE and not by key: a failure that names nodes under
+;; some other key needs no entry in a table here, and there is no table to
+;; forget to add one to.
+(define (detail->jsexpr v)
+  (cond
+    [(task? v) (task-mention->jsexpr v)]
+    [(list? v) (map detail->jsexpr v)]
+    [else v]))
+
+(define (err-hash message
+                  #:file [file #f] #:line [line #f] #:col [col #f]
+                  #:detail [detail (hash)])
   (hash 'version json-reply-version
         'ok #f
-        'error (error-object message #:file file #:line line #:col col)))
+        'error (error-object message
+                             #:file file #:line line #:col col
+                             #:detail detail)))
 
 (define (agenda-item->jsexpr it bucket)
   (hash 'title (agenda-item-title it)
@@ -77,6 +109,11 @@
         'date (nullish (agenda-item-date it))
         'breadcrumb (agenda-item-breadcrumb it)
         'status (symbol->string (agenda-item-status it))
+        ;; …and where that state came from, spelled as `tree` spells it
+        ;; (olai/json/model). It is what tells a `"doing"` item in a DATE
+        ;; bucket from one in the `doing` group: the group is about who
+        ;; claimed a node, and a derived state is nobody's claim.
+        'status_source (symbol->string (agenda-item-source it))
         ;; Where the item sits by its own facts (see items-for below): the
         ;; group it is in, unless it is BLOCKED — and then what it would have
         ;; been. An overdue node waiting on an unfinished one is both, and an

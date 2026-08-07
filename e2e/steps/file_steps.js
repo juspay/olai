@@ -51,9 +51,14 @@ When(
 
 // By its own line, at whatever depth it sits: a title is unique in the
 // fixture, so "the line that says this" means one line.
+// A step names the TITLE, and a trailing `^anchor` is not part of one
+// (docs/syntax.md) — it is stripped off the stored title, so a line wearing
+// one is still the line this names.
+const titleOf = (line) => line.trim().replace(/\s+\^[A-Za-z0-9_-]+$/, "");
+
 When("I remove the title {string} from the outline", async function (title) {
   const lines = this.outline.split("\n");
-  const kept = lines.filter((l) => l.trim() !== title);
+  const kept = lines.filter((l) => titleOf(l) !== title);
   assert.notEqual(kept.length, lines.length, `${title} is not in the outline`);
   await this.rewrite(kept.join("\n"));
 });

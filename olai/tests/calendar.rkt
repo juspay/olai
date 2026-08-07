@@ -24,10 +24,13 @@
                  (mirror-ref "b" #f)))))
     (define items (collect-cal-items t))
     (check-equal? (length items) 3)
+    ;; A stores nothing and holds one done child and one in flight, so it
+    ;; DERIVES doing (olai/lang/state) — the calendar reports what a node is,
+    ;; wherever the answer came from
     (check-equal? (sort (map (λ (it) (symbol->string (cal-item-status it)))
                              items)
                         string<?)
-                  '("doing" "done" "open"))
+                  '("doing" "doing" "done"))
     ;; the stored mark rides along beside what it means
     (define c (findf (λ (i) (equal? (cal-item-title i) "C")) items))
     (check-equal? (cal-item-doing c) "2026-08-01")

@@ -4,7 +4,7 @@
 ;; The human view is the web app (`olai serve`), so every command that has a
 ;; JSON reply emits it always: --json is accepted and does nothing. `ics`
 ;; (its output IS the format) and `serve` are the exceptions and talk plain.
-;; Exit codes: 0 ok, 1 usage, 2 validation/load, 3 not found.
+;; Exit codes: 0 ok, 1 usage, 2 validation/load, 3 not found, 4 derived state.
 ;; Arg parsing: racket/cmdline. JSON: json package write-json.
 
 (require json
@@ -31,6 +31,10 @@
 (define exit-usage 1)
 (define exit-validation 2)
 (define exit-not-found 3)
+;; A write that would store a state the tree already answers. Its own code
+;; because it is not a mistake and there is something else to do — the error
+;; object's `children` say what (docs/cli.md).
+(define exit-derived 4)
 
 ;; Personal outline data lives outside the repo; OLAI_HOME names the directory.
 ;; There is no default — the tool does not guess where your notes are — so an
@@ -40,12 +44,10 @@
 (define (olai-home)
   (define env (getenv "OLAI_HOME"))
   (unless (and env (non-empty-string? env))
-    (raise (exn:fail:op
-            (string-append
-             "OLAI_HOME is not set; set it to your outline directory, "
-             "or name the outline explicitly (a path argument, --file, --home)")
-            (current-continuation-marks)
-            'usage #f #f #f)))
+    (op-fail 'usage
+             (string-append
+              "OLAI_HOME is not set; set it to your outline directory, "
+              "or name the outline explicitly (a path argument, --file, --home)")))
   (expand-user-path env))
 
 (define (default-file)
@@ -55,9 +57,14 @@
 ;; JSON commands (everything an agent drives), `olai: message` for the two that
 ;; do not speak JSON at all — `ics` and `serve`, which have no envelope to put
 ;; it in.
-(define (die code msg #:json? json? #:file [file #f] #:line [line #f] #:col [col #f])
+(define (die code msg #:json? json? #:file [file #f] #:line [line #f] #:col [col #f]
+             ;; what the failure knows about itself, as keys beside the four
+             ;; (olai/json/reply). Nothing to say on the plain-text surface,
+             ;; which has no object to put them in.
+             #:detail [detail (hash)])
   (if json?
-      (write-json-stderr (err-hash msg #:file file #:line line #:col col))
+      (write-json-stderr
+       (err-hash msg #:file file #:line line #:col col #:detail detail))
       (eprintf "olai: ~a\n" msg))
   (exit code))
 
@@ -205,6 +212,7 @@
   (case kind
     [(usage) exit-usage]
     [(not-found) exit-not-found]
+    [(derived) exit-derived]
     [else exit-validation]))
 
 ;; Run an op, or die with the exit code its failure asked for.
@@ -217,7 +225,8 @@
                #:json? json?
                #:file (exn:fail:op-file e)
                #:line (exn:fail:op-line e)
-               #:col (exn:fail:op-col e)))]
+               #:col (exn:fail:op-col e)
+               #:detail (exn:fail:op-detail e)))]
        [exn:fail?
         (λ (e) (die exit-validation (exn-message e) #:json? json?))])
     (thunk)))
@@ -438,7 +447,8 @@
   (eprintf "\n")
   (eprintf "everything but ics and serve replies in JSON; --json does nothing.\n")
   (eprintf "the human view is the web app: olai serve\n")
-  (eprintf "exit codes: 0 ok | 1 usage | 2 validation/load | 3 not found\n")
+  (eprintf (string-append "exit codes: 0 ok | 1 usage | 2 validation/load"
+                          " | 3 not found | 4 derived state\n"))
   (eprintf "agent contract: docs/cli.md\n"))
 
 ;; ---- subcommand parsers via racket/cmdline ----
