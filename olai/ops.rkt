@@ -14,11 +14,17 @@
          racket/file
          racket/path
          racket/string
+         ;; a failure's detail is jsexpr, and an absent value in one is null
+         (only-in json json-null)
          ;; where done work goes, and the file name everything agrees on
          olai/archive
          olai/capture
          olai/daily
          olai/dates
+         ;; what state a node is in, and whether it is one the file stores at
+         ;; all — the rule is the language's, and a write only asks it
+         (only-in olai/lang/expander
+                  task-title task-id task-status task-kids task-status-derived?)
          olai/status
          olai/edit
          olai/load
@@ -90,20 +96,25 @@
                            (#:commit? boolean?)
                            daily-result?)]))
 
-;; kind: 'usage | 'validation | 'not-found | 'busy — what the caller should
-;; make of it (the CLI maps kinds to exit codes; a web route maps them to
-;; statuses). 'busy is nobody's fault and reaches no CLI command: the ACP
-;; bridge raises it when a second prompt arrives mid-turn, and a route turns
-;; it into 409.
+;; kind: 'usage | 'validation | 'not-found | 'derived | 'busy — what the caller
+;; should make of it (the CLI maps kinds to exit codes; a web route maps them
+;; to statuses). 'derived is a write that would STORE a state the tree already
+;; answers (olai/lang/state) — its own kind because it is nobody's mistake and
+;; there is something else to do instead, which the detail names. 'busy is
+;; likewise nobody's fault and reaches no CLI command: the ACP bridge raises it
+;; when a second prompt arrives mid-turn, and a route turns it into 409.
 ;; file/line/col carry the srcloc when there is one (CLAUDE.md: errors carry
 ;; file:line:col).
-(struct exn:fail:op exn:fail (kind file line col) #:transparent)
+;; detail: jsexpr keys the failure knows about itself, for the error object
+;; beside the message (olai/json/reply). Empty for most failures.
+(struct exn:fail:op exn:fail (kind file line col detail) #:transparent)
 
 (define (op-fail kind fmt #:file [file #f] #:line [line #f] #:col [col #f]
+                 #:detail [detail (hash)]
                  . args)
   (raise (exn:fail:op (apply format fmt args)
                       (current-continuation-marks)
-                      kind file line col)))
+                      kind file line col detail)))
 
 ;; Anything the layers below raise (append-capture, the metadata engine, the
 ;; resolver) is a validation failure about `file` until proven otherwise.
@@ -231,6 +242,51 @@
 (struct mark-result (file title line state stamp undone? committed?)
   #:transparent)
 
+;; A DERIVED STATE IS NOT A STATE YOU CAN WRITE.
+;;
+;; A parent with task children and no mark of its own is done exactly when they
+;; all are (olai/lang/state), and `done` on it would store the answer the tree
+;; is already giving — the second copy this whole feature exists to delete, and
+;; the one that goes stale. So it is refused before anything is edited, and the
+;; refusal names the unfinished children: doing them one at a time is the thing
+;; to do instead, and marking them all would be inventing a state for each of
+;; them that nobody asked for.
+;;
+;; `doing` is not guarded. It is a claim about somebody's attention, never
+;; derived from anything (olai/lang/state), so writing one on a parent stores
+;; something the tree does not already say.
+(define (refuse-derived-done tk label undo? path line)
+  (when (and tk (task-status-derived? tk))
+    (define kids (task-kids tk))
+    (define unfinished
+      (for/list ([k (in-list kids)] #:unless (eq? (task-status k) 'done)) k))
+    (op-fail
+     'derived
+     #:file path
+     #:line line
+     #:detail (hash 'children
+                    (for/list ([k (in-list unfinished)])
+                      (hash 'title (task-title k)
+                            'status (symbol->string (task-status k))
+                            'id (or (task-id k) (json-null)))))
+     "~a"
+     (cond
+       [undo?
+        (format (string-append "~a has no @done to undo: its done-ness is "
+                               "derived from its ~a children")
+                label (length kids))]
+       [(null? unfinished)
+        (format (string-append "~a is already done: all ~a of its children "
+                               "are, so it derives done")
+                label (length kids))]
+       [else
+        (format (string-append "~a derives its done-ness from its children, "
+                               "~a of ~a unfinished: ~a; done those instead")
+                label (length unfinished) (length kids)
+                (string-join (for/list ([k (in-list unfinished)])
+                               (format "~s" (task-title k)))
+                             ", "))]))))
+
 (define (ops-mark! file state spec today
                    #:undo? [undo? #f]
                    #:commit? [commit? #t])
@@ -241,6 +297,9 @@
   (define path (located-file hit))
   (define title (located-title hit))
   (define at (located-index hit))
+  (when (eq? state 'done)
+    (refuse-derived-done (located-task hit) (format "~s" title) undo?
+                         path (add1 at)))
   (define original (file->string path))
   (define-values (new-text line)
     (as-validation

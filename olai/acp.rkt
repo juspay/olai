@@ -929,7 +929,7 @@ tool calls are allowed one at a time instead"
 ;; Nothing to ask, because there is nothing there to ask. The op kinds are the
 ;; write ops' vocabulary (a route maps them to statuses, the CLI to exit codes).
 (define (gone-fail message)
-  (raise (exn:fail:op message (current-continuation-marks) 'validation #f #f #f)))
+  (raise (exn:fail:op message (current-continuation-marks) 'validation #f #f #f (hash))))
 
 ;; One turn, start to finish: spawn and shake hands if that has not happened,
 ;; then wait for the agent as long as it takes. -> the stop reason. Raises what

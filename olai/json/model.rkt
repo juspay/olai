@@ -70,6 +70,14 @@
           ;; both, so a reader can ask the question it actually has. `status`
           ;; is the one to switch on: it is where a fourth state would show up.
           'status (symbol->string (task-status tk))
+          ;; …and where that answer CAME from: "stored" when the node wrote a
+          ;; mark, "derived" when it has task children and no mark of its own,
+          ;; so its state is computed from theirs (olai/lang/state). The two
+          ;; are already told apart by `done` being null under a `"done"`
+          ;; status, which is exactly the kind of inference an agent should not
+          ;; be left to make — and a write aimed at a derived state is refused
+          ;; (docs/cli.md), so this is the field that says so in advance.
+          'status_source (if (task-status-derived? tk) "derived" "stored")
           'id (nullish (task-id tk))
           'key (nullish (task-key tk))
           'tags (task-tags tk)

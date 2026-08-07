@@ -691,12 +691,12 @@
 (define (busy-fail)
   (raise (exn:fail:op "the agent is busy with another turn"
                       (current-continuation-marks)
-                      'busy #f #f #f)))
+                      'busy #f #f #f (hash))))
 
 (define (stopped-fail)
   (raise (exn:fail:op "the agent has been stopped"
                       (current-continuation-marks)
-                      'validation #f #f #f)))
+                      'validation #f #f #f (hash))))
 
 ;; Boot now rather than at the first prompt: a panel that is supposed to come
 ;; up showing your last conversation needs one before anybody types. A failure

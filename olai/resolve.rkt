@@ -26,29 +26,46 @@
 ;; file  : path of the file that DEFINES the node (what a write must edit)
 ;; index : 0-based index of its title line in that file
 ;; title : the resolved title (never the "^anchor" the user typed)
-(struct located (file index title) #:transparent)
+;; task  : the node itself, out of the loaded tree — what a write asks about
+;;         the SHAPE it is editing (does this node have children, and what
+;;         state are they in). #f when the model cannot name exactly one node
+;;         in that file, which the text scan below can still resolve; a guard
+;;         that asks then simply has nothing to go on and lets the write
+;;         through to the language.
+(struct located (file index title task) #:transparent)
 
 ;; Everything below takes the spec ALREADY parsed — `(cons 'anchor a)` or
 ;; `(cons 'title t)` (olai/meta). Four of them used to re-parse the same
 ;; string, which is four places to disagree about what the user typed.
 
-;; The files that could hold this node: the defining file of every model
-;; match. No match in the model means no candidate, which is the "no task"
-;; case — the text is never scanned on a hunch.
+;; The files that could hold this node, each with the nodes the MODEL found in
+;; it. No match in the model means no candidate, which is the "no task" case —
+;; the text is never scanned on a hunch.
+;;
+;; The nodes ride along because a caller wants more than a line number: a write
+;; that guards on what a node CONTAINS has to ask the tree, where an @include
+;; splice has already happened, not the text, where it has not. A file with
+;; exactly one match pairs unambiguously with the one title line the scan finds
+;; there; more than one and the pairing would be a guess, so there is none.
+;; -> (listof (cons path (or/c task #f)))
 (define (candidate-files out want)
   (define root (outline-path out))
   (define tasks (outline-tasks out))
   (define (file-of tk)
     (simple-form-path (or (task-file tk) root)))
-  (remove-duplicates
-   (match want
-     [(cons 'anchor a)
-      (define tk (or (hash-ref (outline-anchors out) a #f)
-                     (find-task-by-id tasks a)))
-      (if tk (list (file-of tk)) '())]
-     [(cons 'title t)
-      (map file-of (find-tasks-by-title tasks t))])
-   #:key path->string))
+  (define found
+    (match want
+      [(cons 'anchor a)
+       (define tk (or (hash-ref (outline-anchors out) a #f)
+                      (find-task-by-id tasks a)))
+       (if tk (list tk) '())]
+      [(cons 'title t) (find-tasks-by-title tasks t)]))
+  (for/list ([f (in-list (remove-duplicates (map file-of found)
+                                            #:key path->string))])
+    (define here (filter (λ (tk) (equal? (path->string (file-of tk))
+                                         (path->string f)))
+                         found))
+    (cons f (and (= (length here) 1) (car here)))))
 
 (define (matches-in text want)
   (match want
@@ -106,10 +123,11 @@
   (define out (resolution-outline out0 want))
   (define hits
     (append*
-     (for/list ([f (in-list (candidate-files out want))])
+     (for/list ([c (in-list (candidate-files out want))])
+       (define f (car c))
        (define text (file->string f))
        (for/list ([m (in-list (matches-in text want))])
-         (cons f m)))))
+         (list f m (cdr c))))))
   (define label (spec-label spec))
   (cond
     [(null? hits)
@@ -119,9 +137,8 @@
                 label
                 (string-join
                  (for/list ([h (in-list hits)])
-                   (format "~a:~a" (car h) (title-match-line (cdr h))))
+                   (format "~a:~a" (car h) (title-match-line (cadr h))))
                  ", "))]
     [else
-     (define f (car (car hits)))
-     (define m (cdr (car hits)))
-     (located f (title-match-index m) (title-match-title m))]))
+     (match-define (list f m tk) (car hits))
+     (located f (title-match-index m) (title-match-title m) tk)]))

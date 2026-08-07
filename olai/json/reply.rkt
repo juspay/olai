@@ -29,12 +29,14 @@
           [error-object (->* (string?)
                              (#:file (or/c path? string? #f)
                               #:line (or/c exact-integer? #f)
-                              #:col (or/c exact-integer? #f))
+                              #:col (or/c exact-integer? #f)
+                              #:detail hash?)
                              hash?)]
           [err-hash (->* (string?)
                          (#:file (or/c path? string? #f)
                           #:line (or/c exact-integer? #f)
-                          #:col (or/c exact-integer? #f))
+                          #:col (or/c exact-integer? #f)
+                          #:detail hash?)
                          hash?)]
           [agenda-item->jsexpr (-> agenda-item? symbol? hash?)]
           [agenda-groups->jsexpr (-> list? string? hash?)]
@@ -60,16 +62,35 @@
 ;; because it rides in two places: alone inside a reply that is ABOUT several
 ;; things (a multi-file `check`, where a failure may belong to one file or to
 ;; the set), and wrapped in the envelope below when the failure IS the reply.
-(define (error-object message #:file [file #f] #:line [line #f] #:col [col #f])
-  (hash 'file (nullish (and file (if (path? file) (path->string file) file)))
-        'line (nullish line)
-        'col (nullish col)
-        'message message))
+;;
+;; `detail` is what a failure knows about ITSELF, as keys beside the four: the
+;; refusal to write a derived state names the children the state came from, and
+;; an agent that has to act on them must not be reading them back out of a
+;; sentence (docs/cli.md: agents do not regex pretty-printed messages). Empty
+;; for every failure that has nothing to add, which is most of them.
+(define (error-object message
+                      #:file [file #f] #:line [line #f] #:col [col #f]
+                      #:detail [detail (hash)])
+  (hash-union*
+   (hash 'file (nullish (and file (if (path? file) (path->string file) file)))
+         'line (nullish line)
+         'col (nullish col)
+         'message message)
+   detail))
 
-(define (err-hash message #:file [file #f] #:line [line #f] #:col [col #f])
+;; The four fields win: a detail may not quietly redefine where the error is.
+(define (hash-union* base extra)
+  (for/fold ([h base]) ([(k v) (in-hash extra)])
+    (if (hash-has-key? base k) h (hash-set h k v))))
+
+(define (err-hash message
+                  #:file [file #f] #:line [line #f] #:col [col #f]
+                  #:detail [detail (hash)])
   (hash 'version json-reply-version
         'ok #f
-        'error (error-object message #:file file #:line line #:col col)))
+        'error (error-object message
+                             #:file file #:line line #:col col
+                             #:detail detail)))
 
 (define (agenda-item->jsexpr it bucket)
   (hash 'title (agenda-item-title it)
