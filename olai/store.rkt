@@ -37,8 +37,6 @@
          ;; store already probed having been touched
          (only-in olai/glob glob-expand)
          (only-in olai/edges edge-index?)
-         ;; what the edge graph is asked: which nodes are not actionable yet
-         (only-in olai/query blocked-nodes)
          olai/load
          ;; where a @doc path points and what is in it; the store is the one
          ;; layer that reads one, because it is the one that knows when to
@@ -66,7 +64,6 @@
                             [globs (listof path?)])]
           [snapshot-outlines (-> snapshot? (listof outline?))]
           [snapshot-edges (-> snapshot? edge-index?)]
-          [snapshot-blocked (-> snapshot? hash?)]
           [snapshot-day-key (-> snapshot? string? (or/c string? #f))]
           [call-in-outline-namespace (-> (-> any) any)]))
 
@@ -95,15 +92,11 @@
 ;; nothing downstream has to resolve a name.
 (define (snapshot-outlines snap) (linked-outlines (snapshot-linked snap)))
 
-;; The typed-edge graph the load derived (olai/edges), and the one question the
-;; page asks it: which nodes are waiting on something unfinished. Derived per
-;; call rather than stored, because it is a QUERY over the snapshot and the
-;; snapshot is what a handler already holds — a cached copy would be a second
-;; thing to keep in step with the load.
+;; The typed-edge graph the load derived (olai/edges). Unwrapped, not asked:
+;; what a caller wants to KNOW from it — which nodes are waiting on something
+;; unfinished — is a pure query (olai/query), and a store that answered it
+;; would be a second door to the same question the CLI already opens itself.
 (define (snapshot-edges snap) (linked-edges (snapshot-linked snap)))
-
-(define (snapshot-blocked snap)
-  (blocked-nodes (snapshot-edges snap)))
 
 (define empty-snapshot (snapshot empty-linked '() (hash) (hash) '() '()))
 

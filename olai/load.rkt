@@ -33,6 +33,7 @@
                           [anchors hash?]
                           [edges edge-index?])]
           [empty-linked linked?]
+          [linked-entries (-> linked? list?)]
           [struct load-error ([message string?]
                               [file (or/c path? string? #f)]
                               [line (or/c exact-positive-integer? #f)]
@@ -71,6 +72,14 @@
 ;; rather than built by the caller, so what a linked set CARRIES stays this
 ;; module's to change.
 (define empty-linked (linked '() (hash) empty-edge-index))
+
+;; The set as the pure queries read it: one (file . tasks) per outline, in load
+;; order. Named here because it is what `linked` IS to a reader — the agenda,
+;; the calendar and the ICS writer all wanted it, and each was spelling the
+;; same two accessors into a cons.
+(define (linked-entries lk)
+  (for/list ([o (in-list (linked-outlines lk))])
+    (cons (outline-path o) (outline-tasks o))))
 
 ;; A load failure, with the srcloc of the offending form (CLAUDE.md: errors
 ;; carry file:line:col). line/col may be #f when the exn had no source.

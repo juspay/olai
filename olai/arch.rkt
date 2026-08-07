@@ -46,9 +46,15 @@
 ;; mean once both spellings are folded into one, which way round, and what
 ;; points back at a node. One owner, because a second module that inverted
 ;; `@blocks` its own way would be a second graph.
+;;
+;; The names are written out rather than starred: `edge-*` would reach into
+;; lang/expander's `edge-ref`, which is the language's word for what a file
+;; WROTE, and a concept that claimed both would be claiming two different
+;; things one directory apart.
 (override "edges.rkt"
-          (concept edge-derivation "build-edge-index" "edge-index*" "edge-targets"
-                   "edge-backlinks" "edge-order" "backlink*"))
+          (concept edge-derivation "build-edge-index" "empty-edge-index"
+                   "edge-index*" "edge-graph" "edge-targets" "edge-backlinks"
+                   "edge-order" "edge-node" "backlink*"))
 
 ;; Snapshots, and the namespace an outline is loaded in. Addressing is not
 ;; snapshotting — the index is olai/index.rkt's — so the concept here is the

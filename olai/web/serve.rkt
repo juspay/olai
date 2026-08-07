@@ -77,6 +77,8 @@
          olai/load
          (only-in olai/ops exn:fail:op? exn:fail:op-kind)
          (only-in olai/paths file-label roots-base)
+         ;; what the typed-edge graph is asked: which nodes are waiting
+         (only-in olai/query blocked-nodes)
          olai/store
          ;; the transport, and the assets that drive it in the browser: a
          ;; framework this app is only a consumer of (live/README.md)
@@ -243,6 +245,12 @@
 ;; The state the outlines are in right now, as the wire names it. Both the
 ;; broadcast and the catch-up ask this, so neither can invent a spelling.
 (define (cursor-now st) (outline-cursor (store-revision st)))
+
+;; What the graph says is not actionable yet, of the snapshot a handler already
+;; holds. Asked here rather than by the store, which says WHEN the outlines are
+;; what they are and answers no questions about them — the CLI composes these
+;; same two calls for the same reason (olai/cli).
+(define (blocked-of snap) (blocked-nodes (snapshot-edges snap)))
 
 ;; A node's address: its own zoom page, keyed by the key the load layer minted
 ;; (olai/load). Stable across a rename — that is what makes it a permalink —
@@ -413,7 +421,7 @@
                ;; and what the graph says is not actionable yet, from the same
                ;; snapshot: one load, one answer, on every page that draws a
                ;; node
-               #:blocked (snapshot-blocked snap)))
+               #:blocked (blocked-of snap)))
 
 ;; The key a page was asked for, as a node, or #f. Both zoom routes go through
 ;; here, and each says in its own words what #f means.
@@ -427,7 +435,7 @@
                              #:today (today-iso-string)
                              #:zoom-base node-href-base
                              #:docs (snapshot-docs snap)
-                             #:blocked (snapshot-blocked snap))
+                             #:blocked (blocked-of snap))
              (page-title (store-files st))))))
 
 ;; A node's permalink.
@@ -481,11 +489,9 @@
     (λ (_rev snap _err)
       (define today (today-iso-string))
       (define groups
-        (agenda-groups-from-files
-         (for/list ([o (in-list (snapshot-outlines snap))])
-           (cons (outline-path o) (outline-tasks o)))
-         today
-         #:blocked (snapshot-blocked snap)))
+        (agenda-groups-from-files (linked-entries (snapshot-linked snap))
+                                  today
+                                  #:blocked (blocked-of snap)))
       (json-response (agenda-groups->jsexpr groups today)))))
 
 ;; ---- handlers: the stream -------------------------------------------------

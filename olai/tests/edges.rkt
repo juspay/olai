@@ -10,12 +10,12 @@
 ;; compiles without it, the message names the near miss — is the mirror rules'
 ;; (tests/link.rkt, tests/mirrors.rkt), and it is the same code answering.
 
-(require racket/file
-         racket/list
+(require racket/list
          racket/string
          json
          xml
          (except-in olai/lang/expander #%module-begin)
+         (only-in olai/lang/walk find-tasks-by-title)
          olai/agenda
          olai/edges
          ;; the closed set itself: what the language says the relations ARE
@@ -25,32 +25,17 @@
          olai/load
          (only-in olai/query blocked-nodes)
          olai/store
+         ;; outlines on disk, and the two answers a load gives (tests/outlines)
+         olai/tests/outlines
          olai/web/render)
 
 (module+ test
   (require rackunit))
 
 (module+ test
-  (define (write-outline dir name body)
-    (define p (build-path dir name))
-    (display-to-file body p #:exists 'truncate/replace)
-    p)
-
-  (define (in-dir name proc)
-    (define dir (make-temporary-file (string-append name "~a") 'directory))
-    (dynamic-wind void (λ () (proc dir)) (λ () (delete-directory/files dir))))
-
   ;; One outline, loaded and linked the way every read command loads one.
   (define (link-one name body proc)
     (in-dir name (λ (dir) (proc (load-set (list (write-outline dir "T.rkt" body)))))))
-
-  (define (linked-or-fail lk)
-    (check-true (linked? lk) (format "~a" lk))
-    lk)
-
-  (define (error-of lk)
-    (check-true (load-error? lk) (format "~a" lk))
-    (values (or (load-error-where lk) "") (load-error-message lk)))
 
   (define (tasks-of lk) (append* (map outline-tasks (linked-outlines lk))))
 
@@ -59,14 +44,9 @@
   (define (round-trip h) (read-json (open-input-string (jsexpr->string h))))
 
   (define (by-title tasks title)
-    (define found
-      (let walk ([xs tasks])
-        (for/or ([x (in-list xs)])
-          (and (task? x)
-               (or (and (equal? (task-title x) title) x)
-                   (walk (task-children x)))))))
-    (check-true (task? found) (format "no node titled ~s" title))
-    found))
+    (define found (find-tasks-by-title tasks title))
+    (check-true (pair? found) (format "no node titled ~s" title))
+    (car found)))
 
 ;; ---- the grammar ------------------------------------------------------------
 
@@ -415,6 +395,17 @@ EOF
        (define blocked (blocked-nodes (linked-edges (linked-or-fail lk))))
        (check-equal? (map task-key (hash-ref blocked "install")) '("demo")))))
 
+  ;; The other end of the same rule: being done is not a thing you can be
+  ;; blocked out of. The agenda never sees such a node — done is off the plate
+  ;; before this is asked — but the outline draws it, and a finished node
+  ;; wearing "blocked" is the page contradicting the checkbox beside it.
+  (test-case "a done node is waiting on nothing, whatever it is after"
+    (link-one
+     "olai-edge-done-source"
+     "#lang olai\ninstall ^install\n  @after ^order\n  @done 2026-08-05\norder ^order\n"
+     (λ (lk)
+       (check-equal? (blocked-nodes (linked-edges (linked-or-fail lk))) (hash)))))
+
   (test-case "and marking that parent done is what unblocks it"
     (link-one
      "olai-edge-parent-done"
@@ -446,12 +437,11 @@ sweep up
 EOF
     )
 
-  (define (groups-of lk today)
-    (agenda-groups-from-files
-     (for/list ([o (in-list (linked-outlines lk))])
-       (cons (outline-path o) (outline-tasks o)))
-     today
-     #:blocked (blocked-nodes (linked-edges lk))))
+  ;; The agenda as a read command asks for it. `#:blocked` defaults to what the
+  ;; set's own graph says; a caller passes an empty one to ask what an agenda
+  ;; over a tree nobody linked looks like.
+  (define (groups-of lk today #:blocked [blocked (blocked-nodes (linked-edges lk))])
+    (agenda-groups-from-files (linked-entries lk) today #:blocked blocked))
 
   (test-case "a blocked node leaves the date buckets and keeps its bucket"
     (link-one
@@ -499,10 +489,7 @@ EOF
      agenda-source
      (λ (lk)
        (define groups
-         (agenda-groups-from-files
-          (for/list ([o (in-list (linked-outlines (linked-or-fail lk)))])
-            (cons (outline-path o) (outline-tasks o)))
-          "2026-08-06"))
+         (groups-of (linked-or-fail lk) "2026-08-06" #:blocked (hash)))
        (check-false (assq 'blocked groups))))))
 
 ;; ---- what an agent is told -------------------------------------------------------
@@ -564,7 +551,7 @@ EOF
           (render-outline (snapshot-files-data snap)
                           #:today "2026-08-06"
                           #:zoom-base "/n/"
-                          #:blocked (snapshot-blocked snap))))
+                          #:blocked (blocked-nodes (snapshot-edges snap)))))
        (check-true (string-contains? html "ol-blocked") "no blocked pill on the page")
        ;; it names the blocker as the outline does, and links to it
        (check-true (string-contains? html "after ^order") html)
@@ -576,5 +563,5 @@ EOF
           (render-node-fragment
            (make-task #:title "colour" #:id "colour" #:key "colour")
            #:today "2026-08-06"
-           #:blocked (snapshot-blocked snap))))
+           #:blocked (blocked-nodes (snapshot-edges snap)))))
        (check-false (string-contains? fragment "ol-blocked"))))))

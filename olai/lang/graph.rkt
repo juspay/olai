@@ -30,8 +30,8 @@
          racket/string)
 
 (provide check-anchor-graph
-         check-edge-graph
          edge-relations
+         edge-relations-label
          edge-relation?
          normalize-edge
          derived-relation-acyclic?)
@@ -63,6 +63,12 @@
 
 (define edge-relations (map relation-rule-written relation-rules))
 
+;; "@after, @blocks, @see" — the set as a person reads it. Both messages that
+;; name it (the reader's unknown-@field, the checker's unknown-relation) say it
+;; this way, and neither spells the list itself.
+(define edge-relations-label
+  (string-join (for/list ([r (in-list edge-relations)]) (format "@~a" r)) ", "))
+
 (define (edge-relation? r) (and (rule-for r) #t))
 
 (define (rule-for r)
@@ -87,34 +93,73 @@
      (values (relation-rule-derived rule) target source)]
     [else (values (relation-rule-derived rule) source target)]))
 
-;; Ordering must be acyclic — a node cannot be after itself, however long the
-;; way round. A cross-reference need not be: `@see` is a link, and two nodes
-;; may perfectly well point at each other. Keyed by the DERIVED relation, which
-;; is the one a cycle can be in.
-(define acyclic-relations '(after))
-
-(define (derived-relation-acyclic? r) (and (memq r acyclic-relations) #t))
-
-;; roots     : (listof node)
-;; #:id      : node -> string | #f   (its ^anchor)
-;; #:kids    : node -> (listof node)
-;; #:mirror  : node -> string | #f   (non-#f = a *mirror site, no children)
-;; #:scope   : what the anchor list covers ("the loaded set"), or #f when this
-;;             pass cannot see the whole world — a module being compiled does
-;;             not know which files it will be loaded beside, so a *mirror it
-;;             cannot resolve is not yet wrong. An OPEN scope checks the two
-;;             rules that are about the nodes in hand (duplicate, cycle) and
-;;             leaves "unknown" to the linker, which is closed by construction.
-;; #:describe: node -> string        (where it is, for "first declared at")
-;; #:fail    : who node message -> ⊥ (node may be #f)
+;; And one row per DERIVED relation — the ones that survive normalization, and
+;; the one thing that differs between them. Ordering must be acyclic: a node
+;; cannot be after itself, however long the way round. A cross-reference need
+;; not be — `@see` is a link, and two nodes may perfectly well point at each
+;; other.
 ;;
-;; -> hash anchor -> declaring node. The first rule below has to collect that
-;; to check the second and third, and it is the answer a caller wants anyway
+;; A second table rather than a field on the first, because it is keyed by a
+;; different thing: `@after` and `@blocks` are two spellings with one answer
+;; here, and asking a spelling whether it is acyclic is asking the wrong noun.
+(struct derived-rule (relation acyclic?) #:transparent)
+
+(define derived-rules
+  (list (derived-rule 'after #t)
+        (derived-rule 'see   #f)))
+
+(define (derived-relation-acyclic? r)
+  (define rule
+    (for/first ([rule (in-list derived-rules)]
+                #:when (eq? (derived-rule-relation rule) r))
+      rule))
+  (and rule (derived-rule-acyclic? rule)))
+
+;; The two tables have to agree — every relation something derives TO has a row
+;; above — and a fourth relation is exactly when that is got wrong: the new row
+;; is written in the table keyed by the spelling, and the one keyed by the
+;; derived name is the edit nobody makes. So it is checked, here, at the moment
+;; this module is instantiated, rather than left to whoever reads both.
+(for ([rule (in-list relation-rules)])
+  (define derived (relation-rule-derived rule))
+  (unless (for/or ([d (in-list derived-rules)])
+            (eq? (derived-rule-relation d) derived))
+    (error 'olai/lang/graph
+           "@~a derives to ~a, which has no row in derived-rules"
+           (relation-rule-written rule) derived)))
+
+;; roots      : (listof node)
+;; #:id       : node -> string | #f   (its ^anchor)
+;; #:kids     : node -> (listof node)
+;; #:mirror   : node -> string | #f   (non-#f = a *mirror site, no children)
+;; #:edges    : node -> (listof edge) (the typed edges written on it)
+;; #:relation : edge -> symbol
+;; #:target   : edge -> string        (the ^anchor it names)
+;; #:scope    : what the anchor list covers ("the loaded set"), or #f when this
+;;              pass cannot see the whole world — a module being compiled does
+;;              not know which files it will be loaded beside, so a reference it
+;;              cannot resolve is not yet wrong. An OPEN scope checks the rules
+;;              that are about the nodes in hand (duplicate, cycle) and leaves
+;;              "unknown" to the linker, which is closed by construction.
+;; #:describe : node -> string        (where it is, for "first declared at")
+;; #:fail     : who form message -> ⊥ (`form` is a node for the mirror rules,
+;;              an edge for the edge ones, or #f)
+;;
+;; Both kinds of reference in ONE call, because the second cannot run without
+;; the first's answer: the edge rules are checked against the anchor index the
+;; duplicate rule collects on its way through. Two exported passes would have
+;; handed every caller that ordering to get right, and all of them the same
+;; six arguments to pass twice.
+;;
+;; -> hash anchor -> declaring node. It is the answer a caller wants anyway
 ;; ("which node is ^agent"); returning it beats walking the forest again.
 (define (check-anchor-graph roots
                             #:id id-of
                             #:kids kids-of
                             #:mirror mirror-of
+                            #:edges [edges-of (λ (_n) '())]
+                            #:relation [relation-of #f]
+                            #:target [target-of #f]
                             #:scope scope
                             #:describe describe
                             #:fail fail)
@@ -122,6 +167,10 @@
   (when scope
     (check-mirrors-resolve roots kids-of mirror-of decls scope fail))
   (check-cycles decls id-of kids-of mirror-of fail)
+  (check-edges roots
+               #:id id-of #:kids kids-of #:edges edges-of
+               #:relation relation-of #:target target-of
+               #:decls decls #:scope scope #:fail fail)
   decls)
 
 ;; anchor -> declaring node; duplicates are the first rule.
@@ -141,16 +190,20 @@
   decls)
 
 (define (check-mirrors-resolve roots kids-of mirror-of decls scope fail)
-  (define known (sort (hash-keys decls) string<?))
   (define (walk n)
     (cond
       [(mirror-of n)
        => (λ (a)
             (unless (hash-has-key? decls a)
               (fail 'mirror n
-                    (unknown-anchor-message a known #:scope scope #:sigil "*"))))]
+                    (unknown-anchor-message a (sorted-anchors decls)
+                                            #:scope scope #:sigil "*"))))]
       [else (for-each walk (kids-of n))]))
   (for-each walk roots))
+
+;; Every anchor the scope has, in an order two runs agree on. Only ever asked
+;; on the way to failing, so it is asked there.
+(define (sorted-anchors decls) (sort (hash-keys decls) string<?))
 
 ;; What a name that resolves to nothing is told: the name, every anchor that
 ;; DOES exist in the scope it was looked up in, and — when one of them is a
@@ -214,10 +267,9 @@
   (for ([(id n) (in-hash decls)])
     (for ([k (in-list (kids-of n))]) (walk-under k id)))
 
-  (define-values (path closing) (find-cycle edges))
+  (define-values (path blame) (find-cycle edges))
   (when path
-    (fail 'mirror
-          (or (site-on-path edges path) closing)
+    (fail 'mirror blame
           (format "mirror *~a creates a cycle: ~a"
                   (car path)
                   (string-join path " -> ")))))
@@ -228,8 +280,9 @@
 ;; site)), where a site is whatever form the caller wants an error pointed at
 ;; (#f when the edge is structural — containment has no line of its own).
 ;;
-;; -> (values path closing-site) | (values #f #f). The path is `a -> … -> a`,
-;; the names the cycle runs through, and `closing-site` is the form of the edge
+;; -> (values path blame-site) | (values #f #f). The path is `a -> … -> a`, the
+;; names the cycle runs through, and `blame-site` is the form to point an error
+;; at: a site ON the cycle, else the form of the edge
 ;; that closed it.
 (define (find-cycle edges)
   (define WHITE 0) (define GRAY 1) (define BLACK 2)
@@ -273,9 +326,11 @@
         #:unless found)
     (when (= (hash-ref color u WHITE) WHITE)
       (dfs u)))
-  (if found
-      (values (car found) (cdr found))
-      (values #f #f)))
+  (cond
+    [found
+     (define path (car found))
+     (values path (or (site-on-path edges path) (cdr found)))]
+    [else (values #f #f)]))
 
 ;; A site on the cycle: the form to point the error at when the edge that
 ;; closed it has none (containment reaching an anchor, say).
@@ -287,33 +342,22 @@
 ;; ---- typed edges ------------------------------------------------------------
 ;;
 ;; The second kind of reference to an anchor, checked where the first one is
-;; and against the index the first one built (`decls`, which is what
-;; check-anchor-graph answers with).
-;;
-;; roots      : (listof node)
-;; #:id       : node -> string | #f   (its ^anchor — an edge's source name)
-;; #:kids     : node -> (listof node)
-;; #:edges    : node -> (listof edge) (the typed edges written on it)
-;; #:relation : edge -> symbol
-;; #:target   : edge -> string        (the ^anchor it names)
-;; #:decls    : hash anchor -> node
-;; #:scope    : what the anchor list covers, or #f when this pass cannot see
-;;              the whole world (see check-anchor-graph)
-;; #:fail     : who edge message -> ⊥
+;; and against the index the first one built (`decls`).
 ;;
 ;; Three rules, and the first is what makes the set closed: a relation nobody
 ;; ratified is not a relation. The other two are per relation — an unknown
-;; target is wrong for all of them, a cycle only for the ordering one.
-(define (check-edge-graph roots
-                          #:id id-of
-                          #:kids kids-of
-                          #:edges edges-of
-                          #:relation relation-of
-                          #:target target-of
-                          #:decls decls
-                          #:scope scope
-                          #:fail fail)
-  (define known (sort (hash-keys decls) string<?))
+;; target is wrong for all of them, a cycle only for the ordering one. It is
+;; the same walk for all three, and it does nothing at all for a tree that
+;; wrote no edges, which is most of them.
+(define (check-edges roots
+                     #:id id-of
+                     #:kids kids-of
+                     #:edges edges-of
+                     #:relation relation-of
+                     #:target target-of
+                     #:decls decls
+                     #:scope scope
+                     #:fail fail)
   ;; derived relation -> hash from -> (listof (cons to edge)), for the ones
   ;; that must be acyclic. Built on the way through the same walk that checks
   ;; the other two rules.
@@ -331,9 +375,12 @@
         [(not (edge-relation? relation))
          (fail (edge-who relation) e (unknown-relation-message relation))]
         [else
+         ;; the anchor list is sorted HERE and not once up front: it is for a
+         ;; message, this call does not return, and most trees never build one
          (when (and scope (not (hash-has-key? decls target)))
            (fail (edge-who relation) e
-                 (unknown-anchor-message target known #:scope scope #:sigil "^")))
+                 (unknown-anchor-message target (sorted-anchors decls)
+                                         #:scope scope #:sigil "^")))
          (define-values (derived from to) (normalize-edge relation source target))
          ;; An end with no name cannot be reached, so it cannot be on a cycle.
          (when (and (derived-relation-acyclic? derived) from to)
@@ -342,9 +389,8 @@
   (for-each visit roots)
 
   (for ([derived (in-list (sort (hash-keys graphs) symbol<?))])
-    (define-values (path closing) (find-cycle (hash-ref graphs derived)))
+    (define-values (path e) (find-cycle (hash-ref graphs derived)))
     (when path
-      (define e (or (site-on-path (hash-ref graphs derived) path) closing))
       (fail (edge-who (and e (relation-of e))) e
             (format "cycle in @~a: ~a; @~a must be acyclic"
                     derived
@@ -358,7 +404,4 @@
   (string->symbol (format "@~a" (or relation "edge"))))
 
 (define (unknown-relation-message relation)
-  (format "unknown relation @~a; relations: ~a"
-          relation
-          (string-join (for/list ([r (in-list edge-relations)]) (format "@~a" r))
-                       ", ")))
+  (format "unknown relation @~a; relations: ~a" relation edge-relations-label))

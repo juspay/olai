@@ -232,6 +232,9 @@ change to the language, not a field you may invent:
 - **`@after` is ordering, never scheduling.** It says nothing about a date. A
   blocked node with a due date is overdue *and* blocked, and the agenda says
   both.
+- **A done node is waiting on nothing.** Being blocked is a fact about what you
+  can start; a node that is finished has started. So a `@done` node never reads
+  as blocked, whatever its `@after` target says.
 - **Done-ness does not propagate.** A target counts as done when it says so —
   `@done`, or `[x] `. A parent whose children are all done is **not** done, so
   it goes on blocking. Deriving it would give the outline two answers to "is

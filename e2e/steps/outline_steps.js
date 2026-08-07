@@ -27,9 +27,16 @@ Then("{string} leaves the page", async function (title) {
 
 // ---- the rest of a node ----------------------------------------------------
 
-/** A part of a node's OWN row: a descendant's row is another node's. */
+/** Every match for a part of a node's OWN row: a descendant's row is another
+ *  node's. `part` is the one you want; this is for counting, where `.first()`
+ *  would count one of nothing as one of something. */
+function parts(world, title, cls) {
+  return world.node(title).first().locator(`:scope > .ol-row ${cls}`);
+}
+
+/** A part of a node's OWN row. */
 function part(world, title, cls) {
-  return world.node(title).first().locator(`:scope > .ol-row ${cls}`).first();
+  return parts(world, title, cls).first();
 }
 
 Then("the note under {string} reads {string}", async function (title, note) {
@@ -96,7 +103,7 @@ Then("{string} is blocked on {string}", async function (title, waiting) {
 
 Then("{string} is not blocked", async function (title) {
   assert.equal(
-    await this.node(title).first().locator(":scope > .ol-row .ol-blocked").count(),
+    await parts(this, title, ".ol-blocked").count(),
     0,
     `${title} draws a blocked pill`,
   );

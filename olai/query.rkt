@@ -43,10 +43,17 @@
 ;; silently re-block everything after it. Point `@after` at the child you
 ;; actually mean, or mark the parent.
 ;;
+;; A DONE node is waiting on nothing, whatever it is after: it has happened,
+;; and the order it happened in is no longer a question. Without that, a
+;; finished node whose blocker is still open wears a "blocked" affordance on
+;; the page — the agenda never showed it, because a done node is off the plate
+;; before this is asked, and the outline would have.
+;;
 ;; idx : the set's edge index (olai/edges), which is also what knows the node
 ;;       at the far end of an arrow
 (define (blocked-nodes idx)
   (for*/hash ([(source targets) (in-hash (edge-graph idx 'after))]
+              #:when (unfinished? (edge-node idx source))
               [waiting (in-value (filter unfinished? (map (λ (k) (edge-node idx k))
                                                           targets)))]
               #:unless (null? waiting))

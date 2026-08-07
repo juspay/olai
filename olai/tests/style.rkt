@@ -43,6 +43,9 @@
          olai/web/render
          olai/web/chat-panel
          olai/store
+         ;; the blocked pill is drawn from a query over the snapshot's graph,
+         ;; the same way the server draws it (olai/web/serve)
+         (only-in olai/query blocked-nodes)
          olai/index
          (only-in olai/lang/walk resolve-mirrors)
          (except-in olai/lang/expander #%module-begin))
@@ -160,7 +163,7 @@
                                 ;; store read it: what a document looks like
                                 ;; collapsed is a state the skin paints
                                 #:docs (snapshot-docs example-snapshot)
-                                #:blocked (snapshot-blocked example-snapshot))
+                                #:blocked (blocked-nodes (snapshot-edges example-snapshot)))
                 #:sidebar (render-sidebar example-files
                                           #:home-href "/" #:today-href "/today"
                                           #:href "/"

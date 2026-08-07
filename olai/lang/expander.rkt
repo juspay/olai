@@ -413,34 +413,25 @@
     ;; loaded beside, so a *mirror it cannot resolve is not yet wrong. The
     ;; linker (lang/link) is the pass that can see them all, and it owns that
     ;; rule.
+    ;;
+    ;; Mirror sites and typed edges in one call: both are references to an
+    ;; anchor, and the second is checked against the index the first builds.
+    ;; The open scope is what they share too — an @after target may live in a
+    ;; file this module has never heard of, so "unknown" is the linker's alone,
+    ;; while a cycle among the forms in hand is a cycle wherever it is read.
     (unless (any-include? irs)
-      (define (ir-fail who ir msg)
-        (raise-syntax-error who msg (and ir (ir-stx ir))))
-      (define (ir-id ir) (and (ir-task? ir) (ir-task-id ir)))
-      (define (ir-kids ir) (if (ir-task? ir) (ir-task-kids ir) '()))
-      (define decls
-        (check-anchor-graph
-         irs
-         #:id ir-id
-         #:kids ir-kids
-         #:mirror (λ (ir) (and (ir-mirror? ir) (ir-mirror-anchor ir)))
-         #:scope #f
-         #:describe ir-loc
-         #:fail ir-fail))
-      ;; The edges the same forms declare, against the index the pass above
-      ;; collected. Same open scope: an @after target may live in a file this
-      ;; module has never heard of, so "unknown" is the linker's alone — but a
-      ;; cycle among the edges in hand is a cycle wherever it is read.
-      (check-edge-graph
+      (check-anchor-graph
        irs
-       #:id ir-id
-       #:kids ir-kids
+       #:id (λ (ir) (and (ir-task? ir) (ir-task-id ir)))
+       #:kids (λ (ir) (if (ir-task? ir) (ir-task-kids ir) '()))
+       #:mirror (λ (ir) (and (ir-mirror? ir) (ir-mirror-anchor ir)))
        #:edges (λ (ir) (if (ir-task? ir) (ir-task-edges ir) '()))
        #:relation ir-edge-relation
        #:target ir-edge-target
-       #:decls decls
        #:scope #f
-       #:fail ir-fail))
+       #:describe ir-loc
+       #:fail (λ (who ir msg)
+                (raise-syntax-error who msg (and ir (ir-stx ir))))))
     (void)))
 
 ;; ---- runtime include load + tree validation ------------------------------
@@ -557,35 +548,23 @@
 ;; Exported because the LINKER runs it over the whole loaded set (lang/link),
 ;; which is the same check with the scope closed.
 (define (check-task-graph tasks #:scope [scope #f])
-  (define (id-of x) (and (task? x) (task-id x)))
-  (define (kids-of x) (if (task? x) (task-children x) '()))
-  ;; `x` is whatever the rule is ABOUT — a node for the mirror rules, an edge
-  ;; for the edge ones — and each carries the srcloc of its own form.
-  (define (fail who x msg)
-    (define stx (loc->syntax (and x (node-loc x))))
-    (raise (exn:fail:syntax (format "~a: ~a" who msg)
-                            (current-continuation-marks)
-                            (if stx (list stx) '()))))
-  (define decls
-    (check-anchor-graph
-     tasks
-     #:id id-of
-     #:kids kids-of
-     #:mirror (λ (x) (and (mirror-ref? x) (mirror-ref-anchor x)))
-     #:scope scope
-     #:describe (λ (x) (loc->string (node-loc x)))
-     #:fail fail))
-  (check-edge-graph
+  (check-anchor-graph
    tasks
-   #:id id-of
-   #:kids kids-of
+   #:id (λ (x) (and (task? x) (task-id x)))
+   #:kids (λ (x) (if (task? x) (task-children x) '()))
+   #:mirror (λ (x) (and (mirror-ref? x) (mirror-ref-anchor x)))
    #:edges (λ (x) (if (task? x) (task-edges x) '()))
    #:relation edge-ref-relation
    #:target edge-ref-anchor
-   #:decls decls
    #:scope scope
-   #:fail fail)
-  decls)
+   #:describe (λ (x) (loc->string (node-loc x)))
+   ;; `x` is whatever the rule is ABOUT — a node for the mirror rules, an edge
+   ;; for the edge ones — and each carries the srcloc of its own form.
+   #:fail (λ (who x msg)
+            (define stx (loc->syntax (and x (node-loc x))))
+            (raise (exn:fail:syntax (format "~a: ~a" who msg)
+                                    (current-continuation-marks)
+                                    (if stx (list stx) '()))))))
 
 (define (finalize-tasks forms src)
   (define-values (includes globs) (collect-includes forms))

@@ -22,5 +22,6 @@
 ;; and what `@blocks` means is `normalize-edge` and no second opinion.
 (override "graph.rkt"
           (concept anchor-graph "check-anchor-graph")
-          (concept edge-rules "check-edge-graph" "edge-relations" "edge-relation?"
-                   "normalize-edge" "derived-relation-acyclic?"))
+          (concept edge-rules "edge-relations" "edge-relations-label"
+                   "edge-relation?" "normalize-edge"
+                   "derived-relation-acyclic?"))

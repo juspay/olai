@@ -101,10 +101,13 @@
   (define back (make-hash))      ; to -> (listof backlink), reversed
   (define nodes (make-hash))     ; key -> task, the ends of the arrows
 
+  ;; Everything is consed on and reversed at the end (see `freeze`), and the
+  ;; same arrow may be written twice — two `@after ^x` lines, a mirror of a
+  ;; node that is also mirrored next door. Duplicates come out in that one
+  ;; pass rather than by scanning what is already there per edge, which was a
+  ;; membership test against a node's whole in-degree.
   (define (back! target source kind)
-    (define b (backlink source kind))
-    (unless (memb? b (hash-ref back target '()))
-      (hash-update! back target (λ (bs) (cons b bs)) '())))
+    (hash-update! back target (λ (bs) (cons (backlink source kind) bs)) '()))
 
   (define (add! relation from to)
     (define from-key (task-key from))
@@ -112,8 +115,7 @@
     (hash-set! nodes from-key from)
     (hash-set! nodes to-key to)
     (define g (hash-ref! forward relation make-hash))
-    (unless (memb? to-key (hash-ref g from-key '()))
-      (hash-update! g from-key (λ (ts) (cons to-key ts)) '()))
+    (hash-update! g from-key (λ (ts) (cons to-key ts)) '())
     (back! to-key from-key relation))
 
   (fold-tasks
@@ -152,19 +154,19 @@
 
   (define edges (freeze forward))
   (edge-index edges
-              (for/hash ([(k v) (in-hash back)]) (values k (reverse v)))
+              (for/hash ([(k v) (in-hash back)])
+                (values k (remove-duplicates (reverse v))))
               (for/hash ([(relation g) (in-hash edges)]
                          #:when (derived-relation-acyclic? relation))
                 (values relation (topo-order g)))
               (for/hash ([(k v) (in-hash nodes)]) (values k v))))
 
-(define (memb? x xs) (and (member x xs) #t))
-
-;; from -> (listof to), source order restored.
+;; from -> (listof to), source order restored and duplicates dropped.
 (define (freeze forward)
   (for/hash ([(relation g) (in-hash forward)])
     (values relation
-            (for/hash ([(from tos) (in-hash g)]) (values from (reverse tos))))))
+            (for/hash ([(from tos) (in-hash g)])
+              (values from (remove-duplicates (reverse tos)))))))
 
 ;; Targets before the nodes that are after them: a postorder DFS, entered from
 ;; every source in name order so the same graph answers with the same list

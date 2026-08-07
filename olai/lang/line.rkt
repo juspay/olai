@@ -35,7 +35,7 @@
          ;; the CLOSED relation set — what an @field naming an anchor may be
          ;; called. The grammar reads it rather than restating it: a fourth
          ;; relation is one line in one table, not a regexp here as well.
-         (only-in olai/lang/graph edge-relations))
+         (only-in olai/lang/graph edge-relations edge-relations-label))
 
 ;; The grammar is a boundary five modules read across, so it is contracted:
 ;; the input is a line with its indentation already stripped, and the answer
@@ -160,10 +160,7 @@
      (list 'meta 'bad
            (format (string-append "unknown @~a; known fields: @date, @done, "
                                   "@doing, @doc, @include, ~a")
-                   name
-                   (string-join
-                    (for/list ([r (in-list edge-relations)]) (format "@~a" r))
-                    ", ")))]
+                   name edge-relations-label))]
     [_
      (define-values (title0 flag) (strip-checkbox-prefix content))
      (define-values (title anchor) (strip-trailing-anchor title0))

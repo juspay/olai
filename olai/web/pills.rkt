@@ -26,8 +26,11 @@
           [date-pill-xexpr (-> string? string? boolean? list?)]
           [doing-pill-xexpr (-> list?)]
           ;; the nodes an unfinished @after points at, and where to link one
+          ;; `list?`, not `(listof task?)`: the contracts at this boundary are
+          ;; flat and cheap by rule (CLAUDE.md), and every other renderer here
+          ;; takes its nodes the same way
           [blocked-pill-xexpr
-           (->* ((listof task?)) (#:zoom-base (or/c string? #f)) list?)]))
+           (->* (list?) (#:zoom-base (or/c string? #f)) list?)]))
 
 (define-style ol-date
   #:background ,blue-bg

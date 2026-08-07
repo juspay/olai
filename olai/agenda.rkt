@@ -11,6 +11,7 @@
 
 (provide (struct-out agenda-item)
          agenda-bucket
+         agenda-item-blocked?
          collect-agenda
          agenda-groups
          agenda-groups-from-files)
@@ -51,7 +52,10 @@
 
 (define (in-flight? it) (eq? (agenda-item-status it) 'doing))
 
-(define (blocked? it) (pair? (agenda-item-waiting it)))
+;; Waiting on anything is being blocked, and that is the whole definition —
+;; said here, where the grouping reads it, so the reply cannot answer it a
+;; second way and disagree about which array an item is in.
+(define (agenda-item-blocked? it) (pair? (agenda-item-waiting it)))
 
 ;; Dated first, in date order; undated after them in tree order (`sort` is
 ;; stable). Only the DOING group can hold an undated item, so only it needs
@@ -85,7 +89,7 @@
   ;; BLOCKED comes out first, and that is the whole of what the group does: a
   ;; node waiting on something unfinished is not on today's plate, however
   ;; today its date is.
-  (define-values (blocked actionable) (partition blocked? items))
+  (define-values (blocked actionable) (partition agenda-item-blocked? items))
   (define-values (doing dated) (partition in-flight? actionable))
   (define by-date (sort dated string<? #:key agenda-item-date))
   (define (in-bucket sym)

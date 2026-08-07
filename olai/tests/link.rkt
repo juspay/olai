@@ -16,31 +16,17 @@
          olai/json/model
          olai/load
          olai/ops
-         olai/store)
+         olai/store
+         ;; outlines on disk, and the two answers a load gives
+         olai/tests/outlines)
 
 (module+ test
   (require rackunit))
 
 (module+ test
-  (define (write-outline dir name body)
-    (define p (build-path dir name))
-    (display-to-file body p #:exists 'truncate/replace)
-    p)
-
   ;; What every read command does with the paths it was given (olai/load).
-  (define (link . paths) (load-set paths))
-
-  (define (linked-or-fail lk)
-    (check-true (linked? lk) (format "~a" lk))
-    lk)
-
-  (define (error-of lk)
-    (check-true (load-error? lk) (format "~a" lk))
-    (values (or (load-error-where lk) "") (load-error-message lk)))
-
-  (define (in-dir name proc)
-    (define dir (make-temporary-file (string-append name "~a") 'directory))
-    (dynamic-wind void (λ () (proc dir)) (λ () (delete-directory/files dir)))))
+  ;; Writing them, and the two answers it can give, are tests/outlines'.
+  (define (link . paths) (load-set paths)))
 
 (module+ test
   (test-case "a mirror reaches an anchor another file declares"

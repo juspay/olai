@@ -100,14 +100,10 @@
     (die-load-error lk json? (or (load-error-where lk) "the outlines")))
   lk)
 
-;; What a query reads: one (file . tasks) per outline, linked first so a
-;; dangling `*anchor` is heard about here rather than drawn as a hole.
-(define (file-entries-of lk)
-  (for/list ([o (in-list (linked-outlines lk))])
-    (cons (outline-path o) (outline-tasks o))))
-
+;; What a query reads (olai/load, linked-entries), linked first so a dangling
+;; `*anchor` is heard about here rather than drawn as a hole.
 (define (linked-file-entries paths json?)
-  (file-entries-of (link-or-die paths json?)))
+  (linked-entries (link-or-die paths json?)))
 
 (define (today-iso)
   (today-iso-string))
@@ -185,7 +181,7 @@
   (define today (today-iso))
   (define groups
     (agenda-groups-from-files
-     (file-entries-of lk) today
+     (linked-entries lk) today
      #:blocked (blocked-nodes (linked-edges lk))))
   (write-json-stdout (agenda-groups->jsexpr groups today)))
 

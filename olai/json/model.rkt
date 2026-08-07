@@ -123,7 +123,7 @@
 ;; a reader can invert is the one that says what the file wrote.
 (define (edges->jsexpr idx)
   (for/hash ([(relation g) (in-hash (edge-index-edges idx))])
-    (values (string->symbol (symbol->string relation))
+    (values relation
             (for/hash ([(source targets) (in-hash g)])
               (values (string->symbol source) targets)))))
 

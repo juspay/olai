@@ -33,6 +33,30 @@
               line col span src mirror-anchor include-path)
   #:mutable #:transparent)
 
+;; Built BY NAME, for the reason make-task is (lang/expander): fifteen
+;; positional fields meant three construction sites reading `(node #f #f #f #f
+;; #f '() #f '() '() n col …)`, where the one `'()` in a run of `#f`s is a
+;; field, and adding a field in the middle silently shifts every site that
+;; does not happen to break. Where a node IS is always known; everything else
+;; is what that kind of line happens to carry.
+(define (make-node #:line line
+                   #:col col
+                   #:span span
+                   #:src src
+                   #:title [title #f]
+                   #:date-info [date-info #f]
+                   #:done-info [done-info #f]
+                   #:doing-info [doing-info #f]
+                   #:doc-info [doc-info #f]
+                   #:edge-infos [edge-infos '()]
+                   #:id-info [id-info #f]
+                   #:descs [descs '()]
+                   #:children [children '()]
+                   #:mirror-anchor [mirror-anchor #f]
+                   #:include-path [include-path #f])
+  (node title date-info done-info doing-info doc-info edge-infos id-info
+        descs children line col span src mirror-anchor include-path))
+
 (define (reader-error src line col pos msg . args)
   (raise-read-error
    (if (null? args) msg (apply format msg args))
@@ -261,16 +285,16 @@
           (check-leaf-parent! level n col)
           (set! stack (take stack level))
           (define nd
-            (node #f #f #f #f #f '() #f '() '() n col (string-length content) src
-                  anchor #f))
+            (make-node #:line n #:col col #:span (string-length content) #:src src
+                       #:mirror-anchor anchor))
           (push-node! nd level)]
          [`(include ,path)
           (check-level! level n col)
           (check-leaf-parent! level n col)
           (set! stack (take stack level))
           (define nd
-            (node #f #f #f #f #f '() #f '() '() n col (string-length content) src
-                  #f path))
+            (make-node #:line n #:col col #:span (string-length content) #:src src
+                       #:include-path path))
           (push-node! nd level)]
          [`(title ,title ,flag ,anchor)
           (check-level! level n col)
@@ -282,8 +306,11 @@
           (define id-info
             (and anchor (list anchor n col)))
           (define nd
-            (node title #f done-info doing-info #f '() id-info '() '() n col
-                  (string-length title) src #f #f))
+            (make-node #:line n #:col col #:span (string-length title) #:src src
+                       #:title title
+                       #:done-info done-info
+                       #:doing-info doing-info
+                       #:id-info id-info))
           (push-node! nd level)]
          [`(meta desc ,text)
           (define parent (require-task-parent! level n col "description line"))
