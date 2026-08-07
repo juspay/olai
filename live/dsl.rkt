@@ -481,12 +481,11 @@
 ;; page.
 (define-syntax (live-query stx)
   (syntax-parse stx
-    [(_ region:id href:expr (~optional (~seq #:delay-ms ms:expr)))
+    [(_ region:id href:expr
+        (~optional (~seq #:delay-ms ms:expr)
+                   #:defaults ([ms #'live-default-query-delay-ms])))
      (define rd (live-lookup 'region #'region 'live-query "first argument"))
-     (tag stx
-          (if (attribute ms)
-              #`(live-query-attributes #,(region-decl-id rd) href #:delay-ms ms)
-              #`(live-query-attributes #,(region-decl-id rd) href)))]))
+     (tag stx #`(live-query-attributes #,(region-decl-id rd) href #:delay-ms ms))]))
 
 ;; (live-item region tag key body ...) -> xexpr
 ;;

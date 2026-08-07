@@ -154,6 +154,17 @@
 ;; that did not concern them.
 (define morph-swap "morph:outerHTML")
 
+;; A FETCH THAT LANDS IN A REGION, which is the one thing all three attribute
+;; sets below are: where to get it, what to lift out of the reply, what to put
+;; it on, and how it goes on. They differ only in what makes it happen — the
+;; stream says so, a click says so, a keystroke says so — so the landing is
+;; said once here and the trigger is each caller's own line.
+(define (region-fetch-attributes r href)
+  (list (list 'hx-get href)
+        (list 'hx-select (region-selector r))
+        (list 'hx-target (region-selector r))
+        (list 'hx-swap morph-swap)))
+
 ;; On the body (or any ancestor of the region and the links): the extensions,
 ;; and the stream they all share. ONE EventSource for the page — browsers cap
 ;; them per origin, and a second one would be a second story about health.
@@ -195,12 +206,9 @@
 ;; to protect. A second region says no.
 (define (live-region-attributes lv #:history? [history? #t])
   (append
-   (list (list 'id (live-view-region lv))
-         (list 'hx-get (live-view-href lv))
-         (list 'hx-trigger (string-append "sse:" (live-view-event lv)))
-         (list 'hx-select (region-selector lv))
-         (list 'hx-target (region-selector lv))
-         (list 'hx-swap morph-swap))
+   (list (list 'id (live-view-region lv)))
+   (region-fetch-attributes lv (live-view-href lv))
+   (list (list 'hx-trigger (string-append "sse:" (live-view-event lv))))
    ;; history is the region's too: restoring a whole page from the back
    ;; button would rebuild exactly the chrome partial navigation exists to
    ;; keep
@@ -226,11 +234,8 @@
 
 (define (live-query-attributes r href #:delay-ms [delay-ms live-default-query-delay-ms])
   (if r
-      (list (list 'hx-get href)
-            (list 'hx-trigger (query-trigger delay-ms))
-            (list 'hx-select (region-selector r))
-            (list 'hx-target (region-selector r))
-            (list 'hx-swap morph-swap))
+      (append (region-fetch-attributes r href)
+              (list (list 'hx-trigger (query-trigger delay-ms))))
       '()))
 
 (define (query-trigger delay-ms)
@@ -243,10 +248,7 @@
 (define (live-link-attributes r href)
   (cons (list 'href href)
         (if r
-            (list (list 'hx-get href)
-                  (list 'hx-select (region-selector r))
-                  (list 'hx-target (region-selector r))
-                  (list 'hx-swap morph-swap)
-                  ;; the address bar is part of what the page shows
-                  (list 'hx-push-url "true"))
+            (append (region-fetch-attributes r href)
+                    ;; the address bar is part of what the page shows
+                    (list (list 'hx-push-url "true")))
             '())))

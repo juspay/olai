@@ -269,10 +269,9 @@
 ;; none. Both are the same element, because the element is what the input
 ;; re-fetches and what a save re-draws.
 (define (results-xexpr query hits zoom-base results-href)
-  (define shown (if (> (length hits) search-shown-limit)
-                    (take hits search-shown-limit)
-                    hits))
-  (define more (- (length hits) (length shown)))
+  (define found (length hits))
+  (define shown (if (> found search-shown-limit) (take hits search-shown-limit) hits))
+  (define more (max 0 (- found search-shown-limit)))
   `(div ((class ,ol-search-results)
          ;; a result list that changes under a reader who cannot see it still
          ;; has to say so
