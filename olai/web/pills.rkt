@@ -25,12 +25,11 @@
           ;; a node's @date, with its time beside it when it has one
           [date-pill-xexpr (-> string? string? boolean? list?)]
           [doing-pill-xexpr (-> list?)]
-          ;; the nodes an unfinished @after points at, and where to link one
+          ;; the nodes an unfinished @after points at, and the address of one.
           ;; `list?`, not `(listof task?)`: the contracts at this boundary are
           ;; flat and cheap by rule (CLAUDE.md), and every other renderer here
           ;; takes its nodes the same way
-          [blocked-pill-xexpr
-           (->* (list?) (#:zoom-base (or/c string? #f)) list?)]))
+          [blocked-pill-xexpr (-> list? (-> string? string?) list?)]))
 
 (define-style ol-date
   #:background ,blue-bg
@@ -90,10 +89,10 @@
 ;;
 ;; What it is waiting ON is its title: `@after ^order` is in the file, and the
 ;; pill is what makes it visible without opening one. It links to the FIRST
-;; blocker, because the next thing a reader wants is that node — and to nothing
-;; at all on a page that has no node addresses to give (`#:zoom-base #f`),
-;; where the title is still the whole answer.
-(define-component (blocked-pill-xexpr waiting #:zoom-base [zoom-base #f])
+;; blocker, because the next thing a reader wants is that node — at the address
+;; the route table minted (web/routes), like every other link to a node.
+;; Nothing here assembles one.
+(define-component (blocked-pill-xexpr waiting node-href)
   #:class ol-blocked
   #:css (#:background ,pill-bg
          #:color ,dim
@@ -103,13 +102,10 @@
          #:text-transform uppercase
          #:text-decoration none
          [(: & hover) #:color ,ink])
-  (define attrs
-    (list `(class ,(classes ol-pill ol-blocked))
-          `(title ,(string-append "after " (waiting-label waiting)))))
-  (if zoom-base
-      `(a (,@attrs ,@(node-link-attributes zoom-base (task-key (car waiting))))
-          "blocked")
-      `(span (,@attrs) "blocked")))
+  `(a ((class ,(classes ol-pill ol-blocked))
+       (title ,(string-append "after " (waiting-label waiting)))
+       ,@(node-link-attributes node-href (task-key (car waiting))))
+      "blocked"))
 
 ;; "^order" / "^order, clear the driveway" — a blocker as the outline names it:
 ;; its anchor when it has one, else the line it is written on. An unanchored

@@ -27,6 +27,8 @@
          olai/store
          ;; outlines on disk, and the two answers a load gives (tests/outlines)
          olai/tests/outlines
+         ;; a node's address, minted from the app's own route table
+         (only-in olai/tests/addresses test-node-href)
          olai/web/render)
 
 (module+ test
@@ -550,12 +552,14 @@ EOF
          (xexpr->string
           (render-outline (snapshot-files-data snap)
                           #:today "2026-08-06"
-                          #:zoom-base "/n/"
+                          #:node-href test-node-href
                           #:blocked (blocked-nodes (snapshot-edges snap)))))
        (check-true (string-contains? html "ol-blocked") "no blocked pill on the page")
-       ;; it names the blocker as the outline does, and links to it
+       ;; it names the blocker as the outline does, and links to its page —
+       ;; at the address the ROUTER answers at, minted from the app's own
+       ;; table rather than typed here (tests/addresses)
        (check-true (string-contains? html "after ^order") html)
-       (check-true (string-contains? html "/n/order") html)
+       (check-true (string-contains? html (test-node-href "order")) html)
        ;; an open node with nothing in front of it wears none: the pill is a
        ;; fact about the graph, not about being open
        (define fragment
@@ -563,5 +567,6 @@ EOF
           (render-node-fragment
            (make-task #:title "colour" #:id "colour" #:key "colour")
            #:today "2026-08-06"
+           #:node-href test-node-href
            #:blocked (blocked-nodes (snapshot-edges snap)))))
        (check-false (string-contains? fragment "ol-blocked"))))))

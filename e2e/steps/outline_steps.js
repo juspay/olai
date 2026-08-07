@@ -5,7 +5,7 @@
 // like the outline does rather than like the DOM does.
 
 import assert from "node:assert/strict";
-import { Then } from "@cucumber/cucumber";
+import { Then, When } from "@cucumber/cucumber";
 
 import { assertClass, literal } from "../support/dom.js";
 
@@ -95,10 +95,18 @@ Then("{string} is not doing", async function (title) {
 // itself. So there is no class on the node to read: the pill IS the assertion,
 // and what it is waiting on is its title.
 
+// The pill names what it waits on, and points at that node's own page — the
+// address the route table minted, never a same-page fragment. The key is not
+// typed here; the SHAPE of the address is what a step may know (zoom_steps.js).
 Then("{string} is blocked on {string}", async function (title, waiting) {
   const pill = part(this, title, ".ol-blocked");
   await pill.waitFor({ state: "visible" });
   assert.equal(await pill.getAttribute("title"), `after ${waiting}`);
+  assert.match(await pill.getAttribute("href"), /^\/n\/[^/]+$/);
+});
+
+When("I follow the blocked pill on {string}", async function (title) {
+  await this.follow(part(this, title, ".ol-blocked"));
 });
 
 Then("{string} is not blocked", async function (title) {
@@ -122,10 +130,20 @@ Then("{string} stops being blocked", async function (title) {
 // where it hangs (the parent) rather than by its title — which is the title of
 // the node it mirrors, and belongs to that node's defining site too.
 
+// The arrow says which anchor this site is a mirror OF, and it points at that
+// node's own page. Never at a fragment: `#serve` is in the markup only where
+// the DEFINING site is, so an arrow carrying one is a live link on exactly one
+// page and a dead click on every other. The key is not typed here — the shape
+// of the address is what a step may know (zoom_steps.js).
 Then("{string} holds a mirror of {string}", async function (parent, anchor) {
   const link = this.node(parent).first().locator(".ol-mirror").first();
   await link.waitFor({ state: "visible" });
-  assert.equal(await link.getAttribute("href"), `#${anchor}`);
+  assert.equal(await link.getAttribute("title"), `mirror of ^${anchor}`);
+  assert.match(await link.getAttribute("href"), /^\/n\/[^/]+$/);
+});
+
+When("I follow the mirror's arrow under {string}", async function (parent) {
+  await this.follow(this.node(parent).first().locator(".ol-mirror").first());
 });
 
 // Waiting, not reading: the node a mirror site draws is the node another file

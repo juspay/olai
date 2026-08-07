@@ -15,6 +15,15 @@ Feature: what is not actionable yet, on the page
     Then "Buy milk" is not blocked
     And "Draft the migration plan" is not blocked
 
+  # The next thing a reader wants is the blocker itself, so the pill is a link
+  # to that node's own page — minted by the route table, like every other link
+  # to a node, and never the same-page fragment that only works on one page.
+  Scenario: the pill goes to the node that is in the way
+    When I open the home page
+    And I follow the blocked pill on "Announce the release"
+    Then I am on a node's own page
+    And the tab is named for "Ship the server"
+
   Scenario: checking the blocker off from the CLI clears it, live
     When I open the home page
     Then "Announce the release" is blocked on "^serve"

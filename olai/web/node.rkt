@@ -39,10 +39,9 @@
 
 (provide (contract-out
           [render-node-fragment
-           (->* (task? #:today string?)
+           (->* (task? #:today string? #:node-href (-> string? string?))
                 (#:site (or/c string? #f)
                  #:mirror-of (or/c string? #f)
-                 #:zoom-base (or/c string? #f)
                  #:toggle-base (or/c string? #f)
                  #:docs hash?
                  #:blocked hash?
@@ -361,21 +360,22 @@
   [(: & hover) #:text-decoration underline])
 
 ;; A mirror site whose anchor named nothing. The marker is still drawn — the
-;; outline says something belongs here — in its unresolved state.
+;; outline says something belongs here — in its unresolved state, and it is
+;; NOT a link: an anchor that named no node has no node to address, and a
+;; marker that looked clickable would be promising a page nobody can mint.
 (define (unresolved-mirror-xexpr anchor)
   `(li ((class ,(classes ol-node ol-unresolved)))
        (div ((class ,ol-row))
             (span ((class ,ol-bullet)))
             (div ((class ,ol-content))
-                 (a ((class ,ol-mirror) (href ,(string-append "#" anchor)))
-                    "↗" ,anchor)
+                 (span ((class ,ol-mirror)) "↗" ,anchor)
                  (span ((class ,(classes ol-title ol-dim))) "(unresolved)")))))
 
 (define (render-child child
                       #:site site
                       #:owner owner
                       #:today today
-                      #:zoom-base zoom-base
+                      #:node-href node-href
                       #:toggle-base toggle-base
                       #:docs docs
                       #:blocked [blocked (hash)])
@@ -387,7 +387,7 @@
                                #:site owner
                                #:today today
                                #:mirror-of (mirror-site-of child)
-                               #:zoom-base zoom-base
+                               #:node-href node-href
                                #:toggle-base toggle-base
                                #:docs docs
                                #:blocked blocked)
@@ -396,7 +396,7 @@
      (render-node-fragment child
                            #:site site
                            #:today today
-                           #:zoom-base zoom-base
+                           #:node-href node-href
                            #:toggle-base toggle-base
                            #:docs docs
                            #:blocked blocked)]
@@ -407,7 +407,10 @@
                               #:site [site #f]
                               #:today today
                               #:mirror-of [mirror-of #f]
-                              #:zoom-base [zoom-base #f]
+                              ;; a node's key -> its own page, minted by the
+                              ;; route table (web/routes). Nothing here builds
+                              ;; an address; it asks for one
+                              #:node-href node-href
                               #:toggle-base [toggle-base #f]
                               #:docs [docs (hash)]
                               ;; key -> the anchors that node is waiting on
@@ -440,12 +443,10 @@
     `(span ((class ,(classes ol-bullet (and (pair? kids) has-children)))
             (aria-hidden "true"))))
   (define bullet
-    (if zoom-base
-        `(a ((class ,ol-bullet-link)
-             ,@(node-link-attributes zoom-base key)
-             (title "zoom in"))
-            ,dot)
-        dot))
+    `(a ((class ,ol-bullet-link)
+         ,@(node-link-attributes node-href key)
+         (title "zoom in"))
+        ,dot))
   (node-shell
    #:key key
    #:element-id (node-element-id key #:site site)
@@ -461,9 +462,16 @@
          (checkbox-xexpr key (node-element-id key #:site site) status toggle-base)
          `(div ((class ,ol-content))
                (div ((class ,ol-line))
+                    ;; The arrow on a mirror site goes to the node's OWN page,
+                    ;; like every other link to a node — `key` is the defining
+                    ;; site's, because a mirror site draws the node it mirrors.
+                    ;; It used to be the same-page fragment `#<anchor>`, which
+                    ;; is a live link on exactly one page (the one the defining
+                    ;; site is on) and a dead click on every zoom and every
+                    ;; cross-file mirror.
                     ,@(if mirror-of
                           (list `(a ((class ,ol-mirror)
-                                     (href ,(string-append "#" mirror-of))
+                                     ,@(node-link-attributes node-href key)
                                      (title ,(string-append "mirror of ^" mirror-of)))
                                     "↗"))
                           '())
@@ -476,21 +484,20 @@
                     ;; overdue AND blocked, and the row says so
                     ,@(let ([waiting (hash-ref blocked key '())])
                         (if (pair? waiting)
-                            (list (blocked-pill-xexpr waiting
-                                                      #:zoom-base zoom-base))
+                            (list (blocked-pill-xexpr waiting node-href))
                             '())))
                ,@(if (task-description tk)
                      (list (note-block-xexpr tk qkey
                                              (note-element-id key #:site site)
                                              done?))
                      '())))
-   #:after-row (doc-block tk docs doc-expanded? zoom-base)
+   #:after-row (doc-block tk docs doc-expanded? node-href)
    #:children (for/list ([c (in-list kids)])
                 (render-child c
                               #:site site
                               #:owner qkey
                               #:today today
-                              #:zoom-base zoom-base
+                              #:node-href node-href
                               #:toggle-base toggle-base
                               #:docs docs
                               #:blocked blocked))))
