@@ -64,7 +64,7 @@
          task-status
          task-stored-status
          task-status-derived?
-         task-kids
+         task-child-tasks
          task-done-at
          task-doing-at
          task-id
@@ -156,25 +156,29 @@
 
 ;; The CHILDREN a state is derived from: the ones that have a state. A mirror
 ;; site is a reference and an unspliced include is a promise; neither is a node
-;; this tree can ask (olai/lang/state).
-(define (task-kids tk)
+;; this tree can ask (olai/lang/state). Named apart from `task-children`, which
+;; is every child FORM the source wrote.
+(define (task-child-tasks tk)
   (for/list ([c (in-list (task-children tk))] #:when (task? c)) c))
 
 ;; THE state — what a consumer switches on. Stored when the node wrote a mark,
-;; derived from its task children when it did not (olai/lang/state owns the
-;; rule; this is the one place that applies it to a task).
+;; derived from its task children when it did not. olai/lang/state owns both
+;; the rule and the walk it implies; this is the protocol a task answers it
+;; through, and the only place that binds the two.
 ;;
 ;; Computed on every ask, and deliberately not cached anywhere: a state that is
 ;; stored twice is a state that can drift, which is the whole reason it is
 ;; derived at all. It costs one walk of the subtree, and every caller that
 ;; walks the tree asking it pays O(nodes x depth) for the lot.
 (define (task-status tk)
-  (derive-status (task-stored-status tk) (map task-status (task-kids tk))))
+  (node-status tk #:stored task-stored-status #:kids task-child-tasks))
 
 ;; Did that answer come from the children? What the write path refuses to
-;; overwrite and what the JSON publishes beside the state itself.
+;; overwrite and what the JSON publishes beside the state itself. It does not
+;; ask what the children SAY — see status-derived? — so it is a look at one
+;; node where the line above is a walk.
 (define (task-status-derived? tk)
-  (status-derived? (task-stored-status tk) (map task-status (task-kids tk))))
+  (status-derived? (task-stored-status tk) (task-child-tasks tk)))
 
 ;; When the mark was written, if it was recorded: #f for a bare @done /
 ;; @doing, and for a node that does not carry that mark at all.
@@ -388,7 +392,7 @@
 
   ;; ---- compile-time IR for local validation ------------------------------
 
-  (struct ir-task (id title stored edges kids stx) #:transparent)
+  (struct ir-task (id title stored edges children stx) #:transparent)
   (struct ir-mirror (anchor stx) #:transparent)
   (struct ir-include (path stx) #:transparent)
   (struct ir-edge (relation target stx) #:transparent)
@@ -440,8 +444,8 @@
   ;; The task children of an IR node — what a state derives from, and the same
   ;; exclusion the tree pass makes: a mirror site is a reference, an include is
   ;; a promise, and neither has a state to read.
-  (define (ir-state-kids ir)
-    (if (ir-task? ir) (filter ir-task? (ir-task-kids ir)) '()))
+  (define (ir-child-tasks ir)
+    (if (ir-task? ir) (filter ir-task? (ir-task-children ir)) '()))
 
   (define (validate-body-forms stxs)
     (define irs (map syntax->ir stxs))
@@ -465,7 +469,7 @@
       (check-anchor-graph
        irs
        #:id (λ (ir) (and (ir-task? ir) (ir-task-id ir)))
-       #:kids (λ (ir) (if (ir-task? ir) (ir-task-kids ir) '()))
+       #:kids (λ (ir) (if (ir-task? ir) (ir-task-children ir) '()))
        #:mirror (λ (ir) (and (ir-mirror? ir) (ir-mirror-anchor ir)))
        #:edges (λ (ir) (if (ir-task? ir) (ir-task-edges ir) '()))
        #:relation ir-edge-relation
@@ -481,7 +485,7 @@
       (check-status-tree
        (filter ir-task? irs)
        #:stored ir-task-stored
-       #:kids ir-state-kids
+       #:kids ir-child-tasks
        #:title ir-task-title
        #:fail fail))
     (void)))
@@ -614,7 +618,7 @@
   (check-status-tree
    (filter task? tasks)
    #:stored task-stored-status
-   #:kids task-kids
+   #:kids task-child-tasks
    #:title task-title
    #:fail fail)
   (check-anchor-graph

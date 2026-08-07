@@ -38,17 +38,17 @@
 ;; `(cons 'title t)` (olai/meta). Four of them used to re-parse the same
 ;; string, which is four places to disagree about what the user typed.
 
-;; The files that could hold this node, each with the nodes the MODEL found in
+;; The files that could hold this node, each with the node the MODEL found in
 ;; it. No match in the model means no candidate, which is the "no task" case —
 ;; the text is never scanned on a hunch.
 ;;
-;; The nodes ride along because a caller wants more than a line number: a write
+;; The node rides along because a caller wants more than a line number: a write
 ;; that guards on what a node CONTAINS has to ask the tree, where an @include
 ;; splice has already happened, not the text, where it has not. A file with
 ;; exactly one match pairs unambiguously with the one title line the scan finds
 ;; there; more than one and the pairing would be a guess, so there is none.
 ;; -> (listof (cons path (or/c task #f)))
-(define (candidate-files out want)
+(define (candidates out want)
   (define root (outline-path out))
   (define tasks (outline-tasks out))
   (define (file-of tk)
@@ -60,12 +60,9 @@
                       (find-task-by-id tasks a)))
        (if tk (list tk) '())]
       [(cons 'title t) (find-tasks-by-title tasks t)]))
-  (for/list ([f (in-list (remove-duplicates (map file-of found)
-                                            #:key path->string))])
-    (define here (filter (λ (tk) (equal? (path->string (file-of tk))
-                                         (path->string f)))
-                         found))
-    (cons f (and (= (length here) 1) (car here)))))
+  ;; grouped by defining file, in the order the files first turn up
+  (for/list ([grp (in-list (group-by (λ (tk) (path->string (file-of tk))) found))])
+    (cons (file-of (car grp)) (and (null? (cdr grp)) (car grp)))))
 
 (define (matches-in text want)
   (match want
@@ -123,7 +120,7 @@
   (define out (resolution-outline out0 want))
   (define hits
     (append*
-     (for/list ([c (in-list (candidate-files out want))])
+     (for/list ([c (in-list (candidates out want))])
        (define f (car c))
        (define text (file->string f))
        (for/list ([m (in-list (matches-in text want))])

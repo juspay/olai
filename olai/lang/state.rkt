@@ -23,14 +23,15 @@
          racket/string)
 
 (provide derive-status
+         node-status
          status-derived?
          check-status-tree)
 
 ;; ---- the rule ---------------------------------------------------------------
 
-;; stored : 'done | 'doing | 'open — what this node's OWN marks say
-;; kids   : (listof (or/c 'done 'doing 'open)) — the states of its TASK
-;;          children, each already derived the same way
+;; stored     : 'done | 'doing | 'open — what this node's OWN marks say
+;; kid-states : (listof (or/c 'done 'doing 'open)) — the states of its TASK
+;;              children, each already derived the same way
 ;;
 ;; MIRROR SITES ARE NOT AMONG THE KIDS, and that is a rule and not an
 ;; oversight: a mirror is a reference, resolvable only once the whole set is in
@@ -57,12 +58,24 @@
 ;; child is already in that group, with a breadcrumb that names its parents.
 ;; Done-ness has neither problem: it stops at the first parent that is not
 ;; finished, and the agenda's answer to a finished node is to say nothing.
-(define (derive-status stored kids)
+(define (derive-status stored kid-states)
   (cond
     [(not (eq? stored 'open)) stored]
-    [(null? kids) 'open]
-    [(andmap (λ (s) (eq? s 'done)) kids) 'done]
+    [(null? kid-states) 'open]
+    [(andmap (λ (s) (eq? s 'done)) kid-states) 'done]
     [else 'open]))
+
+;; The rule over a whole node, which is the recursion the rule implies: a
+;; child's state is derived before it is counted. Every phase reads a state
+;; through this — the checker below, and the expander for `task-status` — so
+;; the walk exists once and cannot come out two answers.
+;;
+;; #:stored / #:kids as in check-status-tree.
+(define (node-status n #:stored stored-of #:kids kids-of)
+  (derive-status
+   (stored-of n)
+   (for/list ([k (in-list (kids-of n))])
+     (node-status k #:stored stored-of #:kids kids-of))))
 
 ;; Did that answer come from the CHILDREN rather than from the node? The
 ;; question every write asks before it stores anything (`olai done` refuses to
@@ -70,9 +83,12 @@
 ;; state that is a fact about the file from a state that is a fact about the
 ;; tree.
 ;;
-;; It is `open` + task children, whatever the children turn out to say: a
+;; `kids` is the task children THEMSELVES, not their states, and the asymmetry
+;; with derive-status above is the point: whether an answer is derived is
+;; `open` plus having any children at all, whatever they turn out to say. A
 ;; parent of one done and one open child derives OPEN, and writing `@done`
-;; there is still storing what the tree is already answering.
+;; there is still storing what the tree is already answering. Asking it costs
+;; nothing, where asking for the state itself walks the subtree.
 (define (status-derived? stored kids)
   (and (eq? stored 'open) (pair? kids)))
 
@@ -96,14 +112,13 @@
                            #:kids kids-of
                            #:title title-of
                            #:fail fail)
-  (define (status n)
-    (derive-status (stored-of n) (map status (kids-of n))))
+  (define (status n) (node-status n #:stored stored-of #:kids kids-of))
   (define (visit n)
     (when (eq? (stored-of n) 'done)
       (define unfinished
         (for/list ([k (in-list (kids-of n))]
                    #:unless (eq? (status k) 'done))
-          (cons (title-of k) (status k))))
+          (format "~s is ~a" (title-of k) (status k))))
       (unless (null? unfinished)
         (fail '@done n (contradiction-message unfinished))))
     (for-each visit (kids-of n)))
@@ -114,14 +129,9 @@
 ;; is wrong, or the child is unfinished, and only the person writing knows
 ;; which.
 (define (contradiction-message unfinished)
-  (define first-two
-    (string-join
-     (for/list ([u (in-list (take unfinished (min 2 (length unfinished))))])
-       (format "~s is ~a" (car u) (cdr u)))
-     ", "))
-  (define rest (- (length unfinished) (min 2 (length unfinished))))
+  (define-values (named more) (split-at unfinished (min 2 (length unfinished))))
   (format (string-append "marked done above unfinished work: ~a~a; "
                          "drop @done / [x] and done-ness derives from the "
                          "children, or finish them")
-          first-two
-          (if (zero? rest) "" (format " (and ~a more)" rest))))
+          (string-join named ", ")
+          (if (null? more) "" (format " (and ~a more)" (length more)))))

@@ -29,6 +29,7 @@
           [nullish (-> any/c any/c)]
           [mark->json (-> any/c any/c)]
           [task->jsexpr (->* (task?) (#:root-file file-ref/c) hash?)]
+          [task-mention->jsexpr (-> task? hash?)]
           [child->jsexpr (->* (any/c) (#:root-file file-ref/c) hash?)]
           [tasks->jsexpr (->* (list?) (#:root-file file-ref/c) list?)]
           [edges->jsexpr (-> edge-index? hash?)]
@@ -104,6 +105,20 @@
   (if (and tf* (not (equal? tf* root*)))
       (hash-set h 'file tf*)
       h))
+
+;; A node MENTIONED from somewhere that is not the tree: what it is called,
+;; what state it is in, and the name you can address it by. Never its subtree —
+;; a mention is a pointer, and a reader who wants the node asks `tree` for it.
+;;
+;; It lives here rather than at the mention site (today: the children an
+;; `olai done` refusal names, olai/ops) because these are node fields, and what
+;; a node looks like as JSON has one owner and one version counter. A write
+;; layer that spelled the shape itself would be a second, unversioned model of
+;; a node that nothing updates when this one moves.
+(define (task-mention->jsexpr tk)
+  (hash 'title (task-title tk)
+        'status (symbol->string (task-status tk))
+        'id (nullish (task-id tk))))
 
 (define (child->jsexpr x #:root-file [root-file #f])
   (cond

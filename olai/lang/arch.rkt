@@ -40,7 +40,7 @@
 ;; task, the write path applies it to raw text, and neither gets to have its
 ;; own idea of when a parent is done.
 (override "state.rkt"
-          (concept node-state "derive-status" "status-derived?"
+          (concept node-state "derive-status" "node-status" "status-derived?"
                    "check-status-tree"))
 
 ;; One checker for the anchor rules — mirrors and typed edges — over a node

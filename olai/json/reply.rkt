@@ -13,6 +13,7 @@
 ;; other way round.
 
 (require racket/contract
+         racket/hash
          json
          racket/path
          olai/agenda
@@ -68,20 +69,18 @@
 ;; an agent that has to act on them must not be reading them back out of a
 ;; sentence (docs/cli.md: agents do not regex pretty-printed messages). Empty
 ;; for every failure that has nothing to add, which is most of them.
+;; The four fields WIN a collision: a detail may not quietly redefine where the
+;; error is.
 (define (error-object message
                       #:file [file #f] #:line [line #f] #:col [col #f]
                       #:detail [detail (hash)])
-  (hash-union*
+  (hash-union
    (hash 'file (nullish (and file (if (path? file) (path->string file) file)))
          'line (nullish line)
          'col (nullish col)
          'message message)
-   detail))
-
-;; The four fields win: a detail may not quietly redefine where the error is.
-(define (hash-union* base extra)
-  (for/fold ([h base]) ([(k v) (in-hash extra)])
-    (if (hash-has-key? base k) h (hash-set h k v))))
+   detail
+   #:combine (λ (four _detail) four)))
 
 (define (err-hash message
                   #:file [file #f] #:line [line #f] #:col [col #f]

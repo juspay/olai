@@ -14,17 +14,18 @@
          racket/file
          racket/path
          racket/string
-         ;; a failure's detail is jsexpr, and an absent value in one is null
-         (only-in json json-null)
          ;; where done work goes, and the file name everything agrees on
          olai/archive
          olai/capture
          olai/daily
          olai/dates
+         ;; what a node the failure below NAMES looks like as JSON. The shape of
+         ;; a node has one owner and one version counter, and it is not here
+         (only-in olai/json/model task-mention->jsexpr)
          ;; what state a node is in, and whether it is one the file stores at
          ;; all — the rule is the language's, and a write only asks it
          (only-in olai/lang/expander
-                  task-title task-id task-status task-kids task-status-derived?)
+                  task-title task-status task-child-tasks task-status-derived?)
          olai/status
          olai/edit
          olai/load
@@ -255,20 +256,28 @@
 ;; `doing` is not guarded. It is a claim about somebody's attention, never
 ;; derived from anything (olai/lang/state), so writing one on a parent stores
 ;; something the tree does not already say.
-(define (refuse-derived-done tk label undo? path line)
+;;
+;; It is HERE and not with the other two preconditions (olai/status, which
+;; refuses a node that is already done and demands one that is not), for two
+;; reasons that are the same reason: those are answerable from the file's TEXT,
+;; where this one has to ask the tree — an @include splices children under a
+;; node no text scan sees — and only this layer decides what a failure MEANS.
+;; A precondition with a kind of its own lives where kinds are.
+;;
+;; `hit` is the resolver's answer (olai/resolve): the node, the file it is
+;; defined in, and the line it is on, which is exactly what the refusal needs.
+(define (refuse-derived-done hit undo?)
+  (define tk (located-task hit))
   (when (and tk (task-status-derived? tk))
-    (define kids (task-kids tk))
+    (define kids (task-child-tasks tk))
     (define unfinished
       (for/list ([k (in-list kids)] #:unless (eq? (task-status k) 'done)) k))
+    (define label (format "~s" (located-title hit)))
     (op-fail
      'derived
-     #:file path
-     #:line line
-     #:detail (hash 'children
-                    (for/list ([k (in-list unfinished)])
-                      (hash 'title (task-title k)
-                            'status (symbol->string (task-status k))
-                            'id (or (task-id k) (json-null)))))
+     #:file (located-file hit)
+     #:line (add1 (located-index hit))
+     #:detail (hash 'children (map task-mention->jsexpr unfinished))
      "~a"
      (cond
        [undo?
@@ -297,9 +306,7 @@
   (define path (located-file hit))
   (define title (located-title hit))
   (define at (located-index hit))
-  (when (eq? state 'done)
-    (refuse-derived-done (located-task hit) (format "~s" title) undo?
-                         path (add1 at)))
+  (when (eq? state 'done) (refuse-derived-done hit undo?))
   (define original (file->string path))
   (define-values (new-text line)
     (as-validation
