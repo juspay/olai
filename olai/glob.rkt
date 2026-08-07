@@ -37,6 +37,7 @@
           [include-glob? (-> string? boolean?)]
           [include-glob-problem (-> string? (or/c string? #f))]
           [glob-dir (-> path? path?)]
+          [glob-match? (-> path? path? boolean?)]
           [glob-expand (-> path? (listof path?))]))
 
 ;; A path the source wrote is a glob when it stars something. Nothing else
@@ -85,6 +86,35 @@
                   (string-join (map regexp-quote (string-split name "*" #:trim? #f))
                                ".*")
                   "$")))
+
+;; Two spellings of one directory are one directory. Reads nothing: the
+;; filesystem is glob-expand's to touch, not a comparison's.
+(define (dir-key dir)
+  (path->directory-path (simplify-path dir #f)))
+
+;; Does a pattern NAME this path? The question glob-expand answers by reading
+;; a directory, asked of ONE path and reading nothing.
+;;
+;; A WRITER is who needs it that way round: `olai daily` is about to add an
+;; @include line for a month fragment, and a pattern the outline already
+;; wrote may cover it — in which case the line would splice that file a
+;; SECOND time (olai/daily). The path it asks about is a name, not yet
+;; necessarily a file, and a directory listing cannot answer about a name.
+;;
+;; The rules are the expansion's, spelled once for both: the directory part
+;; is literal and must be the path's own, `*` matches inside the one file
+;; name, and a leading dot is not something it matches.
+(define (glob-match? pattern path)
+  (define pname (file-name-from-path pattern))
+  (define-values (base name dir?) (split-path path))
+  (and (path? pname)
+       (path? name)
+       (not dir?)
+       (path? base)
+       (equal? (dir-key base) (dir-key (glob-dir pattern)))
+       (let ([n (path->string name)])
+         (and (not (string-prefix? n "."))
+              (regexp-match? (name-rx (path->string pname)) n)))))
 
 ;; What the pattern matches, right now, sorted lexicographically — which is
 ;; what makes date-named fragments (2026-01.rkt, 2026-02.rkt, ...) splice in
