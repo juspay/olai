@@ -44,12 +44,10 @@
 (define (olai-home)
   (define env (getenv "OLAI_HOME"))
   (unless (and env (non-empty-string? env))
-    (raise (exn:fail:op
-            (string-append
-             "OLAI_HOME is not set; set it to your outline directory, "
-             "or name the outline explicitly (a path argument, --file, --home)")
-            (current-continuation-marks)
-            'usage #f #f #f (hash))))
+    (op-fail 'usage
+             (string-append
+              "OLAI_HOME is not set; set it to your outline directory, "
+              "or name the outline explicitly (a path argument, --file, --home)")))
   (expand-user-path env))
 
 (define (default-file)

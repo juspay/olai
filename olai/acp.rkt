@@ -58,7 +58,7 @@
          racket/path
          racket/string
          (only-in olai/fail user-fail)
-         (only-in olai/ops exn:fail:op))
+         (only-in olai/ops op-fail))
 
 ;; The surface a caller sees. `make-acp-client` is told how to reach the agent
 ;; (a command, a directory) and where to put what it hears; every other export
@@ -929,7 +929,7 @@ tool calls are allowed one at a time instead"
 ;; Nothing to ask, because there is nothing there to ask. The op kinds are the
 ;; write ops' vocabulary (a route maps them to statuses, the CLI to exit codes).
 (define (gone-fail message)
-  (raise (exn:fail:op message (current-continuation-marks) 'validation #f #f #f (hash))))
+  (op-fail 'validation "~a" message))
 
 ;; One turn, start to finish: spawn and shake hands if that has not happened,
 ;; then wait for the agent as long as it takes. -> the stop reason. Raises what

@@ -22,12 +22,29 @@
 (require racket/list
          racket/string)
 
-(provide derive-status
+(provide stored-status
+         derive-status
          node-status
          status-derived?
          check-status-tree)
 
 ;; ---- the rule ---------------------------------------------------------------
+
+;; What a node's own two MARKS say, before any child is consulted: `done` and
+;; `doing` as the source wrote them (#f, #t, or an ISO stamp — the values do
+;; not matter here, only which one is there).
+;;
+;; Here rather than at the two sites that read them — the task struct and the
+;; compile-time IR, one file apart — because it is policy, not protocol: a
+;; fourth state is one edit, and neither site can quietly grow its own
+;; precedence. The language rejects a node carrying both marks, so the order is
+;; not a decision either; it is what a hand-built node gets if it ignores the
+;; rule.
+(define (stored-status done doing)
+  (cond
+    [done 'done]
+    [doing 'doing]
+    [else 'open]))
 
 ;; stored     : 'done | 'doing | 'open — what this node's OWN marks say
 ;; kid-states : (listof (or/c 'done 'doing 'open)) — the states of its TASK
@@ -70,16 +87,25 @@
     [else 'open]))
 
 ;; The rule over a whole node, which is the recursion the rule implies: a
-;; child's state is derived before it is counted. Every phase reads a state
-;; through this — the checker below, and the expander for `task-status` — so
-;; the walk exists once and cannot come out two answers.
+;; child's state is derived before it is counted. The expander reads every
+;; state through this (`task-status`), so the walk exists once and cannot come
+;; out two answers.
+;;
+;; The children are asked for only when the answer can DEPEND on them.
+;; derive-status's first clause is "a mark wins", so under a node that states
+;; its own case there is nothing to walk — which is most of a finished tree,
+;; and measurably most of the cost. The rule is still the one above's to state;
+;; this only declines to compute an argument it provably ignores.
 ;;
 ;; #:stored / #:kids as in check-status-tree.
 (define (node-status n #:stored stored-of #:kids kids-of)
+  (define stored (stored-of n))
   (derive-status
-   (stored-of n)
-   (for/list ([k (in-list (kids-of n))])
-     (node-status k #:stored stored-of #:kids kids-of))))
+   stored
+   (if (eq? stored 'open)
+       (for/list ([k (in-list (kids-of n))])
+         (node-status k #:stored stored-of #:kids kids-of))
+       '())))
 
 ;; Did that answer come from the CHILDREN rather than from the node? The
 ;; question every write asks before it stores anything (`olai done` refuses to
@@ -111,21 +137,29 @@
 ;; The child's state is the DERIVED one, so a grandchild counts through a
 ;; statusless middle node; and blaming the nearest parent that stored the wrong
 ;; thing is why this walks rather than asking about descendants directly.
+;;
+;; One pass, BOTTOM-UP: each node's state is computed once, on the way back up,
+;; and handed to its parent as the thing the parent is checked against. Asking
+;; `node-status` per node instead would re-derive every subtree once per
+;; ancestor — the same answer, O(nodes x depth) times, at every load. The
+;; consequence is that the INNERMOST offender is reported when violations nest,
+;; which is the one to fix first anyway.
 (define (check-status-tree roots
                            #:stored stored-of
                            #:kids kids-of
                            #:title title-of
                            #:fail fail)
-  (define (status n) (node-status n #:stored stored-of #:kids kids-of))
   (define (visit n)
+    (define kids (kids-of n))
+    (define kid-states (map visit kids))
     (when (eq? (stored-of n) 'done)
       (define unfinished
-        (for/list ([k (in-list (kids-of n))]
-                   #:unless (eq? (status k) 'done))
-          (format "~s is ~a" (title-of k) (status k))))
+        (for/list ([k (in-list kids)] [s (in-list kid-states)]
+                   #:unless (eq? s 'done))
+          (format "~s is ~a" (title-of k) s)))
       (unless (null? unfinished)
         (fail '@done n (contradiction-message unfinished))))
-    (for-each visit (kids-of n)))
+    (derive-status (stored-of n) kid-states))
   (for-each visit roots))
 
 ;; Named, so an agent can go straight there, and counted, so it knows whether

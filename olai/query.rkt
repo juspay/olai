@@ -39,12 +39,12 @@
 ;; keeps its `@date` and is overdue on exactly the day it always was — being
 ;; blocked is a second fact about it, not a replacement for the first.
 ;;
-;; Done-ness does NOT propagate: a target counts as done when it SAYS it is
-;; done, whatever its children say. Deriving it would give the outline two
-;; answers to "is this done" — the one `status` publishes and the one this
-;; function believed — and would make adding a child to a finished parent
-;; silently re-block everything after it. Point `@after` at the child you
-;; actually mean, or mark the parent.
+;; ONE DONE PREDICATE, and it is `task-status` — the same one the checkbox, the
+;; agenda and the JSON read. A target counts as done when its STATE says so,
+;; stored or derived from its children (olai/lang/state), because the outline
+;; must not have two answers to "is this done": a statusless parent whose last
+;; child was finished has happened, and going on blocking what comes after it
+;; would be this function disagreeing with the page.
 ;;
 ;; A DONE node is waiting on nothing, whatever it is after: it has happened,
 ;; and the order it happened in is no longer a question. Without that, a

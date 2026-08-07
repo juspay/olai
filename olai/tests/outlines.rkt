@@ -17,6 +17,9 @@
 
 (provide write-outline
          in-dir
+         with-outline-source
+         eval-tasks
+         load-problem
          linked-or-fail
          error-of)
 
@@ -34,6 +37,39 @@
 (define (in-dir name proc)
   (define dir (make-temporary-file (string-append name "~a") 'directory))
   (dynamic-wind void (λ () (proc dir)) (λ () (delete-directory/files dir))))
+
+;; ---- one source, as a module -----------------------------------------------
+;;
+;; Most language tests are about ONE outline and want it as a file only because
+;; `#lang olai` is a module: written to a temp file, required, gone again.
+;; Two test files had written that dance out by hand, which by this module's
+;; own rule is one too many.
+
+;; `proc` gets the path. -> whatever it answers.
+(define (with-outline-source src proc #:suffix [suffix "olai-src~a.rkt"])
+  (define tmp (make-temporary-file suffix))
+  (dynamic-wind
+   void
+   (λ ()
+     (display-to-file src tmp #:exists 'truncate)
+     (proc tmp))
+   (λ () (delete-file tmp))))
+
+;; The tasks a source defines — the module's own `tasks` export, so a form the
+;; expander rejects raises here rather than answering.
+(define (eval-tasks src #:suffix [suffix "olai-src~a.rkt"])
+  (with-outline-source src
+                       (λ (p) (dynamic-require `(file ,(path->string p)) 'tasks))
+                       #:suffix suffix))
+
+;; …and what the LOAD layer said about a source it would not take, which is the
+;; file:line:col an agent reads. #f when it loaded.
+(define (load-problem src #:suffix [suffix "olai-src~a.rkt"])
+  (with-outline-source src
+                       (λ (p)
+                         (define r (try-load-outline p))
+                         (and (load-error? r) (load-error-message r)))
+                       #:suffix suffix))
 
 ;; The two answers `load-set` can give, each asserted at the moment a test says
 ;; which one it expected — so a test that wanted a linked set and got an error

@@ -145,21 +145,17 @@
 ;; places, and each of them has to be found. Switching on task-status instead
 ;; makes a new state a new `case` clause the compiler cannot help you forget.
 ;;
-;; The language rejects a node carrying both marks, so the order below is not
-;; a policy: it is what a hand-built task (make-task, a test) gets if it
-;; ignores the rule.
+;; Which mark outranks which is olai/lang/state's, not this file's — the
+;; compile-time IR reads the same two marks and must agree.
 (define (task-stored-status tk)
-  (cond
-    [(task-done tk) 'done]
-    [(task-doing tk) 'doing]
-    [else 'open]))
+  (stored-status (task-done tk) (task-doing tk)))
 
 ;; The CHILDREN a state is derived from: the ones that have a state. A mirror
 ;; site is a reference and an unspliced include is a promise; neither is a node
 ;; this tree can ask (olai/lang/state). Named apart from `task-children`, which
 ;; is every child FORM the source wrote.
 (define (task-child-tasks tk)
-  (for/list ([c (in-list (task-children tk))] #:when (task? c)) c))
+  (filter task? (task-children tk)))
 
 ;; THE state — what a consumer switches on. Stored when the node wrote a mark,
 ;; derived from its task children when it did not. olai/lang/state owns both
@@ -409,10 +405,7 @@
        (define id* (if (string? id) id #f))
        (ir-task id*
                 (syntax-e #'title)
-                (cond
-                  [(syntax-e #'kw.done) 'done]
-                  [(syntax-e #'kw.doing) 'doing]
-                  [else 'open])
+                (stored-status (syntax-e #'kw.done) (syntax-e #'kw.doing))
                 (for/list ([r (in-list (syntax->list #'(kw.e.relation ...)))]
                            [a (in-list (syntax->list #'(kw.e.target ...)))])
                   (ir-edge (syntax-e r) (syntax-e a) a))
@@ -422,10 +415,10 @@
 
   (define (any-include? irs)
     (define (walk ir)
-      (match ir
-        [(ir-include _ _) #t]
-        [(ir-mirror _ _) #f]
-        [(ir-task _ _ _ _ kids _) (ormap walk kids)]))
+      (cond
+        [(ir-include? ir) #t]
+        [(ir-task? ir) (ormap walk (ir-task-children ir))]
+        [else #f]))
     (ormap walk irs))
 
   ;; The compile-time adaptor to the shared checker: an IR node's anchor, its
@@ -434,18 +427,20 @@
     (define stx (ir-stx ir))
     (format "~a:~a" (or (syntax-line stx) "?") (or (syntax-column stx) "?")))
 
+  ;; By accessor and not by position: every one of these structs has taken a
+  ;; field since it was written, and a positional pattern answers a renumbering
+  ;; mistake with a neighbouring field rather than an error.
   (define (ir-stx ir)
-    (match ir
-      [(ir-task _ _ _ _ _ stx) stx]
-      [(ir-mirror _ stx) stx]
-      [(ir-include _ stx) stx]
-      [(ir-edge _ _ stx) stx]))
+    (cond
+      [(ir-task? ir) (ir-task-stx ir)]
+      [(ir-mirror? ir) (ir-mirror-stx ir)]
+      [(ir-include? ir) (ir-include-stx ir)]
+      [else (ir-edge-stx ir)]))
 
   ;; The task children of an IR node — what a state derives from, and the same
   ;; exclusion the tree pass makes: a mirror site is a reference, an include is
   ;; a promise, and neither has a state to read.
-  (define (ir-child-tasks ir)
-    (if (ir-task? ir) (filter ir-task? (ir-task-children ir)) '()))
+  (define (ir-child-tasks ir) (filter ir-task? (ir-task-children ir)))
 
   (define (validate-body-forms stxs)
     (define irs (map syntax->ir stxs))
@@ -612,26 +607,31 @@
     (raise (exn:fail:syntax (format "~a: ~a" who msg)
                             (current-continuation-marks)
                             (if stx (list stx) '()))))
-  ;; The state rule runs over the same forest, in every phase this function is
-  ;; (after a splice, and again over the whole loaded set): it needs no scope,
-  ;; since what a node contains is answerable wherever the node is.
+  ;; Anchors first, then the state rule — the order validate-body-forms uses
+  ;; over syntax, so a file with both kinds of problem hears about the same one
+  ;; whether or not it splices an @include.
+  ;;
+  ;; The state rule needs no scope: what a node contains is answerable wherever
+  ;; the node is.
+  (define decls
+    (check-anchor-graph
+     tasks
+     #:id (λ (x) (and (task? x) (task-id x)))
+     #:kids (λ (x) (if (task? x) (task-children x) '()))
+     #:mirror (λ (x) (and (mirror-ref? x) (mirror-ref-anchor x)))
+     #:edges (λ (x) (if (task? x) (task-edges x) '()))
+     #:relation edge-ref-relation
+     #:target edge-ref-anchor
+     #:scope scope
+     #:describe (λ (x) (loc->string (node-loc x)))
+     #:fail fail))
   (check-status-tree
    (filter task? tasks)
    #:stored task-stored-status
    #:kids task-child-tasks
    #:title task-title
    #:fail fail)
-  (check-anchor-graph
-   tasks
-   #:id (λ (x) (and (task? x) (task-id x)))
-   #:kids (λ (x) (if (task? x) (task-children x) '()))
-   #:mirror (λ (x) (and (mirror-ref? x) (mirror-ref-anchor x)))
-   #:edges (λ (x) (if (task? x) (task-edges x) '()))
-   #:relation edge-ref-relation
-   #:target edge-ref-anchor
-   #:scope scope
-   #:describe (λ (x) (loc->string (node-loc x)))
-   #:fail fail))
+  decls)
 
 (define (finalize-tasks forms src)
   (define-values (includes globs) (collect-includes forms))

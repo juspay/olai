@@ -13,7 +13,7 @@
          racket/match
          racket/path
          racket/string
-         (only-in olai/lang/expander task-file)
+         (only-in olai/lang/expander task-file task-loc)
          (only-in olai/lang/walk find-task-by-id find-tasks-by-title)
          olai/fail
          olai/load
@@ -28,26 +28,25 @@
 ;; title : the resolved title (never the "^anchor" the user typed)
 ;; task  : the node itself, out of the loaded tree — what a write asks about
 ;;         the SHAPE it is editing (does this node have children, and what
-;;         state are they in). #f when the model cannot name exactly one node
-;;         in that file, which the text scan below can still resolve; a guard
-;;         that asks then simply has nothing to go on and lets the write
-;;         through to the language.
+;;         state are they in). Joined to the title line by srcloc, so it is
+;;         the node written there and not a node that looked like it. #f only
+;;         for a `#lang olai/sexp` file, whose forms are not lines — and a
+;;         write to one of those is refused before it gets here.
 (struct located (file index title task) #:transparent)
 
 ;; Everything below takes the spec ALREADY parsed — `(cons 'anchor a)` or
 ;; `(cons 'title t)` (olai/meta). Four of them used to re-parse the same
 ;; string, which is four places to disagree about what the user typed.
 
-;; The files that could hold this node, each with the node the MODEL found in
+;; The files that could hold this node, each with the nodes the MODEL found in
 ;; it. No match in the model means no candidate, which is the "no task" case —
 ;; the text is never scanned on a hunch.
 ;;
-;; The node rides along because a caller wants more than a line number: a write
+;; The nodes ride along because a caller wants more than a line number: a write
 ;; that guards on what a node CONTAINS has to ask the tree, where an @include
-;; splice has already happened, not the text, where it has not. A file with
-;; exactly one match pairs unambiguously with the one title line the scan finds
-;; there; more than one and the pairing would be a guess, so there is none.
-;; -> (listof (cons path (or/c task #f)))
+;; splice has already happened, not the text, where it has not. Which of them
+;; is which title line is `task-at-line` below.
+;; -> (listof (cons path (listof task)))
 (define (candidates out want)
   (define root (outline-path out))
   (define tasks (outline-tasks out))
@@ -62,7 +61,21 @@
       [(cons 'title t) (find-tasks-by-title tasks t)]))
   ;; grouped by defining file, in the order the files first turn up
   (for/list ([grp (in-list (group-by (λ (tk) (path->string (file-of tk))) found))])
-    (cons (file-of (car grp)) (and (null? (cdr grp)) (car grp)))))
+    (cons (file-of (car grp)) grp)))
+
+;; Which of a file's model nodes is the title line the text scan found: the one
+;; whose form was written there. Every node carries the srcloc of its own form
+;; (olai/lang/expander), and a title line is where a node's form starts, so the
+;; two worlds are joined by a number rather than by a count — a fragment
+;; spliced into one root twice yields two model nodes and one title line, and
+;; they are the SAME node, defined once, at that line.
+;;
+;; #f when nothing matches, which is what a `#lang olai/sexp` file gives (its
+;; forms are not lines) — and writes to one are refused anyway.
+(define (task-at-line tasks line)
+  (for/first ([tk (in-list tasks)]
+              #:when (and (task-loc tk) (equal? (srcloc-line (task-loc tk)) line)))
+    tk))
 
 (define (matches-in text want)
   (match want
@@ -124,7 +137,7 @@
        (define f (car c))
        (define text (file->string f))
        (for/list ([m (in-list (matches-in text want))])
-         (list f m (cdr c))))))
+         (list f m (task-at-line (cdr c) (title-match-line m)))))))
   (define label (spec-label spec))
   (cond
     [(null? hits)

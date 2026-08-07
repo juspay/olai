@@ -4,33 +4,27 @@
          racket/path
          racket/string
          (except-in olai/lang/expander #%module-begin)
-         olai/load)
+         olai/load
+         ;; writing a source to a temp file, and the two things a test asks of it
+         olai/tests/outlines)
 
 (module+ test
   (require rackunit))
 
 (module+ test
-  (define (eval-tasks src)
-    (define tmp (make-temporary-file "olai~a.rkt"))
-    (dynamic-wind
-     void
-     (λ ()
-       (display-to-file src tmp #:exists 'truncate)
-       (dynamic-require `(file ,(path->string tmp)) 'tasks))
-     (λ () (delete-file tmp))))
+  ;; `eval-tasks` is olai/tests/outlines'. So is the file-writing half of the
+  ;; helper below; what stays here is the assertion, which is this file's.
 
   ;; The same source through the load layer, which is what turns a syntax error
   ;; into the file:line:col an agent reads. -> (values where message)
   (define (load-failure src [suffix "olai~a.rkt"])
-    (define tmp (make-temporary-file suffix))
-    (dynamic-wind
-     void
-     (λ ()
-       (display-to-file src tmp #:exists 'truncate)
+    (with-outline-source
+     src
+     (λ (tmp)
        (define r (try-load-outline tmp))
        (check-true (load-error? r) (format "expected a load error, got ~a" r))
        (values (or (load-error-where r) "") (load-error-message r)))
-     (λ () (delete-file tmp))))
+     #:suffix suffix))
 
   ;; A @doc names a file, and the language checks that it is there — so a test
   ;; about #:doc has to put one on disk. Both helpers above build their outline

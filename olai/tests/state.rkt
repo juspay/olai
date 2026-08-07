@@ -14,39 +14,20 @@
          racket/string
          (except-in olai/lang/expander #%module-begin)
          olai/json/model
+         olai/json/reply
          olai/lang/link
          olai/lang/state
          olai/load
          olai/ops
-         olai/query
          olai/tests/outlines)
 
 (module+ test
   (require rackunit))
 
 (module+ test
-  (define (eval-tasks src)
-    (define tmp (make-temporary-file "sf-state~a.rkt"))
-    (dynamic-wind
-     void
-     (λ ()
-       (display-to-file src tmp #:exists 'truncate)
-       (dynamic-require `(file ,(path->string tmp)) 'tasks))
-     (λ () (delete-file tmp))))
-
-  ;; The state of a source's top-level nodes, in order.
-  (define (states src) (map task-status (eval-tasks src)))
-
-  ;; What loading `src` says, as a message — #f when it loads.
-  (define (load-problem src)
-    (define tmp (make-temporary-file "sf-state~a.rkt"))
-    (dynamic-wind
-     void
-     (λ ()
-       (display-to-file src tmp #:exists 'truncate)
-       (define r (try-load-outline tmp))
-       (and (load-error? r) (load-error-message r)))
-     (λ () (delete-file tmp)))))
+  ;; The state of a source's top-level nodes, in order. `eval-tasks` and
+  ;; `load-problem` are olai/tests/outlines'.
+  (define (states src) (map task-status (eval-tasks src))))
 
 ;; ---- the rule, on its own ---------------------------------------------------
 
@@ -198,17 +179,7 @@
 (module+ test
   ;; ONE done predicate: the typed-edge graph reads the same one, so a
   ;; statusless parent of all-done children stops blocking what is after it.
-  (test-case "a derived-done parent blocks nobody"
-    (in-dir
-     "olai-state-edges"
-     (λ (dir)
-       (define f
-         (write-outline dir "T.rkt"
-                        (string-append "#lang olai\n"
-                                       "demo ^demo\n  [x] haul\n  [x] sweep\n"
-                                       "install ^install\n  @after ^demo\n")))
-       (define lk (linked-or-fail (load-set (list f))))
-       (check-equal? (blocked-nodes (linked-edges lk)) (hash)))))
+  ;; Both halves of that live where the blocked rule lives (tests/edges.rkt).
 
   (test-case "status_source tells a derived state from a stored one"
     (define tasks (eval-tasks "#lang olai\nsection\n  [x] a\n  [x] b\n[x] leaf\n"))
@@ -249,10 +220,16 @@
        (check-eq? (exn:fail:op-kind e) 'derived)
        (check-true (string-contains? (exn-message e) "derives its done-ness")
                    (exn-message e))
-       ;; the children ride in the error object, so nobody parses the sentence
+       ;; the children ride along as NODES — this layer answers in domain
+       ;; values, and the reply layer renders them
        (define kids (hash-ref (exn:fail:op-detail e) 'children))
-       (check-equal? (map (λ (k) (hash-ref k 'title)) kids) '("b"))
-       (check-equal? (map (λ (k) (hash-ref k 'status)) kids) '("open"))
+       (check-equal? (map task-title kids) '("b"))
+       ;; …and they reach the error object, so nobody parses the sentence
+       (define err (hash-ref (err-hash (exn-message e)
+                                       #:detail (exn:fail:op-detail e))
+                             'error))
+       (check-equal? (hash-ref err 'children)
+                     (list (hash 'title "b" 'status "open" 'id (json-null))))
        ;; and nothing was written
        (check-false (string-contains? (file->string (build-path dir "Tasks.rkt"))
                                       "@done")))))

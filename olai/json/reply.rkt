@@ -13,14 +13,13 @@
 ;; other way round.
 
 (require racket/contract
-         racket/hash
          json
          racket/path
          olai/agenda
          olai/calendar
          ;; a blocker is a node, and a node is addressed by its key
-         (only-in olai/lang/expander task-key)
-         (only-in olai/json/model nullish mark->json))
+         (only-in olai/lang/expander task-key task?)
+         (only-in olai/json/model nullish mark->json task-mention->jsexpr))
 
 (provide (contract-out
           [json-reply-version exact-positive-integer?]
@@ -69,18 +68,31 @@
 ;; an agent that has to act on them must not be reading them back out of a
 ;; sentence (docs/cli.md: agents do not regex pretty-printed messages). Empty
 ;; for every failure that has nothing to add, which is most of them.
-;; The four fields WIN a collision: a detail may not quietly redefine where the
-;; error is.
+;;
+;; Its values arrive as DOMAIN values (olai/ops raises tasks, not JSON) and are
+;; rendered here, which is where every other reply is rendered. The four fields
+;; WIN a collision: a detail may not quietly redefine where the error is.
 (define (error-object message
                       #:file [file #f] #:line [line #f] #:col [col #f]
                       #:detail [detail (hash)])
-  (hash-union
-   (hash 'file (nullish (and file (if (path? file) (path->string file) file)))
-         'line (nullish line)
-         'col (nullish col)
-         'message message)
-   detail
-   #:combine (λ (four _detail) four)))
+  (hash-set* (for/hash ([(k v) (in-hash detail)])
+               (values k (detail->jsexpr v)))
+             'file (nullish (and file (if (path? file) (path->string file) file)))
+             'line (nullish line)
+             'col (nullish col)
+             'message message))
+
+;; A detail value, as JSON. A NODE is published as a mention — what it is
+;; called, what state it is in, the name you can address it by — which is
+;; json/model's shape and not this module's. Everything else is already jsexpr
+;; and rides through. By VALUE and not by key: a failure that names nodes under
+;; some other key needs no entry in a table here, and there is no table to
+;; forget to add one to.
+(define (detail->jsexpr v)
+  (cond
+    [(task? v) (task-mention->jsexpr v)]
+    [(list? v) (map detail->jsexpr v)]
+    [else v]))
 
 (define (err-hash message
                   #:file [file #f] #:line [line #f] #:col [col #f]

@@ -65,10 +65,13 @@
     (check-true (hash-has-key? inbox 'description))
     (check-true (hash-has-key? inbox 'done))
     (check-equal? (hash-ref inbox 'done) (json-null))
-    ;; the stored fields and what they mean travel together
+    ;; the stored fields and what they mean travel together — Inbox stores
+    ;; neither mark and holds work that has started, so it DERIVES doing
+    ;; (docs/syntax.md#derived-state) and says where that came from
     (check-true (hash-has-key? inbox 'doing))
     (check-equal? (hash-ref inbox 'doing) (json-null))
-    (check-equal? (hash-ref inbox 'status) "open")
+    (check-equal? (hash-ref inbox 'status) "doing")
+    (check-equal? (hash-ref inbox 'status_source) "derived")
     (define-values (c2 o2 e2)
       (run-olai (list "tree" "--json" (path->string example))))
     (check-equal? c2 0 e2)

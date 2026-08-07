@@ -19,9 +19,6 @@
          olai/capture
          olai/daily
          olai/dates
-         ;; what a node the failure below NAMES looks like as JSON. The shape of
-         ;; a node has one owner and one version counter, and it is not here
-         (only-in olai/json/model task-mention->jsexpr)
          ;; what state a node is in, and whether it is one the file stores at
          ;; all — the rule is the language's, and a write only asks it
          (only-in olai/lang/expander
@@ -42,7 +39,13 @@
 ;; result's `file` is the file actually written, as a string, and that a
 ;; failure arrives as exn:fail:op (not contracted: an exn is not a value the
 ;; caller constructs).
+;; op-fail is exported because a failure of this kind is raised from three
+;; other modules too (the ACP bridge, the chat routes, the CLI's unset-home
+;; check), and they used to build the struct positionally — so the field count
+;; was their problem, and adding `detail` was an edit at four unrelated sites.
+;; One constructor, keyword-defaulted, and the next field is an edit here.
 (provide (struct-out exn:fail:op)
+         op-fail
          (contract-out
           [struct add-result ([file string?]
                               [title string?]
@@ -107,8 +110,11 @@
 ;; when a second prompt arrives mid-turn, and a route turns it into 409.
 ;; file/line/col carry the srcloc when there is one (CLAUDE.md: errors carry
 ;; file:line:col).
-;; detail: jsexpr keys the failure knows about itself, for the error object
-;; beside the message (olai/json/reply). Empty for most failures.
+;; detail: what the failure knows about ITSELF, as keys for the error object
+;; beside the message (olai/json/reply). The values are DOMAIN values — the
+;; unfinished children below are tasks, not JSON — because every other thing
+;; this layer answers with is a domain value and the reply layer renders it.
+;; Empty for most failures.
 (struct exn:fail:op exn:fail (kind file line col detail) #:transparent)
 
 (define (op-fail kind fmt #:file [file #f] #:line [line #f] #:col [col #f]
@@ -278,7 +284,7 @@
      'derived
      #:file (located-file hit)
      #:line (add1 (located-index hit))
-     #:detail (hash 'children (map task-mention->jsexpr unfinished))
+     #:detail (hash 'children unfinished)
      "~a"
      (cond
        [undo?
