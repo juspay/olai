@@ -194,25 +194,6 @@
 (define (error-banner err)
   (render-error-banner (load-error-detail err) #:where (load-error-where err)))
 
-;; Nothing to show at all — the FIRST load failed. Still a live page: the next
-;; save is what fixes it, and the client should not have to reload to find that
-;; out.
-(define (page-failure rs rev err #:live-href live-href #:chat [chat #f])
-  (html-response
-   (page->html-string
-    (render-page (render-empty-pane "No outline loaded."
-                                    #:home-href (routes-home-href rs)
-                                    #:node-href (routes-node-href rs))
-                 #:title "olai"
-                 #:stylesheet-href stylesheet-href
-                 #:color-scheme theme-color-scheme
-                 #:theme-color theme-default-paper
-                 #:banner (error-banner err)
-                 #:href live-href
-                 #:cursor (outline-cursor rev)
-                 #:body-extra (if chat (list chat) '())))
-   #:code 500))
-
 ;; The state the outlines are in right now, as the wire names it. Both the
 ;; broadcast and the catch-up ask this, so neither can invent a spelling.
 (define (cursor-now st) (outline-cursor (store-revision st)))
@@ -311,13 +292,20 @@
       (file-label (car files))
       "olai"))
 
+;; EVERY page this module answers with, and the one altitude the <head>, the
+;; sheet and the palettes are decided at: a route hands over the pane it drew
+;; and what goes around it. The failure page is this too — a pane saying there
+;; is nothing loaded, no sidebar to draw one from, and a 500 — so there is one
+;; place a page's shape is stated rather than two that can come to differ.
+;;
 ;; The panel sits in body-extra, OUTSIDE #ol-live: an outline event re-swaps
 ;; the live region, and a chat mid-turn must not be swapped out from under
 ;; the person typing into it.
-(define (chrome rs files-data main
+(define (chrome main
                 #:title title
                 #:href href
                 #:cursor cursor
+                #:sidebar [sidebar #f]
                 #:banner [banner #f]
                 #:chat [chat #f]
                 #:code [code 200])
@@ -328,16 +316,20 @@
                  #:stylesheet-href stylesheet-href
                  #:color-scheme theme-color-scheme
                  #:theme-color theme-default-paper
-                 #:sidebar (render-sidebar files-data
-                                           #:home-href (routes-home-href rs)
-                                           #:today-href (routes-today-href rs)
-                                           #:href href
-                                           #:node-href (routes-node-href rs))
+                 #:sidebar sidebar
                  #:banner banner
                  #:href href
                  #:cursor cursor
                  #:body-extra (if chat (list chat) '())))
    #:code code))
+
+;; The file tree and the chrome above it, over one snapshot.
+(define (page-sidebar rs files-data #:href href)
+  (render-sidebar files-data
+                  #:home-href (routes-home-href rs)
+                  #:today-href (routes-today-href rs)
+                  #:href href
+                  #:node-href (routes-node-href rs)))
 
 ;; Every page here is the same shape: one snapshot, the chrome around it, and a
 ;; live region that re-fetches THIS url on an `outline` event. `view` is handed
@@ -348,16 +340,29 @@
 ;;
 ;; `rs` is the route table, and it is what every page draws its links out of.
 ;; `chat` is the panel, or #f when there is no agent to talk to.
+;;
+;; Nothing loaded AT ALL — the first load failed — is the same page with the
+;; pane saying so, no tree to draw a sidebar from, and a 500. Still live: the
+;; next save is what fixes it, and the client should not have to reload to find
+;; that out.
 (define (outline-page st rs chat live-href view)
   (with-snapshot st
-    (λ (rev err) (page-failure rs rev err #:live-href live-href #:chat chat))
+    (λ (rev err)
+      (chrome (empty-pane rs "No outline loaded.")
+              #:title "olai"
+              #:href live-href
+              #:cursor (outline-cursor rev)
+              #:chat chat
+              #:banner (error-banner err)
+              #:code 500))
     #:stale-ok? #t
     (λ (rev snap err)
       (define-values (main title) (view snap))
-      (chrome rs (snapshot-files-data snap) main
+      (chrome main
               #:title title
               #:href live-href
               #:cursor (outline-cursor rev)
+              #:sidebar (page-sidebar rs (snapshot-files-data snap) #:href live-href)
               #:chat chat
               #:banner (and err (error-banner err))))))
 
