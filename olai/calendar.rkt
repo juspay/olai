@@ -10,6 +10,9 @@
          racket/format
          (except-in olai/lang/expander #%module-begin)
          olai/dates
+         ;; the one walk over a task tree, and its mirror policy: a day node is
+         ;; counted where it is DEFINED, like everything else here
+         (only-in olai/lang/walk fold-tasks)
          olai/query
          (only-in gregor
                   date
@@ -25,6 +28,7 @@
          calendar-for-month
          calendar-from-files
          month-grid-cells
+         day-node-cells
          parse-year-month
          shift-year-month
          format-year-month)
@@ -139,3 +143,54 @@
   (if (zero? rem)
       cells
       (append cells (make-list (- 7 rem) #f))))
+
+;; ---- the day nodes, as a month ---------------------------------------------
+
+;; WHERE the day nodes are: "YYYY-MM-DD" -> (cons key parent-key). The set
+;; `collect-day-nodes` answers with says which days exist; a calendar cell is a
+;; LINK, and a link is a key, so this is the same walk asked the other question.
+;;
+;; First site wins, in tree order — the rule the store's own day lookup keeps
+;; (snapshot-day-key): an outline with two nodes titled one day says one thing
+;; twice, and every surface agrees on the one it says first.
+;;
+;; The parent is the node the day hangs under — the month in a Daily.rkt, the
+;; year in the monolithic shape — which is the way back OUT of a single day.
+;; #f for a day node written at a file's top level, which has no way out.
+(define (day-node-sites tasks)
+  (fold-tasks tasks
+              (λ (tk path acc)
+                (define title (task-title tk))
+                (if (and (bare-iso-date-title? title)
+                         (not (hash-has-key? acc title)))
+                    (hash-set acc title
+                              (cons (task-key tk)
+                                    (and (pair? path) (task-key (last path)))))
+                    acc))
+              (hash)))
+
+;; ONE MONTH OF DAY NODES, as the cells of a grid: #f for the padding a
+;; Mon-start month begins and ends with, else a hash of
+;;
+;;   date  day_num  is_today  key  parent_key
+;;
+;; where `key` is #f for a day the outline has no node for. That is the whole
+;; of "empty days are inert": there is nothing to address, so nothing links.
+;;
+;; Day NODES and not dated tasks, which is what makes this a different question
+;; from `calendar-for-month`'s: a cell is a way into the day's own page, and a
+;; `@date` on a task somewhere else is not one. The grid itself is that same
+;; function's, asked over the days alone — one owner for where the 1st of a
+;; month lands.
+(define (day-node-cells tasks ym today)
+  (define sites (day-node-sites tasks))
+  (define cal (calendar-for-month '() (list->set (hash-keys sites)) ym))
+  (for/list ([cell (in-list (month-grid-cells ym cal today))])
+    (and cell
+         (let* ([date (hash-ref cell 'date)]
+                [site (hash-ref sites date #f)])
+           (hash 'date date
+                 'day_num (hash-ref cell 'day_num)
+                 'is_today (hash-ref cell 'is_today)
+                 'key (and site (car site))
+                 'parent_key (and site (cdr site)))))))

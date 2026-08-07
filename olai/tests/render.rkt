@@ -79,7 +79,7 @@
   (define (sidebar-html)
     (xstr (render-sidebar (files (list "/tmp/Tasks.rkt" (list (tk "Inbox" #f #f '()))))
                           #:home-href "/"
-                          #:today-href "/today" #:archive-href "/archive"
+                          #:today-href "/today" #:archive-href "/archive" #:today "2026-08-04"
                           #:href "/"
                           #:node-href test-node-href))))
 
@@ -608,7 +608,7 @@
                                         (tk "Someday" #f #f '())))
                             (list "/tmp/Roadmap.rkt" (list (tk "WP2" #f #f '()))))
                      #:home-href "/"
-                     #:today-href "/today" #:archive-href "/archive"
+                     #:today-href "/today" #:archive-href "/archive" #:today "2026-08-04"
                      #:href "/"
                                     #:node-href test-node-href)))
     (check-true (string-contains? s "href=\"/today\"") s)
@@ -629,6 +629,85 @@
     (check-true (string-contains? s "ol-node is-tree has-children is-collapsed") s)
     ;; sidebar collapse state is namespaced away from the main pane's
     (check-true (string-contains? s "data-collapse-key=\"tree-") s))
+
+  ;; ---- the journal's month ------------------------------------------------
+  ;;
+  ;; Daily.rkt has no entry of its own in the tree: the file name was never a
+  ;; way into anything, and the days under it are. So the calendar stands where
+  ;; the label and the tree would have, and every other root is untouched.
+
+  (define daily-files
+    (files (list "/tmp/Daily.rkt"
+                 (list (tk "2026" #f #f
+                           (list (tk "August" #f #f
+                                     (list (tk "2026-08-03" #f #f
+                                               (list (tk "Setup day" #f #f '())))
+                                           (tk "2026-08-06" #f #f '())))))))
+           (list "/tmp/Tasks.rkt" (list (tk "Inbox" #f #f '())))))
+
+  (define (daily-sidebar [today "2026-08-06"])
+    (xstr (render-sidebar daily-files
+                          #:home-href "/" #:today-href "/today"
+                          #:archive-href "/archive" #:today today
+                          #:href "/" #:node-href test-node-href)))
+
+  (test-case "the Daily root is a month, not a file name and a tree"
+    (define s (daily-sidebar))
+    (check-true (string-contains? s "ol-cal-grid") s)
+    (check-true (string-contains? s "August 2026") s)
+    ;; the entry it REPLACES: no file label, and no tree of years and months
+    (check-false (string-contains? s "Daily.rkt") s)
+    (check-false (string-contains? s "August<") s)
+    ;; every other root still reads the way it did
+    (check-true (string-contains? s "Tasks.rkt") s)
+    (check-true (string-contains? s "Inbox") s))
+
+  (test-case "a day the journal has is a link to that day's page"
+    (define s (daily-sidebar))
+    (check-true (string-contains?
+                 s (format "title=\"2026-08-03\" href=\"~a\""
+                           (test-node-href (task-key (tk "2026-08-03" #f #f '())))))
+                s)
+    ;; and it navigates the outline region like every other link
+    (check-true (string-contains? s "hx-target=\"#ol-live\"") s))
+
+  (test-case "an empty day is inert: a number, not a link"
+    (define s (daily-sidebar))
+    (check-true (string-contains? s "<span class=\"ol-cal-day ol-cal-empty\">5</span>") s)
+    ;; the 3rd and the 6th are the only cells with anywhere to go
+    (check-equal? (length (regexp-match* #px"<a class=\"ol-cal-day" s)) 2 s))
+
+  (test-case "today is marked whether or not anything was written on it"
+    (check-true (string-contains? (daily-sidebar "2026-08-06")
+                                  "<a class=\"ol-cal-day is-today\"")
+                (daily-sidebar "2026-08-06"))
+    ;; a day with no node still says which day it is
+    (define s (daily-sidebar "2026-08-12"))
+    (check-true (string-contains?
+                 s "<span class=\"ol-cal-day is-today ol-cal-empty\">12</span>")
+                s))
+
+  (test-case "the month header zooms to what the days hang under"
+    (define s (daily-sidebar))
+    (check-true (string-contains?
+                 s (format "class=\"ol-cal-title\" title=\"the whole journal\" href=\"~a\""
+                           (test-node-href (task-key (tk "August" #f #f '())))))
+                s))
+
+  ;; A month with no days yet still has to reach the journal: the header falls
+  ;; back to the root's first node, which is the file as far as a link goes.
+  (test-case "a month with nothing in it still reaches the outline"
+    (define s (xstr (render-sidebar
+                     (files (list "/tmp/Daily.rkt"
+                                  (list (tk "Daily notes" #f #f '()))))
+                     #:home-href "/" #:today-href "/today"
+                     #:archive-href "/archive" #:today "2026-08-06"
+                     #:href "/" #:node-href test-node-href)))
+    (check-true (string-contains?
+                 s (format "class=\"ol-cal-title\" title=\"the whole journal\" href=\"~a\""
+                           (test-node-href (task-key (tk "Daily notes" #f #f '())))))
+                s)
+    (check-false (string-contains? s "<a class=\"ol-cal-day") s))
 
   ;; Every theme the sheet carries, and nothing else. Generated from
   ;; theme-names, so a theme added to the table shows up in the picker or fails
@@ -800,7 +879,7 @@
                                  #:stylesheet-href "/static/app.css"
                                  #:sidebar (render-sidebar fd #:home-href "/"
                                                            #:href "/"
-                                                           #:today-href "/today" #:archive-href "/archive"
+                                                           #:today-href "/today" #:archive-href "/archive" #:today "2026-08-04"
                                                            #:node-href test-node-href))))
     (check-true (string-contains? s "<title>olai</title>") s)
     (check-true (string-contains? s "href=\"/static/app.css\"") s)
@@ -882,7 +961,7 @@
 
   (test-case "links navigate partially and keep their plain href"
     (define fd (files (list "Tasks.rkt" (list (tk "Milk" #f #f '())))))
-    (define s (xstr (render-sidebar fd #:home-href "/" #:today-href "/today" #:archive-href "/archive" #:href "/"
+    (define s (xstr (render-sidebar fd #:home-href "/" #:today-href "/today" #:archive-href "/archive" #:today "2026-08-04" #:href "/"
                                     #:node-href test-node-href)))
     ;; no-JS, middle-click and copy-link all still read the href
     (check-true (string-contains? s (format "href=\"/n/~a\"" (title-key "Milk"))) s)

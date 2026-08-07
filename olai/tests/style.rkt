@@ -171,6 +171,12 @@
                                 #:blocked (blocked-nodes (snapshot-edges example-snapshot)))
                 #:sidebar (render-sidebar example-files
                                           #:home-href "/" #:today-href "/today" #:archive-href "/archive"
+                                          ;; the demo set holds a Daily.rkt, so
+                                          ;; this is also the page the journal's
+                                          ;; month is drawn on — every cell
+                                          ;; state included, since the fiction's
+                                          ;; days are in this one
+                                          #:today example-today
                                           #:href "/"
                                           #:node-href test-node-href)
                 #:href "/"

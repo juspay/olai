@@ -23,6 +23,9 @@
          live/dsl
          (only-in olai/web/live outline-events ol-live)
          (except-in olai/lang/expander #%module-begin)
+         ;; which of the loaded outlines is the day journal — by its basename,
+         ;; the way the archive is recognised (olai/daily, olai/archive)
+         (only-in olai/daily daily-file?)
          olai/web/theme
          olai/web/style
          olai/web/markdown
@@ -30,6 +33,8 @@
          (only-in olai/web/states is-tree)
          (only-in olai/web/node node-shell ol-node ol-children ol-row ol-toggle)
          (only-in olai/web/outline normalize-files-data)
+         ;; the journal's entry, which is a month rather than a file name
+         (only-in olai/web/calendar render-month-calendar)
          ;; what makes a row open the search palette. The palette itself is
          ;; drawn outside every region and is not on the screen until it is
          ;; asked for (web/search); this is where it is asked for, next to the
@@ -47,6 +52,9 @@
           [render-sidebar
            (-> list? #:home-href string? #:today-href string?
                #:archive-href string?
+               ;; what day it is, as a string: the journal's entry is the month
+               ;; around it, and this layer reads no clock (olai/arch)
+               #:today string?
                #:href string? #:node-href (-> string? string?)
                list?)]))
 
@@ -172,6 +180,7 @@
 (define (render-sidebar files-data
                         #:home-href home-href
                         #:today-href today-href
+                        #:today today
                         #:href href
                         #:archive-href archive-href
                         #:node-href node-href)
@@ -253,9 +262,21 @@
                    ,@(for/list ([e (in-list entries)])
                        (match-define (list label tasks) e)
                        `(div ((class ,ol-tree-file))
-                             (div ((class ,ol-tree-file-label)) ,label)
-                             (ul ((class ,ol-tree))
-                                 ,@(append*
-                                    (for/list ([tk (in-list tasks)])
-                                      (tree-item tk 0)))))))))
+                             ;; The day journal is the one root whose entry is
+                             ;; not its name. A month IS its table of contents
+                             ;; — the tree under it would be a year, twelve
+                             ;; months and a list of dates to scroll — so the
+                             ;; calendar stands where the label and the tree
+                             ;; would have, and reaches the same nodes.
+                             ,@(if (daily-file? label)
+                                   (list (render-month-calendar
+                                          tasks
+                                          #:today today
+                                          #:node-href node-href))
+                                   (list
+                                    `(div ((class ,ol-tree-file-label)) ,label)
+                                    `(ul ((class ,ol-tree))
+                                         ,@(append*
+                                            (for/list ([tk (in-list tasks)])
+                                              (tree-item tk 0)))))))))))
 

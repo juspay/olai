@@ -15,12 +15,27 @@
          ;; questions `capture` and `subtree` ask, asked of the same module
          olai/lang/section
          (except-in olai/lang/expander #%module-begin)
+         ;; one owner for what a file is CALLED (core, not web)
+         (only-in olai/paths file-label)
          (only-in olai/query count-tasks))
 
-(provide month-name
+(provide daily-file-name
+         daily-file?
+         month-name
          month-fragment-rel
          ensure-daily-day!
          migrate-monolithic-daily!)
+
+;; THE DAY JOURNAL, recognised the way the archive is (olai/archive): by its
+;; BASENAME, and by nothing else. Nothing in the language says "this root is
+;; the diary" — `serve DIR` globs a directory and gets a set of outlines — so
+;; the one thing everybody has to agree on is the name, and it is agreed on
+;; here, where the command that writes the file lives.
+(define daily-file-name "Daily.rkt")
+
+;; A path (or a label a renderer already reduced to one) that names it.
+(define (daily-file? f)
+  (and f (equal? (file-label f) daily-file-name)))
 
 (define month-names
   #("January" "February" "March" "April" "May" "June"
@@ -84,7 +99,7 @@
   (define (edit! path text) (set-box! edits (cons (cons path text) (unbox edits))))
   (define-values (y m) (parse-iso-day day))
   (define home-path (simple-form-path (expand-user-path home)))
-  (define root (build-path home-path "Daily.rkt"))
+  (define root (build-path home-path daily-file-name))
   (define rel (month-fragment-rel y m))
   (define frag (build-path home-path rel))
   (define year-title (number->string y))
@@ -181,7 +196,7 @@
 ;; Returns (list task-count-before task-count-after).
 (define (migrate-monolithic-daily! home)
   (define home-path (simple-form-path (expand-user-path home)))
-  (define root (build-path home-path "Daily.rkt"))
+  (define root (build-path home-path daily-file-name))
   (unless (file-exists? root)
     (error 'migrate "no Daily.rkt at ~a" root))
   (define n-before

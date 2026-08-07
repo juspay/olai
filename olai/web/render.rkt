@@ -14,6 +14,8 @@
 ;;   web/outline   the main pane: a section per file, nodes stacked under it
 ;;   web/crumbs    the trail above a zoomed node
 ;;   web/search    the palette a query opens, over everything
+;;   web/calendar  the day journal as a month, which is the sidebar's entry
+;;                 for it
 ;;   web/sidebar   brand, Today, Search, Starred, prefs, the file tree — a
 ;;                 live region
 ;;   web/banner    what a file being broken looks like
@@ -54,6 +56,9 @@
          olai/web/crumbs
          ;; before the sidebar, which draws the row that opens it
          olai/web/search
+         ;; and before the sidebar for the same reason: the journal's month is
+         ;; drawn in the tree's place
+         olai/web/calendar
          olai/web/sidebar
          olai/web/banner
          olai/web/stream
@@ -74,6 +79,7 @@
                        olai/web/outline
                        olai/web/crumbs
                        olai/web/search
+                       olai/web/calendar
                        olai/web/sidebar
                        olai/web/banner
                        olai/web/stream

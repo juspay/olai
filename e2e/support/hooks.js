@@ -69,12 +69,17 @@ Before(async function ({ pickle }) {
   const env = {};
   let viewport;
   const extras = [];
+  // @daily is the one root that cannot be a fixture: a journal is only worth
+  // looking at when one of its days is TODAY, so `olai daily` writes it at
+  // boot rather than a file in fixtures/ pretending (world.daily).
+  let journal = false;
   for (const { name } of pickle.tags) {
     if (name in STORED_SESSIONS) env.OLAI_FAKE_ACP_STORED = STORED_SESSIONS[name];
     if (name === "@phone") viewport = PHONE_VIEWPORT;
     if (name in EXTRA_ROOTS) extras.push(EXTRA_ROOTS[name]);
+    if (name === "@daily") journal = true;
   }
-  await this.boot(browser, env, viewport, extras);
+  await this.boot(browser, env, viewport, extras, journal);
 });
 
 // The server's own output is the first thing worth reading when a scenario

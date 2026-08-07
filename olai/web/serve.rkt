@@ -354,6 +354,9 @@
                   #:home-href (routes-home-href rs)
                   #:today-href (routes-today-href rs)
                   #:archive-href (routes-archive-href rs)
+                  ;; the journal's entry is the month around today, and this is
+                  ;; the layer that is allowed to know what day it is
+                  #:today (today-iso-string)
                   #:href href
                   #:node-href (routes-node-href rs)))
 

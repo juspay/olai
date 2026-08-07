@@ -79,6 +79,59 @@
                         cells))
     (check-true (hash-ref mon3 'is_today)))
 
+  ;; ---- the day nodes, as a month ------------------------------------------
+  ;;
+  ;; What the sidebar's calendar is drawn from: the same grid, asked which days
+  ;; the journal HAS a node for and where that node is.
+
+  (define daily-tasks
+    (list (tk "2026" #f #f
+              (list (tk "August" #f #f
+                        (list (tk "2026-08-03" #f #f
+                                  (list (tk "Setup day" #f #f '())))
+                              (tk "2026-08-04" #f #f '())
+                              ;; a dated task is not a day: it has no page of
+                              ;; its own to be a cell's link
+                              (tk "Dentist" "2026-08-06T09:30" #f '())))))))
+
+  (test-case "a day with a node carries its key; every other cell is inert"
+    (define cells (day-node-cells daily-tasks "2026-08" "2026-08-04"))
+    (define (cell date)
+      (findf (λ (c) (and c (equal? (hash-ref c 'date) date))) cells))
+    (check-equal? (hash-ref (cell "2026-08-03") 'key) "2026-08-03")
+    (check-equal? (hash-ref (cell "2026-08-04") 'key) "2026-08-04")
+    ;; dated, but not a day node: nothing to link to
+    (check-false (hash-ref (cell "2026-08-06") 'key))
+    (check-false (hash-ref (cell "2026-08-20") 'key))
+    ;; the whole month is there, padded to whole weeks
+    (check-equal? (remainder (length cells) 7) 0)
+    (check-equal? (length (filter values cells)) 31))
+
+  (test-case "today is the cell it falls on, node or no node"
+    (define cells (day-node-cells daily-tasks "2026-08" "2026-08-20"))
+    (define today (findf (λ (c) (and c (hash-ref c 'is_today))) cells))
+    (check-equal? (hash-ref today 'date) "2026-08-20")
+    (check-false (hash-ref today 'key)))
+
+  (test-case "a day says what it hangs under: the way out of one day"
+    (define cells (day-node-cells daily-tasks "2026-08" "2026-08-04"))
+    (define d (findf (λ (c) (and c (equal? (hash-ref c 'date) "2026-08-03")))
+                     cells))
+    (check-equal? (hash-ref d 'parent_key) "August")
+    ;; a day node written at a file's top level has no way out
+    (define flat (day-node-cells (list (tk "2026-08-03" #f #f '()))
+                                 "2026-08" "2026-08-03"))
+    (define top (findf (λ (c) (and c (equal? (hash-ref c 'date) "2026-08-03")))
+                       flat))
+    (check-equal? (hash-ref top 'key) "2026-08-03")
+    (check-false (hash-ref top 'parent_key)))
+
+  (test-case "a month the journal has nothing in is all inert"
+    (define cells (day-node-cells daily-tasks "2026-09" "2026-09-15"))
+    (check-equal? (length (filter values cells)) 30)
+    (check-true (for/and ([c (in-list cells)])
+                  (or (not c) (not (hash-ref c 'key))))))
+
   (test-case "shift-year-month"
     (check-equal? (shift-year-month "2026-08" -1) "2026-07")
     (check-equal? (shift-year-month "2026-01" -1) "2025-12")
