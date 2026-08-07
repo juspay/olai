@@ -37,9 +37,11 @@ build:
 nix:
     nix build -L
 
-# Packaged binary can load and check committed outlines.
+# Packaged binary can load and check committed outlines. One command, so one
+# SET: examples/Week.rkt mirrors an anchor examples/Example.rkt declares, and
+# that only resolves when both are named (docs/syntax.md, Mirrors).
 smoke: nix
-    ./result/bin/olai check examples/Example.rkt Roadmap.rkt e2e/fixtures/Tasks.rkt
+    ./result/bin/olai check examples/Example.rkt examples/Week.rkt Roadmap.rkt e2e/fixtures/Tasks.rkt
 
 # Unit tests: in-process (live/tests/ + olai/tests/*.rkt).
 test: build

@@ -86,7 +86,7 @@ Outline `#lang olai` + sexp core + agent CLI (`check` / `tree` / `agenda` / `cal
 
 The project tracks its own plan the same way it wants you to track yours: `Roadmap.rkt` at the repo root is a `#lang olai` outline, edited and committed like any other file. `olai tree Roadmap.rkt` gives the JSON view.
 
-Track your own plan as a `#lang olai` outline wherever you like (`$OLAI_HOME`) — a private `Tasks.rkt` can `@include` the repo's `Roadmap.rkt` to pull it into your own outline; that's exactly what the author does. Repo demos live in `examples/` (see `examples/Daily.rkt` for `@include` composition).
+Track your own plan as a `#lang olai` outline wherever you like (`$OLAI_HOME`) — a private `Tasks.rkt` can `@include` the repo's `Roadmap.rkt` to pull it into your own outline; that's exactly what the author does. Repo demos live in `examples/` (`examples/Daily.rkt` for `@include` composition; `examples/Week.rkt` for a mirror of a node another file defines — `just serve` draws both).
 
 ## BUILDING
 

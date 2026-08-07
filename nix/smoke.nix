@@ -10,6 +10,7 @@
 
 let
   exampleOutline = "${examples}/Example.rkt";
+  weekOutline = "${examples}/Week.rkt";
   exampleSexpOutline = "${examples}/Example.sexp.rkt";
 in
 
@@ -24,6 +25,28 @@ runCommand "olai-smoke"
   ''
     export TZDIR="${tzdata}/share/zoneinfo"
     olai check ${exampleOutline}
+
+    # An anchor's scope is the SET, so a cross-file mirror is only a link when
+    # both files are named — and only the packaged binary can say whether the
+    # linker survived being embedded in one.
+    olai check ${exampleOutline} ${weekOutline}
+    olai tree ${exampleOutline} ${weekOutline} > tree-set.json
+    racket -e '(require json)
+               (define j (call-with-input-file "tree-set.json" read-json))
+               (define anchors (hash-ref j (quote anchors)))
+               (define agent (hash-ref anchors (quote agent) #f))
+               (unless (and (= 2 (length (hash-ref j (quote files))))
+                            (hash? agent)
+                            ;; the set index says which file a write goes to
+                            (regexp-match? #rx"Example[.]rkt"
+                                           (hash-ref agent (quote file))))
+                 (error (quote smoke) "the set did not link"))'
+
+    # And named apart it is not a link: that file alone is a set of one.
+    if olai check ${weekOutline} > lone.out 2> lone.err; then
+      echo "smoke: a cross-file mirror resolved with nothing to resolve against" >&2
+      exit 1
+    fi
 
     # #lang olai/sexp needs its reader embedded in the raco-exe binary
     # (++lib olai/sexp/lang/reader; see nix/olai.nix). Without it this

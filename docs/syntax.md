@@ -186,6 +186,8 @@ Three phases, one checker (`lang/graph`), same rules and same messages:
 - Unknown `*id` → error at the mirror site, listing the anchors the set does have, and naming the near miss: `unknown *meting-prep; anchors in the loaded set: agent, meeting-prep; did you mean *meeting-prep?`
 - Cycle (direct, via other anchors, or through another file) → error with path, e.g. `agent -> week -> agent`.
 
+The repo's own demo is `examples/Week.rkt`, whose `*agent` is the node `examples/Example.rkt` declares — `just check` and `just serve` load both, and `olai check examples/Week.rkt` on its own is the error above.
+
 JSON tree sites emit `{"mirror":"id"}` (never inline the subtree). The top-level `anchors` object is the **set's** index — each anchored node once, with the `file` that defines it when the set has more than one root. Agenda counts a dated node once, at its defining breadcrumb, however many files mirror it. Writes go to the defining file: `olai done '^meeting-prep' --file Daily.rkt` edits `Tasks.rkt` (see [docs/cli.md](cli.md)). Web view: the defining site gets `id="anchor"`; mirror sites render with a ↗ link to `#anchor`, and follow an edit to the file that defines the node.
 
 ## `#lang olai/sexp` — s-expression core
