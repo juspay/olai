@@ -11,7 +11,6 @@
          racket/list
          racket/path
          racket/string
-         olai/agenda
          olai/archive
          (except-in olai/lang/expander #%module-begin)
          (only-in olai/lang/walk find-tasks-by-title resolve-mirrors
@@ -286,9 +285,12 @@
 ;; ---- what the queries do with it -------------------------------------------
 
 (module+ test
-  (test-case "the agenda stops answering with archived work"
+  ;; Archived work is a FILE, not a state: loading excludes nothing, so the
+  ;; node is still there, still keyed, still something a mirror could reach —
+  ;; and `archived-task?` is how a surface that cares asks.
+  (test-case "an archived node stays loaded, keyed, and says it is archived"
     (in-dir
-     "olai-archive-agenda"
+     "olai-archive-loaded"
      (λ (dir)
        (define tasks
          (write-outline dir "Tasks.rkt"
@@ -297,27 +299,8 @@
                                        "  [/] Wire it\n"
                                        "  Buy milk\n"
                                        "    @date 2026-01-15\n")))
-       (define (items . paths)
-         (define lk (apply loaded paths))
-         (for/list ([g (in-list (agenda-groups-from-files
-                                 (for/list ([o (in-list (linked-outlines lk))])
-                                   (cons (outline-path o) (outline-tasks o)))
-                                 "2026-08-06"))]
-                    #:when #t
-                    [it (in-list (cdr g))])
-           it))
-       (define (titles . paths)
-         (map agenda-item-title (apply items paths)))
-       (check-equal? (sort (titles tasks) string<?) '("Buy milk" "Wire it"))
        (void (ops-archive! tasks "Buy milk" #:commit? #f))
        (define archive (build-path dir "Archive.rkt"))
-       ;; loaded, keyed, mirrorable — and off the plate
-       (check-equal? (titles tasks archive) '("Wire it"))
-       ;; and the archive is not a second FILE either: a breadcrumb is rooted
-       ;; at a file's name only when more than one outline is loaded, and
-       ;; archiving something must not turn a one-outline home into two
-       (check-equal? (agenda-item-breadcrumb (car (items tasks archive)))
-                     "Inbox > Wire it")
        (define lk (loaded tasks archive))
        (define moved
          (for*/or ([o (in-list (linked-outlines lk))]
@@ -325,4 +308,6 @@
            t))
        (check-true (task? moved))
        (check-true (archived-task? moved))
-       (check-true (string? (task-key moved)))))))
+       (check-true (string? (task-key moved)))
+       ;; and the outline it left no longer holds it
+       (check-false (string-contains? (file->string tasks) "Buy milk"))))))

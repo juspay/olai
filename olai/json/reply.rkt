@@ -1,8 +1,7 @@
 #lang racket/base
 
 ;; What a COMMAND answers with: the ok/error envelope every write command
-;; wears, and the per-command payloads (agenda groups, a calendar month) that
-;; exist because a command was asked, not because the model has them.
+;; wears — what a command answered, not what the model has.
 ;;
 ;; Its version is its own (json-reply-version), separate from the model's:
 ;; adding a field to a task and changing the shape of an error are different
@@ -15,11 +14,9 @@
 (require racket/contract
          json
          racket/path
-         olai/agenda
-         olai/calendar
-         ;; a blocker is a node, and a node is addressed by its key
-         (only-in olai/lang/expander task-key task?)
-         (only-in olai/json/model nullish mark->json task-mention->jsexpr))
+         ;; a failure may name nodes, and a node has a shape json/model owns
+         (only-in olai/lang/expander task?)
+         (only-in olai/json/model nullish task-mention->jsexpr))
 
 (provide (contract-out
           [json-reply-version exact-positive-integer?]
@@ -37,11 +34,7 @@
                           #:line (or/c exact-integer? #f)
                           #:col (or/c exact-integer? #f)
                           #:detail hash?)
-                         hash?)]
-          [agenda-item->jsexpr (-> agenda-item? symbol? hash?)]
-          [agenda-groups->jsexpr (-> list? string? hash?)]
-          [cal-item->jsexpr (-> cal-item? hash?)]
-          [calendar->jsexpr (-> hash? hash?)])
+                         hash?)])
          ;; re-exported so a command needs one require to write a reply
          nullish)
 
@@ -103,65 +96,3 @@
                              #:file file #:line line #:col col
                              #:detail detail)))
 
-(define (agenda-item->jsexpr it bucket)
-  (hash 'title (agenda-item-title it)
-        ;; null in the `doing` group: a node in flight need not be dated
-        'date (nullish (agenda-item-date it))
-        'breadcrumb (agenda-item-breadcrumb it)
-        'status (symbol->string (agenda-item-status it))
-        ;; …and where that state came from, spelled as `tree` spells it
-        ;; (olai/json/model). It is what tells a `"doing"` item in a DATE
-        ;; bucket from one in the `doing` group: the group is about who
-        ;; claimed a node, and a derived state is nobody's claim.
-        'status_source (symbol->string (agenda-item-source it))
-        ;; Where the item sits by its own facts (see items-for below): the
-        ;; group it is in, unless it is BLOCKED — and then what it would have
-        ;; been. An overdue node waiting on an unfinished one is both, and an
-        ;; agent that only heard "blocked" would not know it was already late.
-        'bucket (symbol->string bucket)
-        'blocked (agenda-item-blocked? it)
-        ;; What it is waiting on, as KEYS — the way everything else addresses a
-        ;; node (docs/cli.md). An anchored blocker's key IS its anchor, so the
-        ;; common case reads as the outline wrote it, and an unanchored one is
-        ;; still something `tree` can be asked about.
-        'waiting_on (map task-key (agenda-item-waiting it))))
-
-(define (agenda-groups->jsexpr groups today)
-  ;; In four of the five groups the bucket IS the group — `overdue` holds what
-  ;; is overdue, and the agenda put it there by asking exactly that. BLOCKED is
-  ;; the exception the field exists for: those items are here INSTEAD of in the
-  ;; bucket they belong to, so that bucket is the one thing the reply still has
-  ;; to go and ask.
-  (define (items-for sym)
-    (define p (assq sym groups))
-    (if p
-        (for/list ([it (in-list (cdr p))])
-          (agenda-item->jsexpr it (if (eq? sym 'blocked) (agenda-bucket it today) sym)))
-        '()))
-  (hash 'version json-reply-version
-        'today today
-        'overdue (items-for 'overdue)
-        ;; above today_items, as the agenda reads it (olai/agenda)
-        'doing (items-for 'doing)
-        'today_items (items-for 'today)
-        'upcoming (items-for 'upcoming)
-        ;; and under all of them: what you cannot act on yet
-        'blocked (items-for 'blocked)))
-
-(define (cal-item->jsexpr it)
-  (hash 'title (cal-item-title it)
-        'date (cal-item-date it)
-        'breadcrumb (cal-item-breadcrumb it)
-        'done (mark->json (cal-item-done it))
-        'doing (mark->json (cal-item-doing it))
-        'status (symbol->string (cal-item-status it))
-        'id (nullish (cal-item-id it))))
-
-(define (calendar->jsexpr cal)
-  (hash 'version json-reply-version
-        'month (hash-ref cal 'month)
-        'days
-        (for/list ([d (in-list (hash-ref cal 'days))])
-          (hash 'date (hash-ref d 'date)
-                'day_node (hash-ref d 'day_node #f)
-                'items (map cal-item->jsexpr (hash-ref d 'items))))))

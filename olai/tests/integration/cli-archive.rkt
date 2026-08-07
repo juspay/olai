@@ -122,9 +122,9 @@
        (check-true (string-suffix? (hash-ref anchor 'file) "Archive.rkt")
                    (hash-ref anchor 'file)))))
 
-  (test-case "archived work is off the agenda and still in the tree"
+  (test-case "archived work leaves the outline and stays in the tree"
     (in-repo
-     "olai-cli-archive-agenda"
+     "olai-cli-archive-loaded"
      (λ (dir)
        (define tasks
          (write-outline dir "Tasks.rkt"
@@ -138,12 +138,9 @@
        (check-equal? code 0 (string-append out err))
        (check-equal? (hash-ref (parse-json out) 'committed) #f)
        (define archive (hash-ref (parse-json out) 'file))
-       (define-values (c2 o2 e2) (run-olai (list "agenda" (path->string tasks) archive)))
-       (check-equal? c2 0 e2)
-       (define ag (parse-json o2))
-       (check-equal? (hash-ref ag 'overdue) '())
-       (check-equal? (hash-ref ag 'today_items) '())
-       ;; still loaded, still keyed, just not an answer to "what is on my plate"
+       ;; gone from the file it left
+       (check-false (regexp-match? #rx"Buy milk" (file->string tasks)))
+       ;; still loaded, still keyed
        (define-values (c3 o3 e3) (run-olai (list "tree" archive)))
        (check-equal? c3 0 e3)
        (define milk (find-node (hash-ref (parse-json o3) 'tasks) "Buy milk"))

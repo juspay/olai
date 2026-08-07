@@ -12,7 +12,6 @@
          (except-in olai/lang/expander #%module-begin)
          (only-in olai/lang/walk find-tasks-by-title
                   mirror-site? mirror-site-of mirror-site-task)
-         olai/agenda
          olai/json/model
          olai/load
          olai/ops
@@ -173,26 +172,7 @@
                      "meeting-prep")
        ;; the file's own anchors stay the file's own
        (check-equal? (hash-ref daily 'anchor_count) 0)
-       (check-equal? (hash-ref (car (hash-ref j 'files)) 'anchor_count) 1))))
-
-  (test-case "agenda counts a cross-file mirrored node once"
-    (in-dir
-     "olai-link-agenda"
-     (λ (dir)
-       (define a (write-outline dir "Tasks.rkt"
-                                "#lang olai\nMilk ^milk\n  @date 2026-07-01\n"))
-       (define b (write-outline dir "Daily.rkt"
-                                "#lang olai\n2026-08-06\n  *milk\n"))
-       (define lk (linked-or-fail (link a b)))
-       (define groups
-         (agenda-groups-from-files
-          (for/list ([o (in-list (linked-outlines lk))])
-            (cons (outline-path o) (outline-tasks o)))
-          "2026-08-06"))
-       (define overdue (cdr (assq 'overdue groups)))
-       (check-equal? (length overdue) 1)
-       ;; and it is on the plate at its DEFINING breadcrumb
-       (check-equal? (agenda-item-breadcrumb (car overdue)) "Tasks.rkt > Milk")))))
+       (check-equal? (hash-ref (car (hash-ref j 'files)) 'anchor_count) 1)))))
 
 ;; ---- what the page is drawn from -------------------------------------------
 

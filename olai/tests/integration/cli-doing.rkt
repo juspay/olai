@@ -54,14 +54,6 @@
        (check-equal? (hash-ref ship 'done) (json-null))
        (check-equal? (hash-ref ship 'status) "doing")
 
-       ;; and the agenda moves it out of its date bucket into DOING
-       (define-values (c3 o3 e3) (run-olai (list "agenda" (path->string f))))
-       (check-equal? c3 0 e3)
-       (define ag (parse-json o3))
-       (check-equal? (map (λ (i) (hash-ref i 'title)) (hash-ref ag 'doing))
-                     '("Ship it"))
-       (check-equal? (hash-ref ag 'overdue) '())
-       (check-equal? (hash-ref (car (hash-ref ag 'doing)) 'status) "doing")
 
        ;; undo
        (define-values (c4 o4 e4)

@@ -88,32 +88,6 @@
        (check-false (hash-has-key? j 'tasks)))
      (λ () (delete-directory/files dir))))
 
-  (test-case "multi-file agenda merges with file-rooted breadcrumbs"
-    (define dir (make-temporary-file "sfag~a" 'directory))
-    (define a (build-path dir "Tasks.rkt"))
-    (define b (build-path dir "Roadmap.rkt"))
-    (dynamic-wind
-     void
-     (λ ()
-       (display-to-file
-        "#lang olai\nMilk\n  @date 2026-07-01\n"
-        a #:exists 'truncate)
-       (display-to-file
-        "#lang olai\nLater\n  @date 2026-12-01\n"
-        b #:exists 'truncate)
-       (define-values (code out err)
-         (run-olai
-          (list "agenda" "--json" (path->string a) (path->string b))))
-       (check-equal? code 0 (string-append out err))
-       (define j (parse-json out))
-       (define ov (car (hash-ref j 'overdue)))
-       (define up (car (hash-ref j 'upcoming)))
-       (check-true (string-contains? (hash-ref ov 'breadcrumb) "Tasks.rkt")
-                   (hash-ref ov 'breadcrumb))
-       (check-true (string-contains? (hash-ref up 'breadcrumb) "Roadmap.rkt")
-                   (hash-ref up 'breadcrumb)))
-     (λ () (delete-directory/files dir))))
-
   ;; The set is what an anchor's scope is, so the paths on the command line
   ;; are what a `*mirror` may reach — and a set that does not link fails as a
   ;; set: every file is fine, the reply is not.
@@ -146,12 +120,6 @@
        (define day (car (hash-ref (cadr (hash-ref j 'files)) 'tasks)))
        (check-equal? (hash-ref (car (hash-ref day 'children)) 'mirror)
                      "meeting-prep")
-
-       ;; one node, so one agenda item
-       (define-values (c3 o3 e3)
-         (run-olai (list "agenda" (path->string tasks-file) (path->string daily))))
-       (check-equal? c3 0 (string-append o3 e3))
-       (check-equal? (length (hash-ref (parse-json o3) 'overdue)) 1)
 
        ;; checking it off from the file that only MIRRORS it edits the file
        ;; that defines it

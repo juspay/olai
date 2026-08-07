@@ -2,8 +2,8 @@
 
 ;; olai CLI — the agent tool surface and the write-safety layer, nothing else.
 ;; The human view is the web app (`olai serve`), so every command that has a
-;; JSON reply emits it always: --json is accepted and does nothing. `ics`
-;; (its output IS the format) and `serve` are the exceptions and talk plain.
+;; JSON reply emits it always: --json is accepted and does nothing. `serve` is
+;; the one exception and talks plain.
 ;; Exit codes: 0 ok, 1 usage, 2 validation/load, 3 not found, 4 derived state.
 ;; Arg parsing: racket/cmdline. JSON: json package write-json.
 
@@ -15,12 +15,9 @@
          racket/path
          racket/string
          racket/vector
-         olai/agenda
-         olai/calendar
          olai/json/model
          olai/json/reply
          olai/query
-         olai/ics
          olai/dates
          olai/load
          olai/ops
@@ -54,9 +51,8 @@
   (path->string (build-path (olai-home) "Tasks.rkt")))
 
 ;; Two error surfaces, one per output kind: the error object on stderr for the
-;; JSON commands (everything an agent drives), `olai: message` for the two that
-;; do not speak JSON at all — `ics` and `serve`, which have no envelope to put
-;; it in.
+;; JSON commands (everything an agent drives), `olai: message` for the one that
+;; does not speak JSON at all — `serve`, which has no envelope to put it in.
 (define (die code msg #:json? json? #:file [file #f] #:line [line #f] #:col [col #f]
              ;; what the failure knows about itself, as keys beside the four
              ;; (olai/json/reply). Nothing to say on the plain-text surface,
@@ -85,8 +81,8 @@
 
 ;; The one way a load failure ends a command: the four fields it already
 ;; carries, in the mode the command answers in. `what` is what the plain-text
-;; surface calls the thing that would not load — the two that speak plain
-;; (`ics`, `serve`) say so before the message.
+;; surface calls the thing that would not load — `serve`, the one that speaks
+;; plain, says so before the message.
 (define (die-load-error err json? what)
   (die exit-validation
        (if json?
@@ -179,28 +175,6 @@
 
 (define (cmd-tree paths)
   (write-json-stdout (linked->jsexpr (link-or-die paths #t))))
-
-;; The agenda is asked of the SET, not of a list of files: what blocks what
-;; crosses files exactly the way a mirror does, so the graph the set derived is
-;; what says which nodes are waiting.
-(define (cmd-agenda paths)
-  (define lk (link-or-die paths #t))
-  (define today (today-iso))
-  (define groups
-    (agenda-groups-from-files
-     (linked-entries lk) today
-     #:blocked (blocked-nodes (linked-edges lk))))
-  (write-json-stdout (agenda-groups->jsexpr groups today)))
-
-(define (cmd-calendar paths month)
-  (define entries (linked-file-entries paths #t))
-  (define ym (or month (substring (today-iso) 0 7)))
-  (define-values (y m) (parse-year-month ym))
-  (unless y
-    (die exit-usage
-         (format "invalid --month ~s; expected YYYY-MM" ym)
-         #:json? #t))
-  (write-json-stdout (calendar->jsexpr (calendar-from-files entries ym))))
 
 ;; ---- write commands: parse, call the op, render --------------------------
 ;;
@@ -330,15 +304,6 @@
             'line (daily-result-line r)
             'committed (daily-result-committed? r))))
 
-(define (cmd-ics paths out-path)
-  (define ics (tasks->ics (linked-file-entries paths #f)))
-  (cond
-    [out-path
-     (display-to-file ics out-path #:exists 'truncate/replace)
-     (printf "~a\n" (path->string (simple-form-path (path->complete-path out-path))))]
-    [else
-     (display ics)]))
-
 ;; The agent `serve` chats with. No fallback and no PATH lookup: an agent the
 ;; server picked for you is an agent you did not choose, and a serve command
 ;; that silently has no chat panel is worse than one that will not start. Nix
@@ -364,7 +329,7 @@
 ;; session" a thing that survives a restart (Claude Code keys its stored
 ;; sessions by the directory the agent runs in), pictures are served out of it,
 ;; and its outlines are re-asked as they change. A list would name none of
-;; that, and the read commands that DO take one (`check`, `tree`, `agenda`, …)
+;; that, and the read commands that DO take one (`check`, `tree`)
 ;; are still where a set you typed belongs.
 (define (serve-root file-args)
   (cond
@@ -434,8 +399,6 @@
   (eprintf "commands:\n")
   (eprintf "  check    [file ...]  validate outline(s) (default: $OLAI_HOME/Tasks.rkt)\n")
   (eprintf "  tree     [file ...]  outline(s) as JSON\n")
-  (eprintf "  agenda   [file ...]  overdue / doing / today / upcoming (merged)\n")
-  (eprintf "  calendar [--month YYYY-MM] [file ...]  days with dated items\n")
   (eprintf "  serve    [--port N] [--bind ADDR] [DIR | file]  web view (Ctrl-C to stop)\n")
   (eprintf "           ONE of them (default: .): every *.rkt under DIR, and the\n")
   (eprintf "           agent works there. Roots are re-read as they appear.\n")
@@ -449,9 +412,8 @@
   (eprintf "           move the subtree into Archive.rkt, ancestors and all\n")
   (eprintf "  daily    [--date YYYY-MM-DD] [--home DIR] [--no-commit]\n")
   (eprintf "           ensure today in Daily/\n")
-  (eprintf "  ics      [--out PATH] [file ...]  RFC 5545 VCALENDAR of dated tasks\n")
   (eprintf "\n")
-  (eprintf "everything but ics and serve replies in JSON; --json does nothing.\n")
+  (eprintf "everything but serve replies in JSON; --json does nothing.\n")
   (eprintf "the human view is the web app: olai serve\n")
   (eprintf (string-append "exit codes: 0 ok | 1 usage | 2 validation/load"
                           " | 3 not found | 4 derived state\n"))
@@ -483,28 +445,6 @@
    #:args paths
    (set! file-args paths))
   (cmd-tree (resolve-files file-args #t)))
-
-(define (cli-agenda)
-  (define file-args '())
-  (command-line
-   #:program "olai agenda"
-   #:once-each
-   [("--json") "No-op (the reply is always JSON)" (void)]
-   #:args paths
-   (set! file-args paths))
-  (cmd-agenda (resolve-files file-args #t)))
-
-(define (cli-calendar)
-  (define month #f)
-  (define file-args '())
-  (command-line
-   #:program "olai calendar"
-   #:once-each
-   [("--json") "No-op (the reply is always JSON)" (void)]
-   [("--month") m "Month YYYY-MM (default: current)" (set! month m)]
-   #:args paths
-   (set! file-args paths))
-  (cmd-calendar (resolve-files file-args #t) month))
 
 (define (cli-serve)
   (define port 8080)
@@ -604,17 +544,6 @@
    (set! titles title-words))
   (cmd-archive file-arg no-commit? titles))
 
-(define (cli-ics)
-  (define out-path #f)
-  (define file-args '())
-  (command-line
-   #:program "olai ics"
-   #:once-each
-   [("--out") path "Write ICS to path (default: stdout)" (set! out-path path)]
-   #:args paths
-   (set! file-args paths))
-  (cmd-ics (resolve-files file-args #f) out-path))
-
 (define (cli-daily)
   (define date-arg #f)
   (define home-arg #f)
@@ -651,8 +580,6 @@
             (exit exit-ok)]
            [("check") (cli-check)]
            [("tree") (cli-tree)]
-           [("agenda") (cli-agenda)]
-           [("calendar") (cli-calendar)]
            [("serve") (cli-serve)]
            [("add") (cli-add)]
            [("done") (cli-mark 'done)]
@@ -660,7 +587,6 @@
            [("move") (cli-move)]
            [("archive") (cli-archive)]
            [("daily") (cli-daily)]
-           [("ics") (cli-ics)]
            [else
             (die exit-usage (format "unknown command ~s" cmd) #:json? #f)])))]))
 

@@ -10,6 +10,7 @@
          racket/port
          racket/string
          racket/tcp
+         (only-in olai/dates today-iso-string)
          (only-in live/hub heartbeat-event)
          live/dsl
          (only-in live/frame live-stream-path)
@@ -200,12 +201,9 @@
        ;; and the link the page ships points here
        (define-values (_c _hh home) (GET port "/"))
        (check-true (string-contains? home "href=\"/today\"") home)
-       ;; add today's day node and it zooms to it
-       (define today
-         (let ()
-           (define j (read-json (open-input-string
-                                 (let-values ([(_c2 _h2 b) (GET port "/api/agenda")]) b))))
-           (hash-ref j 'today)))
+       ;; add today's day node and it zooms to it. The server reads the same
+       ;; clock this process does (olai/dates), which is the only one there is
+       (define today (today-iso-string))
        (display-to-file (string-append outline today "\n  Water the plants\n")
                         f #:exists 'truncate)
        (define-values (code2 _h3 body2) (GET port "/today"))
@@ -361,24 +359,12 @@
        (check-equal? (map (λ (t) (hash-ref t 'title)) (hash-ref inbox 'children))
                      '("Buy milk")))))
 
-  (test-case "GET /api/agenda matches the agenda JSON contract"
+  ;; The dated queries are retired, and their route went with them.
+  (test-case "GET /api/agenda is gone"
     (with-server
      (λ (port f)
-       (define-values (code headers body) (GET port "/api/agenda"))
-       (check-equal? code 200 body)
-       (define j (read-json (open-input-string body)))
-       (check-equal? (hash-ref j 'version) 1)
-       (check-true (string? (hash-ref j 'today)))
-       (check-true (list? (hash-ref j 'overdue)))
-       (check-true (list? (hash-ref j 'today_items)))
-       (check-true (list? (hash-ref j 'upcoming)))
-       (check-true
-        (for/or ([grp (in-list (list (hash-ref j 'overdue)
-                                     (hash-ref j 'today_items)
-                                     (hash-ref j 'upcoming)))])
-          (for/or ([it (in-list grp)])
-            (equal? (hash-ref it 'title) "Buy milk")))
-        body))))
+       (define-values (code _headers body) (GET port "/api/agenda"))
+       (check-equal? code 404 body))))
 
   (test-case "GET /static/app.css serves the stylesheet"
     (with-server

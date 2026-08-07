@@ -46,8 +46,8 @@ olai roadmap #project
 
 **A parent does not store what its children already say.** A node with task
 children and no mark of its own **takes its state from them**, computed every
-time anybody asks — the agenda, the web view, `tree` JSON, the typed-edge
-graph. Nothing writes it down, so it cannot go stale.
+time anybody asks — the web view, `tree` JSON, the typed-edge graph. Nothing
+writes it down, so it cannot go stale.
 
 ```racket
 #lang olai
@@ -87,10 +87,9 @@ The rules, in the order they are asked:
 
 `[/] ` **propagates and that is deliberate**: an ancestor of one node in flight
 is in flight, all the way to the file's own top node, because the work under it
-has started. That is a fact about the tree, and it is not the same question as
-"what are you on" — so the agenda's `doing` group holds only nodes somebody
-CLAIMED with a mark, and a dated node that merely derives `[/] ` sits in the
-date bucket its date puts it in (see [docs/cli.md](cli.md)).
+has started. That is a fact about the tree, and a surface that wants the
+narrower question — who CLAIMED a node — asks whether the state is stored
+(`status_source` in `tree` JSON, docs/cli.md).
 
 The one thing the checker adds: **a stored `@done` may not sit above unfinished
 work.** Same message from every entry point (compile time, after the splice,
@@ -110,7 +109,7 @@ done` on such a parent names the unfinished children instead of marking them
 
 ### Inline formatting (Markdown)
 
-Formatting is **interpretation at render time**, not data. The reader, expander, task struct, and CLI write path leave strings **verbatim**. Only the web view (`olai serve`) parses Markdown, via the `markdown` package → xexprs → sanitizer. `tree` / `check` / `agenda` JSON never do.
+Formatting is **interpretation at render time**, not data. The reader, expander, task struct, and CLI write path leave strings **verbatim**. Only the web view (`olai serve`) parses Markdown, via the `markdown` package → xexprs → sanitizer. `tree` / `check` JSON never do.
 
 | Surface | Markdown scope |
 |---|---|
@@ -302,8 +301,8 @@ change to the language, not a field you may invent:
   thought in, and `tree` JSON keeps it on the node — the normalized form is the
   set's `edges` index (see [docs/cli.md](cli.md)).
 - **`@after` is ordering, never scheduling.** It says nothing about a date. A
-  blocked node with a due date is overdue *and* blocked, and the agenda says
-  both.
+  blocked node with a due date is late *and* blocked; the two are separate
+  facts about it and neither replaces the other.
 - **A done node is waiting on nothing.** Being blocked is a fact about what you
   can start; a node that is finished has started. So a `@done` node never reads
   as blocked, whatever its `@after` target says.

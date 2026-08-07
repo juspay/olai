@@ -51,7 +51,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # The CLI faces (check/tree/agenda/daily) work from any shell on the same
+    # The CLI faces (check/tree/daily) work from any shell on the same
     # files the service serves; the binary cannot skew from the service it
     # inspects.
     home.packages = [ cfg.package ];
