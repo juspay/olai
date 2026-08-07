@@ -4,7 +4,8 @@
 ;; that writes across two of them at once. Real subprocess (cli-util.rkt),
 ;; temp dirs only.
 
-(require racket/file
+(require json
+         racket/file
          racket/port
          racket/string
          racket/system
@@ -14,6 +15,17 @@
   (require rackunit))
 
 (module+ test
+  ;; How many nodes the spliced tree titles this — which is what a fragment
+  ;; included twice answers with two of. Asked through `tree`, so the count is
+  ;; over the set a reader loads, not over the file the write touched.
+  (define (day-node-count root title)
+    (define-values (code out err) (run-olai (list "tree" root)))
+    (check-equal? code 0 (string-append out err))
+    (let count ([ts (hash-ref (parse-json out) 'tasks)])
+      (for/sum ([t (in-list ts)])
+        (+ (if (equal? (hash-ref t 'title #f) title) 1 0)
+           (count (hash-ref t 'children '()))))))
+
   (test-case "multi-file check: both ok + one-good-one-bad"
     (define dir (make-temporary-file "sfmulti~a" 'directory))
     (define good (build-path dir "good.rkt"))
@@ -241,4 +253,83 @@
                 "--date" "2026-08-05")))
        (check-equal? c3 0 (string-append o3 e3))
        (check-equal? (hash-ref (parse-json o3) 'committed) #f))
+     (λ () (delete-directory/files home))))
+
+  ;; A root that GLOBS its fragments already reaches the one this command is
+  ;; about to create. Writing the @include line as well would splice it twice
+  ;; — every day node in the month duplicated in the tree — so the root is
+  ;; left exactly as it was, scaffolding included, and the reply says which
+  ;; pattern covered it.
+  (test-case "daily: a covering glob in the root, and the root untouched"
+    (define home (make-temporary-file "sfdailyglob~a" 'directory))
+    (define root (build-path home "Daily.rkt"))
+    (define root-text "#lang olai\n2026\n  @include Daily/*.rkt\n")
+    (dynamic-wind
+     void
+     (λ ()
+       (parameterize ([current-directory home])
+         (git "init" "-q")
+         (git "config" "user.email" "t@t.test")
+         (git "config" "user.name" "t")
+         (display-to-file root-text root #:exists 'truncate)
+         (git "add" "Daily.rkt")
+         (git "commit" "-q" "-m" "init"))
+       (define-values (code out err)
+         (run-olai (list "daily" "--home" (path->string home)
+                         "--date" "2026-08-04")))
+       (check-equal? code 0 (string-append out err))
+       (define j (parse-json out))
+       (check-equal? (hash-ref j 'covered_by_glob) "Daily/*.rkt")
+       (check-equal? (hash-ref j 'created_month) #t)
+       (check-equal? (hash-ref j 'created_day) #t)
+       (check-equal? (hash-ref j 'line) 2)
+       (check-true (string-suffix? (hash-ref j 'file) "Daily/2026-08.rkt")
+                   (hash-ref j 'file))
+
+       ;; the fragment is there with the day in it, and the root is the same
+       ;; bytes it was committed as
+       (check-true (file-exists? (build-path home "Daily" "2026-08.rkt")))
+       (check-equal? (file->string root) root-text)
+
+       ;; only the fragment was written, so only the fragment was committed
+       (check-equal? (hash-ref j 'committed) #t)
+       (check-equal? (committed-files home) '("Daily/2026-08.rkt"))
+
+       ;; and the set says the day node exists ONCE, which is the whole bug
+       (check-equal? (day-node-count (path->string root) "2026-08-04") 1)
+
+       ;; a second day in the same month: still nothing to say to the root
+       (define-values (c2 o2 e2)
+         (run-olai (list "daily" "--home" (path->string home)
+                         "--date" "2026-08-05")))
+       (check-equal? c2 0 (string-append o2 e2))
+       (define j2 (parse-json o2))
+       (check-equal? (hash-ref j2 'covered_by_glob) "Daily/*.rkt")
+       (check-equal? (hash-ref j2 'created_month) #f)
+       (check-equal? (file->string root) root-text)
+       (check-equal? (day-node-count (path->string root) "2026-08-05") 1))
+     (λ () (delete-directory/files home))))
+
+  ;; The pattern has to actually NAME the fragment. One that reads the same
+  ;; directory and does not match it covers nothing, and the literal line is
+  ;; written exactly as it always was.
+  (test-case "daily: a glob that does not cover the fragment still gets the line"
+    (define home (make-temporary-file "sfdailyglobn~a" 'directory))
+    (define root (build-path home "Daily.rkt"))
+    (dynamic-wind
+     void
+     (λ ()
+       (display-to-file "#lang olai\n2025\n  @include Daily/2025-*.rkt\n"
+                        root #:exists 'truncate)
+       (define-values (code out err)
+         (run-olai (list "daily" "--no-commit" "--home" (path->string home)
+                         "--date" "2026-08-04")))
+       (check-equal? code 0 (string-append out err))
+       (define j (parse-json out))
+       (check-equal? (hash-ref j 'covered_by_glob) (json-null))
+       (check-equal? (hash-ref j 'created_month) #t)
+       (define text (file->string root))
+       (check-true (string-contains? text "  August") text)
+       (check-true (string-contains? text "    @include Daily/2026-08.rkt") text)
+       (check-equal? (day-node-count (path->string root) "2026-08-04") 1))
      (λ () (delete-directory/files home)))))

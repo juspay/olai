@@ -10,6 +10,10 @@
          racket/format
          olai/dates
          olai/edit
+         ;; what an @include path names, and whether a starred one names this
+         ;; fragment: the one question "is it already covered" is, asked of
+         ;; the module that answers it for the language too
+         (only-in olai/glob include-glob? include-absolute glob-match?)
          olai/lang/line
          ;; where a section ends and which line is a given title: the same two
          ;; questions `capture` and `subtree` ask, asked of the same module
@@ -140,57 +144,104 @@
     (error 'daily "Daily.rkt must be #lang olai"))
   (define root-lines (text-lines root-text))
 
-  (define root-lines*
-    (if (find-title-line root-lines year-title 0)
-        root-lines
-        (append root-lines
-                (if (or (null? root-lines)
-                        (blank-line? (last root-lines)))
-                    (list year-title)
-                    (list "" year-title)))))
+  ;; A pattern the root already wrote may NAME this fragment, and then there
+  ;; is nothing to write into the root at all — not the @include line, and not
+  ;; the year and month nodes it would hang under. The shape above a glob is
+  ;; the outline's own; what this command owns is the fragment.
+  (define covered-by (covering-glob root-lines home-path rel))
 
-  (define year-i (find-title-line root-lines* year-title 0))
-  (unless year-i (error 'daily "internal: year node missing"))
-
-  (define year-end (section-end root-lines* year-i))
-  (define mon-i
-    (find-title-line root-lines* mon-title 2 #:from (add1 year-i) #:to year-end))
-
-  (define root-lines**
-    (if mon-i
-        root-lines*
-        (append (take root-lines* year-end)
-                (list (string-append "  " mon-title))
-                (drop root-lines* year-end))))
-
-  (define mon-i* (or mon-i (find-title-line root-lines** mon-title 2)))
-  (unless mon-i* (error 'daily "internal: month node missing"))
-
-  (define include-line (string-append "    @include " rel))
-  (define mon-end (section-end root-lines** mon-i*))
-  (define has-include?
-    (for/or ([i (in-range (add1 mon-i*) mon-end)])
-      (regexp-match?
-       (pregexp (string-append "^\\s*@include\\s+" (regexp-quote rel) "\\s*$"))
-       (list-ref root-lines** i))))
-
-  (define added-include? (not has-include?))
-  (define root-lines***
-    (if has-include?
-        root-lines**
-        (append (take root-lines** mon-end)
-                (list include-line)
-                (drop root-lines** mon-end))))
-
-  (define root-text* (lines->text root-lines*** root-text))
-  (unless (equal? root-text* root-text)
+  (define root-text*
+    (if covered-by
+        root-text
+        (lines->text
+         (root-lines-with-include root-lines year-title mon-title rel)
+         root-text)))
+  (define wrote-root? (not (equal? root-text* root-text)))
+  (when wrote-root?
     (edit! root root-text*))
 
   (hash 'day day
         'file (path->string (simple-form-path frag))
-        'created_month (or created-month? added-include?)
+        ;; The root gains the line and the nodes above it exactly when the
+        ;; month is new to it, so what was written IS the answer.
+        'created_month (or created-month? wrote-root?)
         'created_day created-day?
+        'covered_by_glob covered-by
         'line day-line))
+
+;; The root's lines with `year > Month > @include rel` in them, adding only
+;; what is missing — and nothing at all when the line is already there. Pure:
+;; the caller decides whether the answer is worth writing, and never asks when
+;; a glob already covers the fragment.
+(define (root-lines-with-include lines year-title mon-title rel)
+  (define lines*
+    (if (find-title-line lines year-title 0)
+        lines
+        (append lines
+                (if (or (null? lines)
+                        (blank-line? (last lines)))
+                    (list year-title)
+                    (list "" year-title)))))
+
+  (define year-i (find-title-line lines* year-title 0))
+  (unless year-i (error 'daily "internal: year node missing"))
+
+  (define year-end (section-end lines* year-i))
+  (define mon-i
+    (find-title-line lines* mon-title 2 #:from (add1 year-i) #:to year-end))
+
+  (define lines**
+    (if mon-i
+        lines*
+        (append (take lines* year-end)
+                (list (string-append "  " mon-title))
+                (drop lines* year-end))))
+
+  (define mon-i* (or mon-i (find-title-line lines** mon-title 2)))
+  (unless mon-i* (error 'daily "internal: month node missing"))
+
+  (define mon-end (section-end lines** mon-i*))
+  (cond
+    [(member rel (include-paths lines** (add1 mon-i*) mon-end)) lines**]
+    [else (append (take lines** mon-end)
+                  (list (string-append "    @include " rel))
+                  (drop lines** mon-end))]))
+
+;; The @include pattern the root ALREADY wrote that names this fragment, or
+;; #f. Verbatim, as the source wrote it: it is what the reply reports.
+;;
+;; A literal @include is a claim about one file; a glob is a query over one
+;; directory (olai/glob), and a fragment that lands in that directory is
+;; spliced by it the moment it exists. Adding the literal line as well would
+;; splice the fragment TWICE — every day node in the month duplicated in the
+;; tree — which is the bug this answers.
+;;
+;; The WHOLE root is asked, not the month's section: a glob's answer is about
+;; the directory it reads, and where the line was written says nothing about
+;; it.
+;;
+;; A pattern that is not relative to the root is one the include form cannot
+;; resolve either, so it names nothing here and covers nothing.
+(define (covering-glob lines dir rel)
+  (define target (include-absolute rel dir))
+  (for/or ([p (in-list (include-paths lines 0 (length lines)))])
+    (and (include-glob? p)
+         (relative-path? p)
+         (glob-match? (include-absolute p dir) target)
+         p)))
+
+;; The paths the @include lines in [from, to) name, in order. What a line SAYS
+;; is the line grammar's answer (olai/lang/line), never a regexp of our own.
+(define (include-paths lines from to)
+  (for*/list ([i (in-range from to)]
+              [s (in-value (list-ref lines i))]
+              [k (in-value (classify-line (line-content s)))]
+              #:when (line-include? k))
+    (include-path k)))
+
+(define (line-content s)
+  (define-values (_indent content) (line-indent+content s))
+  content)
 
 ;; Migrate monolithic Daily.rkt (year>month>days) into Daily/YYYY-MM.rkt.
 ;; Returns (list task-count-before task-count-after).
