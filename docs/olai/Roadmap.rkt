@@ -7,7 +7,7 @@ olai roadmap #project
     : In flight right now, mirrored — each node's defining site stays in
     : its section below. Maintained by the orchestrator as work starts
     : and lands.
-    *search
+    *daily-calendar
   web app
     : The daily surface.
     [x] markdown fidelity
@@ -27,20 +27,37 @@ olai roadmap #project
       : pill with words kept for the amber reconnecting and rose stale
       : states. Chrome, outside every live region; e2e asserts the
       : healthy state is visible on load.
-    drag-drop reorder
-      : Move and reindent nodes in the browser — the write path is
-      : micro-edits' ops layer; order and parent become editable from
-      : the view. Sinks with micro-edits' deprioritization (2026-08-06):
-      : the agent moves nodes on request.
-    [/] search ^search
-      : DONE, awaiting approval:
-      : [#46](https://github.com/juspay/olai/pull/46) (terminal
-      : 9d9b14af). / opens, server-rendered, /search?q= permalink,
-      : no-JS fallback, palette has no resting state (its pill collided
-      : with the chat panel's close button — e2e caught it). For
-      : ratification: the NEW FORM live-query (typed input re-fetches a
-      : region; was unsayable, so proposed not hacked), and the ranking
-      : table. Query layer stays pure for the command palette to ride.
+    [x] serve takes one root ^serve-one-root
+      : Merged: [#48](https://github.com/juspay/olai/pull/48). Root
+      : candidates discriminated (stray non-outline .rkt cannot break
+      : serve; exit 3 restored when none qualify); ^anchor write
+      : routing widened to the recursive tree, nearest-first —
+      : `olai done ^x` reaches subdirectory roots. Keys minted
+      : against the pointed root (permalinks survive new files).
+      : Issues #51/#52 left untouched and not entrenched.
+      : `olai serve DIR` (or ONE file) — the
+      : multi-file argument list dies, `serve-roots`' three-way split
+      : with it. The directory IS the glob, re-asked live by the same
+      : probe that already re-asks @include globs — so the first
+      : Archive.rkt, or any new root, appears without a restart.
+      : Subsumes the "root glob is startup-only" flag in ^archive.
+      : Ruled 2026-08-07: roots are RECURSIVE — every .rkt under the
+      : directory is a root unless another file in the set @includes
+      : it (the subtraction is the double-load prevention); the
+      : repo's `just serve` demos examples/ only, the roadmap on
+      : demand via `just serve docs/olai`. APPROVED 2026-08-07 with
+      : two pre-merge additions ruled: non-outline .rkt in the tree
+      : must not break serve (root candidates discriminated, exit 3
+      : restored when none qualify), and ^anchor write routing widens
+      : to serve's recursive scope so `olai done ^x` reaches
+      : subdirectory roots.
+    [x] search ^search
+      : Merged: [#46](https://github.com/juspay/olai/pull/46). / opens
+      : the palette, server-rendered, /search?q= permalink, no-JS
+      : fallback, no resting state (its pill collided with the chat
+      : panel's close button — e2e caught it). live-query ratified as
+      : the new form; ranking title > anchor > tag > note. Query layer
+      : (olai/search.rkt) stays pure for the command palette to ride.
     notes fold to one line ^notes-fold
       : [#42](https://github.com/juspay/olai/pull/42) (whole-note
       : toggle) REJECTED and closed 2026-08-07: clicking simply did not
@@ -52,10 +69,7 @@ olai roadmap #project
       : open complaint is the tiny, distant target. Postmortem verdict:
       : the minimal fix was always a CSS hit-area enlargement on the
       : existing button — zero new JS — not an interaction-model
-      : rewrite. Standing rule from this: UI-feel PRs get human
-      : confirmation in the human's browser BEFORE merge, and when
-      : human evidence contradicts green tests, the tests are wrong
-      : until proven otherwise.
+      : rewrite.
       : Merged: [#38](https://github.com/juspay/olai/pull/38) (hover
       : cut), then [#41](https://github.com/juspay/olai/pull/41) —
       : hover judged too jarring (reflow under the pointer, accidental
@@ -70,6 +84,24 @@ olai roadmap #project
       : expands on hover (mobile needs a tap affordance — hover does
       : not exist there). Pure view state, CSS-first if possible; the
       : full note stays in the DOM so search and morph see it.
+    [/] daily calendar in the sidebar ^daily-calendar
+      : Dispatched 2026-08-07 (terminal 1c0fa700, Opus). Ruled:
+      : empty days are INERT (no write path); the calendar REPLACES
+      : the file-name entry.
+      : The sidebar's Daily.rkt entry stops being a file name and
+      : becomes a mini month calendar: each day cell links to that
+      : day's node (/n/<key>), days with content marked, today
+      : highlighted. Requested 2026-08-07. Pure view over the
+      : snapshot — day nodes are already dated; gregor and the
+      : calendar query already exist. Month navigation and Daily-root
+      : recognition are the PR's design calls.
+    /today can resolve to an archived day #bug
+      : Found by the calendar PR ([#50](https://github.com/juspay/olai/pull/50)),
+      : pre-existing, flagged not fixed: /today searches every loaded
+      : root in file order and does NOT skip archived nodes — an
+      : Archive.rkt scaffold titled today's date can beat the
+      : journal's own day. Every other query excludes archived in one
+      : place; this one should too.
     view toggles
       : Client view state, like collapse: localStorage, no server.
       hide completed
@@ -77,16 +109,6 @@ olai roadmap #project
         : rendering (the agenda already excludes done); a Done subtree
         : vanishes from view without deletion. A root class + one CSS
         : rule, so re-swaps can't lose it.
-    starred nodes
-      : Not view state — curated data, so it lives in the file: a
-      : #starred tag on the node (tags are the language's open boolean
-      : axis; no grammar change, indexed, rename-proof). The sidebar's
-      : STARRED section is a pure query over the snapshot, like the
-      : agenda. `olai star TITLE|^anchor` writes it with done-style
-      : safety — agents can star from day one; the browser's star
-      : toggle rides micro-edits' write path. If ordering ever matters,
-      : a mirror list supersedes the tag once "mirror nodes across
-      : files" lands.
     node views
       : One language field says how a node DRAWS its children (heading |
       : numbered | board | table); the checker owns the closed set,
@@ -101,10 +123,6 @@ olai roadmap #project
       tables
         : Children as rows, fields as columns — trackers and small
         : databases without leaving the outline.
-    templates
-      : Recurring structures (weekly review, project skeleton) that
-      : capture or the agent instantiates; a template is just an outline
-      : file.
     backlinks panel
       : A zoomed node lists what points at it. Data model settled
       : (2026-08-06): a reverse index as a SNAPSHOT FIELD beside
@@ -152,6 +170,54 @@ olai roadmap #project
       : with one spelling — the mirror-arrow bug (an href pointing at a
       : fragment its page did not contain, 2026-08-06) is this task's
       : origin story, and the class it retires.
+  writes
+    : Everything whose feature is EDITING the outline .rkt files —
+    : grouped 2026-08-07 because they share one spine: ops.rkt's
+    : write path (validate-then-rename, auto-commit), whether the
+    : trigger is a CLI command, the browser, or a template.
+    [x] daily + glob double-include #bug ^daily-glob-bug
+      : Merged: [#47](https://github.com/juspay/olai/pull/47). daily
+      : now asks glob-match? before writing the literal `@include`
+      : line; a covered fragment is created alone, root untouched.
+      : Ratified: `covered_by_glob` reply field (pattern verbatim,
+      : null when the line was written), and olai/glob owning
+      : include-resolution as an arch concept — /simplify found daily
+      : had grown a drifted duplicate of the expander's resolver.
+      : Originally flagged by the glob PR
+      : ([#37](https://github.com/juspay/olai/pull/37)) as out of its
+      : scope.
+    add --parent sees only top-level titles #bug
+      : [#51](https://github.com/juspay/olai/issues/51): `add
+      : --parent TITLE` fails on any nested title while `done`
+      : resolves the same title fine — two resolvers where docs
+      : promise one. Kills the natural `olai daily` then `olai add
+      : --parent <today>` loop. Reconfirmed on master 2026-08-07.
+    trailing switches swallowed into titles #bug
+      : [#52](https://github.com/juspay/olai/issues/52): a switch
+      : after the title words is folded into the node title, ok:true
+      : — `--no-commit` in that position still commits. Expected:
+      : parse switches anywhere or reject unconsumed ones; `--`
+      : already exists for real dash-titles. Audit done/doing/move/
+      : archive for the same swallow. Reconfirmed on master
+      : 2026-08-07. Natural pairing with the #51 fix, one dispatch.
+      : Not view state — curated data, so it lives in the file: a
+      : #starred tag on the node (tags are the language's open boolean
+      : axis; no grammar change, indexed, rename-proof). The sidebar's
+      : STARRED section is a pure query over the snapshot, like the
+      : agenda. `olai star TITLE|^anchor` writes it with done-style
+      : safety — agents can star from day one; the browser's star
+      : toggle rides micro-edits' write path. If ordering ever matters,
+      : a mirror list supersedes the tag once "mirror nodes across
+      : files" lands.
+    drag-drop reorder
+      : Move and reindent nodes in the browser — the write path is
+      : micro-edits' ops layer; order and parent become editable from
+      : the view. Sinks with micro-edits' deprioritization (2026-08-06):
+      : the agent moves nodes on request.
+    templates
+      : Recurring structures (weekly review, project skeleton) that
+      : capture or the agent instantiates; a template is just an outline
+      : file.
     micro-edits
       : DEPRIORITIZED 2026-08-06: the human edits through the agent
       : anyway — capture and check-off are conveniences, not the loop.
@@ -176,6 +242,14 @@ olai roadmap #project
       : loop that already exists. e2e: browser capture lands in the
       : file and the view; check-off flips [x] in the file; an invalid
       : write shows the banner and changes nothing.
+    [x] delete the dated queries ^delete-dated-queries
+      : Merged: [#53](https://github.com/juspay/olai/pull/53).
+      : `olai agenda`, `olai calendar`, `olai ics` retired — modules,
+      : /api/agenda, tests, docs contract. Founding features (#1)
+      : gone by the human's ruling: unused. json-reply-version stays
+      : 1 (ruled — no surviving reply changed shape). Month layout
+      : moved to olai/dates.rkt for #50 (month-layout arch concept);
+      : typed edges, derived status, BLOCKED derivation survive.
   language
     : The grammar grows; the expander stays the only validator.
     [x] archive ^archive
@@ -219,13 +293,16 @@ olai roadmap #project
       : anchors across the whole loaded set, dangling refs srcloc'd.
       : Ships first, built to the typed-edges doc's requirements —
       : typed edges is the second PR on the same linker.
-    daily + glob double-include #bug
-      : Flagged by the glob PR ([#37](https://github.com/juspay/olai/pull/37)),
-      : out of its scope: `olai daily` writes a literal `@include
-      : Daily/YYYY-MM.rkt` under the month node, so an outline that
-      : also globs `Daily/*.rkt` includes that fragment twice. Likely
-      : fix: daily detects a covering glob and skips writing the line.
-    derived status
+    [x] derived status ^derived-status
+      : Merged: [#49](https://github.com/juspay/olai/pull/49). Ruled:
+      : ONE done predicate — derived done counts everywhere, edges
+      : included, narrowing typed-edges' "parent of all-done children
+      : keeps blocking" to explicit-open parents only; [/] derives
+      : too; `olai done` on a statusless parent errors (kind derived,
+      : exit 4, open children listed). status_source stored|derived
+      : in tree JSON. Checker points nested done-above-open at the
+      : INNERMOST offender (agent call, merged as-is; agenda-side
+      : sub-call mooted by the agenda deletion).
       : Stop storing what the tree already says: a parent with task
       : children and no status of its own gets NO stored checkbox —
       : done-ness is computed (done iff all children done) at query
