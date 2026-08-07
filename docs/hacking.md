@@ -2,14 +2,16 @@
 
 Facts an agent cannot infer from the code and would otherwise probe for. Not a tutorial. Read [README](../README.md) and [docs/cli.md](cli.md) first.
 
-## Two collections
+## Three collections
 
-The repo holds two Racket packages, and the order between them is the dependency:
+The repo holds three Racket packages, and the order between them is the dependency:
 
+* `arch/` — `#lang arch`, the language every package writes its `arch.rkt` in, and the checker `just arch` runs over the lot ([arch/README.md](../arch/README.md)). It depends on `base` and nothing else, which is what lets both collections below carry a declaration without either of them depending on the other.
 * `live/` — the live-view framework: an SSE hub with reconnect catch-up, an htmx + idiomorph browser runtime, and `live/dsl`'s declare-and-check forms over both (`just expand FILE` prints what they become). It imports NOTHING from olai and never will; olai is its first consumer, not its definition. Its own README is the consumer contract ([live/README.md](../live/README.md)), and [docs/live.md](live.md) is what olai puts through it.
 * `olai/` — everything else.
 
-So `just install` links `live` before `olai`, and `just build` is `raco setup --pkgs live olai`. A change to `live/` that only makes sense for olai is a change in the wrong place.
+So `just install` links `arch`, then `live`, then `olai`, and `just build` is `raco setup --pkgs arch live olai`. A change to `live/` that only makes sense for olai is a change in the wrong place — and since 
+`live/arch.rkt` declares the framework stable and `olai/arch.rkt` declares the core settling, `just arch` now says so rather than a reviewer.
 
 `live/examples/*` is in neither package. Each example is its own derivation (`nix run .#counters`) and runs its own test as `installCheckPhase`, so CI builds it and nothing else touches it. `live`'s source is a `lib.fileset` that excludes it, so installing the framework never carries an example and editing one rebuilds neither `live` nor olai. `raco` has no such split — it refuses to link a package inside another package's directory — so `just build` compiles examples along with `live`, and a broken one fails it.
 
@@ -24,9 +26,9 @@ So `just install` links `live` before `olai`, and `just build` is `raco setup --
 ## Toolchain
 
 * Racket comes from `nix develop` (nixpkgs 9.2). `just` recipes set `PLTUSERHOME` to `$PWD/.plt-user` so user packages and the two links live in the worktree, not `~`. That directory must be writable.
-* `just install` — deps + `raco pkg install --skip-installed --link` for `live/` then `olai/`. Cheap to repeat. Does **not** recompile after you edit sources.
-* `just build` — `raco setup --pkgs live olai`. Writes `compiled/*.zo` for both collections and their tests, and keeps them coherent after edits. Incremental when nothing changed. `just test` / `test-integration` / `test-all` depend on it.
-* `just clean` — delete every `olai/**/compiled`. Escape hatch only.
+* `just install` — deps + `raco pkg install --skip-installed --link` for `arch/`, `live/` then `olai/`. Cheap to repeat. Does **not** recompile after you edit sources.
+* `just build` — `raco setup --pkgs arch live olai`. Writes `compiled/*.zo` for all three collections and their tests, and keeps them coherent after edits. Incremental when nothing changed. `just test` / `test-integration` / `test-all` / `arch` depend on it.
+* `just clean` — delete every `compiled/` under the three. Escape hatch only.
 
 ### Why build exists
 
@@ -82,7 +84,8 @@ Class-name renames: run `just css-classes` to regenerate `olai/tests/classes.gol
 
 ## Tests
 
-* `just test` — unit, in-process: `live/tests/*.rkt` + `olai/tests/*.rkt`, and every example's own test (a dependency, so the command stays one)
+* `just test` — unit, in-process: `arch/tests/*.rkt` + `live/tests/*.rkt` + `olai/tests/*.rkt`, and every example's own test (a dependency, so the command stays one)
+* `just arch` — the declared architecture against the code. NOT a test and not in `just test`: a layering violation and a failing test are different failure classes, and it is its own CI node for the same reason. About two seconds ([arch/README.md](../arch/README.md))
 * `just test-integration` — spawns `olai`, boots servers
 * `just test-all` — both, one `-j` pool
 * `just e2e` — browser journeys (see below); never in `just test`

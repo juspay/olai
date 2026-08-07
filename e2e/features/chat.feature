@@ -39,7 +39,7 @@ Feature: the agent panel
     And the chat panel is idle
 
   # Issue #14: the gutter the panel needs was PADDING on .ol-main, and .ol-main
-  # is border-box under `max-width: 56rem` — so --chat-w came out of the reading
+  # is border-box under `max-width: 56rem` — so --panel-w came out of the reading
   # column's own cap instead of out of the free space beside it. The outline
   # kept its full border box (right edge under the panel), and the text wrapped
   # into whatever the padding left, three words to a line, with the gutter

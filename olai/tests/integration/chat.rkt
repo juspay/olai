@@ -790,7 +790,7 @@
     ;; the subscription and the reading of this state under one lock
     (check-equal? subscribed 1)
     (for/list ([f (in-list fs)])
-      (check-equal? (car f) acp-event-name)
+      (check-equal? (car f) chat-event-name)
       (string->jsexpr (cdr f))))
 
   (test-case "a new connection is told the conversation: the header, then the turns"

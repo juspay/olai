@@ -371,14 +371,14 @@
   ;; The chat panel is position:fixed, so it takes no flow space and the reading
   ;; column reserves the gutter itself. WHICH box that gutter lands in is the
   ;; whole question: .ol-main is border-box with `max-width: 56rem`, so padding
-  ;; comes out of the cap — with --chat-w at max(21rem, 33vw) a wide screen left
+  ;; comes out of the cap — with --panel-w at max(21rem, 33vw) a wide screen left
   ;; ~13rem of text and a gutter of dead space beside it. A margin is outside the
   ;; box, so the cap still measures the text. A property question, not a
   ;; serialization one: the canary above owns css-expr's output text.
   (test-case "the chat gutter is reserved outside the reading column's box"
     (define overlay
       (fragment->css (cdr (list-ref ordered-fragments (last (class-positions ol-main))))))
-    (check-true (regexp-match? #px"margin-right\\s*:\\s*calc\\(\\s*var\\(--chat-w\\)" overlay)
+    (check-true (regexp-match? #px"margin-right\\s*:\\s*calc\\(\\s*var\\(--panel-w\\)" overlay)
                 "the panel's gutter is no longer a margin on the reading column")
     (check-false (regexp-match? #px"padding-right" overlay)
                  "the gutter is padding again: border-box takes it out of max-width"))
@@ -653,7 +653,7 @@
   ;; of the VOCABULARY, the way the theme tests are: the token lists are what
   ;; the skin has to say on the subject, and the sheet is downstream of them.
   (test-case "every custom property the scripts spell is one of the skin's tokens"
-    (define tokens (list->set (append palette-tokens layout-tokens chat-viewport-tokens)))
+    (define tokens (list->set (append palette-tokens layout-tokens viewport-tokens)))
     (for* ([js (in-list script-names)]
            [property (in-list (js-custom-properties (build-path (web-static-dir) js)))])
       (check-true (set-member? tokens property)
