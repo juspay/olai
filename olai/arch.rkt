@@ -24,12 +24,19 @@
 (override "doc.rkt" (clock stable) (owns filesystem))
 (override "fail.rkt" (clock stable))
 
-;; What a starred @include path names, and the directory it reads to answer.
-;; Same standing as doc.rkt and for the same two reasons: it is a closed
-;; pattern grammar that changes when the grammar does, and `lang/` — which is
-;; stable — depends on it, so it cannot be less stable than its caller. The
-;; reading is the whole of what it does, so it says so.
-(override "glob.rkt" (clock stable) (owns filesystem))
+;; What an @include path names — where a relative one resolves to, whether a
+;; starred one names a given file, and the directory it reads to answer. Same
+;; standing as doc.rkt and for the same two reasons: it is a closed pattern
+;; grammar that changes when the grammar does, and `lang/` — which is stable —
+;; depends on it, so it cannot be less stable than its caller. The reading is
+;; the whole of what it does, so it says so.
+;;
+;; The resolution is a concept because it had been written twice: the expander
+;; splices what it names, and `daily` asks whether a root already includes the
+;; fragment it is about to write. Two answers to that is two ideas of which
+;; file an outline means.
+(override "glob.rkt" (clock stable) (owns filesystem)
+          (concept include-resolution "include-absolute"))
 
 ;; A node's name on disk and in a URL: one owner, so a renderer never grows its
 ;; own copy and the core keeps building without web/.

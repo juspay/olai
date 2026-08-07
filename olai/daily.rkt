@@ -10,9 +10,10 @@
          racket/format
          olai/dates
          olai/edit
-         ;; what a starred @include NAMES: the one question "is this fragment
-         ;; already covered" is, and not one to answer twice
-         (only-in olai/glob include-glob? glob-match?)
+         ;; what an @include path names, and whether a starred one names this
+         ;; fragment: the one question "is it already covered" is, asked of
+         ;; the module that answers it for the language too
+         (only-in olai/glob include-glob? include-absolute glob-match?)
          olai/lang/line
          ;; where a section ends and which line is a given title: the same two
          ;; questions `capture` and `subtree` ask, asked of the same module
@@ -203,18 +204,16 @@
 ;; The WHOLE root is asked, not the month's section: a glob's answer is about
 ;; the directory it reads, and where the line was written says nothing about
 ;; it.
+;;
+;; A pattern that is not relative to the root is one the include form cannot
+;; resolve either, so it names nothing here and covers nothing.
 (define (covering-glob lines dir rel)
-  (define target (include-target dir rel))
+  (define target (include-absolute rel dir))
   (for/or ([p (in-list (include-paths lines 0 (length lines)))])
     (and (include-glob? p)
-         (glob-match? (include-target dir p) target)
+         (relative-path? p)
+         (glob-match? (include-absolute p dir) target)
          p)))
-
-;; What an @include path names from the file that wrote it — the resolution
-;; lang/expander does when it splices one, asked here of a fragment that may
-;; not exist yet, so nothing is read.
-(define (include-target dir rel)
-  (simplify-path (path->complete-path rel dir) #f))
 
 ;; The paths the @include lines in [from, to) name, in order. What a line SAYS
 ;; is the line grammar's answer (olai/lang/line), never a regexp of our own.

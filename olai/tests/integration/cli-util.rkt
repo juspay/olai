@@ -7,9 +7,10 @@
 
 (require json
          racket/port
+         racket/string
          racket/system)
 
-(provide example run-olai parse-json git git-subject find-node)
+(provide example run-olai parse-json git git-subject committed-files find-node)
 
 (define root
   (simplify-path
@@ -48,6 +49,18 @@
 (define (git-subject dir)
   (with-output-to-string
     (λ () (parameterize ([current-directory dir]) (git "log" "-1" "--pretty=%s")))))
+
+;; And the paths it carried, as git names them. A write that lands in two
+;; files is ONE commit, and a commit carrying only one of them would leave the
+;; outline mid-change in the history it is supposed to be the record of — so a
+;; write test asks WHICH files moved, not just whether anything did.
+(define (committed-files dir)
+  (string-split
+   (with-output-to-string
+     (λ ()
+       (parameterize ([current-directory dir])
+         (git "show" "--name-only" "--pretty=format:"))))
+   "\n"))
 
 ;; The node titled `title` in a `tree` reply, wherever it sits. Drilling in by
 ;; index instead pins a test to the fixture's shape, and breaks when a sibling

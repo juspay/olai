@@ -26,15 +26,6 @@
         (+ (if (equal? (hash-ref t 'title #f) title) 1 0)
            (count (hash-ref t 'children '()))))))
 
-  ;; What the last commit actually carried, as git names the paths.
-  (define (committed-files dir)
-    (string-split
-     (with-output-to-string
-       (λ ()
-         (parameterize ([current-directory dir])
-           (git "show" "--pretty=format:" "--name-only" "HEAD"))))
-     "\n"))
-
   (test-case "multi-file check: both ok + one-good-one-bad"
     (define dir (make-temporary-file "sfmulti~a" 'directory))
     (define good (build-path dir "good.rkt"))

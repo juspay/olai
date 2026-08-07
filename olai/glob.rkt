@@ -29,16 +29,29 @@
          racket/path
          racket/string)
 
-;; Everything below the grammar takes an ABSOLUTE pattern. Resolving one
-;; against the file that wrote it is the include form's business, not the
-;; pattern's — it is the same resolution a literal @include gets, and the
-;; expander does it once for both (lang/expander, include-absolute).
+;; Everything below the grammar takes an ABSOLUTE pattern, and
+;; `include-absolute` is how one gets that way: the resolution a literal
+;; @include and a pattern both get, spelled once so the two layers that need
+;; it — the expander when it splices, `daily` when it asks what a root
+;; already includes — cannot answer differently.
 (provide (contract-out
           [include-glob? (-> string? boolean?)]
           [include-glob-problem (-> string? (or/c string? #f))]
+          [include-absolute (-> path-string? path? path?)]
           [glob-dir (-> path? path?)]
           [glob-match? (-> path? path? boolean?)]
           [glob-expand (-> path? (listof path?))]))
+
+;; What an @include path NAMES, from the directory of the file that wrote it.
+;; A pattern resolves the way a file name does — relative to the DEFINING
+;; file, so a fragment spliced into two roots reads the same directory from
+;; either one.
+;;
+;; `build-path` is what refuses an absolute @include: the path is relative to
+;; a file, and a claim on the whole filesystem is not something this grammar
+;; makes. Callers that hold text a person wrote ask `relative-path?` first.
+(define (include-absolute rel dir)
+  (simplify-path (path->complete-path (build-path dir rel) dir)))
 
 ;; A path the source wrote is a glob when it stars something. Nothing else
 ;; promotes one: a file really called `notes[1].rkt` is a file, and an
