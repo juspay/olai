@@ -216,6 +216,31 @@
     (check-true (string-contains? s "☐") s)
     (check-false (string-contains? s "is-done") s))
 
+  ;; A note is drawn folded, with the button that opens it and the key the
+  ;; browser remembers that by. Everything about it that MOVES is the script's
+  ;; (olai/web/static/notes.js) — the page is drawn one way, every time.
+  (test-case "a note carries its opener, folded, keyed, and pointing at itself"
+    (define s (xstr (render-node-fragment (tk "T" #f "a note" '() #:key "k1")
+                                          #:today "2026-08-04")))
+    (check-true (string-contains? s "data-note-key=\"k1\"") s)
+    (check-true (string-contains? s "ol-note-more") s)
+    (check-true (string-contains? s "aria-expanded=\"false\"") s)
+    ;; the control names what it opens, and that is the note's own element
+    (check-true (string-contains? s "class=\"ol-note\" id=\"ol-live-k1-note\"") s)
+    (check-true (string-contains? s "aria-controls=\"ol-live-k1-note\"") s)
+    ;; nothing is expanded, and nothing has more, until the browser says so
+    (check-false (string-contains? s "is-expanded") s)
+    (check-false (string-contains? s "has-more") s))
+
+  ;; A mirror is the same note at a second SITE, and it opens on its own: the
+  ;; key the browser remembers it by is the site's, like the fold's.
+  (test-case "a mirrored note is keyed and identified by its site"
+    (define s (xstr (render-node-fragment (tk "T" #f "a note" '() #:key "k1")
+                                          #:today "2026-08-04"
+                                          #:site "holder")))
+    (check-true (string-contains? s "data-note-key=\"holder-k1\"") s)
+    (check-true (string-contains? s "aria-controls=\"ol-live-holder-k1-note\"") s))
+
   (test-case "today's date pill is ringed; timed dates keep the clock"
     (define s (xstr (render-node-fragment (tk "T" "2026-08-04T18:00" #f '())
                                           #:today "2026-08-04")))
@@ -742,6 +767,7 @@
     (check-true (< (string-index s "/live/htmx.min.js")
                    (string-index s "/static/chat.js")))
     (check-true (string-contains? s "src=\"/static/collapse.js\"") s)
+    (check-true (string-contains? s "src=\"/static/notes.js\"") s)
     (check-true (string-contains? s "src=\"/static/prefs.js\"") s)
     (check-true (string-contains? s "src=\"/static/chat.js\"") s)
     (check-true (string-contains? s "src=\"/static/pwa.js\"") s)
@@ -844,6 +870,15 @@
     (check-true (< (length (string-split js "\n")) 40) js)
     (check-false (string-contains? js "require") js)
     (check-true (string-contains? js "olai.collapsed") js)
+    (check-true (string-contains? js "localStorage") js))
+
+  ;; The note's opener is the same kind of script and holds to the same
+  ;; sentence: browser state, stored in the browser, keyed the way the fold is.
+  (test-case "notes script stays tiny and framework-free"
+    (define js (file->string (build-path (web-static-dir) "notes.js")))
+    (check-true (< (length (string-split js "\n")) 65) js)
+    (check-false (string-contains? js "require") js)
+    (check-true (string-contains? js "olai.notes") js)
     (check-true (string-contains? js "localStorage") js))
 
   ;; A pref is client state, like the collapse state: a value on <html>, stored

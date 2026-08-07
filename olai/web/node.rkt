@@ -29,7 +29,8 @@
          olai/web/markdown
          (only-in olai/web/states
                   is-done is-doing is-tree is-collapsed has-children state-class)
-         (only-in olai/web/address node-element-id site-key node-link-attributes)
+         (only-in olai/web/address
+                  node-element-id note-element-id site-key node-link-attributes)
          (only-in olai/web/pills day-pill-xexpr date-pill-xexpr doing-pill-xexpr)
          (only-in olai/web/checkbox checkbox-xexpr ol-check)
          (only-in olai/web/document doc-block))
@@ -226,51 +227,63 @@
 
 (define-style ol-dim #:color ,dim)
 
-;; THE NOTE, folded to one line.
+;; THE NOTE: one line of it, and the "…" that opens the rest.
 ;;
-;; Folded is what a note is drawn as, and the fold is a BOX one line tall —
-;; never a shorter string. The whole note is in the markup either way, so
-;; find-in-page still finds the rest of it and a live re-swap morphs the same
-;; text it always did. A note that IS one line overflows nothing, and so gets
-;; no ellipsis and has nothing to open: the overflow is the affordance, and
-;; only an overflow draws one.
+;; A note is drawn folded, and the fold is a BOX one line tall — never a
+;; shorter string. The whole note is in the markup either way, so find-in-page
+;; still finds the rest of it and a live re-swap morphs the same text it always
+;; did.
 ;;
-;; It opens while the pointer is in the NODE — its own row, and the gutter
-;; beside its children — rather than only while it is on the row. Opening
-;; pushes the page down under the cursor, and a note that folded again the
-;; moment the pointer wobbled off the line it had just moved would do that
-;; twice. A node UNDER this one opens its own note instead of its ancestors',
-;; which is what the :not(:has()) says.
+;; It opens on a CLICK and on nothing else. It opened on hover once, and a
+;; hover is not a decision: the page reflowed under the cursor, and crossing
+;; the outline on the way somewhere opened three notes that nobody asked for.
+;; So the affordance is a button, the state is a state, and travelling over a
+;; note does nothing at all.
 ;;
-;; And it opens on focus, which is the tap: a touch screen has no pointer to
-;; hover with, so the note is a focusable region (the tabindex the markup
-;; below puts on it) — a tap opens it, a tap elsewhere closes it, and a
-;; keyboard gets the same door for free. No script: a class a script toggled
-;; would be view state to put back after every morph, and this is state the
-;; browser is already keeping.
+;; Two of the three parts are CSS and the third cannot be. The fold is a
+;; max-height (here), and what it looks like open is a class on the block
+;; (notes.js). Whether there IS more than one line in a note is a MEASUREMENT
+;; — it depends on the note, the type and the width of the window — so the
+;; script asks the layout and says so with .has-more, and this file paints the
+;; answer. A note that fits on its line carries no button, no ellipsis and no
+;; tab stop: the overflow is the affordance, and only an overflow draws one.
+;;
+;; The clamp draws no ellipsis of its own (a max-height cuts at a line, and
+;; -webkit-line-clamp would put a "…" right beside the button's). The button IS
+;; the ellipsis, and it is the only one.
 ;;
 ;; The @doc lead (web/document) wears the same one-line look and is not the
 ;; same mechanism — that one is one line because the rest of the document is a
 ;; page away, and it does not open at all.
+
+;; Hooks the script writes and these rules read: what the measurement found,
+;; and what you did about it. notes.js is the only writer of either.
+(define-modifier has-more is-expanded)
+
+;; The note and its button, side by side: the button keeps to the first line's
+;; height, so opening the note grows the text and leaves the control where it
+;; was.
+(define-style ol-note-block
+  #:display flex
+  #:align-items flex-start
+  #:gap 0.25rem
+  #:min-width 0)
+
 (define-style ol-note
+  #:flex (1 1 auto)
+  #:min-width 0
   #:margin-top 0.125rem
   #:color ,dim
   #:font-size 0.875rem
-  ;; folded: the first rendered line, and the ellipsis that says there is more
-  #:display -webkit-box
-  #:-webkit-box-orient vertical
-  #:-webkit-line-clamp 1
+  ;; folded: one line tall, and everything else is behind the edge of the box
+  #:max-height 1lh
   #:overflow hidden
+  [(> ,(sel ol-note-block is-expanded) &) #:max-height none #:overflow visible]
   [,(sel '& is-done) #:opacity 0.65 #:text-decoration line-through]
-  ;; open: the pointer is in this node and in no node under it, or the note
-  ;; itself has the focus
-  [(> (: (: ,(sel ol-node) hover)
-         (apply not (: (apply has (: ,(sel ol-node) hover)))))
-      (,(sel ol-row) &))
-   (: & focus-within)
-   #:display block
-   #:-webkit-line-clamp none
-   #:overflow visible]
+  ;; the note's own margin is the space above it; a first block's would be a
+  ;; second one, and it would push the first line out of a one-line box
+  [(> & (: first-child)) #:margin-top 0]
+  [(> & (: last-child)) #:margin-bottom 0]
   ;; Markdown blocks inside a note: tightened, never the browser's defaults
   [(& p) #:margin (0.25rem 0)]
   [(& ul) (& ol) #:margin (0.25rem 0) #:padding-left 1.25rem]
@@ -278,6 +291,49 @@
    #:margin (0.25rem 0)
    #:padding-left 0.75rem
    #:border-left (2px solid ,line)])
+
+;; The "…", which is the whole affordance: one line's height beside the note,
+;; drawn only for a note with more in it than that.
+(define-style ol-note-more
+  #:flex (0 0 auto)
+  ;; nothing to open until the script has found something to open
+  #:display none
+  #:align-items center
+  #:justify-content center
+  #:height 1lh
+  #:margin-top 0.125rem
+  #:padding (0 0.25rem)
+  #:border 0
+  #:border-radius ,radius
+  #:background none
+  #:color ,dim
+  #:font-family ,mono
+  #:font-size 0.875rem
+  #:cursor pointer
+  [(> ,(sel ol-note-block has-more) &) #:display inline-flex]
+  ;; open, so the button is now the way back: it stays lit saying so
+  [(> ,(sel ol-note-block is-expanded) &) #:color ,ink]
+  [(: & hover) (: & focus-visible) #:color ,ink #:background ,pill-bg]
+  ;; a finger needs a bigger target than a mouse, the way the disclosure
+  ;; triangle above does
+  [@ media (#:max-width ,phone-max)
+     #:height 1.75rem
+     #:min-width 1.75rem
+     #:font-size 1rem])
+
+;; The note, and the control that opens it. `key` is this SITE's key — a
+;; mirror of a node opens and folds on its own, like its fold does.
+(define (note-block-xexpr tk key note-id done?)
+  `(div ((class ,ol-note-block) (data-note-key ,key))
+        (div ((class ,(classes ol-note (and done? is-done))) (id ,note-id))
+             ,@(note->xexprs (task-description tk)))
+        (button ((type "button")
+                 (class ,ol-note-more)
+                 (aria-expanded "false")
+                 (aria-controls ,note-id)
+                 (aria-label "show the whole note")
+                 (title "show the whole note"))
+                "…")))
 
 ;; A permalink target, not a thing to see.
 (define-style ol-anchor #:position absolute #:width 0 #:height 0 #:overflow hidden)
@@ -406,11 +462,9 @@
                           (list (date-pill-xexpr (task-date tk) today done?))
                           '()))
                ,@(if (task-description tk)
-                     ;; folded to one line, and focusable so a touch screen
-                     ;; has a way to open it (the styles above say why)
-                     (list `(div ((class ,(classes ol-note (and done? is-done)))
-                                  (tabindex "0"))
-                                 ,@(note->xexprs (task-description tk))))
+                     (list (note-block-xexpr tk qkey
+                                             (note-element-id key #:site site)
+                                             done?))
                      '())))
    #:after-row (doc-block tk docs doc-expanded? zoom-base)
    #:children (for/list ([c (in-list kids)])

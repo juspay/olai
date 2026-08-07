@@ -22,6 +22,7 @@
 
 (provide (contract-out
           [node-element-id (->* (string?) (#:site (or/c string? #f)) string?)]
+          [note-element-id (->* (string?) (#:site (or/c string? #f)) string?)]
           [site-key (-> (or/c string? #f) string? string?)]
           [node-link-attributes (-> (or/c string? #f) string? list?)]
           [id-safe (-> string? string?)]))
@@ -39,6 +40,13 @@
 ;; Nothing here writes a prefix.
 (define (node-element-id key #:site [site #f])
   (live-id ol-live (site-key site key)))
+
+;; A node's NOTE is an element of its own, because a control has to name what
+;; it opens (aria-controls wants an id). Derived from the node's id rather than
+;; minted beside it: a mirror site's note is then its own element for the same
+;; reason the site's node is, and the two ids cannot drift apart.
+(define (note-element-id key #:site [site #f])
+  (string-append (node-element-id key #:site site) "-note"))
 
 (define (site-key site key)
   (if site (string-append site "-" key) key))

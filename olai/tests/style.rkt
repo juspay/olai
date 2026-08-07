@@ -237,7 +237,7 @@
 ;; are the language files beside it — they are vendored under static/hljs/,
 ;; and scanning a minified grammar for class-shaped names would find noise.)
 (define script-names
-  '("chat.js" "collapse.js" "prefs.js" "pwa.js" "highlight-init.js"))
+  '("chat.js" "collapse.js" "notes.js" "prefs.js" "pwa.js" "highlight-init.js"))
 
 (define scripted-classes
   (for/fold ([acc (set)]) ([js (in-list script-names)])
@@ -403,21 +403,34 @@
 
   ;; A note is FOLDED to one line by a box that is one line tall, never by a
   ;; shorter string: the whole note is in the markup, and find-in-page and the
-  ;; morph both see it. What opens it is the other half — the node the pointer
-  ;; is in (and not its ancestors, which is what the :not(:has()) is for), and
-  ;; the note's own focus, which is the door a touch screen has instead of a
-  ;; hover. Behaviour is e2e/features/note.feature's; this is the rule staying
-  ;; the shape those journeys are about.
-  (test-case "a note is one line until the node is pointed at, or it has focus"
+  ;; morph both see it. It opens on the class notes.js writes, and on nothing
+  ;; else — a note that answered a hover reflowed the page under the cursor,
+  ;; and crossing the outline opened whatever was on the way. Behaviour is
+  ;; e2e/features/note.feature's; this is the rule staying the shape those
+  ;; journeys are about.
+  (test-case "a note is one line until something says it is expanded"
     (define note (fragment->css (cdr (list-ref ordered-fragments (at "ol-note")))))
-    (check-true (regexp-match? #px"-webkit-line-clamp\\s*:\\s*1" note)
-                "the note is not clamped to its first line any more")
-    (check-false (regexp-match? #px"max-height|text-overflow" note)
-                 "the note is folded by something other than the line clamp")
-    (check-true (regexp-match? #px"\\.ol-node:hover:not\\(:has\\(\\.ol-node:hover\\)\\)" note)
-                "pointing into a subtree opens every ancestor's note too")
-    (check-true (regexp-match? #px"\\.ol-note:focus-within" note)
-                "the note does not open on focus: a touch screen has no other door"))
+    (check-true (regexp-match? #px"max-height\\s*:\\s*1lh" note)
+                "the note is not folded to one line any more")
+    (check-true (regexp-match? #px"\\.ol-note-block\\.is-expanded>\\.ol-note[^{]*\\{[^}]*max-height\\s*:\\s*none"
+                               note)
+                "nothing unfolds the note")
+    (check-false (regexp-match? #px":hover" note)
+                 "the note answers a hover again")
+    ;; the button is the only ellipsis: a line clamp would draw a second one
+    ;; right beside it
+    (check-false (regexp-match? #px"line-clamp|text-overflow" note)
+                 "the fold draws an ellipsis of its own again"))
+
+  ;; And the affordance is drawn for a note that HAS more only — which nothing
+  ;; here can measure, so the rule waits on the class the script writes.
+  (test-case "the note's button is drawn only where there is more to show"
+    (define more (fragment->css (cdr (list-ref ordered-fragments (at "ol-note-more")))))
+    (check-true (regexp-match? #px"\\.ol-note-more\\{[^}]*display\\s*:\\s*none" more)
+                "the button is drawn before anything has found more to show")
+    (check-true (regexp-match? #px"\\.ol-note-block\\.has-more>\\.ol-note-more[^{]*\\{[^}]*display\\s*:\\s*inline-flex"
+                               more)
+                "nothing draws the button once there is more to show"))
 
   ;; Sheet mode: below phone-max there is no room beside the outline, so the
   ;; panel covers it instead. That is ONE decision, and this is the test that
