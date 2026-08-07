@@ -469,7 +469,7 @@
 
 (define (tree-handler st)
   (with-snapshot st json-failure
-    (λ (_rev snap _err) (json-response (outlines->jsexpr (snapshot-outlines snap))))))
+    (λ (_rev snap _err) (json-response (linked->jsexpr (snapshot-linked snap))))))
 
 (define (agenda-handler st)
   (with-snapshot st json-failure

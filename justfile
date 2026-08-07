@@ -11,7 +11,13 @@ olai_home := env_var_or_default("OLAI_HOME", "")
 # Top-level *.rkt in $OLAI_HOME are roots (Tasks, Daily, a Roadmap
 # @include, ...); include fragments live in subdirectories (Daily/), so the
 # glob never double-loads.
-repo_outlines := "examples/Example.rkt Roadmap.rkt"
+#
+# The examples are a SET on purpose: Week.rkt mirrors an anchor
+# Example.rkt declares, and an anchor's scope is every outline loaded together
+# (docs/syntax.md, Mirrors). Named apart, Week.rkt's *agent reaches nothing —
+# which is the feature saying so, not a bug in the list. Daily.rkt rides along
+# as the glob-include demo.
+repo_outlines := "examples/Example.rkt examples/Week.rkt examples/Daily.rkt Roadmap.rkt"
 default_outlines := if olai_home == "" { repo_outlines } else { olai_home + "/*.rkt" }
 
 # odu CI DAG: [metadata("ci")] lives in ci/mod.just. `just ci` is the local

@@ -38,8 +38,8 @@ olai roadmap #project
 | Escape | Line starting with `\` (after indent) is a title beginning with the rest. It turns off **all** line sugar for that line — checkbox, mirror, trailing `^anchor` — so titles may start with `:`, `@`, `*`, `[x] `, or `\` and may end in `^word`. |
 | Blank lines | Insignificant. |
 | Inline `#tags` | In titles: `#` + `[A-Za-z0-9_-]+`. Title stays verbatim; expander fills `task-tags` (no `#`, first-seen order, deduped). Works for both langs. |
-| Anchor | Title-trailing `^anchor` (`[A-Za-z0-9_-]+`). Stripped from the stored title; becomes `#:id`. Unique across the whole loaded tree, `@include` fragments included. |
-| Mirror | Line that is only `*anchor` → `(mirror "anchor")`. Same node as the `^anchor` declaration (DAG, not a copy). Escape with `\` if a title should start with `*`. |
+| Anchor | Title-trailing `^anchor` (`[A-Za-z0-9_-]+`). Stripped from the stored title; becomes `#:id`. Unique across the whole loaded **set**, `@include` fragments and sibling files included. |
+| Mirror | Line that is only `*anchor` → `(mirror "anchor")`. Same node as the `^anchor` declaration (DAG, not a copy), in whichever loaded file declares it. Escape with `\` if a title should start with `*`. |
 
 ### Inline formatting (Markdown)
 
@@ -115,7 +115,7 @@ Agent work ^agent
 
 ### Includes (file composition)
 
-`@include` / `(include "path")` is **require + splice**, not textual paste. The included file is a normal `#lang olai` module; its top-level tasks appear in place of the include line. Anchors/mirrors resolve across the whole tree; duplicate `^id` names both files. Each task records its defining file (`task-file`); writes (`done` / `move` / `add --parent ^anchor`) edit that file, not the root. Node identity (`key` in the JSON) is minted from that defining file too, so a node keys the same through any root that includes it, and two roots sharing a fragment agree about it. The file is named relative to the common directory of the loaded set, so loading a fragment as its own root re-bases that name and re-keys its nodes — see [docs/cli.md](cli.md).
+`@include` / `(include "path")` is **require + splice**, not textual paste. The included file is a normal `#lang olai` module; its top-level tasks appear in place of the include line. Anchors/mirrors resolve across the whole loaded set, fragments included; duplicate `^id` names both files. Each task records its defining file (`task-file`); writes (`done` / `move` / `add --parent ^anchor`) edit that file, not the root. Node identity (`key` in the JSON) is minted from that defining file too, so a node keys the same through any root that includes it, and two roots sharing a fragment agree about it. The file is named relative to the common directory of the loaded set, so loading a fragment as its own root re-bases that name and re-keys its nodes — see [docs/cli.md](cli.md).
 
 #### Globs
 
@@ -168,15 +168,27 @@ glob is not visible downstream, only its answer is.
 
 ### Mirrors
 
-A mirror is the **same node**, not a copy: shared title/fields/children. One node, multiple parents (DAG). Scope is the **loaded tree**: `*id` reaches an `^id` in the same file, or in any fragment that file `@include`s. It cannot reach a file nobody included — that is an unknown-anchor error, not a link.
+A mirror is the **same node**, not a copy: shared title/fields/children. One node, multiple parents (DAG).
 
-Validation happens at compile time when the file has no `@include` (the expander can see the whole tree), and right after the splice otherwise; the checks and the messages are the same either way:
+Scope is the **loaded set** — every file you named, plus everything they `@include`. So `*meeting-prep` in `Daily.rkt` finds the `^meeting-prep` that `Tasks.rkt` declares, as long as both are loaded (`olai tree Tasks.rkt Daily.rkt`, `olai serve DIR`, `just check`). It cannot reach a file that is not in the set — that is an unknown-anchor error, not a link — so checking ONE file of a linked pair reports the mirror it cannot resolve. Load the files you always load.
 
-- Duplicate `^id` → error, naming the first declaration (line, or the other file's name once fragments are involved).
-- Unknown `*id` → error, listing the anchors that do exist.
-- Cycle (direct or via other anchors) → error with path, e.g. `agent -> week -> agent`.
+Three phases, one checker (`lang/graph`), same rules and same messages:
 
-JSON tree sites emit `{"mirror":"id"}` (never inline the subtree). An `anchors` object holds each anchored node once. Agenda counts a dated node once (defining breadcrumb). Web view: the defining site gets `id="anchor"`; mirror sites render with a ↗ link to `#anchor`.
+| Phase | Sees | Checks |
+|---|---|---|
+| compile time (no `@include`) | one module's syntax | duplicate, cycle |
+| after the splice | one root's whole tree | duplicate, cycle |
+| **the linker** (`lang/link`), once per load of a set | every file at once | duplicate, cycle, **unknown** |
+
+"Unknown" is the linker's alone: a module cannot know which files it will be loaded beside, so an unresolved `*id` is not yet wrong when the module compiles. That is also what lets the write path validate one file at a time (`add` / `done` / `move` re-load the file they wrote) while the anchor it mirrors lives in another.
+
+- Duplicate `^id` → error at the second declaration, naming the first (`file:line:col`, in whichever file it is).
+- Unknown `*id` → error at the mirror site, listing the anchors the set does have, and naming the near miss: `unknown *meting-prep; anchors in the loaded set: agent, meeting-prep; did you mean *meeting-prep?`
+- Cycle (direct, via other anchors, or through another file) → error with path, e.g. `agent -> week -> agent`.
+
+The repo's own demo is `examples/Week.rkt`, whose `*agent` is the node `examples/Example.rkt` declares — `just check` and `just serve` load both, and `olai check examples/Week.rkt` on its own is the error above.
+
+JSON tree sites emit `{"mirror":"id"}` (never inline the subtree). The top-level `anchors` object is the **set's** index — each anchored node once, with the `file` that defines it when the set has more than one root. Agenda counts a dated node once, at its defining breadcrumb, however many files mirror it. Writes go to the defining file: `olai done '^meeting-prep' --file Daily.rkt` edits `Tasks.rkt` (see [docs/cli.md](cli.md)). Web view: the defining site gets `id="anchor"`; mirror sites render with a ↗ link to `#anchor`, and follow an edit to the file that defines the node.
 
 ## `#lang olai/sexp` — s-expression core
 

@@ -81,9 +81,10 @@
 ;; An anchor that names nothing carries #f, which is a state to draw, not a
 ;; lookup that failed.
 ;;
-;; `anchors` is the defining file's own anchor hash: the language rejects a
-;; mirror to an anchor its module cannot see, so there is no wider world to
-;; resolve against.
+;; `anchors` is the SET's index (olai/lang/link), not one file's: an anchor's
+;; scope is every outline loaded together, so a mirror site in one file binds
+;; to the node another declares. The linker has already refused a name that
+;; nothing in the set declares, so a #f here means a hand-built tree.
 (struct mirror-site (of task) #:transparent)
 
 (define (resolve-mirrors tasks anchors)

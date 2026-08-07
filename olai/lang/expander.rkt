@@ -72,7 +72,8 @@
          title-tags
          tag-rx
          valid-anchor-id?
-         validate-task-tree!
+         check-task-graph
+         anchors-of
          #%app #%datum #%top #%top-interaction
          quote)
 
@@ -352,16 +353,21 @@
 
   (define (validate-body-forms stxs)
     (define irs (map syntax->ir stxs))
-    ;; When this module uses @include, cross-file anchors resolve only after
-    ;; the splice — the whole tree is checked at run time instead (same rules,
-    ;; same messages, srclocs carried on the nodes).
+    ;; When this module uses @include, its own anchors are not all here yet —
+    ;; the spliced tree is checked at run time instead (same rules, same
+    ;; messages, srclocs carried on the nodes).
+    ;;
+    ;; #:scope #f either way: a module does not know which files it will be
+    ;; loaded beside, so a *mirror it cannot resolve is not yet wrong. The
+    ;; linker (lang/link) is the pass that can see them all, and it owns that
+    ;; rule.
     (unless (any-include? irs)
       (check-anchor-graph
        irs
        #:id (λ (ir) (and (ir-task? ir) (ir-task-id ir)))
        #:kids (λ (ir) (if (ir-task? ir) (ir-task-kids ir) '()))
        #:mirror (λ (ir) (and (ir-mirror? ir) (ir-mirror-anchor ir)))
-       #:scope "this file"
+       #:scope #f
        #:describe ir-loc
        #:fail (λ (who ir msg)
                 (raise-syntax-error who msg (and ir (ir-stx ir))))))
@@ -443,14 +449,6 @@
       [else '()]))
   (append* (map walk tasks)))
 
-;; Full-tree validation after includes splice — the same three rules the
-;; compile-time pass applies, over tasks instead of syntax. A node carries
-;; the srcloc of the form that defined it, so an error here says
-;; file:line:col even though nothing syntactic is left.
-;;
-;; It raises exn:fail:syntax, which is not a lie: this IS the language
-;; rejecting a form, and it is what makes olai/load report the location
-;; in the same fields as any other read/expand error.
 (define (loc->syntax loc)
   (and loc
        (datum->syntax #f 'olai
@@ -475,39 +473,51 @@
     [(mirror-ref? x) (mirror-ref-loc x)]
     [else #f]))
 
-(define (validate-task-tree! tasks)
+;; Validation over TASKS instead of syntax — the same rules, and the only
+;; shape left once @include has spliced or once several files are held side by
+;; side. A node carries the srcloc of the form that defined it, so an error
+;; here says file:line:col even though nothing syntactic is left.
+;;
+;; It raises exn:fail:syntax, which is not a lie: this IS the language
+;; rejecting a form, and it is what makes olai/load report the location in the
+;; same fields as any other read/expand error. It answers with the anchors it
+;; declared on the way through.
+;;
+;; Exported because the LINKER runs it over the whole loaded set (lang/link),
+;; which is the same check with the scope closed.
+(define (check-task-graph tasks #:scope [scope #f])
   (check-anchor-graph
    tasks
    #:id (λ (x) (and (task? x) (task-id x)))
    #:kids (λ (x) (if (task? x) (task-children x) '()))
    #:mirror (λ (x) (and (mirror-ref? x) (mirror-ref-anchor x)))
-   #:scope "this tree"
+   #:scope scope
    #:describe (λ (x) (loc->string (node-loc x)))
    #:fail
    (λ (who x msg)
      (define stx (loc->syntax (and x (node-loc x))))
      (raise (exn:fail:syntax (format "~a: ~a" who msg)
                              (current-continuation-marks)
-                             (if stx (list stx) '())))))
-  (void))
+                             (if stx (list stx) '()))))))
 
 (define (finalize-tasks forms src)
   (define-values (includes globs) (collect-includes forms))
   (define flat (flatten-tree forms))
-  (validate-task-tree! flat)
+  (check-task-graph flat)
   (values flat includes globs))
 
-(define (build-anchors-hash tasks)
+;; id -> the node that declares it, over whatever forest you hand it: a
+;; module's own tasks (the `anchors` it exports), one file's minted trees
+;; (olai/load), or every loaded file at once (olai/lang/link). One walk,
+;; because "which node is ^agent" is one question — only the forest differs.
+;; A mirror site declares nothing, and is not a task, so it is skipped.
+(define (anchors-of tasks)
   (define h (make-hash))
   (define (walk x)
-    (cond
-      [(task? x)
-       (define id (task-id x))
-       (when id (hash-set! h id x))
-       (for ([c (in-list (task-children x))])
-         (walk c))]
-      [else (void)]))
-  (for ([t (in-list tasks)]) (walk t))
+    (when (task? x)
+      (when (task-id x) (hash-set! h (task-id x) x))
+      (for-each walk (task-children x))))
+  (for-each walk tasks)
   h)
 
 ;; Every include site in this module, in source order.
@@ -688,5 +698,5 @@
         (define raw-forms (list form ...))
         (define-values (tasks includes include-globs)
           (finalize-tasks raw-forms #,(syntax-source-path stx)))
-        (define anchors (build-anchors-hash tasks))
+        (define anchors (anchors-of tasks))
         (void))]))
