@@ -27,7 +27,7 @@ The write commands know nothing about exit codes: an op (`olai/ops`) fails with 
   ```
 
   Naming files (or `--file` / `--home`) works with the variable unset.
-- **Read commands** (`check` / `tree` / `agenda` / `calendar` / `ics` / `serve`) accept **one or more** outline paths. They are read as one **SET**: node keys are minted against it, and it is the scope an `^anchor` has, so a `*mirror` reaches a node another named file defines and one that reaches nothing is an error ([Mirrors](syntax.md#mirrors)). Load the files you always load. The justfile defaults to `$OLAI_HOME/*.rkt`, or the repo's own `examples/Example.rkt examples/Week.rkt Roadmap.rkt` when `OLAI_HOME` is unset — the two examples are a set on purpose, since `Week.rkt` mirrors an anchor `Example.rkt` declares. `serve` also takes the DIRECTORY and globs it itself — that is its front door, see below.
+- **Read commands** (`check` / `tree` / `agenda` / `calendar` / `ics` / `serve`) accept **one or more** outline paths. They are read as one **SET**: node keys are minted against it, and it is the scope an `^anchor` has, so a `*mirror` reaches a node another named file defines and one that reaches nothing is an error ([Mirrors](syntax.md#mirrors)). Load the files you always load. The justfile defaults to `$OLAI_HOME/*.rkt`, or the repo's own `examples/` outlines plus `Roadmap.rkt` when `OLAI_HOME` is unset — those examples are a set on purpose, since `Week.rkt` mirrors an anchor `Example.rkt` declares. `serve` also takes the DIRECTORY and globs it itself — that is its front door, see below.
 - Personal data lives outside the repo, in the directory `OLAI_HOME` names. Auto-commit (`add` / `done` / `doing` / `move` / `daily`) only runs when the directory of the file actually written is a git work tree; otherwise it no-ops (`committed: false`) and Dropbox (or your sync) is the history layer.
 - `--json` may appear after the subcommand everywhere it used to; it is a no-op, kept so an invocation an agent already knows does not become a usage error.
 
@@ -98,11 +98,14 @@ Single file:
       "id": null,
       "key": "pd076e677",
       "tags": ["capture"],
+      "edges": [],
       "children": [ ... ]
     }
   ],
   "anchors": { "agent": { "title": "Agent work", "id": "agent", "key": "agent",
                           "children": [] } },
+  "edges": { "after": { "install": ["order", "demo"] },
+             "see":   { "paint": ["colour"] } },
   "task_count": 12,
   "mirror_count": 1,
   "anchor_count": 1
@@ -130,6 +133,10 @@ Multiple files:
 }
 ```
 
+**`edges` is the typed-edge graph** ([Typed edges](syntax.md#typed-edges)), beside `anchors` and with the same scope: relation → source key → target keys, over the whole set. It is **normalized** — `a @blocks b` is the arrow `b after a` here, and `blocks` is not a key it can have — so an agent asks "what is this after" once instead of grepping two spellings of it. The keys are node keys, the same ones a node is addressed by (an anchored node's key IS its anchor). Only the forward direction is published: the reverse index is this one inverted, and mirrors ride in that one because a mirror is not a relation.
+
+Each node also carries its own `edges` — an array of `{"relation","target"}` in source order, **verbatim**: `@blocks` is still `"blocks"` there, because the file keeps the direction its writer thought in. The node says what was written; the index says what the set makes of it. Always present, empty for the nodes (most of them) that wrote none.
+
 Two `anchors` objects, two scopes, and the nesting says which: the one inside a file entry is what THAT file's tree declares — its own and its `@include` fragments' (`anchor_count` counts them) — and the top-level one is the whole set's, which is where a `{"mirror":"agent"}` in any of these files points, and, via each entry's `file`, which file a write to it edits.
 
 `date` / `description` are raw strings or `null` (Markdown is not interpreted here). `doc` is the `@doc` path the outline wrote, **verbatim** — relative to the node's **defining** file (the `file` key, when it differs from the loaded one), never resolved and never rendered: the document is a file you can already read, diff and edit. `done` and `doing` are the stored marks: `null` (not in that state), `true` (marked, no timestamp), or an ISO timestamp string. A node carries at most one of them — the language rejects both. `status` is what they MEAN — `"open"`, `"doing"` or `"done"` — and is the one to switch on: it is where a future state would show up, while `done` / `doing` keep their type. `id` is `null` or the anchor string. `tags` is always an array.
@@ -147,7 +154,7 @@ Load the files you always load (`serve` keys against the set it was given) and k
 
 ## `agenda [file ...]`
 
-What is on the plate, relative to local today, **merged across all given files**. **Done tasks are excluded** even if they still have a `@date`. When more than one file is given, breadcrumbs are rooted at each file's basename (`Tasks.rkt > Inbox > Buy milk`). All four arrays are always present, possibly empty.
+What is on the plate, relative to local today, **merged across all given files**. **Done tasks are excluded** even if they still have a `@date`. When more than one file is given, breadcrumbs are rooted at each file's basename (`Tasks.rkt > Inbox > Buy milk`). All five arrays are always present, possibly empty.
 
 Stdout:
 
@@ -156,14 +163,21 @@ Stdout:
   "version": 1,
   "today": "2026-08-03",
   "overdue": [{"title":"...","date":"2026-01-15T08:00","breadcrumb":"...",
-               "status":"open"}],
-  "doing": [{"title":"...","date":null,"breadcrumb":"...","status":"doing"}],
+               "status":"open","bucket":"overdue","blocked":false,
+               "waiting_on":[]}],
+  "doing": [{"title":"...","date":null,"breadcrumb":"...","status":"doing",
+             "bucket":"doing","blocked":false,"waiting_on":[]}],
   "today_items": [],
-  "upcoming": []
+  "upcoming": [],
+  "blocked": [{"title":"...","date":"2026-08-01","breadcrumb":"...",
+               "status":"open","bucket":"overdue","blocked":true,
+               "waiting_on":["order"]}]
 }
 ```
 
-`doing` sits above `today_items` in the reading order the groups have. An item's `status` is why it is in the group it is in: `"open"` for the three date buckets, `"doing"` for that one.
+`doing` sits above `today_items` in the reading order the groups have, and `blocked` sits under all of them — it is the one group you cannot act on. An item's `status` is what state the node is in: `"open"` for the date buckets, `"doing"` for that one.
+
+**`blocked` holds every node with an unfinished `@after` target** ([Typed edges](syntax.md#typed-edges)) and takes it out of the date buckets: a node waiting on something is not on today's plate, however today its date reads. It still says where it would have been — `bucket` is `"overdue"` / `"doing"` / `"today"` / `"upcoming"` computed from the item's own facts, so an overdue *and* blocked node reports both — and `waiting_on` names the blockers by **key**, which for an anchored one is its anchor. Every item carries `bucket`, `blocked` and `waiting_on`, in every group; outside `blocked` the last two are `false` and `[]`.
 
 A node in flight is on the agenda **whether or not anyone dated it** — that is the point of the group — so `date` is `null` there where the date buckets always have one, and a dated `@doing` node appears in `doing` and nowhere else. Within the group, dated items come first by date and undated ones follow in tree order.
 

@@ -81,6 +81,34 @@ Then("{string} is not doing", async function (title) {
   await assertClass(this.node(title).first(), "is-doing", false, title);
 });
 
+// ---- what is not actionable yet --------------------------------------------
+//
+// Blocked is not a state of the node the way done and doing are — it is a fact
+// about the GRAPH, derived from `@after` and what the far end of it says about
+// itself. So there is no class on the node to read: the pill IS the assertion,
+// and what it is waiting on is its title.
+
+Then("{string} is blocked on {string}", async function (title, waiting) {
+  const pill = part(this, title, ".ol-blocked");
+  await pill.waitFor({ state: "visible" });
+  assert.equal(await pill.getAttribute("title"), `after ${waiting}`);
+});
+
+Then("{string} is not blocked", async function (title) {
+  assert.equal(
+    await this.node(title).first().locator(":scope > .ol-row .ol-blocked").count(),
+    0,
+    `${title} draws a blocked pill`,
+  );
+});
+
+// The waiting one, for a pill that goes away under a live swap: the node is
+// re-drawn without it, so this waits for the pill to leave rather than reading
+// a count off whichever copy the query lands on mid-swap.
+Then("{string} stops being blocked", async function (title) {
+  await part(this, title, ".ol-blocked").waitFor({ state: "detached" });
+});
+
 // ---- mirrors ---------------------------------------------------------------
 //
 // A mirror is the same node drawn at a second SITE, so it is addressed by

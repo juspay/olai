@@ -40,6 +40,7 @@ olai roadmap #project
 | Inline `#tags` | In titles: `#` + `[A-Za-z0-9_-]+`. Title stays verbatim; expander fills `task-tags` (no `#`, first-seen order, deduped). Works for both langs. |
 | Anchor | Title-trailing `^anchor` (`[A-Za-z0-9_-]+`). Stripped from the stored title; becomes `#:id`. Unique across the whole loaded **set**, `@include` fragments and sibling files included. |
 | Mirror | Line that is only `*anchor` → `(mirror "anchor")`. Same node as the `^anchor` declaration (DAG, not a copy), in whichever loaded file declares it. Escape with `\` if a title should start with `*`. |
+| Typed edge | Indented `@after ^x` / `@blocks ^y` / `@see ^z` → an edge to that anchor. **Any number** per node, unlike every field above. The `^` is required. See [Typed edges](#typed-edges). |
 
 ### Inline formatting (Markdown)
 
@@ -67,14 +68,14 @@ Formatting is **interpretation at render time**, not data. The reader, expander,
 
 Mark these clearly so agents do not invent them:
 
-- `@layout` and other `@` fields beyond `@date` / `@done` / `@doing` / `@doc` / `@include`
+- `@layout` and other `@` fields beyond `@date` / `@done` / `@doing` / `@doc` / `@include` / `@after` / `@blocks` / `@see`
 - `.scrbl` **rendering**. The extension is in the language and the path is in the JSON; the web view names the file and says it does not draw one yet (see [Documents](#documents-doc))
 - `[-] ` as cancelled — the spelling is left unclaimed, but nothing reads it yet
 - UI state in the outline file, or in a sidecar next to it. Collapse state is real but lives in the browser (`localStorage`, keyed by node); zoom is a URL (`/today`, `/n/<key>`). Nothing on disk records either.
 - Check-off from the web view — it renders a static checkbox, and done already renders checked/dimmed. Structure edits go through the CLI or your editor.
 - Live push: the page loads the htmx SSE extension but the server opens no event stream yet; edits show up on the next request.
 
-Unknown `@field` is a **reader error** today (names the known fields: `@date`, `@done`, `@doing`, `@doc`, `@include`).
+Unknown `@field` is a **reader error** today (names the known fields: `@date`, `@done`, `@doing`, `@doc`, `@include`, `@after`, `@blocks`, `@see`).
 
 ### Documents (`@doc`)
 
@@ -190,6 +191,75 @@ The repo's own demo is `examples/Week.rkt`, whose `*agent` is the node `examples
 
 JSON tree sites emit `{"mirror":"id"}` (never inline the subtree). The top-level `anchors` object is the **set's** index — each anchored node once, with the `file` that defines it when the set has more than one root. Agenda counts a dated node once, at its defining breadcrumb, however many files mirror it. Writes go to the defining file: `olai done '^meeting-prep' --file Daily.rkt` edits `Tasks.rkt` (see [docs/cli.md](cli.md)). Web view: the defining site gets `id="anchor"`; mirror sites render with a ↗ link to `#anchor`, and follow an edit to the file that defines the node.
 
+### Typed edges
+
+The tree says one thing: what CONTAINS what. Order, dependency and
+cross-reference are said with edges, which are grammar and therefore checked:
+
+```racket
+#lang olai
+
+kitchen remodel #project
+  [x] demo the old cabinets ^demo
+  order the new ones ^order
+  install ^install
+    @after ^order
+    @after ^demo
+  paint
+    @after ^install
+    @see ^colour
+  pick a colour ^colour
+  clear the driveway
+    @blocks ^order
+```
+
+Three relations, and the set is **closed** — a fourth is a human-ratified
+change to the language, not a field you may invent:
+
+| Written | Means |
+|---|---|
+| `@after ^x` | this node is not actionable until `^x` is done — **ordering** |
+| `@blocks ^y` | the same fact from the other end: `^y` is after this node |
+| `@see ^z` | a plain cross-reference. No ordering, no blocking, no semantics |
+
+- **An edge never moves a node.** The tree stays the spanning structure: every
+  node has exactly one defining site, and an edge points at one.
+- **`@blocks` is a spelling, not a second relation.** `a @blocks b` derives to
+  `b after a`, so the graph has one ordering relation to check and sort and the
+  two spellings cannot disagree. The file keeps whichever direction its writer
+  thought in, and `tree` JSON keeps it on the node — the normalized form is the
+  set's `edges` index (see [docs/cli.md](cli.md)).
+- **`@after` is ordering, never scheduling.** It says nothing about a date. A
+  blocked node with a due date is overdue *and* blocked, and the agenda says
+  both.
+- **Done-ness does not propagate.** A target counts as done when it says so —
+  `@done`, or `[x] `. A parent whose children are all done is **not** done, so
+  it goes on blocking. Deriving it would give the outline two answers to "is
+  this done", and would silently re-block everything after a finished node the
+  moment somebody added a child to it. Point `@after` at the child you mean, or
+  mark the parent.
+- **Scope is the loaded set**, exactly like a mirror's: `@after ^serve` reaches
+  the `^serve` any loaded file declares, and one that reaches nothing is an
+  error at the edge — which is the linker's rule alone, so a module still
+  compiles on its own (see [Mirrors](#mirrors)).
+- **Mirrors are not edges.** A mirror is identity — the same node, shown twice
+  — not a relation, so it stays out of this grammar. It joins the *reverse*
+  index as one more kind of thing pointing at a node.
+
+Two rules, both reported at the `file:line:col` of the offending line:
+
+```text
+T.rkt:3:2: @after: unknown ^ordr; anchors in the loaded set: demo, install, order; did you mean ^order?
+T.rkt:3:2: @after: cycle in @after: ^install -> ^order -> ^install; @after must be acyclic
+```
+
+Acyclicity is **per relation**: `@after` may not run in a circle (a node cannot
+be after itself, however long the way round), while `@see` cycles are fine —
+two notes may point at each other all day. A node may carry any number of
+edges, and the same node may be written `@after` twice.
+
+The repo's demo is `examples/Kitchen.rkt`.
+
 ## `#lang olai/sexp` — s-expression core
 
 The underlying form the expander sees. Useful for tests and for agents that prefer sexps.
@@ -202,8 +272,8 @@ The underlying form the expander sees. Useful for tests and for agents that pref
    (t "Buy milk" #:date "2026-01-15")
    (t "Agent work" #:id "agent")
    (t "This week" (mirror "agent"))
-   (t "Wiring it" #:doing)
+   (t "Wiring it" #:doing #:after "agent")
    (t "Shipped" #:done "2026-08-03"))
 ```
 
-Keywords `#:id`, `#:date`, `#:doc`, `#:description`, `#:done` and `#:doing` are optional, any order, at most once each. `#:done` / `#:doing` may be bare or take an ISO date/datetime, and a node may carry at most one of the two. Children are `(t ...)`, `(mirror "anchor")`, or `(include "relative/path.rkt")` — closed grammar, same three forms allowed at top level. `include` takes a [glob](#globs) here too (`(include "Daily/*.rkt")`): one surface syntax does not get language the other does not. Module exports `tasks`, `anchors` (hash id → task), `includes` (absolute paths spliced in) and `include-globs` (the absolute patterns that found them, empty unless a glob was written).
+Keywords `#:id`, `#:date`, `#:doc`, `#:description`, `#:done` and `#:doing` are optional, any order, at most once each. `#:done` / `#:doing` may be bare or take an ISO date/datetime, and a node may carry at most one of the two. `#:after`, `#:blocks` and `#:see` are the [typed edges](#typed-edges) — same three relations, any number of them, and the anchor is a bare string here (the `^` is the outline surface's sigil, like `*` for a mirror). Children are `(t ...)`, `(mirror "anchor")`, or `(include "relative/path.rkt")` — closed grammar, same three forms allowed at top level. `include` takes a [glob](#globs) here too (`(include "Daily/*.rkt")`): one surface syntax does not get language the other does not. Module exports `tasks`, `anchors` (hash id → task), `includes` (absolute paths spliced in) and `include-globs` (the absolute patterns that found them, empty unless a glob was written).
