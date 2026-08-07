@@ -146,13 +146,11 @@
 ;; skin paints — which is what makes "nothing wears this class" mean something.
 (define example-today "2026-08-03")
 
+;; The whole directory, which is what `serve` is pointed at: every demo the
+;; repo ships draws into this, the typed-edge one (a blocked node wears a
+;; pill, and that pill is a class like any other) included.
 (define example-snapshot
-  (store-snapshot
-   (make-store (list (build-path examples-dir "Example.rkt")
-                     (build-path examples-dir "Daily.rkt")
-                     ;; the typed-edge demo: a node the graph says is blocked
-                     ;; wears a pill, and that pill is a class like any other
-                     (build-path examples-dir "Kitchen.rkt")))))
+  (store-snapshot (make-store examples-dir)))
 
 (define example-files (snapshot-files-data example-snapshot))
 

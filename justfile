@@ -81,14 +81,21 @@ clean:
 check *args: install
     olai check {{if args == "" { default_outlines } else { args }}}
 
-# With OLAI_HOME set, serve takes the DIRECTORY, not the glob: it globs the
-# top level itself, and the agent then works in $OLAI_HOME (which is what makes
-# its stored sessions survive a restart). Unset, it serves the repo's own two
-# files by name. OLAI_ACP_AGENT comes from the nix dev shell; serve will not
-# start without it, so export it yourself outside `nix develop`.
-# Serve the web view (default: $OLAI_HOME, else the repo's own, on 127.0.0.1:8080)
+# serve takes ONE root, and it is a place rather than a file list: the
+# directory it serves is the directory the agent works in (which is what makes
+# its stored sessions survive a restart), and the outlines under it are
+# re-asked as they change, so a file created while it runs needs no restart.
+#
+# Unset OLAI_HOME serves the repo's demos — `examples/`, one directory, which
+# is why they are one. The repo's own outlines are another directory and are
+# read on demand: `just serve docs/olai`. `check` below still takes the two as
+# one SET, because a read command still takes a list.
+#
+# OLAI_ACP_AGENT comes from the nix dev shell; serve will not start without
+# it, so export it yourself outside `nix develop`.
+# Serve the web view (default: $OLAI_HOME, else examples/, on 127.0.0.1:8080)
 serve *args: install
-    olai serve {{if args != "" { args } else if olai_home != "" { olai_home } else { repo_outlines } }}
+    olai serve {{if args != "" { args } else if olai_home != "" { olai_home } else { "examples" } }}
 
 # What the live forms in a file expand to — the source form and the call it
 # becomes, one pair per form (live/expand.rkt). The forms are only worth having

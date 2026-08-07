@@ -40,8 +40,11 @@ export class OlaiWorld extends World {
    *  `extras` is more roots staged beside the outline, chosen by the
    *  scenario's tags (hooks.js) — each one a step that puts a file in the
    *  directory, whether it writes a constant or runs the product to get one.
-   *  Boot-time, because `serve DIR` globs the directory once, at startup: a
-   *  root written later is a root this server never has. */
+   *  Staged at boot because they are the state the scenario starts IN — an
+   *  outline home that already has a second file, an archive with something in
+   *  it, a journal with today in it — not because a server cannot see one
+   *  arrive: `serve DIR` re-asks the directory, and archive.feature's first
+   *  scenario is exactly a root written later. */
   async boot(browser, env = {}, viewport = VIEWPORT, extras = []) {
     this.serverEnv = env;
     this.dir = await fs.mkdtemp(path.join(os.tmpdir(), "olai-e2e-"));
@@ -206,8 +209,8 @@ export class OlaiWorld extends World {
    *  can hold — and the harness must not be the one deciding which day that
    *  is. `olai daily` reads the same clock the server will, in the same
    *  binary, so there is still only one. A staging step like the constants
-   *  beside it, and for the same reason: `serve DIR` globs its roots once at
-   *  startup. */
+   *  beside it, and for the same reason: it is the state these scenarios
+   *  start in. */
   async daily() {
     await run(OLAI_BIN, ["daily", "--no-commit", "--home", this.dir]);
   }

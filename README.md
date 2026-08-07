@@ -63,8 +63,8 @@ Under the hood every outline becomes s-expressions. Same expander:
 ## HOW IT WORKS
 
 ```text
-$OLAI_HOME/*.rkt                 <- personal data (#lang olai)
-(your outline dir; unset -> the repo's examples/ + Roadmap.rkt)
+$OLAI_HOME/**/*.rkt              <- personal data (#lang olai)
+(your outline dir; unset -> the repo's examples/)
     |                                 ^
     v                                 | edits your files
 olai CLI (Racket)                     |   <- validate / query / capture
@@ -77,7 +77,7 @@ racket web-server --- spawns ---> ACP agent (Claude Code; JSON-RPC on stdio)
     +-- PWA: installable (manifest + icons); live view only, no offline shell
 ```
 
-Personal outlines are plain files you sync however you like (Dropbox, git, rsync). The repo holds the tool; your data stays outside it — point `OLAI_HOME` at that directory. Without it the repo serves its own `examples/` plus `Roadmap.rkt`, and the write commands ask you to set it. `add` / `done` / `doing` / `move` / `archive` / `daily` auto-commit only when the written file's dir is a git work tree; otherwise they write the file and leave history to your sync layer.
+Personal outlines are plain files you sync however you like (Dropbox, git, rsync). The repo holds the tool; your data stays outside it — point `OLAI_HOME` at that directory. Without it the repo serves its own `examples/`, and the write commands ask you to set it. `add` / `done` / `doing` / `move` / `archive` / `daily` auto-commit only when the written file's dir is a git work tree; otherwise they write the file and leave history to your sync layer.
 
 Single user, many devices. The server runs on your headless box behind Caddy or Tailscale. Install the web view as a PWA on your phone; it still needs the network (SSE + agent). Live with it, or open your laptop.
 
@@ -89,7 +89,7 @@ Outline `#lang olai` + sexp core + agent CLI (`check` / `tree` / `agenda` / `cal
 
 The project tracks its own plan the same way it wants you to track yours: `Roadmap.rkt` at the repo root is a `#lang olai` outline, edited and committed like any other file. `olai tree Roadmap.rkt` gives the JSON view.
 
-Track your own plan as a `#lang olai` outline wherever you like (`$OLAI_HOME`) — a private `Tasks.rkt` can `@include` the repo's `Roadmap.rkt` to pull it into your own outline; that's exactly what the author does. Repo demos live in `examples/` (`examples/Daily.rkt` for `@include` composition; `examples/Week.rkt` for a mirror of a node another file defines; `examples/Kitchen.rkt` for typed edges — `just serve` draws them all).
+Track your own plan as a `#lang olai` outline wherever you like (`$OLAI_HOME`) — a private `Tasks.rkt` can `@include` the repo's `Roadmap.rkt` to pull it into your own outline; that's exactly what the author does. Repo demos live in `examples/` (`examples/Daily.rkt` for `@include` composition; `examples/Week.rkt` for a mirror of a node another file defines; `examples/Kitchen.rkt` for typed edges — `just serve` draws that directory). The roadmap is a directory of its own: `just serve docs/olai`.
 
 ## BUILDING
 
@@ -108,7 +108,7 @@ just clean                       # drop olai/**/compiled
 just css-classes                 # regenerate olai/tests/classes.golden
 ```
 
-`olai serve DIR` serves `DIR/*.rkt` and runs the agent in `DIR` (default: `$PWD`; `just serve` passes `$OLAI_HOME`, or names the repo's own outlines when it is unset). Naming files instead still works — see [docs/cli.md](docs/cli.md).
+`olai serve DIR` serves every outline under `DIR` and runs the agent in `DIR` (default: `$PWD`; `just serve` passes `$OLAI_HOME`, or `examples/` when it is unset). One argument, and one only: a directory, or a single file. A file another one `@include`s is not a root, and the directory is re-read as it changes, so an outline created under a running server is picked up without a restart — see [docs/cli.md](docs/cli.md).
 
 `serve` refuses to start without `OLAI_ACP_AGENT` — the path to an executable speaking the Agent Client Protocol. The Nix package defaults it to the bundled, pinned Claude Code adapter (`--set-default`); `nix develop` (hence `just serve`) exports the same. Outside nix, export it yourself.
 

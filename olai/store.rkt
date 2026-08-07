@@ -32,15 +32,16 @@
          syntax/modread
          (except-in olai/lang/expander #%module-begin)
          olai/lang/walk
-         ;; what a starred @include reads, and what it names right now: the
-         ;; one thing in the module graph that can move without a file the
-         ;; store already probed having been touched
-         (only-in olai/glob glob-expand)
          (only-in olai/edges edge-index?)
          ;; what a day node is, and where it sits: the query layer's answer,
          ;; read rather than repeated
          (only-in olai/query day-site-for day-site-key)
          olai/load
+         ;; what a path names right now — the root this store was built from,
+         ;; and every pattern an @include starred. The one kind of dependency
+         ;; that can move without a file the store already probed having been
+         ;; touched, and it is asked, never remembered
+         (only-in olai/paths files-named root-dir)
          ;; where a @doc path points and what is in it; the store is the one
          ;; layer that reads one, because it is the one that knows when to
          ;; read it again
@@ -52,9 +53,10 @@
 ;; request: the two things that must not be confused with each other, or with
 ;; a bare list of outlines. Contracts say which is which at the boundary.
 (provide (contract-out
-          [make-store (-> (listof (or/c path? string?)) store?)]
+          [make-store (-> (or/c path? string?) store?)]
           [store? (-> any/c boolean?)]
-          [store-files (-> store? (listof path?))]
+          [store-root (-> store? path?)]
+          [store-questions (-> store? (listof path?))]
           [store-snapshot (-> store? snapshot?)]
           [store-error (-> store? (or/c load-error? #f))]
           [store-revision (-> store? exact-positive-integer?)]
@@ -103,10 +105,15 @@
 
 (define empty-snapshot (snapshot empty-linked '() (hash) (hash) '() '()))
 
+;; root  : the ONE path this store was pointed at — a directory, or a single
+;;         outline. Which files that names is asked of the disk on every
+;;         staleness probe, exactly like an `@include` glob: a directory is a
+;;         standing question, so an outline created under it after boot is a
+;;         root without a restart.
 ;; probe : what the last load was built from, as it was then (see below)
 ;; rev   : bumped by every reload, so "did anything happen?" is a comparison
-(struct store (files [snap #:mutable] [err #:mutable] [probe #:mutable]
-                     [rev #:mutable] sema))
+(struct store (root [snap #:mutable] [err #:mutable] [probe #:mutable]
+                    [rev #:mutable] sema))
 
 ;; ---- fresh namespaces -----------------------------------------------------
 
@@ -171,13 +178,19 @@
 
 ;; ---- what a load was built from, as it was then ----------------------------
 ;;
-;; Two kinds of dependency and two ways to check one: a FILE is what it was
-;; when its mtime and size are, and a GLOB is what it was when it still names
-;; the same files. Both are taken at the same moment and asked at the same
-;; moment, so they are one value — two fields updated in step by discipline is
-;; how a saved document went unnoticed once already.
+;; Two kinds of dependency: a FILE is what it was when its mtime and size are,
+;; and a QUESTION is what it was when it still names the same files. Both are
+;; taken at the same moment and asked at the same moment, so they are one
+;; value — two fields updated in step by discipline is how a saved document
+;; went unnoticed once already.
+;;
+;; The questions are the `@include` globs AND the root spec this store was
+;; built from, which are one kind of thing and asked with one function
+;; (olai/paths, files-named): `serve DIR` is pointed at a directory, and the
+;; first `Archive.rkt` an `olai archive` writes into it is a file no watched
+;; file's mtime knows anything about.
 
-(struct probe (files globs) #:transparent)
+(struct probe (files questions) #:transparent)
 
 (define empty-probe (probe (hash) (hash)))
 
@@ -190,57 +203,25 @@
        (cons (file-or-directory-modify-seconds p #f (λ () #f))
              (file-size p))))
 
-(define (glob-answer key)
-  (glob-expand (string->path key)))
+(define (question-answer key)
+  (files-named (string->path key)))
 
-(define (take-probe paths globs)
+(define (take-probe paths questions)
   (define (stamped xs f)
     (for/hash ([x (in-list xs)])
       (define k (path-key x))
       (values k (f k))))
-  (probe (stamped paths file-stamp) (stamped globs glob-answer)))
+  (probe (stamped paths file-stamp) (stamped questions question-answer)))
 
-;; Does everything still answer the way it did? An empty probe never does:
-;; before the first successful load there is nothing to have changed, and that
-;; is exactly the state a store has to keep trying to get out of.
+;; Does everything still answer the way it did? There is always something to
+;; ask — a store is built on a root and probes it whether or not anything
+;; loaded — so "nothing to compare, therefore current" is not a state this can
+;; be in, and the emptiness guard that used to say so is gone with it.
 (define (probe-current? pr)
   (define (all-agree? h f)
     (for/and ([(k v) (in-hash h)]) (equal? v (f k))))
-  (and (positive? (hash-count (probe-files pr)))
-       (all-agree? (probe-files pr) file-stamp)
-       (all-agree? (probe-globs pr) glob-answer)))
-
-;; What one module says it was built from: the files it spliced DIRECTLY, and
-;; the patterns it starred itself. A fragment's own includes were flattened
-;; before it exported `tasks`, which is why the graph is walked below rather
-;; than read off the root.
-;; -> (values (listof path) (listof path))
-(define (module-sources full)
-  (define mod `(file ,full))
-  (define (export name)
-    (with-handlers ([exn:fail? (λ (_e) '())])
-      (for/list ([s (in-list (dynamic-require mod name))])
-        (simple-form-path (string->path s)))))
-  (values (export 'includes) (export 'include-globs)))
-
-;; Every file the outlines are built from, and every pattern they are still
-;; watching a directory for.
-;; -> (values (listof path) (listof path))
-(define (watch-set outlines)
-  (define seen (make-hash))
-  (define files '())
-  (define globs '())
-  (define (visit p)
-    (define full (simple-form-path p))
-    (define k (path->string full))
-    (unless (hash-ref seen k #f)
-      (hash-set! seen k #t)
-      (set! files (cons full files))
-      (define-values (includes patterns) (module-sources k))
-      (set! globs (append (reverse patterns) globs))
-      (for ([q (in-list includes)]) (visit q))))
-  (for ([o (in-list outlines)]) (visit (outline-path o)))
-  (values (reverse files) (remove-duplicates (reverse globs) #:key path->string)))
+  (and (all-agree? (probe-files pr) file-stamp)
+       (all-agree? (probe-questions pr) question-answer)))
 
 ;; The key of the day node titled `iso-day` (Daily.rkt keeps one per day), or
 ;; #f. First match in file order, so the answer does not depend on hash order.
@@ -321,21 +302,24 @@
 ;; namespace, so the module registry cannot hand back yesterday's file — and
 ;; what says when to do it again: the files the outlines are built from, and
 ;; the patterns whose answers they were built from.
-(define (load-all files)
+;;
+;; `files` are CANDIDATES, and which of them are roots is load-roots' answer:
+;; one that another one `@include`s is not one (see there).
+(define (load-all files base)
   (call-in-outline-namespace
    (λ ()
-     (define lk (load-set files))
-     (cond
-       [(linked? lk)
-        (define-values (watch globs) (watch-set (linked-outlines lk)))
-        (values lk #f watch globs)]
-       [else (values #f lk '() '())]))))
+     ;; one call, one walk: the roots come back subtracted, and with them the
+     ;; two things that walk already knows — what to watch, and what to ask
+     ;; again (olai/load)
+     (define-values (lk watch globs) (load-roots files #:base base))
+     (if (linked? lk)
+         (values lk #f watch globs)
+         (values #f lk '() '())))))
 
 ;; ---- the store ------------------------------------------------------------
 
-(define (make-store files)
-  (define st (store (for/list ([f (in-list files)])
-                      (simple-form-path (if (path? f) f (string->path f))))
+(define (make-store root)
+  (define st (store (simple-form-path (if (path? root) root (string->path root)))
                     empty-snapshot
                     #f
                     empty-probe
@@ -360,8 +344,14 @@
 (define (store-revision st) (store-rev st))
 
 (define (reload! st)
-  (define files (store-files st))
-  (define-values (lk err watch globs) (load-all files))
+  (define root (store-root st))
+  ;; asked again on every reload, never remembered: the whole point of the
+  ;; directory form is that this answer moves
+  (define files (files-named root))
+  ;; and keys are minted against the ROOT, not against what the answer had in
+  ;; common this time: an outline appearing higher up the tree must not re-key
+  ;; every node below it (olai/load, mint-outline-keys)
+  (define-values (lk err watch globs) (load-all files (root-dir root)))
   (cond
     [lk
      ;; probe what the SNAPSHOT says it is built from, not what load-all
@@ -371,7 +361,9 @@
      (define snap (build-snapshot lk watch globs))
      (set-store-snap! st snap)
      (set-store-err! st #f)
-     (set-store-probe! st (take-probe (snapshot-watch snap) (snapshot-globs snap)))]
+     (set-store-probe!
+      st
+      (take-probe (snapshot-watch snap) (questions root (snapshot-globs snap))))]
     [else
      ;; Keep last-good. Probe the files we know about anyway, so a broken
      ;; file is retried on the next edit and not on every request. The globs
@@ -384,11 +376,21 @@
       st
       (take-probe (remove-duplicates (append files (snapshot-watch last-good))
                                      #:key path-key)
-                  (snapshot-globs last-good)))])
+                  (questions root (snapshot-globs last-good))))])
   (set-store-rev! st (add1 (store-rev st))))
 
 (define (stale? st)
   (not (probe-current? (store-probe st))))
+
+;; Everything this store will ASK again rather than remember: the root it was
+;; pointed at, and every pattern an `@include` starred. One list and one
+;; spelling of it — the probe compares their answers, and the watcher watches
+;; where they read (web/watch). A third kind of standing question is then one
+;; line here rather than a search for everywhere the two were consed together.
+(define (questions root globs) (cons root globs))
+
+(define (store-questions st)
+  (questions (store-root st) (snapshot-globs (store-snapshot st))))
 
 ;; Reload when any watched file changed on disk (#:force? reloads regardless).
 ;; The watcher and the write path both call this; handlers call it as their

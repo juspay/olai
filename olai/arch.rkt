@@ -47,7 +47,15 @@
 ;; Node keys are minted HERE. A module cannot mint its own: it knows only its
 ;; own entry point, and the same node reached through a different root has to
 ;; key the same.
-(override "load.rkt" (concept node-key-minting "mint-*"))
+;;
+;; And it reads a file: `outline-lang` opens a candidate to see which `#lang`
+;; it is in, which is how a `.rkt` under a served directory that is not an
+;; outline is passed over instead of loaded. The alternative was to hand the
+;; answer in as an argument, which would have put "which languages are ours"
+;; in every caller instead of in the layer that loads them. This module has
+;; always read files — `dynamic-require` is a read the checker cannot see —
+;; so the declaration is catching up with what it does.
+(override "load.rkt" (owns filesystem) (concept node-key-minting "mint-*"))
 
 ;; The graph beyond containment, derived once per load: what the typed edges
 ;; mean once both spellings are folded into one, which way round, and what

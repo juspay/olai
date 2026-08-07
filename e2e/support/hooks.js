@@ -53,10 +53,10 @@ const STORED_SESSIONS = {
 
 // The roots a scenario wants staged BESIDE the outline, by tag: a second file
 // for the anchors that reach across them, the archive for the work that has
-// been put away, the day journal for the sidebar's month. Boot-time like the
-// sessions above, and for a reason of its own — `serve DIR` globs its top
-// level once at startup, so which files a set holds is a fact about the
-// server, not something a step can arrange later.
+// been put away, the day journal for the sidebar's month. Staged at boot
+// because that is the state the scenario starts IN, not because a server
+// cannot see a root arrive — `serve DIR` re-asks the directory, and one
+// scenario is about exactly that.
 //
 // Each is a STEP that puts a root in the directory, not a pair of strings,
 // because the journal is the one root no constant can be: it is only worth
