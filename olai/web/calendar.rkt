@@ -129,6 +129,12 @@
  (css-expr
   [,(sel 'a ol-cal-day) #:color ,ink #:font-weight 600]
   [(: ,(sel 'a ol-cal-day) hover) #:background ,pill-bg]
+  ;; …and the day you are ON outranks its own hover. The pointer is still over
+  ;; the cell you just clicked, so a fill a hover can replace is a fill that
+  ;; disappears at exactly the moment it is supposed to appear — which is what
+  ;; the report was about, and what only a CLICK finds (a page loaded straight
+  ;; at the address has no pointer on anything).
+  [,(sel 'a ol-cal-day is-current) #:background ,ink #:color ,paper]
   [(:: ,(sel 'a ol-cal-day) after)
    #:content ""
    #:position absolute
@@ -161,6 +167,11 @@
      (if key
          `(a ((class ,cls)
               (title ,(hash-ref cell 'date))
+              ;; what the day IS, for the one thing the server cannot keep
+              ;; current: a navigation swaps the outline region and leaves this
+              ;; chrome alone, so static/calendar.js re-marks by key after
+              ;; every swap (web/page carries the page's own)
+              (data-day-key ,key)
               ;; the day you are on is where you ARE, not somewhere to go;
               ;; a screen reader is told so rather than left to read a link
               ,@(if current? '((aria-current "page")) '())

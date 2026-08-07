@@ -43,7 +43,8 @@
 ;; The highlighter is under this prefix and not in this literal: which files
 ;; paint a fenced code block is web/markdown's to say (see the require above).
 (define web-scripts
-  (append '("collapse.js" "notes.js" "prefs.js" "search.js" "chat.js" "pwa.js")
+  (append '("collapse.js" "notes.js" "prefs.js" "search.js" "calendar.js"
+            "chat.js" "pwa.js")
           highlight-scripts))
 
 (define (static-href name) (string-append web-static-prefix name))

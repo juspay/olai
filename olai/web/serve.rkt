@@ -329,6 +329,7 @@
                 #:cursor cursor
                 #:sidebar [sidebar #f]
                 #:banner [banner #f]
+                #:current-key [current-key #f]
                 #:overlays [overlays '()]
                 #:code [code 200])
   (html-response
@@ -342,6 +343,7 @@
                  #:banner banner
                  #:href href
                  #:cursor cursor
+                 #:current-key current-key
                  #:body-extra overlays))
    #:code code))
 
@@ -429,6 +431,9 @@
               #:sidebar (page-sidebar rs live
                                       #:href live-href
                                       #:current-key current-key)
+              ;; and on the region, which is what a swap replaces: the chrome
+              ;; above was drawn once and is never rebuilt by a navigation
+              #:current-key current-key
               ;; the palette searches the LIVE outlines too: archived work has
               ;; a page of its own and is not an answer to a query (Roadmap,
               ;; archive; olai/search)

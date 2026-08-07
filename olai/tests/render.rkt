@@ -676,7 +676,8 @@
   (test-case "a day the journal has is a link to that day's page"
     (define s (daily-sidebar))
     (check-true (string-contains?
-                 s (format "title=\"2026-08-03\" href=\"~a\""
+                 s (format "title=\"2026-08-03\" data-day-key=\"~a\" href=\"~a\""
+                           (title-key "2026-08-03")
                            (test-node-href (title-key "2026-08-03"))))
                 s)
     ;; and it navigates the outline region like every other link
@@ -912,6 +913,16 @@
     (check-true (string-contains? s "localStorage.getItem") s)
     ;; served form carries the doctype (no quirks mode)
     (check-true (string-prefix? (page->html-string (render-page '(div))) "<!DOCTYPE html>")))
+
+  ;; The page's own identity, on the element a swap replaces. Chrome outside
+  ;; the region is drawn once and never rebuilt by a navigation, so this is
+  ;; what tells it where you are afterwards (static/calendar.js).
+  (test-case "the region says which node the page is about"
+    (define s (xstr (render-page '(div) #:current-key "p1234abcd")))
+    (check-true (string-contains? s "data-current-key=\"p1234abcd\"") s)
+    ;; a page about a whole outline is about no node, and says that too
+    (check-true (string-contains? (xstr (render-page '(div)))
+                                  "data-current-key=\"\"")))
 
   (test-case "the page has a banner slot; the banner keeps file:line:col"
     (define plain (xstr (render-page '(div))))

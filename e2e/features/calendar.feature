@@ -15,7 +15,8 @@ Feature: The journal, as a month
     And today's cell is marked
     And a day the journal has nothing for is not a link
     And no day is marked as the one I am on
-    When I follow today's cell
+    When I put the pointer on today's cell
+    And I follow today's cell
     Then I am on a node's own page
     And the main pane is zoomed
     And today's cell is marked as the one I am on
