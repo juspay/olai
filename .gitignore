@@ -12,3 +12,7 @@ node_modules
 
 # Throwaway scripts used while working; never part of a commit.
 /.probe
+
+# Review notes handed to the implementing agent — read, acted on, never
+# committed. The PR is the record; a stale critique in the tree is not.
+/PR-REVIEW.md
