@@ -1,8 +1,28 @@
 # @olai/web — the SolidJS client, and the build that produces it
 
-A sidebar of the outlines found, one of them open in the main pane, and the
-error view that replaces both when the set does not load. SolidJS over a
+A sidebar of the outlines found and one of them open in the main pane, kept
+current by the live store underneath: an edit on disk arrives as the next frame
+of one subscription, so the page changes without reloading. SolidJS over a
 WebSocket, styled with Tailwind v4, bundled by `Bun.build`.
+
+## Three ways to say what is wrong, because there are three situations
+
+They live in `src/client/errors/`, and which one a reader gets is decided by
+what is still on screen rather than by how bad the errors are.
+
+- **`Page.tsx`** — nothing has ever loaded, so the report *is* the page: every
+  error, grouped by the file that has to be edited, with the ones implicating
+  two files kept apart.
+- **`Banner.tsx`** — it loaded once and the files have since stopped
+  validating. The last good tree stays exactly where it was, under a banner
+  saying it is not the files as they are now.
+- **`Broken.tsx`** — one file will not parse and the rest are fine. That
+  outline's own pane carries its errors, the sidebar marks it, and every other
+  outline stays live.
+
+All three render their rows through `errors/Report.tsx`, so a `file:line` looks
+the same wherever it is read and none of the three can quietly start
+summarising.
 
 The client computes nothing about the format on its own. `@olai/format` derives
 status, sibling order, mirror expansion and the guard that stops a mirror

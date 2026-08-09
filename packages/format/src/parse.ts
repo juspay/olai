@@ -7,14 +7,17 @@
  * checkable from a SINGLE line is checked here — shape, id spelling, ISO
  * dates, the two exclusivity rules — and everything that needs to know what
  * else exists is {@link ./validate.ts}. That is what lets the store re-decode
- * one changed file and keep its neighbours' results (phase 3), and it is why
+ * one changed file and keep its neighbours' results, and it is why
  * only two functions in this package can reject anything.
  *
- * A file is decoded whole or not at all. A file with one unreadable line
- * contributes no nodes, and the set-wide checks do not run until every file
- * parses — because "`kitchen` is not a known id" is a guess when the line
- * declaring `kitchen` is the one that failed to parse. Syntax first, then
- * meaning; the alternative is a screen of cascading errors with one real cause.
+ * A file is decoded whole or not at all: one unreadable line and the file
+ * contributes no nodes. What the SET then does about that — degrade that one
+ * outline, or refuse the whole thing — is {@link ./validate.ts}'s call, and so
+ * is the rule that keeps this staging honest across files: a cross-file
+ * reference is not reported as unknown while some file is unreadable, because
+ * "`kitchen` is not a known id" is a guess when the line declaring `kitchen` is
+ * the one that failed to parse. Syntax first, then meaning; the alternative is
+ * a screen of cascading errors with one real cause.
  */
 
 import { Result, Schema } from "effect"

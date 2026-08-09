@@ -5,6 +5,12 @@ One directory per corpus. A scenario picks one with a `@corpus:<name>` tag, and
 scenario asks for it (see the header there). Nothing in this file is served —
 only the corpus directories below it are.
 
+These directories are **read-only to a scenario**. A scenario that has to edit
+the files — everything in `features/it_stays_live.feature` — asks for
+`@scratch:<name>` instead and is served a private temp copy by a server of its
+own. Writing into the tree below would leave the next scenario reading a
+fixture the repository does not contain.
+
 The fixtures are meant to be read. A person who wants to know what a valid
 outline looks like should be able to answer it from `good/` in under a minute,
 and a person who wants to know what a *good error* looks like should get it
@@ -43,12 +49,16 @@ storing one is a load error.
 - `shed.jsonl:2` — `parent` is `shhed`, which no node declares
   (`unknown-parent`, with `shed` as the did-you-mean).
 
-Syntax is checked before meaning: a file with an unreadable line contributes no
-nodes, and the set-wide rules do not run until every file parses (see the
-header of `packages/format/src/parse.ts`). So the `shed.jsonl` error is what
-this corpus shows *after* the JSON is fixed, not necessarily alongside it — the
-error-view scenario asserts only the syntax error, which is the one guaranteed
-to be reported either way.
+A file with an unreadable line contributes no nodes, and the set-wide rules run
+over what is left. `shed.jsonl` is what makes this corpus a whole-set failure
+rather than a degrade: `parent` may not cross files, so `shhed` is refused
+whichever file it was going to be in, and an error the missing file cannot
+explain rejects the set. The parse error is reported alongside it — one pass
+should be enough to fix a directory.
+
+Compare `features/it_stays_live.feature`, where the *only* thing wrong is a file
+that will not parse: there the set is published with that one outline degraded
+in place, and everything else stays live.
 
 ## `tangled/` — a set that parses and does not mean anything
 

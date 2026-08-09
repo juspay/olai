@@ -15,13 +15,32 @@
  * validator used ({@link ./derive.ts}).
  */
 
-import { Schema } from "effect"
+import { Result, Schema } from "effect"
 
+import { OutlineError } from "./errors.ts"
 import { fileKind, Located } from "./node.ts"
 
+/**
+ * A file of the set that could not be read, and why.
+ *
+ * It rides in the SET rather than only in the error report because the two
+ * answer different questions. The report is "what must be fixed"; this is
+ * "what does `pantry.jsonl` show" — and the answer, for a file whose lines do
+ * not parse, is its own errors, in place, while every other outline stays live
+ * (the hybrid error scope, resolved 2026-08-09). A view that had only the
+ * report would have to guess which outline a `file:line` belonged to and hope
+ * the two lists agreed.
+ */
+export const BrokenFile = Schema.Struct({
+  file: Schema.String,
+  errors: Schema.Array(OutlineError),
+})
+export type BrokenFile = typeof BrokenFile.Type
+
 export const OutlineSet = Schema.Struct({
-  /** Every `.jsonl` found, in path order — including any that hold no nodes,
-   *  which is why this is not derived from `nodes`. */
+  /** Every `.jsonl` found, in path order — including any that hold no nodes
+   *  and any that did not parse, which is why this is not derived from
+   *  `nodes`. */
   files: Schema.Array(Schema.String),
   nodes: Schema.Array(Located),
   /** Every `.md` found. Documents are part of the set because `doc` points
@@ -29,6 +48,9 @@ export const OutlineSet = Schema.Struct({
    *  Their text is not carried — nothing renders a document yet, and the path
    *  is the whole of what `doc` needs. */
   documents: Schema.Array(Schema.String),
+  /** The files above that did not parse. Their nodes are absent from `nodes`,
+   *  which is exactly what makes the rest of the set renderable. */
+  broken: Schema.Array(BrokenFile),
 })
 export type OutlineSet = typeof OutlineSet.Type
 
@@ -40,12 +62,13 @@ export interface Outline {
   readonly nodes: ReadonlyArray<Located>
 }
 
-/** What one file decoded to: an outline's nodes, or a document, whose text is
- *  not carried — nothing renders a document yet, and the path is the whole of
- *  what `doc` needs. */
-export type DecodedFile =
-  | { readonly kind: "outline"; readonly outline: Outline }
-  | { readonly kind: "document" }
+/** What one file decoded to: an outline's nodes, or `null` for a document,
+ *  whose text is not carried — nothing renders a document yet, and the path is
+ *  the whole of what `doc` needs.
+ *
+ *  It carries no tag saying which it is, because `fileKind` already answers
+ *  that from the path and a second answer is one that could disagree. */
+export type DecodedFile = Outline | null
 
 /**
  * Decoded files into the set the validator judges.
@@ -54,23 +77,29 @@ export type DecodedFile =
  * where their nodes go, what counts as a document — so it lives beside the
  * rules rather than in whatever read the directory. A caller supplies bytes
  * and gets back the one shape everything above it renders.
+ *
+ * A file that FAILED to decode is still a file that was found: it keeps its
+ * place in `files` (the sidebar lists it; a fix will fill it in) or in
+ * `documents`, and its errors go to `broken`. Only its nodes are missing, and
+ * that is the whole of what one unreadable file costs the set.
  */
 export const assemble = (
-  files: ReadonlyMap<string, DecodedFile>,
+  files: ReadonlyMap<string, Result.Result<DecodedFile, ReadonlyArray<OutlineError>>>,
 ): OutlineSet => {
   const outlines: Array<string> = []
   const nodes: Array<Located> = []
   const documents: Array<string> = []
+  const broken: Array<BrokenFile> = []
 
-  for (const [path, file] of files) {
-    if (file.kind === "document") {
-      documents.push(path)
-      continue
-    }
-    outlines.push(path)
-    nodes.push(...file.outline.nodes)
+  for (const [path, decoded] of files) {
+    // What a file IS comes from its name and from nowhere else, so it is asked
+    // once, here, and holds whether the file decoded or not.
+    ;(fileKind(path) === "document" ? documents : outlines).push(path)
+
+    if (Result.isFailure(decoded)) broken.push({ file: path, errors: decoded.failure })
+    else if (decoded.success !== null) nodes.push(...decoded.success.nodes)
   }
-  return { files: outlines, nodes, documents }
+  return { files: outlines, nodes, documents, broken }
 }
 
 /** Re-exported so a reader of the set finds the rule that decides what belongs

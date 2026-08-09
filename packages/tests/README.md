@@ -12,7 +12,7 @@ packages/tests/
 ├── step_definitions/        # one file per feature
 ├── support/
 │   ├── world.ts             # OlaiWorld: page, locators, the UI contract
-│   └── hooks.ts             # browser + one server per fixture corpus
+│   └── hooks.ts             # browser + a server per corpus (and per scratch copy)
 └── fixtures/                # the served directories (see fixtures/README.md)
 ```
 
@@ -103,6 +103,14 @@ server that has loaded a broken set cannot also serve a good one, and spawning
 one process per scenario would cost more than the assertions do. See
 `fixtures/README.md` for what each corpus contains and why.
 
+**`@scratch:<name>`** is the exception, and the live store is what asks for it.
+Those scenarios EDIT the served files while the server is watching them, so
+they get a private temp copy of the named corpus and a server of their own,
+both thrown away with the scenario. A shared corpus could not survive it (the
+next scenario would inherit the edit) and neither could the repository (the
+fixtures are tracked). `world.writeServed` refuses to write anywhere else, so
+"a scenario scribbled on the fixtures" is not a thing that can happen quietly.
+
 ## The UI contract
 
 Steps address the app through `data-testid` and `data-*` attributes, never a
@@ -130,10 +138,13 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="date"]` | the date badge |
 | `[data-testid="desc"]` | the rendered markdown of `desc` |
 | `[data-testid="toggle"]` | the collapse/expand control |
-| `[data-testid="error-view"]` | shown INSTEAD of sidebar + tree when the set is invalid |
+| `[data-testid="error-view"]` | shown INSTEAD of sidebar + tree when nothing has ever validated |
 | `[data-testid="error-file-group"][data-file]` | one group per file with errors |
 | `[data-testid="error"][data-code]` | one error row; its text names `<file>:<line>` |
 | `[data-testid="cross-file-errors"]` | errors implicating two files |
+| `[data-testid="stale-banner"]` | shown OVER a last-good tree: the files stopped validating |
+| `[data-testid="outline-failure"][data-file]` | shown in ONE outline's place: that file will not parse |
+| `[data-testid="outline-link"][data-broken]` | the sidebar entry of a file that will not parse |
 
 ## Adding a test
 
@@ -146,3 +157,7 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 4. If it needs an outline no corpus has, add it to `fixtures/good` rather than
    inventing a corpus — the fixtures are documentation too, and three small
    readable directories beat thirty single-purpose ones.
+5. If it needs to CHANGE a file, tag it `@scratch:<corpus>` and write through
+   `world.writeServed`. The assertions that follow such a write usually need to
+   wait for something to change or disappear, which a Playwright selector
+   cannot state — `world.waitUntil` is what those steps are built on.

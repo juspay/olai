@@ -21,7 +21,7 @@ import { Result } from "effect"
 import type { OutlineError } from "./errors.ts"
 import type { Located } from "./node.ts"
 import { parseOutline } from "./parse.ts"
-import type { Outline, OutlineSet } from "./set.ts"
+import { assemble, type DecodedFile, type Outline, type OutlineSet } from "./set.ts"
 
 /** The default fixture file name. Named once so a test that cares about paths
  *  can say so, and one that does not need never mention it. */
@@ -42,18 +42,50 @@ export const nodesOf = (
 ): ReadonlyArray<Located> => outlineOf(contents, file).nodes
 
 /**
- * Several files' worth, assembled the way a real load assembles them: the
- * files found, their nodes flattened into one list (every `Located` already
- * names its own file), and the documents served alongside.
+ * Several files' worth, put through the real assembly: the files found, their
+ * nodes flattened into one list (every `Located` already names its own file),
+ * the documents served alongside, and any file that did not parse.
+ *
+ * It calls `assemble` rather than building the struct, so a test of the
+ * validator is judging the same shape a load produces — a second, hand-written
+ * assembly here is how a fixture ends up proving something about itself.
  */
 export const setOf = (
   files: Record<string, string>,
   documents: ReadonlyArray<string> = [],
-): OutlineSet => ({
-  files: Object.keys(files),
-  nodes: Object.entries(files).flatMap(([file, contents]) => [...nodesOf(contents, file)]),
-  documents,
-})
+  broken: Record<string, string> = {},
+): OutlineSet =>
+  assemble(
+    new Map<string, Result.Result<DecodedFile, ReadonlyArray<OutlineError>>>([
+      ...Object.entries(files).map(
+        ([file, contents]) =>
+          [file, Result.succeed<DecodedFile>(outlineOf(contents, file))] as const,
+      ),
+      ...documents.map(
+        (file) => [file, Result.succeed<DecodedFile>(null)] as const,
+      ),
+      ...Object.entries(broken).map(
+        ([file, contents]) => [file, Result.fail(failureOf(contents, file))] as const,
+      ),
+    ]),
+  )
+
+/** One file's worth of JSONL that must NOT parse, and the errors it produces —
+ *  the other half of the fixture contract above: a fixture meant to stand in
+ *  for an unreadable file has to actually be one. */
+export const failureOf = (
+  contents: string,
+  file = FIXTURE_FILE,
+): ReadonlyArray<OutlineError> => {
+  const parsed = parseOutline(file, contents)
+  if (Result.isSuccess(parsed)) {
+    throw new Error(
+      `fixture \`${file}\` parses, so it cannot stand in for a file that does not:\n` +
+        contents.split("\n").map((line, index) => `  ${index + 1} | ${line}`).join("\n"),
+    )
+  }
+  return parsed.failure
+}
 
 /** Several files' worth of records, flat — the shape every rule and every walk
  *  wants, for the tests that need no set around them. */

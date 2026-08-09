@@ -8,8 +8,9 @@ One `.jsonl` file per outline, one JSON object per line, one line per node
 subtree move is a one-field write, so plain line-based git merges are safe and
 a diff shows what actually changed.
 
-Status: phase 2 of the [roadmap](docs/roadmap.jsonl) — you can serve a
-directory and read your outlines. Editing arrives in phases 4–6.
+Status: phase 3 of the [roadmap](docs/roadmap.jsonl) — you can serve a
+directory, read your outlines, and watch the page follow the files as you edit
+them or pull them. Editing from inside olai arrives in phases 4–6.
 
 ## Run it
 
@@ -25,14 +26,27 @@ just serve docs     # serves this repo's own roadmap, and opens on 127.0.0.1:771
 
 `olai web <dir> [--port] [--host]` reads the directory recursively, picking up
 every `.jsonl` outline and every `.md` document, and serves them to a browser.
-It binds to loopback by default: the surface is unauthenticated, so anyone who
-can reach the port can read every outline under the directory.
+It does not descend into dot-directories or `node_modules` — a directory of
+outlines is usually a git repository, and nothing anyone wrote is inside
+`.git`. It binds to loopback by default: the surface is unauthenticated, so
+anyone who can reach the port can read every outline under the directory.
 
-If the set does not validate, the page is the list of errors instead — every
-one naming `file:line`, grouped by the file that has to be edited, with the
-ones that implicate two files in their own section. Error quality is the
-product here, not a consolation prize: the format exists so that a bad edit is
-a caught edit.
+It keeps reading. Save a file, `git pull`, drop a new outline into the
+directory, and the open page updates in place — no reload, no restart. There is
+no polling of the browser and no cache to invalidate: the server watches the
+tree, re-reads only what actually changed, revalidates, and pushes the next
+snapshot down the subscription the first one arrived on.
+
+When something stops validating, what you see depends on what can still be
+shown. A file whose lines will not parse costs that one outline: it is marked
+in the sidebar, its errors are shown where its tree would have been, and the
+rest stay live. A problem no single file owns — a reference to an id nothing
+declares, a duplicate, a cycle — keeps the last good version on screen under a
+banner, and the page catches up by itself when you fix it. Either way every
+error names `file:line`, and the ones implicating two files are kept apart,
+because "which file is broken" has no single answer for those. Error quality is
+the product here, not a consolation prize: the format exists so that a bad edit
+is a caught edit.
 
 ## Develop
 
