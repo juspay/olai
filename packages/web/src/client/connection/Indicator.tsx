@@ -13,7 +13,7 @@
  * about most of all.
  */
 
-import { LOOK, type Connection } from "./status.ts"
+import { type Connection, LOOK } from "./status.ts"
 import { TESTID } from "../testids.ts"
 
 export function Indicator(props: { readonly connection: Connection }) {

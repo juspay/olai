@@ -15,9 +15,9 @@ import type { ServerLifecycleEvent } from "@kolu/surface-app/solid"
 import { reloadForUpdate } from "@kolu/surface-app/lifecycle"
 import { Show } from "solid-js"
 
-import { connectionOf, needsReload } from "./status.ts"
 import { Indicator } from "./Indicator.tsx"
 import { Restarted } from "./Restarted.tsx"
+import { connectionOf, needsReload } from "./status.ts"
 
 export function Connection(props: { readonly event: ServerLifecycleEvent }) {
   const connection = () => connectionOf(props.event)
