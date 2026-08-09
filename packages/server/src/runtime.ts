@@ -1,7 +1,8 @@
 /**
  * The surface, bound to the store.
  *
- * Two members, two bindings, and the live store needed neither to change:
+ * Two of the three members come from the store, and the live store needed
+ * neither of them to change:
  *
  *   - the stream is `SubscriptionRef.changes` verbatim — current value first,
  *     then every later one — which is already surface's snapshot-then-deltas
@@ -13,6 +14,13 @@
  *     it, rather than being published into afterwards), and a failure in it
  *     settles `done` — which is the channel the caller uses to decide the
  *     process is unrecoverably faulted.
+ *
+ * The third is not the store's at all: `identity.info` answers with this
+ * process's own id, which is the only thing an open tab can compare across a
+ * reconnect to learn that the server it was talking to has been replaced. It is
+ * a constant for the life of the process, so it needs no source and no fiber —
+ * one `Effect.succeed` over the id `./identity.ts` minted, which the listener's
+ * stale-tab gate compares the same tab's echo against.
  *
  * Nothing here interprets an outline. It moves what the store decided onto the
  * wire, and that is all.
@@ -28,6 +36,8 @@ import {
   type SurfaceRuntime,
 } from "@kolu/surface/server"
 import { Effect, Stream, SubscriptionRef } from "effect"
+
+import { PROCESS_ID } from "./identity.ts"
 
 /** What a transport needs, and nothing else. `ctx` is the write face, which
  *  belongs to the bindings below rather than to whoever serves them. */
@@ -60,6 +70,11 @@ export const bind = (
               snapshot === null
                 ? null
                 : { rev: snapshot.rev, set: snapshot.value }),
+        },
+      },
+      procedures: {
+        identity: {
+          info: () => Effect.succeed({ processId: PROCESS_ID }),
         },
       },
     }

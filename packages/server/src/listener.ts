@@ -36,6 +36,7 @@ import { Data, Effect, Scope } from "effect"
 import { HttpRouter } from "effect/unstable/http"
 import { WebSocketServer } from "ws"
 
+import { PROCESS_ID } from "./identity.ts"
 import type { Bound } from "./runtime.ts"
 
 const WS_PATH = "/rpc/ws"
@@ -51,11 +52,6 @@ export class ListenFailed extends Data.TaggedError("ListenFailed")<{
     }`
   }
 }
-
-/** One id per process, minted once. It is what a reconnecting tab compares
- *  itself against: a tab holding a bundle from a server that has since been
- *  replaced is told so rather than served against code it does not match. */
-const PROCESS_ID = crypto.randomUUID().slice(0, 8)
 
 export interface ListenOptions {
   readonly bound: Bound
@@ -80,6 +76,12 @@ export const listen = (options: ListenOptions) =>
       noServer: true,
       maxPayload: 8 * 1024 * 1024,
     })
+    // The gate compares the `pid` a reconnecting tab presents against the id
+    // this process answers `identity.info` with — one id, two readers
+    // (./identity.ts). A tab that presents none has never been served by
+    // anybody and is simply accepted; a tab that presents a DIFFERENT one is
+    // bound to a process that is gone, so it is closed with the stale code and
+    // its wire retires rather than reconnecting into a server it does not match.
     const acceptor = acceptSurfaceSocket({
       server: sockets,
       liveProcessId: PROCESS_ID,

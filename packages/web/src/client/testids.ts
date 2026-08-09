@@ -36,6 +36,14 @@ export const TESTID = {
   staleBanner: "stale-banner",
   /** In one outline's place: that file could not be read, the rest are live. */
   outlineFailure: "outline-failure",
+  /** The connection dot, always on screen. Its `data-connection` attribute
+   *  carries the state itself — `live`, `lost`, `restarted`, `connecting` — so a
+   *  scenario asserts on the state and never on the colour it is painted. */
+  connection: "connection",
+  /** Over everything: the server that served this page has been replaced. */
+  restarted: "restarted",
+  /** The button in that surface — the whole of the recovery. */
+  reload: "reload",
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]

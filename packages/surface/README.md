@@ -10,9 +10,9 @@ Built on kolu's surface framework (`@kolu/surface`, hydrated from the Nix store
 rather than installed — which is why it is absent from this manifest and
 declared once at the workspace root; see `bunfig.toml`).
 
-## Two members, and the shapes are the argument
+## Three members, and the shapes are the argument
 
-Two things, and which kind each one is was a decision:
+Three things, and which kind each one is was a decision:
 
 - **`outlines` is a stream, not a cell.** The files belong to the disk, not to
   the server, so the server reports what it read rather than owning a value it
@@ -25,6 +25,14 @@ Two things, and which kind each one is was a decision:
   snapshot, and that independence is load-bearing: a set that stops validating
   leaves the last good tree on screen underneath a banner, which is only
   expressible if the two arrive separately.
+- **`identity.info` is a procedure**, and it is not about the outlines at all:
+  it answers "which server process is on the other end", asked once per socket
+  open. A websocket that closes and opens again cannot say whether it came back
+  to the same server, and the difference decides the recovery — a dropped
+  connection heals itself, a replaced server needs the page reloaded. The
+  browser also echoes the last id it saw back on every re-dial, which is what
+  lets the server recognise a tab that outlived it and close it at the
+  handshake rather than serve it (`@kolu/surface-app`'s stale-tab gate).
 
 `OutlineFrame` is nullable on purpose. A reader must tell three states apart —
 no answer yet (no frame), nothing has ever validated (`null`), here is your
@@ -37,9 +45,9 @@ are drawn from, and the cell says what is wrong with the set AS A WHOLE, which
 no single file owns. A file listed in `broken` is being rendered around;
 anything in the cell is being held back.
 
-Ops arrive as procedures and chat as events when the agent does — one item,
-because chat's agent is the first writer — into this
-same spec.
+The ops that WRITE arrive as procedures beside `identity.info`, and chat as
+events, when the agent does — one item, because chat's agent is the first
+writer — into this same spec.
 
 ## Entry point
 
@@ -62,7 +70,8 @@ just test                    # the whole workspace's unit tests
 
 `src/surface.test.ts` is two tests, and it earns more than it looks. It asserts
 that `errors` serves no `set` verb — the browser may not write it — and that
-the assembled RPC group contains the framework's own members alongside ours,
+the assembled RPC group contains the framework's own members alongside our
+three,
 which only holds if the `@kolu/surface` sources hydrated from the Nix store
 resolved `effect` out of the root `node_modules`. A second copy of effect, a
 missing root dependency or a stale kolu pin all land here rather than in the

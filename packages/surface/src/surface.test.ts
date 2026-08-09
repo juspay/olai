@@ -12,6 +12,9 @@ const tags = [...surface.group.requests.keys()].sort()
 test("the surface claims our members alongside the framework's own", () => {
   expect(tags).toContain("surface/outlines/get")
   expect(tags).toContain("surface/errors/get")
+  // The restart probe. It is what an open tab compares across a reconnect to
+  // tell a dropped socket from a server that was replaced underneath it.
+  expect(tags).toContain("surface/identity/info")
   // surface mints these itself for liveness and identity — seeing them is how
   // we know the group came from the framework and not from our spec alone.
   expect(tags).toContain("surface/system/live")

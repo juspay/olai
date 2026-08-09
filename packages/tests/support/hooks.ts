@@ -186,17 +186,25 @@ const SERVING = /serving .* on (http:\/\/127\.0\.0\.1:\d+)/;
 
 /** Spawn the server against one fixture directory and wait until it says it is
  *  listening. The contract is that line, not a sleep and not a health poll: it
- *  is both the readiness signal and the address. */
+ *  is both the readiness signal and the address.
+ *
+ *  `fixedPort` is for the ONE caller that cannot take whatever port is free: a
+ *  scenario restarting the server under an open page needs the SAME address,
+ *  because the page is already pointed at it. There is no retry on that path —
+ *  a second attempt would land somewhere else, which is not a slower success
+ *  but a different thing entirely, and `startOwnServer` says so out loud. */
 const startServerChild = async (
   bin: string,
   dir: string,
   label: string,
+  fixedPort?: number,
 ): Promise<RunningServer> => {
   let lastFailure = "";
+  const attempts = fixedPort === undefined ? MAX_SPAWN_ATTEMPTS : 1;
 
-  for (let attempt = 1; attempt <= MAX_SPAWN_ATTEMPTS; attempt++) {
+  for (let attempt = 1; attempt <= attempts; attempt++) {
     if (stopped) throw new Error(shuttingDown(label));
-    const port = await freePort();
+    const port = fixedPort ?? (await freePort());
     const argv = ["web", dir, "--port", String(port), "--host", "127.0.0.1"];
     const child = spawn(bin, argv, { stdio: ["ignore", "pipe", "pipe"] });
     live.add(child);
@@ -279,8 +287,94 @@ const startServerChild = async (
 
   throw new Error(
     `the olai server for ${label} never came up after ` +
-      `${MAX_SPAWN_ATTEMPTS} attempts.\n  ${lastFailure}`,
+      `${attempts} attempt(s).\n  ${lastFailure}`,
   );
+};
+
+// ── restarting the server a scenario owns ──────────────────────────────
+
+/**
+ * Stop and start the server a `@scratch:` scenario owns, WITHOUT touching the
+ * page in front of it.
+ *
+ * This is the one thing the suite could not do until now, and its absence is
+ * why a tab left holding a replaced server shipped: every scenario had a server
+ * that outlived it, so nothing ever asked what an open page does when its
+ * server is not the same process any more.
+ *
+ * The port is the whole difficulty. The page is pointed at an address, so the
+ * replacement has to come back on the SAME one — and the server is entitled to
+ * fall back to a port the OS picks when the one it was asked for is busy, which
+ * would leave the page talking to nothing and the scenario failing for a reason
+ * that has nothing to do with what it is testing. So: stop first and WAIT for
+ * the process to actually be gone, then bind the exact port, then check the
+ * address that came back is the one we started with, and say so plainly if it
+ * is not.
+ */
+export const stopOwnServer = async (world: OlaiWorld): Promise<void> => {
+  const child = ownServerOf(world);
+  await new Promise<void>((resolve) => {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      resolve();
+      return;
+    }
+    events(child).once("exit", () => resolve());
+    child.kill("SIGKILL");
+  });
+  live.delete(child);
+  world.ownServer = undefined;
+};
+
+export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
+  if (world.ownServer !== undefined) {
+    throw new Error(
+      "this scenario's server is still running; stop it before starting it again",
+    );
+  }
+  const active = modeOf();
+  if (active.kind !== "spawn") {
+    throw new Error(
+      "restarting the server needs one this harness owns (OLAI_BIN), not one " +
+        `someone else is running (OLAI_URL ${active.baseUrl})`,
+    );
+  }
+  const port = Number(new URL(world.baseUrl).port);
+  const started = await startServerChild(
+    active.bin,
+    world.scratch(),
+    `the restarted server for corpus "${world.corpus}"`,
+    port,
+  );
+  if (started.baseUrl !== world.baseUrl) {
+    killChild(started.child);
+    throw new Error(
+      `the restarted server came up on ${started.baseUrl}, not ${world.baseUrl} — ` +
+        "something else took the port while it was free, so the open page would " +
+        "have been left pointing at nothing",
+    );
+  }
+  world.ownServer = started.child;
+  // Keep what it says from here on. A scenario asserts on the rejection line
+  // ("stale tab rejected (claimed pid …)"), which is the server's own record
+  // that the stale-tab gate fired — the half of the handshake a browser cannot
+  // see. The startup listeners are detached by then, so this attaches its own.
+  started.child?.stdout?.on("data", (chunk: string) => {
+    world.serverSaid += chunk;
+  });
+};
+
+/** The server this scenario owns, or the diagnostic for a scenario that has
+ *  none. Restarting a SHARED corpus server would take it out from under every
+ *  other scenario in the run, so the tag is the gate. */
+const ownServerOf = (world: OlaiWorld): ChildProcess => {
+  if (world.ownServer === undefined) {
+    throw new Error(
+      `this scenario restarts the server it is served by, so it must be tagged ` +
+        `@scratch:${world.corpus} rather than @corpus:${world.corpus} — the shared ` +
+        `corpus servers are running for every other scenario too`,
+    );
+  }
+  return world.ownServer;
 };
 
 /** A server someone else is running serves ONE directory, and we cannot
