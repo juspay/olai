@@ -1,35 +1,42 @@
 /**
  * Where the browser bundle is.
  *
- * Two callers, one answer. A nix-built binary is wrapped with
- * `OLAI_DIST_DIR` pointing at the bundle derivation; the dev loop leaves it
- * unset and gets the tree `just serve` just built. Either way the directory
- * must already exist and contain a shell — the server does not build, because
- * a server that quietly rebuilt would be a second, slower build with different
- * inputs from the one CI proves.
+ * One receptacle: `OLAI_DIST_DIR`. The nix wrapper sets it to the bundle
+ * derivation; `just serve` sets it to the tree it just built. A fallback that
+ * walked from this file into `packages/web/dist` would be a second answer to
+ * the same question — and a real `server → web` dependency expressed as a path,
+ * invisible to `bun install` and to any layering check.
+ *
+ * The server does not build. A server that quietly rebuilt would be a second,
+ * slower build with different inputs from the one CI proves.
  */
 
-import { existsSync } from "node:fs"
-import { fileURLToPath } from "node:url"
-
-/** `packages/web/dist`, from this file's own location. */
-const inTree = (): string =>
-  fileURLToPath(new URL("../../web/dist", import.meta.url))
+import { Data, Effect, FileSystem } from "effect"
 
 export const DIST_ENV_VAR = "OLAI_DIST_DIR"
 
-export const clientDist = (): string => {
-  const configured = process.env[DIST_ENV_VAR]
-  const dist = configured === undefined || configured === "" ? inTree() : configured
+export class MissingBundle extends Data.TaggedError("MissingBundle")<{
+  readonly reason: string
+}> {
+  override get message(): string {
+    return this.reason
+  }
+}
 
-  if (!existsSync(`${dist}/index.html`)) {
-    throw new Error(
-      `no browser bundle at ${dist} (looked for index.html).${
-        configured === undefined
-          ? " Build it with `just build-client`, or run `just serve <dir>`, which does."
-          : ` ${DIST_ENV_VAR} points at an unbuilt directory.`
-      }`,
-    )
+export const clientDist = Effect.gen(function*() {
+  const dist = process.env[DIST_ENV_VAR]
+  if (dist === undefined || dist === "") {
+    return yield* new MissingBundle({
+      reason:
+        `${DIST_ENV_VAR} is not set, so there is no browser bundle to serve. Run \`just serve <dir>\`, which builds one and sets it — or set it yourself to a directory built by \`just build-client\`.`,
+    })
+  }
+
+  const fs = yield* FileSystem.FileSystem
+  if (!(yield* fs.exists(`${dist}/index.html`))) {
+    return yield* new MissingBundle({
+      reason: `${DIST_ENV_VAR} is ${dist}, which holds no index.html — it points at an unbuilt directory.`,
+    })
   }
   return dist
-}
+})

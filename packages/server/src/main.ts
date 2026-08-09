@@ -43,13 +43,15 @@ const web = Command.make("web", {
       root: directory,
       port,
       host,
-      clientDist: clientDist(),
+      clientDist: yield* clientDist,
       allowedOrigins: parseAllowedOrigins(process.env.OLAI_ALLOWED_ORIGINS),
       log: (message) => {
         console.log(message)
       },
     })
-    // The listener owns the process from here; its scope closes on signal.
+    // Wait to be interrupted. The listener registered its teardown on this
+    // scope, so a signal below closes the sockets on the way out rather than
+    // leaving the port held by a process that has already stopped answering.
     yield* Effect.never
   })).pipe(
     Command.withDescription("serve a directory of outlines in the browser"),
@@ -60,14 +62,29 @@ const olai = Command.make("olai").pipe(
   Command.withSubcommands([web]),
 )
 
-Command.run(olai, { version: "0.1.0" }).pipe(
+const fiber = Command.run(olai, { version: "0.1.0" }).pipe(
   Effect.scoped,
   // NodeServices carries the CLI's own needs (stdio, terminal, file system);
   // layerHttpServices carries the static file layer's (the file-response
   // platform and ETags).
   Effect.provide(Layer.mergeAll(NodeServices.layer, NodeHttpServer.layerHttpServices)),
-  Effect.runPromise,
-).catch((cause: unknown) => {
-  console.error(String(cause))
-  process.exit(1)
+  Effect.runFork,
+)
+
+// Interrupting the fiber runs the scope's finalizers — the listener's teardown
+// — and only then exits. Without this the sockets are closed by the process
+// dying, which is fine for a laptop and not fine for a test harness that
+// starts and stops a dozen servers on the same ports.
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(signal, () => {
+    fiber.interruptUnsafe()
+  })
+}
+
+fiber.addObserver((exit) => {
+  if (exit._tag === "Failure") {
+    console.error(String(exit.cause))
+    process.exit(1)
+  }
+  process.exit(0)
 })

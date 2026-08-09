@@ -108,8 +108,7 @@ let
     mkdir -p $out/bin
     makeWrapper ${pkgs.bun}/bin/bun $out/bin/olai \
       --add-flags "${base}/packages/server/src/main.ts" \
-      --set OLAI_DIST_DIR "${olai-client}" \
-      --set ${stamp.envVar} "${rev}"
+      --set OLAI_DIST_DIR "${olai-client}"
   '';
 in
 {

@@ -23,7 +23,7 @@
  *     only what changed.
  */
 
-import { Data, Effect, FileSystem, Result, SubscriptionRef } from "effect"
+import { Data, Effect, FileSystem, Path, Result, SubscriptionRef } from "effect"
 
 /** Monotonic per store. A snapshot's revision is what a later write will name
  *  as the base it edited (phase 4's optimistic concurrency), so it is minted
@@ -50,19 +50,21 @@ export interface Codec<F, S, E> {
   readonly match: (path: string) => boolean
   readonly decode: (path: string, contents: string) => Result.Result<F, E>
   readonly validate: (files: ReadonlyMap<string, F>) => Result.Result<S, E>
+  /** How several files' failures become the one error value published. The
+   *  store cannot know whether `E` is an array, a tree or a tagged class — and
+   *  it must not be possible to hand it a codec and a mismatched joiner, so
+   *  the joiner lives on the codec. */
+  readonly combine: (errors: ReadonlyArray<E>) => E
 }
 
 export interface Store<S, E> {
   /** Last good load, or `null` when there has never been one. Phase 3 makes
    *  `null` the boot-only case; today it is exactly "the initial load was
-   *  invalid", and a consumer that renders errors first never sees it. */
+   *  invalid". */
   readonly snapshot: SubscriptionRef.SubscriptionRef<Snapshot<S> | null>
   /** What is wrong right now, or `null`. Independent of the snapshot by
    *  design: a broken file leaves the last good tree on screen under a banner. */
   readonly errors: SubscriptionRef.SubscriptionRef<E | null>
-  /** Where the files came from. Carried so consumers can say so without
-   *  having been handed the path separately. */
-  readonly root: string
 }
 
 /**
@@ -76,11 +78,7 @@ export interface Store<S, E> {
 export const make = <F, S, E>(options: {
   readonly root: string
   readonly codec: Codec<F, S, E>
-  /** How to join several files' failures into the one error value published.
-   *  The store cannot know whether `E` is an array, a tree or a tagged class,
-   *  so the codec's owner says. */
-  readonly combine: (errors: ReadonlyArray<E>) => E
-}): Effect.Effect<Store<S, E>, PlatformFailure, FileSystem.FileSystem> =>
+}) =>
   Effect.gen(function*() {
     const files = yield* readMatching(options.root, options.codec.match)
 
@@ -93,7 +91,7 @@ export const make = <F, S, E>(options: {
     }
 
     const outcome = failures.length > 0
-      ? Result.fail(options.combine(failures))
+      ? Result.fail(options.codec.combine(failures))
       : options.codec.validate(decoded)
 
     const snapshot = yield* SubscriptionRef.make<Snapshot<S> | null>(
@@ -103,7 +101,7 @@ export const make = <F, S, E>(options: {
       Result.isFailure(outcome) ? outcome.failure : null,
     )
 
-    return { snapshot, errors, root: options.root }
+    return { snapshot, errors }
   })
 
 /** The failure of reading the directory itself — a missing root, a permission
@@ -123,12 +121,10 @@ export class PlatformFailure extends Data.TaggedError("PlatformFailure")<{
 
 /** Every matching file under `root`, keyed by its root-relative path, read in
  *  a stable order so two loads of one directory produce identical output. */
-const readMatching = (
-  root: string,
-  match: (path: string) => boolean,
-): Effect.Effect<ReadonlyMap<string, string>, PlatformFailure, FileSystem.FileSystem> =>
+const readMatching = (root: string, match: (path: string) => boolean) =>
   Effect.gen(function*() {
     const fs = yield* FileSystem.FileSystem
+    const path_ = yield* Path.Path
 
     const entries = yield* fs.readDirectory(root, { recursive: true }).pipe(
       Effect.mapError((cause) => new PlatformFailure({ path: root, cause })),
@@ -138,19 +134,16 @@ const readMatching = (
     for (const entry of [...entries].sort()) {
       // `readDirectory` yields the platform's separator; the codec's rules and
       // every `file:line` a consumer prints are in `/`, so the conversion
-      // happens once, here, at the edge.
-      const path = entry.split(sep).join("/")
+      // happens once, here, at the edge — through the same Path service the
+      // bytes come from, not through an ambient `process.platform`.
+      const path = entry.split(path_.sep).join("/")
       if (!match(path)) continue
       contents.set(
         path,
-        yield* fs.readFileString(`${root}/${path}`).pipe(
+        yield* fs.readFileString(path_.join(root, entry)).pipe(
           Effect.mapError((cause) => new PlatformFailure({ path, cause })),
         ),
       )
     }
     return contents
   })
-
-/** Node reports directory entries with the platform separator. Read once at
- *  module load rather than probed per entry. */
-const sep = process.platform === "win32" ? "\\" : "/"

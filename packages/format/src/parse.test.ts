@@ -104,20 +104,36 @@ test("a missing required key is reported by name", () => {
 
 // A mirror is a placement of a node that already exists: every descriptive
 // field has an authoritative copy at the target, so a second copy here could
-// only ever disagree with it.
-test("a mirror carrying a descriptive field is refused, and told where it belongs", () => {
+// only ever disagree with it. The mirror struct carries no such field, so this
+// is the schema's own excess-property refusal rather than a hand-written scan
+// — and it names each offending field on its own, one error per field.
+test("a mirror carrying a descriptive field is refused, per field", () => {
   const errors = errorsOf(
     `{"id":"m","parent":"p","ord":"a","mirror":"order","title":"a second copy","date":"2026-08-10"}`,
   )
-  expect(codes(errors)).toEqual(["bad-record"])
-  expect(first(errors).message).toContain("`title` and `date`")
-  expect(first(errors).message).toContain("`order`")
+  expect(codes(errors)).toEqual(["bad-record", "bad-record"])
+  expect(messages(errors)).toContain("`title` is not a field of this format")
+  expect(messages(errors)).toContain("`date` is not a field of this format")
 })
 
-// `title` is optional in the struct precisely so a mirror can omit it; the
-// price is that a regular node without one has to be caught here, with a
-// message that names the rule rather than the schema.
-test("a regular node without a title is a different message from a mirror's", () => {
+// Not just the descriptive fields: the mirror shape is `{id, parent?, ord,
+// mirror}` and NOTHING else, so a field a regular node may legally carry is
+// still excess here — which is the whole point of the two structs.
+test("a mirror is refused every field outside its own shape", () => {
+  for (const field of [`"done":true`, `"desc":"x"`, `"see":["a"]`, `"colour":"red"`]) {
+    const errors = errorsOf(`{"id":"m","ord":"a","mirror":"x",${field}}`)
+    expect(codes(errors)).toEqual(["bad-record"])
+    expect(first(errors).message).toContain("is not a field of this format")
+  }
+  // And the placement fields it does own are accepted, so the refusal above is
+  // about the shape rather than about mirrors carrying anything at all.
+  expect(outlineOf(`{"id":"m","parent":"p","ord":"a","mirror":"x"}`).nodes.length).toBe(1)
+})
+
+// Which arm a line is decoded as is decided by `mirror` being present, before
+// the schema runs. That is what lets a record missing its title hear the rule
+// it broke instead of a union's report that neither shape matched.
+test("a record with no mirror is judged as a node, and misses its title by name", () => {
   const errors = errorsOf(`{"id":"a","ord":"a"}`)
   expect(codes(errors)).toEqual(["bad-record"])
   expect(first(errors).message).toBe("`title` is required and missing")

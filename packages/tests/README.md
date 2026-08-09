@@ -27,7 +27,7 @@ inside the e2e dev shell (which is the default shell plus Playwright's
 browsers):
 
 ```bash
-export OLAI_SERVER="$(nix build .#olai --no-link --print-out-paths)/bin/olai"
+export OLAI_BIN="$(nix build .#olai --no-link --print-out-paths)/bin/olai"
 nix develop .#e2e -c bash
 cd packages/tests
 
@@ -36,12 +36,12 @@ bun run test features/see_the_outline.feature    # one feature
 bun run test features/see_the_outline.feature:45 # one scenario
 ```
 
-While changing the server or the client, point `OLAI_SERVER` at a two-line
-script that runs the working tree instead of rebuilding with Nix each time:
+While changing the server or the client, point `OLAI_BIN` at a two-line script
+that runs the working tree instead of rebuilding with Nix each time:
 
 ```bash
 printf '#!/usr/bin/env bash\nexec bun %s/packages/server/src/main.ts "$@"\n' "$PWD" > /tmp/olai-dev
-chmod +x /tmp/olai-dev && export OLAI_SERVER=/tmp/olai-dev
+chmod +x /tmp/olai-dev && export OLAI_BIN=/tmp/olai-dev
 ```
 
 It takes the same argv, so the harness cannot tell the difference — but it
@@ -54,10 +54,15 @@ also why the dev shell needs no node.
 
 ## Environment
 
+Which server the suite drives is two decisions, not one — **who owns the
+process** and **where it is** — so it is two variables. Set exactly one of
+them; setting both, or neither, fails at `BeforeAll` and says which to pick.
+
 | variable | meaning |
 |---|---|
-| `OLAI_SERVER` | **Required.** Either an `http://` URL of a server you are already running, or the path to the `olai` executable, which the harness spawns per corpus as `<bin> web <dir> --port <port> --host 127.0.0.1` and waits for its `http://127.0.0.1:<port>` line on stdout. |
-| `OLAI_CORPUS` | Only read when `OLAI_SERVER` is a URL: which fixture corpus that server is serving (default `good`). A scenario needing a different one fails immediately, with the command to run instead — better than quietly asserting against the wrong outlines. |
+| `OLAI_BIN` | Path to the `olai` executable. The harness **spawns** one server per corpus as `<bin> web <dir> --port <port> --host 127.0.0.1` and waits for its `http://127.0.0.1:<port>` line on stdout. This is what `just e2e` sets. |
+| `OLAI_URL` | Base URL of a server you are **already running**, reused as it is. No spawning, so no per-corpus servers — see `OLAI_CORPUS`. |
+| `OLAI_CORPUS` | Only read with `OLAI_URL`: which fixture corpus that one server is serving (default `good`). A scenario needing a different one fails immediately, with the command to run instead — better than quietly asserting against the wrong outlines. |
 | `HEADLESS` | `false` opens a visible browser. Anything else (or unset) is headless. |
 | `OLAI_TEST_VERBOSE` | Stream the server child's stdout/stderr into the test output. |
 | `CUCUMBER_TAGS` | Replaces the default tag filter (`not @skip`). `CUCUMBER_TAGS='@corpus:tangled'` runs only the tangled-corpus scenarios. |
@@ -103,7 +108,15 @@ one process per scenario would cost more than the assertions do. See
 Steps address the app through `data-testid` and `data-*` attributes, never a
 CSS class — a class is a styling decision a refactor is entitled to change; a
 `data-testid` is a promise. Every selector is a named constant at the top of
-`support/world.ts`, so when the client renames one, exactly one line moves.
+`support/world.ts`.
+
+The names are not written down twice. `support/world.ts` imports the client's
+own `TESTID` record and its `selector()` helper from
+`packages/web/src/client/testids.ts` (the only reason `@olai/web` is a
+dependency of this package), and builds every constant from it. A renamed
+testid is therefore a type error at `bun run typecheck`, not a thirty-second
+timeout in a scenario that no longer says why it failed. `#root` stays spelled
+out locally: it is `index.html`'s mount point, which the client does not own.
 
 | selector | what it marks |
 |---|---|

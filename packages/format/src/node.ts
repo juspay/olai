@@ -1,20 +1,23 @@
 /**
  * One line of an outline: one node, as a record.
  *
- * The field set and its canonical order are fixed by docs/format.md. Order is
- * a *writing* rule — diffs stay stable because writers always re-serialise in
- * it — but the declaration below keeps it anyway, so the one place a reader
- * looks for "what fields exist" is also the one place a writer will look for
- * "in what order".
+ * docs/format.md describes two record shapes, and so does this file. A regular
+ * node carries the fields that describe it; a mirror carries only a placement
+ * — `{id, parent?, ord, mirror}` — because it is a second *view* of a node
+ * that already exists, and any field describing the node itself has an
+ * authoritative copy at the target that a second one could only disagree with.
  *
- * Which fields are required is read off that spec's own table: it calls out
- * "absent at top level" for `parent` and nothing of the sort for `id`, `ord`
- * and `title`, so those three are required on a regular node. A mirror is the
- * one other record shape, and it is exclusive: `{id, parent?, ord, mirror}`
- * and nothing else. That exclusivity is not expressible as a struct — it is a
- * rule about which fields may co-occur — so it lives in the validator with the
- * other rules rather than being smuggled into a union whose failure message
- * would name neither shape.
+ * Modelling that as one struct with an optional `mirror` field would make the
+ * illegal combinations representable and push "which fields may co-occur" into
+ * a hand-written key scan; two structs make them unrepresentable. The arm is
+ * chosen before decoding rather than by a `Schema.Union` — `mirror` is present
+ * or it is not, and picking the arm ourselves is what lets a broken record
+ * hear "`title` is required and missing" instead of a union's report that
+ * neither shape matched.
+ *
+ * Field order below is the canonical order writes re-serialise in, so the one
+ * place a reader looks for "what fields exist" is the one place a writer looks
+ * for "in what order".
  */
 
 import { Schema } from "effect"
@@ -22,42 +25,49 @@ import { Schema } from "effect"
 /** `true`, or the ISO date/datetime the state was reached at. */
 const Marker = Schema.Union([Schema.Literal(true), Schema.String])
 
-export const Node = Schema.Struct({
+/** The fields both shapes share: identity and placement. */
+const Placement = {
   id: Schema.String,
+  /** Absent at top level. The only field docs/format.md marks optional for a
+   *  regular node — which is how `ord` and `title` below are read as required. */
   parent: Schema.optionalKey(Schema.String),
+  /** A fractional index over base62. Plain string comparison is the sort. */
   ord: Schema.String,
-  title: Schema.optionalKey(Schema.String),
+}
+
+export const RegularNode = Schema.Struct({
+  ...Placement,
+  /** Verbatim. Inline `#tags` live here and are extracted at view time. */
+  title: Schema.String,
   done: Schema.optionalKey(Marker),
   doing: Schema.optionalKey(Marker),
   date: Schema.optionalKey(Schema.String),
+  /** The note: one string, embedded newlines, markdown, stored verbatim. */
   desc: Schema.optionalKey(Schema.String),
+  /** Relative path to an attached `.md`, resolved against this file. */
   doc: Schema.optionalKey(Schema.String),
   after: Schema.optionalKey(Schema.Array(Schema.String)),
   blocks: Schema.optionalKey(Schema.Array(Schema.String)),
   see: Schema.optionalKey(Schema.Array(Schema.String)),
-  mirror: Schema.optionalKey(Schema.String),
 })
+export type RegularNode = typeof RegularNode.Type
+
+export const MirrorNode = Schema.Struct({
+  ...Placement,
+  mirror: Schema.String,
+})
+export type MirrorNode = typeof MirrorNode.Type
+
+export const Node = Schema.Union([RegularNode, MirrorNode])
 export type Node = typeof Node.Type
 
-/** `title` is optional in the struct above and required by the validator, so
- *  that a mirror — which may not carry one — and a regular node without one
- *  get the message each deserves instead of a shared "expected string". */
-export const isMirror = (node: Node): boolean => node.mirror !== undefined
+/** The discriminator, as a type guard, so every consumer narrows the same way
+ *  and none of them re-derives it from a field test. */
+export const isMirror = (node: Node): node is MirrorNode => "mirror" in node
 
-/** The fields a mirror record may carry. Everything else on a mirror is an
- *  error: a mirror is a *placement* of an existing node, so any field that
- *  would describe the node itself has an authoritative copy at the target. */
-export const MIRROR_FIELDS: ReadonlySet<string> = new Set([
-  "id",
-  "parent",
-  "ord",
-  "mirror",
-])
-
-/** A node located in the set. The validator, the store snapshot and the
- *  browser all need "which file, which line" alongside the record; carrying it
- *  beside the node rather than inside it keeps the record exactly the fields
- *  that are on disk. */
+/** A node located in the set. The validator, the snapshot and the browser all
+ *  need "which file, which line" alongside the record; carrying it beside the
+ *  node rather than inside it keeps the record exactly the fields on disk. */
 export const Located = Schema.Struct({
   file: Schema.String,
   line: Schema.Int,

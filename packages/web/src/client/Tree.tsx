@@ -1,188 +1,141 @@
 /**
  * One outline, drawn.
  *
- * Every derived thing on screen — a parent's status, the order of siblings,
- * which part of a title is a tag — comes from @olai/format's own functions, so
- * the view and the validator can never disagree about what the file means. The
- * client computes nothing about the format on its own.
+ * The shape of the tree is not decided here. `@olai/format` derives it —
+ * status, sibling order, mirror expansion and the guard that stops a mirror
+ * inside its own subtree — and hands back rows; this file turns a row into
+ * markup and nothing else. That is the point: the view and the validator agree
+ * about what a file means because they are running the same code, not because
+ * two implementations were written to the same paragraph.
  *
- * Mirrors are expanded in place: a mirror shows its target's subtree, marked,
- * because a pointer the reader has to go and follow is not a second location,
- * it is a footnote. The expansion carries the ancestor ids it passed through
- * and refuses to re-enter one. The validator already rejects a set whose
- * mirrors close a loop, so that guard should never fire — but a renderer that
- * hangs is a worse way to learn about a bug than a marked stub.
+ * The one thing the client does interpret on its own is a note, which is
+ * markdown and is rendered (sanitised) at view time — see ./markdown.ts.
  */
 
-import {
-  childIndex,
-  type Located,
-  rootsOf,
-  type Status,
-  statusIndex,
-  titleParts,
-} from "@olai/format"
-import { createMemo, For, Show } from "solid-js"
+import { type Row, titleParts } from "@olai/format"
+import { createMemo, For, Match, Show, Switch } from "solid-js"
 
 import { renderMarkdown } from "./markdown.ts"
+import { TESTID } from "./testids.ts"
 
 export interface TreeProps {
-  /** EVERY node in the served set, not just this file's. A mirror may target
-   *  any file — that is what mirrors are for — so the lookups have to see the
-   *  whole set or a cross-file mirror renders as a dangling one. Only the
-   *  roots are per-file. */
-  readonly nodes: ReadonlyArray<Located>
-  /** Which outline is open. */
-  readonly file: string
-  /** Ids the reader has collapsed. Client-local: collapsing is a property of
-   *  this tab's reading, not of the file, so it never leaves the browser. */
+  readonly rows: ReadonlyArray<Row>
+  /** Places the reader has folded. Client-local: folding is a property of this
+   *  tab's reading, not of the file, so it never leaves the browser — and it
+   *  is keyed by PLACE, because the same node reached through two mirrors is
+   *  two rows and folding one must not fold the other. */
   readonly collapsed: ReadonlySet<string>
-  readonly onToggle: (id: string) => void
+  readonly onToggle: (key: string) => void
 }
 
 export function Tree(props: TreeProps) {
-  const children = createMemo(() => childIndex(props.nodes))
-  const status = createMemo(() => statusIndex(props.nodes, children()))
-  const byId = createMemo(
-    () => new Map(props.nodes.map((located) => [located.node.id, located])),
-  )
-  const roots = createMemo(() =>
-    rootsOf(props.nodes.filter((located) => located.file === props.file))
-  )
-
   return (
-    <ul class="tree" data-testid="outline-tree">
-      <For each={roots()}>
-        {(located) => (
-          <Branch
-            located={located}
-            ancestors={[]}
-            children={children()}
-            status={status()}
-            byId={byId()}
-            collapsed={props.collapsed}
-            onToggle={props.onToggle}
-          />
+    <ul class="tree" data-testid={TESTID.outlineTree}>
+      <For each={props.rows}>
+        {(row) => (
+          <Branch row={row} collapsed={props.collapsed} onToggle={props.onToggle} />
         )}
       </For>
     </ul>
   )
 }
 
-interface BranchProps {
-  readonly located: Located
-  /** The ids on the path from the root to here, mirror hops included. */
-  readonly ancestors: ReadonlyArray<string>
-  readonly children: ReadonlyMap<string, ReadonlyArray<Located>>
-  readonly status: ReadonlyMap<string, Status>
-  readonly byId: ReadonlyMap<string, Located>
+function Branch(props: {
+  readonly row: Row
   readonly collapsed: ReadonlySet<string>
-  readonly onToggle: (id: string) => void
-}
-
-function Branch(props: BranchProps) {
-  /** A mirror stands for its target: the subtree drawn under it, and the
-   *  record whose title and dates are shown, both come from there. */
-  const shown = createMemo(() => {
-    const mirror = props.located.node.mirror
-    return mirror === undefined ? props.located : props.byId.get(mirror)
+  readonly onToggle: (key: string) => void
+}) {
+  const collapsed = () => props.collapsed.has(props.row.key)
+  const shown = () => props.row.shows
+  const desc = createMemo(() => {
+    const node = shown()?.node
+    return node !== undefined && "desc" in node ? node.desc : undefined
   })
-
-  const isMirror = () => props.located.node.mirror !== undefined
-  const revisits = () =>
-    shown() !== undefined && props.ancestors.includes(shown()!.node.id)
-
-  const kids = createMemo(() => {
-    const target = shown()
-    return target === undefined || revisits()
-      ? []
-      : (props.children.get(target.node.id) ?? [])
+  const html = createMemo(() => {
+    const source = desc()
+    return source === undefined ? undefined : renderMarkdown(source)
   })
-
-  const key = () => keyOf(props.located, props.ancestors)
-  const isCollapsed = () => props.collapsed.has(key())
 
   return (
     <li
       class="node"
-      data-testid="node"
-      data-node-id={props.located.node.id}
-      data-status={props.status.get(props.located.node.id) ?? "open"}
-      data-collapsed={String(isCollapsed())}
-      {...(isMirror() ? { "data-mirror": "true" } : {})}
-      data-file={props.located.file}
-      data-line={props.located.line}
+      data-testid={TESTID.node}
+      data-node-id={props.row.at.node.id}
+      data-status={props.row.status}
+      data-collapsed={String(collapsed())}
+      data-kind={props.row.kind}
+      {...(props.row.kind === "node" ? {} : { "data-mirror": "true" })}
+      data-file={props.row.at.file}
+      data-line={props.row.at.line}
     >
       <div class="row">
         <Show
-          when={kids().length > 0}
+          when={props.row.children.length > 0}
           fallback={<span class="toggle-space" aria-hidden="true" />}
         >
           <button
             type="button"
             class="toggle"
-            data-testid="toggle"
-            aria-expanded={!isCollapsed()}
-            aria-label={isCollapsed() ? "expand" : "collapse"}
-            onClick={() => props.onToggle(key())}
+            data-testid={TESTID.toggle}
+            aria-expanded={!collapsed()}
+            aria-label={collapsed() ? "expand" : "collapse"}
+            onClick={() => props.onToggle(props.row.key)}
           >
-            {isCollapsed() ? "▸" : "▾"}
+            {collapsed() ? "▸" : "▾"}
           </button>
         </Show>
 
-        <Show
-          when={shown()}
-          fallback={<span class="dangling">mirror of an unknown node</span>}
-        >
-          {(target) => (
-            <span class="title" data-testid="node-title">
-              <Show when={isMirror()}>
-                <span class="mirror-mark" title="a mirror of another node">
-                  ⇢
-                </span>
-              </Show>
-              <For each={titleParts(target().node.title ?? "")}>
-                {(part) =>
-                  part.kind === "tag"
-                    ? <span class="tag" data-testid="tag">#{part.tag}</span>
-                    : <>{part.text}</>}
-              </For>
+        <Switch>
+          <Match when={props.row.kind === "dangling"}>
+            <span class="dangling" data-testid={TESTID.nodeTitle}>
+              a mirror of `{mirrorTarget(props.row)}`, which no node declares
             </span>
-          )}
-        </Show>
+          </Match>
+          <Match when={shown()}>
+            {(target) => (
+              <span class="title" data-testid={TESTID.nodeTitle}>
+                <Show when={props.row.kind !== "node"}>
+                  <span class="mirror-mark" title="a mirror of another node">⇢</span>
+                </Show>
+                <For each={titleParts(titleOf(target().node))}>
+                  {(part) =>
+                    part.kind === "tag"
+                      ? <span class="tag" data-testid={TESTID.tag}>#{part.tag}</span>
+                      : <>{part.text}</>}
+                </For>
+              </span>
+            )}
+          </Match>
+        </Switch>
 
-        <Show when={shown()?.node.date}>
-          {(date) => <span class="date" data-testid="date">{date()}</span>}
+        <Show when={dateOf(shown())}>
+          {(date) => <span class="date" data-testid={TESTID.date}>{date()}</span>}
         </Show>
       </div>
 
-      <Show when={!isCollapsed() && shown()?.node.desc}>
-        {(desc) => (
+      <Show when={!collapsed() && html()}>
+        {(rendered) => (
           <div
             class="desc"
-            data-testid="desc"
+            data-testid={TESTID.desc}
             // Safe because the pipeline sanitises: see ./markdown.ts.
-            innerHTML={renderMarkdown(desc())}
+            innerHTML={rendered()}
           />
         )}
       </Show>
 
-      <Show when={revisits()}>
+      <Show when={props.row.kind === "cycle"}>
         <div class="cycle-stub">
           this mirror is inside the subtree it shows — not expanded
         </div>
       </Show>
 
-      <Show when={!isCollapsed() && kids().length > 0}>
+      <Show when={!collapsed() && props.row.children.length > 0}>
         <ul class="children">
-          <For each={kids()}>
+          <For each={props.row.children}>
             {(child) => (
               <Branch
-                located={child}
-                ancestors={[...props.ancestors, shown()!.node.id]}
-                children={props.children}
-                status={props.status}
-                byId={props.byId}
+                row={child}
                 collapsed={props.collapsed}
                 onToggle={props.onToggle}
               />
@@ -194,8 +147,14 @@ function Branch(props: BranchProps) {
   )
 }
 
-/** Collapse is per PLACE, not per node: the same node reached through two
- *  mirrors is two rows on screen, and folding one should not fold the other.
- *  The path to a row is what makes it that row. */
-const keyOf = (located: Located, ancestors: ReadonlyArray<string>): string =>
-  [...ancestors, located.node.id].join("/")
+/** A mirror's target id, for the one row that has nothing else to show. */
+const mirrorTarget = (row: Row): string =>
+  "mirror" in row.at.node ? row.at.node.mirror : row.at.node.id
+
+const titleOf = (node: Row["at"]["node"]): string =>
+  "title" in node ? node.title : ""
+
+const dateOf = (located: Row["shows"]): string | undefined => {
+  const node = located?.node
+  return node !== undefined && "date" in node ? node.date : undefined
+}

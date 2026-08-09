@@ -1,6 +1,13 @@
 import { expect, test } from "bun:test"
 
-import { compareErrors, isCrossFile, kindOf, type OutlineError } from "./errors.ts"
+import {
+  compareErrors,
+  ErrorCode,
+  isCrossFile,
+  type OutlineError,
+  type Stage,
+  stageOf,
+} from "./errors.ts"
 
 const error = (
   file: string,
@@ -61,11 +68,57 @@ test("an error is cross-file when a related site lives in another file", () => {
   expect(isCrossFile({ code: "bad-id", file: "a.jsonl", line: 1, message: "x" })).toBe(false)
 })
 
-// The kind is a pure function of the code rather than a stored field: this
+// The stage is a pure function of the code rather than a stored field: this
 // format refuses derived state in its data, and storing it in its own errors
 // would be the same mistake with a second way to disagree.
-test("only the derived-state rule is a `derived` error", () => {
-  expect(kindOf("stored-derived-state")).toBe("derived")
-  expect(kindOf("not-json")).toBe("validation")
-  expect(kindOf("mirror-cycle")).toBe("validation")
+test("the stage is decided by the code alone", () => {
+  expect(stageOf("not-json")).toBe("line")
+  expect(stageOf("bad-date")).toBe("line")
+  expect(stageOf("duplicate-id")).toBe("set")
+  expect(stageOf("mirror-cycle")).toBe("set")
+  expect(stageOf("stored-derived-state")).toBe("set")
+})
+
+// The drift guard the old two-place declaration could not have: the codes and
+// their stages are ONE table, so every code the schema publishes must classify,
+// and it must classify as one of the two stages rather than `undefined` read
+// through a lenient index type. A code added without a stage fails here.
+test("every published code has a stage", () => {
+  const stages: ReadonlyArray<Stage> = ["line", "set"]
+  const classified = ErrorCode.literals.map((code) => [code, stageOf(code)] as const)
+  expect(classified.length).toBe(new Set(ErrorCode.literals).size)
+  for (const [code, stage] of classified) {
+    expect({ code, ok: stages.includes(stage) }).toEqual({ code, ok: true })
+  }
+})
+
+// The split is load-bearing, not cosmetic: a report holding any `line` error has
+// not asked the `set` questions yet, so which side each code falls on is itself
+// part of the contract — spelled out here so moving one is a deliberate edit.
+test("the line/set split is exactly the two halves of the codec", () => {
+  const of = (stage: Stage): ReadonlyArray<string> =>
+    ErrorCode.literals.filter((code) => stageOf(code) === stage)
+  expect(of("line")).toEqual([
+    "not-json",
+    "not-an-object",
+    "bad-record",
+    "bad-id",
+    "done-and-doing",
+    "bad-date",
+  ])
+  expect(of("set")).toEqual([
+    "duplicate-id",
+    "unknown-parent",
+    "foreign-parent",
+    "parent-not-a-node",
+    "parent-cycle",
+    "unknown-target",
+    "after-cycle",
+    "mirror-cycle",
+    "missing-doc",
+    "stored-derived-state",
+  ])
+  // Together, the whole catalogue: no code is in neither half, and none is in
+  // both.
+  expect(of("line").length + of("set").length).toBe(ErrorCode.literals.length)
 })

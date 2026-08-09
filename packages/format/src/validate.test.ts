@@ -3,31 +3,34 @@ import { Result } from "effect"
 
 import { isCrossFile, type OutlineError } from "./errors.ts"
 import { parseOutline } from "./parse.ts"
-import type { Document, OutlineSet } from "./set.ts"
+import type { OutlineSet } from "./set.ts"
 import { resolveRelative, validate } from "./validate.ts"
 
 /** A set built the way one is really built: JSONL text per file, through the
- *  parser. A fixture that failed to parse would be testing the wrong phase, so
- *  it throws here rather than arriving at the validator as an empty file. */
+ *  parser, then flattened — every `Located` already names its file, so the set
+ *  the validator sees is one list of nodes plus the list of files found. A
+ *  fixture that failed to parse would be testing the wrong phase, so it throws
+ *  here rather than arriving at the validator as an empty file. */
 const setOf = (
   files: Record<string, string>,
-  documents: ReadonlyArray<Document> = [],
+  documents: ReadonlyArray<string> = [],
 ): OutlineSet => ({
-  outlines: Object.entries(files).map(([file, contents]) => {
+  files: Object.keys(files),
+  nodes: Object.entries(files).flatMap(([file, contents]) => {
     const parsed = parseOutline(file, contents)
     if (Result.isFailure(parsed)) {
       throw new Error(
         `fixture ${file} does not parse: ${parsed.failure.map((e) => e.message).join("; ")}`,
       )
     }
-    return parsed.success
+    return [...parsed.success.nodes]
   }),
   documents,
 })
 
 const errorsOf = (
   files: Record<string, string>,
-  documents: ReadonlyArray<Document> = [],
+  documents: ReadonlyArray<string> = [],
 ): ReadonlyArray<OutlineError> => {
   const result = validate(setOf(files, documents))
   if (Result.isSuccess(result)) throw new Error("expected this set to be rejected")
@@ -36,15 +39,19 @@ const errorsOf = (
 
 const expectValid = (
   files: Record<string, string>,
-  documents: ReadonlyArray<Document> = [],
+  documents: ReadonlyArray<string> = [],
 ): void => {
-  const result = validate(setOf(files, documents))
+  const set = setOf(files, documents)
+  const result = validate(set)
   if (Result.isFailure(result)) {
     throw new Error(
       `expected a valid set: ${result.failure.map((e) => `${e.file}:${e.line} ${e.message}`).join("; ")}`,
     )
   }
-  expect(result.success.outlines.length).toBe(Object.keys(files).length)
+  // The set comes back as it went in — the validator judges, it does not
+  // reshape, so what the browser subscribes to is what the reader found.
+  expect(result.success).toBe(set)
+  expect(result.success.files.length).toBe(Object.keys(files).length)
 }
 
 const only = (errors: ReadonlyArray<OutlineError>): OutlineError => {
@@ -69,8 +76,18 @@ test("a set using every relation loads clean", () => {
       "work.jsonl": `{"id":"budget","ord":"a","title":"the budget","blocks":["order"]}\n` +
         `{"id":"m","ord":"b","mirror":"order"}\n`,
     },
-    [{ file: "notes/cabinets.md" }],
+    ["notes/cabinets.md"],
   )
+})
+
+// The set is flat: `files` is the list found on disk and the nodes are one
+// list. A `.jsonl` holding no nodes is still a file of the set — which is why
+// `files` is not derived from `nodes`, and why an empty one is not an error.
+test("a file with no nodes is a member of the set, not a problem with it", () => {
+  expectValid({
+    "empty.jsonl": ``,
+    "a.jsonl": `{"id":"a","ord":"a","title":"a"}\n`,
+  })
 })
 
 // Ids are the identity of the whole set, so the duplicate is the second claim,
@@ -277,7 +294,7 @@ test("a doc naming no served file is refused, and says what it resolved to", () 
 test("a doc reached through ../ resolves against the outline's directory", () => {
   expectValid(
     { "sub/plan.jsonl": `{"id":"a","ord":"a","title":"a","doc":"../notes/a.md"}` },
-    [{ file: "notes/a.md" }],
+    ["notes/a.md"],
   )
   // The resolver is pure path arithmetic — no disk, or the validator would be
   // a second reader.

@@ -21,17 +21,37 @@ import { Result, Schema } from "effect"
 import * as SchemaIssue from "effect/SchemaIssue"
 
 import type { OutlineError } from "./errors.ts"
-import { ID_SHAPE, type Located, MIRROR_FIELDS, Node } from "./node.ts"
+import {
+  ID_SHAPE,
+  isMirror,
+  type Located,
+  MirrorNode,
+  type Node,
+  RegularNode,
+} from "./node.ts"
 import type { Outline } from "./set.ts"
 
-const decodeRecord = Schema.decodeUnknownResult(Node, {
+const options = {
   // Every issue, not the first: a record with three wrong fields should cost
   // one edit, not three loads.
   errors: "all",
   // A field this format does not define is a typo or a stale writer, and
-  // silently dropping it would make the file and the view disagree.
+  // silently dropping it would make the file and the view disagree. On a
+  // mirror this is also what refuses a `title` or a `date`: those fields
+  // belong on the node it points at.
   onExcessProperty: "error",
-})
+} as const
+
+const decodeRegular = Schema.decodeUnknownResult(RegularNode, options)
+const decodeMirror = Schema.decodeUnknownResult(MirrorNode, options)
+
+/** Which shape a line claims to be. `mirror` is present or it is not; deciding
+ *  here rather than letting a union try both arms is what keeps the failure
+ *  message about the shape the writer meant. */
+const decodeRecord = (
+  json: Record<string, unknown>,
+): Result.Result<Node, Schema.SchemaError> =>
+  "mirror" in json ? decodeMirror(json) : decodeRegular(json)
 
 const formatIssue = SchemaIssue.makeFormatterStandardSchemaV1()
 
@@ -100,7 +120,7 @@ const readRecord = (
     ])
   }
 
-  const decoded = decodeRecord(json)
+  const decoded = decodeRecord(json as Record<string, unknown>)
   return Result.isFailure(decoded)
     ? Result.fail(
       formatIssue(decoded.failure.issue).issues.map((issue) => ({
@@ -127,20 +147,9 @@ const checkRecord = ({ file, line, node }: Located): ReadonlyArray<OutlineError>
     )
   }
 
-  if (node.mirror !== undefined) {
-    // A mirror is a placement of a node that already exists, so any field
-    // describing the node itself has an authoritative copy at the target and a
-    // second one here could only ever disagree with it.
-    const extra = Object.keys(node).filter((field) => !MIRROR_FIELDS.has(field))
-    if (extra.length > 0) {
-      at(
-        "bad-record",
-        `a mirror carries only \`id\`, \`parent\`, \`ord\` and \`mirror\`; ${list(extra.map(quote))} belong${extra.length === 1 ? "s" : ""} on the node it mirrors (\`${node.mirror}\`)`,
-      )
-    }
-  } else if (node.title === undefined) {
-    at("bad-record", "`title` is required and missing")
-  }
+  // A mirror carries no fields of its own, so the rules below have nothing to
+  // ask it. The schema already refused any it should not have.
+  if (isMirror(node)) return errors
 
   if (node.done !== undefined && node.doing !== undefined) {
     at(
@@ -183,13 +192,6 @@ const isIsoInstant = (value: string): boolean => {
 
 const describe = (json: unknown): string =>
   json === null ? "null" : Array.isArray(json) ? "an array" : `a ${typeof json}`
-
-const quote = (field: string): string => `\`${field}\``
-
-const list = (items: ReadonlyArray<string>): string =>
-  items.length <= 1
-    ? (items[0] ?? "")
-    : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`
 
 /** The schema's issue, re-said as a sentence about a field. Its own wording
  *  ("Expected string", "Missing key") is accurate but headless; the field name

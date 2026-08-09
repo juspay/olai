@@ -3,11 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "./src/build.ts",
-  "types": "./src/build.ts",
-  "exports": {
-    "./build": "./src/build.ts"
-  },
+  "//exports": "None. This package has two products and neither is an import: a SCRIPT (`bun packages/web/src/build.ts <dist>`, run by default.nix and by `just build-client`) and the directory it writes. The one thing here that IS imported across a package boundary is src/client/testids.ts, and it is imported by path from packages/tests — a declared export list would suggest a library this is not.",
   "scripts": {
     "typecheck": "tsc --noEmit"
   },

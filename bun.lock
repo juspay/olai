@@ -22,6 +22,7 @@
       "version": "0.1.0",
       "dependencies": {
         "effect": "4.0.0-beta.106",
+        "fastest-levenshtein": "^1.0.16",
       },
     },
     "packages/server": {
@@ -58,6 +59,9 @@
     "packages/tests": {
       "name": "@olai/tests",
       "version": "0.1.0",
+      "dependencies": {
+        "@olai/web": "workspace:*",
+      },
       "devDependencies": {
         "@cucumber/cucumber": "^12.8.1",
         "playwright": "1.61.1",
@@ -344,6 +348,8 @@
     "extend": ["extend@3.0.2", "", {}, "sha512-fjquC59cD7CyW6urNXK0FBufkZcoiGG80wTuPujX590cB5Ttln20E2UB4S/WARVqhXffZl2LNgS+gQdPIIim/g=="],
 
     "fast-check": ["fast-check@4.9.0", "", { "dependencies": { "pure-rand": "^8.0.0" } }, "sha512-7ms6T7SybUev/PQITciI0yLM2pOSFy5zpG8Ty7tQofcVaQUvrMXp6CBwqF6fThLCLOrfBtuHAtwq6Yu4XPCllg=="],
+
+    "fastest-levenshtein": ["fastest-levenshtein@1.0.16", "", {}, "sha512-eRnCtTTtGZFpQCwhJiUOuxPQWRXVKYDn0b2PeHfXL6/Zi53SLAzAHfVhVWK2AryC/WH05kGfxhFIPvTF0SXQzg=="],
 
     "figures": ["figures@3.2.0", "", { "dependencies": { "escape-string-regexp": "^1.0.5" } }, "sha512-yaduQFRKLXYOGgEn6AZau90j3ggSOyiqXU0F9JZfeXYhNa+Jk4X+s45A2zg5jns87GAFa34BBm2kXw4XpNcbdg=="],
 

@@ -15,6 +15,8 @@
 import { isCrossFile, type OutlineError, stageOf } from "@olai/format"
 import { createMemo, For, Show } from "solid-js"
 
+import { TESTID } from "./testids.ts"
+
 export function Errors(props: { readonly errors: ReadonlyArray<OutlineError> }) {
   const crossFile = createMemo(() => props.errors.filter(isCrossFile))
   /** A file is read whole or not at all, and the set-wide rules do not run
@@ -36,16 +38,22 @@ export function Errors(props: { readonly errors: ReadonlyArray<OutlineError> }) 
   })
 
   return (
-    <main class="errors" data-testid="error-view">
+    <main class="errors" data-testid={TESTID.errorView}>
       <h1>
-        {props.errors.length} {props.errors.length === 1 ? "error" : "errors"}
+        {props.errors.length === 0
+          ? "Broken outlines"
+          : `${props.errors.length} ${props.errors.length === 1 ? "error" : "errors"}`}
       </h1>
       <p class="lede">
-        Nothing is served until these are fixed: an outline set is valid or it
-        is not, and half of one would be a different set from the one on disk.
+        {props.errors.length === 0
+          // The page is decided by the outline stream, and the report arrives
+          // on its own subscription — so for the frame between them there is a
+          // broken set and nothing yet to say about it.
+          ? "The set could not be loaded. Fetching the report…"
+          : "Nothing is served until these are fixed: an outline set is valid or it is not, and half of one would be a different set from the one on disk."}
       </p>
       <Show when={unparsed()}>
-        <p class="lede" data-testid="stage-note">
+        <p class="lede" data-testid={TESTID.stageNote}>
           Some of these are lines that could not be read. The checks that span
           the whole set — references, cycles, derived state — run once every
           file parses, so expect a second round after these are fixed.
@@ -54,7 +62,7 @@ export function Errors(props: { readonly errors: ReadonlyArray<OutlineError> }) 
 
       <For each={byFile()}>
         {([file, errors]) => (
-          <section class="error-group" data-testid="error-file-group" data-file={file}>
+          <section class="error-group" data-testid={TESTID.errorFileGroup} data-file={file}>
             <h2>{file}</h2>
             <ul>
               <For each={errors}>{(error) => <Row error={error} />}</For>
@@ -64,7 +72,7 @@ export function Errors(props: { readonly errors: ReadonlyArray<OutlineError> }) 
       </For>
 
       <Show when={crossFile().length > 0}>
-        <section class="error-group" data-testid="cross-file-errors">
+        <section class="error-group" data-testid={TESTID.crossFileErrors}>
           <h2>Across files</h2>
           <p class="lede">
             These name two places at once — a reference that leaves its file, or
@@ -81,7 +89,7 @@ export function Errors(props: { readonly errors: ReadonlyArray<OutlineError> }) 
 
 function Row(props: { readonly error: OutlineError }) {
   return (
-    <li class="error" data-testid="error" data-code={props.error.code}>
+    <li class="error" data-testid={TESTID.error} data-code={props.error.code}>
       <code class="site">
         {props.error.file}:{props.error.line}
       </code>

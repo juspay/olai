@@ -11,8 +11,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//dependencies": "The bottom of the layering (docs/architecture.md): the format core imports nothing but Effect, so nothing it validates can reach a disk, a server or a browser. A workspace sibling appearing here would be a layering violation, and `bun install` is what would report it.",
+  "//dependencies": "The bottom of the layering (docs/architecture.md): nothing here can reach a disk, a server or a browser. A workspace sibling appearing here would be a layering violation, and `bun install` is what would report it. fastest-levenshtein is the did-you-mean distance — a focused, dependency-free library rather than eighteen lines of textbook matrix arithmetic we would then own.",
   "dependencies": {
-    "effect": "4.0.0-beta.106"
+    "effect": "4.0.0-beta.106",
+    "fastest-levenshtein": "^1.0.16"
   }
 }

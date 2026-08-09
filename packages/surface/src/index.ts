@@ -28,27 +28,25 @@ import { defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
 
 /**
- * One frame of the outline stream.
+ * One frame of the outline stream: the loaded set, or `null` for a set that
+ * did not load.
  *
- * `unreadable` is a state, not an absence: a set that failed to load has no
- * snapshot at all — there is nothing partial to show — and saying so on the
- * stream means the client never has to tell "the server has not answered yet"
- * apart from "the server answered, and the answer is that your files are
- * broken". The reason is in the `errors` cell; this arm carries none, because
- * two copies of the same list are one copy too many.
+ * `null` is a state, not an absence. Three things a reader must tell apart —
+ * "the server has not answered yet" (no frame), "the server answered and the
+ * files are broken" (`null`), "here is your outline" (a snapshot) — and a
+ * nullable frame says all three with no second encoding. Why it is broken
+ * lives in the `errors` cell and nowhere else; carrying the list here as well
+ * would be one copy too many, and the copy a consumer picked would decide
+ * which of two truths it showed.
  */
-export const OutlineFrame = Schema.Union([
+export const OutlineFrame = Schema.NullOr(
   Schema.Struct({
-    kind: Schema.Literal("outlines"),
     /** The store revision this snapshot is. Phase 4's writes name it as the
      *  base they edited; today it is what proves two frames differ. */
     rev: Schema.Int,
     set: OutlineSet,
   }),
-  Schema.Struct({
-    kind: Schema.Literal("unreadable"),
-  }),
-])
+)
 export type OutlineFrame = typeof OutlineFrame.Type
 
 /** Nothing selects a subset yet — the browser takes the whole served

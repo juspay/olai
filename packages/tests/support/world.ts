@@ -5,10 +5,16 @@
  * Selectors live here as named constants rather than inline in steps, because
  * they are a CONTRACT with the client: `data-testid` and `data-*` attributes
  * only, never a CSS class. A class is a styling decision that a refactor is
- * entitled to change; a `data-testid` is a promise. When the client renames
- * one, exactly one line in this file moves.
+ * entitled to change; a `data-testid` is a promise.
+ *
+ * The names themselves are not re-spelled here — they are IMPORTED from the
+ * client that writes them. A contract copied into both halves is a contract
+ * kept by memory: renaming an attribute over there would still compile over
+ * here and fail thirty seconds later as a bare timeout. Imported, the same
+ * rename is a type error before the browser ever starts.
  */
 
+import { selector, TESTID } from "@olai/web/src/client/testids.ts";
 import {
   setDefaultTimeout,
   setWorldConstructor,
@@ -45,23 +51,25 @@ export const SCENARIO_SETUP_TIMEOUT = SERVER_START_TIMEOUT + STEP_GUARD;
 
 // ── the UI contract ────────────────────────────────────────────────────
 
+/** The mount point — `index.html`'s, not the client's, so it is the one
+ *  selector here the client does not own and the one spelled out locally. */
 export const ROOT = "#root";
 /** The sidebar: one entry per `.jsonl` found under the served directory. */
-export const OUTLINE_LIST = '[data-testid="outline-list"]';
-export const OUTLINE_LINK = '[data-testid="outline-link"]';
+export const OUTLINE_LIST = selector(TESTID.outlineList);
+export const OUTLINE_LINK = selector(TESTID.outlineLink);
 /** The main pane. Present only when the loaded set is valid. */
-export const OUTLINE_TREE = '[data-testid="outline-tree"]';
-export const NODE = '[data-testid="node"]';
-export const NODE_TITLE = '[data-testid="node-title"]';
-export const TAG = '[data-testid="tag"]';
-export const DATE = '[data-testid="date"]';
-export const DESC = '[data-testid="desc"]';
-export const TOGGLE = '[data-testid="toggle"]';
+export const OUTLINE_TREE = selector(TESTID.outlineTree);
+export const NODE = selector(TESTID.node);
+export const NODE_TITLE = selector(TESTID.nodeTitle);
+export const TAG = selector(TESTID.tag);
+export const DATE = selector(TESTID.date);
+export const DESC = selector(TESTID.desc);
+export const TOGGLE = selector(TESTID.toggle);
 /** Shown INSTEAD of the sidebar and the tree when the set does not validate. */
-export const ERROR_VIEW = '[data-testid="error-view"]';
-export const ERROR_FILE_GROUP = '[data-testid="error-file-group"]';
-export const ERROR_ROW = '[data-testid="error"]';
-export const CROSS_FILE_ERRORS = '[data-testid="cross-file-errors"]';
+export const ERROR_VIEW = selector(TESTID.errorView);
+export const ERROR_FILE_GROUP = selector(TESTID.errorFileGroup);
+export const ERROR_ROW = selector(TESTID.error);
+export const CROSS_FILE_ERRORS = selector(TESTID.crossFileErrors);
 
 /** The app has finished its first render when it has committed to one of its
  *  two shapes: a sidebar (the set loaded) or the error view (it did not).

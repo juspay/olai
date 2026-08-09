@@ -1,31 +1,37 @@
 /**
  * The whole app: a sidebar of the outlines found, and one of them open.
  *
- * Two subscriptions, read in one order that never changes: if the server has
- * errors, they are the page. An invalid set has no tree to draw — not a
- * partial one, not the last one — so showing anything else would be inventing
- * a state the server never reported.
+ * The page is decided by ONE subscription. The outline stream carries three
+ * answers — no frame yet, a `null` frame, a snapshot — and they are exactly
+ * the three things a reader can be looking at: waiting, broken, or reading.
+ * The error cell is the detail of the middle one, never the decision, because
+ * two subscriptions arriving independently would otherwise disagree for a
+ * frame and the page would flash the wrong story.
  *
  * Which outline is open is a route, so a link to one is a link someone can
- * send. Which nodes are folded is a signal, because it belongs to this tab's
- * reading of the file and not to the file.
+ * send. Which places are folded is a signal, because it belongs to this tab's
+ * reading and not to the file.
  */
 
-import type { Outline } from "@olai/format"
-import { createMemo, createSignal, For, Show } from "solid-js"
+import { derive, rowsOf } from "@olai/format"
+import { createMemo, createSignal, For, Match, onCleanup, Show, Switch } from "solid-js"
 
 import { Errors } from "./Errors.tsx"
+import { TESTID } from "./testids.ts"
 import { Tree } from "./Tree.tsx"
 import { olai } from "./wire.ts"
 
-/** `/o/<path>` opens that outline; `/` opens the first one found. Encoded
- *  per segment so a path with a directory in it stays readable in the URL bar. */
+/** `/o/<path>` opens that outline; `/` opens the first one found. Encoded per
+ *  segment so a path with a directory in it stays readable in the URL bar. */
 const ROUTE_PREFIX = "/o/"
 
 const fileFromLocation = (): string | null =>
   location.pathname.startsWith(ROUTE_PREFIX)
     ? decodeURIComponent(location.pathname.slice(ROUTE_PREFIX.length))
     : null
+
+const href = (file: string): string =>
+  ROUTE_PREFIX + file.split("/").map(encodeURIComponent).join("/")
 
 export default function App() {
   const frame = olai.streams.outlines.use(() => ({}))
@@ -34,7 +40,9 @@ export default function App() {
   const [route, setRoute] = createSignal(fileFromLocation())
   const [collapsed, setCollapsed] = createSignal<ReadonlySet<string>>(new Set<string>())
 
-  addEventListener("popstate", () => setRoute(fileFromLocation()))
+  const onPopState = () => setRoute(fileFromLocation())
+  addEventListener("popstate", onPopState)
+  onCleanup(() => removeEventListener("popstate", onPopState))
 
   const open = (file: string) => (event: MouseEvent) => {
     // Let a modified click do what the browser does with any link.
@@ -52,77 +60,83 @@ export default function App() {
       return next
     })
 
-  const outlines = createMemo<ReadonlyArray<Outline>>(() => {
-    const current = frame()
-    return current?.kind === "outlines" ? current.set.outlines : []
-  })
-
-  /** The whole set, flat. A mirror may point into any file, so the tree's
-   *  lookups need every node even though its roots come from one outline. */
-  const allNodes = createMemo(() => outlines().flatMap((outline) => outline.nodes))
-
-  const current = createMemo<Outline | undefined>(() => {
+  const set = () => frame()?.set
+  const files = () => set()?.files ?? []
+  const current = () => {
     const file = route()
-    return file === null
-      ? outlines()[0]
-      : outlines().find((outline) => outline.file === file)
+    return file === null ? files()[0] : files().includes(file) ? file : undefined
+  }
+
+  // One derivation for the whole set — the same call the validator makes. The
+  // rows are per-file; the indexes are not, because a mirror may point into
+  // any file and resolving it needs every node.
+  const derived = createMemo(() => {
+    const loaded = set()
+    return loaded === undefined ? undefined : derive(loaded.nodes)
+  })
+  const rows = createMemo(() => {
+    const loaded = set()
+    const indexes = derived()
+    const file = current()
+    return loaded === undefined || indexes === undefined || file === undefined
+      ? []
+      : rowsOf(indexes, loaded.nodes, file)
   })
 
   return (
-    <Show
-      when={(errors.value() ?? []).length === 0}
-      fallback={<Errors errors={errors.value() ?? []} />}
-    >
-      <div class="app">
-        <nav class="sidebar">
-          <h1 class="brand">olai</h1>
-          <ul data-testid="outline-list">
-            <For each={outlines()}>
-              {(outline) => (
-                <li>
-                  <a
-                    href={href(outline.file)}
-                    data-testid="outline-link"
-                    data-file={outline.file}
-                    aria-current={current()?.file === outline.file ? "page" : undefined}
-                    onClick={open(outline.file)}
-                  >
-                    {outline.file}
-                  </a>
-                </li>
-              )}
-            </For>
-          </ul>
-        </nav>
+    <Switch fallback={<Waiting />}>
+      <Match when={frame() === null}>
+        <Errors errors={errors.value() ?? []} />
+      </Match>
+      <Match when={set() !== undefined}>
+        <div class="app">
+          <nav class="sidebar">
+            <h1 class="brand">olai</h1>
+            <ul data-testid={TESTID.outlineList}>
+              <For each={files()}>
+                {(file) => (
+                  <li>
+                    <a
+                      href={href(file)}
+                      data-testid={TESTID.outlineLink}
+                      data-file={file}
+                      aria-current={current() === file ? "page" : undefined}
+                      onClick={open(file)}
+                    >
+                      {file}
+                    </a>
+                  </li>
+                )}
+              </For>
+            </ul>
+          </nav>
 
-        <main class="pane">
-          <Show when={current()} fallback={<Empty loaded={frame() !== undefined} />}>
-            {(outline) => (
-              <Tree
-                nodes={allNodes()}
-                file={outline().file}
-                collapsed={collapsed()}
-                onToggle={toggle}
-              />
-            )}
-          </Show>
-        </main>
-      </div>
-    </Show>
+          <main class="pane">
+            <Show when={current()} fallback={<Empty route={route()} files={files()} />}>
+              <Tree rows={rows()} collapsed={collapsed()} onToggle={toggle} />
+            </Show>
+          </main>
+        </div>
+      </Match>
+    </Switch>
   )
 }
 
-const href = (file: string): string =>
-  ROUTE_PREFIX + file.split("/").map(encodeURIComponent).join("/")
+function Waiting() {
+  return <p class="empty">Reading…</p>
+}
 
-/** Two different nothings, said differently: we have not heard from the server
- *  yet, or we have and it found no outlines. */
-function Empty(props: { readonly loaded: boolean }) {
+/** Two different nothings, said differently: the directory holds no outlines,
+ *  or it holds outlines and none of them is the one this URL names. */
+function Empty(props: {
+  readonly route: string | null
+  readonly files: ReadonlyArray<string>
+}) {
   return (
     <p class="empty">
-      {props.loaded
-        ? "No .jsonl outlines under the served directory."
-        : "Reading…"}
+      {props.route !== null && props.files.length > 0
+        ? `No outline named ${props.route} under the served directory.`
+        : "No .jsonl outlines under the served directory."}
     </p>
   )
 }

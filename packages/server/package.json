@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "./src/main.ts",
+  "main": "./src/serve.ts",
   "types": "./src/serve.ts",
   "exports": {
     ".": "./src/serve.ts"
@@ -11,6 +11,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
+  "//main": "src/serve.ts, not src/main.ts: main.ts ends in a top-level run that starts the server and installs signal handlers, so a resolver honouring `main` over `exports` would boot a listener on import. The binary is reached as a script path (default.nix, the justfile), never as a module.",
   "//dependencies": "The composition root: it is the only package allowed to know about all of the others, and the direction is strictly downward (docs/architecture.md). @olai/web is deliberately absent — the server serves a built bundle it is handed, it does not import the client.",
   "dependencies": {
     "@effect/platform-node": "4.0.0-beta.106",

@@ -11,26 +11,30 @@
  * format exists to remove.
  */
 
+import { distance } from "fastest-levenshtein"
 import { Result } from "effect"
 
-import { childIndex, countedChildren, statusIndex } from "./derive.ts"
+import { countedChildren, derive, type Derived } from "./derive.ts"
 import { compareErrors, type OutlineError } from "./errors.ts"
-import { EDGE_FIELDS, type Located } from "./node.ts"
-import type { Document, OutlineSet } from "./set.ts"
+import { EDGE_FIELDS, isMirror, type Located } from "./node.ts"
+import type { OutlineSet } from "./set.ts"
 
 export const validate = (
   set: OutlineSet,
 ): Result.Result<OutlineSet, ReadonlyArray<OutlineError>> => {
   const errors: Array<OutlineError> = []
-  const all = set.outlines.flatMap((outline) => outline.nodes)
+  // One set of indexes, built once and shared by every rule below, so no two
+  // of them can disagree about which record an id names or what a node's
+  // status is — and so the browser derives the tree from the same code.
+  const derived = derive(set.nodes)
 
-  const byId = index(all, errors)
-  checkParents(all, byId, errors)
-  checkTargets(all, byId, errors)
-  checkAfterAcyclic(all, byId, errors)
-  checkMirrorContainment(all, byId, errors)
-  checkDocs(all, set.documents, errors)
-  checkDerivedState(all, errors)
+  reportDuplicateIds(set.nodes, derived, errors)
+  checkParents(set.nodes, derived, errors)
+  checkTargets(set.nodes, derived, errors)
+  checkAfterAcyclic(set.nodes, derived, errors)
+  checkMirrorContainment(set.nodes, derived, errors)
+  checkDocs(set.nodes, set.documents, errors)
+  checkDerivedState(set.nodes, derived, errors)
 
   return errors.length > 0
     ? Result.fail([...errors].sort(compareErrors))
@@ -39,70 +43,61 @@ export const validate = (
 
 // ── ids ────────────────────────────────────────────────────────────────
 
-/** id → the record that owns it. A duplicate is reported once, on the second
- *  record, pointing back at the first: the first one is not the mistake. The
- *  first claim stays in the index so the reference rules below still resolve —
- *  reporting a hundred dangling edges because an id was declared twice would
- *  bury the one error worth reading. */
-const index = (
+/** A duplicate is reported once, on the second record, pointing back at the
+ *  first: the first one is not the mistake. `derive` keeps that first claim,
+ *  so the reference rules below still resolve — reporting a hundred dangling
+ *  edges because an id was declared twice would bury the one error worth
+ *  reading. */
+const reportDuplicateIds = (
   all: ReadonlyArray<Located>,
+  derived: Derived,
   errors: Array<OutlineError>,
-): ReadonlyMap<string, Located> => {
-  const byId = new Map<string, Located>()
+): void => {
   for (const located of all) {
-    const first = byId.get(located.node.id)
-    if (first === undefined) {
-      byId.set(located.node.id, located)
-      continue
-    }
+    const first = derived.byId.get(located.node.id)
+    if (first === undefined || first === located) continue
     errors.push({
       code: "duplicate-id",
-      file: located.file,
-      line: located.line,
+      ...siteOf(located),
       message: `\`${located.node.id}\` is already the id of another node; ids are unique across every file in the served directory`,
-      related: [
-        { file: first.file, line: first.line, note: "first declared here" },
-      ],
+      related: [{ ...siteOf(first), note: "first declared here" }],
     })
   }
-  return byId
 }
 
 // ── references ─────────────────────────────────────────────────────────
 
 const checkParents = (
   all: ReadonlyArray<Located>,
-  byId: ReadonlyMap<string, Located>,
+  derived: Derived,
   errors: Array<OutlineError>,
 ): void => {
-  for (const { file, line, node } of all) {
+  for (const located of all) {
+    const { file, node } = located
     if (node.parent === undefined) continue
 
-    const parent = byId.get(node.parent)
+    const parent = derived.byId.get(node.parent)
     if (parent === undefined) {
       errors.push({
         code: "unknown-parent",
-        file,
-        line,
-        message: `\`parent\` is \`${node.parent}\`, which no node declares${suggest(node.parent, byId)}`,
+        ...siteOf(located),
+        message: `\`parent\` is \`${node.parent}\`, which no node declares${suggest(node.parent, derived)}`,
       })
       continue
     }
     if (parent.file !== file) {
       errors.push({
         code: "foreign-parent",
-        file,
-        line,
+        ...siteOf(located),
         message: `\`parent\` is \`${node.parent}\`, which lives in another file; every \`.jsonl\` is an independent tree, so cross-file placement is a \`mirror\``,
         related: [{ ...siteOf(parent), note: "the parent lives here" }],
       })
       continue
     }
-    if (parent.node.mirror !== undefined) {
+    if (isMirror(parent.node)) {
       errors.push({
         code: "parent-not-a-node",
-        file,
-        line,
+        ...siteOf(located),
         message: `\`parent\` is \`${node.parent}\`, which is a mirror; children hang off the node a mirror points at, never off the mirror`,
         related: [{ ...siteOf(parent), note: "the mirror is here" }],
       })
@@ -110,7 +105,7 @@ const checkParents = (
   }
 
   reportCycles(
-    findCycles(all, byId, (node) => (node.parent === undefined ? [] : [node.parent])),
+    findCycles(all, derived, (node) => (node.parent === undefined ? [] : [node.parent])),
     "parent-cycle",
     "`parent` pointers close a loop, so this node is its own ancestor",
     errors,
@@ -119,26 +114,30 @@ const checkParents = (
 
 const checkTargets = (
   all: ReadonlyArray<Located>,
-  byId: ReadonlyMap<string, Located>,
+  derived: Derived,
   errors: Array<OutlineError>,
 ): void => {
-  for (const { file, line, node } of all) {
-    const targets: Array<readonly [field: string, id: string]> =
-      node.mirror === undefined ? [] : [["mirror", node.mirror]]
-    for (const field of EDGE_FIELDS) {
-      for (const id of node[field] ?? []) targets.push([field, id])
-    }
-
-    for (const [field, id] of targets) {
-      if (byId.has(id)) continue
+  for (const located of all) {
+    for (const [field, id] of targetsOf(located)) {
+      if (derived.byId.has(id)) continue
       errors.push({
         code: "unknown-target",
-        file,
-        line,
-        message: `\`${field}\` names \`${id}\`, which no node declares${suggest(id, byId)}`,
+        ...siteOf(located),
+        message: `\`${field}\` names \`${id}\`, which no node declares${suggest(id, derived)}`,
       })
     }
   }
+}
+
+/** Every id this record points at, and the field it pointed with — reported in
+ *  declaration order so two loads read the same. */
+const targetsOf = (
+  { node }: Located,
+): ReadonlyArray<readonly [field: string, id: string]> => {
+  if (isMirror(node)) return [["mirror", node.mirror]]
+  return EDGE_FIELDS.flatMap((field) =>
+    (node[field] ?? []).map((id) => [field, id] as const)
+  )
 }
 
 /** `blocks` is sugar — `a blocks b` means `b after a` — and this is the only
@@ -146,7 +145,7 @@ const checkTargets = (
  *  two that could disagree. */
 const checkAfterAcyclic = (
   all: ReadonlyArray<Located>,
-  byId: ReadonlyMap<string, Located>,
+  derived: Derived,
   errors: Array<OutlineError>,
 ): void => {
   const after = new Map<string, Array<string>>()
@@ -157,12 +156,13 @@ const checkAfterAcyclic = (
   }
 
   for (const { node } of all) {
+    if (isMirror(node)) continue
     for (const target of node.after ?? []) edge(node.id, target)
     for (const target of node.blocks ?? []) edge(target, node.id)
   }
 
   reportCycles(
-    findCycles(all, byId, (node) => after.get(node.id) ?? []),
+    findCycles(all, derived, (node) => after.get(node.id) ?? []),
     "after-cycle",
     "`after` (with `blocks` normalised into it) closes a loop, so nothing in it can start first",
     errors,
@@ -174,35 +174,25 @@ const checkAfterAcyclic = (
  *  walks has to be acyclic.
  *
  *  That graph is "drawing X leads to drawing Y", and it runs DOWNWARD: a node
- *  leads to its children, and a mirror leads to its target. Note this is the
+ *  leads to its children, a mirror leads to its target. Note this is the
  *  opposite direction from the parent check above, which walks child-to-parent
  *  — either direction finds a pure parent loop, but only the downward one
  *  finds the mirror case, because a mirror's edge to its target is downward by
  *  nature. Mixing the two directions in one walk finds neither reliably. */
 const checkMirrorContainment = (
   all: ReadonlyArray<Located>,
-  byId: ReadonlyMap<string, Located>,
+  derived: Derived,
   errors: Array<OutlineError>,
 ): void => {
-  const childIds = new Map<string, Array<string>>()
-  for (const { node } of all) {
-    if (node.parent === undefined) continue
-    const siblings = childIds.get(node.parent)
-    if (siblings === undefined) childIds.set(node.parent, [node.id])
-    else siblings.push(node.id)
-  }
-
-  const cycles = findCycles(all, byId, (node) => [
-    ...(childIds.get(node.id) ?? []),
-    ...(node.mirror === undefined ? [] : [node.mirror]),
+  const cycles = findCycles(all, derived, (node) => [
+    ...(derived.children.get(node.id) ?? []).map((child) => child.node.id),
+    ...(isMirror(node) ? [node.mirror] : []),
   ])
 
   reportCycles(
     // A cycle with no mirror in it is a parent cycle, already reported by
     // `checkParents` — saying it twice in two vocabularies helps nobody.
-    cycles.filter((cycle) =>
-      cycle.some((located) => located.node.mirror !== undefined)
-    ),
+    cycles.filter((cycle) => cycle.some((located) => isMirror(located.node))),
     "mirror-cycle",
     "this mirror is placed inside the subtree it shows, so expanding it never ends",
     errors,
@@ -216,18 +206,18 @@ const checkMirrorContainment = (
  *  against the `.md` files actually found. */
 const checkDocs = (
   all: ReadonlyArray<Located>,
-  documents: ReadonlyArray<Document>,
+  documents: ReadonlyArray<string>,
   errors: Array<OutlineError>,
 ): void => {
-  const known = new Set(documents.map((document) => document.file))
-  for (const { file, line, node } of all) {
-    if (node.doc === undefined) continue
+  const known = new Set(documents)
+  for (const located of all) {
+    const { file, node } = located
+    if (isMirror(node) || node.doc === undefined) continue
     const resolved = resolveRelative(file, node.doc)
     if (known.has(resolved)) continue
     errors.push({
       code: "missing-doc",
-      file,
-      line,
+      ...siteOf(located),
       message: `\`doc\` is \`${node.doc}\`, which resolves to \`${resolved}\` — no such \`.md\` file is served`,
     })
   }
@@ -255,23 +245,28 @@ export const resolveRelative = (from: string, to: string): string => {
  *  of a node, not a second obligation. */
 const checkDerivedState = (
   all: ReadonlyArray<Located>,
+  derived: Derived,
   errors: Array<OutlineError>,
 ): void => {
-  const children = childIndex(all)
-  const status = statusIndex(all, children)
-
-  for (const { file, line, node } of all) {
-    const stored = node.done !== undefined ? "done" : node.doing !== undefined ? "doing" : null
+  for (const located of all) {
+    const { node } = located
+    if (isMirror(node)) continue
+    const stored = node.done !== undefined
+      ? "done"
+      : node.doing !== undefined
+      ? "doing"
+      : null
     if (stored === null) continue
 
-    const own = countedChildren(children, node.id)
+    const own = countedChildren(derived, node.id)
     if (own.length === 0) continue
 
-    const unfinished = own.filter((child) => status.get(child.node.id) !== "done")
+    const unfinished = own.filter(
+      (child) => derived.status.get(child.node.id) !== "done",
+    )
     errors.push({
       code: "stored-derived-state",
-      file,
-      line,
+      ...siteOf(located),
       message: unfinished.length === 0
         ? `\`${stored}\` is computed from this node's ${own.length} children and must not be stored`
         : `\`${stored}\` is stored above ${unfinished.length} of ${own.length} children that ${unfinished.length === 1 ? "is" : "are"} not done; a parent's status is computed, never written`,
@@ -280,7 +275,7 @@ const checkDerivedState = (
       ...(unfinished.length === 0 ? {} : {
         related: unfinished.map((child) => ({
           ...siteOf(child),
-          note: `\`${child.node.id}\` is ${status.get(child.node.id) ?? "open"}`,
+          note: `\`${child.node.id}\` is ${derived.status.get(child.node.id) ?? "open"}`,
         })),
       }),
     })
@@ -294,7 +289,7 @@ const checkDerivedState = (
  *  graph walk that invented a node for it would report a second. */
 const findCycles = (
   all: ReadonlyArray<Located>,
-  byId: ReadonlyMap<string, Located>,
+  derived: Derived,
   edges: (node: Located["node"]) => ReadonlyArray<string>,
 ): ReadonlyArray<ReadonlyArray<Located>> => {
   const cycles: Array<ReadonlyArray<Located>> = []
@@ -315,7 +310,7 @@ const findCycles = (
 
     path.push(located)
     for (const target of edges(located.node)) {
-      const next = byId.get(target)
+      const next = derived.byId.get(target)
       if (next !== undefined) walk(next, path)
     }
     path.pop()
@@ -371,39 +366,16 @@ const siteOf = ({ file, line }: Located): { file: string; line: number } => ({
 /** "did you mean" — the closest declared id, when one is close enough to be a
  *  typo rather than a different word. An unknown reference is nearly always a
  *  misspelling, and naming the candidate turns a search into a keystroke. */
-const suggest = (id: string, byId: ReadonlyMap<string, Located>): string => {
+const suggest = (id: string, derived: Derived): string => {
   const budget = Math.max(2, Math.floor(id.length / 3))
   let best: string | null = null
   let bestDistance = budget + 1
-  for (const candidate of byId.keys()) {
-    const distance = editDistance(id, candidate, bestDistance)
-    if (distance < bestDistance) {
+  for (const candidate of derived.byId.keys()) {
+    const gap = distance(id, candidate)
+    if (gap < bestDistance) {
       best = candidate
-      bestDistance = distance
+      bestDistance = gap
     }
   }
   return best === null ? "" : ` — did you mean \`${best}\`?`
-}
-
-/** Levenshtein distance, abandoned once every cell of a row exceeds `budget`:
- *  the suggestion only cares about near misses, and the ids it walks are every
- *  id in the set. */
-const editDistance = (a: string, b: string, budget: number): number => {
-  if (Math.abs(a.length - b.length) >= budget) return budget
-  let previous = Array.from({ length: b.length + 1 }, (_, index) => index)
-  for (let i = 1; i <= a.length; i++) {
-    const row = [i, ...new Array<number>(b.length).fill(0)]
-    let best = i
-    for (let j = 1; j <= b.length; j++) {
-      const substitute = (previous[j - 1] ?? 0) + (a[i - 1] === b[j - 1] ? 0 : 1)
-      const insert = (row[j - 1] ?? 0) + 1
-      const remove = (previous[j] ?? 0) + 1
-      const cell = Math.min(substitute, insert, remove)
-      row[j] = cell
-      best = Math.min(best, cell)
-    }
-    if (best >= budget) return budget
-    previous = row
-  }
-  return previous[b.length] ?? budget
 }

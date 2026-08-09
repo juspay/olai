@@ -8,6 +8,10 @@
     "test": "cucumber-js --profile ui",
     "typecheck": "tsc --noEmit"
   },
+  "//dependencies": "@olai/web for its `data-testid` names ONLY. The attribute names are a contract between two packages that never otherwise meet, and the way that contract breaks is silent — a rename compiles on both sides and shows up as a thirty-second timeout. Importing the client's own TESTID record in support/world.ts makes it a type error instead. Nothing else is imported from the client: these tests drive it through a browser, not through its modules.",
+  "dependencies": {
+    "@olai/web": "workspace:*"
+  },
   "//devDependencies": "playwright is pinned to 1.61.1 — the version of `pkgs.playwright-driver` in the pinned nixpkgs. The npm package ships only the driver's JS; the browsers come from the Nix store via PLAYWRIGHT_BROWSERS_PATH, and the driver refuses a browser build it was not compiled against. A minor-version drift here (kolu's 1.59.0, say) does not fail at install time — it fails at `chromium.launch()` with \"Executable doesn't exist\", pointing at a path inside the store that is real but wrong. Bump this only together with the nixpkgs pin, never on its own.",
   "devDependencies": {
     "@cucumber/cucumber": "^12.8.1",

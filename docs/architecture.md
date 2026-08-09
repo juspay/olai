@@ -35,7 +35,9 @@ A Bun workspace (`packages/*`, shared `tsconfig.base.json`). Layering between pa
 | `web` | `format`, `surface` | the SolidJS client and its `Bun.build` bundle |
 | `tests` | — | Cucumber features driven through Playwright against the nix-built binary |
 
-`server` does not depend on `web`: it serves a built bundle it is handed (`OLAI_DIST_DIR`, set by the nix wrapper), so the browser build is a build artifact rather than an import.
+`server` does not depend on `web`: it serves a built bundle it is handed (`OLAI_DIST_DIR`, the one place either of them names it), so the browser build is a build artifact rather than an import.
+
+**Owed upstream.** `packages/server/src/listener.ts` sequences an origin gate, an upgrade, a stale-tab check, heartbeat enrolment and a serving stack — the same sequence, in the same order, as kolu's own surface-app example. That is a `serveSurfaceApp({surface, handlers, clientDist, host, port, allowedOrigins})` primitive belonging in `@kolu/surface-app`, beside the `surfaceAppLayer` and `acceptSurfaceSocket` it already owns. Until it exists, two copies are kept in step by hand, which is exactly the volatility a receptacle is supposed to contain.
 
 ## Errors
 
