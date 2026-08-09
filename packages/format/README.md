@@ -19,12 +19,26 @@ answer alone — shape, id spelling, ISO dates, the two exclusivity rules.
 `validate` sees the whole set and owns every rule that needs to know what else
 exists: parents, mirror targets, `after` cycles, derived state.
 
-A file is decoded whole or not at all, and the set-wide rules do not run until
-every file parses. "`kitchen` is not a known id" is a guess when the line
-declaring `kitchen` is the one that failed to parse, so a report containing a
-per-line error says out loud that the set-wide questions have not been asked
-yet (`reportStage`). Syntax first, then meaning; the alternative is a screen of
-cascading errors with one real cause.
+A file is decoded whole or not at all. The set-wide rules then run over the
+files that DID parse, and what happens to the one that did not is the error
+scope (resolved 2026-08-09, and the reason `validate` is handed each file's
+`Result` rather than only the successes):
+
+- if the survivors are clean, the set is accepted with that file's errors
+  embedded in it (`OutlineSet.broken`). The browser renders them in that one
+  outline's place and everything else stays live;
+- if anything else is wrong, the set is rejected and the report carries the
+  parse errors alongside whatever else was found.
+
+Guesses are still not reported. "`kitchen` is not a known id" is a guess when
+the line declaring `kitchen` is the one that failed to parse — so `unknown-target`
+is withheld while any file is unreadable, and withholding one is itself a reason
+to reject the set rather than publish nodes whose targets are unresolvable.
+Nothing else can be *invented* by a missing file: `parent` may not cross files,
+so an unresolved one is refused whichever file it was going to be in, and a
+duplicate or a cycle can only be hidden by a missing file, never conjured. A
+report containing a per-line error says out loud (`reportStage`) that a second
+round is expected.
 
 Within a phase, every rule runs and every error is collected. Stopping at the
 first would turn "fix this file" into a loop of load-fix-load, which is the

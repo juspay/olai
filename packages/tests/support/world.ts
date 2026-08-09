@@ -14,6 +14,10 @@
  * rename is a type error before the browser ever starts.
  */
 
+import type { ChildProcess } from "node:child_process";
+import * as fs from "node:fs";
+import * as path from "node:path";
+
 import { selector, TESTID } from "@olai/web/src/client/testids.ts";
 import {
   setDefaultTimeout,
@@ -76,11 +80,15 @@ export const CRUMB = selector(TESTID.crumb);
 export const DONE_TOGGLE = selector(TESTID.doneToggle);
 /** Shown in the main pane when `/n/<id>` names no node. The sidebar stays. */
 export const NOT_FOUND = selector(TESTID.notFound);
-/** Shown INSTEAD of the sidebar and the tree when the set does not validate. */
+/** Shown INSTEAD of the sidebar and the tree when a set has never validated. */
 export const ERROR_VIEW = selector(TESTID.errorView);
 export const ERROR_FILE_GROUP = selector(TESTID.errorFileGroup);
 export const ERROR_ROW = selector(TESTID.error);
 export const CROSS_FILE_ERRORS = selector(TESTID.crossFileErrors);
+/** Shown OVER a last-good tree: the files on disk stopped validating. */
+export const STALE_BANNER = selector(TESTID.staleBanner);
+/** Shown IN ONE outline's place: that file could not be read, the rest are live. */
+export const OUTLINE_FAILURE = selector(TESTID.outlineFailure);
 
 /** The app has finished its first render when it has committed to one of its
  *  two shapes: a sidebar (the set loaded) or the error view (it did not).
@@ -109,6 +117,19 @@ export const oneLine = (text: string): string =>
  *  cannot take a `Locator`. */
 export const nodeSelector = (id: string): string =>
   `${NODE}[data-node-id="${id}"]`;
+/** One line, with the `#` that marks a tag dropped.
+ *
+ *  The `#` is dropped on BOTH sides of every title comparison because the
+ *  format stores the title verbatim and leaves the split to the view: whether
+ *  the styled tag reads `#home` or `home` is a presentation choice the view is
+ *  entitled to make. What a title assertion is actually for is that the words
+ *  survive being cut apart into text and tag spans and put back together.
+ *
+ *  Stripped BEFORE the whitespace is flattened, so a `#` the view sets off on
+ *  its own does not leave a double space behind — which is exactly the detail a
+ *  second copy of this got backwards, and why it lives beside `oneLine` rather
+ *  than in whichever step file compares titles. */
+export const readable = (text: string): string => oneLine(text.replace(/#/g, ""));
 
 export class OlaiWorld extends World {
   browser!: Browser;
@@ -122,10 +143,18 @@ export class OlaiWorld extends World {
   errors: string[] = [];
 
   /** Which fixture corpus this scenario's server is serving, from its
-   *  `@corpus:<name>` tag. See `support/hooks.ts`. */
+   *  `@corpus:<name>` or `@scratch:<name>` tag. See `support/hooks.ts`. */
   corpus!: string;
   /** The URL that corpus's server answers on; also the context's `baseURL`. */
   baseUrl!: string;
+
+  /** The directory being served, for a `@scratch:` scenario — a private copy
+   *  of the corpus that this scenario is allowed to EDIT while the server
+   *  watches it. Undefined for the shared corpora, which are the tracked
+   *  fixtures and must not be written to. */
+  served?: string;
+  /** The server process a `@scratch:` scenario owns, killed in `After`. */
+  ownServer?: ChildProcess;
 
   /** Wait for a double `requestAnimationFrame`.
    *
@@ -267,11 +296,58 @@ export class OlaiWorld extends World {
     return node.first().getAttribute(attribute);
   }
 
+  /** The served directory this scenario is allowed to write to, or a
+   *  diagnostic naming the tag it forgot. Everything that edits a file goes
+   *  through here, so "a scenario wrote into the tracked fixtures" is not a
+   *  thing that can happen quietly. */
+  scratch(): string {
+    if (this.served === undefined) {
+      throw new Error(
+        `this scenario edits the files it is served, so it must be tagged ` +
+          `@scratch:${this.corpus} rather than @corpus:${this.corpus} — the shared ` +
+          `corpora are tracked fixtures and are served to every other scenario too`,
+      );
+    }
+    return this.served;
+  }
+
+  /** Replace one file of the served directory, as a person or a `git pull`
+   *  would. The store notices on its own; nothing here tells it to look. */
+  writeServed(file: string, contents: string): void {
+    const target = path.join(this.scratch(), file);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, contents.endsWith("\n") ? contents : `${contents}\n`);
+  }
+
+  removeServed(file: string): void {
+    fs.rmSync(path.join(this.scratch(), file));
+  }
+
   /** Plant the no-reload sentinel. */
   async markPage(): Promise<void> {
     await this.page.evaluate((key) => {
       (window as unknown as Record<string, unknown>)[key] = true;
     }, NO_RELOAD_MARK);
+  }
+
+  /** Poll until `check` holds, or fail saying what was being waited for.
+   *
+   *  Playwright's own locators already retry, so this is only for the
+   *  assertions a selector cannot express — "this text has CHANGED", "that
+   *  element is gone" — which is most of what a live page has to be asked. */
+  async waitUntil(
+    check: () => Promise<boolean>,
+    describe: string,
+    timeout = POLL_TIMEOUT,
+  ): Promise<void> {
+    const deadline = Date.now() + timeout;
+    for (;;) {
+      if (await check()) return;
+      if (Date.now() >= deadline) {
+        throw new Error(`timed out after ${timeout}ms waiting until ${describe}`);
+      }
+      await this.page.waitForTimeout(100);
+    }
   }
 
   /** Is the sentinel still there? False after any navigation. */

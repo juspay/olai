@@ -24,12 +24,12 @@
 export { parseOutline } from "./parse.ts"
 export { validate } from "./validate.ts"
 
-export { assemble, fileKind, OutlineSet } from "./set.ts"
+export { assemble, BrokenFile, fileKind, OutlineSet } from "./set.ts"
 export type { DecodedFile, Outline } from "./set.ts"
 export { isMirror, Located } from "./node.ts"
 export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
 
-export { derive, rowsOf, titleParts, withoutDone } from "./derive.ts"
+export { derive, rowsOf, rowsUnder, titleParts, withoutDone } from "./derive.ts"
 export type { Derived, Row, Status, TitlePart } from "./derive.ts"
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"

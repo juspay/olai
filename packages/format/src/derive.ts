@@ -26,7 +26,7 @@ export type Status = "done" | "doing" | "open"
  *
  * The nodes travel WITH their indexes rather than beside them. Two parameters
  * would let a caller pass one revision's nodes against another's indexes —
- * which phase 3, with two revisions in flight, makes a live possibility — and
+ * a live store, with two revisions in flight, makes a real possibility — and
  * the symptom would be a plausible tree rather than a failure.
  */
 export interface Derived {

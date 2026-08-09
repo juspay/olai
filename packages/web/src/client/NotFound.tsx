@@ -14,7 +14,7 @@
 import type { Zoomed } from "@olai/format"
 import { Match, Switch } from "solid-js"
 
-import { Lede } from "./Lede.tsx"
+import { Lede } from "./errors/Lede.tsx"
 import { only } from "./narrow.ts"
 import { TESTID } from "./testids.ts"
 

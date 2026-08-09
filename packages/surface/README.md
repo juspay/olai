@@ -12,24 +12,33 @@ declared once at the workspace root; see `bunfig.toml`).
 
 ## Two members, and the shapes are the argument
 
-Phase 2 declares exactly two things, and which kind each one is was a decision:
+Two things, and which kind each one is was a decision:
 
 - **`outlines` is a stream, not a cell.** The files belong to the disk, not to
   the server, so the server reports what it read rather than owning a value it
   could be asked to change. Every subscription opens with a full snapshot, so a
-  reconnect is a fresh read and nothing has to be resumed.
+  reconnect is a fresh read and nothing has to be resumed — and a probe that
+  found a change sends the next frame down that same subscription, which is the
+  whole of how the page stays live.
 - **`errors` is a cell**, read-only on the wire, because "what is wrong right
   now" is one value the server does own. It is deliberately independent of the
-  snapshot: phase 3 keeps the last good tree on screen underneath it, and a
-  consumer written against two subscriptions today needs no change to get that.
+  snapshot, and that independence is load-bearing: a set that stops validating
+  leaves the last good tree on screen underneath a banner, which is only
+  expressible if the two arrive separately.
 
 `OutlineFrame` is nullable on purpose. A reader must tell three states apart —
-no answer yet (no frame), the files are broken (`null`), here is your outline
-(a snapshot) — and a nullable frame says all three with no second encoding. Why
-it is broken lives in the `errors` cell and nowhere else; carrying the list
-here too would let a consumer pick which of two truths to show.
+no answer yet (no frame), nothing has ever validated (`null`), here is your
+outline (a snapshot) — and a nullable frame says all three with no second
+encoding.
 
-Ops arrive as procedures in phase 4 and chat as events in phase 5, into this
+The two error channels are not a duplication: `set.broken` says WHICH outline
+is unreadable, because that is a property of the set the sidebar and the pane
+are drawn from, and the cell says what is wrong with the set AS A WHOLE, which
+no single file owns. A file listed in `broken` is being rendered around;
+anything in the cell is being held back.
+
+Ops arrive as procedures and chat as events when the agent does — one item,
+because chat's agent is the first writer — into this
 same spec.
 
 ## Entry point

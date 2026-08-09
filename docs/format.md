@@ -40,7 +40,9 @@ It runs in two stages, and the staging is part of the contract:
 1. **Per line.** Everything a single record answers on its own: JSON, the record shape (required fields present, no unknown field, a mirror carrying nothing but its four), the id's spelling, ISO dates, and the `done`/`doing` exclusion.
 2. **Per set.** Everything that needs to know what else exists: uniqueness, references, cycles, documents, derived state.
 
-A file is decoded whole or not at all, and **the set-wide rules do not run until every outline parses**. "`kitchen` is not a known id" is a guess when the line declaring `kitchen` is the one that failed to parse, so a report containing any per-line error is a report that has not asked the set-wide questions yet — and says so. Expect a second round after fixing the first.
+A file is decoded whole or not at all. The set-wide rules then run over the outlines that did parse, and one that did not costs **that outline and nothing else**: if the survivors are clean, the set loads with the broken file's errors carried inside it, shown in that outline's place while the rest stay live. If anything else is wrong, the set is refused and the parse errors are reported alongside it.
+
+Guesses are still not reported. "`kitchen` is not a known id" is a guess when the line declaring `kitchen` is the one that failed to parse, so an unresolved `mirror`/`after`/`blocks`/`see` target is withheld while any outline is unreadable — and withholding one is itself a reason to refuse the set rather than serve nodes whose targets cannot be resolved. Nothing else can be invented by an unreadable file: `parent` may not cross files, so an unresolved one is refused whichever file the id was going to be in, and a duplicate or a cycle can only be *hidden* by a missing file. A report containing any per-line error says so, and a second round is expected after fixing the first.
 
 The rules:
 

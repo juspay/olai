@@ -92,11 +92,12 @@ test("the stage is decided by the code alone", () => {
   expect(stageOf("stored-derived-state")).toBe("set")
 })
 
-// A whole report has a stage too, and it is the pessimistic one: a file is
-// decoded whole or not at all, and the set-wide rules do not run until every
-// file parses. So one `line` error anywhere means the `set` questions have not
-// been asked yet, and the view says so rather than letting a reader conclude
-// from a short list that the rest of the set is fine.
+// A whole report has a stage too, and it is the pessimistic one. A file is
+// decoded whole or not at all, so one `line` error anywhere means the set was
+// judged without that file's nodes: the rules ran, but the ones a missing file
+// could have invented were withheld rather than guessed at. So the report has a
+// question still open, and the view says so rather than letting a reader
+// conclude from a short list that the rest of the set is fine.
 test("a report is at the line stage while anything in it is", () => {
   const line = error("a.jsonl", 1, "not-json")
   const set = error("a.jsonl", 2, "unknown-parent")

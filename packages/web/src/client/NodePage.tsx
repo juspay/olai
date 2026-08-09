@@ -8,8 +8,8 @@
  * canonical ancestry rather than the path that was clicked.
  */
 
-import type { Zoomed } from "@olai/format"
-import { createMemo, Show } from "solid-js"
+import type { Row, Zoomed } from "@olai/format"
+import { Show } from "solid-js"
 
 import { Breadcrumbs } from "./Breadcrumbs.tsx"
 import { DateBadge } from "./DateBadge.tsx"
@@ -23,23 +23,28 @@ import { TONE } from "./tone.ts"
 import { Tree } from "./Tree.tsx"
 import type { View } from "./view.ts"
 
-export function NodePage(props: { readonly zoomed: Zoomed; readonly view: View }) {
+export function NodePage(props: {
+  readonly zoomed: Zoomed
+  /** The children, as the app's one reconciled row store — the same rows an
+   *  outline draws, so a zoomed page is as live as any other. */
+  readonly rows: ReadonlyArray<Row>
+  readonly view: View
+}) {
   return (
     <Show
       when={only(props.zoomed, "node")}
       fallback={<NotFound zoomed={props.zoomed} />}
     >
-      {(zoomed) => <Zoom zoomed={zoomed()} view={props.view} />}
+      {(zoomed) => <Zoom zoomed={zoomed()} rows={props.rows} view={props.view} />}
     </Show>
   )
 }
 
 function Zoom(props: {
   readonly zoomed: Extract<Zoomed, { readonly kind: "node" }>
+  readonly rows: ReadonlyArray<Row>
   readonly view: View
 }) {
-  const rows = createMemo(() => props.view.visible(props.zoomed.children))
-
   return (
     <>
       <header class="mb-4">
@@ -71,11 +76,11 @@ function Zoom(props: {
       </header>
 
       <Show
-        when={rows().length > 0}
+        when={props.rows.length > 0}
         fallback={<p class="text-muted">{nothingUnder(props.zoomed, props.view)}</p>}
       >
         <Tree
-          rows={rows()}
+          rows={props.rows}
           collapsed={props.view.collapsed()}
           onToggle={props.view.toggle}
         />

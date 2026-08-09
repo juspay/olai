@@ -3,13 +3,15 @@ import { Result } from "effect"
 
 import { isCrossFile, type OutlineError } from "./errors.ts"
 import { setOf } from "./fixtures.testlib.ts"
+import type { OutlineSet } from "./set.ts"
 import { resolveRelative, validate } from "./validate.ts"
 
 const errorsOf = (
   files: Record<string, string>,
   documents: ReadonlyArray<string> = [],
+  broken: Record<string, string> = {},
 ): ReadonlyArray<OutlineError> => {
-  const result = validate(setOf(files, documents))
+  const result = validate(setOf(files, documents, broken))
   if (Result.isSuccess(result)) throw new Error("expected this set to be rejected")
   return result.failure
 }
@@ -17,8 +19,9 @@ const errorsOf = (
 const expectValid = (
   files: Record<string, string>,
   documents: ReadonlyArray<string> = [],
-): void => {
-  const set = setOf(files, documents)
+  broken: Record<string, string> = {},
+): OutlineSet => {
+  const set = setOf(files, documents, broken)
   const result = validate(set)
   if (Result.isFailure(result)) {
     throw new Error(
@@ -28,7 +31,10 @@ const expectValid = (
   // The set comes back as it went in — the validator judges, it does not
   // reshape, so what the browser subscribes to is what the reader found.
   expect(result.success).toBe(set)
-  expect(result.success.files.length).toBe(Object.keys(files).length)
+  expect(result.success.files.length).toBe(
+    Object.keys(files).length + Object.keys(broken).length,
+  )
+  return result.success
 }
 
 const only = (errors: ReadonlyArray<OutlineError>): OutlineError => {
@@ -342,4 +348,61 @@ test("errors come back sorted by file, then line", () => {
     "a.jsonl:2",
     "b.jsonl:1",
   ])
+})
+
+// ── files that did not parse ────────────────────────────────────────────
+
+// The hybrid error scope (resolved 2026-08-09). One unreadable file is a HOLE:
+// the outlines that parsed are still a set, still valid, still on screen, and
+// the broken one carries its own errors to render in its own place.
+test("a file that did not parse leaves the rest of the set valid", () => {
+  const set = expectValid(
+    { "garden.jsonl": `{"id":"garden","ord":"a","title":"garden"}` },
+    [],
+    { "house.jsonl": `{"id":"kitchen","ord":"a",title:"kitchen"}` },
+  )
+  expect(set.broken.map((file) => file.file)).toEqual(["house.jsonl"])
+  expect(set.broken[0]?.errors.map((error) => error.code)).toEqual(["not-json"])
+})
+
+// The staging rule, applied across files rather than within one: the ids the
+// unreadable file would have declared are missing, so `elsewhere` may well be
+// in there. Reporting it would be a guess, and the guess would name the wrong
+// file — so the report is the parse error, which is the cause.
+test("a target that the unreadable file might declare is not reported as unknown", () => {
+  const errors = errorsOf(
+    { "garden.jsonl": `{"id":"garden","ord":"a","title":"g","see":["elsewhere"]}` },
+    [],
+    { "house.jsonl": `{"id":"kitchen","ord":"a",title:"kitchen"}` },
+  )
+  expect(codes(errors)).toEqual(["not-json"])
+  expect(errors[0]?.file).toBe("house.jsonl")
+})
+
+// The other half of the same rule. A missing file can HIDE a duplicate but
+// cannot invent one, so this error stands — and the parse error is reported
+// beside it, because both have to be fixed and one pass should be enough.
+test("an error the unreadable file cannot explain is reported with it", () => {
+  const errors = errorsOf(
+    {
+      "a.jsonl": `{"id":"x","ord":"a","title":"one"}`,
+      "b.jsonl": `{"id":"x","ord":"a","title":"two"}`,
+    },
+    [],
+    { "c.jsonl": `{"id":"y","ord":"a",title:"three"}` },
+  )
+  expect(codes(errors)).toEqual(["duplicate-id", "not-json"])
+})
+
+// `parent` may not cross files, so an unresolved one is refused whichever file
+// the id was going to be in: unknown if nothing declares it, foreign if the
+// unreadable file did. Withholding it would be withholding an error that is
+// certain, only to re-report it in different words one fix later.
+test("an unknown parent is reported even when a file did not parse", () => {
+  const errors = errorsOf(
+    { "a.jsonl": `{"id":"sink","parent":"nowhere","ord":"a","title":"s"}` },
+    [],
+    { "b.jsonl": `{"id":"y","ord":"a",title:"y"}` },
+  )
+  expect(codes(errors)).toEqual(["unknown-parent", "not-json"])
 })

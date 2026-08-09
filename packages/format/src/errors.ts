@@ -19,14 +19,32 @@ import { Order, Schema } from "effect"
  *
  * `line` is the rules one record answers alone; `set` is the rules that need
  * to know what else exists. The distinction is load-bearing rather than
- * cosmetic: a file is decoded whole or not at all, and the set-wide rules do
- * not run until every file parses — "`kitchen` is not a known id" is a guess
- * when the line declaring `kitchen` is the one that failed to parse. So a
- * report containing any `line` error is a report that has not asked the `set`
- * questions yet, and the error view says so rather than letting a reader
- * infer it.
+ * cosmetic: a file is decoded whole or not at all, so a `line` error means the
+ * set is missing that file's nodes while the `set` rules run over what is left.
+ * Most of them are unaffected by the gap and report as usual; the ones a
+ * missing file could have INVENTED are withheld instead ({@link Reach} below),
+ * because "`kitchen` is not a known id" is a guess when the line declaring
+ * `kitchen` is the one that failed to parse. So a report carrying any `line`
+ * error is a report with a question still open, and the error view says so
+ * rather than letting a reader infer it.
  */
 export type Stage = "line" | "set"
+
+/**
+ * How a rule REACHES a code — the catalogue's value, and one value more than
+ * {@link Stage} has members.
+ *
+ * `set-across-files` is a `set` rule that resolves a bare id which may live in
+ * any file of the served directory. It is called out because a file that did
+ * not parse takes its ids with it, so exactly these codes can be INVENTED by
+ * an unreadable file rather than merely hidden by one — and inventing one is
+ * the guess the staging rule above exists to forbid ({@link ./validate.ts}
+ * withholds them). Recording it here rather than in the validator is the same
+ * argument this file's header makes: a code declared in one place and
+ * classified in another is a pair that can drift, and a new code must answer
+ * the question rather than default to the wrong answer.
+ */
+type Reach = Stage | "set-across-files"
 
 /** Every way a loaded set can be wrong. Closed on purpose: the browser's error
  *  view switches on it, and a new member should be a type error there rather
@@ -60,8 +78,11 @@ const CATALOGUE = {
   "parent-not-a-node": "set",
   /** `parent` pointers close a loop. */
   "parent-cycle": "set",
-  /** A `mirror`, `after`, `blocks` or `see` target names an unknown id. */
-  "unknown-target": "set",
+  /** A `mirror`, `after`, `blocks` or `see` target names an unknown id. The
+   *  one code an unreadable file can invent: those fields name a bare id and
+   *  the id may live in any file, so "no node declares it" is not knowable
+   *  while some file has not parsed. */
+  "unknown-target": "set-across-files",
   /** `after` (with `blocks` normalised into it) closes a loop. */
   "after-cycle": "set",
   /** A mirror is placed inside the subtree it shows, so expanding it never
@@ -72,19 +93,31 @@ const CATALOGUE = {
   /** A node with children stores `done` or `doing`. A parent's status is
    *  computed from its children and is never stored. */
   "stored-derived-state": "set",
-} as const satisfies Record<string, Stage>
+} as const satisfies Record<string, Reach>
 
 export type ErrorCode = keyof typeof CATALOGUE
 export const ErrorCode = Schema.Literals(
   Object.keys(CATALOGUE) as Array<ErrorCode>,
 )
 
-export const stageOf = (code: ErrorCode): Stage => CATALOGUE[code]
+export const stageOf = (code: ErrorCode): Stage => CATALOGUE[code] === "line" ? "line" : "set"
+
+/** Can an unreadable file have INVENTED this error rather than merely hidden
+ *  one? True for exactly the codes that resolve a bare id across files.
+ *
+ *  Everything else is a finding whatever the missing file held: `parent` may
+ *  not cross files, so an unresolved one is refused either way (unknown if
+ *  nothing declares it, foreign if the unreadable file did), and a duplicate,
+ *  a cycle or a stored marker needs the very records that are missing. */
+export const isGuessWhileUnreadable = (code: ErrorCode): boolean =>
+  CATALOGUE[code] === "set-across-files"
 
 /** The stage a whole REPORT has reached: `line` while anything in it is a
- *  line-stage error, because the set-wide questions have not been asked yet.
- *  The rule belongs here rather than in whichever view happens to say so —
- *  phase 3 renders the same report as a banner and phase 4 as tool output. */
+ *  line-stage error, because a file that did not parse takes its ids with it
+ *  and the cross-file questions about them cannot be asked yet
+ *  ({@link ./validate.ts} withholds those findings rather than guessing).
+ *  The rule belongs here rather than in whichever view happens to say so — the
+ *  same report is a page today and agent tool output when the ops layer lands. */
 export const reportStage = (
   errors: ReadonlyArray<{ readonly code: ErrorCode }>,
 ): Stage => errors.some((error) => stageOf(error.code) === "line") ? "line" : "set"

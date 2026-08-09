@@ -1,8 +1,9 @@
+import type { BrokenFile } from "@olai/format"
 import { derive, type Located } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { only } from "./narrow.ts"
-import { outlineOf, type Page, pageOf } from "./page.ts"
+import { outlineOf, type Page, pageOf, rowsFor } from "./page.ts"
 import type { Route } from "./routes.ts"
 
 const located = (file: string, line: number, node: Located["node"]): Located => ({
@@ -30,12 +31,19 @@ const SET = derive([
 ])
 const FILES = ["garden.jsonl", "house.jsonl"]
 
-const pageAt = (route: Route, files = FILES): Page => pageOf(SET, files, route)
+/** No file in these fixtures failed to parse — the broken arm has its own
+ *  cases below, where one did. */
+const READABLE: ReadonlyMap<string, BrokenFile> = new Map()
 
-/** The ids a page's own rows start from — an outline page carries what it
- *  draws, so this is what its screen would show. */
+const pageAt = (
+  route: Route,
+  files = FILES,
+  broken = READABLE,
+): Page => pageOf(SET, files, broken, route)
+
+/** The ids a page's rows start from — what its screen would show. */
 const roots = (page: Page): ReadonlyArray<string> =>
-  only(page, "outline")?.rows.map((row) => row.at.node.id) ?? []
+  rowsFor(SET, page).map((row) => row.at.node.id)
 
 test("a bare `/` opens the first outline found", () => {
   const page = pageAt({ kind: "outline", file: null })
@@ -82,7 +90,46 @@ test("a zoomed node lights up the file its CANONICAL record is in", () => {
   expect(outlineOf(pageAt({ kind: "node", id: "install" }))).toBe("house.jsonl")
 })
 
+// A file that would not parse has no tree to draw, so its outline route is a
+// different page — but it is still that file's page, and the sidebar says so.
+test("an outline whose file did not parse is the broken page, not an empty one", () => {
+  const unreadable: BrokenFile = {
+    file: "house.jsonl",
+    errors: [
+      {
+        code: "not-json",
+        file: "house.jsonl",
+        line: 2,
+        message: "not JSON",
+      },
+    ],
+  }
+  const page = pageAt(
+    { kind: "outline", file: "house.jsonl" },
+    FILES,
+    new Map([["house.jsonl", unreadable]]),
+  )
+  expect(only(page, "broken")?.file).toEqual(unreadable)
+  expect(outlineOf(page)).toBe("house.jsonl")
+})
+
 test("a page that names no node lights up nothing", () => {
   expect(outlineOf(pageAt({ kind: "node", id: "nope" }))).toBeUndefined()
   expect(outlineOf(pageAt({ kind: "outline", file: "shed.jsonl" }))).toBeUndefined()
+})
+
+// A zoomed page draws the node's children, and it draws them FRESH — the row
+// store reconciles into whatever it is handed, and reconciling writes into the
+// objects, so a cached array would come back filtered the next time it was
+// asked for.
+test("a zoomed node's rows are its children, built new every time", () => {
+  const page = pageAt({ kind: "node", id: "kitchen" })
+  expect(roots(page)).toEqual(["install", "herbs-here"])
+  expect(rowsFor(SET, page)[0]).not.toBe(rowsFor(SET, page)[0]!)
+})
+
+test("a page with nothing to draw has no rows", () => {
+  expect(rowsFor(SET, pageAt({ kind: "node", id: "nope" }))).toEqual([])
+  expect(rowsFor(SET, pageAt({ kind: "outline", file: "shed.jsonl" }))).toEqual([])
+  expect(rowsFor(SET, undefined)).toEqual([])
 })

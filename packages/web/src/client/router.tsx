@@ -70,6 +70,9 @@ export interface LinkProps {
    *  reader and for the styling that says so. */
   readonly current?: boolean
   readonly testid?: string
+  /** This link's outline could not be read. A `data-` fact rather than a class,
+   *  because it is what the browser tests find a marked entry by. */
+  readonly broken?: boolean
   readonly children?: JSX.Element
 }
 
@@ -97,6 +100,7 @@ export function Link(props: LinkProps) {
       // route rather than passed in beside it: the two could disagree, and the
       // route is the one the click actually follows.
       data-file={props.route.kind === "outline" ? props.route.file ?? undefined : undefined}
+      data-broken={props.broken === true ? "true" : undefined}
       onClick={onClick}
     >
       {props.children}

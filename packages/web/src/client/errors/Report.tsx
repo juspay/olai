@@ -1,24 +1,29 @@
 /**
- * The error view — which is the product, not the fallback.
+ * A list of errors, drawn.
  *
- * Every error the load produced is here, grouped by the file that has to be
- * edited, each naming `file:line`, each carrying whatever structured detail it
- * had (the other record that claimed the id, the rest of a cycle, the children
- * that are not done). Nothing is summarised away, because a reader who has to
- * re-run the server to find the second error is a reader we have failed.
+ * Every place errors appear renders through here — the whole-page view, the
+ * banner over a last-good tree, the one broken outline in its own pane — so a
+ * `file:line`, a message and its related sites look the same wherever they are
+ * read, and none of the three can quietly start summarising.
  *
- * Errors that implicate two files get their own section: "which file is
- * broken" has no single answer for a dangling mirror or a cross-file cycle,
- * and filing them under one of the two would be a guess.
+ * Two shapes, because there are two situations, and they are the whole of what
+ * this module publishes — the headings and paragraphs it draws are its own
+ * business, not a set of layout parts for callers to assemble errors out of.
+ * {@link Report} GROUPS: by the file that has to be edited, with the errors
+ * implicating two files kept apart, because "which file is broken" has no
+ * single answer for a dangling mirror or a cross-file cycle and filing them
+ * under one of the two would be a guess. {@link Rows} does not, and is for the
+ * case where the grouping is already on screen — one file's errors, shown where
+ * that file's outline would have been.
  */
 
-import { isCrossFile, type OutlineError, reportStage } from "@olai/format"
+import { isCrossFile, type OutlineError } from "@olai/format"
 import { createMemo, For, Show } from "solid-js"
 
+import { TESTID } from "../testids.ts"
 import { Lede } from "./Lede.tsx"
-import { TESTID } from "./testids.ts"
 
-export function Errors(props: { readonly errors: ReadonlyArray<OutlineError> }) {
+export function Report(props: { readonly errors: ReadonlyArray<OutlineError> }) {
   /** One walk, one partition. "Under its file" and "across files" are the two
    *  halves of one split; computing them with two predicates that have to stay
    *  each other's complement is how an error goes missing from both — in the
@@ -42,35 +47,12 @@ export function Errors(props: { readonly errors: ReadonlyArray<OutlineError> }) 
   })
 
   return (
-    <main class="max-w-4xl p-8" data-testid={TESTID.errorView}>
-      <h1 class="m-0 mb-2 text-2xl font-bold text-alarm">
-        {props.errors.length === 0
-          ? "Broken outlines"
-          : `${props.errors.length} ${props.errors.length === 1 ? "error" : "errors"}`}
-      </h1>
-      <Lede>
-        {props.errors.length === 0
-          // The page is decided by the outline stream, and the report arrives
-          // on its own subscription — so for the frame between them there is a
-          // broken set and nothing yet to say about it.
-          ? "The set could not be loaded. Fetching the report…"
-          : "Nothing is served until these are fixed: an outline set is valid or it is not, and half of one would be a different set from the one on disk."}
-      </Lede>
-      <Show when={reportStage(props.errors) === "line"}>
-        <Lede testid={TESTID.stageNote}>
-          Some of these are lines that could not be read. The checks that span
-          the whole set — references, cycles, derived state — run once every
-          file parses, so expect a second round after these are fixed.
-        </Lede>
-      </Show>
-
+    <>
       <For each={split().byFile}>
         {([file, errors]) => (
           <section data-testid={TESTID.errorFileGroup} data-file={file}>
             <Heading>{file}</Heading>
-            <ul class="m-0 list-none p-0">
-              <For each={errors}>{(error) => <Row error={error} />}</For>
-            </ul>
+            <Rows errors={errors} />
           </section>
         )}
       </For>
@@ -82,12 +64,18 @@ export function Errors(props: { readonly errors: ReadonlyArray<OutlineError> }) 
             These name two places at once — a reference that leaves its file, or
             a loop that closes through another one.
           </Lede>
-          <ul class="m-0 list-none p-0">
-            <For each={split().across}>{(error) => <Row error={error} />}</For>
-          </ul>
+          <Rows errors={split().across} />
         </section>
       </Show>
-    </main>
+    </>
+  )
+}
+
+export function Rows(props: { readonly errors: ReadonlyArray<OutlineError> }) {
+  return (
+    <ul class="m-0 list-none p-0">
+      <For each={props.errors}>{(error) => <Row error={error} />}</For>
+    </ul>
   )
 }
 
