@@ -1,0 +1,4 @@
+{"id":"garden","ord":"a0","title":"garden #outdoors"}
+{"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
+{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20"}
+{"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","doing":true}

@@ -1,0 +1,70 @@
+# Fixture corpora
+
+One directory per corpus. A scenario picks one with a `@corpus:<name>` tag, and
+`support/hooks.ts` starts a server on that directory the first time some
+scenario asks for it (see the header there). Nothing in this file is served —
+only the corpus directories below it are.
+
+The fixtures are meant to be read. A person who wants to know what a valid
+outline looks like should be able to answer it from `good/` in under a minute,
+and a person who wants to know what a *good error* looks like should get it
+from `broken/` and `tangled/`.
+
+## `good/` — a set that validates
+
+Two outlines and one attached document. Between them they exercise one of each
+thing the view has to draw:
+
+| what | where |
+|---|---|
+| nesting | `kitchen` → `install` → `handles` (house.jsonl) |
+| a done child | `demo` (house.jsonl:2) |
+| a doing child | `order` (house.jsonl:3) |
+| a derived status | `kitchen` is `doing` — it stores nothing; its children say so |
+| an inline `#tag` | `kitchen remodel #home`, `garden #outdoors` |
+| a `date` | `order` is dated `2026-08-10` |
+| a markdown `desc` | `order` — a paragraph, a two-item list, bold and italic |
+| an `after` edge | `order` after `demo`; `install` after `order` |
+| a `doc` | `install` attaches `finishes.md` |
+| a cross-file mirror | `kitchen-herbs` (house.jsonl) mirrors `herbs` (garden.jsonl) |
+
+The mirror is why there are two files. Every `.jsonl` is an independent tree —
+a `parent` may not cross files — so showing the herb bed inside the kitchen
+remodel is exactly what a mirror is *for*, and it is the one relation that
+cannot be exercised with a single file.
+
+Note what is absent: no `done` or `doing` on `kitchen`, `install` or `herbs`. A
+node with children never stores its status; it is computed from them, and
+storing one is a load error.
+
+## `broken/` — a set that does not parse
+
+- `pantry.jsonl:3` — an unquoted key, so the line is not JSON (`not-json`).
+- `shed.jsonl:2` — `parent` is `shhed`, which no node declares
+  (`unknown-parent`, with `shed` as the did-you-mean).
+
+Syntax is checked before meaning: a file with an unreadable line contributes no
+nodes, and the set-wide rules do not run until every file parses (see the
+header of `packages/format/src/parse.ts`). So the `shed.jsonl` error is what
+this corpus shows *after* the JSON is fixed, not necessarily alongside it — the
+error-view scenario asserts only the syntax error, which is the one guaranteed
+to be reported either way.
+
+## `tangled/` — a set that parses and does not mean anything
+
+Every line here is valid JSON and a well-formed record, so the whole-set
+validator definitely runs. That is the point: this is where the error view's
+*grouping* is exercised, and grouping needs errors in more than one file.
+
+- `attic.jsonl:3` — `after` names `donate`, which nothing declares
+  (`unknown-target`) → belongs to `attic.jsonl` alone.
+- `cellar.jsonl:2` — `parent` is `attic`, which lives in `attic.jsonl`
+  (`foreign-parent`) → **cross-file**: it names a site in the other file.
+- `cellar.jsonl:3` — a second `boxes`; `attic.jsonl:2` claimed it first
+  (`duplicate-id`) → **cross-file**.
+- `cellar.jsonl:4` — `parent` is `nowhere` (`unknown-parent`) → belongs to
+  `cellar.jsonl` alone.
+
+An error is cross-file when it implicates a second file — `isCrossFile` in
+`packages/format/src/errors.ts` — which is what the `cross-file-errors` section
+of the error view collects.

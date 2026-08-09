@@ -6,35 +6,50 @@ One `.jsonl` file per outline. One JSON object per line; one line per node. Ever
 {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","date":"2026-08-10","after":["demo"]}
 ```
 
+## Two record shapes
+
+A line is a **regular node** or a **mirror**, and which one it is decided by whether it carries `mirror`. They are two shapes, not one shape with optional fields: a mirror is a second *placement* of a node that already exists, so any field describing the node itself has an authoritative copy at the target, and a second copy here could only ever disagree with it.
+
+A mirror is exactly `{"id", "parent"?, "ord", "mirror"}`. Any other field on it is an error.
+
 ## Fields
 
-In canonical order (writes always re-serialize the whole record in this order; absent fields are omitted, never `null` or `[]`):
+In canonical order (writes always re-serialize the whole record in this order; absent fields are omitted, never `null` or `[]`). **Required** means the record is rejected without it.
 
-| field | meaning |
-|---|---|
-| `id` | Stable identity: a chosen slug (`[A-Za-z0-9_-]+`) or a minted short string. Unique across the whole loaded set; survives renames and moves. |
-| `parent` | Parent id, same file. Absent at top level. |
-| `ord` | Sibling order: a fractional-index string over base62 (`0-9A-Za-z`). Plain string comparison is the sort; never a float. |
-| `title` | Verbatim text. Inline `#tags` live here and are extracted at view time. |
-| `done` / `doing` | `true` or an ISO date/datetime string. At most one of the two. Never stored when derivable (see below). |
-| `date` | ISO date/datetime. A node with a `date` is a day/scheduled node; the journal, calendar and today views are derived from dates at view time — there is no stored year/month hierarchy. |
-| `desc` | The note: one string, embedded newlines. Markdown, rendered only at view time; stored verbatim. |
-| `doc` | Relative path to an attached `.md` document. |
-| `after` / `blocks` / `see` | Arrays of target ids (any file in the set). Closed set of relations. `blocks` is sugar: `a blocks b` means `b after a`. `after` (with normalized `blocks`) must stay acyclic; `see` is a free cross-reference. |
-| `mirror` | Makes this record a mirror node: `{"id","parent","ord","mirror":"<target id>"}` shows an existing node at a second location. No other fields allowed. |
+| field | required | meaning |
+|---|---|---|
+| `id` | both shapes | Stable identity: a chosen slug (`[A-Za-z0-9_-]+`) or a minted short string. Unique across the whole loaded set; survives renames and moves. |
+| `parent` | no | Parent id, same file. Absent at top level. |
+| `ord` | both shapes | Sibling order: a fractional-index string over base62 (`0-9A-Za-z`). Plain string comparison is the sort; never a float. |
+| `title` | regular nodes | Verbatim text. Inline `#tags` live here and are extracted at view time. |
+| `done` / `doing` | no | `true` or an ISO date/datetime string. At most one of the two. Never stored on a node with children (see below). |
+| `date` | no | ISO date/datetime. A node with a `date` is a day/scheduled node; the journal, calendar and today views are derived from dates at view time — there is no stored year/month hierarchy. |
+| `desc` | no | The note: one string, embedded newlines. Markdown, rendered only at view time; stored verbatim. |
+| `doc` | no | Relative path to an attached `.md` document, resolved against the directory of the outline that names it. |
+| `after` / `blocks` / `see` | no | Arrays of target ids (any file in the set). Closed set of relations. `blocks` is sugar: `a blocks b` means `b after a`. `after` (with normalized `blocks`) must stay acyclic; `see` is a free cross-reference. |
+| `mirror` | mirrors | Makes this record a mirror: it shows the node with that id at a second location. The target may live in any file of the set, and may itself be a mirror — the chain is followed to the regular node at its end. |
 
 There are no include records; the served directory is the only composition mechanism.
 
 ## Validation
 
-One validator checks the loaded set — on load and after every write. Nothing is checked anywhere else. Rules:
+One validator checks the loaded set — on load and after every write. Nothing is checked anywhere else.
 
-- ids: valid shape, unique across the whole set.
+It runs in two stages, and the staging is part of the contract:
+
+1. **Per line.** Everything a single record answers on its own: JSON, the record shape (required fields present, no unknown field, a mirror carrying nothing but its four), the id's spelling, ISO dates, and the `done`/`doing` exclusion.
+2. **Per set.** Everything that needs to know what else exists: uniqueness, references, cycles, documents, derived state.
+
+A file is decoded whole or not at all, and **the set-wide rules do not run until every outline parses**. "`kitchen` is not a known id" is a guess when the line declaring `kitchen` is the one that failed to parse, so a report containing any per-line error is a report that has not asked the set-wide questions yet — and says so. Expect a second round after fixing the first.
+
+The rules:
+
+- ids: valid shape, unique across the whole set. The duplicate is reported on the *second* record, pointing at the first, which stays the one every reference resolves to.
 - References resolve: `parent` (same file, must be a regular node, no cycles), `mirror` targets, `after`/`blocks`/`see` targets (any file). Unknown targets get a did-you-mean suggestion.
-- `after` is acyclic (counting normalized `blocks`); mirror placement may not create a containment cycle.
-- Dates (`done`, `doing`, `date`) are valid ISO; `done` and `doing` are mutually exclusive.
-- `doc` is a relative path to an existing `.md` file.
-- No stored derived state: a parent's status is computed from its children (all done → done; any activity → doing; else open; mirrors don't count). Storing `done` on a node with unfinished children is a load error, and marking a node whose status is derived is a refused write that lists the unfinished children.
+- `after` is acyclic (counting normalized `blocks`); mirror placement may not create a containment cycle — a mirror inside the subtree it shows would expand forever.
+- Dates (`done`, `doing`, `date`) are valid ISO; `done` and `doing` are mutually exclusive. Validated as text, because a writer must reproduce what it read: a date-only `2026-08-10` round-tripped through an instant would come back a datetime.
+- `doc` resolves, against the naming outline's own directory, to an `.md` file that is actually served.
+- **No stored derived state.** A parent's status is computed from its children — all done → done; anything under way, or some-but-not-all finished → doing; otherwise open; mirrors do not count as children. So a node with counted children may not store `done` or `doing` **at all**, not merely when a child is unfinished: a stored value that currently agrees with the computed one is still a second copy, and a git merge is all it takes to make the two disagree with nothing to notice. The load error names the children; marking such a node through the ops layer is a refused write that lists the unfinished ones.
 
 ## Errors
 

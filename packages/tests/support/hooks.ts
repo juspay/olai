@@ -1,0 +1,412 @@
+/**
+ * Lifecycle: one browser for the whole run, one server per fixture corpus, one
+ * fresh context and page per scenario.
+ *
+ * The one structural decision here is the CORPUS. A scenario says which
+ * directory of fixture outlines it wants served with a `@corpus:<name>` tag,
+ * and the matching server is started the first time some scenario asks for it
+ * and then kept for the rest of the run. That is what lets the error-view
+ * features exist at all: a server that has loaded a broken set cannot also be
+ * serving a good one, and starting a server per SCENARIO would pay a process
+ * spawn for every step file in the suite. Lazy plus cached gives one spawn per
+ * corpus actually exercised — a run of `features/see_the_outline.feature`
+ * never boots the broken servers.
+ */
+
+import { spawn, type ChildProcess } from "node:child_process";
+import type { EventEmitter } from "node:events";
+import * as fs from "node:fs";
+import * as net from "node:net";
+import * as path from "node:path";
+
+import { After, AfterAll, Before, BeforeAll, Status } from "@cucumber/cucumber";
+import { chromium } from "playwright";
+import type { Browser } from "playwright";
+
+import { SCENARIO_SETUP_TIMEOUT, SERVER_START_TIMEOUT } from "./world.ts";
+import type { OlaiWorld } from "./world.ts";
+
+/** Chromium under Nix, in a container, on a CI runner with no display and a
+ *  64 MB `/dev/shm`. Every flag is load-bearing there and harmless locally, so
+ *  the same argv is used everywhere rather than branching on `CI`: a browser
+ *  configured differently in CI than on a laptop is a class of bug that only
+ *  ever reproduces where it is hardest to debug. */
+const ciArgs = [
+  "--no-sandbox",
+  "--disable-setuid-sandbox",
+  "--disable-gpu",
+  "--disable-dev-shm-usage",
+  "--headless=new",
+];
+
+const FIXTURES = path.resolve(import.meta.dirname, "..", "fixtures");
+const REPORTS = path.resolve(import.meta.dirname, "..", "reports");
+
+/** The corpus a scenario gets when it names none. */
+const DEFAULT_CORPUS = "good";
+const CORPUS_TAG = /^@corpus:([A-Za-z0-9_-]+)$/;
+
+let browser: Browser | undefined;
+
+interface RunningServer {
+  readonly baseUrl: string;
+  readonly child?: ChildProcess;
+}
+
+/** corpus → its server, from the moment the start BEGINS.
+ *
+ *  One map holding the promise, not two holding "running" and "starting"
+ *  separately: with two, a teardown can only drain the one it knows about, so
+ *  a run interrupted mid-spawn left an orphan server holding a port. Here
+ *  every entry — settled or in flight — is something `killAll` can attach a
+ *  kill to. It is also what makes a `--parallel` run share one spawn instead
+ *  of racing two onto one port. */
+const servers = new Map<string, Promise<RunningServer>>();
+
+/** Every child spawned and not yet seen exit. The promises above are useless
+ *  on the hard-exit path — `process.on("exit")` runs no microtasks, so a
+ *  `.then` registered there never fires — and this is what that path can act
+ *  on synchronously. Not a second cache: nothing looks a corpus up in it. */
+const live = new Set<ChildProcess>();
+
+/** Set by the teardown, so a spawn still in flight gives up instead of
+ *  retrying its way onto a fresh port after the run is over. */
+let stopped = false;
+
+// ── the server under test ──────────────────────────────────────────────
+
+/** WHO owns the server process, and WHERE it is. Two decisions, so two
+ *  variables: `OLAI_BIN` names an executable this harness spawns — one server
+ *  per corpus, which is what `just e2e` does — and `OLAI_URL` names a server
+ *  someone else is already running, reused as it is. One variable carrying
+ *  both, discriminated by an `http` prefix, would make the reuse guard below
+ *  read as a consequence of how the address was spelled rather than as what it
+ *  is: a fact about who owns the process. */
+type Mode =
+  | { readonly kind: "spawn"; readonly bin: string }
+  | { readonly kind: "reuse"; readonly baseUrl: string };
+
+const readMode = (): Mode => {
+  const bin = process.env.OLAI_BIN;
+  const url = process.env.OLAI_URL;
+  if (bin && url) {
+    throw new Error(
+      `OLAI_BIN (${bin}) and OLAI_URL (${url}) are both set, and they are ` +
+        "alternatives: OLAI_BIN spawns a server per fixture corpus, OLAI_URL " +
+        "reuses one that is already running. Unset whichever you did not mean.",
+    );
+  }
+  if (bin) return { kind: "spawn", bin };
+  if (url) return { kind: "reuse", baseUrl: url };
+  throw new Error(
+    "neither OLAI_BIN nor OLAI_URL is set. Set OLAI_BIN to the olai " +
+      "executable (spawned as `<bin> web <dir> --port <port> --host " +
+      "127.0.0.1`, one server per corpus — this is what `just e2e` does), or " +
+      "set OLAI_URL to the base URL of a server you are already running.",
+  );
+};
+
+let mode: Mode | undefined;
+/** Read once. The environment cannot change mid-run, and re-deriving it per
+ *  scenario would let the same mistake be reported forty times. */
+const modeOf = (): Mode => (mode ??= readMode());
+
+/** `bun-types`' `node:net` and `node:child_process` declarations do not carry
+ *  EventEmitter's methods, although the objects have them at runtime — a gap in
+ *  the types, not in the behaviour (`node:stream`'s do, which is why the pipes
+ *  below need no help). One narrowing, named and in one place, beats an `any`
+ *  at each call site; when a later bun-types closes the gap, deleting this
+ *  function and its callers' wrappers is the whole migration. */
+const events = (source: object): EventEmitter =>
+  source as unknown as EventEmitter;
+
+/** A port nothing is listening on right now. Racy by construction — the
+ *  kernel can hand the same port to something else between the close and the
+ *  spawn — so `startServerChild` retries on a fresh one rather than trusting
+ *  this. */
+const freePort = (): Promise<number> =>
+  new Promise((resolve, reject) => {
+    const probe = net.createServer();
+    probe.unref();
+    events(probe).on("error", reject);
+    probe.listen(0, "127.0.0.1", () => {
+      const address = probe.address();
+      if (address === null || typeof address === "string") {
+        probe.close();
+        reject(new Error("could not read a port from the probe socket"));
+        return;
+      }
+      const { port } = address;
+      probe.close(() => resolve(port));
+    });
+  });
+
+const fixtureDir = (corpus: string): string => {
+  const dir = path.join(FIXTURES, corpus);
+  if (!fs.existsSync(dir)) {
+    const available = fs.existsSync(FIXTURES)
+      ? fs.readdirSync(FIXTURES).join(", ")
+      : "none";
+    throw new Error(
+      `no fixture corpus named "${corpus}" (looked in ${dir}); available: ${available}. ` +
+        `A scenario selects one with a @corpus:<name> tag.`,
+    );
+  }
+  return dir;
+};
+
+const killChild = (child: ChildProcess | undefined): void => {
+  if (child && child.exitCode === null) child.kill("SIGKILL");
+};
+
+const shuttingDown = (corpus: string): string =>
+  `the run is shutting down; abandoning the server for corpus "${corpus}"`;
+
+const MAX_SPAWN_ATTEMPTS = 3;
+
+/** Spawn the server against one fixture directory and wait until it says it is
+ *  listening. The contract is the printed URL, not a sleep and not a health
+ *  poll: the server prints `http://127.0.0.1:<port>` on stdout once bound, so
+ *  that line is both the readiness signal and the address. */
+const startServerChild = async (
+  bin: string,
+  corpus: string,
+): Promise<RunningServer> => {
+  const dir = fixtureDir(corpus);
+  let lastFailure = "";
+
+  for (let attempt = 1; attempt <= MAX_SPAWN_ATTEMPTS; attempt++) {
+    if (stopped) throw new Error(shuttingDown(corpus));
+    const port = await freePort();
+    const expected = `http://127.0.0.1:${port}`;
+    const argv = ["web", dir, "--port", String(port), "--host", "127.0.0.1"];
+    const child = spawn(bin, argv, { stdio: ["ignore", "pipe", "pipe"] });
+    live.add(child);
+    events(child).once("exit", () => live.delete(child));
+
+    // Buffer both streams whole. stdout because the listening line can arrive
+    // split across chunks; stderr because it is the only thing worth printing
+    // when the wait times out, and a server that dies at boot says why THERE.
+    let out = "";
+    let err = "";
+    child.stdout?.setEncoding("utf8");
+    child.stderr?.setEncoding("utf8");
+    child.stdout?.on("data", (chunk: string) => {
+      out += chunk;
+      if (process.env.OLAI_TEST_VERBOSE) process.stdout.write(chunk);
+    });
+    child.stderr?.on("data", (chunk: string) => {
+      err += chunk;
+      if (process.env.OLAI_TEST_VERBOSE) process.stderr.write(chunk);
+    });
+
+    const listening = await new Promise<boolean>((resolve) => {
+      let settled = false;
+      const finish = (ok: boolean) => {
+        if (settled) return;
+        settled = true;
+        clearInterval(poll);
+        clearTimeout(timer);
+        resolve(ok);
+      };
+      const poll = setInterval(() => {
+        if (out.includes(expected)) finish(true);
+      }, 50);
+      const timer = setTimeout(() => finish(false), SERVER_START_TIMEOUT);
+      events(child).once(
+        "exit",
+        (code: number | null, signal: string | null) => {
+          // A child that exited without printing the line never will.
+          if (!out.includes(expected)) {
+            lastFailure = `exited early (code ${code}, signal ${signal ?? "none"})`;
+            finish(false);
+          }
+        },
+      );
+      events(child).once("error", (cause: Error) => {
+        lastFailure = `could not be spawned: ${cause.message}`;
+        finish(false);
+      });
+    });
+
+    if (listening) {
+      // The teardown may have run while this was coming up; handing the caller
+      // a server nothing will ever kill is the leak this whole shape exists to
+      // close.
+      if (stopped) {
+        killChild(child);
+        throw new Error(shuttingDown(corpus));
+      }
+      child.stdout?.removeAllListeners("data");
+      child.stderr?.removeAllListeners("data");
+      child.stdout?.resume();
+      child.stderr?.resume();
+      return { baseUrl: expected, child };
+    }
+
+    killChild(child);
+    if (!lastFailure) {
+      lastFailure = `never printed "${expected}" within ${SERVER_START_TIMEOUT}ms`;
+    }
+    // Quote the child's own diagnostics: a bind race, a missing fixture dir and
+    // a crash-on-load all look identical from out here otherwise.
+    lastFailure +=
+      `\n  argv: ${bin} ${argv.join(" ")}` +
+      `\n  stdout: ${out.trim() || "(empty)"}` +
+      `\n  stderr: ${err.trim() || "(empty)"}`;
+  }
+
+  throw new Error(
+    `the olai server for corpus "${corpus}" never came up after ` +
+      `${MAX_SPAWN_ATTEMPTS} attempts.\n  ${lastFailure}`,
+  );
+};
+
+/** A server someone else is running serves ONE directory, and we cannot
+ *  repoint it. So the corpus a scenario asks for has to be the one that server
+ *  was pointed at — a plain guard on the reuse path, not a consequence of how
+ *  the address was spelled. */
+const reusedServer = async (
+  baseUrl: string,
+  corpus: string,
+): Promise<RunningServer> => {
+  const served = process.env.OLAI_CORPUS ?? DEFAULT_CORPUS;
+  if (corpus !== served) {
+    throw new Error(
+      `this scenario needs the "${corpus}" fixture corpus, but OLAI_URL (${baseUrl}) ` +
+        `names a server serving "${served}" (OLAI_CORPUS), and a running server serves ` +
+        `one directory. Either point that server at packages/tests/fixtures/${corpus} and ` +
+        `set OLAI_CORPUS=${corpus}, or use OLAI_BIN instead so the harness starts a ` +
+        `server per corpus.`,
+    );
+  }
+  return { baseUrl };
+};
+
+/** The server serving `corpus`, started on first ask and kept for the run. */
+const serverFor = (corpus: string): Promise<RunningServer> => {
+  const cached = servers.get(corpus);
+  if (cached) return cached;
+
+  const active = modeOf();
+  const started =
+    active.kind === "reuse"
+      ? reusedServer(active.baseUrl, corpus)
+      : startServerChild(active.bin, corpus);
+
+  // A FAILED start is not kept: the next scenario asking for this corpus
+  // deserves a real attempt rather than a replay of the same rejection.
+  const entry: Promise<RunningServer> = started.catch((cause: unknown) => {
+    if (servers.get(corpus) === entry) servers.delete(corpus);
+    throw cause;
+  });
+  servers.set(corpus, entry);
+  return entry;
+};
+
+/** The synchronous half of the teardown: every child that has a process right
+ *  now. This is all `process.on("exit")` can do — it runs no microtasks. */
+const killLive = (): void => {
+  stopped = true;
+  for (const child of live) killChild(child);
+  live.clear();
+};
+
+/** Kill every server, spawned OR still spawning. A start in flight has no
+ *  process to kill yet, so the only way to reach it is to wait for it — which
+ *  is why the cache holds promises. */
+const killAll = async (): Promise<void> => {
+  const pending = [...servers.values()];
+  servers.clear();
+  killLive();
+  await Promise.all(
+    pending.map((entry) =>
+      entry.then(
+        (server) => killChild(server.child),
+        () => undefined,
+      ),
+    ),
+  );
+};
+// A cucumber run killed from the keyboard skips AfterAll; without this, every
+// interrupted run leaks a server holding a port.
+process.on("exit", killLive);
+
+// ── hooks ──────────────────────────────────────────────────────────────
+
+BeforeAll(async () => {
+  // Fail here rather than in the first scenario: an unset (or doubly set)
+  // OLAI_BIN/OLAI_URL is a setup mistake, and reporting it once beats
+  // reporting it per scenario.
+  modeOf();
+  browser = await chromium.launch({
+    headless: process.env.HEADLESS !== "false",
+    args: ciArgs,
+  });
+});
+
+AfterAll(async () => {
+  if (browser) await browser.close();
+  await killAll();
+});
+
+/** The corpus a scenario asked for, or the default. */
+const corpusOf = (tags: ReadonlyArray<{ readonly name: string }>): string => {
+  const named = tags
+    .map((tag) => CORPUS_TAG.exec(tag.name)?.[1])
+    .filter((name): name is string => name !== undefined);
+  if (named.length > 1) {
+    throw new Error(
+      `a scenario may serve one corpus; this one asks for ${named.join(", ")}`,
+    );
+  }
+  return named[0] ?? DEFAULT_CORPUS;
+};
+
+Before(
+  { timeout: SCENARIO_SETUP_TIMEOUT },
+  async function (this: OlaiWorld, scenario) {
+    if (!browser) throw new Error("BeforeAll did not launch a browser");
+    this.browser = browser;
+    this.corpus = corpusOf(scenario.pickle.tags);
+    this.baseUrl = (await serverFor(this.corpus)).baseUrl;
+
+    this.context = await browser.newContext({
+      viewport: { width: 1440, height: 900 },
+      baseURL: this.baseUrl,
+    });
+    this.page = await this.context.newPage();
+
+    // Collected for the whole scenario, asserted on by whichever step cares.
+    this.errors = [];
+    this.page.on("pageerror", (error) => {
+      this.errors.push(`pageerror: ${error.message}`);
+    });
+    this.page.on("console", (message) => {
+      if (message.type() === "error") {
+        this.errors.push(`console.error: ${message.text()}`);
+      }
+    });
+  },
+);
+
+After(async function (this: OlaiWorld, scenario) {
+  if (scenario.result?.status === Status.FAILED && this.page) {
+    const name =
+      scenario.pickle.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || "scenario";
+    const dir = path.join(REPORTS, "screenshots");
+    fs.mkdirSync(dir, { recursive: true });
+    await this.page
+      .screenshot({ path: path.join(dir, `${name}.png`), fullPage: true })
+      .catch((cause: unknown) => {
+        console.error("could not capture a failure screenshot:", cause);
+      });
+  }
+  // Closing the CONTEXT (not the browser) is what isolates scenarios: storage,
+  // cookies and any in-flight WebSocket go with it, so the next scenario's
+  // first frame is a genuine cold load.
+  if (this.context) await this.context.close();
+});

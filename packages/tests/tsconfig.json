@@ -1,0 +1,8 @@
+{
+  // Per-package `tsc --noEmit` anchor. Shared options live in
+  // ../../tsconfig.base.json; this member points tsc at the two directories
+  // that hold TypeScript. `features/` is Gherkin and `cucumber.js` is plain
+  // JS read by the runner, so neither is compiled.
+  "extends": "../../tsconfig.base.json",
+  "include": ["support", "step_definitions"]
+}

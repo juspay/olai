@@ -19,6 +19,18 @@ nix_shell := if env('IN_NIX_SHELL', '') != '' { '' } else { 'nix develop ' + jus
 # .direnv stay out.
 nix_files := "$(git ls-files '*.nix')"
 
+# Where `just build-client` writes the browser bundle, and the one place the
+# server is told to look (OLAI_DIST_DIR). Generated, gitignored; the nix build
+# writes its own copy inside its sandbox.
+dist := justfile_directory() + "/packages/web/dist"
+
+# The e2e shell is the dev shell plus Playwright's browsers, which cost ~600ms
+# of cold `nix develop` that every other leg would pay for nothing. Keyed on
+# PLAYWRIGHT_BROWSERS_PATH rather than IN_NIX_SHELL: the default shell sets
+# IN_NIX_SHELL and does NOT provide browsers, so a leg running inside it must
+# still enter `.#e2e` to get them.
+nix_shell_e2e := if env('PLAYWRIGHT_BROWSERS_PATH', '') != '' { '' } else { 'nix develop ' + justfile_directory() + '#e2e --accept-flake-config -c' }
+
 # List available recipes
 default:
     @just --list
@@ -29,7 +41,7 @@ default:
 [macos]
 [parallel]
 [metadata("ci")]
-check: typecheck test kolu-deps fmt-check nix bun-nix-fresh
+check: typecheck test e2e kolu-deps fmt-check nix bun-nix-fresh
 
 # Install deps (bun) and hydrate the @kolu/* sources from the npins kolu pin.
 # Every bun leg depends on this one recipe, so concurrent legs share a single
@@ -59,12 +71,39 @@ test: install
 kolu-deps:
     {{ nix_shell }} sh -c 'sh scripts/check-kolu-deps.sh $OLAI_KOLU_DIRS'
 
-# Run olai from the working tree — the edit loop. Bun executes the sources you
-# are editing, against the dev shell's node_modules. `just nix` is the other
-# path: the packaged binary, built from tracked files only. Use this one while
-# working; that one is what CI proves.
-run *args: install
-    {{ nix_shell }} bun packages/core/src/main.ts {{ args }}
+# Build the browser bundle into packages/web/dist. The nix build runs this
+# same script in its own sandbox (default.nix), so there is one bundler and not
+# two that could drift.
+build-client: install
+    {{ nix_shell }} bun packages/web/src/build.ts {{ dist }}
+
+# Serve a directory from the working tree — the edit loop, and it WATCHES.
+# Two `bun --watch` processes in one shell: the bundler re-runs when anything
+# under packages/web/src changes, and the server restarts when anything it
+# imports does. Edit a validator rule and reload the tab; there is no build step
+# to remember, which is the whole reason this recipe is not just `bun main.ts`.
+#
+# The client's watcher rebuilds into the same dist the server is serving, so a
+# browser reload picks up client edits too — the page does not reload itself.
+# That arrives with the live store in phase 3; this is the source-side half.
+#
+# Defaults to docs/, which is itself an outline set (docs/roadmap.jsonl), so
+# `just serve` with no arguments shows this project's own plan. `just nix` is
+# the other path: the packaged binary, built from tracked files only. Use this
+# one while working; that one is what CI proves.
+serve dir="docs" *args: build-client
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # `kill 0` takes the whole process group down together: a stray bundler
+    # watching a tree nobody is serving is a confusing thing to leave behind.
+    trap 'kill 0' EXIT INT TERM
+    {{ nix_shell }} bun --watch packages/web/src/build.ts {{ dist }} &
+    OLAI_DIST_DIR={{ dist }} \
+      {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} {{ args }}
+
+# Anything else the binary takes, without the watchers.
+run *args: build-client
+    OLAI_DIST_DIR={{ dist }} {{ nix_shell }} bun packages/server/src/main.ts {{ args }}
 
 # Build the binary with nix, then run it. Both halves earn their place: the
 # build is where the hydrated @kolu/* sources and the bun.nix-derived
@@ -75,7 +114,21 @@ run *args: install
 # recipe IS the outside-the-shell check.
 nix:
     nix build .#olai --no-link --accept-flake-config
-    nix run .#olai --accept-flake-config
+    nix run .#olai --accept-flake-config -- --help
+
+# The browser tests: Cucumber features driven through Playwright against the
+# nix-built binary, which is what a user actually runs. `nix` is a dependency
+# as well as the shell so the binary is an already-realised lookup here rather
+# than a Nix build racing the one that leg is doing.
+e2e: install nix
+    #!/usr/bin/env bash
+    set -euo pipefail
+    bin="$(nix build .#olai --no-link --print-out-paths --accept-flake-config)/bin/olai"
+    cd packages/tests
+    # `cd` rather than `bun --cwd`: with --cwd, bun swallows the script name and
+    # prints its own help with status 0, which reads as a passing leg that ran
+    # no tests at all.
+    OLAI_BIN="$bin" {{ nix_shell_e2e }} bun run test
 
 # Format the *.nix files
 fmt:

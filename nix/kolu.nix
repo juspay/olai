@@ -8,9 +8,12 @@
 # there is no build step.
 let
   # @kolu/surface is the typed reactive layer the product is built on.
+  # @kolu/surface-app is the app shell around it: the HttpRouter layers that
+  # serve the browser bundle, the websocket acceptance seam, and the Bun.build
+  # helper that produces the bundle in the first place.
   # @kolu/log is the logger seam surface imports; a hydrated source resolves
   # its own imports from where it was copied, so its kolu siblings come too.
-  names = [ "surface" "log" ];
+  names = [ "surface" "surface-app" "log" ];
 
   pairs = pkgs: builtins.concatMap
     (name: [ "${pkgs."kolu-${name}"}" "@kolu/${name}" ])
