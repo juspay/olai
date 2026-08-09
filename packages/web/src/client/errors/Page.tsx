@@ -39,10 +39,11 @@ export function Page(props: { readonly errors: ReadonlyArray<OutlineError> }) {
       </Lede>
       <Show when={reportStage(props.errors) === "line"}>
         <Lede testid={TESTID.stageNote}>
-          Some of these are lines that could not be read. The nodes in those
-          files are missing from the set, so references that might point into
-          them are not reported yet — expect a second round after these are
-          fixed.
+          Some of these are lines that could not be read. Everything else below
+          was still checked against the files that did parse — but a reference
+          to an id no surviving node declares is being withheld rather than
+          guessed at, because the id may be on one of those lines. Expect a
+          second round once they are fixed.
         </Lede>
       </Show>
 

@@ -19,12 +19,14 @@ import { Order, Schema } from "effect"
  *
  * `line` is the rules one record answers alone; `set` is the rules that need
  * to know what else exists. The distinction is load-bearing rather than
- * cosmetic: a file is decoded whole or not at all, and the set-wide rules do
- * not run until every file parses — "`kitchen` is not a known id" is a guess
- * when the line declaring `kitchen` is the one that failed to parse. So a
- * report containing any `line` error is a report that has not asked the `set`
- * questions yet, and the error view says so rather than letting a reader
- * infer it.
+ * cosmetic: a file is decoded whole or not at all, so a `line` error means the
+ * set is missing that file's nodes while the `set` rules run over what is left.
+ * Most of them are unaffected by the gap and report as usual; the ones a
+ * missing file could have INVENTED are withheld instead ({@link Reach} below),
+ * because "`kitchen` is not a known id" is a guess when the line declaring
+ * `kitchen` is the one that failed to parse. So a report carrying any `line`
+ * error is a report with a question still open, and the error view says so
+ * rather than letting a reader infer it.
  */
 export type Stage = "line" | "set"
 
