@@ -59,6 +59,13 @@ test: install
 kolu-deps:
     {{ nix_shell }} sh -c 'sh scripts/check-kolu-deps.sh $OLAI_KOLU_DIRS'
 
+# Run olai from the working tree — the edit loop. Bun executes the sources you
+# are editing, against the dev shell's node_modules. `just nix` is the other
+# path: the packaged binary, built from tracked files only. Use this one while
+# working; that one is what CI proves.
+run *args: install
+    {{ nix_shell }} bun packages/core/src/main.ts {{ args }}
+
 # Build the binary with nix, then run it. Both halves earn their place: the
 # build is where the hydrated @kolu/* sources and the bun.nix-derived
 # node_modules meet outside the dev shell, and running it is what proves that
