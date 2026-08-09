@@ -38,6 +38,12 @@ jobs:
           # Check out the PR HEAD, not the synthetic merge ref, so the run
           # tests the sha the PR is actually about.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # Full history, not the default depth-1. odu pins the run's sha with
+          # `git worktree add`, and every recipe enters the flake from that
+          # worktree — but nix reads a git repo through libgit2, which does not
+          # understand `.git/shallow` and dies walking to a parent commit the
+          # shallow clone never fetched.
+          fetch-depth: 0
       - uses: nixbuild/nix-quick-install-action@v31
       - name: odu runs the CI DAG
         run: |
