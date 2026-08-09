@@ -2,6 +2,8 @@
 
 ## Code Review
 
+- Tests
+  - If a new feature was added, or a bug fixed, is there a test (unit or e2e) that reproduces it and ensures a future regression won't happen with tests passing?
 - Docs
   - docs/* is up to date
   - All local packages have a concise README.md
