@@ -130,8 +130,54 @@ export const listen = (options: ListenOptions) =>
       })
     )
 
-    return yield* bind(server, options)
+    return yield* bindOrFallBack(server, options)
   })
+
+/** What the OS reports for a port that is already listening. */
+const IN_USE = "EADDRINUSE"
+
+/** Ask the OS for a port. Not a magic number: `0` IS the request. */
+const ANY_PORT = 0
+
+const codeOf = (cause: unknown): string | undefined =>
+  typeof cause === "object" && cause !== null && "code" in cause
+    ? String((cause as { readonly code: unknown }).code)
+    : undefined
+
+/**
+ * Bind — and if the port is simply taken, bind once more wherever the OS says.
+ *
+ * A busy port is the one listen failure that is not a reason to refuse to
+ * serve: the reader asked to read their outlines, not to own port 7714. Every
+ * other failure still is one (a host that is not this machine's, a privileged
+ * port, a socket the kernel will not give us), which is why this recovers from
+ * exactly one `code` rather than from "listen failed".
+ *
+ * The retry says so out loud, and it says it with the address that was ACTUALLY
+ * bound — the one thing downstream already treats as the truth. Nothing else
+ * has to learn that a fallback happened.
+ */
+const bindOrFallBack = (
+  server: ReturnType<typeof createServer>,
+  options: ListenOptions,
+): Effect.Effect<string, ListenFailed> =>
+  Effect.catchIf(
+    bind(server, options),
+    (failure) => codeOf(failure.cause) === IN_USE && options.port !== ANY_PORT,
+    (asked) =>
+      bind(server, { ...options, port: ANY_PORT }).pipe(
+        Effect.tap((url) =>
+          Effect.sync(() =>
+            options.log(`port ${options.port} in use — serving on ${url} instead`)
+          )
+        ),
+        // The retry is OUR idea, not the operator's. If even a port the OS
+        // picks will not bind, the failure to report is still the one for what
+        // they asked for: "cannot listen on 127.0.0.1:0" would send them
+        // looking for a port nobody typed.
+        Effect.mapError(() => asked),
+      ),
+  )
 
 /** The `request` handler, as an Effect handler over the static layer.
  *  `surfaceAppLayer` owns the freshness contract: a `no-store` shell,

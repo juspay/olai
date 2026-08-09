@@ -177,10 +177,16 @@ const shuttingDown = (label: string): string =>
 
 const MAX_SPAWN_ATTEMPTS = 3;
 
+/** The address a `serving … on <url>` line reports. The server prints the
+ *  address it ACTUALLY bound, which is not always the one it was asked for: a
+ *  port that turns out to be busy is retried on one the OS picks. So the URL is
+ *  read out of the line rather than assumed from the argv — the printed
+ *  address is the contract, and it is the only thing that knows. */
+const SERVING = /serving .* on (http:\/\/127\.0\.0\.1:\d+)/;
+
 /** Spawn the server against one fixture directory and wait until it says it is
- *  listening. The contract is the printed URL, not a sleep and not a health
- *  poll: the server prints `http://127.0.0.1:<port>` on stdout once bound, so
- *  that line is both the readiness signal and the address. */
+ *  listening. The contract is that line, not a sleep and not a health poll: it
+ *  is both the readiness signal and the address. */
 const startServerChild = async (
   bin: string,
   dir: string,
@@ -191,7 +197,6 @@ const startServerChild = async (
   for (let attempt = 1; attempt <= MAX_SPAWN_ATTEMPTS; attempt++) {
     if (stopped) throw new Error(shuttingDown(label));
     const port = await freePort();
-    const expected = `http://127.0.0.1:${port}`;
     const argv = ["web", dir, "--port", String(port), "--host", "127.0.0.1"];
     const child = spawn(bin, argv, { stdio: ["ignore", "pipe", "pipe"] });
     live.add(child);
@@ -213,36 +218,38 @@ const startServerChild = async (
       if (process.env.OLAI_TEST_VERBOSE) process.stderr.write(chunk);
     });
 
-    const listening = await new Promise<boolean>((resolve) => {
+    const listening = await new Promise<string | null>((resolve) => {
       let settled = false;
-      const finish = (ok: boolean) => {
+      const finish = (url: string | null) => {
         if (settled) return;
         settled = true;
         clearInterval(poll);
         clearTimeout(timer);
-        resolve(ok);
+        resolve(url);
       };
+      const served = (): string | null => SERVING.exec(out)?.[1] ?? null;
       const poll = setInterval(() => {
-        if (out.includes(expected)) finish(true);
+        const url = served();
+        if (url !== null) finish(url);
       }, 50);
-      const timer = setTimeout(() => finish(false), SERVER_START_TIMEOUT);
+      const timer = setTimeout(() => finish(null), SERVER_START_TIMEOUT);
       events(child).once(
         "exit",
         (code: number | null, signal: string | null) => {
           // A child that exited without printing the line never will.
-          if (!out.includes(expected)) {
+          if (served() === null) {
             lastFailure = `exited early (code ${code}, signal ${signal ?? "none"})`;
-            finish(false);
+            finish(null);
           }
         },
       );
       events(child).once("error", (cause: Error) => {
         lastFailure = `could not be spawned: ${cause.message}`;
-        finish(false);
+        finish(null);
       });
     });
 
-    if (listening) {
+    if (listening !== null) {
       // The teardown may have run while this was coming up; handing the caller
       // a server nothing will ever kill is the leak this whole shape exists to
       // close.
@@ -254,12 +261,13 @@ const startServerChild = async (
       child.stderr?.removeAllListeners("data");
       child.stdout?.resume();
       child.stderr?.resume();
-      return { baseUrl: expected, child };
+      return { baseUrl: listening, child };
     }
 
     killChild(child);
     if (!lastFailure) {
-      lastFailure = `never printed "${expected}" within ${SERVER_START_TIMEOUT}ms`;
+      lastFailure =
+        `never printed a "serving … on <url>" line within ${SERVER_START_TIMEOUT}ms`;
     }
     // Quote the child's own diagnostics: a bind race, a missing fixture dir and
     // a crash-on-load all look identical from out here otherwise.

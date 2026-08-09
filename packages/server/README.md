@@ -16,7 +16,7 @@ one-validator rule has been broken.
 
 | file | what it owns |
 |---|---|
-| `serve.ts` | the order: store, then surface, then listener — and the warning for binding off loopback |
+| `serve.ts` | the order: store, then surface, then listener — the warning for binding off loopback, and which runtime failures are news |
 | `codec.ts` | the seam where the generic store meets the outline format |
 | `runtime.ts` | the two surface bindings: the stream is `SubscriptionRef.changes` verbatim, the errors cell is an owned source |
 | `listener.ts` | HTTP for the bundle, WebSocket for the surface: origin gate → upgrade → stale-tab gate → heartbeat → serve |
@@ -41,6 +41,34 @@ justfile — never as a module.
 Everything `serve` opens is a finalizer of the enclosing scope, so shutting
 down is closing the scope; no caller holds a teardown function it might forget
 to call.
+
+## Starting up, and what you are told when it will not
+
+**A busy port is not a refusal.** If the port asked for is already listening,
+the listener binds once more on a port the OS picks and says so:
+
+```
+port 7714 in use — serving on http://127.0.0.1:40429 instead
+serving /home/you/outlines on http://127.0.0.1:40429
+```
+
+The reader asked to read their outlines, not to own port 7714. Every other
+listen failure still is a refusal — a host that is not this machine's, a
+privileged port — which is why exactly one error code recovers rather than
+"listen failed". The address that gets reported is always the one **actually
+bound**: the browser tests read the URL out of that line rather than assuming
+the port they passed, because the printed address is the only thing that knows.
+
+**A failure is reported as itself.** The surface runtime's `done` settles for
+two very different reasons — it faulted, or it is being closed — and only the
+first is news. Treating the second as a fault is how a busy port used to print
+`surface runtime faulted — unrecoverable: [object Object]` and exit before the
+real `cannot listen on 127.0.0.1:7714: …` could be reported at all: the
+teardown that a failed `listen` starts closes the runtime, and closing it
+settled `done`. So the fault handler only speaks while we are still meant to be
+serving, and it renders an Effect `Cause` with `Cause.pretty` rather than
+`String`, which on a `Cause` is `[object Object]`. `src/serve.test.ts` holds
+both halves against a real socket.
 
 ## Layering
 
