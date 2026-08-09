@@ -1,3 +1,4 @@
+**IMPORTANT** This file is hand-maintained. AI must not edit it, unless to make corrections or updates to existing content.
 
 ## PR workflow
 
