@@ -16,7 +16,7 @@
 
 import { NodeServices } from "@effect/platform-node"
 import { expect, test } from "bun:test"
-import { Effect, Result, SubscriptionRef } from "effect"
+import { type Duration, Effect, Result, SubscriptionRef } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -90,7 +90,7 @@ interface Fixture {
 const withStore = <A>(
   files: Readonly<Record<string, string>>,
   use: (fixture: Fixture) => Effect.Effect<A, PlatformFailure>,
-  options: { readonly watch?: boolean } = {},
+  options: { readonly watch?: boolean; readonly backstop?: Duration.Input } = {},
 ): Promise<A> => {
   decodes = []
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-store-"))
@@ -106,6 +106,7 @@ const withStore = <A>(
       codec,
       watch: options.watch ?? false,
       settle: "20 millis",
+      ...(options.backstop === undefined ? {} : { backstop: options.backstop }),
     })
     return yield* use({
       store,
@@ -205,6 +206,28 @@ test("only the file whose stamp moved is read again", () =>
       expect(snapshot?.rev).toBe(2)
       expect(snapshot?.value.text).toEqual({ "a.txt": "alpha", "b.txt": "beta, revised" })
     })))
+
+// A served directory is somebody's working tree. The walk does not enter the
+// machine-owned corners of one — which is both a correctness statement (nothing
+// in there is anyone's outline) and the reason a probe stays cheap while git is
+// the thing generating the events.
+test("the walk does not enter dot-directories or node_modules", () =>
+  withStore(
+    {
+      "a.txt": "alpha",
+      ".git/objects/b.txt": "not yours",
+      "node_modules/pkg/c.txt": "not yours either",
+      // Only SUBdirectories are judged: a dotted FILE is a file like any other.
+      ".hidden.txt": "still mine",
+    },
+    ({ store }) =>
+      Effect.gen(function*() {
+        expect((yield* snapshotOf(store))?.value.text).toEqual({
+          ".hidden.txt": "still mine",
+          "a.txt": "alpha",
+        })
+      }),
+  ))
 
 // A file arriving without anyone asking is the `git pull` case, and the probe
 // is a re-LISTING rather than a re-stat of what it knew about — which is the
@@ -318,6 +341,25 @@ test("a burst of writes lands as one update", () =>
         expect(snapshot?.rev).toBeLessThanOrEqual(3)
       }),
     { watch: true },
+  ))
+
+// The backstop is the decision that a watcher is a latency optimisation and
+// never a guarantee (resolved 2026-08-09), so it is proved the only way that
+// claim can be: with the watcher OFF and nobody calling `refresh`, the store
+// still catches up on its own.
+test("the backstop notices a change with no watcher and nobody asking", () =>
+  withStore(
+    { "a.txt": "alpha" },
+    ({ settled, write }) =>
+      Effect.gen(function*() {
+        write("a.txt", "alpha, changed behind the watcher's back")
+        const snapshot = yield* settled(
+          (snapshot) =>
+            snapshot?.value.text["a.txt"] === "alpha, changed behind the watcher's back",
+        )
+        expect(snapshot?.rev).toBe(2)
+      }),
+    { watch: false, backstop: "50 millis" },
   ))
 
 test("an edit reaches the snapshot with nobody asking", () =>

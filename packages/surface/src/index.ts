@@ -21,7 +21,8 @@
  *     screen underneath a banner, which is only expressible if the two arrive
  *     separately.
  *
- * Ops arrive as procedures in phase 4 and chat as events in phase 5. Both slot
+ * Ops arrive as procedures and chat as events when the agent does (they are one
+ * roadmap item: chat's agent is the first writer). Both slot
  * into this same spec.
  */
 

@@ -55,8 +55,11 @@ the stamp table they both mutate.
    @parcel/watcher if ever needed, without touching store code. The watcher is
    armed BEFORE the boot probe, so the only changes it can miss are ones the
    boot probe is about to read anyway.
-2. **Probe** — the only source of truth: re-list the tree, re-stat everything;
-   diff against the stamp table (path → mtime, size). Watcher payloads are never
+2. **Probe** — the only source of truth: re-list the tree (pruning
+   dot-directories and `node_modules`: a served directory is a working tree,
+   and an unpruned walk would be at its most expensive precisely when git is
+   the thing generating the events), re-stat everything; diff against the stamp
+   table (path → mtime, size). Watcher payloads are never
    believed — the pinned implementation itself drops null-filename events (`if
    (!path) return`), inotify overflows under bursts, FSEvents coalesces under
    git-sized loads — so an event only means "probe soon". The probe is
@@ -109,7 +112,7 @@ code points back here.
    every probe to catch a case the settle delay and the backstop already cover.
    Hash only if it ever bites.
 
-## Writes: the phase 4 gate
+## Writes: the gate that is not built yet
 
 Not built. Nothing writes yet, so nothing needs it, and building the gate before
 the first writer would be designing against an imagined caller. The shape it

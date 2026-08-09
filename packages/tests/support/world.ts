@@ -101,6 +101,20 @@ export const NO_RELOAD_MARK = "__olaiNoReloadMark";
 export const oneLine = (text: string): string =>
   text.replace(/\s+/g, " ").trim();
 
+/** One line, with the `#` that marks a tag dropped.
+ *
+ *  The `#` is dropped on BOTH sides of every title comparison because the
+ *  format stores the title verbatim and leaves the split to the view: whether
+ *  the styled tag reads `#home` or `home` is a presentation choice the view is
+ *  entitled to make. What a title assertion is actually for is that the words
+ *  survive being cut apart into text and tag spans and put back together.
+ *
+ *  Stripped BEFORE the whitespace is flattened, so a `#` the view sets off on
+ *  its own does not leave a double space behind — which is exactly the detail a
+ *  second copy of this got backwards, and why it lives beside `oneLine` rather
+ *  than in whichever step file compares titles. */
+export const readable = (text: string): string => oneLine(text.replace(/#/g, ""));
+
 export class OlaiWorld extends World {
   browser!: Browser;
   context!: BrowserContext;

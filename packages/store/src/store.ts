@@ -27,9 +27,10 @@
  * which is already surface's snapshot-then-deltas contract, so a consumer
  * written against the load-once store this grew out of needed no change.
  *
- * Phase 4 adds the write gate — `commit({baseRev, changes})`, writer-serialized
- * against the same probe, failing with `StaleWrite` when the store has moved
- * past `baseRev`. It is deliberately not here yet: nothing writes.
+ * The write gate — `commit({baseRev, changes})`, writer-serialized against the
+ * same probe, failing with `StaleWrite` when the store has moved past
+ * `baseRev` — arrives with the ops layer. It is deliberately not here yet:
+ * nothing writes.
  */
 
 import { Duration, Effect, Latch, Result, Schedule, Semaphore, Stream, SubscriptionRef } from "effect"
@@ -41,8 +42,8 @@ import type { PlatformFailure } from "./errors.ts"
 import * as Probe from "./probe.ts"
 
 /** Monotonic per store. A snapshot's revision is what a later write will name
- *  as the base it edited (phase 4's optimistic concurrency), and what proves to
- *  a consumer that two frames are different reads of the disk. */
+ *  as the base it edited (the write gate's optimistic concurrency), and what
+ *  proves to a consumer that two frames are different reads of the disk. */
 export type Rev = number
 
 export interface Snapshot<S> {
@@ -111,6 +112,15 @@ export const make = <F, S, E>(
     const snapshot = yield* SubscriptionRef.make<Snapshot<S> | null>(null)
     const errors = yield* SubscriptionRef.make<E | null>(null)
 
+    // A `SubscriptionRef` emits on every write, equal or not — and every
+    // emission here is a frame the server sends to every open browser. A valid
+    // probe clearing errors that were already clear is the common case, so it
+    // is the one that must not broadcast.
+    const clearErrors = Effect.flatMap(
+      SubscriptionRef.get(errors),
+      (current) => current === null ? Effect.void : SubscriptionRef.set(errors, null),
+    )
+
     const publish = (files: Probe.Decoded<F, E>) => {
       const outcome = options.codec.validate(files)
       return Result.isFailure(outcome)
@@ -118,7 +128,7 @@ export const make = <F, S, E>(
         : SubscriptionRef.update(snapshot, (previous) => ({
           rev: (previous?.rev ?? 0) + 1,
           value: outcome.success,
-        })).pipe(Effect.andThen(SubscriptionRef.set(errors, null)))
+        })).pipe(Effect.andThen(clearErrors))
     }
 
     // ONE update fiber's worth of work, whoever asks for it: the probe mutates

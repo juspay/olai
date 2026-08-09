@@ -3,7 +3,7 @@
  *
  * Generic over content: the caller brings the codec, and this package holds no
  * knowledge of outlines. See {@link ./store.ts} for the sync loop and for what
- * phase 4 adds without changing this surface.
+ * the write gate adds without changing this surface.
  */
 
 export type { Codec } from "./codec.ts"

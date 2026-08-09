@@ -18,6 +18,7 @@ import { type OutlineError, reportStage } from "@olai/format"
 import { Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
+import { Lede } from "./Lede.tsx"
 import { Report } from "./Report.tsx"
 
 export function Page(props: { readonly errors: ReadonlyArray<OutlineError> }) {
@@ -28,21 +29,21 @@ export function Page(props: { readonly errors: ReadonlyArray<OutlineError> }) {
           ? "Broken outlines"
           : `${props.errors.length} ${props.errors.length === 1 ? "error" : "errors"}`}
       </h1>
-      <p class="mt-0 mb-4 max-w-3xl text-muted">
+      <Lede>
         {props.errors.length === 0
           // The page is decided by the outline stream, and the report arrives
           // on its own subscription — so for the frame between them there is a
           // broken set and nothing yet to say about it.
           ? "The set could not be loaded. Fetching the report…"
           : "Nothing is served until these are fixed: an outline set is valid or it is not, and half of one would be a different set from the one on disk."}
-      </p>
+      </Lede>
       <Show when={reportStage(props.errors) === "line"}>
-        <p class="mt-0 mb-4 max-w-3xl text-muted" data-testid={TESTID.stageNote}>
+        <Lede testid={TESTID.stageNote}>
           Some of these are lines that could not be read. The nodes in those
           files are missing from the set, so references that might point into
           them are not reported yet — expect a second round after these are
           fixed.
-        </p>
+        </Lede>
       </Show>
 
       <Report errors={props.errors} />

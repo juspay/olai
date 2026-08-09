@@ -37,7 +37,8 @@ are drawn from, and the cell says what is wrong with the set AS A WHOLE, which
 no single file owns. A file listed in `broken` is being rendered around;
 anything in the cell is being held back.
 
-Ops arrive as procedures in phase 4 and chat as events in phase 5, into this
+Ops arrive as procedures and chat as events when the agent does — one item,
+because chat's agent is the first writer — into this
 same spec.
 
 ## Entry point

@@ -14,6 +14,7 @@
 import type { OutlineError } from "@olai/format"
 
 import { TESTID } from "../testids.ts"
+import { Lede } from "./Lede.tsx"
 import { Report } from "./Report.tsx"
 
 export function Banner(props: { readonly errors: ReadonlyArray<OutlineError> }) {
@@ -25,11 +26,11 @@ export function Banner(props: { readonly errors: ReadonlyArray<OutlineError> }) 
       <h2 class="m-0 mb-1 text-base font-bold text-alarm">
         Showing the last good version
       </h2>
-      <p class="mt-0 mb-2 max-w-3xl text-sm text-muted">
+      <Lede>
         The files on disk no longer validate, so the outline below is the one
         from before they stopped. Fix these and it catches up on its own —
         nothing needs reloading.
-      </p>
+      </Lede>
       <Report errors={props.errors} />
     </aside>
   )

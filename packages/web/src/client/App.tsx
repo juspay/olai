@@ -23,8 +23,18 @@
  * reading and not to the file.
  */
 
-import { type BrokenFile, derive, rowsOf } from "@olai/format"
-import { createMemo, createSignal, For, Match, onCleanup, Show, Switch } from "solid-js"
+import { type BrokenFile, derive, type Row, rowsOf } from "@olai/format"
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  Match,
+  onCleanup,
+  Show,
+  Switch,
+} from "solid-js"
+import { createStore, reconcile } from "solid-js/store"
 
 import { Banner } from "./errors/Banner.tsx"
 import { Broken } from "./errors/Broken.tsx"
@@ -74,6 +84,10 @@ export default function App() {
 
   const set = () => frame()?.set
   const files = () => set()?.files ?? []
+  /** What is wrong with the set as a WHOLE right now. Empty is the normal
+   *  state, including when one file is unreadable — that one lands in the set
+   *  itself, as `broken` below. */
+  const problems = () => errors.value() ?? []
   const current = () => {
     const file = route()
     return file === null ? files()[0] : files().includes(file) ? file : undefined
@@ -96,16 +110,26 @@ export default function App() {
     const loaded = set()
     return loaded === undefined ? undefined : derive(loaded.nodes)
   })
-  const rows = createMemo(() => {
+
+  // RECONCILED into a store rather than handed over as a fresh array, and the
+  // live store is why. `rowsOf` mints new objects every time it runs, and a
+  // `<For>` compares by reference — so without this, one character changing in
+  // one title on disk would tear down and rebuild every row of the open
+  // outline: its DOM, its collapse memo, its rendered note. Keyed on `row.key`,
+  // which the format already mints per PLACE, the diff touches the rows that
+  // actually changed and leaves the rest of the tree standing.
+  const [rows, setRows] = createStore<Array<Row>>([])
+  createEffect(() => {
     const indexes = derived()
     const file = current()
-    return indexes === undefined || file === undefined ? [] : rowsOf(indexes, file)
+    const next = indexes === undefined || file === undefined ? [] : rowsOf(indexes, file)
+    setRows(reconcile([...next], { key: "key" }))
   })
 
   return (
     <Switch fallback={<p class="p-8 text-muted">Reading…</p>}>
       <Match when={frame() === null}>
-        <ErrorPage errors={errors.value() ?? []} />
+        <ErrorPage errors={problems()} />
       </Match>
       <Match when={set() !== undefined}>
         <div class="grid min-h-screen grid-cols-[16rem_1fr]">
@@ -140,13 +164,13 @@ export default function App() {
           </nav>
 
           <main class="overflow-x-auto px-8 py-6">
-            <Show when={(errors.value() ?? []).length > 0}>
-              <Banner errors={errors.value() ?? []} />
+            <Show when={problems().length > 0}>
+              <Banner errors={problems()} />
             </Show>
             <Switch fallback={<Empty route={route()} files={files()} />}>
               <Match when={brokenHere()}>{(file) => <Broken file={file()} />}</Match>
               <Match when={current() !== undefined}>
-                <Tree rows={rows()} collapsed={collapsed()} onToggle={toggle} />
+                <Tree rows={rows} collapsed={collapsed()} onToggle={toggle} />
               </Match>
             </Switch>
           </main>

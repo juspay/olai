@@ -10,25 +10,13 @@ import {
   DATE,
   DESC,
   NODE,
-  oneLine,
+  readable,
   OUTLINE_TREE,
   POLL_TIMEOUT,
   TAG,
   TOGGLE,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
-
-/** One line, with the `#` that marks a tag dropped.
- *
- *  The `#` is dropped on BOTH sides of every title comparison because the
- *  format stores the title verbatim and leaves the split to the view: whether
- *  the styled tag reads `#home` or `home` is a presentation choice the view is
- *  entitled to make. What a title assertion is actually for is that the words
- *  survive being cut apart into text and tag spans and put back together.
- *
- *  Stripped BEFORE the whitespace is flattened, so a `#` the view sets off on
- *  its own does not leave a double space behind. */
-const readable = (text: string): string => oneLine(text.replace(/#/g, ""));
 
 Then("the tree is shown", async function (this: OlaiWorld) {
   await this.page
@@ -70,7 +58,17 @@ Then(
   async function (this: OlaiWorld, id: string, expected: string) {
     const title = this.nodeTitle(id);
     await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.strictEqual(readable((await title.innerText()) ?? ""), readable(expected));
+    // POLLED, not read once. A title can change under a live page — a file is
+    // saved, the store publishes, the node re-renders in place — and reading
+    // the instant the node appears would compare against whatever the previous
+    // snapshot said. The re-assert on timeout is what turns "waited 15s" into
+    // "expected X, found Y".
+    await this.waitUntil(
+      async () => readable(await title.innerText()) === readable(expected),
+      `the node "${id}" reads ${JSON.stringify(expected)}`,
+    ).catch(async () => {
+      assert.strictEqual(readable(await title.innerText()), readable(expected));
+    });
   },
 );
 

@@ -25,11 +25,14 @@ the **probe decides and nothing else does**.
    save is a handful of events and one `git pull` is hundreds; both are one
    probe.
 3. **Probe**: re-list the tree, re-stat everything, diff against a table of
-   mtime+size stamps. Only stamped-changed files are re-read and re-decoded;
-   an identical listing ends the cycle with nothing published at all, which is
-   what makes a sixty-second backstop free. Because nothing is remembered
-   except stamps, the probe is idempotent: state converges on disk truth after
-   any disturbance, whether every event lied or none arrived.
+   mtime+size stamps. The walk PRUNES dot-directories and `node_modules` — a
+   served directory is somebody's working tree, and an unpruned walk would
+   spend its time in `.git`, which is at once the largest thing under the root
+   and the thing generating the events. Only stamped-changed files are re-read
+   and re-decoded; an identical listing ends the cycle with nothing published
+   at all, which is what makes a sixty-second backstop free. Because nothing is
+   remembered except stamps, the probe is idempotent: state converges on disk
+   truth after any disturbance, whether every event lied or none arrived.
 4. **Publish**: valid → a new revision on the snapshot and the errors cleared;
    invalid → the last good snapshot is left exactly where it is and the errors
    published beside it. A broken file must not blank a page that was reading
@@ -68,8 +71,8 @@ would have made that call for every codec, by omission.
 
 ## Not here yet
 
-Writing. Phase 4 adds `commit({baseRev, changes})` behind the same gate the
-probe runs in, failing with `StaleWrite` when the store has moved past
+Writing. The ops layer brings `commit({baseRev, changes})` behind the same gate
+the probe runs in, failing with `StaleWrite` when the store has moved past
 `baseRev`. Nothing writes today, so nothing needs it — the design doc holds the
 shape.
 

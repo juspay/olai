@@ -8,13 +8,17 @@
  * requirements — a `refresh` a consumer holds should not ask them for a file
  * system.
  *
- * Two edges are handled here rather than upstairs, because both are facts about
- * disks rather than about stores:
+ * Three edges are handled here rather than upstairs, because all three are
+ * facts about disks rather than about stores:
  *
- *   - Paths coming out are root-relative and spelled with `/`. `readDirectory`
- *     yields the platform's separator, and every `file:line` a consumer prints
- *     is in `/`, so the conversion happens at this edge — through the same Path
- *     service the bytes come from, not through an ambient `process.platform`.
+ *   - Paths coming out are root-relative and spelled with `/`, whatever the
+ *     platform's separator is. The walk joins bare entry names with `/` and
+ *     converts back through the Path service only to touch the disk, so
+ *     everything above — a codec's `match`, a `file:line` a consumer prints —
+ *     reads the same everywhere, with no ambient `process.platform` anywhere.
+ *   - The walk PRUNES. See {@link pruned}: a served directory is a working
+ *     tree, and the probe must not be at its most expensive exactly when git
+ *     is busy.
  *   - A file that has VANISHED between two syscalls is not an error. A probe
  *     races every writer on the machine; "it was listed, then it was not there"
  *     is the normal outcome of a `git checkout`, and the next probe is what
@@ -63,43 +67,84 @@ export const make = (
     const absolute = (path: string): string =>
       path_.join(root, ...path.split("/"))
 
+    /** One directory's entries, as root-relative `/`-spelled paths. */
+    const entriesOf = (directory: string) => {
+      const read = fs.readDirectory(absolute(directory)).pipe(
+        Effect.map((entries) =>
+          entries
+            .map((entry) => (directory === "" ? entry : `${directory}/${entry}`))
+            .sort()
+        ),
+      )
+      return (
+        // A SUBdirectory that went away mid-walk contributes nothing, for the
+        // same reason a file that did: the next probe settles it. The ROOT is
+        // not that case — if it is not there, there is no set to be had and
+        // the caller has to hear so rather than be told the directory is
+        // empty.
+        directory === ""
+          ? read
+          : Effect.catchIf(read, vanished, () => Effect.succeed<Array<string>>([]))
+      ).pipe(
+        Effect.mapError((cause) =>
+          new PlatformFailure({ path: directory === "" ? root : directory, cause })
+        ),
+      )
+    }
+
     const listing = (match: (path: string) => boolean) =>
       Effect.gen(function*() {
-        const entries = yield* fs.readDirectory(root, { recursive: true }).pipe(
-          Effect.mapError((cause) => new PlatformFailure({ path: root, cause })),
-        )
+        // Walked a directory at a time rather than with one recursive read,
+        // because the walk has to be able to STOP. A served directory is
+        // somebody's working tree: `.git` alone is tens of thousands of
+        // entries that no `match` can ever claim, it is written to by every
+        // git command, and the watcher fires on all of it — so an unpruned
+        // probe would do its most expensive work precisely when git is busy.
+        // `match` cannot help; it is asked about files, and by then the cost
+        // has been paid.
+        const stamps = new Map<string, Stamp>()
 
-        const matched = [...entries]
-          .sort()
-          .map((entry) => entry.split(path_.sep).join("/"))
-          .filter(match)
+        const descend = (directory: string): Effect.Effect<void, PlatformFailure> =>
+          Effect.gen(function*() {
+            const entries = yield* entriesOf(directory)
 
-        // Concurrently, because this is latency in front of every update:
-        // nothing is published until the last stat is back. Bounded so a large
-        // directory does not open every descriptor at once, and
-        // `Effect.forEach` preserves input order, so the map is built in the
-        // sorted order the codec's `validate` then sees.
-        const stamped = yield* Effect.forEach(
-          matched,
-          (path) =>
-            fs.stat(absolute(path)).pipe(
-              // A directory that happens to match the codec's rule is not a
-              // file of the set; neither is a socket someone left lying about.
-              Effect.map((info) =>
-                info.type === "File" ? [path, stampOf(info)] as const : null
-              ),
-              Effect.catchIf(vanished, () => Effect.succeed(null)),
-              Effect.mapError((cause) => new PlatformFailure({ path, cause })),
-            ),
-          { concurrency: 16 },
-        )
+            // One stat per entry, concurrently, because this is latency in
+            // front of every update: nothing is published until the last is
+            // back. Bounded so a large directory does not open every
+            // descriptor at once, and `Effect.forEach` preserves input order,
+            // so the map is built in the sorted order `validate` then sees.
+            const found = yield* Effect.forEach(
+              entries,
+              (path) =>
+                fs.stat(absolute(path)).pipe(
+                  Effect.catchIf(vanished, () => Effect.succeed(null)),
+                  Effect.map((info) => [path, info] as const),
+                  Effect.mapError((cause) => new PlatformFailure({ path, cause })),
+                ),
+              { concurrency: 16 },
+            )
 
-        return new Map(stamped.filter(isPresent))
+            // Depth-first, in sorted order, so the map reads down the tree the
+            // way a listing of it does — which is the order `files` promises
+            // and the sidebar shows.
+            for (const [path, info] of found) {
+              if (info === null) continue
+              if (info.type === "Directory") {
+                if (!pruned(path)) yield* descend(path)
+                continue
+              }
+              // A file the codec does not claim is not in the set; neither is a
+              // socket someone left lying about.
+              if (info.type === "File" && match(path)) stamps.set(path, stampOf(info))
+            }
+          })
+
+        yield* descend("")
+        return stamps
       })
 
     const read = (path: string) =>
       fs.readFileString(absolute(path)).pipe(
-        Effect.map((contents): string | null => contents),
         Effect.catchIf(vanished, () => Effect.succeed(null)),
         Effect.mapError((cause) => new PlatformFailure({ path, cause })),
       )
@@ -112,6 +157,20 @@ export const make = (
     return { listing, read, watch }
   })
 
+/** Directories the walk does not enter.
+ *
+ *  A served directory is somebody's working tree, and the two things reliably
+ *  under one are `.git` and `node_modules` — enormous, machine-owned, and
+ *  incapable of holding a file any codec would claim. Dot-directories in
+ *  general are the same bargain: whoever put one there did not mean it as
+ *  content. (Only SUBdirectories are judged, so serving `~/.notes` itself is
+ *  unaffected.) A codec that ever wants one of these can be given a say; until
+ *  then, one rule beats a knob nobody sets. */
+const pruned = (path: string): boolean => {
+  const name = path.slice(path.lastIndexOf("/") + 1)
+  return name.startsWith(".") || name === "node_modules"
+}
+
 const stampOf = (info: FileSystem.File.Info): Stamp => ({
   mtime: Option.match(info.mtime, {
     onNone: () => 0,
@@ -123,5 +182,3 @@ const stampOf = (info: FileSystem.File.Info): Stamp => ({
 /** The file was there when the directory was listed and is not there now. */
 const vanished = (error: PlatformError.PlatformError): boolean =>
   error.reason._tag === "NotFound"
-
-const isPresent = <A>(entry: A | null): entry is A => entry !== null

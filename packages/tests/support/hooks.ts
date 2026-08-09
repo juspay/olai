@@ -53,9 +53,11 @@ const REPORTS = path.resolve(import.meta.dirname, "..", "reports");
 
 /** The corpus a scenario gets when it names none. */
 const DEFAULT_CORPUS = "good";
-const CORPUS_TAG = /^@corpus:([A-Za-z0-9_-]+)$/;
-/** Same corpora, copied and served privately so the scenario may write to it. */
-const SCRATCH_TAG = /^@scratch:([A-Za-z0-9_-]+)$/;
+/** `@corpus:<name>` shares the tracked fixture directory; `@scratch:<name>`
+ *  gets a private, writable copy of it. One pattern rather than two, because
+ *  they are one question — which corpus, and may I write to it — and two
+ *  regexes is how the answer ends up parsed in two places. */
+const CORPUS_TAG = /^@(corpus|scratch):([A-Za-z0-9_-]+)$/;
 
 let browser: Browser | undefined;
 
@@ -396,10 +398,10 @@ const requestOf = (
   tags: ReadonlyArray<{ readonly name: string }>,
 ): { readonly corpus: string; readonly scratch: boolean } => {
   const named = tags.flatMap((tag) => {
-    const shared = CORPUS_TAG.exec(tag.name)?.[1];
-    if (shared !== undefined) return [{ corpus: shared, scratch: false }];
-    const own = SCRATCH_TAG.exec(tag.name)?.[1];
-    return own === undefined ? [] : [{ corpus: own, scratch: true }];
+    const asked = CORPUS_TAG.exec(tag.name);
+    return asked === null
+      ? []
+      : [{ corpus: asked[2]!, scratch: asked[1] === "scratch" }];
   });
   if (named.length > 1) {
     throw new Error(

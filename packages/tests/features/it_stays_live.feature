@@ -22,7 +22,7 @@ Feature: It stays live
       {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil in trays","done":"2026-07-20"}
       {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","doing":true}
       """
-    Then the node "basil" eventually has the title "sow the basil in trays"
+    Then the node "basil" has the title "sow the basil in trays"
     And the page has not reloaded
     And there should be no page errors
 
@@ -59,7 +59,7 @@ Feature: It stays live
       {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
       {"id":"order","parent":"kitchen","ord":"a1",title:"order the new cabinets"}
       """
-    Then the outline "house.jsonl" is eventually marked unreadable
+    Then the outline "house.jsonl" is marked unreadable
     And no stale banner is shown
     And the node "herbs" is shown
     When I open the unreadable outline "house.jsonl"
@@ -78,7 +78,7 @@ Feature: It stays live
       {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20"}
       {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","doing":true,"after":["nowhere"]}
       """
-    Then the stale banner is eventually shown
+    Then the stale banner is shown
     And the stale banner shows an error with code "unknown-target"
     And the node "mint" is shown
     When I rewrite "garden.jsonl" as:
@@ -88,7 +88,7 @@ Feature: It stays live
       {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20"}
       {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint at last","doing":true}
       """
-    Then the stale banner is eventually gone
-    And the node "mint" eventually has the title "split the mint at last"
+    Then the stale banner is gone
+    And the node "mint" has the title "split the mint at last"
     And the page has not reloaded
     And there should be no page errors

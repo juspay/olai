@@ -53,12 +53,18 @@ export const make = <F, S, E>(
       run: Effect.gen(function*() {
         const previous = yield* Ref.get(cache)
         const stamps = yield* disk.listing(codec.match)
-        if (previous !== null && settled(previous, stamps)) return null
 
         const stale = [...stamps].filter(([path, stamp]) => {
           const cached = previous?.get(path)
           return cached === undefined || !sameStamp(cached.stamp, stamp)
         })
+        // Nothing new and nothing gone — so nothing the codec could say has
+        // changed. The size check is what catches a DELETION, which leaves no
+        // stale entry behind to be noticed by. Asked here, off the one diff,
+        // rather than by a second walk that would have to agree with it.
+        const settled = previous !== null && stale.length === 0 &&
+          previous.size === stamps.size
+        if (settled) return null
 
         const reread = new Map(
           yield* Effect.forEach(
@@ -90,15 +96,3 @@ export const make = <F, S, E>(
     }),
   )
 
-/** Same files, same stamps — so nothing the codec could say has changed. */
-const settled = <F, E>(
-  previous: ReadonlyMap<string, Cached<F, E>>,
-  stamps: ReadonlyMap<string, Stamp>,
-): boolean => {
-  if (previous.size !== stamps.size) return false
-  for (const [path, stamp] of stamps) {
-    const cached = previous.get(path)
-    if (cached === undefined || !sameStamp(cached.stamp, stamp)) return false
-  }
-  return true
-}

@@ -21,6 +21,7 @@ import { isCrossFile, type OutlineError } from "@olai/format"
 import { createMemo, For, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
+import { Lede } from "./Lede.tsx"
 
 export function Report(props: { readonly errors: ReadonlyArray<OutlineError> }) {
   /** One walk, one partition. "Under its file" and "across files" are the two
@@ -59,10 +60,10 @@ export function Report(props: { readonly errors: ReadonlyArray<OutlineError> }) 
       <Show when={split().across.length > 0}>
         <section data-testid={TESTID.crossFileErrors}>
           <Heading>Across files</Heading>
-          <p class="mt-0 mb-4 max-w-3xl text-muted">
+          <Lede>
             These name two places at once — a reference that leaves its file, or
             a loop that closes through another one.
-          </p>
+          </Lede>
           <Rows errors={split().across} />
         </section>
       </Show>

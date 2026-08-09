@@ -27,7 +27,7 @@ import { distance } from "fastest-levenshtein"
 import { Result } from "effect"
 
 import { countedChildren, derive, type Derived, storedMarker } from "./derive.ts"
-import { compareErrors, type OutlineError } from "./errors.ts"
+import { compareErrors, isGuessWhileUnreadable, type OutlineError } from "./errors.ts"
 import { EDGE_FIELDS, isMirror, type Located } from "./node.ts"
 import type { OutlineSet } from "./set.ts"
 
@@ -51,35 +51,23 @@ export const validate = (
   const unreadable = set.broken.flatMap((file) => [...file.errors])
   // A file that did not parse contributes no ids, so a reference resolving to
   // nothing may be pointing straight into it. That is a GUESS, and the format's
-  // staging rule is that guesses are not reported: "`kitchen` is not a known
-  // id" is not a finding when the line declaring `kitchen` is the one that
-  // failed to parse. Withholding one is also what makes the whole set
-  // unpublishable — the nodes are there and their targets are not — so the
-  // report becomes the parse errors, which is the cause, and the last good
-  // snapshot stays on screen.
-  const withheld = set.broken.length === 0
-    ? []
-    : errors.filter((error) => RESOLVES_ACROSS_FILES.has(error.code))
-  const found = withheld.length === 0
+  // staging rule is that guesses are not reported ({@link ./errors.ts}'s
+  // catalogue says which codes are guessable): "`kitchen` is not a known id" is
+  // not a finding when the line declaring `kitchen` is the one that failed to
+  // parse.
+  const found = set.broken.length === 0
     ? errors
-    : errors.filter((error) => !RESOLVES_ACROSS_FILES.has(error.code))
+    : errors.filter((error) => !isGuessWhileUnreadable(error.code))
 
-  return found.length > 0 || withheld.length > 0
+  // Any error at all refuses the set, INCLUDING one that was withheld: the
+  // withheld ones are unresolved references, and a snapshot whose nodes point
+  // at ids nobody can resolve is not a set anything could draw. So the report
+  // becomes the parse errors, which is the cause, and the last good snapshot
+  // stays on screen underneath it.
+  return errors.length > 0
     ? Result.fail([...unreadable, ...found].sort(compareErrors))
     : Result.succeed(set)
 }
-
-/** The codes a missing file can INVENT, rather than merely hide.
- *
- *  `mirror`, `after`, `blocks` and `see` name a bare id and may cross files, so
- *  an unparsed file makes them dangle. Nothing else can be conjured this way:
- *  `parent` is same-file by rule, so a parent that does not resolve is an error
- *  whichever file the id was going to be in (unknown or foreign, both refused);
- *  a duplicate, a cycle and a stored marker need the records that would be
- *  missing, so a missing file can only ever hide one. */
-const RESOLVES_ACROSS_FILES: ReadonlySet<OutlineError["code"]> = new Set([
-  "unknown-target",
-])
 
 // ── ids ────────────────────────────────────────────────────────────────
 

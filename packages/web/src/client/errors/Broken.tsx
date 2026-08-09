@@ -14,6 +14,7 @@
 import type { BrokenFile } from "@olai/format"
 
 import { TESTID } from "../testids.ts"
+import { Lede } from "./Lede.tsx"
 import { Rows } from "./Report.tsx"
 
 export function Broken(props: { readonly file: BrokenFile }) {
@@ -24,10 +25,10 @@ export function Broken(props: { readonly file: BrokenFile }) {
       <h1 class="m-0 mb-2 text-xl font-bold text-alarm">
         {count()} {count() === 1 ? "error" : "errors"} in this file
       </h1>
-      <p class="mt-0 mb-4 max-w-3xl text-muted">
+      <Lede>
         Its lines could not be read, so it has no tree to draw. Every other
         outline in the directory is unaffected and still live.
-      </p>
+      </Lede>
       <Rows errors={props.file.errors} />
     </section>
   )

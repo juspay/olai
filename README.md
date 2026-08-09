@@ -26,8 +26,10 @@ just serve docs     # serves this repo's own roadmap, and opens on 127.0.0.1:771
 
 `olai web <dir> [--port] [--host]` reads the directory recursively, picking up
 every `.jsonl` outline and every `.md` document, and serves them to a browser.
-It binds to loopback by default: the surface is unauthenticated, so anyone who
-can reach the port can read every outline under the directory.
+It does not descend into dot-directories or `node_modules` — a directory of
+outlines is usually a git repository, and nothing anyone wrote is inside
+`.git`. It binds to loopback by default: the surface is unauthenticated, so
+anyone who can reach the port can read every outline under the directory.
 
 It keeps reading. Save a file, `git pull`, drop a new outline into the
 directory, and the open page updates in place — no reload, no restart. There is
