@@ -14,6 +14,7 @@
 import type { Zoomed } from "@olai/format"
 import { Match, Switch } from "solid-js"
 
+import { Lede } from "./Lede.tsx"
 import { TESTID } from "./testids.ts"
 
 export function NotFound(props: { readonly zoomed: Zoomed }) {
@@ -53,16 +54,6 @@ export function NotFound(props: { readonly zoomed: Zoomed }) {
   )
 }
 
-function Lede(props: { readonly children: unknown }) {
-  return (
-    <p class="mt-0 mb-4 max-w-3xl text-muted">{props.children as never}</p>
-  )
-}
-
-function Id(props: { readonly children: unknown }) {
-  return (
-    <code class="font-mono text-[0.8125rem] text-ink">
-      {props.children as never}
-    </code>
-  )
+function Id(props: { readonly children: string }) {
+  return <code class="font-mono text-[0.8125rem] text-ink">{props.children}</code>
 }

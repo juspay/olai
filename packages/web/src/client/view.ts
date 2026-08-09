@@ -8,14 +8,19 @@
  * the same node see the same outline and may fold it differently, which is why
  * this is client-local rather than a cell on the wire.
  *
- * PER VIEW, and that is what makes navigating reset them: a page you zoom into
- * is a new thing to read, and inheriting the last page's folds would fold
- * places this reader has never seen.
+ * A reading is OF A PAGE, and the page it is of is part of the value. That is
+ * what makes navigating start fresh — a page you zoom into is a new thing to
+ * read, and inheriting the last page's folds would fold places this reader has
+ * never seen — without an effect watching the route to clear anything. There
+ * is no moment where the held reading and the open page disagree, because a
+ * reading stamped with another page is never the one that gets read.
  */
 
-import { type Accessor, createEffect, createSignal, on } from "solid-js"
+import type { Row } from "@olai/format"
+import { withoutDone } from "@olai/format"
+import { type Accessor, createMemo, createSignal } from "solid-js"
 
-import type { Route } from "./routes.ts"
+import { hrefOf, type Route } from "./routes.ts"
 
 export interface View {
   /** Places the reader has folded, keyed by PLACE (`Row.key`) — the same node
@@ -25,28 +30,50 @@ export interface View {
   readonly toggle: (key: string) => void
   readonly doneHidden: Accessor<boolean>
   readonly toggleDone: () => void
+  /** The rows this reading actually draws. The switch and what it does to a
+   *  tree are one thing, so every page asks the same question rather than each
+   *  re-deciding what "hidden" means. */
+  readonly visible: (rows: ReadonlyArray<Row>) => ReadonlyArray<Row>
 }
 
-export const createView = (route: Accessor<Route>): View => {
-  const [collapsed, setCollapsed] = createSignal<ReadonlySet<string>>(new Set<string>())
-  const [doneHidden, setDoneHidden] = createSignal(false)
+/** One page's reading. `page` is which page it is OF — see the header. */
+interface Reading {
+  readonly page: string
+  readonly collapsed: ReadonlySet<string>
+  readonly doneHidden: boolean
+}
 
-  createEffect(
-    on(route, () => {
-      setCollapsed(new Set<string>())
-      setDoneHidden(false)
-    }, { defer: true }),
-  )
+const fresh = (route: Route): Reading => ({
+  page: hrefOf(route),
+  collapsed: new Set<string>(),
+  doneHidden: false,
+})
+
+export const createView = (route: Accessor<Route>): View => {
+  const [held, setHeld] = createSignal<Reading>(fresh(route()))
+
+  const reading = createMemo(() => {
+    const current = held()
+    return current.page === hrefOf(route()) ? current : fresh(route())
+  })
+
+  // Edits apply to the reading being READ, not to whatever is held: on the
+  // first fold of a freshly opened page those are different values, and the
+  // held one belongs to the page the reader has left.
+  const edit = (change: (reading: Reading) => Reading): void => {
+    setHeld(change(reading()))
+  }
 
   return {
-    collapsed,
+    collapsed: () => reading().collapsed,
     toggle: (key) =>
-      setCollapsed((previous) => {
-        const next = new Set(previous)
-        if (!next.delete(key)) next.add(key)
-        return next
+      edit((current) => {
+        const collapsed = new Set(current.collapsed)
+        if (!collapsed.delete(key)) collapsed.add(key)
+        return { ...current, collapsed }
       }),
-    doneHidden,
-    toggleDone: () => setDoneHidden((hidden) => !hidden),
+    doneHidden: () => reading().doneHidden,
+    toggleDone: () => edit((current) => ({ ...current, doneHidden: !current.doneHidden })),
+    visible: (rows) => reading().doneHidden ? withoutDone(rows) : rows,
   }
 }

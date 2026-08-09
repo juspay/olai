@@ -23,7 +23,8 @@ import { createMemo, Match, Switch } from "solid-js"
 
 import { Errors } from "./Errors.tsx"
 import { NodePage } from "./NodePage.tsx"
-import { outlineOf, pageOf } from "./page.ts"
+import { Nothing } from "./Nothing.tsx"
+import { arm, outlineOf, pageOf } from "./page.ts"
 import { OutlinePage } from "./OutlinePage.tsx"
 import { createRouter, RouterProvider } from "./router.tsx"
 import { Sidebar } from "./Sidebar.tsx"
@@ -53,22 +54,6 @@ export default function App() {
     return indexes === undefined ? undefined : pageOf(indexes, files(), router.route())
   })
 
-  // The two arms, as their own questions. Solid's `<Match>` narrows on what
-  // its `when` returns, and a union member is not something a JSX condition
-  // can narrow to on its own.
-  const zoomed = createMemo(() => {
-    const open = page()
-    return open?.kind === "node" ? open.zoomed : undefined
-  })
-  const outline = createMemo(() => {
-    const open = page()
-    return open?.kind === "outline" ? open : undefined
-  })
-  const active = createMemo(() => {
-    const open = page()
-    return open === undefined ? undefined : outlineOf(open)
-  })
-
   return (
     <Switch fallback={<p class="p-8 text-muted">Reading…</p>}>
       <Match when={frame() === null}>
@@ -78,22 +63,19 @@ export default function App() {
         {(indexes) => (
           <RouterProvider router={router}>
             <div class="grid min-h-screen grid-cols-[16rem_1fr]">
-              <Sidebar files={files()} active={active()} />
+              <Sidebar files={files()} active={outlineOf(page())} />
               <main class="overflow-x-auto px-8 py-6">
                 <Switch>
-                  <Match when={zoomed()}>
-                    {(node) => <NodePage zoomed={node()} view={view} />}
+                  <Match when={arm(page(), "node")}>
+                    {(open) => <NodePage zoomed={open().zoomed} view={view} />}
                   </Match>
-                  <Match when={outline()}>
+                  <Match when={arm(page(), "outline")}>
                     {(open) => (
-                      <OutlinePage
-                        derived={indexes()}
-                        file={open().file}
-                        requested={open().requested}
-                        files={files()}
-                        view={view}
-                      />
+                      <OutlinePage derived={indexes()} file={open().file} view={view} />
                     )}
+                  </Match>
+                  <Match when={arm(page(), "nothing")}>
+                    {(open) => <Nothing requested={open().requested} />}
                   </Match>
                 </Switch>
               </main>

@@ -37,9 +37,13 @@ not need one.
 
 `view.ts` holds the two per-view switches — what is folded, and whether done
 nodes are drawn. Neither goes to the server or to disk, and hiding what is done
-is a row not drawn rather than anything marked. Navigating resets them: a page
-you zoom into is a new thing to read, and inheriting the last page's folds
-would fold places this reader has never seen.
+is a row not drawn rather than anything marked.
+
+A reading is OF A PAGE, and which page is part of the value. That is what makes
+navigating start fresh — a page you zoom into is a new thing to read, and
+inheriting the last page's folds would fold places this reader has never seen —
+with no effect watching the route to clear anything, and no frame in which the
+held reading and the open page disagree.
 
 ## No exports, on purpose
 

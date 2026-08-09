@@ -15,6 +15,7 @@
 import { isCrossFile, type OutlineError, reportStage } from "@olai/format"
 import { createMemo, For, Show } from "solid-js"
 
+import { Lede } from "./Lede.tsx"
 import { TESTID } from "./testids.ts"
 
 export function Errors(props: { readonly errors: ReadonlyArray<OutlineError> }) {
@@ -93,14 +94,6 @@ export function Errors(props: { readonly errors: ReadonlyArray<OutlineError> }) 
 function Heading(props: { readonly children: unknown }) {
   return (
     <h2 class="mt-8 mb-2 font-mono text-base">{props.children as never}</h2>
-  )
-}
-
-function Lede(props: { readonly children: unknown; readonly testid?: string }) {
-  return (
-    <p class="mt-0 mb-4 max-w-3xl text-muted" data-testid={props.testid}>
-      {props.children as never}
-    </p>
   )
 }
 

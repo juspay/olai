@@ -8,7 +8,7 @@
  * canonical ancestry rather than the path that was clicked.
  */
 
-import { withoutDone, type Zoomed } from "@olai/format"
+import type { Zoomed } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 
 import { Breadcrumbs } from "./Breadcrumbs.tsx"
@@ -36,11 +36,7 @@ function Zoom(props: {
   readonly zoomed: Extract<Zoomed, { readonly kind: "node" }>
   readonly view: View
 }) {
-  const rows = createMemo(() =>
-    props.view.doneHidden()
-      ? withoutDone(props.zoomed.children)
-      : props.zoomed.children
-  )
+  const rows = createMemo(() => props.view.visible(props.zoomed.children))
 
   return (
     <>
