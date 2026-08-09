@@ -92,3 +92,20 @@ Feature: It stays live
     And the node "mint" has the title "split the mint at last"
     And the page has not reloaded
     And there should be no page errors
+
+  Scenario: A zoomed node's own page is as live as its outline
+    # `/n/<id>` draws from the same store as a whole outline, so "it stays
+    # live" has to mean the same thing there. Zooming is a route change and not
+    # a load, which is why the mark planted in the Background is still valid.
+    When I zoom into the node "herbs"
+    And I rewrite "garden.jsonl" as:
+      """
+      {"id":"garden","ord":"a0","title":"garden #outdoors"}
+      {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
+      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil in trays","done":"2026-07-20"}
+      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","doing":true}
+      """
+    Then the zoomed node is "herbs"
+    And the node "basil" has the title "sow the basil in trays"
+    And the page has not reloaded
+    And there should be no page errors

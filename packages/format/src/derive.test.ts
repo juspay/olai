@@ -8,8 +8,9 @@ import {
   type Status,
   storedMarker,
   titleParts,
+  withoutDone,
 } from "./derive.ts"
-import { nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
+import { FIXTURE_FILE, nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
 import { isMirror, type Located, type RegularNode } from "./node.ts"
 
 const statusesOf = (contents: string): ReadonlyMap<string, Status> =>
@@ -363,6 +364,54 @@ test("roots are the requested file's own top-level nodes, in ord order", () => {
   expect(shape(rowsOf(derived, "b.jsonl"))).toEqual(["/elsewhere node"])
   // A file with no nodes of its own draws nothing, rather than everything.
   expect(rowsOf(derived, "c.jsonl")).toEqual([])
+})
+
+// ── hiding what is done ────────────────────────────────────────────────
+
+const HOUSEWORK = `{"id":"kitchen","ord":"a0","title":"kitchen"}\n` +
+  `{"id":"demo","parent":"kitchen","ord":"a0","title":"demo","done":true}\n` +
+  `{"id":"install","parent":"kitchen","ord":"a1","title":"install"}\n` +
+  `{"id":"handles","parent":"install","ord":"a0","title":"handles"}`
+
+test("hiding what is done drops the done rows and keeps the rest", () => {
+  const rows = rowsOf(derive(nodesOf(HOUSEWORK)), FIXTURE_FILE)
+  expect(shape(rows)).toEqual([
+    "/kitchen node",
+    "/kitchen/demo node",
+    "/kitchen/install node",
+    "/kitchen/install/handles node",
+  ])
+  expect(shape(withoutDone(rows))).toEqual([
+    "/kitchen node",
+    "/kitchen/install node",
+    "/kitchen/install/handles node",
+  ])
+})
+
+// A done PARENT takes its subtree with it, and nothing is lost by that: a node
+// with counted children is done exactly when all of them are, so every row
+// underneath was going to be hidden on its own account anyway.
+test("a done parent hides its whole subtree", () => {
+  const rows = rowsOf(
+    derive(
+      nodesOf(
+        `{"id":"finished","ord":"a0","title":"finished"}\n` +
+          `{"id":"one","parent":"finished","ord":"a0","title":"one","done":true}\n` +
+          `{"id":"two","parent":"finished","ord":"a1","title":"two","done":true}`,
+      ),
+    ),
+    FIXTURE_FILE,
+  )
+  expect(withoutDone(rows)).toEqual([])
+})
+
+// Hidden, never touched: the rows handed in are the same rows afterwards, so
+// the switch cannot be mistaken for an edit.
+test("hiding leaves the rows it was given alone", () => {
+  const rows = rowsOf(derive(nodesOf(HOUSEWORK)), FIXTURE_FILE)
+  const before = shape(rows)
+  withoutDone(rows)
+  expect(shape(rows)).toEqual(before)
 })
 
 // ── titles ─────────────────────────────────────────────────────────────

@@ -169,39 +169,108 @@ export type Row =
 /** The rows of one outline: the roots of `file`, expanded. Mirrors are
  *  expanded in place, because a pointer the reader has to go and follow is not
  *  a second location — it is a footnote. */
-export const rowsOf = (derived: Derived, file: string): ReadonlyArray<Row> => {
-  const expand = (
-    at: Located,
-    ancestors: ReadonlyArray<string>,
-    parentKey: string,
-  ): Row => {
-    const key = `${parentKey}/${at.node.id}`
-    const status = derived.status.get(at.node.id) ?? "open"
-    const place = { at, status, key }
-
-    const found = follow(derived, at)
-    if (found.kind !== "found") {
-      return { ...place, children: [], ...found }
-    }
-    if (ancestors.includes(found.shows.node.id)) {
-      return { ...place, children: [], kind: "cycle", through: found.shows.node.id }
-    }
-
-    const within = [...ancestors, found.shows.node.id]
-    return {
-      ...place,
-      kind: isMirror(at.node) ? "mirror" : "node",
-      shows: found.shows,
-      children: (derived.children.get(found.shows.node.id) ?? []).map((child) =>
-        expand(child, within, key)
-      ),
-    }
-  }
-
-  return derived.nodes
+export const rowsOf = (derived: Derived, file: string): ReadonlyArray<Row> =>
+  derived.nodes
     .filter((located) => located.file === file && located.node.parent === undefined)
     .sort(byOrd)
-    .map((root) => expand(root, [], ""))
+    .map((root) => expand(derived, root, [], ""))
+
+/**
+ * The rows UNDER one node: what a zoomed page draws below its heading.
+ *
+ * The same walk as {@link rowsOf} from a different starting line — which is
+ * the point of it being one function. `ancestors` seeds the containment guard,
+ * and it is the caller's because the caller already worked the chain out for
+ * the crumbs: a page zoomed to `install` is still inside `kitchen`, so a mirror
+ * of `kitchen` further down is a loop whether or not the ancestors above the
+ * heading are being drawn as rows.
+ */
+export const rowsUnder = (
+  derived: Derived,
+  shows: LocatedRegular,
+  ancestors: ReadonlyArray<LocatedRegular>,
+): ReadonlyArray<Row> => {
+  const within = [...ancestors.map((crumb) => crumb.node.id), shows.node.id]
+  return (derived.children.get(shows.node.id) ?? []).map((child) =>
+    expand(derived, child, within, "")
+  )
+}
+
+const expand = (
+  derived: Derived,
+  at: Located,
+  ancestors: ReadonlyArray<string>,
+  parentKey: string,
+): Row => {
+  const key = `${parentKey}/${at.node.id}`
+  const status = derived.status.get(at.node.id) ?? "open"
+  const place = { at, status, key }
+
+  const found = follow(derived, at)
+  if (found.kind !== "found") {
+    return { ...place, children: [], ...found }
+  }
+  if (ancestors.includes(found.shows.node.id)) {
+    return { ...place, children: [], kind: "cycle", through: found.shows.node.id }
+  }
+
+  const within = [...ancestors, found.shows.node.id]
+  return {
+    ...place,
+    kind: isMirror(at.node) ? "mirror" : "node",
+    shows: found.shows,
+    children: (derived.children.get(found.shows.node.id) ?? []).map((child) =>
+      expand(derived, child, within, key)
+    ),
+  }
+}
+
+/**
+ * The same rows with everything done left out — the done-visibility switch,
+ * which is a property of a reading and not of the file. Nothing is touched on
+ * disk and nothing is marked: a hidden row is a row not drawn.
+ *
+ * A done node takes its whole subtree with it. That is not a shortcut: a node
+ * with counted children IS done exactly when all of them are, so every row
+ * underneath one would be hidden on its own account anyway — and a row kept
+ * under a hidden parent would have nowhere to hang.
+ */
+export const withoutDone = (rows: ReadonlyArray<Row>): ReadonlyArray<Row> =>
+  rows.flatMap((row) =>
+    row.status === "done" ? [] : [{ ...row, children: withoutDone(row.children) }]
+  )
+
+/**
+ * The canonical parent chain of a node, root first, the node itself excluded.
+ *
+ * CANONICAL, so it is a property of the node and not of the click that got you
+ * there: a node reached through a mirror three files away has the same
+ * ancestry as one reached by scrolling to it. `parent` is same-file by the
+ * format, so every crumb lives in the node's own outline.
+ *
+ * Cycle-safe, like every walk here. A parent loop is a set the validator
+ * rejects, but the crumbs are drawn from sets its own error messages describe.
+ */
+export const ancestorsOf = (
+  derived: Derived,
+  id: string,
+): ReadonlyArray<LocatedRegular> => {
+  const chain: Array<LocatedRegular> = []
+  const seen = new Set<string>([id])
+  let next = derived.byId.get(id)?.node.parent
+
+  while (next !== undefined && !seen.has(next)) {
+    seen.add(next)
+    const located = derived.byId.get(next)
+    // A parent that is missing, or is a mirror, is a set the validator has
+    // already condemned. Stop at the last crumb that is really there rather
+    // than inventing one or walking through a placement.
+    if (located === undefined || isMirror(located.node)) break
+    chain.push(located as LocatedRegular)
+    next = located.node.parent
+  }
+
+  return chain.reverse()
 }
 
 /**
@@ -220,7 +289,7 @@ type Found =
   | { readonly kind: "dangling"; readonly missing: string }
   | { readonly kind: "cycle"; readonly through: string }
 
-const follow = (derived: Derived, from: Located): Found => {
+export const follow = (derived: Derived, from: Located): Found => {
   const seen = new Set<string>()
   let at: Located = from
   while (isMirror(at.node)) {

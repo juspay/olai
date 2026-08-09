@@ -1,5 +1,5 @@
 /**
- * The whole app: a sidebar of the outlines found, and one of them open.
+ * The whole app: a sidebar of the outlines found, and one page open.
  *
  * The page is decided by ONE subscription. The outline stream carries three
  * answers — no frame yet, a `null` frame, a snapshot — and they are exactly
@@ -18,69 +18,40 @@
  *     carries its errors, and every other outline stays live
  *     (errors/Broken.tsx).
  *
- * Which outline is open is a route, so a link to one is a link someone can
- * send. Which places are folded is a signal, because it belongs to this tab's
- * reading and not to the file.
+ * What is open is a ROUTE — a whole outline (`/o/<file>`) or one node zoomed
+ * (`/n/<id>`) — so every page is a link someone can send. Which places are
+ * folded, and whether done nodes are drawn, are signals: they belong to this
+ * tab's reading and not to the file.
+ *
+ * This file is the composition and nothing else — the subscription, the route,
+ * the one derivation of the set, which page that adds up to, and the one store
+ * the rows live in. Every screen it can show is its own component, and each is
+ * handed what it draws rather than the set to draw it from.
  */
 
-import { type BrokenFile, derive, type Row, rowsOf } from "@olai/format"
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  Match,
-  onCleanup,
-  Show,
-  Switch,
-} from "solid-js"
+import { type BrokenFile, derive, type Row } from "@olai/format"
+import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 
 import { Banner } from "./errors/Banner.tsx"
 import { Broken } from "./errors/Broken.tsx"
 import { Page as ErrorPage } from "./errors/Page.tsx"
-import { TESTID } from "./testids.ts"
-import { Tree } from "./Tree.tsx"
+import { only } from "./narrow.ts"
+import { NodePage } from "./NodePage.tsx"
+import { Nothing } from "./Nothing.tsx"
+import { outlineOf, pageOf, rowsFor } from "./page.ts"
+import { OutlinePage } from "./OutlinePage.tsx"
+import { createRouter, RouterProvider } from "./router.tsx"
+import { Sidebar } from "./Sidebar.tsx"
+import { createView } from "./view.ts"
 import { olai } from "./wire.ts"
-
-/** `/o/<path>` opens that outline; `/` opens the first one found. Encoded per
- *  segment so a path with a directory in it stays readable in the URL bar. */
-const ROUTE_PREFIX = "/o/"
-
-const fileFromLocation = (): string | null =>
-  location.pathname.startsWith(ROUTE_PREFIX)
-    ? decodeURIComponent(location.pathname.slice(ROUTE_PREFIX.length))
-    : null
-
-const href = (file: string): string =>
-  ROUTE_PREFIX + file.split("/").map(encodeURIComponent).join("/")
 
 export default function App() {
   const frame = olai.streams.outlines.use(() => ({}))
   const errors = olai.cells.errors.use()
 
-  const [route, setRoute] = createSignal(fileFromLocation())
-  const [collapsed, setCollapsed] = createSignal<ReadonlySet<string>>(new Set<string>())
-
-  const onPopState = () => setRoute(fileFromLocation())
-  addEventListener("popstate", onPopState)
-  onCleanup(() => removeEventListener("popstate", onPopState))
-
-  const open = (file: string) => (event: MouseEvent) => {
-    // Let a modified click do what the browser does with any link.
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return
-    event.preventDefault()
-    history.pushState(null, "", href(file))
-    setRoute(file)
-    setCollapsed(new Set<string>())
-  }
-
-  const toggle = (key: string) =>
-    setCollapsed((previous) => {
-      const next = new Set(previous)
-      if (!next.delete(key)) next.add(key)
-      return next
-    })
+  const router = createRouter()
+  const view = createView(router.route)
 
   const set = () => frame()?.set
   const files = () => set()?.files ?? []
@@ -88,20 +59,15 @@ export default function App() {
    *  state, including when one file is unreadable — that one lands in the set
    *  itself, as `broken` below. */
   const problems = () => errors.value() ?? []
-  const current = () => {
-    const file = route()
-    return file === null ? files()[0] : files().includes(file) ? file : undefined
-  }
 
   /** The files that did not parse, by path — the sidebar marks them and the
    *  main pane draws one of them instead of a tree. */
   const broken = createMemo(
-    () => new Map((set()?.broken ?? []).map((file) => [file.file, file] as const)),
+    () =>
+      new Map<string, BrokenFile>(
+        (set()?.broken ?? []).map((file) => [file.file, file] as const),
+      ),
   )
-  const brokenHere = (): BrokenFile | undefined => {
-    const file = current()
-    return file === undefined ? undefined : broken().get(file)
-  }
 
   // One derivation for the whole set — the same call the validator makes. The
   // rows are per-file; the indexes are not, because a mirror may point into
@@ -111,19 +77,29 @@ export default function App() {
     return loaded === undefined ? undefined : derive(loaded.nodes)
   })
 
+  const page = createMemo(() => {
+    const indexes = derived()
+    return indexes === undefined
+      ? undefined
+      : pageOf(indexes, files(), broken(), router.route())
+  })
+
   // RECONCILED into a store rather than handed over as a fresh array, and the
-  // live store is why. `rowsOf` mints new objects every time it runs, and a
+  // live store is why. The row walk mints new objects every time it runs, and a
   // `<For>` compares by reference — so without this, one character changing in
-  // one title on disk would tear down and rebuild every row of the open
-  // outline: its DOM, its collapse memo, its rendered note. Keyed on `row.key`,
-  // which the format already mints per PLACE, the diff touches the rows that
-  // actually changed and leaves the rest of the tree standing.
+  // one title on disk would tear down and rebuild every row on screen: its DOM,
+  // its collapse memo, its rendered note. Keyed on `row.key`, which the format
+  // already mints per PLACE, the diff touches the rows that actually changed
+  // and leaves the rest of the tree standing.
+  //
+  // ONE store for every page that draws rows, filtered before it is reconciled:
+  // a zoomed node's children are as live as an outline's roots, and hiding what
+  // is done must not look like a thousand rows changing.
   const [rows, setRows] = createStore<Array<Row>>([])
   createEffect(() => {
     const indexes = derived()
-    const file = current()
-    const next = indexes === undefined || file === undefined ? [] : rowsOf(indexes, file)
-    setRows(reconcile([...next], { key: "key" }))
+    const built = indexes === undefined ? [] : rowsFor(indexes, page())
+    setRows(reconcile([...view.visible(built)], { key: "key" }))
   })
 
   return (
@@ -131,66 +107,36 @@ export default function App() {
       <Match when={frame() === null}>
         <ErrorPage errors={problems()} />
       </Match>
-      <Match when={set() !== undefined}>
-        <div class="grid min-h-screen grid-cols-[16rem_1fr]">
-          <nav class="overflow-y-auto border-r border-rule p-4">
-            <h1 class="m-0 mb-4 text-base uppercase tracking-widest text-muted">
-              olai
-            </h1>
-            <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
-              <For each={files()}>
-                {(file) => (
-                  <li class="mb-1">
-                    <a
-                      href={href(file)}
-                      class="block break-all rounded px-2 py-1 text-sm no-underline text-inherit hover:bg-rule aria-[current=page]:bg-accent aria-[current=page]:text-paper"
-                      data-testid={TESTID.outlineLink}
-                      data-file={file}
-                      data-broken={broken().has(file) ? "true" : undefined}
-                      aria-current={current() === file ? "page" : undefined}
-                      onClick={open(file)}
-                    >
-                      {file}
-                      <Show when={broken().has(file)}>
-                        <span class="ml-1 text-alarm" title="this file could not be read">
-                          ⚠
-                        </span>
-                      </Show>
-                    </a>
-                  </li>
-                )}
-              </For>
-            </ul>
-          </nav>
-
-          <main class="overflow-x-auto px-8 py-6">
-            <Show when={problems().length > 0}>
-              <Banner errors={problems()} />
-            </Show>
-            <Switch fallback={<Empty route={route()} files={files()} />}>
-              <Match when={brokenHere()}>{(file) => <Broken file={file()} />}</Match>
-              <Match when={current() !== undefined}>
-                <Tree rows={rows} collapsed={collapsed()} onToggle={toggle} />
-              </Match>
-            </Switch>
-          </main>
-        </div>
+      <Match when={page()}>
+        {(open) => (
+          <RouterProvider router={router}>
+            <div class="grid min-h-screen grid-cols-[16rem_1fr]">
+              <Sidebar files={files()} active={outlineOf(open())} broken={broken()} />
+              <main class="overflow-x-auto px-8 py-6">
+                <Show when={problems().length > 0}>
+                  <Banner errors={problems()} />
+                </Show>
+                <Switch>
+                  <Match when={only(open(), "broken")}>
+                    {(file) => <Broken file={file().file} />}
+                  </Match>
+                  <Match when={only(open(), "node")}>
+                    {(node) => (
+                      <NodePage zoomed={node().zoomed} rows={rows} view={view} />
+                    )}
+                  </Match>
+                  <Match when={only(open(), "outline")}>
+                    <OutlinePage rows={rows} view={view} />
+                  </Match>
+                  <Match when={only(open(), "nothing")}>
+                    {(nothing) => <Nothing requested={nothing().requested} />}
+                  </Match>
+                </Switch>
+              </main>
+            </div>
+          </RouterProvider>
+        )}
       </Match>
     </Switch>
-  )
-}
-
-/** Two different nothings, said differently: the directory holds no outlines,
- *  or it holds outlines and none of them is the one this URL names. */
-function Empty(props: {
-  readonly route: string | null
-  readonly files: ReadonlyArray<string>
-}) {
-  return (
-    <p class="text-muted">
-      {props.route !== null && props.files.length > 0
-        ? `No outline named ${props.route} under the served directory.`
-        : "No .jsonl outlines under the served directory."}
-    </p>
   )
 }

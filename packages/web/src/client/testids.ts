@@ -18,6 +18,15 @@ export const TESTID = {
   date: "date",
   desc: "desc",
   toggle: "toggle",
+  /** The bullet on every row: the link to that node's own page. */
+  zoom: "zoom",
+  /** The heading of a zoomed page — carries the CANONICAL node's id, which is
+   *  what makes "a mirror lands on the node itself" an assertion. */
+  zoomTitle: "zoom-title",
+  breadcrumbs: "breadcrumbs",
+  crumb: "crumb",
+  doneToggle: "done-toggle",
+  notFound: "not-found",
   errorView: "error-view",
   errorFileGroup: "error-file-group",
   error: "error",

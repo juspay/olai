@@ -10,7 +10,7 @@
 
 import type { OutlineError, OutlineSet } from "@olai/format"
 import * as Store from "@olai/store"
-import { Effect } from "effect"
+import { Cause, Effect } from "effect"
 
 import { codec } from "./codec.ts"
 import { listen } from "./listener.ts"
@@ -40,14 +40,32 @@ export const serve = (options: ServeOptions) =>
       .make({ root: options.root, codec })
 
     const bound = yield* bind(store)
+
     // A faulted runtime is unrecoverable structural damage. Serving past it
     // would answer subscriptions with silence, which is worse than stopping.
+    //
+    // But `done` settles for TWO reasons — it faulted, or it is being closed —
+    // and only the first is news. The second happens on every shutdown,
+    // including the shutdown a failed `listen` starts, and treating it as a
+    // fault meant a busy port printed `[object Object]` over the perfectly
+    // good "cannot listen on 127.0.0.1:7714: address already in use" and then
+    // exited before the runtime could report it at all. So the handler only
+    // speaks while we are still meant to be serving.
+    let serving = true
+    const stopped = Effect.sync(() => {
+      serving = false
+    })
     bound.done.catch((cause: unknown) => {
-      options.log(`surface runtime faulted — unrecoverable: ${String(cause)}`)
+      if (!serving) return
+      options.log(`surface runtime faulted — unrecoverable:\n${render(cause)}`)
       process.exit(1)
     })
 
-    const url = yield* listen({ ...options, bound })
+    const url = yield* Effect.onError(listen({ ...options, bound }), () => stopped)
+    // Registered AFTER the listener's own, so it runs BEFORE it: finalizers
+    // run in reverse, and this one has to be true by the time anything starts
+    // closing the runtime.
+    yield* Effect.addFinalizer(() => stopped)
 
     options.log(`serving ${options.root} on ${url}`)
     if (!LOOPBACK.has(options.host)) {
@@ -58,3 +76,16 @@ export const serve = (options: ServeOptions) =>
   })
 
 const LOOPBACK: ReadonlySet<string> = new Set(["127.0.0.1", "localhost", "::1"])
+
+/** What a rejection from the surface runtime actually says.
+ *
+ *  `done` rejects with an Effect `Cause`, and `String(cause)` on one of those
+ *  is `[object Object]` — the least informative thing available about the one
+ *  failure we exit the process for. `Cause.pretty` is what renders it, and
+ *  the other two arms are for a rejection that never went through Effect. */
+const render = (cause: unknown): string =>
+  Cause.isCause(cause)
+    ? Cause.pretty(cause)
+    : cause instanceof Error
+    ? cause.stack ?? cause.message
+    : String(cause)

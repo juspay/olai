@@ -48,14 +48,19 @@ workflow the format exists to remove.
 
 `main`, `types` and `exports` all point at `src/index.ts`, and its header
 states the whole contract: the codec (`parseOutline`, `validate`), what they
-produce (`OutlineSet` and the records in it), what a set MEANS (`derive`,
-`rowsOf`) and what went wrong (`OutlineError`). Everything else under `src/` is
-internal — the id regex, the edge-field list, the path resolver are spellings a
-rule happens to use, not contract, and a consumer reaching for one would be
-re-implementing a rule that lives here.
+produce (`OutlineSet` and the records in it), what a set MEANS (`derive` with
+`rowsOf`, `zoom` and `withoutDone`) and what went wrong (`OutlineError`).
+Everything else under `src/` is internal — the id regex, the edge-field list,
+the path resolver are spellings a rule happens to use, not contract, and a
+consumer reaching for one would be re-implementing a rule that lives here.
 
-`derive` and `rowsOf` are exported for exactly this reason: the browser draws
-the tree with the same code the validator judged it with.
+The derivations are exported for exactly this reason: the browser draws the
+tree with the same code the validator judged it with. `zoom` is the same claim
+about one node as a page — which record an id resolves to (following a mirror
+chain to the regular node at its end, so a node has one page and not one per
+placement), the canonical parent chain above it, and the rows beneath it.
+Where a node lives and what it is under are facts about the set, so they are
+answered here rather than carried in a URL that could disagree with the files.
 
 ## Layering
 

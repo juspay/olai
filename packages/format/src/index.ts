@@ -10,8 +10,9 @@
  *
  *   - the codec, `parseOutline` (per file) and `validate` (per set);
  *   - what they produce, `OutlineSet` and the records inside it;
- *   - what a set MEANS, `derive` and `rowsOf` — so a reader and the validator
- *     compute status, order and mirror expansion with the same code;
+ *   - what a set MEANS, `derive` with `rowsOf`, `zoom` and `withoutDone` — so
+ *     a reader and the validator compute status, order, mirror expansion and
+ *     one node's ancestry with the same code;
  *   - what went wrong, `OutlineError` and the two things a view does with it.
  *
  * Everything else in `src/` is internal. The spellings a rule happens to use —
@@ -28,8 +29,10 @@ export type { DecodedFile, Outline } from "./set.ts"
 export { isMirror, Located } from "./node.ts"
 export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
 
-export { derive, rowsOf, titleParts } from "./derive.ts"
+export { derive, rowsOf, rowsUnder, titleParts, withoutDone } from "./derive.ts"
 export type { Derived, Row, Status, TitlePart } from "./derive.ts"
+export { zoom } from "./zoom.ts"
+export type { Zoomed } from "./zoom.ts"
 
 export {
   compareErrors,

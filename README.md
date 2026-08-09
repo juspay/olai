@@ -31,6 +31,12 @@ outlines is usually a git repository, and nothing anyone wrote is inside
 `.git`. It binds to loopback by default: the surface is unauthenticated, so
 anyone who can reach the port can read every outline under the directory.
 
+Every node is also a page of its own at `/n/<id>` — the node as the heading,
+its note, its children as the tree — with breadcrumbs up its ancestry. Ids are
+stable and unique across the whole directory, so that address survives renames
+and moves, even to another file, and a mirror of a node resolves to the same
+one page as the node itself.
+
 It keeps reading. Save a file, `git pull`, drop a new outline into the
 directory, and the open page updates in place — no reload, no restart. There is
 no polling of the browser and no cache to invalidate: the server watches the

@@ -69,6 +69,17 @@ export const TAG = selector(TESTID.tag);
 export const DATE = selector(TESTID.date);
 export const DESC = selector(TESTID.desc);
 export const TOGGLE = selector(TESTID.toggle);
+/** The bullet on every row: the link to that node's own page. */
+export const ZOOM = selector(TESTID.zoom);
+/** The heading of a zoomed page. Carries the CANONICAL node's id, which is
+ *  what lets a scenario say "zooming a mirror lands on the node itself". */
+export const ZOOM_TITLE = selector(TESTID.zoomTitle);
+export const BREADCRUMBS = selector(TESTID.breadcrumbs);
+export const CRUMB = selector(TESTID.crumb);
+/** The per-view Visible/Hidden switch for nodes that are done. */
+export const DONE_TOGGLE = selector(TESTID.doneToggle);
+/** Shown in the main pane when `/n/<id>` names no node. The sidebar stays. */
+export const NOT_FOUND = selector(TESTID.notFound);
 /** Shown INSTEAD of the sidebar and the tree when a set has never validated. */
 export const ERROR_VIEW = selector(TESTID.errorView);
 export const ERROR_FILE_GROUP = selector(TESTID.errorFileGroup);
@@ -101,6 +112,11 @@ export const NO_RELOAD_MARK = "__olaiNoReloadMark";
 export const oneLine = (text: string): string =>
   text.replace(/\s+/g, " ").trim();
 
+/** One node, as a selector. Spelled once: the world composes locators from it,
+ *  and the steps that need a selector STRING — the retrying attribute waits —
+ *  cannot take a `Locator`. */
+export const nodeSelector = (id: string): string =>
+  `${NODE}[data-node-id="${id}"]`;
 /** One line, with the `#` that marks a tag dropped.
  *
  *  The `#` is dropped on BOTH sides of every title comparison because the
@@ -167,6 +183,19 @@ export class OlaiWorld extends World {
     await this.waitForFrame();
   }
 
+  /** Open a node's own page COLD — the permalink, in a fresh document, with
+   *  no click history behind it. That is the whole promise of `/n/<id>`, and
+   *  navigating there in-app instead would never test it. */
+  async openNode(id: string): Promise<void> {
+    await this.open(`/n/${encodeURIComponent(id)}`);
+  }
+
+  /** The path the browser is actually at — what a reader would copy out of
+   *  the URL bar, without the origin the harness picked at random. */
+  pathname(): string {
+    return new URL(this.page.url()).pathname;
+  }
+
   /** One sidebar entry, by the relative path it stands for. */
   outlineLink(file: string): Locator {
     return this.page.locator(`${OUTLINE_LINK}[data-file="${file}"]`);
@@ -176,7 +205,29 @@ export class OlaiWorld extends World {
    *  so this never needs a scope — except inside a mirror, where the target's
    *  subtree is rendered a second time; those steps scope explicitly. */
   node(id: string): Locator {
-    return this.page.locator(`${NODE}[data-node-id="${id}"]`);
+    return this.page.locator(nodeSelector(id));
+  }
+
+  /** The same node, only if it is on screen. `:visible` because dropping a row
+   *  and hiding it are both legitimate ways to hide something, and they read
+   *  the same to the person looking at the page. */
+  visibleNode(id: string): Locator {
+    return this.page.locator(`${nodeSelector(id)}:visible`);
+  }
+
+  /** The trail above a zoomed node, crumb by crumb, in order. */
+  crumbs(): Locator {
+    return this.page.locator(`${BREADCRUMBS} ${CRUMB}`);
+  }
+
+  /** Click a node's OWN control. `.first()` is the node's own: a descendant's
+   *  matches inside the scope too, and the node's own is rendered before any
+   *  child's. */
+  async clickWithin(id: string, control: string): Promise<void> {
+    const target = this.node(id).locator(control).first();
+    await target.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await target.click();
+    await this.waitForFrame();
   }
 
   /** A node's OWN title. Nodes nest, so a descendant's title also matches
@@ -195,28 +246,46 @@ export class OlaiWorld extends World {
     return this.node(id).locator(`${NODE}:visible`);
   }
 
-  /** Wait for a node to carry `attribute="expected"`, and say what it carries
-   *  instead when it does not. The compound selector is what makes the wait
-   *  RETRY — reading the attribute once races every animation frame between
-   *  the click and the re-render. */
+  /** Wait for something to carry `attribute="expected"`, and say what it
+   *  carries instead when it does not. The compound selector is what makes the
+   *  wait RETRY — reading the attribute once races every animation frame
+   *  between the click and the re-render — and `what` is what the failure
+   *  calls the thing, so a step says "node `order`" rather than a selector. */
+  async expectAttribute(
+    selector: string,
+    attribute: string,
+    expected: string,
+    what: string,
+  ): Promise<void> {
+    try {
+      await this.page
+        .locator(`${selector}[${attribute}="${expected}"]`)
+        .first()
+        .waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+    } catch {
+      const actual = await this.page
+        .locator(selector)
+        .first()
+        .getAttribute(attribute)
+        .catch(() => null);
+      throw new Error(
+        `expected ${what} to have ${attribute}="${expected}", ` +
+          `but it is ${actual === null ? "absent" : `"${actual}"`}`,
+      );
+    }
+  }
+
   async expectNodeAttribute(
     id: string,
     attribute: string,
     expected: string,
   ): Promise<void> {
-    const selector = `${NODE}[data-node-id="${id}"][${attribute}="${expected}"]`;
-    try {
-      await this.page
-        .locator(selector)
-        .first()
-        .waitFor({ state: "attached", timeout: POLL_TIMEOUT });
-    } catch {
-      const actual = await this.nodeAttribute(id, attribute);
-      throw new Error(
-        `expected node "${id}" to have ${attribute}="${expected}", ` +
-          `but it is ${actual === null ? "absent" : `"${actual}"`}`,
-      );
-    }
+    await this.expectAttribute(
+      nodeSelector(id),
+      attribute,
+      expected,
+      `node "${id}"`,
+    );
   }
 
   /** Read a `data-` attribute off a node, waiting for the node first so the
