@@ -1,18 +1,21 @@
 #!/usr/bin/env sh
 # Materialize kolu workspace package sources into ./node_modules/@kolu/<name>.
 #
+# Copied from juspay/odu's scripts/hydrate-kolu-packages.sh; the body below
+# `set -eu` is byte-identical, so fixes can travel between the two repos.
+#
 # Usage: hydrate-kolu-packages.sh <src1> <dest1> [<src2> <dest2> ...]
 #
-# Each (src, dest) pair: copy <src> to ./node_modules/<dest>. Callers
-# (the justfile install recipe and the build derivation) pass the
-# npins-derived /nix/store paths and the @kolu/<name> destination.
+# Each (src, dest) pair: copy <src> to ./node_modules/<dest>. Two callers, and
+# both pass the same argv, derived once in nix/kolu.nix: the justfile `install`
+# recipe (as $OLAI_KOLU_HYDRATE) and the build derivation (default.nix).
 #
-# cp -rL (not symlink) because TypeScript resolves transitive imports
-# from the *real* file location: a symlink whose target sits in /nix/store
-# has no adjacent node_modules, so @orpc/contract / zod can't be found
-# from surface's source. Copying lets resolution walk up to the consumer's
-# own hoisted node_modules where those packages live. (The drishti
-# pattern, verbatim — see github.com/srid/drishti.)
+# cp -rL (not symlink) because TypeScript and Bun both resolve transitive
+# imports from the *real* file location: a symlink whose target sits in
+# /nix/store has no adjacent node_modules, so `effect` and
+# @effect/platform-node can't be found from surface's source. Copying lets
+# resolution walk up to the consumer's own root node_modules where those
+# packages live. (The drishti pattern — see github.com/srid/drishti.)
 set -eu
 
 if [ $(( $# % 2 )) -ne 0 ] || [ $# -eq 0 ]; then

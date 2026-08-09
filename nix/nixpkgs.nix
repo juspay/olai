@@ -5,5 +5,5 @@ let
   nixpkgs = import sources.nixpkgs;
 in
 args: nixpkgs (args // {
-  overlays = (args.overlays or [ ]) ++ [ (import ./overlay.nix) ];
+  overlays = (args.overlays or [ ]) ++ [ (import ./kolu.nix).overlay ];
 })

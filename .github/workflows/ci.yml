@@ -1,4 +1,4 @@
-# The required PR check: one job per platform, each running THIS repo's
+# The PR check: one job per platform, each running THIS repo's
 # [metadata("ci")] DAG (ci/mod.just) through odu — coordinator and lane on the
 # same runner (a localhost lane).
 #
