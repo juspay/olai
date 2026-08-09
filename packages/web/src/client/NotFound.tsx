@@ -15,6 +15,7 @@ import type { Zoomed } from "@olai/format"
 import { Match, Switch } from "solid-js"
 
 import { Lede } from "./Lede.tsx"
+import { only } from "./narrow.ts"
 import { TESTID } from "./testids.ts"
 
 export function NotFound(props: { readonly zoomed: Zoomed }) {
@@ -22,7 +23,7 @@ export function NotFound(props: { readonly zoomed: Zoomed }) {
     <section data-testid={TESTID.notFound} data-reason={props.zoomed.kind}>
       <h1 class="m-0 mb-2 text-2xl font-bold text-alarm">No such node</h1>
       <Switch>
-        <Match when={props.zoomed.kind === "unknown" ? props.zoomed : undefined}>
+        <Match when={only(props.zoomed, "unknown")}>
           {(zoomed) => (
             <Lede>
               Nothing under the served directory declares the id{" "}
@@ -32,7 +33,7 @@ export function NotFound(props: { readonly zoomed: Zoomed }) {
             </Lede>
           )}
         </Match>
-        <Match when={props.zoomed.kind === "dangling" ? props.zoomed : undefined}>
+        <Match when={only(props.zoomed, "dangling")}>
           {(zoomed) => (
             <Lede>
               <Id>{zoomed().id}</Id> is a mirror, and the chain from it ends at{" "}
@@ -40,7 +41,7 @@ export function NotFound(props: { readonly zoomed: Zoomed }) {
             </Lede>
           )}
         </Match>
-        <Match when={props.zoomed.kind === "cycle" ? props.zoomed : undefined}>
+        <Match when={only(props.zoomed, "cycle")}>
           {(zoomed) => (
             <Lede>
               <Id>{zoomed().id}</Id> is a mirror whose chain closes on itself at{" "}

@@ -12,7 +12,9 @@ import type { Zoomed } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 
 import { Breadcrumbs } from "./Breadcrumbs.tsx"
+import { DateBadge } from "./DateBadge.tsx"
 import { DoneToggle } from "./DoneToggle.tsx"
+import { only } from "./narrow.ts"
 import { NodeTitle } from "./NodeTitle.tsx"
 import { NotFound } from "./NotFound.tsx"
 import { Note } from "./Note.tsx"
@@ -24,7 +26,7 @@ import type { View } from "./view.ts"
 export function NodePage(props: { readonly zoomed: Zoomed; readonly view: View }) {
   return (
     <Show
-      when={props.zoomed.kind === "node" ? props.zoomed : undefined}
+      when={only(props.zoomed, "node")}
       fallback={<NotFound zoomed={props.zoomed} />}
     >
       {(zoomed) => <Zoom zoomed={zoomed()} view={props.view} />}
@@ -59,14 +61,7 @@ function Zoom(props: {
             <NodeTitle title={props.zoomed.shows.node.title} />
           </h1>
           <Show when={props.zoomed.shows.node.date}>
-            {(date) => (
-              <span
-                class="shrink-0 rounded-full border border-rule px-2 text-xs text-muted"
-                data-testid={TESTID.date}
-              >
-                {date()}
-              </span>
-            )}
+            {(date) => <DateBadge date={date()} />}
           </Show>
         </div>
 

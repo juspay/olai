@@ -7,18 +7,23 @@
  * for a zoomed node that answer is the canonical node's file — which no amount
  * of reading the URL would tell you.
  *
- * Every arm carries exactly what its screen needs and nothing else, so no
- * component re-decides what it is looking at. Nothing about the format is
- * decided here either: `@olai/format` says what an id resolves to and which
- * file a node lives in; this picks the arm.
+ * Every arm carries exactly what its screen needs and nothing else — including
+ * the rows to draw, so no component re-derives what it is looking at and the
+ * whole set stops being passed down to the leaves. Nothing about the format is
+ * decided here either: `@olai/format` says what an id resolves to, which file a
+ * node lives in, and what a file's tree is; this picks the arm.
  */
 
-import { type Derived, zoom, type Zoomed } from "@olai/format"
+import { type Derived, type Row, rowsOf, zoom, type Zoomed } from "@olai/format"
 
 import type { Route } from "./routes.ts"
 
 export type Page =
-  | { readonly kind: "outline"; readonly file: string }
+  | {
+    readonly kind: "outline"
+    readonly file: string
+    readonly rows: ReadonlyArray<Row>
+  }
   | { readonly kind: "node"; readonly zoomed: Zoomed }
   /** Nothing to show. `requested` is the outline the URL named and the
    *  directory does not have — `null` when the directory has no outlines at
@@ -38,29 +43,16 @@ export const pageOf = (
     : files.includes(route.file)
     ? route.file
     : undefined
-  if (file !== undefined) return { kind: "outline", file }
-  return { kind: "nothing", requested: files.length === 0 ? null : route.file }
+  return file === undefined
+    ? { kind: "nothing", requested: files.length === 0 ? null : route.file }
+    : { kind: "outline", file, rows: rowsOf(derived, file) }
 }
 
 /** The outline the open page belongs to — the sidebar entry to light up. A
  *  zoomed node belongs to the file its CANONICAL record is in, whichever file
  *  the mirror that was clicked lived in. */
-export const outlineOf = (page: Page | undefined): string | undefined => {
-  if (page === undefined) return undefined
+export const outlineOf = (page: Page): string | undefined => {
   if (page.kind === "outline") return page.file
   if (page.kind === "node" && page.zoomed.kind === "node") return page.zoomed.shows.file
   return undefined
 }
-
-/**
- * The page, when it is the one asked for.
- *
- * Solid's `<Match>` narrows to whatever its `when` returns, and "this union
- * member" is not something a JSX condition can express on its own. One helper
- * with one cast, rather than a memo per arm at every use site.
- */
-export const arm = <K extends Page["kind"]>(
-  page: Page | undefined,
-  kind: K,
-): Extract<Page, { readonly kind: K }> | undefined =>
-  page?.kind === kind ? (page as Extract<Page, { readonly kind: K }>) : undefined

@@ -70,10 +70,6 @@ export interface LinkProps {
    *  reader and for the styling that says so. */
   readonly current?: boolean
   readonly testid?: string
-  /** The outline this link stands for. Only the sidebar has one, and it is
-   *  here because `data-file` is the browser tests' handle on an entry — a
-   *  contract (testids.ts), not decoration. */
-  readonly file?: string
   readonly children?: JSX.Element
 }
 
@@ -97,7 +93,10 @@ export function Link(props: LinkProps) {
       aria-label={props.label}
       aria-current={props.current === true ? "page" : undefined}
       data-testid={props.testid}
-      data-file={props.file}
+      // The outline a link stands for, for the browser tests. Read off the
+      // route rather than passed in beside it: the two could disagree, and the
+      // route is the one the click actually follows.
+      data-file={props.route.kind === "outline" ? props.route.file ?? undefined : undefined}
       onClick={onClick}
     >
       {props.children}

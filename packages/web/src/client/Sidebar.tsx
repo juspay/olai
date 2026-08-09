@@ -30,7 +30,6 @@ export function Sidebar(props: {
                 route={{ kind: "outline", file }}
                 class="block break-all rounded px-2 py-1 text-sm no-underline text-inherit hover:bg-rule aria-[current=page]:bg-accent aria-[current=page]:text-paper"
                 testid={TESTID.outlineLink}
-                file={file}
                 current={props.active === file}
               >
                 {file}

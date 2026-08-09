@@ -179,19 +179,18 @@ export const rowsOf = (derived: Derived, file: string): ReadonlyArray<Row> =>
  * The rows UNDER one node: what a zoomed page draws below its heading.
  *
  * The same walk as {@link rowsOf} from a different starting line — which is
- * the point of it being one function. The containment guard is seeded with the
- * node's own ancestry rather than with nothing, because a page zoomed to
- * `install` is still inside `kitchen`: a mirror of `kitchen` further down is a
- * loop whether or not the crumbs above the heading are being drawn as rows.
+ * the point of it being one function. `ancestors` seeds the containment guard,
+ * and it is the caller's because the caller already worked the chain out for
+ * the crumbs: a page zoomed to `install` is still inside `kitchen`, so a mirror
+ * of `kitchen` further down is a loop whether or not the ancestors above the
+ * heading are being drawn as rows.
  */
 export const rowsUnder = (
   derived: Derived,
   shows: LocatedRegular,
+  ancestors: ReadonlyArray<LocatedRegular>,
 ): ReadonlyArray<Row> => {
-  const within = [
-    ...ancestorsOf(derived, shows.node.id).map((crumb) => crumb.node.id),
-    shows.node.id,
-  ]
+  const within = [...ancestors.map((crumb) => crumb.node.id), shows.node.id]
   return (derived.children.get(shows.node.id) ?? []).map((child) =>
     expand(derived, child, within, "")
   )
@@ -285,7 +284,7 @@ export const ancestorsOf = (
  * failed at, because "a mirror of `b`, which no node declares" is a lie when
  * `b` exists and it is `b`'s own target that is missing.
  */
-export type Found =
+type Found =
   | { readonly kind: "found"; readonly shows: LocatedRegular }
   | { readonly kind: "dangling"; readonly missing: string }
   | { readonly kind: "cycle"; readonly through: string }

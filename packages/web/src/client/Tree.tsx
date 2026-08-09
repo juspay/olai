@@ -22,6 +22,7 @@
 import { type Row } from "@olai/format"
 import { createMemo, For, Match, Show, Switch } from "solid-js"
 
+import { DateBadge } from "./DateBadge.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
 import { Note } from "./Note.tsx"
 import { Link } from "./router.tsx"
@@ -127,14 +128,7 @@ function Branch(props: {
         </Switch>
 
         <Show when={shown()?.date}>
-          {(date) => (
-            <span
-              class="shrink-0 rounded-full border border-rule px-2 text-xs text-muted"
-              data-testid={TESTID.date}
-            >
-              {date()}
-            </span>
-          )}
+          {(date) => <DateBadge date={date()} />}
         </Show>
       </div>
 

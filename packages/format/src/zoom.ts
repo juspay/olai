@@ -53,11 +53,15 @@ export const zoom = (derived: Derived, id: string): Zoomed => {
   if (found.kind === "dangling") return { kind: "dangling", id, missing: found.missing }
   if (found.kind === "cycle") return { kind: "cycle", id, through: found.through }
 
+  // One walk up, used twice: the crumbs above the heading and the guard that
+  // stops a mirror of an ancestor expanding forever below it are the same
+  // chain, and asking for it twice is two answers that could differ.
+  const trail = ancestorsOf(derived, found.shows.node.id)
   return {
     kind: "node",
     shows: found.shows,
     status: derived.status.get(found.shows.node.id) ?? "open",
-    trail: ancestorsOf(derived, found.shows.node.id),
-    children: rowsUnder(derived, found.shows),
+    trail,
+    children: rowsUnder(derived, found.shows, trail),
   }
 }

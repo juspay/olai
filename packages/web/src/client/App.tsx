@@ -15,16 +15,18 @@
  *
  * This file is the composition and nothing else — the subscription, the route,
  * the one derivation of the set, and which page that adds up to. Every screen
- * it can show is its own component.
+ * it can show is its own component, and each is handed what it draws rather
+ * than the set to draw it from.
  */
 
 import { derive } from "@olai/format"
 import { createMemo, Match, Switch } from "solid-js"
 
 import { Errors } from "./Errors.tsx"
+import { only } from "./narrow.ts"
 import { NodePage } from "./NodePage.tsx"
 import { Nothing } from "./Nothing.tsx"
-import { arm, outlineOf, pageOf } from "./page.ts"
+import { outlineOf, pageOf } from "./page.ts"
 import { OutlinePage } from "./OutlinePage.tsx"
 import { createRouter, RouterProvider } from "./router.tsx"
 import { Sidebar } from "./Sidebar.tsx"
@@ -59,23 +61,21 @@ export default function App() {
       <Match when={frame() === null}>
         <Errors errors={errors.value() ?? []} />
       </Match>
-      <Match when={derived()}>
-        {(indexes) => (
+      <Match when={page()}>
+        {(open) => (
           <RouterProvider router={router}>
             <div class="grid min-h-screen grid-cols-[16rem_1fr]">
-              <Sidebar files={files()} active={outlineOf(page())} />
+              <Sidebar files={files()} active={outlineOf(open())} />
               <main class="overflow-x-auto px-8 py-6">
                 <Switch>
-                  <Match when={arm(page(), "node")}>
-                    {(open) => <NodePage zoomed={open().zoomed} view={view} />}
+                  <Match when={only(open(), "node")}>
+                    {(node) => <NodePage zoomed={node().zoomed} view={view} />}
                   </Match>
-                  <Match when={arm(page(), "outline")}>
-                    {(open) => (
-                      <OutlinePage derived={indexes()} file={open().file} view={view} />
-                    )}
+                  <Match when={only(open(), "outline")}>
+                    {(outline) => <OutlinePage rows={outline().rows} view={view} />}
                   </Match>
-                  <Match when={arm(page(), "nothing")}>
-                    {(open) => <Nothing requested={open().requested} />}
+                  <Match when={only(open(), "nothing")}>
+                    {(nothing) => <Nothing requested={nothing().requested} />}
                   </Match>
                 </Switch>
               </main>

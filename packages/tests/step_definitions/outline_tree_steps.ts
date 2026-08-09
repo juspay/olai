@@ -59,10 +59,8 @@ Then(
       .first()
       .waitFor({ state: "detached", timeout: POLL_TIMEOUT })
       .catch(() => undefined);
-    // `:visible`, not presence: dropping the row and hiding it are both
-    // legitimate ways to hide something, and they read the same to a person.
     assert.strictEqual(
-      await this.page.locator(`${NODE}[data-node-id="${id}"]:visible`).count(),
+      await this.visibleNode(id).count(),
       0,
       `"${id}" is on screen, and this step says it should not be`,
     );
@@ -194,15 +192,8 @@ Then(
 
 // ── collapse and expand ────────────────────────────────────────────────
 
-/** Click a node's own toggle. `.first()` is the node's own control: a
- *  descendant's toggle also matches inside the scope, and the node's own is
- *  rendered before any child. */
-const clickToggle = async (world: OlaiWorld, id: string): Promise<void> => {
-  const toggle = world.node(id).locator(TOGGLE).first();
-  await toggle.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await toggle.click();
-  await world.waitForFrame();
-};
+const clickToggle = (world: OlaiWorld, id: string): Promise<void> =>
+  world.clickWithin(id, TOGGLE);
 
 /** Serves both keywords: as a `Given` it ESTABLISHES the state (clicking if
  *  the node happens to start collapsed), as a `Then` it asserts it. Cucumber

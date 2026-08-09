@@ -57,6 +57,14 @@ export const createView = (route: Accessor<Route>): View => {
     return current.page === hrefOf(route()) ? current : fresh(route())
   })
 
+  // Each switch is read through its OWN memo, not off the reading. A fold
+  // mints a whole new reading, and a consumer that reached through it would be
+  // invalidated by a click it does not care about — which, for the page's rows,
+  // means rebuilding the tree (and re-rendering every note's markdown) every
+  // time a reader folds one row.
+  const collapsed = createMemo(() => reading().collapsed)
+  const doneHidden = createMemo(() => reading().doneHidden)
+
   // Edits apply to the reading being READ, not to whatever is held: on the
   // first fold of a freshly opened page those are different values, and the
   // held one belongs to the page the reader has left.
@@ -65,15 +73,15 @@ export const createView = (route: Accessor<Route>): View => {
   }
 
   return {
-    collapsed: () => reading().collapsed,
+    collapsed,
     toggle: (key) =>
       edit((current) => {
         const collapsed = new Set(current.collapsed)
         if (!collapsed.delete(key)) collapsed.add(key)
         return { ...current, collapsed }
       }),
-    doneHidden: () => reading().doneHidden,
+    doneHidden,
     toggleDone: () => edit((current) => ({ ...current, doneHidden: !current.doneHidden })),
-    visible: (rows) => reading().doneHidden ? withoutDone(rows) : rows,
+    visible: (rows) => doneHidden() ? withoutDone(rows) : rows,
   }
 }

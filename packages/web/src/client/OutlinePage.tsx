@@ -5,7 +5,7 @@
  * the same derivation — a file is just the widest zoom there is.
  */
 
-import { type Derived, rowsOf } from "@olai/format"
+import type { Row } from "@olai/format"
 import { createMemo } from "solid-js"
 
 import { DoneToggle } from "./DoneToggle.tsx"
@@ -13,11 +13,10 @@ import { Tree } from "./Tree.tsx"
 import type { View } from "./view.ts"
 
 export function OutlinePage(props: {
-  readonly derived: Derived
-  readonly file: string
+  readonly rows: ReadonlyArray<Row>
   readonly view: View
 }) {
-  const rows = createMemo(() => props.view.visible(rowsOf(props.derived, props.file)))
+  const rows = createMemo(() => props.view.visible(props.rows))
 
   return (
     <>

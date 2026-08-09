@@ -12,8 +12,6 @@ import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
 import {
-  BREADCRUMBS,
-  CRUMB,
   DONE_TOGGLE,
   NOT_FOUND,
   oneLine,
@@ -25,19 +23,13 @@ import type { OlaiWorld } from "../support/world.ts";
 
 // ── zooming ────────────────────────────────────────────────────────────
 
-/** Click a node's own bullet. `.first()` is the node's own: a descendant's
- *  bullet also matches inside the scope, and the node's own is rendered before
- *  any child's. */
 When(
   "I zoom into the node {string}",
   async function (this: OlaiWorld, id: string) {
-    const bullet = this.node(id).locator(ZOOM).first();
-    await bullet.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await bullet.click();
+    await this.clickWithin(id, ZOOM);
     await this.page
       .locator(ZOOM_TITLE)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await this.waitForFrame();
   },
 );
 
@@ -48,33 +40,21 @@ Given("I open the node {string}", async function (this: OlaiWorld, id: string) {
 Then(
   "the zoomed node is {string}",
   async function (this: OlaiWorld, id: string) {
-    const heading = this.page.locator(`${ZOOM_TITLE}[data-node-id="${id}"]`);
-    try {
-      await heading.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    } catch {
-      const shown = await this.page
-        .locator(ZOOM_TITLE)
-        .first()
-        .getAttribute("data-node-id")
-        .catch(() => null);
-      throw new Error(
-        `expected the page to be zoomed to "${id}", but it is ${
-          shown === null ? "not zoomed to any node" : `zoomed to "${shown}"`
-        }`,
-      );
-    }
+    await this.expectAttribute(
+      ZOOM_TITLE,
+      "data-node-id",
+      id,
+      "the zoomed page",
+    );
   },
 );
 
 Then("the address is {string}", async function (this: OlaiWorld, path: string) {
-  // Poll: a click navigates and re-renders in the same frame, and reading the
-  // URL once races the pushState that produced the page being looked at.
+  // Waited for, not read once: a click navigates and re-renders in the same
+  // frame, and reading the URL immediately races the pushState that produced
+  // the page being looked at.
   await this.page
-    .waitForFunction(
-      (expected) => location.pathname === expected,
-      path,
-      { timeout: POLL_TIMEOUT },
-    )
+    .waitForURL((url) => url.pathname === path, { timeout: POLL_TIMEOUT })
     .catch(() => undefined);
   assert.strictEqual(this.pathname(), path);
 });
@@ -88,14 +68,13 @@ Then("the address is {string}", async function (this: OlaiWorld, path: string) {
 Then(
   "the breadcrumbs are {string}",
   async function (this: OlaiWorld, expected: string) {
-    const trail = this.page.locator(`${BREADCRUMBS} ${CRUMB}`);
+    const trail = this.crumbs();
     await trail
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
       .catch(() => undefined);
-    const shown = (await trail.allInnerTexts()).map(oneLine);
     assert.deepStrictEqual(
-      shown,
+      (await trail.allInnerTexts()).map(oneLine),
       expected.split(",").map((crumb) => crumb.trim()),
     );
   },
@@ -104,10 +83,7 @@ Then(
 When(
   "I follow the breadcrumb {string}",
   async function (this: OlaiWorld, label: string) {
-    const crumb = this.page
-      .locator(`${BREADCRUMBS} ${CRUMB}`)
-      .filter({ hasText: label })
-      .first();
+    const crumb = this.crumbs().filter({ hasText: label }).first();
     await crumb.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await crumb.click();
     await this.waitForFrame();
@@ -128,10 +104,12 @@ const setDoneHidden = async (
   if ((await toggle.getAttribute("data-hidden")) !== String(hidden)) {
     await toggle.click();
   }
-  await world.page
-    .locator(`${DONE_TOGGLE}[data-hidden="${String(hidden)}"]`)
-    .first()
-    .waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+  await world.expectAttribute(
+    DONE_TOGGLE,
+    "data-hidden",
+    String(hidden),
+    "the done switch",
+  );
   await world.waitForFrame();
 };
 

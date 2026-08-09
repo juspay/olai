@@ -43,15 +43,6 @@ test("a root has no crumbs", () => {
   expect(crumbs(zoomOf(HOUSE, "kitchen"))).toEqual([])
 })
 
-// The chain is walked from `parent`, so it is the same chain no matter which
-// record was addressed — which is what makes the crumbs stateless.
-test("the chain is derived, not carried: the same node crumbs the same way", () => {
-  const derived = derive(nodesOf(HOUSE))
-  expect(ancestorsOf(derived, "handles").map((crumb) => crumb.node.id)).toEqual([
-    ...crumbs(zoom(derived, "handles")),
-  ])
-})
-
 // A parent loop is a set the validator rejects, and the crumbs are drawn from
 // sets its own error messages quote. A renderer that hung would be a worse way
 // to learn about it than a chain that stops.

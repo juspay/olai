@@ -26,7 +26,9 @@ test insists on: a link the app writes has to be a link it can read back.
 `page.ts` turns a route into the page it names, in one place, which is what
 keeps the sidebar and the main pane agreeing: the entry that lights up is the
 outline the OPEN page lives in, and for a zoomed node that is the canonical
-node's file — not something the URL says.
+node's file — not something the URL says. Each arm carries what its screen
+draws, rows included, so the components are handed a page rather than the whole
+set to work one out from.
 
 Navigation is real `<a href>`s (`router.tsx`), so ⌘-click and "copy link
 address" behave the way they do everywhere else; a plain left click is
