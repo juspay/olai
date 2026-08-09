@@ -1,0 +1,16 @@
+{
+  "name": "@olai/tests",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "//scripts": "Bun hosts the runner. Bun executes `.ts` natively, so there is no tsx, no ts-node and no build step between a step definition and the browser driving it — the `.bin/cucumber-js` shebang says node, and `bun run` executes it with bun anyway (verified in a dev shell with node removed from PATH entirely). That is why the dev shell needs no node: if this ever regresses, the symptom is a `node: command not found` from `bun run test`, and the fix is `bun ./node_modules/@cucumber/cucumber/bin/cucumber.js`, not adding node.",
+  "scripts": {
+    "test": "cucumber-js --profile ui",
+    "typecheck": "tsc --noEmit"
+  },
+  "//devDependencies": "playwright is pinned to 1.61.1 — the version of `pkgs.playwright-driver` in the pinned nixpkgs. The npm package ships only the driver's JS; the browsers come from the Nix store via PLAYWRIGHT_BROWSERS_PATH, and the driver refuses a browser build it was not compiled against. A minor-version drift here (kolu's 1.59.0, say) does not fail at install time — it fails at `chromium.launch()` with \"Executable doesn't exist\", pointing at a path inside the store that is real but wrong. Bump this only together with the nixpkgs pin, never on its own.",
+  "devDependencies": {
+    "@cucumber/cucumber": "^12.8.1",
+    "playwright": "1.61.1"
+  }
+}

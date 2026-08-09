@@ -1,0 +1,32 @@
+{
+  "name": "@olai/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/build.ts",
+  "types": "./src/build.ts",
+  "exports": {
+    "./build": "./src/build.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//dependencies": "@olai/surface for the wire, @olai/format for everything derived — the client computes nothing about the format on its own. The remark/rehype set renders notes at view time; the babel presets exist only for the Bun build's Solid JSX transform (src/build.ts explains why Bun's own transform cannot be used).",
+  "dependencies": {
+    "@olai/format": "workspace:*",
+    "@olai/surface": "workspace:*",
+    "effect": "4.0.0-beta.106",
+    "rehype-sanitize": "^6.0.0",
+    "rehype-stringify": "^10.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.1",
+    "solid-js": "^1.9.0",
+    "unified": "^11.0.5"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.0",
+    "@babel/preset-typescript": "^7.25.0",
+    "@types/babel__core": "^7.20.5",
+    "babel-preset-solid": "^1.9.0"
+  }
+}

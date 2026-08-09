@@ -12,6 +12,12 @@ pkgs.mkShell {
   env = {
     OLAI_KOLU_HYDRATE = kolu.hydrateArgs pkgs;
     OLAI_KOLU_DIRS = kolu.sourceDirs pkgs;
+
+    # The browsers come from nixpkgs, in the `e2e` shell only (flake.nix) — so
+    # the npm package must never try to fetch its own. This is set HERE, in the
+    # shell that runs `bun install`, rather than there, in the shell that runs
+    # the tests.
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
   };
 
   packages = with pkgs; [

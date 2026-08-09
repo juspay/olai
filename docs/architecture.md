@@ -26,6 +26,19 @@ Kolu's Effect-4-beta discipline ports over with the stack: any dependence on bet
 
 A Bun workspace (`packages/*`, shared `tsconfig.base.json`). Layering between packages is declared in workspace dependencies and machine-checked; the dependency direction is UI → server → ops → format core, never sideways or up. The format validator lives in exactly one place — never re-checked in the reader, the store, or the web layer.
 
+| package | depends on | what it is |
+|---|---|---|
+| `format` | — | the format core: `parseOutline` per file, `validate` per set, and the derivations (status, sibling order, tags) both the validator and the view read from |
+| `store` | — | files as a revision-tagged snapshot; generic over content, so it carries no outline types |
+| `surface` | `format` | the surface spec: an `outlines` stream and an `errors` cell |
+| `server` | `format`, `store`, `surface` | the composition root: the codec that joins format to store, the HTTP + WebSocket server, and the `olai web` binary |
+| `web` | `format`, `surface` | the SolidJS client and its `Bun.build` bundle |
+| `tests` | — | Cucumber features driven through Playwright against the nix-built binary |
+
+`server` does not depend on `web`: it serves a built bundle it is handed (`OLAI_DIST_DIR`, set by the nix wrapper), so the browser build is a build artifact rather than an import.
+
 ## Errors
 
 Error kinds (`usage`, `validation`, `not-found`, `derived`, `busy`) are `Schema.TaggedErrorClass`es — schemas that travel the wire and decode as themselves — surfaced as MCP tool errors and HTTP codes. Every validation error names `file:line`. Errors that teach are the product: a refused derived-state write lists the unfinished children as structured data.
+
+Validation is staged, and the stage is part of the taxonomy (`stageOf`): a file is decoded whole or not at all, and the set-wide rules do not run until every file parses. "`kitchen` is not a known id" is a guess when the line declaring `kitchen` is the one that failed to parse, so a report containing a per-line error says out loud that the set-wide questions have not been asked yet.

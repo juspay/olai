@@ -1,0 +1,19 @@
+{
+  "name": "@olai/surface",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//dependencies": "@olai/format only — the surface is a declaration, and the only olai types on the wire are the format's own. @kolu/surface is absent on purpose: it is hydrated from the Nix store rather than installed from bun.lock, so it is declared once for the whole tree in the root package.json (see bunfig.toml).",
+  "dependencies": {
+    "@olai/format": "workspace:*",
+    "effect": "4.0.0-beta.106"
+  }
+}
