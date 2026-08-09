@@ -23,5 +23,4 @@ export const surface = defineSurface({
 
 /** The wire tags the surface claims, sorted. Reading them is how the smoke
  *  test proves the Effect RPC group actually assembled under Bun. */
-export const wireTags = (): ReadonlyArray<string> =>
-  [...surface.group.requests.keys()].sort()
+export const wireTags: ReadonlyArray<string> = [...surface.group.requests.keys()].sort()

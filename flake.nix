@@ -8,7 +8,7 @@
 # buildBunPackage, and bun2nix's nix layer is flake-parts-shaped, so it cannot
 # be imported cleanly from a non-flake-parts context. juspay/bun2nix's
 # `rawflake` branch exposes `lib.mkBun2nix { pkgs }`, which lets us feed it OUR
-# npins-pinned pkgs — no transitive nixpkgs eval. The input is forced only when
+# npins-pinned pkgs — no transitive nixpkgs eval. It is forced only when
 # `packages.*` is evaluated, so `nix develop` cold eval is unchanged.
 {
   inputs.bun2nix.url = "github:juspay/bun2nix/rawflake";
@@ -24,17 +24,18 @@
     let
       kolu = import ./nix/kolu.nix;
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
-      eachSystem = f: builtins.listToAttrs (map
+
+      # One `pkgs` (and one bun2nix instantiation) per system, shared by every
+      # output that asks for it.
+      perSystem = builtins.listToAttrs (map
         (system:
           let pkgs = import ./nix/nixpkgs.nix { inherit system; };
           in {
             name = system;
-            value = f {
-              inherit pkgs;
-              b2n = bun2nix.lib.mkBun2nix { inherit pkgs; };
-            };
+            value = { inherit pkgs; b2n = bun2nix.lib.mkBun2nix { inherit pkgs; }; };
           })
         systems);
+      eachSystem = f: builtins.mapAttrs (_: ctx: f ctx) perSystem;
     in
     {
       packages = eachSystem ({ pkgs, b2n }:

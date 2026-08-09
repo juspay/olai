@@ -13,7 +13,7 @@ import { Effect } from "effect"
 import { GREETING, wireTags } from "./surface.ts"
 
 const main = Effect.sync(() => {
-  console.log(`${GREETING} — surface: ${wireTags().join(", ")}`)
+  console.log(`${GREETING} — surface: ${wireTags.join(", ")}`)
 })
 
 Effect.runSync(main)

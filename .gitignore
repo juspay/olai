@@ -1,6 +1,5 @@
 /.worktrees
-/node_modules
-/packages/*/node_modules
+node_modules
 /result
 /result-*
 /.direnv

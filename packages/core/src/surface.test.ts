@@ -8,10 +8,10 @@ import { surface, wireTags } from "./surface.ts"
 // second copy of effect, a missing root dependency, or a stale kolu pin all
 // land here rather than in phase 2.
 test("the surface claims our cell alongside the framework's own members", () => {
-  expect(wireTags()).toContain("surface/greeting/get")
+  expect(wireTags).toContain("surface/greeting/get")
   // surface mints these itself for liveness and identity — seeing them is how
   // we know the group came from the framework and not from our spec alone.
-  expect(wireTags()).toContain("surface/system/live")
+  expect(wireTags).toContain("surface/system/live")
 })
 
 test("a read-only cell claims no write verb", () => {

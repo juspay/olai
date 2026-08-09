@@ -3,12 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./src/surface.ts",
+  "types": "./src/surface.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/surface.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
+  },
+  "//dependencies": "What this member's own sources import. @kolu/surface is absent on purpose — it is hydrated from the Nix store, not installed from bun.lock, so it is declared for the whole tree in the root package.json instead (see bunfig.toml). Workspace siblings will appear here as `workspace:*` when phase 2 adds a second package; that is the declared layering the plan asks to keep machine-checked.",
+  "dependencies": {
+    "effect": "4.0.0-beta.106"
   }
 }
