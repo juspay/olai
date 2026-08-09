@@ -41,33 +41,33 @@ export function Errors(props: { readonly errors: ReadonlyArray<OutlineError> }) 
   })
 
   return (
-    <main class="errors" data-testid={TESTID.errorView}>
-      <h1>
+    <main class="max-w-4xl p-8" data-testid={TESTID.errorView}>
+      <h1 class="m-0 mb-2 text-2xl font-bold text-alarm">
         {props.errors.length === 0
           ? "Broken outlines"
           : `${props.errors.length} ${props.errors.length === 1 ? "error" : "errors"}`}
       </h1>
-      <p class="lede">
+      <Lede>
         {props.errors.length === 0
           // The page is decided by the outline stream, and the report arrives
           // on its own subscription — so for the frame between them there is a
           // broken set and nothing yet to say about it.
           ? "The set could not be loaded. Fetching the report…"
           : "Nothing is served until these are fixed: an outline set is valid or it is not, and half of one would be a different set from the one on disk."}
-      </p>
+      </Lede>
       <Show when={reportStage(props.errors) === "line"}>
-        <p class="lede" data-testid={TESTID.stageNote}>
+        <Lede testid={TESTID.stageNote}>
           Some of these are lines that could not be read. The checks that span
           the whole set — references, cycles, derived state — run once every
           file parses, so expect a second round after these are fixed.
-        </p>
+        </Lede>
       </Show>
 
       <For each={split().byFile}>
         {([file, errors]) => (
-          <section class="error-group" data-testid={TESTID.errorFileGroup} data-file={file}>
-            <h2>{file}</h2>
-            <ul>
+          <section data-testid={TESTID.errorFileGroup} data-file={file}>
+            <Heading>{file}</Heading>
+            <ul class="m-0 list-none p-0">
               <For each={errors}>{(error) => <Row error={error} />}</For>
             </ul>
           </section>
@@ -75,13 +75,13 @@ export function Errors(props: { readonly errors: ReadonlyArray<OutlineError> }) 
       </For>
 
       <Show when={split().across.length > 0}>
-        <section class="error-group" data-testid={TESTID.crossFileErrors}>
-          <h2>Across files</h2>
-          <p class="lede">
+        <section data-testid={TESTID.crossFileErrors}>
+          <Heading>Across files</Heading>
+          <Lede>
             These name two places at once — a reference that leaves its file, or
             a loop that closes through another one.
-          </p>
-          <ul>
+          </Lede>
+          <ul class="m-0 list-none p-0">
             <For each={split().across}>{(error) => <Row error={error} />}</For>
           </ul>
         </section>
@@ -90,27 +90,49 @@ export function Errors(props: { readonly errors: ReadonlyArray<OutlineError> }) 
   )
 }
 
+function Heading(props: { readonly children: unknown }) {
+  return (
+    <h2 class="mt-8 mb-2 font-mono text-base">{props.children as never}</h2>
+  )
+}
+
+function Lede(props: { readonly children: unknown; readonly testid?: string }) {
+  return (
+    <p class="mt-0 mb-4 max-w-3xl text-muted" data-testid={props.testid}>
+      {props.children as never}
+    </p>
+  )
+}
+
 function Row(props: { readonly error: OutlineError }) {
   return (
-    <li class="error" data-testid={TESTID.error} data-code={props.error.code}>
-      <code class="site">
-        {props.error.file}:{props.error.line}
-      </code>
-      <span class="message">{props.error.message}</span>
+    <li
+      class="mb-2 border-l-[3px] border-alarm py-1.5 pl-3"
+      data-testid={TESTID.error}
+      data-code={props.error.code}
+    >
+      <Site file={props.error.file} line={props.error.line} />
+      <span>{props.error.message}</span>
       <Show when={props.error.related?.length}>
-        <ul class="related">
+        <ul class="mt-1 ml-4 list-none text-sm text-muted">
           <For each={props.error.related ?? []}>
             {(related) => (
               <li>
-                <code class="site">
-                  {related.file}:{related.line}
-                </code>
-                <span class="note">{related.note}</span>
+                <Site file={related.file} line={related.line} />
+                <span>{related.note}</span>
               </li>
             )}
           </For>
         </ul>
       </Show>
     </li>
+  )
+}
+
+function Site(props: { readonly file: string; readonly line: number }) {
+  return (
+    <code class="mr-2 font-mono text-[0.8125rem] text-muted">
+      {props.file}:{props.line}
+    </code>
   )
 }

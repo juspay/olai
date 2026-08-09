@@ -6,13 +6,21 @@
  * server that builds on startup — is a second build with different inputs from
  * the one CI proves, and the two would drift.
  *
- * The Solid JSX transform is a Bun plugin rather than Bun's own JSX handling:
+ * The freshness contract — content-hashed `/assets/*` names, the `no-store`
+ * shell that points at them, the commit stamped onto that shell — belongs to
+ * `@kolu/surface-app/bun`. This file composes it and supplies only what is
+ * genuinely olai's: the Solid JSX transform and the Tailwind stylesheet.
+ *
+ * The Solid transform is a Bun plugin rather than Bun's own JSX handling:
  * Bun's default transform emits `React.createElement`, which Solid does not
  * have, and `Bun.serve`'s HTML-import bundler does not honour plugins at all.
  * `Bun.build` takes a plugin array directly, so the build is driven from here.
  */
 
-import { dirname, resolve } from "node:path"
+import { mkdtempSync } from "node:fs"
+import { createRequire } from "node:module"
+import { tmpdir } from "node:os"
+import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { transformAsync } from "@babel/core"
@@ -42,6 +50,43 @@ const solidJsx: BunPlugin = {
   },
 }
 
+/**
+ * The stylesheet, as bytes for the helper to hash, name and write.
+ *
+ * `@tailwindcss/cli` is invoked by its IN-TREE path, never `bunx`: bunx
+ * resolves by name and falls back to fetching the package when the local copy
+ * does not match, and the Nix build sandbox has no network, so that fallback
+ * is a build failure. `createRequire` walks Node's own resolution outward from
+ * this file, so the path stays right wherever in the workspace this ends up.
+ *
+ * Tailwind has no content-hash naming of its own, so it writes to a temp file
+ * in the OS temp dir — both the source tree and the Nix dist may be read-only
+ * — and we hand the bytes back for `buildSurfaceClient` to place under
+ * `/assets/styles-<hash>.css` on the same immutable-caching contract as the JS.
+ */
+const buildTailwindCss = async (): Promise<ArrayBuffer> => {
+  const cli = createRequire(import.meta.url)
+    .resolve("@tailwindcss/cli/package.json")
+    .replace(/package\.json$/, "dist/index.mjs")
+  if (!(await Bun.file(cli).exists())) {
+    throw new Error(
+      `no @tailwindcss/cli at ${cli} — it is a devDependency of @olai/web; run \`bun install\`.`,
+    )
+  }
+
+  const out = join(mkdtempSync(join(tmpdir(), "olai-css-")), "styles.css")
+  const tailwind = Bun.spawn(
+    ["bun", cli, "--input", resolve(CLIENT, "styles.css"), "--output", out, "--minify"],
+    { stderr: "inherit", stdout: "inherit" },
+  )
+  const code = await tailwind.exited
+  if (code !== 0) throw new Error(`@tailwindcss/cli exited ${code}`)
+
+  const bytes = await Bun.file(out).arrayBuffer()
+  await Bun.$`rm -rf ${dirname(out)}`
+  return bytes
+}
+
 const buildClient = async (distDir: string): Promise<void> => {
   await buildSurfaceClient({
     entrypoint: resolve(CLIENT, "main.tsx"),
@@ -54,7 +99,7 @@ const buildClient = async (distDir: string): Promise<void> => {
       {
         name: "styles",
         ext: "css",
-        build: () => Bun.file(resolve(CLIENT, "styles.css")).arrayBuffer(),
+        build: buildTailwindCss,
         htmlPlaceholder: `href="./styles.css"`,
       },
     ],

@@ -1,143 +1,105 @@
-/* Enough style to read an outline, and no design system. Phase 2 is "see your
-   outline"; the editor's look is a later phase's decision, and inventing one
-   now would be a decision made without the thing it is for. */
+/* The whole stylesheet. Everything else is a utility, inline in the component
+ * that uses it — so a rule and the markup it styles cannot drift apart, and
+ * deleting a component deletes its styling with it.
+ *
+ * What is left here is the two things a utility cannot be:
+ *
+ *   1. the design tokens (`@theme`), which is what makes `text-muted` mean one
+ *      colour everywhere and lets the dark palette be a redefinition of the
+ *      same custom properties rather than a second set of classes;
+ *   2. rules for HTML this codebase does not author — the rendered markdown of
+ *      a note, whose tags come from the file on disk and can carry no classes.
+ *
+ * No `@apply`. It is the one Tailwind feature that recreates the problem the
+ * utilities solve, by inventing a second name for a set of them.
+ */
+
+@import "tailwindcss";
+
+/* Auto-detection roots at this file's directory, which is already where the
+ * components live — but it also consults git, and the Nix build sandbox has no
+ * `.git`. Saying it explicitly makes the dev build and the packaged build scan
+ * the same tree. */
+@source "./";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Named for their job, not their hue, so the dark palette below is the same
+   * eight names with different values and no utility has to know which one is
+   * in force. */
+  --color-ink: #1b1b1f;
+  --color-paper: #fdfdfc;
+  --color-muted: #6b6b76;
+  --color-rule: #e2e2e6;
+  --color-accent: #3a5bd9;
+  --color-done: #2f8f5b;
+  --color-doing: #b8760a;
+  --color-alarm: #b3261e;
+}
 
 :root {
   color-scheme: light dark;
-  --ink: #1b1b1f;
-  --paper: #fdfdfc;
-  --muted: #6b6b76;
-  --rule: #e2e2e6;
-  --accent: #3a5bd9;
-  --done: #2f8f5b;
-  --doing: #b8760a;
-  --alarm: #b3261e;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
+/* The dark palette is a redefinition of the same eight custom properties, not
+ * a `dark:` variant on every utility: olai has no theme toggle, so the OS
+ * preference IS the setting, and every utility already reads
+ * `var(--color-…)` — so one media query re-answers all of them.
+ *
+ * Plain `:root`, not a second `@theme`: `@theme` is a build-time declaration
+ * and does not nest in a media query. Unlayered rules also beat Tailwind's
+ * `@layer theme`, so this wins the cascade wherever it is written. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --ink: #e6e6ea;
-    --paper: #16161a;
-    --muted: #9a9aa5;
-    --rule: #2c2c33;
-    --accent: #8ba4ff;
-    --done: #5fc98d;
-    --doing: #e0a53f;
-    --alarm: #ff8a80;
+    --color-ink: #e6e6ea;
+    --color-paper: #16161a;
+    --color-muted: #9a9aa5;
+    --color-rule: #2c2c33;
+    --color-accent: #8ba4ff;
+    --color-done: #5fc98d;
+    --color-doing: #e0a53f;
+    --color-alarm: #ff8a80;
   }
 }
 
-* { box-sizing: border-box; }
-
-body {
-  margin: 0;
-  color: var(--ink);
-  background: var(--paper);
-  line-height: 1.5;
+/* A note is markdown from a file on disk. Its `<p>`, `<ul>`, `<code>` and
+ * `<pre>` are produced by the sanitiser at view time and carry no classes, so
+ * they are the one place a descendant rule is the only tool there is. Kept to
+ * spacing and overflow — anything more opinionated would be styling someone
+ * else's prose. */
+.olai-note > :first-child {
+  margin-top: 0;
 }
 
-code, .site { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-
-/* ── layout ─────────────────────────────────────────────────────────── */
-
-.app { display: grid; grid-template-columns: 16rem 1fr; min-height: 100vh; }
-
-.sidebar {
-  border-right: 1px solid var(--rule);
-  padding: 1rem;
-  overflow-y: auto;
+.olai-note > :last-child {
+  margin-bottom: 0;
 }
 
-.brand { font-size: 1rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 1rem; }
-
-.sidebar ul { list-style: none; margin: 0; padding: 0; }
-.sidebar li { margin-bottom: 0.25rem; }
-
-.sidebar a {
-  display: block;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  color: inherit;
-  text-decoration: none;
-  font-size: 0.875rem;
-  word-break: break-all;
-}
-.sidebar a:hover { background: var(--rule); }
-.sidebar a[aria-current="page"] { background: var(--accent); color: var(--paper); }
-
-.pane { padding: 1.5rem 2rem; overflow-x: auto; }
-.empty { color: var(--muted); }
-
-/* ── tree ───────────────────────────────────────────────────────────── */
-
-.tree, .children { list-style: none; margin: 0; padding: 0; }
-.children { margin-left: 1.25rem; border-left: 1px solid var(--rule); padding-left: 0.75rem; }
-
-.node { margin: 0.125rem 0; }
-
-.row { display: flex; align-items: baseline; gap: 0.4rem; }
-
-.toggle, .toggle-space {
-  width: 1.1rem;
-  flex: none;
-  text-align: center;
-}
-.toggle {
-  border: 0;
-  background: none;
-  color: var(--muted);
-  cursor: pointer;
-  padding: 0;
-  font-size: 0.75rem;
+.olai-note p,
+.olai-note ul,
+.olai-note ol,
+.olai-note pre {
+  margin: 0.25rem 0;
 }
 
-.title { flex: 1; }
-
-/* Status is on the node, so one rule styles a title however deep it sits. */
-.node[data-status="done"] > .row > .title { color: var(--done); text-decoration: line-through; }
-.node[data-status="doing"] > .row > .title { color: var(--doing); }
-
-.tag { color: var(--accent); font-weight: 600; }
-
-.mirror-mark { color: var(--muted); margin-right: 0.25rem; }
-
-.date {
-  flex: none;
-  font-size: 0.75rem;
-  color: var(--muted);
-  border: 1px solid var(--rule);
-  border-radius: 999px;
-  padding: 0 0.5rem;
+.olai-note ul,
+.olai-note ol {
+  padding-left: 1.25rem;
+  list-style: revert;
 }
 
-.desc {
-  margin: 0.25rem 0 0.5rem 1.5rem;
-  color: var(--muted);
-  font-size: 0.9375rem;
-}
-.desc p { margin: 0.25rem 0; }
-.desc pre { overflow-x: auto; }
-
-.dangling, .cycle-stub { color: var(--alarm); font-size: 0.875rem; }
-.cycle-stub { margin-left: 1.5rem; }
-
-/* ── errors ─────────────────────────────────────────────────────────── */
-
-.errors { padding: 2rem; max-width: 60rem; }
-.errors h1 { color: var(--alarm); margin: 0 0 0.5rem; }
-.errors h2 { font-size: 1rem; margin: 2rem 0 0.5rem; font-family: ui-monospace, monospace; }
-.lede { color: var(--muted); margin: 0 0 1rem; max-width: 46rem; }
-
-.error-group ul { list-style: none; margin: 0; padding: 0; }
-
-.error {
-  border-left: 3px solid var(--alarm);
-  padding: 0.4rem 0 0.4rem 0.75rem;
-  margin-bottom: 0.5rem;
+.olai-note pre {
+  overflow-x: auto;
 }
 
-.site { color: var(--muted); font-size: 0.8125rem; margin-right: 0.5rem; }
+.olai-note code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
 
-.related { margin: 0.25rem 0 0 1rem; font-size: 0.875rem; color: var(--muted); }
-.related li { list-style: none; }
+.olai-note a {
+  color: var(--color-accent);
+  text-decoration: underline;
+}

@@ -81,20 +81,23 @@ export default function App() {
   })
 
   return (
-    <Switch fallback={<p class="empty">Reading…</p>}>
+    <Switch fallback={<p class="p-8 text-muted">Reading…</p>}>
       <Match when={frame() === null}>
         <Errors errors={errors.value() ?? []} />
       </Match>
       <Match when={set() !== undefined}>
-        <div class="app">
-          <nav class="sidebar">
-            <h1 class="brand">olai</h1>
-            <ul data-testid={TESTID.outlineList}>
+        <div class="grid min-h-screen grid-cols-[16rem_1fr]">
+          <nav class="overflow-y-auto border-r border-rule p-4">
+            <h1 class="m-0 mb-4 text-base uppercase tracking-widest text-muted">
+              olai
+            </h1>
+            <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
               <For each={files()}>
                 {(file) => (
-                  <li>
+                  <li class="mb-1">
                     <a
                       href={href(file)}
+                      class="block break-all rounded px-2 py-1 text-sm no-underline text-inherit hover:bg-rule aria-[current=page]:bg-accent aria-[current=page]:text-paper"
                       data-testid={TESTID.outlineLink}
                       data-file={file}
                       aria-current={current() === file ? "page" : undefined}
@@ -108,7 +111,7 @@ export default function App() {
             </ul>
           </nav>
 
-          <main class="pane">
+          <main class="overflow-x-auto px-8 py-6">
             <Show when={current()} fallback={<Empty route={route()} files={files()} />}>
               <Tree rows={rows()} collapsed={collapsed()} onToggle={toggle} />
             </Show>
@@ -126,7 +129,7 @@ function Empty(props: {
   readonly files: ReadonlyArray<string>
 }) {
   return (
-    <p class="empty">
+    <p class="text-muted">
       {props.route !== null && props.files.length > 0
         ? `No outline named ${props.route} under the served directory.`
         : "No .jsonl outlines under the served directory."}

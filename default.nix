@@ -68,6 +68,10 @@ let
 
     buildPhase = ''
       runHook preBuild
+      # @tailwindcss/cli transitively dlopen()s @parcel/watcher's native
+      # binding at startup — even without --watch — and that binding wants
+      # libstdc++, which the sandbox does not put on the loader path.
+      export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:''${LD_LIBRARY_PATH:-}"
       ${stamp.exportLine rev}
       bun packages/web/src/build.ts packages/web/dist
       runHook postBuild

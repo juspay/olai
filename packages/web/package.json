@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit"
   },
   "//dependencies": "@olai/surface for the wire, @olai/format for everything derived — the client computes nothing about the format on its own. The remark/rehype set renders notes at view time; the babel presets exist only for the Bun build's Solid JSX transform (src/build.ts explains why Bun's own transform cannot be used).",
+  "//tailwind": "TWO entries, and the second is not redundant. @tailwindcss/cli is the binary src/build.ts spawns. `tailwindcss` is what `@import \"tailwindcss\"` inside src/client/styles.css resolves — and under the isolated linker (bunfig.toml) a transitive dependency of the CLI is nested where nothing outside it can see, so the CLI fails with \"Can't resolve 'tailwindcss'\" until this package declares it directly. Hoisted trees (srid/drishti) never notice; this one does.",
   "dependencies": {
     "@olai/format": "workspace:*",
     "@olai/surface": "workspace:*",
@@ -22,7 +23,9 @@
   "devDependencies": {
     "@babel/core": "^7.25.0",
     "@babel/preset-typescript": "^7.25.0",
+    "@tailwindcss/cli": "^4.3.3",
     "@types/babel__core": "^7.20.5",
-    "babel-preset-solid": "^1.9.0"
+    "babel-preset-solid": "^1.9.0",
+    "tailwindcss": "^4.3.3"
   }
 }

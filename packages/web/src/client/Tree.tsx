@@ -17,7 +17,7 @@
  * and is rendered (sanitised) at view time — see ./markdown.ts.
  */
 
-import { type Row, titleParts } from "@olai/format"
+import { type Row, type Status, titleParts } from "@olai/format"
 import { createMemo, For, Match, Show, Switch } from "solid-js"
 
 import { renderMarkdown } from "./markdown.ts"
@@ -35,7 +35,7 @@ export interface TreeProps {
 
 export function Tree(props: TreeProps) {
   return (
-    <ul class="tree" data-testid={TESTID.outlineTree}>
+    <ul class="list-none m-0 p-0" data-testid={TESTID.outlineTree}>
       <For each={props.rows}>
         {(row) => (
           <Branch row={row} collapsed={props.collapsed} onToggle={props.onToggle} />
@@ -43,6 +43,15 @@ export function Tree(props: TreeProps) {
       </For>
     </ul>
   )
+}
+
+/** Status is a property of the row, so it styles the title directly rather
+ *  than through a `[data-status]` descendant rule — the attribute stays for
+ *  the tests, which is the only reader that wants it as data. */
+const TONE: Record<Status, string> = {
+  done: "text-done line-through",
+  doing: "text-doing",
+  open: "",
 }
 
 function Branch(props: {
@@ -64,7 +73,7 @@ function Branch(props: {
 
   return (
     <li
-      class="node"
+      class="my-0.5"
       data-testid={TESTID.node}
       data-node-id={props.row.at.node.id}
       data-status={props.row.status}
@@ -73,14 +82,14 @@ function Branch(props: {
       data-file={props.row.at.file}
       data-line={props.row.at.line}
     >
-      <div class="row">
+      <div class="flex items-baseline gap-1.5">
         <Show
           when={props.row.children.length > 0}
-          fallback={<span class="toggle-space" aria-hidden="true" />}
+          fallback={<span class="w-4 shrink-0" aria-hidden="true" />}
         >
           <button
             type="button"
-            class="toggle"
+            class="w-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-center text-xs text-muted hover:text-ink"
             data-testid={TESTID.toggle}
             aria-expanded={!collapsed()}
             aria-label={collapsed() ? "expand" : "collapse"}
@@ -93,21 +102,30 @@ function Branch(props: {
         <Switch>
           <Match when={props.row.kind === "dangling" ? props.row : undefined}>
             {(row) => (
-              <span class="dangling" data-testid={TESTID.nodeTitle}>
+              <span class="flex-1 text-sm text-alarm" data-testid={TESTID.nodeTitle}>
                 a mirror of `{row().missing}`, which no node declares
               </span>
             )}
           </Match>
           <Match when={shown()}>
             {(node) => (
-              <span class="title" data-testid={TESTID.nodeTitle}>
+              <span
+                class={`flex-1 ${TONE[props.row.status]}`}
+                data-testid={TESTID.nodeTitle}
+              >
                 <Show when={props.row.kind !== "node"}>
-                  <span class="mirror-mark" title="a mirror of another node">⇢</span>
+                  <span class="mr-1 text-muted" title="a mirror of another node">
+                    ⇢
+                  </span>
                 </Show>
                 <For each={titleParts(node().title)}>
                   {(part) =>
                     part.kind === "tag"
-                      ? <span class="tag" data-testid={TESTID.tag}>#{part.tag}</span>
+                      ? (
+                        <span class="font-semibold text-accent" data-testid={TESTID.tag}>
+                          #{part.tag}
+                        </span>
+                      )
                       : <>{part.text}</>}
                 </For>
               </span>
@@ -116,14 +134,21 @@ function Branch(props: {
         </Switch>
 
         <Show when={shown()?.date}>
-          {(date) => <span class="date" data-testid={TESTID.date}>{date()}</span>}
+          {(date) => (
+            <span
+              class="shrink-0 rounded-full border border-rule px-2 text-xs text-muted"
+              data-testid={TESTID.date}
+            >
+              {date()}
+            </span>
+          )}
         </Show>
       </div>
 
       <Show when={!collapsed() && html()}>
         {(rendered) => (
           <div
-            class="desc"
+            class="olai-note mt-1 mb-2 ml-6 text-[0.9375rem] text-muted"
             data-testid={TESTID.desc}
             // Safe because the pipeline sanitises: see ./markdown.ts.
             innerHTML={rendered()}
@@ -133,7 +158,7 @@ function Branch(props: {
 
       <Show when={props.row.kind === "cycle" ? props.row : undefined}>
         {(row) => (
-          <div class="cycle-stub">
+          <div class="ml-6 text-sm text-alarm">
             this mirror is inside the subtree it shows (`{row().through}`) — not
             expanded
           </div>
@@ -141,7 +166,7 @@ function Branch(props: {
       </Show>
 
       <Show when={!collapsed() && props.row.children.length > 0}>
-        <ul class="children">
+        <ul class="ml-5 list-none border-l border-rule pl-3">
           <For each={props.row.children}>
             {(child) => (
               <Branch

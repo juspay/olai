@@ -10,7 +10,9 @@
          /assets/* URLs; they must match build.ts byte for byte. -->
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
+  <!-- The page's own two utilities. Tailwind's preflight zeroes the body
+       margin; the palette and the font are ours. -->
+  <body class="bg-paper font-sans text-ink antialiased">
     <div id="root"></div>
     <script type="module" src="./main.tsx"></script>
   </body>

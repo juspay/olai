@@ -54,7 +54,7 @@ Everything runs inside the flake dev shell; the recipes re-enter it for you.
 | [`packages/store`](packages/store) | a directory of files as a validated, revision-tagged snapshot — generic, with no outline types in it |
 | [`packages/surface`](packages/surface) | the typed reactive layer both ends speak, declared once |
 | [`packages/server`](packages/server) | the composition root and the binary |
-| [`packages/web`](packages/web) | the SolidJS client, and the build that produces it |
+| [`packages/web`](packages/web) | the SolidJS client (SolidJS + Tailwind v4), and the build that produces it |
 | [`packages/tests`](packages/tests) | Cucumber features driven through Playwright |
 
 Dependencies point strictly downward and are declared in each package's
