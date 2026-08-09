@@ -1,0 +1,32 @@
+{
+  "name": "olai",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "typecheck": "bun run --filter './packages/*' typecheck"
+  },
+  "//dependencies": "The runtime dependencies of the hydrated @kolu/* sources, declared HERE at the root rather than in the member that imports them: the isolated linker (bunfig.toml) symlinks only the root package's direct dependencies into the root node_modules, and that is where node_modules/@kolu/<name>/src/*.ts resolves its own imports by walking up. Every entry is at the exact version the pinned kolu declares. This is not maintained by memory — scripts/check-kolu-deps.sh reads the pinned kolu's own manifests and fails `just check` when this list drifts from them.",
+  "dependencies": {
+    "@effect/platform-browser": "4.0.0-beta.106",
+    "@effect/platform-node": "4.0.0-beta.106",
+    "@solid-primitives/rootless": "^1.5.3",
+    "@solid-primitives/scheduled": "^1.5.3",
+    "effect": "4.0.0-beta.106",
+    "solid-js": "^1.9.0"
+  },
+  "//overrides": "One effect instance, always. A transitive bump must not be able to smuggle in a second copy: Effect's error narrowing is `_tag`-structural precisely because two module instances would otherwise stop recognising each other's classes — and `instanceof`, Context keys and Schema identity do not even have that fallback. The @effect/platform-* packages carry tagged errors and Context tags of their own, so they are pinned beside it. Versions come from the pinned kolu and are checked by scripts/check-kolu-deps.sh; re-pinning kolu means re-running `just check` and moving whatever it names.",
+  "overrides": {
+    "@effect/platform-browser": "4.0.0-beta.106",
+    "@effect/platform-node": "4.0.0-beta.106",
+    "effect": "4.0.0-beta.106"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.0",
+    "typescript": "^5.8.0"
+  }
+}

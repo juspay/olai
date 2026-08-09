@@ -1,1 +1,7 @@
 /.worktrees
+node_modules
+/result
+/result-*
+/.direnv
+# odu's per-run state and logs
+/.ci

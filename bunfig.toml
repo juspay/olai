@@ -1,0 +1,25 @@
+# The @kolu/* surface libraries are hydrated as raw TypeScript from the Nix
+# store (scripts/hydrate-kolu-packages.sh) rather than installed from
+# bun.lock, so their own imports (effect, @effect/platform-node, solid-js,
+# @solid-primitives/*, …) resolve by walking up out of
+# node_modules/@kolu/<name> to the ROOT node_modules.
+#
+# The isolated linker satisfies every one of them because each is a direct
+# dependency of the root package — isolated symlinks the root package's direct
+# dependencies at the root, and only those. That is the invariant to protect:
+# a hydrated package importing something the root package.json does not
+# declare resolves nothing. It is checked rather than remembered
+# (scripts/check-kolu-deps.sh, a `just check` leg), and the fix when it fires
+# is to declare the dependency here, never to switch linkers.
+#
+# Hoisted is the other way to feed hydrated sources — it is what srid/drishti
+# uses — and it is not chosen here. Hoisting has to nest conflicting
+# transitive versions inside their dependents, and bun cannot create those
+# nested trees inside the Nix build sandbox on aarch64-darwin: the install
+# fails with "AccessDenied: Failed to open node_modules folder" (juspay/odu
+# hit exactly this, which is why its bunfig says the same thing). olai's tree
+# has no such conflict today, but it builds in that sandbox (default.nix), so
+# the failure mode is one dependency away. Isolated gives every package its
+# exact dependency set: no version loses, and nothing nests.
+[install]
+linker = "isolated"
