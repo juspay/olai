@@ -1,0 +1,74 @@
+/**
+ * The fixtures every test in this package is written against: JSONL text in,
+ * exactly the records a real load produces out.
+ *
+ * Fixtures go through `parseOutline` rather than being written as record
+ * literals, because line numbers are part of the answer — sibling ties break
+ * on them, and every error names one — and a hand-built `Located` could carry
+ * a line the file does not have. That makes a fixture something that can fail
+ * to parse, and a fixture that failed to parse is a test measuring the wrong
+ * phase. So it THROWS, and the diagnostic is the point: which file, which
+ * line, what the parser said, and the text as it was handed over. Four test
+ * files used to each grow their own copy of this; one copy is what keeps that
+ * diagnostic worth reading.
+ *
+ * Nothing here has tests of its own — it is a helper module, not a suite, and
+ * `bun test` collects only `*.test.ts`.
+ */
+
+import { Result } from "effect"
+
+import type { OutlineError } from "./errors.ts"
+import type { Located } from "./node.ts"
+import { parseOutline } from "./parse.ts"
+import type { Outline, OutlineSet } from "./set.ts"
+
+/** The default fixture file name. Named once so a test that cares about paths
+ *  can say so, and one that does not need never mention it. */
+export const FIXTURE_FILE = "a.jsonl"
+
+/** One file's worth of JSONL, parsed — or a diagnostic good enough to fix the
+ *  fixture without opening the parser. */
+export const outlineOf = (contents: string, file = FIXTURE_FILE): Outline => {
+  const parsed = parseOutline(file, contents)
+  if (Result.isFailure(parsed)) throw new Error(unparsable(file, contents, parsed.failure))
+  return parsed.success
+}
+
+/** The located records of one file, in file order. */
+export const nodesOf = (
+  contents: string,
+  file = FIXTURE_FILE,
+): ReadonlyArray<Located> => outlineOf(contents, file).nodes
+
+/**
+ * Several files' worth, assembled the way a real load assembles them: the
+ * files found, their nodes flattened into one list (every `Located` already
+ * names its own file), and the documents served alongside.
+ */
+export const setOf = (
+  files: Record<string, string>,
+  documents: ReadonlyArray<string> = [],
+): OutlineSet => ({
+  files: Object.keys(files),
+  nodes: Object.entries(files).flatMap(([file, contents]) => [...nodesOf(contents, file)]),
+  documents,
+})
+
+/** Several files' worth of records, flat — the shape every rule and every walk
+ *  wants, for the tests that need no set around them. */
+export const nodesOfFiles = (
+  files: Record<string, string>,
+): ReadonlyArray<Located> => setOf(files).nodes
+
+const unparsable = (
+  file: string,
+  contents: string,
+  errors: ReadonlyArray<OutlineError>,
+): string =>
+  [
+    `fixture \`${file}\` does not parse, so this test is not testing what it means to:`,
+    ...errors.map((error) => `  ${error.file}:${error.line} ${error.code}: ${error.message}`),
+    "as written:",
+    ...contents.split("\n").map((line, index) => `  ${index + 1} | ${line}`),
+  ].join("\n")

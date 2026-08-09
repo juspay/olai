@@ -12,29 +12,32 @@
  * and filing them under one of the two would be a guess.
  */
 
-import { isCrossFile, type OutlineError, stageOf } from "@olai/format"
+import { isCrossFile, type OutlineError, reportStage } from "@olai/format"
 import { createMemo, For, Show } from "solid-js"
 
 import { TESTID } from "./testids.ts"
 
 export function Errors(props: { readonly errors: ReadonlyArray<OutlineError> }) {
-  const crossFile = createMemo(() => props.errors.filter(isCrossFile))
-  /** A file is read whole or not at all, and the set-wide rules do not run
-   *  until every file parses. So when anything here is a per-line error, this
-   *  list is not the whole story yet — and saying so beats letting a reader
-   *  believe a clean second pass means a clean set. */
-  const unparsed = createMemo(() =>
-    props.errors.some((error) => stageOf(error.code) === "line")
-  )
-  const byFile = createMemo(() => {
+  /** One walk, one partition. "Under its file" and "across files" are the two
+   *  halves of one split; computing them with two predicates that have to stay
+   *  each other's complement is how an error goes missing from both — in the
+   *  view whose whole promise is that nothing is dropped. */
+  const split = createMemo(() => {
+    const across: Array<OutlineError> = []
     const groups = new Map<string, Array<OutlineError>>()
     for (const error of props.errors) {
-      if (isCrossFile(error)) continue
+      if (isCrossFile(error)) {
+        across.push(error)
+        continue
+      }
       const group = groups.get(error.file)
       if (group === undefined) groups.set(error.file, [error])
       else group.push(error)
     }
-    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))
+    return {
+      across,
+      byFile: [...groups.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+    }
   })
 
   return (
@@ -52,7 +55,7 @@ export function Errors(props: { readonly errors: ReadonlyArray<OutlineError> }) 
           ? "The set could not be loaded. Fetching the report…"
           : "Nothing is served until these are fixed: an outline set is valid or it is not, and half of one would be a different set from the one on disk."}
       </p>
-      <Show when={unparsed()}>
+      <Show when={reportStage(props.errors) === "line"}>
         <p class="lede" data-testid={TESTID.stageNote}>
           Some of these are lines that could not be read. The checks that span
           the whole set — references, cycles, derived state — run once every
@@ -60,7 +63,7 @@ export function Errors(props: { readonly errors: ReadonlyArray<OutlineError> }) 
         </p>
       </Show>
 
-      <For each={byFile()}>
+      <For each={split().byFile}>
         {([file, errors]) => (
           <section class="error-group" data-testid={TESTID.errorFileGroup} data-file={file}>
             <h2>{file}</h2>
@@ -71,7 +74,7 @@ export function Errors(props: { readonly errors: ReadonlyArray<OutlineError> }) 
         )}
       </For>
 
-      <Show when={crossFile().length > 0}>
+      <Show when={split().across.length > 0}>
         <section class="error-group" data-testid={TESTID.crossFileErrors}>
           <h2>Across files</h2>
           <p class="lede">
@@ -79,7 +82,7 @@ export function Errors(props: { readonly errors: ReadonlyArray<OutlineError> }) 
             a loop that closes through another one.
           </p>
           <ul>
-            <For each={crossFile()}>{(error) => <Row error={error} />}</For>
+            <For each={split().across}>{(error) => <Row error={error} />}</For>
           </ul>
         </section>
       </Show>

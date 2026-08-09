@@ -23,13 +23,19 @@
 export { parseOutline } from "./parse.ts"
 export { validate } from "./validate.ts"
 
-export { OutlineSet } from "./set.ts"
-export type { Outline } from "./set.ts"
+export { assemble, fileKind, OutlineSet } from "./set.ts"
+export type { DecodedFile, Outline } from "./set.ts"
 export { isMirror, Located } from "./node.ts"
-export type { MirrorNode, Node, RegularNode } from "./node.ts"
+export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
 
 export { derive, rowsOf, titleParts } from "./derive.ts"
 export type { Derived, Row, Status, TitlePart } from "./derive.ts"
 
-export { compareErrors, isCrossFile, OutlineError, stageOf } from "./errors.ts"
+export {
+  compareErrors,
+  isCrossFile,
+  OutlineError,
+  reportStage,
+  stageOf,
+} from "./errors.ts"
 export type { ErrorCode, Stage } from "./errors.ts"

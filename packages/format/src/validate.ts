@@ -14,7 +14,7 @@
 import { distance } from "fastest-levenshtein"
 import { Result } from "effect"
 
-import { countedChildren, derive, type Derived } from "./derive.ts"
+import { countedChildren, derive, type Derived, storedMarker } from "./derive.ts"
 import { compareErrors, type OutlineError } from "./errors.ts"
 import { EDGE_FIELDS, isMirror, type Located } from "./node.ts"
 import type { OutlineSet } from "./set.ts"
@@ -251,11 +251,7 @@ const checkDerivedState = (
   for (const located of all) {
     const { node } = located
     if (isMirror(node)) continue
-    const stored = node.done !== undefined
-      ? "done"
-      : node.doing !== undefined
-      ? "doing"
-      : null
+    const stored = storedMarker(node)
     if (stored === null) continue
 
     const own = countedChildren(derived, node.id)
@@ -293,13 +289,13 @@ const findCycles = (
   edges: (node: Located["node"]) => ReadonlyArray<string>,
 ): ReadonlyArray<ReadonlyArray<Located>> => {
   const cycles: Array<ReadonlyArray<Located>> = []
-  const settled = new Set<string>()
+  // One memo, not two: a node is only marked seen after its walk has left the
+  // path, so `seen` already implies "not on the path" and a second settled set
+  // could not disagree with it.
   const seen = new Set<string>()
 
   const walk = (located: Located, path: Array<Located>): void => {
     const id = located.node.id
-    if (settled.has(id)) return
-
     const at = path.findIndex((step) => step.node.id === id)
     if (at !== -1) {
       cycles.push(path.slice(at))
@@ -314,7 +310,6 @@ const findCycles = (
       if (next !== undefined) walk(next, path)
     }
     path.pop()
-    settled.add(id)
   }
 
   for (const located of all) walk(located, [])

@@ -32,13 +32,25 @@ import {
   surfaceAppLayer,
 } from "@kolu/surface-app/server"
 import { NodeHttpServer } from "@effect/platform-node"
-import { Effect, Scope } from "effect"
+import { Data, Effect, Scope } from "effect"
 import { HttpRouter } from "effect/unstable/http"
 import { WebSocketServer } from "ws"
 
 import type { Bound } from "./runtime.ts"
 
 const WS_PATH = "/rpc/ws"
+
+export class ListenFailed extends Data.TaggedError("ListenFailed")<{
+  readonly host: string
+  readonly port: number
+  readonly cause: unknown
+}> {
+  override get message(): string {
+    return `cannot listen on ${this.host}:${this.port}: ${
+      this.cause instanceof Error ? this.cause.message : String(this.cause)
+    }`
+  }
+}
 
 /** One id per process, minted once. It is what a reconnecting tab compares
  *  itself against: a tab holding a bundle from a server that has since been
@@ -142,12 +154,25 @@ const requestHandler = (clientDist: string) =>
 const bind = (
   server: ReturnType<typeof createServer>,
   options: ListenOptions,
-): Effect.Effect<string> =>
-  Effect.callback<string>((resume) => {
+): Effect.Effect<string, ListenFailed> =>
+  Effect.callback<string, ListenFailed>((resume) => {
+    // The error listener is the whole reason this is not a bare `listen`:
+    // EADDRINUSE is the realistic failure — a fixed default port, a harness
+    // spawning servers — and without it Node raises it as an uncaught event
+    // rather than as this fiber's failure.
+    server.once("error", (cause) =>
+      resume(new ListenFailed({ host: options.host, port: options.port, cause })))
     server.listen({ host: options.host, port: options.port }, () => {
       const info = server.address() as AddressInfo | string | null
       if (info === null || typeof info === "string") {
-        throw new Error(`listen: expected a TCP address, got ${JSON.stringify(info)}`)
+        resume(
+          new ListenFailed({
+            host: options.host,
+            port: options.port,
+            cause: `expected a TCP address, got ${JSON.stringify(info)}`,
+          }),
+        )
+        return
       }
       resume(Effect.succeed(`http://${info.address}:${info.port}`))
     })

@@ -12,7 +12,7 @@
  * is a pair that can — and did — drift apart.
  */
 
-import { Schema } from "effect"
+import { Order, Schema } from "effect"
 
 /**
  * Which half of the codec rejects it.
@@ -81,6 +81,14 @@ export const ErrorCode = Schema.Literals(
 
 export const stageOf = (code: ErrorCode): Stage => CATALOGUE[code]
 
+/** The stage a whole REPORT has reached: `line` while anything in it is a
+ *  line-stage error, because the set-wide questions have not been asked yet.
+ *  The rule belongs here rather than in whichever view happens to say so —
+ *  phase 3 renders the same report as a banner and phase 4 as tool output. */
+export const reportStage = (
+  errors: ReadonlyArray<{ readonly code: ErrorCode }>,
+): Stage => errors.some((error) => stageOf(error.code) === "line") ? "line" : "set"
+
 /** A place in the loaded set. `file` is relative to the served directory, so
  *  it reads the same in the browser, in a test assertion and in a report from
  *  another machine. `line` is 1-based — one node per line, so the line is the
@@ -116,12 +124,13 @@ export type OutlineError = typeof OutlineError.Type
 export const isCrossFile = (error: OutlineError): boolean =>
   (error.related ?? []).some((related) => related.file !== error.file)
 
-/** Stable presentation order: by file, then by line, then by code. Two loads
- *  of the same broken set produce the same list, so a test can assert on the
- *  first error and a human can diff two error views. */
-export const compareErrors = (a: OutlineError, b: OutlineError): number =>
-  a.file === b.file
-    ? a.line === b.line
-      ? a.code.localeCompare(b.code)
-      : a.line - b.line
-    : a.file.localeCompare(b.file)
+/** Stable presentation order: by file, then by line, then by code.
+ *
+ *  Code point order, not `localeCompare` — a locale-sensitive sort would make
+ *  "two loads of the same broken set produce the same list" false across two
+ *  machines, which is the whole point of ordering it at all. */
+export const compareErrors: Order.Order<OutlineError> = Order.Struct({
+  file: Order.String,
+  line: Order.Number,
+  code: Order.String,
+})

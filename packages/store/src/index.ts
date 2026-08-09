@@ -6,4 +6,4 @@
  * phases 3 and 4 add without changing this surface.
  */
 
-export { type Codec, make, PlatformFailure, type Rev, type Snapshot, type Store } from "./store.ts"
+export { type Codec, make, type Rev, type Store } from "./store.ts"

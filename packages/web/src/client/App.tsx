@@ -75,16 +75,13 @@ export default function App() {
     return loaded === undefined ? undefined : derive(loaded.nodes)
   })
   const rows = createMemo(() => {
-    const loaded = set()
     const indexes = derived()
     const file = current()
-    return loaded === undefined || indexes === undefined || file === undefined
-      ? []
-      : rowsOf(indexes, loaded.nodes, file)
+    return indexes === undefined || file === undefined ? [] : rowsOf(indexes, file)
   })
 
   return (
-    <Switch fallback={<Waiting />}>
+    <Switch fallback={<p class="empty">Reading…</p>}>
       <Match when={frame() === null}>
         <Errors errors={errors.value() ?? []} />
       </Match>
@@ -120,10 +117,6 @@ export default function App() {
       </Match>
     </Switch>
   )
-}
-
-function Waiting() {
-  return <p class="empty">Reading…</p>
 }
 
 /** Two different nothings, said differently: the directory holds no outlines,

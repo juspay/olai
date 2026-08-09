@@ -21,4 +21,3 @@ const url = (): string => {
 const connection = await connectSurface({ surface, url })
 
 export const olai = connection.client
-export const connectionStatus = connection.status

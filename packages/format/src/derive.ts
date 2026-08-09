@@ -16,22 +16,28 @@
  * learn about a bug than a marked stub.
  */
 
-import { isMirror, type Located } from "./node.ts"
+import { isMirror, type Located, type LocatedRegular } from "./node.ts"
 
 /** What a node's checkbox shows. Derived for a parent, stored for a leaf. */
 export type Status = "done" | "doing" | "open"
 
-/** The three indexes every consumer needs, built together from one list so
- *  they cannot be built from different ones — or, as they once were, with
- *  different tie-breaking. */
+/**
+ * A set of nodes and everything computed from it.
+ *
+ * The nodes travel WITH their indexes rather than beside them. Two parameters
+ * would let a caller pass one revision's nodes against another's indexes —
+ * which phase 3, with two revisions in flight, makes a live possibility — and
+ * the symptom would be a plausible tree rather than a failure.
+ */
 export interface Derived {
+  readonly nodes: ReadonlyArray<Located>
   /** id → the record that claims it. FIRST claim wins, which is the same rule
    *  the validator's duplicate-id error uses: the second claim is the mistake,
    *  so the first is what every other reference means. */
   readonly byId: ReadonlyMap<string, Located>
   /** parent id → its children, in sibling order. */
   readonly children: ReadonlyMap<string, ReadonlyArray<Located>>
-  /** id → derived status. */
+  /** id → derived status. Total over `nodes`. */
   readonly status: ReadonlyMap<string, Status>
 }
 
@@ -53,20 +59,27 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
   // sort; file order breaks ties rather than leaving them to the engine.
   for (const siblings of children.values()) siblings.sort(byOrd)
 
-  return { byId, children, status: statuses(nodes, byId, children) }
+  return { nodes, byId, children, status: statuses(nodes, byId, children) }
 }
 
 const byOrd = (a: Located, b: Located): number =>
   a.node.ord === b.node.ord ? a.line - b.line : a.node.ord < b.node.ord ? -1 : 1
 
-/** The children that count toward a node's derived status — the same set the
- *  validator lists when it refuses a stored one. A mirror is a second view of
- *  a node, not a second obligation, so it never counts. */
+/** The children that count toward a node's derived status. A mirror is a
+ *  second view of a node, not a second obligation, so it never counts. One
+ *  function, called by the status walk and by the validator's refusal message,
+ *  because a set that disagreed about which children count would show one
+ *  answer and explain the other. */
+const counted = (
+  children: ReadonlyMap<string, ReadonlyArray<Located>>,
+  id: string,
+): ReadonlyArray<Located> =>
+  (children.get(id) ?? []).filter((child) => !isMirror(child.node))
+
 export const countedChildren = (
   derived: Derived,
   id: string,
-): ReadonlyArray<Located> =>
-  (derived.children.get(id) ?? []).filter((child) => !isMirror(child.node))
+): ReadonlyArray<Located> => counted(derived.children, id)
 
 /**
  * A leaf says what it is. A parent is the sum of its children: all done →
@@ -102,16 +115,8 @@ const statuses = (
       return target === undefined ? "open" : of(target)
     }
 
-    const own = (children.get(located.node.id) ?? []).filter(
-      (child) => !isMirror(child.node),
-    )
-    if (own.length === 0) {
-      return located.node.done !== undefined
-        ? "done"
-        : located.node.doing !== undefined
-        ? "doing"
-        : "open"
-    }
+    const own = counted(children, located.node.id)
+    if (own.length === 0) return storedStatus(located.node)
 
     const seen = own.map(of)
     if (seen.every((child) => child === "done")) return "done"
@@ -122,23 +127,23 @@ const statuses = (
   return status
 }
 
+/** What a leaf claims about itself. `done` wins over `doing` — they are
+ *  mutually exclusive on disk, so the order only decides what a set the
+ *  validator has already condemned looks like. */
+export const storedMarker = (
+  node: LocatedRegular["node"],
+): "done" | "doing" | null =>
+  node.done !== undefined ? "done" : node.doing !== undefined ? "doing" : null
+
+const storedStatus = (node: LocatedRegular["node"]): Status =>
+  storedMarker(node) ?? "open"
+
 // ── the drawable tree ──────────────────────────────────────────────────
 
-/**
- * One place in the tree.
- *
- * `kind` is the whole of what a renderer needs to decide: a plain record, a
- * mirror standing in for a subtree, a mirror the walk refuses to re-enter, or
- * a mirror whose target is not in the set. The four used to be four booleans
- * reconstructed at the view; naming them here is what keeps the cycle guard in
- * one place instead of one per consumer.
- */
-export type Row = {
+/** Fields every row has, whatever it turned out to be. */
+interface Place {
   /** The record occupying this place — the mirror itself, for a mirror. */
   readonly at: Located
-  /** The record being shown here: `at` for a node, the target for a mirror. */
-  readonly shows: Located | undefined
-  readonly kind: "node" | "mirror" | "cycle" | "dangling"
   readonly status: Status
   /** Stable identity of this PLACE, not of the node. The same node reached
    *  through two mirrors is two rows on screen, and folding one must not fold
@@ -148,36 +153,23 @@ export type Row = {
 }
 
 /**
- * What a record actually shows: itself, or — following as many mirror hops as
- * it takes — the regular node at the end of the chain.
+ * One place in the tree, and what the reader should be told about it.
  *
- * A mirror of a mirror is legal (nothing in the format forbids a second
- * pointer to a pointer) and resolving only one hop would leave a row standing
- * for a record with no title and no children of its own: a legal set the
- * reader cannot draw. `undefined` means the chain ends nowhere, which is a
- * dangling reference the validator reports separately; a chain that closes on
- * itself is a mirror-cycle, which it also reports — the visited set here is
- * so this walk stops rather than being the thing that discovers it.
+ * A union rather than four booleans, and it carries the ANSWER rather than the
+ * question: a dangling row knows the id the mirror chain actually died on (not
+ * the first hop, which may well exist), and a cycle row knows the id it closed
+ * on. The walk is the only thing that knows either; a view recomputing them
+ * from `at` would get the first hop and say something untrue.
  */
-const target = (derived: Derived, from: Located): Located | undefined => {
-  const seen = new Set<string>()
-  let at: Located | undefined = from
-  while (at !== undefined && isMirror(at.node)) {
-    if (seen.has(at.node.id)) return undefined
-    seen.add(at.node.id)
-    at = derived.byId.get(at.node.mirror)
-  }
-  return at
-}
+export type Row =
+  | (Place & { readonly kind: "node" | "mirror"; readonly shows: LocatedRegular })
+  | (Place & { readonly kind: "dangling"; readonly missing: string })
+  | (Place & { readonly kind: "cycle"; readonly through: string })
 
 /** The rows of one outline: the roots of `file`, expanded. Mirrors are
  *  expanded in place, because a pointer the reader has to go and follow is not
  *  a second location — it is a footnote. */
-export const rowsOf = (
-  derived: Derived,
-  nodes: ReadonlyArray<Located>,
-  file: string,
-): ReadonlyArray<Row> => {
+export const rowsOf = (derived: Derived, file: string): ReadonlyArray<Row> => {
   const expand = (
     at: Located,
     ancestors: ReadonlyArray<string>,
@@ -185,32 +177,60 @@ export const rowsOf = (
   ): Row => {
     const key = `${parentKey}/${at.node.id}`
     const status = derived.status.get(at.node.id) ?? "open"
+    const place = { at, status, key }
 
-    const shows = target(derived, at)
-    if (shows === undefined) {
-      return { at, shows, kind: "dangling", status, key, children: [] }
+    const found = follow(derived, at)
+    if (found.kind !== "found") {
+      return { ...place, children: [], ...found }
     }
-    if (ancestors.includes(shows.node.id)) {
-      return { at, shows, kind: "cycle", status, key, children: [] }
+    if (ancestors.includes(found.shows.node.id)) {
+      return { ...place, children: [], kind: "cycle", through: found.shows.node.id }
     }
 
-    const within = [...ancestors, shows.node.id]
+    const within = [...ancestors, found.shows.node.id]
     return {
-      at,
-      shows,
+      ...place,
       kind: isMirror(at.node) ? "mirror" : "node",
-      status,
-      key,
-      children: (derived.children.get(shows.node.id) ?? []).map((child) =>
+      shows: found.shows,
+      children: (derived.children.get(found.shows.node.id) ?? []).map((child) =>
         expand(child, within, key)
       ),
     }
   }
 
-  return nodes
+  return derived.nodes
     .filter((located) => located.file === file && located.node.parent === undefined)
     .sort(byOrd)
     .map((root) => expand(root, [], ""))
+}
+
+/**
+ * What a record actually shows: itself, or — following as many mirror hops as
+ * it takes — the regular node at the end of the chain.
+ *
+ * A mirror of a mirror is legal (nothing in the format forbids a second
+ * pointer to a pointer) and resolving only one hop would leave a row standing
+ * for a record with no title and no children of its own: a legal set the
+ * reader cannot draw. The two failures are told apart and each names the id it
+ * failed at, because "a mirror of `b`, which no node declares" is a lie when
+ * `b` exists and it is `b`'s own target that is missing.
+ */
+type Found =
+  | { readonly kind: "found"; readonly shows: LocatedRegular }
+  | { readonly kind: "dangling"; readonly missing: string }
+  | { readonly kind: "cycle"; readonly through: string }
+
+const follow = (derived: Derived, from: Located): Found => {
+  const seen = new Set<string>()
+  let at: Located = from
+  while (isMirror(at.node)) {
+    if (seen.has(at.node.id)) return { kind: "cycle", through: at.node.id }
+    seen.add(at.node.id)
+    const next = derived.byId.get(at.node.mirror)
+    if (next === undefined) return { kind: "dangling", missing: at.node.mirror }
+    at = next
+  }
+  return { kind: "found", shows: at as LocatedRegular }
 }
 
 // ── titles ─────────────────────────────────────────────────────────────

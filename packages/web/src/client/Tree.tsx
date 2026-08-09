@@ -8,8 +8,13 @@
  * about what a file means because they are running the same code, not because
  * two implementations were written to the same paragraph.
  *
- * The one thing the client does interpret on its own is a note, which is
- * markdown and is rendered (sanitised) at view time — see ./markdown.ts.
+ * A row's `kind` is what to draw, and each kind carries the answer already —
+ * a dangling row knows the id its mirror chain actually died on, a cycle row
+ * knows the id it closed on. Recomputing either from the record here would
+ * give the FIRST hop, and say something untrue about a mirror three hops long.
+ *
+ * The one thing the client interprets on its own is a note, which is markdown
+ * and is rendered (sanitised) at view time — see ./markdown.ts.
  */
 
 import { type Row, titleParts } from "@olai/format"
@@ -45,15 +50,16 @@ function Branch(props: {
   readonly collapsed: ReadonlySet<string>
   readonly onToggle: (key: string) => void
 }) {
-  const collapsed = () => props.collapsed.has(props.row.key)
-  const shown = () => props.row.shows
-  const desc = createMemo(() => {
-    const node = shown()?.node
-    return node !== undefined && "desc" in node ? node.desc : undefined
-  })
+  // A memo, not a plain accessor: folding one row mints a new Set, and five
+  // separate computations in this component read it. Without the memo every
+  // row in the tree re-runs all five on every click.
+  const collapsed = createMemo(() => props.collapsed.has(props.row.key))
+  const shown = () => (props.row.kind === "node" || props.row.kind === "mirror")
+    ? props.row.shows.node
+    : undefined
   const html = createMemo(() => {
-    const source = desc()
-    return source === undefined ? undefined : renderMarkdown(source)
+    const desc = shown()?.desc
+    return desc === undefined ? undefined : renderMarkdown(desc)
   })
 
   return (
@@ -64,7 +70,6 @@ function Branch(props: {
       data-status={props.row.status}
       data-collapsed={String(collapsed())}
       data-kind={props.row.kind}
-      {...(props.row.kind === "node" ? {} : { "data-mirror": "true" })}
       data-file={props.row.at.file}
       data-line={props.row.at.line}
     >
@@ -86,18 +91,20 @@ function Branch(props: {
         </Show>
 
         <Switch>
-          <Match when={props.row.kind === "dangling"}>
-            <span class="dangling" data-testid={TESTID.nodeTitle}>
-              a mirror of `{mirrorTarget(props.row)}`, which no node declares
-            </span>
+          <Match when={props.row.kind === "dangling" ? props.row : undefined}>
+            {(row) => (
+              <span class="dangling" data-testid={TESTID.nodeTitle}>
+                a mirror of `{row().missing}`, which no node declares
+              </span>
+            )}
           </Match>
           <Match when={shown()}>
-            {(target) => (
+            {(node) => (
               <span class="title" data-testid={TESTID.nodeTitle}>
                 <Show when={props.row.kind !== "node"}>
                   <span class="mirror-mark" title="a mirror of another node">⇢</span>
                 </Show>
-                <For each={titleParts(titleOf(target().node))}>
+                <For each={titleParts(node().title)}>
                   {(part) =>
                     part.kind === "tag"
                       ? <span class="tag" data-testid={TESTID.tag}>#{part.tag}</span>
@@ -108,7 +115,7 @@ function Branch(props: {
           </Match>
         </Switch>
 
-        <Show when={dateOf(shown())}>
+        <Show when={shown()?.date}>
           {(date) => <span class="date" data-testid={TESTID.date}>{date()}</span>}
         </Show>
       </div>
@@ -124,10 +131,13 @@ function Branch(props: {
         )}
       </Show>
 
-      <Show when={props.row.kind === "cycle"}>
-        <div class="cycle-stub">
-          this mirror is inside the subtree it shows — not expanded
-        </div>
+      <Show when={props.row.kind === "cycle" ? props.row : undefined}>
+        {(row) => (
+          <div class="cycle-stub">
+            this mirror is inside the subtree it shows (`{row().through}`) — not
+            expanded
+          </div>
+        )}
       </Show>
 
       <Show when={!collapsed() && props.row.children.length > 0}>
@@ -145,16 +155,4 @@ function Branch(props: {
       </Show>
     </li>
   )
-}
-
-/** A mirror's target id, for the one row that has nothing else to show. */
-const mirrorTarget = (row: Row): string =>
-  "mirror" in row.at.node ? row.at.node.mirror : row.at.node.id
-
-const titleOf = (node: Row["at"]["node"]): string =>
-  "title" in node ? node.title : ""
-
-const dateOf = (located: Row["shows"]): string | undefined => {
-  const node = located?.node
-  return node !== undefined && "date" in node ? node.date : undefined
 }

@@ -12,7 +12,7 @@
  * else is a decision the operator has to type out and gets warned about.
  */
 
-import { NodeHttpServer, NodeServices } from "@effect/platform-node"
+import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
 import { parseAllowedOrigins } from "@kolu/surface/ws-origin"
 import { Effect, Layer } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
@@ -62,29 +62,18 @@ const olai = Command.make("olai").pipe(
   Command.withSubcommands([web]),
 )
 
-const fiber = Command.run(olai, { version: "0.1.0" }).pipe(
-  Effect.scoped,
-  // NodeServices carries the CLI's own needs (stdio, terminal, file system);
-  // layerHttpServices carries the static file layer's (the file-response
-  // platform and ETags).
-  Effect.provide(Layer.mergeAll(NodeServices.layer, NodeHttpServer.layerHttpServices)),
-  Effect.runFork,
+// `runMain` IS the signal handling, the keep-alive and the exit code, and it
+// is why `Effect.never` above is enough: interrupting on SIGINT or SIGTERM
+// runs the scope's finalizers — the listener's teardown — and only then exits.
+// Hand-rolling it dropped three things quietly, the one that mattered being
+// that the port stayed held long enough to break a harness starting a dozen
+// servers on it.
+NodeRuntime.runMain(
+  Command.run(olai, { version: "0.1.0" }).pipe(
+    Effect.scoped,
+    // NodeServices carries the CLI's own needs (stdio, terminal, file system);
+    // layerHttpServices carries the static file layer's (the file-response
+    // platform and ETags).
+    Effect.provide(Layer.mergeAll(NodeServices.layer, NodeHttpServer.layerHttpServices)),
+  ),
 )
-
-// Interrupting the fiber runs the scope's finalizers — the listener's teardown
-// — and only then exits. Without this the sockets are closed by the process
-// dying, which is fine for a laptop and not fine for a test harness that
-// starts and stops a dozen servers on the same ports.
-for (const signal of ["SIGINT", "SIGTERM"] as const) {
-  process.on(signal, () => {
-    fiber.interruptUnsafe()
-  })
-}
-
-fiber.addObserver((exit) => {
-  if (exit._tag === "Failure") {
-    console.error(String(exit.cause))
-    process.exit(1)
-  }
-  process.exit(0)
-})

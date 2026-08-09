@@ -8,44 +8,52 @@
  *     then every later one — which is already surface's snapshot-then-deltas
  *     contract, so a watcher publishing a second revision needs no change here
  *     at all;
- *   - the cell is pumped by a fiber following the other ref, for the same
- *     reason. Today it publishes once; tomorrow it publishes on every reload,
- *     and the wiring is the same wiring.
+ *   - the cell is an OWNED source: `connect` hands the framework the fiber
+ *     that follows the other ref, so the write goes through the cell's private
+ *     arm, the fiber lives on the runtime's own scope (a closed runtime stops
+ *     it, rather than being published into afterwards), and a failure in it
+ *     settles `done` — which is the channel the caller uses to decide the
+ *     process is unrecoverably faulted.
  *
  * Nothing here interprets an outline. It moves what the store decided onto the
  * wire, and that is all.
  */
 
-import { surface } from "@olai/surface"
 import type { OutlineError, OutlineSet } from "@olai/format"
 import type { Store } from "@olai/store"
+import { surface } from "@olai/surface"
 import {
+  type ImplementSurfaceDeps,
   implementSurface,
   inMemoryStore,
-  type SurfaceHandlers,
+  type SurfaceRuntime,
 } from "@kolu/surface/server"
 import { Effect, Stream, SubscriptionRef } from "effect"
-import type { Rpc, RpcGroup } from "effect/unstable/rpc"
 
-export interface Bound {
-  readonly group: RpcGroup.RpcGroup<Rpc.Any>
-  readonly handlers: SurfaceHandlers
-  /** Resolves on orderly shutdown and REJECTS on structural wiring death — a
-   *  builder that threw, a source whose install threw. A serving site that
-   *  ignored it would answer subscriptions with silence. */
-  readonly done: Promise<void>
-  readonly close: () => Promise<void>
-}
+/** What a transport needs, and nothing else. `ctx` is the write face, which
+ *  belongs to the bindings below rather than to whoever serves them. */
+export type Bound = Omit<SurfaceRuntime<typeof surface.spec>, "ctx">
 
-export const bind = (store: Store<OutlineSet, ReadonlyArray<OutlineError>>) =>
-  Effect.gen(function*() {
-    // Seeded empty and filled by the pump below: `SubscriptionRef.changes`
-    // delivers the current value before any update, so peeking at the ref here
-    // as well would be the same read twice with a window between them.
+export const bind = (
+  store: Store<OutlineSet, ReadonlyArray<OutlineError>>,
+): Effect.Effect<Bound> =>
+  Effect.sync(() => {
+    // Seeded empty and filled by `connect`: `SubscriptionRef.changes` delivers
+    // the current value before any update, so peeking at the ref here as well
+    // would be the same read twice with a window between them.
     const errors = inMemoryStore<ReadonlyArray<OutlineError>>([])
 
-    const runtime = implementSurface(surface, {
-      cells: { errors: { store: errors } },
+    const deps: ImplementSurfaceDeps<typeof surface.spec> = {
+      cells: {
+        errors: {
+          store: errors,
+          connect: (cell) =>
+            Stream.runForEach(
+              SubscriptionRef.changes(store.errors),
+              (next) => Effect.sync(() => cell.set(next ?? [])),
+            ),
+        },
+      },
       streams: {
         outlines: {
           source: () =>
@@ -55,26 +63,7 @@ export const bind = (store: Store<OutlineSet, ReadonlyArray<OutlineError>>) =>
                 : { rev: snapshot.rev, set: snapshot.value }),
         },
       },
-      // The deps object is erased because surface's `ImplementSurfaceDeps<S>`
-      // is inferred through the spec's schemas, and the inference does not
-      // survive a spec assembled in another package. drishti does the same at
-      // its one call site. The cost is bounded: the two handlers above are the
-      // only code the cast covers, and both are exercised by the e2e suite.
-    } as never)
-
-    // Writes go through the framework's cell face, never `errors.set`, so the
-    // cell's dedup and its publish both fire.
-    yield* Effect.forkScoped(
-      Stream.runForEach(SubscriptionRef.changes(store.errors), (next) =>
-        Effect.sync(() => {
-          runtime.ctx.cells.errors.set(next ?? [])
-        })),
-    )
-
-    return {
-      group: runtime.group as RpcGroup.RpcGroup<Rpc.Any>,
-      handlers: runtime.handlers as SurfaceHandlers,
-      done: runtime.done,
-      close: () => runtime.close(),
     }
+
+    return implementSurface(surface, deps)
   })

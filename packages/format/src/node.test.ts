@@ -1,17 +1,11 @@
 import { expect, test } from "bun:test"
-import { Result } from "effect"
 
-import { ID_SHAPE, isMirror, MirrorNode, type Node, RegularNode } from "./node.ts"
-import { parseOutline } from "./parse.ts"
+import { nodesOf } from "./fixtures.testlib.ts"
+import { fileKind, ID_SHAPE, isMirror, MirrorNode, type Node, RegularNode } from "./node.ts"
 
 /** The records of a JSONL fixture, in file order. */
-const parsed = (contents: string): ReadonlyArray<Node> => {
-  const result = parseOutline("a.jsonl", contents)
-  if (Result.isFailure(result)) {
-    throw new Error(`fixture does not parse: ${result.failure.map((e) => e.message).join("; ")}`)
-  }
-  return result.success.nodes.map((located) => located.node)
-}
+const parsed = (contents: string): ReadonlyArray<Node> =>
+  nodesOf(contents).map((located) => located.node)
 
 // There are exactly two record shapes, and which one a record is decides
 // almost everything downstream — whether it needs a title, whether it can hold
@@ -54,5 +48,20 @@ test("ID_SHAPE admits slugs and nothing else", () => {
   expect(ID_SHAPE.test("kitchen-2_a")).toBe(true)
   for (const bad of ["", "has space", "dot.ted", "sla/sh", "hash#", "uni¢ode"]) {
     expect(ID_SHAPE.test(bad)).toBe(false)
+  }
+})
+
+// What belongs to a served set is a statement about the FORMAT, not about
+// whatever happened to read the directory: the same answer decides which files
+// are outlines, which are the documents `doc` may point at, and which are
+// neither. A file that is neither is not part of the set at all — so `null` is
+// an answer, not a failure. The suffix is matched exactly as the format writes
+// it, so a near miss is a miss.
+test("a served file is an outline, a document, or none of the set's business", () => {
+  expect(fileKind("plan.jsonl")).toBe("outline")
+  expect(fileKind("sub/dir/plan.jsonl")).toBe("outline")
+  expect(fileKind("notes/cabinets.md")).toBe("document")
+  for (const path of ["README", "plan.json", "notes.md.txt", "jsonl", ".md.bak", "a.JSONL"]) {
+    expect({ path, kind: fileKind(path) }).toEqual({ path, kind: null })
   }
 })

@@ -17,7 +17,7 @@
 
 import { Schema } from "effect"
 
-import { Located } from "./node.ts"
+import { fileKind, Located } from "./node.ts"
 
 export const OutlineSet = Schema.Struct({
   /** Every `.jsonl` found, in path order — including any that hold no nodes,
@@ -39,3 +39,40 @@ export interface Outline {
   readonly file: string
   readonly nodes: ReadonlyArray<Located>
 }
+
+/** What one file decoded to: an outline's nodes, or a document, whose text is
+ *  not carried — nothing renders a document yet, and the path is the whole of
+ *  what `doc` needs. */
+export type DecodedFile =
+  | { readonly kind: "outline"; readonly outline: Outline }
+  | { readonly kind: "document" }
+
+/**
+ * Decoded files into the set the validator judges.
+ *
+ * The assembly is a statement about the format — which files are outlines,
+ * where their nodes go, what counts as a document — so it lives beside the
+ * rules rather than in whatever read the directory. A caller supplies bytes
+ * and gets back the one shape everything above it renders.
+ */
+export const assemble = (
+  files: ReadonlyMap<string, DecodedFile>,
+): OutlineSet => {
+  const outlines: Array<string> = []
+  const nodes: Array<Located> = []
+  const documents: Array<string> = []
+
+  for (const [path, file] of files) {
+    if (file.kind === "document") {
+      documents.push(path)
+      continue
+    }
+    outlines.push(path)
+    nodes.push(...file.outline.nodes)
+  }
+  return { files: outlines, nodes, documents }
+}
+
+/** Re-exported so a reader of the set finds the rule that decides what belongs
+ *  in it without leaving this file. */
+export { fileKind }

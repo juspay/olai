@@ -13,21 +13,17 @@
 
 import { Data, Effect, FileSystem } from "effect"
 
-export const DIST_ENV_VAR = "OLAI_DIST_DIR"
+const DIST_ENV_VAR = "OLAI_DIST_DIR"
 
-export class MissingBundle extends Data.TaggedError("MissingBundle")<{
-  readonly reason: string
-}> {
-  override get message(): string {
-    return this.reason
-  }
-}
+class MissingBundle extends Data.TaggedError("MissingBundle")<{
+  readonly message: string
+}> {}
 
 export const clientDist = Effect.gen(function*() {
   const dist = process.env[DIST_ENV_VAR]
   if (dist === undefined || dist === "") {
     return yield* new MissingBundle({
-      reason:
+      message:
         `${DIST_ENV_VAR} is not set, so there is no browser bundle to serve. Run \`just serve <dir>\`, which builds one and sets it — or set it yourself to a directory built by \`just build-client\`.`,
     })
   }
@@ -35,7 +31,7 @@ export const clientDist = Effect.gen(function*() {
   const fs = yield* FileSystem.FileSystem
   if (!(yield* fs.exists(`${dist}/index.html`))) {
     return yield* new MissingBundle({
-      reason: `${DIST_ENV_VAR} is ${dist}, which holds no index.html — it points at an unbuilt directory.`,
+      message: `${DIST_ENV_VAR} is ${dist}, which holds no index.html — it points at an unbuilt directory.`,
     })
   }
   return dist

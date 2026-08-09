@@ -83,6 +83,16 @@ export const SETTLED_SELECTOR = `${OUTLINE_LIST}, ${ERROR_VIEW}`;
  *  a reload" can prove it rather than assume it. */
 export const NO_RELOAD_MARK = "__olaiNoReloadMark";
 
+/** Rendered text, flattened to one line.
+ *
+ *  Everything read out of the DOM goes through this before it is compared or
+ *  printed. `innerText` carries the layout's newlines and indentation, which
+ *  are a styling decision — a step that asserted on them would be asserting on
+ *  the stylesheet. Shared rather than re-spelled per file so two steps cannot
+ *  end up normalising the same text two different ways. */
+export const oneLine = (text: string): string =>
+  text.replace(/\s+/g, " ").trim();
+
 export class OlaiWorld extends World {
   browser!: Browser;
   context!: BrowserContext;

@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test"
-import { Result } from "effect"
 
 import {
   countedChildren,
@@ -7,25 +6,11 @@ import {
   type Row,
   rowsOf,
   type Status,
+  storedMarker,
   titleParts,
 } from "./derive.ts"
-import type { Located } from "./node.ts"
-import { parseOutline } from "./parse.ts"
-
-/** Fixtures are JSONL, parsed — the derivation runs on exactly the records a
- *  file produces, including their line numbers, which are part of the answer
- *  (sibling ties break on them). */
-const nodesOf = (contents: string, file = "a.jsonl"): ReadonlyArray<Located> => {
-  const parsed = parseOutline(file, contents)
-  if (Result.isFailure(parsed)) {
-    throw new Error(`fixture does not parse: ${parsed.failure.map((e) => e.message).join("; ")}`)
-  }
-  return parsed.success.nodes
-}
-
-/** Several files' worth, flat — the shape every rule and every walk wants. */
-const setOf = (files: Record<string, string>): ReadonlyArray<Located> =>
-  Object.entries(files).flatMap(([file, contents]) => nodesOf(contents, file))
+import { nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
+import { isMirror, type Located, type RegularNode } from "./node.ts"
 
 const statusesOf = (contents: string): ReadonlyMap<string, Status> =>
   derive(nodesOf(contents)).status
@@ -33,10 +18,39 @@ const statusesOf = (contents: string): ReadonlyMap<string, Status> =>
 const ids = (nodes: ReadonlyArray<Located>): ReadonlyArray<string> =>
   nodes.map((located) => located.node.id)
 
+/** The regular records of a fixture, for the functions that read a node's own
+ *  stored fields rather than a whole set. */
+const regulars = (contents: string): ReadonlyArray<RegularNode> =>
+  nodesOf(contents).flatMap((located) => isMirror(located.node) ? [] : [located.node])
+
 /** A row's tree, flattened to `key kind` — the two facts a renderer switches
  *  on, and the two this file is about. */
 const shape = (rows: ReadonlyArray<Row>): ReadonlyArray<string> =>
   rows.flatMap((row) => [`${row.key} ${row.kind}`, ...shape(row.children)])
+
+/** The row at `index`, insisting it is one that draws a node. `shows` lives on
+ *  those two kinds alone, so a test reading it has to say which it expected —
+ *  and hears which stub it got instead when the walk disagrees. */
+const drawn = (
+  rows: ReadonlyArray<Row>,
+  index: number,
+): Extract<Row, { readonly kind: "node" | "mirror" }> => {
+  const row = rows[index]
+  if (row === undefined) throw new Error(`expected a row at ${index}, got none`)
+  if (row.kind !== "node" && row.kind !== "mirror") {
+    throw new Error(`expected row ${index} to draw a node, got a \`${row.kind}\` stub`)
+  }
+  return row
+}
+
+/** What a stub row says, as one string per row: the id a dangling chain died
+ *  on, the id a cycle closed on, or the kind that turned out not to be one. */
+const stubbed = (row: Row): string =>
+  row.kind === "dangling"
+    ? `dangling ${row.missing}`
+    : row.kind === "cycle"
+    ? `cycle ${row.through}`
+    : `drawn ${row.kind}`
 
 // ── the indexes ────────────────────────────────────────────────────────
 
@@ -51,6 +65,25 @@ test("a leaf reports what it stores", () => {
   expect(status.get("a")).toBe("done")
   expect(status.get("b")).toBe("doing")
   expect(status.get("c")).toBe("open")
+})
+
+// What a record CLAIMS about itself, as opposed to what it ends up showing: the
+// validator's refusal quotes the stored marker by name ("`done` is computed
+// from this node's 3 children"), so the two read the same field the same way.
+test("the stored marker is the field a record actually carries, or nothing", () => {
+  expect(
+    regulars(
+      `{"id":"a","ord":"a","title":"a","done":true}\n` +
+        `{"id":"b","ord":"b","title":"b","doing":"2026-08-10"}\n` +
+        `{"id":"c","ord":"c","title":"c"}`,
+    ).map(storedMarker),
+  ).toEqual(["done", "doing", null])
+
+  // Written by hand because the parser refuses this line: the two markers are
+  // exclusive on disk, so this only decides what a set the validator has
+  // already condemned looks like — and it looks done.
+  expect(storedMarker({ id: "x", ord: "a", title: "x", done: true, doing: true }))
+    .toBe("done")
 })
 
 // A parent's status is the sum of its children — the one rule the validator
@@ -158,7 +191,7 @@ test("a duplicated id resolves to the record that claimed it first", () => {
   ))
   expect(within.byId.get("x")?.line).toBe(1)
 
-  const across = derive(setOf({
+  const across = derive(nodesOfFiles({
     "a.jsonl": `{"id":"x","ord":"a","title":"first"}`,
     "b.jsonl": `{"id":"x","ord":"a","title":"second"}`,
   }))
@@ -178,17 +211,45 @@ test("a mirror row is drawn with its target's children", () => {
       `{"id":"c","parent":"p","ord":"a","title":"c","done":true}\n` +
       `{"id":"m","ord":"a","mirror":"p"}`,
   )
-  const rows = rowsOf(derive(nodes), nodes, "a.jsonl")
-  const [mirror, node] = rows
-  expect(mirror?.kind).toBe("mirror")
-  // `at` is the record occupying the place; `shows` is what is drawn there.
-  expect(mirror?.at.node.id).toBe("m")
-  expect(mirror?.shows?.node.id).toBe("p")
-  expect(mirror?.children.map((row) => row.at.node.id)).toEqual(["c"])
+  const rows = rowsOf(derive(nodes), "a.jsonl")
+  const mirror = drawn(rows, 0)
+  expect(mirror.kind).toBe("mirror")
+  // `at` is the record occupying the place; `shows` is what is drawn there —
+  // and it is known to be a regular node, so its title is a field read.
+  expect(mirror.at.node.id).toBe("m")
+  expect(mirror.shows.node.id).toBe("p")
+  expect(mirror.shows.node.title).toBe("p")
+  expect(mirror.children.map((row) => row.at.node.id)).toEqual(["c"])
   // And it shows the target's status, the same one the index computed.
-  expect(mirror?.status).toBe("done")
-  expect(node?.kind).toBe("node")
-  expect(node?.shows).toBe(node?.at)
+  expect(mirror.status).toBe("done")
+  const node = drawn(rows, 1)
+  expect(node.kind).toBe("node")
+  // A regular node shows itself — the very record, not a copy of it.
+  expect(node.at).toBe(node.shows)
+})
+
+// A mirror of a mirror is legal — nothing in the format forbids a second
+// pointer to a pointer — and following one hop would leave a row standing for
+// a record with no title and no children of its own: a legal set the reader
+// cannot draw. So the chain is followed to its end, and the row draws the
+// children of the node it ended at.
+test("a mirror of a mirror shows the node at the end of the chain, with its children", () => {
+  const nodes = nodesOf(
+    `{"id":"p","ord":"c","title":"the real one"}\n` +
+      `{"id":"kid","parent":"p","ord":"a","title":"kid"}\n` +
+      `{"id":"hop","ord":"b","mirror":"p"}\n` +
+      `{"id":"far","ord":"a","mirror":"hop"}`,
+  )
+  const far = drawn(rowsOf(derive(nodes), "a.jsonl"), 0)
+  expect(far.at.node.id).toBe("far")
+  expect(far.kind).toBe("mirror")
+  // Through both hops, to the node that actually carries a title…
+  expect(far.shows.node.id).toBe("p")
+  expect(far.shows.node.title).toBe("the real one")
+  // …and it draws THAT node's children, under this place's own key. The
+  // intermediate mirror has no children of its own, so a walk that stopped at
+  // it would draw an empty row.
+  expect(shape([far])).toEqual(["/far mirror", "/far/kid node"])
 })
 
 // A row's key is the identity of the PLACE, not of the node. The same node
@@ -200,7 +261,7 @@ test("one node reached through two places has two keys", () => {
       `{"id":"c","parent":"p","ord":"a","title":"c"}\n` +
       `{"id":"m","ord":"a","mirror":"p"}`,
   )
-  const rows = shape(rowsOf(derive(nodes), nodes, "a.jsonl"))
+  const rows = shape(rowsOf(derive(nodes), "a.jsonl"))
   expect(rows).toEqual(["/m mirror", "/m/c node", "/p node", "/p/c node"])
   expect(new Set(rows).size).toBe(rows.length)
 })
@@ -210,10 +271,51 @@ test("one node reached through two places has two keys", () => {
 // refused the set, and the reader is looking at it to find out why.
 test("a mirror with no target is a dangling row with no children", () => {
   const nodes = nodesOf(`{"id":"m","ord":"a","mirror":"gone"}`)
-  const rows = rowsOf(derive(nodes), nodes, "a.jsonl")
-  expect(rows.map((row) => row.kind)).toEqual(["dangling"])
-  expect(rows[0]?.shows).toBeUndefined()
+  const rows = rowsOf(derive(nodes), "a.jsonl")
+  expect(rows.map(stubbed)).toEqual(["dangling gone"])
+  // Nothing to draw, so the row carries no `shows` at all — a view switching
+  // on `kind` never has a placeholder to test for.
+  expect(rows.map((row) => "shows" in row)).toEqual([false])
   expect(rows[0]?.children).toEqual([])
+})
+
+// The id a dangling row names is the one the CHAIN died on. `b` exists here,
+// so "a mirror of `b`, which no node declares" would be a lie — it is `b`'s own
+// target that is missing, and only the walk knows that.
+test("a dangling row names where the chain died, not the first hop", () => {
+  const nodes = nodesOf(
+    `{"id":"a","ord":"a","mirror":"b"}\n{"id":"b","ord":"b","mirror":"c"}`,
+  )
+  const rows = rowsOf(derive(nodes), "a.jsonl")
+  expect(rows.map(stubbed)).toEqual(["dangling c", "dangling c"])
+  expect(rows.map((row) => row.at.node.id)).toEqual(["a", "b"])
+})
+
+// The other way a chain can fail to end: it comes back to a record it has
+// already followed. That is a cycle in the POINTERS, found before any tree is
+// drawn, and the row names the id it closed on rather than the first hop.
+test("a mirror chain that closes on itself is a cycle naming where it closed", () => {
+  const itself = nodesOf(`{"id":"m","ord":"a","mirror":"m"}`)
+  expect(rowsOf(derive(itself), "a.jsonl").map(stubbed)).toEqual(["cycle m"])
+
+  // Two mirrors showing each other: from `m1` the chain runs m1 → m2 → m1, so
+  // that place closed on `m1`, and the place at `m2` on `m2`.
+  const pair = nodesOf(
+    `{"id":"m1","ord":"a","mirror":"m2"}\n{"id":"m2","ord":"b","mirror":"m1"}`,
+  )
+  const rows = rowsOf(derive(pair), "a.jsonl")
+  expect(rows.map(stubbed)).toEqual(["cycle m1", "cycle m2"])
+  expect(rows.every((row) => row.children.length === 0)).toBe(true)
+
+  // And the id it closed on is not the id it started from: `a` points into a
+  // loop it is not itself part of, so the honest answer is `b`.
+  const into = nodesOf(
+    `{"id":"a","ord":"a","mirror":"b"}\n` +
+      `{"id":"b","ord":"b","mirror":"c"}\n` +
+      `{"id":"c","ord":"c","mirror":"b"}`,
+  )
+  expect(rowsOf(derive(into), "a.jsonl").map(stubbed))
+    .toEqual(["cycle b", "cycle b", "cycle c"])
 })
 
 // The headline case for the cycle guard: a mirror of `a` placed inside `a`.
@@ -225,7 +327,11 @@ test("a mirror inside its own subtree is a cycle stub, not a hang", () => {
   const nodes = nodesOf(
     `{"id":"a","ord":"a","title":"a"}\n{"id":"m","parent":"a","ord":"b","mirror":"a"}`,
   )
-  expect(shape(rowsOf(derive(nodes), nodes, "a.jsonl"))).toEqual(["/a node", "/a/m cycle"])
+  const rows = rowsOf(derive(nodes), "a.jsonl")
+  expect(shape(rows)).toEqual(["/a node", "/a/m cycle"])
+  // And it says which ancestor it closed on, which is what a view would
+  // otherwise have to guess from the mirror's own id.
+  expect(rows[0]?.children.map(stubbed)).toEqual(["cycle a"])
 
   // Any depth, not just directly under the target: the guard is the ancestors
   // of the place, not the parent of the mirror.
@@ -234,26 +340,29 @@ test("a mirror inside its own subtree is a cycle stub, not a hang", () => {
       `{"id":"b","parent":"a","ord":"a","title":"b"}\n` +
       `{"id":"m","parent":"b","ord":"b","mirror":"a"}`,
   )
-  expect(shape(rowsOf(derive(deep), deep, "a.jsonl")))
-    .toEqual(["/a node", "/a/b node", "/a/b/m cycle"])
+  const deepRows = rowsOf(derive(deep), "a.jsonl")
+  expect(shape(deepRows)).toEqual(["/a node", "/a/b node", "/a/b/m cycle"])
+  expect(deepRows[0]?.children[0]?.children.map(stubbed)).toEqual(["cycle a"])
 })
 
 // Every `.jsonl` is an independent tree, so the rows of a file are its own
 // roots — the set is flat and carries every file's nodes, so the filtering is
 // what makes "the rows of this file" mean anything at all.
 test("roots are the requested file's own top-level nodes, in ord order", () => {
-  const nodes = setOf({
+  const nodes = nodesOfFiles({
     "a.jsonl": `{"id":"second","ord":"b","title":"b"}\n` +
       `{"id":"first","ord":"a","title":"a"}\n` +
       `{"id":"kid","parent":"first","ord":"a","title":"kid"}`,
     "b.jsonl": `{"id":"elsewhere","ord":"a","title":"elsewhere"}`,
   })
+  // One `Derived` for every file: it carries the nodes it was built from, so
+  // the rows of two files cannot be drawn from two different revisions.
   const derived = derive(nodes)
-  expect(shape(rowsOf(derived, nodes, "a.jsonl")))
+  expect(shape(rowsOf(derived, "a.jsonl")))
     .toEqual(["/first node", "/first/kid node", "/second node"])
-  expect(shape(rowsOf(derived, nodes, "b.jsonl"))).toEqual(["/elsewhere node"])
+  expect(shape(rowsOf(derived, "b.jsonl"))).toEqual(["/elsewhere node"])
   // A file with no nodes of its own draws nothing, rather than everything.
-  expect(rowsOf(derived, nodes, "c.jsonl")).toEqual([])
+  expect(rowsOf(derived, "c.jsonl")).toEqual([])
 })
 
 // ── titles ─────────────────────────────────────────────────────────────

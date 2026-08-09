@@ -75,6 +75,11 @@ export const Located = Schema.Struct({
 })
 export type Located = typeof Located.Type
 
+/** A located record already known to be a regular node — what a mirror chain
+ *  resolves to, and what a row displays. Carrying the narrowing in the type
+ *  is what saves every consumer from re-deriving it with a field test. */
+export type LocatedRegular = Located & { readonly node: RegularNode }
+
 /** Ids are slugs — a chosen name or a minted short string. The shape is
  *  checked rather than assumed because ids appear in URLs, in `#tag`-adjacent
  *  text and as bare wire keys. */
@@ -85,3 +90,16 @@ export const ID_SHAPE = /^[A-Za-z0-9_-]+$/
  *  before the acyclicity check, and only there. */
 export const EDGE_FIELDS = ["after", "blocks", "see"] as const
 export type EdgeField = (typeof EDGE_FIELDS)[number]
+
+/** What a served file is, by its name. An outline is a `.jsonl`, a document is
+ *  a `.md`, and anything else is not part of the set.
+ *
+ *  It lives HERE rather than in whatever happens to read a directory, because
+ *  it is a statement about the format: the error that says "no such `.md` file
+ *  is served" and the field documented as "every `.jsonl` found" are both in
+ *  this package, and phases 3, 4 and 7 each need the same answer for a
+ *  different reason. None of them can import the server. */
+export type FileKind = "outline" | "document"
+
+export const fileKind = (path: string): FileKind | null =>
+  path.endsWith(".jsonl") ? "outline" : path.endsWith(".md") ? "document" : null

@@ -42,7 +42,7 @@ const solidJsx: BunPlugin = {
   },
 }
 
-export const buildClient = async (distDir: string): Promise<void> => {
+const buildClient = async (distDir: string): Promise<void> => {
   await buildSurfaceClient({
     entrypoint: resolve(CLIENT, "main.tsx"),
     distDir,

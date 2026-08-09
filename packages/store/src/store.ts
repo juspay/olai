@@ -130,20 +130,28 @@ const readMatching = (root: string, match: (path: string) => boolean) =>
       Effect.mapError((cause) => new PlatformFailure({ path: root, cause })),
     )
 
-    const contents = new Map<string, string>()
-    for (const entry of [...entries].sort()) {
-      // `readDirectory` yields the platform's separator; the codec's rules and
-      // every `file:line` a consumer prints are in `/`, so the conversion
-      // happens once, here, at the edge — through the same Path service the
-      // bytes come from, not through an ambient `process.platform`.
-      const path = entry.split(path_.sep).join("/")
-      if (!match(path)) continue
-      contents.set(
-        path,
-        yield* fs.readFileString(path_.join(root, entry)).pipe(
+    // `readDirectory` yields the platform's separator; the codec's rules and
+    // every `file:line` a consumer prints are in `/`, so the conversion
+    // happens once, here, at the edge — through the same Path service the
+    // bytes come from, not through an ambient `process.platform`.
+    const matched = [...entries]
+      .sort()
+      .map((entry) => [entry, entry.split(path_.sep).join("/")] as const)
+      .filter(([, path]) => match(path))
+
+    // Concurrently, because this is latency in front of the listener: nothing
+    // is bound until the last file has been read. Bounded rather than
+    // unbounded so a large directory does not open every descriptor at once,
+    // and `Effect.forEach` preserves input order, so the map is still built in
+    // the stable order two loads of one directory need.
+    const read = yield* Effect.forEach(
+      matched,
+      ([entry, path]) =>
+        fs.readFileString(path_.join(root, entry)).pipe(
           Effect.mapError((cause) => new PlatformFailure({ path, cause })),
+          Effect.map((contents) => [path, contents] as const),
         ),
-      )
-    }
-    return contents
+      { concurrency: 16 },
+    )
+    return new Map(read)
   })

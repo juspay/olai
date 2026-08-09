@@ -2,27 +2,23 @@ import { expect, test } from "bun:test"
 import { Result } from "effect"
 
 import type { OutlineError } from "./errors.ts"
+import { FIXTURE_FILE, outlineOf } from "./fixtures.testlib.ts"
 import { parseOutline } from "./parse.ts"
-import type { Outline } from "./set.ts"
 
 /** The errors of a line-level failure. Written as a helper so every test below
- *  reads as "this text, these errors" and nothing else. */
-const errorsOf = (contents: string, file = "a.jsonl"): ReadonlyArray<OutlineError> => {
+ *  reads as "this text, these errors" and nothing else. The other half — "this
+ *  text parses" — is `outlineOf`, which every other file in this package uses
+ *  to build its fixtures, so the acceptances here are the same function they
+ *  are all standing on. */
+const errorsOf = (
+  contents: string,
+  file = FIXTURE_FILE,
+): ReadonlyArray<OutlineError> => {
   const parsed = parseOutline(file, contents)
   if (Result.isSuccess(parsed)) {
     throw new Error(`expected \`${contents}\` to be rejected, but it parsed`)
   }
   return parsed.failure
-}
-
-const outlineOf = (contents: string, file = "a.jsonl"): Outline => {
-  const parsed = parseOutline(file, contents)
-  if (Result.isFailure(parsed)) {
-    throw new Error(
-      `expected \`${contents}\` to parse: ${parsed.failure.map((e) => e.message).join("; ")}`,
-    )
-  }
-  return parsed.success
 }
 
 const first = (errors: ReadonlyArray<OutlineError>): OutlineError => {

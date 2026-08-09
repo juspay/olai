@@ -2,31 +2,8 @@ import { expect, test } from "bun:test"
 import { Result } from "effect"
 
 import { isCrossFile, type OutlineError } from "./errors.ts"
-import { parseOutline } from "./parse.ts"
-import type { OutlineSet } from "./set.ts"
+import { setOf } from "./fixtures.testlib.ts"
 import { resolveRelative, validate } from "./validate.ts"
-
-/** A set built the way one is really built: JSONL text per file, through the
- *  parser, then flattened — every `Located` already names its file, so the set
- *  the validator sees is one list of nodes plus the list of files found. A
- *  fixture that failed to parse would be testing the wrong phase, so it throws
- *  here rather than arriving at the validator as an empty file. */
-const setOf = (
-  files: Record<string, string>,
-  documents: ReadonlyArray<string> = [],
-): OutlineSet => ({
-  files: Object.keys(files),
-  nodes: Object.entries(files).flatMap(([file, contents]) => {
-    const parsed = parseOutline(file, contents)
-    if (Result.isFailure(parsed)) {
-      throw new Error(
-        `fixture ${file} does not parse: ${parsed.failure.map((e) => e.message).join("; ")}`,
-      )
-    }
-    return [...parsed.success.nodes]
-  }),
-  documents,
-})
 
 const errorsOf = (
   files: Record<string, string>,

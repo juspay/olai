@@ -5,6 +5,7 @@ import {
   ErrorCode,
   isCrossFile,
   type OutlineError,
+  reportStage,
   type Stage,
   stageOf,
 } from "./errors.ts"
@@ -45,6 +46,18 @@ test("line 10 sorts after line 2, not before it", () => {
     .toBeGreaterThan(0)
 })
 
+// Files are compared by code point, not by `localeCompare`: a locale-sensitive
+// sort orders `B.jsonl` after `a.jsonl` in English and elsewhere would not, so
+// "two loads of the same broken set produce the same list" would stop being
+// true between two machines — which is the whole reason to order it at all.
+test("files sort by code point, not by locale", () => {
+  expect(order([error("a.jsonl", 1, "bad-id"), error("B.jsonl", 1, "bad-id")]))
+    .toEqual(["B.jsonl:1:bad-id", "a.jsonl:1:bad-id"])
+  // `Order.Order` is still a comparator, which is what `sort` above is handed.
+  expect(compareErrors(error("a.jsonl", 1, "bad-id"), error("B.jsonl", 1, "bad-id")))
+    .toBeGreaterThan(0)
+})
+
 // The browser groups cross-file errors on their own, because "which file is
 // broken" has no single answer for them — a duplicate id across two files
 // implicates both.
@@ -77,6 +90,23 @@ test("the stage is decided by the code alone", () => {
   expect(stageOf("duplicate-id")).toBe("set")
   expect(stageOf("mirror-cycle")).toBe("set")
   expect(stageOf("stored-derived-state")).toBe("set")
+})
+
+// A whole report has a stage too, and it is the pessimistic one: a file is
+// decoded whole or not at all, and the set-wide rules do not run until every
+// file parses. So one `line` error anywhere means the `set` questions have not
+// been asked yet, and the view says so rather than letting a reader conclude
+// from a short list that the rest of the set is fine.
+test("a report is at the line stage while anything in it is", () => {
+  const line = error("a.jsonl", 1, "not-json")
+  const set = error("a.jsonl", 2, "unknown-parent")
+  expect(reportStage([set, set])).toBe("set")
+  expect(reportStage([line])).toBe("line")
+  // One line error among many set errors still holds the whole report back —
+  // the position in the list is not what decides it.
+  expect(reportStage([set, line, set])).toBe("line")
+  // Nothing wrong is a report that got all the way through both halves.
+  expect(reportStage([])).toBe("set")
 })
 
 // The drift guard the old two-place declaration could not have: the codes and

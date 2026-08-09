@@ -10,6 +10,7 @@ import {
   DATE,
   DESC,
   NODE,
+  oneLine,
   OUTLINE_TREE,
   POLL_TIMEOUT,
   TAG,
@@ -17,15 +18,17 @@ import {
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
-/** Collapse runs of whitespace, and drop the `#` that marks a tag.
+/** One line, with the `#` that marks a tag dropped.
  *
  *  The `#` is dropped on BOTH sides of every title comparison because the
  *  format stores the title verbatim and leaves the split to the view: whether
  *  the styled tag reads `#home` or `home` is a presentation choice the view is
  *  entitled to make. What a title assertion is actually for is that the words
- *  survive being cut apart into text and tag spans and put back together. */
-const readable = (text: string): string =>
-  text.replace(/\s+/g, " ").replace(/#/g, "").trim();
+ *  survive being cut apart into text and tag spans and put back together.
+ *
+ *  Stripped BEFORE the whitespace is flattened, so a `#` the view sets off on
+ *  its own does not leave a double space behind. */
+const readable = (text: string): string => oneLine(text.replace(/#/g, ""));
 
 Then("the tree is shown", async function (this: OlaiWorld) {
   await this.page
@@ -204,13 +207,17 @@ Then(
   },
 );
 
-When("I collapse the node {string}", async function (this: OlaiWorld, id: string) {
-  await clickToggle(this, id);
-});
-
-When("I expand the node {string}", async function (this: OlaiWorld, id: string) {
-  await clickToggle(this, id);
-});
+/** One toggle, two sentences. The control is the same button either way — it
+ *  is the node's CURRENT state that decides which word the scenario reads
+ *  naturally — so the alternation keeps both readings without registering the
+ *  same body twice. A `Given … is expanded` above establishes the state each
+ *  reading assumes. */
+When(
+  "I collapse/expand the node {string}",
+  async function (this: OlaiWorld, id: string) {
+    await clickToggle(this, id);
+  },
+);
 
 Then(
   "the children of {string} are hidden",
@@ -268,9 +275,13 @@ Then(
 
 // ── mirrors ────────────────────────────────────────────────────────────
 
+/** `data-kind` is the row's whole classification — "node" | "mirror" |
+ *  "cycle" | "dangling" — so asserting on it says more than a boolean did:
+ *  a row that degraded into a cycle stub or a dangling marker now fails here
+ *  naming what it became, rather than reading as a plain "not a mirror". */
 Then(
   "the node {string} is marked as a mirror",
   async function (this: OlaiWorld, id: string) {
-    await this.expectNodeAttribute(id, "data-mirror", "true");
+    await this.expectNodeAttribute(id, "data-kind", "mirror");
   },
 );
