@@ -65,6 +65,17 @@ export const TAG = selector(TESTID.tag);
 export const DATE = selector(TESTID.date);
 export const DESC = selector(TESTID.desc);
 export const TOGGLE = selector(TESTID.toggle);
+/** The bullet on every row: the link to that node's own page. */
+export const ZOOM = selector(TESTID.zoom);
+/** The heading of a zoomed page. Carries the CANONICAL node's id, which is
+ *  what lets a scenario say "zooming a mirror lands on the node itself". */
+export const ZOOM_TITLE = selector(TESTID.zoomTitle);
+export const BREADCRUMBS = selector(TESTID.breadcrumbs);
+export const CRUMB = selector(TESTID.crumb);
+/** The per-view Visible/Hidden switch for nodes that are done. */
+export const DONE_TOGGLE = selector(TESTID.doneToggle);
+/** Shown in the main pane when `/n/<id>` names no node. The sidebar stays. */
+export const NOT_FOUND = selector(TESTID.notFound);
 /** Shown INSTEAD of the sidebar and the tree when the set does not validate. */
 export const ERROR_VIEW = selector(TESTID.errorView);
 export const ERROR_FILE_GROUP = selector(TESTID.errorFileGroup);
@@ -135,6 +146,19 @@ export class OlaiWorld extends World {
       .first()
       .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await this.waitForFrame();
+  }
+
+  /** Open a node's own page COLD — the permalink, in a fresh document, with
+   *  no click history behind it. That is the whole promise of `/n/<id>`, and
+   *  navigating there in-app instead would never test it. */
+  async openNode(id: string): Promise<void> {
+    await this.open(`/n/${encodeURIComponent(id)}`);
+  }
+
+  /** The path the browser is actually at — what a reader would copy out of
+   *  the URL bar, without the origin the harness picked at random. */
+  pathname(): string {
+    return new URL(this.page.url()).pathname;
   }
 
   /** One sidebar entry, by the relative path it stands for. */

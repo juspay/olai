@@ -1,16 +1,45 @@
 # @olai/web — the SolidJS client, and the build that produces it
 
-A sidebar of the outlines found, one of them open in the main pane, and the
-error view that replaces both when the set does not load. SolidJS over a
-WebSocket, styled with Tailwind v4, bundled by `Bun.build`.
+A sidebar of the outlines found, one page open in the main pane, and the error
+view that replaces both when the set does not load. SolidJS over a WebSocket,
+styled with Tailwind v4, bundled by `Bun.build`.
 
 The client computes nothing about the format on its own. `@olai/format` derives
-status, sibling order, mirror expansion and the guard that stops a mirror
-inside its own subtree, and hands back rows; `Tree.tsx` turns a row into markup
-and nothing else. The view and the validator agree about what a file means
-because they run the same code, not because two implementations were written to
-the same paragraph. The one thing this package does interpret is a note, which
-is markdown, rendered and sanitised at view time.
+status, sibling order, mirror expansion, a node's ancestry and the guard that
+stops a mirror inside its own subtree, and hands back rows; `Tree.tsx` turns a
+row into markup and nothing else. The view and the validator agree about what a
+file means because they run the same code, not because two implementations were
+written to the same paragraph. The one thing this package does interpret is a
+note, which is markdown, rendered and sanitised at view time.
+
+## Two routes, and what each is a property of
+
+`routes.ts` is the whole of the URL contract, and it is a bijection its own
+test insists on: a link the app writes has to be a link it can read back.
+
+- `/o/<file>` names a file on disk, so it spells the path.
+- `/n/<id>` names a node, and an id is all it may spell. Ids are unique across
+  the loaded set and survive renames and moves across files, so the permalink
+  outlives every edit short of a delete — while a URL that also carried the
+  outline would be a URL that could disagree with the file it named.
+
+`page.ts` turns a route into the page it names, in one place, which is what
+keeps the sidebar and the main pane agreeing: the entry that lights up is the
+outline the OPEN page lives in, and for a zoomed node that is the canonical
+node's file — not something the URL says.
+
+Navigation is real `<a href>`s (`router.tsx`), so ⌘-click and "copy link
+address" behave the way they do everywhere else; a plain left click is
+intercepted and answered in place. There is no router library: two addresses do
+not need one.
+
+## What belongs to a reading, not to the file
+
+`view.ts` holds the two per-view switches — what is folded, and whether done
+nodes are drawn. Neither goes to the server or to disk, and hiding what is done
+is a row not drawn rather than anything marked. Navigating resets them: a page
+you zoom into is a new thing to read, and inheriting the last page's folds
+would fold places this reader has never seen.
 
 ## No exports, on purpose
 

@@ -1,0 +1,83 @@
+@corpus:good
+Feature: Zoom and navigate
+  Every node is a page. Clicking a bullet zooms into it, its address is
+  `/n/<id>`, and because ids are stable and unique across the whole served
+  directory that address is a permalink: these scenarios load it cold, in a
+  fresh tab, and expect the same page.
+
+  What is DERIVED is the interesting half. The crumbs above a zoomed node are
+  its canonical parent chain, worked out from the set rather than from how you
+  got there — so zooming a mirror lands on the node itself, in the node's own
+  file, under the node's own ancestors, and not on a second page for the
+  placement that was clicked.
+
+  Scenario: Clicking a bullet zooms into that node
+    Given I open the outline "house.jsonl"
+    And I mark the page
+    When I zoom into the node "install"
+    Then the zoomed node is "install"
+    And the address is "/n/install"
+    And the node "handles" is shown
+    # A route, not a reload: the page answered in place.
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: A permalink opens the same page cold
+    When I open the node "handles"
+    Then the zoomed node is "handles"
+    And the breadcrumbs are "house.jsonl, kitchen remodel #home, install the cabinets"
+    And the outline list is shown
+    And there should be no page errors
+
+  Scenario: A zoomed node shows its own note and children, not its siblings'
+    When I open the node "kitchen"
+    Then the zoomed node is "kitchen"
+    And the node "install" is shown
+    And the node "garden" is not shown
+
+  Scenario: Breadcrumbs walk back up
+    Given I open the node "handles"
+    When I follow the breadcrumb "install the cabinets"
+    Then the zoomed node is "install"
+    And the address is "/n/install"
+
+  Scenario: The trail roots at the node's own outline
+    Given I open the node "handles"
+    When I follow the breadcrumb "house.jsonl"
+    Then the tree is shown
+    And the address is "/o/house.jsonl"
+
+  Scenario: Zooming a mirror lands on the node it stands for
+    # `kitchen-herbs` lives in house.jsonl and mirrors `herbs` in garden.jsonl.
+    # There is one page per node, so this is `herbs`' page — with `herbs`'
+    # crumbs, in `herbs`' file, whichever placement was clicked.
+    Given I open the outline "house.jsonl"
+    When I zoom into the node "kitchen-herbs"
+    Then the zoomed node is "herbs"
+    And the breadcrumbs are "garden.jsonl, garden #outdoors"
+    And the node "basil" is shown
+    And there should be no page errors
+
+  Scenario: Done nodes can be hidden, and come back
+    Given I open the outline "house.jsonl"
+    Then the node "demo" is shown
+    When I hide the done nodes
+    Then the node "demo" is not shown
+    And the node "order" is shown
+    When I show the done nodes
+    Then the node "demo" is shown
+
+  Scenario: Hiding done nodes works on a zoomed page too
+    Given I open the node "herbs"
+    Then the node "basil" is shown
+    When I hide the done nodes
+    Then the node "basil" is not shown
+    And the node "mint" is shown
+
+  Scenario: An id nothing declares is a clean not-found
+    When I open the node "no-such-node"
+    Then a not-found is shown
+    And no outline tree is shown
+    # Not a dead end: the sidebar is still the way home.
+    And the outline list is shown
+    And there should be no page errors

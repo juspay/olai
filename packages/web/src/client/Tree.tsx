@@ -13,15 +13,20 @@
  * knows the id it closed on. Recomputing either from the record here would
  * give the FIRST hop, and say something untrue about a mirror three hops long.
  *
- * The one thing the client interprets on its own is a note, which is markdown
- * and is rendered (sanitised) at view time — see ./markdown.ts.
+ * Every row's bullet is a link to that node's own page. The link is on the
+ * RECORD's id, not the node it shows: a mirror's id resolves through its chain
+ * to the same canonical page, so the two spellings agree and nothing has to
+ * resolve anything here.
  */
 
-import { type Row, type Status, titleParts } from "@olai/format"
+import { type Row } from "@olai/format"
 import { createMemo, For, Match, Show, Switch } from "solid-js"
 
-import { renderMarkdown } from "./markdown.ts"
+import { NodeTitle } from "./NodeTitle.tsx"
+import { Note } from "./Note.tsx"
+import { Link } from "./router.tsx"
 import { TESTID } from "./testids.ts"
+import { TONE } from "./tone.ts"
 
 export interface TreeProps {
   readonly rows: ReadonlyArray<Row>
@@ -45,15 +50,6 @@ export function Tree(props: TreeProps) {
   )
 }
 
-/** Status is a property of the row, so it styles the title directly rather
- *  than through a `[data-status]` descendant rule — the attribute stays for
- *  the tests, which is the only reader that wants it as data. */
-const TONE: Record<Status, string> = {
-  done: "text-done line-through",
-  doing: "text-doing",
-  open: "",
-}
-
 function Branch(props: {
   readonly row: Row
   readonly collapsed: ReadonlySet<string>
@@ -66,10 +62,6 @@ function Branch(props: {
   const shown = () => (props.row.kind === "node" || props.row.kind === "mirror")
     ? props.row.shows.node
     : undefined
-  const html = createMemo(() => {
-    const desc = shown()?.desc
-    return desc === undefined ? undefined : renderMarkdown(desc)
-  })
 
   return (
     <li
@@ -99,6 +91,16 @@ function Branch(props: {
           </button>
         </Show>
 
+        <Link
+          route={{ kind: "node", id: props.row.at.node.id }}
+          class="w-4 shrink-0 text-center text-muted no-underline hover:text-accent"
+          testid={TESTID.zoom}
+          title="zoom into this node"
+          label={`zoom into ${props.row.at.node.id}`}
+        >
+          •
+        </Link>
+
         <Switch>
           <Match when={props.row.kind === "dangling" ? props.row : undefined}>
             {(row) => (
@@ -118,16 +120,7 @@ function Branch(props: {
                     ⇢
                   </span>
                 </Show>
-                <For each={titleParts(node().title)}>
-                  {(part) =>
-                    part.kind === "tag"
-                      ? (
-                        <span class="font-semibold text-accent" data-testid={TESTID.tag}>
-                          #{part.tag}
-                        </span>
-                      )
-                      : <>{part.text}</>}
-                </For>
+                <NodeTitle title={node().title} />
               </span>
             )}
           </Match>
@@ -145,20 +138,13 @@ function Branch(props: {
         </Show>
       </div>
 
-      <Show when={!collapsed() && html()}>
-        {(rendered) => (
-          <div
-            class="olai-note mt-1 mb-2 ml-6 text-[0.9375rem] text-muted"
-            data-testid={TESTID.desc}
-            // Safe because the pipeline sanitises: see ./markdown.ts.
-            innerHTML={rendered()}
-          />
-        )}
+      <Show when={!collapsed() && shown()?.desc}>
+        {(desc) => <Note desc={desc()} class="mt-1 mb-2 ml-11 text-[0.9375rem] text-muted" />}
       </Show>
 
       <Show when={props.row.kind === "cycle" ? props.row : undefined}>
         {(row) => (
-          <div class="ml-6 text-sm text-alarm">
+          <div class="ml-11 text-sm text-alarm">
             this mirror is inside the subtree it shows (`{row().through}`) — not
             expanded
           </div>

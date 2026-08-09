@@ -28,6 +28,12 @@ every `.jsonl` outline and every `.md` document, and serves them to a browser.
 It binds to loopback by default: the surface is unauthenticated, so anyone who
 can reach the port can read every outline under the directory.
 
+Every node is also a page of its own at `/n/<id>` — the node as the heading,
+its note, its children as the tree — with breadcrumbs up its ancestry. Ids are
+stable and unique across the whole directory, so that address survives renames
+and moves, even to another file, and a mirror of a node resolves to the same
+one page as the node itself.
+
 If the set does not validate, the page is the list of errors instead — every
 one naming `file:line`, grouped by the file that has to be edited, with the
 ones that implicate two files in their own section. Error quality is the

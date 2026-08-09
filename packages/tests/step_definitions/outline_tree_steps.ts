@@ -50,6 +50,25 @@ Then("the node {string} is shown", async function (this: OlaiWorld, id: string) 
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
+/** Not on screen at all. Poll for the node to GO — hiding what is done
+ *  re-renders, and reading the count once races the frame that drops it. */
+Then(
+  "the node {string} is not shown",
+  async function (this: OlaiWorld, id: string) {
+    await this.node(id)
+      .first()
+      .waitFor({ state: "detached", timeout: POLL_TIMEOUT })
+      .catch(() => undefined);
+    // `:visible`, not presence: dropping the row and hiding it are both
+    // legitimate ways to hide something, and they read the same to a person.
+    assert.strictEqual(
+      await this.page.locator(`${NODE}[data-node-id="${id}"]:visible`).count(),
+      0,
+      `"${id}" is on screen, and this step says it should not be`,
+    );
+  },
+);
+
 Then(
   "the node {string} is a child of {string}",
   async function (this: OlaiWorld, child: string, parent: string) {
