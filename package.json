@@ -1,0 +1,24 @@
+{
+  "name": "olai",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "typecheck": "bun --cwd packages/core typecheck"
+  },
+  "//dependencies": "Runtime dependencies of the hydrated @kolu/* sources are declared HERE, at the root, and not only in the workspace member that imports them: the isolated linker (bunfig.toml) symlinks the root package's direct dependencies into the root node_modules, which is where node_modules/@kolu/<name>/src/*.ts resolves its own imports by walking up. A hydrated source importing something absent from this list is the failure that invariant exists to prevent.",
+  "dependencies": {
+    "effect": "4.0.0-beta.106"
+  },
+  "//overrides": "One effect instance, always. `effect` is pinned to the EXACT version the npins-pinned kolu declares (npins/sources.json → kolu → packages/surface/package.json), and pinned here so a transitive bump cannot smuggle in a second copy: Effect's error narrowing is `_tag`-structural precisely because two module instances would otherwise stop recognising each other's classes — and `instanceof`, Context keys and Schema identity do not even have that fallback. Re-pinning kolu means re-reading its version and moving this line with it.",
+  "overrides": {
+    "effect": "4.0.0-beta.106"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.0",
+    "typescript": "^5.8.0"
+  }
+}

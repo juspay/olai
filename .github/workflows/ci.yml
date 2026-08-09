@@ -1,0 +1,47 @@
+# The required PR check: one job per platform, each running THIS repo's
+# [metadata("ci")] DAG (ci/mod.just) through odu — coordinator and lane on the
+# same runner (a localhost lane).
+#
+# --no-post: this workflow is the green/red Actions check only. Commit-status
+# posting (the ci::<recipe>@<platform> contexts) belongs to the local / MCP-
+# driven run, which holds the durable per-SHA logs those statuses point at; a
+# status posted from here would reference logs on a runner that is already
+# gone. So the job needs no statuses:write and no token.
+#
+# odu itself is deliberately unpinned — it is the runner, not a dependency of
+# the build. npins pins what the build is made of (nixpkgs, kolu).
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  odu:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            system: x86_64-linux
+          - os: macos-latest
+            system: aarch64-darwin
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Check out the PR HEAD, not the synthetic merge ref, so the run
+          # tests the sha the PR is actually about.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: nixbuild/nix-quick-install-action@v31
+      - name: odu runs the CI DAG
+        run: |
+          nix run --accept-flake-config github:juspay/odu -- run \
+            --no-post \
+            --platform ${{ matrix.system }} \
+            --host ${{ matrix.system }}=localhost
