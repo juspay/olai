@@ -26,11 +26,8 @@ export const codec: Codec<DecodedFile, OutlineSet, ReadonlyArray<OutlineError>> 
 
   decode: (path, contents) =>
     fileKind(path) === "document"
-      ? Result.succeed({ kind: "document" })
-      : Result.map(
-        parseOutline(path, contents),
-        (outline) => ({ kind: "outline", outline }) as const,
-      ),
+      ? Result.succeed(null)
+      : parseOutline(path, contents),
 
   /** Failures included: whether an unreadable file is a hole the rest of the
    *  set renders around or a reason to hold the last good snapshot is a

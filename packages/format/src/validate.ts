@@ -57,13 +57,14 @@ export const validate = (
   // unpublishable — the nodes are there and their targets are not — so the
   // report becomes the parse errors, which is the cause, and the last good
   // snapshot stays on screen.
-  const withheld = set.broken.length > 0 &&
-    errors.some((error) => RESOLVES_ACROSS_FILES.has(error.code))
-  const found = withheld
-    ? errors.filter((error) => !RESOLVES_ACROSS_FILES.has(error.code))
-    : errors
+  const withheld = set.broken.length === 0
+    ? []
+    : errors.filter((error) => RESOLVES_ACROSS_FILES.has(error.code))
+  const found = withheld.length === 0
+    ? errors
+    : errors.filter((error) => !RESOLVES_ACROSS_FILES.has(error.code))
 
-  return found.length > 0 || withheld
+  return found.length > 0 || withheld.length > 0
     ? Result.fail([...unreadable, ...found].sort(compareErrors))
     : Result.succeed(set)
 }

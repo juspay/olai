@@ -129,17 +129,24 @@ export const make = <F, S, E>(
       Effect.flatMap(probe.run, (files) => files === null ? Effect.void : publish(files)),
     )
 
+    // WHEN to look and HOW to look are kept apart: every trigger does exactly
+    // one thing, which is open this latch, and one loop does the looking. A
+    // trigger that probed on its own behalf would be a second place for the
+    // settle delay to be forgotten.
     const dirty = yield* Latch.make(false)
 
     if (options.watch !== false) {
-      // An event only opens the latch. Retried rather than fatal: losing the
-      // watcher costs latency, and the backstop is what keeps that from
-      // costing correctness.
+      // Retried rather than fatal: losing the watcher costs latency, and the
+      // backstop is what keeps that from costing correctness.
       yield* Stream.runForEach(disk.watch, () => dirty.open).pipe(
         Effect.retry(Schedule.spaced(WATCH_RETRY)),
         Effect.forkScoped({ startImmediately: true }),
       )
     }
+
+    yield* Effect.forever(
+      Effect.andThen(Effect.sleep(options.backstop ?? DEFAULT_BACKSTOP), dirty.open),
+    ).pipe(Effect.forkScoped)
 
     // Close the latch AFTER the settle delay, so every trigger that arrived
     // during it is absorbed into this probe; anything arriving after it re-opens
@@ -149,15 +156,15 @@ export const make = <F, S, E>(
         yield* dirty.await
         yield* Effect.sleep(options.settle ?? DEFAULT_SETTLE)
         yield* dirty.close
-        yield* quietly(refresh)
+        // A probe that failed keeps the last good snapshot and says so in the
+        // log. Killing this fiber would leave a page live and permanently
+        // stale, which is the one failure mode a live store must not have; the
+        // next trigger, or the backstop, tries again.
+        yield* Effect.catchCause(
+          refresh,
+          (cause) => Effect.logWarning("olai store: probe failed", cause),
+        )
       }),
-    ).pipe(Effect.forkScoped)
-
-    yield* Effect.forever(
-      Effect.andThen(
-        Effect.sleep(options.backstop ?? DEFAULT_BACKSTOP),
-        quietly(refresh),
-      ),
     ).pipe(Effect.forkScoped)
 
     // LAST, and that order is the point: the watcher is armed first, so the
@@ -168,10 +175,3 @@ export const make = <F, S, E>(
 
     return { snapshot, errors, refresh }
   })
-
-/** A probe that failed keeps the last good snapshot and says so in the log.
- *  The alternative — killing the update fiber — would leave a page live and
- *  permanently stale, which is the one failure mode a live store must not
- *  have. The next trigger, or the backstop, tries again. */
-const quietly = <A, E>(effect: Effect.Effect<A, E>) =>
-  Effect.catchCause(effect, (cause) => Effect.logWarning("olai store: probe failed", cause))

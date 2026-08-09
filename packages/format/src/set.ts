@@ -62,12 +62,13 @@ export interface Outline {
   readonly nodes: ReadonlyArray<Located>
 }
 
-/** What one file decoded to: an outline's nodes, or a document, whose text is
- *  not carried — nothing renders a document yet, and the path is the whole of
- *  what `doc` needs. */
-export type DecodedFile =
-  | { readonly kind: "outline"; readonly outline: Outline }
-  | { readonly kind: "document" }
+/** What one file decoded to: an outline's nodes, or `null` for a document,
+ *  whose text is not carried — nothing renders a document yet, and the path is
+ *  the whole of what `doc` needs.
+ *
+ *  It carries no tag saying which it is, because `fileKind` already answers
+ *  that from the path and a second answer is one that could disagree. */
+export type DecodedFile = Outline | null
 
 /**
  * Decoded files into the set the validator judges.
@@ -91,14 +92,12 @@ export const assemble = (
   const broken: Array<BrokenFile> = []
 
   for (const [path, decoded] of files) {
-    if (fileKind(path) === "document") documents.push(path)
-    else outlines.push(path)
+    // What a file IS comes from its name and from nowhere else, so it is asked
+    // once, here, and holds whether the file decoded or not.
+    ;(fileKind(path) === "document" ? documents : outlines).push(path)
 
-    if (Result.isFailure(decoded)) {
-      broken.push({ file: path, errors: decoded.failure })
-      continue
-    }
-    if (decoded.success.kind === "outline") nodes.push(...decoded.success.outline.nodes)
+    if (Result.isFailure(decoded)) broken.push({ file: path, errors: decoded.failure })
+    else if (decoded.success !== null) nodes.push(...decoded.success.nodes)
   }
   return { files: outlines, nodes, documents, broken }
 }

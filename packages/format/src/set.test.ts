@@ -17,9 +17,10 @@ const decoded = (files: Record<string, Decoded>): ReadonlyMap<string, Decoded> =
   new Map(Object.entries(files))
 
 const outline = (file: string, contents: string): Decoded =>
-  Result.succeed({ kind: "outline", outline: { file, nodes: nodesOf(contents, file) } })
+  Result.succeed({ file, nodes: nodesOf(contents, file) })
 
-const document: Decoded = Result.succeed({ kind: "document" })
+/** A `.md`: found, served, and nothing of it decoded. */
+const document: Decoded = Result.succeed(null)
 
 const unreadable = (file: string, contents: string): Decoded =>
   Result.fail(failureOf(contents, file))

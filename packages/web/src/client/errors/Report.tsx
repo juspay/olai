@@ -6,12 +6,15 @@
  * `file:line`, a message and its related sites look the same wherever they are
  * read, and none of the three can quietly start summarising.
  *
- * Two shapes, because there are two situations. {@link Report} GROUPS: by the
- * file that has to be edited, with the errors implicating two files kept apart,
- * because "which file is broken" has no single answer for a dangling mirror or
- * a cross-file cycle and filing them under one of the two would be a guess.
- * {@link Rows} does not, and is for the case where the grouping is already on
- * screen — one file's errors, shown where that file's outline would have been.
+ * Two shapes, because there are two situations, and they are the whole of what
+ * this module publishes — the headings and paragraphs it draws are its own
+ * business, not a set of layout parts for callers to assemble errors out of.
+ * {@link Report} GROUPS: by the file that has to be edited, with the errors
+ * implicating two files kept apart, because "which file is broken" has no
+ * single answer for a dangling mirror or a cross-file cycle and filing them
+ * under one of the two would be a guess. {@link Rows} does not, and is for the
+ * case where the grouping is already on screen — one file's errors, shown where
+ * that file's outline would have been.
  */
 
 import { isCrossFile, type OutlineError } from "@olai/format"
@@ -56,10 +59,10 @@ export function Report(props: { readonly errors: ReadonlyArray<OutlineError> }) 
       <Show when={split().across.length > 0}>
         <section data-testid={TESTID.crossFileErrors}>
           <Heading>Across files</Heading>
-          <Lede>
+          <p class="mt-0 mb-4 max-w-3xl text-muted">
             These name two places at once — a reference that leaves its file, or
             a loop that closes through another one.
-          </Lede>
+          </p>
           <Rows errors={split().across} />
         </section>
       </Show>
@@ -75,17 +78,9 @@ export function Rows(props: { readonly errors: ReadonlyArray<OutlineError> }) {
   )
 }
 
-export function Heading(props: { readonly children: unknown }) {
+function Heading(props: { readonly children: unknown }) {
   return (
     <h2 class="mt-8 mb-2 font-mono text-base">{props.children as never}</h2>
-  )
-}
-
-export function Lede(props: { readonly children: unknown; readonly testid?: string }) {
-  return (
-    <p class="mt-0 mb-4 max-w-3xl text-muted" data-testid={props.testid}>
-      {props.children as never}
-    </p>
   )
 }
 

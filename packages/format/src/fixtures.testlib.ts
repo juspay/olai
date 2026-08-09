@@ -59,13 +59,10 @@ export const setOf = (
     new Map<string, Result.Result<DecodedFile, ReadonlyArray<OutlineError>>>([
       ...Object.entries(files).map(
         ([file, contents]) =>
-          [file, Result.succeed<DecodedFile>({
-            kind: "outline",
-            outline: outlineOf(contents, file),
-          })] as const,
+          [file, Result.succeed<DecodedFile>(outlineOf(contents, file))] as const,
       ),
       ...documents.map(
-        (file) => [file, Result.succeed<DecodedFile>({ kind: "document" })] as const,
+        (file) => [file, Result.succeed<DecodedFile>(null)] as const,
       ),
       ...Object.entries(broken).map(
         ([file, contents]) => [file, Result.fail(failureOf(contents, file))] as const,
