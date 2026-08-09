@@ -1,22 +1,28 @@
 import { expect, test } from "bun:test"
+import { Result } from "effect"
 
-import { nodesOf } from "./fixtures.testlib.ts"
+import type { OutlineError } from "./errors.ts"
+import { failureOf, nodesOf } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
 import { assemble, type DecodedFile } from "./set.ts"
 
-/** What a reader hands over: one decoded file per path, in the order it found
- *  them. A `Map` rather than a record, because the reader's order is part of
- *  the answer — `files` is documented as "every `.jsonl` found, in path order"
- *  — and it is the caller's iteration order that carries it. */
-const decoded = (files: Record<string, DecodedFile>): ReadonlyMap<string, DecodedFile> =>
+type Decoded = Result.Result<DecodedFile, ReadonlyArray<OutlineError>>
+
+/** What the store hands over: one decoded file per path, in the order it found
+ *  them, each either decoded or failed. A `Map` rather than a record, because
+ *  the reader's order is part of the answer — `files` is documented as "every
+ *  `.jsonl` found, in path order" — and it is the caller's iteration order that
+ *  carries it. */
+const decoded = (files: Record<string, Decoded>): ReadonlyMap<string, Decoded> =>
   new Map(Object.entries(files))
 
-const outline = (file: string, contents: string): DecodedFile => ({
-  kind: "outline",
-  outline: { file, nodes: nodesOf(contents, file) },
-})
+const outline = (file: string, contents: string): Decoded =>
+  Result.succeed({ kind: "outline", outline: { file, nodes: nodesOf(contents, file) } })
 
-const document: DecodedFile = { kind: "document" }
+const document: Decoded = Result.succeed({ kind: "document" })
+
+const unreadable = (file: string, contents: string): Decoded =>
+  Result.fail(failureOf(contents, file))
 
 const ids = (nodes: ReadonlyArray<Located>): ReadonlyArray<string> =>
   nodes.map((located) => located.node.id)
@@ -57,9 +63,30 @@ test("an outline holding no nodes is still one of the set's files", () => {
   expect(ids(set.nodes)).toEqual(["a"])
 })
 
-// Nothing served is an empty set rather than an absent one: the three fields
+// Nothing served is an empty set rather than an absent one: the four fields
 // are always there, so the browser renders "no outlines here" from the same
 // shape it renders everything else from.
 test("nothing decoded assembles to an empty set", () => {
-  expect(assemble(decoded({}))).toEqual({ files: [], nodes: [], documents: [] })
+  expect(assemble(decoded({}))).toEqual({
+    files: [],
+    nodes: [],
+    documents: [],
+    broken: [],
+  })
+})
+
+// A file that did not parse is still a file that was FOUND. It keeps its place
+// in the sidebar and carries its own errors, which is what lets the view put
+// them where that outline would have been instead of blanking the page.
+test("a file that did not decode keeps its place and carries its errors", () => {
+  const set = assemble(decoded({
+    "good.jsonl": outline("good.jsonl", `{"id":"a","ord":"a","title":"a"}`),
+    "bad.jsonl": unreadable("bad.jsonl", `{"id":"b","ord":"a",title:"b"}`),
+  }))
+
+  expect(set.files).toEqual(["good.jsonl", "bad.jsonl"])
+  expect(ids(set.nodes)).toEqual(["a"])
+  expect(set.broken.map((file) => file.file)).toEqual(["bad.jsonl"])
+  expect(set.broken[0]?.errors.map((error) => `${error.file}:${error.line} ${error.code}`))
+    .toEqual(["bad.jsonl:1 not-json"])
 })

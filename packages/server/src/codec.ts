@@ -11,7 +11,6 @@
 
 import {
   assemble,
-  compareErrors,
   type DecodedFile,
   fileKind,
   type OutlineError,
@@ -33,10 +32,9 @@ export const codec: Codec<DecodedFile, OutlineSet, ReadonlyArray<OutlineError>> 
         (outline) => ({ kind: "outline", outline }) as const,
       ),
 
+  /** Failures included: whether an unreadable file is a hole the rest of the
+   *  set renders around or a reason to hold the last good snapshot is a
+   *  question about the FORMAT, so `assemble` carries them in and `validate`
+   *  answers it. */
   validate: (files) => validate(assemble(files)),
-
-  /** Several files' failures, as one list in reading order: concatenated and
-   *  re-sorted so the report reads top to bottom whatever order the files were
-   *  read in. */
-  combine: (errors) => errors.flat().sort(compareErrors),
 }

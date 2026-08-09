@@ -9,6 +9,18 @@
  * Every rule runs, and every error is collected. Stopping at the first would
  * turn "fix this file" into a loop of load-fix-load, which is the workflow the
  * format exists to remove.
+ *
+ * A set may arrive with files that did not parse (`set.broken`), and what this
+ * function decides about them is the ERROR SCOPE (resolved 2026-08-09):
+ *
+ *   - if the files that DID parse are clean, the set is accepted with those
+ *     failures embedded in it. The broken outline renders its own errors, in
+ *     its own place, and every other outline stays live — a typo in one file is
+ *     not a reason to blank the other nine;
+ *   - if anything else is wrong, or a rule had to withhold a finding because
+ *     the missing nodes made it a guess, the set is rejected and the report
+ *     carries the parse errors alongside whatever else was found. The store
+ *     then keeps its last good snapshot and the browser shows a banner.
  */
 
 import { distance } from "fastest-levenshtein"
@@ -36,10 +48,37 @@ export const validate = (
   checkDocs(set.nodes, set.documents, errors)
   checkDerivedState(set.nodes, derived, errors)
 
-  return errors.length > 0
-    ? Result.fail([...errors].sort(compareErrors))
+  const unreadable = set.broken.flatMap((file) => [...file.errors])
+  // A file that did not parse contributes no ids, so a reference resolving to
+  // nothing may be pointing straight into it. That is a GUESS, and the format's
+  // staging rule is that guesses are not reported: "`kitchen` is not a known
+  // id" is not a finding when the line declaring `kitchen` is the one that
+  // failed to parse. Withholding one is also what makes the whole set
+  // unpublishable — the nodes are there and their targets are not — so the
+  // report becomes the parse errors, which is the cause, and the last good
+  // snapshot stays on screen.
+  const withheld = set.broken.length > 0 &&
+    errors.some((error) => RESOLVES_ACROSS_FILES.has(error.code))
+  const found = withheld
+    ? errors.filter((error) => !RESOLVES_ACROSS_FILES.has(error.code))
+    : errors
+
+  return found.length > 0 || withheld
+    ? Result.fail([...unreadable, ...found].sort(compareErrors))
     : Result.succeed(set)
 }
+
+/** The codes a missing file can INVENT, rather than merely hide.
+ *
+ *  `mirror`, `after`, `blocks` and `see` name a bare id and may cross files, so
+ *  an unparsed file makes them dangle. Nothing else can be conjured this way:
+ *  `parent` is same-file by rule, so a parent that does not resolve is an error
+ *  whichever file the id was going to be in (unknown or foreign, both refused);
+ *  a duplicate, a cycle and a stored marker need the records that would be
+ *  missing, so a missing file can only ever hide one. */
+const RESOLVES_ACROSS_FILES: ReadonlySet<OutlineError["code"]> = new Set([
+  "unknown-target",
+])
 
 // ── ids ────────────────────────────────────────────────────────────────
 
