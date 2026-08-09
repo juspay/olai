@@ -82,9 +82,11 @@ export const ErrorCode = Schema.Literals(
 export const stageOf = (code: ErrorCode): Stage => CATALOGUE[code]
 
 /** The stage a whole REPORT has reached: `line` while anything in it is a
- *  line-stage error, because the set-wide questions have not been asked yet.
- *  The rule belongs here rather than in whichever view happens to say so —
- *  phase 3 renders the same report as a banner and phase 4 as tool output. */
+ *  line-stage error, because a file that did not parse takes its ids with it
+ *  and the cross-file questions about them cannot be asked yet
+ *  ({@link ./validate.ts} withholds those findings rather than guessing).
+ *  The rule belongs here rather than in whichever view happens to say so — the
+ *  same report is a page today and MCP tool output in phase 4. */
 export const reportStage = (
   errors: ReadonlyArray<{ readonly code: ErrorCode }>,
 ): Stage => errors.some((error) => stageOf(error.code) === "line") ? "line" : "set"

@@ -25,7 +25,7 @@
  * what-is-wrong-now are two independent facts, and they map onto surface's
  * stream and cell. `SubscriptionRef.changes` is current-value-then-updates,
  * which is already surface's snapshot-then-deltas contract, so a consumer
- * written against phase 2's load-once store needs no change to go live.
+ * written against the load-once store this grew out of needed no change.
  *
  * Phase 4 adds the write gate — `commit({baseRev, changes})`, writer-serialized
  * against the same probe, failing with `StaleWrite` when the store has moved

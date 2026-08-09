@@ -28,8 +28,8 @@ const pipeline = unified()
  * only render to identical HTML.
  *
  * It earns its place at the two moments a row is rebuilt from scratch —
- * folding an ancestor and expanding it again, and (from phase 3) every frame
- * the live store publishes. Both throw away the per-row memo and would
+ * folding an ancestor and expanding it again, and every frame the live store
+ * publishes. Both throw away the per-row memo and would
  * otherwise re-run the whole `unified` pipeline over text that has not
  * changed.
  *

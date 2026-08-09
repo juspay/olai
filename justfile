@@ -84,8 +84,10 @@ build-client: install
 # to remember, which is the whole reason this recipe is not just `bun main.ts`.
 #
 # The client's watcher rebuilds into the same dist the server is serving, so a
-# browser reload picks up client edits too — the page does not reload itself.
-# That arrives with the live store in phase 3; this is the source-side half.
+# browser reload picks up client edits too. Note the two watchers are different
+# things: this one watches the SOURCE and restarts the process, while the served
+# directory's outlines are watched by the running server itself and reach the
+# open page with no reload at all.
 #
 # Defaults to docs/, which is itself an outline set (docs/roadmap.jsonl), so
 # `just serve` with no arguments shows this project's own plan. `just nix` is

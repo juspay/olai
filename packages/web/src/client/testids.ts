@@ -23,6 +23,10 @@ export const TESTID = {
   error: "error",
   crossFileErrors: "cross-file-errors",
   stageNote: "stage-note",
+  /** Over a last-good tree: the set on disk stopped validating. */
+  staleBanner: "stale-banner",
+  /** In one outline's place: that file could not be read, the rest are live. */
+  outlineFailure: "outline-failure",
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]

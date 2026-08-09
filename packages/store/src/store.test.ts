@@ -154,6 +154,18 @@ test("boot publishes the directory as revision 1, with nothing wrong", () =>
       }),
   ))
 
+// Boot is not a special case of the error scopes, and this is what says so: a
+// directory that already holds an unreadable file still boots to a snapshot,
+// because the codec accepted one.
+test("a directory that already holds an unreadable file still boots", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "!broken" }, ({ store }) =>
+    Effect.gen(function*() {
+      const snapshot = yield* snapshotOf(store)
+      expect(snapshot?.rev).toBe(1)
+      expect(snapshot?.value.broken).toEqual(["b.txt"])
+      expect(yield* errorsOf(store)).toBeNull()
+    })))
+
 test("a root that is not there fails the boot rather than serving nothing", async () => {
   const outcome = await Effect.gen(function*() {
     return yield* Store.make({ root: path.join(os.tmpdir(), "olai-nope-9d2f"), codec })

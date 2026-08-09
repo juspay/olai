@@ -1,8 +1,7 @@
 /**
  * The surface, bound to the store.
  *
- * Two members, two bindings, and both are the same shape they will be when the
- * store goes live in phase 3:
+ * Two members, two bindings, and the live store needed neither to change:
  *
  *   - the stream is `SubscriptionRef.changes` verbatim — current value first,
  *     then every later one — which is already surface's snapshot-then-deltas

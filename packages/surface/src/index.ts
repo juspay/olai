@@ -6,18 +6,20 @@
  * sockets, no hand-rolled routes, no message envelopes — the only protocol is
  * this spec, and both sides are type errors away from disagreeing about it.
  *
- * Phase 2 declares exactly two members, which is the whole of "see your
- * outline":
+ * Two members, which is the whole of "see your outline" and, once the store
+ * went live, of "watch it stay right" as well:
  *
  *   - `outlines` is a STREAM, not a cell: the files belong to the disk, not to
  *     the server, so the server reports what it read rather than owning a
  *     value it could be asked to change. Every subscription opens with a full
- *     snapshot, so a reconnect is a fresh read and nothing has to be resumed.
+ *     snapshot, so a reconnect is a fresh read and nothing has to be resumed,
+ *     and a probe that found a change publishes the next frame down the same
+ *     subscription.
  *   - `errors` is a CELL, read-only on the wire, because "what is wrong right
  *     now" is one value the server does own. It is deliberately independent of
- *     the snapshot: phase 3 keeps the last good tree on screen underneath it,
- *     and a consumer written against two subscriptions today needs no change
- *     to get that.
+ *     the snapshot: a set that stops validating leaves the last good tree on
+ *     screen underneath a banner, which is only expressible if the two arrive
+ *     separately.
  *
  * Ops arrive as procedures in phase 4 and chat as events in phase 5. Both slot
  * into this same spec.
@@ -29,15 +31,19 @@ import { Schema } from "effect"
 
 /**
  * One frame of the outline stream: the loaded set, or `null` for a set that
- * did not load.
+ * has never loaded.
  *
  * `null` is a state, not an absence. Three things a reader must tell apart —
- * "the server has not answered yet" (no frame), "the server answered and the
- * files are broken" (`null`), "here is your outline" (a snapshot) — and a
- * nullable frame says all three with no second encoding. Why it is broken
- * lives in the `errors` cell and nowhere else; carrying the list here as well
- * would be one copy too many, and the copy a consumer picked would decide
- * which of two truths it showed.
+ * "the server has not answered yet" (no frame), "the server has never had a
+ * valid set to show" (`null`), "here is your outline" (a snapshot) — and a
+ * nullable frame says all three with no second encoding.
+ *
+ * Note the two ways a frame and the error cell divide the labour, which is not
+ * a duplication: `set.broken` says WHICH outline is unreadable, because that is
+ * a property of the set the sidebar and the pane are drawn from, and the cell
+ * says what is wrong with the set AS A WHOLE right now, which no single file
+ * owns. A file listed in `broken` is being rendered around; anything in the
+ * cell is being held back.
  */
 export const OutlineFrame = Schema.NullOr(
   Schema.Struct({

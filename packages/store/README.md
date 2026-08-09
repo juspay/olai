@@ -1,8 +1,9 @@
 # @olai/store — a directory of files as a validated snapshot
 
-Files on disk, read and published as one revision-tagged snapshot, with what is
-wrong on a second, independent channel. It knows about paths, bytes, revisions
-and last-good state; the caller's codec knows about content.
+Files on disk, published as one revision-tagged snapshot and kept current for
+as long as the scope is open, with what is wrong on a second, independent
+channel. It knows about paths, bytes, stamps, revisions and last-good state;
+the caller's codec knows about content.
 
 There is not one olai type in here, and that is deliberate. The store is
 generic over what a file contains — `Codec<F, S, E>` is supplied by the caller
@@ -10,42 +11,74 @@ generic over what a file contains — `Codec<F, S, E>` is supplied by the caller
 package move to its own repo without a redesign. If `@olai/format` ever appears
 in its `dependencies`, the seam has leaked.
 
+## The sync loop
+
+Trigger, coalesce, probe, publish — and the rule that holds it together is that
+the **probe decides and nothing else does**.
+
+1. **Trigger**: a watcher event, a `refresh`, or the periodic backstop. None of
+   them says what changed; all three say "look". Watcher payloads are dropped
+   unread at the disk edge, because they cannot be trusted: the pinned
+   implementation itself discards null-filename events, inotify overflows under
+   bursts, and FSEvents coalesces under git-sized loads.
+2. **Coalesce**: a settle delay after the first trigger of a burst. One editor
+   save is a handful of events and one `git pull` is hundreds; both are one
+   probe.
+3. **Probe**: re-list the tree, re-stat everything, diff against a table of
+   mtime+size stamps. Only stamped-changed files are re-read and re-decoded;
+   an identical listing ends the cycle with nothing published at all, which is
+   what makes a sixty-second backstop free. Because nothing is remembered
+   except stamps, the probe is idempotent: state converges on disk truth after
+   any disturbance, whether every event lied or none arrived.
+4. **Publish**: valid → a new revision on the snapshot and the errors cleared;
+   invalid → the last good snapshot is left exactly where it is and the errors
+   published beside it. A broken file must not blank a page that was reading
+   fine a second ago.
+
+Failures during a probe are logged and dropped rather than fatal: the next
+trigger tries again, and a live page that is permanently stale is the one
+failure mode a live store must not have.
+
 ## The codec is the whole of the coupling
 
-`Codec` mirrors the format's own two phases: `decode` sees one file and may be
+`Codec` mirrors the format's own two phases: `decode` sees one file and is
 cached against its stamp, `validate` sees all of them and is where every
 cross-file invariant lives. Both return a `Result`, so a failure is a value the
 store publishes rather than a throw it would have to guess how to describe.
-`combine` lives on the codec too — the store cannot know whether `E` is an
-array, a tree or a tagged class, and it must not be possible to hand it a codec
-and a mismatched joiner.
 
-A decode failure means the set is not knowable, so validation does not run; but
-every file that failed is still reported together, because one pass should be
-enough to fix a directory.
+`validate` is handed each file's `Result`, **decode failures included**, not a
+map of the ones that parsed. That is the error-scope decision
+([docs/brainstorming/architecture.live-store.md](../../docs/brainstorming/architecture.live-store.md),
+resolved 2026-08-09): only the codec knows whether one unreadable file poisons
+the set or is a hole the rest can be rendered around, so only the codec can
+answer with a published `S` that has the failure embedded in it — one outline
+showing its own error while its neighbours stay live — or with a failure that
+holds the last good snapshot. A store that filtered the failures out first
+would have made that call for every codec, by omission.
 
-## Built for a phase it is not in yet
-
-This phase is load-once: `make` reads the tree, decodes, validates, publishes,
-and then nothing changes. The API is nonetheless already the shape the live
-store needs
-([docs/brainstorming/architecture.live-store.md](../../docs/brainstorming/architecture.live-store.md)),
-so phase 3 adds the watcher and probe behind `refresh` and phase 4 adds
-`commit` without a consumer changing a line:
+## Two channels, on purpose
 
 - the snapshot is a `SubscriptionRef`, so `changes` is already
   current-value-then-updates — surface's snapshot-then-deltas contract, for
-  free;
+  free, which is why going live changed no consumer;
 - errors are a *separate* `SubscriptionRef`, because last-good data and
-  what-is-wrong-now are two independent facts, and an invalid file must not
-  blank the page;
+  what-is-wrong-now are two independent facts;
 - revisions are minted from the beginning rather than retrofitted onto data
   consumers have already learned to read.
 
+## Not here yet
+
+Writing. Phase 4 adds `commit({baseRev, changes})` behind the same gate the
+probe runs in, failing with `StaleWrite` when the store has moved past
+`baseRev`. Nothing writes today, so nothing needs it — the design doc holds the
+shape.
+
 ## Entry point
 
-`main`, `types` and `exports` all point at `src/index.ts`, which re-exports
-four names: `make`, `Store`, `Codec` and `Rev`.
+`main`, `types` and `exports` all point at `src/index.ts`. Inside, one file per
+job: `codec.ts` is the contract with the caller, `disk.ts` is everything a
+directory is allowed to be asked, `probe.ts` is the stamp table and the decode
+cache, `store.ts` is the loop and the two refs.
 
 ## Layering
 
@@ -55,11 +88,15 @@ on it — it supplies the codec that joins this to `@olai/format`.
 
 ## Running
 
-There is no unit suite here yet; the store is exercised end to end by
-`just e2e`, which serves real directories of fixture outlines. What this
-package answers on its own is the types:
-
 ```sh
+just test                                        # the whole workspace
+bun test packages/store                          # this package, in the dev shell
 just typecheck                                   # every workspace member
-bun run --filter @olai/store typecheck           # in the dev shell, this one
 ```
+
+`src/store.test.ts` runs against real temp directories with a test codec of its
+own — the store is generic, so proving it needs no outlines, and a codec
+written there is the only way to exercise both error scopes. Most of it drives
+the probe through `refresh` with the watcher off, because a watcher event and a
+`refresh` reach the same code; the tests that turn the watcher on are the ones
+about the watcher.

@@ -11,12 +11,21 @@
  * spawn for every step file in the suite. Lazy plus cached gives one spawn per
  * corpus actually exercised — a run of `features/see_the_outline.feature`
  * never boots the broken servers.
+ *
+ * A `@scratch:<name>` tag is the other half, and the reason it exists is the
+ * live store: those scenarios EDIT the files while the server is watching them.
+ * A shared corpus cannot survive that (the next scenario would inherit the
+ * edit) and neither can the repository (the fixtures are tracked), so each
+ * scratch scenario gets a fresh copy of the named corpus in a temp directory
+ * and a server of its very own, both thrown away afterwards. It is the one case
+ * where the per-scenario spawn is worth paying for.
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
 import type { EventEmitter } from "node:events";
 import * as fs from "node:fs";
 import * as net from "node:net";
+import * as os from "node:os";
 import * as path from "node:path";
 
 import { After, AfterAll, Before, BeforeAll, Status } from "@cucumber/cucumber";
@@ -45,6 +54,8 @@ const REPORTS = path.resolve(import.meta.dirname, "..", "reports");
 /** The corpus a scenario gets when it names none. */
 const DEFAULT_CORPUS = "good";
 const CORPUS_TAG = /^@corpus:([A-Za-z0-9_-]+)$/;
+/** Same corpora, copied and served privately so the scenario may write to it. */
+const SCRATCH_TAG = /^@scratch:([A-Za-z0-9_-]+)$/;
 
 let browser: Browser | undefined;
 
@@ -159,8 +170,8 @@ const killChild = (child: ChildProcess | undefined): void => {
   if (child && child.exitCode === null) child.kill("SIGKILL");
 };
 
-const shuttingDown = (corpus: string): string =>
-  `the run is shutting down; abandoning the server for corpus "${corpus}"`;
+const shuttingDown = (label: string): string =>
+  `the run is shutting down; abandoning the server for ${label}`;
 
 const MAX_SPAWN_ATTEMPTS = 3;
 
@@ -170,13 +181,13 @@ const MAX_SPAWN_ATTEMPTS = 3;
  *  that line is both the readiness signal and the address. */
 const startServerChild = async (
   bin: string,
-  corpus: string,
+  dir: string,
+  label: string,
 ): Promise<RunningServer> => {
-  const dir = fixtureDir(corpus);
   let lastFailure = "";
 
   for (let attempt = 1; attempt <= MAX_SPAWN_ATTEMPTS; attempt++) {
-    if (stopped) throw new Error(shuttingDown(corpus));
+    if (stopped) throw new Error(shuttingDown(label));
     const port = await freePort();
     const expected = `http://127.0.0.1:${port}`;
     const argv = ["web", dir, "--port", String(port), "--host", "127.0.0.1"];
@@ -235,7 +246,7 @@ const startServerChild = async (
       // close.
       if (stopped) {
         killChild(child);
-        throw new Error(shuttingDown(corpus));
+        throw new Error(shuttingDown(label));
       }
       child.stdout?.removeAllListeners("data");
       child.stderr?.removeAllListeners("data");
@@ -257,7 +268,7 @@ const startServerChild = async (
   }
 
   throw new Error(
-    `the olai server for corpus "${corpus}" never came up after ` +
+    `the olai server for ${label} never came up after ` +
       `${MAX_SPAWN_ATTEMPTS} attempts.\n  ${lastFailure}`,
   );
 };
@@ -292,7 +303,7 @@ const serverFor = (corpus: string): Promise<RunningServer> => {
   const started =
     active.kind === "reuse"
       ? reusedServer(active.baseUrl, corpus)
-      : startServerChild(active.bin, corpus);
+      : startServerChild(active.bin, fixtureDir(corpus), `corpus "${corpus}"`);
 
   // A FAILED start is not kept: the next scenario asking for this corpus
   // deserves a real attempt rather than a replay of the same rejection.
@@ -302,6 +313,36 @@ const serverFor = (corpus: string): Promise<RunningServer> => {
   });
   servers.set(corpus, entry);
   return entry;
+};
+
+/** A private, WRITABLE copy of a corpus, and a server watching it, for the one
+ *  scenario that asked. Not in the cache: nothing else may reach it, and it
+ *  goes away with the scenario rather than with the run. */
+const scratchServerFor = async (
+  corpus: string,
+): Promise<RunningServer & { readonly root: string }> => {
+  const active = modeOf();
+  if (active.kind === "reuse") {
+    throw new Error(
+      `this scenario edits the files it is served (@scratch:${corpus}), so it needs a ` +
+        `server of its own — but OLAI_URL (${active.baseUrl}) names one that is already ` +
+        `running against a directory this harness does not own. Use OLAI_BIN instead.`,
+    );
+  }
+
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), `olai-scratch-${corpus}-`));
+  try {
+    fs.cpSync(fixtureDir(corpus), root, { recursive: true });
+    const server = await startServerChild(
+      active.bin,
+      root,
+      `scratch copy of corpus "${corpus}"`,
+    );
+    return { ...server, root };
+  } catch (cause) {
+    fs.rmSync(root, { recursive: true, force: true });
+    throw cause;
+  }
 };
 
 /** The synchronous half of the teardown: every child that has a process right
@@ -350,17 +391,24 @@ AfterAll(async () => {
   await killAll();
 });
 
-/** The corpus a scenario asked for, or the default. */
-const corpusOf = (tags: ReadonlyArray<{ readonly name: string }>): string => {
-  const named = tags
-    .map((tag) => CORPUS_TAG.exec(tag.name)?.[1])
-    .filter((name): name is string => name !== undefined);
+/** Which corpus a scenario asked for, and whether it wants its own copy. */
+const requestOf = (
+  tags: ReadonlyArray<{ readonly name: string }>,
+): { readonly corpus: string; readonly scratch: boolean } => {
+  const named = tags.flatMap((tag) => {
+    const shared = CORPUS_TAG.exec(tag.name)?.[1];
+    if (shared !== undefined) return [{ corpus: shared, scratch: false }];
+    const own = SCRATCH_TAG.exec(tag.name)?.[1];
+    return own === undefined ? [] : [{ corpus: own, scratch: true }];
+  });
   if (named.length > 1) {
     throw new Error(
-      `a scenario may serve one corpus; this one asks for ${named.join(", ")}`,
+      `a scenario may serve one corpus; this one asks for ${
+        named.map((ask) => ask.corpus).join(", ")
+      }`,
     );
   }
-  return named[0] ?? DEFAULT_CORPUS;
+  return named[0] ?? { corpus: DEFAULT_CORPUS, scratch: false };
 };
 
 Before(
@@ -368,8 +416,17 @@ Before(
   async function (this: OlaiWorld, scenario) {
     if (!browser) throw new Error("BeforeAll did not launch a browser");
     this.browser = browser;
-    this.corpus = corpusOf(scenario.pickle.tags);
-    this.baseUrl = (await serverFor(this.corpus)).baseUrl;
+    const asked = requestOf(scenario.pickle.tags);
+    this.corpus = asked.corpus;
+
+    if (asked.scratch) {
+      const own = await scratchServerFor(asked.corpus);
+      this.baseUrl = own.baseUrl;
+      this.served = own.root;
+      this.ownServer = own.child;
+    } else {
+      this.baseUrl = (await serverFor(this.corpus)).baseUrl;
+    }
 
     this.context = await browser.newContext({
       viewport: { width: 1440, height: 900 },
@@ -409,4 +466,12 @@ After(async function (this: OlaiWorld, scenario) {
   // cookies and any in-flight WebSocket go with it, so the next scenario's
   // first frame is a genuine cold load.
   if (this.context) await this.context.close();
+
+  // A scratch scenario owns its server and its directory, and both die here —
+  // the server first, so nothing is watching the tree while it is removed.
+  if (this.ownServer) {
+    killChild(this.ownServer);
+    live.delete(this.ownServer);
+  }
+  if (this.served) fs.rmSync(this.served, { recursive: true, force: true });
 });
