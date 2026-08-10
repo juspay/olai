@@ -34,7 +34,6 @@ files on disk ── load + validate ──▶ snapshot ── surface stream �
 - **Nix**: flake + npins (kolu, nixpkgs) + justfile; `@kolu/*` packages hydrate as source from the Nix store.
 - **E2E**: Cucumber + Playwright.
 
-Kolu's Effect-4-beta discipline ports over with the stack: any dependence on beta *behavior* carries a grep-able `BETA-ASSUMPTION(<version>)` marker that fails CI on a pin bump until re-measured, and CI scanners ban the silent agent failure modes — `await` on an Effect, an Effect built but never run — with every `Effect.run*` edge on a named allowlist.
 
 ## Packages
 
