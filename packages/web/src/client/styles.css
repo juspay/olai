@@ -38,11 +38,11 @@
   --color-doing: #b8760a;
   --color-alarm: #b3261e;
 
-  /* The agent drawer's width. A token rather than a literal in each of the
-   * three places that has to clear it — the drawer itself, the connection dot
-   * that steps aside for it, and the button that opens it — because those
-   * three agreeing is what "always on screen" rests on, and three literals
-   * agree only until somebody edits one. */
+  /* The agent drawer's width. A token rather than a literal in the two places
+   * that have to agree about it — the drawer itself, and the padding the
+   * layout reserves for it so the outline is not drawn underneath (App.tsx) —
+   * because "the outline is the page" rests on those two matching, and two
+   * literals match only until somebody edits one. */
   --width-chat: 26rem;
 }
 
@@ -104,6 +104,30 @@
 .olai-note code {
   font-family: var(--font-mono);
   font-size: 0.875em;
+}
+
+/* The caret at the end of an answer that is still arriving. On the LAST BLOCK
+ * of the rendered markdown rather than after it: an element of its own would
+ * sit on a line below the paragraph it belongs to, because what the last block
+ * is was markdown's decision and nothing outside can reach into it. `::after`
+ * can. The state is the row's `data-streaming`, which the transcript DERIVES
+ * from the one entry it is writing into — so there is no second flag here to
+ * disagree with it. */
+@keyframes olai-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+[data-streaming="true"] .olai-note > :last-child::after {
+  content: "";
+  display: inline-block;
+  width: 0.375rem;
+  height: 0.75rem;
+  margin-left: 0.125rem;
+  vertical-align: middle;
+  background: var(--color-muted);
+  animation: olai-caret 1s step-end infinite;
 }
 
 /* Highlighted code. The highlighter emits `hljs-*` class names and ships

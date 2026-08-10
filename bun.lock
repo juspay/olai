@@ -92,6 +92,7 @@
       "dependencies": {
         "@olai/format": "workspace:*",
         "@olai/surface": "workspace:*",
+        "@solid-primitives/scheduled": "^1.5.3",
         "effect": "4.0.0-beta.106",
         "rehype-highlight": "^7.0.2",
         "rehype-sanitize": "^6.0.0",

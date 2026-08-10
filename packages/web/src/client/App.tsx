@@ -42,9 +42,11 @@ import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 
 import { Calendar } from "./calendar/Calendar.tsx"
-import { Panel as ChatPanel } from "./chat/Panel.tsx"
+import { chatOpen } from "./chat/open.ts"
+import { Panel as ChatPanel, Toggle as ChatToggle } from "./chat/Panel.tsx"
 import { createToday } from "./clock.ts"
 import { Connection } from "./connection/Connection.tsx"
+import { Indicator } from "./connection/Indicator.tsx"
 import { DayPage } from "./day/DayPage.tsx"
 import { Banner } from "./errors/Banner.tsx"
 import { Broken } from "./errors/Broken.tsx"
@@ -140,6 +142,21 @@ export default function App() {
     setDay(reconcile(open?.kind === "day" ? [...open.groups] : [], { key: "file" }))
   })
 
+  /** Is there a sidebar on screen to hold the app's own chrome? Only the page
+   *  that draws one does; the error report and the waiting page replace the
+   *  whole layout. */
+  const docked = () => frame() !== null && page() !== undefined
+
+  /** The two pills that are about the APP rather than about the page: whether
+   *  the server is still there, and the way into the agent. One expression,
+   *  rendered in whichever of the two places the layout has. */
+  const chrome = () => (
+    <>
+      <Indicator status={connectionStatus()} />
+      <ChatToggle />
+    </>
+  )
+
   return (
     <>
       {/* Outside the switch, and first: every shape below — the report, the
@@ -151,7 +168,22 @@ export default function App() {
           stays put across a zoom, a broken file and the error report. Asking it
           about a set that will not load is a reasonable thing to want to do. */}
       <ChatPanel />
-      <Switch fallback={<p class="p-8 text-muted">Reading…</p>}>
+      {/* The same two pills, in the only other place there is to put them.
+          Every screen below either has a sidebar and gets `chrome` in its
+          footer, or has none — the error report, the waiting page — and gets
+          this. Fixed is the fallback rather than the rule: a pill fixed to the
+          corner of a page with an outline on it sits on top of the outline. */}
+      <Show when={!docked()}>
+        <div class="fixed bottom-3 left-3 z-40 flex items-center gap-2">{chrome()}</div>
+      </Show>
+      {/* The drawer is fixed, so the page has to be told about it: without this
+          it draws underneath, and the right-hand third of every line is behind
+          the panel. Reserved only from `lg` up, which is the width at which
+          giving 26rem away still leaves a column worth reading — below it the
+          drawer covers the page, which is the honest answer when there is no
+          room to share. */}
+      <div classList={{ "lg:pr-[var(--width-chat)]": chatOpen() }}>
+        <Switch fallback={<p class="p-8 text-muted">Reading…</p>}>
         <Match when={frame() === null}>
           <ErrorPage errors={problems()} />
         </Match>
@@ -159,7 +191,12 @@ export default function App() {
           {(open) => (
             <RouterProvider router={router}>
               <div class="grid min-h-screen grid-cols-[16rem_1fr]">
-                <Sidebar files={files()} active={outlineOf(open())} broken={broken()}>
+                <Sidebar
+                  files={files()}
+                  active={outlineOf(open())}
+                  broken={broken()}
+                  footer={chrome()}
+                >
                   <Calendar
                     today={today()}
                     open={only(open(), "day")?.date}
@@ -195,8 +232,9 @@ export default function App() {
               </div>
             </RouterProvider>
           )}
-        </Match>
-      </Switch>
+          </Match>
+        </Switch>
+      </div>
     </>
   )
 }

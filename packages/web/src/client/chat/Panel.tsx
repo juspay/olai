@@ -7,7 +7,19 @@
  * the thing the app is for, and the panel is worth nothing when you are reading.
  *
  * Open-ness is this browser's, remembered in `localStorage`: it belongs to a
- * reading and not to the file, and nothing about it is sent anywhere.
+ * reading and not to the file, and nothing about it is sent anywhere. An open
+ * drawer takes its width out of the LAYOUT on a screen wide enough to spare it
+ * (`App.tsx`) rather than lying over the outline — a drawer you have to shut to
+ * finish reading a sentence is a drawer that costs more than it is worth. On a
+ * narrow one it covers the page, because there is no width to give it and half
+ * a column of outline is not reading either.
+ *
+ * Opening it is {@link Toggle}, which is NOT drawn here: it is chrome that
+ * belongs to the app rather than to the page, so the layout places it — in the
+ * sidebar's footer beside the connection dot, and only in a corner of the
+ * viewport on the screens that have no sidebar to put it in (`App.tsx`). It
+ * used to be fixed over the outline, which meant a pill sitting on top of
+ * somebody's last paragraph on every page.
  *
  * **It always draws.** Whether an agent is CONFIGURED is the server's answer,
  * and when the answer is no the panel says so ({@link NoAgent}) rather than
@@ -36,20 +48,25 @@ import { Transcript } from "./Transcript.tsx"
 
 export function Panel() {
   return (
-    <Show
-      when={chatOpen()}
-      fallback={
-        <button
-          type="button"
-          class="fixed bottom-3 right-32 z-40 rounded-full border border-rule bg-paper px-3 py-1.5 font-mono text-xs text-muted hover:text-ink"
-          data-testid={TESTID.chatToggle}
-          onClick={() => setChatOpen(true)}
-        >
-          &gt;_ agent
-        </button>
-      }
-    >
+    <Show when={chatOpen()}>
       <Conversation />
+    </Show>
+  )
+}
+
+/** The way in, when the drawer is shut — and nothing when it is open, because
+ *  the drawer has its own × and two ways to close one thing is one too many. */
+export function Toggle() {
+  return (
+    <Show when={!chatOpen()}>
+      <button
+        type="button"
+        class="rounded-full border border-rule bg-paper px-3 py-1.5 font-mono text-xs text-muted hover:text-ink"
+        data-testid={TESTID.chatToggle}
+        onClick={() => setChatOpen(true)}
+      >
+        &gt;_ agent
+      </button>
     </Show>
   )
 }

@@ -15,7 +15,9 @@
  *
  * It is the only navigation that is always on screen, so a zoomed page can go
  * as deep as it likes: the crumbs walk up within an outline, and this walks
- * out of one.
+ * out of one. Below the list is where the app's own chrome lives — the
+ * connection dot and the agent toggle — because a pill fixed to the corner of
+ * the viewport is a pill on top of whatever is being read.
  *
  * The entry that lights up is the outline the OPEN PAGE lives in — for a
  * zoomed node, the file of the canonical record, which is not something the
@@ -38,12 +40,23 @@ export function Sidebar(props: {
   readonly broken: ReadonlyMap<string, BrokenFile>
   /** What sits above the list: the month. */
   readonly children?: JSX.Element
+  /** What sits BELOW it: the chrome that belongs to the app rather than to the
+   *  page — is the server still there, and open the agent. A slot for the same
+   *  reason the month is one, and because these two have a second home: the
+   *  screens with no sidebar draw them in a corner instead (see `App.tsx`). */
+  readonly footer?: JSX.Element
 }) {
   return (
-    <nav class="overflow-y-auto border-r border-rule p-4">
+    // Its own scroller INSIDE the column, so the footer stays put: a directory
+    // of forty outlines used to be a directory whose last entry was the only
+    // thing at the bottom of the screen.
+    <nav class="sticky top-0 flex max-h-screen flex-col border-r border-rule p-4">
       <h1 class="m-0 mb-4 text-base uppercase tracking-widest text-muted">olai</h1>
       {props.children}
-      <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
+      <ul
+        class="m-0 min-h-0 flex-1 list-none overflow-y-auto p-0"
+        data-testid={TESTID.outlineList}
+      >
         <For each={props.files}>
           {(file) => (
             <li class="mb-1">
@@ -65,6 +78,11 @@ export function Sidebar(props: {
           )}
         </For>
       </ul>
+      <Show when={props.footer}>
+        <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-rule pt-4">
+          {props.footer}
+        </div>
+      </Show>
     </nav>
   )
 }

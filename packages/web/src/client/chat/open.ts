@@ -2,11 +2,12 @@
  * Whether the panel is open — one signal for the whole document.
  *
  * MODULE-SCOPED rather than per-component, because two things read it and only
- * one of them is the panel. The connection dot lives in the bottom-right corner
- * and the panel is a right-hand drawer, so an open panel would sit underneath
- * it; the dot steps aside instead of being covered. That is a small coupling
- * and it is the honest one: "always on screen" is the dot's whole promise, and
- * a promise kept by z-index alone is one a drawer can break.
+ * one of them is the panel. The other is the LAYOUT: the drawer is fixed, so a
+ * page that did not know it was open would draw its right-hand third
+ * underneath it, and the reader would have to shut the agent to finish a
+ * sentence. `App.tsx` reserves the width instead. That is a small coupling and
+ * it is the honest one — "the outline is the page" is a claim the layout has to
+ * make, and it cannot make it without knowing.
  *
  * Stored in `localStorage`, because it belongs to this browser's reading and
  * not to the served directory: nothing about it is sent anywhere, and two

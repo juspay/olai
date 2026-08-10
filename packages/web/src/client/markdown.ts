@@ -65,3 +65,20 @@ export const renderMarkdown = (source: string): string => {
   rendered.set(source, html)
   return html
 }
+
+/**
+ * The same rendering, for text that is still arriving — and deliberately NOT
+ * cached.
+ *
+ * A growing answer is a different string every time it grows, so every
+ * intermediate prefix would take a slot and none of them would ever be asked
+ * for again: the cache would hold one long conversation's worth of half
+ * sentences and evict the notes it exists for. Reading the cache would be no
+ * use either, since a prefix arrives once.
+ *
+ * The COST of rendering per frame is the caller's to manage, not this
+ * function's — `Entry.tsx` throttles, because how often a paragraph may be
+ * re-rendered is a question about the panel rather than about markdown.
+ */
+export const renderStreaming = (source: string): string =>
+  String(pipeline.processSync(source))

@@ -12,28 +12,23 @@
  * its error report, and that is a page whose connection a reader wants to know
  * about most of all.
  *
- * The one thing it moves for is the agent panel, which is a drawer along the
- * same edge. Stepping aside rather than being covered: a dot that is sometimes
- * behind a panel is a dot a reader cannot rely on, and "always on screen" is
- * the whole of what this promises.
+ * WHERE it goes is the layout's to say, not this component's: it sits in the
+ * sidebar's footer, and in a corner of the viewport only on the screens that
+ * have no sidebar — which is what keeps "always there" true without the pill
+ * being fixed on top of somebody's paragraph on every page. It used to be
+ * fixed at the bottom right and dodge the agent drawer by its width; dodging
+ * kept it visible and still left it over the last line of everything that
+ * scrolled past.
  */
 
-import { chatOpen } from "../chat/open.ts"
 import { LOOK, type SurfaceConnectionStatus } from "./status.ts"
 import { TESTID } from "../testids.ts"
-
-/** Clear of the drawer: its own width, plus the gap the dot keeps from every
- *  edge. Both halves come from the same token (`--width-chat`, styles.css), so
- *  the two cannot drift apart — which they would, being in different files. */
-const CLEAR_OF_PANEL = "right-[calc(var(--width-chat)+0.75rem)]"
 
 export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
   const look = () => LOOK[props.status]
   return (
     <div
-      class={`fixed bottom-3 z-40 flex items-center gap-2 rounded-full border border-rule bg-paper px-3 py-1.5 text-xs text-muted ${
-        chatOpen() ? CLEAR_OF_PANEL : "right-3"
-      }`}
+      class="flex items-center gap-2 rounded-full border border-rule bg-paper px-3 py-1.5 text-xs text-muted"
       data-testid={TESTID.connection}
       // The state as an attribute, so a test asserts on the STATE rather than
       // on a colour: which utility paints "live" is a styling decision and this

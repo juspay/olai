@@ -222,6 +222,17 @@ Then("the chat is streaming an answer", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
+Then("the chat is not streaming", async function (this: OlaiWorld) {
+  // The other half of the claim above, and the one a panel gets wrong: an
+  // answer that never stops growing is an answer with a caret blinking after
+  // it forever, and a turn that looks like it is still running.
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_ENTRY_STREAMING).count()) === 0,
+    "the answer to stop growing",
+    HYDRATION_TIMEOUT,
+  );
+});
+
 /** The FIRST tool frame. Every scenario that reads one is watching the one it
  *  just started; a later turn's calls arrive below it. */
 const heldTool = (world: OlaiWorld) => world.page.locator(CHAT_TOOL).first();

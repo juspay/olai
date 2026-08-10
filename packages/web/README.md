@@ -102,9 +102,16 @@ the mark and never on the palette.
 `src/client/connection/` is the chrome for the one thing the outlines cannot
 report on: whether this page is still talking to a server. A page that is live
 and a page whose server died look identical when nothing says otherwise — both
-keep showing the last thing they were told — so a dot in the corner reports it
-always, in every shape of the app, and is green only while a server is
-answering.
+keep showing the last thing they were told — so a dot reports it always, in
+every shape of the app, and is green only while a server is answering.
+
+WHERE it sits is the layout's, not the indicator's: the sidebar's footer beside
+the agent toggle, and a corner of the viewport only on the screens that have no
+sidebar — the error report, the waiting page. Always fixed to the corner is what
+it used to be, and it meant a pill sitting on top of the last line of whatever
+scrolled under it on every page. `App.tsx` picks between the two homes;
+`Connection.tsx` keeps the one rule that is not about placement — when the
+reload surface takes the screen.
 
 `status.ts` is the whole policy and it is pure: a table over the wire's own four
 states (`connecting`, `live`, `reconnecting`, `retired`) saying what each looks
@@ -128,6 +135,13 @@ driving a second path to the same fact.
 `src/client/chat/` is a drawer on the right, open or shut. It is a drawer
 rather than a column in the layout, and that is a decision about what olai is:
 the outline is the page, and the agent is something you open beside it.
+
+Open, it takes its width out of the layout on a screen wide enough to spare it
+rather than lying over the outline — a drawer you have to shut to finish reading
+a sentence costs more than it is worth. On a narrow one it covers the page,
+because there is no width to give it. Shut, the way back in is a button in the
+sidebar's footer (`Toggle`), placed by the layout for the same reason the
+connection dot is.
 
 It ALWAYS draws. Whether an agent is configured is the server's answer, and when
 the answer is no the panel says so (`NoAgent.tsx`, naming `OLAI_ACP_AGENT`)

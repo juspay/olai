@@ -128,6 +128,7 @@ Feature: Talking to the agent
     Then the agent is idle
     And the chat shows a completed tool call
     And the agent's answer mentions "and done"
+    And the chat is not streaming
 
   @scratch:chat
   Scenario: A row that changes is the same row, not a new one

@@ -9,7 +9,7 @@
 
 import { createMemo } from "solid-js"
 
-import { renderMarkdown } from "./markdown.ts"
+import { renderMarkdown, renderStreaming } from "./markdown.ts"
 import { TESTID } from "./testids.ts"
 
 export function Note(
@@ -21,9 +21,15 @@ export function Note(
      *  on the page, and giving it the same name would make one selector match
      *  both. The markdown, and the reason `innerHTML` is safe, stay here. */
     readonly testid?: string
+    /** This text is still arriving, so do not put it in the cache: every
+     *  prefix of a growing answer is a string that will never be asked for
+     *  again. See `markdown.ts`. */
+    readonly live?: boolean
   },
 ) {
-  const html = createMemo(() => renderMarkdown(props.desc))
+  const html = createMemo(() =>
+    props.live === true ? renderStreaming(props.desc) : renderMarkdown(props.desc)
+  )
   return (
     <div
       class={`olai-note ${props.class ?? ""}`}

@@ -30,6 +30,12 @@ import { TESTID } from "../testids.ts"
 import { SlashMenu } from "./SlashMenu.tsx"
 import type { Chat } from "./state.ts"
 
+/** Every control on the toolbar, the same height and the same corners. Written
+ *  once because "these line up" is the property, and three copies of a class
+ *  list line up only until somebody edits one. */
+const CONTROL =
+  "flex h-8 shrink-0 items-center justify-center rounded border text-xs"
+
 export function Composer(props: { readonly chat: Chat }) {
   const [draft, setDraft] = createSignal("")
   const [showing, setShowing] = createSignal(false)
@@ -116,28 +122,35 @@ export function Composer(props: { readonly chat: Chat }) {
         <SlashMenu commands={matches()} onAccept={accept} onDismiss={dismiss} />
       </Show>
 
-      <div class="flex items-end gap-2">
-        <textarea
-          ref={input}
-          class="min-h-[2.5rem] flex-1 resize-none rounded border border-rule bg-paper px-2 py-1 text-sm outline-none focus:border-accent"
-          data-testid={TESTID.chatInput}
-          rows={2}
-          placeholder="ask the agent…"
-          value={draft()}
-          onInput={(event) => {
-            setDraft(event.currentTarget.value)
-            // Typing takes the popover back off the button: what is on screen
-            // should be what the line says, not what a click said a moment ago.
-            setAsked(false)
-            setShowing(event.currentTarget.value.startsWith("/"))
-          }}
-          onKeyDown={onKey}
-        />
+      {/* The box takes the whole width and the controls sit UNDER it, rather
+          than three things of three different shapes sharing a row. A textarea
+          two lines tall beside a pair of one-line buttons has no alignment that
+          is right: bottom-aligned they hang off its corner, centred they float
+          in the middle of it. A row of its own gives them one edge to line up
+          on, and gives the box the width it is actually for. */}
+      <textarea
+        ref={input}
+        class="w-full resize-none rounded border border-rule bg-paper px-2 py-1.5 text-sm outline-none focus:border-accent"
+        data-testid={TESTID.chatInput}
+        rows={2}
+        placeholder="ask the agent…"
+        value={draft()}
+        onInput={(event) => {
+          setDraft(event.currentTarget.value)
+          // Typing takes the popover back off the button: what is on screen
+          // should be what the line says, not what a click said a moment ago.
+          setAsked(false)
+          setShowing(event.currentTarget.value.startsWith("/"))
+        }}
+        onKeyDown={onKey}
+      />
+
+      <div class="mt-2 flex items-center gap-2">
         {/* Only when the agent offers some: a button that opens nothing lies. */}
         <Show when={props.chat.state().commands.length > 0}>
           <button
             type="button"
-            class="rounded border border-rule px-2 py-1.5 font-mono text-xs text-muted hover:text-ink"
+            class={`${CONTROL} w-8 border-rule font-mono text-muted hover:text-ink`}
             data-testid={TESTID.chatCommands}
             aria-label="show the agent's slash commands"
             onClick={askForAll}
@@ -145,12 +158,13 @@ export function Composer(props: { readonly chat: Chat }) {
             /
           </button>
         </Show>
+        <span class="flex-1" />
         <Show
           when={working()}
           fallback={
             <button
               type="button"
-              class="rounded border border-rule px-3 py-1.5 text-xs hover:border-accent hover:text-accent"
+              class={`${CONTROL} border-rule px-3 hover:border-accent hover:text-accent`}
               data-testid={TESTID.chatSend}
               onClick={send}
             >
@@ -160,7 +174,7 @@ export function Composer(props: { readonly chat: Chat }) {
         >
           <button
             type="button"
-            class="rounded border border-alarm px-3 py-1.5 text-xs text-alarm"
+            class={`${CONTROL} border-alarm px-3 text-alarm`}
             data-testid={TESTID.chatCancel}
             onClick={() => props.chat.cancel()}
           >
