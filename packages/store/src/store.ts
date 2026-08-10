@@ -48,6 +48,7 @@ import {
   Duration,
   Effect,
   Latch,
+  Ref,
   Result,
   Schedule,
   Semaphore,
@@ -69,6 +70,23 @@ export type Rev = number
 export interface Snapshot<S> {
   readonly rev: Rev
   readonly value: S
+  /**
+   * Which files MOVED to make this revision — re-decoded, and gone.
+   *
+   * The whole value is here beside it, so this is not how a consumer learns
+   * what the set says; it is how one that publishes PER FILE learns which
+   * files to publish. The probe computes it as its stamp diff either way
+   * ({@link ./probe.ts}), and a consumer re-deriving it by comparing two
+   * snapshots would be the same walk done twice, one of them worse informed.
+   *
+   * It spans every probe since the LAST PUBLISHED revision, not just the one
+   * that produced this snapshot: a probe whose set the codec refuses publishes
+   * nothing, and the files it re-decoded are still what changed when a later
+   * probe finally validates. The first revision names every file, because that
+   * is what did move for a consumer holding nothing.
+   */
+  readonly changed: ReadonlyArray<string>
+  readonly removed: ReadonlyArray<string>
 }
 
 /** One file's new contents. There is no delete: a set shrinks when a file
@@ -146,6 +164,34 @@ export interface Options<F, S, E> {
   readonly watch?: boolean
 }
 
+/** What a snapshot's {@link Snapshot.changed} / {@link Snapshot.removed} are
+ *  accumulated in between publishes. Sets rather than lists because a file
+ *  saved three times before a valid probe is one changed file. */
+interface Moved {
+  readonly changed: ReadonlySet<string>
+  readonly removed: ReadonlySet<string>
+}
+
+const NOTHING_MOVED: Moved = { changed: new Set(), removed: new Set() }
+
+/** Fold one probe's diff into what is owed to the next revision. A path only
+ *  ever lands in ONE of the two: a file that was deleted and put back is
+ *  changed, and one that was edited and then deleted is removed — which is what
+ *  a consumer holding the last published revision has to be told in each case. */
+const absorb = (before: Moved, found: Probe.Found<unknown, unknown>): Moved => {
+  const changed = new Set(before.changed)
+  const removed = new Set(before.removed)
+  for (const path of found.changed) {
+    changed.add(path)
+    removed.delete(path)
+  }
+  for (const path of found.removed) {
+    removed.add(path)
+    changed.delete(path)
+  }
+  return { changed, removed }
+}
+
 const DEFAULT_SETTLE = Duration.millis(75)
 const DEFAULT_BACKSTOP = Duration.seconds(60)
 /** How long to wait before re-establishing a watcher that failed. The backstop
@@ -184,30 +230,40 @@ export const make = <F, S, E>(
       (current) => current === null ? Effect.void : SubscriptionRef.set(errors, null),
     )
 
+    // What has moved since the last PUBLISHED revision. It is a ref rather than
+    // a field of the probe because the probe answers about one look at the disk
+    // and this is about the gap between two revisions — which is only ever more
+    // than one probe wide when the codec refused what one of them found.
+    const moved = yield* Ref.make(NOTHING_MOVED)
+
     /** Validate, then move the two refs to match — and say which way it went,
      *  because the write gate has to branch on it and re-reading the refs to
      *  find out would be the same question asked twice. */
     const publish = (
-      files: Probe.Decoded<F, E>,
-    ): Effect.Effect<Result.Result<Snapshot<S>, E>> => {
-      const outcome = options.codec.validate(files)
-      if (Result.isFailure(outcome)) {
-        return Effect.as(
-          SubscriptionRef.set(errors, outcome.failure),
-          Result.fail(outcome.failure),
-        )
-      }
-      return SubscriptionRef.updateAndGet(snapshot, (previous) => ({
-        rev: (previous?.rev ?? 0) + 1,
-        value: outcome.success,
-      })).pipe(
-        Effect.tap(() => clearErrors),
+      found: Probe.Found<F, E>,
+    ): Effect.Effect<Result.Result<Snapshot<S>, E>> =>
+      Effect.gen(function*() {
+        const since = yield* Ref.updateAndGet(moved, (before) => absorb(before, found))
+        const outcome = options.codec.validate(found.files)
+        if (Result.isFailure(outcome)) {
+          // The snapshot stays where it is, so what moved is still owed to
+          // whoever reads the next one: `since` is kept rather than cleared.
+          yield* SubscriptionRef.set(errors, outcome.failure)
+          return Result.fail(outcome.failure)
+        }
+        const next = yield* SubscriptionRef.updateAndGet(snapshot, (previous) => ({
+          rev: (previous?.rev ?? 0) + 1,
+          value: outcome.success,
+          changed: [...since.changed],
+          removed: [...since.removed],
+        }))
+        yield* Ref.set(moved, NOTHING_MOVED)
+        yield* clearErrors
         // `updateAndGet` on a `Snapshot<S> | null` ref types as nullable; the
         // updater above never returns null, so this is the type catching up
         // with the value rather than a case to handle.
-        Effect.map((next) => Result.succeed(next as Snapshot<S>)),
-      )
-    }
+        return Result.succeed(next as Snapshot<S>)
+      })
 
     // ONE update fiber's worth of work, whoever asks for it: the probe mutates
     // the stamp table it diffs against, so two of these interleaved would each
@@ -217,7 +273,7 @@ export const make = <F, S, E>(
      *  below already holds it. */
     const cycle = Effect.flatMap(
       probe.run,
-      (files) => files === null ? Effect.void : Effect.asVoid(publish(files)),
+      (found) => found === null ? Effect.void : Effect.asVoid(publish(found)),
     )
     const refresh = gate.withPermit(cycle)
 

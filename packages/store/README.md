@@ -38,6 +38,19 @@ the **probe decides and nothing else does**.
    published beside it. A broken file must not blank a page that was reading
    fine a second ago.
 
+A published snapshot also says **what moved** to make it — `changed` (the paths
+re-decoded) and `removed` (the paths the listing lost). That is the probe's own
+stamp diff kept rather than thrown away: a consumer that publishes PER FILE
+would otherwise re-derive it by comparing two whole snapshots, which is the
+same walk done twice with less information. It is PATH talk, not content talk,
+so it costs this package no knowledge of what a file holds.
+
+The summary spans the gap between two PUBLISHED revisions rather than one
+probe. A probe whose set the codec refuses publishes nothing, and the files it
+re-decoded are still what changed when a later probe finally validates — so
+they accumulate until a revision carries them out. The first revision names
+every file, because everything is new to a consumer holding nothing.
+
 Failures during a probe are logged and dropped rather than fatal: the next
 trigger tries again, and a live page that is permanently stale is the one
 failure mode a live store must not have.

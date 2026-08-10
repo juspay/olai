@@ -23,7 +23,9 @@ Status: audit of what olai does NOT use (or misuses) of `@kolu/surface` / `@kolu
 
 ## Primitives: 2 of 5
 
-Today's spec is one read-only cell (`errors`, `get` only) and one stream (`outlines`). **Collection, event, procedure: unused.** The spec's own comment anticipates it: ops arrive as procedures and chat as events with the chat item. Chat needs the *pair* — events for pushes (no snapshot obligation; late joiners miss history) plus a collection for the persisted keyed message list — and `notify.ts` + `ClientCellPolicy` are the framework pieces already waiting for that work. Collections are the one primitive with no framework-side scaffolding pre-built for olai's shape.
+RESOLVED 2026-08-10: the spec now uses four of the five — cells, a collection, procedures, and no stream at all. Chat brought the transcript collection, the state cell and the five procedures; then `outlines` became a collection too (keyed by file path, batched `deltas`, with a `manifest` cell beside it for the set-wide facts — [outlines-as-collection.md](outlines-as-collection.md)), which is what this entry's last sentence was pointing at. Events remain unused, and the argument below is still why: a `deltas` collection is the event/collection pair in one member.
+
+As audited: today's spec is one read-only cell (`errors`, `get` only) and one stream (`outlines`). **Collection, event, procedure: unused.** The spec's own comment anticipates it: ops arrive as procedures and chat as events with the chat item. Chat needs the *pair* — events for pushes (no snapshot obligation; late joiners miss history) plus a collection for the persisted keyed message list — and `notify.ts` + `ClientCellPolicy` are the framework pieces already waiting for that work. Collections are the one primitive with no framework-side scaffolding pre-built for olai's shape.
 
 ## Used correctly
 

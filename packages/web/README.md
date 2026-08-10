@@ -2,9 +2,34 @@
 
 A sidebar with a month and the outlines found, and one page open in the main
 pane — a whole outline, one node zoomed, or one day — kept current by the live
-store underneath: an edit on disk arrives as the next frame of one
-subscription, so the page changes without reloading. SolidJS over a WebSocket,
-styled with Tailwind v4, bundled by `Bun.build`.
+store underneath: an edit on disk arrives as the next frame of a subscription,
+so the page changes without reloading. SolidJS over a WebSocket, styled with
+Tailwind v4, bundled by `Bun.build`.
+
+## What the client reads, and how it is put back together
+
+`src/client/outlines.ts` is the whole read side, and it is two subscriptions:
+the `outlines` COLLECTION — one entry per outline file, keyed by root-relative
+path, served with batched `deltas` so an edit sends that file's entry and not
+the corpus — and the `manifest` CELL, which carries what belongs to no one file
+(the revision, and the documents with their text).
+
+Everything above it is derived from those: the sidebar's file list is the
+collection's keys in path order (`paths.ts`, because a key set has arrival order
+and a directory has path order), the one derivation the whole app reads is
+`derive` over every entry's nodes — the same call the validator makes — and
+which files are unreadable is the entries that carry a `broken`.
+
+The manifest is what DECIDES the page, because it is the member that can say
+all three of the things a reader can be looking at: no frame yet (waiting),
+`null` (nothing has ever validated, so the error report is the page), a value
+(here is your directory). An empty collection cannot — a directory with no
+outlines in it looks exactly like a first probe that has not finished.
+
+Entries of one revision arrive together, and entries of different revisions
+coexist: only the files that moved are upserted, so an unchanged neighbour keeps
+an older `rev`. Nothing here reads `rev` to decide anything, which is what makes
+that safe — every view is derived from what the entries currently say.
 
 ## Three ways to say what is wrong about the FILES, because there are three situations
 
@@ -86,8 +111,8 @@ highlight, rewrite, stringify:
 reference a `doc`-carrying node shows wherever it is drawn, and the context
 that lets a row deep in a tree find a document's text without every component
 above it declaring a prop for it. The text itself is not fetched — it arrives
-in the set, so a document edited on disk redraws through the same subscription
-an outline does.
+on the manifest, so a document edited on disk redraws by the mechanism that was
+already there.
 
 ## Five routes, and what each is a property of
 

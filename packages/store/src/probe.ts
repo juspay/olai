@@ -31,8 +31,29 @@ import type { PlatformFailure } from "./errors.ts"
  *  "identical to the previous one" — not "empty". */
 export type Decoded<F, E> = ReadonlyMap<string, Result.Result<F, E>>
 
+/**
+ * What one probe found, and what MOVED to make it that.
+ *
+ * The diff is not a second walk over the result: it is the stamp comparison the
+ * probe already does, kept instead of thrown away. `changed` is what was
+ * re-decoded (a new file included, since a file with no stamp is stale by
+ * definition) and `removed` is what the listing no longer holds — the same
+ * size-check deletion the `settled` test below is asked off.
+ *
+ * It is PATH talk, not content talk, which is what keeps it in a package that
+ * knows nothing about outlines: a consumer that publishes per file learns which
+ * files to publish without re-deriving it from a value it was handed whole.
+ */
+export interface Found<F, E> {
+  readonly files: Decoded<F, E>
+  /** Re-decoded this probe, in listing order. */
+  readonly changed: ReadonlyArray<string>
+  /** Gone from the listing since the last probe. */
+  readonly removed: ReadonlyArray<string>
+}
+
 export interface Probe<F, E> {
-  readonly run: Effect.Effect<Decoded<F, E> | null, PlatformFailure>
+  readonly run: Effect.Effect<Found<F, E> | null, PlatformFailure>
   /** What the last probe decoded, without going near the disk — empty before
    *  the first one. The write gate needs it: a commit validates the set it
    *  WOULD produce, which is this map with the changed files swapped in, and
@@ -108,6 +129,7 @@ export const make = <F, S, E>(
         )
 
         const next = new Map<string, Cached<F, E>>()
+        const changed: Array<string> = []
         for (const [path, stamp] of stamps) {
           const contents = reread.get(path)
           if (contents === undefined) {
@@ -117,13 +139,26 @@ export const make = <F, S, E>(
             continue
           }
           // Read back as gone — it was deleted between the stat and the read.
-          // Leaving it out is what the next probe would conclude anyway.
+          // Leaving it out is what the next probe would conclude anyway, and it
+          // is a REMOVAL rather than a change, which the loop below sees.
           if (contents === null) continue
           next.set(path, { stamp, decoded: codec.decode(path, contents) })
+          changed.push(path)
         }
+        // Off the same two maps the decode loop just built, so "gone" cannot
+        // mean one thing here and another there: anything the last probe held
+        // that this one does not is removed, whether the listing lost it or the
+        // read did.
+        const removed = [...(previous ?? [])]
+          .map(([path]) => path)
+          .filter((path) => !next.has(path))
 
         yield* Ref.set(cache, next)
-        return new Map([...next].map(([path, { decoded }]) => [path, decoded]))
+        return {
+          files: new Map([...next].map(([path, { decoded }]) => [path, decoded])),
+          changed,
+          removed,
+        }
       }),
     }),
   )
