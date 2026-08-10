@@ -164,6 +164,30 @@ export const CreateRequest = Schema.Struct({
   ),
 })
 
+/**
+ * Add and/or remove `see` targets on an existing node. Incremental rather
+ * than a whole-array replace: an agent that has just discovered one reference
+ * should not have to re-state every other one it already set. Both fields are
+ * optional, but at least one target must be named — the planner refuses a
+ * no-op with a teaching message.
+ */
+export const SeeRequest = Schema.Struct({
+  op: Schema.Literal("see"),
+  id: Id,
+  add: Schema.optionalKey(
+    Schema.Array(Schema.String).annotate({
+      description:
+        "Ids to add to this node's `see` list. Each must name a node in the loaded set; unknowns are refused with the ids that do exist.",
+    }),
+  ),
+  remove: Schema.optionalKey(
+    Schema.Array(Schema.String).annotate({
+      description:
+        "Ids to drop from this node's `see` list. Naming one that is not there is a no-op for that id.",
+    }),
+  ),
+})
+
 export const Request = Schema.Union([
   AddRequest,
   MarkRequest,
@@ -173,6 +197,7 @@ export const Request = Schema.Union([
   MoveRequest,
   ArchiveRequest,
   CreateRequest,
+  SeeRequest,
 ])
 export type Request = typeof Request.Type
 

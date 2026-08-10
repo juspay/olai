@@ -63,8 +63,8 @@ export interface Plan {
   readonly title: string
   readonly file: string
   /** The git commit subject, in the convention `olai` has always used:
-   *  `capture:` / `done:` / `doing:` / `move:` / `archive:` / `create:`
-   *  and a title (or a path, when the outline is born empty). */
+   *  `capture:` / `done:` / `doing:` / `move:` / `archive:` / `create:` /
+   *  `see:` and a title (or a path, when an outline is born empty). */
   readonly summary: string
 }
 
@@ -133,6 +133,8 @@ export const plan = (
       return planArchive(scope, request)
     case "create":
       return planCreate(scope, request)
+    case "see":
+      return planSee(scope, request)
   }
 }
 
@@ -864,4 +866,92 @@ const appendedOrd = (
   const next = ordBetween(last, null)
   if (next === null) throw new Error("the order encoding ran out of keys")
   return next
+}
+
+// ── see ────────────────────────────────────────────────────────────────
+
+/**
+ * Add and/or remove free cross-references on a node.
+ *
+ * `see` is the format's open-ended pointer — no ordering, no blocking, cycles
+ * fine — and the only work here that is not already the validator's is the
+ * TEACHING refusal for a target that does not exist. The validator would catch
+ * that too, with `file:line`; this one names the ids the set DOES hold, the
+ * same way an unknown outline file lists the ones under the served directory,
+ * so an agent can correct without a second round-trip to `search_nodes`.
+ */
+const planSee = (
+  scope: Scope,
+  request: Extract<Request, { op: "see" }>,
+): Planned => {
+  const target = editable(scope, request.id)
+  if (Result.isFailure(target)) return Result.fail(target.failure)
+  const { file, node } = target.success
+
+  const add = request.add ?? []
+  const remove = request.remove ?? []
+  if (add.length === 0 && remove.length === 0) {
+    return Result.fail(
+      new UsageFailure({
+        reason:
+          "give `add` and/or `remove` — at least one target to change on this node's `see`",
+      }),
+    )
+  }
+
+  // Refuse the first unknown add, with the set's ids so the next call can
+  // name one that exists. Same shape as an unknown `file` on `add`.
+  for (const id of add) {
+    if (!scope.derived.byId.has(id)) {
+      const known = [...scope.derived.byId.keys()].sort().join(", ") ||
+        "there are none"
+      return Result.fail(
+        new NotFoundFailure({
+          reason: `\`${id}\` is not a node in the loaded set: ${known}`,
+          named: id,
+        }),
+      )
+    }
+  }
+
+  // Existing order preserved; removes drop out; adds that are new append.
+  // Re-adding one already listed is a silent no-op for that id, and removing
+  // one that was never there is the same — the refusal below catches a plan
+  // that would write nothing.
+  const drop = new Set(remove)
+  const next: Array<string> = []
+  for (const id of node.see ?? []) {
+    if (!drop.has(id)) next.push(id)
+  }
+  for (const id of add) {
+    if (!next.includes(id)) next.push(id)
+  }
+
+  const previous = node.see ?? []
+  if (
+    previous.length === next.length &&
+    previous.every((id, index) => id === next[index])
+  ) {
+    return Result.fail(
+      new UsageFailure({
+        reason: previous.length === 0
+          ? `\`${node.title}\` has no see targets, and nothing to add was named`
+          : `\`${node.title}\` already sees exactly ${
+            previous.map((id) => `\`${id}\``).join(", ")
+          } — nothing would change`,
+      }),
+    )
+  }
+
+  const draft: Draft<RegularNode> = { ...node }
+  if (next.length === 0) delete draft.see
+  else draft.see = next
+
+  return Result.succeed({
+    files: [{ file, nodes: replacing(recordsOf(scope, file), node.id, draft) }],
+    id: node.id,
+    title: node.title,
+    file,
+    summary: `see: ${node.title}`,
+  })
 }

@@ -102,3 +102,26 @@ Feature: Zoom and navigate
     # Not a dead end: the sidebar is still the way home.
     And the outline list is shown
     And there should be no page errors
+
+  Scenario: A see reference is a link to the target's page
+    # `order` carries `see: ["herbs"]` — a free cross-reference into the other
+    # outline. The link text is the TARGET's title, resolved at view time, and
+    # clicking it is the same navigation a bullet is: `/n/<id>`, no reload.
+    Given I open the outline "house.jsonl"
+    Then the node "order" sees "herbs" as "the herb bed by the door"
+    Given I mark the page
+    When I follow the see link to "herbs" on "order"
+    Then the zoomed node is "herbs"
+    And the address is "/n/herbs"
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: A see reference on a zoomed page navigates too
+    # Same link, drawn under the subject rather than a tree row — NodeBody is
+    # one place, and both surfaces have to keep working when either changes.
+    Given I open the node "order"
+    Then the node "order" sees "herbs" as "the herb bed by the door"
+    When I follow the see link to "herbs" on "order"
+    Then the zoomed node is "herbs"
+    And the address is "/n/herbs"
+    And there should be no page errors

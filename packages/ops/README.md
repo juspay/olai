@@ -1,9 +1,9 @@
 # @olai/ops — the only writer
 
 Semantic edits over a served directory: create an outline, add, mark done or
-doing, retitle, note, schedule, move, archive. Everything that changes an
-outline goes through here, and everything an agent may READ of one comes out of
-here too.
+doing, retitle, note, schedule, move, archive, set see references. Everything
+that changes an outline goes through here, and everything an agent may READ of
+one comes out of here too.
 
 It sits between `@olai/format` (what a record is, and what is legal) and
 `@olai/store` (how bytes become durable). Neither of those knows what an EDIT
@@ -93,6 +93,7 @@ already knows how to read is worth more than a better one they do not:
 | move | `move: TITLE` |
 | title | `rename: TITLE` |
 | desc | `note: TITLE` |
+| see | `see: TITLE` |
 
 `create` is how a brand-new outline file is born: `add` only writes into a file
 the set already holds. The path is a relative `.jsonl` under the served
@@ -101,9 +102,9 @@ directory, judged segment by segment the way `/media/*` judges a picture name
 overwritten. A seeded create mints the first node the same way a capture does;
 an empty one leaves a zero-byte outline for later `add_node`s.
 
-The last field edits are this format's own: the reference had no structural
-move and no separate note edit. `move:` keeps its meaning for a date, which is
-what it named there.
+The last field edits (including `see`) are this format's own: the reference had
+no structural move, no separate note edit, and no agent-writable `see`. `move:`
+keeps its meaning for a date, which is what it named there.
 
 It cannot fail a write. The bytes are on disk and the browser has already seen
 them by the time git runs; a refusal is logged and reported as
@@ -118,8 +119,11 @@ against a real directory with no repository in it.
 `TOOLS` is a closed list, and the absences are the design: **no file read, no
 file write, no directory listing, no shell, no grep.** The agent cannot name a
 byte, only a node. Reads answer with `file:line`, the node's DERIVED status —
-which for a parent is not in the file and can never be written there — and its
-ancestor titles, which is what makes a bare title mean something.
+which for a parent is not in the file and can never be written there — its
+ancestor titles, which is what makes a bare title mean something, and its `see`
+targets (when it has any), so a free cross-reference is traversable without a
+second read. `set_see` is the write half: add and/or remove target ids on an
+existing node; an unknown add is refused with the ids the set does hold.
 
 `mcp.ts` has no transport in it: it is one `handle` over JSON-RPC messages, and
 that is what makes it serve every client at once. The olai server mounts it as
