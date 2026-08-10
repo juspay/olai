@@ -132,6 +132,7 @@ export const CHAT_TOOL_LOCATIONS = selector(TESTID.chatToolLocations);
 export const CHAT_REFUSAL = selector(TESTID.chatRefusal);
 export const CHAT_UNFINISHED_CHILD = selector(TESTID.chatUnfinishedChild);
 export const CHAT_INPUT = selector(TESTID.chatInput);
+export const CHAT_QUEUED = selector(TESTID.chatQueued);
 export const CHAT_SEND = selector(TESTID.chatSend);
 export const CHAT_CANCEL = selector(TESTID.chatCancel);
 export const CHAT_SLASH_COMMAND = selector(TESTID.chatSlashCommand);

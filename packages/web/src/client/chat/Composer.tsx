@@ -6,10 +6,12 @@
  *
  *   - **Enter sends, Shift+Enter is a newline.** A prompt is usually one line
  *     and occasionally several, and the common case should not need a button.
- *   - **Send becomes CANCEL while a turn is running.** There is one action
- *     available at a time and one place to look for it. A separate cancel
- *     button that is disabled most of the time is a control you have to learn
- *     to ignore.
+ *   - **Cancel appears BESIDE send while a turn is running**, rather than
+ *     replacing it. Replacing it was right while a mid-turn send was refused:
+ *     there was one action available and one place to look for it. Now that a
+ *     message queues, sending and stopping are two things a person can
+ *     genuinely want at the same moment, and hiding the send button would
+ *     leave the queue reachable only from the keyboard.
  *   - **`/` opens the agent's own commands**, and so does the button beside
  *     the input, which shows the WHOLE list. Typing filters; the button is for
  *     when you do not know what to type, which is most of the time you want a
@@ -77,6 +79,9 @@ export function Composer(props: { readonly chat: Chat }) {
     props.chat.send(text)
     setDraft("")
     dismiss()
+    // Where the caret already is, unless something took it — a person sending
+    // two messages in a row should not have to aim at the box for the second.
+    input?.focus()
   }
 
   const accept = (name: string) => {
@@ -128,18 +133,18 @@ export function Composer(props: { readonly chat: Chat }) {
           is right: bottom-aligned they hang off its corner, centred they float
           in the middle of it. A row of its own gives them one edge to line up
           on, and gives the box the width it is actually for. */}
-      {/* DISABLED while the agent has the turn, and it looks disabled. A send
-          during one is refused by the server anyway ("the agent is still
-          working on the last message"), so a box that takes the words and then
-          loses them is the worst of the three possibilities: better to say so
-          before they are typed. */}
+      {/* NEVER disabled. It was, on the reasoning that the server refuses a
+          send mid-turn — but the refusal was the thing to fix, not the box.
+          Turning it off cost the caret, so coming back meant reaching for the
+          mouse, and it cost the thought: a person watching an agent work has
+          the next message ready long before it is finished, and holding it in
+          their head until a box comes back is work the panel invented. */}
       <textarea
         ref={input}
-        class="w-full resize-none rounded border border-rule bg-paper px-2 py-1.5 text-sm outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+        class="w-full resize-none rounded border border-rule bg-paper px-2 py-1.5 text-sm outline-none focus:border-accent"
         data-testid={TESTID.chatInput}
         rows={2}
-        disabled={working()}
-        placeholder={working() ? "the agent is working…" : "ask the agent…"}
+        placeholder={working() ? "…or say the next thing" : "ask the agent…"}
         value={draft()}
         onInput={(event) => {
           setDraft(event.currentTarget.value)
@@ -152,6 +157,16 @@ export function Composer(props: { readonly chat: Chat }) {
       />
 
       <div class="mt-2 flex items-center gap-2">
+        {/* Sent, and waiting for the turn in flight. The rows are already in
+            the transcript — this says the agent has not reached them. */}
+        <Show when={props.chat.state().queued > 0}>
+          <span
+            class="font-mono text-[0.6875rem] text-muted"
+            data-testid={TESTID.chatQueued}
+          >
+            {props.chat.state().queued} queued
+          </span>
+        </Show>
         {/* Only when the agent offers some: a button that opens nothing lies. */}
         <Show when={props.chat.state().commands.length > 0}>
           <button
@@ -165,19 +180,7 @@ export function Composer(props: { readonly chat: Chat }) {
           </button>
         </Show>
         <span class="flex-1" />
-        <Show
-          when={working()}
-          fallback={
-            <button
-              type="button"
-              class={`${CONTROL} border-rule px-3 hover:border-accent hover:text-accent`}
-              data-testid={TESTID.chatSend}
-              onClick={send}
-            >
-              send
-            </button>
-          }
-        >
+        <Show when={working()}>
           <button
             type="button"
             class={`${CONTROL} border-alarm px-3 text-alarm`}
@@ -187,6 +190,14 @@ export function Composer(props: { readonly chat: Chat }) {
             cancel
           </button>
         </Show>
+        <button
+          type="button"
+          class={`${CONTROL} border-rule px-3 hover:border-accent hover:text-accent`}
+          data-testid={TESTID.chatSend}
+          onClick={send}
+        >
+          {working() ? "queue" : "send"}
+        </button>
       </div>
     </div>
   )

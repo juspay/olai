@@ -128,7 +128,10 @@ export const ChatState = Schema.Struct({
    *   - `booting` — the agent is starting, or being asked for its sessions.
    *     A prompt typed now is accepted and sent when the handshake finishes.
    *   - `idle` — ready.
-   *   - `thinking` — a turn is in flight; cancel is the only other verb.
+   *   - `thinking` — a turn is in flight. Sending is still allowed: the
+   *     message goes in the transcript and QUEUES, and is prompted the moment
+   *     this turn ends. A person who has thought of the next thing should not
+   *     have to hold it in their head until an agent is ready for it.
    *   - `gone` — the agent is not there. `trouble` says why, and the next
    *     prompt retries the boot.
    *   - `off` — no ACP agent is configured. The panel still DRAWS and says so,
@@ -143,6 +146,13 @@ export const ChatState = Schema.Struct({
    *  own models. `null` until the agent has said. */
   model: Schema.NullOr(Schema.String),
   commands: Schema.Array(Command),
+  /** How many messages are typed and waiting for the turn in flight to end.
+   *
+   *  A count rather than the messages themselves, because the messages are
+   *  already in the transcript: what you typed is a row the moment you send
+   *  it, in the order you meant it, and this is only the panel's way of saying
+   *  the agent has not reached them yet. */
+  queued: Schema.Int,
   /** The last thing that went wrong where no caller was waiting — a boot that
    *  failed, an agent that died mid-turn. `null` once a turn succeeds. */
   trouble: Schema.NullOr(Schema.String),
@@ -158,6 +168,7 @@ export const CHAT_OFF: ChatState = {
   session: null,
   model: null,
   commands: [],
+  queued: 0,
   trouble: null,
 }
 

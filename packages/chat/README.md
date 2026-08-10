@@ -87,6 +87,20 @@ agent being installed; the panel says so and the outlines are unaffected.
 the wire; what happens next arrives on the transcript, so every open tab stays
 in step and a five-minute turn is not a five-minute call.
 
+**A message sent mid-turn QUEUES.** It used to be refused, and the panel turned
+its input off while it was refusing — so a person watching an agent work, who
+had the next thing ready long before it finished, had to hold it in their head
+and come back for it. Everything sent is accepted in the order it was typed and
+the turns run one after another, drained by the running turn's own fiber, which
+is what makes "one turn at a time" true without anything polling for it. What is
+queued is dropped — out loud, as a notice — when the thing it was queued behind
+stops meaning what it meant: a cancel, an agent that died, a conversation being
+left.
+
+A queued message is a ROW the moment it is sent. It is what was said, in the
+order it will be asked; the count on the state adds only that the agent has not
+reached it yet, which is a fact about the agent rather than about the message.
+
 **The refusals the ops layer produces are ours to render.** The agent gets the
 structured detail in its tool result, but what it then says about it is prose.
 So the MCP layer tells us about every refusal and it lands in the transcript as

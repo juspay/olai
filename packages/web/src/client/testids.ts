@@ -105,6 +105,8 @@ export const TESTID = {
   /** What went wrong where nobody was waiting: a boot, a dead agent. */
   chatTrouble: "chat-trouble",
   chatInput: "chat-input",
+  /** How many messages are typed and waiting for the turn in flight. */
+  chatQueued: "chat-queued",
   chatSend: "chat-send",
   chatCancel: "chat-cancel",
   /** The button that opens the WHOLE command list. Drawn only when the agent

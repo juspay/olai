@@ -155,7 +155,6 @@ Feature: Talking to the agent
     # panel was invisible including when it ended.
     When I ask the agent "hold"
     Then the agent is working
-    And the chat input is disabled
     # BESIDE the model, not instead of it. The status used to give that line up
     # the moment a model was named, so from the second turn on the header
     # answered a different question than the one being asked of it.
@@ -167,7 +166,6 @@ Feature: Talking to the agent
     And the agent is released
     Then the agent is idle
     And the header has stopped saying the agent is working
-    And the chat input takes typing again
     And the panel header names the model "Fake One"
 
   @scratch:chat
@@ -217,6 +215,28 @@ Feature: Talking to the agent
     Then the panel header names the model "Fake One"
     When I ask the agent "model fake-model-2"
     Then the panel header names the model "Fake Two"
+
+  @scratch:chat
+  Scenario: A message sent mid-turn waits its turn instead of being refused
+    # The box used to be turned OFF while the agent worked, and a send while it
+    # was on was refused. Both were wrong in the same way: a person watching a
+    # turn has the next thing ready long before it ends, and the panel made
+    # them hold it — then took the caret away, so coming back meant reaching
+    # for the mouse.
+    When I ask the agent "hold"
+    Then the agent is working
+    And the chat input takes typing
+    When I ask the agent "done order"
+    Then the chat says 1 message is queued
+    And the chat input still has the caret
+    # It is a row already: what was said, in the order it will be asked.
+    And the chat eventually shows "done order"
+    And the agent is working
+    When the agent is released
+    # ... and the queued one runs on its own, with nothing else pressed.
+    Then nothing is queued any more
+    And the agent is idle
+    And node "order" is done
 
   @scratch:chat
   Scenario: The transcript follows the newest line, unless I have scrolled away

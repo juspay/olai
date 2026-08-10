@@ -28,6 +28,7 @@ import {
   CHAT_NEW,
   CHAT_NO_AGENT,
   CHAT_PANEL,
+  CHAT_QUEUED,
   CHAT_REFUSAL,
   CHAT_SEND,
   CHAT_SESSION,
@@ -161,17 +162,43 @@ Then("the agent is idle", async function (this: OlaiWorld) {
 // says it beside the model, and the shut drawer says it because a turn behind
 // a closed panel used to be invisible — including when it ended.
 
-Then("the chat input is disabled", async function (this: OlaiWorld) {
-  await this.waitUntil(
-    async () => await this.page.locator(CHAT_INPUT).isDisabled(),
-    "the input to refuse typing while the agent has the turn",
+Then("the chat input takes typing", async function (this: OlaiWorld) {
+  const input = this.page.locator(CHAT_INPUT);
+  assert.ok(
+    await input.isEnabled(),
+    "the composer is turned off while the agent works. A person watching a " +
+      "turn has the next message ready long before it ends, and a box that " +
+      "is not there is a thought they have to hold in their head.",
   );
 });
 
-Then("the chat input takes typing again", async function (this: OlaiWorld) {
+Then("the chat input still has the caret", async function (this: OlaiWorld) {
+  const focused = await this.page.evaluate(
+    (id) => document.activeElement?.getAttribute("data-testid") === id,
+    "chat-input",
+  );
+  assert.ok(
+    focused,
+    "the caret left the composer, so sending a second message means reaching " +
+      "for the mouse first",
+  );
+});
+
+Then("the chat says {int} message is queued", async function (this: OlaiWorld, many: number) {
   await this.waitUntil(
-    async () => await this.page.locator(CHAT_INPUT).isEnabled(),
-    "the input to come back",
+    async () => {
+      const shown = this.page.locator(CHAT_QUEUED);
+      return (await shown.count()) > 0 &&
+        oneLine(await shown.innerText()) === `${many} queued`;
+    },
+    `the composer to say ${many} queued`,
+  );
+});
+
+Then("nothing is queued any more", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_QUEUED).count()) === 0,
+    "the queue to drain",
     HYDRATION_TIMEOUT,
   );
 });

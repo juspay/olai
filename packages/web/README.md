@@ -187,6 +187,11 @@ Three components earn their own file:
   incremental content) is the first thing in the unfolded body, above the
   arguments. A call running for thirty seconds has something to show and its
   arguments are not it.
+- **`Composer.tsx`** never disables its box. A message typed while the agent
+  is working is sent and queues, so the button says `queue` and cancel appears
+  BESIDE it rather than replacing it — sending and stopping are two things a
+  person can want at the same moment. Disabling cost the caret as well as the
+  thought: coming back to a re-enabled box meant reaching for the mouse.
 - **`SlashMenu.tsx`** takes Enter in the CAPTURE phase and stops it
   propagating, because the input owns Enter for sending: without that, a
   completion accepted would be a message sent. It is opened by typing `/` and

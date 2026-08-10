@@ -107,9 +107,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     // being started. Restating the other four here would be a second place to
     // remember when the state gains a fifth.
     let state: ChatState = { ...CHAT_OFF, status: "booting" }
-    /** The turn in flight, so a second `send` can be refused rather than
-     *  queued and a cancel has something to aim at. */
+    /** The turn in flight, so a second `send` knows to queue behind it and a
+     *  cancel has something to aim at. */
     let turn: Fiber.Fiber<unknown, unknown> | null = null
+    /** Typed while a turn was running, in the order it was typed. Drained by
+     *  the turn's own fiber as it ends — see {@link begin}. */
+    const queue: Array<string> = []
     /** One session change at a time: a load and a new-session racing each other
      *  would leave the transcript holding half of each. */
     const switching = yield* Semaphore.make(1)
@@ -204,47 +207,105 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const asFailure = (gone: AcpAgent.AgentGone): OpFailure =>
       new BusyFailure({ reason: gone.why })
 
+    /**
+     * Send, or QUEUE — and which one is not the sender's problem.
+     *
+     * An agent holds the floor for minutes at a time, and a person watching it
+     * work thinks of the next thing well before it is finished. Refusing that
+     * message made them hold it in their head and come back; the panel even
+     * turned the box off while it did, so the thought had nowhere to go at all.
+     * Everything typed is accepted, in the order it was typed, and the turns
+     * run one after another.
+     *
+     * A queued message is a ROW the moment it is sent — it is what was said,
+     * and the order is the order it will be asked in. What the count on the
+     * state adds is only that the agent has not reached it yet, which is a fact
+     * about the agent rather than about the message.
+     */
     const send = (text: string): Effect.Effect<void, OpFailure> =>
       Effect.gen(function*() {
         const prompt = text.trim()
         if (prompt === "") {
           return yield* new UsageFailure({ reason: "there is nothing to send" })
         }
-        if (turn !== null) {
-          return yield* new BusyFailure({
-            reason: "the agent is still working on the last message",
-          })
-        }
 
         // The user's own message goes in FIRST and from the server, so both
         // tabs see it and a send that fails does not leave one behind.
         publish(transcript.add("user", prompt))
-        move({ status: "thinking", trouble: null })
 
-        // Accepted, not awaited: the turn runs on its own fiber and reports
-        // through the transcript.
+        if (turn !== null) {
+          queue.push(prompt)
+          move({ queued: queue.length, trouble: null })
+          return
+        }
+        yield* begin(prompt)
+      })
+
+    /** Run one prompt as a turn, and take the next one waiting when it ends.
+     *
+     *  Accepted, not awaited: the turn runs on its own fiber and reports
+     *  through the transcript, so a five-minute turn is not a five-minute
+     *  call. The queue is drained from INSIDE that fiber, which is what makes
+     *  "one turn at a time" true without anything having to poll for it. */
+    const begin = (prompt: string): Effect.Effect<void> =>
+      Effect.gen(function*() {
+        move({ status: "thinking", trouble: null, queued: queue.length })
+
         const running = yield* Effect.forkDetach(
           Effect.gen(function*() {
             const outcome = yield* Effect.result(agent.prompt(prompt))
             publish(transcript.settle())
             if (outcome._tag === "Failure") {
+              // The agent is not there, so the queue is not going anywhere
+              // either. Saying how many were dropped beats leaving them to be
+              // sent by whatever comes back.
+              dropQueue("the agent stopped")
               publish(transcript.add("notice", outcome.failure.message))
               move({ status: "gone", trouble: outcome.failure.message })
               return
             }
             if (outcome.success === "cancelled") {
+              // Cancelling means stop, and a queue that carried on afterwards
+              // would be the panel deciding it knew better.
+              dropQueue("cancelled")
               publish(transcript.add("notice", "cancelled"))
             }
             // A turn that came back is the proof that whatever went wrong
             // before has stopped being true. Leaving the banner up after it
             // would make the panel report a state it can see it is not in.
             move({ status: "idle", trouble: null })
-          }).pipe(Effect.ensuring(Effect.sync(() => {
-            turn = null
-          }))),
+          }).pipe(
+            Effect.ensuring(Effect.sync(() => {
+              turn = null
+            })),
+            // AFTER the fiber's own `ensuring`, so `turn` is already null and
+            // the next `begin` is starting from the same state a fresh one
+            // would. Recursion, one turn deep at a time.
+            Effect.andThen(Effect.suspend(() => {
+              const next = queue.shift()
+              return next === undefined
+                ? Effect.sync(() => move({ queued: 0 }))
+                : begin(next)
+            })),
+          ),
         )
         turn = running
       })
+
+    /** Forget what is waiting, and say so. Called wherever the thing they were
+     *  queued behind has stopped meaning what it meant. */
+    const dropQueue = (why: string): void => {
+      if (queue.length === 0) return
+      const dropped = queue.length
+      queue.length = 0
+      publish(
+        transcript.add(
+          "notice",
+          `${dropped} queued message${dropped === 1 ? "" : "s"} dropped — ${why}`,
+        ),
+      )
+      move({ queued: 0 })
+    }
 
     /** Move to another conversation. The `done` frame of a cancelled turn
      *  follows on its own — the agent decides how a turn ended, and a cancel
@@ -259,6 +320,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               reason: "a turn is running; cancel it before switching conversations",
             })
           }
+          dropQueue("this conversation is being left")
           move({ status: "booting" })
           const outcome = yield* Effect.result(what)
           if (outcome._tag === "Failure") {
