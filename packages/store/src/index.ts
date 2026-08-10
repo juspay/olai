@@ -7,5 +7,13 @@
  */
 
 export type { Codec } from "./codec.ts"
-export { PlatformFailure } from "./errors.ts"
-export { make, type Options, type Rev, type Snapshot, type Store } from "./store.ts"
+export { PlatformFailure, StaleWrite } from "./errors.ts"
+export {
+  type Change,
+  make,
+  type Options,
+  type Rev,
+  type Snapshot,
+  type Store,
+  type Write,
+} from "./store.ts"

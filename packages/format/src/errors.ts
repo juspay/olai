@@ -157,6 +157,16 @@ export type OutlineError = typeof OutlineError.Type
 export const isCrossFile = (error: OutlineError): boolean =>
   (error.related ?? []).some((related) => related.file !== error.file)
 
+/** One error as one line of plain text.
+ *
+ *  "Every validation error names `file:line`" is a statement about the format,
+ *  so the one-line rendering of that is too — otherwise every consumer without
+ *  a DOM to draw rows in (a tool result, a log line, a refusal an agent reads)
+ *  invents the same spelling, and they drift. The browser has its own, richer
+ *  answer; this is for everything that has to fit on a line. */
+export const errorLine = (error: OutlineError): string =>
+  `${error.file}:${error.line} ${error.message}`
+
 /** Stable presentation order: by file, then by line, then by code.
  *
  *  Code point order, not `localeCompare` — a locale-sensitive sort would make

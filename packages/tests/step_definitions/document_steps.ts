@@ -51,6 +51,7 @@ Then(
 When(
   "I click the document {string}",
   async function (this: OlaiWorld, file: string) {
+    await this.showSidebar();
     const link = this.documentLink(file);
     await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await link.click();

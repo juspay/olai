@@ -1,26 +1,28 @@
 /**
- * The surface, bound to the store.
+ * The surface, bound to the store and to the conversation.
  *
- * Two members, two bindings, and the live store needed neither to change:
+ * Two subjects, and the bindings say which is which:
  *
- *   - the stream is `SubscriptionRef.changes` verbatim — current value first,
- *     then every later one — which is already surface's snapshot-then-deltas
- *     contract, so a watcher publishing a second revision needs no change here
- *     at all;
- *   - the cell is an OWNED source: `connect` hands the framework the fiber
- *     that follows the other ref, so the write goes through the cell's private
- *     arm, the fiber lives on the runtime's own scope (a closed runtime stops
- *     it, rather than being published into afterwards), and a failure in it
- *     settles `done` — which is the channel the caller uses to decide the
- *     process is unrecoverably faulted.
+ *   - the OUTLINE is the store's, and it needed nothing new when the store went
+ *     live: the stream is `SubscriptionRef.changes` verbatim — current value
+ *     first, then every later one — which is already surface's
+ *     snapshot-then-deltas contract, and the error cell is an OWNED source, so
+ *     the fiber that follows the other ref lives on the runtime's own scope and
+ *     a failure in it settles `done`.
+ *   - the CONVERSATION is the chat's: a cell for where it stands, a collection
+ *     for the rows, and the procedures. The collection is deliberately
+ *     server-authored — `readAll` is the transcript itself and the writes come
+ *     from `ctx`, never from the wire — because a transcript is something that
+ *     HAPPENED and the only way to add to it is to prompt.
  *
- * Nothing here interprets an outline. It moves what the store decided onto the
- * wire, and that is all.
+ * Nothing here interprets an outline or an agent. It moves what the store and
+ * the chat decided onto the wire, and that is all.
  */
 
 import type { OutlineError, OutlineSet } from "@olai/format"
 import type { Store } from "@olai/store"
-import { surface } from "@olai/surface"
+import { CHAT_OFF, type ChatState, type OpFailure, surface } from "@olai/surface"
+import { UsageFailure } from "@olai/format"
 import {
   type ImplementSurfaceDeps,
   implementSurface,
@@ -29,18 +31,53 @@ import {
 } from "@kolu/surface/server"
 import { Effect, Stream, SubscriptionRef } from "effect"
 
+import type { Change, Chat } from "@olai/chat"
+
 /** What a transport needs, and nothing else. `ctx` is the write face, which
  *  belongs to the bindings below rather than to whoever serves them. */
 export type Bound = Omit<SurfaceRuntime<typeof surface.spec>, "ctx">
 
+export interface Wiring {
+  readonly store: Store<OutlineSet, ReadonlyArray<OutlineError>>
+  /** Absent when no ACP agent is configured: the cell stays `off` and the
+   *  procedures answer that they are. A directory is readable whether or not
+   *  an agent is installed. */
+  readonly chat: Chat | null
+}
+
+/** The chat, plus the two publishers the surface hands back once it exists.
+ *  {@link bind} fills them in — the chat is built before the surface, because
+ *  the surface's collection is seeded from the transcript, and the surface is
+ *  what the chat publishes through. */
+export interface Publishers {
+  readonly state: (state: ChatState) => void
+  readonly transcript: (change: Change) => void
+}
+
 export const bind = (
-  store: Store<OutlineSet, ReadonlyArray<OutlineError>>,
-): Effect.Effect<Bound> =>
+  wiring: Wiring,
+): Effect.Effect<{ readonly bound: Bound; readonly publish: Publishers }> =>
   Effect.sync(() => {
     // Seeded empty and filled by `connect`: `SubscriptionRef.changes` delivers
     // the current value before any update, so peeking at the ref here as well
     // would be the same read twice with a window between them.
     const errors = inMemoryStore<ReadonlyArray<OutlineError>>([])
+    const chat = wiring.chat
+
+    /** A chat verb, when there may be no chat. The cell already reads `off`, so
+     *  a browser has been told; a stray call is answered as a REFUSAL rather
+     *  than as a runtime defect, because "chat is off" is a thing a caller can
+     *  be told and the vocabulary already covers it. */
+    const withChat = <A>(
+      use: (chat: Chat) => Effect.Effect<A, OpFailure>,
+    ): Effect.Effect<A, OpFailure> =>
+      chat === null
+        ? Effect.fail(
+          new UsageFailure({
+            reason: "chat is off: no ACP agent is configured for this directory",
+          }),
+        )
+        : use(chat)
 
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {
       cells: {
@@ -48,21 +85,62 @@ export const bind = (
           store: errors,
           connect: (cell) =>
             Stream.runForEach(
-              SubscriptionRef.changes(store.errors),
+              SubscriptionRef.changes(wiring.store.errors),
               (next) => Effect.sync(() => cell.set(next ?? [])),
             ),
+        },
+        chat: {
+          store: inMemoryStore<ChatState>(chat === null ? CHAT_OFF : chat.state()),
+        },
+      },
+      collections: {
+        // Server-authored, one writer: `readAll` reads the transcript itself,
+        // so a fresh subscription is seeded from the same object every later
+        // upsert moves. There is no second copy to keep in step.
+        transcript: {
+          readAll: () => new Map(chat === null ? [] : chat.entries()),
+          // The wire never calls these — the collection's write verbs are not
+          // exposed — but the surface needs somewhere to persist a `ctx` write,
+          // and the transcript has already recorded it by the time we publish.
+          upsert: () => {},
+          remove: () => {},
         },
       },
       streams: {
         outlines: {
           source: () =>
-            Stream.map(SubscriptionRef.changes(store.snapshot), (snapshot) =>
+            Stream.map(SubscriptionRef.changes(wiring.store.snapshot), (snapshot) =>
               snapshot === null
                 ? null
                 : { rev: snapshot.rev, set: snapshot.value }),
         },
       },
+      procedures: {
+        chat: {
+          send: ({ input }) => withChat((open) => open.send(input.text)),
+          cancel: () => withChat((open) => open.cancel),
+          newSession: () => withChat((open) => open.newSession),
+          loadSession: ({ input }) => withChat((open) => open.loadSession(input.id)),
+          sessions: () => withChat((open) => open.sessions),
+        },
+      },
     }
 
-    return implementSurface(surface, deps)
+    // `ctx` is the WRITE face and it stays here: the transport gets `Bound`,
+    // which is the runtime with `ctx` taken off, so nothing that serves a
+    // socket can also publish into the surface.
+    const runtime = implementSurface(surface, deps)
+
+    return {
+      bound: runtime,
+      publish: {
+        state: (state) => runtime.ctx.cells.chat.set(state),
+        transcript: (change) => {
+          for (const key of change.removes) runtime.ctx.collections.transcript.remove(key)
+          for (const [key, entry] of change.upserts) {
+            runtime.ctx.collections.transcript.upsert(key, entry)
+          }
+        },
+      },
+    }
   })

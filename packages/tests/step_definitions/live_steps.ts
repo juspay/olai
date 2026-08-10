@@ -145,6 +145,7 @@ When(
   async function (this: OlaiWorld, file: string) {
     // Not "I open the outline": that step waits for a tree, and the whole point
     // of this one is that there will never be a tree to wait for.
+    await this.showSidebar();
     await this.outlineLink(file).click();
     await this.page
       .locator(`${OUTLINE_FAILURE}[data-file="${file}"]`)

@@ -9,20 +9,31 @@
  *
  * `from` is the file the markdown was written in, and it is required rather
  * than optional because a relative picture cannot be resolved without it. A
- * note's is its outline; a document's is itself.
+ * note's is its outline; a document's is itself; the agent's is the EMPTY
+ * string, which resolves against the served directory itself — the agent was
+ * started there, so that is what a relative path in what it says is relative
+ * to, and there is no file to name because it did not write one.
  */
 
 import { createMemo } from "solid-js"
 
-import { renderMarkdown } from "./render.ts"
+import { renderMarkdown, renderStreaming } from "./render.ts"
 
 export function Markdown(props: {
   readonly source: string
   readonly from: string
   readonly class?: string
   readonly testid?: string
+  /** This text is still arriving, so it is rendered but not CACHED: every
+   *  prefix of a growing answer is a string that will never be asked for
+   *  again. See ./render.ts. */
+  readonly live?: boolean
 }) {
-  const html = createMemo(() => renderMarkdown(props.source, props.from))
+  const html = createMemo(() =>
+    props.live === true
+      ? renderStreaming(props.source, props.from)
+      : renderMarkdown(props.source, props.from)
+  )
   return (
     <div
       class={`olai-md ${props.class ?? ""}`}

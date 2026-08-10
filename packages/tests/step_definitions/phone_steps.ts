@@ -19,6 +19,9 @@ import { Then, When } from "@cucumber/cucumber";
 
 import {
   CALENDAR_DAY,
+  CHAT_INPUT,
+  CHAT_PANEL,
+  CHAT_TOGGLE,
   DOCUMENT_LINK,
   CALENDAR_NEXT,
   CALENDAR_PREV,
@@ -27,9 +30,12 @@ import {
   OUTLINE_LINK,
   OUTLINE_LIST,
   OUTLINE_TREE,
+  SIDEBAR_BODY,
+  SIDEBAR_TOGGLE,
   TOGGLE,
   ZOOM,
 } from "../support/world.ts";
+import { HYDRATION_TIMEOUT, POLL_TIMEOUT } from "../support/world.ts";
 import type { Box, OlaiWorld } from "../support/world.ts";
 
 /** The controls a feature can name, and what each one is on the page. */
@@ -83,6 +89,81 @@ When("I tap the outline {string}", async function (this: OlaiWorld, file: string
 
 When("I tap the day {string}", async function (this: OlaiWorld, date: string) {
   await this.press(this.calendarDay(date).locator("a"), "tap");
+});
+
+/** The burger, and what it reveals. Two taps to anything in the sidebar is the
+ *  budget: one to open it, one to press what you came for. */
+When("I tap the burger", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(SIDEBAR_TOGGLE), "tap");
+  await this.page
+    .locator(SIDEBAR_BODY)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+Then("the burger is on screen", async function (this: OlaiWorld) {
+  const burger = await this.box(
+    this.page.locator(SIDEBAR_TOGGLE),
+    "the burger",
+  );
+  const viewport = this.page.viewportSize();
+  assert.ok(viewport !== null, "this scenario has no viewport size");
+  assert.ok(
+    burger.y >= 0 && burger.y + burger.height <= viewport.height,
+    `the burger is at y=${Math.round(burger.y)} on a ${viewport.height}px ` +
+      "screen, which is not somewhere a thumb can reach without scrolling",
+  );
+  assert.ok(
+    burger.height >= 44 && burger.width >= 44,
+    `the burger is ${Math.round(burger.width)}×${Math.round(burger.height)}px, ` +
+      "under the 44px both mobile platforms print in their guidelines",
+  );
+});
+
+Then("there is no burger", async function (this: OlaiWorld) {
+  assert.strictEqual(
+    await this.page.locator(SIDEBAR_TOGGLE).isVisible(),
+    false,
+    "the burger is drawn on a laptop, where there is a column for the sidebar " +
+      "to be and nothing to put away",
+  );
+});
+
+// ── the agent, from a thumb ────────────────────────────────────────────
+
+When("I tap the agent toggle", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(CHAT_TOGGLE), "tap");
+});
+
+Then("the agent panel is showing", async function (this: OlaiWorld) {
+  await this.page
+    .locator(CHAT_PANEL)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
+
+Then("I can type into the chat", async function (this: OlaiWorld) {
+  const input = this.page.locator(CHAT_INPUT);
+  await input.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.ok(
+    await input.isEnabled(),
+    "the composer is on screen but will not take a message",
+  );
+  const box = await this.box(input, "the chat input");
+  const viewport = this.page.viewportSize();
+  assert.ok(viewport !== null, "this scenario has no viewport size");
+  assert.ok(
+    box.y >= 0 && box.y + box.height <= viewport.height,
+    `the composer is at y=${Math.round(box.y)} on a ${viewport.height}px ` +
+      "screen — a box a thumb cannot reach is a panel that opens onto nothing",
+  );
+});
+
+Then("the sidebar is put away", async function (this: OlaiWorld) {
+  assert.strictEqual(
+    await this.page.locator(SIDEBAR_BODY).isVisible(),
+    false,
+    "the sidebar is open before anybody asked for it, so the outline it is a " +
+      "header for starts a third of a screen down",
+  );
 });
 
 // ── one column ─────────────────────────────────────────────────────────

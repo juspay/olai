@@ -101,6 +101,10 @@ let
     { meta.description = "olai browser bundle (static assets)"; }
     "cp -r ${base}/packages/web/dist $out";
 
+  # The ACP agent the chat panel talks to, pinned rather than looked up: a
+  # nix-built olai needs nothing ambient, and two machines run the same adapter.
+  acp-agent = pkgs.callPackage ./nix/acp-agent.nix { };
+
   olai = pkgs.runCommand "olai"
     {
       nativeBuildInputs = [ pkgs.makeWrapper ];
@@ -112,9 +116,10 @@ let
     mkdir -p $out/bin
     makeWrapper ${pkgs.bun}/bin/bun $out/bin/olai \
       --add-flags "${base}/packages/server/src/main.ts" \
-      --set OLAI_DIST_DIR "${olai-client}"
+      --set OLAI_DIST_DIR "${olai-client}" \
+      --set-default OLAI_ACP_AGENT "${acp-agent}/bin/claude-agent-acp"
   '';
 in
 {
-  inherit olai olai-client base;
+  inherit olai olai-client base acp-agent;
 }

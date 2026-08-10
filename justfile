@@ -96,6 +96,10 @@ build-client: install
 serve dir="docs" *args: build-client
     #!/usr/bin/env bash
     set -euo pipefail
+    # The chat panel defaults to the pinned Claude Code adapter, exactly as the
+    # packaged binary does — scripts/acp-agent.sh is the one place that is
+    # decided, and `OLAI_ACP_AGENT` overrides it (empty disables).
+    export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
     # `kill 0` takes the whole process group down together: a stray bundler
     # watching a tree nobody is serving is a confusing thing to leave behind.
     trap 'kill 0' EXIT INT TERM
@@ -103,8 +107,13 @@ serve dir="docs" *args: build-client
     OLAI_DIST_DIR={{ dist }} \
       {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} {{ args }}
 
-# Anything else the binary takes, without the watchers.
+# Anything else the binary takes, without the watchers. Defaults to the same
+# pinned agent `just serve` and the packaged binary do: no documented way of
+# starting olai may land in the no-agent state by accident.
 run *args: build-client
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
     OLAI_DIST_DIR={{ dist }} {{ nix_shell }} bun packages/server/src/main.ts {{ args }}
 
 # Build the binary with nix, then run it. Both halves earn their place: the
@@ -115,8 +124,34 @@ run *args: build-client
 # re-evaluates the flake, which is cheap and warm). No nix_shell prefix: this
 # recipe IS the outside-the-shell check.
 nix:
-    nix build .#olai --no-link --accept-flake-config
-    nix run .#olai --accept-flake-config -- --help
+    #!/usr/bin/env bash
+    set -euo pipefail
+    out=$(nix build .#olai --no-link --print-out-paths --accept-flake-config)
+    nix run .#olai --accept-flake-config -- --help > /dev/null
+    # The packaged DEFAULT AGENT, as a checked fact rather than a claim in a
+    # doc: `nix run` has to come with the pinned Claude Code adapter, so the
+    # wrapper must carry it and the thing it names must be runnable. Dropping
+    # the `--set-default` in default.nix, or renaming the flake attribute it
+    # points at, fails here rather than as a "no ACP agent" message in
+    # somebody's browser.
+    #
+    # The one-dash `${VAR-...}` is asserted too, and it is load-bearing: it
+    # substitutes only when the variable is UNSET, which is what makes an empty
+    # OLAI_ACP_AGENT the explicit off switch instead of a fall-through to the
+    # default.
+    agent=$(sed -n "s|.*OLAI_ACP_AGENT=\${OLAI_ACP_AGENT-'\(.*\)'}.*|\1|p" "$out/bin/olai")
+    if [ -z "$agent" ]; then
+      echo "the packaged binary does not bake OLAI_ACP_AGENT into its wrapper," >&2
+      echo "so \`nix run\` would start with no agent — every documented launch" >&2
+      echo "path is supposed to default to the pinned adapter. Wrapper:" >&2
+      cat "$out/bin/olai" >&2
+      exit 1
+    fi
+    if [ ! -x "$agent" ]; then
+      echo "the wrapper's baked OLAI_ACP_AGENT is not executable: $agent" >&2
+      exit 1
+    fi
+    echo "packaged default agent: $agent"
 
 # The home-manager module evaluates under a sample config (systemd argv on
 # Linux, launchd argv on Darwin). Cheap, no home-manager pin, no activation —

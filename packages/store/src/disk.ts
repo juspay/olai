@@ -23,6 +23,13 @@
  *     races every writer on the machine; "it was listed, then it was not there"
  *     is the normal outcome of a `git checkout`, and the next probe is what
  *     settles it. Every other failure is real and propagates.
+ *
+ * Writing is two verbs rather than one, and the split is the whole safety
+ * property: {@link Disk.stage} puts bytes on disk beside their destination
+ * without anybody being able to read them there, and {@link Disk.publish}
+ * renames one over the other in a single syscall. A reader — the probe, an
+ * editor, `git status` — sees the old file or the new one and never a partial
+ * write. Same directory, because a rename across file systems is a copy.
  */
 
 import { Effect, FileSystem, Option, Path, type PlatformError, Stream } from "effect"
@@ -49,6 +56,27 @@ export interface Disk {
   ) => Effect.Effect<ReadonlyMap<string, Stamp>, PlatformFailure>
   /** One file's text, or `null` if it is no longer there. */
   readonly read: (path: string) => Effect.Effect<string | null, PlatformFailure>
+  /** Write `contents` to a temp file BESIDE `path`, and answer with the temp's
+   *  own root-relative path. Nothing about `path` has changed yet. The name is
+   *  a dot-file with no `.jsonl` or `.md` suffix, so no codec claims it and the
+   *  listing walks straight past it. */
+  readonly stage: (
+    path: string,
+    contents: string,
+  ) => Effect.Effect<string, PlatformFailure>
+  /** Rename a staged file over its destination. One syscall: a reader sees the
+   *  old bytes or the new ones. */
+  readonly publish: (
+    staged: string,
+    path: string,
+  ) => Effect.Effect<void, PlatformFailure>
+  /** Best-effort removal of a staged file that will never be published. A miss
+   *  is not a failure — the point is to leave no litter, not to prove it. */
+  readonly discard: (staged: string) => Effect.Effect<void>
+  /** Absolute, platform-spelled — for a consumer that has to hand a path to
+   *  something outside this process (the post-publish hook shelling out to
+   *  git). Nothing inside the store uses it. */
+  readonly resolve: (path: string) => string
   /** "Something under the root moved." The event's own payload is DROPPED
    *  here, at the edge, so nothing above can be tempted to believe it: the
    *  pinned watcher discards null filenames of its own accord, inotify
@@ -154,7 +182,29 @@ export const make = (
       Stream.mapError((cause) => new PlatformFailure({ path: root, cause })),
     )
 
-    return { listing, read, watch }
+    let staged = 0
+    const stage = (path: string, contents: string) =>
+      Effect.gen(function*() {
+        const cut = path.lastIndexOf("/")
+        const directory = cut === -1 ? "" : path.slice(0, cut)
+        // A file the set has never held — the first `Archive.jsonl` — may name
+        // a directory that is not there. Making it is part of writing it.
+        if (directory !== "") yield* fs.makeDirectory(absolute(directory), { recursive: true })
+        // Unique per call as well as per process: one commit stages several
+        // files, and two commits can be queued behind the same permit.
+        const temp = `${directory === "" ? "" : `${directory}/`}.olai-${process.pid}-${staged++}.tmp`
+        yield* fs.writeFileString(absolute(temp), contents)
+        return temp
+      }).pipe(Effect.mapError((cause) => new PlatformFailure({ path, cause })))
+
+    const publish = (from: string, to: string) =>
+      fs.rename(absolute(from), absolute(to)).pipe(
+        Effect.mapError((cause) => new PlatformFailure({ path: to, cause })),
+      )
+
+    const discard = (path: string) => Effect.ignore(fs.remove(absolute(path)))
+
+    return { listing, read, watch, stage, publish, discard, resolve: absolute }
   })
 
 /** Directories the walk does not enter.

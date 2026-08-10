@@ -43,9 +43,11 @@ import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 
 import { Calendar } from "./calendar/Calendar.tsx"
+import { chatOpen } from "./chat/open.ts"
+import { Panel as ChatPanel, Toggle as ChatToggle } from "./chat/Panel.tsx"
 import { createToday } from "./clock.ts"
 import { Connection } from "./connection/Connection.tsx"
-import { CLEARANCE } from "./connection/Indicator.tsx"
+import { CLEARANCE, CORNER, Indicator } from "./connection/Indicator.tsx"
 import { DayPage } from "./day/DayPage.tsx"
 import { DocumentPage } from "./document/DocumentPage.tsx"
 import { DocumentsProvider } from "./document/documents.tsx"
@@ -161,13 +163,47 @@ export default function App() {
     setDay(reconcile(open?.kind === "day" ? [...open.groups] : [], { key: "file" }))
   })
 
+  /** Is there a sidebar on screen to hold the app's own chrome? Only the page
+   *  that draws one does; the error report and the waiting page replace the
+   *  whole layout. */
+  const docked = () => frame() !== null && page() !== undefined
+
+  /** The two pills that are about the APP rather than about the page: whether
+   *  the server is still there, and the way into the agent. One expression,
+   *  rendered in whichever of the two places the layout has for it. */
+  const chrome = () => (
+    <>
+      <Indicator status={connectionStatus()} />
+      <ChatToggle />
+    </>
+  )
+
   return (
     <>
       {/* Outside the switch, and first: every shape below — the report, the
           waiting page, the outline — is a page whose reader deserves to know
           whether the server behind it is still there. */}
       <Connection status={connectionStatus()} />
-      <Switch fallback={<p class="p-8 text-muted">Reading…</p>}>
+      {/* Also outside the switch, and for a related reason: the agent is a
+          property of the SERVED DIRECTORY, not of whichever page is open, so it
+          stays put across a zoom, a broken file and the error report. Asking it
+          about a set that will not load is a reasonable thing to want to do. */}
+      <ChatPanel />
+      {/* The same two pills, in the only other place there is to put them:
+          every screen below either draws a sidebar and gets `chrome` in its
+          footer, or draws none — the error report, the waiting page — and gets
+          this. */}
+      <Show when={!docked()}>
+        <div class={`${CORNER} flex items-center gap-2`}>{chrome()}</div>
+      </Show>
+      {/* The drawer is fixed, so the page has to be told about it: without this
+          it draws underneath, and the right-hand third of every line is behind
+          the panel. Reserved only from `lg` up, which is the width at which
+          giving 26rem away still leaves a column worth reading — below it the
+          drawer covers the page, which is the honest answer when there is no
+          room to share. */}
+      <div classList={{ "lg:pr-[var(--width-chat)]": chatOpen() }}>
+        <Switch fallback={<p class="p-8 text-muted">Reading…</p>}>
         <Match when={frame() === null}>
           <ErrorPage errors={problems()} />
         </Match>
@@ -194,6 +230,7 @@ export default function App() {
                     documents={documents()}
                     active={fileOf(open())}
                     broken={broken()}
+                    footer={chrome()}
                   >
                     <Calendar
                       today={today()}
@@ -201,12 +238,12 @@ export default function App() {
                       days={dated}
                     />
                   </Sidebar>
-                  {/* The room under the outline is for two things a phone has
-                      that a laptop does not: the home indicator (the inset is
-                      real because the shell asks for `viewport-fit=cover`), and
-                      the connection dot, which is fixed over this corner and
-                      would otherwise sit on the last row of the tree — so the
-                      amount is the dot's own (./connection/Indicator.tsx). */}
+                  {/* The room under the outline is for the phone's home
+                      indicator — the inset is real because the shell asks for
+                      `viewport-fit=cover` — and it is the same amount the pages
+                      WITHOUT a sidebar need for the pair in their corner, so it
+                      is spelled once where those pills are
+                      (./connection/Indicator.tsx). */}
                   <main class={`overflow-x-auto px-4 pt-4 ${CLEARANCE} md:px-8 md:py-6`}>
                     <Show when={problems().length > 0}>
                       <Banner errors={problems()} />
@@ -245,8 +282,9 @@ export default function App() {
               </DocumentsProvider>
             </RouterProvider>
           )}
-        </Match>
-      </Switch>
+          </Match>
+        </Switch>
+      </div>
     </>
   )
 }

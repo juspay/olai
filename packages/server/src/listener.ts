@@ -37,6 +37,7 @@ import { HttpRouter } from "effect/unstable/http"
 import { WebSocketServer } from "ws"
 
 import { MANIFEST } from "./manifest.ts"
+import { mcpRoute } from "./mcp/route.ts"
 import { mediaLayer } from "./media.ts"
 import type { Bound } from "./runtime.ts"
 
@@ -64,6 +65,10 @@ export interface ListenOptions {
   readonly port: number
   /** Browser origins allowed to open the websocket, beyond same-origin. */
   readonly allowedOrigins: ReadonlyArray<string>
+  /** The internal MCP server, mounted beside the static routes — see
+   *  {@link ./mcp/route.ts} for why it rides this listener rather than a
+   *  transport of its own. */
+  readonly mcp: Parameters<typeof mcpRoute>[0]
   readonly log: (message: string) => void
 }
 
@@ -127,11 +132,29 @@ export const listen = (options: ListenOptions) =>
         sockets.emit("connection", ws, request))
     })
 
+    // Shutting down means DROPPING what is connected, not waiting for it.
+    //
+    // `server.close` refuses to finish while any connection is still open, and
+    // both kinds a browser holds are open at that moment: the surface's
+    // websocket, which by construction stays up for as long as the tab does,
+    // and the keep-alive connection the page's own requests left behind.
+    // Neither ever closes on its own, so a server with a tab pointed at it
+    // hung there forever — Ctrl+C caught, the runtime unwinding, and the
+    // process simply never exiting. Nothing is lost by dropping them: the
+    // surface has already said goodbye on the line above, and a page whose
+    // socket goes away is a case the client already handles — it says so and
+    // reconnects.
+    //
+    // `terminate` rather than `close`: a close handshake waits for a reply
+    // from a peer we are about to stop being able to answer, which is the same
+    // wait in a politer spelling.
     yield* Effect.addFinalizer(() =>
       Effect.promise(async () => {
         await options.bound.close()
         acceptor.stop()
+        for (const client of sockets.clients) client.terminate()
         sockets.close()
+        server.closeAllConnections()
         await new Promise<void>((resolve) => server.close(() => resolve()))
       })
     )
@@ -185,19 +208,29 @@ const bindOrFallBack = (
       ),
   )
 
-/** The `request` handler, as an Effect handler over two layers.
+/** The `request` handler, as an Effect handler over three layers.
  *  `surfaceAppLayer` owns the freshness contract: a `no-store` shell,
  *  immutable hashed assets, a 404 on an asset miss (never the shell), and the
  *  SPA fallback that makes `/o/<file>` a real URL, and it serves the web app
  *  manifest at `/manifest.webmanifest` — what is IN that manifest is
  *  `./manifest.ts`. `mediaLayer` owns the one route that answers with bytes
- *  from the SERVED directory rather than from the bundle — merge order carries
- *  no meaning, because `HttpRouter` ranks by specificity and `/media/*` is more
- *  specific than the shell's catch-all. */
-const requestHandler = (options: { readonly clientDist: string; readonly root: string }) =>
+ *  from the SERVED directory rather than from the bundle, and `mcpRoute` the
+ *  one an agent speaks to.
+ *
+ *  MERGED rather than ordered, all three: `HttpRouter` ranks routes by
+ *  specificity, so `POST /mcp` and `GET /media/*` both beat the shell's
+ *  catch-all whichever layer went in first. Registration order carries no
+ *  meaning here, which is exactly the footgun the layer form exists to
+ *  remove. */
+const requestHandler = (options: {
+  readonly clientDist: string
+  readonly root: string
+  readonly mcp: Parameters<typeof mcpRoute>[0]
+}) =>
   Effect.gen(function*() {
     const scope = Scope.makeUnsafe()
-    const layer = Layer.merge(
+    const layer = Layer.mergeAll(
+      mcpRoute(options.mcp),
       mediaLayer(options.root),
       surfaceAppLayer({
         clientDist: options.clientDist,

@@ -4,5 +4,5 @@
   // that hold TypeScript. `features/` is Gherkin and `cucumber.js` is plain
   // JS read by the runner, so neither is compiled.
   "extends": "../../tsconfig.base.json",
-  "include": ["support", "step_definitions"]
+  "include": ["agent", "support", "step_definitions"]
 }

@@ -62,8 +62,37 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
   return { nodes, byId, children, status: statuses(nodes, byId, children) }
 }
 
-const byOrd = (a: Located, b: Located): number =>
+/**
+ * Sibling order, as the format defines it: `ord` is a fractional index over
+ * base62, so plain string comparison IS the sort, and file order breaks ties
+ * rather than leaving them to the engine.
+ *
+ * Exported because a WRITER needs it too — placing a node among its siblings is
+ * the same question a reader asks, and a second comparator would be a second
+ * definition of sibling order free to disagree with the one the validator and
+ * the view use.
+ */
+export const byOrd = (a: Located, b: Located): number =>
   a.node.ord === b.node.ord ? a.line - b.line : a.node.ord < b.node.ord ? -1 : 1
+
+/**
+ * The records that share a parent, in sibling order — or the roots of one file
+ * when `parent` is absent.
+ *
+ * A MIRROR is a sibling here, even though it is never a counted child: it
+ * occupies a place in the row, and this question is about places. That is the
+ * difference from {@link countedChildren}, which is about obligations.
+ */
+export const siblingsOf = (
+  derived: Derived,
+  file: string,
+  parent: string | undefined,
+): ReadonlyArray<Located> =>
+  parent === undefined
+    ? derived.nodes
+      .filter((located) => located.file === file && located.node.parent === undefined)
+      .sort(byOrd)
+    : (derived.children.get(parent) ?? []).filter((located) => located.file === file)
 
 /** The children that count toward a node's derived status. A mirror is a
  *  second view of a node, not a second obligation, so it never counts. One
@@ -170,10 +199,7 @@ export type Row =
  *  expanded in place, because a pointer the reader has to go and follow is not
  *  a second location — it is a footnote. */
 export const rowsOf = (derived: Derived, file: string): ReadonlyArray<Row> =>
-  derived.nodes
-    .filter((located) => located.file === file && located.node.parent === undefined)
-    .sort(byOrd)
-    .map((root) => expand(derived, root, [], ""))
+  siblingsOf(derived, file, undefined).map((root) => expand(derived, root, [], ""))
 
 /**
  * The rows UNDER one node: what a zoomed page draws below its heading.

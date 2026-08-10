@@ -59,6 +59,9 @@ export const SCENARIO_SETUP_TIMEOUT = SERVER_START_TIMEOUT + STEP_GUARD;
  *  selector here the client does not own and the one spelled out locally. */
 export const ROOT = "#root";
 /** The sidebar: one entry per `.jsonl` found under the served directory. */
+export const SIDEBAR = selector(TESTID.sidebar);
+export const SIDEBAR_TOGGLE = selector(TESTID.sidebarToggle);
+export const SIDEBAR_BODY = selector(TESTID.sidebarBody);
 export const OUTLINE_LIST = selector(TESTID.outlineList);
 export const OUTLINE_LINK = selector(TESTID.outlineLink);
 /** The sidebar's second list: one entry per `.md` found. */
@@ -120,12 +123,48 @@ export const RESTARTED = selector(TESTID.restarted);
 /** The button in that surface. */
 export const RELOAD = selector(TESTID.reload);
 
+/** The agent panel. Absent entirely when no ACP agent is configured, which is
+ *  a state the suite never runs in: every server it spawns is pointed at the
+ *  scripted agent (`support/hooks.ts`). */
+export const CHAT_TOGGLE = selector(TESTID.chatToggle);
+export const CHAT_PANEL = selector(TESTID.chatPanel);
+export const CHAT_TITLE = selector(TESTID.chatTitle);
+export const CHAT_CLOSE = selector(TESTID.chatClose);
+export const CHAT_WORKING = selector(TESTID.chatWorking);
+export const CHAT_MODEL = selector(TESTID.chatModel);
+export const CHAT_SESSIONS = selector(TESTID.chatSessions);
+export const CHAT_SESSION = selector(TESTID.chatSession);
+export const CHAT_TRANSCRIPT = selector(TESTID.chatTranscript);
+export const CHAT_NO_AGENT = selector(TESTID.chatNoAgent);
+export const CHAT_ENTRY = selector(TESTID.chatEntry);
+export const CHAT_NEW = selector(TESTID.chatNew);
+export const CHAT_ENTRY_STREAMING =
+  `${selector(TESTID.chatEntry)}[data-kind="agent"][data-streaming="true"]`;
+export const CHAT_TOOL = selector(TESTID.chatTool);
+export const CHAT_TOOL_DETAIL = selector(TESTID.chatToolDetail);
+export const CHAT_TOOL_PROGRESS = selector(TESTID.chatToolProgress);
+export const CHAT_TOOL_LOCATIONS = selector(TESTID.chatToolLocations);
+export const CHAT_REFUSAL = selector(TESTID.chatRefusal);
+export const CHAT_UNFINISHED_CHILD = selector(TESTID.chatUnfinishedChild);
+export const CHAT_INPUT = selector(TESTID.chatInput);
+export const CHAT_QUEUED = selector(TESTID.chatQueued);
+export const CHAT_SEND = selector(TESTID.chatSend);
+export const CHAT_CANCEL = selector(TESTID.chatCancel);
+export const CHAT_SLASH_COMMAND = selector(TESTID.chatSlashCommand);
+
 /** The app has finished its first render when it has committed to one of its
  *  two shapes: a sidebar (the set loaded) or the error view (it did not).
  *  Waiting on either — rather than on the one the scenario expects — means a
  *  broken-set regression fails with "expected a tree, found the error view for
- *  house.jsonl:3" instead of a bare 30-second timeout. */
-export const SETTLED_SELECTOR = `${OUTLINE_LIST}, ${ERROR_VIEW}`;
+ *  house.jsonl:3" instead of a bare 30-second timeout.
+ *
+ *  The SIDEBAR, not the outline list inside it. Below 48rem that list is behind
+ *  a burger and starts collapsed, so waiting on it meant waiting for something
+ *  the reader had not asked to see — every phone scenario timed out at its
+ *  first step, and a 40-second suite took twenty-five minutes to say so. What
+ *  this is asking is whether the app has decided what to draw, and the nav
+ *  answers that whether or not anybody has opened it. */
+export const SETTLED_SELECTOR = `${SIDEBAR}, ${ERROR_VIEW}`;
 
 /** A sentinel planted on `window` to prove a later assertion ran against the
  *  SAME document. Any full page load wipes it, so a step that claims "without
@@ -195,6 +234,15 @@ export class OlaiWorld extends World {
   /** Which fixture corpus this scenario's server is serving, from its
    *  `@corpus:<name>` or `@scratch:<name>` tag. See `support/hooks.ts`. */
   corpus!: string;
+  /** Whether this scenario's agent has stored conversations (`@agent-stored`),
+   *  so a restart adopts one rather than opening a fresh session. Carried on
+   *  the world because a restart mid-scenario has to spawn the SAME shape of
+   *  server the first boot had. */
+  storedSessions = false;
+  /** Whether this scenario's server has an agent at all — false for
+   *  `@no-agent`, which is how the panel's no-agent state is reached. Carried
+   *  for the same reason: a restart has to reproduce the first boot. */
+  hasAgent = true;
   /** The URL that corpus's server answers on; also the context's `baseURL`. */
   baseUrl!: string;
 
@@ -258,6 +306,24 @@ export class OlaiWorld extends World {
   /** One document's own page COLD, the way a link someone sent would arrive. */
   async openDocument(file: string): Promise<void> {
     await this.open(`/doc/${file.split("/").map(encodeURIComponent).join("/")}`);
+  }
+
+  /**
+   * Make the sidebar's contents reachable, wherever the viewport put them.
+   *
+   * Below 48rem they are behind a burger and start collapsed, so a step that
+   * clicks an outline, a document or a day has to open it first. Above it
+   * there is no burger and this does nothing — which is why it is one call at
+   * the top of those steps rather than a `@phone` branch inside each.
+   */
+  async showSidebar(): Promise<void> {
+    const burger = this.page.locator(SIDEBAR_TOGGLE);
+    if (!(await burger.isVisible())) return;
+    if ((await burger.getAttribute("data-open")) === "true") return;
+    await burger.click();
+    await this.page
+      .locator(SIDEBAR_BODY)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   }
 
   /** One sidebar document entry, by the path it stands for. */

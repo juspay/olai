@@ -5,9 +5,10 @@
  * so this is a pure function from a string in a file to HTML — no caching
  * layer on disk, no pre-rendered field in a record, nothing that could go
  * stale. One pipeline serves every piece of markdown this app draws: a node's
- * note, and a whole `.md` document. They are the same language read from the
- * same directory, and a document that supported a fence a note did not would
- * be a second dialect nobody asked for.
+ * note, a whole `.md` document, and what the agent says in the chat panel. They
+ * are the same language — an agent writing a fenced diff into the panel and a
+ * person writing one into a note are doing the same thing — and a second
+ * pipeline for any of them would be a second dialect nobody asked for.
  *
  * The stages, and why each is where it is:
  *
@@ -79,13 +80,32 @@ export const renderMarkdown = (source: string, from: string): string => {
   const hit = rendered.get(key)
   if (hit !== undefined) return hit
 
-  const tree = pipeline.runSync(pipeline.parse(source)) as Root
-  rewrite(tree, { from, ids: idsFor(key) })
-  const html = pipeline.stringify(tree)
-
+  const html = render(source, from, key)
   if (rendered.size >= CACHE_LIMIT) rendered.clear()
   rendered.set(key, html)
   return html
+}
+
+/**
+ * The same rendering, for text that is still arriving — and deliberately not
+ * cached, in either direction.
+ *
+ * An answer streaming out of an agent is a different string every time it
+ * grows, so every intermediate prefix would take a slot and none would ever be
+ * asked for again: the cache would fill with half sentences and evict the notes
+ * it exists for. Reading it would be no use either, since a prefix arrives once.
+ *
+ * How OFTEN this may be called is the caller's to manage — `chat/Entry.tsx`
+ * throttles, because how often a paragraph may be re-rendered is a question
+ * about the panel rather than about markdown.
+ */
+export const renderStreaming = (source: string, from: string): string =>
+  render(source, from, `${from}\n${source}`)
+
+const render = (source: string, from: string, key: string): string => {
+  const tree = pipeline.runSync(pipeline.parse(source)) as Root
+  rewrite(tree, { from, ids: idsFor(key) })
+  return pipeline.stringify(tree)
 }
 
 /**

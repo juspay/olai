@@ -1,24 +1,36 @@
 # @olai/server — the composition root, and the binary
 
-One directory, read and served. A store over the directory, the surface bound
-to it, a listener in front — plus the `olai web <dir> [--port] [--host]` entry
-point that starts the three in that order.
+One directory, read and served — and, since the agent arrived, written. Plus
+the `olai web <dir> [--port] [--host] [--no-commit]` entry point that starts
+it all in order.
 
 This is the only package allowed to know about all the others, which is what a
-composition root is for. It is also the only place `@olai/format` and
-`@olai/store` meet: `src/codec.ts` is four bindings with no branch of its own,
-because every decision it would otherwise make — which files belong to the set,
-how decoded files become one set, how failures join — is a statement about the
-format and lives in `@olai/format`. If a rule ever appears in that file, the
-one-validator rule has been broken.
+composition root is for. The ORDER is the whole of what it decides: a store
+over the directory, the ops layer over the store, an internal MCP server over
+the ops, an ACP agent handed that server, the surface bound to both, a listener
+in front. Each of those lives in its own file with its own reason to change.
+
+One ordering is not arbitrary and is written down where it happens: the chat is
+built BEFORE the surface, because the surface's transcript collection is seeded
+from it, and the surface is what the chat publishes through — so its publishers
+are handed back and installed once it exists. Nothing publishes in between,
+because the agent is not started until the listener is up (it has to be told
+the address of the MCP route, which is only knowable once we know what we
+bound).
+
+Talking to the agent is not here. It was, and it was four modules of domain
+inside a file whose whole job is the ORDER things go in — so it left, as
+`@olai/chat`. What is left of it here is a workspace dependency and one call:
+resolve the adapter from the environment, build, wire the two publishers, and
+register `stop` as a finalizer.
 
 ## The files, and their separate reasons to change
 
 | file | what it owns |
 |---|---|
-| `serve.ts` | the order: store, then surface, then listener — the warning for binding off loopback, and which runtime failures are news |
-| `codec.ts` | the seam where the generic store meets the outline format |
-| `runtime.ts` | the two surface bindings: the stream is `SubscriptionRef.changes` verbatim, the errors cell is an owned source |
+| `serve.ts` | the order above — the warning for binding off loopback, and which runtime failures are news |
+| `mcp/route.ts` | the internal MCP server, mounted on this listener, behind a per-process bearer token |
+| `runtime.ts` | the surface bindings: the outline stream is `SubscriptionRef.changes` verbatim, the errors cell is an owned source, the transcript is server-authored |
 | `listener.ts` | HTTP for the bundle, WebSocket for the surface: origin gate → upgrade → stale-tab gate → heartbeat → serve |
 | `media.ts` | `/media/*`: the pictures a document points at, and the only bytes that leave the served directory over HTTP without going through the store |
 | `manifest.ts` | what an installed olai is: name, description, colours, and the mark |
@@ -113,8 +125,8 @@ both halves against a real socket.
 
 ## Layering
 
-Depends on `format`, `store` and `surface`, strictly downward. Nothing depends
-on this. [docs/architecture.md](../../docs/architecture.md) has the reasoning —
+Depends on `format`, `ops`, `store` and `surface`, strictly downward. Nothing
+depends on this. [docs/architecture.md](../../docs/architecture.md) has the reasoning —
 including the note that `listener.ts` is a sequence owed upstream to
 `@kolu/surface-app`.
 
@@ -127,3 +139,51 @@ just serve docs              # build the client, serve this repo's own roadmap
 That is the edit loop: two `bun --watch` processes, so a validator rule you
 change is live on the next reload. `just nix` is the other path — the packaged
 binary, built from tracked files only, which is what CI and `just e2e` prove.
+
+## The agent
+
+**The default is Claude Code, on every documented launch path.** The adapter is
+pinned (`nix/acp-agent.nix`) and the packaged binary's wrapper bakes it in with
+`--set-default`, exactly as the racket reference's `default.nix` did; `just
+serve` and `just run` resolve the same derivation on demand through
+`scripts/acp-agent.sh`. Nobody following a documented path has to know the
+variable exists — and the `nix` CI lane asserts it rather than trusting this
+paragraph: the wrapper must carry the assignment and the path it names must be
+executable.
+
+`OLAI_ACP_AGENT` overrides that, and it has two useful shapes:
+
+| value | meaning |
+|---|---|
+| a command | that is the agent — how the e2e suite points at a scripted one |
+| the empty string | deliberately no agent |
+| unset | the pinned default, wherever one was baked in |
+
+The empty case works through the packaged binary because `makeWrapper
+--set-default` emits `${VAR-default}` — one dash, so it substitutes only when
+the variable is UNSET. The CI lane asserts that spelling too: `:-` would swallow
+the off switch.
+
+**With no agent, olai serves the outlines exactly as it does with one** —
+reading a directory has never depended on one, which is why this does not
+refuse to start the way the racket reference did. But the panel is NOT hidden:
+the `chat` cell reads `off` and the drawer says there is no agent and which
+variable would give it one. A capability that is silently absent cannot be told
+apart from one that is broken.
+
+Boot is EAGER and runs on its own fiber, so pages serve while the handshake
+happens and a boot that fails changes nothing — the next prompt retries it
+exactly as a crash does. What it does, in an order that is a protocol fact
+rather than a preference: `initialize` (which is what says whether this agent
+keeps conversations at all), then `session/list` for the served directory, then
+`session/load` of the most recently updated one — or `session/new` when there
+is nothing stored. The list is narrowed to the exact directory here, once:
+the Claude Code adapter scopes its answer by PREFIX, so a server started in a
+checkout is told about every agent working under it, and adopting the newest of
+that would make an orchestrator's coding session this panel's conversation.
+
+The MCP server the session is handed is this process's own, on this process's
+listener, behind a bearer token minted per process. `mcp/route.ts` says why
+HTTP rather than stdio: the tools are this process's ops over this process's
+store, and a stdio server would be a second olai with a second store watching
+the same directory.

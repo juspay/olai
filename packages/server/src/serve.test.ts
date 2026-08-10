@@ -66,6 +66,9 @@ const run = (
       host: options.host ?? "127.0.0.1",
       clientDist: served(),
       allowedOrigins: [],
+      // These start and stop a real server against a temp directory; committing
+      // to whatever repository happens to contain it is not theirs to do.
+      commit: false,
       log: (message) => said.push(message),
     })
   }).pipe(

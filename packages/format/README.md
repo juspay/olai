@@ -49,7 +49,9 @@ workflow the format exists to remove.
 `main`, `types` and `exports` all point at `src/index.ts`, and its header
 states the whole contract: the codec (`parseOutline`, `validate`), what they
 produce (`OutlineSet` and the records in it), what a set MEANS (`derive` with
-`rowsOf`, `zoom` and `withoutDone`) and what went wrong (`OutlineError`).
+`rowsOf`, `zoom` and `withoutDone`), how a set is WRITTEN BACK
+(`serializeOutline` and `ordBetween`), what went wrong (`OutlineError`) and what
+a write says when it refuses (`OpFailure`).
 Everything else under `src/` is internal — the id regex, the edge-field list,
 the path resolver are spellings a rule happens to use, not contract, and a
 consumer reaching for one would be re-implementing a rule that lives here.
@@ -92,7 +94,7 @@ image or a served file nobody meant to serve.
 
 Depends on nothing in this workspace, and must not — a workspace sibling in its
 `dependencies` would be a layering violation, and `bun install` is what would
-report it. `surface`, `server` and `web` all depend on it.
+report it. `ops`, `surface`, `server` and `web` all depend on it.
 [docs/architecture.md](../../docs/architecture.md) has the reasoning.
 
 ## Running
@@ -107,3 +109,41 @@ suite, one `.test.ts` beside each module:
 ```sh
 bun test packages/format
 ```
+
+## Writing is here too, and for the same reason reading is
+
+`src/write.ts` is the only thing in olai that turns records back into bytes,
+and `src/ord.ts` is the only thing that decides where a node sits among its
+siblings. Both are statements about the format rather than about whoever is
+writing, so they live beside the rules that judge them.
+
+The writer takes the records of a WHOLE FILE and gives back the whole file, so
+every separator has exactly one owner: the newline between two records, the one
+at the end, the absence of a blank line. That shape is the point. A caller that
+built its own bytes once produced two records glued onto one line — a file no
+reader could parse, out of a write every layer above believed had succeeded —
+and `write.test.ts` asserts the invariant directly, by parsing back what the
+writer produced for every shape of record the format has.
+
+It also gives "absent" ONE spelling. An optional field holding nothing —
+`undefined`, `null`, `[]` or `""` — is not written, so `{"after":[]}` cannot
+reach a file however a writer arrived at it. That is the same bet as the line
+format itself: two files that mean the same thing must not differ byte for
+byte, or a line-based git merge conflicts over nothing. A *required* field is
+written whatever it holds, because dropping one makes a line the reader rejects
+outright — worse than handing an odd value to the validator that is about to
+see it anyway.
+
+`ordBetween` is a fractional index over base62 in ASCII order, so the plain
+string comparison the format promises IS numeric order in this encoding. It
+answers `null` for the one pair with no answer — nothing sorts between `x` and
+`x0` — rather than inventing a key in the wrong place; the ops layer renumbers
+that row instead.
+
+`src/failure.ts` is the other half of the error story: the five KINDS a write
+refuses with (`usage`, `not-found`, `validation`, `derived`, `busy`), as
+schemas, so a refusal travels the wire and an MCP tool result as itself. Five
+classes rather than one with a `kind` string because they carry different
+things — only `derived` has children to list, only `validation` has a report to
+show — and a single struct would make every field optional and push "which
+fields are meaningful" back into prose.

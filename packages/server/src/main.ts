@@ -37,12 +37,18 @@ const web = Command.make("web", {
     ),
     Flag.withDefault("127.0.0.1"),
   ),
-}, ({ directory, host, port }) =>
+  noCommit: Flag.boolean("no-commit").pipe(
+    Flag.withDescription(
+      "do not git-commit writes; the default commits each one when the served directory is a work tree",
+    ),
+  ),
+}, ({ directory, host, noCommit, port }) =>
   Effect.gen(function*() {
     yield* serve({
       root: directory,
       port,
       host,
+      commit: !noCommit,
       clientDist: yield* clientDist,
       allowedOrigins: parseAllowedOrigins(process.env.OLAI_ALLOWED_ORIGINS),
       log: (message) => {

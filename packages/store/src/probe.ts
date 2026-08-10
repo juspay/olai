@@ -33,6 +33,22 @@ export type Decoded<F, E> = ReadonlyMap<string, Result.Result<F, E>>
 
 export interface Probe<F, E> {
   readonly run: Effect.Effect<Decoded<F, E> | null, PlatformFailure>
+  /** What the last probe decoded, without going near the disk — empty before
+   *  the first one. The write gate needs it: a commit validates the set it
+   *  WOULD produce, which is this map with the changed files swapped in, and
+   *  asking the disk again for the files it is not touching would be a second
+   *  read of the same bytes with a race in between. */
+  readonly current: Effect.Effect<Decoded<F, E>>
+  /** Forget these files' stamps, so the next {@link run} re-reads them
+   *  whatever the file system says about mtime and size.
+   *
+   *  This is what makes a commit's own write visible. Stamps are mtime+size
+   *  (a deliberately coarse, cheap comparison — see {@link ./disk.ts}), and a
+   *  write that lands in the same second at the same length is exactly the
+   *  case they cannot see. For a change that arrived from OUTSIDE that is the
+   *  accepted trade; for one this process just made it is not, because a
+   *  browser waiting on the frame would never get it. */
+  readonly forget: (paths: Iterable<string>) => Effect.Effect<void>
 }
 
 interface Cached<F, E> {
@@ -50,6 +66,22 @@ export const make = <F, S, E>(
     // from it.
     Ref.make<ReadonlyMap<string, Cached<F, E>> | null>(null),
     (cache) => ({
+      current: Effect.map(
+        Ref.get(cache),
+        (cached) =>
+          new Map(
+            [...(cached ?? [])].map(([path, { decoded }]) => [path, decoded]),
+          ),
+      ),
+
+      forget: (paths: Iterable<string>) =>
+        Ref.update(cache, (cached) => {
+          if (cached === null) return null
+          const kept = new Map(cached)
+          for (const path of paths) kept.delete(path)
+          return kept
+        }),
+
       run: Effect.gen(function*() {
         const previous = yield* Ref.get(cache)
         const stamps = yield* disk.listing(codec.match)

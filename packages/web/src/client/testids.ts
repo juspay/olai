@@ -9,6 +9,14 @@
  */
 
 export const TESTID = {
+  /** The sidebar itself. Always drawn when the set loaded — which is what
+   *  makes it, rather than anything inside it, the sign that the app has
+   *  committed to a shape. */
+  sidebar: "sidebar",
+  /** The burger, below 48rem only: the whole sidebar is behind it. */
+  sidebarToggle: "sidebar-toggle",
+  /** Everything the burger reveals — the month, both lists, and the chrome. */
+  sidebarBody: "sidebar-body",
   outlineList: "outline-list",
   outlineLink: "outline-link",
   outlineTree: "outline-tree",
@@ -77,6 +85,59 @@ export const TESTID = {
   restarted: "restarted",
   /** The button in that surface — the whole of the recovery. */
   reload: "reload",
+
+  // ── the agent panel ──────────────────────────────────────────────────
+  /** The shut panel's opener. Absent when no agent is configured. */
+  chatToggle: "chat-toggle",
+  /** The open panel. Its `data-status` carries the cell's own state —
+   *  `booting` / `idle` / `thinking` / `gone` — so a scenario waits on the
+   *  state rather than on a spinner's styling. */
+  chatPanel: "chat-panel",
+  chatClose: "chat-close",
+  chatTitle: "chat-title",
+  chatModel: "chat-model",
+  chatNew: "chat-new",
+  /** Drawn beside the model while a turn is running. Beside, not instead:
+   *  what it runs on and whether it is running are two facts. */
+  chatWorking: "chat-working",
+  chatSessions: "chat-sessions",
+  chatSessionList: "chat-session-list",
+  chatSession: "chat-session",
+  chatTranscript: "chat-transcript",
+  /** Drawn in the transcript's place when no ACP agent is configured. The
+   *  panel is NOT hidden in that state — this is what it says instead. */
+  chatNoAgent: "chat-no-agent",
+  /** The agent's finished prose, rendered as markdown. Its own name rather
+   *  than a node note's: they are two different things on the page. */
+  chatSaid: "chat-said",
+  /** One row. `data-kind` is which of the five it is. */
+  chatEntry: "chat-entry",
+  /** A tool call's row; `data-tool-status` is the agent's own status. */
+  chatTool: "chat-tool",
+  chatToolDetail: "chat-tool-detail",
+  /** What a call is SAYING as it runs — the protocol's incremental content,
+   *  drawn above the arguments because it is the live half. */
+  chatToolProgress: "chat-tool-progress",
+  /** Where it is working: the follow-along file locations, on the line. */
+  chatToolLocations: "chat-tool-locations",
+  /** A refused write, with its structured detail drawn out. */
+  chatRefusal: "chat-refusal",
+  chatUnfinished: "chat-unfinished",
+  chatUnfinishedChild: "chat-unfinished-child",
+  /** What the last VERB refused — an empty send, a turn already running. */
+  chatRefused: "chat-refused",
+  /** What went wrong where nobody was waiting: a boot, a dead agent. */
+  chatTrouble: "chat-trouble",
+  chatInput: "chat-input",
+  /** How many messages are typed and waiting for the turn in flight. */
+  chatQueued: "chat-queued",
+  chatSend: "chat-send",
+  chatCancel: "chat-cancel",
+  /** The button that opens the WHOLE command list. Drawn only when the agent
+   *  offers commands. */
+  chatCommands: "chat-commands",
+  chatSlashMenu: "chat-slash-menu",
+  chatSlashCommand: "chat-slash-command",
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]

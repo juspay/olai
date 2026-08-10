@@ -36,9 +36,12 @@ MARKDOWN, rendered and sanitised at view time.
 ## Markdown, and documents
 
 `src/client/markdown/` is one pipeline for every piece of markdown this app
-draws — a node's note and a whole `.md` document are the same language read out
-of the same directory, and a document that supported a fence a note did not
-would be a second dialect nobody asked for. Parse with GFM, to HTML, sanitise,
+draws — a node's note, a whole `.md` document and what the agent says in the
+chat panel. They are the same language read out of the same directory (an agent
+writing a fenced diff into the panel and a person writing one into a note are
+doing the same thing), and a second pipeline for any of them would be a second
+dialect nobody asked for: footnotes in one place and not the other, a
+highlighter kept in step by hand. Parse with GFM, to HTML, sanitise,
 highlight, rewrite, stringify:
 
 - **highlighting runs after the sanitiser**, deliberately. The `hljs-` spans
@@ -138,9 +141,16 @@ the mark and never on the palette.
 `src/client/connection/` is the chrome for the one thing the outlines cannot
 report on: whether this page is still talking to a server. A page that is live
 and a page whose server died look identical when nothing says otherwise — both
-keep showing the last thing they were told — so a dot in the corner reports it
-always, in every shape of the app, and is green only while a server is
-answering.
+keep showing the last thing they were told — so a dot reports it always, in
+every shape of the app, and is green only while a server is answering.
+
+WHERE it sits is the layout's, not the indicator's: the sidebar's footer beside
+the agent toggle, and a corner of the viewport only on the screens that have no
+sidebar — the error report, the waiting page. Always fixed to the corner is what
+it used to be, and it meant a pill sitting on top of the last line of whatever
+scrolled under it on every page. `App.tsx` picks between the two homes;
+`Connection.tsx` keeps the one rule that is not about placement — when the
+reload surface takes the screen.
 
 `status.ts` is the whole policy and it is pure: a table over the wire's own four
 states (`connecting`, `live`, `reconnecting`, `retired`) saying what each looks
@@ -159,6 +169,81 @@ asking is not a recovery. Both the dot and the screen read the SAME
 happened; the seam's required `retired` handler records the moment rather than
 driving a second path to the same fact.
 
+## The agent panel
+
+`src/client/chat/` is a drawer on the right, open or shut. It is a drawer
+rather than a column in the layout, and that is a decision about what olai is:
+the outline is the page, and the agent is something you open beside it.
+
+Open, it takes its width out of the layout on a screen wide enough to spare it
+rather than lying over the outline — a drawer you have to shut to finish reading
+a sentence costs more than it is worth. On a narrow one it covers the page,
+because there is no width to give it. Shut, the way back in is a button in the
+sidebar's footer (`Toggle`), placed by the layout for the same reason the
+connection dot is.
+
+It ALWAYS draws. Whether an agent is configured is the server's answer, and when
+the answer is no the panel says so (`NoAgent.tsx`, naming `OLAI_ACP_AGENT`)
+rather than disappearing — a feature that is silently absent cannot be told
+apart from one that is broken, or from one you have not found yet. The composer
+and the transcript are what the explanation replaces, since there is nothing to
+send and nothing to show.
+
+Everything in it is a projection of two surface members — a `transcript`
+collection and a `chat` cell — so there is no chat state in the browser the
+server does not own.
+
+The transcript is drawn as a `<For>` over row KEYS, with each row reading its
+own value (`state.ts`). `<For>` diffs by identity, so what is in that list
+decides whether an update patches a row or replaces it — and a row replaced
+takes everything it owns with it: an unfolded tool call, a selection, the
+scroll position under the reader's eye. Strings cannot be anything but the same
+list. What was typed appears because the server put it there,
+which is why two tabs cannot disagree and why a send that failed never leaves
+a message on screen that was never sent. The transcript's `deltas` verb is what
+makes a tab opened halfway through a turn show the whole conversation: its
+first frame is the snapshot.
+
+Three components earn their own file:
+
+- **`Refusal.tsx`** is the one the error taxonomy exists for. A `derived`
+  refusal carries the children that are in the way as DATA, so they are drawn
+  as rows a reader can act on — "mark those instead" is a list, not a sentence
+  — and a `validation` refusal renders through the same `errors/Report.tsx`
+  rows a broken file does, so a refused write and a broken file are explained
+  the same way.
+- **`ToolFrame.tsx`** is one line, foldable. A turn can be a dozen of these and
+  unfolded they would bury the conversation. The row is UPDATED rather than
+  replaced — the transcript keys them by the agent's own call id — so a fold
+  you opened stays open while the call is still running. Which lines are
+  unfolded lives in `folds.ts`, module-scoped and keyed by the same call id,
+  because closing and reopening the drawer rebuilds the panel from nothing and
+  a fold held inside the row would come back shut.
+
+  Two things escape the fold, because both are about a call that is HAPPENING
+  rather than one that happened: where it is working (the protocol's
+  follow-along locations) is on the line itself, and what it is saying (its
+  incremental content) is the first thing in the unfolded body, above the
+  arguments. A call running for thirty seconds has something to show and its
+  arguments are not it.
+- **`Composer.tsx`** never disables its box. A message typed while the agent
+  is working is sent and queues, so the button says `queue` and cancel appears
+  BESIDE it rather than replacing it — sending and stopping are two things a
+  person can want at the same moment. Disabling cost the caret as well as the
+  thought: coming back to a re-enabled box meant reaching for the mouse.
+- **`SlashMenu.tsx`** takes Enter in the CAPTURE phase and stops it
+  propagating, because the input owns Enter for sending: without that, a
+  completion accepted would be a message sent. It is opened by typing `/` and
+  by a button beside the input, which shows the WHOLE list — typing filters,
+  and the button is for when you do not know what to type. The button is drawn
+  only when the agent offers commands: one that opens nothing would be a button
+  that lies.
+
+`run.ts` is the one place the client runs an Effect, and its signature is the
+enforcement: there is no overload without `onFailure`. A caller that could
+ignore a procedure's declared failures would be a caller whose refusals
+vanish, which is exactly what chat is not allowed to do.
+
 ## On a phone, and on a home screen
 
 `src/client/public/` is the install surface's files — `icon.svg`, the 192 and
@@ -174,11 +259,19 @@ service worker and no offline shell: this app is live or nothing, and a cached
 shell would show outlines that had stopped being true.
 
 Below **48rem** — the racket original's own breakpoint, and Tailwind's `md` —
-two things change. There is no second column to put the sidebar in, so it
-becomes a header above the outline: capped at 42dvh and scrolling inside
-itself, so the outline it is a header *for* is still on screen under it. No
-drawer, no overlay, no toggle — those need a state, a backdrop, a focus trap
-and a way to close, all of it to hide something that fits.
+two things change. There is no second column to put the sidebar in, so it goes
+behind a BURGER: one row while it is shut, and the whole sidebar — the month,
+both lists, and the app's own chrome — when it is not, capped at 42dvh and
+scrolling inside itself so the outline is still on screen under it. Any tap
+inside shuts it, because every control in there either goes somewhere or opens
+something over it.
+
+An always-open capped header was the first answer, and it was worse in both
+directions: it took a third of the screen from the outline to show a list
+nobody had asked for, and the one control that HAS to be reachable — the way
+into the agent, which lives in that footer — ended up somewhere down inside a
+strip that scrolled. Two taps is the budget for anything in the sidebar: one to
+open it, one to press what you came for.
 
 And what a finger aims at grows to 44px, the number both mobile platforms
 print in their guidelines: sidebar entries — outlines and documents alike —
@@ -201,10 +294,13 @@ width, which is where the racket original put both.
 `viewport.ts` is the last piece: an on-screen keyboard covers the bottom of the
 viewport without shrinking it, so the page measures `visualViewport` and
 publishes `--visible-h` and `--visible-bottom`. The arithmetic is a plain
-function of two numbers and unit-tested as one; the connection dot is lifted by
-`--visible-bottom` today (with the home-bar inset, which is real because the
-shell asks for `viewport-fit=cover`), and the chat sheet will size itself by
-`--visible-h` when it lands.
+function of two numbers and unit-tested as one. The corner pills are lifted by
+`--visible-bottom` (with the home-bar inset, which is real because the shell
+asks for `viewport-fit=cover`), and the agent drawer is sized by `--visible-h`,
+which is what keeps its composer on screen while the keyboard that is being
+typed into is up. The rest of the panel on a small screen — where it should
+open from, what it should cover — is roadmapped separately.
+
 
 ## What belongs to a reading, not to the file
 
