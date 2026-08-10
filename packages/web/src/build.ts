@@ -53,8 +53,7 @@ const solidJsx: BunPlugin = {
 }
 
 /**
- * The stylesheet, as bytes for the helper to hash, name and write: Tailwind's
- * output with the named palettes after it.
+ * The utilities, as Tailwind writes them.
  *
  * `@tailwindcss/cli` is invoked by its IN-TREE path, never `bunx`: bunx
  * resolves by name and falls back to fetching the package when the local copy
@@ -63,19 +62,9 @@ const solidJsx: BunPlugin = {
  * this file, so the path stays right wherever in the workspace this ends up.
  *
  * Tailwind has no content-hash naming of its own, so it writes to a temp file
- * in the OS temp dir — both the source tree and the Nix dist may be read-only
- * — and we hand the bytes back for `buildSurfaceClient` to place under
- * `/assets/styles-<hash>.css` on the same immutable-caching contract as the JS.
- *
- * The palettes are APPENDED rather than written into `styles.css`, because
- * they are generated from a TypeScript table (`client/theme/palettes.ts`,
- * which the picker reads too) and there is no way for a `.css` file to import
- * one. Appended, they are also last, which is what a plain unlayered rule
- * needs in order to beat the `@layer theme` block Tailwind emits its own
- * `:root` in. The bytes are hashed after this, so a palette edited on disk is
- * a new `/assets/styles-<hash>.css` like any other change.
+ * in the OS temp dir — both the source tree and the Nix dist may be read-only.
  */
-const buildStylesheet = async (): Promise<ArrayBuffer> => {
+const tailwindUtilities = async (): Promise<string> => {
   const cli = createRequire(import.meta.url)
     .resolve("@tailwindcss/cli/package.json")
     .replace(/package\.json$/, "dist/index.mjs")
@@ -95,8 +84,25 @@ const buildStylesheet = async (): Promise<ArrayBuffer> => {
 
   const utilities = await Bun.file(out).text()
   await Bun.$`rm -rf ${dirname(out)}`
-  return new TextEncoder().encode(`${utilities}\n${paletteCss()}`).buffer as
-    ArrayBuffer
+  return utilities
+}
+
+/**
+ * The whole stylesheet, as bytes for the helper to hash, name and write: the
+ * utilities, and then the named palettes.
+ *
+ * The palettes are APPENDED rather than written into `styles.css` because they
+ * are generated from a TypeScript table (`client/theme/palettes.ts`, which the
+ * picker reads too) and a `.css` file cannot import one. Appended, they are
+ * also LAST, which is what a plain unlayered rule needs in order to beat the
+ * `@layer theme` block Tailwind emits its own `:root` in.
+ *
+ * The bytes are hashed after this, so a palette edited on disk is a new
+ * `/assets/styles-<hash>.css` on the same immutable-caching contract as the JS.
+ */
+const buildStylesheet = async (): Promise<ArrayBuffer> => {
+  const sheet = `${await tailwindUtilities()}\n${paletteCss()}`
+  return new TextEncoder().encode(sheet).buffer as ArrayBuffer
 }
 
 const buildClient = async (distDir: string): Promise<void> => {

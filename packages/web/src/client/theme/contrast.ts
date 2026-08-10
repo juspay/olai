@@ -7,33 +7,10 @@
  * exactly the edit that quietly drops a pair under the line.
  *
  * sRGB relative luminance, as the spec defines it. Nothing here knows about a
- * theme: it is handed two colours and answers a number.
+ * theme, or about this app: it is handed two colours and answers a number.
+ * WHICH pairs olai paints is a claim about components and lives with the test
+ * that makes it.
  */
-
-import type { PaletteToken } from "./palettes.ts"
-
-/** The pairs this client actually paints — a foreground, and the background it
- *  lands on. Not every pair the eight tokens could make: `muted` is never read
- *  on `rule`, and holding a palette to a combination no component draws would
- *  be rejecting a colour over a page that does not exist.
- *
- *  Each is a real site: body text and every accent read on the paper
- *  (`text-muted`, `text-alarm`, a link); `text-paper` on the sidebar entry in
- *  force and on the day being read (`bg-accent`, `bg-ink`); `text-ink` over
- *  the surface a row lights up with (`hover:bg-rule`). */
-export const CONTRAST_PAIRS: ReadonlyArray<
-  readonly [PaletteToken, PaletteToken]
-> = [
-  ["ink", "paper"],
-  ["muted", "paper"],
-  ["accent", "paper"],
-  ["done", "paper"],
-  ["doing", "paper"],
-  ["alarm", "paper"],
-  ["paper", "accent"],
-  ["paper", "ink"],
-  ["ink", "rule"],
-]
 
 /** The AA line for body text. */
 export const AA = 4.5

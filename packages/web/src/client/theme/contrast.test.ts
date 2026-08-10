@@ -1,7 +1,29 @@
 import { describe, expect, test } from "bun:test"
 
-import { AA, CONTRAST_PAIRS, contrastRatio, relativeLuminance } from "./contrast.ts"
-import { PALETTES } from "./palettes.ts"
+import { AA, contrastRatio, relativeLuminance } from "./contrast.ts"
+import { PALETTES, type PaletteToken } from "./palettes.ts"
+
+/** The pairs this client actually paints — a foreground, and the background it
+ *  lands on. Not every pair the eight tokens could make: `muted` is never read
+ *  on `rule`, and holding a palette to a combination no component draws would
+ *  be rejecting a colour over a page that does not exist.
+ *
+ *  Each is a real site: body text and every accent read on the paper
+ *  (`text-muted`, `text-alarm`, a link); `text-paper` on the sidebar entry in
+ *  force and on the day being read (`bg-accent`, `bg-ink`); `text-ink` over the
+ *  surface a row lights up with (`hover:bg-rule`). It is a claim about the
+ *  components, so it lives here rather than with the arithmetic. */
+const PAINTED: ReadonlyArray<readonly [PaletteToken, PaletteToken]> = [
+  ["ink", "paper"],
+  ["muted", "paper"],
+  ["accent", "paper"],
+  ["done", "paper"],
+  ["doing", "paper"],
+  ["alarm", "paper"],
+  ["paper", "accent"],
+  ["paper", "ink"],
+  ["ink", "rule"],
+]
 
 describe("contrast", () => {
   test("the arithmetic is the spec's", () => {
@@ -31,7 +53,7 @@ describe("contrast", () => {
     // Collected rather than asserted one at a time, so a colour edited two
     // digits reports every pair it dropped instead of only the first.
     const under = promised.flatMap((palette) =>
-      CONTRAST_PAIRS.flatMap(([foreground, background]) => {
+      PAINTED.flatMap(([foreground, background]) => {
         const ratio = contrastRatio(
           palette.colors[foreground],
           palette.colors[background],

@@ -22,6 +22,7 @@
 
 import { type Accessor, createSignal } from "solid-js"
 
+import { paintChrome } from "./chrome.ts"
 import {
   DEFAULT_PALETTE,
   DEFAULT_THEME,
@@ -74,25 +75,6 @@ export const currentTheme: Accessor<string> = named
  *  fallback is here so this returns a `Palette` rather than a maybe. */
 export const currentPalette = (): Palette =>
   paletteNamed(named()) ?? DEFAULT_PALETTE
-
-/**
- * The browser chrome — a phone's status bar, an installed window's title bar —
- * follows the paper.
- *
- * Read off the TABLE rather than out of `getComputedStyle`, because the table
- * is what painted the paper in the first place and a second reading of the
- * same fact can only ever be the one that is a frame behind. The shell ships
- * the default's paper in the tag it writes, so the chrome is right on the
- * first paint of a page nobody has picked on.
- */
-const paintChrome = (palette: Palette): void => {
-  const meta =
-    document.querySelector('meta[name="theme-color"]') ??
-    document.head.appendChild(
-      Object.assign(document.createElement("meta"), { name: "theme-color" }),
-    )
-  meta.setAttribute("content", palette.colors.paper)
-}
 
 /** Pick a theme. Writes the attribute the sheet keys off, remembers it in this
  *  browser, and repaints the chrome around the page.
