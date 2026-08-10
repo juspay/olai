@@ -19,7 +19,7 @@ import {
 import { describe, expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { setOf, brokenSetOf, steady } from "./fixtures.testlib.ts"
+import { setOf, steady } from "./fixtures.testlib.ts"
 import { plan, type Plan } from "./plan.ts"
 import type { Request } from "./request.ts"
 
@@ -427,8 +427,9 @@ describe("archive", () => {
 // ── what no op may do ──────────────────────────────────────────────────
 
 test("a file whose lines do not parse is never rewritten from a set that lost them", () => {
-  const set = brokenSetOf(
+  const set = setOf(
     { "good.jsonl": `{"id":"x","ord":"a0","title":"x"}` },
+    [],
     { "bad.jsonl": `{"id":"y","ord":"a0"` },
   )
   const failure = refused(set, { op: "add", file: "bad.jsonl", title: "x" })

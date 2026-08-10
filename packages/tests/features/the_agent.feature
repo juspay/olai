@@ -12,7 +12,8 @@ Feature: Talking to the agent
   back to the page.
 
   Background:
-    Given I have the outline open
+    Given I open the app
+    And I mark the page
     And the agent panel is open
 
   @scratch:chat

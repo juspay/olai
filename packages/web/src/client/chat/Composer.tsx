@@ -71,11 +71,12 @@ export function Composer(props: { readonly chat: Chat }) {
       setShowing(false)
       return
     }
-    // With the completion open, Enter accepts rather than sends — the menu is
-    // the thing in front of you.
+    // Enter sends. It does NOT need a "unless the menu is open" guard: the menu
+    // takes the key in the capture phase and stops it propagating, so this
+    // handler does not run while it is up (see ./SlashMenu.tsx). One mechanism
+    // for one rule — a second one here would be a guard nobody could test.
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault()
-      if (open()) return
       send()
     }
   }

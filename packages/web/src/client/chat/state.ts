@@ -61,7 +61,7 @@ export const createChat = (): Chat => {
         const entry = transcript.byKey(key)?.()
         return entry === undefined ? [] : [entry]
       })
-    return entries.slice().sort((a, b) => a.seq - b.seq)
+    return entries.sort((a, b) => a.seq - b.seq)
   })
 
   /** Every verb the same way: clear the last refusal, run, and keep whatever

@@ -8,9 +8,11 @@
  * and it is the honest one: "always on screen" is the dot's whole promise, and
  * a promise kept by z-index alone is one a drawer can break.
  *
- * Stored in `localStorage`, like the collapse state and for the same reason: it
- * belongs to this browser's reading and not to the served directory, so nothing
- * about it is sent anywhere and two machines are entitled to disagree.
+ * Stored in `localStorage`, because it belongs to this browser's reading and
+ * not to the served directory: nothing about it is sent anywhere, and two
+ * machines are entitled to disagree. (The collapse state is the same KIND of
+ * fact and is deliberately NOT stored — see `view.ts`: a folded row belongs to
+ * a page you are reading, and a drawer belongs to the window.)
  *
  * Storage can throw — a browser with it disabled, a private window at quota —
  * and a panel that could not be opened because a preference could not be saved

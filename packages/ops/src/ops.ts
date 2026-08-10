@@ -28,12 +28,14 @@ import {
   serializeOutline,
   ValidationFailure,
 } from "@olai/format"
-import type { Store } from "./deps.ts"
 import { Effect, Result, SubscriptionRef } from "effect"
 
+import type { Store } from "./deps.ts"
 import * as Git from "./git.ts"
 import { type Context, plan } from "./plan.ts"
+import { index } from "./query.ts"
 import type { Applied, Request } from "./request.ts"
+import type { Reading } from "./tools.ts"
 
 export interface Options {
   readonly store: Store
@@ -48,6 +50,17 @@ export interface Options {
    *  date a mark is stamped with are the only two things about an op that are
    *  not a function of the snapshot. */
   readonly context?: Context
+  /**
+   * Told about every write this layer REFUSED.
+   *
+   * It hangs here rather than on any one caller because "a refusal is never
+   * silently ignored" is a property of WRITES, not of whichever transport
+   * asked for one: an observer on the MCP server would leave a second writer —
+   * the web UI's own ops procedures, when they arrive — reporting nothing.
+   * The agent gets the same detail in its tool result; this is what puts it in
+   * front of the person watching.
+   */
+  readonly onRefusal?: (request: Request, failure: OpFailure) => Effect.Effect<void>
 }
 
 export interface Ops {
@@ -56,6 +69,16 @@ export interface Ops {
    *  translated, because a caller of this interface is a tool call or a
    *  procedure and both need an answer they can render. */
   readonly run: (request: Request) => Effect.Effect<Applied, OpFailure>
+  /**
+   * The set as a reader sees it, or the one refusal for a directory that has
+   * never loaded.
+   *
+   * Here rather than at each reader so there is ONE answer to "there is
+   * nothing to read yet" — the writer's and the query tools' used to be two
+   * different shapes for the same condition — and so nothing above this layer
+   * has to reach into the store to find out.
+   */
+  readonly read: Effect.Effect<Reading, OpFailure>
 }
 
 /** How many times a write may be re-derived before it gives up. Each round is
@@ -68,6 +91,25 @@ export const make = (options: Options): Ops => {
     mint: () => Math.random().toString(36).slice(2, 10),
     today: () => new Date().toISOString().slice(0, 10),
   }
+
+  /** Whether the served directory is a git work tree. Asked once and kept: it
+   *  is a property of the root, and asking per write meant a third subprocess
+   *  inside the store's write gate every time. A repository created after the
+   *  server started is not noticed until it restarts, which is the trade. */
+  let workTree: boolean | null = null
+
+  const read: Effect.Effect<Reading, OpFailure> = Effect.gen(function*() {
+    const snapshot = yield* SubscriptionRef.get(options.store.snapshot)
+    if (snapshot === null) {
+      const errors = yield* SubscriptionRef.get(options.store.errors)
+      return yield* new ValidationFailure({
+        reason: "the served directory has never loaded, so there is nothing to read",
+        errors: errors ?? [],
+      })
+    }
+    const set = snapshot.value as OutlineSet
+    return { set, derived: index(set) }
+  })
 
   const run = (request: Request): Effect.Effect<Applied, OpFailure> =>
     Effect.gen(function*() {
@@ -97,14 +139,15 @@ export const make = (options: Options): Ops => {
           options.store.commit({
             baseRev: snapshot.rev,
             changes,
-            afterPublish: options.commit === false
-              ? Effect.void
-              : Effect.map(
-                Git.commit({ root: options.root, paths, message: about.summary }),
-                (done) => {
-                  committed = done
-                },
-              ),
+            afterPublish: options.commit === false ? Effect.void : Effect.gen(function*() {
+              workTree ??= yield* Git.isWorkTree(options.root)
+              if (!workTree) return
+              committed = yield* Git.commit({
+                root: options.root,
+                paths,
+                message: about.summary,
+              })
+            }),
           }),
         )
 
@@ -138,5 +181,10 @@ export const make = (options: Options): Ops => {
       })
     })
 
-  return { run }
+  const reported = (request: Request): Effect.Effect<Applied, OpFailure> =>
+    options.onRefusal === undefined
+      ? run(request)
+      : Effect.tapError(run(request), (failure) => options.onRefusal!(request, failure))
+
+  return { run: reported, read }
 }

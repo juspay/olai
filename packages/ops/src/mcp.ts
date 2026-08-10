@@ -24,11 +24,9 @@
  */
 
 import { kindOf, type OpFailure } from "@olai/format"
-import { Effect, Result, Schema, SchemaRepresentation, SubscriptionRef } from "effect"
+import { Effect, Result, Schema, SchemaRepresentation } from "effect"
 
-import type { Store } from "./deps.ts"
 import type { Ops } from "./ops.ts"
-import * as Query from "./query.ts"
 import { Request } from "./request.ts"
 import { TOOLS, type Tool, toolNamed } from "./tools.ts"
 
@@ -38,16 +36,10 @@ import { TOOLS, type Tool, toolNamed } from "./tools.ts"
 const PROTOCOL = "2025-06-18"
 
 export interface Options {
+  /** The whole of what this server can do. Reads go through `ops.read` and
+   *  writes through `ops.run`, so nothing here reaches into a store — which is
+   *  what lets this file be, as its header claims, dispatch and nothing else. */
   readonly ops: Ops
-  readonly store: Store
-  /**
-   * Told about every write that was refused, so a refusal can be RENDERED
-   * rather than only returned. The agent gets the same detail in its tool
-   * result; this is what puts it in front of the person watching, which is the
-   * "errors are never silently ignored" rule made concrete — a refused write
-   * shows its unfinished children in the chat panel.
-   */
-  readonly onRefusal?: (tool: string, failure: OpFailure) => Effect.Effect<void>
 }
 
 /** A JSON-RPC reply, or `null` for a notification — which has no id and must
@@ -56,9 +48,6 @@ export type Reply = Readonly<Record<string, unknown>> | null
 
 export interface Server {
   readonly handle: (message: unknown) => Effect.Effect<Reply>
-  /** What `tools/list` answers, for anything that wants to show the surface
-   *  without speaking the protocol. */
-  readonly tools: ReadonlyArray<Readonly<Record<string, unknown>>>
 }
 
 export const make = (options: Options): Server => {
@@ -105,7 +94,7 @@ export const make = (options: Options): Server => {
     }
   }
 
-  return { handle, tools: advertised }
+  return { handle }
 }
 
 // ── tools/call ─────────────────────────────────────────────────────────
@@ -126,19 +115,28 @@ const call = (
     const args = isObject(params["arguments"]) ? params["arguments"] : {}
     const decoded = Schema.decodeUnknownResult(tool.schema as Schema.Codec<unknown>)({
       ...args,
-      ...tool.fixed,
+      ...(tool.kind === "write" ? tool.fixed : {}),
     })
     if (Result.isFailure(decoded)) {
       return result(id, refusal(`\`${name}\`: ${decoded.failure.message}`))
     }
 
-    const answered = tool.writes
-      ? yield* perform(options, tool, decoded.success as Request)
-      : yield* Effect.map(read(options, tool, decoded.success), Result.succeed)
+    const answered = tool.kind === "write"
+      ? yield* Effect.result(
+        Effect.map(options.ops.run(decoded.success as Request), (applied) => ({
+          ...applied,
+          did: tool.name,
+        })),
+      )
+      // The reader is the tool's OWN, carried in the table beside it — so a
+      // tool the table declares and nothing answers is a type error rather
+      // than something a caller discovers.
+      : yield* Effect.result(
+        Effect.map(options.ops.read, (at) => tool.read(at, decoded.success as never)),
+      )
 
     if (Result.isFailure(answered)) {
       const failure = answered.failure
-      if (options.onRefusal !== undefined) yield* options.onRefusal(name, failure)
       return result(
         id,
         refusal(`\`${name}\` was refused (${kindOf(failure)}): ${failure.message}`, {
@@ -148,71 +146,6 @@ const call = (
       )
     }
     return result(id, answer(answered.success))
-  })
-
-const perform = (
-  options: Options,
-  tool: Tool,
-  request: Request,
-): Effect.Effect<Result.Result<unknown, OpFailure>> =>
-  Effect.result(options.ops.run(request)).pipe(
-    Effect.map((outcome) =>
-      Result.isFailure(outcome)
-        ? outcome
-        : Result.succeed({
-          ...outcome.success,
-          did: tool.name,
-        })
-    ),
-  )
-
-const read = (
-  options: Options,
-  tool: Tool,
-  args: unknown,
-): Effect.Effect<unknown> =>
-  Effect.gen(function*() {
-    const snapshot = yield* SubscriptionRef.get(options.store.snapshot)
-    if (snapshot === null) {
-      const errors = yield* SubscriptionRef.get(options.store.errors)
-      return {
-        unreadable: "the served directory has never loaded",
-        errors: (errors ?? []).map(
-          (error_) => `${error_.file}:${error_.line} ${error_.message}`,
-        ),
-      }
-    }
-    const set = snapshot.value
-    const derived = Query.index(set)
-    const input = args as Record<string, never>
-
-    switch (tool.name) {
-      case "list_outlines":
-        return { outlines: Query.outlines(set, derived) }
-      case "search_nodes":
-        return Query.search(
-          set,
-          args as { text: string; limit?: number },
-          derived,
-        )
-      case "read_node": {
-        const id = (input as unknown as { id: string }).id
-        const found = Query.detail(set, id, derived)
-        return found ?? { missing: id }
-      }
-      case "read_subtree": {
-        const asked = args as { id: string; depth?: number }
-        const found = Query.subtree(
-          set,
-          asked.id,
-          asked.depth === undefined ? {} : { depth: asked.depth },
-          derived,
-        )
-        return found ?? { missing: asked.id }
-      }
-      default:
-        throw new Error(`the tool table declares \`${tool.name}\` a read with no reader`)
-    }
   })
 
 // ── the shapes MCP expects ─────────────────────────────────────────────
@@ -229,18 +162,17 @@ const describe = (tool: Tool): Readonly<Record<string, unknown>> => {
     required?: ReadonlyArray<string>
   }
 
+  const fixed = tool.kind === "write" ? tool.fixed : {}
   const properties = { ...(compiled.properties ?? {}) }
-  for (const field of Object.keys(tool.fixed)) delete properties[field]
-  const required = (compiled.required ?? []).filter(
-    (field) => !(field in tool.fixed),
-  )
+  for (const field of Object.keys(fixed)) delete properties[field]
+  const required = (compiled.required ?? []).filter((field) => !(field in fixed))
 
   return {
     name: tool.name,
     title: tool.title,
     description: tool.description,
     inputSchema: { type: "object", properties, required, additionalProperties: false },
-    annotations: { readOnlyHint: !tool.writes, destructiveHint: false },
+    annotations: { readOnlyHint: tool.kind === "read", destructiveHint: false },
   }
 }
 

@@ -10,12 +10,19 @@
  * quoted verbatim, and a tool's title is the agent's own string. The rule is
  * the same one titles and notes follow — the stored text is never touched, and
  * `#` at the start of a line somebody typed is a `#`, not a heading.
+ *
+ * And only ONCE the turn has stopped, which is what the design said all along
+ * ("done — rendered markdown"). While an answer is streaming it is drawn as
+ * plain text, because rendering it per chunk means re-parsing the whole message
+ * from the top several times a second — quadratic in its length, on the main
+ * thread — and filling the note cache with every prefix of it on the way. The
+ * paragraph that arrives is the same either way; only the cost differs.
  */
 
 import type { ChatEntry } from "@olai/surface"
 import { Match, Show, Switch } from "solid-js"
 
-import { renderMarkdown } from "../markdown.ts"
+import { Note } from "../Note.tsx"
 import { TESTID } from "../testids.ts"
 import { Refusal } from "./Refusal.tsx"
 import { ToolFrame } from "./ToolFrame.tsx"
@@ -36,13 +43,21 @@ export function Entry(props: { readonly entry: ChatEntry }) {
         </Match>
 
         <Match when={props.entry.kind === "agent"}>
-          <div class="olai-note text-sm">
-            {/* eslint-disable-next-line solid/no-innerhtml */}
-            <div innerHTML={renderMarkdown(props.entry.text)} />
-            <Show when={props.entry.streaming}>
+          <Show
+            when={props.entry.streaming}
+            fallback={
+              <Note
+                desc={props.entry.text}
+                class="text-sm"
+                testid={TESTID.chatSaid}
+              />
+            }
+          >
+            <p class="m-0 whitespace-pre-wrap text-sm">
+              {props.entry.text}
               <span class="ml-0.5 inline-block h-3 w-1.5 animate-pulse bg-muted align-middle" />
-            </Show>
-          </div>
+            </p>
+          </Show>
         </Match>
 
         <Match when={props.entry.kind === "tool"}>

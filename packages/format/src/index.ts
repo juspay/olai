@@ -35,10 +35,12 @@ export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./
 
 export {
   ancestorsOf,
+  byOrd,
   countedChildren,
   derive,
   rowsOf,
   rowsUnder,
+  siblingsOf,
   storedMarker,
   titleParts,
   withoutDone,
@@ -48,7 +50,7 @@ export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
 
 export { ordBetween } from "./ord.ts"
-export { nodesOf, serializeNode, serializeOutline } from "./write.ts"
+export { nodesOf, serializeOutline } from "./write.ts"
 
 export {
   BusyFailure,
@@ -65,6 +67,7 @@ export type { FailureKind } from "./failure.ts"
 
 export {
   compareErrors,
+  errorLine,
   isCrossFile,
   OutlineError,
   reportStage,

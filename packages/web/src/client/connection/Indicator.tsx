@@ -22,10 +22,10 @@ import { chatOpen } from "../chat/open.ts"
 import { LOOK, type SurfaceConnectionStatus } from "./status.ts"
 import { TESTID } from "../testids.ts"
 
-/** The panel's width plus its gap. Spelled here rather than shared, because
- *  what this needs is "clear of the drawer" and the drawer's own width is its
- *  business — the two only have to agree on the direction. */
-const CLEAR_OF_PANEL = "right-[27rem]"
+/** Clear of the drawer: its own width, plus the gap the dot keeps from every
+ *  edge. Both halves come from the same token (`--width-chat`, styles.css), so
+ *  the two cannot drift apart — which they would, being in different files. */
+const CLEAR_OF_PANEL = "right-[calc(var(--width-chat)+0.75rem)]"
 
 export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
   const look = () => LOOK[props.status]

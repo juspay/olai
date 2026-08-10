@@ -16,7 +16,6 @@
  * listener is up.
  */
 
-import type { McpServer } from "@agentclientprotocol/sdk"
 import type { OutlineError, OutlineSet } from "@olai/format"
 import { codec, Mcp, make as makeOps } from "@olai/ops"
 import * as Store from "@olai/store"
@@ -58,12 +57,25 @@ export const serve = (options: ServeOptions) =>
     const store: Store.Store<OutlineSet, ReadonlyArray<OutlineError>> = yield* Store
       .make({ root, codec })
 
-    const ops = makeOps({ store, root, commit: options.commit })
-
     // The chat publishes through the surface, and the surface is seeded from
     // the chat. One mutable slot resolves that, and it is safe because nothing
     // publishes before `bind` returns: the agent is started at the very end.
     let publish: Publishers | null = null
+    // Likewise the refusal observer: ops is built before the chat that draws
+    // its refusals, because the chat is not what writes.
+    let chat: Chat.Chat | null = null
+
+    const ops = makeOps({
+      store,
+      root,
+      commit: options.commit,
+      // A refusal reaches the agent as its tool result AND the panel as a row:
+      // what the agent then says about it is prose, and the unfinished
+      // children are data. On OPS rather than on the MCP server, because it is
+      // writes this is a property of — a second writer would report nothing.
+      onRefusal: (request, failure) =>
+        chat === null ? Effect.void : chat.recordRefusal(request.op, failure),
+    })
 
     const adapter = adapterFrom(process.env[AGENT_ENV])
     if (adapter === null) {
@@ -77,9 +89,9 @@ export const serve = (options: ServeOptions) =>
     const token = randomBytes(24).toString("hex")
     /** Filled once the listener has bound — see the thunk on the agent's
      *  options. Until then there is no session to hand it to. */
-    let mcpServers: ReadonlyArray<McpServer> = []
+    let tools: AcpAgent.ToolServer | null = null
 
-    const chat = adapter === null ? null : yield* Chat.make({
+    chat = adapter === null ? null : yield* Chat.make({
       agent: (onEvent) =>
         AcpAgent.make({
           command: adapter.command,
@@ -88,7 +100,7 @@ export const serve = (options: ServeOptions) =>
           // by the directory it was started in, and that is what makes "the
           // conversation you were last in" survive a restart.
           cwd: root,
-          mcpServers: () => mcpServers,
+          tools: () => tools,
           onEvent,
           log: options.log,
         }),
@@ -97,14 +109,7 @@ export const serve = (options: ServeOptions) =>
       log: options.log,
     })
 
-    const mcp = Mcp.make({
-      ops,
-      store,
-      // A refusal reaches the agent as its tool result AND the panel as a row:
-      // what the agent then says about it is prose, and the unfinished children
-      // are data.
-      ...(chat === null ? {} : { onRefusal: chat.recordRefusal }),
-    })
+    const mcp = Mcp.make({ ops })
 
     const wired = yield* bind({ store, chat })
     publish = wired.publish
@@ -148,14 +153,7 @@ export const serve = (options: ServeOptions) =>
     if (chat !== null) {
       // LAST, and after the listener is up: the session is handed the MCP
       // server's address, which is only knowable once we know what we bound.
-      mcpServers = [
-        {
-          type: "http",
-          name: "olai",
-          url: `${url}${MCP_PATH}`,
-          headers: [{ name: "Authorization", value: `Bearer ${token}` }],
-        },
-      ]
+      tools = { name: "olai", url: `${url}${MCP_PATH}`, token }
       yield* Effect.addFinalizer(() => chat.stop)
       yield* chat.start
       options.log(`chat agent: ${adapter?.command ?? "none"} (mcp at ${url}${MCP_PATH})`)

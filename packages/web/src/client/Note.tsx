@@ -12,12 +12,22 @@ import { createMemo } from "solid-js"
 import { renderMarkdown } from "./markdown.ts"
 import { TESTID } from "./testids.ts"
 
-export function Note(props: { readonly desc: string; readonly class?: string }) {
+export function Note(
+  props: {
+    readonly desc: string
+    readonly class?: string
+    /** Which `data-testid` this note answers to. A node's note is what the
+     *  outline tests look for; an agent's finished turn is a different thing
+     *  on the page, and giving it the same name would make one selector match
+     *  both. The markdown, and the reason `innerHTML` is safe, stay here. */
+    readonly testid?: string
+  },
+) {
   const html = createMemo(() => renderMarkdown(props.desc))
   return (
     <div
       class={`olai-note ${props.class ?? ""}`}
-      data-testid={TESTID.desc}
+      data-testid={props.testid ?? TESTID.desc}
       // Safe because the pipeline sanitises: see ./markdown.ts.
       innerHTML={html()}
     />

@@ -32,18 +32,11 @@ import {
   CHAT_UNFINISHED_CHILD,
   HYDRATION_TIMEOUT,
   NODE_TITLE,
+  nodeSelector,
   oneLine,
   POLL_TIMEOUT,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
-
-/** Opening the panel is the first thing every scenario does, and the marker is
- *  planted at the same time so "the page has not reloaded" is answerable
- *  without a step of its own in every scenario. */
-Given("I have the outline open", async function (this: OlaiWorld) {
-  await this.open("/");
-  await this.markPage();
-});
 
 Given("the agent panel is open", async function (this: OlaiWorld) {
   const toggle = this.page.locator(CHAT_TOGGLE);
@@ -261,8 +254,13 @@ When(
 // ── what the OUTLINE did about it ──────────────────────────────────────
 
 Then("node {string} is done", async function (this: OlaiWorld, id: string) {
+  // The HYDRATION budget, not the interaction one: getting here is a prompt, a
+  // turn, a tool call, a write and a fresh snapshot down the wire — not a
+  // render away. Everything else about the assertion is the world's own
+  // node-status step (`outline_tree_steps.ts`), reached through the same
+  // `nodeSelector` so a renamed `data-testid` stays a type error.
   await this.expectAttribute(
-    `[data-testid="node"][data-node-id="${id}"]`,
+    nodeSelector(id),
     "data-status",
     "done",
     `node "${id}"`,

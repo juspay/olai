@@ -74,19 +74,21 @@ export const isWorkTree = (root: string): Effect.Effect<boolean> =>
   )
 
 /**
- * Commit the files a write produced, if there is a repository to commit to.
+ * Commit the files a write produced.
  *
- * Answers whether it committed. `false` covers three different situations —
- * not a work tree, git said no, nothing to commit — and the caller does not
- * need to tell them apart: it reports what it knows and the reader looks at
- * `git status` if they care.
+ * The caller has already established that there IS a repository — that answer
+ * is a property of the root, so it is asked once rather than spawning a
+ * `rev-parse` inside the store's write gate on every op.
+ *
+ * Answers whether it committed. `false` covers two situations — git said no,
+ * or there was nothing to commit — and the caller does not need to tell them
+ * apart: it reports what it knows and the reader looks at `git status`.
  */
 export const commit = (
   what: Committing,
 ): Effect.Effect<boolean> =>
   Effect.gen(function*() {
     if (what.paths.length === 0) return false
-    if (!(yield* isWorkTree(what.root))) return false
 
     const staged = yield* git(what.root, ["add", "--", ...what.paths])
     if (!staged.ok) {

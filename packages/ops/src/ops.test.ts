@@ -42,6 +42,10 @@ interface Fixture {
   readonly write: (file: string, contents: string) => void
   /** The set as it stands, so a test can look at records rather than bytes. */
   readonly set: () => Effect.Effect<OutlineSet>
+  /** Every write this layer refused, as `<op>: <tag>`. Collected at the OPS
+   *  seam, which is where the observer hangs — so it records a refusal
+   *  whichever caller asked for the write. */
+  readonly refusals: ReadonlyArray<string>
 }
 
 const withOps = <A>(
@@ -69,17 +73,23 @@ const withOps = <A>(
   return Effect.gen(function*() {
     const store = yield* Store.make({ root, codec, watch: false, settle: "10 millis" })
     let minted = 0
+    const refusals: Array<string> = []
     const ops = Ops.make({
       store,
       root,
       commit: options.git === true,
       context: { mint: () => `n${++minted}`, today: () => "2026-08-09" },
+      onRefusal: (request, failure) =>
+        Effect.sync(() => {
+          refusals.push(`${request.op}: ${failure._tag}`)
+        }),
     })
     return yield* use({
       ops,
       store,
       root,
       write,
+      refusals,
       read: (file) => {
         const at = path.join(root, file)
         return fs.existsSync(at) ? fs.readFileSync(at, "utf8") : null
@@ -161,6 +171,10 @@ test("a refusal writes nothing and comes back with its structured detail", () =>
       expect(failure._tag).toBe("DerivedFailure")
       expect(fixture.read("house.jsonl")).toBe(HOUSE)
       expect((yield* SubscriptionRef.get(fixture.store.snapshot))?.rev).toBe(1)
+      // Reported wherever it came from: the observer hangs off the WRITER, so
+      // a second caller — the web UI's own procedures, when they arrive — is
+      // not a second place to remember to report from.
+      expect(fixture.refusals).toEqual(["done: DerivedFailure"])
     })))
 
 /**
@@ -262,19 +276,10 @@ describe("the internal MCP server", () => {
     use: (
       call: (method: string, params?: unknown) => Effect.Effect<Record<string, unknown>>,
       fixture: Fixture,
-      refusals: Array<string>,
     ) => Effect.Effect<A, never>,
   ) =>
     withOps({ "house.jsonl": HOUSE }, (fixture) => {
-      const refusals: Array<string> = []
-      const server = Mcp.make({
-        ops: fixture.ops,
-        store: fixture.store,
-        onRefusal: (tool, failure) =>
-          Effect.sync(() => {
-            refusals.push(`${tool}: ${failure._tag}`)
-          }),
-      })
+      const server = Mcp.make({ ops: fixture.ops })
       let id = 0
       const call = (method: string, params?: unknown) =>
         Effect.map(
@@ -284,7 +289,7 @@ describe("the internal MCP server", () => {
             return reply as Record<string, unknown>
           },
         )
-      return use(call, fixture, refusals)
+      return use(call, fixture)
     })
 
   const resultOf = (reply: Record<string, unknown>): Record<string, unknown> => {
@@ -306,7 +311,7 @@ describe("the internal MCP server", () => {
   test("a notification is not answered", () =>
     withOps({ "house.jsonl": HOUSE }, (fixture) =>
       Effect.gen(function*() {
-        const server = Mcp.make({ ops: fixture.ops, store: fixture.store })
+        const server = Mcp.make({ ops: fixture.ops })
         expect(yield* server.handle({ jsonrpc: "2.0", method: "notifications/initialized" }))
           .toBeNull()
       })))
@@ -383,7 +388,7 @@ describe("the internal MCP server", () => {
    * to parse on either side.
    */
   test("a refused write is an isError result with the children as data", () =>
-    withMcp((call, fixture, refusals) =>
+    withMcp((call, fixture) =>
       Effect.gen(function*() {
         const reply = resultOf(
           yield* call("tools/call", { name: "set_done", arguments: { id: "kitchen" } }),
@@ -395,7 +400,7 @@ describe("the internal MCP server", () => {
           { id: "order", title: "order the cabinets", status: "open" },
           { id: "install", title: "install them", status: "open" },
         ])
-        expect(refusals).toEqual(["set_done: DerivedFailure"])
+        expect(fixture.refusals).toEqual(["done: DerivedFailure"])
         expect(fixture.read("house.jsonl")).toBe(HOUSE)
       })))
 

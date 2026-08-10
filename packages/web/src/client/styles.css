@@ -37,6 +37,13 @@
   --color-done: #2f8f5b;
   --color-doing: #b8760a;
   --color-alarm: #b3261e;
+
+  /* The agent drawer's width. A token rather than a literal in each of the
+   * three places that has to clear it — the drawer itself, the connection dot
+   * that steps aside for it, and the button that opens it — because those
+   * three agreeing is what "always on screen" rests on, and three literals
+   * agree only until somebody edits one. */
+  --width-chat: 26rem;
 }
 
 :root {

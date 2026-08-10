@@ -38,6 +38,7 @@ import {
   nodesOf,
   type OpFailure,
   ordBetween,
+  siblingsOf,
   type OutlineSet,
   type RegularNode,
   storedMarker,
@@ -154,6 +155,22 @@ const withField = <K extends "desc" | "date">(
   return next
 }
 
+/**
+ * The node an op names, in a file the op may write — the prologue every
+ * in-place edit shares. The two questions are never wanted apart: an op that
+ * resolved a node without asking whether its file is writable would plan an
+ * edit that erases the records the file did not parse into.
+ */
+const editable = (
+  scope: Scope,
+  id: string,
+): Result.Result<LocatedRegular, OpFailure> => {
+  const target = regularAt(scope, id)
+  if (Result.isFailure(target)) return target
+  const may = writable(scope, target.success.file)
+  return Result.isFailure(may) ? Result.fail(may.failure) : target
+}
+
 const notFound = (id: string): OpFailure =>
   new NotFoundFailure({
     reason: `no node in the loaded set has the id \`${id}\``,
@@ -227,26 +244,6 @@ const replacing = (
 
 // ── siblings and where a node lands among them ─────────────────────────
 
-/** The records that share a parent, in the order the format sorts them. A
- *  mirror IS a sibling here — it occupies a place in the row even though it is
- *  not a node of its own — because placement is about places. */
-const siblingsOf = (
-  scope: Scope,
-  file: string,
-  parent: string | undefined,
-): ReadonlyArray<Located> =>
-  parent === undefined
-    ? nodesOf(scope.set.nodes, file)
-      .filter((located) => located.node.parent === undefined)
-      .slice()
-      .sort(byOrd)
-    : (scope.derived.children.get(parent) ?? []).filter(
-      (located) => located.file === file,
-    )
-
-const byOrd = (a: Located, b: Located): number =>
-  a.node.ord === b.node.ord ? a.line - b.line : a.node.ord < b.node.ord ? -1 : 1
-
 interface Placement {
   readonly before?: string | undefined
   readonly after?: string | undefined
@@ -265,7 +262,7 @@ interface Placement {
  */
 const placed = (
   siblings: ReadonlyArray<Located>,
-  moving: string | null,
+  moving: string,
   placement: Placement,
 ): Result.Result<ReadonlyArray<{ id: string; ord: string }>, OpFailure> => {
   if (placement.before !== undefined && placement.after !== undefined) {
@@ -295,7 +292,7 @@ const placed = (
   const before = at === 0 ? null : (row[at - 1] as Located).node.ord
   const after = at === row.length ? null : (row[at] as Located).node.ord
   const gap = ordBetween(before, after)
-  if (gap !== null) return Result.succeed([{ id: moving ?? "", ord: gap }])
+  if (gap !== null) return Result.succeed([{ id: moving, ord: gap }])
 
   // No room. Renumber the whole row, the moving node included, from the first
   // key up — every neighbour keeps its position and gains a canonical `ord`.
@@ -305,7 +302,7 @@ const placed = (
   for (const entry of order) {
     const next = ordBetween(previous, null)
     if (next === null) throw new Error("the order encoding ran out of keys")
-    renumbered.push({ id: entry === null ? (moving ?? "") : entry.node.id, ord: next })
+    renumbered.push({ id: entry === null ? moving : entry.node.id, ord: next })
     previous = next
   }
   return Result.succeed(renumbered)
@@ -376,7 +373,7 @@ const planAdd = (
     )
   }
 
-  const ords = placed(siblingsOf(scope, file, parent), id, request)
+  const ords = placed(siblingsOf(scope.derived, file, parent), id, request)
   if (Result.isFailure(ords)) return Result.fail(ords.failure)
   const ord = ords.success.find((entry) => entry.id === id)?.ord
   if (ord === undefined) throw new Error("the placement did not include the new node")
@@ -407,12 +404,9 @@ const planMark = (
   scope: Scope,
   request: Extract<Request, { op: "done" | "doing" }>,
 ): Planned => {
-  const target = regularAt(scope, request.id)
+  const target = editable(scope, request.id)
   if (Result.isFailure(target)) return Result.fail(target.failure)
   const { file, node } = target.success
-
-  const may = writable(scope, file)
-  if (Result.isFailure(may)) return Result.fail(may.failure)
 
   const mark = request.op
   const undo = request.undo === true
@@ -499,12 +493,9 @@ const planEdit = (
   edit: (node: RegularNode) => RegularNode,
   summarize: (node: RegularNode) => string,
 ): Planned => {
-  const target = regularAt(scope, id)
+  const target = editable(scope, id)
   if (Result.isFailure(target)) return Result.fail(target.failure)
   const { file, node } = target.success
-
-  const may = writable(scope, file)
-  if (Result.isFailure(may)) return Result.fail(may.failure)
 
   const next = edit(node)
   if (next.title.trim() === "") {
@@ -562,7 +553,7 @@ const planMove = (
     }
   }
 
-  const ords = placed(siblingsOf(scope, file, parent), node.id, request)
+  const ords = placed(siblingsOf(scope.derived, file, parent), node.id, request)
   if (Result.isFailure(ords)) return Result.fail(ords.failure)
 
   const moved = withParent(node, parent)
@@ -647,11 +638,13 @@ const planArchive = (
   }
 
   // Everything under the node, by `parent` — which is same-file by the format,
-  // so the walk never leaves this outline.
-  const moving = subtreeOf(scope, file, node.id)
+  // so the walk never leaves this outline. The file's records are read ONCE and
+  // shared with the walk: `recordsOf` filters and sorts the whole set.
+  const records = recordsOf(scope, file)
+  const moving = subtreeOf(scope, records, node.id)
   const movingIds = new Set(moving.map((record) => record.id))
 
-  const source = recordsOf(scope, file).filter((record) => !movingIds.has(record.id))
+  const source = records.filter((record) => !movingIds.has(record.id))
   const existing = recordsOf(scope, archive)
 
   // The chain, outermost first, as titles. It is the DEFINING file's ancestry:
@@ -675,7 +668,7 @@ const planArchive = (
     }
     const id = freshId(scope, minted)
     minted.add(id)
-    const ord = appendedOrd([...existing, ...scaffold], parent)
+    const ord = appendedOrd([existing, scaffold], parent)
     const record: RegularNode = {
       id,
       ...(parent === undefined ? {} : { parent }),
@@ -696,7 +689,7 @@ const planArchive = (
   if (root === undefined) throw new Error("the subtree walk lost its own root")
   const reparented: Node = {
     ...withParent(root, parent),
-    ord: appendedOrd([...existing, ...scaffold], parent),
+    ord: appendedOrd([existing, scaffold], parent),
   }
 
   return Result.succeed({
@@ -711,39 +704,48 @@ const planArchive = (
   })
 }
 
-/** The node and everything under it, in file order. */
+/**
+ * The node and everything under it, in file order.
+ *
+ * Descends the parent→children index `derive` already built rather than
+ * rescanning the file until the answer stops growing — the index is the same
+ * question asked once, for the whole set, and a repeat-until-stable scan over
+ * the records was that question asked again in a worse shape.
+ */
 const subtreeOf = (
   scope: Scope,
-  file: string,
+  records: ReadonlyArray<Node>,
   id: string,
 ): ReadonlyArray<Node> => {
-  const wanted = new Set([id])
-  const records = recordsOf(scope, file)
-  // One forward pass is enough: `parent` is same-file, and a record's parent is
-  // reachable before it only if the file happens to be ordered that way — so
-  // repeat until the set stops growing rather than assuming an order.
-  for (let grew = true; grew;) {
-    grew = false
-    for (const record of records) {
-      if (record.parent !== undefined && wanted.has(record.parent) && !wanted.has(record.id)) {
-        wanted.add(record.id)
-        grew = true
-      }
-    }
+  const wanted = new Set<string>()
+  const descend = (at: string): void => {
+    if (wanted.has(at)) return
+    wanted.add(at)
+    for (const child of scope.derived.children.get(at) ?? []) descend(child.node.id)
   }
+  descend(id)
+  // Back in FILE order: the archive should read the way the outline did.
   return records.filter((record) => wanted.has(record.id))
 }
 
-/** An `ord` after everything already under `parent` in this record list. */
+/** An `ord` after everything already under `parent`.
+ *
+ *  One max scan rather than a filter-map-sort: `ord` is a base62 fractional
+ *  index, so `>` on the string IS the comparison, and only the largest matters.
+ *  `Archive.jsonl` is the one file in a set that grows without bound, and this
+ *  runs once per ancestor level of every archive. */
 const appendedOrd = (
-  records: ReadonlyArray<Node>,
+  rows: ReadonlyArray<ReadonlyArray<Node>>,
   parent: string | undefined,
 ): string => {
-  const row = records
-    .filter((record) => record.parent === parent)
-    .map((record) => record.ord)
-    .sort()
-  const last = row.at(-1) ?? null
+  let last: string | null = null
+  for (const records of rows) {
+    for (const record of records) {
+      if (record.parent === parent && (last === null || record.ord > last)) {
+        last = record.ord
+      }
+    }
+  }
   const next = ordBetween(last, null)
   if (next === null) throw new Error("the order encoding ran out of keys")
   return next

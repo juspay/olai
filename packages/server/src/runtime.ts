@@ -21,7 +21,8 @@
 
 import type { OutlineError, OutlineSet } from "@olai/format"
 import type { Store } from "@olai/store"
-import { CHAT_OFF, type ChatEntry, type ChatState, surface } from "@olai/surface"
+import { CHAT_OFF, type ChatState, type OpFailure, surface } from "@olai/surface"
+import { UsageFailure } from "@olai/format"
 import {
   type ImplementSurfaceDeps,
   implementSurface,
@@ -31,6 +32,7 @@ import {
 import { Effect, Stream, SubscriptionRef } from "effect"
 
 import type { Chat } from "./chat/chat.ts"
+import type { Change } from "./chat/transcript.ts"
 
 /** What a transport needs, and nothing else. `ctx` is the write face, which
  *  belongs to the bindings below rather than to whoever serves them. */
@@ -50,10 +52,7 @@ export interface Wiring {
  *  what the chat publishes through. */
 export interface Publishers {
   readonly state: (state: ChatState) => void
-  readonly transcript: (change: {
-    readonly upserts: ReadonlyArray<readonly [string, ChatEntry]>
-    readonly removes: ReadonlyArray<string>
-  }) => void
+  readonly transcript: (change: Change) => void
 }
 
 export const bind = (
@@ -66,13 +65,20 @@ export const bind = (
     const errors = inMemoryStore<ReadonlyArray<OutlineError>>([])
     const chat = wiring.chat
 
-    const gone = () =>
-      Effect.die(
-        new Error(
-          "the surface is serving chat procedures with no agent configured — " +
-            "`bind` was handed `chat: null`, which is supposed to make the cell `off`",
-        ),
-      )
+    /** A chat verb, when there may be no chat. The cell already reads `off`, so
+     *  a browser has been told; a stray call is answered as a REFUSAL rather
+     *  than as a runtime defect, because "chat is off" is a thing a caller can
+     *  be told and the vocabulary already covers it. */
+    const withChat = <A>(
+      use: (chat: Chat) => Effect.Effect<A, OpFailure>,
+    ): Effect.Effect<A, OpFailure> =>
+      chat === null
+        ? Effect.fail(
+          new UsageFailure({
+            reason: "chat is off: no ACP agent is configured for this directory",
+          }),
+        )
+        : use(chat)
 
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {
       cells: {
@@ -112,11 +118,11 @@ export const bind = (
       },
       procedures: {
         chat: {
-          send: ({ input }) => chat === null ? gone() : chat.send(input.text),
-          cancel: () => chat === null ? gone() : chat.cancel,
-          newSession: () => chat === null ? gone() : chat.newSession,
-          loadSession: ({ input }) => chat === null ? gone() : chat.loadSession(input.id),
-          sessions: () => chat === null ? gone() : chat.sessions,
+          send: ({ input }) => withChat((open) => open.send(input.text)),
+          cancel: () => withChat((open) => open.cancel),
+          newSession: () => withChat((open) => open.newSession),
+          loadSession: ({ input }) => withChat((open) => open.loadSession(input.id)),
+          sessions: () => withChat((open) => open.sessions),
         },
       },
     }

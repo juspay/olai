@@ -25,8 +25,8 @@
  *     unfinished children in chat" true regardless of how the agent phrases it.
  */
 
-import type { ChatEntry, ChatState, OpFailure, SessionInfo } from "@olai/surface"
-import { BusyFailure, NotFoundFailure, UsageFailure } from "@olai/format"
+import { CHAT_OFF, type ChatEntry, type ChatState, type OpFailure, type SessionInfo } from "@olai/surface"
+import { BusyFailure, UsageFailure } from "@olai/format"
 import { Effect, Fiber, Semaphore } from "effect"
 
 import * as AcpAgent from "./agent.ts"
@@ -74,13 +74,10 @@ export interface Chat {
 export const make = (options: Options): Effect.Effect<Chat, never, never> =>
   Effect.gen(function*() {
     const transcript = new Transcript()
-    let state: ChatState = {
-      status: "booting",
-      session: null,
-      model: null,
-      commands: [],
-      trouble: null,
-    }
+    // The cell's own default, with the one field that differs: an agent is
+    // being started. Restating the other four here would be a second place to
+    // remember when the state gains a fifth.
+    let state: ChatState = { ...CHAT_OFF, status: "booting" }
     /** The turn in flight, so a second `send` can be refused rather than
      *  queued and a cancel has something to aim at. */
     let turn: Fiber.Fiber<unknown, unknown> | null = null
@@ -162,11 +159,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
 
     const agent = yield* options.agent(receive)
 
-    /** An agent failure, as something a caller can render. `busy` rather than a
-     *  new vocabulary: the five kinds already say everything a chat verb can
-     *  mean. */
-    const asFailure = (why: string): OpFailure =>
-      new BusyFailure({ reason: why })
+    /** An agent failure, as something a caller can render — ONE translation,
+     *  used by every verb. Three call sites used to answer this differently
+     *  (`busy` here, `not-found` there), which made "what kind of refusal is a
+     *  dead agent" a question with three answers. `busy` is the honest one: the
+     *  agent is not available right now, and the next prompt retries the boot. */
+    const asFailure = (gone: AcpAgent.AgentGone): OpFailure =>
+      new BusyFailure({ reason: gone.why })
 
     const send = (text: string): Effect.Effect<void, OpFailure> =>
       Effect.gen(function*() {
@@ -207,15 +206,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         turn = running
       })
 
-    const cancel = Effect.gen(function*() {
-      yield* agent.cancel
-      // The `done` frame follows on its own — the agent decides how the turn
-      // ended, and a cancel that raced the end of one must not claim otherwise.
-    })
-
-    const changeSession = <A>(
-      what: Effect.Effect<A, AcpAgent.AgentGone>,
-    ): Effect.Effect<A, OpFailure> =>
+    /** Move to another conversation. The `done` frame of a cancelled turn
+     *  follows on its own — the agent decides how a turn ended, and a cancel
+     *  that raced the end of one must not claim otherwise. */
+    const changeSession = (
+      what: Effect.Effect<void, AcpAgent.AgentGone>,
+    ): Effect.Effect<void, OpFailure> =>
       switching.withPermit(
         Effect.gen(function*() {
           if (turn !== null) {
@@ -227,10 +223,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           const outcome = yield* Effect.result(what)
           if (outcome._tag === "Failure") {
             move({ status: "gone", trouble: outcome.failure.message })
-            return yield* asFailure(outcome.failure.message)
+            return yield* asFailure(outcome.failure)
           }
           move({ status: "idle" })
-          return outcome.success
         }),
       )
 
@@ -238,32 +233,18 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       entries: () => transcript.entries(),
       state: () => state,
       send,
-      cancel,
-      newSession: Effect.asVoid(changeSession(agent.newSession)),
-      loadSession: (id: string) =>
-        Effect.asVoid(
-          changeSession(
-            Effect.catchTag(agent.loadSession(id), "AgentGone", (gone) =>
-              Effect.fail(
-                new AcpAgent.AgentGone({
-                  why: `\`${id}\` could not be opened: ${gone.why}`,
-                }),
-              )),
-          ),
-        ),
-      sessions: Effect.gen(function*() {
-        const outcome = yield* Effect.result(agent.sessions)
-        if (outcome._tag === "Failure") {
-          return yield* new NotFoundFailure({ reason: outcome.failure.message })
-        }
-        return outcome.success.map(
-          (stored): SessionInfo => ({
-            id: stored.id,
-            title: stored.title,
-            updatedAt: stored.updatedAt,
-          }),
-        )
-      }),
+      cancel: agent.cancel,
+      newSession: changeSession(agent.newSession),
+      loadSession: (id: string) => changeSession(agent.loadSession(id)),
+      sessions: Effect.catch(
+        Effect.map(agent.sessions, (stored) =>
+          stored.map((entry): SessionInfo => ({
+            id: entry.id,
+            title: entry.title,
+            updatedAt: entry.updatedAt,
+          }))),
+        (gone) => Effect.fail(asFailure(gone)),
+      ),
       recordRefusal: (tool: string, failure: OpFailure) =>
         Effect.sync(() => {
           publish(transcript.refuse(`\`${tool}\` was refused`, failure))

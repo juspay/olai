@@ -58,6 +58,17 @@ import { Data, type Duration, Effect, Semaphore } from "effect"
 
 import type { AgentEvent, Command, Stored } from "./events.ts"
 
+/** An MCP server to hand a session, in olai's terms. {@link mcpServersOf}
+ *  renders it into what the protocol wants. */
+export interface ToolServer {
+  readonly name: string
+  readonly url: string
+  /** Presented as a bearer token. The route is on the same loopback listener
+   *  as everything else, and a WRITE surface any page could POST at is a
+   *  different bargain from a read-only one. */
+  readonly token: string
+}
+
 /** The agent is not there — it never started, it died, or the handshake failed.
  *  Every verb can fail this way and the next one retries the boot, which is why
  *  a crash and a cold start are the same recovery path. */
@@ -77,12 +88,17 @@ export interface Options {
    *  what makes stored sessions findable: an agent keys its conversations by
    *  the directory it was started in. */
   readonly cwd: string
-  /** Handed to every session. Olai's is one HTTP entry pointing back at this
-   *  process's own MCP route — which is why it is a THUNK and not a value: the
-   *  address is not known until the listener has bound, and the agent is built
-   *  before that so the panel can report a boot failure rather than the boot
-   *  failing to start. Read once per `session/new` and `session/load`. */
-  readonly mcpServers: () => ReadonlyArray<McpServer>
+  /** The tool server to hand every session, or `null` while there is none.
+   *
+   *  A THUNK, because the address is not known until the listener has bound and
+   *  the agent is built before that — so the panel can report a boot failure
+   *  rather than the boot failing to start. Read once per `session/new` and
+   *  `session/load`.
+   *
+   *  Olai's own description, not ACP's: this module is the only one allowed to
+   *  know what an `McpServer` looks like on the wire, and a composition root
+   *  that hand-built one would be a second place that knows. */
+  readonly tools: () => ToolServer | null
   readonly onEvent: (event: AgentEvent) => void
   readonly log: (message: string) => void
 }
@@ -349,7 +365,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       Effect.gen(function*() {
         const made = (yield* ask(at.connection, methods.agent.session.new, {
           cwd: options.cwd,
-          mcpServers: [...options.mcpServers()],
+          mcpServers: [...mcpServersOf(options.tools())],
           _meta: META,
         })) as NewSessionResponse
         session = made.sessionId
@@ -374,7 +390,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           ask(
             at.connection,
             methods.agent.session.load,
-            { sessionId: id, cwd: options.cwd, mcpServers: [...options.mcpServers()] },
+            { sessionId: id, cwd: options.cwd, mcpServers: [...mcpServersOf(options.tools())] },
             LOAD_TIMEOUT,
           ),
           () =>
@@ -411,18 +427,26 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       }),
     )
 
-    /** Every verb that needs a session: boot if necessary, then act. */
-    const withSession = <A>(
-      use: (at: Live, id: string) => Effect.Effect<A, AgentGone>,
+    /** Every verb: boot if necessary, then act on the process that came up. */
+    const withLive = <A>(
+      use: (at: Live) => Effect.Effect<A, AgentGone>,
     ): Effect.Effect<A, AgentGone> =>
       Effect.gen(function*() {
         yield* boot
         const at = live
+        if (at === null) return yield* new AgentGone({ why: "the agent is not running" })
+        return yield* use(at)
+      })
+
+    /** ... and the ones that also need a conversation to act IN. */
+    const withSession = <A>(
+      use: (at: Live, id: string) => Effect.Effect<A, AgentGone>,
+    ): Effect.Effect<A, AgentGone> =>
+      withLive((at) => {
         const id = session
-        if (at === null || id === null) {
-          return yield* new AgentGone({ why: "the agent is not running" })
-        }
-        return yield* use(at, id)
+        return id === null
+          ? Effect.fail(new AgentGone({ why: "the agent has no session open" }))
+          : use(at, id)
       })
 
     const prompt = (text: string) =>
@@ -476,36 +500,29 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       boot,
       prompt,
       cancel,
-      newSession: Effect.gen(function*() {
-        yield* boot
-        const at = live
-        if (at === null) return yield* new AgentGone({ why: "the agent is not running" })
-        session = null
-        emit({ _tag: "sessionOver" })
-        yield* fresh(at)
-      }),
-      loadSession: (id: string) =>
+      newSession: withLive((at) =>
         Effect.gen(function*() {
-          yield* boot
-          const at = live
-          if (at === null) return yield* new AgentGone({ why: "the agent is not running" })
-          if (!at.canLoad) {
-            return yield* new AgentGone({
-              why: "this agent does not keep conversations, so there is none to load",
-            })
-          }
-          const stored = yield* storedFor(at)
-          const wanted = stored.find((entry) => entry.id === id)
           session = null
           emit({ _tag: "sessionOver" })
-          yield* load(at, id, wanted?.title ?? null)
-        }),
-      sessions: Effect.gen(function*() {
-        yield* boot
-        const at = live
-        if (at === null) return yield* new AgentGone({ why: "the agent is not running" })
-        return yield* storedFor(at)
-      }),
+          yield* fresh(at)
+        })
+      ),
+      loadSession: (id: string) =>
+        withLive((at) =>
+          Effect.gen(function*() {
+            if (!at.canLoad) {
+              return yield* new AgentGone({
+                why: `\`${id}\` cannot be opened: this agent does not keep conversations`,
+              })
+            }
+            const stored = yield* storedFor(at)
+            const wanted = stored.find((entry) => entry.id === id)
+            session = null
+            emit({ _tag: "sessionOver" })
+            yield* load(at, id, wanted?.title ?? null)
+          })
+        ),
+      sessions: withLive(storedFor),
       stop,
     }
   })
@@ -582,23 +599,18 @@ const streamOver = (child: ChildProcess) => {
 
   const readable = new ReadableStream<Uint8Array>({
     start(controller) {
+      // Both ends of the pipe close the same way, and a process exiting can
+      // deliver `end` AND `error` — so closing twice has to be harmless.
+      const close = () => {
+        try {
+          controller.close()
+        } catch {
+          // already closed
+        }
+      }
       stdout.on("data", (chunk: Buffer) => controller.enqueue(new Uint8Array(chunk)))
-      stdout.on("end", () => {
-        // A second close on an already-closed controller throws; the process
-        // exiting can deliver both `end` and `error`.
-        try {
-          controller.close()
-        } catch {
-          // already closed
-        }
-      })
-      stdout.on("error", () => {
-        try {
-          controller.close()
-        } catch {
-          // already closed
-        }
-      })
+      stdout.on("end", close)
+      stdout.on("error", close)
     },
   })
 
@@ -659,6 +671,16 @@ const labelOf = (
  *  handed, which may or may not carry a trailing slash. */
 const sameDirectory = (a: string, b: string): boolean =>
   a.replace(/\/+$/, "") === b.replace(/\/+$/, "")
+
+/** Olai's tool server as ACP's `mcpServers` entry. The one place the protocol's
+ *  shape for this is spelled. */
+const mcpServersOf = (server: ToolServer | null): ReadonlyArray<McpServer> =>
+  server === null ? [] : [{
+    type: "http",
+    name: server.name,
+    url: server.url,
+    headers: [{ name: "Authorization", value: `Bearer ${server.token}` }],
+  }]
 
 const reasonOf = (cause: unknown): string =>
   cause instanceof Error ? cause.message : String(cause)

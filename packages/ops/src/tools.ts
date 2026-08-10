@@ -17,13 +17,18 @@
  *     the chat panel draw them as rows.
  *
  * Each entry carries its request schema, and the JSON Schema an agent sees is
- * DERIVED from it ({@link ./mcp.ts}) rather than written beside it. That is the
- * same rule as everywhere else here: one declaration, several uses, no second
- * list of field names to keep in step.
+ * DERIVED from it ({@link ./mcp.ts}) rather than written beside it. A READ
+ * carries its reader too, in the same entry — so a tool the table declares and
+ * nothing answers is a type error rather than a runtime throw, which is what
+ * the dispatch switch this replaced could only discover when somebody called
+ * it. One declaration, several uses, no second list to keep in step.
  */
 
 import { Schema } from "effect"
 
+import type { Derived, OutlineSet } from "@olai/format"
+
+import * as Query from "./query.ts"
 import {
   AddRequest,
   ArchiveRequest,
@@ -34,21 +39,39 @@ import {
   TitleRequest,
 } from "./request.ts"
 
-/** A tool, as this package declares it. `fixed` is the part of the request the
- *  tool NAME already decides — `set_done` is `op: "done"` — so it never
- *  appears in the schema the agent fills in. */
-export interface Tool {
+/** The set as a reader sees it: the files that were found, and the derivations
+ *  every answer is computed from. One value, so a run of queries walks the tree
+ *  once ({@link ./query.ts}). */
+export interface Reading {
+  readonly set: OutlineSet
+  readonly derived: Derived
+}
+
+interface Described {
   readonly name: string
   readonly title: string
   readonly description: string
-  /** The schema the arguments are decoded against, once `fixed` is merged in. */
+  /** The schema the arguments are decoded against. */
   readonly schema: Schema.Top
-  readonly fixed: Readonly<Record<string, unknown>>
-  /** Reads answer; writes change the directory and land in git. Kept as a flag
-   *  because the two halves are described differently to the agent and counted
-   *  differently by anything watching. */
-  readonly writes: boolean
 }
+
+/**
+ * A tool, as this package declares it.
+ *
+ * The two arms are the two halves of the surface, and they differ in what they
+ * carry rather than in a flag: a READ answers from a snapshot and says how; a
+ * WRITE names the part of the request its own NAME already decides (`set_done`
+ * is `op: "done"`), so that field never appears in the schema an agent fills in.
+ */
+export type Tool =
+  | (Described & {
+    readonly kind: "read"
+    readonly read: (at: Reading, args: never) => unknown
+  })
+  | (Described & {
+    readonly kind: "write"
+    readonly fixed: Readonly<Record<string, unknown>>
+  })
 
 // ── reading ────────────────────────────────────────────────────────────
 
@@ -81,20 +104,28 @@ const NoArgs = Schema.Struct({})
 
 // ── the list ───────────────────────────────────────────────────────────
 
-const read = (
+const read = <A>(
   name: string,
   title: string,
   description: string,
-  schema: Schema.Top,
-): Tool => ({ name, title, description, schema, fixed: {}, writes: false })
+  schema: Schema.Codec<A, never, never, never> | Schema.Top,
+  reader: (at: Reading, args: A) => unknown,
+): Tool => ({
+  name,
+  title,
+  description,
+  schema,
+  kind: "read",
+  read: reader as (at: Reading, args: never) => unknown,
+})
 
 const write = (
   name: string,
   title: string,
   description: string,
   schema: Schema.Top,
-  fixed: Readonly<Record<string, unknown>> = {},
-): Tool => ({ name, title, description, schema, fixed, writes: true })
+  fixed: Readonly<Record<string, unknown>>,
+): Tool => ({ name, title, description, schema, kind: "write", fixed })
 
 export const TOOLS: ReadonlyArray<Tool> = [
   read(
@@ -102,24 +133,34 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "List outlines",
     "Every outline under the served directory, with its top-level titles and how many nodes it holds. Start here: it is the map.",
     NoArgs,
+    (at) => ({ outlines: Query.outlines(at.set, at.derived) }),
   ),
   read(
     "search_nodes",
     "Search nodes",
     "Find nodes by title, id, `#tag` or note. Results carry `file:line`, the node's derived status and its ancestor titles, so a hit can be acted on without reading the file.",
     SearchArgs,
+    (at, args: typeof SearchArgs.Type) => Query.search(at.derived, args),
   ),
   read(
     "read_node",
     "Read a node",
     "One node in full: its record, its `#tags`, its derived status, its ancestors and its immediate children.",
     NodeArgs,
+    (at, args: typeof NodeArgs.Type) =>
+      Query.detail(at.derived, args.id) ?? { missing: args.id },
   ),
   read(
     "read_subtree",
     "Read a subtree",
     "A node and everything under it, nested. Says when it stopped at the depth it was given rather than at a leaf.",
     SubtreeArgs,
+    (at, args: typeof SubtreeArgs.Type) =>
+      Query.subtree(
+        at.derived,
+        args.id,
+        args.depth === undefined ? {} : { depth: args.depth },
+      ) ?? { missing: args.id },
   ),
 
   write(

@@ -60,6 +60,9 @@ export const TESTID = {
   chatSessionList: "chat-session-list",
   chatSession: "chat-session",
   chatTranscript: "chat-transcript",
+  /** The agent's finished prose, rendered as markdown. Its own name rather
+   *  than a node note's: they are two different things on the page. */
+  chatSaid: "chat-said",
   /** One row. `data-kind` is which of the five it is. */
   chatEntry: "chat-entry",
   /** A tool call's row; `data-tool-status` is the agent's own status. */
