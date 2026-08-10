@@ -12,7 +12,7 @@ Tailwind v4, bundled by `Bun.build`.
 the `outlines` COLLECTION — one entry per outline file, keyed by root-relative
 path, served with batched `deltas` so an edit sends that file's entry and not
 the corpus — and the `manifest` CELL, which carries what belongs to no one file
-(the revision, and the documents with their text).
+(today, the documents with their text).
 
 Everything above it is derived from those: the sidebar's file list is the
 collection's keys in path order (`paths.ts`, because a key set has arrival order

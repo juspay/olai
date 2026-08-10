@@ -19,7 +19,7 @@
  * a piece out.
  */
 
-import type { Located, OutlineSet } from "@olai/format"
+import type { OutlineSet } from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import type { Manifest, OutlineEntry } from "@olai/surface"
 
@@ -56,21 +56,31 @@ export const publishedOf = (
   previous: Entries,
 ): Published => {
   const set = snapshot.value
-  const byFile = new Map<string, Array<Located>>()
-  for (const located of set.nodes) {
-    const nodes = byFile.get(located.file)
-    if (nodes === undefined) byFile.set(located.file, [located])
-    else nodes.push(located)
-  }
+  // The set is FLAT and every record names its own file, so a file's slice is
+  // that grouping — taken in one pass rather than one filter per file, because
+  // this runs on every revision of a directory that can hold any number of
+  // both.
+  const byFile = Map.groupBy(set.nodes, (located) => located.file)
   const broken = new Map(set.broken.map((file) => [file.file, file] as const))
 
+  // An unchanged file KEEPS THE ENTRY it was published with, rather than being
+  // rebuilt at this revision. Not an optimisation — a correctness one: only the
+  // changed files are upserted, so a rebuilt entry would sit in the snapshot a
+  // fresh subscriber reads at a revision no delta ever announced, and two tabs
+  // would hold different `rev` for the same untouched file. What the collection
+  // HOLDS and what it SAID have to be the same thing.
+  const changed = new Set(snapshot.changed)
   const entries = new Map<string, OutlineEntry>()
   for (const file of set.files) {
-    entries.set(file, {
-      rev: snapshot.rev,
-      nodes: byFile.get(file) ?? [],
-      broken: broken.get(file) ?? null,
-    })
+    const published = changed.has(file) ? undefined : previous.get(file)
+    entries.set(
+      file,
+      published ?? {
+        rev: snapshot.rev,
+        nodes: byFile.get(file) ?? [],
+        broken: broken.get(file) ?? null,
+      },
+    )
   }
 
   return {
@@ -81,6 +91,6 @@ export const publishedOf = (
     }),
     // A collection may not be told to drop a key it never had.
     removes: snapshot.removed.filter((path) => previous.has(path)),
-    manifest: { rev: snapshot.rev, documents: set.documents },
+    manifest: { documents: set.documents },
   }
 }

@@ -28,11 +28,17 @@ Which kind each member is was a decision. Three are the outline:
   re-modelled at all
   ([docs/brainstorming/outlines-as-collection.md](../../docs/brainstorming/outlines-as-collection.md)).
 - **`manifest` is a cell**: what is true of the SET rather than of any one file
-  — the revision, and the documents. Its `null` is the state a collection
-  cannot express: an empty snapshot means "this directory holds no outlines",
-  and a first probe that has not finished has to say something else. So a
-  reader tells three states apart from this one member — no frame yet, `null`,
-  a value — exactly as it did from the nullable stream frame this replaced.
+  — today, the documents. Its `null` is the state a collection cannot express:
+  an empty snapshot means "this directory holds no outlines", and a first probe
+  that has not finished has to say something else. So a reader tells three
+  states apart from this one member — no frame yet, `null`, a value — exactly
+  as it did from the nullable stream frame this replaced.
+
+  It carries NO set revision, and that is what keeps every document's text off
+  the wire: a revision belongs to a file, each entry carries the one it was
+  published at, and a second copy of it here would have made this value differ
+  on every probe tick. Without it the cell's `equals` holds, and a tick that
+  touched no `.md` publishes nothing at all.
 - **`errors` is a cell**, read-only on the wire, because "what is wrong right
   now" is one value the server does own. It is deliberately independent of the
   entries, and that independence is load-bearing: a set that stops validating
@@ -57,10 +63,10 @@ consistency paragraph is the long version.
 
 Documents stay set-wide, in the manifest, and they carry their TEXT: markdown is
 interpreted at view time and a `doc` reference is drawn wherever its node is, so
-a paths-only list would need a second read path the app does not have. The cost
-is honest and named — every document's text rides every revision, as it did
-when the whole set travelled at once. Making them a collection of their own is
-the obvious next step and deliberately not that change.
+a paths-only list would need a second read path the app does not have. What that
+still costs is granularity rather than frequency — one edited `.md` sends every
+`.md`, because the cell's value is the list — and making them a collection of
+their own is the obvious next step and deliberately not that change.
 
 Three more are the chat, declared next door in `src/chat.ts` because they are a
 subject of their own:

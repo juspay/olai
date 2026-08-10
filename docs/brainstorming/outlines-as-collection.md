@@ -135,9 +135,18 @@ renders half a probe. What is NOT true — and was, while the whole set travelle
 as one value — is that everything on screen is at the same revision. Only the
 files that moved are upserted, so a reader that mirrors B's subtree into A's
 page can be holding **A@42 beside B@41** for a frame, and after a tick that
-touched neither, indefinitely. The `manifest` is a third member and can be a
-beat ahead of or behind the entries it names. All of that is the price of the
-wire being O(changed files), and it is paid on purpose.
+touched neither, indefinitely. The `manifest` is a member of its own and arrives
+on its own schedule — in fact usually FIRST, because a cell publishes on the
+writer's stack while the collection's frame is coalesced onto a microtask. All
+of that is the price of the wire being O(changed files), and it is paid on
+purpose.
+
+What the wire says and what a fresh subscriber READS are held to the same
+number, though, and that one is not negotiable: an unchanged file keeps the
+entry it was published with rather than being rebuilt at the new revision, so
+the snapshot a tab opened just now gets cannot name a revision no delta ever
+announced. Two tabs watching one directory hold the same `rev` for the same
+file. (`packages/server/src/outlines.ts`, and the test that pins it.)
 
 The rule that makes it safe is that **nothing reads `rev` to decide what to
 draw**. Every view is derived from what the entries currently SAY — the
@@ -157,15 +166,25 @@ sub-frame flash. Not taken.
 
 ## The open questions, answered
 
-- **`manifest` cell vs folding `documents`/set-rev elsewhere.** The cell, as
-  leaned. It is also where the boot bit lives (below). One DEVIATION from the
-  sketch: `documents` carries `Document` records — text and all — not
-  `Array(String)`. A path-only list would need a second read path for a
-  document's text, and there is not one: markdown is interpreted at view time
-  and a `doc` reference is drawn wherever its node is. The honest cost is that
-  every document's text still rides every revision, which is exactly what the
-  whole set used to do. Documents as a collection of their own is the obvious
-  next step and was deliberately not bundled in.
+- **`manifest` cell vs folding `documents`/set-rev elsewhere.** The cell for the
+  documents, as leaned; NOT for the set rev. It is also where the boot bit lives
+  (below). Two DEVIATIONS from the sketch, and they are connected:
+
+  `documents` carries `Document` records — text and all — not `Array(String)`. A
+  path-only list would need a second read path for a document's text, and there
+  is not one: markdown is interpreted at view time and a `doc` reference is
+  drawn wherever its node is.
+
+  Which is why the set rev is NOT here. Carried beside that payload it would
+  have made the cell's value differ on every probe tick — every document's text
+  to every open tab because one line of one outline moved, which is the very
+  thing this re-modelling is against. Nothing reads it (a revision belongs to a
+  file, and every entry carries the one it was published at, which is the number
+  a phase-4 write will name), so it is gone and the cell declares an `equals`
+  instead: a tick that touched no `.md` publishes nothing at all. What remains
+  is granularity rather than frequency — one edited document sends the list —
+  and documents as a collection of their own is the next step, deliberately not
+  bundled in.
 - **Store summary vs server diffing snapshots.** The store, as leaned:
   `Snapshot` grew `changed` / `removed`, which is the probe's stamp diff kept
   instead of thrown away, and the server maps changed paths to `OutlineEntry`

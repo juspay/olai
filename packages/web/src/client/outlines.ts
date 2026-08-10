@@ -34,7 +34,7 @@ import { derive } from "@olai/format"
 import type { Manifest } from "@olai/surface"
 import { type Accessor, createMemo } from "solid-js"
 
-import { byPath } from "./paths.ts"
+import { sortByPath } from "./paths.ts"
 import { olai } from "./wire.ts"
 
 export interface Outlines {
@@ -62,11 +62,11 @@ export const createOutlines = (): Outlines => {
   const entries = olai.collections.outlines.use()
   const manifest = olai.cells.manifest.use()
 
-  const files = createMemo(() => [...entries.keys()].sort(byPath))
+  const files = createMemo(() => sortByPath(entries.keys()))
 
-  /** Every node of the set, in file order then file order — which is the order
-   *  the flat `nodes` list had when the whole set travelled as one value, so
-   *  every derivation downstream sees what it always did. */
+  /** Every node of the set: file by file, each file's nodes in file order —
+   *  which is the order the flat `nodes` list had when the whole set travelled
+   *  as one value, so every derivation downstream sees what it always did. */
   const nodes = createMemo(() =>
     files().flatMap((file) => entries.byKey(file)?.()?.nodes ?? [])
   )
@@ -95,8 +95,8 @@ export const createOutlines = (): Outlines => {
     // gets is the error report rather than an empty tree — so the `undefined`
     // here is the manifest's two absent states and not a third one.
     derived: createMemo(() => {
-      const set = manifest.value()
-      return set === undefined || set === null ? undefined : derive(nodes())
+      const loaded = manifest.value()
+      return loaded === undefined || loaded === null ? undefined : derive(nodes())
     }),
   }
 }

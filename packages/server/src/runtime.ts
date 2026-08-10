@@ -84,15 +84,12 @@ export const bind = (
      *  deltas an open one is watching are two readings of one map rather than
      *  two copies to keep in step. */
     let entries = new Map<string, OutlineEntry>()
-    /** Where an entry write goes once there is a runtime to publish through —
+    /** The surface's own write face, once there is one to publish through —
      *  filled the moment `implementSurface` returns. The connector installs
      *  synchronously, so the FIRST revision is written before this exists; that
      *  is exactly the moment there is nobody subscribed to hear it, and
      *  `entries` above has it. */
-    let write: {
-      readonly upsert: (key: string, entry: OutlineEntry) => void
-      readonly remove: (key: string) => void
-    } | null = null
+    let published: SurfaceRuntime<typeof surface.spec>["ctx"] | null = null
 
     /** A chat verb, when there may be no chat. The cell already reads `off`, so
      *  a browser has been told; a stray call is answered as a REFUSAL rather
@@ -135,13 +132,18 @@ export const bind = (
               (snapshot) =>
                 Effect.sync(() => {
                   if (snapshot === null) return cell.set(null)
-                  const published = publishedOf(snapshot, entries)
-                  entries = published.entries
-                  for (const [key, entry] of published.upserts) write?.upsert(key, entry)
-                  for (const key of published.removes) write?.remove(key)
-                  // The manifest LAST: it is the revision announcing itself, and
-                  // the entries it speaks for are already published when it does.
-                  cell.set(published.manifest)
+                  const revision = publishedOf(snapshot, entries)
+                  entries = revision.entries
+                  const outlines = published?.collections.outlines
+                  for (const [key, entry] of revision.upserts) outlines?.upsert(key, entry)
+                  for (const key of revision.removes) outlines?.remove(key)
+                  // Written last, which is NOT the order they arrive in: a cell
+                  // publishes on this stack while the collection's frame is
+                  // coalesced into one delta on a microtask, so the manifest
+                  // reaches a socket first. Nothing here may promise otherwise
+                  // — a reader tolerates the skew either way, and that is the
+                  // cross-file consistency paragraph in the design doc.
+                  cell.set(revision.manifest)
                 }),
             ),
         },
@@ -192,10 +194,7 @@ export const bind = (
     // revision into `entries`, which is what a subscription is snapshotted
     // from — and there can be no subscription yet, because the listener is
     // built from what this function returns.
-    write = {
-      upsert: (key, entry) => runtime.ctx.collections.outlines.upsert(key, entry),
-      remove: (key) => runtime.ctx.collections.outlines.remove(key),
-    }
+    published = runtime.ctx
 
     return {
       bound: runtime,

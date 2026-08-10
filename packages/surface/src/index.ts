@@ -98,20 +98,42 @@ export type OutlineEntry = typeof OutlineEntry.Type
  * sidebar's second list is a fact about the SET. They carry their text, as they
  * always have — markdown is interpreted at view time and a `doc` reference is
  * drawn wherever its node is, so a paths-only list would need a second read
- * path the app does not have. That is the honest cost of leaving them here:
- * every document's text rides every revision, exactly as it did when the whole
- * set did. Making them a collection of their own is the obvious next step and
+ * path the app does not have. Making them a collection of their own, so that
+ * one edited document is one document on the wire, is the obvious next step and
  * is deliberately not this change.
+ *
+ * There is NO set revision here, and that is what keeps the text off the wire
+ * in the meantime. A revision belongs to a file — every entry carries the one
+ * it was published at, which is the number a write names as its base — and a
+ * second copy of it beside the documents would have made this value differ on
+ * every probe tick, which is every document's text to every open tab because
+ * one line of one outline moved. Without it, {@link sameManifest} holds, and a
+ * directory whose `.md` files did not change publishes nothing at all.
  */
 export const Manifest = Schema.NullOr(
   Schema.Struct({
-    /** The store revision these facts are. Every entry published in the same
-     *  tick carries it too; entries that did not move carry an older one. */
-    rev: Schema.Int,
     documents: Schema.Array(Document),
   }),
 )
 export type Manifest = typeof Manifest.Type
+
+/** When two manifests are the same one, so the cell can stay quiet.
+ *
+ *  Text is compared by `===`, which is a POINTER compare for the case that
+ *  matters: an unchanged file keeps its cached decode, so its text is the same
+ *  string the last revision published, not an equal copy of it. */
+const sameManifest = (a: Manifest, b: Manifest): boolean => {
+  if (a === null || b === null) return a === b
+  return (
+    a.documents.length === b.documents.length &&
+    a.documents.every((document, at) => {
+      const other = b.documents[at]
+      return other !== undefined &&
+        document.file === other.file &&
+        document.text === other.text
+    })
+  )
+}
 
 export const surface = defineSurface({
   cells: {
@@ -124,11 +146,16 @@ export const surface = defineSurface({
     },
     /** What is true of the SET rather than of any one file — see
      *  {@link Manifest}. Wire-read-only for the same reason the entries are:
-     *  the directory is the disk's. */
+     *  the directory is the disk's.
+     *
+     *  `equals` is what keeps the documents off the wire: the server writes
+     *  this cell on every revision, because that is when it learns anything,
+     *  and most revisions have nothing to say about a `.md`. */
     manifest: {
       schema: Manifest,
       default: null,
       verbs: ["get"],
+      equals: sameManifest,
     },
     chat: {
       schema: ChatState,

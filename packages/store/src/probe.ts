@@ -149,9 +149,10 @@ export const make = <F, S, E>(
         // mean one thing here and another there: anything the last probe held
         // that this one does not is removed, whether the listing lost it or the
         // read did.
-        const removed = [...(previous ?? [])]
-          .map(([path]) => path)
-          .filter((path) => !next.has(path))
+        const removed: Array<string> = []
+        for (const path of previous?.keys() ?? []) {
+          if (!next.has(path)) removed.push(path)
+        }
 
         yield* Ref.set(cache, next)
         return {

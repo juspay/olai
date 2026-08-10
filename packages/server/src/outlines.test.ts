@@ -103,11 +103,36 @@ test("a removed path that was never an entry is not a remove", () => {
   expect(published.removes).toEqual([])
 })
 
-test("the manifest carries the revision and the documents, text and all", () => {
+test("the manifest carries the documents, text and all", () => {
   const { manifest } = publishedOf(
     revision(setOf({ "house.jsonl": HOUSE }, [["notes.md", "# hello"]]), {}, 3),
     NOTHING_HELD,
   )
 
-  expect(manifest).toEqual({ rev: 3, documents: [{ file: "notes.md", text: "# hello" }] })
+  expect(manifest).toEqual({ documents: [{ file: "notes.md", text: "# hello" }] })
+})
+
+// What the collection HOLDS is what it SAID: an untouched file keeps the entry
+// it was published with, so the snapshot a fresh subscriber reads and the
+// deltas an open one received cannot name different revisions for it.
+test("a file that did not move keeps the entry it was published with", () => {
+  const first = publishedOf(
+    revision(setOf({ "house.jsonl": HOUSE, "garden.jsonl": GARDEN })),
+    NOTHING_HELD,
+  )
+  const second = publishedOf(
+    revision(
+      setOf({
+        "house.jsonl": `${HOUSE}{"id":"sink","parent":"kitchen","ord":"a0","title":"sink"}\n`,
+        "garden.jsonl": GARDEN,
+      }),
+      { changed: ["house.jsonl"] },
+      2,
+    ),
+    first.entries,
+  )
+
+  expect(second.entries.get("garden.jsonl")).toBe(first.entries.get("garden.jsonl")!)
+  expect(second.entries.get("garden.jsonl")?.rev).toBe(1)
+  expect(second.entries.get("house.jsonl")?.rev).toBe(2)
 })

@@ -74,13 +74,8 @@ export default function App() {
    *  file's own entry, as `broken`. */
   const problems = () => errors.value() ?? []
 
-  // One derivation for the whole set — the same call the validator makes, over
-  // every entry's nodes. The rows are per-file; the indexes are not, because a
-  // mirror may point into any file and resolving it needs every node.
-  const derived = outlines.derived
-
   const page = createMemo(() => {
-    const indexes = derived()
+    const indexes = outlines.derived()
     return indexes === undefined ? undefined : pageOf(
       indexes,
       {
@@ -98,7 +93,7 @@ export default function App() {
    *  asked through the live derivation: a dated node saved on disk lights its
    *  day on the next frame, with nothing watching for it. */
   const dated = (month: string): ReadonlySet<string> => {
-    const indexes = derived()
+    const indexes = outlines.derived()
     return indexes === undefined ? new Set() : datedDays(indexes, month)
   }
 
@@ -126,7 +121,7 @@ export default function App() {
    * tear down and rebuild the tree.
    */
   const rows = createMemo(() => {
-    const indexes = derived()
+    const indexes = outlines.derived()
     return indexes === undefined ? [] : view.visible(rowsFor(indexes, page()))
   })
 
@@ -177,7 +172,7 @@ export default function App() {
         <Match when={page()}>
           {(open) => (
             <RouterProvider router={router}>
-              <DerivedProvider derived={derived()}>
+              <DerivedProvider derived={outlines.derived()}>
               <DocumentsProvider documents={outlines.documentsByFile()}>
                 {/* Two columns where there is room for two, one where there is
                     not. `md` is 48rem, which is where the racket original put
