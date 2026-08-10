@@ -5,13 +5,16 @@
 # system costs per input. Add a pin, not an input.
 #
 # `bun2nix` is the ONE documented exception: nixpkgs has no fetchBunDeps /
-# buildBunPackage, and bun2nix's nix layer is flake-parts-shaped, so it cannot
-# be imported cleanly from a non-flake-parts context. juspay/bun2nix's
-# `rawflake` branch exposes `lib.mkBun2nix { pkgs }`, which lets us feed it OUR
-# npins-pinned pkgs — no transitive nixpkgs eval. It is forced only when
-# `packages.*` is evaluated, so `nix develop` cold eval is unchanged.
+# buildBunPackage. Upstream (nix-community/bun2nix) is flake-parts-shaped
+# internally, but its consumer API is the package itself: `packages.<system>
+# .default` carries `hook`, `fetchBunDeps`, `mkDerivation`, etc. on passthru.
+# That is enough without flake-parts on our side and without the
+# juspay/bun2nix rawflake fork (`lib.mkBun2nix` was only a thin re-export of
+# the same passthru). Forced only when `packages.*` is evaluated, so
+# `nix develop` cold eval is unchanged.
 {
-  inputs.bun2nix.url = "github:juspay/bun2nix/rawflake";
+  # Pin a release tag; do not float on master.
+  inputs.bun2nix.url = "github:nix-community/bun2nix/2.1.2";
 
   # Juspay's shared OSS cache, so `nix run .#bun2nix` and the kolu sources come
   # down prebuilt instead of being compiled on every lane.
@@ -30,14 +33,15 @@
       rev = stamp.revFromSelf self;
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
 
-      # One `pkgs` (and one bun2nix instantiation) per system, shared by every
-      # output that asks for it.
+      # One `pkgs` (and one bun2nix package) per system, shared by every
+      # output that asks for it. `b2n` is the upstream CLI derivation; hook /
+      # fetchBunDeps live on its passthru.
       perSystem = builtins.listToAttrs (map
         (system:
           let pkgs = import ./nix/nixpkgs.nix { inherit system; };
           in {
             name = system;
-            value = { inherit pkgs; b2n = bun2nix.lib.mkBun2nix { inherit pkgs; }; };
+            value = { inherit pkgs; b2n = bun2nix.packages.${system}.default; };
           })
         systems);
       eachSystem = f: builtins.mapAttrs (_: ctx: f ctx) perSystem;
@@ -51,7 +55,7 @@
           default = olai.olai;
           # `nix run .#bun2nix -- -l bun.lock -o bun.nix` regenerates the
           # lockfile-derived nix expression (`just regenerate-bun-nix`).
-          bun2nix = b2n.bun2nix;
+          bun2nix = b2n;
         });
 
       # Two shells, and the second is the first plus browsers. Playwright's

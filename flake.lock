@@ -8,16 +8,16 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1786292781,
-        "narHash": "sha256-w54kOAMXxq0jP5fJ8GLOwYwvWtM2UeVS+5lm7tv3qnM=",
-        "owner": "juspay",
+        "lastModified": 1784665499,
+        "narHash": "sha256-9BMxlTxCCDAeoNLtb1a/st7udtTIJep+wpUzquA29VU=",
+        "owner": "nix-community",
         "repo": "bun2nix",
-        "rev": "76fea6fba22b58f57e3a058fc4f57434bd63f298",
+        "rev": "0f2a1f0b6f42cebe3b149bf62d38754c5e0e9729",
         "type": "github"
       },
       "original": {
-        "owner": "juspay",
-        "ref": "rawflake",
+        "owner": "nix-community",
+        "ref": "2.1.2",
         "repo": "bun2nix",
         "type": "github"
       }
