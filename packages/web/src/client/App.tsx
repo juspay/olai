@@ -18,9 +18,9 @@
  *     carries its errors, and every other outline stays live
  *     (errors/Broken.tsx).
  *
- * What is open is a ROUTE — a whole outline (`/o/<file>`), one node zoomed
- * (`/n/<id>`), or one day of the journal (`/d/<date>`, and `/today`) — so
- * every page is a link someone can send. Which places are folded, whether done
+ * What is open is a ROUTE — a whole outline (`/o/<file>`), one document
+ * (`/doc/<file>`), one node zoomed (`/n/<id>`), or one day of the journal
+ * (`/d/<date>`, and `/today`) — so every page is a link someone can send. Which places are folded, whether done
  * nodes are drawn, and which month the calendar is showing are signals: they
  * belong to this tab's reading and not to the file.
  *
@@ -42,6 +42,8 @@ import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 
 import { Calendar } from "./calendar/Calendar.tsx"
+import { DocumentPage } from "./document/DocumentPage.tsx"
+import { DocumentsProvider } from "./document/documents.tsx"
 import { createToday } from "./clock.ts"
 import { Connection } from "./connection/Connection.tsx"
 import { DayPage } from "./day/DayPage.tsx"
@@ -51,7 +53,7 @@ import { Page as ErrorPage } from "./errors/Page.tsx"
 import { only } from "./narrow.ts"
 import { NodePage } from "./NodePage.tsx"
 import { Nothing } from "./Nothing.tsx"
-import { outlineOf, pageOf, rowsFor } from "./page.ts"
+import { fileOf, pageOf, rowsFor } from "./page.ts"
 import { OutlinePage } from "./OutlinePage.tsx"
 import { createRouter, RouterProvider } from "./router.tsx"
 import { Sidebar } from "./Sidebar.tsx"
@@ -71,6 +73,10 @@ export default function App() {
 
   const set = () => frame()?.set
   const files = () => set()?.files ?? []
+  /** Every `.md` the directory holds, text and all — the sidebar's second
+   *  list, the document pages, and every `doc` preview come off this one
+   *  field of the set. */
+  const documents = () => set()?.documents ?? []
   /** What is wrong with the set as a WHOLE right now. Empty is the normal
    *  state, including when one file is unreadable — that one lands in the set
    *  itself, as `broken` below. */
@@ -95,9 +101,12 @@ export default function App() {
 
   const page = createMemo(() => {
     const indexes = derived()
-    return indexes === undefined
-      ? undefined
-      : pageOf(indexes, files(), broken(), router.route(), today())
+    return indexes === undefined ? undefined : pageOf(
+      indexes,
+      { files: files(), documents: documents(), broken: broken() },
+      router.route(),
+      today(),
+    )
   })
 
   /** Which days of a month have something dated them — the calendar's dots.
@@ -152,41 +161,56 @@ export default function App() {
         <Match when={page()}>
           {(open) => (
             <RouterProvider router={router}>
-              <div class="grid min-h-screen grid-cols-[16rem_1fr]">
-                <Sidebar files={files()} active={outlineOf(open())} broken={broken()}>
-                  <Calendar
-                    today={today()}
-                    open={only(open(), "day")?.date}
-                    days={dated}
-                  />
-                </Sidebar>
-                <main class="overflow-x-auto px-8 py-6">
-                  <Show when={problems().length > 0}>
-                    <Banner errors={problems()} />
-                  </Show>
-                  <Switch>
-                    <Match when={only(open(), "broken")}>
-                      {(file) => <Broken file={file().file} />}
-                    </Match>
-                    <Match when={only(open(), "node")}>
-                      {(node) => (
-                        <NodePage zoomed={node().zoomed} rows={rows} view={view} />
-                      )}
-                    </Match>
-                    <Match when={only(open(), "outline")}>
-                      <OutlinePage rows={rows} view={view} />
-                    </Match>
-                    <Match when={only(open(), "day")}>
-                      {(open) => (
-                        <DayPage date={open().date} groups={day} today={today()} />
-                      )}
-                    </Match>
-                    <Match when={only(open(), "nothing")}>
-                      {(nothing) => <Nothing requested={nothing().requested} />}
-                    </Match>
-                  </Switch>
-                </main>
-              </div>
+              <DocumentsProvider documents={documents()}>
+                <div class="grid min-h-screen grid-cols-[16rem_1fr]">
+                  <Sidebar
+                    files={files()}
+                    documents={documents()}
+                    active={fileOf(open())}
+                    broken={broken()}
+                  >
+                    <Calendar
+                      today={today()}
+                      open={only(open(), "day")?.date}
+                      days={dated}
+                    />
+                  </Sidebar>
+                  <main class="overflow-x-auto px-8 py-6">
+                    <Show when={problems().length > 0}>
+                      <Banner errors={problems()} />
+                    </Show>
+                    <Switch>
+                      <Match when={only(open(), "broken")}>
+                        {(file) => <Broken file={file().file} />}
+                      </Match>
+                      <Match when={only(open(), "node")}>
+                        {(node) => (
+                          <NodePage zoomed={node().zoomed} rows={rows} view={view} />
+                        )}
+                      </Match>
+                      <Match when={only(open(), "outline")}>
+                        <OutlinePage rows={rows} view={view} />
+                      </Match>
+                      <Match when={only(open(), "document")}>
+                        {(open) => <DocumentPage document={open().document} />}
+                      </Match>
+                      <Match when={only(open(), "day")}>
+                        {(open) => (
+                          <DayPage date={open().date} groups={day} today={today()} />
+                        )}
+                      </Match>
+                      <Match when={only(open(), "nothing")}>
+                        {(nothing) => (
+                          <Nothing
+                            sought={nothing().sought}
+                            requested={nothing().requested}
+                          />
+                        )}
+                      </Match>
+                    </Switch>
+                  </main>
+                </div>
+              </DocumentsProvider>
             </RouterProvider>
           )}
         </Match>

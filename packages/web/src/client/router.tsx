@@ -16,7 +16,7 @@
 
 import { createContext, createSignal, type JSX, onCleanup, useContext } from "solid-js"
 
-import { hrefOf, type Route, routeOf } from "./routes.ts"
+import { fileNamed, hrefOf, type Route, routeOf } from "./routes.ts"
 
 export interface Router {
   readonly route: () => Route
@@ -96,10 +96,8 @@ export function Link(props: LinkProps) {
       aria-label={props.label}
       aria-current={props.current === true ? "page" : undefined}
       data-testid={props.testid}
-      // The outline a link stands for, for the browser tests. Read off the
-      // route rather than passed in beside it: the two could disagree, and the
-      // route is the one the click actually follows.
-      data-file={props.route.kind === "outline" ? props.route.file ?? undefined : undefined}
+      // The file a link stands for, for the browser tests (./routes.ts).
+      data-file={fileNamed(props.route)}
       data-broken={props.broken === true ? "true" : undefined}
       onClick={onClick}
     >

@@ -19,8 +19,9 @@ const decoded = (files: Record<string, Decoded>): ReadonlyMap<string, Decoded> =
 const outline = (file: string, contents: string): Decoded =>
   Result.succeed({ file, nodes: nodesOf(contents, file) })
 
-/** A `.md`: found, served, and nothing of it decoded. */
-const document: Decoded = Result.succeed(null)
+/** A `.md`: found, served, and carrying its text. */
+const document = (file: string, text: string): Decoded =>
+  Result.succeed({ file, text })
 
 const unreadable = (file: string, contents: string): Decoded =>
   Result.fail(failureOf(contents, file))
@@ -29,13 +30,13 @@ const ids = (nodes: ReadonlyArray<Located>): ReadonlyArray<string> =>
   nodes.map((located) => located.node.id)
 
 // The set is FLAT: outlines contribute their nodes to one list, documents
-// contribute only their path, and which a file is was decided by its name long
+// their path and their text, and which a file is was decided by its name long
 // before this. Assembling it here rather than in whatever read the directory is
 // what keeps "what belongs to a set" a statement about the format.
 test("assemble sorts decoded files into outlines, their nodes, and documents", () => {
   const set = assemble(decoded({
     "home.jsonl": outline("home.jsonl", `{"id":"kitchen","ord":"a","title":"kitchen"}\n`),
-    "notes/cabinets.md": document,
+    "notes/cabinets.md": document("notes/cabinets.md", "# Cabinets\n"),
     "work.jsonl": outline(
       "work.jsonl",
       `{"id":"budget","ord":"a","title":"budget"}\n{"id":"m","ord":"b","mirror":"kitchen"}`,
@@ -43,7 +44,7 @@ test("assemble sorts decoded files into outlines, their nodes, and documents", (
   }))
 
   expect(set.files).toEqual(["home.jsonl", "work.jsonl"])
-  expect(set.documents).toEqual(["notes/cabinets.md"])
+  expect(set.documents).toEqual([{ file: "notes/cabinets.md", text: "# Cabinets\n" }])
   // One list, in the order the files came in — and every record still names the
   // file it came from, which is why grouping them again would be the same fact
   // twice.

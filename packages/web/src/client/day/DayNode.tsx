@@ -12,11 +12,12 @@
  * FINDING a node, and the node's own page is where it is read.
  */
 
-import type { Situated } from "@olai/format"
+import { docOf, type Situated } from "@olai/format"
 import { Show } from "solid-js"
 
 import { Breadcrumbs } from "../Breadcrumbs.tsx"
 import { Bullet } from "../Bullet.tsx"
+import { DocRef } from "../document/DocRef.tsx"
 import { NodeLine } from "../NodeLine.tsx"
 import { Note } from "../Note.tsx"
 import { TESTID } from "../testids.ts"
@@ -47,7 +48,21 @@ export function DayNode(props: { readonly dated: Situated }) {
       </div>
 
       <Show when={node().desc}>
-        {(desc) => <Note desc={desc()} class="mt-1 ml-5.5 text-[0.9375rem] text-muted" />}
+        {(desc) => (
+          <Note
+            desc={desc()}
+            from={props.dated.shows.file}
+            class="mt-1 ml-5.5 text-[0.9375rem] text-muted"
+          />
+        )}
+      </Show>
+
+      <Show when={docOf(props.dated.shows)}>
+        {(doc) => (
+          <div class="ml-5.5">
+            <DocRef file={doc()} />
+          </div>
+        )}
       </Show>
     </li>
   )

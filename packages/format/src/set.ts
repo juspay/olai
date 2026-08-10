@@ -17,6 +17,7 @@
 
 import { Result, Schema } from "effect"
 
+import { Document } from "./documents.ts"
 import { OutlineError } from "./errors.ts"
 import { fileKind, Located } from "./node.ts"
 
@@ -43,11 +44,12 @@ export const OutlineSet = Schema.Struct({
    *  `nodes`. */
   files: Schema.Array(Schema.String),
   nodes: Schema.Array(Located),
-  /** Every `.md` found. Documents are part of the set because `doc` points
-   *  into them: a reference the validator cannot see is one it cannot check.
-   *  Their text is not carried — nothing renders a document yet, and the path
-   *  is the whole of what `doc` needs. */
-  documents: Schema.Array(Schema.String),
+  /** Every `.md` found, with its text. Documents are part of the set because
+   *  `doc` points into them — a reference the validator cannot see is one it
+   *  cannot check — and their text rides along because it is the same kind of
+   *  thing a note is: markdown from the directory, read by the same probe and
+   *  published in the same revision ({@link ./documents.ts}). */
+  documents: Schema.Array(Document),
   /** The files above that did not parse. Their nodes are absent from `nodes`,
    *  which is exactly what makes the rest of the set renderable. */
   broken: Schema.Array(BrokenFile),
@@ -62,13 +64,13 @@ export interface Outline {
   readonly nodes: ReadonlyArray<Located>
 }
 
-/** What one file decoded to: an outline's nodes, or `null` for a document,
- *  whose text is not carried — nothing renders a document yet, and the path is
- *  the whole of what `doc` needs.
+/** What one file decoded to: an outline's nodes, or a document's text.
  *
- *  It carries no tag saying which it is, because `fileKind` already answers
- *  that from the path and a second answer is one that could disagree. */
-export type DecodedFile = Outline | null
+ *  It carries no tag saying which it is. `fileKind` already answers that from
+ *  the path, and `decode` branched on that same answer to produce this — so
+ *  the shape and the name cannot disagree, and a tag would be a second answer
+ *  that could. */
+export type DecodedFile = Outline | Document
 
 /**
  * Decoded files into the set the validator judges.
@@ -88,16 +90,25 @@ export const assemble = (
 ): OutlineSet => {
   const outlines: Array<string> = []
   const nodes: Array<Located> = []
-  const documents: Array<string> = []
+  const documents: Array<Document> = []
   const broken: Array<BrokenFile> = []
 
   for (const [path, decoded] of files) {
-    // What a file IS comes from its name and from nowhere else, so it is asked
-    // once, here, and holds whether the file decoded or not.
-    ;(fileKind(path) === "document" ? documents : outlines).push(path)
-
-    if (Result.isFailure(decoded)) broken.push({ file: path, errors: decoded.failure })
-    else if (decoded.success !== null) nodes.push(...decoded.success.nodes)
+    if (Result.isFailure(decoded)) {
+      broken.push({ file: path, errors: decoded.failure })
+      // What a file IS comes from its name and from nowhere else, which is the
+      // only thing still true about a file that would not decode: it keeps its
+      // place, holding nothing.
+      if (fileKind(path) === "document") documents.push({ file: path, text: "" })
+      else outlines.push(path)
+      continue
+    }
+    const value = decoded.success
+    if ("text" in value) documents.push({ file: path, text: value.text })
+    else {
+      outlines.push(path)
+      nodes.push(...value.nodes)
+    }
   }
   return { files: outlines, nodes, documents, broken }
 }

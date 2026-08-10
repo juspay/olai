@@ -61,6 +61,18 @@ export const ROOT = "#root";
 /** The sidebar: one entry per `.jsonl` found under the served directory. */
 export const OUTLINE_LIST = selector(TESTID.outlineList);
 export const OUTLINE_LINK = selector(TESTID.outlineLink);
+/** The sidebar's second list: one entry per `.md` found. */
+export const DOCUMENT_LIST = selector(TESTID.documentList);
+export const DOCUMENT_LINK = selector(TESTID.documentLink);
+/** One document, as a page: `/doc/<file>`. */
+export const DOCUMENT_PAGE = selector(TESTID.documentPage);
+/** The rendered markdown of a document — on its own page, or inline under the
+ *  node that attaches it. */
+export const DOCUMENT_BODY = selector(TESTID.documentBody);
+/** A node's `doc`: the reference, carrying the RESOLVED path as `data-doc`. */
+export const DOC_REF = selector(TESTID.docRef);
+/** The link inside that reference, to the document's own page. */
+export const DOC_LINK = selector(TESTID.docLink);
 /** The main pane. Present only when the loaded set is valid. */
 export const OUTLINE_TREE = selector(TESTID.outlineTree);
 export const NODE = selector(TESTID.node);
@@ -164,6 +176,13 @@ export class OlaiWorld extends World {
    *  bug an e2e suite exists to catch. */
   errors: string[] = [];
 
+  /** Every URL the page asked for that this server did not serve, collected by
+   *  the same hook. It is normally empty and must stay that way: the bundle,
+   *  the stylesheet and the syntax highlighter are all shipped by the server
+   *  someone pointed at their own outlines, and a request to anywhere else is a
+   *  page telling a third party what is being read. */
+  offSite: string[] = [];
+
   /** Which fixture corpus this scenario's server is serving, from its
    *  `@corpus:<name>` or `@scratch:<name>` tag. See `support/hooks.ts`. */
   corpus!: string;
@@ -225,6 +244,21 @@ export class OlaiWorld extends World {
    *  makes a day an address rather than a place you can only click to. */
   async openDayPage(date: string): Promise<void> {
     await this.open(`/d/${encodeURIComponent(date)}`);
+  }
+
+  /** One document's own page COLD, the way a link someone sent would arrive. */
+  async openDocument(file: string): Promise<void> {
+    await this.open(`/doc/${file.split("/").map(encodeURIComponent).join("/")}`);
+  }
+
+  /** One sidebar document entry, by the path it stands for. */
+  documentLink(file: string): Locator {
+    return this.page.locator(`${DOCUMENT_LIST} ${DOCUMENT_LINK}[data-file="${file}"]`);
+  }
+
+  /** A node's `doc` reference — its own, not a descendant's. */
+  docRef(id: string): Locator {
+    return this.node(id).locator(DOC_REF).first();
   }
 
   /** One day of the month in the sidebar. */

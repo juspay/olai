@@ -147,6 +147,12 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="date"]` | the date badge |
 | `[data-testid="desc"]` | the rendered markdown of `desc` |
 | `[data-testid="toggle"]` | the collapse/expand control |
+| `[data-testid="document-list"]` | the sidebar's second list, one entry per `.md` |
+| `[data-testid="document-link"][data-file]` | one of those entries |
+| `[data-testid="document-page"][data-file]` | one document, as a page |
+| `[data-testid="document-body"]` | a document's rendered markdown, on its page or inline under a node |
+| `[data-testid="doc-ref"][data-doc]` | a node's `doc`, at its RESOLVED path; `data-inline` when the document is drawn whole |
+| `[data-testid="doc-link"]` | the link inside that reference |
 | `[data-testid="zoom"]` | a row's bullet: the link to that node's own page |
 | `[data-testid="zoom-title"][data-node-id]` | the heading of a zoomed page — the CANONICAL node's id |
 | `[data-testid="breadcrumbs"]` / `[data-testid="crumb"]` | the ancestry above a zoomed node, and one link in it |

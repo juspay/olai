@@ -10,6 +10,8 @@ const ROUTES: ReadonlyArray<Route> = [
   { kind: "outline", file: "house.jsonl" },
   { kind: "outline", file: "wing/kitchen.jsonl" },
   { kind: "outline", file: "a file with spaces.jsonl" },
+  { kind: "document", file: "finishes.md" },
+  { kind: "document", file: "notes/deep/plan.md" },
   { kind: "node", id: "kitchen" },
   { kind: "node", id: "a-minted_id9" },
   { kind: "day", date: "2026-08-10" },
@@ -26,6 +28,9 @@ test("the addresses are the documented ones", () => {
   expect(hrefOf({ kind: "outline", file: null })).toBe("/")
   expect(hrefOf({ kind: "outline", file: "house.jsonl" })).toBe("/o/house.jsonl")
   expect(hrefOf({ kind: "node", id: "kitchen" })).toBe("/n/kitchen")
+  expect(hrefOf({ kind: "document", file: "notes/finishes.md" })).toBe(
+    "/doc/notes/finishes.md",
+  )
   expect(hrefOf({ kind: "day", date: "2026-08-10" })).toBe("/d/2026-08-10")
   expect(hrefOf({ kind: "today" })).toBe("/today")
 })
@@ -45,6 +50,13 @@ test("an outline in a subdirectory keeps its slashes", () => {
   expect(hrefOf({ kind: "outline", file: "wing/kitchen.jsonl" })).toBe(
     "/o/wing/kitchen.jsonl",
   )
+})
+
+// A document address and a day address share a first letter and nothing else:
+// the prefixes are whole segments, so `/doc/` is never read as `/d/`.
+test("a document is not a day", () => {
+  expect(routeOf("/doc/a.md")).toEqual({ kind: "document", file: "a.md" })
+  expect(routeOf("/d/2026-08-10")).toEqual({ kind: "day", date: "2026-08-10" })
 })
 
 // Not a route the app writes — a reader typed it. The app they wanted is the

@@ -18,6 +18,22 @@ export const TESTID = {
   date: "date",
   desc: "desc",
   toggle: "toggle",
+  /** The sidebar's second list: one entry per `.md` found. */
+  documentList: "document-list",
+  documentLink: "document-link",
+  /** One document, as a page. `data-file` is which. */
+  documentPage: "document-page",
+  /** The link inside a node's `doc` reference — the way from a node to its
+   *  document's own page. Its own name rather than the sidebar's, so a
+   *  selector never has to say which of the two it meant. */
+  docLink: "doc-link",
+  /** A node's `doc`, wherever the node is drawn: the reference, carrying the
+   *  RESOLVED path as `data-doc`, and `data-inline` for the zoomed page that
+   *  draws the whole document rather than a line of it. */
+  docRef: "doc-ref",
+  /** The document itself, rendered — on its own page, or inline under the node
+   *  that attaches it. */
+  documentBody: "document-body",
   /** The bullet on every row: the link to that node's own page. */
   zoom: "zoom",
   /** The heading of a zoomed page — carries the CANONICAL node's id, which is

@@ -19,10 +19,11 @@
  * has to resolve anything here.
  */
 
-import { type Row } from "@olai/format"
+import { docOf, type Row } from "@olai/format"
 import { createMemo, For, Match, Show, Switch } from "solid-js"
 
 import { Bullet } from "./Bullet.tsx"
+import { DocRef } from "./document/DocRef.tsx"
 import { NodeLine } from "./NodeLine.tsx"
 import { Note } from "./Note.tsx"
 import { TESTID } from "./testids.ts"
@@ -58,8 +59,11 @@ function Branch(props: {
   // separate computations in this component read it. Without the memo every
   // row in the tree re-runs all five on every click.
   const collapsed = createMemo(() => props.collapsed.has(props.row.key))
+  // The RECORD a row shows, file and all — the file is what a note's relative
+  // picture and a `doc` are relative to, and for a mirror that is the file the
+  // node is DEFINED in rather than the one being read.
   const shown = () => (props.row.kind === "node" || props.row.kind === "mirror")
-    ? props.row.shows.node
+    ? props.row.shows
     : undefined
 
   return (
@@ -101,11 +105,11 @@ function Branch(props: {
             )}
           </Match>
           <Match when={shown()}>
-            {(node) => (
+            {(shows) => (
               <NodeLine
-                title={node().title}
+                title={shows().node.title}
                 status={props.row.status}
-                date={node().date}
+                date={shows().node.date}
               >
                 <Show when={props.row.kind !== "node"}>
                   <span class="mr-1 text-muted" title="a mirror of another node">
@@ -118,8 +122,29 @@ function Branch(props: {
         </Switch>
       </div>
 
-      <Show when={!collapsed() && shown()?.desc}>
-        {(desc) => <Note desc={desc()} class="mt-1 mb-2 ml-11 text-[0.9375rem] text-muted" />}
+      <Show when={!collapsed() && shown()}>
+        {(shows) => (
+          <>
+            <Show when={shows().node.desc}>
+              {(desc) => (
+                <Note
+                  desc={desc()}
+                  from={shows().file}
+                  class="mt-1 mb-2 ml-11 text-[0.9375rem] text-muted"
+                />
+              )}
+            </Show>
+            {/* A row is a row: the document is named and previewed here, and
+                drawn in full on the node's own page. */}
+            <Show when={docOf(shows())}>
+              {(doc) => (
+                <div class="ml-11">
+                  <DocRef file={doc()} />
+                </div>
+              )}
+            </Show>
+          </>
+        )}
       </Show>
 
       <Show when={props.row.kind === "cycle" ? props.row : undefined}>

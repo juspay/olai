@@ -8,7 +8,8 @@
  *      colour everywhere and lets the dark palette be a redefinition of the
  *      same custom properties rather than a second set of classes;
  *   2. rules for HTML this codebase does not author — the rendered markdown of
- *      a note, whose tags come from the file on disk and can carry no classes.
+ *      a note or a document, whose tags come from a file on disk and can carry
+ *      no classes, and the highlighter's own class names inside a code fence.
  *
  * No `@apply`. It is the one Tailwind feature that recreates the problem the
  * utilities solve, by inventing a second name for a set of them.
@@ -64,42 +65,181 @@
   }
 }
 
-/* A note is markdown from a file on disk. Its `<p>`, `<ul>`, `<code>` and
- * `<pre>` are produced by the sanitiser at view time and carry no classes, so
- * they are the one place a descendant rule is the only tool there is. Kept to
- * spacing and overflow — anything more opinionated would be styling someone
- * else's prose. */
-.olai-note > :first-child {
+/* Rendered markdown — a note's, and a whole document's. Its `<p>`, `<ul>`,
+ * `<code>` and `<pre>` are produced by the sanitiser at view time and carry no
+ * classes, so they are the one place a descendant rule is the only tool there
+ * is. Kept to spacing, overflow and the few things a document needs that a
+ * one-paragraph note did not — anything more opinionated would be styling
+ * someone else's prose. */
+.olai-md > :first-child {
   margin-top: 0;
 }
 
-.olai-note > :last-child {
+.olai-md > :last-child {
   margin-bottom: 0;
 }
 
-.olai-note p,
-.olai-note ul,
-.olai-note ol,
-.olai-note pre {
+.olai-md p,
+.olai-md ul,
+.olai-md ol,
+.olai-md pre,
+.olai-md blockquote,
+.olai-md table {
   margin: 0.25rem 0;
 }
 
-.olai-note ul,
-.olai-note ol {
+.olai-md h1,
+.olai-md h2,
+.olai-md h3,
+.olai-md h4,
+.olai-md h5,
+.olai-md h6 {
+  margin: 1rem 0 0.375rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.olai-md h1 {
+  font-size: 1.375rem;
+}
+
+.olai-md h2 {
+  font-size: 1.1875rem;
+}
+
+.olai-md h3 {
+  font-size: 1.0625rem;
+}
+
+.olai-md ul,
+.olai-md ol {
   padding-left: 1.25rem;
   list-style: revert;
 }
 
-.olai-note pre {
-  overflow-x: auto;
+.olai-md blockquote {
+  border-left: 3px solid var(--color-rule);
+  padding-left: 0.75rem;
+  color: var(--color-muted);
 }
 
-.olai-note code {
+.olai-md pre {
+  overflow-x: auto;
+  border: 1px solid var(--color-rule);
+  border-radius: 0.25rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.olai-md code {
   font-family: var(--font-mono);
   font-size: 0.875em;
 }
 
-.olai-note a {
+.olai-md a {
   color: var(--color-accent);
   text-decoration: underline;
+}
+
+/* A picture is a file in the served directory, whatever size somebody saved
+ * it at. It stays inside the column it was written into. */
+.olai-md img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.25rem;
+}
+
+.olai-md table {
+  border-collapse: collapse;
+}
+
+.olai-md th,
+.olai-md td {
+  border: 1px solid var(--color-rule);
+  padding: 0.125rem 0.5rem;
+  text-align: left;
+}
+
+.olai-md hr {
+  border: 0;
+  border-top: 1px solid var(--color-rule);
+}
+
+/* Footnotes, as GFM renders them: a rule, then the notes, then a back-link per
+ * note. The `sr-only` heading is the label a screen reader hears — it is the
+ * sanitiser's own allowed class, so the rule for it lives here rather than
+ * coming from a utility nothing in this repo's source could have scanned. */
+.olai-md .footnotes {
+  margin-top: 1rem;
+  border-top: 1px solid var(--color-rule);
+  padding-top: 0.5rem;
+  font-size: 0.875em;
+  color: var(--color-muted);
+}
+
+.olai-md .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Highlighted code. The classes are `rehype-highlight`'s (highlight.js's
+ * names, bundled with the client — never a CDN), and the colours are this
+ * theme's, so a fenced block follows the light/dark palette every other thing
+ * on the page does instead of shipping a skin of its own. */
+.olai-md .hljs-comment,
+.olai-md .hljs-quote {
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.olai-md .hljs-keyword,
+.olai-md .hljs-selector-tag,
+.olai-md .hljs-literal,
+.olai-md .hljs-section,
+.olai-md .hljs-doctag,
+.olai-md .hljs-name,
+.olai-md .hljs-type,
+.olai-md .hljs-meta {
+  color: var(--color-accent);
+}
+
+.olai-md .hljs-string,
+.olai-md .hljs-regexp,
+.olai-md .hljs-addition,
+.olai-md .hljs-attribute,
+.olai-md .hljs-built_in {
+  color: var(--color-done);
+}
+
+.olai-md .hljs-number,
+.olai-md .hljs-symbol,
+.olai-md .hljs-bullet,
+.olai-md .hljs-variable,
+.olai-md .hljs-template-variable,
+.olai-md .hljs-attr,
+.olai-md .hljs-selector-attr {
+  color: var(--color-doing);
+}
+
+.olai-md .hljs-title,
+.olai-md .hljs-selector-id,
+.olai-md .hljs-selector-class {
+  font-weight: 600;
+}
+
+.olai-md .hljs-deletion {
+  color: var(--color-alarm);
+}
+
+.olai-md .hljs-emphasis {
+  font-style: italic;
+}
+
+.olai-md .hljs-strong {
+  font-weight: 700;
 }

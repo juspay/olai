@@ -1,9 +1,9 @@
-import type { BrokenFile } from "@olai/format"
+import type { BrokenFile, Document } from "@olai/format"
 import { derive, type Located } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { only } from "./narrow.ts"
-import { outlineOf, type Page, pageOf, rowsFor } from "./page.ts"
+import { fileOf, type Page, pageOf, rowsFor } from "./page.ts"
 import type { Route } from "./routes.ts"
 
 const located = (file: string, line: number, node: Located["node"]): Located => ({
@@ -37,6 +37,9 @@ const SET = derive([
   }),
 ])
 const FILES = ["garden.jsonl", "house.jsonl"]
+const DOCUMENTS: ReadonlyArray<Document> = [
+  { file: "notes/finishes.md", text: "# Finishes\n\nBrushed brass.\n" },
+]
 
 /** What day it is, for the arm that has to be told. Fixed, because a page
  *  model that read a clock would be a page model whose tests expire. */
@@ -50,7 +53,7 @@ const pageAt = (
   route: Route,
   files = FILES,
   broken = READABLE,
-): Page => pageOf(SET, files, broken, route, TODAY)
+): Page => pageOf(SET, { files, documents: DOCUMENTS, broken }, route, TODAY)
 
 /** The ids a page's rows start from — what its screen would show. */
 const roots = (page: Page): ReadonlyArray<string> =>
@@ -73,6 +76,7 @@ test("a named outline opens that one, with its own rows", () => {
 test("an outline the directory does not have is a nothing that names it", () => {
   expect(pageAt({ kind: "outline", file: "shed.jsonl" })).toEqual({
     kind: "nothing",
+    sought: "outline",
     requested: "shed.jsonl",
   })
 })
@@ -80,25 +84,48 @@ test("an outline the directory does not have is a nothing that names it", () => 
 test("a directory with no outlines at all is the other nothing", () => {
   expect(pageAt({ kind: "outline", file: "shed.jsonl" }, [])).toEqual({
     kind: "nothing",
+    sought: "outline",
     requested: null,
   })
   expect(pageAt({ kind: "outline", file: null }, [])).toEqual({
     kind: "nothing",
+    sought: "outline",
     requested: null,
+  })
+})
+
+// ── documents ──────────────────────────────────────────────────────────
+
+// A document is a page of the set like any other, and it carries its TEXT: the
+// set already holds it, so a page that carried only the name would be a second
+// lookup that could miss.
+test("a document route opens that document, text and all", () => {
+  const page = pageAt({ kind: "document", file: "notes/finishes.md" })
+  expect(only(page, "document")?.document.text).toContain("Brushed brass")
+})
+
+// The same two-nothings rule as an outline's, and it says which kind was being
+// looked for: "no such document" and "no such outline" send a reader to two
+// different places.
+test("a document the directory does not have is a nothing that names it", () => {
+  expect(pageAt({ kind: "document", file: "gone.md" })).toEqual({
+    kind: "nothing",
+    sought: "document",
+    requested: "gone.md",
   })
 })
 
 // ── which sidebar entry lights up ──────────────────────────────────────
 
 test("the open outline is the one the page is of", () => {
-  expect(outlineOf(pageAt({ kind: "outline", file: "house.jsonl" }))).toBe("house.jsonl")
+  expect(fileOf(pageAt({ kind: "outline", file: "house.jsonl" }))).toBe("house.jsonl")
 })
 
 // The point of asking the model rather than the URL: `/n/herbs-here` is a
 // mirror living in house.jsonl, and the page it opens is in garden.jsonl.
 test("a zoomed node lights up the file its CANONICAL record is in", () => {
-  expect(outlineOf(pageAt({ kind: "node", id: "herbs-here" }))).toBe("garden.jsonl")
-  expect(outlineOf(pageAt({ kind: "node", id: "install" }))).toBe("house.jsonl")
+  expect(fileOf(pageAt({ kind: "node", id: "herbs-here" }))).toBe("garden.jsonl")
+  expect(fileOf(pageAt({ kind: "node", id: "install" }))).toBe("house.jsonl")
 })
 
 // A file that would not parse has no tree to draw, so its outline route is a
@@ -121,12 +148,17 @@ test("an outline whose file did not parse is the broken page, not an empty one",
     new Map([["house.jsonl", unreadable]]),
   )
   expect(only(page, "broken")?.file).toEqual(unreadable)
-  expect(outlineOf(page)).toBe("house.jsonl")
+  expect(fileOf(page)).toBe("house.jsonl")
+})
+
+test("an open document lights up its own entry", () => {
+  expect(fileOf(pageAt({ kind: "document", file: "notes/finishes.md" })))
+    .toBe("notes/finishes.md")
 })
 
 test("a page that names no node lights up nothing", () => {
-  expect(outlineOf(pageAt({ kind: "node", id: "nope" }))).toBeUndefined()
-  expect(outlineOf(pageAt({ kind: "outline", file: "shed.jsonl" }))).toBeUndefined()
+  expect(fileOf(pageAt({ kind: "node", id: "nope" }))).toBeUndefined()
+  expect(fileOf(pageAt({ kind: "outline", file: "shed.jsonl" }))).toBeUndefined()
 })
 
 // A zoomed page draws the node's children, and it draws them FRESH — the row
@@ -169,7 +201,7 @@ test("`/today` is the day it is", () => {
 // the page's own `date`, and `/today` is where that is worth saying: the route
 // spells no date, and the page it opened does.
 test("a day lights up no outline, and says which day it turned out to be", () => {
-  expect(outlineOf(pageAt({ kind: "day", date: "2026-08-10" }))).toBeUndefined()
+  expect(fileOf(pageAt({ kind: "day", date: "2026-08-10" }))).toBeUndefined()
   expect(only(pageAt({ kind: "today" }), "day")?.date).toBe(TODAY)
 })
 

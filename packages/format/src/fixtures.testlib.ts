@@ -52,7 +52,9 @@ export const nodesOf = (
  */
 export const setOf = (
   files: Record<string, string>,
-  documents: ReadonlyArray<string> = [],
+  /** The `.md` files served alongside. A bare path is a document whose text no
+   *  test cares about; `[path, text]` is one whose text it does. */
+  documents: ReadonlyArray<string | readonly [file: string, text: string]> = [],
   broken: Record<string, string> = {},
 ): OutlineSet =>
   assemble(
@@ -61,9 +63,10 @@ export const setOf = (
         ([file, contents]) =>
           [file, Result.succeed<DecodedFile>(outlineOf(contents, file))] as const,
       ),
-      ...documents.map(
-        (file) => [file, Result.succeed<DecodedFile>(null)] as const,
-      ),
+      ...documents.map((document) => {
+        const [file, text] = typeof document === "string" ? [document, ""] : document
+        return [file, Result.succeed<DecodedFile>({ file, text })] as const
+      }),
       ...Object.entries(broken).map(
         ([file, contents]) => [file, Result.fail(failureOf(contents, file))] as const,
       ),
