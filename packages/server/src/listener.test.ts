@@ -46,6 +46,12 @@ test("a frame the framework would carry is not refused a layer below it", () => 
   // Generalised, so a re-pin of either number cannot re-open the gap: the
   // socket layer must never be the one that says no first.
   expect(WS_MAX_PAYLOAD_BYTES).toBeGreaterThanOrEqual(RPC_MAX_FRAME_BYTES)
+  // And the delimiter, as the property rather than as the expression: the
+  // BIGGEST frame the decoder accepts is `RPC_MAX_FRAME_BYTES` of content
+  // arriving in a message that also carries its newline, and that message has
+  // to fit. A cap of exactly the framework's number passes the line above and
+  // fails this one.
+  expect(RPC_MAX_FRAME_BYTES + 1).toBeLessThanOrEqual(WS_MAX_PAYLOAD_BYTES)
 })
 
 const LAYERS = Layer.mergeAll(NodeServices.layer, NodeHttpServer.layerHttpServices)
@@ -84,7 +90,11 @@ test("a 9 MiB frame reaches the surface and is answered", async () => {
 
   // A real answer to a real call, which is only reachable if the frame that
   // carried it arrived: `system/identity` is the framework's own member, and
-  // it succeeds. Against the old cap this is a `close` and nothing else.
+  // it succeeds. This proves CARRIAGE, not the fix — under bun it passes
+  // against the old 8 MiB cap too, because bun's `ws` never enforced it. On a
+  // host that does enforce `maxPayload` the old cap made this a close (node
+  // `ws`: 9 MiB against 8 MiB is `Max payload size exceeded`, client 1009).
+  // The number test above is the fence.
   expect(answer._tag).toBe("Exit")
   expect(answer.exit._tag).toBe("Success")
 }, BOUND_MS * 3)
@@ -92,11 +102,12 @@ test("a 9 MiB frame reaches the surface and is answered", async () => {
 /** Ask `system/identity` over a 9 MiB frame, and answer with what came back —
  *  or with the close, if the socket died instead.
  *
- *  The padding is WHITESPACE INSIDE the frame rather than a fat payload:
- *  JSON tolerates it between tokens, so what the decoder hands the server is
- *  an ordinary well-formed request. That keeps the test about the size of the
- *  frame and nothing else — a huge payload would fail schema decode and answer
- *  with a defect, which proves arrival too but says less clearly. */
+ *  The padding is WHITESPACE TRAILING the request rather than a fat payload:
+ *  `JSON.parse` accepts whitespace after a complete value, so what the decoder
+ *  hands the server is an ordinary well-formed request. That keeps the test
+ *  about the size of the frame and nothing else — a huge payload would fail
+ *  schema decode and answer with a defect, which proves arrival too but says
+ *  it less clearly. */
 const ask = (url: string): Promise<{ _tag: string; exit: { _tag: string } }> =>
   new Promise((resolve, reject) => {
     const socket = new WebSocket(`${url.replace("http://", "ws://")}${WS_PATH}`)

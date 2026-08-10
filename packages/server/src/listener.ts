@@ -70,11 +70,12 @@ const NDJSON_DELIMITER_BYTES = 1
  * `import { WebSocketServer } from "ws"` resolves to under the runtime we ship,
  * and it ignores `maxPayload` in favour of a 16 MiB limit of its own (measured
  * 2026-08-10: 16777216 delivered, one byte more closed 1006 "Received too big
- * message" — so bun's own ceiling shadows the framework's handled path by the
- * delimiter byte, and no `maxPayload` we pass moves it). A node host obeys the
- * option, and a bun that implements it would too, which is why the number
- * still has to be right — and why the test pins the number rather than the
- * behaviour.
+ * message"). No `maxPayload` we pass moves that, and while it stands the
+ * framework's handled INBOUND oversize path is unreachable here: a frame the
+ * decoder would refuse is already past bun's ceiling, and even one at exactly
+ * the cap arrives a delimiter byte over it. A node host obeys the option, and
+ * a bun that implements it would too, which is why the number still has to be
+ * right — and why the test pins the number rather than the behaviour.
  */
 export const WS_MAX_PAYLOAD_BYTES = RPC_MAX_FRAME_BYTES + NDJSON_DELIMITER_BYTES
 
