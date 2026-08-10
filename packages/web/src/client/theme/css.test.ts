@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 
-import { customProperty, paletteBlock, paletteCss } from "./css.ts"
+import { customProperty, paletteBlock, paletteCss, selectorFor } from "./css.ts"
 import {
   DEFAULT_PALETTE,
   DEFAULT_THEME,
@@ -43,8 +43,11 @@ describe("the generated palette blocks", () => {
   })
 
   test("one theme is what a page that picked nothing reads in", () => {
+    // Asked of the selectors themselves rather than found in the generated
+    // text: a page with no `data-theme` is painted by whichever block claims
+    // the bare `:root`, and exactly one may.
     const bare = PALETTES.filter((palette) =>
-      /(^|,\s*):root\s*[,{]/.test(paletteBlock(palette)),
+      selectorFor(palette).split(",").some((part) => part.trim() === ":root"),
     ).map((palette) => palette.name)
     expect(bare).toEqual([DEFAULT_THEME])
   })

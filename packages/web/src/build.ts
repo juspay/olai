@@ -91,19 +91,20 @@ const tailwindUtilities = async (): Promise<string> => {
  * The whole stylesheet, as bytes for the helper to hash, name and write: the
  * utilities, and then the named palettes.
  *
- * The palettes are APPENDED rather than written into `styles.css` because they
- * are generated from a TypeScript table (`client/theme/palettes.ts`, which the
- * picker reads too) and a `.css` file cannot import one. Appended, they are
- * also LAST, which is what a plain unlayered rule needs in order to beat the
- * `@layer theme` block Tailwind emits its own `:root` in.
+ * The palettes are generated from a TypeScript table (`client/theme/
+ * palettes.ts`, which the picker reads too) and a `.css` file cannot import
+ * one, so they are composed in here rather than written into `styles.css`.
+ * Their POSITION is not load-bearing — an unlayered rule beats the
+ * `@layer theme` block Tailwind emits its own `:root` in wherever it is
+ * written — they go last because that is the simplest composition. The one
+ * cost of being outside the CLI's input is that these few blocks are the only
+ * part of the sheet its minifier never sees.
  *
  * The bytes are hashed after this, so a palette edited on disk is a new
  * `/assets/styles-<hash>.css` on the same immutable-caching contract as the JS.
  */
-const buildStylesheet = async (): Promise<ArrayBuffer> => {
-  const sheet = `${await tailwindUtilities()}\n${paletteCss()}`
-  return new TextEncoder().encode(sheet).buffer as ArrayBuffer
-}
+const buildStylesheet = async (): Promise<ArrayBuffer> =>
+  new Response(`${await tailwindUtilities()}\n${paletteCss()}`).arrayBuffer()
 
 const buildClient = async (distDir: string): Promise<void> => {
   await buildSurfaceClient({

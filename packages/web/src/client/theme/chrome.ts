@@ -21,14 +21,19 @@ import type { Palette } from "./palettes.ts"
 
 const NAME = "theme-color"
 
-/** The tag, made if the shell did not ship one — a page whose chrome went
- *  unpainted because a `<meta>` was deleted would be a silent nothing. */
+/** The tag, found once. It is made if the shell did not ship one — a page
+ *  whose chrome went unpainted because a `<meta>` was deleted would be a
+ *  silent nothing — and then held, because it is never removed and a
+ *  document-wide query per pick buys nothing. */
+let meta: Element | undefined
+
 const tag = (): Element => {
-  const existing = document.querySelector(`meta[name="${NAME}"]`)
-  if (existing !== null) return existing
-  const meta = document.createElement("meta")
-  meta.setAttribute("name", NAME)
-  return document.head.appendChild(meta)
+  meta ??=
+    document.querySelector(`meta[name="${NAME}"]`) ??
+    document.head.appendChild(
+      Object.assign(document.createElement("meta"), { name: NAME }),
+    )
+  return meta
 }
 
 /** Put the chrome in this palette. */

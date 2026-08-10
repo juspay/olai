@@ -31,6 +31,15 @@ Given("I mark the page", async function (this: OlaiWorld) {
   await this.markPage();
 });
 
+/** A genuine reload of whatever is open — the page comes back cold, from the
+ *  server, with only what this browser stored to carry anything across. Here
+ *  rather than in a feature's own steps because nothing about it is any one
+ *  feature's, and a second copy would make Cucumber fail the whole run on an
+ *  ambiguous definition. */
+When("I reload the page", async function (this: OlaiWorld) {
+  await this.open(this.pathname());
+});
+
 Then("the page has not reloaded", async function (this: OlaiWorld) {
   assert.ok(
     await this.pageStillMarked(),

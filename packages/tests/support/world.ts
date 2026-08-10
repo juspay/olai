@@ -234,12 +234,12 @@ export class OlaiWorld extends World {
    *  bug an e2e suite exists to catch. */
   errors: string[] = [];
 
-  /** Every URL the page asked for that this server did not serve, collected by
-   *  the same hook. It is normally empty and must stay that way: the bundle,
-   *  the stylesheet and the syntax highlighter are all shipped by the server
-   *  someone pointed at their own outlines, and a request to anywhere else is a
-   *  page telling a third party what is being read. */
-  offSite: string[] = [];
+  /** Every URL the page has asked for, in order, collected by the same hook.
+   *  Two questions are asked of it and they are different questions: whether
+   *  anything left this server (`offSite`), and whether a particular gesture
+   *  reached the network at all (`watchRequests`). One listener, because two
+   *  recordings of one fact can only ever disagree. */
+  requests: string[] = [];
 
   /** Which fixture corpus this scenario's server is serving, from its
    *  `@corpus:<name>` or `@scratch:<name>` tag. See `support/hooks.ts`. */
@@ -593,30 +593,38 @@ export class OlaiWorld extends World {
    *  claim. */
   paperBefore?: string;
 
-  /** Every URL the page has asked for since a scenario started watching, or
-   *  `undefined` while none is. Separate from `offSite`, which is collected for
-   *  the whole scenario and is only about the ones that left this server: what
-   *  this answers is "did that gesture reach the network AT ALL", which needs a
-   *  window with a beginning. */
-  asked?: Array<string>;
+  /** The URLs that left this server. Normally empty and it must stay that way:
+   *  the bundle, the stylesheet and the syntax highlighter are all shipped by
+   *  the server someone pointed at their own outlines, and a request to
+   *  anywhere else is a page telling a third party what is being read.
+   *  `data:` is not a request to anywhere. */
+  offSite(): ReadonlyArray<string> {
+    return this.requests.filter(
+      (url) => !url.startsWith(this.baseUrl) && !url.startsWith("data:"),
+    );
+  }
 
-  /** Start recording what the page asks for. */
+  /** Where in `requests` a scenario started watching, or `undefined` while
+   *  none is. */
+  private askedFrom?: number;
+
+  /** Start watching what the page asks for, so a later step can claim that a
+   *  gesture reached the network — or did not. A MARK into the one recording
+   *  rather than a second listener. */
   watchRequests(): void {
-    const asked: Array<string> = [];
-    this.asked = asked;
-    this.page.on("request", (request) => asked.push(request.url()));
+    this.askedFrom = this.requests.length;
   }
 
   /** What it has asked for since, or the diagnostic for a step that forgot to
    *  start watching — an empty list would otherwise read as a pass. */
   requestsWatched(): ReadonlyArray<string> {
-    if (this.asked === undefined) {
+    if (this.askedFrom === undefined) {
       throw new Error(
-        "nothing is recording what the page asks for; a step has to start " +
+        "nothing is watching what the page asks for; a step has to start " +
           "watching before the gesture it is making a claim about",
       );
     }
-    return this.asked;
+    return this.requests.slice(this.askedFrom);
   }
 
   /** Is the sentinel still there? False after any navigation. */

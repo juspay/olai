@@ -92,7 +92,12 @@ export interface Palette {
   readonly colors: Readonly<Record<PaletteToken, string>>
 }
 
-export const PALETTES: ReadonlyArray<Palette> = [
+/** The table itself, `as const` so the names survive as literal types — which
+ *  is what makes `ThemeName` a real type and `DEFAULT_THEME` a compile error
+ *  the day a row is renamed. Private, because everything that READS a palette
+ *  wants the interface (`PALETTES` below); only the two derivations under it
+ *  want the literals. */
+const TABLE = [
   // The leaf the outline is written on: dried palm green, dark-green ink. The
   // name is the palette; nothing here is "light".
   {
@@ -338,11 +343,21 @@ export const PALETTES: ReadonlyArray<Palette> = [
       alarm: "#E8393F",
     },
   },
-]
+] as const satisfies ReadonlyArray<Palette>
 
-/** Every theme a page may ask for, in table order — the picker's rows, and the
- *  list of what a stored value is allowed to say. */
-export const THEME_NAMES: ReadonlyArray<string> = PALETTES.map(
+/** The name of a theme that EXISTS — every row's name, and nothing else. What
+ *  `localStorage` hands back is a plain `string` and stays one until
+ *  `paletteNamed` has looked at it; this is the type on the other side of that
+ *  boundary, and it is what makes naming a default no row answers to a
+ *  compile error. */
+export type ThemeName = (typeof TABLE)[number]["name"]
+
+/** Every palette, in table order. */
+export const PALETTES: ReadonlyArray<Palette> = TABLE
+
+/** Every theme a page may ask for, in the same order — the picker's rows, and
+ *  the list of what a stored value is allowed to say. */
+export const THEME_NAMES: ReadonlyArray<ThemeName> = TABLE.map(
   (palette) => palette.name,
 )
 
@@ -354,7 +369,7 @@ export const THEME_NAMES: ReadonlyArray<string> = PALETTES.map(
  * unpicked page reads in the default — which is the one palette that promises
  * AA, so the page nobody has chosen for is the legible one.
  */
-export const DEFAULT_THEME = "chalk"
+export const DEFAULT_THEME: ThemeName = "chalk"
 
 /** How a page says which theme it is in: one attribute, keyed on by the sheet,
  *  written by the picker and by the shell's boot script, spelled here. */
@@ -371,18 +386,14 @@ export const paletteNamed = (name: string): Palette | undefined =>
 
 /** The palette a page is in when it names none.
  *
- *  Resolved at module load, and it THROWS rather than being optional: a
- *  default naming no row is a picker with no chip lit and a sheet with no bare
- *  `:root`, and finding that out in a browser is finding it out too late. */
-const resolveDefault = (): Palette => {
+ *  `DEFAULT_THEME` is a `ThemeName`, so a row for it EXISTS — the day someone
+ *  renames `chalk` this file stops compiling rather than starting a browser
+ *  with no chip lit and no bare `:root` in the sheet. The throw is what says
+ *  so to a checker that cannot see it through `find`. */
+export const DEFAULT_PALETTE: Palette = (() => {
   const palette = paletteNamed(DEFAULT_THEME)
   if (palette === undefined) {
-    throw new Error(
-      `the default theme "${DEFAULT_THEME}" is not one of the themes: ` +
-        THEME_NAMES.join(", "),
-    )
+    throw new Error(`unreachable: no row named ${DEFAULT_THEME}`)
   }
   return palette
-}
-
-export const DEFAULT_PALETTE: Palette = resolveDefault()
+})()

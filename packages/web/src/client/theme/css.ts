@@ -31,8 +31,11 @@ import {
 export const customProperty = (token: string): string => `--color-${token}`
 
 /** The selector a page in this theme matches. The default matches TWO: its own
- *  name, and the page that has picked nothing at all. */
-const selectorFor = (palette: Palette): string => {
+ *  name, and the page that has picked nothing at all.
+ *
+ *  Exported so a test can ask which theme the bare `:root` belongs to, rather
+ *  than reading it back out of the generated text with a regex. */
+export const selectorFor = (palette: Palette): string => {
   const named = `:root[${THEME_ATTRIBUTE}="${palette.name}"]`
   return palette.name === DEFAULT_THEME ? `:root, ${named}` : named
 }
@@ -48,18 +51,17 @@ export const paletteBlock = (palette: Palette): string => {
   return `${selectorFor(palette)} {\n${declarations.join("\n")}\n}`
 }
 
-/** Every block, default first — so a named theme, written after it, wins the
- *  cascade over the bare `:root` it shares specificity with. */
-export const paletteCss = (): string => {
-  const ordered = [
-    ...PALETTES.filter((palette) => palette.name === DEFAULT_THEME),
-    ...PALETTES.filter((palette) => palette.name !== DEFAULT_THEME),
-  ]
-  return [
+/** Every block, in table order.
+ *
+ *  Order is NOT load-bearing, and it is worth saying so: a page in `pitch`
+ *  matches the default's block only through the bare `:root` (0,1,0) and its
+ *  own through `:root[data-theme="pitch"]` (0,2,0), so the named block wins on
+ *  specificity wherever either is written. */
+export const paletteCss = (): string =>
+  [
     "/* The named palettes — GENERATED from",
     " * packages/web/src/client/theme/palettes.ts by that directory's css.ts.",
     " * Do not edit: edit the table. */",
-    ...ordered.map(paletteBlock),
+    ...PALETTES.map(paletteBlock),
     "",
   ].join("\n")
-}

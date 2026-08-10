@@ -16,29 +16,22 @@
  * visually is a colour, and a colour is not something a screen reader reads.
  */
 
-import { For } from "solid-js"
+import { createSelector, For } from "solid-js"
 
-import {
-  DEFAULT_THEME,
-  PALETTES,
-  THEME_STORAGE_KEY,
-} from "./palettes.ts"
+import { PALETTES } from "./palettes.ts"
 import { currentTheme, pickTheme } from "./state.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
 
 export function ThemePicker() {
+  // `createSelector` rather than `currentTheme() === palette.name`, which is
+  // what this was: that form subscribes every chip to the theme, so a pick
+  // re-runs fifteen effects to change two attributes — and the table is meant
+  // to grow. This notifies exactly the chip that lit and the one that went out.
+  const isInForce = createSelector(currentTheme)
+
   return (
-    <div
-      class="w-full"
-      data-testid={TESTID.themePicker}
-      // What the picker is ABOUT, as data: which theme a page with no pick
-      // reads in, and where this browser keeps one. The browser tests read both
-      // off the element rather than re-spelling them, so renaming either is a
-      // change in one place (see ../testids.ts on why these are contracts).
-      data-default={DEFAULT_THEME}
-      data-store-key={THEME_STORAGE_KEY}
-    >
+    <div class="w-full" data-testid={TESTID.themePicker}>
       <h2 class="mt-4 mb-1 px-2 text-[0.6875rem] uppercase tracking-widest text-muted">
         Theme
       </h2>
@@ -61,8 +54,8 @@ export function ThemePicker() {
               // Spelled out rather than handed a boolean: the chips that are
               // NOT in force have to announce that, and an attribute a
               // framework drops when it is false announces nothing at all.
-              aria-pressed={currentTheme() === palette.name ? "true" : "false"}
-              onClick={() => pickTheme(palette.name)}
+              aria-pressed={isInForce(palette.name) ? "true" : "false"}
+              onClick={() => pickTheme(palette)}
             >
               {palette.name}
             </button>

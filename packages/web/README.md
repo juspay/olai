@@ -153,10 +153,12 @@ no home in a client that paints one paper and gets its accent grounds from an
 opacity, and a token nothing paints with is a value nobody can check. The
 mapping is written down where the table is.
 
-A pick is CLIENT state and never leaves the browser. `state.ts` writes
-`data-theme` on `<html>`, remembers it, and repaints `<meta name="theme-color">`
-from the same table that painted the page — but it is not what puts the theme
-there on a reload. Four inline lines in `<head>` (`index.html`) do that, before
+A pick is CLIENT state and never leaves the browser — a preference of this
+browser's (`preference.ts`, shared with the agent drawer's open state: storage
+can throw, and a preference that cannot be remembered is still a preference for
+this tab). `state.ts` writes `data-theme` on `<html>`, remembers it, and asks
+`chrome.ts` to repaint `<meta name="theme-color">` from the same table that
+painted the page — but it is not what puts the theme there on a reload. Four inline lines in `<head>` (`index.html`) do that, before
 the first paint, because everything on this page is deferred and a theme
 restored by the bundle is a flash of the wrong colours on every load. Those
 lines know no theme names, so a stored value no row offers is forgotten by
