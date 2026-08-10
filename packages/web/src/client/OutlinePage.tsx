@@ -22,7 +22,7 @@ export function OutlinePage(props: {
       <header class="mb-4 flex items-baseline justify-end gap-2">
         <DensityToggle
           density={props.view.density()}
-          onToggle={props.view.toggleDensity}
+          onCycle={props.view.cycleDensity}
         />
         <DoneToggle hidden={props.view.doneHidden()} onToggle={props.view.toggleDone} />
       </header>
