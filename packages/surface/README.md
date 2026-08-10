@@ -41,6 +41,13 @@ Ops arrive as procedures and chat as events when the agent does — one item,
 because chat's agent is the first writer — into this
 same spec.
 
+Who is on the other end is deliberately NOT a member here. It is a real
+question — a page bound to a server that has been replaced must know, and both
+ends of the stale-tab handshake compare that id — but the framework reserves
+`system/identity` for it and answers it out of every surface, process id
+included. A member of our own would be a second answer to a question already
+answered.
+
 ## Entry point
 
 `main`, `types` and `exports` all point at `src/index.ts`, which exports the

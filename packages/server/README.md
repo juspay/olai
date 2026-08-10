@@ -23,6 +23,14 @@ one-validator rule has been broken.
 | `clientDist.ts` | `OLAI_DIST_DIR`, the one place the built bundle is named |
 | `main.ts` | argv, defaults, and the top-level run |
 
+The stale-tab gate in that sequence is not a formality: a browser reconnecting
+after a restart presents the process id it was given by the server that is
+gone, and this one closes the socket at the handshake rather than serving a
+page it did not build. No id is threaded through this package to make that
+work — the gate compares against the framework's own `surfaceProcessId()`, the
+same value `system/identity` answers with and the browser echoes back, so the
+two ends cannot be pointed at different ids.
+
 The server does not build the client and does not import it. It serves a bundle
 it is handed, so `@olai/web` is deliberately absent from its dependencies and
 the browser build stays a build artifact rather than an import. A fallback that

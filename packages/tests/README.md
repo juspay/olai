@@ -111,6 +111,15 @@ next scenario would inherit the edit) and neither could the repository (the
 fixtures are tracked). `world.writeServed` refuses to write anywhere else, so
 "a scenario scribbled on the fixtures" is not a thing that can happen quietly.
 
+A `@scratch:` scenario may also RESTART its server, which nothing else in the
+suite may do — a shared corpus server is running for every other scenario in
+the run, and `hooks.ts` refuses rather than trusting the tag. That is what lets
+a feature ask the one question no other scenario could: what does an open page
+do when the process behind it is replaced? The restart comes back on the SAME
+port, because the page is already pointed at it — `startOwnServer` binds the
+exact port and fails loudly if the address it got back is a different one, so a
+port stolen in between reads as itself instead of as a mysteriously dead page.
+
 ## The UI contract
 
 Steps address the app through `data-testid` and `data-*` attributes, never a
@@ -150,6 +159,9 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="stale-banner"]` | shown OVER a last-good tree: the files stopped validating |
 | `[data-testid="outline-failure"][data-file]` | shown in ONE outline's place: that file will not parse |
 | `[data-testid="outline-link"][data-broken]` | the sidebar entry of a file that will not parse |
+| `[data-testid="connection"][data-connection]` | the connection dot, in every shape of the app: `connecting`, `live`, `reconnecting`, `retired` |
+| `[data-testid="restarted"]` | over everything: the server that served this page has been replaced |
+| `[data-testid="reload"]` | the button in that surface — the whole of the recovery |
 
 ## Adding a test
 
@@ -166,3 +178,8 @@ out locally: it is `index.html`'s mount point, which the client does not own.
    `world.writeServed`. The assertions that follow such a write usually need to
    wait for something to change or disappear, which a Playwright selector
    cannot state — `world.waitUntil` is what those steps are built on.
+6. If the edit changes WHICH records exist — an insert, a delete, a reorder —
+   assert the id multiset (`the outline "x.jsonl" shows exactly the nodes "…"`),
+   not that some title eventually reads a certain way. A tree that has lost one
+   node and drawn another twice still has all the right titles in it, which is
+   how a broken live view stayed green through a whole feature file.

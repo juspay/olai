@@ -56,6 +56,32 @@ address" behave the way they do everywhere else; a plain left click is
 intercepted and answered in place. There is no router library: two addresses do
 not need one.
 
+## The connection, said out loud
+
+`src/client/connection/` is the chrome for the one thing the outlines cannot
+report on: whether this page is still talking to a server. A page that is live
+and a page whose server died look identical when nothing says otherwise — both
+keep showing the last thing they were told — so a dot in the corner reports it
+always, in every shape of the app, and is green only while a server is
+answering.
+
+`status.ts` is the whole policy and it is pure: a table over the wire's own four
+states (`connecting`, `live`, `reconnecting`, `retired`) saying what each looks
+like. That is where the mistake this folder exists to prevent would be made — a
+state that quietly reads as healthy, or a terminal one drawn like a transient
+one — so it is unit-tested directly, with no socket and no browser.
+
+`retired` is the one that takes the screen (`Restarted.tsx`). It means the
+server this page came from has been replaced: the tab presented its process id
+on the reconnect, the new server did not recognise it and closed the socket at
+the handshake, and the wire has stopped dialling for good. Nothing heals that,
+so the page offers the only thing that works — a reload, as a button rather
+than automatically, because throwing away a page someone is reading without
+asking is not a recovery. Both the dot and the screen read the SAME
+`connectSurface` status (`wire.ts`), so they cannot disagree about what
+happened; the seam's required `retired` handler records the moment rather than
+driving a second path to the same fact.
+
 ## What belongs to a reading, not to the file
 
 `view.ts` holds the two per-view switches — what is folded, and whether done

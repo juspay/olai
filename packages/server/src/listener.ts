@@ -52,11 +52,6 @@ export class ListenFailed extends Data.TaggedError("ListenFailed")<{
   }
 }
 
-/** One id per process, minted once. It is what a reconnecting tab compares
- *  itself against: a tab holding a bundle from a server that has since been
- *  replaced is told so rather than served against code it does not match. */
-const PROCESS_ID = crypto.randomUUID().slice(0, 8)
-
 export interface ListenOptions {
   readonly bound: Bound
   /** The built browser bundle. */
@@ -80,9 +75,16 @@ export const listen = (options: ListenOptions) =>
       noServer: true,
       maxPayload: 8 * 1024 * 1024,
     })
+    // The gate compares the `pid` a reconnecting tab presents against the id
+    // this process answers `system/identity` with — one id, minted and read by
+    // the framework, so no id is threaded through here and the two ends cannot
+    // be pointed at different ones. A tab that presents none has never been
+    // served by anybody and is simply accepted; a tab that presents a DIFFERENT
+    // one is bound to a process that is gone, so it is closed with the stale
+    // code and its wire retires rather than reconnecting into a server whose
+    // bundle it does not match.
     const acceptor = acceptSurfaceSocket({
       server: sockets,
-      liveProcessId: PROCESS_ID,
       onReject: (claimed) => options.log(`stale tab rejected (claimed pid ${claimed})`),
     })
 

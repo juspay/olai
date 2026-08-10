@@ -21,6 +21,12 @@
  *     screen underneath a banner, which is only expressible if the two arrive
  *     separately.
  *
+ * Who is on the other end is NOT a member here, and it was for one commit. The
+ * question is real — a page bound to a replaced server must know — but the
+ * framework reserves `system/identity` for it and answers it out of every
+ * surface, process id included, so an app that declares its own is declaring a
+ * second answer to a question already answered (juspay/kolu#2133).
+ *
  * Ops arrive as procedures and chat as events when the agent does (they are one
  * roadmap item: chat's agent is the first writer). Both slot
  * into this same spec.

@@ -89,6 +89,13 @@ export const CROSS_FILE_ERRORS = selector(TESTID.crossFileErrors);
 export const STALE_BANNER = selector(TESTID.staleBanner);
 /** Shown IN ONE outline's place: that file could not be read, the rest are live. */
 export const OUTLINE_FAILURE = selector(TESTID.outlineFailure);
+/** The connection dot, on screen in every shape of the app. The state it is
+ *  reporting is its `data-connection`, never its colour. */
+export const CONNECTION = selector(TESTID.connection);
+/** Over everything: the server that served this page has been replaced. */
+export const RESTARTED = selector(TESTID.restarted);
+/** The button in that surface. */
+export const RELOAD = selector(TESTID.reload);
 
 /** The app has finished its first render when it has committed to one of its
  *  two shapes: a sidebar (the set loaded) or the error view (it did not).
@@ -155,6 +162,15 @@ export class OlaiWorld extends World {
   served?: string;
   /** The server process a `@scratch:` scenario owns, killed in `After`. */
   ownServer?: ChildProcess;
+  /** What that server has printed since a scenario RESTARTED it (`support/hooks.ts`).
+   *
+   *  The one thing a scenario cannot see from the browser is what the server
+   *  decided about a connection it refused: the stale-tab gate closes the socket
+   *  at the handshake and says so on stdout, and nothing about that reaches the
+   *  page except the absence of a connection. Asserting on the line is what
+   *  makes "the gate fired" a fact rather than an inference from a UI state that
+   *  could have been reached another way. */
+  serverSaid = "";
 
   /** Wait for a double `requestAnimationFrame`.
    *
@@ -250,18 +266,24 @@ export class OlaiWorld extends World {
    *  carries instead when it does not. The compound selector is what makes the
    *  wait RETRY — reading the attribute once races every animation frame
    *  between the click and the re-render — and `what` is what the failure
-   *  calls the thing, so a step says "node `order`" rather than a selector. */
+   *  calls the thing, so a step says "node `order`" rather than a selector.
+   *
+   *  The budget is the interaction one unless a caller says otherwise: an
+   *  attribute that is waiting on the NETWORK rather than on a render (a wire
+   *  re-dialling through its backoff after a server restart) is a different
+   *  scale, and passing `HYDRATION_TIMEOUT` says which one this is. */
   async expectAttribute(
     selector: string,
     attribute: string,
     expected: string,
     what: string,
+    timeout = POLL_TIMEOUT,
   ): Promise<void> {
     try {
       await this.page
         .locator(`${selector}[${attribute}="${expected}"]`)
         .first()
-        .waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+        .waitFor({ state: "attached", timeout });
     } catch {
       const actual = await this.page
         .locator(selector)

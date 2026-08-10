@@ -43,6 +43,12 @@ no polling of the browser and no cache to invalidate: the server watches the
 tree, re-reads only what actually changed, revalidates, and pushes the next
 snapshot down the subscription the first one arrived on.
 
+Which raises the question the page had better be able to answer: is it still
+reading? A dot in the corner says so, always, and it is green only while a
+server is actually answering. Restart the server under an open tab and the page
+does not pretend — it says the server it came from is gone and offers the one
+thing that recovers it, a reload.
+
 When something stops validating, what you see depends on what can still be
 shown. A file whose lines will not parse costs that one outline: it is marked
 in the sidebar, its errors are shown where its tree would have been, and the

@@ -33,6 +33,7 @@ import { type BrokenFile, derive, type Row } from "@olai/format"
 import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 
+import { Connection } from "./connection/Connection.tsx"
 import { Banner } from "./errors/Banner.tsx"
 import { Broken } from "./errors/Broken.tsx"
 import { Page as ErrorPage } from "./errors/Page.tsx"
@@ -44,7 +45,7 @@ import { OutlinePage } from "./OutlinePage.tsx"
 import { createRouter, RouterProvider } from "./router.tsx"
 import { Sidebar } from "./Sidebar.tsx"
 import { createView } from "./view.ts"
-import { olai } from "./wire.ts"
+import { connectionStatus, olai } from "./wire.ts"
 
 export default function App() {
   const frame = olai.streams.outlines.use(() => ({}))
@@ -103,40 +104,46 @@ export default function App() {
   })
 
   return (
-    <Switch fallback={<p class="p-8 text-muted">Reading…</p>}>
-      <Match when={frame() === null}>
-        <ErrorPage errors={problems()} />
-      </Match>
-      <Match when={page()}>
-        {(open) => (
-          <RouterProvider router={router}>
-            <div class="grid min-h-screen grid-cols-[16rem_1fr]">
-              <Sidebar files={files()} active={outlineOf(open())} broken={broken()} />
-              <main class="overflow-x-auto px-8 py-6">
-                <Show when={problems().length > 0}>
-                  <Banner errors={problems()} />
-                </Show>
-                <Switch>
-                  <Match when={only(open(), "broken")}>
-                    {(file) => <Broken file={file().file} />}
-                  </Match>
-                  <Match when={only(open(), "node")}>
-                    {(node) => (
-                      <NodePage zoomed={node().zoomed} rows={rows} view={view} />
-                    )}
-                  </Match>
-                  <Match when={only(open(), "outline")}>
-                    <OutlinePage rows={rows} view={view} />
-                  </Match>
-                  <Match when={only(open(), "nothing")}>
-                    {(nothing) => <Nothing requested={nothing().requested} />}
-                  </Match>
-                </Switch>
-              </main>
-            </div>
-          </RouterProvider>
-        )}
-      </Match>
-    </Switch>
+    <>
+      {/* Outside the switch, and first: every shape below — the report, the
+          waiting page, the outline — is a page whose reader deserves to know
+          whether the server behind it is still there. */}
+      <Connection status={connectionStatus()} />
+      <Switch fallback={<p class="p-8 text-muted">Reading…</p>}>
+        <Match when={frame() === null}>
+          <ErrorPage errors={problems()} />
+        </Match>
+        <Match when={page()}>
+          {(open) => (
+            <RouterProvider router={router}>
+              <div class="grid min-h-screen grid-cols-[16rem_1fr]">
+                <Sidebar files={files()} active={outlineOf(open())} broken={broken()} />
+                <main class="overflow-x-auto px-8 py-6">
+                  <Show when={problems().length > 0}>
+                    <Banner errors={problems()} />
+                  </Show>
+                  <Switch>
+                    <Match when={only(open(), "broken")}>
+                      {(file) => <Broken file={file().file} />}
+                    </Match>
+                    <Match when={only(open(), "node")}>
+                      {(node) => (
+                        <NodePage zoomed={node().zoomed} rows={rows} view={view} />
+                      )}
+                    </Match>
+                    <Match when={only(open(), "outline")}>
+                      <OutlinePage rows={rows} view={view} />
+                    </Match>
+                    <Match when={only(open(), "nothing")}>
+                      {(nothing) => <Nothing requested={nothing().requested} />}
+                    </Match>
+                  </Switch>
+                </main>
+              </div>
+            </RouterProvider>
+          )}
+        </Match>
+      </Switch>
+    </>
   )
 }
