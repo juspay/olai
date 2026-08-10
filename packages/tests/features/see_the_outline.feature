@@ -36,12 +36,16 @@ Feature: See the outline
     # one has not started, so it is `doing`. The mirror under it does not count.
     Then the node "kitchen" has status "doing"
 
-  Scenario: A dated node shows a date badge
+  Scenario: A dated node shows a date badge when the row is open
+    # Date rides the expanded row (hover/tap), not the closed title line —
+    # note_density.feature owns the expand gesture. Closed, undated stays
+    # undated either way.
+    When I hover the row of "order"
     Then the node "order" shows the date "2026-08-10"
     And the node "demo" shows no date
 
-  Scenario: A description is a one-line preview by default
-    # Full markdown is the zoomed page and a click-to-unfold — see
+  Scenario: A description is a same-line snippet by default
+    # Full markdown is the zoomed page and hover/tap expand — see
     # note_density.feature. Here the outline only promises the default shape.
     Then the description of "order" is a preview of "Two ways to go:"
     And the description of "order" does not render as markdown blocks

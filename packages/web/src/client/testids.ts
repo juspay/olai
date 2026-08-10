@@ -85,9 +85,6 @@ export const TESTID = {
   /** Said in place of the list when nothing is dated that day. */
   dayEmpty: "day-empty",
   doneToggle: "done-toggle",
-  /** The per-view full / first-line / hidden switch for notes. `data-density`
-   *  is which state it is in. */
-  densityToggle: "density-toggle",
   notFound: "not-found",
   errorView: "error-view",
   errorFileGroup: "error-file-group",

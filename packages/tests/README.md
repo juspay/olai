@@ -241,8 +241,8 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="node-title"]` | the title text |
 | `[data-testid="tag"]` | a styled inline `#tag` |
 | `[data-testid="date"]` | the date badge |
-| `[data-testid="desc"]` | a node's note — full markdown, or under first-line density either the preview (`data-preview="true"`, `data-open="false"`) or the open body (`data-open="true"`) |
-| `[data-testid="density-toggle"][data-density]` | the per-view full / first-line / hidden switch for notes |
+| `[data-testid="desc"]` | a node's note — same-line plain snippet when closed (`data-preview="true"`, `data-open="false"`), full markdown when the row is open (`data-open="true"`); always full on a zoomed page |
+| `[data-testid="node"][data-note-open]` | row expansion: `true` while hovered or touch-toggled open |
 | `[data-testid="toggle"]` | the collapse/expand control |
 | `[data-testid="document-list"]` | the sidebar's second list, one entry per `.md` |
 | `[data-testid="document-link"][data-file]` | one of those entries |

@@ -8,7 +8,6 @@
 
 import type { Row } from "@olai/format"
 
-import { DensityToggle } from "./DensityToggle.tsx"
 import { DoneToggle } from "./DoneToggle.tsx"
 import { Tree } from "./Tree.tsx"
 import type { View } from "./view.ts"
@@ -20,10 +19,6 @@ export function OutlinePage(props: {
   return (
     <>
       <header class="mb-4 flex items-baseline justify-end gap-2">
-        <DensityToggle
-          density={props.view.density()}
-          onCycle={props.view.cycleDensity}
-        />
         <DoneToggle hidden={props.view.doneHidden()} onToggle={props.view.toggleDone} />
       </header>
       <Tree rows={props.rows} view={props.view} />

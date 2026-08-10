@@ -21,10 +21,8 @@ import { Key } from "@solid-primitives/keyed"
 import { Show } from "solid-js"
 
 import { CRUMB } from "../Breadcrumbs.tsx"
-import { DensityToggle } from "../DensityToggle.tsx"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
-import type { View } from "../view.ts"
 import { DayNode } from "./DayNode.tsx"
 import { placeOf } from "./place.ts"
 
@@ -33,7 +31,6 @@ export function DayPage(props: {
   readonly groups: ReadonlyArray<DayGroup>
   /** Today, so a page can say which day it is rather than only which date. */
   readonly today: string
-  readonly view: View
 }) {
   return (
     <section data-testid={TESTID.dayPage} data-date={props.date}>
@@ -47,10 +44,6 @@ export function DayPage(props: {
             <span class="text-sm text-accent">today</span>
           </Show>
         </div>
-        <DensityToggle
-          density={props.view.density()}
-          onCycle={props.view.cycleDensity}
-        />
       </header>
 
       <Show
@@ -86,7 +79,7 @@ export function DayPage(props: {
               </h2>
               <ul class="m-0 list-none p-0">
                 <Key each={group().nodes} by={placeOf}>
-                  {(dated) => <DayNode dated={dated()} view={props.view} />}
+                  {(dated) => <DayNode dated={dated()} />}
                 </Key>
               </ul>
             </section>

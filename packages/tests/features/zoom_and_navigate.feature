@@ -105,9 +105,11 @@ Feature: Zoom and navigate
 
   Scenario: A see reference is a link to the target's page
     # `order` carries `see: ["herbs"]` — a free cross-reference into the other
-    # outline. The link text is the TARGET's title, resolved at view time, and
-    # clicking it is the same navigation a bullet is: `/n/<id>`, no reload.
+    # outline. See links ride the expanded row (hover), the link text is the
+    # TARGET's title, and clicking it is the same navigation a bullet is:
+    # `/n/<id>`, no reload.
     Given I open the outline "house.jsonl"
+    When I hover the row of "order"
     Then the node "order" sees "herbs" as "the herb bed by the door"
     Given I mark the page
     When I follow the see link to "herbs" on "order"

@@ -20,9 +20,10 @@
  * reads the same derived done/doing/open the title tones with — open is an
  * empty box, not the absence of one — and is read-only until keyboard-editing.
  *
- * The READING (./view.ts) is one thing — folds, density, which notes are open —
- * so it is handed as one prop rather than re-exploded into the fields a branch
- * happens to need today.
+ * A note on a row is Things-style: the title line carries a gray ellipsized
+ * snippet; hovering the row (or tapping the snippet on touch) expands in place
+ * to the full note, date badge and see links (./note/expand.ts). The READING
+ * (./view.ts) is only folds and done-visibility — notes are not a switch.
  */
 
 import { type Row } from "@olai/format"
@@ -31,6 +32,8 @@ import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { Bullet } from "./Bullet.tsx"
 import { Checkbox } from "./Checkbox.tsx"
+import { plainLine } from "./note/preview.ts"
+import { createNoteExpand } from "./note/expand.ts"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
 import { TESTID } from "./testids.ts"
@@ -72,6 +75,13 @@ function Branch(props: {
     ? props.row.shows
     : undefined
 
+  // Hover / tap expand — local to this place, not a reading cell.
+  const note = createNoteExpand()
+  const snippet = createMemo(() => {
+    const desc = shown()?.node.desc
+    return desc === undefined || desc === "" ? undefined : plainLine(desc)
+  })
+
   return (
     <li
       class="my-0.5"
@@ -82,6 +92,9 @@ function Branch(props: {
       data-kind={props.row.kind}
       data-file={props.row.at.file}
       data-line={props.row.at.line}
+      data-note-open={note.expanded() ? "true" : "false"}
+      onMouseEnter={note.onMouseEnter}
+      onMouseLeave={note.onMouseLeave}
     >
       <div class="flex items-baseline gap-1.5">
         <Show
@@ -120,6 +133,9 @@ function Branch(props: {
                 title={shows().node.title}
                 status={props.row.status}
                 date={shows().node.date}
+                snippet={snippet()}
+                expanded={note.expanded()}
+                onSnippetToggle={note.toggle}
               >
                 <Show when={props.row.kind !== "node"}>
                   <span class="mr-1 text-muted" title="a mirror of another node">
@@ -140,8 +156,8 @@ function Branch(props: {
           <div class={PAST_CONTROLS}>
             <NodeBody
               shows={shows()}
-              place={props.row.key}
-              view={props.view}
+              expanded={note.expanded()}
+              onCollapse={note.toggle}
             />
           </div>
         )}

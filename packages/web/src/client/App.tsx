@@ -260,7 +260,6 @@ export default function App() {
                             date={open().date}
                             groups={open().groups}
                             today={today()}
-                            view={view}
                           />
                         )}
                       </Match>

@@ -207,8 +207,8 @@ Then(
   },
 );
 
-/** One dim truncated plain-text line — the default under first-line density.
- *  Asserted as words, not as source: the preview strips markdown marks. */
+/** Same-line gray plain-text snippet — the only closed shape. Asserted as
+ *  words, not as source: the preview strips markdown marks. */
 Then(
   "the description of {string} is a preview of {string}",
   async function (this: OlaiWorld, id: string, expected: string) {
@@ -217,12 +217,12 @@ Then(
     assert.strictEqual(
       await desc.getAttribute("data-preview"),
       "true",
-      `the description of "${id}" is not a first-line preview`,
+      `the description of "${id}" is not a same-line snippet`,
     );
     assert.strictEqual(
       await desc.getAttribute("data-open"),
       "false",
-      `the description of "${id}" is open; a preview is the folded shape`,
+      `the description of "${id}" is open; a snippet is the folded shape`,
     );
     await this.waitUntil(
       async () => readable(await desc.innerText()) === readable(expected),
@@ -233,7 +233,7 @@ Then(
   },
 );
 
-/** No list, no bold — the folded preview is plain text, not half-rendered. */
+/** No list, no bold — the closed snippet is plain text, not half-rendered. */
 Then(
   "the description of {string} does not render as markdown blocks",
   async function (this: OlaiWorld, id: string) {
@@ -247,95 +247,101 @@ Then(
   },
 );
 
-/** Expanded must REPLACE the preview, not stack it. The first line's words
- *  appear once in the note's text (in the body), never twice (preview + body). */
+/** Things-style: the snippet rides the title row, not a second line under it. */
 Then(
-  "the description of {string} shows the first line {string} exactly once",
-  async function (this: OlaiWorld, id: string, firstLine: string) {
+  "the description of {string} is on the same line as its title",
+  async function (this: OlaiWorld, id: string) {
+    const title = this.nodeTitle(id);
     const desc = this.node(id).locator(DESC).first();
+    await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await desc.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.strictEqual(
-      await desc.getAttribute("data-open"),
-      "true",
-      `the description of "${id}" is not expanded`,
+    const titleBox = await title.boundingBox();
+    const descBox = await desc.boundingBox();
+    assert.ok(titleBox !== null, `the title of "${id}" has no box`);
+    assert.ok(descBox !== null, `the description of "${id}" has no box`);
+    // Same baseline row: the vertical centres share a band, and the snippet
+    // starts to the right of the title. A second line under the title would
+    // put the snippet wholly below the title's bottom.
+    const titleMid = titleBox.y + titleBox.height / 2;
+    const descMid = descBox.y + descBox.height / 2;
+    assert.ok(
+      Math.abs(titleMid - descMid) <= Math.max(titleBox.height, descBox.height),
+      `the description of "${id}" is not on the title line ` +
+        `(title y=${titleBox.y}+${titleBox.height}, desc y=${descBox.y}+${descBox.height})`,
     );
-    assert.notStrictEqual(
-      await desc.getAttribute("data-preview"),
-      "true",
-      `the description of "${id}" still claims to be a preview while open`,
-    );
-    // No separate preview button left in the note.
-    assert.strictEqual(
-      await desc.locator("button").count(),
-      0,
-      `the description of "${id}" still has a preview button stacked on the body`,
-    );
-    const text = await desc.innerText();
-    const needle = firstLine.trim();
-    let from = 0;
-    let hits = 0;
-    while (true) {
-      const at = text.indexOf(needle, from);
-      if (at === -1) break;
-      hits += 1;
-      from = at + needle.length;
-    }
-    assert.strictEqual(
-      hits,
-      1,
-      `the first line ${JSON.stringify(needle)} appears ${hits} times in the open note (want 1): ${JSON.stringify(text)}`,
+    assert.ok(
+      descBox.x >= titleBox.x + titleBox.width * 0.5,
+      `the description of "${id}" is not after the title ` +
+        `(title ends ${titleBox.x + titleBox.width}, desc at ${descBox.x})`,
     );
   },
 );
 
-Then(
-  "the node {string} shows no description",
+// ── hover expand / touch toggle ────────────────────────────────────────
+
+When(
+  "I hover the row of {string}",
   async function (this: OlaiWorld, id: string) {
+    const row = this.node(id).first();
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await row.hover();
+    await this.waitForFrame();
     await this.waitUntil(
-      async () => (await this.node(id).locator(DESC).count()) === 0,
-      `the description of "${id}" is gone`,
-    ).catch(async () => {
-      assert.strictEqual(
-        await this.node(id).locator(DESC).count(),
-        0,
-        `"${id}" still has a description on screen`,
-      );
+      async () =>
+        (await this.node(id).first().getAttribute("data-note-open")) === "true",
+      `the row of "${id}" is open after hover`,
+    );
+  },
+);
+
+When(
+  "I stop hovering the row of {string}",
+  async function (this: OlaiWorld, id: string) {
+    // Park the pointer on the page chrome so the row receives mouseleave.
+    // Hovering the sidebar (always on a laptop) is more reliable than (0,0),
+    // which can still sit over a tall tree.
+    const sidebar = this.page.locator('[data-testid="sidebar"]').first();
+    await sidebar.hover({ position: { x: 8, y: 8 } }).catch(async () => {
+      await this.page.mouse.move(0, 0);
     });
-  },
-);
-
-/** Open is `data-open` on the note; the whole note is the click target in
- *  either shape (preview button when closed, body when open). */
-const setNoteOpen = async (
-  world: OlaiWorld,
-  id: string,
-  open: boolean,
-): Promise<void> => {
-  const desc = world.node(id).locator(DESC).first();
-  await desc.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  if ((await desc.getAttribute("data-open")) !== String(open)) {
-    await desc.click();
-    await world.waitForFrame();
-  }
-  await world.waitUntil(
-    async () =>
-      (await world.node(id).locator(DESC).first().getAttribute("data-open"))
-        === String(open),
-    `the description of "${id}" is ${open ? "open" : "folded"}`,
-  );
-};
-
-When(
-  "I unfold the note of {string}",
-  async function (this: OlaiWorld, id: string) {
-    await setNoteOpen(this, id, true);
+    await this.waitForFrame();
+    await this.waitUntil(
+      async () =>
+        (await this.node(id).first().getAttribute("data-note-open"))
+          === "false",
+      `the row of "${id}" is closed after mouse-out`,
+    );
   },
 );
 
 When(
-  "I fold the note of {string}",
+  "I tap the note snippet of {string}",
   async function (this: OlaiWorld, id: string) {
-    await setNoteOpen(this, id, false);
+    const snippet = this.node(id).locator(`${DESC}[data-preview="true"]`).first();
+    await snippet.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+    await snippet.scrollIntoViewIfNeeded();
+    await this.press(snippet, "tap");
+    await this.waitUntil(
+      async () =>
+        (await this.node(id).first().getAttribute("data-note-open")) === "true",
+      `the row of "${id}" is open after tapping the snippet`,
+    );
+  },
+);
+
+When(
+  "I tap the open note of {string}",
+  async function (this: OlaiWorld, id: string) {
+    const body = this.node(id).locator(`${DESC}[data-open="true"]`).first();
+    await body.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+    await body.scrollIntoViewIfNeeded();
+    await this.press(body, "tap");
+    await this.waitUntil(
+      async () =>
+        (await this.node(id).first().getAttribute("data-note-open"))
+          === "false",
+      `the row of "${id}" is closed after tapping the open note`,
+    );
   },
 );
 

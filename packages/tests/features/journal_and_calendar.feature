@@ -87,8 +87,8 @@ Feature: The journal, and the month in the sidebar
     And the ancestors of "ferry" are "the coast trip"
     And the ancestors of "posts" are "the deck #home"
     # The same node the tree would draw: derived status, inline tags, the note
-    # as a one-line preview — one component each, so a day cannot render them
-    # its own way. Full markdown is a click away (note_density.feature).
+    # as a same-line snippet — one component each, so a day cannot render them
+    # its own way. Full markdown is a hover/tap away (note_density.feature).
     And the node "posts" has status "doing"
     And the description of "posts" is a preview of "Call the utility line before digging."
     And the title of "rails" styles the tag "home"
@@ -97,9 +97,11 @@ Feature: The journal, and the month in the sidebar
   @corpus:journal
   Scenario: A datetime counts for its calendar day
     # `ferry` is dated 2019-11-05T09:00 — a time on the 5th is on the 5th.
+    # The date badge is on the open row, so hover first.
     When I open the day "2019-11-05"
     Then the node "ferry" is shown
-    And the node "ferry" shows the date "2019-11-05T09:00"
+    When I hover the row of "ferry"
+    Then the node "ferry" shows the date "2019-11-05T09:00"
 
   @corpus:journal
   Scenario: Today, opened, is the fill inside the ring
