@@ -142,12 +142,15 @@ a load runs, and came back on the same subscription every other change does.
 Each one is a git commit, with a subject you can read (`done: order the new
 cabinets`).
 
-The agent cannot touch a file. It has no filesystem access at all: the only
-things it can name are NODES, through a closed list of tools — search, read a
-subtree, add, mark, retitle, note, schedule, move, archive. So the edits it can
-express are the edits the format can be, and a malformed outline is not
-something it can produce. Whether that is a restriction or the point depends on
-how you feel about a coding agent with `sed` and your notes.
+The agent cannot free-write a file. It has no filesystem access at all: the
+only things it can name are NODES, through a closed list of tools — search,
+read a subtree, create an outline, add, mark, retitle, note, schedule, move,
+archive. Creating an outline is the one place a path is named, and it is a
+relative `.jsonl` under the served directory, refused if it already exists and
+written only as whole records. So the edits it can express are the edits the
+format can be, and a malformed outline is not something it can produce. Whether
+that is a restriction or the point depends on how you feel about a coding agent
+with `sed` and your notes.
 
 When it asks for something the outline will not do, you get the reason rather
 than an apology. Marking a node whose status is computed from its children is
@@ -183,10 +186,11 @@ not mind one that is. Leave a tab open on that directory and it follows the
 terminal's edits the same way it follows yours, because both went to disk
 through the same gate, and the tab is watching the disk.
 
-It is the same bargain as the panel: the tools name nodes, never bytes, so a
-coding agent that would happily `sed` your notes cannot, and every write is a
-git commit you can read. `--no-commit` turns that off for a directory whose
-history is somebody else's job.
+It is the same bargain as the panel: the tools name nodes (and, for a brand-new
+outline, a relative `.jsonl` path), never free-form bytes, so a coding agent
+that would happily `sed` your notes cannot, and every write is a git commit you
+can read. `--no-commit` turns that off for a directory whose history is
+somebody else's job.
 
 There is still no write CLI, and there never will be — nothing you can type
 adds a node or marks one. `olai web` and `olai mcp` are the two ways of putting

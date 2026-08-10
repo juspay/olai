@@ -78,6 +78,10 @@ export const DOCUMENT_BODY = selector(TESTID.documentBody);
 export const DOC_REF = selector(TESTID.docRef);
 /** The link inside that reference, to the document's own page. */
 export const DOC_LINK = selector(TESTID.docLink);
+/** A node's free cross-references (`see`). */
+export const SEE_REFS = selector(TESTID.seeRefs);
+/** One link inside those references. The target id rides `data-see`. */
+export const SEE_LINK = selector(TESTID.seeLink);
 /** The main pane. Present only when the loaded set is valid. */
 export const OUTLINE_TREE = selector(TESTID.outlineTree);
 export const NODE = selector(TESTID.node);

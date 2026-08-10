@@ -32,10 +32,12 @@ import * as Query from "./query.ts"
 import {
   AddRequest,
   ArchiveRequest,
+  CreateRequest,
   DateRequest,
   DescRequest,
   MarkRequest,
   MoveRequest,
+  SeeRequest,
   TitleRequest,
 } from "./request.ts"
 
@@ -164,9 +166,16 @@ export const TOOLS: ReadonlyArray<Tool> = [
   ),
 
   write(
+    "create_outline",
+    "Create an outline",
+    "Start a new outline file under the served directory. `file` is a relative `.jsonl` path (no absolute paths, no `..`); refused if that file already exists. Optionally pass `seed` with a title (and optional note/date/id) to mint the first node the way `add_node` does — otherwise the file is empty and further captures use `add_node` against it. This is how a brand-new outline is born: `add_node` only writes into outlines that are already loaded.",
+    CreateRequest,
+    { op: "create" },
+  ),
+  write(
     "add_node",
     "Add a node",
-    "Capture a new node. Give `parent` to put it under a node, or `file` to put it at the top level of an outline. It goes last among its siblings unless `before` or `after` names one.",
+    "Capture a new node. Give `parent` to put it under a node, or `file` to put it at the top level of an *existing* outline. It goes last among its siblings unless `before` or `after` names one. To start a brand-new outline file, use `create_outline` first.",
     AddRequest,
     { op: "add" },
   ),
@@ -218,6 +227,13 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "Move a node and everything under it into `Archive.jsonl` beside its outline, re-creating the chain of ancestor titles it hung off. Ids move with the nodes, so mirrors and edges pointing at them keep resolving. Nothing is stamped: archiving is not finishing.",
     ArchiveRequest,
     { op: "archive" },
+  ),
+  write(
+    "set_see",
+    "Set see references",
+    "Add and/or remove free cross-references (`see`) on an existing node. `see` is a link and nothing more — no ordering, no blocking, cycles fine. Give `add` and/or `remove` (ids of targets in the loaded set); an unknown add is refused with the ids that do exist, so the next call can name one. Search and subtree reads carry a node's `see` so you can traverse what is already there.",
+    SeeRequest,
+    { op: "see" },
   ),
 ]
 

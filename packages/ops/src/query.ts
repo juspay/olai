@@ -45,6 +45,10 @@ export interface Found {
   /** The canonical ancestor titles, outermost first. What makes a bare title
    *  like "order" mean something. */
   readonly path: ReadonlyArray<string>
+  /** Free cross-references this node carries, as target ids. Absent when the
+   *  node has none — so an agent can traverse without a second read, and a
+   *  node that does not point anywhere does not pretend to. */
+  readonly see?: ReadonlyArray<string>
 }
 
 export interface Hit extends Found {
@@ -131,6 +135,9 @@ const foundOf = (derived: Derived, located: LocatedRegular): Found => ({
   line: located.line,
   status: derived.status.get(located.node.id) ?? "open",
   path: ancestorsOf(derived, located.node.id).map((crumb) => crumb.node.title),
+  ...(located.node.see === undefined || located.node.see.length === 0
+    ? {}
+    : { see: located.node.see }),
 })
 
 /** Every regular node of the set, in file-then-line order. Mirrors are left

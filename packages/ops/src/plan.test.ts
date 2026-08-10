@@ -340,6 +340,96 @@ describe("move", () => {
   })
 })
 
+// ── create ─────────────────────────────────────────────────────────────
+
+describe("create", () => {
+  test("an empty outline is a file with no records, named in the commit line", () => {
+    const result = planned(house(), { op: "create", file: "shed.jsonl" })
+    expect(fileOf(result, "shed.jsonl")).toEqual([])
+    expect(result).toMatchObject({
+      file: "shed.jsonl",
+      id: "shed.jsonl",
+      title: "shed.jsonl",
+      summary: "create: shed.jsonl",
+    })
+  })
+
+  test("a seed is one top-level node, minted the way a capture is", () => {
+    const result = planned(house(), {
+      op: "create",
+      file: "notes/ideas.jsonl",
+      seed: { title: "an idea #later", desc: "write it down", date: "2026-08-10" },
+    })
+    expect(fileOf(result, "notes/ideas.jsonl")).toEqual([
+      {
+        id: "n1",
+        ord: "a0",
+        title: "an idea #later",
+        desc: "write it down",
+        date: "2026-08-10",
+      },
+    ])
+    expect(result.summary).toBe("capture: an idea #later")
+    expect(result.id).toBe("n1")
+  })
+
+  test("a chosen seed id is kept, and a taken one is refused", () => {
+    const nodes = fileOf(
+      planned(house(), {
+        op: "create",
+        file: "new.jsonl",
+        seed: { title: "x", id: "paint" },
+      }),
+      "new.jsonl",
+    )
+    expect(record(nodes, "paint").title).toBe("x")
+
+    expect(
+      refused(house(), {
+        op: "create",
+        file: "new.jsonl",
+        seed: { title: "x", id: "order" },
+      })._tag,
+    ).toBe("UsageFailure")
+  })
+
+  test("an absolute path is refused", () => {
+    const failure = refused(house(), { op: "create", file: "/tmp/out.jsonl" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("relative")
+  })
+
+  test("a traversal is refused, never resolved under the root", () => {
+    for (const file of [
+      "../secret.jsonl",
+      "notes/../../secret.jsonl",
+      "notes/./out.jsonl",
+      "notes//out.jsonl",
+      "a\\b.jsonl",
+    ]) {
+      expect(refused(house(), { op: "create", file })._tag).toBe("UsageFailure")
+    }
+  })
+
+  test("a non-`.jsonl` name is refused", () => {
+    expect(refused(house(), { op: "create", file: "notes.md" })._tag).toBe("UsageFailure")
+    expect(refused(house(), { op: "create", file: "notes" })._tag).toBe("UsageFailure")
+  })
+
+  test("an outline the directory already holds is refused rather than overwritten", () => {
+    const failure = refused(house(), { op: "create", file: "house.jsonl" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("already")
+    expect(failure.message).toContain("add_node")
+  })
+
+  test("an empty seed title is refused — a node is its title", () => {
+    expect(
+      refused(house(), { op: "create", file: "new.jsonl", seed: { title: "  " } })._tag,
+    ).toBe("UsageFailure")
+  })
+})
+
 // ── archive ────────────────────────────────────────────────────────────
 
 describe("archive", () => {
@@ -421,6 +511,112 @@ describe("archive", () => {
   test("archiving something already archived is refused", () => {
     const set = setOf({ "Archive.jsonl": `{"id":"x","ord":"a0","title":"x"}` })
     expect(refused(set, { op: "archive", id: "x" }).message).toContain("already in")
+  })
+})
+
+// ── see ────────────────────────────────────────────────────────────────
+
+describe("see", () => {
+  test("adds targets, preserving any that were already there", () => {
+    const set = setOf({
+      "house.jsonl": [
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+        `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","see":["demo"]}`,
+        `{"id":"demo","parent":"kitchen","ord":"a1","title":"demolition"}`,
+        `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
+      ].join("\n"),
+    })
+    const result = planned(set, { op: "see", id: "order", add: ["install"] })
+    expect(record(fileOf(result, "house.jsonl"), "order").see).toEqual([
+      "demo",
+      "install",
+    ])
+    expect(result.summary).toBe("see: order the cabinets")
+  })
+
+  test("removes targets, and clears the field when none remain", () => {
+    const set = setOf({
+      "a.jsonl": [
+        `{"id":"a","ord":"a0","title":"a","see":["b","c"]}`,
+        `{"id":"b","ord":"a1","title":"b"}`,
+        `{"id":"c","ord":"a2","title":"c"}`,
+      ].join("\n"),
+    })
+    const partial = planned(set, { op: "see", id: "a", remove: ["b"] })
+    expect(record(fileOf(partial, "a.jsonl"), "a").see).toEqual(["c"])
+
+    const cleared = planned(set, { op: "see", id: "a", remove: ["b", "c"] })
+    expect("see" in record(fileOf(cleared, "a.jsonl"), "a")).toBe(false)
+  })
+
+  test("add and remove in one call: removes first, then appends adds", () => {
+    const set = setOf({
+      "a.jsonl": [
+        `{"id":"a","ord":"a0","title":"a","see":["b","c"]}`,
+        `{"id":"b","ord":"a1","title":"b"}`,
+        `{"id":"c","ord":"a2","title":"c"}`,
+        `{"id":"d","ord":"a3","title":"d"}`,
+      ].join("\n"),
+    })
+    const nodes = fileOf(
+      planned(set, { op: "see", id: "a", add: ["d"], remove: ["b"] }),
+      "a.jsonl",
+    )
+    // Survivors keep their order; new ids append.
+    expect(record(nodes, "a").see).toEqual(["c", "d"])
+  })
+
+  /**
+   * The refusal that teaches: an unknown target is refused with the ids the
+   * set DOES hold, the same way an unknown outline file lists the ones under
+   * the served directory. An agent that mistyped can correct without a second
+   * round-trip.
+   */
+  test("an unknown add is not-found and lists the ids that exist", () => {
+    const failure = refused(house(), {
+      op: "see",
+      id: "order",
+      add: ["nope"],
+    })
+    expect(failure._tag).toBe("NotFoundFailure")
+    if (failure._tag !== "NotFoundFailure") return
+    expect(failure.named).toBe("nope")
+    expect(failure.message).toContain("kitchen")
+    expect(failure.message).toContain("order")
+    expect(failure.message).toContain("nope")
+  })
+
+  test("neither add nor remove is a usage refusal", () => {
+    expect(refused(house(), { op: "see", id: "order" })._tag).toBe(
+      "UsageFailure",
+    )
+  })
+
+  test("a no-op — re-adding what is already there — is refused rather than rewritten", () => {
+    const set = setOf({
+      "a.jsonl": [
+        `{"id":"a","ord":"a0","title":"a","see":["b"]}`,
+        `{"id":"b","ord":"a1","title":"b"}`,
+      ].join("\n"),
+    })
+    const failure = refused(set, { op: "see", id: "a", add: ["b"] })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("already sees")
+  })
+
+  test("a mirror is not a node to edit, and the refusal names the one that is", () => {
+    const set = setOf({
+      "a.jsonl": `{"id":"x","ord":"a0","title":"x"}`,
+      "b.jsonl": `{"id":"m","ord":"a0","mirror":"x"}`,
+    })
+    expect(refused(set, { op: "see", id: "m", add: ["x"] }).message).toContain(
+      "`x`",
+    )
+  })
+
+  test("an id nothing declares is not-found", () => {
+    expect(refused(house(), { op: "see", id: "nope", add: ["order"] })._tag)
+      .toBe("NotFoundFailure")
   })
 })
 

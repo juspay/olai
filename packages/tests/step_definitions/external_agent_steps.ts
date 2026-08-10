@@ -97,6 +97,16 @@ When(
 );
 
 When(
+  "the terminal agent creates the outline {string} seeded with {string}",
+  async function (this: OlaiWorld, file: string, title: string) {
+    await callTool(agentOf(this), "create_outline", {
+      file,
+      seed: { title },
+    });
+  },
+);
+
+When(
   "the terminal agent searches for {string}",
   async function (this: OlaiWorld, text: string) {
     this.toolAnswer = await callTool(agentOf(this), "search_nodes", { text });

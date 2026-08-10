@@ -18,6 +18,8 @@ import {
   NOT_FOUND,
   oneLine,
   POLL_TIMEOUT,
+  SEE_LINK,
+  SEE_REFS,
   ZOOM,
   ZOOM_TITLE,
 } from "../support/world.ts";
@@ -174,6 +176,54 @@ Then("a not-found is shown", async function (this: OlaiWorld) {
     .locator(NOT_FOUND)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
+
+// ── free cross-references (`see`) ──────────────────────────────────────
+
+/** The see-link on a node that points at a particular target. Selected by
+ *  `data-see` (the target id), never by link text — titles change under a live
+ *  page, and a scenario that pinned one would flake the moment the target was
+ *  retitled. */
+const seeLinkTo = (world: OlaiWorld, source: string, target: string) =>
+  world
+    .node(source)
+    .locator(`${SEE_LINK}:has([data-see="${target}"])`)
+    .first();
+
+Then(
+  "the node {string} sees {string} as {string}",
+  async function (
+    this: OlaiWorld,
+    source: string,
+    target: string,
+    title: string,
+  ) {
+    const link = seeLinkTo(this, source, target);
+    await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // The refs container is drawn only when the node carries a see — so its
+    // presence is part of the assertion, not a free ride.
+    await this.node(source)
+      .locator(SEE_REFS)
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(
+      oneLine(await link.innerText()),
+      title,
+      `the see link on "${source}" to "${target}" does not show the target's title`,
+    );
+  },
+);
+
+When(
+  "I follow the see link to {string} on {string}",
+  async function (this: OlaiWorld, target: string, source: string) {
+    const link = seeLinkTo(this, source, target);
+    await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await link.click();
+    await this.page
+      .locator(ZOOM_TITLE)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
 
 // ── where a navigation leaves the page ─────────────────────────────────
 //
