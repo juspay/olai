@@ -26,9 +26,16 @@
  * so a stale path here would 200 rather than 404, and only the content type
  * would say otherwise.
  *
- * The colours are this app's own paper (`--color-paper`, light) rather than
- * the racket original's, because they are the chrome around the page that
- * opens under them; the icons ARE the original, unchanged.
+ * The colours are the DEFAULT palette's paper — `chalk`, which is what a page
+ * that has picked no theme reads in — because they are the chrome around the
+ * window before it opens, and there is nothing else this file could know: a
+ * theme is a pick stored in one browser, and a manifest is read once by an
+ * installer. Once the page is up it repaints the chrome from whatever was
+ * picked (`packages/web/src/client/theme/state.ts`). The value cannot be
+ * imported — the server does not depend on the client, deliberately — so what
+ * checks it still agrees is the browser test that compares it against the
+ * paper an unpicked page actually paints
+ * (`packages/tests/features/theming.feature`).
  */
 
 import type { ManifestOptions } from "@kolu/surface-app/server"
@@ -36,8 +43,8 @@ import type { ManifestOptions } from "@kolu/surface-app/server"
 export const MANIFEST: ManifestOptions = {
   name: "olai",
   description: "Self-hosted outliner: your files, your agent, a live web view.",
-  themeColor: "#fdfdfc",
-  backgroundColor: "#fdfdfc",
+  themeColor: "#FAFAF6",
+  backgroundColor: "#FAFAF6",
   lang: "en",
   categories: ["productivity", "utilities"],
   icons: [

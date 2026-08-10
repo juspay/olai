@@ -136,6 +136,43 @@ nothing. Every one of them is a `data-` fact on the cell (`data-dated`,
 `data-today`, `data-open`) rather than a colour, so the browser tests assert on
 the mark and never on the palette.
 
+## Fifteen palettes, and the one you picked
+
+`src/client/theme/` is a TABLE and the things generated from it. `palettes.ts`
+holds fifteen named palettes — the racket implementation's four and eleven read
+off the original WorkFlowy theme stylesheets — each a value for the same eight
+tokens `styles.css` declares. Everything else follows from it: `css.ts`
+generates one unlayered `:root[data-theme="…"]` block per row, which `src/build.ts`
+appends to the Tailwind output, and `Picker.tsx` draws one chip per row, each
+chip wearing the palette it offers. Adding a theme is adding a row; the row
+type is what makes a forgotten token a type error rather than a `var()` that
+resolves to nothing in one theme only.
+
+Eight tokens and not the racket skin's fourteen: the six that did not come have
+no home in a client that paints one paper and gets its accent grounds from an
+opacity, and a token nothing paints with is a value nobody can check. The
+mapping is written down where the table is.
+
+A pick is CLIENT state and never leaves the browser — a preference of this
+browser's (`preference.ts`, shared with the agent drawer's open state: storage
+can throw, and a preference that cannot be remembered is still a preference for
+this tab). `state.ts` writes `data-theme` on `<html>`, remembers it, and asks
+`chrome.ts` to repaint `<meta name="theme-color">` from the same table that
+painted the page — but it is not what puts the theme there on a reload. Four inline lines in `<head>` (`index.html`) do that, before
+the first paint, because everything on this page is deferred and a theme
+restored by the bundle is a flash of the wrong colours on every load. Those
+lines know no theme names, so a stored value no row offers is forgotten by
+`adoptStoredTheme` instead — the first moment anything knows the list.
+
+There is no "system" chip and no `prefers-color-scheme` rule in the sheet. The
+OS used to choose the palette, which meant a page that changed under a reader
+who had already said what they wanted; a page that has picked nothing reads in
+the default, which is `chalk`, which is the one palette that promises WCAG AA.
+That promise is arithmetic, so `contrast.ts` is arithmetic and
+`contrast.test.ts` holds the palette to it pair by pair — over the pairs this
+client actually paints, since rejecting a colour over a combination no
+component draws would be rejecting it over a page that does not exist.
+
 ## The connection, said out loud
 
 `src/client/connection/` is the chrome for the one thing the outlines cannot
@@ -347,8 +384,9 @@ plugins at all; and the stylesheet is handed back as bytes so
 `@kolu/surface-app`'s helper can place it under a content-hashed `/assets/`
 name on the same immutable-caching contract as the JS.
 
-`styles.css` holds only the `@theme` tokens and rules for markup this codebase
-does not author — the tags of a rendered note or document come from a file on
+`styles.css` holds only the `@theme` tokens — the default palette's values,
+since Tailwind can only emit `text-muted` for a `--color-muted` it has seen —
+and rules for markup this codebase does not author — the tags of a rendered note or document come from a file on
 disk and can carry no classes, and the highlighter's own class names inside a
 fence are the same case. Everything else is a utility, inline in the component, so deleting
 a component deletes its styling with it. No `@apply`.

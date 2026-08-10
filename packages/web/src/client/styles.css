@@ -27,17 +27,31 @@
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Named for their job, not their hue, so the dark palette below is the same
-   * eight names with different values and no utility has to know which one is
-   * in force. */
-  --color-ink: #1b1b1f;
-  --color-paper: #fdfdfc;
-  --color-muted: #6b6b76;
-  --color-rule: #e2e2e6;
-  --color-accent: #3a5bd9;
-  --color-done: #2f8f5b;
-  --color-doing: #b8760a;
-  --color-alarm: #b3261e;
+  /* Named for their job, not their hue, so a palette is the same eight names
+   * with different values and no utility has to know which one is in force.
+   *
+   * These eight are the DEFAULT palette's — `chalk` — and they are the one
+   * place the table is spelled twice. Tailwind needs the NAMES here or it will
+   * not emit `text-muted` at all; what it does with the VALUES is bake the
+   * literal fallback beside every opacity utility (`.bg-alarm/5` gets both
+   * `#8e33480d` and, inside `@supports (color-mix…)`, the theme-aware form).
+   * So on any browser this app runs in they are inert — the generated
+   * unlayered `:root` block always wins — and on one too old for `color-mix`
+   * they are what an opacity utility falls back to. Which is exactly why they
+   * must be the DEFAULT's rather than any palette's, and why
+   * `theme/css.test.ts` holds them to that row.
+   *
+   * The other fourteen palettes are generated from the table into blocks
+   * appended to this sheet at build time (`src/client/theme/`,
+   * `src/build.ts`). */
+  --color-ink: #15180F;
+  --color-paper: #FAFAF6;
+  --color-muted: #555E4C;
+  --color-rule: #C9CDBF;
+  --color-accent: #134F75;
+  --color-done: #2A6626;
+  --color-doing: #8F5200;
+  --color-alarm: #8E3348;
 
   /* The agent drawer's width. A token rather than a literal in the two places
    * that have to agree about it — the drawer itself, and the padding the
@@ -47,30 +61,25 @@
   --width-chat: 26rem;
 }
 
-:root {
-  color-scheme: light dark;
-}
-
-/* The dark palette is a redefinition of the same eight custom properties, not
- * a `dark:` variant on every utility: olai has no theme toggle, so the OS
- * preference IS the setting, and every utility already reads
- * `var(--color-…)` — so one media query re-answers all of them.
+/* A palette is a redefinition of the same eight custom properties, not a
+ * `dark:` variant on every utility: every one of them already reads
+ * `var(--color-…)`, so one block re-answers all of them at once. Those blocks
+ * are not written here — they are generated from the table in
+ * `src/client/theme/palettes.ts` and appended to this sheet by the build, one
+ * per palette, keyed on `:root[data-theme="…"]` with the default's also
+ * landing on the bare `:root`.
  *
- * Plain `:root`, not a second `@theme`: `@theme` is a build-time declaration
- * and does not nest in a media query. Unlayered rules also beat Tailwind's
- * `@layer theme`, so this wins the cascade wherever it is written. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-ink: #e6e6ea;
-    --color-paper: #16161a;
-    --color-muted: #9a9aa5;
-    --color-rule: #2c2c33;
-    --color-accent: #8ba4ff;
-    --color-done: #5fc98d;
-    --color-doing: #e0a53f;
-    --color-alarm: #ff8a80;
-  }
-}
+ * Plain rules, not a second `@theme`: `@theme` is a build-time declaration and
+ * has no selector to be conditional on. Unlayered rules also beat Tailwind's
+ * `@layer theme`, which is what lets a picked palette win over the eight
+ * defaults above.
+ *
+ * There is no `prefers-color-scheme` rule in this sheet, on purpose. The OS
+ * used to choose the palette, which meant two ways to be dark that could
+ * disagree and a page that changed under a reader who had already said what
+ * they wanted. A theme is a PICK; `color-scheme` still rides in each palette's
+ * block, because the scrollbars and the form controls are the browser's to
+ * paint and that is how it is told which way. */
 
 /* Rendered markdown — a note's, and a whole document's. Its `<p>`, `<ul>`,
  * `<code>` and `<pre>` are produced by the sanitiser at view time and carry no

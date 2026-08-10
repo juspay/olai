@@ -125,6 +125,16 @@ export const RESTARTED = selector(TESTID.restarted);
 /** The button in that surface. */
 export const RELOAD = selector(TESTID.reload);
 
+/** The theme picker in the sidebar, and one chip of it. The picker carries
+ *  `data-default` (the theme a page with no pick reads in) and
+ *  `data-store-key` (where this browser keeps one), so the steps ask the page
+ *  for both rather than re-spelling what the client already owns. A chip's
+ *  `data-value` is the theme it offers and `aria-pressed` says whether it is
+ *  the one in force — never the colour it is painted, which is the subject
+ *  here and so the last thing to assert on. */
+export const THEME_PICKER = selector(TESTID.themePicker);
+export const THEME_CHIP = selector(TESTID.themeChip);
+
 /** The agent panel. Absent entirely when no ACP agent is configured, which is
  *  a state the suite never runs in: every server it spawns is pointed at the
  *  scripted agent (`support/hooks.ts`). */
@@ -226,12 +236,12 @@ export class OlaiWorld extends World {
    *  bug an e2e suite exists to catch. */
   errors: string[] = [];
 
-  /** Every URL the page asked for that this server did not serve, collected by
-   *  the same hook. It is normally empty and must stay that way: the bundle,
-   *  the stylesheet and the syntax highlighter are all shipped by the server
-   *  someone pointed at their own outlines, and a request to anywhere else is a
-   *  page telling a third party what is being read. */
-  offSite: string[] = [];
+  /** Every URL the page has asked for, in order, collected by the same hook.
+   *  Two questions are asked of it and they are different questions: whether
+   *  anything left this server (`offSite`), and whether a particular gesture
+   *  reached the network at all (`watchRequests`). One listener, because two
+   *  recordings of one fact can only ever disagree. */
+  requests: string[] = [];
 
   /** Which fixture corpus this scenario's server is serving, from its
    *  `@corpus:<name>` or `@scratch:<name>` tag. See `support/hooks.ts`. */
@@ -587,6 +597,46 @@ export class OlaiWorld extends World {
       }
       await this.page.waitForTimeout(100);
     }
+  }
+
+  /** The paper the page was painted in before a theme was picked. The only
+   *  colour any scenario holds on to, and it is compared against itself: what
+   *  a palette's paper IS is a design decision, and that it CHANGED is the
+   *  claim. */
+  paperBefore?: string;
+
+  /** The URLs that left this server. Normally empty and it must stay that way:
+   *  the bundle, the stylesheet and the syntax highlighter are all shipped by
+   *  the server someone pointed at their own outlines, and a request to
+   *  anywhere else is a page telling a third party what is being read.
+   *  `data:` is not a request to anywhere. */
+  offSite(): ReadonlyArray<string> {
+    return this.requests.filter(
+      (url) => !url.startsWith(this.baseUrl) && !url.startsWith("data:"),
+    );
+  }
+
+  /** Where in `requests` a scenario started watching, or `undefined` while
+   *  none is. */
+  private askedFrom?: number;
+
+  /** Start watching what the page asks for, so a later step can claim that a
+   *  gesture reached the network — or did not. A MARK into the one recording
+   *  rather than a second listener. */
+  watchRequests(): void {
+    this.askedFrom = this.requests.length;
+  }
+
+  /** What it has asked for since, or the diagnostic for a step that forgot to
+   *  start watching — an empty list would otherwise read as a pass. */
+  requestsWatched(): ReadonlyArray<string> {
+    if (this.askedFrom === undefined) {
+      throw new Error(
+        "nothing is watching what the page asks for; a step has to start " +
+          "watching before the gesture it is making a claim about",
+      );
+    }
+    return this.requests.slice(this.askedFrom);
   }
 
   /** Is the sentinel still there? False after any navigation. */
