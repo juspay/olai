@@ -51,6 +51,22 @@ work — the gate compares against the framework's own `surfaceProcessId()`, the
 same value `system/identity` answers with and the browser echoes back, so the
 two ends cannot be pointed at different ids.
 
+## The frame cap is the framework's number
+
+The websocket's `maxPayload` is `RPC_MAX_FRAME_BYTES` (plus the newline an
+ndjson frame ends with, which is on the wire but outside what the decoder
+measures). Not a setting of ours: `@kolu/surface` owns the wire's frame size
+and owns what happens to a frame that busts it — its decoder classifies the
+frame and closes with a documented code the client is written to recover from.
+A smaller cap here does not make the wire safer, it just moves the refusal to a
+layer with no classifier and no client that understands it, killing every
+subscription multiplexed onto that socket. This file said `8 MiB` against the
+framework's 16, so every frame in between — a big outline snapshot — died at
+the wrong layer; sourcing the number is what stops the two from disagreeing
+again, and `listener.test.ts` fails if they do. (Under bun the option is a
+declaration: bun's built-in `ws` ignores `maxPayload` and enforces 16 MiB of
+its own. A node host obeys it.)
+
 ## The manifest is served, the icons are not
 
 `src/manifest.ts` is what an installed olai is — the name, the description, the
