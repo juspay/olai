@@ -32,10 +32,11 @@ import {
   surfaceAppLayer,
 } from "@kolu/surface-app/server"
 import { NodeHttpServer } from "@effect/platform-node"
-import { Data, Effect, Scope } from "effect"
+import { Data, Effect, Layer, Scope } from "effect"
 import { HttpRouter } from "effect/unstable/http"
 import { WebSocketServer } from "ws"
 
+import { mcpRoute } from "./mcp/route.ts"
 import type { Bound } from "./runtime.ts"
 
 const WS_PATH = "/rpc/ws"
@@ -60,6 +61,10 @@ export interface ListenOptions {
   readonly port: number
   /** Browser origins allowed to open the websocket, beyond same-origin. */
   readonly allowedOrigins: ReadonlyArray<string>
+  /** The internal MCP server, mounted beside the static routes — see
+   *  {@link ./mcp/route.ts} for why it rides this listener rather than a
+   *  transport of its own. */
+  readonly mcp: Parameters<typeof mcpRoute>[0]
   readonly log: (message: string) => void
 }
 
@@ -69,7 +74,7 @@ export interface ListenOptions {
 export const listen = (options: ListenOptions) =>
   Effect.gen(function*() {
     const server = createServer()
-    server.on("request", yield* requestHandler(options.clientDist))
+    server.on("request", yield* requestHandler(options.clientDist, options.mcp))
 
     const sockets = new WebSocketServer({
       noServer: true,
@@ -181,17 +186,28 @@ const bindOrFallBack = (
       ),
   )
 
-/** The `request` handler, as an Effect handler over the static layer.
- *  `surfaceAppLayer` owns the freshness contract: a `no-store` shell,
- *  immutable hashed assets, a 404 on an asset miss (never the shell), and the
- *  SPA fallback that makes `/o/<file>` a real URL. */
-const requestHandler = (clientDist: string) =>
+/** The `request` handler, as an Effect handler over the static layer plus the
+ *  MCP route. `surfaceAppLayer` owns the freshness contract: a `no-store`
+ *  shell, immutable hashed assets, a 404 on an asset miss (never the shell),
+ *  and the SPA fallback that makes `/o/<file>` a real URL.
+ *
+ *  MERGED rather than ordered: `HttpRouter` ranks routes by specificity, so
+ *  `POST /mcp` beats the static `GET /*` catch-all whichever layer went in
+ *  first. Registration order carries no meaning here, which is exactly the
+ *  footgun the layer form exists to remove. */
+const requestHandler = (
+  clientDist: string,
+  mcp: Parameters<typeof mcpRoute>[0],
+) =>
   Effect.gen(function*() {
     const scope = Scope.makeUnsafe()
-    const layer = surfaceAppLayer({
-      clientDist,
-      manifest: { name: "olai", themeColor: "#1b1b1f", icons: [] },
-    })
+    const layer = Layer.merge(
+      mcpRoute(mcp),
+      surfaceAppLayer({
+        clientDist,
+        manifest: { name: "olai", themeColor: "#1b1b1f", icons: [] },
+      }),
+    )
     const httpEffect = yield* HttpRouter.toHttpEffect(layer)
     return yield* NodeHttpServer.makeHandler(httpEffect, { scope })
   })

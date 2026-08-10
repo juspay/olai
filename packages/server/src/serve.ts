@@ -2,19 +2,34 @@
  * One directory, read and served.
  *
  * This is the composition root, and it should read as one: a store over the
- * directory, the surface bound to it, a listener in front. Each of the three
- * lives in its own file with its own reason to change; what is left here is
- * the order they go in and the one thing that is genuinely this layer's
- * business — the warning you get for binding somewhere the world can reach.
+ * directory, the ops layer over the store, an internal MCP server over the ops,
+ * an agent handed that server, the surface bound to both, a listener in front.
+ * Each of those lives in its own file with its own reason to change; what is
+ * left here is the ORDER they go in, and the one thing that is genuinely this
+ * layer's business — the warning you get for binding somewhere the world can
+ * reach.
+ *
+ * The order is not arbitrary. The chat is built before the surface because the
+ * surface's transcript collection is seeded from it; the surface is what the
+ * chat publishes through, so its publishers are handed back and installed once
+ * it exists. Nothing publishes in between: the agent is not started until the
+ * listener is up.
  */
 
+import type { McpServer } from "@agentclientprotocol/sdk"
 import type { OutlineError, OutlineSet } from "@olai/format"
+import { codec, Mcp, make as makeOps } from "@olai/ops"
 import * as Store from "@olai/store"
 import { Cause, Effect } from "effect"
+import { randomBytes } from "node:crypto"
+import { resolve } from "node:path"
 
-import { codec } from "./codec.ts"
+import { adapterFrom, AGENT_ENV } from "./chat/adapter.ts"
+import * as AcpAgent from "./chat/agent.ts"
+import * as Chat from "./chat/chat.ts"
 import { listen } from "./listener.ts"
-import { bind } from "./runtime.ts"
+import { MCP_PATH } from "./mcp/route.ts"
+import { bind, type Publishers } from "./runtime.ts"
 
 export interface ServeOptions {
   /** The directory to serve, recursively. */
@@ -26,6 +41,9 @@ export interface ServeOptions {
   readonly clientDist: string
   /** Browser origins allowed to open the websocket, beyond same-origin. */
   readonly allowedOrigins: ReadonlyArray<string>
+  /** Commit every write to git when the served directory is a work tree.
+   *  `olai web --no-commit` is the opt-out. */
+  readonly commit: boolean
   /** Where to say what we are doing. Injected so a test can read it and a
    *  future caller can silence it. */
   readonly log: (message: string) => void
@@ -36,10 +54,60 @@ export interface ServeOptions {
  *  caller holds a teardown function it might forget to call. */
 export const serve = (options: ServeOptions) =>
   Effect.gen(function*() {
+    const root = resolve(options.root)
     const store: Store.Store<OutlineSet, ReadonlyArray<OutlineError>> = yield* Store
-      .make({ root: options.root, codec })
+      .make({ root, codec })
 
-    const bound = yield* bind(store)
+    const ops = makeOps({ store, root, commit: options.commit })
+
+    // The chat publishes through the surface, and the surface is seeded from
+    // the chat. One mutable slot resolves that, and it is safe because nothing
+    // publishes before `bind` returns: the agent is started at the very end.
+    let publish: Publishers | null = null
+
+    const adapter = adapterFrom(process.env[AGENT_ENV])
+    if (adapter === null) {
+      options.log(
+        `no ACP agent configured (${AGENT_ENV} is unset), so chat is off — the outlines are served as usual`,
+      )
+    }
+
+    // Minted per process and handed only to the session we spawn: the write
+    // surface is not something any page that can reach loopback may call.
+    const token = randomBytes(24).toString("hex")
+    /** Filled once the listener has bound — see the thunk on the agent's
+     *  options. Until then there is no session to hand it to. */
+    let mcpServers: ReadonlyArray<McpServer> = []
+
+    const chat = adapter === null ? null : yield* Chat.make({
+      agent: (onEvent) =>
+        AcpAgent.make({
+          command: adapter.command,
+          args: adapter.args,
+          // The served directory, exactly — an agent keys its stored sessions
+          // by the directory it was started in, and that is what makes "the
+          // conversation you were last in" survive a restart.
+          cwd: root,
+          mcpServers: () => mcpServers,
+          onEvent,
+          log: options.log,
+        }),
+      onState: (state) => publish?.state(state),
+      onTranscript: (change) => publish?.transcript(change),
+      log: options.log,
+    })
+
+    const mcp = Mcp.make({
+      ops,
+      store,
+      // A refusal reaches the agent as its tool result AND the panel as a row:
+      // what the agent then says about it is prose, and the unfinished children
+      // are data.
+      ...(chat === null ? {} : { onRefusal: chat.refused }),
+    })
+
+    const wired = yield* bind({ store, chat })
+    publish = wired.publish
 
     // A faulted runtime is unrecoverable structural damage. Serving past it
     // would answer subscriptions with silence, which is worse than stopping.
@@ -55,23 +123,42 @@ export const serve = (options: ServeOptions) =>
     const stopped = Effect.sync(() => {
       serving = false
     })
-    bound.done.catch((cause: unknown) => {
+    wired.bound.done.catch((cause: unknown) => {
       if (!serving) return
       options.log(`surface runtime faulted — unrecoverable:\n${render(cause)}`)
       process.exit(1)
     })
 
-    const url = yield* Effect.onError(listen({ ...options, bound }), () => stopped)
+    const url = yield* Effect.onError(
+      listen({ ...options, bound: wired.bound, mcp: { server: mcp, token } }),
+      () => stopped,
+    )
     // Registered AFTER the listener's own, so it runs BEFORE it: finalizers
     // run in reverse, and this one has to be true by the time anything starts
     // closing the runtime.
     yield* Effect.addFinalizer(() => stopped)
 
-    options.log(`serving ${options.root} on ${url}`)
+    options.log(`serving ${root} on ${url}`)
     if (!LOOPBACK.has(options.host)) {
       options.log(
-        `WARNING: bound to ${options.host}, not loopback — the surface is unauthenticated, so anyone who can reach this port can read every outline in ${options.root}`,
+        `WARNING: bound to ${options.host}, not loopback — the surface is unauthenticated, so anyone who can reach this port can read every outline in ${root}`,
       )
+    }
+
+    if (chat !== null) {
+      // LAST, and after the listener is up: the session is handed the MCP
+      // server's address, which is only knowable once we know what we bound.
+      mcpServers = [
+        {
+          type: "http",
+          name: "olai",
+          url: `${url}${MCP_PATH}`,
+          headers: [{ name: "Authorization", value: `Bearer ${token}` }],
+        },
+      ]
+      yield* Effect.addFinalizer(() => chat.stop)
+      yield* chat.start
+      options.log(`chat agent: ${adapter?.command ?? "none"} (mcp at ${url}${MCP_PATH})`)
     }
   })
 

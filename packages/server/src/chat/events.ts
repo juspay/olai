@@ -1,0 +1,71 @@
+/**
+ * The whole vocabulary of what an agent tells us, and the only way anything
+ * leaves {@link ./agent.ts}.
+ *
+ * It is a closed union rather than the protocol's own payloads, and that is the
+ * seam: nothing above this file spells `session/update`, reads a `ContentBlock`
+ * or knows which `configOptions` entry the model is. A consumer that needs
+ * something not in here needs a new member, not a look at the wire — which is
+ * what keeps the ACP version in one file and the conversation in another.
+ *
+ * The list is the racket bridge's, member for member, because the panel it
+ * feeds is the racket panel's behaviour (docs/brainstorming/acp.md, round two).
+ * A turn's END is deliberately not here: `prompt` returns its stop reason, and
+ * the caller that asked is the one waiting.
+ */
+
+/** A slash command the agent offers. */
+export interface Command {
+  readonly name: string
+  readonly description: string
+}
+
+/** One of the agent's stored conversations for the served directory. */
+export interface Stored {
+  readonly id: string
+  readonly title: string | null
+  readonly updatedAt: string | null
+}
+
+export type AgentEvent =
+  /** The agent's prose, one chunk as it arrived. */
+  | { readonly _tag: "said"; readonly text: string }
+  /** A user message. Only a REPLAY carries these: live, we already know what
+   *  was sent, because we sent it. */
+  | { readonly _tag: "userSaid"; readonly text: string }
+  /** A tool call, announced. */
+  | {
+    readonly _tag: "tool"
+    readonly id: string
+    readonly title: string
+    readonly status: "pending" | "in_progress" | "completed" | "failed"
+    readonly detail: string | undefined
+  }
+  /** ... changed. `undefined` is "unchanged", not "cleared". */
+  | {
+    readonly _tag: "toolMoved"
+    readonly id: string
+    readonly title: string | undefined
+    readonly status: "pending" | "in_progress" | "completed" | "failed" | undefined
+    readonly detail: string | undefined
+  }
+  /** The whole slash-command list, replaced rather than merged. */
+  | { readonly _tag: "commands"; readonly commands: ReadonlyArray<Command> }
+  /** The model this session runs, labelled the way the agent labels its own. */
+  | { readonly _tag: "model"; readonly name: string | null }
+  /** Which stored conversation this now is. `title` is `null` until the agent
+   *  has written one. */
+  | { readonly _tag: "session"; readonly id: string; readonly title: string | null }
+  /** The agent named the conversation. */
+  | { readonly _tag: "sessionTitled"; readonly title: string }
+  /** ... and the conversation it named is gone: we are between sessions. */
+  | { readonly _tag: "sessionOver" }
+  /** A `session/load` is about to replay a conversation. Everything until
+   *  {@link replayEnded} is history, not news. */
+  | { readonly _tag: "replayStarted" }
+  | { readonly _tag: "replayEnded" }
+  /** The subprocess ended and nothing asked it to. */
+  | { readonly _tag: "gone"; readonly why: string }
+  /** Something failed where no caller was waiting — a boot, a refused mode.
+   *  Already logged: this is the sentence a person reads. */
+  | { readonly _tag: "trouble"; readonly message: string }

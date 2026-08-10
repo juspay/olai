@@ -5,8 +5,13 @@
  * bindings with no branch of its own. Everything it would otherwise have to
  * decide — which files belong to the set, how decoded files become one set,
  * how failures join — is a statement about the format and lives in
- * `@olai/format`, where phases 3, 4 and 7 can reach it too. If a rule ever
+ * `@olai/format`, where every layer above can reach it too. If a rule ever
  * appears in this file, the one-validator rule has been broken.
+ *
+ * It lives in the OPS package rather than in the server because this is where
+ * the joint belongs: ops is the layer that holds `format` and `store` at once
+ * (see {@link ./deps.ts}), and the write gate validates through this same
+ * codec on every commit. The server composes what is already joined.
  */
 
 import {

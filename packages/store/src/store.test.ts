@@ -22,7 +22,6 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import type { Codec } from "./codec.ts"
-import type { PlatformFailure } from "./errors.ts"
 import * as Store from "./store.ts"
 
 // ── the test codec ─────────────────────────────────────────────────────
@@ -78,6 +77,14 @@ interface Fixture {
   readonly store: Store.Store<Loaded, ReadonlyArray<string>>
   readonly write: (file: string, contents: string) => void
   readonly remove: (file: string) => void
+  /** What is on disk right now, or `null` for a file that is not there. The
+   *  write-gate tests read this rather than the snapshot: "the store thinks it
+   *  wrote" and "the bytes are there" are two claims, and a refused write has
+   *  to fail the second one. */
+  readonly read: (file: string) => string | null
+  /** Everything under the root, root-relative — so a test can say the gate
+   *  left no staged temp files behind. */
+  readonly listing: () => ReadonlyArray<string>
   /** Poll until the snapshot satisfies `holds`, or fail saying what it held
    *  instead. Nothing else in here waits on a duration: a test that sleeps for
    *  as long as it guesses an update takes is a test that is flaky on a loaded
@@ -89,7 +96,11 @@ interface Fixture {
 
 const withStore = <A>(
   files: Readonly<Record<string, string>>,
-  use: (fixture: Fixture) => Effect.Effect<A, PlatformFailure>,
+  // `unknown`, because a test yields whatever it needs to: a probe fails with
+  // `PlatformFailure`, a commit with `StaleWrite`, and a `flip` turns a success
+  // into a failure. A test that fails is a failing test whichever channel it
+  // came out of, and enumerating them here would be a list to maintain.
+  use: (fixture: Fixture) => Effect.Effect<A, unknown>,
   options: { readonly watch?: boolean; readonly backstop?: Duration.Input } = {},
 ): Promise<A> => {
   decodes = []
@@ -112,6 +123,19 @@ const withStore = <A>(
       store,
       write,
       remove: (file) => fs.rmSync(path.join(root, file)),
+      read: (file) => {
+        const at = path.join(root, file)
+        return fs.existsSync(at) ? fs.readFileSync(at, "utf8") : null
+      },
+      listing: () =>
+        fs
+          .readdirSync(root, { recursive: true, withFileTypes: true })
+          .filter((entry) => entry.isFile())
+          .map((entry) =>
+            path.relative(root, path.join(entry.parentPath, entry.name)).split(path.sep)
+              .join("/")
+          )
+          .sort(),
       settled: (holds) =>
         Effect.gen(function*() {
           for (let attempt = 0; attempt < 200; attempt++) {
@@ -375,3 +399,186 @@ test("an edit reaches the snapshot with nobody asking", () =>
       }),
     { watch: true },
   ))
+
+// ── the write gate ─────────────────────────────────────────────────────
+//
+// Five claims, and each one is a thing the gate exists to make true: a commit
+// publishes, a stale base is refused BY REVISION rather than by inspecting the
+// bytes, a set the codec rejects costs nothing on disk, several files land
+// all-or-none, and two writers racing one revision cannot both win.
+
+test("a commit writes, re-reads and publishes the next revision", () =>
+  withStore({ "a.txt": "alpha" }, ({ read, store }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      const committed = yield* store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [{ path: "a.txt", contents: "alpha, committed" }],
+      })
+
+      expect(Result.isSuccess(committed)).toBe(true)
+      expect(read("a.txt")).toBe("alpha, committed")
+      const after = yield* snapshotOf(store)
+      expect(after?.rev).toBe((before?.rev ?? 0) + 1)
+      expect(after?.value.text["a.txt"]).toBe("alpha, committed")
+      expect(yield* errorsOf(store)).toBeNull()
+    })))
+
+// The one the coarse stamp would otherwise lose: same length, same second. It
+// is not a corner case for a writer — every toggle of one character is one.
+test("a commit that changes no length in the same second still publishes", () =>
+  withStore({ "a.txt": "alpha" }, ({ store }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      yield* store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [{ path: "a.txt", contents: "ALPHA" }],
+      })
+      const after = yield* snapshotOf(store)
+      expect(after?.value.text["a.txt"]).toBe("ALPHA")
+      expect(after?.rev).toBe((before?.rev ?? 0) + 1)
+    })))
+
+test("a new file arrives through the gate, directory and all", () =>
+  withStore({ "a.txt": "alpha" }, ({ read, store }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      yield* store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [{ path: "deep/down/new.txt", contents: "new" }],
+      })
+      expect(read("deep/down/new.txt")).toBe("new")
+      expect((yield* snapshotOf(store))?.value.text["deep/down/new.txt"]).toBe("new")
+    })))
+
+test("a base the store has moved past is a StaleWrite naming where it is", () =>
+  withStore({ "a.txt": "alpha" }, ({ read, store, write }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      // Somebody else got there first — a `git pull`, another tab. The gate's
+      // own probe is what notices, which is why nothing here calls `refresh`.
+      write("a.txt", "alpha, from elsewhere")
+
+      const failure = yield* Effect.flip(
+        store.commit({
+          baseRev: before?.rev ?? 0,
+          changes: [{ path: "a.txt", contents: "alpha, from us" }],
+        }),
+      )
+      expect(failure._tag).toBe("StaleWrite")
+      expect(failure).toMatchObject({ baseRev: before?.rev, currentRev: 2 })
+      // Refused, and the other writer's bytes are untouched.
+      expect(read("a.txt")).toBe("alpha, from elsewhere")
+
+      // The retry, from the revision the failure named, lands.
+      const retried = yield* store.commit({
+        baseRev: 2,
+        changes: [{ path: "a.txt", contents: "alpha, from us" }],
+      })
+      expect(Result.isSuccess(retried)).toBe(true)
+      expect(read("a.txt")).toBe("alpha, from us")
+    })))
+
+test("a set the codec refuses is not written and leaves no temp behind", () =>
+  withStore({ "a.txt": "alpha" }, ({ listing, read, store }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      const refused = yield* store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [{ path: "a.txt", contents: "needs nothing-like-this" }],
+      })
+
+      expect(Result.isFailure(refused)).toBe(true)
+      if (Result.isFailure(refused)) {
+        expect(refused.failure).toEqual([
+          "a.txt: needs nothing-like-this.txt, which is not in the set",
+        ])
+      }
+      expect(read("a.txt")).toBe("alpha")
+      expect(listing()).toEqual(["a.txt"])
+      // The refusal is an ANSWER, not a state: the snapshot did not move and
+      // the error cell was never touched, because nothing on disk is wrong.
+      expect((yield* snapshotOf(store))?.rev).toBe(before?.rev)
+      expect(yield* errorsOf(store)).toBeNull()
+    })))
+
+test("several files land together or not at all", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ read, store }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      // `a` would be fine on its own; `b` dangles. Neither is written.
+      const refused = yield* store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [
+          { path: "a.txt", contents: "alpha, edited" },
+          { path: "b.txt", contents: "needs gamma" },
+        ],
+      })
+      expect(Result.isFailure(refused)).toBe(true)
+      expect(read("a.txt")).toBe("alpha")
+      expect(read("b.txt")).toBe("beta")
+
+      // And the pair that DOES validate lands as one revision, not two.
+      const committed = yield* store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [
+          { path: "a.txt", contents: "needs gamma" },
+          { path: "gamma.txt", contents: "here" },
+        ],
+      })
+      expect(Result.isSuccess(committed)).toBe(true)
+      expect((yield* snapshotOf(store))?.rev).toBe((before?.rev ?? 0) + 1)
+    })))
+
+test("the post-publish hook runs after the snapshot moved, inside the gate", () =>
+  withStore({ "a.txt": "alpha" }, ({ store }) =>
+    Effect.gen(function*() {
+      let sawRev = 0
+      const before = yield* snapshotOf(store)
+      yield* store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [{ path: "a.txt", contents: "alpha, hooked" }],
+        afterPublish: Effect.gen(function*() {
+          sawRev = (yield* snapshotOf(store))?.rev ?? 0
+        }),
+      })
+      expect(sawRev).toBe((before?.rev ?? 0) + 1)
+    })))
+
+/**
+ * The race the whole design is for: two writers derive an edit from the SAME
+ * revision and commit concurrently. One wins; the other is told the store
+ * moved, and its retry against the new base lands. Nothing is silently lost —
+ * which is the property, not the ordering.
+ */
+test("two writers on one revision: one commits, the other retries", () =>
+  withStore({ "a.txt": "alpha" }, ({ read, store }) =>
+    Effect.gen(function*() {
+      const base = (yield* snapshotOf(store))?.rev ?? 0
+      const attempt = (mark: string) =>
+        Effect.gen(function*() {
+          // Semantic writers re-derive: each appends its own line to whatever
+          // it reads, which is what makes a retry land cleanly rather than
+          // clobber.
+          for (let tries = 0; tries < 5; tries++) {
+            const at = yield* snapshotOf(store)
+            const outcome = yield* Effect.result(
+              store.commit({
+                baseRev: tries === 0 ? base : at?.rev ?? 0,
+                changes: [
+                  { path: "a.txt", contents: `${at?.value.text["a.txt"] ?? ""}\n${mark}` },
+                ],
+              }),
+            )
+            if (Result.isSuccess(outcome)) return
+          }
+          return yield* Effect.die(new Error(`${mark} never committed`))
+        })
+
+      yield* Effect.all([attempt("first"), attempt("second")], { concurrency: 2 })
+
+      const text = read("a.txt") ?? ""
+      expect(text.includes("first")).toBe(true)
+      expect(text.includes("second")).toBe(true)
+      expect((yield* snapshotOf(store))?.rev).toBe(base + 2)
+    })))

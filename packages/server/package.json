@@ -13,13 +13,17 @@
   },
   "//main": "src/serve.ts, not src/main.ts: main.ts ends in a top-level run that starts the server and installs signal handlers, so a resolver honouring `main` over `exports` would boot a listener on import. The binary is reached as a script path (default.nix, the justfile), never as a module.",
   "//dependencies": "The composition root: it is the only package allowed to know about all of the others, and the direction is strictly downward (docs/architecture.md). @olai/web is deliberately absent — the server serves a built bundle it is handed, it does not import the client.",
+  "//acp": "@agentclientprotocol/sdk is the official ACP client, and `zod` is beside it because the SDK declares it a PEER dependency and imports it at runtime to validate protocol payloads. That is the one place zod re-enters a tree the rewrite took it out of, and it is the SDK's validator rather than ours: nothing in olai imports zod, and the format still has exactly one validator (Effect Schema, in @olai/format).",
   "dependencies": {
+    "@agentclientprotocol/sdk": "^1.3.0",
     "@effect/platform-node": "4.0.0-beta.106",
     "@olai/format": "workspace:*",
+    "@olai/ops": "workspace:*",
     "@olai/store": "workspace:*",
     "@olai/surface": "workspace:*",
     "effect": "4.0.0-beta.106",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

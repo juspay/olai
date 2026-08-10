@@ -6,8 +6,8 @@
  * sockets, no hand-rolled routes, no message envelopes — the only protocol is
  * this spec, and both sides are type errors away from disagreeing about it.
  *
- * Two members, which is the whole of "see your outline" and, once the store
- * went live, of "watch it stay right" as well:
+ * Two members are the outline, which is the whole of "see your outline" and,
+ * once the store went live, of "watch it stay right" as well:
  *
  *   - `outlines` is a STREAM, not a cell: the files belong to the disk, not to
  *     the server, so the server reports what it read rather than owning a
@@ -27,14 +27,27 @@
  * surface, process id included, so an app that declares its own is declaring a
  * second answer to a question already answered (juspay/kolu#2133).
  *
- * Ops arrive as procedures and chat as events when the agent does (they are one
- * roadmap item: chat's agent is the first writer). Both slot
- * into this same spec.
+ * Three more are the chat, and they are declared next door in
+ * {@link ./chat.ts} because they are a subject of their own: a `transcript`
+ * COLLECTION (batched deltas, so a late-joining tab sees the conversation), a
+ * `chat` CELL (session, model, commands, whether a turn is running) and the
+ * `chat` PROCEDURES (send, cancel, new, load, list). The agent's WRITES do not
+ * appear here at all: they reach the ops layer through an internal MCP server
+ * the session is handed, and what a reader sees of them is the outline stream
+ * moving — server-authoritative, never an optimistic echo.
  */
 
 import { OutlineError, OutlineSet } from "@olai/format"
 import { defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
+
+import {
+  CHAT_OFF,
+  ChatEntry,
+  ChatFailure,
+  ChatState,
+  SessionInfo,
+} from "./chat.ts"
 
 /**
  * One frame of the outline stream: the loaded set, or `null` for a set that
@@ -76,6 +89,22 @@ export const surface = defineSurface({
       default: [],
       verbs: ["get"],
     },
+    chat: {
+      schema: ChatState,
+      default: CHAT_OFF,
+      verbs: ["get"],
+    },
+  },
+  collections: {
+    /** The conversation. `deltas` is the whole point — see {@link ./chat.ts}:
+     *  one subscription carries both the history a late joiner needs and the
+     *  frames a live tab is watching. Read-only on the wire: a transcript is
+     *  something that HAPPENED, and the only way to add to it is to prompt. */
+    transcript: {
+      keySchema: Schema.String,
+      schema: ChatEntry,
+      verbs: ["keys", "get", "deltas"],
+    },
   },
   streams: {
     outlines: {
@@ -83,4 +112,45 @@ export const surface = defineSurface({
       outputSchema: OutlineFrame,
     },
   },
+  procedures: {
+    chat: {
+      /** Prompt the agent. Answers as soon as the turn is ACCEPTED, not when
+       *  it ends: what the panel draws comes back on the transcript, so every
+       *  open tab stays in step and a slow turn does not hold a call open. */
+      send: {
+        input: Schema.Struct({ text: Schema.String }),
+        error: ChatFailure,
+      },
+      /** Stop the turn in flight. Legal while the agent is still booting — the
+       *  cancel is remembered and sent with the prompt. */
+      cancel: { error: ChatFailure },
+      /** Start a fresh conversation. The agent-side context goes away and the
+       *  transcript is emptied. */
+      newSession: { error: ChatFailure },
+      /** Move to one of the stored conversations. The transcript is replaced by
+       *  the replay, because a transcript of a session you are not in is a lie. */
+      loadSession: {
+        input: Schema.Struct({ id: Schema.String }),
+        error: ChatFailure,
+      },
+      /** The agent's stored conversations for this directory, newest first.
+       *  Asked of the agent every time: its list is the only one that is
+       *  right. */
+      sessions: {
+        output: Schema.Array(SessionInfo),
+        error: ChatFailure,
+      },
+    },
+  },
 })
+
+export {
+  CHAT_OFF,
+  ChatEntry,
+  ChatFailure,
+  ChatState,
+  Command,
+  OpFailure,
+  SessionInfo,
+  Unfinished,
+} from "./chat.ts"

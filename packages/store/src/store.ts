@@ -27,18 +27,38 @@
  * which is already surface's snapshot-then-deltas contract, so a consumer
  * written against the load-once store this grew out of needed no change.
  *
- * The write gate — `commit({baseRev, changes})`, writer-serialized against the
- * same probe, failing with `StaleWrite` when the store has moved past
- * `baseRev` — arrives with the ops layer. It is deliberately not here yet:
- * nothing writes.
+ * The WRITE GATE is `commit`, and it is the same loop run deliberately rather
+ * than on a trigger. It takes the same permit the probe does — so a write and
+ * a `git pull` cannot interleave over the stamp table — and inside it the
+ * order is fixed:
+ *
+ *   PROBE (so a change that arrived out of band is seen, and the revision it
+ *   produces is what the write is judged against) → the optimistic-concurrency
+ *   check against `baseRev` → apply the changes to the last decode and
+ *   VALIDATE the whole set → stage every file beside its destination →
+ *   RENAME them all → re-probe and publish → the caller's post-publish hook.
+ *
+ * Validation before any rename is what makes a refused write cost nothing: the
+ * bytes are on disk under names nothing reads, or they are not there at all.
+ * The hook is the caller's Effect, run inside the gate: it is how the git
+ * commit rides along without this package ever learning what git is.
  */
 
-import { Duration, Effect, Latch, Result, Schedule, Semaphore, Stream, SubscriptionRef } from "effect"
+import {
+  Duration,
+  Effect,
+  Latch,
+  Result,
+  Schedule,
+  Semaphore,
+  Stream,
+  SubscriptionRef,
+} from "effect"
 import type { FileSystem, Path, Scope } from "effect"
 
 import type { Codec } from "./codec.ts"
 import * as Disk from "./disk.ts"
-import type { PlatformFailure } from "./errors.ts"
+import { type PlatformFailure, StaleWrite } from "./errors.ts"
 import * as Probe from "./probe.ts"
 
 /** Monotonic per store. A snapshot's revision is what a later write will name
@@ -49,6 +69,33 @@ export type Rev = number
 export interface Snapshot<S> {
   readonly rev: Rev
   readonly value: S
+}
+
+/** One file's new contents. There is no delete: a set shrinks when a file
+ *  leaves the disk, which is a probe diff like any other, and an op that wants
+ *  a file emptied writes it empty. */
+export interface Change {
+  /** Root-relative, `/`-spelled — the same spelling a snapshot's paths use. */
+  readonly path: string
+  readonly contents: string
+}
+
+export interface Write {
+  /** The revision the caller derived this edit from. A store that has moved
+   *  past it refuses with {@link StaleWrite}. */
+  readonly baseRev: Rev
+  readonly changes: ReadonlyArray<Change>
+  /**
+   * Run once the new snapshot is published, still inside the gate — so no
+   * second commit can interleave with it, and a caller that shells out to git
+   * commits exactly the tree this write produced.
+   *
+   * Typed as unfailing on purpose: the write is already on disk and already
+   * visible, so there is nothing here that could undo it. A hook whose own
+   * work can fail owns that failure — logs it, records it, reports it beside
+   * the result — rather than turning a successful write into a failed one.
+   */
+  readonly afterPublish?: Effect.Effect<void>
 }
 
 export interface Store<S, E> {
@@ -62,6 +109,22 @@ export interface Store<S, E> {
    *  caller's own writes reach the browser through this rather than through the
    *  watcher, which would make the delay a race with the file system. */
   readonly refresh: Effect.Effect<void, PlatformFailure>
+  /**
+   * The one way in. Writer-serialized against the probe, optimistic on
+   * `baseRev`, all-or-none across files.
+   *
+   * TWO channels, and the split says who is at fault. `StaleWrite` is the
+   * caller's cue to re-derive and ask again, so it is a failure; a set the
+   * codec REFUSES is an answer — the write was well-formed and the tree it
+   * would make is not — so it comes back as `Result.fail` with the codec's own
+   * errors, and the caller renders them rather than retrying.
+   */
+  readonly commit: (
+    write: Write,
+  ) => Effect.Effect<Result.Result<Rev, E>, StaleWrite | PlatformFailure>
+  /** Absolute, platform-spelled — what a post-publish hook hands to something
+   *  outside this process. */
+  readonly resolve: (path: string) => string
 }
 
 export interface Options<F, S, E> {
@@ -121,23 +184,103 @@ export const make = <F, S, E>(
       (current) => current === null ? Effect.void : SubscriptionRef.set(errors, null),
     )
 
-    const publish = (files: Probe.Decoded<F, E>) => {
+    /** Validate, then move the two refs to match — and say which way it went,
+     *  because the write gate has to branch on it and re-reading the refs to
+     *  find out would be the same question asked twice. */
+    const publish = (
+      files: Probe.Decoded<F, E>,
+    ): Effect.Effect<Result.Result<Snapshot<S>, E>> => {
       const outcome = options.codec.validate(files)
-      return Result.isFailure(outcome)
-        ? SubscriptionRef.set(errors, outcome.failure)
-        : SubscriptionRef.update(snapshot, (previous) => ({
-          rev: (previous?.rev ?? 0) + 1,
-          value: outcome.success,
-        })).pipe(Effect.andThen(clearErrors))
+      if (Result.isFailure(outcome)) {
+        return Effect.as(
+          SubscriptionRef.set(errors, outcome.failure),
+          Result.fail(outcome.failure),
+        )
+      }
+      return SubscriptionRef.updateAndGet(snapshot, (previous) => ({
+        rev: (previous?.rev ?? 0) + 1,
+        value: outcome.success,
+      })).pipe(
+        Effect.tap(() => clearErrors),
+        // `updateAndGet` on a `Snapshot<S> | null` ref types as nullable; the
+        // updater above never returns null, so this is the type catching up
+        // with the value rather than a case to handle.
+        Effect.map((next) => Result.succeed(next as Snapshot<S>)),
+      )
     }
 
     // ONE update fiber's worth of work, whoever asks for it: the probe mutates
     // the stamp table it diffs against, so two of these interleaved would each
     // see the other's reads as its own cache.
     const gate = yield* Semaphore.make(1)
-    const refresh = gate.withPermit(
-      Effect.flatMap(probe.run, (files) => files === null ? Effect.void : publish(files)),
+    /** One probe-and-publish cycle, with no permit of its own — every caller
+     *  below already holds it. */
+    const cycle = Effect.flatMap(
+      probe.run,
+      (files) => files === null ? Effect.void : Effect.asVoid(publish(files)),
     )
+    const refresh = gate.withPermit(cycle)
+
+    const commit = (write: Write) =>
+      gate.withPermit(
+        Effect.gen(function*() {
+          // FIRST, and before anything is compared: a change that arrived out
+          // of band — a `git pull`, an editor — has to be part of the revision
+          // this write is judged against, or the write would be judged against
+          // a tree that is no longer there.
+          yield* cycle
+
+          const current = yield* SubscriptionRef.get(snapshot)
+          if (current === null || current.rev !== write.baseRev) {
+            return yield* new StaleWrite({
+              baseRev: write.baseRev,
+              currentRev: current?.rev ?? 0,
+            })
+          }
+
+          // The set this write WOULD make: what the probe last decoded, with
+          // the changed files swapped in. Decoding here rather than after the
+          // rename is what makes a refusal free.
+          const candidate = new Map(yield* probe.current)
+          for (const change of write.changes) {
+            candidate.set(change.path, options.codec.decode(change.path, change.contents))
+          }
+          const judged = options.codec.validate(candidate)
+          if (Result.isFailure(judged)) return Result.fail(judged.failure)
+
+          // Every file staged before any is renamed: a write that cannot be
+          // written at all must fail with the destinations untouched.
+          const staged: Array<{ readonly from: string; readonly to: string }> = []
+          yield* Effect.onError(
+            Effect.forEach(write.changes, (change) =>
+              Effect.map(disk.stage(change.path, change.contents), (temp) => {
+                staged.push({ from: temp, to: change.path })
+              })),
+            () => Effect.forEach(staged, ({ from }) => disk.discard(from)),
+          )
+          for (const { from, to } of staged) yield* disk.publish(from, to)
+
+          // Our own bytes may land in the same second at the same length as
+          // the ones they replaced, which is precisely what mtime+size stamps
+          // cannot see — so the changed files are re-read because we say so,
+          // not because a stat noticed.
+          yield* probe.forget(write.changes.map((change) => change.path))
+          const reread = yield* probe.run
+          const published = reread === null
+            ? Result.succeed(current)
+            : yield* publish(reread)
+          if (Result.isFailure(published)) {
+            // Written, and the set it produced does not validate — which the
+            // check above ruled out unless something else moved the tree in
+            // the moments since. The bytes are on disk and the error is on the
+            // error channel; the caller hears the same "no" it would have.
+            return Result.fail(published.failure)
+          }
+
+          if (write.afterPublish !== undefined) yield* write.afterPublish
+          return Result.succeed(published.success.rev)
+        }),
+      )
 
     // WHEN to look and HOW to look are kept apart: every trigger does exactly
     // one thing, which is open this latch, and one loop does the looking. A
@@ -183,5 +326,5 @@ export const make = <F, S, E>(
     // between the read and the watch is invisible until the backstop.
     yield* refresh
 
-    return { snapshot, errors, refresh }
+    return { snapshot, errors, refresh, commit, resolve: disk.resolve }
   })

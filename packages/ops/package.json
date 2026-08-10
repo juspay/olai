@@ -1,0 +1,25 @@
+{
+  "name": "@olai/ops",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//dependencies": "Between `format` and `server` (docs/architecture.md): the ops layer knows what an edit MEANS and how a write is made durable, and nothing about a listener, a socket or a browser. @olai/format supplies the records, the rules, the canonical bytes and the refusal vocabulary; @olai/store supplies the one write gate. @olai/surface is deliberately absent — an op does not know it is being called over a wire.",
+  "dependencies": {
+    "@olai/format": "workspace:*",
+    "@olai/store": "workspace:*",
+    "effect": "4.0.0-beta.106"
+  },
+  "//devDependencies": "@effect/platform-node is the FileSystem the tests drive a real temp directory through, exactly as @olai/store's are. @types/node is for `node:child_process`, which the git hook shells out with.",
+  "devDependencies": {
+    "@effect/platform-node": "4.0.0-beta.106",
+    "@types/node": "^22.0.0"
+  }
+}
