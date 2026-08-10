@@ -207,6 +207,17 @@ Then("today wears the ring", async function (this: OlaiWorld) {
   assert.deepStrictEqual(rung, [today]);
 });
 
+/** Today AND open — the one cell that has to carry both marks at once. Asked
+ *  as two facts of the same `[data-date]` cell rather than as one combined
+ *  attribute: they are two different things stacking (the ring says which day
+ *  it is, the fill says you are on it), and a cell that lost either one is a
+ *  different failure. */
+Then("today is the one being read", async function (this: OlaiWorld) {
+  const today = isoDayOf(new Date());
+  await expectDay(this, today, "data-today", true);
+  await expectDay(this, today, "data-open", true);
+});
+
 Then("today is not the one being read", async function (this: OlaiWorld) {
   await expectDay(this, isoDayOf(new Date()), "data-open", false);
 });

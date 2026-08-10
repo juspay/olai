@@ -59,8 +59,8 @@ set to work one out from.
 
 Navigation is real `<a href>`s (`router.tsx`), so ⌘-click and "copy link
 address" behave the way they do everywhere else; a plain left click is
-intercepted and answered in place. There is no router library: two addresses do
-not need one.
+intercepted and answered in place. There is no router library: four addresses
+do not need one.
 
 ## The month, and a day
 

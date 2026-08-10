@@ -80,6 +80,16 @@ Feature: The journal, and the month in the sidebar
     And the node "ferry" shows the date "2019-11-05T09:00"
 
   @corpus:journal
+  Scenario: Today, opened, is the fill inside the ring
+    # The two marks are different things and they stack: the ring says which
+    # day it is, the fill says you are standing on it. `/today` is the one
+    # address where a single cell has to carry both, so it is the one place
+    # the compound can be asserted rather than the two marks separately.
+    When I open today
+    Then today wears the ring
+    And today is the one being read
+
+  @corpus:journal
   Scenario: A day with nothing on it says so, and offers nothing
     # Nothing in these fixtures is dated this century, so `/today` is empty
     # whenever this runs. Creating a day is a WRITE, and this pane writes
