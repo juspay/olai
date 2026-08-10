@@ -23,8 +23,13 @@ import { NodeBody } from "../NodeBody.tsx"
 import { NodeLine } from "../NodeLine.tsx"
 import { TESTID } from "../testids.ts"
 import { PAST_BULLET } from "../touch.ts"
+import type { View } from "../view.ts"
+import { placeOf } from "./place.ts"
 
-export function DayNode(props: { readonly dated: Situated }) {
+export function DayNode(props: {
+  readonly dated: Situated
+  readonly view: View
+}) {
   const node = () => props.dated.shows.node
 
   return (
@@ -53,7 +58,11 @@ export function DayNode(props: { readonly dated: Situated }) {
       {/* Past the bullet and the checkbox — ../touch.ts, so this indent and
           those two controls cannot drift apart. */}
       <div class={PAST_BULLET}>
-        <NodeBody shows={props.dated.shows} />
+        <NodeBody
+          shows={props.dated.shows}
+          place={placeOf(props.dated)}
+          view={props.view}
+        />
       </div>
     </li>
   )

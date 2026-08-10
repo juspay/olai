@@ -40,10 +40,11 @@ Feature: See the outline
     Then the node "order" shows the date "2026-08-10"
     And the node "demo" shows no date
 
-  Scenario: A description is rendered as markdown
-    Then the description of "order" renders bold text "walnut"
-    And the description of "order" renders 2 list items
-    And the description of "order" does not show its markdown source
+  Scenario: A description is a one-line preview by default
+    # Full markdown is the zoomed page and a click-to-unfold — see
+    # note_density.feature. Here the outline only promises the default shape.
+    Then the description of "order" is a preview of "Two ways to go:"
+    And the description of "order" does not render as markdown blocks
 
   Scenario: A hash-tag in a title is styled
     Then the title of "kitchen" styles the tag "home"
