@@ -31,6 +31,32 @@ outlines is usually a git repository, and nothing anyone wrote is inside
 `.git`. It binds to loopback by default: the surface is unauthenticated, so
 anyone who can reach the port can read every outline under the directory.
 
+To keep it running as a user service (systemd on Linux, launchd on macOS), add
+the flake input and enable the home-manager module. Create `dataDir` first —
+`olai web` refuses a path that does not exist.
+
+```nix
+# flake.nix
+inputs.olai.url = "github:juspay/olai";
+```
+
+```nix
+# home.nix (a home-manager module)
+{ config, inputs, ... }: {
+  imports = [ inputs.olai.homeManagerModules.default ];
+  services.olai = {
+    enable = true;
+    dataDir = "${config.home.homeDirectory}/outlines";
+    # host = "127.0.0.1";  # default
+    # port = 7714;         # default
+  };
+}
+```
+
+The module fills `package` from the flake for the host platform. The packaged
+binary already bakes the browser bundle (`OLAI_DIST_DIR`), so the service
+needs no ambient environment.
+
 Every node is also a page of its own at `/n/<id>` — the node as the heading,
 its note, its children as the tree — with breadcrumbs up its ancestry. Ids are
 stable and unique across the whole directory, so that address survives renames
