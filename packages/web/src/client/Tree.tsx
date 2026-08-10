@@ -20,7 +20,8 @@
  */
 
 import { type Row } from "@olai/format"
-import { createMemo, For, Match, Show, Switch } from "solid-js"
+import { Key } from "@solid-primitives/keyed"
+import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { Bullet } from "./Bullet.tsx"
 import { NodeBody } from "./NodeBody.tsx"
@@ -41,11 +42,18 @@ export interface TreeProps {
 export function Tree(props: TreeProps) {
   return (
     <ul class="list-none m-0 p-0" data-testid={TESTID.outlineTree}>
-      <For each={props.rows}>
+      {/* `<Key>`, not `<For>`, and `Row.key` is why it can be: the walk mints
+          fresh rows on every frame the live store publishes, and `<For>`
+          compares by reference — so one character changing in one title on
+          disk would tear down and rebuild every row on screen, its DOM, its
+          collapse memo and its rendered note with it. A key the format already
+          mints per PLACE holds each row across the frame, and only the
+          bindings whose values actually moved re-run. */}
+      <Key each={props.rows} by="key">
         {(row) => (
-          <Branch row={row} collapsed={props.collapsed} onToggle={props.onToggle} />
+          <Branch row={row()} collapsed={props.collapsed} onToggle={props.onToggle} />
         )}
-      </For>
+      </Key>
     </ul>
   )
 }
@@ -147,15 +155,15 @@ function Branch(props: {
 
       <Show when={!collapsed() && props.row.children.length > 0}>
         <ul class="ml-5 list-none border-l border-rule pl-3">
-          <For each={props.row.children}>
+          <Key each={props.row.children} by="key">
             {(child) => (
               <Branch
-                row={child}
+                row={child()}
                 collapsed={props.collapsed}
                 onToggle={props.onToggle}
               />
             )}
-          </For>
+          </Key>
         </ul>
       </Show>
     </li>

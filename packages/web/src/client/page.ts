@@ -120,13 +120,15 @@ export const fileOf = (page: Page): string | undefined => {
 /**
  * The rows a page draws, before this reading hides any of them. An outline's
  * roots and a zoomed node's children are the same kind of thing, which is what
- * lets one store hold whichever is on screen.
+ * lets one derivation cover whichever is on screen.
  *
- * Built FRESH on every call, and that is load-bearing: the store reconciles
- * these objects, and reconciling writes INTO them. Handing over an array some
- * memo is also holding would let a filtered view — done nodes hidden — become
- * what that memo thinks the outline is, and the hidden rows would never come
- * back. The page decides WHICH rows; it does not keep them.
+ * The WRAPPERS are minted fresh on every call and the RECORDS inside them are
+ * the served set's own, borrowed rather than copied — and both halves are
+ * load-bearing. Fresh wrappers are what let a filtered view (done nodes
+ * hidden) be a different array rather than an edit to the one the tree is;
+ * borrowed records are why none of this may ever be handed to a store, because
+ * `reconcile` writes INTO what it is given and what it would be writing into
+ * is the set itself. App.tsx says what that cost while it was.
  */
 export const rowsFor = (
   derived: Derived,

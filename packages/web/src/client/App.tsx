@@ -26,21 +26,12 @@
  *
  * This file is the composition and nothing else — the subscription, the route,
  * the clock, the one derivation of the set, which page that adds up to, and the
- * stores the live node content is reconciled into. Every screen it can show is
- * its own component, and each is handed what it draws rather than the set to
- * draw it from.
+ * rows that page draws. Every screen it can show is its own component, and each
+ * is handed what it draws rather than the set to draw it from.
  */
 
-import {
-  type BrokenFile,
-  datedDays,
-  type DayGroup,
-  derive,
-  type Document,
-  type Row,
-} from "@olai/format"
-import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
-import { createStore, reconcile } from "solid-js/store"
+import { type BrokenFile, datedDays, derive, type Document } from "@olai/format"
+import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { Calendar } from "./calendar/Calendar.tsx"
 import { chatOpen } from "./chat/open.ts"
@@ -133,34 +124,32 @@ export default function App() {
     return indexes === undefined ? new Set() : datedDays(indexes, month)
   }
 
-  // RECONCILED into a store rather than handed over as a fresh array, and the
-  // live store is why. The row walk mints new objects every time it runs, and a
-  // `<For>` compares by reference — so without this, one character changing in
-  // one title on disk would tear down and rebuild every row on screen: its DOM,
-  // its collapse memo, its rendered note. Keyed on `row.key`, which the format
-  // already mints per PLACE, the diff touches the rows that actually changed
-  // and leaves the rest of the tree standing.
-  //
-  // ONE store for every page that draws rows, filtered before it is reconciled:
-  // a zoomed node's children are as live as an outline's roots, and hiding what
-  // is done must not look like a thousand rows changing.
-  const [rows, setRows] = createStore<Array<Row>>([])
-  createEffect(() => {
+  /**
+   * The rows whichever page is open draws, as this tab is reading them. ONE
+   * derivation for every page that draws rows — a zoomed node's children are as
+   * live as an outline's roots — filtered here, because hiding what is done is
+   * a property of the reading and not of the tree.
+   *
+   * A MEMO, and deliberately not a store. What comes off the wire is BORROWED:
+   * the row walk mints fresh wrappers every frame, but the records inside them
+   * (`at`, `shows`) are the served set's own objects, handed over rather than
+   * copied — and so are the nodes a day lists. Solid's `reconcile` MUTATES what
+   * it is given, transitively, so reconciling either of those into a store
+   * rewrote the set's records in place: it poisoned the outline every other
+   * page is read from, and the writes landed back in the derivation above, one
+   * effect re-triggering itself until the stack ran out (the `RangeError` on
+   * opening a second day). Nothing in this client writes to what the wire hands
+   * it, and the way to keep that true is to keep no store here at all.
+   *
+   * Identity — what the store was actually for — is a KEYING question, and it
+   * is answered where the rows are drawn: `<Key>` (./Tree.tsx, and
+   * ./day/DayPage.tsx for a day) holds a row's DOM across a frame whenever its
+   * key is unchanged, so one character changing in one title still does not
+   * tear down and rebuild the tree.
+   */
+  const rows = createMemo(() => {
     const indexes = derived()
-    const built = indexes === undefined ? [] : rowsFor(indexes, page())
-    setRows(reconcile([...view.visible(built)], { key: "key" }))
-  })
-
-  // A day's nodes go through the same seam, for the same reason: `datedOn`
-  // mints fresh objects on every frame too, and a `<For>` over them would
-  // re-render — and re-parse the markdown of — every note on the page each time
-  // any file in the directory is saved. Keyed on the outline, which is what a
-  // group IS; the nodes inside merge positionally, which is enough to leave a
-  // note whose text did not change alone.
-  const [day, setDay] = createStore<Array<DayGroup>>([])
-  createEffect(() => {
-    const open = page()
-    setDay(reconcile(open?.kind === "day" ? [...open.groups] : [], { key: "file" }))
+    return indexes === undefined ? [] : view.visible(rowsFor(indexes, page()))
   })
 
   /** Is there a sidebar on screen to hold the app's own chrome? Only the page
@@ -254,18 +243,22 @@ export default function App() {
                       </Match>
                       <Match when={only(open(), "node")}>
                         {(node) => (
-                          <NodePage zoomed={node().zoomed} rows={rows} view={view} />
+                          <NodePage zoomed={node().zoomed} rows={rows()} view={view} />
                         )}
                       </Match>
                       <Match when={only(open(), "outline")}>
-                        <OutlinePage rows={rows} view={view} />
+                        <OutlinePage rows={rows()} view={view} />
                       </Match>
                       <Match when={only(open(), "document")}>
                         {(open) => <DocumentPage document={open().document} />}
                       </Match>
                       <Match when={only(open(), "day")}>
                         {(open) => (
-                          <DayPage date={open().date} groups={day} today={today()} />
+                          <DayPage
+                            date={open().date}
+                            groups={open().groups}
+                            today={today()}
+                          />
                         )}
                       </Match>
                       <Match when={only(open(), "nothing")}>

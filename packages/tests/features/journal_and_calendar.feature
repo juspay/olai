@@ -51,6 +51,27 @@ Feature: The journal, and the month in the sidebar
     And the page has not reloaded
 
   @corpus:journal
+  Scenario: Two days, read in turn, each still says what it said
+    # A day is a QUERY over the whole set, and asking it twice must not answer
+    # differently the second time. What a day lists are the set's OWN records,
+    # handed over rather than copied — so anything this page did to what it was
+    # given, it would be doing to the outline every other page is read from,
+    # and the second day read would be the first day's answer with another
+    # day's fields in it. Nothing in the client writes, and this is the
+    # scenario that says so.
+    When I open the day "2019-11-05"
+    Then the day lists "ferry, posts, rails"
+    When I click the day "2019-11-06"
+    Then the day open is "2019-11-06"
+    And the day lists "pack"
+    When I click the day "2019-11-05"
+    Then the day open is "2019-11-05"
+    And the day groups are "life.jsonl, work.jsonl"
+    And the day lists "ferry, posts, rails"
+    And the ancestors of "ferry" are "the coast trip"
+    And there should be no page errors
+
+  @corpus:journal
   Scenario: A day lists every outline that has something on it, with context
     When I open the day "2019-11-05"
     Then the day open is "2019-11-05"
