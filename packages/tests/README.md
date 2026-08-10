@@ -206,6 +206,12 @@ It lives in `agent/` rather than `support/` because Cucumber imports everything
 under `support/` as part of the world, and importing this reads stdin — which,
 in the runner's own process, ends immediately and takes the run down with it.
 
+`@no-agent` is the other knob, and it starts the server with `OLAI_ACP_AGENT`
+set to the EMPTY string — the same way a person turns chat off, rather than
+through a hole in the harness. It is the one state no documented launch path
+reaches, so the scenario that covers it is the only place the panel's no-agent
+message is exercised.
+
 `@agent-stored` is the second knob: with it, the agent answers `session/list`
 with two stored conversations, so the server's boot ADOPTS the most recent one
 and replays it. Without it, nothing is stored and boot opens a fresh session.

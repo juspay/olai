@@ -19,6 +19,7 @@ import {
   CHAT_CANCEL,
   CHAT_INPUT,
   CHAT_MODEL,
+  CHAT_NO_AGENT,
   CHAT_PANEL,
   CHAT_REFUSAL,
   CHAT_SEND,
@@ -48,14 +49,16 @@ Given("the agent panel is open", async function (this: OlaiWorld) {
   await toggle.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await toggle.click();
   await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  // The agent is spawned lazily and handshakes before it can take a prompt;
-  // a send typed into a booting panel is legal but the scenarios read better
-  // when they start from a settled one.
-  await this.expectAttribute(
-    CHAT_PANEL,
-    "data-status",
-    "idle",
-    "the agent panel",
+  // Settled means the agent has finished handshaking — or that there is no
+  // agent to wait for. Both are states a reader can act on; `booting` and
+  // `gone` are not, so a boot that failed still times out here rather than
+  // letting the next step fail somewhere less informative.
+  await this.waitUntil(
+    async () => {
+      const status = await this.page.locator(CHAT_PANEL).getAttribute("data-status");
+      return status === "idle" || status === "off";
+    },
+    "the agent panel to settle (idle, or off with no agent configured)",
     HYDRATION_TIMEOUT,
   );
 });
@@ -311,3 +314,32 @@ Then(
     );
   },
 );
+
+// ── no agent at all ────────────────────────────────────────────────────
+
+Then("the panel says there is no agent", async function (this: OlaiWorld) {
+  await this.page
+    .locator(CHAT_NO_AGENT)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
+
+Then(
+  "the panel explains how to configure one, naming {string}",
+  async function (this: OlaiWorld, variable: string) {
+    const said = oneLine(await this.page.locator(CHAT_NO_AGENT).innerText());
+    assert.ok(
+      said.includes(variable),
+      `the no-agent message does not name \`${variable}\`, so it says a feature is ` +
+        `missing without saying what would bring it back. It reads: ${said}`,
+    );
+  },
+);
+
+Then("there is nothing to type into", async function (this: OlaiWorld) {
+  assert.strictEqual(
+    await this.page.locator(CHAT_INPUT).count(),
+    0,
+    "the composer is drawn with no agent to send to — a box that cannot send " +
+      "is worse than the explanation that replaces it",
+  );
+});

@@ -90,6 +90,22 @@ Feature: Talking to the agent
     And the agent panel is open
     Then the chat eventually shows "we decided to order the cabinets"
 
+  @no-agent @scratch:chat
+  Scenario: With no agent, the panel says so rather than disappearing
+    # The one state a person should never reach by following a documented way
+    # of starting olai — `nix run`, the packaged binary and `just serve` all
+    # come with the pinned adapter. Reached here the way somebody would reach
+    # it deliberately: `OLAI_ACP_AGENT` set to the empty string.
+    #
+    # The panel still DRAWS. A capability that is silently absent cannot be
+    # told apart from one that is broken, or from one you have not found yet.
+    Then the panel says there is no agent
+    And the panel explains how to configure one, naming "OLAI_ACP_AGENT"
+    And there is nothing to type into
+    # And the outlines are unaffected: serving a directory never depended on
+    # an agent being installed, and that is what "off" costs.
+    And the outline list is shown
+
   @agent-stored @scratch:chat
   Scenario: The picker switches conversations
     When I open the session picker

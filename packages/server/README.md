@@ -27,7 +27,7 @@ bound).
 | `chat/events.ts` | the closed vocabulary of what an agent tells us — a consumer that needs more needs a new member, not a look at the wire |
 | `chat/transcript.ts` | the conversation as ROWS: chunks accumulate, tool calls update in place by id, a replay replaces rather than appends |
 | `chat/chat.ts` | the join, and the only place that knows both halves |
-| `chat/adapter.ts` | which executable speaks ACP, and that an unset `OLAI_ACP_AGENT` means no panel rather than no server |
+| `chat/adapter.ts` | which executable speaks ACP: the pinned adapter by default, `OLAI_ACP_AGENT` to override, empty to turn chat off |
 | `mcp/route.ts` | the internal MCP server, mounted on this listener, behind a per-process bearer token |
 | `runtime.ts` | the surface bindings: the outline stream is `SubscriptionRef.changes` verbatim, the errors cell is an owned source, the transcript is server-authored |
 | `listener.ts` | HTTP for the bundle, WebSocket for the surface: origin gate → upgrade → stale-tab gate → heartbeat → serve |
@@ -108,17 +108,34 @@ binary, built from tracked files only, which is what CI and `just e2e` prove.
 
 ## The agent
 
-`OLAI_ACP_AGENT` names an executable that speaks the Agent Client Protocol on
-stdio. The nix-built binary bakes the pinned adapter in (`nix/acp-agent.nix`,
-via `--set-default`), so a packaged olai needs nothing ambient; exporting the
-variable yourself wins, which is how the e2e suite points at a scripted agent
-and how you point at a different one.
+**The default is Claude Code, on every documented launch path.** The adapter is
+pinned (`nix/acp-agent.nix`) and the packaged binary's wrapper bakes it in with
+`--set-default`, exactly as the racket reference's `default.nix` did; `just
+serve` and `just run` resolve the same derivation on demand through
+`scripts/acp-agent.sh`. Nobody following a documented path has to know the
+variable exists — and the `nix` CI lane asserts it rather than trusting this
+paragraph: the wrapper must carry the assignment and the path it names must be
+executable.
 
-**Unset, olai serves without a chat panel** rather than refusing to start. That
-is the one place this differs from the racket reference, which made the variable
-a usage error, and the reason is that olai's product is the outline: reading it
-must not depend on an agent being installed. The `chat` cell reads `off` and
-the panel draws nothing.
+`OLAI_ACP_AGENT` overrides that, and it has two useful shapes:
+
+| value | meaning |
+|---|---|
+| a command | that is the agent — how the e2e suite points at a scripted one |
+| the empty string | deliberately no agent |
+| unset | the pinned default, wherever one was baked in |
+
+The empty case works through the packaged binary because `makeWrapper
+--set-default` emits `${VAR-default}` — one dash, so it substitutes only when
+the variable is UNSET. The CI lane asserts that spelling too: `:-` would swallow
+the off switch.
+
+**With no agent, olai serves the outlines exactly as it does with one** —
+reading a directory has never depended on one, which is why this does not
+refuse to start the way the racket reference did. But the panel is NOT hidden:
+the `chat` cell reads `off` and the drawer says there is no agent and which
+variable would give it one. A capability that is silently absent cannot be told
+apart from one that is broken.
 
 Boot is EAGER and runs on its own fiber, so pages serve while the handshake
 happens and a boot that fails changes nothing — the next prompt retries it

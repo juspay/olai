@@ -107,6 +107,7 @@ export const CHAT_MODEL = selector(TESTID.chatModel);
 export const CHAT_SESSIONS = selector(TESTID.chatSessions);
 export const CHAT_SESSION = selector(TESTID.chatSession);
 export const CHAT_TRANSCRIPT = selector(TESTID.chatTranscript);
+export const CHAT_NO_AGENT = selector(TESTID.chatNoAgent);
 export const CHAT_ENTRY = selector(TESTID.chatEntry);
 export const CHAT_TOOL = selector(TESTID.chatTool);
 export const CHAT_TOOL_DETAIL = selector(TESTID.chatToolDetail);
@@ -177,6 +178,10 @@ export class OlaiWorld extends World {
    *  the world because a restart mid-scenario has to spawn the SAME shape of
    *  server the first boot had. */
   storedSessions = false;
+  /** Whether this scenario's server has an agent at all — false for
+   *  `@no-agent`, which is how the panel's no-agent state is reached. Carried
+   *  for the same reason: a restart has to reproduce the first boot. */
+  hasAgent = true;
   /** The URL that corpus's server answers on; also the context's `baseURL`. */
   baseUrl!: string;
 

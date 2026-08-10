@@ -23,7 +23,7 @@ import { Cause, Effect } from "effect"
 import { randomBytes } from "node:crypto"
 import { resolve } from "node:path"
 
-import { adapterFrom, AGENT_ENV } from "./chat/adapter.ts"
+import { adapterFrom, AGENT_ENV, whyNoAgent } from "./chat/adapter.ts"
 import * as AcpAgent from "./chat/agent.ts"
 import * as Chat from "./chat/chat.ts"
 import { listen } from "./listener.ts"
@@ -78,11 +78,7 @@ export const serve = (options: ServeOptions) =>
     })
 
     const adapter = adapterFrom(process.env[AGENT_ENV])
-    if (adapter === null) {
-      options.log(
-        `no ACP agent configured (${AGENT_ENV} is unset), so chat is off — the outlines are served as usual`,
-      )
-    }
+    if (adapter === null) options.log(whyNoAgent(process.env[AGENT_ENV]))
 
     // Minted per process and handed only to the session we spawn: the write
     // surface is not something any page that can reach loopback may call.

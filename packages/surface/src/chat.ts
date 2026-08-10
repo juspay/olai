@@ -118,7 +118,10 @@ export const ChatState = Schema.Struct({
    *   - `thinking` — a turn is in flight; cancel is the only other verb.
    *   - `gone` — the agent is not there. `trouble` says why, and the next
    *     prompt retries the boot.
-   *   - `off` — no agent was configured, so there is no chat panel to draw.
+   *   - `off` — no ACP agent is configured. The panel still DRAWS and says so,
+   *     naming the variable that would give it one: a capability that is
+   *     silently absent cannot be told apart from one that is broken. The
+   *     server serves the outlines either way.
    */
   status: Schema.Literals(["off", "booting", "idle", "thinking", "gone"]),
   /** The session the server is in, or `null` between sessions. */
@@ -134,7 +137,9 @@ export const ChatState = Schema.Struct({
 export type ChatState = typeof ChatState.Type
 
 /** What a page sees before any frame arrives, and what the cell holds when
- *  there is no agent configured at all. */
+ *  there is no agent configured at all. The panel draws in this state — see
+ *  `status` above — so this is a value a reader ends up looking at, not a
+ *  placeholder for one. */
 export const CHAT_OFF: ChatState = {
   status: "off",
   session: null,

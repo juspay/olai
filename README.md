@@ -84,8 +84,14 @@ are what to mark instead.
 
 The conversation is Claude Code's own session for that directory: close olai,
 reopen it, and you are back in it — and `claude --resume` in a terminal reaches
-the same conversations. `OLAI_ACP_AGENT` points at a different ACP agent;
-unset entirely, olai serves the outlines with no panel at all.
+the same conversations.
+
+The agent is the pinned Claude Code adapter, and it comes with olai: `nix run`,
+the packaged binary and `just serve` all default to it, so there is nothing to
+install and nothing to configure. `OLAI_ACP_AGENT` points at a different ACP
+agent, and setting it to the empty string turns chat off — the panel then says
+there is no agent and which variable would give it one, rather than quietly not
+being there. The outlines are served the same either way.
 
 ## Develop
 

@@ -30,7 +30,9 @@ export function Header(props: {
           class="truncate text-sm"
           data-testid={TESTID.chatTitle}
         >
-          {state().session?.title ?? "new conversation"}
+          {state().status === "off"
+            ? "agent"
+            : state().session?.title ?? "new conversation"}
         </div>
         <div class="truncate font-mono text-[0.6875rem] text-muted">
           <Show when={state().model} fallback={<span>{statusWord(state().status)}</span>}>
@@ -41,16 +43,19 @@ export function Header(props: {
         </div>
       </div>
 
-      <Sessions chat={props.chat} />
-
-      <button
-        type="button"
-        class="rounded border border-rule px-2 py-1 text-xs text-muted hover:text-ink"
-        data-testid={TESTID.chatNew}
-        onClick={() => props.chat.newSession()}
-      >
-        + new
-      </button>
+      {/* Both verbs need an agent to act on. With none they would refuse, so
+          they are not offered — the panel's body says why. */}
+      <Show when={state().status !== "off"}>
+        <Sessions chat={props.chat} />
+        <button
+          type="button"
+          class="rounded border border-rule px-2 py-1 text-xs text-muted hover:text-ink"
+          data-testid={TESTID.chatNew}
+          onClick={() => props.chat.newSession()}
+        >
+          + new
+        </button>
+      </Show>
       <button
         type="button"
         class="rounded border border-rule px-2 py-1 text-xs text-muted hover:text-ink"
@@ -64,11 +69,13 @@ export function Header(props: {
   )
 }
 
-/** What to say before the agent has named a model. The four are the cell's own
- *  states; `off` never reaches here, because a panel with no agent is not
- *  drawn at all. */
+/** What to say before the agent has named a model — the cell's own five states,
+ *  `off` included: the panel draws without an agent, and the header is where a
+ *  reader looks first for why it is not doing anything. */
 const statusWord = (status: string): string =>
-  status === "booting"
+  status === "off"
+    ? "not configured"
+    : status === "booting"
     ? "starting…"
     : status === "gone"
     ? "not running"

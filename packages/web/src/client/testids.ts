@@ -60,6 +60,9 @@ export const TESTID = {
   chatSessionList: "chat-session-list",
   chatSession: "chat-session",
   chatTranscript: "chat-transcript",
+  /** Drawn in the transcript's place when no ACP agent is configured. The
+   *  panel is NOT hidden in that state — this is what it says instead. */
+  chatNoAgent: "chat-no-agent",
   /** The agent's finished prose, rendered as markdown. Its own name rather
    *  than a node note's: they are two different things on the page. */
   chatSaid: "chat-said",

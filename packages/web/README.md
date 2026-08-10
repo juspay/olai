@@ -88,6 +88,13 @@ driving a second path to the same fact.
 rather than a column in the layout, and that is a decision about what olai is:
 the outline is the page, and the agent is something you open beside it.
 
+It ALWAYS draws. Whether an agent is configured is the server's answer, and when
+the answer is no the panel says so (`NoAgent.tsx`, naming `OLAI_ACP_AGENT`)
+rather than disappearing — a feature that is silently absent cannot be told
+apart from one that is broken, or from one you have not found yet. The composer
+and the transcript are what the explanation replaces, since there is nothing to
+send and nothing to show.
+
 Everything in it is a projection of two surface members — a `transcript`
 collection and a `chat` cell — so there is no chat state in the browser the
 server does not own. What was typed appears because the server put it there,

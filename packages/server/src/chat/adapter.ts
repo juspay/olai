@@ -1,17 +1,30 @@
 /**
- * Which executable speaks ACP, and what to do when there is none.
+ * Which executable speaks ACP, and what "none" means.
  *
- * The adapter is PINNED (nix/acp-agent.nix bakes it into the binary's
- * environment, the way the racket reference's `olai-acp-agent` package did), so
- * a nix-built olai needs nothing ambient — no `npx`, no PATH lookup, no version
- * that drifts under you. `OLAI_ACP_AGENT` is the escape hatch: point it at
- * another ACP agent and that is what gets spawned.
+ * **The default is Claude Code, on every documented way of starting olai.** The
+ * adapter is pinned (`nix/acp-agent.nix`) and baked into the packaged binary's
+ * wrapper with `--set-default`, exactly as the racket reference's `default.nix`
+ * did; the dev-loop recipes (`just serve`, `just run`) resolve the same
+ * derivation on demand. So a person who follows any documented path gets a
+ * working chat panel and never has to know this variable exists.
  *
- * Unset, olai serves WITHOUT a chat panel rather than refusing to start. That
- * is the one place this differs from the racket reference, which made the
- * variable a usage error, and the reason is that olai's product is the outline:
- * reading it must not depend on an agent being installed. The panel says the
- * chat is off; everything else works.
+ * `OLAI_ACP_AGENT` is the override, and it has two shapes because the wrapper's
+ * `${OLAI_ACP_AGENT-…}` substitutes only when the variable is UNSET:
+ *
+ *   - set to a command → that is the agent, pinned default ignored. This is how
+ *     you point olai at a different ACP agent, and how the e2e suite points it
+ *     at a scripted one;
+ *   - set to the EMPTY string → deliberately no agent. It survives the wrapper
+ *     (an empty value is still a value), so it is the explicit off switch;
+ *   - unset → the pinned default, wherever one has been baked in. Unset AND
+ *     nothing baked in — running `bun packages/server/src/main.ts` by hand — is
+ *     the only way to reach "no agent" by accident.
+ *
+ * With no agent, olai serves the outlines exactly as it does with one: reading
+ * a directory does not depend on an agent being installed. What it does NOT do
+ * is hide the feature — the panel draws, and says there is no agent and which
+ * variable would give it one. A missing capability the user can see explained
+ * is worth more than a button that silently is not there.
  */
 
 /** The variable, spelled once. */
@@ -23,7 +36,7 @@ export interface Adapter {
 }
 
 /**
- * What to spawn, or `null` for "no agent configured".
+ * What to spawn, or `null` for "no agent".
  *
  * The value is a command line rather than a bare path, because an adapter is
  * often `node /path/to/index.js` and demanding a wrapper script for that would
@@ -36,3 +49,19 @@ export const adapterFrom = (value: string | undefined): Adapter | null => {
   const [command, ...args] = words
   return command === undefined ? null : { command, args }
 }
+
+/**
+ * Why there is no agent, as a line for the log.
+ *
+ * The two cases read differently on purpose: an EMPTY variable is somebody
+ * saying "not this time", and an absent one is a launch path that did not go
+ * through the wrapper or the justfile — which is worth pointing at, because
+ * every documented path bakes the default in.
+ */
+export const whyNoAgent = (value: string | undefined): string =>
+  value === undefined
+    ? `no ACP agent: ${AGENT_ENV} is unset and nothing baked one in — the packaged binary and ` +
+      `\`just serve\` both default to the pinned Claude Code adapter, so this is a hand-rolled start. ` +
+      `The outlines are served as usual and the chat panel says the same thing.`
+    : `no ACP agent: ${AGENT_ENV} is set to the empty string, which is the explicit off switch. ` +
+      `The outlines are served as usual and the chat panel says so.`

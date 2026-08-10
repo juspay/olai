@@ -78,6 +78,13 @@ const FAKE_AGENT = path.resolve(
  *  client says. */
 const STORED_TAG = "@agent-stored";
 
+/** `@no-agent`: this scenario's server is started with NO agent, which is the
+ *  one state a person should never reach by following a documented launch path
+ *  — every one of them defaults to the pinned adapter. It is reached here the
+ *  same way a person would reach it deliberately: `OLAI_ACP_AGENT` set to the
+ *  empty string, which survives the packaged binary's `${VAR-…}` wrapper. */
+const NO_AGENT_TAG = "@no-agent";
+
 /** The corpus a scenario gets when it names none. */
 const DEFAULT_CORPUS = "good";
 /** `@corpus:<name>` shares the tracked fixture directory; `@scratch:<name>`
@@ -220,13 +227,25 @@ const SERVING = /serving .* on (http:\/\/127\.0\.0\.1:\d+)/;
  *  because the page is already pointed at it. There is no retry on that path —
  *  a second attempt would land somewhere else, which is not a slower success
  *  but a different thing entirely, and `startOwnServer` says so out loud. */
+/** The knobs a spawned server takes beyond where it looks. An options object
+ *  rather than a tail of positionals: three of them are booleans, and a call
+ *  site reading `(bin, dir, label, undefined, true)` says nothing. */
+interface Spawn {
+  /** The one caller that cannot take whatever port is free: a scenario
+   *  restarting the server under an open page needs the SAME address. */
+  readonly port?: number;
+  readonly stored?: boolean;
+  /** `false` starts the server with no agent at all. */
+  readonly agent?: boolean;
+}
+
 const startServerChild = async (
   bin: string,
   dir: string,
   label: string,
-  fixedPort?: number,
-  stored?: boolean,
+  spawnOptions: Spawn = {},
 ): Promise<RunningServer> => {
+  const fixedPort = spawnOptions.port;
   let lastFailure = "";
   const attempts = fixedPort === undefined ? MAX_SPAWN_ATTEMPTS : 1;
 
@@ -249,8 +268,11 @@ const startServerChild = async (
       stdio: ["ignore", "pipe", "pipe"],
       env: {
         ...process.env,
-        OLAI_ACP_AGENT: FAKE_AGENT,
-        ...(stored === true ? { OLAI_FAKE_ACP_STORED: "yes" } : {}),
+        // The EMPTY string is the explicit off switch, and it is what a person
+        // turning chat off would set — so the no-agent scenario reaches that
+        // state the same way rather than through a hole in the harness.
+        OLAI_ACP_AGENT: spawnOptions.agent === false ? "" : FAKE_AGENT,
+        ...(spawnOptions.stored === true ? { OLAI_FAKE_ACP_STORED: "yes" } : {}),
       },
     });
     live.add(child);
@@ -389,11 +411,10 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
     active.bin,
     world.scratch(),
     `the restarted server for corpus "${world.corpus}"`,
-    port,
     // The SAME agent configuration as the first boot, because that is the whole
     // claim being tested: a restarted server comes up in the conversation it was
     // last in, which it can only do if its agent still keeps the same sessions.
-    world.storedSessions,
+    { port, stored: world.storedSessions, agent: world.hasAgent },
   );
   if (started.baseUrl !== world.baseUrl) {
     killChild(started.child);
@@ -457,7 +478,7 @@ const serverFor = (corpus: string): Promise<RunningServer> => {
   const started =
     active.kind === "reuse"
       ? reusedServer(active.baseUrl, corpus)
-      : startServerChild(active.bin, fixtureDir(corpus), `corpus "${corpus}"`);
+      : startServerChild(active.bin, fixtureDir(corpus), `corpus "${corpus}"`, {});
 
   // A FAILED start is not kept: the next scenario asking for this corpus
   // deserves a real attempt rather than a replay of the same rejection.
@@ -474,7 +495,7 @@ const serverFor = (corpus: string): Promise<RunningServer> => {
  *  goes away with the scenario rather than with the run. */
 const scratchServerFor = async (
   corpus: string,
-  stored: boolean,
+  spawnOptions: Spawn,
 ): Promise<RunningServer & { readonly root: string }> => {
   const active = modeOf();
   if (active.kind === "reuse") {
@@ -492,8 +513,7 @@ const scratchServerFor = async (
       active.bin,
       root,
       `scratch copy of corpus "${corpus}"`,
-      undefined,
-      stored,
+      spawnOptions,
     );
     return { ...server, root };
   } catch (cause) {
@@ -578,9 +598,15 @@ Before(
     this.storedSessions = scenario.pickle.tags.some(
       (tag) => tag.name === STORED_TAG,
     );
+    this.hasAgent = !scenario.pickle.tags.some(
+      (tag) => tag.name === NO_AGENT_TAG,
+    );
 
     if (asked.scratch) {
-      const own = await scratchServerFor(asked.corpus, this.storedSessions);
+      const own = await scratchServerFor(asked.corpus, {
+        stored: this.storedSessions,
+        agent: this.hasAgent,
+      });
       this.baseUrl = own.baseUrl;
       this.served = own.root;
       this.ownServer = own.child;
