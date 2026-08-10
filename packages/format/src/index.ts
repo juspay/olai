@@ -10,9 +10,10 @@
  *
  *   - the codec, `parseOutline` (per file) and `validate` (per set);
  *   - what they produce, `OutlineSet` and the records inside it;
- *   - what a set MEANS, `derive` with `rowsOf`, `zoom` and `withoutDone` — so
- *     a reader and the validator compute status, order, mirror expansion and
- *     one node's ancestry with the same code;
+ *   - what a set MEANS, `derive` with `rowsOf`, `zoom`, `withoutDone` and the
+ *     date derivations (`datedDays`, `datedOn`) — so a reader and the
+ *     validator compute status, order, mirror expansion, one node's ancestry
+ *     and what is on a day with the same code;
  *   - how a set is WRITTEN back, `serializeOutline` and `ordBetween` — the
  *     canonical bytes and the sibling order, held here for the same reason the
  *     rules are: a writer with its own copy of either is a second format;
@@ -45,9 +46,11 @@ export {
   titleParts,
   withoutDone,
 } from "./derive.ts"
-export type { Derived, Row, Status, TitlePart } from "./derive.ts"
+export type { Derived, Row, Situated, Status, TitlePart } from "./derive.ts"
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
+export { datedDays, datedOn } from "./dates.ts"
+export type { DayGroup } from "./dates.ts"
 
 export { ordBetween } from "./ord.ts"
 export { nodesOf, serializeOutline } from "./write.ts"

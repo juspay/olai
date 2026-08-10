@@ -1,10 +1,10 @@
 # @olai/web — the SolidJS client, and the build that produces it
 
-A sidebar of the outlines found and one page open in the main pane — a whole
-outline, or one node zoomed — kept current by the live store underneath: an
-edit on disk arrives as the next frame of one subscription, so the page changes
-without reloading. SolidJS over a WebSocket, styled with Tailwind v4, bundled by
-`Bun.build`.
+A sidebar with a month and the outlines found, and one page open in the main
+pane — a whole outline, one node zoomed, or one day — kept current by the live
+store underneath: an edit on disk arrives as the next frame of one
+subscription, so the page changes without reloading. SolidJS over a WebSocket,
+styled with Tailwind v4, bundled by `Bun.build`.
 
 ## Three ways to say what is wrong, because there are three situations
 
@@ -33,7 +33,7 @@ file means because they run the same code, not because two implementations were
 written to the same paragraph. The one thing this package does interpret is a
 note, which is markdown, rendered and sanitised at view time.
 
-## Two routes, and what each is a property of
+## Four routes, and what each is a property of
 
 `routes.ts` is the whole of the URL contract, and it is a bijection its own
 test insists on: a link the app writes has to be a link it can read back.
@@ -43,6 +43,12 @@ test insists on: a link the app writes has to be a link it can read back.
   the loaded set and survive renames and moves across files, so the permalink
   outlives every edit short of a delete — while a URL that also carried the
   outline would be a URL that could disagree with the file it named.
+- `/d/<ISO-date>` names a day, which is not a thing on disk at all: it is a
+  question asked of every dated node in the set.
+- `/today` names no day. It names the day it *is*, which is what a bookmark, a
+  home screen and an agent can each keep — so resolving it takes a clock, and a
+  clock is exactly what parsing a URL must not have. `routes.ts` stays pure and
+  `page.ts` is handed the day.
 
 `page.ts` turns a route into the page it names, in one place, which is what
 keeps the sidebar and the main pane agreeing: the entry that lights up is the
@@ -53,8 +59,41 @@ set to work one out from.
 
 Navigation is real `<a href>`s (`router.tsx`), so ⌘-click and "copy link
 address" behave the way they do everywhere else; a plain left click is
-intercepted and answered in place. There is no router library: two addresses do
-not need one.
+intercepted and answered in place. There is no router library: four addresses
+do not need one.
+
+## The month, and a day
+
+`src/client/calendar/` is the month in the sidebar and `src/client/day/` is the
+page it opens. There is no journal file: the calendar aggregates the whole
+set's dated nodes and a day collects every node carrying that date, wherever it
+was written. Which days have something on them, and what is on one, are
+`@olai/format`'s to answer — the same derivations the validator's set is read
+with, so a dot and the day it opens cannot disagree.
+
+What is left here is the two things a day view has to decide for itself, and
+neither is about the format:
+
+- `calendar/month.ts` — where the days of a month land on a grid, and which
+  month is next to it. Integer arithmetic, unit-tested, and pointedly not a
+  `Date`: `new Date("2026-08-01")` is midnight UTC, which is the previous day
+  for half the world, and a calendar that shifted a column by time zone is the
+  bug this avoids by never leaving integers.
+- `clock.ts` — what day it is, in the reader's own time zone, re-read at the
+  next local midnight. It sits at the top rather than under `calendar/`,
+  because its readers are the page model (`/today` names no date), the day page
+  and the month: today is a fact about the tab, and two of them asking a `Date`
+  separately is two answers that can differ by a day at exactly the wrong
+  moment — a tab left open overnight on `/today` would otherwise be the one
+  stale thing on a page whose whole promise is that it is not.
+
+Three marks, and they are three because a reader has to tell them apart at a
+glance in a 16rem column: a day with something on it is a link with a dot,
+today wears a ring, and the day being read is filled. An empty day is inert —
+pressing it could only mean "write something here", and this pane writes
+nothing. Every one of them is a `data-` fact on the cell (`data-dated`,
+`data-today`, `data-open`) rather than a colour, so the browser tests assert on
+the mark and never on the palette.
 
 ## The connection, said out loud
 
@@ -127,14 +166,19 @@ vanish, which is exactly what chat is not allowed to do.
 ## What belongs to a reading, not to the file
 
 `view.ts` holds the two per-view switches — what is folded, and whether done
-nodes are drawn. Neither goes to the server or to disk, and hiding what is done
-is a row not drawn rather than anything marked.
+nodes are drawn — and the calendar holds a third, which month is on screen.
+None of them goes to the server or to disk, and hiding what is done is a row
+not drawn rather than anything marked.
 
-A reading is OF A PAGE, and which page is part of the value. That is what makes
-navigating start fresh — a page you zoom into is a new thing to read, and
+All three are `createStamped` (`stamped.ts`): a value plus the thing it belongs
+to, read through a memo that compares them. That is what makes them start over
+at the right moment — a page you zoom into is a new thing to read, and
 inheriting the last page's folds would fold places this reader has never seen —
-with no effect watching the route to clear anything, and no frame in which the
-held reading and the open page disagree.
+with no effect watching a route to clear anything, and so no frame in which the
+held value and the thing it belongs to disagree. What they differ in is the
+stamp, and that is the whole of the difference: a reading belongs to the PAGE,
+while the month belongs to the month it is ANCHORED to, because walking from
+one outline to another is no reason to snap the calendar back to today.
 
 ## No exports, on purpose
 

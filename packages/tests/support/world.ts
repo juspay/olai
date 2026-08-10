@@ -76,6 +76,17 @@ export const ZOOM = selector(TESTID.zoom);
 export const ZOOM_TITLE = selector(TESTID.zoomTitle);
 export const BREADCRUMBS = selector(TESTID.breadcrumbs);
 export const CRUMB = selector(TESTID.crumb);
+/** The month in the sidebar, and one day of it. A day says what it is in
+ *  `data-` facts — `data-dated`, `data-today`, `data-open` — never in the
+ *  colour it is painted. */
+export const CALENDAR = selector(TESTID.calendar);
+export const CALENDAR_DAY = selector(TESTID.calendarDay);
+export const CALENDAR_PREV = selector(TESTID.calendarPrev);
+export const CALENDAR_NEXT = selector(TESTID.calendarNext);
+/** One day, as a page: `/d/<date>` and `/today`. */
+export const DAY_PAGE = selector(TESTID.dayPage);
+export const DAY_GROUP = selector(TESTID.dayGroup);
+export const DAY_EMPTY = selector(TESTID.dayEmpty);
 /** The per-view Visible/Hidden switch for nodes that are done. */
 export const DONE_TOGGLE = selector(TESTID.doneToggle);
 /** Shown in the main pane when `/n/<id>` names no node. The sidebar stays. */
@@ -145,6 +156,10 @@ export const oneLine = (text: string): string =>
  *  cannot take a `Locator`. */
 export const nodeSelector = (id: string): string =>
   `${NODE}[data-node-id="${id}"]`;
+
+/** One day of the month, by the date it stands for. Same reason as above. */
+export const daySelector = (date: string): string =>
+  `${CALENDAR_DAY}[data-date="${date}"]`;
 /** One line, with the `#` that marks a tag dropped.
  *
  *  The `#` is dropped on BOTH sides of every title comparison because the
@@ -234,6 +249,17 @@ export class OlaiWorld extends World {
    *  navigating there in-app instead would never test it. */
   async openNode(id: string): Promise<void> {
     await this.open(`/n/${encodeURIComponent(id)}`);
+  }
+
+  /** One day's own page COLD — `/d/<date>` in a fresh document, which is what
+   *  makes a day an address rather than a place you can only click to. */
+  async openDayPage(date: string): Promise<void> {
+    await this.open(`/d/${encodeURIComponent(date)}`);
+  }
+
+  /** One day of the month in the sidebar. */
+  calendarDay(date: string): Locator {
+    return this.page.locator(daySelector(date));
   }
 
   /** The path the browser is actually at — what a reader would copy out of

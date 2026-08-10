@@ -25,6 +25,23 @@ export const TESTID = {
   zoomTitle: "zoom-title",
   breadcrumbs: "breadcrumbs",
   crumb: "crumb",
+  /** The month in the sidebar. Its `data-month` is the month on screen, which
+   *  paging moves and nothing else does. */
+  calendar: "calendar",
+  /** One day of it. Everything the three marks say is a `data-` fact:
+   *  `data-date`, `data-dated` (something is on it), `data-today`,
+   *  `data-open` (this is the day being read) — never the colour it is
+   *  painted, which is a styling decision a refactor may change. */
+  calendarDay: "calendar-day",
+  calendarPrev: "calendar-prev",
+  calendarNext: "calendar-next",
+  /** One day, as a page. `data-date` is the day it turned out to be, which
+   *  `/today` does not spell. */
+  dayPage: "day-page",
+  /** The nodes of one outline dated that day; `data-file` is which. */
+  dayGroup: "day-group",
+  /** Said in place of the list when nothing is dated that day. */
+  dayEmpty: "day-empty",
   doneToggle: "done-toggle",
   notFound: "not-found",
   errorView: "error-view",

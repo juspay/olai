@@ -12,6 +12,8 @@ const ROUTES: ReadonlyArray<Route> = [
   { kind: "outline", file: "a file with spaces.jsonl" },
   { kind: "node", id: "kitchen" },
   { kind: "node", id: "a-minted_id9" },
+  { kind: "day", date: "2026-08-10" },
+  { kind: "today" },
 ]
 
 test("every route survives being written to a URL and read back", () => {
@@ -20,10 +22,21 @@ test("every route survives being written to a URL and read back", () => {
   }
 })
 
-test("the addresses are the two documented ones", () => {
+test("the addresses are the documented ones", () => {
   expect(hrefOf({ kind: "outline", file: null })).toBe("/")
   expect(hrefOf({ kind: "outline", file: "house.jsonl" })).toBe("/o/house.jsonl")
   expect(hrefOf({ kind: "node", id: "kitchen" })).toBe("/n/kitchen")
+  expect(hrefOf({ kind: "day", date: "2026-08-10" })).toBe("/d/2026-08-10")
+  expect(hrefOf({ kind: "today" })).toBe("/today")
+})
+
+// `/today` names no day: it names the day it IS, and which day that is takes a
+// clock. Reading the URL must not have one, or the same address would parse as
+// a different route tomorrow and the page it opened could never be cached,
+// linked or reasoned about here.
+test("`/today` parses as itself, not as a date", () => {
+  expect(routeOf("/today")).toEqual({ kind: "today" })
+  expect(routeOf("/today/")).toEqual({ kind: "outline", file: null })
 })
 
 // A directory separator stays a separator, so the URL bar shows the path a

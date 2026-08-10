@@ -20,27 +20,20 @@
  */
 
 import {
-  ancestorsOf,
   type Derived,
   follow,
   type Row,
   rowsUnder,
-  type Status,
+  type Situated,
+  situate,
 } from "./derive.ts"
-import type { LocatedRegular } from "./node.ts"
 
 /** What `/n/<id>` shows: a node, or the reason it cannot. */
 export type Zoomed =
-  | {
+  | (Situated & {
     readonly kind: "node"
-    /** The regular node at the end of the chain — the page is always this
-     *  node's, whichever record was addressed to reach it. */
-    readonly shows: LocatedRegular
-    readonly status: Status
-    /** The canonical parent chain, root first, `shows` excluded. */
-    readonly trail: ReadonlyArray<LocatedRegular>
     readonly children: ReadonlyArray<Row>
-  }
+  })
   | { readonly kind: "unknown"; readonly id: string }
   | { readonly kind: "dangling"; readonly id: string; readonly missing: string }
   | { readonly kind: "cycle"; readonly id: string; readonly through: string }
@@ -53,15 +46,14 @@ export const zoom = (derived: Derived, id: string): Zoomed => {
   if (found.kind === "dangling") return { kind: "dangling", id, missing: found.missing }
   if (found.kind === "cycle") return { kind: "cycle", id, through: found.through }
 
-  // One walk up, used twice: the crumbs above the heading and the guard that
-  // stops a mirror of an ancestor expanding forever below it are the same
-  // chain, and asking for it twice is two answers that could differ.
-  const trail = ancestorsOf(derived, found.shows.node.id)
+  // The context is worked out ONCE and the walk up is used twice: the crumbs
+  // above the heading and the guard that stops a mirror of an ancestor
+  // expanding forever below it are the same chain, and asking for it twice is
+  // two answers that could differ.
+  const situated = situate(derived, found.shows)
   return {
+    ...situated,
     kind: "node",
-    shows: found.shows,
-    status: derived.status.get(found.shows.node.id) ?? "open",
-    trail,
-    children: rowsUnder(derived, found.shows, trail),
+    children: rowsUnder(derived, situated.shows, situated.trail),
   }
 }
