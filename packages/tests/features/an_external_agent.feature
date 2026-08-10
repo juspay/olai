@@ -21,9 +21,13 @@ Feature: An agent olai did not start
 
   Scenario: It is offered the same closed list, and no way to touch a file
     # The absences are the design: an agent that can name a byte can write a
-    # broken outline, and this one has no tool that names one.
+    # broken outline, and this one has no tool that names one. `create_outline`
+    # names a PATH for a new outline, not a free-form write — it is the one way
+    # a brand-new file is born, and the records inside still go through the ops
+    # layer's own writer.
     Then the terminal agent is offered the tool "set_done"
     And the terminal agent is offered the tool "add_node"
+    And the terminal agent is offered the tool "create_outline"
     And the terminal agent is offered no file tools
 
   Scenario: A terminal marks something done and the open page follows
@@ -32,6 +36,18 @@ Feature: An agent olai did not start
     # checkbox in front of a person who is not in that terminal moves too.
     When the terminal agent marks "order" done
     Then node "order" is done
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: A terminal starts a new outline and the open page lists it
+    # The gap `create_outline` closes: `add_node` refuses any file the set does
+    # not already hold, so without this an agent cannot open a fresh outline at
+    # all. The store's watcher already handles a new `.jsonl` (see
+    # it_stays_live.feature); this scenario proves the write path that mints
+    # one reaches the same live tab — no reload.
+    When the terminal agent creates the outline "shed.jsonl" seeded with "clear out the shed"
+    Then the outline list links to "shed.jsonl"
+    And the outline list has 2 entries
     And the page has not reloaded
     And there should be no page errors
 

@@ -63,8 +63,8 @@ export interface Plan {
   readonly title: string
   readonly file: string
   /** The git commit subject, in the convention `olai` has always used:
-   *  `capture:` / `done:` / `doing:` / `move:` / `archive:` / `see:` and a
-   *  title. */
+   *  `capture:` / `done:` / `doing:` / `move:` / `archive:` / `create:` /
+   *  `see:` and a title (or a path, when an outline is born empty). */
   readonly summary: string
 }
 
@@ -131,6 +131,8 @@ export const plan = (
       return planMove(scope, request)
     case "archive":
       return planArchive(scope, request)
+    case "create":
+      return planCreate(scope, request)
     case "see":
       return planSee(scope, request)
   }
@@ -595,6 +597,118 @@ const wouldContainItself = (scope: Scope, id: string, parent: string): boolean =
     at = scope.derived.byId.get(at)?.node.parent
   }
   return false
+}
+
+// ── create ─────────────────────────────────────────────────────────────
+
+/**
+ * A brand-new outline under the served directory.
+ *
+ * `add` only writes into a file the set already holds — that is the refusal at
+ * "is not one of the outlines under the served directory" — so an agent that
+ * wants a fresh file has nowhere to go without this. The path is judged the
+ * same way `/media/*` judges a picture name ({@link ../../surface/src/media.ts}):
+ * relative, segment by segment, never resolving a `..`. The write itself is the
+ * ordinary gate: stage → validate → rename → commit, which already knows how to
+ * make a directory a nested path needs ({@link ../../store/src/disk.ts}).
+ */
+const planCreate = (
+  scope: Scope,
+  request: Extract<Request, { op: "create" }>,
+): Planned => {
+  const file = outlinePath(request.file)
+  if (file === null) {
+    return Result.fail(
+      new UsageFailure({
+        reason:
+          `\`${request.file}\` is not a relative \`.jsonl\` path under the served ` +
+          `directory (no absolute path, no \`..\`, no \`.\`, and the name must end ` +
+          `in \`.jsonl\`)`,
+      }),
+    )
+  }
+
+  if (scope.set.files.includes(file)) {
+    return Result.fail(
+      new UsageFailure({
+        reason:
+          `\`${file}\` is already an outline under the served directory — create ` +
+          `starts a new one; capture into this one with \`add_node\``,
+      }),
+    )
+  }
+
+  if (request.seed === undefined) {
+    return Result.succeed({
+      files: [{ file, nodes: [] }],
+      id: file,
+      title: file,
+      file,
+      summary: `create: ${file}`,
+    })
+  }
+
+  const seed = request.seed
+  if (seed.title.trim() === "") {
+    return Result.fail(new UsageFailure({ reason: "a node needs a title" }))
+  }
+
+  const id = seed.id ?? freshId(scope, new Set())
+  if (seed.id !== undefined && scope.derived.byId.has(seed.id)) {
+    return Result.fail(
+      new UsageFailure({
+        reason: `\`${seed.id}\` is already the id of a node in this set`,
+      }),
+    )
+  }
+
+  // First (and only) row of an empty parent: the same key an `add` would mint
+  // when there are no siblings yet.
+  const ord = ordBetween(null, null)
+  if (ord === null) throw new Error("the order encoding ran out of keys")
+
+  const node: RegularNode = {
+    id,
+    ord,
+    title: seed.title,
+    ...(seed.date === undefined ? {} : { date: seed.date }),
+    ...(seed.desc === undefined ? {} : { desc: seed.desc }),
+  }
+
+  return Result.succeed({
+    files: [{ file, nodes: [node] }],
+    id,
+    title: seed.title,
+    file,
+    summary: `capture: ${seed.title}`,
+  })
+}
+
+/**
+ * A path this op may create as a new outline — or `null` for anything that is
+ * not one relative `.jsonl` under the served root.
+ *
+ * Same discipline as `mediaTarget` in `@olai/surface`: judge segments after
+ * they are read, refuse empty / `.` / `..` / separators / NUL rather than
+ * resolving them, and require the name the format already treats as an outline.
+ * Absolute paths (leading `/`) and Windows-style backslash separators never
+ * become a segment that could be joined under the root by accident.
+ */
+export const outlinePath = (raw: string): string | null => {
+  if (raw === "" || raw.startsWith("/") || raw.includes("\\") || raw.includes("\0")) {
+    return null
+  }
+
+  const segments: Array<string> = []
+  for (const segment of raw.split("/")) {
+    if (segment === "" || segment === "." || segment === "..") return null
+    if (segment.includes("\0")) return null
+    segments.push(segment)
+  }
+  if (segments.length === 0) return null
+
+  const file = segments.join("/")
+  return file.endsWith(".jsonl") ? file : null
 }
 
 // ── archive ────────────────────────────────────────────────────────────

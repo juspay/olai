@@ -340,6 +340,96 @@ describe("move", () => {
   })
 })
 
+// ── create ─────────────────────────────────────────────────────────────
+
+describe("create", () => {
+  test("an empty outline is a file with no records, named in the commit line", () => {
+    const result = planned(house(), { op: "create", file: "shed.jsonl" })
+    expect(fileOf(result, "shed.jsonl")).toEqual([])
+    expect(result).toMatchObject({
+      file: "shed.jsonl",
+      id: "shed.jsonl",
+      title: "shed.jsonl",
+      summary: "create: shed.jsonl",
+    })
+  })
+
+  test("a seed is one top-level node, minted the way a capture is", () => {
+    const result = planned(house(), {
+      op: "create",
+      file: "notes/ideas.jsonl",
+      seed: { title: "an idea #later", desc: "write it down", date: "2026-08-10" },
+    })
+    expect(fileOf(result, "notes/ideas.jsonl")).toEqual([
+      {
+        id: "n1",
+        ord: "a0",
+        title: "an idea #later",
+        desc: "write it down",
+        date: "2026-08-10",
+      },
+    ])
+    expect(result.summary).toBe("capture: an idea #later")
+    expect(result.id).toBe("n1")
+  })
+
+  test("a chosen seed id is kept, and a taken one is refused", () => {
+    const nodes = fileOf(
+      planned(house(), {
+        op: "create",
+        file: "new.jsonl",
+        seed: { title: "x", id: "paint" },
+      }),
+      "new.jsonl",
+    )
+    expect(record(nodes, "paint").title).toBe("x")
+
+    expect(
+      refused(house(), {
+        op: "create",
+        file: "new.jsonl",
+        seed: { title: "x", id: "order" },
+      })._tag,
+    ).toBe("UsageFailure")
+  })
+
+  test("an absolute path is refused", () => {
+    const failure = refused(house(), { op: "create", file: "/tmp/out.jsonl" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("relative")
+  })
+
+  test("a traversal is refused, never resolved under the root", () => {
+    for (const file of [
+      "../secret.jsonl",
+      "notes/../../secret.jsonl",
+      "notes/./out.jsonl",
+      "notes//out.jsonl",
+      "a\\b.jsonl",
+    ]) {
+      expect(refused(house(), { op: "create", file })._tag).toBe("UsageFailure")
+    }
+  })
+
+  test("a non-`.jsonl` name is refused", () => {
+    expect(refused(house(), { op: "create", file: "notes.md" })._tag).toBe("UsageFailure")
+    expect(refused(house(), { op: "create", file: "notes" })._tag).toBe("UsageFailure")
+  })
+
+  test("an outline the directory already holds is refused rather than overwritten", () => {
+    const failure = refused(house(), { op: "create", file: "house.jsonl" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("already")
+    expect(failure.message).toContain("add_node")
+  })
+
+  test("an empty seed title is refused — a node is its title", () => {
+    expect(
+      refused(house(), { op: "create", file: "new.jsonl", seed: { title: "  " } })._tag,
+    ).toBe("UsageFailure")
+  })
+})
+
 // ── archive ────────────────────────────────────────────────────────────
 
 describe("archive", () => {

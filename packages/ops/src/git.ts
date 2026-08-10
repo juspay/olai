@@ -4,8 +4,9 @@
  * "Git is the only history" (docs/architecture.md), so a write that is not
  * committed is a write with no undo. Every op commits the files it wrote, with
  * the message convention the racket reference used — `capture:` / `done:` /
- * `doing:` / `move:` / `archive:` and the node's title — because a log a person
- * already knows how to read is worth more than a better one they do not.
+ * `doing:` / `move:` / `archive:` / `create:` / `see:` and the node's title (or
+ * a path, when an outline is born empty) — because a log a person already knows
+ * how to read is worth more than a better one they do not.
  *
  * Three properties, and each is a decision rather than an accident:
  *
