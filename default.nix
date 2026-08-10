@@ -1,8 +1,8 @@
 # Root composer for olai's Nix packages, invoked by flake.nix.
 #
-# `b2n` carries the bun2nix helpers, built in flake.nix by
-# `lib.mkBun2nix { inherit pkgs; }` (juspay/bun2nix's rawflake standalone API).
-# It is required: everything here is backed by `base`, which needs it.
+# `b2n` is upstream bun2nix's package (`packages.<system>.default`): the CLI
+# derivation, with `hook` and `fetchBunDeps` on passthru. Required — everything
+# here is backed by `base`, which needs it.
 { pkgs ? import ./nix/nixpkgs.nix { }, b2n, rev ? "dev" }:
 let
   kolu = import ./nix/kolu.nix;
