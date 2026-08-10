@@ -13,6 +13,7 @@ import { Show } from "solid-js"
 
 import { Breadcrumbs } from "./Breadcrumbs.tsx"
 import { DateBadge } from "./DateBadge.tsx"
+import { DensityToggle } from "./DensityToggle.tsx"
 import { DoneToggle } from "./DoneToggle.tsx"
 import { only } from "./narrow.ts"
 import { NodeBody } from "./NodeBody.tsx"
@@ -50,40 +51,54 @@ function Zoom(props: {
       <header class="mb-4">
         <div class="flex items-baseline justify-between gap-4">
           <Breadcrumbs file={props.zoomed.shows.file} trail={props.zoomed.trail} />
-          <DoneToggle
-            hidden={props.view.doneHidden()}
-            onToggle={props.view.toggleDone}
-          />
+          <div class="flex items-baseline gap-2">
+            <DensityToggle
+              density={props.view.density()}
+              onCycle={props.view.cycleDensity}
+            />
+            <DoneToggle
+              hidden={props.view.doneHidden()}
+              onToggle={props.view.toggleDone}
+            />
+          </div>
         </div>
 
-        <div class="mt-2 flex items-baseline gap-3">
-          <h1
-            class={`m-0 flex-1 text-2xl font-bold ${TONE[props.zoomed.status]}`}
-            data-testid={TESTID.zoomTitle}
-            data-node-id={props.zoomed.shows.node.id}
-            data-status={props.zoomed.status}
-          >
-            <NodeTitle title={props.zoomed.shows.node.title} />
-          </h1>
-          <Show when={props.zoomed.shows.node.date}>
-            {(date) => <DateBadge date={date()} />}
-          </Show>
-        </div>
+        {/* The subject is a node too — same testid a row uses — so "the
+            description of X" and "the node X" mean the same record on a
+            zoomed page as they do in a tree. The heading still carries
+            zoom-title: that is what a scenario waits on for the route. */}
+        <div
+          class="mt-2"
+          data-testid={TESTID.node}
+          data-node-id={props.zoomed.shows.node.id}
+          data-status={props.zoomed.status}
+          data-kind="node"
+        >
+          <div class="flex items-baseline gap-3">
+            <h1
+              class={`m-0 flex-1 text-2xl font-bold ${TONE[props.zoomed.status]}`}
+              data-testid={TESTID.zoomTitle}
+              data-node-id={props.zoomed.shows.node.id}
+              data-status={props.zoomed.status}
+            >
+              <NodeTitle title={props.zoomed.shows.node.title} />
+            </h1>
+            <Show when={props.zoomed.shows.node.date}>
+              {(date) => <DateBadge date={date()} />}
+            </Show>
+          </div>
 
-        {/* Zoomed, a node's document IS the page under it: the node said the
-            rest was in the file, and this is where the file is. */}
-        <NodeBody shows={props.zoomed.shows} zoomed />
+          {/* Zoomed, a node's note and document ARE the page under it: the node
+              said the rest was here, and density does not apply to the subject. */}
+          <NodeBody shows={props.zoomed.shows} zoomed />
+        </div>
       </header>
 
       <Show
         when={props.rows.length > 0}
         fallback={<p class="text-muted">{nothingUnder(props.zoomed, props.view)}</p>}
       >
-        <Tree
-          rows={props.rows}
-          collapsed={props.view.collapsed()}
-          onToggle={props.view.toggle}
-        />
+        <Tree rows={props.rows} view={props.view} />
       </Show>
     </>
   )

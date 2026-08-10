@@ -13,6 +13,7 @@ import { Given, Then, When } from "@cucumber/cucumber";
 
 import { DESKTOP } from "../support/hooks.ts";
 import {
+  DENSITY_TOGGLE,
   DONE_TOGGLE,
   NOT_FOUND,
   oneLine,
@@ -121,6 +122,50 @@ When("I hide the done nodes", async function (this: OlaiWorld) {
 When("I show the done nodes", async function (this: OlaiWorld) {
   await setDoneHidden(this, false);
 });
+
+// ── the note-density switch ────────────────────────────────────────────
+
+/** Cycle the switch until it reports the density the scenario wants. Three
+ *  states, one click each, so at most two clicks from any starting point. */
+const setDensity = async (
+  world: OlaiWorld,
+  density: string,
+): Promise<void> => {
+  const toggle = world.page.locator(DENSITY_TOGGLE).first();
+  await toggle.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  for (let clicks = 0; clicks < 3; clicks++) {
+    if ((await toggle.getAttribute("data-density")) === density) {
+      await world.waitForFrame();
+      return;
+    }
+    await toggle.click();
+    await world.waitForFrame();
+  }
+  assert.strictEqual(
+    await toggle.getAttribute("data-density"),
+    density,
+    `the density switch never reached ${JSON.stringify(density)}`,
+  );
+};
+
+When(
+  "I set note density to {string}",
+  async function (this: OlaiWorld, density: string) {
+    await setDensity(this, density);
+  },
+);
+
+Then(
+  "the note density is {string}",
+  async function (this: OlaiWorld, density: string) {
+    await this.expectAttribute(
+      DENSITY_TOGGLE,
+      "data-density",
+      density,
+      "the density switch",
+    );
+  },
+);
 
 // ── a permalink that names nothing ─────────────────────────────────────
 

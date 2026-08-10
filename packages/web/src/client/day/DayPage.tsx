@@ -16,37 +16,41 @@
  * empty day.
  */
 
-import type { DayGroup, Situated } from "@olai/format"
+import type { DayGroup } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { Show } from "solid-js"
 
 import { CRUMB } from "../Breadcrumbs.tsx"
+import { DensityToggle } from "../DensityToggle.tsx"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
+import type { View } from "../view.ts"
 import { DayNode } from "./DayNode.tsx"
-
-/** Which record an entry is, as a key. The node's own id, under the file that
- *  declares it: a day crosses the whole set, and `parent` never crosses a file,
- *  so the pair is what names one record wherever it was written. */
-const keyOf = (dated: Situated): string =>
-  `${dated.shows.file}/${dated.shows.node.id}`
+import { placeOf } from "./place.ts"
 
 export function DayPage(props: {
   readonly date: string
   readonly groups: ReadonlyArray<DayGroup>
   /** Today, so a page can say which day it is rather than only which date. */
   readonly today: string
+  readonly view: View
 }) {
   return (
     <section data-testid={TESTID.dayPage} data-date={props.date}>
-      <header class="mb-4 flex items-baseline gap-2">
-        {/* Printed verbatim, like every other date in this app: the format
-            stores what was written and a heading is no reason to be the first
-            place that parses one. */}
-        <h1 class="m-0 text-2xl font-bold tabular-nums">{props.date}</h1>
-        <Show when={props.date === props.today}>
-          <span class="text-sm text-accent">today</span>
-        </Show>
+      <header class="mb-4 flex items-baseline justify-between gap-4">
+        <div class="flex items-baseline gap-2">
+          {/* Printed verbatim, like every other date in this app: the format
+              stores what was written and a heading is no reason to be the first
+              place that parses one. */}
+          <h1 class="m-0 text-2xl font-bold tabular-nums">{props.date}</h1>
+          <Show when={props.date === props.today}>
+            <span class="text-sm text-accent">today</span>
+          </Show>
+        </div>
+        <DensityToggle
+          density={props.view.density()}
+          onCycle={props.view.cycleDensity}
+        />
       </header>
 
       <Show
@@ -81,8 +85,8 @@ export function DayPage(props: {
                 </Link>
               </h2>
               <ul class="m-0 list-none p-0">
-                <Key each={group().nodes} by={keyOf}>
-                  {(dated) => <DayNode dated={dated()} />}
+                <Key each={group().nodes} by={placeOf}>
+                  {(dated) => <DayNode dated={dated()} view={props.view} />}
                 </Key>
               </ul>
             </section>

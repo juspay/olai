@@ -87,9 +87,10 @@ Feature: The journal, and the month in the sidebar
     And the ancestors of "ferry" are "the coast trip"
     And the ancestors of "posts" are "the deck #home"
     # The same node the tree would draw: derived status, inline tags, the note
-    # as markdown — one component each, so a day cannot render them its own way.
+    # as a one-line preview — one component each, so a day cannot render them
+    # its own way. Full markdown is a click away (note_density.feature).
     And the node "posts" has status "doing"
-    And the description of "posts" renders bold text "before"
+    And the description of "posts" is a preview of "Call the utility line before digging."
     And the title of "rails" styles the tag "home"
     And there should be no page errors
 

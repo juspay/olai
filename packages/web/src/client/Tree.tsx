@@ -17,6 +17,10 @@
  * RECORD's id rather than the node it shows: a mirror's id resolves through
  * its chain to the same canonical page, so the two spellings agree and nothing
  * has to resolve anything here.
+ *
+ * The READING (./view.ts) is one thing — folds, density, which notes are open —
+ * so it is handed as one prop rather than re-exploded into the four fields a
+ * branch happens to need today.
  */
 
 import { type Row } from "@olai/format"
@@ -28,18 +32,12 @@ import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
 import { TESTID } from "./testids.ts"
 import { CONTROL, CONTROL_SPACER, PAST_CONTROLS } from "./touch.ts"
+import type { View } from "./view.ts"
 
-export interface TreeProps {
+export function Tree(props: {
   readonly rows: ReadonlyArray<Row>
-  /** Places the reader has folded. Client-local: folding is a property of this
-   *  tab's reading, not of the file, so it never leaves the browser — and it
-   *  is keyed by PLACE, because the same node reached through two mirrors is
-   *  two rows and folding one must not fold the other. */
-  readonly collapsed: ReadonlySet<string>
-  readonly onToggle: (key: string) => void
-}
-
-export function Tree(props: TreeProps) {
+  readonly view: View
+}) {
   return (
     <ul class="list-none m-0 p-0" data-testid={TESTID.outlineTree}>
       {/* `<Key>`, not `<For>`, and `Row.key` is why it can be: the walk mints
@@ -50,9 +48,7 @@ export function Tree(props: TreeProps) {
           mints per PLACE holds each row across the frame, and only the
           bindings whose values actually moved re-run. */}
       <Key each={props.rows} by="key">
-        {(row) => (
-          <Branch row={row()} collapsed={props.collapsed} onToggle={props.onToggle} />
-        )}
+        {(row) => <Branch row={row()} view={props.view} />}
       </Key>
     </ul>
   )
@@ -60,13 +56,12 @@ export function Tree(props: TreeProps) {
 
 function Branch(props: {
   readonly row: Row
-  readonly collapsed: ReadonlySet<string>
-  readonly onToggle: (key: string) => void
+  readonly view: View
 }) {
   // A memo, not a plain accessor: folding one row mints a new Set, and five
   // separate computations in this component read it. Without the memo every
   // row in the tree re-runs all five on every click.
-  const collapsed = createMemo(() => props.collapsed.has(props.row.key))
+  const collapsed = createMemo(() => props.view.collapsed().has(props.row.key))
   // The RECORD a row shows, file and all — the file is what a note's relative
   // picture and a `doc` are relative to, and for a mirror that is the file the
   // node is DEFINED in rather than the one being read.
@@ -99,7 +94,7 @@ function Branch(props: {
             data-testid={TESTID.toggle}
             aria-expanded={!collapsed()}
             aria-label={collapsed() ? "expand" : "collapse"}
-            onClick={() => props.onToggle(props.row.key)}
+            onClick={() => props.view.toggle(props.row.key)}
           >
             {collapsed() ? "▸" : "▾"}
           </button>
@@ -139,7 +134,11 @@ function Branch(props: {
       <Show when={!collapsed() && shown()}>
         {(shows) => (
           <div class={PAST_CONTROLS}>
-            <NodeBody shows={shows()} />
+            <NodeBody
+              shows={shows()}
+              place={props.row.key}
+              view={props.view}
+            />
           </div>
         )}
       </Show>
@@ -156,13 +155,7 @@ function Branch(props: {
       <Show when={!collapsed() && props.row.children.length > 0}>
         <ul class="ml-5 list-none border-l border-rule pl-3">
           <Key each={props.row.children} by="key">
-            {(child) => (
-              <Branch
-                row={child()}
-                collapsed={props.collapsed}
-                onToggle={props.onToggle}
-              />
-            )}
+            {(child) => <Branch row={child()} view={props.view} />}
           </Key>
         </ul>
       </Show>

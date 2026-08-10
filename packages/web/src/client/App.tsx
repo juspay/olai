@@ -21,8 +21,8 @@
  * What is open is a ROUTE — a whole outline (`/o/<file>`), one document
  * (`/doc/<file>`), one node zoomed (`/n/<id>`), or one day of the journal
  * (`/d/<date>`, and `/today`) — so every page is a link someone can send. Which places are folded, whether done
- * nodes are drawn, and which month the calendar is showing are signals: they
- * belong to this tab's reading and not to the file.
+ * nodes are drawn, how dense the notes are, and which month the calendar is
+ * showing are signals: they belong to this tab's reading and not to the file.
  *
  * This file is the composition and nothing else — the subscription, the route,
  * the clock, the one derivation of the set, which page that adds up to, and the
@@ -258,6 +258,7 @@ export default function App() {
                             date={open().date}
                             groups={open().groups}
                             today={today()}
+                            view={view}
                           />
                         )}
                       </Match>

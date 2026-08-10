@@ -170,6 +170,79 @@ Then(
   },
 );
 
+/** One dim truncated plain-text line — the default under first-line density.
+ *  Asserted as words, not as source: the preview strips markdown marks. */
+Then(
+  "the description of {string} is a preview of {string}",
+  async function (this: OlaiWorld, id: string, expected: string) {
+    const desc = this.node(id).locator(DESC).first();
+    await desc.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(
+      await desc.getAttribute("data-preview"),
+      "true",
+      `the description of "${id}" is not a preview line`,
+    );
+    await this.waitUntil(
+      async () => readable(await desc.innerText()) === readable(expected),
+      `the description of "${id}" reads ${JSON.stringify(expected)}`,
+    ).catch(async () => {
+      assert.strictEqual(readable(await desc.innerText()), readable(expected));
+    });
+  },
+);
+
+/** No list, no bold — the preview is plain text, not a second half-renderer. */
+Then(
+  "the description of {string} does not render as markdown blocks",
+  async function (this: OlaiWorld, id: string) {
+    const desc = this.node(id).locator(DESC).first();
+    await desc.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(
+      await desc.locator("li, strong, b, p, ul, ol").count(),
+      0,
+      `the description of "${id}" still draws markdown blocks in its preview`,
+    );
+  },
+);
+
+Then(
+  "the node {string} shows no description",
+  async function (this: OlaiWorld, id: string) {
+    await this.waitUntil(
+      async () => (await this.node(id).locator(DESC).count()) === 0,
+      `the description of "${id}" is gone`,
+    ).catch(async () => {
+      assert.strictEqual(
+        await this.node(id).locator(DESC).count(),
+        0,
+        `"${id}" still has a description on screen`,
+      );
+    });
+  },
+);
+
+When(
+  "I unfold the note of {string}",
+  async function (this: OlaiWorld, id: string) {
+    const desc = this.node(id).locator(DESC).first();
+    await desc.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(
+      await desc.getAttribute("data-preview"),
+      "true",
+      `the description of "${id}" is not a preview to click`,
+    );
+    await desc.click();
+    await this.waitForFrame();
+    // The full note re-uses the same testid without data-preview="true".
+    await this.waitUntil(
+      async () =>
+        (await this.node(id).locator(DESC).first().getAttribute("data-preview"))
+          !== "true",
+      `the description of "${id}" unfolded`,
+    );
+  },
+);
+
 Then(
   "the title of {string} styles the tag {string}",
   async function (this: OlaiWorld, id: string, tag: string) {
