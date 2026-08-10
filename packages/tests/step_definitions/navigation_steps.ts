@@ -125,24 +125,27 @@ When("I show the done nodes", async function (this: OlaiWorld) {
 
 // ── the note-density switch ────────────────────────────────────────────
 
-/** Put the switch where the scenario wants it, clicking only if it is not
- *  already there. Two states, like the done switch — at most one click. */
+/** Cycle the switch until it reports the density the scenario wants. Three
+ *  states, one click each, so at most two clicks from any starting point. */
 const setDensity = async (
   world: OlaiWorld,
   density: string,
 ): Promise<void> => {
   const toggle = world.page.locator(DENSITY_TOGGLE).first();
   await toggle.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  if ((await toggle.getAttribute("data-density")) !== density) {
+  for (let clicks = 0; clicks < 3; clicks++) {
+    if ((await toggle.getAttribute("data-density")) === density) {
+      await world.waitForFrame();
+      return;
+    }
     await toggle.click();
+    await world.waitForFrame();
   }
-  await world.expectAttribute(
-    DENSITY_TOGGLE,
-    "data-density",
+  assert.strictEqual(
+    await toggle.getAttribute("data-density"),
     density,
-    "the density switch",
+    `the density switch never reached ${JSON.stringify(density)}`,
   );
-  await world.waitForFrame();
 };
 
 When(

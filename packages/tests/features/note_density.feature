@@ -1,10 +1,10 @@
 @corpus:good
 Feature: Note density
   A description that always opens in full is a page of three nodes. Workflowy's
-  answer, adopted: by default a note is one dim truncated plain-text line, the
-  full markdown is the node's own zoomed page and a click on that first line
-  that toggles the body open and shut, and a per-view switch picks full or
-  first-line.
+  answer, adopted: by default a note is one dim truncated plain-text line; the
+  full markdown is the node's own zoomed page and a click that REPLACES the
+  preview with the body (never stacks both); and a per-view switch cycles
+  full / first-line / hidden.
 
   Background:
     Given I open the outline "house.jsonl"
@@ -15,11 +15,14 @@ Feature: Note density
     Then the description of "order" is a preview of "Two ways to go:"
     And the description of "order" does not render as markdown blocks
 
-  Scenario: Clicking the first line toggles the full note open and shut
+  Scenario: Expanding replaces the preview — the first line is not shown twice
     When I unfold the note of "order"
     Then the description of "order" renders bold text "walnut"
     And the description of "order" renders 2 list items
     And the description of "order" does not show its markdown source
+    # The bug: open used to keep the preview button above the body, so
+    # "Two ways to go:" printed twice. Expanded is the body alone.
+    And the description of "order" shows the first line "Two ways to go:" exactly once
     When I fold the note of "order"
     Then the description of "order" is a preview of "Two ways to go:"
     And the description of "order" does not render as markdown blocks
@@ -37,10 +40,16 @@ Feature: Note density
     Then the description of "order" renders bold text "walnut"
     And the description of "order" renders 2 list items
 
-  Scenario: First line is the default the switch starts on
+  Scenario: The density switch hides every note
+    When I set note density to "hidden"
+    Then the node "order" shows no description
+
+  Scenario: The density switch cycles first-line, full, and hidden
     Then the note density is "first-line"
     When I set note density to "full"
     Then the note density is "full"
+    When I set note density to "hidden"
+    Then the note density is "hidden"
     When I set note density to "first-line"
     Then the note density is "first-line"
     And the description of "order" is a preview of "Two ways to go:"
