@@ -26,6 +26,8 @@ import {
 } from "@cucumber/cucumber";
 import type { Browser, BrowserContext, Locator, Page } from "playwright";
 
+import type { TerminalAgent } from "./mcp.ts";
+
 /** Per-step budget for interaction polls against a settled UI — a click
  *  landing, an attribute flipping, a subtree appearing. */
 export const POLL_TIMEOUT = 15_000;
@@ -263,6 +265,16 @@ export class OlaiWorld extends World {
   served?: string;
   /** The server process a `@scratch:` scenario owns, killed in `After`. */
   ownServer?: ChildProcess;
+  /** A coding agent in a terminal, for the scenarios about the tool surface
+   *  olai does not own the client of: `olai mcp` over the same directory the
+   *  page is watching. Killed in `After` beside the server. */
+  terminalAgent?: TerminalAgent;
+  /** The tool names that agent was offered, and the last tool RESULT it got.
+   *  Both are read by later steps than the one that provoked them, which is
+   *  what makes them the world's rather than a module's — a step file holding
+   *  them would share them across scenarios. */
+  toolsOffered: string[] = [];
+  toolAnswer?: Record<string, unknown>;
   /** What that server has printed since a scenario RESTARTED it (`support/hooks.ts`).
    *
    *  The one thing a scenario cannot see from the browser is what the server

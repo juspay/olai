@@ -22,6 +22,8 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
+import { stoppedWithin } from "./child.testlib.ts"
+
 const MAIN = path.join(import.meta.dirname, "main.ts")
 
 /** How long a shutdown may take before it is a hang. Generous: what is being
@@ -58,10 +60,6 @@ test("SIGINT stops a server that a browser is connected to", async () => {
     },
   )
 
-  const exited = new Promise<number | null>((resolve) => {
-    child.on("exit", (code) => resolve(code))
-  })
-
   try {
     const url = await addressOf(child)
     const socket = new WebSocket(`${url.replace("http://", "ws://")}/rpc/ws`)
@@ -71,11 +69,7 @@ test("SIGINT stops a server that a browser is connected to", async () => {
     })
 
     child.kill("SIGINT")
-    const stopped = await Promise.race([
-      exited.then(() => true),
-      Bun.sleep(BOUND_MS).then(() => false),
-    ])
-    expect(stopped).toBe(true)
+    expect(await stoppedWithin(child, BOUND_MS)).toBe(true)
   } finally {
     child.kill("SIGKILL")
   }

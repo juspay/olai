@@ -26,7 +26,7 @@
  * realistic path, which is a page on another origin POSTing at localhost.
  */
 
-import type { Mcp } from "@olai/ops"
+import { Mcp } from "@olai/ops"
 import { Effect, Layer } from "effect"
 import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 
@@ -57,7 +57,7 @@ export const mcpRoute = (options: Options): Layer.Layer<never, never, HttpRouter
 
           const body = yield* Effect.result(request.json)
           if (body._tag === "Failure") {
-            return yield* rpcError(-32700, "the body is not JSON", 400)
+            return yield* rpcError(Mcp.parseError("the body is not JSON"), 400)
           }
 
           const reply = yield* options.server.handle(body.success)
@@ -75,9 +75,8 @@ export const mcpRoute = (options: Options): Layer.Layer<never, never, HttpRouter
     ),
   )
 
-const rpcError = (code: number, message: string, status: number) =>
-  Effect.orDie(
-    HttpServerResponse.json({ jsonrpc: "2.0", id: null, error: { code, message } }, {
-      status,
-    }),
-  )
+/** A JSON-RPC frame, with the HTTP status this transport gives it. The status
+ *  is the only part that is HTTP's: the frame comes from the dispatch, so the
+ *  two transports cannot disagree about what a body that will not parse is. */
+const rpcError = (frame: Readonly<Record<string, unknown>>, status: number) =>
+  Effect.orDie(HttpServerResponse.json(frame, { status }))

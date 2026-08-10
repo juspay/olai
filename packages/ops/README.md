@@ -108,10 +108,18 @@ byte, only a node. Reads answer with `file:line`, the node's DERIVED status —
 which for a parent is not in the file and can never be written there — and its
 ancestor titles, which is what makes a bare title mean something.
 
-`mcp.ts` has no transport in it: it is one `handle` over JSON-RPC messages, so
-the olai server mounts it as an HTTP route and a test calls it directly. Three
+`mcp.ts` has no transport in it: it is one `handle` over JSON-RPC messages, and
+that is what makes it serve every client at once. The olai server mounts it as
+an HTTP route for the agent it spawns, pumps it over stdin and stdout for the
+agent in somebody's terminal (`olai mcp`), and a test calls it directly. Three
 methods and one notification is the whole of MCP's tool half, which is why the
 official SDK would be a dependency for dispatch we would still have to route.
+
+One frame is exported beside the server, and it is the only one a transport
+ever builds: `parseError`, for bytes that never became a message. Detecting
+that is genuinely the transport's — an HTTP body and a line fail in different
+places — but what it IS is this dispatch's, so the two cannot drift into
+answering the same non-message differently.
 
 A refused write comes back as a successful JSON-RPC result carrying
 `isError: true` — a protocol error is for a call the server could not process,

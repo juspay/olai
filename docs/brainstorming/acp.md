@@ -33,6 +33,43 @@ The human likes the `master-racket` chat behaviour; its semantics carry over (se
 - **Scope: full parity in the one PR** — send/stream/cancel + ops + session adoption/picker/new + folding + slash completion + model display arrive together.
 - Racket behaviours deliberately NOT carried: no MCP tools at all (its agent was stock Claude Code with fs access and bypass permissions, editing files whole) — ours edits through mediated ops only; and permissions stay auto-approved as already resolved.
 
+## Resolved 2026-08-10 — the external tool surface (roadmap `mcp`)
+
+The punt above came back, and the prediction held: the internal channel produced
+most of it. `@olai/ops`'s `mcp.ts` was written with no transport in it, so what
+this item added is a second caller of the same `handle` and the composition
+around it — the tools themselves, the dispatch, the refusal shape and the closed
+list are untouched.
+
+- **Transport: stdio, as a subcommand — `olai mcp <dir>`.** Nearly every MCP
+  client configures a server as a command it launches, so that is what an agent
+  in a terminal is given. The alternative was a bridge into a running `olai web`
+  (find its port, find its per-process token, POST at `/mcp`), and it loses on
+  the ordinary case: somebody in a notes directory with no server running. A
+  bridge would have to do all of this anyway on finding nothing listening, and
+  would additionally need a discovery mechanism nothing else in olai has.
+- **Two stores over one directory is the accepted consequence**, and it is the
+  same bargain the write gate was built for: it probes before it judges, so a
+  base another process moved comes back as `StaleWrite` and the op re-plans
+  against the newer snapshot — exactly what a `git pull` under an open tab
+  already does. It is not a lock: two writers inside the same instant are
+  last-write-wins, as an editor and a `git checkout` are, and git is the
+  recovery net. Note this is the OPPOSITE conclusion from the internal agent's
+  HTTP route, out of the same question — the panel's agent is a child of the
+  server and shares its store by construction; this one cannot.
+- **stdout is the protocol**, so the whole program's logging goes to stderr via
+  `Logger.LogToStderr` rather than by asking each writer to remember. The store
+  logs failed probes and git logs refused commits, and neither knows it is
+  running under a pipe a JSON-RPC parser is reading.
+- **No token, no bind, no origin gate.** There is nothing to authenticate: the
+  client proved who it is by being the process that started this one. That is
+  also why `mcp` takes no `--port` and no `--host`.
+- **The client closing stdin is the shutdown**, which is how an MCP client stops
+  a server; a write that fails because the far end is gone ends the same way,
+  quietly, rather than dying into whatever log the client keeps.
+- **Still no write CLI.** `web` and `mcp` are two transports in front of one ops
+  layer, and neither adds a node from the command line.
+
 ## Open
 
 Nothing. Dispatch-ready.
