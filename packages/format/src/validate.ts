@@ -27,6 +27,7 @@ import { distance } from "fastest-levenshtein"
 import { Result } from "effect"
 
 import { countedChildren, derive, type Derived, storedMarker } from "./derive.ts"
+import { type Document, resolveRelative } from "./documents.ts"
 import { compareErrors, isGuessWhileUnreadable, type OutlineError } from "./errors.ts"
 import { EDGE_FIELDS, isMirror, type Located } from "./node.ts"
 import type { OutlineSet } from "./set.ts"
@@ -230,14 +231,15 @@ const checkMirrorContainment = (
 // ── documents ──────────────────────────────────────────────────────────
 
 /** `doc` is relative to the outline that names it — that is what "attached"
- *  means — so it is resolved against the outline's own directory and matched
- *  against the `.md` files actually found. */
+ *  means — so it is resolved against the outline's own directory ({@link
+ *  ./documents.ts}, the one place that arithmetic lives) and matched against
+ *  the `.md` files actually found. */
 const checkDocs = (
   all: ReadonlyArray<Located>,
-  documents: ReadonlyArray<string>,
+  documents: ReadonlyArray<Document>,
   errors: Array<OutlineError>,
 ): void => {
-  const known = new Set(documents)
+  const known = new Set(documents.map((document) => document.file))
   for (const located of all) {
     const { file, node } = located
     if (isMirror(node) || node.doc === undefined) continue
@@ -249,19 +251,6 @@ const checkDocs = (
       message: `\`doc\` is \`${node.doc}\`, which resolves to \`${resolved}\` — no such \`.md\` file is served`,
     })
   }
-}
-
-/** Join `to` onto the directory of `from`, collapsing `.` and `..`, with no
- *  filesystem access: both sides are already paths relative to the served
- *  directory, and a validator that touched the disk would be a second reader. */
-export const resolveRelative = (from: string, to: string): string => {
-  const segments = from.split("/").slice(0, -1)
-  for (const segment of to.split("/")) {
-    if (segment === "" || segment === ".") continue
-    if (segment === "..") segments.pop()
-    else segments.push(segment)
-  }
-  return segments.join("/")
 }
 
 // ── derived state ──────────────────────────────────────────────────────

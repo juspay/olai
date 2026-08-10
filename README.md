@@ -72,6 +72,17 @@ for whatever day it is now. Nothing is stored to make this work: there is no
 journal file, no year→month scaffolding and no filename that means anything, so
 a `date` on a node in any outline is all there is to it.
 
+Some notes are not a line. Every `.md` under the directory is a **document**:
+it has a page of its own at `/doc/<path>`, it is listed in the sidebar whether
+or not any outline names it, and a node whose `doc` field attaches one shows
+it — the whole document when you are zoomed on that node, one line of it
+anywhere else. Documents are markdown, rendered at view time like a note's
+text, with fenced code highlighted by a highlighter this server ships rather
+than a CDN, footnotes, and pictures that are files beside the document. Nothing
+else is drawn: a picture is served from one route restricted to picture
+extensions, and a remote image, a `data:` URL or a path climbing out of the
+served directory is refused rather than fetched.
+
 It keeps reading. Save a file, `git pull`, drop a new outline into the
 directory, and the open page updates in place — no reload, no restart. There is
 no polling of the browser and no cache to invalidate: the server watches the

@@ -1,12 +1,17 @@
 /**
- * The two ways around the set: the month, and the outlines found.
+ * The ways around the set: the month, the outlines found, and the documents.
  *
- * One entry per `.jsonl` under the served directory, and above them whatever
- * the app puts in the slot — the month of the whole set's dated nodes. They
- * sit in that order because they are two axes over the same files rather than
- * a list and an ornament beside it: the outlines are where a node is written,
- * the month is when — and the month is the one whose length is fixed, so a
- * long directory never pushes it off the screen.
+ * One entry per `.jsonl` under the served directory, one per `.md` below them,
+ * and above both whatever the app puts in the slot — the month of the whole
+ * set's dated nodes. They sit in that order because they are axes over the same
+ * directory rather than a list and an ornament beside it: the outlines are
+ * where a node is written, the month is when — and the month is the one whose
+ * length is fixed, so a long directory never pushes it off the screen.
+ *
+ * The documents are a list of their own rather than entries under the nodes
+ * that attach them, because most of them are attached by nothing: a `.md` in
+ * the directory is a file somebody put there to read, and the sidebar is what
+ * says the directory holds it. A node's own `doc` is drawn on the node.
  *
  * A SLOT rather than the calendar's own inputs threaded through: what the
  * month needs is the month's business, and a sidebar that declared three props
@@ -26,7 +31,7 @@
  * without opening it.
  */
 
-import type { BrokenFile } from "@olai/format"
+import type { BrokenFile, Document } from "@olai/format"
 import { For, type JSX, Show } from "solid-js"
 
 import { Link } from "./router.tsx"
@@ -35,6 +40,8 @@ import { TARGET } from "./touch.ts"
 
 export function Sidebar(props: {
   readonly files: ReadonlyArray<string>
+  readonly documents: ReadonlyArray<Document>
+  /** The file the open page is of, in whichever of the two lists it is in. */
   readonly active: string | undefined
   readonly broken: ReadonlyMap<string, BrokenFile>
   /** What sits above the list: the month. */
@@ -78,6 +85,30 @@ export function Sidebar(props: {
           )}
         </For>
       </ul>
+
+      <Show when={props.documents.length > 0}>
+        <h2 class="mt-4 mb-1 px-2 text-[0.6875rem] uppercase tracking-widest text-muted">
+          Documents
+        </h2>
+        <ul class="m-0 list-none p-0" data-testid={TESTID.documentList}>
+          <For each={props.documents}>
+            {(document) => (
+              <li class="mb-1">
+                <Link
+                  route={{ kind: "document", file: document.file }}
+                  // The same row an outline gets, for the same reason: a
+                  // finger aims at both (./touch.ts).
+                  class={`flex ${TARGET} items-center break-all rounded px-2 py-1 text-sm no-underline text-inherit hover:bg-rule aria-[current=page]:bg-accent aria-[current=page]:text-paper md:block md:min-h-0`}
+                  testid={TESTID.documentLink}
+                  current={props.active === document.file}
+                >
+                  {document.file}
+                </Link>
+              </li>
+            )}
+          </For>
+        </ul>
+      </Show>
     </nav>
   )
 }

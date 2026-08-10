@@ -18,9 +18,9 @@
  *     carries its errors, and every other outline stays live
  *     (errors/Broken.tsx).
  *
- * What is open is a ROUTE — a whole outline (`/o/<file>`), one node zoomed
- * (`/n/<id>`), or one day of the journal (`/d/<date>`, and `/today`) — so
- * every page is a link someone can send. Which places are folded, whether done
+ * What is open is a ROUTE — a whole outline (`/o/<file>`), one document
+ * (`/doc/<file>`), one node zoomed (`/n/<id>`), or one day of the journal
+ * (`/d/<date>`, and `/today`) — so every page is a link someone can send. Which places are folded, whether done
  * nodes are drawn, and which month the calendar is showing are signals: they
  * belong to this tab's reading and not to the file.
  *
@@ -36,6 +36,7 @@ import {
   datedDays,
   type DayGroup,
   derive,
+  type Document,
   type Row,
 } from "@olai/format"
 import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
@@ -46,13 +47,15 @@ import { createToday } from "./clock.ts"
 import { Connection } from "./connection/Connection.tsx"
 import { CLEARANCE } from "./connection/Indicator.tsx"
 import { DayPage } from "./day/DayPage.tsx"
+import { DocumentPage } from "./document/DocumentPage.tsx"
+import { DocumentsProvider } from "./document/documents.tsx"
 import { Banner } from "./errors/Banner.tsx"
 import { Broken } from "./errors/Broken.tsx"
 import { Page as ErrorPage } from "./errors/Page.tsx"
 import { only } from "./narrow.ts"
 import { NodePage } from "./NodePage.tsx"
 import { Nothing } from "./Nothing.tsx"
-import { outlineOf, pageOf, rowsFor } from "./page.ts"
+import { fileOf, pageOf, rowsFor } from "./page.ts"
 import { OutlinePage } from "./OutlinePage.tsx"
 import { createRouter, RouterProvider } from "./router.tsx"
 import { Sidebar } from "./Sidebar.tsx"
@@ -72,6 +75,21 @@ export default function App() {
 
   const set = () => frame()?.set
   const files = () => set()?.files ?? []
+  /** Every `.md` the directory holds, text and all — the sidebar's second
+   *  list, the document pages, and every `doc` preview come off this one
+   *  field of the set. */
+  const documents = () => set()?.documents ?? []
+  /** The same documents BY PATH — one index, built once. Everything that
+   *  answers "which document is this" reads it: the page a `/doc/<file>` route
+   *  names, and every `doc`-carrying node's reference, however deep in a tree
+   *  it is drawn. The list above stays the list, because order is what a
+   *  sidebar draws. */
+  const documentsByFile = createMemo(
+    () =>
+      new Map<string, Document>(
+        documents().map((document) => [document.file, document] as const),
+      ),
+  )
   /** What is wrong with the set as a WHOLE right now. Empty is the normal
    *  state, including when one file is unreadable — that one lands in the set
    *  itself, as `broken` below. */
@@ -96,9 +114,12 @@ export default function App() {
 
   const page = createMemo(() => {
     const indexes = derived()
-    return indexes === undefined
-      ? undefined
-      : pageOf(indexes, files(), broken(), router.route(), today())
+    return indexes === undefined ? undefined : pageOf(
+      indexes,
+      { files: files(), documents: documentsByFile(), broken: broken() },
+      router.route(),
+      today(),
+    )
   })
 
   /** Which days of a month have something dated them — the calendar's dots.
@@ -153,60 +174,75 @@ export default function App() {
         <Match when={page()}>
           {(open) => (
             <RouterProvider router={router}>
-              {/* Two columns where there is room for two, one where there is
-                  not. `md` is 48rem, which is where the racket original put
-                  the same line: below it the sidebar stops being a column
-                  beside the outline and becomes a header above it (see
-                  ./Sidebar.tsx), and this is the whole of the layout half of
-                  that — one grid, one breakpoint. The rows are named on that
-                  side because a grid stretches auto rows to fill it: without
-                  `1fr` on the second, a short page would push the outline
-                  down the screen by half the space left over.
-                  `min-h-dvh`, not `min-h-screen`: on a phone `vh` is measured
-                  against the browser chrome at its SMALLEST, so a page sized
-                  by it is taller than the screen for as long as the address
-                  bar is showing. */}
-              <div class="grid min-h-dvh grid-cols-1 grid-rows-[auto_1fr] md:grid-cols-[16rem_1fr] md:grid-rows-none">
-                <Sidebar files={files()} active={outlineOf(open())} broken={broken()}>
-                  <Calendar
-                    today={today()}
-                    open={only(open(), "day")?.date}
-                    days={dated}
-                  />
-                </Sidebar>
-                {/* The room under the outline is for two things a phone has
-                    that a laptop does not: the home indicator (the inset is
-                    real because the shell asks for `viewport-fit=cover`), and
-                    the connection dot, which is fixed over this corner and
-                    would otherwise sit on the last row of the tree — so the
-                    amount is the dot's own (./connection/Indicator.tsx). */}
-                <main class={`overflow-x-auto px-4 pt-4 ${CLEARANCE} md:px-8 md:py-6`}>
-                  <Show when={problems().length > 0}>
-                    <Banner errors={problems()} />
-                  </Show>
-                  <Switch>
-                    <Match when={only(open(), "broken")}>
-                      {(file) => <Broken file={file().file} />}
-                    </Match>
-                    <Match when={only(open(), "node")}>
-                      {(node) => (
-                        <NodePage zoomed={node().zoomed} rows={rows} view={view} />
-                      )}
-                    </Match>
-                    <Match when={only(open(), "outline")}>
-                      <OutlinePage rows={rows} view={view} />
-                    </Match>
-                    <Match when={only(open(), "day")}>
-                      {(open) => (
-                        <DayPage date={open().date} groups={day} today={today()} />
-                      )}
-                    </Match>
-                    <Match when={only(open(), "nothing")}>
-                      {(nothing) => <Nothing requested={nothing().requested} />}
-                    </Match>
-                  </Switch>
-                </main>
-              </div>
+              <DocumentsProvider documents={documentsByFile()}>
+                {/* Two columns where there is room for two, one where there is
+                    not. `md` is 48rem, which is where the racket original put
+                    the same line: below it the sidebar stops being a column
+                    beside the outline and becomes a header above it (see
+                    ./Sidebar.tsx), and this is the whole of the layout half of
+                    that — one grid, one breakpoint. The rows are named on that
+                    side because a grid stretches auto rows to fill it: without
+                    `1fr` on the second, a short page would push the outline
+                    down the screen by half the space left over.
+                    `min-h-dvh`, not `min-h-screen`: on a phone `vh` is measured
+                    against the browser chrome at its SMALLEST, so a page sized
+                    by it is taller than the screen for as long as the address
+                    bar is showing. */}
+                <div class="grid min-h-dvh grid-cols-1 grid-rows-[auto_1fr] md:grid-cols-[16rem_1fr] md:grid-rows-none">
+                  <Sidebar
+                    files={files()}
+                    documents={documents()}
+                    active={fileOf(open())}
+                    broken={broken()}
+                  >
+                    <Calendar
+                      today={today()}
+                      open={only(open(), "day")?.date}
+                      days={dated}
+                    />
+                  </Sidebar>
+                  {/* The room under the outline is for two things a phone has
+                      that a laptop does not: the home indicator (the inset is
+                      real because the shell asks for `viewport-fit=cover`), and
+                      the connection dot, which is fixed over this corner and
+                      would otherwise sit on the last row of the tree — so the
+                      amount is the dot's own (./connection/Indicator.tsx). */}
+                  <main class={`overflow-x-auto px-4 pt-4 ${CLEARANCE} md:px-8 md:py-6`}>
+                    <Show when={problems().length > 0}>
+                      <Banner errors={problems()} />
+                    </Show>
+                    <Switch>
+                      <Match when={only(open(), "broken")}>
+                        {(file) => <Broken file={file().file} />}
+                      </Match>
+                      <Match when={only(open(), "node")}>
+                        {(node) => (
+                          <NodePage zoomed={node().zoomed} rows={rows} view={view} />
+                        )}
+                      </Match>
+                      <Match when={only(open(), "outline")}>
+                        <OutlinePage rows={rows} view={view} />
+                      </Match>
+                      <Match when={only(open(), "document")}>
+                        {(open) => <DocumentPage document={open().document} />}
+                      </Match>
+                      <Match when={only(open(), "day")}>
+                        {(open) => (
+                          <DayPage date={open().date} groups={day} today={today()} />
+                        )}
+                      </Match>
+                      <Match when={only(open(), "nothing")}>
+                        {(nothing) => (
+                          <Nothing
+                            sought={nothing().sought}
+                            requested={nothing().requested}
+                          />
+                        )}
+                      </Match>
+                    </Switch>
+                  </main>
+                </div>
+              </DocumentsProvider>
             </RouterProvider>
           )}
         </Match>

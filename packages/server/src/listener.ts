@@ -32,11 +32,12 @@ import {
   surfaceAppLayer,
 } from "@kolu/surface-app/server"
 import { NodeHttpServer } from "@effect/platform-node"
-import { Data, Effect, Scope } from "effect"
+import { Data, Effect, Layer, Scope } from "effect"
 import { HttpRouter } from "effect/unstable/http"
 import { WebSocketServer } from "ws"
 
 import { MANIFEST } from "./manifest.ts"
+import { mediaLayer } from "./media.ts"
 import type { Bound } from "./runtime.ts"
 
 const WS_PATH = "/rpc/ws"
@@ -57,6 +58,8 @@ export interface ListenOptions {
   readonly bound: Bound
   /** The built browser bundle. */
   readonly clientDist: string
+  /** The directory being served — where `/media/*` reads its pictures from. */
+  readonly root: string
   readonly host: string
   readonly port: number
   /** Browser origins allowed to open the websocket, beyond same-origin. */
@@ -70,7 +73,7 @@ export interface ListenOptions {
 export const listen = (options: ListenOptions) =>
   Effect.gen(function*() {
     const server = createServer()
-    server.on("request", yield* requestHandler(options.clientDist))
+    server.on("request", yield* requestHandler(options))
 
     const sockets = new WebSocketServer({
       noServer: true,
@@ -182,19 +185,25 @@ const bindOrFallBack = (
       ),
   )
 
-/** The `request` handler, as an Effect handler over the static layer.
+/** The `request` handler, as an Effect handler over two layers.
  *  `surfaceAppLayer` owns the freshness contract: a `no-store` shell,
  *  immutable hashed assets, a 404 on an asset miss (never the shell), and the
- *  SPA fallback that makes `/o/<file>` a real URL. It also serves the web app
- *  manifest at `/manifest.webmanifest`; what is IN that manifest is
- *  `./manifest.ts`. */
-const requestHandler = (clientDist: string) =>
+ *  SPA fallback that makes `/o/<file>` a real URL, and it serves the web app
+ *  manifest at `/manifest.webmanifest` — what is IN that manifest is
+ *  `./manifest.ts`. `mediaLayer` owns the one route that answers with bytes
+ *  from the SERVED directory rather than from the bundle — merge order carries
+ *  no meaning, because `HttpRouter` ranks by specificity and `/media/*` is more
+ *  specific than the shell's catch-all. */
+const requestHandler = (options: { readonly clientDist: string; readonly root: string }) =>
   Effect.gen(function*() {
     const scope = Scope.makeUnsafe()
-    const layer = surfaceAppLayer({
-      clientDist,
-      manifest: MANIFEST,
-    })
+    const layer = Layer.merge(
+      mediaLayer(options.root),
+      surfaceAppLayer({
+        clientDist: options.clientDist,
+        manifest: MANIFEST,
+      }),
+    )
     const httpEffect = yield* HttpRouter.toHttpEffect(layer)
     return yield* NodeHttpServer.makeHandler(httpEffect, { scope })
   })

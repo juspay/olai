@@ -30,15 +30,53 @@ status, sibling order, mirror expansion, a node's ancestry and the guard that
 stops a mirror inside its own subtree, and hands back rows; `Tree.tsx` turns a
 row into markup and nothing else. The view and the validator agree about what a
 file means because they run the same code, not because two implementations were
-written to the same paragraph. The one thing this package does interpret is a
-note, which is markdown, rendered and sanitised at view time.
+written to the same paragraph. The one thing this package does interpret is
+MARKDOWN, rendered and sanitised at view time.
 
-## Four routes, and what each is a property of
+## Markdown, and documents
+
+`src/client/markdown/` is one pipeline for every piece of markdown this app
+draws — a node's note and a whole `.md` document are the same language read out
+of the same directory, and a document that supported a fence a note did not
+would be a second dialect nobody asked for. Parse with GFM, to HTML, sanitise,
+highlight, rewrite, stringify:
+
+- **highlighting runs after the sanitiser**, deliberately. The `hljs-` spans
+  are ours, produced from the code's own text, so they need no allowlist entry
+  — while the `language-…` class that produced them is the reader's, and is on
+  the sanitiser's default allowlist. `rehype-highlight` is bundled with the
+  client (about 180 kB of it): it is in `bun.lock`, so the Nix build fetches it
+  like everything else, and no page asks a CDN for the code that renders
+  someone's private outline. The colours are this theme's tokens, so a fence
+  follows the light/dark palette the rest of the page does.
+- **`rewrite.ts`** is a walk over the finished tree rather than a plugin, which
+  is what lets the pipeline be built once — the highlighter registers three
+  dozen languages when it is attached, and a pipeline rebuilt per note would
+  pay for that on every row of every frame. It answers the two questions only
+  this app can: a relative picture becomes a `/media/…` URL and anything else
+  is not drawn at all, and every id (and every link into the same block) is
+  re-minted under a prefix derived from the block itself, so the first footnote
+  of one note cannot answer for the first footnote of the next.
+
+`src/client/document/` is what a document looks like: its own page, the
+reference a `doc`-carrying node shows wherever it is drawn, and the context
+that lets a row deep in a tree find a document's text without every component
+above it declaring a prop for it. The text itself is not fetched — it arrives
+in the set, so a document edited on disk redraws through the same subscription
+an outline does.
+
+## Five routes, and what each is a property of
 
 `routes.ts` is the whole of the URL contract, and it is a bijection its own
 test insists on: a link the app writes has to be a link it can read back.
 
 - `/o/<file>` names a file on disk, so it spells the path.
+- `/doc/<file>` names a document, which is also a file and also spells its
+  path. A second prefix rather than more work for the first, because an outline
+  and a document are two different things a file can be (`fileKind`, in the
+  format): the address says which, so a URL means one kind of page before the
+  set is in hand, and renaming a `.md` to a `.jsonl` is a different page rather
+  than the same address quietly changing what it draws.
 - `/n/<id>` names a node, and an id is all it may spell. Ids are unique across
   the loaded set and survive renames and moves across files, so the permalink
   outlives every edit short of a delete — while a URL that also carried the
@@ -59,7 +97,7 @@ set to work one out from.
 
 Navigation is real `<a href>`s (`router.tsx`), so ⌘-click and "copy link
 address" behave the way they do everywhere else; a plain left click is
-intercepted and answered in place. There is no router library: four addresses
+intercepted and answered in place. There is no router library: five addresses
 do not need one.
 
 ## The month, and a day
@@ -143,8 +181,9 @@ drawer, no overlay, no toggle — those need a state, a backdrop, a focus trap
 and a way to close, all of it to hide something that fits.
 
 And what a finger aims at grows to 44px, the number both mobile platforms
-print in their guidelines: sidebar entries, days of the month, the month's
-paging chevrons, the done switch, the crumbs. `touch.ts` is that decision —
+print in their guidelines: sidebar entries — outlines and documents alike —
+days of the month, the month's paging chevrons, the done switch, the crumbs,
+and the link on a node's `doc` reference. `touch.ts` is that decision —
 the target size once, since it is one policy, with each control's *compact*
 size spelled where that control is drawn, since that is a design per control.
 The same file holds the one place the rule cannot be obeyed in both
@@ -213,8 +252,9 @@ plugins at all; and the stylesheet is handed back as bytes so
 name on the same immutable-caching contract as the JS.
 
 `styles.css` holds only the `@theme` tokens and rules for markup this codebase
-does not author — a rendered note's tags come from a file on disk and can carry
-no classes. Everything else is a utility, inline in the component, so deleting
+does not author — the tags of a rendered note or document come from a file on
+disk and can carry no classes, and the highlighter's own class names inside a
+fence are the same case. Everything else is a utility, inline in the component, so deleting
 a component deletes its styling with it. No `@apply`.
 
 ## Layering

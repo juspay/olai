@@ -23,8 +23,8 @@ import { type Row } from "@olai/format"
 import { createMemo, For, Match, Show, Switch } from "solid-js"
 
 import { Bullet } from "./Bullet.tsx"
+import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
-import { Note } from "./Note.tsx"
 import { TESTID } from "./testids.ts"
 import { CONTROL, CONTROL_SPACER, PAST_CONTROLS } from "./touch.ts"
 
@@ -59,8 +59,11 @@ function Branch(props: {
   // separate computations in this component read it. Without the memo every
   // row in the tree re-runs all five on every click.
   const collapsed = createMemo(() => props.collapsed.has(props.row.key))
+  // The RECORD a row shows, file and all — the file is what a note's relative
+  // picture and a `doc` are relative to, and for a mirror that is the file the
+  // node is DEFINED in rather than the one being read.
   const shown = () => (props.row.kind === "node" || props.row.kind === "mirror")
-    ? props.row.shows.node
+    ? props.row.shows
     : undefined
 
   return (
@@ -105,11 +108,11 @@ function Branch(props: {
             )}
           </Match>
           <Match when={shown()}>
-            {(node) => (
+            {(shows) => (
               <NodeLine
-                title={node().title}
+                title={shows().node.title}
                 status={props.row.status}
-                date={node().date}
+                date={shows().node.date}
               >
                 <Show when={props.row.kind !== "node"}>
                   <span class="mr-1 text-muted" title="a mirror of another node">
@@ -123,13 +126,13 @@ function Branch(props: {
       </div>
 
       {/* Indented past both controls — which are wider where a finger is what
-          taps them, so the note lines up under the title on either. */}
-      <Show when={!collapsed() && shown()?.desc}>
-        {(desc) => (
-          <Note
-            desc={desc()}
-            class={`mt-1 mb-2 ${PAST_CONTROLS} text-[0.9375rem] text-muted`}
-          />
+          taps them, so the note and the document under it line up with the
+          title on either. */}
+      <Show when={!collapsed() && shown()}>
+        {(shows) => (
+          <div class={PAST_CONTROLS}>
+            <NodeBody shows={shows()} />
+          </div>
         )}
       </Show>
 

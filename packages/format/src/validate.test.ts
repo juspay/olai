@@ -4,7 +4,7 @@ import { Result } from "effect"
 import { isCrossFile, type OutlineError } from "./errors.ts"
 import { setOf } from "./fixtures.testlib.ts"
 import type { OutlineSet } from "./set.ts"
-import { resolveRelative, validate } from "./validate.ts"
+import { validate } from "./validate.ts"
 
 const errorsOf = (
   files: Record<string, string>,
@@ -279,11 +279,7 @@ test("a doc reached through ../ resolves against the outline's directory", () =>
     { "sub/plan.jsonl": `{"id":"a","ord":"a","title":"a","doc":"../notes/a.md"}` },
     ["notes/a.md"],
   )
-  // The resolver is pure path arithmetic — no disk, or the validator would be
-  // a second reader.
-  expect(resolveRelative("sub/plan.jsonl", "../notes/a.md")).toBe("notes/a.md")
-  expect(resolveRelative("sub/plan.jsonl", "./a.md")).toBe("sub/a.md")
-  expect(resolveRelative("plan.jsonl", "notes/a.md")).toBe("notes/a.md")
+  // The arithmetic behind it is `documents.ts`'s, and it is tested there.
 })
 
 // The rule the format leans on: if a parent's status could be both stored and

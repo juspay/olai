@@ -1,25 +1,29 @@
 /**
  * A node's note, rendered.
  *
- * The one thing this client interprets on its own: `desc` is markdown, stored
- * verbatim and rendered at view time (./markdown.ts sanitises). One component
- * so the `innerHTML` — and the reason it is safe — is written down once,
- * wherever a note appears.
+ * `desc` is markdown, stored verbatim and interpreted at view time by the same
+ * pipeline a whole document goes through (./markdown/) — a note and a document
+ * are the same language read out of the same directory, and the note is simply
+ * the one that fits on the row.
+ *
+ * `from` is the outline the note is written in, which is what a relative
+ * picture in it is relative to.
  */
 
-import { createMemo } from "solid-js"
-
-import { renderMarkdown } from "./markdown.ts"
+import { Markdown } from "./markdown/Markdown.tsx"
 import { TESTID } from "./testids.ts"
 
-export function Note(props: { readonly desc: string; readonly class?: string }) {
-  const html = createMemo(() => renderMarkdown(props.desc))
+export function Note(props: {
+  readonly desc: string
+  readonly from: string
+  readonly class?: string
+}) {
   return (
-    <div
-      class={`olai-note ${props.class ?? ""}`}
-      data-testid={TESTID.desc}
-      // Safe because the pipeline sanitises: see ./markdown.ts.
-      innerHTML={html()}
+    <Markdown
+      source={props.desc}
+      from={props.from}
+      class={props.class}
+      testid={TESTID.desc}
     />
   )
 }

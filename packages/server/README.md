@@ -20,6 +20,7 @@ one-validator rule has been broken.
 | `codec.ts` | the seam where the generic store meets the outline format |
 | `runtime.ts` | the two surface bindings: the stream is `SubscriptionRef.changes` verbatim, the errors cell is an owned source |
 | `listener.ts` | HTTP for the bundle, WebSocket for the surface: origin gate → upgrade → stale-tab gate → heartbeat → serve |
+| `media.ts` | `/media/*`: the pictures a document points at, and the only bytes that leave the served directory over HTTP without going through the store |
 | `manifest.ts` | what an installed olai is: name, description, colours, and the mark |
 | `clientDist.ts` | `OLAI_DIST_DIR`, the one place the built bundle is named |
 | `main.ts` | argv, defaults, and the top-level run |
@@ -54,6 +55,21 @@ the browser build stays a build artifact rather than an import. A fallback that
 walked from `clientDist.ts` into `packages/web/dist` would be a real
 `server → web` dependency expressed as a path — invisible to `bun install` and
 to any layering check.
+
+`media.ts` is two decisions and no mechanism of its own. WHETHER to answer is
+`@olai/surface`'s `mediaTarget` — the traversal guard and the picture
+allowlist, which live there because the client's renderer writes those URLs
+against the same function. HOW to answer is the platform's own file engine
+(`HttpStaticServer`), the same one already serving the bundle from the layer
+beside it: reading a file under a root is not a thing to hand-roll twice in one
+process, and the engine brings the stat, the directory case, the MIME type, the
+byte range and the conditional `304` a browser asks for on its second look at a
+picture. What is left in this file is the wiring and one 404 for every way a
+picture is not there — which way it is missing is not the reader's business,
+and saying would describe the disk to anybody who can reach the port. The guard
+is lexical by design: it stops a URL from naming a file outside the directory,
+and does not chase a symlink someone put inside a tree they are already serving
+whole.
 
 ## Entry point
 

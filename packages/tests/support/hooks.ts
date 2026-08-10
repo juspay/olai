@@ -563,6 +563,13 @@ Before(
 
     // Collected for the whole scenario, asserted on by whichever step cares.
     this.errors = [];
+    this.offSite = [];
+    this.page.on("request", (request) => {
+      const url = request.url();
+      if (!url.startsWith(this.baseUrl) && !url.startsWith("data:")) {
+        this.offSite.push(url);
+      }
+    });
     this.page.on("pageerror", (error) => {
       this.errors.push(`pageerror: ${error.message}`);
     });

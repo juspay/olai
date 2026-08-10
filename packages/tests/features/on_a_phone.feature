@@ -64,6 +64,8 @@ Feature: On a phone
   Scenario: What a finger aims at is big enough to aim at
     Given I open the outline "house.jsonl"
     Then every "outline entry" is at least 44px tall and 44px wide
+    # A document in the sidebar is the same kind of thing as an outline in it.
+    And every "document entry" is at least 44px tall and 44px wide
     And every "collapse toggle" is at least 44px tall and 28px wide
     And every "zoom bullet" is at least 44px tall and 28px wide
     And every "done switch" is at least 44px tall and 44px wide

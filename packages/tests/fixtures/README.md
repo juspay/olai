@@ -5,6 +5,11 @@ One directory per corpus. A scenario picks one with a `@corpus:<name>` tag, and
 scenario asks for it (see the header there). Nothing in this file is served —
 only the corpus directories below it are.
 
+`outside.png` is the exception that proves it: a real picture sitting HERE,
+one directory above every served root, so that the traversal scenario in
+`features/documents.feature` refuses a URL because it climbs and not because
+there is nothing at the end of it.
+
 These directories are **read-only to a scenario**. A scenario that has to edit
 the files — everything in `features/it_stays_live.feature` — asks for
 `@scratch:<name>` instead and is served a private temp copy by a server of its
@@ -18,8 +23,8 @@ from `broken/` and `tangled/`.
 
 ## `good/` — a set that validates
 
-Two outlines and one attached document. Between them they exercise one of each
-thing the view has to draw:
+Two outlines, two documents and a picture. Between them they exercise one of
+each thing the view has to draw:
 
 | what | where |
 |---|---|
@@ -32,6 +37,9 @@ thing the view has to draw:
 | a markdown `desc` | `order` — a paragraph, a two-item list, bold and italic |
 | an `after` edge | `order` after `demo`; `install` after `order` |
 | a `doc` | `install` attaches `finishes.md` |
+| a document nothing attaches | `notes/palette.md` — still a page, still in the sidebar |
+| a fenced code block, a footnote | `finishes.md` |
+| a relative picture | `finishes.md` names `art/handle.png`; `notes/palette.md` names the same file through `../` |
 | a cross-file mirror | `kitchen-herbs` (house.jsonl) mirrors `herbs` (garden.jsonl) |
 
 The mirror is why there are two files. Every `.jsonl` is an independent tree —

@@ -19,6 +19,7 @@ import { Then, When } from "@cucumber/cucumber";
 
 import {
   CALENDAR_DAY,
+  DOCUMENT_LINK,
   CALENDAR_NEXT,
   CALENDAR_PREV,
   DONE_TOGGLE,
@@ -34,6 +35,7 @@ import type { Box, OlaiWorld } from "../support/world.ts";
 /** The controls a feature can name, and what each one is on the page. */
 const TARGETS: Record<string, string> = {
   "outline entry": OUTLINE_LINK,
+  "document entry": DOCUMENT_LINK,
   "collapse toggle": TOGGLE,
   "zoom bullet": ZOOM,
   "done switch": DONE_TOGGLE,
