@@ -12,8 +12,12 @@ let
   # serve the browser bundle, the websocket acceptance seam, and the Bun.build
   # helper that produces the bundle in the first place.
   # @kolu/log is the logger seam surface imports; a hydrated source resolves
-  # its own imports from where it was copied, so its kolu siblings come too.
-  names = [ "surface" "surface-app" "log" ];
+  # its own imports from where it was copied, so its kolu siblings come too —
+  # @kolu/url-shape is here for exactly that reason and no other: it is the
+  # zero-dependency leaf `@kolu/surface-app/serve` reads its host/port
+  # bracketing from, so the URL a listener reports is a URL when the host is an
+  # IPv6 literal.
+  names = [ "surface" "surface-app" "log" "url-shape" ];
 
   pairs = pkgs: builtins.concatMap
     (name: [ "${pkgs."kolu-${name}"}" "@kolu/${name}" ])

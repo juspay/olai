@@ -112,6 +112,14 @@ export const serve = (options: ServeOptions) =>
     // apart from the ordinary settle of a shutdown is `fault.ts`'s whole job.
     const runtime = yield* watchFault(wired.bound)
 
+    // This file built the runtime, so this file closes it. The listener takes
+    // its `group` and its `handlers` and never its lifetime — a transport that
+    // also closed it would be two owners of one thing — which is why the line
+    // is here and not there. Registered BEFORE the listener so it runs AFTER
+    // it: finalizers run in reverse, and every serving stack the listener
+    // drains is answered by this runtime while it drains.
+    yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
+
     const url = yield* Effect.onError(
       listen({ ...options, bound: wired.bound, mcp: { server: mcp, token } }),
       () => runtime.stopped,

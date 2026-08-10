@@ -22,11 +22,10 @@
     "@olai/ops": "workspace:*",
     "@olai/store": "workspace:*",
     "@olai/surface": "workspace:*",
-    "effect": "4.0.0-beta.106",
-    "ws": "^8.18.0"
+    "effect": "4.0.0-beta.106"
   },
+  "//ws": "Not here any more, and that is the point of serveSurfaceApp: no source in this package names a websocket implementation. `ws` is the hydrated @kolu/surface-app's own peer dependency, declared at the ROOT with the rest of them (bunfig.toml has the argument).",
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@types/ws": "^8.18.1"
+    "@types/node": "^22.0.0"
   }
 }

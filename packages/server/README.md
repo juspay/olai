@@ -35,7 +35,7 @@ register `stop` as a finalizer.
 | `mcp/serve.ts` | the tool surface for an agent that started US: `olai mcp`'s own, much smaller, composition root |
 | `mcp/stdio.ts` | that one's transport — newline-framed JSON-RPC over a pair of pipes, and nothing else on stdout |
 | `runtime.ts` | the surface bindings: the outline stream is `SubscriptionRef.changes` verbatim, the errors cell is an owned source, the transcript is server-authored |
-| `listener.ts` | HTTP for the bundle, WebSocket for the surface: origin gate → upgrade → stale-tab gate → heartbeat → serve |
+| `listener.ts` | one `serveSurfaceApp` call — plus the two decisions it leaves: whose port this is, and what a listener event sounds like in olai's log |
 | `media.ts` | `/media/*`: the pictures a document points at, and the only bytes that leave the served directory over HTTP without going through the store |
 | `manifest.ts` | what an installed olai is: name, description, colours, and the mark |
 | `directory.ts` | the served directory, opened: resolved, annotated onto the log, and a store over it — in the order both composition roots need and neither should have to remember |
@@ -43,29 +43,49 @@ register `stop` as a finalizer.
 | `allowedOrigins.ts` | `OLAI_ALLOWED_ORIGINS`, the one place the websocket's origin allowlist is named |
 | `main.ts` | argv, defaults, the log sink, and the top-level run |
 
-The stale-tab gate in that sequence is not a formality: a browser reconnecting
-after a restart presents the process id it was given by the server that is
-gone, and this one closes the socket at the handshake rather than serving a
-page it did not build. No id is threaded through this package to make that
-work — the gate compares against the framework's own `surfaceProcessId()`, the
-same value `system/identity` answers with and the browser echoes back, so the
-two ends cannot be pointed at different ids.
+## The listener is one call now
 
-## The frame cap is the framework's number
+`listener.ts` used to spell out the sequence a surface app is served by — origin
+gate on the raw pre-upgrade socket, upgrade, stale-tab check, heartbeat
+enrolment, a serving stack per connection, and a teardown that DROPS what is
+connected rather than waiting for it. It was copied from kolu's own surface-app
+example and kept in step with it by hand, and it is `serveSurfaceApp`
+(`@kolu/surface-app`) as of kolu#2137. What is left in the file is what that
+call deliberately does not make:
 
-The websocket's `maxPayload` is `RPC_MAX_FRAME_BYTES` (plus the newline an
-ndjson frame ends with, which is on the wire but outside what the decoder
-measures). Not a setting of ours: `@kolu/surface` owns the wire's frame size
-and owns what happens to a frame that busts it — its decoder classifies the
-frame and closes with a documented code the client is written to recover from.
-A smaller cap here does not make the wire safer, it just moves the refusal to a
-layer with no classifier and no client that understands it, killing every
-subscription multiplexed onto that socket. This file said `8 MiB` against the
-framework's 16, so every frame in between — a big outline snapshot — died at
-the wrong layer; sourcing the number is what stops the two from disagreeing
-again, and `listener.test.ts` fails if they do. (Under bun the option is a
-declaration: bun's built-in `ws` ignores `maxPayload` and enforces 16 MiB of
-its own. A node host obeys it.)
+- **whose port this is.** A busy port is the one bind failure that is not a
+  reason to refuse to serve, so olai retries wherever the OS says (below).
+  Every other failure still is a refusal. The retry is a second
+  `serveSurfaceApp` rather than a re-bind — there is no server handle to reuse,
+  and nothing to clean up, because the abandoned first call never bound and its
+  teardown is already on the scope;
+- **what it says.** The primitive narrates every gate and every fault on ONE
+  callback and defaults it to `console`; olai has a format and a stream of its
+  own, so `listener.ts` maps those events onto `Effect.log*` — a stale tab is
+  `Info`, a refused cross-site upgrade is `Warn`. `listener.test.ts` drives
+  real sockets at a real server and reads what the LOGGER heard, because a
+  `console.warn` still reaches a terminal and just is not in the logfmt anyone
+  downstream is parsing.
+
+The stale-tab gate is not a formality: a browser reconnecting after a restart
+presents the process id it was given by the server that is gone, and it is
+closed at the handshake rather than served a page it did not build. No id is
+threaded through this package to make that work — the gate compares against the
+framework's own `surfaceProcessId()`, the same value `system/identity` answers
+with and the browser echoes back, so the two ends cannot be pointed at
+different ids.
+
+Two things left with the sequence rather than moving into the call. The FRAME
+CAP: this file used to pass `ws` a `maxPayload` of 8 MiB while `@kolu/surface`
+classifies oversize at 16, so every frame in between — a big outline snapshot —
+was refused a layer below the one with a classifier, a documented close code
+and a client written to recover from it, taking every other subscription on
+that socket with it. The primitive reads `RPC_MAX_FRAME_BYTES` and offers no
+option to move it, so there is one number and nothing to disagree with. And the
+SURFACE RUNTIME'S LIFETIME, which went the other way: `serveSurfaceApp` takes
+`group` and `handlers` and never `close`, so `serve.ts` — which built the
+runtime — is the only thing that closes it, and the finalizer is registered
+there in the order that makes the sockets go first.
 
 ## The manifest is served, the icons are not
 
@@ -74,8 +94,8 @@ colours and the icon list — served at `/manifest.webmanifest` through
 `@kolu/surface-app`'s manifest layer, which owns the install-friendly defaults
 (`start_url`, `display: standalone`) so they are not restated. Its own file
 rather than a block in `listener.ts`: the app's identity has nothing to do with
-sequencing an upgrade, and that file is one this repo means to give back
-upstream. The icon *files* belong to the browser bundle and are served
+serving it, and it survived that file being reduced to one call — which is what
+having its own reason to change means. The icon *files* belong to the browser bundle and are served
 as part of it, which means the two ends of that contract live in two packages
 that do not import each other. Nothing here can check that a `src` it names is
 a file that exists — and the static layer answers an unmatched path with the
@@ -191,8 +211,8 @@ any test that came near the path down with it — which is why there was no test
 
 Depends on `chat`, `format`, `log`, `ops`, `store` and `surface`, strictly
 downward. Nothing depends on this. [docs/architecture.md](../../docs/architecture.md)
-has the reasoning — including the note that `listener.ts` is a sequence owed
-upstream to `@kolu/surface-app`.
+has the reasoning — including what `listener.ts` kept when the sequence it used
+to spell out went upstream to `@kolu/surface-app`.
 
 ## Running
 

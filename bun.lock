@@ -11,9 +11,11 @@
         "@solid-primitives/scheduled": "^1.5.3",
         "effect": "4.0.0-beta.106",
         "solid-js": "^1.9.0",
+        "ws": "^8.21.0",
       },
       "devDependencies": {
         "@types/bun": "^1.2.0",
+        "@types/ws": "^8.18.1",
         "typescript": "^5.8.0",
       },
     },
@@ -73,11 +75,9 @@
         "@olai/store": "workspace:*",
         "@olai/surface": "workspace:*",
         "effect": "4.0.0-beta.106",
-        "ws": "^8.18.0",
       },
       "devDependencies": {
         "@types/node": "^22.0.0",
-        "@types/ws": "^8.18.1",
       },
     },
     "packages/store": {

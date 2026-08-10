@@ -1,76 +1,66 @@
 /**
- * The frame cap, at the layer that is allowed to refuse.
+ * What the listener says, and where it says it.
  *
- * The bug: this listener capped websocket messages at 8 MiB while
- * `@kolu/surface`'s `frameLimit` classifies oversize at 16 MiB. Everything in
- * between — a big outline snapshot is the realistic one — was refused by the
- * raw ws layer, which has no classifier and no vocabulary for it: the socket
- * dies and every unrelated subscription multiplexed onto it dies with it,
- * instead of the framework's handled oversize path running.
+ * This file used to fence the frame cap — an 8 MiB `maxPayload` against a
+ * framework that carries 16 MiB (#71) — and it pinned the NUMBER, because bun's
+ * built-in `ws` ignores `maxPayload` and a behavioural assertion would have
+ * passed against the bug. There is no number here to pin any more:
+ * `serveSurfaceApp` reads `RPC_MAX_FRAME_BYTES` and exposes no option to move
+ * it, and kolu's own `serve.test.ts` carries both halves — the framework-sized
+ * frame round-tripping and a non-ASCII frame over the byte budget refused. A
+ * copy here would be a test of somebody else's constant, failing in the wrong
+ * repository the day it changed.
  *
- * The first test is the regression fence and it is a test of the NUMBER, on
- * purpose. Bun's built-in `ws` — what this server actually runs on — ignores
- * `maxPayload` entirely and enforces 16 MiB of its own, so the disagreement
- * these two layers had was invisible from the outside here and a behavioural
- * assertion would have passed against the bug. What was wrong was the
- * configuration, so that is what is pinned; it fails against `8 * 1024 * 1024`
- * and against any future edit that lets the layers drift apart again.
+ * What did NOT move upstream is the SINK. The primitive narrates every gate and
+ * every fault on one callback and defaults it to `console`; olai routes
+ * everything it says through `@olai/log` — one format, one stream, one level
+ * knob — and the way that wiring breaks is silent: a `console.warn` still
+ * reaches a terminal, just not the logfmt an e2e harness, a systemd journal or
+ * a `--log-level` is reading. So these drive real sockets at a real server and
+ * assert on what the LOGGER heard.
  *
- * The second test is the behaviour that number exists for, end to end over a
- * real server and a real socket: a frame in the disputed range is carried and
- * ANSWERED rather than swallowed by a close.
+ * Two arms, and they are the two the mapping actually decides between: a tab
+ * left over from a restart is ordinary (`Info`, and worth a line only because
+ * it explains a page that stopped updating), while a cross-site upgrade refused
+ * before it became a socket is not (`Warn`). Everything the primitive reports
+ * lands on one of those two levels, so proving both proves the switch.
  */
 
-import { exceedsFrameLimit, RPC_MAX_FRAME_BYTES } from "@kolu/surface/frame-limit"
 import { NodeHttpServer, NodeServices } from "@effect/platform-node"
-import { collector, findSaid } from "@olai/log/testlib"
+import { collector, findSaid, type Logged } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
 import * as fs from "node:fs"
+import * as http from "node:http"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import { WS_MAX_PAYLOAD_BYTES } from "./listener.ts"
 import { serve } from "./serve.ts"
-
-/** A frame the framework carries and the old cap did not: bigger than the
- *  8 MiB this file used to pass to `ws`, smaller than the 16 MiB the framework
- *  refuses at. */
-const DISPUTED_BYTES = 9 * 1024 * 1024
-
-test("a frame the framework would carry is not refused a layer below it", () => {
-  // The framework's own predicate, not a re-statement of its number: this is
-  // the half of the claim that says 9 MiB is the framework's business.
-  expect(exceedsFrameLimit(DISPUTED_BYTES)).toBe(false)
-  // ...and this is the half that was false. 9 MiB > the old 8 MiB cap.
-  expect(DISPUTED_BYTES).toBeLessThanOrEqual(WS_MAX_PAYLOAD_BYTES)
-  // Generalised, so a re-pin of either number cannot re-open the gap: the
-  // socket layer must never be the one that says no first.
-  expect(WS_MAX_PAYLOAD_BYTES).toBeGreaterThanOrEqual(RPC_MAX_FRAME_BYTES)
-  // And the delimiter, as the property rather than as the expression: the
-  // BIGGEST frame the decoder accepts is `RPC_MAX_FRAME_BYTES` of content
-  // arriving in a message that also carries its newline, and that message has
-  // to fit. A cap of exactly the framework's number passes the line above and
-  // fails this one.
-  expect(RPC_MAX_FRAME_BYTES + 1).toBeLessThanOrEqual(WS_MAX_PAYLOAD_BYTES)
-})
 
 const LAYERS = Layer.mergeAll(NodeServices.layer, NodeHttpServer.layerHttpServices)
 
+/** How long a socket may take to be answered, and a line to be said, before
+ *  either is a hang. Generous: what is being told apart is "refused" from
+ *  "never", not a fast refusal from a slow one. */
+const BOUND_MS = 10_000
+
 /** A directory with one valid outline in it, thrown away with the test. */
 const served = (): string => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-frame-"))
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-listener-"))
   fs.writeFileSync(path.join(root, "a.jsonl"), `{"id":"a","ord":"a0","title":"a"}\n`)
   return root
 }
 
-/** How long the answer may take before "carried" is a lie. Generous: what is
- *  being told apart is a reply from a close, not a fast reply from a slow one. */
-const BOUND_MS = 10_000
-
-test("a 9 MiB frame reaches the surface and is answered", async () => {
+/** A real server on an OS-chosen port, and everything it said. The address is
+ *  read off the `serving` line because that IS the interface — the port was
+ *  asked for as `0`, so the process is the only thing that knows which one it
+ *  got — the same reading `serve.test.ts` and the e2e harness do. */
+const withServer = (
+  body: (url: string, said: ReadonlyArray<Logged>) => Promise<void>,
+): Promise<void> => {
   const { layer, said } = collector()
-  const answer = await Effect.gen(function*() {
+
+  return Effect.gen(function*() {
     yield* serve({
       root: served(),
       port: 0,
@@ -81,79 +71,130 @@ test("a 9 MiB frame reaches the surface and is answered", async () => {
       // repository happens to contain it is not this test's to do.
       commit: false,
     })
-    // The port was asked for as `0`, so the log line is the only thing that
-    // knows which one we got — the same reading `serve.test.ts` does.
-    const where = findSaid(said, "serving")?.annotations.url
-    expect(typeof where).toBe("string")
-    return yield* Effect.promise(() => ask(String(where)))
+    const url = findSaid(said, "serving")?.annotations.url
+    expect(typeof url).toBe("string")
+    yield* Effect.promise(() => body(String(url), said))
   }).pipe(Effect.scoped, Effect.provide(LAYERS), Effect.provide(layer), Effect.runPromise)
+}
 
-  // A real answer to a real call, which is only reachable if the frame that
-  // carried it arrived: `system/identity` is the framework's own member, and
-  // it succeeds. This proves CARRIAGE, not the fix — under bun it passes
-  // against the old 8 MiB cap too, because bun's `ws` never enforced it. On a
-  // host that does enforce `maxPayload` the old cap made this a close (node
-  // `ws`: 9 MiB against 8 MiB is `Max payload size exceeded`, client 1009).
-  // The number test above is the fence.
-  expect(answer._tag).toBe("Exit")
-  expect(answer.exit._tag).toBe("Success")
-}, BOUND_MS * 3)
+/** Where the listener serves the surface. Its own copy on purpose: a test that
+ *  imported the path would agree with the server by construction, and this one
+ *  is meant to speak to it the way a browser does. */
+const WS_PATH = "/rpc/ws"
 
-/** Ask `system/identity` over a 9 MiB frame, and answer with what came back —
- *  or with the close, if the socket died instead.
- *
- *  The padding is WHITESPACE TRAILING the request rather than a fat payload:
- *  `JSON.parse` accepts whitespace after a complete value, so what the decoder
- *  hands the server is an ordinary well-formed request. That keeps the test
- *  about the size of the frame and nothing else — a huge payload would fail
- *  schema decode and answer with a defect, which proves arrival too but says
- *  it less clearly. */
-const ask = (url: string): Promise<{ _tag: string; exit: { _tag: string } }> =>
+const wsUrl = (url: string, query = ""): string =>
+  `${url.replace("http://", "ws://")}${WS_PATH}${query}`
+
+/** Dial as a browser does, and answer with the code the server closed with. */
+const dial = (url: string): Promise<number> =>
   new Promise((resolve, reject) => {
-    const socket = new WebSocket(`${url.replace("http://", "ws://")}${WS_PATH}`)
     const timer = setTimeout(
-      () => reject(new Error(`no answer to a ${DISPUTED_BYTES}-byte frame`)),
+      () => reject(new Error(`the socket at ${url} neither opened nor closed`)),
       BOUND_MS,
     )
-    // Settle BEFORE hanging up: bun dispatches the `close` its own
-    // `socket.close()` causes synchronously, so closing first would let this
-    // promise's own hang-up reject the answer it just resolved with.
-    const settle = (outcome: () => void) => {
+    const socket = new WebSocket(url)
+    socket.addEventListener("close", (event) => {
       clearTimeout(timer)
-      outcome()
-      socket.close()
-    }
-    socket.addEventListener("error", () =>
-      settle(() => reject(new Error("the socket did not open"))))
-    socket.addEventListener("close", (event) =>
-      settle(() =>
-        reject(
-          new Error(
-            `the frame killed the socket: close ${event.code} ${event.reason}`,
-          ),
-        )
-      ))
-    socket.addEventListener("message", (event) =>
-      settle(() => resolve(JSON.parse(String(event.data)))))
-    socket.addEventListener("open", () => {
-      const request = JSON.stringify({
-        _tag: "Request",
-        id: 1,
-        tag: "surface/system/identity",
-        payload: {},
-        headers: [],
-      })
-      socket.send(
-        request + " ".repeat(DISPUTED_BYTES - request.length - DELIMITER) + "\n",
-      )
+      resolve(event.code)
     })
   })
 
-/** The newline that ends the frame — counted here so the message that goes out
- *  is `DISPUTED_BYTES` on the wire and not one more. */
-const DELIMITER = 1
+/** How a handshake ended: as a websocket, or not at all. */
+type Handshake = "upgraded" | "refused"
 
-/** Where the listener serves the surface. Its own copy on purpose: a test that
- *  imported the path would agree with the listener by construction, and this
- *  one is meant to speak to it the way a browser does. */
-const WS_PATH = "/rpc/ws"
+/**
+ * Offer the handshake by hand, from an `Origin` of our choosing.
+ *
+ * By hand for both halves of that sentence. The refusal under test happens
+ * BEFORE the upgrade — the raw socket is destroyed, with nothing said, because
+ * there is nothing to say to a page that should not have asked — so what is
+ * being observed is the absence of an upgrade rather than any close code a
+ * websocket client could report. And `Origin` is a header a browser sets and a
+ * `WebSocket` constructor does not take: forging it is the whole point, since
+ * an attacker page is a browser that has been told to lie about who it is.
+ */
+const handshake = (url: string, origin: string): Promise<Handshake> =>
+  new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`the handshake at ${url} was never answered`)),
+      BOUND_MS,
+    )
+    const settle = (outcome: Handshake) => {
+      clearTimeout(timer)
+      resolve(outcome)
+    }
+    const request = http.request(url, {
+      headers: {
+        Connection: "Upgrade",
+        Upgrade: "websocket",
+        Origin: origin,
+        "Sec-WebSocket-Version": "13",
+        // Sixteen bytes, base64. Any sixteen: the server hashes them back into
+        // its answer and this test never reads the answer.
+        "Sec-WebSocket-Key": Buffer.from("0123456789abcdef").toString("base64"),
+      },
+    })
+    request.on("upgrade", (_response, socket) => {
+      socket.destroy()
+      settle("upgraded")
+    })
+    // An ordinary HTTP answer to an upgrade request is a refusal too — this
+    // gate does not give one, and asserting only on the destroyed socket would
+    // make the test agree with today's spelling rather than with the property.
+    request.on("response", () => {
+      request.destroy()
+      settle("refused")
+    })
+    request.on("error", () => settle("refused"))
+    request.end()
+  })
+
+/** The line whose message contains `phrase`, waited for. A line the listener
+ *  logs is emitted from a Node callback, on a fiber of its own — so a test that
+ *  read `said` the instant its socket closed would be racing the line it came
+ *  to hear. */
+const heard = async (
+  said: ReadonlyArray<Logged>,
+  phrase: string,
+): Promise<Logged> => {
+  const deadline = performance.now() + BOUND_MS
+  for (;;) {
+    const line = findSaid(said, phrase)
+    if (line !== undefined) return line
+    if (performance.now() > deadline) {
+      throw new Error(
+        `nothing said "${phrase}" — heard: ${said.map((line) => line.message).join(" | ")}`,
+      )
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+}
+
+// A tab that presents a process id this server does not answer to is bound to a
+// process that is gone. It is closed rather than served — the whole of the
+// stale-tab gate — and the line is what tells whoever is looking at a page that
+// stopped updating why it did.
+test("a tab from a previous process is closed, and the log says which", async () => {
+  await withServer(async (url, said) => {
+    const gone = "a-process-that-is-gone"
+    expect(await dial(wsUrl(url, `?pid=${gone}`))).toBe(4001)
+
+    const line = await heard(said, "stale tab rejected")
+    expect(line.level).toBe("Info")
+    expect(line.annotations.claimed).toBe(gone)
+  })
+}, BOUND_MS * 3)
+
+// Cross-site websocket hijacking, refused on the raw socket BEFORE the upgrade.
+// Nobody's browser does this by accident, which is the whole reason the level
+// is the one an operator has asked to be shown.
+test("a cross-site origin never becomes a socket, and that is a warning", async () => {
+  await withServer(async (url, said) => {
+    const origin = "http://evil.example"
+    expect(await handshake(`${url}${WS_PATH}`, origin)).toBe("refused")
+
+    const line = await heard(said, "websocket upgrade refused")
+    expect(line.level).toBe("Warn")
+    expect(line.annotations.origin).toBe(origin)
+  })
+}, BOUND_MS * 3)

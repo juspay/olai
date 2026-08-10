@@ -9,9 +9,9 @@
       },
       "branch": "master",
       "submodules": false,
-      "revision": "8f0c0cf71c27fa62bc4303bf6621158530066da1",
-      "url": "https://github.com/juspay/kolu/archive/8f0c0cf71c27fa62bc4303bf6621158530066da1.tar.gz",
-      "hash": "sha256-kKhlIFpaBo3Y30Jltfw4mDCS1bLqjmLm6QweRHWRdA8="
+      "revision": "580ab79e8cc7715103af4bddb35d5c9128f897dc",
+      "url": "https://github.com/juspay/kolu/archive/580ab79e8cc7715103af4bddb35d5c9128f897dc.tar.gz",
+      "hash": "sha256-8ySGn0n7fVHMvKVVCH8YBybr2aXRk+YhLEatNFGlO/M="
     },
     "nixpkgs": {
       "type": "Git",
@@ -22,9 +22,9 @@
       },
       "branch": "nixpkgs-unstable",
       "submodules": false,
-      "revision": "70ce234312134a463ba7728e94da2486a1d237ac",
-      "url": "https://github.com/nixos/nixpkgs/archive/70ce234312134a463ba7728e94da2486a1d237ac.tar.gz",
-      "hash": "sha256-X44cn5rzytELc3NNoQsh0aLkjWA/QzPfc6HPQmsG3sU="
+      "revision": "afb4584a80bbf779ce0f691509ff902d188c2b3d",
+      "url": "https://github.com/nixos/nixpkgs/archive/afb4584a80bbf779ce0f691509ff902d188c2b3d.tar.gz",
+      "hash": "sha256-shi1tjDhCGGd0kIgVPNY03V8NBWSTzhMSFDb7IqSoec="
     }
   },
   "version": 8
