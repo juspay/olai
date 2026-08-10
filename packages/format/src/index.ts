@@ -10,10 +10,11 @@
  *
  *   - the codec, `parseOutline` (per file) and `validate` (per set);
  *   - what they produce, `OutlineSet` and the records inside it;
- *   - what a set MEANS, `derive` with `rowsOf`, `zoom`, `withoutDone` and the
- *     date derivations (`datedDays`, `datedOn`) — so a reader and the
- *     validator compute status, order, mirror expansion, one node's ancestry
- *     and what is on a day with the same code;
+ *   - what a set MEANS, `derive` with `rowsOf`, `zoom`, `withoutDone`, the
+ *     date derivations (`datedDays`, `datedOn`) and the document rules
+ *     (`docOf`, `isPicture`) — so a reader and the validator compute status,
+ *     order, mirror expansion, one node's ancestry, what is on a day and where
+ *     a `doc` lands with the same code;
  *   - how a set is WRITTEN back, `serializeOutline` and `ordBetween` — the
  *     canonical bytes and the sibling order, held here for the same reason the
  *     rules are: a writer with its own copy of either is a second format;
@@ -31,6 +32,7 @@ export { validate } from "./validate.ts"
 
 export { assemble, BrokenFile, fileKind, OutlineSet } from "./set.ts"
 export type { DecodedFile, Outline } from "./set.ts"
+export { docOf, Document, isPicture, pictureOf } from "./documents.ts"
 export { isMirror, Located } from "./node.ts"
 export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
 

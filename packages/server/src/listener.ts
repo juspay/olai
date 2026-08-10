@@ -36,7 +36,9 @@ import { Data, Effect, Layer, Scope } from "effect"
 import { HttpRouter } from "effect/unstable/http"
 import { WebSocketServer } from "ws"
 
+import { MANIFEST } from "./manifest.ts"
 import { mcpRoute } from "./mcp/route.ts"
+import { mediaLayer } from "./media.ts"
 import type { Bound } from "./runtime.ts"
 
 const WS_PATH = "/rpc/ws"
@@ -57,6 +59,8 @@ export interface ListenOptions {
   readonly bound: Bound
   /** The built browser bundle. */
   readonly clientDist: string
+  /** The directory being served — where `/media/*` reads its pictures from. */
+  readonly root: string
   readonly host: string
   readonly port: number
   /** Browser origins allowed to open the websocket, beyond same-origin. */
@@ -74,7 +78,7 @@ export interface ListenOptions {
 export const listen = (options: ListenOptions) =>
   Effect.gen(function*() {
     const server = createServer()
-    server.on("request", yield* requestHandler(options.clientDist, options.mcp))
+    server.on("request", yield* requestHandler(options))
 
     const sockets = new WebSocketServer({
       noServer: true,
@@ -204,26 +208,33 @@ const bindOrFallBack = (
       ),
   )
 
-/** The `request` handler, as an Effect handler over the static layer plus the
- *  MCP route. `surfaceAppLayer` owns the freshness contract: a `no-store`
- *  shell, immutable hashed assets, a 404 on an asset miss (never the shell),
- *  and the SPA fallback that makes `/o/<file>` a real URL.
+/** The `request` handler, as an Effect handler over three layers.
+ *  `surfaceAppLayer` owns the freshness contract: a `no-store` shell,
+ *  immutable hashed assets, a 404 on an asset miss (never the shell), and the
+ *  SPA fallback that makes `/o/<file>` a real URL, and it serves the web app
+ *  manifest at `/manifest.webmanifest` — what is IN that manifest is
+ *  `./manifest.ts`. `mediaLayer` owns the one route that answers with bytes
+ *  from the SERVED directory rather than from the bundle, and `mcpRoute` the
+ *  one an agent speaks to.
  *
- *  MERGED rather than ordered: `HttpRouter` ranks routes by specificity, so
- *  `POST /mcp` beats the static `GET /*` catch-all whichever layer went in
- *  first. Registration order carries no meaning here, which is exactly the
- *  footgun the layer form exists to remove. */
-const requestHandler = (
-  clientDist: string,
-  mcp: Parameters<typeof mcpRoute>[0],
-) =>
+ *  MERGED rather than ordered, all three: `HttpRouter` ranks routes by
+ *  specificity, so `POST /mcp` and `GET /media/*` both beat the shell's
+ *  catch-all whichever layer went in first. Registration order carries no
+ *  meaning here, which is exactly the footgun the layer form exists to
+ *  remove. */
+const requestHandler = (options: {
+  readonly clientDist: string
+  readonly root: string
+  readonly mcp: Parameters<typeof mcpRoute>[0]
+}) =>
   Effect.gen(function*() {
     const scope = Scope.makeUnsafe()
-    const layer = Layer.merge(
-      mcpRoute(mcp),
+    const layer = Layer.mergeAll(
+      mcpRoute(options.mcp),
+      mediaLayer(options.root),
       surfaceAppLayer({
-        clientDist,
-        manifest: { name: "olai", themeColor: "#1b1b1f", icons: [] },
+        clientDist: options.clientDist,
+        manifest: MANIFEST,
       }),
     )
     const httpEffect = yield* HttpRouter.toHttpEffect(layer)

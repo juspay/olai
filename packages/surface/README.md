@@ -76,11 +76,25 @@ ends of the stale-tab handshake compare that id — but the framework reserves
 included. A member of our own would be a second answer to a question already
 answered.
 
+## One address that is not a member
+
+A picture cannot travel the surface: a document's `![](shot.png)` becomes an
+`<img src>` and the browser fetches that URL itself. So there is exactly one
+HTTP route besides the bundle, and it has two ends — the renderer that writes
+the URL and the route that reads it — in packages that cannot import each
+other. `src/media.ts` is that bijection: the prefix, `mediaHref`, and
+`mediaTarget` with the traversal guard and the picture allowlist in it. Two
+copies of "what a media URL looks like" would be a contract kept by memory, and
+its failures are silent in both directions — a URL the client writes and the
+server does not recognise is a broken image, and a URL the server reads more
+loosely than the client writes is a file nobody meant to serve.
+
 ## Entry point
 
 `main`, `types` and `exports` all point at `src/index.ts`, which exports the
-`surface` definition and the `OutlineFrame` schema. That is the whole package —
-a declaration, with no implementation on either side of it.
+`surface` definition, the `OutlineFrame` schema and the media URL above. That
+is the whole package — a declaration, with no implementation on either side of
+it.
 
 ## Layering
 

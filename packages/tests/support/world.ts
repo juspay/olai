@@ -61,6 +61,18 @@ export const ROOT = "#root";
 /** The sidebar: one entry per `.jsonl` found under the served directory. */
 export const OUTLINE_LIST = selector(TESTID.outlineList);
 export const OUTLINE_LINK = selector(TESTID.outlineLink);
+/** The sidebar's second list: one entry per `.md` found. */
+export const DOCUMENT_LIST = selector(TESTID.documentList);
+export const DOCUMENT_LINK = selector(TESTID.documentLink);
+/** One document, as a page: `/doc/<file>`. */
+export const DOCUMENT_PAGE = selector(TESTID.documentPage);
+/** The rendered markdown of a document — on its own page, or inline under the
+ *  node that attaches it. */
+export const DOCUMENT_BODY = selector(TESTID.documentBody);
+/** A node's `doc`: the reference, carrying the RESOLVED path as `data-doc`. */
+export const DOC_REF = selector(TESTID.docRef);
+/** The link inside that reference, to the document's own page. */
+export const DOC_LINK = selector(TESTID.docLink);
 /** The main pane. Present only when the loaded set is valid. */
 export const OUTLINE_TREE = selector(TESTID.outlineTree);
 export const NODE = selector(TESTID.node);
@@ -182,6 +194,15 @@ export const daySelector = (date: string): string =>
  *  than in whichever step file compares titles. */
 export const readable = (text: string): string => oneLine(text.replace(/#/g, ""));
 
+/** A laid-out box, in CSS pixels — what `boundingBox`/`getBoundingClientRect`
+ *  both answer with. */
+export interface Box {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
 export class OlaiWorld extends World {
   browser!: Browser;
   context!: BrowserContext;
@@ -192,6 +213,13 @@ export class OlaiWorld extends World {
    *  silent client-side exception behind a green UI assertion is exactly the
    *  bug an e2e suite exists to catch. */
   errors: string[] = [];
+
+  /** Every URL the page asked for that this server did not serve, collected by
+   *  the same hook. It is normally empty and must stay that way: the bundle,
+   *  the stylesheet and the syntax highlighter are all shipped by the server
+   *  someone pointed at their own outlines, and a request to anywhere else is a
+   *  page telling a third party what is being read. */
+  offSite: string[] = [];
 
   /** Which fixture corpus this scenario's server is serving, from its
    *  `@corpus:<name>` or `@scratch:<name>` tag. See `support/hooks.ts`. */
@@ -265,6 +293,21 @@ export class OlaiWorld extends World {
     await this.open(`/d/${encodeURIComponent(date)}`);
   }
 
+  /** One document's own page COLD, the way a link someone sent would arrive. */
+  async openDocument(file: string): Promise<void> {
+    await this.open(`/doc/${file.split("/").map(encodeURIComponent).join("/")}`);
+  }
+
+  /** One sidebar document entry, by the path it stands for. */
+  documentLink(file: string): Locator {
+    return this.page.locator(`${DOCUMENT_LIST} ${DOCUMENT_LINK}[data-file="${file}"]`);
+  }
+
+  /** A node's `doc` reference — its own, not a descendant's. */
+  docRef(id: string): Locator {
+    return this.node(id).locator(DOC_REF).first();
+  }
+
   /** One day of the month in the sidebar. */
   calendarDay(date: string): Locator {
     return this.page.locator(daySelector(date));
@@ -300,14 +343,30 @@ export class OlaiWorld extends World {
     return this.page.locator(`${BREADCRUMBS} ${CRUMB}`);
   }
 
-  /** Click a node's OWN control. `.first()` is the node's own: a descendant's
+  /** A node's OWN control. `.first()` is the node's own: a descendant's
    *  matches inside the scope too, and the node's own is rendered before any
    *  child's. */
-  async clickWithin(id: string, control: string): Promise<void> {
-    const target = this.node(id).locator(control).first();
+  within(id: string, control: string): Locator {
+    return this.node(id).locator(control).first();
+  }
+
+  /** Press something, and let the render settle.
+   *
+   *  The gesture is a parameter because it is the only thing a phone scenario
+   *  changes: a tap is a `touchstart`/`touchend` pair on a context with no
+   *  mouse, and finding out that a control is reachable without one is the
+   *  whole point of tapping it. Everything around it — waiting for the thing
+   *  to be visible, waiting out the frame the click schedules — is the same
+   *  either way, and was three copies before it was a parameter. */
+  async press(target: Locator, gesture: "click" | "tap" = "click"): Promise<void> {
     await target.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await target.click();
+    await target[gesture]();
     await this.waitForFrame();
+  }
+
+  /** Click a node's own control. */
+  async clickWithin(id: string, control: string): Promise<void> {
+    await this.press(this.within(id, control));
   }
 
   /** A node's OWN title. Nodes nest, so a descendant's title also matches
@@ -414,6 +473,60 @@ export class OlaiWorld extends World {
     await this.page.evaluate((key) => {
       (window as unknown as Record<string, unknown>)[key] = true;
     }, NO_RELOAD_MARK);
+  }
+
+  /** Where something is on screen, and how big.
+   *
+   *  The one measurement these features take, and they take it for one reason:
+   *  a target a finger has to hit is a SIZE, and no attribute can carry it —
+   *  it is the sum of a font, a padding and a breakpoint, so the only honest
+   *  way to ask is to measure what the browser laid out. An element that is
+   *  not there, or is not laid out at all, has no box, and that is a different
+   *  failure from a box that is too small. */
+  async box(locator: Locator, what: string): Promise<Box> {
+    await locator.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const box = await locator.boundingBox();
+    if (box === null) throw new Error(`${what} is not laid out, so it has no box`);
+    return box;
+  }
+
+  /** Every match, measured — in ONE round trip.
+   *
+   *  A step that asks "is every one of these big enough" asks about ten or
+   *  thirty elements, and asking Playwright for each box in turn is two
+   *  blocking round trips per element. `evaluateAll` reads them all in a
+   *  single pass of the page's own layout, which is also the only pass: the
+   *  rects come from one flush rather than one per element. */
+  async boxes(locator: Locator, what: string): Promise<ReadonlyArray<Box>> {
+    await locator.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const boxes = await locator.evaluateAll((elements) =>
+      elements.map((element) => {
+        const rect = element.getBoundingClientRect();
+        return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+      }),
+    );
+    if (boxes.length === 0) throw new Error(`no ${what} is on screen to measure`);
+    return boxes;
+  }
+
+  /** Ask the server for something the PAGE does not render: the manifest, an
+   *  icon. Through the browser context, so it goes to the same origin with the
+   *  same base URL the page has.
+   *
+   *  The body comes back as BYTES. Half of what this fetches is PNG, and
+   *  decoding 120KB of it as UTF-8 to find out that it is not empty would be
+   *  the assertion paying for a string nothing reads. */
+  async fetch(path: string): Promise<{
+    readonly status: number;
+    readonly contentType: string;
+    readonly body: Buffer;
+  }> {
+    const response = await this.page.request.get(path);
+    return {
+      status: response.status(),
+      contentType: response.headers()["content-type"] ?? "",
+      body: await response.body(),
+    };
   }
 
   /** Poll until `check` holds, or fail saying what was being waited for.

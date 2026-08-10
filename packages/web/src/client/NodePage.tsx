@@ -1,8 +1,8 @@
 /**
  * One node, as a page — the zoom.
  *
- * The node's title becomes the heading, its note the body, its children the
- * familiar tree. Which node this is came from `@olai/format`'s `zoom`: a
+ * The node's title becomes the heading, its note the body, the document it
+ * attaches the rest of that body, and its children the familiar tree. Which node this is came from `@olai/format`'s `zoom`: a
  * mirror's id resolves through its chain, so there is exactly one page per
  * node however many placements it has, and the crumbs above it are the
  * canonical ancestry rather than the path that was clicked.
@@ -15,9 +15,9 @@ import { Breadcrumbs } from "./Breadcrumbs.tsx"
 import { DateBadge } from "./DateBadge.tsx"
 import { DoneToggle } from "./DoneToggle.tsx"
 import { only } from "./narrow.ts"
+import { NodeBody } from "./NodeBody.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
 import { NotFound } from "./NotFound.tsx"
-import { Note } from "./Note.tsx"
 import { TESTID } from "./testids.ts"
 import { TONE } from "./tone.ts"
 import { Tree } from "./Tree.tsx"
@@ -70,9 +70,9 @@ function Zoom(props: {
           </Show>
         </div>
 
-        <Show when={props.zoomed.shows.node.desc}>
-          {(desc) => <Note desc={desc()} class="mt-2 text-muted" />}
-        </Show>
+        {/* Zoomed, a node's document IS the page under it: the node said the
+            rest was in the file, and this is where the file is. */}
+        <NodeBody shows={props.zoomed.shows} zoomed />
       </header>
 
       <Show

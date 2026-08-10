@@ -32,6 +32,8 @@ register `stop` as a finalizer.
 | `mcp/route.ts` | the internal MCP server, mounted on this listener, behind a per-process bearer token |
 | `runtime.ts` | the surface bindings: the outline stream is `SubscriptionRef.changes` verbatim, the errors cell is an owned source, the transcript is server-authored |
 | `listener.ts` | HTTP for the bundle, WebSocket for the surface: origin gate → upgrade → stale-tab gate → heartbeat → serve |
+| `media.ts` | `/media/*`: the pictures a document points at, and the only bytes that leave the served directory over HTTP without going through the store |
+| `manifest.ts` | what an installed olai is: name, description, colours, and the mark |
 | `clientDist.ts` | `OLAI_DIST_DIR`, the one place the built bundle is named |
 | `main.ts` | argv, defaults, and the top-level run |
 
@@ -43,12 +45,43 @@ work — the gate compares against the framework's own `surfaceProcessId()`, the
 same value `system/identity` answers with and the browser echoes back, so the
 two ends cannot be pointed at different ids.
 
+## The manifest is served, the icons are not
+
+`src/manifest.ts` is what an installed olai is — the name, the description, the
+colours and the icon list — served at `/manifest.webmanifest` through
+`@kolu/surface-app`'s manifest layer, which owns the install-friendly defaults
+(`start_url`, `display: standalone`) so they are not restated. Its own file
+rather than a block in `listener.ts`: the app's identity has nothing to do with
+sequencing an upgrade, and that file is one this repo means to give back
+upstream. The icon *files* belong to the browser bundle and are served
+as part of it, which means the two ends of that contract live in two packages
+that do not import each other. Nothing here can check that a `src` it names is
+a file that exists — and the static layer answers an unmatched path with the
+HTML shell, so a stale one would return 200 rather than 404. What checks it is
+a browser test that follows every `src` and asserts on the content type
+(`packages/tests/features/install_it.feature`).
+
 The server does not build the client and does not import it. It serves a bundle
 it is handed, so `@olai/web` is deliberately absent from its dependencies and
 the browser build stays a build artifact rather than an import. A fallback that
 walked from `clientDist.ts` into `packages/web/dist` would be a real
 `server → web` dependency expressed as a path — invisible to `bun install` and
 to any layering check.
+
+`media.ts` is two decisions and no mechanism of its own. WHETHER to answer is
+`@olai/surface`'s `mediaTarget` — the traversal guard and the picture
+allowlist, which live there because the client's renderer writes those URLs
+against the same function. HOW to answer is the platform's own file engine
+(`HttpStaticServer`), the same one already serving the bundle from the layer
+beside it: reading a file under a root is not a thing to hand-roll twice in one
+process, and the engine brings the stat, the directory case, the MIME type, the
+byte range and the conditional `304` a browser asks for on its second look at a
+picture. What is left in this file is the wiring and one 404 for every way a
+picture is not there — which way it is missing is not the reader's business,
+and saying would describe the disk to anybody who can reach the port. The guard
+is lexical by design: it stops a URL from naming a file outside the directory,
+and does not chase a symlink someone put inside a tree they are already serving
+whole.
 
 ## Entry point
 

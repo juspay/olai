@@ -79,6 +79,17 @@ its derived status and its canonical ancestry — because that is one concept
 with several readers, not a shape two surfaces happened to agree on. A title
 torn out of its outline says nothing, wherever it is being drawn.
 
+`documents.ts` is the third such claim, about the `.md` files beside the
+outlines. A document's text is content — verbatim on disk, markdown at view
+time, nothing about it validated — so what lives here is only what has to be
+answered the same way twice: where a node's `doc` lands (`docOf`, resolved
+against the outline that named it, which is the rule the validator checks and
+the view links with), and what a relative `![](…)` may name (`pictureOf`,
+`isPicture`). That last one is asked by two packages that cannot import each
+other — the renderer that rewrites a picture into a URL, and the route that
+answers it — and two allowlists that drifted apart would mean either a broken
+image or a served file nobody meant to serve.
+
 ## Layering
 
 Depends on nothing in this workspace, and must not — a workspace sibling in its

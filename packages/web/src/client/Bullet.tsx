@@ -14,12 +14,15 @@
 
 import { Link } from "./router.tsx"
 import { TESTID } from "./testids.ts"
+import { CONTROL } from "./touch.ts"
 
 export function Bullet(props: { readonly id: string }) {
   return (
     <Link
       route={{ kind: "node", id: props.id }}
-      class="w-4 shrink-0 text-center text-muted no-underline hover:text-accent"
+      // Sized from ./touch.ts, which is where the gutter's one exception to
+      // the 44px rule is argued and where everything that moves with it lives.
+      class={`${CONTROL} text-center text-muted no-underline hover:text-accent`}
       testid={TESTID.zoom}
       title="zoom into this node"
       label={`zoom into ${props.id}`}

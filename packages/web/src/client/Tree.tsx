@@ -23,9 +23,10 @@ import { type Row } from "@olai/format"
 import { createMemo, For, Match, Show, Switch } from "solid-js"
 
 import { Bullet } from "./Bullet.tsx"
+import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
-import { Note } from "./Note.tsx"
 import { TESTID } from "./testids.ts"
+import { CONTROL, CONTROL_SPACER, PAST_CONTROLS } from "./touch.ts"
 
 export interface TreeProps {
   readonly rows: ReadonlyArray<Row>
@@ -58,8 +59,11 @@ function Branch(props: {
   // separate computations in this component read it. Without the memo every
   // row in the tree re-runs all five on every click.
   const collapsed = createMemo(() => props.collapsed.has(props.row.key))
+  // The RECORD a row shows, file and all — the file is what a note's relative
+  // picture and a `doc` are relative to, and for a mirror that is the file the
+  // node is DEFINED in rather than the one being read.
   const shown = () => (props.row.kind === "node" || props.row.kind === "mirror")
-    ? props.row.shows.node
+    ? props.row.shows
     : undefined
 
   return (
@@ -76,11 +80,14 @@ function Branch(props: {
       <div class="flex items-baseline gap-1.5">
         <Show
           when={props.row.children.length > 0}
-          fallback={<span class="w-4 shrink-0" aria-hidden="true" />}
+          fallback={<span class={CONTROL_SPACER} aria-hidden="true" />}
         >
           <button
             type="button"
-            class="w-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-center text-xs text-muted hover:text-ink"
+            // Sized like the bullet beside it, from the same place: the gutter
+            // is one width, and the blank above and the indents below are all
+            // arithmetic over it (./touch.ts).
+            class={`${CONTROL} cursor-pointer border-0 bg-transparent p-0 text-center text-xs text-muted hover:text-ink`}
             data-testid={TESTID.toggle}
             aria-expanded={!collapsed()}
             aria-label={collapsed() ? "expand" : "collapse"}
@@ -101,11 +108,11 @@ function Branch(props: {
             )}
           </Match>
           <Match when={shown()}>
-            {(node) => (
+            {(shows) => (
               <NodeLine
-                title={node().title}
+                title={shows().node.title}
                 status={props.row.status}
-                date={node().date}
+                date={shows().node.date}
               >
                 <Show when={props.row.kind !== "node"}>
                   <span class="mr-1 text-muted" title="a mirror of another node">
@@ -118,13 +125,20 @@ function Branch(props: {
         </Switch>
       </div>
 
-      <Show when={!collapsed() && shown()?.desc}>
-        {(desc) => <Note desc={desc()} class="mt-1 mb-2 ml-11 text-[0.9375rem] text-muted" />}
+      {/* Indented past both controls — which are wider where a finger is what
+          taps them, so the note and the document under it line up with the
+          title on either. */}
+      <Show when={!collapsed() && shown()}>
+        {(shows) => (
+          <div class={PAST_CONTROLS}>
+            <NodeBody shows={shows()} />
+          </div>
+        )}
       </Show>
 
       <Show when={props.row.kind === "cycle" ? props.row : undefined}>
         {(row) => (
-          <div class="ml-11 text-sm text-alarm">
+          <div class={`${PAST_CONTROLS} text-sm text-alarm`}>
             this mirror is inside the subtree it shows (`{row().through}`) — not
             expanded
           </div>

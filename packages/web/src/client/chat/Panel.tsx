@@ -106,7 +106,12 @@ function Conversation() {
 
   return (
     <aside
-      class="fixed bottom-0 right-0 top-0 z-30 flex w-chat max-w-full flex-col border-l border-rule bg-paper"
+      // `--visible-h` rather than the viewport's own height: an on-screen
+      // keyboard covers the bottom of the page without shrinking it
+      // (../viewport.ts), so a panel sized by `100dvh` puts its composer
+      // underneath the keyboard being typed into. It falls back to `100dvh`
+      // where nothing publishes the variable, which is every desktop.
+      class="fixed right-0 top-0 z-30 flex h-[var(--visible-h,100dvh)] w-chat max-w-full flex-col border-l border-rule bg-paper"
       data-testid={TESTID.chatPanel}
       data-status={chat.state().status}
       aria-label="agent"

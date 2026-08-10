@@ -29,9 +29,14 @@ import { Result } from "effect"
 export const codec: Codec<DecodedFile, OutlineSet, ReadonlyArray<OutlineError>> = {
   match: (path) => fileKind(path) !== null,
 
+  /** A document decodes to its text, verbatim: markdown is interpreted at view
+   *  time, so there is nothing to parse here and nothing that can fail. It is
+   *  carried rather than dropped because a document is content of the served
+   *  directory the same way a note is (`@olai/format`'s `Document`), and this
+   *  is the read path that already re-reads only what changed. */
   decode: (path, contents) =>
     fileKind(path) === "document"
-      ? Result.succeed(null)
+      ? Result.succeed({ file: path, text: contents })
       : parseOutline(path, contents),
 
   /** Failures included: whether an unreadable file is a hole the rest of the

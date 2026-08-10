@@ -73,6 +73,17 @@ for whatever day it is now. Nothing is stored to make this work: there is no
 journal file, no year→month scaffolding and no filename that means anything, so
 a `date` on a node in any outline is all there is to it.
 
+Some notes are not a line. Every `.md` under the directory is a **document**:
+it has a page of its own at `/doc/<path>`, it is listed in the sidebar whether
+or not any outline names it, and a node whose `doc` field attaches one shows
+it — the whole document when you are zoomed on that node, one line of it
+anywhere else. Documents are markdown, rendered at view time like a note's
+text, with fenced code highlighted by a highlighter this server ships rather
+than a CDN, footnotes, and pictures that are files beside the document. Nothing
+else is drawn: a picture is served from one route restricted to picture
+extensions, and a remote image, a `data:` URL or a path climbing out of the
+served directory is refused rather than fetched.
+
 It keeps reading. Save a file, `git pull`, drop a new outline into the
 directory, and the open page updates in place — no reload, no restart. There is
 no polling of the browser and no cache to invalidate: the server watches the
@@ -84,6 +95,13 @@ reading? A dot in the corner says so, always, and it is green only while a
 server is actually answering. Restart the server under an open tab and the page
 does not pretend — it says the server it came from is gone and offers the one
 thing that recovers it, a reload.
+
+It reads on a phone, and it installs as one. Add it to a home screen or a dock
+and it opens in its own window under the olai mark; the sidebar becomes a
+capped header above the outline on a narrow screen, and everything a thumb aims
+at is sized for one. There is no offline mode, on purpose — a cached copy of an
+outline is a copy that has stopped being true, and this page's whole promise is
+that it has not.
 
 When something stops validating, what you see depends on what can still be
 shown. A file whose lines will not parse costs that one outline: it is marked

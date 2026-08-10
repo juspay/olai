@@ -157,3 +157,6 @@ export {
   SessionInfo,
   Unfinished,
 } from "./chat.ts"
+
+/** The one HTTP address both ends spell — see {@link ./media.ts}. */
+export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"

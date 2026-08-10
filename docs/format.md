@@ -31,6 +31,14 @@ In canonical order (writes always re-serialize the whole record in this order; a
 
 There are no include records; the served directory is the only composition mechanism.
 
+## Documents
+
+A `.md` file under the served directory is a **document**, and documents are part of the loaded set — path and text — for the same reason the nodes are: `doc` points into them, so a reference the validator cannot see is one it cannot check, and a reader that had to fetch a document separately would be reading a different moment of the directory than the outline it came from.
+
+- A document's text is **content, like `desc`**: stored verbatim, interpreted as markdown only at view time. Nothing about it is validated; a `.md` cannot make a set invalid.
+- `doc` **attaches** one to a node, relative to the outline that names it — a node names a file beside itself, not beside whoever is reading it. The rule is one function (`docOf`), read by the validator and by the view.
+- A document may point at **pictures** beside itself: a relative `![](art/shot.png)` resolves against the document's own directory (a note's resolves against its outline's) and is served from a route restricted to picture extensions. A `..` is clamped at the served directory rather than escaping it, and nothing else is drawn at all — no remote host, no `data:`, no absolute path, no `.svg`, since an SVG is a document that can script. Pictures are not part of the set: nothing loads them, and they exist only as the target of a relative link.
+
 ## Validation
 
 One validator checks the loaded set — on load and after every write. Nothing is checked anywhere else.

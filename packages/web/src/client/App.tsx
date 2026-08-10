@@ -18,9 +18,9 @@
  *     carries its errors, and every other outline stays live
  *     (errors/Broken.tsx).
  *
- * What is open is a ROUTE — a whole outline (`/o/<file>`), one node zoomed
- * (`/n/<id>`), or one day of the journal (`/d/<date>`, and `/today`) — so
- * every page is a link someone can send. Which places are folded, whether done
+ * What is open is a ROUTE — a whole outline (`/o/<file>`), one document
+ * (`/doc/<file>`), one node zoomed (`/n/<id>`), or one day of the journal
+ * (`/d/<date>`, and `/today`) — so every page is a link someone can send. Which places are folded, whether done
  * nodes are drawn, and which month the calendar is showing are signals: they
  * belong to this tab's reading and not to the file.
  *
@@ -36,6 +36,7 @@ import {
   datedDays,
   type DayGroup,
   derive,
+  type Document,
   type Row,
 } from "@olai/format"
 import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
@@ -46,15 +47,17 @@ import { chatOpen } from "./chat/open.ts"
 import { Panel as ChatPanel, Toggle as ChatToggle } from "./chat/Panel.tsx"
 import { createToday } from "./clock.ts"
 import { Connection } from "./connection/Connection.tsx"
-import { Indicator } from "./connection/Indicator.tsx"
+import { CLEARANCE, CORNER, Indicator } from "./connection/Indicator.tsx"
 import { DayPage } from "./day/DayPage.tsx"
+import { DocumentPage } from "./document/DocumentPage.tsx"
+import { DocumentsProvider } from "./document/documents.tsx"
 import { Banner } from "./errors/Banner.tsx"
 import { Broken } from "./errors/Broken.tsx"
 import { Page as ErrorPage } from "./errors/Page.tsx"
 import { only } from "./narrow.ts"
 import { NodePage } from "./NodePage.tsx"
 import { Nothing } from "./Nothing.tsx"
-import { outlineOf, pageOf, rowsFor } from "./page.ts"
+import { fileOf, pageOf, rowsFor } from "./page.ts"
 import { OutlinePage } from "./OutlinePage.tsx"
 import { createRouter, RouterProvider } from "./router.tsx"
 import { Sidebar } from "./Sidebar.tsx"
@@ -74,6 +77,21 @@ export default function App() {
 
   const set = () => frame()?.set
   const files = () => set()?.files ?? []
+  /** Every `.md` the directory holds, text and all — the sidebar's second
+   *  list, the document pages, and every `doc` preview come off this one
+   *  field of the set. */
+  const documents = () => set()?.documents ?? []
+  /** The same documents BY PATH — one index, built once. Everything that
+   *  answers "which document is this" reads it: the page a `/doc/<file>` route
+   *  names, and every `doc`-carrying node's reference, however deep in a tree
+   *  it is drawn. The list above stays the list, because order is what a
+   *  sidebar draws. */
+  const documentsByFile = createMemo(
+    () =>
+      new Map<string, Document>(
+        documents().map((document) => [document.file, document] as const),
+      ),
+  )
   /** What is wrong with the set as a WHOLE right now. Empty is the normal
    *  state, including when one file is unreadable — that one lands in the set
    *  itself, as `broken` below. */
@@ -98,9 +116,12 @@ export default function App() {
 
   const page = createMemo(() => {
     const indexes = derived()
-    return indexes === undefined
-      ? undefined
-      : pageOf(indexes, files(), broken(), router.route(), today())
+    return indexes === undefined ? undefined : pageOf(
+      indexes,
+      { files: files(), documents: documentsByFile(), broken: broken() },
+      router.route(),
+      today(),
+    )
   })
 
   /** Which days of a month have something dated them — the calendar's dots.
@@ -149,7 +170,7 @@ export default function App() {
 
   /** The two pills that are about the APP rather than about the page: whether
    *  the server is still there, and the way into the agent. One expression,
-   *  rendered in whichever of the two places the layout has. */
+   *  rendered in whichever of the two places the layout has for it. */
   const chrome = () => (
     <>
       <Indicator status={connectionStatus()} />
@@ -168,13 +189,12 @@ export default function App() {
           stays put across a zoom, a broken file and the error report. Asking it
           about a set that will not load is a reasonable thing to want to do. */}
       <ChatPanel />
-      {/* The same two pills, in the only other place there is to put them.
-          Every screen below either has a sidebar and gets `chrome` in its
-          footer, or has none — the error report, the waiting page — and gets
-          this. Fixed is the fallback rather than the rule: a pill fixed to the
-          corner of a page with an outline on it sits on top of the outline. */}
+      {/* The same two pills, in the only other place there is to put them:
+          every screen below either draws a sidebar and gets `chrome` in its
+          footer, or draws none — the error report, the waiting page — and gets
+          this. */}
       <Show when={!docked()}>
-        <div class="fixed bottom-3 left-3 z-40 flex items-center gap-2">{chrome()}</div>
+        <div class={`${CORNER} flex items-center gap-2`}>{chrome()}</div>
       </Show>
       {/* The drawer is fixed, so the page has to be told about it: without this
           it draws underneath, and the right-hand third of every line is behind
@@ -190,46 +210,76 @@ export default function App() {
         <Match when={page()}>
           {(open) => (
             <RouterProvider router={router}>
-              <div class="grid min-h-screen grid-cols-[16rem_1fr]">
-                <Sidebar
-                  files={files()}
-                  active={outlineOf(open())}
-                  broken={broken()}
-                  footer={chrome()}
-                >
-                  <Calendar
-                    today={today()}
-                    open={only(open(), "day")?.date}
-                    days={dated}
-                  />
-                </Sidebar>
-                <main class="overflow-x-auto px-8 py-6">
-                  <Show when={problems().length > 0}>
-                    <Banner errors={problems()} />
-                  </Show>
-                  <Switch>
-                    <Match when={only(open(), "broken")}>
-                      {(file) => <Broken file={file().file} />}
-                    </Match>
-                    <Match when={only(open(), "node")}>
-                      {(node) => (
-                        <NodePage zoomed={node().zoomed} rows={rows} view={view} />
-                      )}
-                    </Match>
-                    <Match when={only(open(), "outline")}>
-                      <OutlinePage rows={rows} view={view} />
-                    </Match>
-                    <Match when={only(open(), "day")}>
-                      {(open) => (
-                        <DayPage date={open().date} groups={day} today={today()} />
-                      )}
-                    </Match>
-                    <Match when={only(open(), "nothing")}>
-                      {(nothing) => <Nothing requested={nothing().requested} />}
-                    </Match>
-                  </Switch>
-                </main>
-              </div>
+              <DocumentsProvider documents={documentsByFile()}>
+                {/* Two columns where there is room for two, one where there is
+                    not. `md` is 48rem, which is where the racket original put
+                    the same line: below it the sidebar stops being a column
+                    beside the outline and becomes a header above it (see
+                    ./Sidebar.tsx), and this is the whole of the layout half of
+                    that — one grid, one breakpoint. The rows are named on that
+                    side because a grid stretches auto rows to fill it: without
+                    `1fr` on the second, a short page would push the outline
+                    down the screen by half the space left over.
+                    `min-h-dvh`, not `min-h-screen`: on a phone `vh` is measured
+                    against the browser chrome at its SMALLEST, so a page sized
+                    by it is taller than the screen for as long as the address
+                    bar is showing. */}
+                <div class="grid min-h-dvh grid-cols-1 grid-rows-[auto_1fr] md:grid-cols-[16rem_1fr] md:grid-rows-none">
+                  <Sidebar
+                    files={files()}
+                    documents={documents()}
+                    active={fileOf(open())}
+                    broken={broken()}
+                    footer={chrome()}
+                  >
+                    <Calendar
+                      today={today()}
+                      open={only(open(), "day")?.date}
+                      days={dated}
+                    />
+                  </Sidebar>
+                  {/* The room under the outline is for the phone's home
+                      indicator — the inset is real because the shell asks for
+                      `viewport-fit=cover` — and it is the same amount the pages
+                      WITHOUT a sidebar need for the pair in their corner, so it
+                      is spelled once where those pills are
+                      (./connection/Indicator.tsx). */}
+                  <main class={`overflow-x-auto px-4 pt-4 ${CLEARANCE} md:px-8 md:py-6`}>
+                    <Show when={problems().length > 0}>
+                      <Banner errors={problems()} />
+                    </Show>
+                    <Switch>
+                      <Match when={only(open(), "broken")}>
+                        {(file) => <Broken file={file().file} />}
+                      </Match>
+                      <Match when={only(open(), "node")}>
+                        {(node) => (
+                          <NodePage zoomed={node().zoomed} rows={rows} view={view} />
+                        )}
+                      </Match>
+                      <Match when={only(open(), "outline")}>
+                        <OutlinePage rows={rows} view={view} />
+                      </Match>
+                      <Match when={only(open(), "document")}>
+                        {(open) => <DocumentPage document={open().document} />}
+                      </Match>
+                      <Match when={only(open(), "day")}>
+                        {(open) => (
+                          <DayPage date={open().date} groups={day} today={today()} />
+                        )}
+                      </Match>
+                      <Match when={only(open(), "nothing")}>
+                        {(nothing) => (
+                          <Nothing
+                            sought={nothing().sought}
+                            requested={nothing().requested}
+                          />
+                        )}
+                      </Match>
+                    </Switch>
+                  </main>
+                </div>
+              </DocumentsProvider>
             </RouterProvider>
           )}
           </Match>

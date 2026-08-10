@@ -11,6 +11,12 @@
  * the same one titles and notes follow — the stored text is never touched, and
  * `#` at the start of a line somebody typed is a `#`, not a heading.
  *
+ * The SAME pipeline a note and a document go through ({@link ../markdown/}),
+ * not one of its own: an agent writing a fenced diff into the panel and a
+ * person writing one into a note are doing the same thing, and a second
+ * renderer here would be a second dialect — footnotes in one place and not the
+ * other, a highlighter kept in step by hand.
+ *
  * Rendered WHILE IT ARRIVES, not only once the turn has stopped. Plain text
  * until the end is cheaper and it is what this used to do, and what it looked
  * like was broken: an answer with a code block in it sat there as three
@@ -31,7 +37,7 @@ import { createScheduled, throttle } from "@solid-primitives/scheduled"
 import { createMemo, Match, Show, Switch } from "solid-js"
 
 
-import { Note } from "../Note.tsx"
+import { Markdown } from "../markdown/Markdown.tsx"
 import { TESTID } from "../testids.ts"
 import { Refusal } from "./Refusal.tsx"
 import { ToolFrame } from "./ToolFrame.tsx"
@@ -39,6 +45,12 @@ import { ToolFrame } from "./ToolFrame.tsx"
 /** How often a growing answer may be re-rendered. Fast enough that it reads as
  *  live, slow enough that the cost is the clock's rather than the agent's. */
 const FRAME_MS = 120
+
+/** What the agent said is not in a file, so there is no path to name — and the
+ *  empty string resolves against the served directory itself, which is where
+ *  the agent was started and therefore what a relative path in what it says is
+ *  relative to. */
+const AGENT_WROTE_IT = ""
 
 export function Entry(props: { readonly entry: ChatEntry }) {
   const due = createScheduled((run) => throttle(run, FRAME_MS))
@@ -67,8 +79,9 @@ export function Entry(props: { readonly entry: ChatEntry }) {
         </Match>
 
         <Match when={props.entry.kind === "agent"}>
-          <Note
-            desc={shown()}
+          <Markdown
+            source={shown()}
+            from={AGENT_WROTE_IT}
             live={props.entry.streaming === true}
             class="text-sm"
             testid={TESTID.chatSaid}
