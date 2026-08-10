@@ -69,5 +69,23 @@
             };
           });
         });
+
+      # home-manager module (nix/home/module.nix) for running `olai web` as a
+      # user service. The flake fills in package; the user fills in dataDir.
+      homeManagerModules.default = { pkgs, lib, ... }: {
+        imports = [ ./nix/home/module.nix ];
+        config.services.olai.package =
+          lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.olai;
+      };
+
+      # Pure evaluation of the module under stubbed home-manager options —
+      # systemd argv on Linux, launchd argv on Darwin. Wired into `just check`
+      # as the `hm-module` recipe; not a full activation test.
+      checks = eachSystem ({ pkgs, ... }: {
+        hm-module = import ./nix/home/check.nix {
+          inherit pkgs;
+          module = ./nix/home/module.nix;
+        };
+      });
     };
 }

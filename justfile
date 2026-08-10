@@ -41,7 +41,7 @@ default:
 [macos]
 [parallel]
 [metadata("ci")]
-check: typecheck test e2e kolu-deps fmt-check nix bun-nix-fresh
+check: typecheck test e2e kolu-deps fmt-check nix bun-nix-fresh hm-module
 
 # Install deps (bun) and hydrate the @kolu/* sources from the npins kolu pin.
 # Every bun leg depends on this one recipe, so concurrent legs share a single
@@ -152,6 +152,12 @@ nix:
       exit 1
     fi
     echo "packaged default agent: $agent"
+
+# The home-manager module evaluates under a sample config (systemd argv on
+# Linux, launchd argv on Darwin). Cheap, no home-manager pin, no activation —
+# just the option shape and the service knobs. See nix/home/check.nix.
+hm-module:
+    nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).hm-module --no-link --accept-flake-config
 
 # The browser tests: Cucumber features driven through Playwright against the
 # nix-built binary, which is what a user actually runs. `nix` is a dependency
