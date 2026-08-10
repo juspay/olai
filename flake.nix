@@ -6,12 +6,14 @@
 #
 # `bun2nix` is the ONE documented exception: nixpkgs has no fetchBunDeps /
 # buildBunPackage. Upstream (nix-community/bun2nix) is flake-parts-shaped
-# internally, but its consumer API is the package itself: `packages.<system>
-# .default` carries `hook`, `fetchBunDeps`, `mkDerivation`, etc. on passthru.
-# That is enough without flake-parts on our side and without the
+# internally, but its consumer API is the package itself:
+# `packages.<system>.default` carries `hook`, `fetchBunDeps`, `mkDerivation`,
+# etc. on passthru — enough without flake-parts on our side and without the
 # juspay/bun2nix rawflake fork (`lib.mkBun2nix` was only a thin re-export of
-# the same passthru). Forced only when `packages.*` is evaluated, so
-# `nix develop` cold eval is unchanged.
+# the same passthru). It brings its own nixpkgs (and flake-parts / systems /
+# treefmt-nix) — the CLI is built against upstream's pin, not ours; that cost
+# is why this stays the only input. Forced only when `packages.*` is
+# evaluated, so `nix develop` cold eval is unchanged.
 {
   # Pin a release tag; do not float on master.
   inputs.bun2nix.url = "github:nix-community/bun2nix/2.1.2";
