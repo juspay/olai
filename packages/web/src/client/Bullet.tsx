@@ -12,6 +12,7 @@
  * two spellings agree and nothing has to resolve anything here.
  */
 
+import { CONTROL } from "./gutter.ts"
 import { Link } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 
@@ -19,14 +20,14 @@ export function Bullet(props: { readonly id: string }) {
   return (
     <Link
       route={{ kind: "node", id: props.id }}
-      // The gutter of a tree row is the one place the 44px rule cannot be
-      // obeyed in both directions: a 44px-wide bullet and a 44px-wide toggle
-      // at every level of indent leave a phone no room for the title they are
-      // in front of. So the height carries it — 2.75rem, the full target, in
-      // the axis where a miss lands on the WRONG NODE — and the width is the
-      // 1.75rem the racket original used for the same control on the same
-      // screen. Above 48rem it is the compact bullet a mouse gets.
-      class="inline-flex h-11 w-7 shrink-0 items-center justify-center text-center text-muted no-underline hover:text-accent md:h-auto md:w-4"
+      // The gutter is the one place the 44px rule cannot be obeyed in both
+      // directions: a 44px-wide bullet and a 44px-wide toggle at every level
+      // of indent leave a phone no room for the title they are in front of.
+      // So the height carries it — 2.75rem, the full target, in the axis
+      // where a miss lands on the WRONG NODE — and the width is the 1.75rem
+      // the racket original used for the same control on the same screen.
+      // ./gutter.ts is that decision, and everything that has to move with it.
+      class={`${CONTROL} text-center text-muted no-underline hover:text-accent`}
       testid={TESTID.zoom}
       title="zoom into this node"
       label={`zoom into ${props.id}`}

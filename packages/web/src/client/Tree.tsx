@@ -23,6 +23,7 @@ import { type Row } from "@olai/format"
 import { createMemo, For, Match, Show, Switch } from "solid-js"
 
 import { Bullet } from "./Bullet.tsx"
+import { CONTROL, CONTROL_SPACER, PAST_CONTROLS } from "./gutter.ts"
 import { NodeLine } from "./NodeLine.tsx"
 import { Note } from "./Note.tsx"
 import { TESTID } from "./testids.ts"
@@ -76,14 +77,14 @@ function Branch(props: {
       <div class="flex items-baseline gap-1.5">
         <Show
           when={props.row.children.length > 0}
-          fallback={<span class="w-7 shrink-0 md:w-4" aria-hidden="true" />}
+          fallback={<span class={CONTROL_SPACER} aria-hidden="true" />}
         >
           <button
             type="button"
-            // Sized like the bullet beside it, and for the reason given there:
-            // the full 44px in the axis a finger misses along, and the racket
-            // original's 1.75rem across, so the gutter does not eat the row.
-            class="inline-flex h-11 w-7 shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent p-0 text-center text-xs text-muted hover:text-ink md:h-auto md:w-4"
+            // Sized like the bullet beside it, from the same place: the gutter
+            // is one width, and the blank above and the indents below are all
+            // arithmetic over it (./gutter.ts).
+            class={`${CONTROL} cursor-pointer border-0 bg-transparent p-0 text-center text-xs text-muted hover:text-ink`}
             data-testid={TESTID.toggle}
             aria-expanded={!collapsed()}
             aria-label={collapsed() ? "expand" : "collapse"}
@@ -121,20 +122,20 @@ function Branch(props: {
         </Switch>
       </div>
 
-      {/* Indented past the gutter — which is wider where the controls are
-          finger-sized, so the note lines up under the title on both. */}
+      {/* Indented past both controls — which are wider where a finger is what
+          taps them, so the note lines up under the title on either. */}
       <Show when={!collapsed() && shown()?.desc}>
         {(desc) => (
           <Note
             desc={desc()}
-            class="mt-1 mb-2 ml-[4.25rem] text-[0.9375rem] text-muted md:ml-11"
+            class={`mt-1 mb-2 ${PAST_CONTROLS} text-[0.9375rem] text-muted`}
           />
         )}
       </Show>
 
       <Show when={props.row.kind === "cycle" ? props.row : undefined}>
         {(row) => (
-          <div class="ml-[4.25rem] text-sm text-alarm md:ml-11">
+          <div class={`${PAST_CONTROLS} text-sm text-alarm`}>
             this mirror is inside the subtree it shows (`{row().through}`) — not
             expanded
           </div>
