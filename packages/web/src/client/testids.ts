@@ -83,8 +83,10 @@ export const TESTID = {
   /** The agent's finished prose, rendered as markdown. Its own name rather
    *  than a node note's: they are two different things on the page. */
   chatSaid: "chat-said",
-  /** One row. `data-kind` is which of the five it is. */
+  /** One row. `data-kind` is which of the six it is. */
   chatEntry: "chat-entry",
+  /** The rule between one conversation and the next. */
+  chatBreak: "chat-break",
   /** A tool call's row; `data-tool-status` is the agent's own status. */
   chatTool: "chat-tool",
   chatToolDetail: "chat-tool-detail",
@@ -99,6 +101,9 @@ export const TESTID = {
   chatInput: "chat-input",
   chatSend: "chat-send",
   chatCancel: "chat-cancel",
+  /** The button that opens the WHOLE command list. Drawn only when the agent
+   *  offers commands. */
+  chatCommands: "chat-commands",
   chatSlashMenu: "chat-slash-menu",
   chatSlashCommand: "chat-slash-command",
 } as const

@@ -112,3 +112,78 @@ Feature: Talking to the agent
     Then the picker lists "an older conversation"
     When I pick the conversation "an older conversation"
     Then the conversation is titled "an older conversation"
+
+  @scratch:chat
+  Scenario: The panel shows the turn happening, not only its result
+    # Racket's chat.feature had this and this branch did not, which is how a
+    # rendering bug that only exists WHILE a turn runs got as far as it did.
+    # `hold` stops the agent mid-turn, so the states a person actually watches
+    # — a call running, an answer growing — can be asserted while they are
+    # true rather than reconstructed from what is left afterwards.
+    When I ask the agent "hold"
+    Then the agent is working
+    And the chat shows a running tool call
+    And the chat is streaming an answer
+    When the agent is released
+    Then the agent is idle
+    And the chat shows a completed tool call
+    And the agent's answer mentions "and done"
+
+  @scratch:chat
+  Scenario: A row that changes is the same row, not a new one
+    # The headline of the parity round. Rows are keyed by id and each row reads
+    # its own value, so a status change patches the row in place. Handed the
+    # entry OBJECTS instead — which the server re-mints on every upsert, every
+    # streamed token — the panel disposed and rebuilt every row several times a
+    # second, and everything a row owns went with it: a fold, a text selection,
+    # the scroll position under the reader's eye.
+    #
+    # Asserted on the ELEMENT rather than on any of those, because the element
+    # surviving is the property, and each of the rest is only a symptom of it.
+    When I ask the agent "hold"
+    Then the chat shows a running tool call
+    And the chat is streaming an answer
+    When I mark the tool call's element
+    And I mark the streaming answer's element
+    Then the answer has grown
+    And the streaming answer is the element I marked
+    When the agent is released
+    Then the chat shows a completed tool call
+    And the tool call is the element I marked
+
+  @scratch:chat
+  Scenario: A tool call I unfolded stays unfolded while the panel keeps moving
+    # Two things move under an unfolded line: the call's own status, and the
+    # next turn arriving. A fold that shuts under either is a fold that shuts
+    # exactly when somebody opened it to watch something.
+    When I ask the agent "hold"
+    Then the chat shows a running tool call
+    When I unfold the tool call
+    Then the tool call's detail is shown
+    When the agent is released
+    Then the chat shows a completed tool call
+    And the tool call's detail is shown
+    When I ask the agent "done order"
+    Then the agent is idle
+    And the tool call's detail is shown
+
+  @scratch:chat
+  Scenario: The header follows the model the agent is actually running
+    # Two sources: the session's config option is what was PICKED, and the
+    # CLI's own init message is what is RUNNING. A `/model` is handled inside
+    # the wrapped CLI, so the picker never hears about it — a header reading
+    # only the picker names the model the session STARTED on, forever.
+    Then the panel header names the model "Fake One"
+    When I ask the agent "model fake-model-2"
+    Then the panel header names the model "Fake Two"
+
+  @scratch:chat
+  Scenario: A new conversation draws a line rather than emptying the panel
+    # The agent's context is dropped; the log of this server's life is not.
+    # What is above the line still happened, and a panel that erased it would
+    # be answering a question nobody asked.
+    When I ask the agent "hello"
+    Then the agent's answer mentions "you said: hello"
+    When I start a new conversation
+    Then the chat marks a new conversation
+    And the agent's answer mentions "you said: hello"

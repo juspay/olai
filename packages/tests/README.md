@@ -200,7 +200,17 @@ internal MCP server, over the real HTTP route, with the token the real
 layer and the real store — everything except the part that would need a
 language model, which is the one thing a CI lane cannot afford to be
 non-deterministic about. Behaviour is keyed on the prompt text (`done <id>`,
-`add <title>`, `slow`, `crash`), so a scenario asks for what it needs.
+`add <title>`, `slow`, `hold`, `model <id>`, `crash`), so a scenario asks for
+what it needs.
+
+`hold` is the one worth knowing about: it starts a tool call, streams a chunk,
+and goes on streaming until the scenario touches `.agent-release` in the served
+directory. A turn that finishes in a millisecond can only be asserted about
+afterwards, and afterwards is when a panel's own bugs stop being visible — a row
+rebuilt on every frame looks perfect once the frames stop. Waiting on a file
+rather than a clock is what makes "mid-turn" a state a scenario ENDS instead of
+one it races; the file is a dot-file, which the store's walk prunes, so waiting
+for one is not itself an edit.
 
 It lives in `agent/` rather than `support/` because Cucumber imports everything
 under `support/` as part of the world, and importing this reads stdin — which,

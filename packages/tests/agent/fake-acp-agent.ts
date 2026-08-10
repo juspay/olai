@@ -21,8 +21,18 @@
  *   done <id>    call `set_done` on that node, then say so
  *   add <title>  call `add_node` under the first outline's first root
  *   slow         dawdle, long enough to cancel
+ *   hold         start a tool call and STOP there, until released
+ *   model <id>   switch the model the way the wrapped CLI does
  *   crash        exit mid-turn
  *   anything     one chunk of prose and an `end_turn`
+ *
+ * `hold` is how a scenario gets to look at a turn WHILE it is happening. A
+ * turn that finishes in a millisecond can only be asserted about afterwards,
+ * and afterwards is precisely when the bugs this suite exists for stop being
+ * visible: a row that is remounted on every frame looks perfect once the frames
+ * stop. It waits for a file (`.agent-release` in the directory it was started
+ * in) rather than for a clock, so the scenario says when — a dot-file, which
+ * the store's walk prunes, so waiting for one is not itself an edit.
  *
  * STORED SESSIONS are an environment variable, because which boot path runs is
  * a property of the machine the agent woke up on rather than of anything the
@@ -38,6 +48,8 @@
  * stdin — which, in the runner's own process, ends immediately and takes the
  * run down with it. A directory of its own is what makes that unrepresentable.
  */
+
+import { existsSync, rmSync } from "node:fs"
 
 const OUT = process.stdout
 
@@ -181,6 +193,41 @@ const say = (text: string): void => {
 
 const sleep = (millis: number) => new Promise<void>((done) => setTimeout(done, millis))
 
+/** The file a scenario touches to let a held turn go on. */
+const RELEASE = ".agent-release"
+/** Long enough that a slow machine is not the reason a scenario fails, short
+ *  enough that a scenario which forgot to release fails on its own assertion
+ *  rather than on the runner's timeout. */
+const HOLD_LIMIT_MS = 30_000
+
+const released = async (onTick?: () => void): Promise<void> => {
+  const marker = `${cwd}/${RELEASE}`
+  for (let waited = 0; waited < HOLD_LIMIT_MS; waited += 100) {
+    if (existsSync(marker)) {
+      rmSync(marker, { force: true })
+      return
+    }
+    onTick?.()
+    await sleep(100)
+  }
+  noise("fake agent: nothing released the held turn; going on anyway")
+}
+
+/**
+ * The message the Claude Code adapter forwards from the CLI it wraps.
+ *
+ * It is what a real `/model` produces and the config option does NOT: the CLI
+ * handles that command itself, so the picker goes on reporting what the session
+ * started on. Reproducing that here is the only way an e2e can tell a header
+ * that follows the running model from one that follows the picker.
+ */
+const sdkInit = (model: string): void => {
+  notify("_claude/sdkMessage", {
+    sessionId,
+    message: { type: "system", subtype: "init", model },
+  })
+}
+
 const runTurn = async (id: unknown, text: string): Promise<void> => {
   cancelled = false
   noise(`fake agent: ${text}`)
@@ -198,6 +245,48 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     say("thinking")
     for (let tick = 0; tick < 200 && !cancelled; tick++) await sleep(50)
     respond(id, { stopReason: cancelled ? "cancelled" : "end_turn" })
+    return
+  }
+
+  if (verb === "hold") {
+    const toolCallId = `call-${++nextMcpId}`
+    notify("session/update", {
+      sessionId,
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId,
+        title: "a tool call you can watch",
+        status: "in_progress",
+        rawInput: { held: argument === "" ? "until released" : argument },
+      },
+    })
+    // AFTER the frame, so it is this paragraph that is left open: a tool call
+    // closes the one before it, which is what makes the two states — a call
+    // running and an answer growing — observable at the same moment.
+    // Chunk after chunk for as long as the hold lasts, because ONE chunk only
+    // proves a paragraph appeared. What a streaming panel has to do is grow the
+    // paragraph that is already on screen, and that is a claim about the second
+    // chunk and every one after it.
+    say("working on it")
+    await released(() => say("."))
+    notify("session/update", {
+      sessionId,
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId,
+        status: "completed",
+        rawOutput: { released: true },
+      },
+    })
+    say(" — and done.")
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  if (verb === "model") {
+    sdkInit(argument)
+    say(`switched to ${argument}.`)
+    respond(id, { stopReason: "end_turn" })
     return
   }
 
@@ -295,6 +384,10 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       openSession(params)
       sessionId = "fake-session-1"
       respond(id, { sessionId, configOptions: CONFIG_OPTIONS })
+      // A real session says what it is running as it starts. It agrees with
+      // the picker here, which is the case the client must NOT treat as a
+      // change: a session announcing itself is not a session switching.
+      sdkInit("fake-model-1")
       notify("session/update", {
         sessionId,
         update: { sessionUpdate: "available_commands_update", availableCommands: COMMANDS },
@@ -306,6 +399,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       sessionId = String(params["sessionId"] ?? sessionId)
       replay()
       respond(id, { configOptions: CONFIG_OPTIONS })
+      sdkInit("fake-model-1")
       notify("session/update", {
         sessionId,
         update: { sessionUpdate: "available_commands_update", availableCommands: COMMANDS },

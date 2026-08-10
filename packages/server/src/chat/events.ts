@@ -61,8 +61,19 @@ export type AgentEvent =
   | { readonly _tag: "session"; readonly id: string; readonly title: string | null }
   /** The agent named the conversation. */
   | { readonly _tag: "sessionTitled"; readonly title: string }
-  /** ... and the conversation it named is gone: we are between sessions. */
-  | { readonly _tag: "sessionOver" }
+  /**
+   * ... and the conversation it named is gone: we are between sessions.
+   *
+   * WHY it is over decides what happens to the transcript, so it is carried
+   * rather than inferred. A NEW conversation keeps the history and marks the
+   * break — the panel is a log of this server's life, not of one session. A
+   * LOAD is about to replay a different conversation over it, so the replay
+   * clears. A DEAD agent leaves everything where it is and says so.
+   */
+  | {
+    readonly _tag: "sessionOver"
+    readonly why: "new" | "load" | "gone"
+  }
   /** A `session/load` is about to replay a conversation. Everything until
    *  {@link replayEnded} is history, not news. */
   | { readonly _tag: "replayStarted" }

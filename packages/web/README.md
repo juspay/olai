@@ -31,7 +31,9 @@ stops a mirror inside its own subtree, and hands back rows; `Tree.tsx` turns a
 row into markup and nothing else. The view and the validator agree about what a
 file means because they run the same code, not because two implementations were
 written to the same paragraph. The one thing this package does interpret is a
-note, which is markdown, rendered and sanitised at view time.
+note, which is markdown, rendered and sanitised at view time — and highlighted
+after the sanitiser rather than before it, so the highlighter's spans never have
+to be allow-listed back in (`markdown.ts` says why that order is the safe one).
 
 ## Four routes, and what each is a property of
 
@@ -136,7 +138,14 @@ send and nothing to show.
 
 Everything in it is a projection of two surface members — a `transcript`
 collection and a `chat` cell — so there is no chat state in the browser the
-server does not own. What was typed appears because the server put it there,
+server does not own.
+
+The transcript is drawn as a `<For>` over row KEYS, with each row reading its
+own value (`state.ts`). `<For>` diffs by identity, so what is in that list
+decides whether an update patches a row or replaces it — and a row replaced
+takes everything it owns with it: an unfolded tool call, a selection, the
+scroll position under the reader's eye. Strings cannot be anything but the same
+list. What was typed appears because the server put it there,
 which is why two tabs cannot disagree and why a send that failed never leaves
 a message on screen that was never sent. The transcript's `deltas` verb is what
 makes a tab opened halfway through a turn show the whole conversation: its
@@ -153,10 +162,17 @@ Three components earn their own file:
 - **`ToolFrame.tsx`** is one line, foldable. A turn can be a dozen of these and
   unfolded they would bury the conversation. The row is UPDATED rather than
   replaced — the transcript keys them by the agent's own call id — so a fold
-  you opened stays open while the call is still running.
+  you opened stays open while the call is still running. Which lines are
+  unfolded lives in `folds.ts`, module-scoped and keyed by the same call id,
+  because closing and reopening the drawer rebuilds the panel from nothing and
+  a fold held inside the row would come back shut.
 - **`SlashMenu.tsx`** takes Enter in the CAPTURE phase and stops it
   propagating, because the input owns Enter for sending: without that, a
-  completion accepted would be a message sent.
+  completion accepted would be a message sent. It is opened by typing `/` and
+  by a button beside the input, which shows the WHOLE list — typing filters,
+  and the button is for when you do not know what to type. The button is drawn
+  only when the agent offers commands: one that opens nothing would be a button
+  that lies.
 
 `run.ts` is the one place the client runs an Effect, and its signature is the
 enforcement: there is no overload without `onFailure`. A caller that could

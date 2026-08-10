@@ -1,10 +1,13 @@
 /**
  * The conversation, drawn.
  *
- * One `<For>` over the rows, keyed by the entry's own id — which is what makes
- * a tool frame update in place rather than being torn down and rebuilt every
- * time its status moves, and what keeps a fold open while the call it belongs
- * to is still running.
+ * One `<For>` over the row KEYS, with each row's value read lazily inside it —
+ * the framework's own shape (`@kolu/surface`'s fleet-top example), and
+ * `state.ts` says why it is the one to follow.
+ *
+ * `<Show>` is deliberately UNKEYED: it re-renders when the value appears or
+ * goes away, not when it changes, so the row component stays mounted across
+ * every update and only the text inside it moves.
  *
  * Scroll follows the bottom while the reader is already there and leaves them
  * alone when they are not. A panel that yanked you back to the newest token
@@ -42,7 +45,12 @@ export function Transcript(props: { readonly chat: Chat }) {
       data-testid={TESTID.chatTranscript}
       ref={pane}
     >
-      <For each={props.chat.rows()}>{(entry) => <Entry entry={entry} />}</For>
+      <For each={props.chat.rows()}>
+        {(key) => {
+          const entry = props.chat.entry(key)
+          return <Show when={entry()}>{(row) => <Entry entry={row()} />}</Show>
+        }}
+      </For>
 
       <Show when={props.chat.refused()}>
         {(failure) => (

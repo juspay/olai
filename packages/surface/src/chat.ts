@@ -58,6 +58,11 @@ import { Schema } from "effect"
  *     of them.
  *   - `notice` — the conversation reporting on itself: the agent died, a turn
  *     was cancelled, a session was loaded.
+ *   - `break` — where one conversation ended and the next began. Asking for a
+ *     new conversation throws away the AGENT's context, not the reader's: the
+ *     rows above the break are still what happened, and within one server's
+ *     life the panel is a log. Only a different conversation being REPLAYED
+ *     over this one clears anything.
  */
 export const ChatEntry = Schema.Struct({
   /** Stable within a session. A tool call keeps its id across updates, which is
@@ -67,7 +72,7 @@ export const ChatEntry = Schema.Struct({
    *  arrival order, which is the same thing until a session is reloaded; an
    *  explicit sequence means the panel never has to depend on that. */
   seq: Schema.Int,
-  kind: Schema.Literals(["user", "agent", "tool", "refusal", "notice"]),
+  kind: Schema.Literals(["user", "agent", "tool", "refusal", "notice", "break"]),
   /** The prose. For a tool entry this is its title. */
   text: Schema.String,
   /** `tool` only: what the agent says the call is doing right now. */

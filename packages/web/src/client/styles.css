@@ -106,6 +106,55 @@
   font-size: 0.875em;
 }
 
+/* Highlighted code. The highlighter emits `hljs-*` class names and ships
+ * stylesheets for them; none is used, because every one of them is a palette of
+ * its own and would sit beside the eight tokens above rather than inside them.
+ * These are those tokens, applied to the handful of `hljs-*` names the common
+ * grammars actually produce — so a code block follows the OS light/dark
+ * preference for the same reason everything else does, and a class not named
+ * here simply inherits, which is the correct fallback for a grammar nobody
+ * anticipated. */
+.olai-note .hljs-comment,
+.olai-note .hljs-quote {
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.olai-note .hljs-keyword,
+.olai-note .hljs-selector-tag,
+.olai-note .hljs-literal,
+.olai-note .hljs-doctag,
+.olai-note .hljs-type {
+  color: var(--color-accent);
+}
+
+.olai-note .hljs-string,
+.olai-note .hljs-regexp,
+.olai-note .hljs-addition,
+.olai-note .hljs-attribute {
+  color: var(--color-done);
+}
+
+.olai-note .hljs-number,
+.olai-note .hljs-symbol,
+.olai-note .hljs-built_in,
+.olai-note .hljs-meta {
+  color: var(--color-doing);
+}
+
+.olai-note .hljs-title,
+.olai-note .hljs-section,
+.olai-note .hljs-name,
+.olai-note .hljs-attr {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.olai-note .hljs-deletion,
+.olai-note .hljs-strong {
+  color: var(--color-alarm);
+}
+
 .olai-note a {
   color: var(--color-accent);
   text-decoration: underline;

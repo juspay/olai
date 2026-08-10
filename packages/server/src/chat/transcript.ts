@@ -134,6 +134,13 @@ export class Transcript {
     return this.add("refusal", text, { refusal: failure })
   }
 
+  /** Where one conversation ended and the next began. An APPEND, not a clear:
+   *  asking for a new conversation drops the agent's context, and the rows
+   *  above are still what happened. */
+  mark(text: string): Change {
+    return this.add("break", text)
+  }
+
   /** Stop streaming into whatever is open, and re-publish it without the flag.
    *  Every path that ends a paragraph goes through here, which is what keeps
    *  `#open` and the published `streaming` from disagreeing. */

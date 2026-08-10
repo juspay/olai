@@ -13,12 +13,18 @@
  */
 
 import * as assert from "node:assert";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { DataTable, Given, Then, When } from "@cucumber/cucumber";
+import type { Locator } from "playwright";
 
 import {
+  CHAT_BREAK,
   CHAT_CANCEL,
+  CHAT_ENTRY_STREAMING,
   CHAT_INPUT,
   CHAT_MODEL,
+  CHAT_NEW,
   CHAT_NO_AGENT,
   CHAT_PANEL,
   CHAT_REFUSAL,
@@ -78,6 +84,13 @@ When("I ask the agent {string}", async function (this: OlaiWorld, text: string) 
 
 When("I type {string} into the chat", async function (this: OlaiWorld, text: string) {
   await typeInto(this, text);
+});
+
+/** Let a held turn go on. The fake agent waits for this file rather than for a
+ *  clock, so "mid-turn" is a state the scenario ENDS rather than one it races.
+ *  A dot-file: the store's walk prunes those, so this is not an edit. */
+When("the agent is released", async function (this: OlaiWorld) {
+  fs.writeFileSync(path.join(this.scratch(), ".agent-release"), "");
 });
 
 When("I cancel the turn", async function (this: OlaiWorld) {
@@ -189,6 +202,104 @@ Then("the chat shows a completed tool call", async function (this: OlaiWorld) {
   );
 });
 
+Then("the chat shows a running tool call", async function (this: OlaiWorld) {
+  await this.expectAttribute(
+    CHAT_TOOL,
+    "data-tool-status",
+    "in_progress",
+    "the tool call frame",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then("the chat is streaming an answer", async function (this: OlaiWorld) {
+  // `streaming` is DERIVED by the transcript from the one entry it is writing
+  // into, so this asserts the state a person sees as a caret — an answer that
+  // is still arriving — rather than any text in particular.
+  await this.page
+    .locator(CHAT_ENTRY_STREAMING)
+    .first()
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
+
+/** The FIRST tool frame. Every scenario that reads one is watching the one it
+ *  just started; a later turn's calls arrive below it. */
+const heldTool = (world: OlaiWorld) => world.page.locator(CHAT_TOOL).first();
+
+When("I unfold the tool call", async function (this: OlaiWorld) {
+  await heldTool(this).locator("button").click();
+});
+
+Then("the tool call's detail is shown", async function (this: OlaiWorld) {
+  await heldTool(this)
+    .locator(CHAT_TOOL_DETAIL)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+/**
+ * An expando on the element itself, which is the only thing that can tell a
+ * PATCHED row from a rebuilt one: every attribute a new row is drawn with is
+ * one the old row had too, so nothing about how it LOOKS distinguishes them.
+ * A property set from outside the framework survives a re-render and does not
+ * survive a remount, which is exactly the difference being asserted.
+ */
+const MARK = "__olaiSameElement";
+
+const mark = (locator: Locator): Promise<void> =>
+  locator.evaluate((element, key) => {
+    (element as unknown as Record<string, unknown>)[key] = true;
+  }, MARK);
+
+const marked = (locator: Locator): Promise<boolean> =>
+  locator.evaluate(
+    (element, key) => (element as unknown as Record<string, unknown>)[key] === true,
+    MARK,
+  );
+
+/** The answer currently growing. */
+const streamingAnswer = (world: OlaiWorld) =>
+  world.page.locator(CHAT_ENTRY_STREAMING).first();
+
+When("I mark the tool call's element", async function (this: OlaiWorld) {
+  await mark(heldTool(this));
+});
+
+When("I mark the streaming answer's element", async function (this: OlaiWorld) {
+  await mark(streamingAnswer(this));
+});
+
+Then("the answer has grown", async function (this: OlaiWorld) {
+  const before = (await streamingAnswer(this).innerText()).length;
+  await this.waitUntil(
+    async () => (await streamingAnswer(this).innerText()).length > before,
+    "the streaming answer to take another chunk",
+  );
+});
+
+Then(
+  "the streaming answer is the element I marked",
+  async function (this: OlaiWorld) {
+    assert.ok(
+      await marked(streamingAnswer(this)),
+      "the answer was drawn again from scratch when the next chunk arrived. A " +
+        "paragraph rebuilt per token loses the reader's selection and the " +
+        "scroll position several times a second — the row is meant to be " +
+        "patched in place.",
+    );
+  },
+);
+
+Then("the tool call is the element I marked", async function (this: OlaiWorld) {
+  assert.ok(
+    await marked(heldTool(this)),
+    "the tool call was drawn again from scratch when its status changed. A row " +
+      "rebuilt on every update throws away everything it owns — an unfolded " +
+      "detail, a selection, the scroll position — while the reader is looking " +
+      "at it. Rows are keyed by id and read their value lazily so that an " +
+      "update patches them in place.",
+  );
+});
+
 Then("the tool call's detail is folded away", async function (this: OlaiWorld) {
   assert.strictEqual(
     await this.page.locator(CHAT_TOOL_DETAIL).count(),
@@ -236,6 +347,19 @@ Then(
     );
   },
 );
+
+When("I start a new conversation", async function (this: OlaiWorld) {
+  await this.page.locator(CHAT_NEW).click();
+});
+
+Then("the chat marks a new conversation", async function (this: OlaiWorld) {
+  // A BREAK, not a clear. The rule it draws is where the agent's context was
+  // dropped, and everything above it is still what happened.
+  await this.page
+    .locator(CHAT_BREAK)
+    .first()
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
 
 When("I open the session picker", async function (this: OlaiWorld) {
   await this.page.locator(CHAT_SESSIONS).click();

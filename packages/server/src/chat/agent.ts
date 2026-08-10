@@ -136,6 +136,10 @@ const META = {
   },
 }
 
+/** The notification the Claude Code adapter forwards its wrapped CLI's own
+ *  messages under, having been asked to by {@link META}. */
+const SDK_MESSAGE = "_claude/sdkMessage"
+
 /** Permissions are a session MODE, asked for once. A refusal is not fatal:
  *  `session/request_permission` is answered anyway. */
 const BYPASS = "bypassPermissions"
@@ -236,18 +240,63 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       }
     }
 
-    /** The model, off the session's config options: the entry with id `model`
-     *  carries what was picked, and the picker it came from is how it is
-     *  labelled. Nothing is guessed — a value the picker does not offer is
-     *  reported raw, because a fuzzy match onto a nearby row would be an
-     *  invention. */
+    /**
+     * WHICH MODEL — two sources, because one of them is not enough.
+     *
+     *   - the session's CONFIG OPTION is what was PICKED. It arrives with
+     *     `session/new` and again in a `config_option_update` whenever
+     *     anything in that set moves;
+     *   - the CLI's own `system`/`init` message is what is RUNNING. It is
+     *     forwarded because `session/new` asked for it.
+     *
+     * They part company at a `/model` slash command: the Claude Code adapter
+     * wraps a CLI that handles it internally, so the adapter never learns of
+     * it and goes on reporting the model the session started on. Reading only
+     * the config option leaves a header that says one thing while every turn
+     * runs on another.
+     *
+     * WHICHEVER MOVED LAST WINS, and each source is debounced against its OWN
+     * previous value: the picker resends its whole set when anything in it
+     * changes, and the live id repeats on every turn. The FIRST live id is a
+     * baseline — it agrees with the config option by construction, and a
+     * session announcing itself twice would say the same thing twice.
+     *
+     * Nothing is guessed: an id the picker does not offer is reported raw and
+     * logged once, because a fuzzy match onto a nearby row would be invented.
+     */
+    let pickedModel: string | null = null
+    let liveModel: string | null = null
+    /** The picker, as value → label, kept so a LIVE id can be labelled the way
+     *  the agent labels its own models. */
+    let labels: ReadonlyMap<string, string> = new Map()
+
     const readModel = (
       configOptions: ReadonlyArray<SessionConfigOption> | null | undefined,
     ): void => {
       const entry = (configOptions ?? []).find((option) => option.id === "model")
       if (entry === undefined || entry.type !== "select") return
-      const current = entry.currentValue
-      emit({ _tag: "model", name: labelOf(entry, current) ?? current ?? null })
+      labels = labelsOf(entry)
+      const current = entry.currentValue ?? null
+      if (current === pickedModel) return
+      pickedModel = current
+      emit({ _tag: "model", name: current === null ? null : labels.get(current) ?? current })
+    }
+
+    const readLiveModel = (params: unknown): void => {
+      const id = liveModelIn(params)
+      if (id === null || id === liveModel) return
+      const baseline = liveModel === null
+      liveModel = id
+      // The first one agrees with the config option by construction; saying it
+      // again would be the same fact in a second spelling.
+      if (baseline) return
+      const name = labels.get(id)
+      if (name === undefined) {
+        options.log(
+          `acp: the agent is running "${id}", which its model picker does not offer`,
+        )
+      }
+      emit({ _tag: "model", name: name ?? id })
     }
 
     const start = (): Effect.Effect<Live, AgentGone> =>
@@ -277,7 +326,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           live = null
           session = null
           if (stopped) return
-          emit({ _tag: "sessionOver" })
+          emit({ _tag: "sessionOver", why: "gone" })
           emit({
             _tag: "gone",
             why: `the agent exited (code ${code ?? "none"}, signal ${signal ?? "none"})`,
@@ -288,6 +337,19 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           .onNotification(methods.client.session.update, (context) => {
             onUpdate(context.params)
           })
+          // The CLI's own message, forwarded verbatim because `session/new`
+          // asked for it (see META). Asking and then not listening is what
+          // this used to do, which is why the header could name a model the
+          // session had stopped running. Custom method, so the SDK wants a
+          // parser: there is nothing to validate beyond "it is an object", and
+          // `readLiveModel` reads one field out of it.
+          .onNotification(
+            SDK_MESSAGE,
+            (params: unknown) => params,
+            (context) => {
+              readLiveModel(context.params)
+            },
+          )
           // Answered immediately, with the first allow-flavoured option: an
           // unanswered permission request hangs the turn forever. The session
           // asks for bypass mode at boot; this is the backstop for when that
@@ -503,7 +565,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       newSession: withLive((at) =>
         Effect.gen(function*() {
           session = null
-          emit({ _tag: "sessionOver" })
+          emit({ _tag: "sessionOver", why: "new" })
           yield* fresh(at)
         })
       ),
@@ -518,7 +580,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             const stored = yield* storedFor(at)
             const wanted = stored.find((entry) => entry.id === id)
             session = null
-            emit({ _tag: "sessionOver" })
+            emit({ _tag: "sessionOver", why: "load" })
             yield* load(at, id, wanted?.title ?? null)
           })
         ),
@@ -646,25 +708,46 @@ const detailOf = (input: unknown, output: unknown): string | undefined => {
   return parts.length === 0 ? undefined : parts.join("\n\n")
 }
 
-/** The picker's label for a value, or nothing. A value the picker does not
- *  offer keeps its raw id: truthful, where a nearest-match would be invented. */
-const labelOf = (
+/** The picker as value → label ("claude-fable" → "Fable"), which is what the
+ *  agent calls its own models. A value it does not offer is absent here, and
+ *  the caller keeps the raw id: truthful, where a nearest match is invented.
+ *
+ *  The picker is a flat list of options or a list of GROUPS of them, and the
+ *  protocol tells the two apart by shape rather than by a tag. */
+const labelsOf = (
   entry: Extract<SessionConfigOption, { type: "select" }>,
-  value: string | null | undefined,
-): string | null => {
-  if (value == null) return null
-  // The picker is a flat list of options or a list of groups of them, and the
-  // protocol tells them apart by shape rather than by a tag.
+): ReadonlyMap<string, string> => {
+  const labels = new Map<string, string>()
   for (const item of entry.options) {
     if ("value" in item) {
-      if (item.value === value) return item.name
+      labels.set(item.value, item.name)
       continue
     }
-    for (const option of item.options) {
-      if (option.value === value) return option.name
-    }
+    for (const option of item.options) labels.set(option.value, option.name)
   }
-  return null
+  return labels
+}
+
+/**
+ * The model a turn is actually running on, out of the CLI message the adapter
+ * forwarded.
+ *
+ * ONE field of one message kind is read. Everything else `init` carries — the
+ * tool list, the MCP servers, the permission mode, the slash commands, the CLI
+ * version — is learned from the protocol proper or not at all, because a panel
+ * that believed a wrapped CLI's private message about any of it would be
+ * reading around the protocol it speaks.
+ */
+const liveModelIn = (params: unknown): string | null => {
+  const message = (params as { readonly message?: unknown } | null)?.message
+  if (typeof message !== "object" || message === null) return null
+  const shape = message as {
+    readonly type?: unknown
+    readonly subtype?: unknown
+    readonly model?: unknown
+  }
+  if (shape.type !== "system" || shape.subtype !== "init") return null
+  return typeof shape.model === "string" && shape.model !== "" ? shape.model : null
 }
 
 /** Two paths naming the same directory. An agent stores the spelling it was

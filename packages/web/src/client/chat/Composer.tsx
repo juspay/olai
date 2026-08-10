@@ -10,7 +10,11 @@
  *     available at a time and one place to look for it. A separate cancel
  *     button that is disabled most of the time is a control you have to learn
  *     to ignore.
- *   - **`/` opens the agent's own commands.** The list comes from the agent
+ *   - **`/` opens the agent's own commands**, and so does the button beside
+ *     the input, which shows the WHOLE list. Typing filters; the button is for
+ *     when you do not know what to type, which is most of the time you want a
+ *     command list at all. It is drawn only when there are commands — a button
+ *     that opens nothing is a button that lies. The list comes from the agent
  *     (the `commands` frame), so it is whatever that agent actually offers
  *     rather than a list olai maintains. Accepting one only writes `/name ` —
  *     sending is what invokes it, exactly as typing it would.
@@ -29,12 +33,17 @@ import type { Chat } from "./state.ts"
 export function Composer(props: { readonly chat: Chat }) {
   const [draft, setDraft] = createSignal("")
   const [showing, setShowing] = createSignal(false)
+  /** Opened by the BUTTON rather than by typing a slash — the difference is
+   *  only which prefix the list is filtered by. */
+  const [asked, setAsked] = createSignal(false)
   let input: HTMLTextAreaElement | undefined
 
   const working = () => props.chat.state().status === "thinking"
 
   /** The word being completed: everything after a `/` that starts the draft.
-   *  Only at the start — a slash mid-sentence is a slash. */
+   *  Only at the start — a slash mid-sentence is a slash. `null` is "this is
+   *  not a command line", which is what closes the popover as you type past
+   *  one. */
   const typed = () => {
     const text = draft()
     if (!text.startsWith("/")) return null
@@ -42,12 +51,16 @@ export function Composer(props: { readonly chat: Chat }) {
     return upto === -1 ? text.slice(1) : null
   }
 
+  /** What the list is filtered by. The BUTTON asks with an empty prefix, which
+   *  is the whole list; typing asks with what has been typed. */
+  const prefix = () => (asked() ? typed() ?? "" : typed())
+
   const matches = () => {
-    const prefix = typed()
-    if (prefix === null) return []
+    const wanted = prefix()
+    if (wanted === null) return []
     return props.chat
       .state()
-      .commands.filter((command) => command.name.startsWith(prefix))
+      .commands.filter((command) => command.name.startsWith(wanted))
   }
 
   const open = () => showing() && matches().length > 0
@@ -57,18 +70,34 @@ export function Composer(props: { readonly chat: Chat }) {
     if (text.trim() === "") return
     props.chat.send(text)
     setDraft("")
-    setShowing(false)
+    dismiss()
   }
 
   const accept = (name: string) => {
     setDraft(`/${name} `)
+    dismiss()
+    input?.focus()
+  }
+
+  const dismiss = () => {
     setShowing(false)
+    setAsked(false)
+  }
+
+  /** The button: the whole list, or put it away if it is already up. */
+  const askForAll = () => {
+    if (open()) {
+      dismiss()
+      return
+    }
+    setAsked(true)
+    setShowing(true)
     input?.focus()
   }
 
   const onKey = (event: KeyboardEvent) => {
     if (event.key === "Escape") {
-      setShowing(false)
+      dismiss()
       return
     }
     // Enter sends. It does NOT need a "unless the menu is open" guard: the menu
@@ -84,11 +113,7 @@ export function Composer(props: { readonly chat: Chat }) {
   return (
     <div class="relative shrink-0 border-t border-rule p-2">
       <Show when={open()}>
-        <SlashMenu
-          commands={matches()}
-          onAccept={accept}
-          onDismiss={() => setShowing(false)}
-        />
+        <SlashMenu commands={matches()} onAccept={accept} onDismiss={dismiss} />
       </Show>
 
       <div class="flex items-end gap-2">
@@ -101,10 +126,25 @@ export function Composer(props: { readonly chat: Chat }) {
           value={draft()}
           onInput={(event) => {
             setDraft(event.currentTarget.value)
+            // Typing takes the popover back off the button: what is on screen
+            // should be what the line says, not what a click said a moment ago.
+            setAsked(false)
             setShowing(event.currentTarget.value.startsWith("/"))
           }}
           onKeyDown={onKey}
         />
+        {/* Only when the agent offers some: a button that opens nothing lies. */}
+        <Show when={props.chat.state().commands.length > 0}>
+          <button
+            type="button"
+            class="rounded border border-rule px-2 py-1.5 font-mono text-xs text-muted hover:text-ink"
+            data-testid={TESTID.chatCommands}
+            aria-label="show the agent's slash commands"
+            onClick={askForAll}
+          >
+            /
+          </button>
+        </Show>
         <Show
           when={working()}
           fallback={

@@ -134,9 +134,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           move({ session: { ...state.session, title: event.title } })
           return
         case "sessionOver":
-          // The transcript goes with the session: a transcript of a
-          // conversation you are not in is a lie.
-          publish(transcript.clear())
+          // A NEW conversation keeps the history and says where the break is:
+          // within one server's life the panel is a log, and throwing away what
+          // you were just reading because you asked for a fresh context is a
+          // cost with nothing bought by it. A LOAD is different — the replay
+          // that follows replaces the transcript, because a transcript of a
+          // conversation you are not in IS a lie — and a dead agent leaves
+          // everything where it is, with the `gone` notice to explain it.
+          if (event.why === "new") publish(transcript.mark("new conversation"))
           move({ session: null, commands: [] })
           return
         case "replayStarted":
@@ -198,7 +203,10 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             if (outcome.success === "cancelled") {
               publish(transcript.add("notice", "cancelled"))
             }
-            move({ status: "idle" })
+            // A turn that came back is the proof that whatever went wrong
+            // before has stopped being true. Leaving the banner up after it
+            // would make the panel report a state it can see it is not in.
+            move({ status: "idle", trouble: null })
           }).pipe(Effect.ensuring(Effect.sync(() => {
             turn = null
           }))),

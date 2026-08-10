@@ -128,11 +128,29 @@ export const listen = (options: ListenOptions) =>
         sockets.emit("connection", ws, request))
     })
 
+    // Shutting down means DROPPING what is connected, not waiting for it.
+    //
+    // `server.close` refuses to finish while any connection is still open, and
+    // both kinds a browser holds are open at that moment: the surface's
+    // websocket, which by construction stays up for as long as the tab does,
+    // and the keep-alive connection the page's own requests left behind.
+    // Neither ever closes on its own, so a server with a tab pointed at it
+    // hung there forever — Ctrl+C caught, the runtime unwinding, and the
+    // process simply never exiting. Nothing is lost by dropping them: the
+    // surface has already said goodbye on the line above, and a page whose
+    // socket goes away is a case the client already handles — it says so and
+    // reconnects.
+    //
+    // `terminate` rather than `close`: a close handshake waits for a reply
+    // from a peer we are about to stop being able to answer, which is the same
+    // wait in a politer spelling.
     yield* Effect.addFinalizer(() =>
       Effect.promise(async () => {
         await options.bound.close()
         acceptor.stop()
+        for (const client of sockets.clients) client.terminate()
         sockets.close()
+        server.closeAllConnections()
         await new Promise<void>((resolve) => server.close(() => resolve()))
       })
     )

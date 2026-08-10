@@ -9,8 +9,22 @@
  * makes the result safe to hand to `innerHTML`: the notes come from files an
  * agent or a git merge may have written, and a note is not a place where a
  * `<script>` should be able to appear.
+ *
+ * Highlighting runs AFTER the sanitiser, and the order is the point. Before it,
+ * every `<span class="hljs-keyword">` the highlighter had just produced would
+ * have to be allow-listed back in — a schema saying "spans with classes are
+ * fine", written to admit our own output, and admitting a hand-written one just
+ * the same. After it, the input is already safe: the highlighter reads the TEXT
+ * of a code block and emits spans it names itself, so nothing from the file
+ * decides what appears. The default sanitiser keeps `language-*` on `<code>`,
+ * which is exactly the one thing this stage needs to survive the scrub.
+ *
+ * The language set is the highlighter's `common` bundle — vendored through the
+ * dependency like everything else, because a stylesheet or a script from a CDN
+ * is a third party in the reader's page and olai serves its own files.
  */
 
+import rehypeHighlight from "rehype-highlight"
 import rehypeSanitize from "rehype-sanitize"
 import rehypeStringify from "rehype-stringify"
 import remarkParse from "remark-parse"
@@ -21,6 +35,7 @@ const pipeline = unified()
   .use(remarkParse)
   .use(remarkRehype)
   .use(rehypeSanitize)
+  .use(rehypeHighlight, { detect: false })
   .use(rehypeStringify)
 
 /**
