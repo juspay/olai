@@ -3,10 +3,9 @@
  * this page to a home screen or a dock.
  *
  * Its own file, beside `clientDist.ts` and `codec.ts`, because it has nothing
- * to do with the thing that serves it. `listener.ts` sequences an origin gate,
- * an upgrade, a stale-tab check and a serving stack, and says out loud that it
- * is a file this repo should not own for long — the app's name and mark have a
- * different reason to change, and should not leave with it.
+ * to do with the thing that serves it — which is now demonstrated rather than
+ * asserted: the sequencing `listener.ts` used to spell out went upstream as
+ * `serveSurfaceApp`, and the app's name and mark did not go with it.
  *
  * Only what is olai's is here. `start_url` and `display: standalone` are the
  * framework's install-friendly defaults (`pwaManifestLayer`), and so is a

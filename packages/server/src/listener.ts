@@ -1,97 +1,65 @@
 /**
- * The listener: HTTP for the browser bundle, WebSocket for the surface.
+ * The listener: one call, and the two decisions that call deliberately leaves.
  *
- * The shape is kolu's own surface-app example, followed closely enough that
- * fixes travel between them — which is also the reason this file exists as a
- * named seam rather than as forty lines inside `serve`. The composition root's
- * job is to say "store, then surface, then listener"; the sequencing of an
- * origin gate, an upgrade, a stale-tab check and a serving stack is a separate
- * concern with a separate reason to change, and it is one this repo should not
- * own for long (see the note in docs/architecture.md).
+ * The sequence this file used to spell out — an origin gate on the raw
+ * pre-upgrade socket, the upgrade, a stale-tab check, heartbeat enrolment, a
+ * serving stack per connection, and a teardown that DROPS what is connected
+ * rather than waiting for it — was copied from kolu's own surface-app example,
+ * and `docs/architecture.md` carried it as owed upstream from phase 2. It is
+ * `serveSurfaceApp` now (`@kolu/surface-app/serve`, kolu#2137), and this file
+ * is what is left when the copy goes.
  *
- * Two invariants are load-bearing:
+ * This header is the ONE place that argument lives; `docs/architecture.md`,
+ * this package's README and `listener.test.ts` point here rather than
+ * re-deriving it, because a rationale kept in four places is a rationale that
+ * goes stale in three.
  *
- *   - we own the `http.Server` and hand its `request` event an Effect handler,
- *     rather than letting the platform own the listener. That is what leaves
- *     the `upgrade` event to us: Node fans an event out to EVERY listener, so
- *     a second, framework-owned upgrade handler would also try to answer a
- *     socket we have already upgraded;
- *   - the order is origin gate (raw socket, pre-upgrade) → `handleUpgrade` →
- *     stale-tab gate → heartbeat enrolment → serve. `acceptSurfaceSocket` owns
- *     the last three; this file owns the first two.
+ * What is left is what the primitive does not own, and neither is a property
+ * of serving a shell:
+ *
+ *   - WHOSE PORT IT IS, which is this file. A busy port is the one bind
+ *     failure that is not a reason to refuse to serve — the reader asked to
+ *     read their outlines, not to own port 7714 — so olai retries wherever the
+ *     OS says. Every other failure still IS a refusal, which is why
+ *     {@link listen} recovers from exactly one `code` rather than from "listen
+ *     failed". The retry is a second `serveSurfaceApp` and not a re-bind:
+ *     there is no server handle to re-use, and nothing to clean up by hand,
+ *     because the abandoned first call never bound and its teardown is already
+ *     on the scope.
+ *   - WHAT IT SAYS, which is `./report.ts`. The primitive narrates on ONE sink
+ *     and defaults it to `console`; olai has a format and a stream of its own.
+ *     Its own file because it has its own reason to change — the log's
+ *     vocabulary, not this one's port policy.
+ *
+ * Two things are gone rather than moved, and both were the debt:
+ *
+ *   - the FRAME CAP. This file used to pass `ws` a `maxPayload` of 8 MiB while
+ *     `@kolu/surface` classifies oversize at 16 MiB, so every frame in between
+ *     died a layer below the one with a classifier, a documented close code and
+ *     a client that knows what happened (#71). The primitive reads
+ *     `RPC_MAX_FRAME_BYTES` and exposes no option to move it: the two layers
+ *     can no longer disagree because there is only one number;
+ *   - the SURFACE RUNTIME'S LIFETIME. The old teardown closed the runtime as
+ *     its first act, which made a transport the second owner of something the
+ *     composition root built. `serveSurfaceApp` takes `group` and `handlers`
+ *     and nothing else, and `serve.ts` closes what it made.
  */
 
-import { createServer } from "node:http"
-import type { AddressInfo } from "node:net"
-
-import { RPC_MAX_FRAME_BYTES } from "@kolu/surface/frame-limit"
-import { gateWsOrigin } from "@kolu/surface/ws-origin"
-import {
-  acceptSurfaceSocket,
-  type ServableSocket,
-  serveSurfaceSocket,
-  surfaceAppLayer,
-} from "@kolu/surface-app/server"
-import { NodeHttpServer } from "@effect/platform-node"
-import { emitter, prettyCause, reasonOf } from "@olai/log"
-import { Data, Effect, Layer, Scope } from "effect"
-import { HttpRouter } from "effect/unstable/http"
-import { WebSocketServer } from "ws"
+import { serveSurfaceApp, type SurfaceAppListenFailed } from "@kolu/surface-app/serve"
+import { type Emit, emitter } from "@olai/log"
+import { Effect, Layer, type Scope } from "effect"
 
 import { MANIFEST } from "./manifest.ts"
 import { mcpRoute } from "./mcp/route.ts"
 import { mediaLayer } from "./media.ts"
+import { report } from "./report.ts"
 import type { Bound } from "./runtime.ts"
 
-const WS_PATH = "/rpc/ws"
-
-/** The newline an ndjson frame ends with. The encoder writes
- *  `JSON.stringify(…) + "\n"` as one message, so it is on the wire — but the
- *  decoder measures the line WITHOUT it (`nlIndex - position`). One byte, and
- *  it is the difference between the two caps below meeting and missing. */
-const NDJSON_DELIMITER_BYTES = 1
-
-/**
- * The largest websocket message this server will take — the framework's own
- * frame cap, and not a number of ours.
- *
- * `@kolu/surface` owns the wire's frame size (`RPC_MAX_FRAME_BYTES`, 16 MiB)
- * AND owns what happens to a frame that busts it: the ndjson decoder
- * classifies it, closes with the code its `frameLimit` module documents, and
- * the client recognises that close and re-subscribes over a fresh socket. A
- * lower cap here does not make the wire safer — it moves the refusal one layer
- * DOWN, to a place with no classifier, no documented close and no client that
- * knows what happened, just a socket that died and took every other
- * subscription on that tab with it. This file used to say `8 * 1024 * 1024`,
- * half the framework's, so every frame in between died at the wrong layer;
- * sourcing the number means the two layers can no longer disagree, whatever
- * either of them is re-pinned to.
- *
- * It is a DECLARATION more than a setting today: bun's built-in `ws` is what
- * `import { WebSocketServer } from "ws"` resolves to under the runtime we ship,
- * and it ignores `maxPayload` in favour of a 16 MiB limit of its own (measured
- * 2026-08-10: 16777216 delivered, one byte more closed 1006 "Received too big
- * message"). No `maxPayload` we pass moves that, and while it stands the
- * framework's handled INBOUND oversize path is unreachable here: a frame the
- * decoder would refuse is already past bun's ceiling, and even one at exactly
- * the cap arrives a delimiter byte over it. A node host obeys the option, and
- * a bun that implements it would too, which is why the number still has to be
- * right — and why the test pins the number rather than the behaviour.
- */
-export const WS_MAX_PAYLOAD_BYTES = RPC_MAX_FRAME_BYTES + NDJSON_DELIMITER_BYTES
-
-export class ListenFailed extends Data.TaggedError("ListenFailed")<{
-  readonly host: string
-  readonly port: number
-  readonly cause: unknown
-}> {
-  override get message(): string {
-    return `cannot listen on ${this.host}:${this.port}: ${reasonOf(this.cause)}`
-  }
-}
-
 export interface ListenOptions {
-  readonly bound: Bound
+  /** What is served on the wire. The lifetime is NOT this file's: `serve.ts`
+   *  built the runtime and closes it, so only the two fields a transport
+   *  actually needs are asked for here. */
+  readonly bound: Pick<Bound, "group" | "handlers">
   /** The built browser bundle. */
   readonly clientDist: string
   /** The directory being served — where `/media/*` reads its pictures from. */
@@ -108,106 +76,68 @@ export interface ListenOptions {
 
 /** Binds, and registers its own teardown on the enclosing scope — so a caller
  *  that closes the scope closes the sockets, and no caller has to remember a
- *  shutdown function. Returns the URL actually bound. */
-export const listen = (options: ListenOptions) =>
+ *  shutdown function. Returns the URL actually bound.
+ *
+ *  The retry says so out loud, and it says it with the address that was
+ *  ACTUALLY bound — the one thing downstream already treats as the truth, so
+ *  nothing else has to learn that a fallback happened. */
+export const listen = (
+  options: ListenOptions,
+): Effect.Effect<string, SurfaceAppListenFailed, Scope.Scope> =>
   Effect.gen(function*() {
-    // Everything below says what it has to say from a Node callback — a
+    // Everything the listener has to say, it says from a Node callback — a
     // websocket that hung up, a tab closed at the handshake — so the fiber's
     // logging settings are captured once, here, rather than lost per line.
     const say = yield* emitter
 
-    const server = createServer()
-    server.on("request", yield* requestHandler(options))
-
-    const sockets = new WebSocketServer({
-      noServer: true,
-      maxPayload: WS_MAX_PAYLOAD_BYTES,
-    })
-    // The gate compares the `pid` a reconnecting tab presents against the id
-    // this process answers `system/identity` with — one id, minted and read by
-    // the framework, so no id is threaded through here and the two ends cannot
-    // be pointed at different ones. A tab that presents none has never been
-    // served by anybody and is simply accepted; a tab that presents a DIFFERENT
-    // one is bound to a process that is gone, so it is closed with the stale
-    // code and its wire retires rather than reconnecting into a server whose
-    // bundle it does not match.
-    const acceptor = acceptSurfaceSocket({
-      server: sockets,
-      onReject: (claimed) =>
-        say(
-          Effect.annotateLogs(Effect.logInfo("stale tab rejected"), { claimed }),
+    return yield* Effect.catchIf(
+      app(options, options.port, say),
+      (failure) => codeOf(failure.cause) === IN_USE && options.port !== ANY_PORT,
+      (asked) =>
+        app(options, ANY_PORT, say).pipe(
+          Effect.tap((url) =>
+            Effect.annotateLogs(Effect.logInfo("port in use — serving elsewhere"), {
+              asked: options.port,
+              url,
+            })
+          ),
+          // The retry is OUR idea, not the operator's. If even a port the OS
+          // picks will not bind, the failure to report is still the one for
+          // what they asked for: "cannot listen on 127.0.0.1:0" would send
+          // them looking for a port nobody typed.
+          Effect.mapError(() => asked),
         ),
-    })
-
-    sockets.on("connection", (peer, request) => {
-      const url = new URL(
-        request.url ?? "/",
-        `http://${request.headers.host ?? "localhost"}`,
-      )
-      acceptor.accept(peer, url, () => {
-        const serving = serveSurfaceSocket({
-          group: options.bound.group,
-          handlers: options.bound.handlers,
-          // `ws`'s socket satisfies `ServableSocket` structurally; its typings
-          // narrow `addEventListener` per event name, which the seam does not.
-          socket: peer as unknown as ServableSocket,
-        })
-        // A serving site owns its `done`: it resolves on hang-up and REJECTS
-        // if the serving stack failed. An ignored rejection is an unhandled one
-        // — and a rejection rendered with `String` is an Effect `Cause` read as
-        // `[object Object]`, which is what `prettyCause` exists to stop.
-        serving.done.catch((cause: unknown) =>
-          say(
-            Effect.annotateLogs(Effect.logWarning("surface connection failed"), {
-              why: prettyCause(cause),
-            }),
-          )
-        )
-      })
-    })
-
-    server.on("upgrade", (request, socket, head) => {
-      if (request.url?.startsWith(WS_PATH) !== true) {
-        socket.destroy()
-        return
-      }
-      // Cross-site websocket hijacking is refused on the raw socket, before
-      // the upgrade — after it, the browser has a connection to argue about.
-      if (gateWsOrigin(request, socket, { allowedOrigins: [...options.allowedOrigins] })) {
-        return
-      }
-      sockets.handleUpgrade(request, socket, head, (ws) =>
-        sockets.emit("connection", ws, request))
-    })
-
-    // Shutting down means DROPPING what is connected, not waiting for it.
-    //
-    // `server.close` refuses to finish while any connection is still open, and
-    // both kinds a browser holds are open at that moment: the surface's
-    // websocket, which by construction stays up for as long as the tab does,
-    // and the keep-alive connection the page's own requests left behind.
-    // Neither ever closes on its own, so a server with a tab pointed at it
-    // hung there forever — Ctrl+C caught, the runtime unwinding, and the
-    // process simply never exiting. Nothing is lost by dropping them: the
-    // surface has already said goodbye on the line above, and a page whose
-    // socket goes away is a case the client already handles — it says so and
-    // reconnects.
-    //
-    // `terminate` rather than `close`: a close handshake waits for a reply
-    // from a peer we are about to stop being able to answer, which is the same
-    // wait in a politer spelling.
-    yield* Effect.addFinalizer(() =>
-      Effect.promise(async () => {
-        await options.bound.close()
-        acceptor.stop()
-        for (const client of sockets.clients) client.terminate()
-        sockets.close()
-        server.closeAllConnections()
-        await new Promise<void>((resolve) => server.close(() => resolve()))
-      })
     )
+  })
 
-    return yield* bindOrFallBack(server, options)
+/** The whole listener, at one port. Spelled once and called twice, which is
+ *  what makes the fallback above a retry of the SAME server rather than a
+ *  second one that could drift from it.
+ *
+ *  The port arrives as an ARGUMENT and is taken off the options: the retry's
+ *  whole point is that it binds somewhere else, so a `port` still sitting in
+ *  scope here would be a field that is right at one call site and wrong at the
+ *  other. */
+const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
+  serveSurfaceApp({
+    group: options.bound.group,
+    handlers: options.bound.handlers,
+    clientDist: options.clientDist,
+    // What is in the manifest is `./manifest.ts`; that it is served at
+    // `/manifest.webmanifest`, beside a `no-store` shell, immutable hashed
+    // assets, a 404 on an asset miss and the SPA fallback that makes
+    // `/o/<file>` a real URL, is the shell half of the call.
+    manifest: MANIFEST,
+    // olai's own two routes: the one that answers with bytes from the SERVED
+    // directory rather than from the bundle, and the one an agent speaks to.
+    // MERGED rather than ordered — `HttpRouter` ranks by specificity, so
+    // `POST /mcp` and `GET /media/*` both beat the shell's catch-all whichever
+    // went in first.
+    routes: Layer.merge(mcpRoute(options.mcp), mediaLayer(options.root)),
+    host: options.host,
+    port,
+    allowedOrigins: options.allowedOrigins,
+    onEvent: (event) => report(event, say),
   })
 
 /** What the OS reports for a port that is already listening. */
@@ -220,102 +150,3 @@ const codeOf = (cause: unknown): string | undefined =>
   typeof cause === "object" && cause !== null && "code" in cause
     ? String((cause as { readonly code: unknown }).code)
     : undefined
-
-/**
- * Bind — and if the port is simply taken, bind once more wherever the OS says.
- *
- * A busy port is the one listen failure that is not a reason to refuse to
- * serve: the reader asked to read their outlines, not to own port 7714. Every
- * other failure still is one (a host that is not this machine's, a privileged
- * port, a socket the kernel will not give us), which is why this recovers from
- * exactly one `code` rather than from "listen failed".
- *
- * The retry says so out loud, and it says it with the address that was ACTUALLY
- * bound — the one thing downstream already treats as the truth. Nothing else
- * has to learn that a fallback happened.
- */
-const bindOrFallBack = (
-  server: ReturnType<typeof createServer>,
-  options: ListenOptions,
-): Effect.Effect<string, ListenFailed> =>
-  Effect.catchIf(
-    bind(server, options),
-    (failure) => codeOf(failure.cause) === IN_USE && options.port !== ANY_PORT,
-    (asked) =>
-      bind(server, { ...options, port: ANY_PORT }).pipe(
-        Effect.tap((url) =>
-          Effect.annotateLogs(Effect.logInfo("port in use — serving elsewhere"), {
-            asked: options.port,
-            url,
-          })
-        ),
-        // The retry is OUR idea, not the operator's. If even a port the OS
-        // picks will not bind, the failure to report is still the one for what
-        // they asked for: "cannot listen on 127.0.0.1:0" would send them
-        // looking for a port nobody typed.
-        Effect.mapError(() => asked),
-      ),
-  )
-
-/** The `request` handler, as an Effect handler over three layers.
- *  `surfaceAppLayer` owns the freshness contract: a `no-store` shell,
- *  immutable hashed assets, a 404 on an asset miss (never the shell), and the
- *  SPA fallback that makes `/o/<file>` a real URL, and it serves the web app
- *  manifest at `/manifest.webmanifest` — what is IN that manifest is
- *  `./manifest.ts`. `mediaLayer` owns the one route that answers with bytes
- *  from the SERVED directory rather than from the bundle, and `mcpRoute` the
- *  one an agent speaks to.
- *
- *  MERGED rather than ordered, all three: `HttpRouter` ranks routes by
- *  specificity, so `POST /mcp` and `GET /media/*` both beat the shell's
- *  catch-all whichever layer went in first. Registration order carries no
- *  meaning here, which is exactly the footgun the layer form exists to
- *  remove. */
-const requestHandler = (options: {
-  readonly clientDist: string
-  readonly root: string
-  readonly mcp: Parameters<typeof mcpRoute>[0]
-}) =>
-  Effect.gen(function*() {
-    const scope = Scope.makeUnsafe()
-    const layer = Layer.mergeAll(
-      mcpRoute(options.mcp),
-      mediaLayer(options.root),
-      surfaceAppLayer({
-        clientDist: options.clientDist,
-        manifest: MANIFEST,
-      }),
-    )
-    const httpEffect = yield* HttpRouter.toHttpEffect(layer)
-    return yield* NodeHttpServer.makeHandler(httpEffect, { scope })
-  })
-
-/** Bind, then read the address back. Crash rather than substitute the
- *  requested bind for the bound one: this line's whole job is to say where we
- *  actually landed. */
-const bind = (
-  server: ReturnType<typeof createServer>,
-  options: ListenOptions,
-): Effect.Effect<string, ListenFailed> =>
-  Effect.callback<string, ListenFailed>((resume) => {
-    // The error listener is the whole reason this is not a bare `listen`:
-    // EADDRINUSE is the realistic failure — a fixed default port, a harness
-    // spawning servers — and without it Node raises it as an uncaught event
-    // rather than as this fiber's failure.
-    server.once("error", (cause) =>
-      resume(new ListenFailed({ host: options.host, port: options.port, cause })))
-    server.listen({ host: options.host, port: options.port }, () => {
-      const info = server.address() as AddressInfo | string | null
-      if (info === null || typeof info === "string") {
-        resume(
-          new ListenFailed({
-            host: options.host,
-            port: options.port,
-            cause: `expected a TCP address, got ${JSON.stringify(info)}`,
-          }),
-        )
-        return
-      }
-      resume(Effect.succeed(`http://${info.address}:${info.port}`))
-    })
-  })

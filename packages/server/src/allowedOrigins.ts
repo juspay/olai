@@ -7,8 +7,9 @@
  * forwards: a reverse proxy, or `tailscale serve`.
  *
  * It is a gate against cross-site WebSocket hijacking, and it is checked on the
- * raw socket BEFORE the upgrade (`listener.ts`), because after it the browser
- * has a connection to argue about. The surface is unauthenticated, so the
+ * raw socket BEFORE the upgrade — after it, the browser has a connection to
+ * argue about. Where that happens is `serveSurfaceApp`; what this file decides
+ * is the list it is handed (`listener.ts` passes it through). The surface is unauthenticated, so the
  * origin is the only thing standing between a page somebody else served and
  * every outline in the served directory. That is exactly why the variable has
  * its own file with its own name in it rather than a `process.env` read inline

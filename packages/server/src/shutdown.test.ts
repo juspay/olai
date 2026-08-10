@@ -24,6 +24,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { stoppedWithin } from "./child.testlib.ts"
+import { served } from "./serve.testlib.ts"
 
 const MAIN = path.join(import.meta.dirname, "main.ts")
 
@@ -32,16 +33,14 @@ const MAIN = path.join(import.meta.dirname, "main.ts")
 const BOUND_MS = 10_000
 
 /** A directory to serve, and one to pretend is the built client — the entry
- *  point refuses to start without an `index.html` to hand out. */
+ *  point refuses to start without an `index.html` to hand out. The served half
+ *  is `serve.testlib.ts`'s, which is the one place the fixture a real server
+ *  needs is written; the `dist` is this test's own, because only this one
+ *  starts the BINARY, and only the binary insists on an `index.html`. */
 const scratch = (): { readonly root: string; readonly dist: string } => {
-  const base = fs.mkdtempSync(path.join(os.tmpdir(), "olai-shutdown-"))
-  const root = path.join(base, "root")
-  const dist = path.join(base, "dist")
-  fs.mkdirSync(root)
-  fs.mkdirSync(dist)
-  fs.writeFileSync(path.join(root, "a.jsonl"), `{"id":"a","ord":"a0","title":"a"}\n`)
+  const dist = fs.mkdtempSync(path.join(os.tmpdir(), "olai-shutdown-dist-"))
   fs.writeFileSync(path.join(dist, "index.html"), "<!doctype html>\n")
-  return { root, dist }
+  return { root: served(), dist }
 }
 
 test("SIGINT stops a server that a browser is connected to", async () => {

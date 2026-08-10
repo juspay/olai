@@ -328,8 +328,8 @@ dist *root* by the build, outside `/assets/`: a manifest and an
 `apple-touch-icon` are read by an installer rather than by the shell, so their
 URLs have to be stable ones and must not change with their bytes. They are the
 original olai mark, ported unchanged from the racket implementation. The
-manifest that names them is the *server's* (`packages/server/src/listener.ts`,
-through kolu's manifest layer); `index.html` names the same mark again for what
+manifest that names them is the *server's* (`packages/server/src/manifest.ts`,
+served through kolu's manifest layer); `index.html` names the same mark again for what
 reads no manifest — the browser tab, and iOS's Add to Home Screen. There is no
 service worker and no offline shell: this app is live or nothing, and a cached
 shell would show outlines that had stopped being true.
