@@ -15,8 +15,13 @@ import type { OlaiWorld } from "../support/world.ts";
 
 /** The manifest, parsed. Fetched per step rather than cached on the world: it
  *  is a static document served by the process under test, and a step that read
- *  a copy from three steps ago would not be reading what is being served. */
-const manifestOf = async (
+ *  a copy from three steps ago would not be reading what is being served.
+ *
+ *  Exported because the theme steps ask the same question for a different
+ *  reason — whether the chrome an installer opens under is the paper an
+ *  unpicked page paints — and a second fetch-and-parse would be a second copy
+ *  of the "an unmatched path answers 200 with the shell" contract. */
+export const manifestOf = async (
   world: OlaiWorld,
 ): Promise<Record<string, unknown>> => {
   const served = await world.fetch("/manifest.webmanifest");

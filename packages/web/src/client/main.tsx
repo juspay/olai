@@ -6,6 +6,7 @@ import { retireServiceWorker } from "@kolu/surface-app/lifecycle"
 import { render } from "solid-js/web"
 
 import App from "./App.tsx"
+import { adoptStoredTheme } from "./theme/state.ts"
 import { trackVisibleViewport } from "./viewport.ts"
 
 // The paired half of the self-destructing `/sw.js` the server serves: a
@@ -20,6 +21,13 @@ retireServiceWorker()
 // its teardown is dropped: the only thing that ends this page also ends the
 // listeners.
 trackVisibleViewport()
+
+// The theme the shell's boot script already put on `<html>`, taken up by the
+// app: a stored name no palette offers is forgotten here, and the browser
+// chrome catches up with the paper the page is actually painted in. Started
+// here for the same reason as the line above — it belongs to the document, and
+// it outlives every component.
+adoptStoredTheme()
 
 const root = document.getElementById("root")
 if (root === null) throw new Error("no #root element")

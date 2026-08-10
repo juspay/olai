@@ -31,6 +31,8 @@ import babelSolid from "babel-preset-solid"
 import { buildSurfaceClient } from "@kolu/surface-app/bun"
 import type { BunPlugin } from "bun"
 
+import { paletteCss } from "./client/theme/css.ts"
+
 const CLIENT = resolve(dirname(fileURLToPath(import.meta.url)), "client")
 
 const solidJsx: BunPlugin = {
@@ -51,7 +53,7 @@ const solidJsx: BunPlugin = {
 }
 
 /**
- * The stylesheet, as bytes for the helper to hash, name and write.
+ * The utilities, as Tailwind writes them.
  *
  * `@tailwindcss/cli` is invoked by its IN-TREE path, never `bunx`: bunx
  * resolves by name and falls back to fetching the package when the local copy
@@ -60,11 +62,9 @@ const solidJsx: BunPlugin = {
  * this file, so the path stays right wherever in the workspace this ends up.
  *
  * Tailwind has no content-hash naming of its own, so it writes to a temp file
- * in the OS temp dir — both the source tree and the Nix dist may be read-only
- * — and we hand the bytes back for `buildSurfaceClient` to place under
- * `/assets/styles-<hash>.css` on the same immutable-caching contract as the JS.
+ * in the OS temp dir — both the source tree and the Nix dist may be read-only.
  */
-const buildTailwindCss = async (): Promise<ArrayBuffer> => {
+const tailwindUtilities = async (): Promise<string> => {
   const cli = createRequire(import.meta.url)
     .resolve("@tailwindcss/cli/package.json")
     .replace(/package\.json$/, "dist/index.mjs")
@@ -82,10 +82,29 @@ const buildTailwindCss = async (): Promise<ArrayBuffer> => {
   const code = await tailwind.exited
   if (code !== 0) throw new Error(`@tailwindcss/cli exited ${code}`)
 
-  const bytes = await Bun.file(out).arrayBuffer()
+  const utilities = await Bun.file(out).text()
   await Bun.$`rm -rf ${dirname(out)}`
-  return bytes
+  return utilities
 }
+
+/**
+ * The whole stylesheet, as bytes for the helper to hash, name and write: the
+ * utilities, and then the named palettes.
+ *
+ * The palettes are generated from a TypeScript table (`client/theme/
+ * palettes.ts`, which the picker reads too) and a `.css` file cannot import
+ * one, so they are composed in here rather than written into `styles.css`.
+ * Their POSITION is not load-bearing — an unlayered rule beats the
+ * `@layer theme` block Tailwind emits its own `:root` in wherever it is
+ * written — they go last because that is the simplest composition. The one
+ * cost of being outside the CLI's input is that these few blocks are the only
+ * part of the sheet its minifier never sees.
+ *
+ * The bytes are hashed after this, so a palette edited on disk is a new
+ * `/assets/styles-<hash>.css` on the same immutable-caching contract as the JS.
+ */
+const buildStylesheet = async (): Promise<ArrayBuffer> =>
+  new Response(`${await tailwindUtilities()}\n${paletteCss()}`).arrayBuffer()
 
 const buildClient = async (distDir: string): Promise<void> => {
   await buildSurfaceClient({
@@ -99,7 +118,7 @@ const buildClient = async (distDir: string): Promise<void> => {
       {
         name: "styles",
         ext: "css",
-        build: buildTailwindCss,
+        build: buildStylesheet,
         htmlPlaceholder: `href="./styles.css"`,
       },
     ],

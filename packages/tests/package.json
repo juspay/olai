@@ -8,7 +8,7 @@
     "test": "cucumber-js --profile ui",
     "typecheck": "tsc --noEmit"
   },
-  "//dependencies": "@olai/web for its `data-testid` names ONLY. The attribute names are a contract between two packages that never otherwise meet, and the way that contract breaks is silent — a rename compiles on both sides and shows up as a thirty-second timeout. Importing the client's own TESTID record in support/world.ts makes it a type error instead. Nothing else is imported from the client: these tests drive it through a browser, not through its modules.",
+  "//dependencies": "@olai/web for the NAMES it owns and nothing else: the `data-testid` record (support/world.ts), the day arithmetic in clock.ts, and the theme table's attribute, storage key and default. Each is a contract between two packages that never otherwise meet, and the way that kind of contract breaks is silent — a rename compiles on both sides and shows up as a thirty-second timeout. Importing makes it a type error instead. No BEHAVIOUR is imported: these tests drive the client through a browser, not through its modules.",
   "dependencies": {
     "@olai/web": "workspace:*"
   },
