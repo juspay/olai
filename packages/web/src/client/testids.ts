@@ -73,6 +73,9 @@ export const TESTID = {
   chatTitle: "chat-title",
   chatModel: "chat-model",
   chatNew: "chat-new",
+  /** Drawn beside the model while a turn is running. Beside, not instead:
+   *  what it runs on and whether it is running are two facts. */
+  chatWorking: "chat-working",
   chatSessions: "chat-sessions",
   chatSessionList: "chat-session-list",
   chatSession: "chat-session",

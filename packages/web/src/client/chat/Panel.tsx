@@ -43,7 +43,7 @@ import { Composer } from "./Composer.tsx"
 import { Header } from "./Header.tsx"
 import { NoAgent } from "./NoAgent.tsx"
 import { chatOpen, setChatOpen } from "./open.ts"
-import { createChat } from "./state.ts"
+import { createChat, createChatState } from "./state.ts"
 import { Transcript } from "./Transcript.tsx"
 
 export function Panel() {
@@ -59,15 +59,42 @@ export function Panel() {
 export function Toggle() {
   return (
     <Show when={!chatOpen()}>
-      <button
-        type="button"
-        class="rounded-full border border-rule bg-paper px-3 py-1.5 font-mono text-xs text-muted hover:text-ink"
-        data-testid={TESTID.chatToggle}
-        onClick={() => setChatOpen(true)}
-      >
-        &gt;_ agent
-      </button>
+      <ShutToggle />
     </Show>
+  )
+}
+
+/**
+ * ... and it says whether a turn is running behind it.
+ *
+ * A shut drawer with a turn in it used to be an inert pill: you asked for
+ * something, closed the panel to read the outline, and nothing on screen knew
+ * the agent was still working — including when it stopped. The state is the
+ * server's, like everything else here.
+ *
+ * Its own component so the subscription is created and disposed with the shut
+ * state, and {@link createChatState} rather than {@link createChat} so it is the
+ * CELL that is subscribed and not the transcript: a shut drawer taking every
+ * streaming frame is exactly what the drawer's own subscription is scoped to
+ * avoid.
+ */
+function ShutToggle() {
+  const state = createChatState()
+  const working = () => state().status === "thinking"
+
+  return (
+    <button
+      type="button"
+      class={`rounded-full border bg-paper px-3 py-1.5 font-mono text-xs hover:text-ink ${
+        working() ? "animate-pulse border-doing text-doing" : "border-rule text-muted"
+      }`}
+      data-testid={TESTID.chatToggle}
+      data-busy={working()}
+      title={working() ? "the agent is working" : "open the agent panel"}
+      onClick={() => setChatOpen(true)}
+    >
+      &gt;_ agent
+    </button>
   )
 }
 

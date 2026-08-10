@@ -131,6 +131,30 @@ Feature: Talking to the agent
     And the chat is not streaming
 
   @scratch:chat
+  Scenario: A running turn is visible in three places
+    # Ported back from racket, which had all three and this branch had none of
+    # them: the only cue was the send button turning into cancel. One cue is not
+    # enough because a person is not always looking at the one place it is —
+    # and the shut drawer was the worst of it, since a turn behind a closed
+    # panel was invisible including when it ended.
+    When I ask the agent "hold"
+    Then the agent is working
+    And the chat input is disabled
+    # BESIDE the model, not instead of it. The status used to give that line up
+    # the moment a model was named, so from the second turn on the header
+    # answered a different question than the one being asked of it.
+    And the panel header names the model "Fake One"
+    And the header says the agent is working
+    When I close the agent panel
+    Then the agent toggle says a turn is running
+    When I open the agent panel again
+    And the agent is released
+    Then the agent is idle
+    And the header has stopped saying the agent is working
+    And the chat input takes typing again
+    And the panel header names the model "Fake One"
+
+  @scratch:chat
   Scenario: A row that changes is the same row, not a new one
     # The headline of the parity round. Rows are keyed by id and each row reads
     # its own value, so a status change patches the row in place. Handed the

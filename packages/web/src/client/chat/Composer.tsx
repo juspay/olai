@@ -128,12 +128,18 @@ export function Composer(props: { readonly chat: Chat }) {
           is right: bottom-aligned they hang off its corner, centred they float
           in the middle of it. A row of its own gives them one edge to line up
           on, and gives the box the width it is actually for. */}
+      {/* DISABLED while the agent has the turn, and it looks disabled. A send
+          during one is refused by the server anyway ("the agent is still
+          working on the last message"), so a box that takes the words and then
+          loses them is the worst of the three possibilities: better to say so
+          before they are typed. */}
       <textarea
         ref={input}
-        class="w-full resize-none rounded border border-rule bg-paper px-2 py-1.5 text-sm outline-none focus:border-accent"
+        class="w-full resize-none rounded border border-rule bg-paper px-2 py-1.5 text-sm outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-50"
         data-testid={TESTID.chatInput}
         rows={2}
-        placeholder="ask the agent…"
+        disabled={working()}
+        placeholder={working() ? "the agent is working…" : "ask the agent…"}
         value={draft()}
         onInput={(event) => {
           setDraft(event.currentTarget.value)

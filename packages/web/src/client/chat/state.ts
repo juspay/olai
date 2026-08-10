@@ -73,8 +73,26 @@ export interface Chat {
   readonly sessions: () => Promise<ReadonlyArray<SessionInfo>>
 }
 
-export const createChat = (): Chat => {
+/**
+ * Where the conversation stands, and NOTHING else.
+ *
+ * For a reader that has to know whether a turn is running without drawing the
+ * conversation — the toggle in the sidebar, which is only on screen while the
+ * drawer is shut. It subscribes the cell (small, and it changes when the state
+ * changes) and deliberately not the transcript, which is the expensive one: a
+ * shut drawer taking every streaming frame is the thing {@link ./Panel.tsx}
+ * closes the subscription to avoid.
+ */
+export const createChatState = (): Accessor<ChatState> => {
   const cell = olai.cells.chat.use()
+  // The cell always has a value: the spec declares a default, and the framework
+  // seeds the subscription with it — so `off` is what a page reads before the
+  // first frame, which is exactly what it should read.
+  return () => cell.value() ?? CHAT_OFF
+}
+
+export const createChat = (): Chat => {
+  const state = createChatState()
   const transcript = olai.collections.transcript.use()
   const [refused, setRefused] = createSignal<OpFailure | null>(null)
 
@@ -101,10 +119,7 @@ export const createChat = (): Chat => {
   }
 
   return {
-    // The cell always has a value: the spec declares a default, and the
-    // framework seeds the subscription with it — so `off` is what a page reads
-    // before the first frame, which is exactly what it should read.
-    state: () => cell.value() ?? CHAT_OFF,
+    state,
     rows,
     entry,
     refused,

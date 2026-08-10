@@ -21,6 +21,7 @@ import type { Locator } from "playwright";
 import {
   CHAT_BREAK,
   CHAT_CANCEL,
+  CHAT_CLOSE,
   CHAT_ENTRY_STREAMING,
   CHAT_INPUT,
   CHAT_MODEL,
@@ -38,6 +39,7 @@ import {
   CHAT_TOOL_DETAIL,
   CHAT_TRANSCRIPT,
   CHAT_UNFINISHED_CHILD,
+  CHAT_WORKING,
   HYDRATION_TIMEOUT,
   NODE_TITLE,
   nodeSelector,
@@ -147,6 +149,70 @@ Then("the agent is idle", async function (this: OlaiWorld) {
     "idle",
     "the agent panel",
     HYDRATION_TIMEOUT,
+  );
+});
+
+// ── the three places a running turn shows ──────────────────────────────
+//
+// One cue is not enough, and the reason is that a person is not always looking
+// at the one place it is. The composer says it where the words go, the header
+// says it beside the model, and the shut drawer says it because a turn behind
+// a closed panel used to be invisible — including when it ended.
+
+Then("the chat input is disabled", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => await this.page.locator(CHAT_INPUT).isDisabled(),
+    "the input to refuse typing while the agent has the turn",
+  );
+});
+
+Then("the chat input takes typing again", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => await this.page.locator(CHAT_INPUT).isEnabled(),
+    "the input to come back",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then("the header says the agent is working", async function (this: OlaiWorld) {
+  await this.page
+    .locator(CHAT_WORKING)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+Then(
+  "the header has stopped saying the agent is working",
+  async function (this: OlaiWorld) {
+    await this.waitUntil(
+      async () => (await this.page.locator(CHAT_WORKING).count()) === 0,
+      "the header to stop saying the agent is working",
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+When("I close the agent panel", async function (this: OlaiWorld) {
+  await this.page.locator(CHAT_CLOSE).click();
+  await this.page
+    .locator(CHAT_PANEL)
+    .waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+});
+
+/** Reopen WITHOUT waiting for the panel to settle — the `Given` in the
+ *  background does wait, and mid-turn is exactly when it never would. */
+When("I open the agent panel again", async function (this: OlaiWorld) {
+  await this.page.locator(CHAT_TOGGLE).click();
+  await this.page
+    .locator(CHAT_PANEL)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+Then("the agent toggle says a turn is running", async function (this: OlaiWorld) {
+  await this.expectAttribute(
+    CHAT_TOGGLE,
+    "data-busy",
+    "true",
+    "the shut drawer's toggle",
   );
 });
 

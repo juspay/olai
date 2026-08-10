@@ -7,6 +7,13 @@
  * writes one in the background, and a conversation with a name is one you can
  * come back to — which is what the picker beside it is for.
  *
+ * WORKING is drawn BESIDE the model, not instead of it. The status used to take
+ * that line until a model arrived and then never appear again, so from the
+ * second turn onwards the header said "Fake One" whether the agent was thinking
+ * or idle — the one line a reader looks at to find out, answering a different
+ * question. They are two facts and they take two slots: what it runs on, and
+ * whether it is running.
+ *
  * Everything drawn is a projection of the chat cell. Nothing is remembered
  * locally, so a second tab's header says the same thing as this one.
  */
@@ -34,11 +41,25 @@ export function Header(props: {
             ? "agent"
             : state().session?.title ?? "new conversation"}
         </div>
-        <div class="truncate font-mono text-[0.6875rem] text-muted">
+        <div class="flex items-center gap-2 truncate font-mono text-[0.6875rem] text-muted">
           <Show when={state().model} fallback={<span>{statusWord(state().status)}</span>}>
-            {(model) => (
-              <span data-testid={TESTID.chatModel}>{model()}</span>
-            )}
+            {(model) => <span data-testid={TESTID.chatModel}>{model()}</span>}
+          </Show>
+          {/* Always in the tree while a turn runs, whether or not a model is
+              named — the two are independent, and a cue that only appears in
+              one of two otherwise identical states is a cue nobody learns. */}
+          <Show when={state().status === "thinking"}>
+            <span
+              class="flex items-center gap-1 text-doing"
+              data-testid={TESTID.chatWorking}
+              aria-live="polite"
+            >
+              <span
+                class="inline-block size-1.5 animate-pulse rounded-full bg-doing"
+                aria-hidden="true"
+              />
+              working…
+            </span>
           </Show>
         </div>
       </div>
