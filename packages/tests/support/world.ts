@@ -378,6 +378,42 @@ export class OlaiWorld extends World {
     }, NO_RELOAD_MARK);
   }
 
+  /** Where something is on screen, and how big.
+   *
+   *  The one measurement these features take, and they take it for one reason:
+   *  a target a finger has to hit is a SIZE, and no attribute can carry it —
+   *  it is the sum of a font, a padding and a breakpoint, so the only honest
+   *  way to ask is to measure what the browser laid out. An element that is
+   *  not there, or is not laid out at all, has no box, and that is a different
+   *  failure from a box that is too small. */
+  async box(locator: Locator, what: string): Promise<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }> {
+    await locator.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const box = await locator.boundingBox();
+    if (box === null) throw new Error(`${what} is not laid out, so it has no box`);
+    return box;
+  }
+
+  /** Ask the server for something the PAGE does not render: the manifest, an
+   *  icon. Through the browser context, so it goes to the same origin with the
+   *  same base URL the page has. */
+  async fetch(path: string): Promise<{
+    readonly status: number;
+    readonly contentType: string;
+    readonly body: string;
+  }> {
+    const response = await this.page.request.get(path);
+    return {
+      status: response.status(),
+      contentType: response.headers()["content-type"] ?? "",
+      body: await response.text(),
+    };
+  }
+
   /** Poll until `check` holds, or fail saying what was being waited for.
    *
    *  Playwright's own locators already retry, so this is only for the

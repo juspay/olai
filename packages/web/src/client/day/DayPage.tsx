@@ -57,7 +57,7 @@ export function DayPage(props: {
               <h2 class="m-0 mb-2 font-mono text-xs text-muted">
                 <Link
                   route={{ kind: "outline", file: group.file }}
-                  class="rounded px-1 text-inherit no-underline hover:bg-rule hover:text-ink"
+                  class="inline-flex min-h-11 items-center rounded px-1 text-inherit no-underline hover:bg-rule hover:text-ink md:min-h-0"
                 >
                   {group.file}
                 </Link>

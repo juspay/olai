@@ -32,7 +32,7 @@ export function Restarted(props: { readonly onReload: () => void }) {
         </p>
         <button
           type="button"
-          class="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-paper hover:opacity-90"
+          class="inline-flex min-h-11 items-center rounded bg-accent px-4 py-1.5 text-sm font-semibold text-paper hover:opacity-90 md:min-h-0 md:px-3"
           data-testid={TESTID.reload}
           onClick={() => props.onReload()}
         >

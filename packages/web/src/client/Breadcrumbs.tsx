@@ -22,8 +22,12 @@ import { For, Show } from "solid-js"
 import { Link } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 
+/** A crumb is a link a finger taps, so below 48rem it is 44px tall like every
+ *  other one — inline-flex rather than a block, because the trail wraps and a
+ *  crumb has to keep sitting on the line with the separators between them. */
 const CRUMB =
-  "rounded px-1 text-inherit no-underline hover:bg-rule hover:text-ink"
+  "inline-flex min-h-11 items-center rounded px-1 text-inherit no-underline " +
+  "hover:bg-rule hover:text-ink md:min-h-0"
 
 export function Breadcrumbs(props: {
   /** The outline the trail roots at. Left out where the screen has already

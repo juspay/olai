@@ -19,7 +19,14 @@ export function Bullet(props: { readonly id: string }) {
   return (
     <Link
       route={{ kind: "node", id: props.id }}
-      class="w-4 shrink-0 text-center text-muted no-underline hover:text-accent"
+      // The gutter of a tree row is the one place the 44px rule cannot be
+      // obeyed in both directions: a 44px-wide bullet and a 44px-wide toggle
+      // at every level of indent leave a phone no room for the title they are
+      // in front of. So the height carries it — 2.75rem, the full target, in
+      // the axis where a miss lands on the WRONG NODE — and the width is the
+      // 1.75rem the racket original used for the same control on the same
+      // screen. Above 48rem it is the compact bullet a mouse gets.
+      class="inline-flex h-11 w-7 shrink-0 items-center justify-center text-center text-muted no-underline hover:text-accent md:h-auto md:w-4"
       testid={TESTID.zoom}
       title="zoom into this node"
       label={`zoom into ${props.id}`}

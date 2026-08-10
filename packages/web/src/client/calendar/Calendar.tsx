@@ -111,7 +111,10 @@ function Step(props: {
   return (
     <button
       type="button"
-      class="cursor-pointer rounded border-0 bg-transparent px-1 text-xs text-muted hover:bg-rule hover:text-ink"
+      // A chevron is a small thing to hit. Below 48rem it gets the same 44px
+      // box every other target on a phone gets — both ways, because unlike a
+      // day of the month it has no grid column to fill it out.
+      class="inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded border-0 bg-transparent px-1 text-xs text-muted hover:bg-rule hover:text-ink md:min-h-0 md:min-w-0"
       data-testid={props.testid}
       aria-label={props.label}
       onClick={props.onStep}

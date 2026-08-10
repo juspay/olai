@@ -2,10 +2,41 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- viewport-fit=cover puts the page under the notch and the home bar,
+         which is what makes `env(safe-area-inset-*)` report anything but zero
+         — every fixed thing in this app pads itself by them.
+         interactive-widget says what an on-screen keyboard should do: shrink
+         the viewport, so a box fixed to the bottom stays above it. Where that
+         is honoured it is the whole fix; where it is not (iOS), the page
+         measures `visualViewport` itself (src/client/viewport.ts). -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <title>olai</title>
     <meta name="description" content="outlines in flat-record JSONL" />
+    <!-- The browser chrome around an installed app. Two of them rather than a
+         script that rewrites one: this app has no theme toggle — the OS
+         preference IS the setting (src/client/styles.css) — so the same media
+         query that picks the palette can pick the chrome, and no JavaScript
+         has to run before the status bar is the right colour. Both values are
+         `--color-paper` from that stylesheet, which cannot be read from here
+         (the sheet is a build artifact and this shell is what loads it). -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fdfdfc" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#16161a" />
+    <!-- The install surface. The manifest is the SERVER's
+         (packages/server/src/listener.ts, through kolu's manifest layer); the
+         icons are files copied to the dist root by the build. `rel="icon"` is
+         the tab, `apple-touch-icon` is iOS's Add to Home Screen, which reads
+         no manifest — so the same mark has to be named twice. There is no
+         service worker and no offline shell: this app is live or nothing. -->
     <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="olai" />
     <!-- Both hrefs below are placeholders the build rewrites to hashed
          /assets/* URLs; they must match build.ts byte for byte. -->
     <link rel="stylesheet" href="./styles.css" />

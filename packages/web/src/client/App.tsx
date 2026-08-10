@@ -152,7 +152,20 @@ export default function App() {
         <Match when={page()}>
           {(open) => (
             <RouterProvider router={router}>
-              <div class="grid min-h-screen grid-cols-[16rem_1fr]">
+              {/* Two columns where there is room for two, one where there is
+                  not. `md` is 48rem, which is where the racket original put
+                  the same line: below it the sidebar stops being a column
+                  beside the outline and becomes a header above it (see
+                  ./Sidebar.tsx), and this is the whole of the layout half of
+                  that — one grid, one breakpoint. The rows are named on that
+                  side because a grid stretches auto rows to fill it: without
+                  `1fr` on the second, a short page would push the outline
+                  down the screen by half the space left over.
+                  `min-h-dvh`, not `min-h-screen`: on a phone `vh` is measured
+                  against the browser chrome at its SMALLEST, so a page sized
+                  by it is taller than the screen for as long as the address
+                  bar is showing. */}
+              <div class="grid min-h-dvh grid-cols-1 grid-rows-[auto_1fr] md:grid-cols-[16rem_1fr] md:grid-rows-none">
                 <Sidebar files={files()} active={outlineOf(open())} broken={broken()}>
                   <Calendar
                     today={today()}
@@ -160,7 +173,12 @@ export default function App() {
                     days={dated}
                   />
                 </Sidebar>
-                <main class="overflow-x-auto px-8 py-6">
+                {/* The room under the outline is for two things a phone has
+                    that a laptop does not: the home indicator (the inset is
+                    real because the shell asks for `viewport-fit=cover`), and
+                    the connection dot, which is fixed over this corner and
+                    would otherwise sit on the last row of the tree. */}
+                <main class="overflow-x-auto px-4 pt-4 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:px-8 md:py-6">
                   <Show when={problems().length > 0}>
                     <Banner errors={problems()} />
                   </Show>

@@ -34,9 +34,14 @@ import { dayNumber } from "./month.ts"
  *  no colour of its own — every property the marks below touch is decided in
  *  exactly one of them, because two utilities setting the same property are
  *  settled by the order Tailwind emitted its rules in and not by the order
- *  they were written here. */
-const BOX = "flex min-h-7 items-center justify-center rounded border text-xs " +
-  "tabular-nums no-underline"
+ *  they were written here.
+ *
+ *  Its HEIGHT is the one thing that changes with the pointer: 2.75rem below
+ *  48rem — 44px, the number both mobile platforms print in their guidelines —
+ *  and the compact 1.75rem row above it. A day is the smallest target in this
+ *  app and the one a finger is likeliest to miss into the day beside it. */
+const BOX = "flex min-h-11 items-center justify-center rounded border text-xs " +
+  "tabular-nums no-underline md:min-h-7"
 
 /** The dot, as the pseudo-element it has to be — it sits UNDER the number
  *  rather than beside it, and `currentColor` is what makes it follow the cell

@@ -76,11 +76,14 @@ function Branch(props: {
       <div class="flex items-baseline gap-1.5">
         <Show
           when={props.row.children.length > 0}
-          fallback={<span class="w-4 shrink-0" aria-hidden="true" />}
+          fallback={<span class="w-7 shrink-0 md:w-4" aria-hidden="true" />}
         >
           <button
             type="button"
-            class="w-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-center text-xs text-muted hover:text-ink"
+            // Sized like the bullet beside it, and for the reason given there:
+            // the full 44px in the axis a finger misses along, and the racket
+            // original's 1.75rem across, so the gutter does not eat the row.
+            class="inline-flex h-11 w-7 shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent p-0 text-center text-xs text-muted hover:text-ink md:h-auto md:w-4"
             data-testid={TESTID.toggle}
             aria-expanded={!collapsed()}
             aria-label={collapsed() ? "expand" : "collapse"}
@@ -118,13 +121,20 @@ function Branch(props: {
         </Switch>
       </div>
 
+      {/* Indented past the gutter — which is wider where the controls are
+          finger-sized, so the note lines up under the title on both. */}
       <Show when={!collapsed() && shown()?.desc}>
-        {(desc) => <Note desc={desc()} class="mt-1 mb-2 ml-11 text-[0.9375rem] text-muted" />}
+        {(desc) => (
+          <Note
+            desc={desc()}
+            class="mt-1 mb-2 ml-[4.25rem] text-[0.9375rem] text-muted md:ml-11"
+          />
+        )}
       </Show>
 
       <Show when={props.row.kind === "cycle" ? props.row : undefined}>
         {(row) => (
-          <div class="ml-11 text-sm text-alarm">
+          <div class="ml-[4.25rem] text-sm text-alarm md:ml-11">
             this mirror is inside the subtree it shows (`{row().through}`) — not
             expanded
           </div>
