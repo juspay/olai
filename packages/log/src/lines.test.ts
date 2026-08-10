@@ -77,8 +77,15 @@ test("a line found by message is that line, not a later one that shares a field"
 })
 
 // A spawned server's stdout arrives in chunks and a test polls the buffer it
-// has so far. A half-written line must simply not match yet.
+// has so far. A half-written line must simply not match yet — including one cut
+// in the middle of a quoted value, where there is no closing quote to find and
+// the fields read so far are all there is.
 test("a partial trailing line is not a match", () => {
   expect(findLogfmt("timestamp=… level=Info fiber=#2 message=serv", "serving"))
     .toBeUndefined()
+
+  const cut = `timestamp=… level=Warn message="the agent could not`
+  expect(findLogfmt(cut, "the agent could not open a session")).toBeUndefined()
+  expect(readLogfmt(cut).level).toBe("Warn")
+  expect(readLogfmt(cut).message).toBeUndefined()
 })

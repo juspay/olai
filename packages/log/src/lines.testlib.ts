@@ -55,21 +55,61 @@ export const findSaid = (
   phrase: string,
 ): Logged | undefined => said.find((line) => line.message.includes(phrase))
 
-/** One `key=value` or `key="quoted value"`, anchored so a value containing an
- *  `=` cannot be read as a second pair. Escapes inside a quoted value are the
- *  encoder's (`\"`, `\\`), so the pattern has to know about them too. */
-const PAIR = /([^\s="]+)=(?:"((?:[^"\\]|\\.)*)"|([^\s"]*))/g
-
-/** A logfmt line, as its fields. Repeated keys keep the LAST — a line may carry
- *  more than one `message=` when something was logged with several arguments,
- *  and the annotations that a test reads come after them either way. */
+/**
+ * A logfmt line, as its fields. Repeated keys keep the LAST — a line may carry
+ * more than one `message=` when something was logged with several arguments,
+ * and the annotations a test reads come after them either way.
+ *
+ * A scan rather than a regex, and that is not taste. `key=value` where the key
+ * runs up to an `=` is the shape a backtracking engine is worst at: every
+ * position in a long run of key-ish characters is a start the engine tries and
+ * abandons, which is quadratic in the line's length — and these lines carry
+ * whatever an agent wrote to its stderr. One pass, one character at a time, is
+ * linear and is also the only version of this that can be read straight
+ * through.
+ */
 export const readLogfmt = (line: string): Readonly<Record<string, string>> => {
   const fields: Record<string, string> = {}
-  for (const [, key, quoted, bare] of line.matchAll(PAIR)) {
-    fields[key as string] = quoted === undefined
-      ? bare ?? ""
-      : quoted.replace(/\\(.)/g, "$1")
+  const end = line.length
+  let at = 0
+
+  while (at < end) {
+    if (line[at] === " ") {
+      at += 1
+      continue
+    }
+
+    // The key, up to its `=`. A run with no `=` in it is not a pair — the
+    // timestamp's own value, say, once a quoted one has been consumed — and
+    // the outer loop simply moves past it.
+    const key = at
+    while (at < end && line[at] !== "=" && line[at] !== " ") at += 1
+    if (line[at] !== "=") continue
+    const name = line.slice(key, at)
+    at += 1
+
+    if (line[at] !== `"`) {
+      const bare = at
+      while (at < end && line[at] !== " ") at += 1
+      fields[name] = line.slice(bare, at)
+      continue
+    }
+
+    // A quoted value: everything to the closing quote, with the encoder's
+    // escapes taken back off. An unterminated one is a line that has not
+    // finished arriving, and it ends the scan rather than inventing a field.
+    at += 1
+    let value = ""
+    while (at < end && line[at] !== `"`) {
+      if (line[at] === "\\" && at + 1 < end) at += 1
+      value += line[at]
+      at += 1
+    }
+    if (at >= end) return fields
+    at += 1
+    fields[name] = value
   }
+
   return fields
 }
 
