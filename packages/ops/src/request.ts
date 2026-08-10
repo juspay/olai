@@ -1,11 +1,11 @@
 /**
- * The eight things a writer may ask for.
+ * The things a writer may ask for.
  *
- * They are SEMANTIC — "mark this node done", not "replace bytes 40 through 90"
- * — and that is the property the whole write path is built on. A semantic edit
- * can be re-derived from a newer snapshot when the store has moved
- * ({@link ./ops.ts}'s retry), and it cannot express a broken file: there is no
- * request here whose result is not a set of whole records.
+ * They are SEMANTIC — "mark this node done", "start a new outline" — not
+ * "replace bytes 40 through 90" — and that is the property the whole write path
+ * is built on. A semantic edit can be re-derived from a newer snapshot when the
+ * store has moved ({@link ./ops.ts}'s retry), and it cannot express a broken
+ * file: there is no request here whose result is not a set of whole records.
  *
  * Schemas rather than interfaces because these are the payloads a tool call
  * arrives as. One declaration is the type the planner switches on, the JSON
@@ -125,6 +125,45 @@ export const ArchiveRequest = Schema.Struct({
   id: Id,
 })
 
+/** The optional first node of a brand-new outline. Same fields a capture under
+ *  an existing file mints — title, optional note/date/id — without a parent
+ *  (it is top-level by definition) and without placement (it is the only row). */
+const Seed = Schema.Struct({
+  title: Title,
+  desc: Schema.optionalKey(
+    Schema.String.annotate({ description: "The note. Markdown, stored verbatim." }),
+  ),
+  date: Schema.optionalKey(
+    Schema.String.annotate({
+      description: "ISO date (`2026-08-10`) or datetime, making this a scheduled node.",
+    }),
+  ),
+  id: Schema.optionalKey(
+    Schema.String.annotate({
+      description:
+        "A chosen id (`[A-Za-z0-9_-]+`), unique across the set. Absent mints one.",
+    }),
+  ),
+})
+
+export const CreateRequest = Schema.Struct({
+  op: Schema.Literal("create"),
+  file: Schema.String.annotate({
+    description:
+      "Relative path of the new outline under the served directory. Must end in " +
+      "`.jsonl`. No absolute path, no `..` / `.` segments, no separators inside a " +
+      "segment. Refused if that file already exists among the loaded outlines.",
+  }),
+  seed: Schema.optionalKey(
+    Seed.annotate({
+      description:
+        "Optional first node. Same shape a capture mints: a title, and optional " +
+        "note, date and id. Absent leaves an empty outline the agent can fill with " +
+        "`add_node`.",
+    }),
+  ),
+})
+
 export const Request = Schema.Union([
   AddRequest,
   MarkRequest,
@@ -133,6 +172,7 @@ export const Request = Schema.Union([
   DateRequest,
   MoveRequest,
   ArchiveRequest,
+  CreateRequest,
 ])
 export type Request = typeof Request.Type
 

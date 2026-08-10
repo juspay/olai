@@ -145,6 +145,39 @@ test("a mark lands on disk as bytes the parser reads back", () =>
       expect(order?.node).toMatchObject({ done: "2026-08-09" })
     })))
 
+test("creating an outline lands a new file the set and the disk both see", () =>
+  withOps({ "house.jsonl": HOUSE }, (fixture) =>
+    Effect.gen(function*() {
+      const applied = yield* run(fixture, {
+        op: "create",
+        file: "notes/ideas.jsonl",
+        seed: { title: "an idea" },
+      })
+      expect(applied).toMatchObject({
+        file: "notes/ideas.jsonl",
+        title: "an idea",
+        summary: "capture: an idea",
+        committed: false,
+      })
+
+      const text = fixture.read("notes/ideas.jsonl") ?? ""
+      expect(text).toContain(`"title":"an idea"`)
+      expect(text.endsWith("\n")).toBe(true)
+
+      const set = yield* fixture.set()
+      expect([...set.files].sort()).toEqual(["house.jsonl", "notes/ideas.jsonl"])
+      expect(set.nodes.some((located) => located.node.id === applied.id)).toBe(true)
+    })))
+
+test("creating an empty outline is a zero-byte file the sidebar can list", () =>
+  withOps({ "house.jsonl": HOUSE }, (fixture) =>
+    Effect.gen(function*() {
+      const applied = yield* run(fixture, { op: "create", file: "empty.jsonl" })
+      expect(applied.summary).toBe("create: empty.jsonl")
+      expect(fixture.read("empty.jsonl")).toBe("")
+      expect((yield* fixture.set()).files).toContain("empty.jsonl")
+    })))
+
 test("archiving writes both files, and the set stays valid across them", () =>
   withOps({ "house.jsonl": HOUSE }, (fixture) =>
     Effect.gen(function*() {
@@ -233,10 +266,16 @@ describe("the auto-commit", () => {
         expect((yield* run(fixture, { op: "done", id: "order" })).committed).toBe(true)
         expect((yield* run(fixture, { op: "add", parent: "kitchen", title: "paint" }))
           .committed).toBe(true)
+        expect((yield* run(fixture, {
+          op: "create",
+          file: "shed.jsonl",
+          seed: { title: "clear the shed" },
+        })).committed).toBe(true)
         expect((yield* run(fixture, { op: "archive", id: "install" })).committed).toBe(true)
 
-        expect(gitLog(fixture.root).slice(0, 3)).toEqual([
+        expect(gitLog(fixture.root).slice(0, 4)).toEqual([
           "archive: install them",
+          "capture: clear the shed",
           "capture: paint",
           "done: order the cabinets",
         ])
@@ -327,6 +366,7 @@ describe("the internal MCP server", () => {
         expect(tools.map((tool) => tool.name).sort()).toEqual([
           "add_node",
           "archive_node",
+          "create_outline",
           "list_outlines",
           "move_node",
           "read_node",
@@ -343,6 +383,28 @@ describe("the internal MCP server", () => {
         // agent has to fill in.
         const done = tools.find((tool) => tool.name === "set_done")
         expect(Object.keys(done?.inputSchema.properties ?? {})).toEqual(["id", "undo"])
+      })))
+
+  test("create_outline mints a file through the same tool surface as every other write", () =>
+    withMcp((call, fixture) =>
+      Effect.gen(function*() {
+        const answer = structured(
+          yield* call("tools/call", {
+            name: "create_outline",
+            arguments: {
+              file: "inbox.jsonl",
+              seed: { title: "something to capture" },
+            },
+          }),
+        )
+        expect(answer).toMatchObject({
+          did: "create_outline",
+          file: "inbox.jsonl",
+          title: "something to capture",
+          summary: "capture: something to capture",
+        })
+        expect(fixture.read("inbox.jsonl")).toContain("something to capture")
+        expect((yield* fixture.set()).files).toContain("inbox.jsonl")
       })))
 
   test("a read answers over parsed nodes, with file:line and derived status", () =>

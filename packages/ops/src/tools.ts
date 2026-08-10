@@ -32,6 +32,7 @@ import * as Query from "./query.ts"
 import {
   AddRequest,
   ArchiveRequest,
+  CreateRequest,
   DateRequest,
   DescRequest,
   MarkRequest,
@@ -164,9 +165,16 @@ export const TOOLS: ReadonlyArray<Tool> = [
   ),
 
   write(
+    "create_outline",
+    "Create an outline",
+    "Start a new outline file under the served directory. `file` is a relative `.jsonl` path (no absolute paths, no `..`); refused if that file already exists. Optionally pass `seed` with a title (and optional note/date/id) to mint the first node the way `add_node` does — otherwise the file is empty and further captures use `add_node` against it. This is how a brand-new outline is born: `add_node` only writes into outlines that are already loaded.",
+    CreateRequest,
+    { op: "create" },
+  ),
+  write(
     "add_node",
     "Add a node",
-    "Capture a new node. Give `parent` to put it under a node, or `file` to put it at the top level of an outline. It goes last among its siblings unless `before` or `after` names one.",
+    "Capture a new node. Give `parent` to put it under a node, or `file` to put it at the top level of an *existing* outline. It goes last among its siblings unless `before` or `after` names one. To start a brand-new outline file, use `create_outline` first.",
     AddRequest,
     { op: "add" },
   ),
