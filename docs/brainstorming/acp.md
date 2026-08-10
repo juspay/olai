@@ -20,7 +20,19 @@ Status: brainstorming ahead of the Agents theme. Direction set 2026-08-09: the c
 - **Transcript persistence**: always persist, as Claude Code's own session for the served directory — so the same conversation can be resumed from a terminal with `claude --resume`. Olai builds no transcript store of its own; the transcript is Claude's session JSONL, exactly as olai on `master-racket` did it.
 - **Errors are never silently ignored**: a `StaleWrite` retry that *succeeds* is invisible by design, but every genuine failure — a derived-state refusal, a retry that keeps colliding — renders in chat with its structured detail (e.g. the unfinished children), not prose.
 
+## Resolved 2026-08-09, round two — racket semantics adopted
+
+The human likes the `master-racket` chat behaviour; its semantics carry over (see the racket audit for the reference: `docs/cli.md` and `olai/acp.rkt` on that branch):
+
+- **Boot adopts the most-recently-updated session** for the served directory (`session/list` → `session/load`, transcript replayed into the panel); **`+ new`** starts fresh via `session/new`. This settles resume-on-restart: it is the racket mechanism, not a terminal-side affair — though `claude --resume` in a terminal keeps working on the same sessions.
+- **Session picker**: list sessions (newest first), switch, new — racket's `chats` popover shape.
+- **Streaming frames**: user / chunk / tool (foldable, updatable by id) / done (rendered markdown) / error / model / commands — projected into surface events over the one live connection (racket used SSE; ours is the surface WS).
+- **Slash-command completion** in the chat input, fed by the agent's own `commands` list; **model shown** in the panel header; **cancel**.
+- **Query tools are over parsed nodes**, not raw lines: search titles/descs/tags, fetch subtrees, list outlines — results carry `file:line`. No raw grep; the agent reasons about nodes, never bytes (the glued-line incident of 2026-08-09 is the argument made flesh: byte-level editing produced a broken file that semantic ops cannot even express).
+- **Adapter packaging like racket**: the claude-code ACP adapter pinned via nix (racket's `olai-acp-agent` package is the prior art), env-var override as the escape hatch.
+- **Scope: full parity in the one PR** — send/stream/cancel + ops + session adoption/picker/new + folding + slash completion + model display arrive together.
+- Racket behaviours deliberately NOT carried: no MCP tools at all (its agent was stock Claude Code with fs access and bypass permissions, editing files whole) — ours edits through mediated ops only; and permissions stay auto-approved as already resolved.
+
 ## Open
 
-- Resume-on-restart mechanics: whether the adapter supports ACP `session/load` so the singleton session survives an olai restart, or resuming stays a terminal-side affair (`claude --resume`).
-- Shape of the grep/query tools: over parsed nodes (titles, descs, tags) vs raw file lines — parsed keeps the one-validator worldview.
+Nothing. Dispatch-ready.
