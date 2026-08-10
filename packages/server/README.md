@@ -35,7 +35,8 @@ register `stop` as a finalizer.
 | `mcp/serve.ts` | the tool surface for an agent that started US: `olai mcp`'s own, much smaller, composition root |
 | `mcp/stdio.ts` | that one's transport — newline-framed JSON-RPC over a pair of pipes, and nothing else on stdout |
 | `runtime.ts` | the surface bindings: the outline stream is `SubscriptionRef.changes` verbatim, the errors cell is an owned source, the transcript is server-authored |
-| `listener.ts` | one `serveSurfaceApp` call — plus the two decisions it leaves: whose port this is, and what a listener event sounds like in olai's log |
+| `listener.ts` | one `serveSurfaceApp` call, and the one decision it leaves that is a policy: whose port this is |
+| `report.ts` | the other one: what a listener event — a stale tab, a refused origin, a faulted connection — sounds like in olai's log |
 | `media.ts` | `/media/*`: the pictures a document points at, and the only bytes that leave the served directory over HTTP without going through the store |
 | `manifest.ts` | what an installed olai is: name, description, colours, and the mark |
 | `directory.ts` | the served directory, opened: resolved, annotated onto the log, and a store over it — in the order both composition roots need and neither should have to remember |
@@ -45,47 +46,23 @@ register `stop` as a finalizer.
 
 ## The listener is one call now
 
-`listener.ts` used to spell out the sequence a surface app is served by — origin
-gate on the raw pre-upgrade socket, upgrade, stale-tab check, heartbeat
-enrolment, a serving stack per connection, and a teardown that DROPS what is
-connected rather than waiting for it. It was copied from kolu's own surface-app
-example and kept in step with it by hand, and it is `serveSurfaceApp`
-(`@kolu/surface-app`) as of kolu#2137. What is left in the file is what that
-call deliberately does not make:
+`listener.ts` used to spell out the sequence a surface app is served by, copied
+from kolu's own surface-app example and kept in step with it by hand. It is
+`serveSurfaceApp` (`@kolu/surface-app`) as of kolu#2137, and what is left in
+this package is the two decisions that call deliberately leaves to a consumer —
+whose port this is (`listener.ts`, and the fallback below) and what a listener
+event sounds like in olai's log (`report.ts`) — plus the two things that left
+rather than moved, the frame cap and the surface runtime's lifetime. **The
+argument for all four is `listener.ts`'s own header**, beside the shape it
+explains; it is not restated here.
 
-- **whose port this is.** A busy port is the one bind failure that is not a
-  reason to refuse to serve, so olai retries wherever the OS says (below).
-  Every other failure still is a refusal. The retry is a second
-  `serveSurfaceApp` rather than a re-bind — there is no server handle to reuse,
-  and nothing to clean up, because the abandoned first call never bound and its
-  teardown is already on the scope;
-- **what it says.** The primitive narrates every gate and every fault on ONE
-  callback and defaults it to `console`; olai has a format and a stream of its
-  own, so `listener.ts` maps those events onto `Effect.log*` — a stale tab is
-  `Info`, a refused cross-site upgrade is `Warn`. `listener.test.ts` drives
-  real sockets at a real server and reads what the LOGGER heard, because a
-  `console.warn` still reaches a terminal and just is not in the logfmt anyone
-  downstream is parsing.
-
-The stale-tab gate is not a formality: a browser reconnecting after a restart
-presents the process id it was given by the server that is gone, and it is
-closed at the handshake rather than served a page it did not build. No id is
-threaded through this package to make that work — the gate compares against the
-framework's own `surfaceProcessId()`, the same value `system/identity` answers
-with and the browser echoes back, so the two ends cannot be pointed at
-different ids.
-
-Two things left with the sequence rather than moving into the call. The FRAME
-CAP: this file used to pass `ws` a `maxPayload` of 8 MiB while `@kolu/surface`
-classifies oversize at 16, so every frame in between — a big outline snapshot —
-was refused a layer below the one with a classifier, a documented close code
-and a client written to recover from it, taking every other subscription on
-that socket with it. The primitive reads `RPC_MAX_FRAME_BYTES` and offers no
-option to move it, so there is one number and nothing to disagree with. And the
-SURFACE RUNTIME'S LIFETIME, which went the other way: `serveSurfaceApp` takes
-`group` and `handlers` and never `close`, so `serve.ts` — which built the
-runtime — is the only thing that closes it, and the finalizer is registered
-there in the order that makes the sockets go first.
+The stale-tab gate in that sequence is worth naming even so, because it is what
+a reader sees: a browser reconnecting after a restart presents the process id it
+was given by the server that is gone, and it is closed at the handshake rather
+than served a page it did not build. No id is threaded through this package to
+make that work — the gate compares against the framework's own
+`surfaceProcessId()`, the same value `system/identity` answers with and the
+browser echoes back, so the two ends cannot be pointed at different ids.
 
 ## The manifest is served, the icons are not
 

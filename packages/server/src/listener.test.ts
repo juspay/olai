@@ -1,23 +1,17 @@
 /**
  * What the listener says, and where it says it.
  *
- * This file used to fence the frame cap — an 8 MiB `maxPayload` against a
- * framework that carries 16 MiB (#71) — and it pinned the NUMBER, because bun's
- * built-in `ws` ignores `maxPayload` and a behavioural assertion would have
- * passed against the bug. There is no number here to pin any more:
- * `serveSurfaceApp` reads `RPC_MAX_FRAME_BYTES` and exposes no option to move
- * it, and kolu's own `serve.test.ts` carries both halves — the framework-sized
- * frame round-tripping and a non-ASCII frame over the byte budget refused. A
- * copy here would be a test of somebody else's constant, failing in the wrong
- * repository the day it changed.
+ * This file used to fence the frame cap, and it pinned the NUMBER on purpose.
+ * There is no number here to pin any more — `listener.ts`'s header has why —
+ * and kolu's own `serve.test.ts` carries both the fence and the end-to-end
+ * carriage. A copy here would be a test of somebody else's constant, failing in
+ * the wrong repository the day it changed.
  *
- * What did NOT move upstream is the SINK. The primitive narrates every gate and
- * every fault on one callback and defaults it to `console`; olai routes
- * everything it says through `@olai/log` — one format, one stream, one level
- * knob — and the way that wiring breaks is silent: a `console.warn` still
- * reaches a terminal, just not the logfmt an e2e harness, a systemd journal or
- * a `--log-level` is reading. So these drive real sockets at a real server and
- * assert on what the LOGGER heard.
+ * What did NOT move upstream is the SINK (`./report.ts`), and the way that
+ * wiring breaks is silent: a `console.warn` still reaches a terminal, just not
+ * the logfmt an e2e harness, a systemd journal or a `--log-level` is reading.
+ * So these drive real sockets at a real server and assert on what the LOGGER
+ * heard.
  *
  * Two arms, and they are the two the mapping actually decides between: a tab
  * left over from a restart is ordinary (`Info`, and worth a line only because
@@ -26,30 +20,18 @@
  * lands on one of those two levels, so proving both proves the switch.
  */
 
-import { NodeHttpServer, NodeServices } from "@effect/platform-node"
 import { collector, findSaid, type Logged } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
-import { Effect, Layer } from "effect"
-import * as fs from "node:fs"
+import { Effect } from "effect"
 import * as http from "node:http"
-import * as os from "node:os"
-import * as path from "node:path"
 
 import { serve } from "./serve.ts"
-
-const LAYERS = Layer.mergeAll(NodeServices.layer, NodeHttpServer.layerHttpServices)
+import { served, SERVER_LAYERS } from "./serve.testlib.ts"
 
 /** How long a socket may take to be answered, and a line to be said, before
  *  either is a hang. Generous: what is being told apart is "refused" from
  *  "never", not a fast refusal from a slow one. */
 const BOUND_MS = 10_000
-
-/** A directory with one valid outline in it, thrown away with the test. */
-const served = (): string => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-listener-"))
-  fs.writeFileSync(path.join(root, "a.jsonl"), `{"id":"a","ord":"a0","title":"a"}\n`)
-  return root
-}
 
 /** A real server on an OS-chosen port, and everything it said. The address is
  *  read off the `serving` line because that IS the interface — the port was
@@ -74,7 +56,12 @@ const withServer = (
     const url = findSaid(said, "serving")?.annotations.url
     expect(typeof url).toBe("string")
     yield* Effect.promise(() => body(String(url), said))
-  }).pipe(Effect.scoped, Effect.provide(LAYERS), Effect.provide(layer), Effect.runPromise)
+  }).pipe(
+    Effect.scoped,
+    Effect.provide(SERVER_LAYERS),
+    Effect.provide(layer),
+    Effect.runPromise,
+  )
 }
 
 /** Where the listener serves the surface. Its own copy on purpose: a test that

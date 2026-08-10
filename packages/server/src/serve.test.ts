@@ -20,28 +20,13 @@
  * sentence, which is the whole reason the pieces exist.
  */
 
-import { NodeHttpServer, NodeServices } from "@effect/platform-node"
 import { collector, findSaid, type Logged } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
-import { Effect, Layer } from "effect"
-import * as fs from "node:fs"
+import { Effect } from "effect"
 import * as net from "node:net"
-import * as os from "node:os"
-import * as path from "node:path"
 
 import { serve } from "./serve.ts"
-
-const LAYERS = Layer.mergeAll(NodeServices.layer, NodeHttpServer.layerHttpServices)
-
-/** A directory with one valid outline in it, thrown away with the test. */
-const served = (): string => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-serve-"))
-  fs.writeFileSync(
-    path.join(root, "a.jsonl"),
-    `{"id":"a","ord":"a0","title":"a"}\n`,
-  )
-  return root
-}
+import { served, SERVER_LAYERS } from "./serve.testlib.ts"
 
 /** A port with something already listening on it, closed with the test. */
 const occupied = (): Promise<{ port: number; release: () => Promise<void> }> =>
@@ -80,7 +65,7 @@ const run = (
     })
   }).pipe(
     Effect.scoped,
-    Effect.provide(LAYERS),
+    Effect.provide(SERVER_LAYERS),
     Effect.provide(layer),
     Effect.map(() => said),
     Effect.runPromise,

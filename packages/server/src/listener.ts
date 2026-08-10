@@ -9,21 +9,27 @@
  * `serveSurfaceApp` now (`@kolu/surface-app/serve`, kolu#2137), and this file
  * is what is left when the copy goes.
  *
+ * This header is the ONE place that argument lives; `docs/architecture.md`,
+ * this package's README and `listener.test.ts` point here rather than
+ * re-deriving it, because a rationale kept in four places is a rationale that
+ * goes stale in three.
+ *
  * What is left is what the primitive does not own, and neither is a property
  * of serving a shell:
  *
- *   - WHOSE PORT IT IS. A busy port is the one bind failure that is not a
- *     reason to refuse to serve — the reader asked to read their outlines, not
- *     to own port 7714 — so olai retries wherever the OS says. Every other
- *     failure still IS a refusal, which is why {@link listen} recovers from
- *     exactly one `code` rather than from "listen failed". The retry is a
- *     second `serveSurfaceApp` and not a re-bind: there is no server handle to
- *     re-use, and nothing to clean up by hand, because the abandoned first
- *     call never bound and its teardown is already on the scope.
- *   - WHAT IT SAYS. The primitive narrates on ONE sink and defaults it to
- *     `console`; olai has a format and a stream of its own (`@olai/log`), and
- *     a `console.warn` in the middle of a logfmt stream is a line nothing
- *     downstream can read. {@link report} is that sink.
+ *   - WHOSE PORT IT IS, which is this file. A busy port is the one bind
+ *     failure that is not a reason to refuse to serve — the reader asked to
+ *     read their outlines, not to own port 7714 — so olai retries wherever the
+ *     OS says. Every other failure still IS a refusal, which is why
+ *     {@link listen} recovers from exactly one `code` rather than from "listen
+ *     failed". The retry is a second `serveSurfaceApp` and not a re-bind:
+ *     there is no server handle to re-use, and nothing to clean up by hand,
+ *     because the abandoned first call never bound and its teardown is already
+ *     on the scope.
+ *   - WHAT IT SAYS, which is `./report.ts`. The primitive narrates on ONE sink
+ *     and defaults it to `console`; olai has a format and a stream of its own.
+ *     Its own file because it has its own reason to change — the log's
+ *     vocabulary, not this one's port policy.
  *
  * Two things are gone rather than moved, and both were the debt:
  *
@@ -39,17 +45,14 @@
  *     and nothing else, and `serve.ts` closes what it made.
  */
 
-import {
-  serveSurfaceApp,
-  type SurfaceAppEvent,
-  type SurfaceAppListenFailed,
-} from "@kolu/surface-app/serve"
-import { type Emit, emitter, prettyCause } from "@olai/log"
+import { serveSurfaceApp, type SurfaceAppListenFailed } from "@kolu/surface-app/serve"
+import { type Emit, emitter } from "@olai/log"
 import { Effect, Layer, type Scope } from "effect"
 
 import { MANIFEST } from "./manifest.ts"
 import { mcpRoute } from "./mcp/route.ts"
 import { mediaLayer } from "./media.ts"
+import { report } from "./report.ts"
 import type { Bound } from "./runtime.ts"
 
 export interface ListenOptions {
@@ -131,66 +134,6 @@ const app = (options: ListenOptions, port: number, say: Emit) =>
     allowedOrigins: options.allowedOrigins,
     onEvent: (event) => report(event, say),
   })
-
-/**
- * What the listener says, in olai's voice.
- *
- * Loud on every fault and silent on the ordinary, which is the primitive's own
- * policy — what differs is only the sink: these are `Effect.log*` lines, so
- * they carry the level `--log-level` filters on, the `root` annotation the
- * composition root set, and the `serve` span, and they leave by whichever
- * stream that subcommand chose.
- *
- * A connection opening or closing is the ordinary case and has no line: a
- * reader with a tab open is not news, and one line per socket per reload is
- * how a log stops being read.
- */
-const report = (event: SurfaceAppEvent, say: Emit): void => {
-  switch (event._tag) {
-    case "Connected":
-    case "Disconnected":
-      return
-    // A tab that presents a DIFFERENT process id is bound to a process that is
-    // gone, so it is closed and its wire retires rather than reconnecting into
-    // a server whose bundle it does not match. Ordinary after a restart, and
-    // worth one line because it explains a tab that stopped updating.
-    case "StaleTab":
-      say(
-        Effect.annotateLogs(Effect.logInfo("stale tab rejected"), {
-          claimed: event.claimedPid,
-        }),
-      )
-      return
-    // Cross-site websocket hijacking, refused on the raw socket before the
-    // upgrade. Nobody's browser does this by accident.
-    case "DisallowedOrigin":
-      say(
-        Effect.annotateLogs(Effect.logWarning("websocket upgrade refused"), {
-          origin: event.origin ?? "none",
-          url: event.url.pathname,
-        }),
-      )
-      return
-    case "SocketError":
-      say(
-        Effect.annotateLogs(Effect.logWarning("surface socket failed"), {
-          why: prettyCause(event.error),
-        }),
-      )
-      return
-    // One connection's serving stack, not the listener's: the rest keep
-    // serving. Rendered with `prettyCause` because what arrives here is an
-    // Effect `Cause`, and a `Cause` read by a template literal is
-    // `[object Object]`.
-    case "ServingFailed":
-      say(
-        Effect.annotateLogs(Effect.logWarning("surface connection failed"), {
-          why: prettyCause(event.cause),
-        }),
-      )
-      return
-  }
-}
 
 /** What the OS reports for a port that is already listening. */
 const IN_USE = "EADDRINUSE"
