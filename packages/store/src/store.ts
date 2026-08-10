@@ -178,7 +178,16 @@ const NOTHING_MOVED: Moved = { changed: new Set(), removed: new Set() }
  *  ever lands in ONE of the two: a file that was deleted and put back is
  *  changed, and one that was edited and then deleted is removed — which is what
  *  a consumer holding the last published revision has to be told in each case. */
-const absorb = (before: Moved, found: Probe.Found<unknown, unknown>): Moved => {
+const absorb = (
+  before: Moved,
+  // Iterated, never indexed — which is the whole of what this needs to know
+  // about a probe, and why it takes no type parameter for what a file decoded
+  // to.
+  found: {
+    readonly changed: Iterable<string>
+    readonly removed: Iterable<string>
+  },
+): Moved => {
   const changed = new Set(before.changed)
   const removed = new Set(before.removed)
   for (const path of found.changed) {

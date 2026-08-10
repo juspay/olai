@@ -13,11 +13,13 @@ import { setOf } from "@olai/format/testlib"
 import type { Snapshot } from "@olai/store"
 import { expect, test } from "bun:test"
 
-import { changeOf, cut, manifestOf } from "./outlines.ts"
+import { type Entries, publishedOf } from "./outlines.ts"
 
 const HOUSE = '{"id":"kitchen","ord":"a0","title":"kitchen"}\n'
 const GARDEN = '{"id":"garden","ord":"a0","title":"garden"}\n'
 
+/** A revision, moved however the caller says — by default everything, which is
+ *  what a first probe reports. */
 const revision = (
   value: OutlineSet,
   moved: { changed?: ReadonlyArray<string>; removed?: ReadonlyArray<string> } = {},
@@ -29,13 +31,16 @@ const revision = (
   removed: moved.removed ?? [],
 })
 
+const NOTHING_HELD: Entries = new Map()
+
 test("every file the set lists gets an entry, at the set's revision", () => {
-  const entries = cut(
+  const { entries } = publishedOf(
     revision(
       setOf({ "house.jsonl": HOUSE, "empty.jsonl": "" }, [["notes.md", "hello"]]),
       {},
       7,
     ),
+    NOTHING_HELD,
   )
 
   expect([...entries.keys()]).toEqual(["house.jsonl", "empty.jsonl"])
@@ -53,7 +58,10 @@ test("every file the set lists gets an entry, at the set's revision", () => {
 // The per-entity degrade, as data: the key stays and the errors are IN it, so
 // the sidebar still lists the file and its own pane is what shows the trouble.
 test("a file that did not parse keeps its key and carries its errors", () => {
-  const entries = cut(revision(setOf({ "house.jsonl": HOUSE }, [], { "shed.jsonl": "{" })))
+  const { entries } = publishedOf(
+    revision(setOf({ "house.jsonl": HOUSE }, [], { "shed.jsonl": "{" })),
+    NOTHING_HELD,
+  )
 
   const shed = entries.get("shed.jsonl")
   expect(shed?.nodes).toEqual([])
@@ -63,45 +71,43 @@ test("a file that did not parse keeps its key and carries its errors", () => {
 })
 
 test("only the files the probe re-decoded are upserted", () => {
-  const before = cut(revision(setOf({ "house.jsonl": HOUSE, "garden.jsonl": GARDEN })))
-  const snapshot = revision(
-    setOf({
-      "house.jsonl": `${HOUSE}{"id":"sink","parent":"kitchen","ord":"a0","title":"sink"}\n`,
-    }, [
-      ["notes.md", "changed too"],
-    ]),
-    { changed: ["house.jsonl", "notes.md"], removed: ["garden.jsonl"] },
-    2,
+  const before = publishedOf(
+    revision(setOf({ "house.jsonl": HOUSE, "garden.jsonl": GARDEN })),
+    NOTHING_HELD,
+  )
+  const published = publishedOf(
+    revision(
+      setOf({
+        "house.jsonl": `${HOUSE}{"id":"sink","parent":"kitchen","ord":"a0","title":"sink"}\n`,
+      }, [["notes.md", "changed too"]]),
+      { changed: ["house.jsonl", "notes.md"], removed: ["garden.jsonl"] },
+      2,
+    ),
+    before.entries,
   )
 
-  const change = changeOf(snapshot, cut(snapshot), before)
-
-  expect(change.upserts.map(([path]) => path)).toEqual(["house.jsonl"])
-  expect(change.upserts[0]?.[1].rev).toBe(2)
-  expect(change.removes).toEqual(["garden.jsonl"])
+  expect(published.upserts.map(([path]) => path)).toEqual(["house.jsonl"])
+  expect(published.upserts[0]?.[1].rev).toBe(2)
+  expect(published.removes).toEqual(["garden.jsonl"])
 })
 
 // A collection may not be told to drop a key it never had — the store talks
 // about a directory, and a `.md` leaving it is not an outline leaving this.
 test("a removed path that was never an entry is not a remove", () => {
-  const snapshot = revision(setOf({ "house.jsonl": HOUSE }), {
-    changed: [],
-    removed: ["notes.md"],
-  }, 2)
+  const held = publishedOf(revision(setOf({ "house.jsonl": HOUSE })), NOTHING_HELD)
+  const published = publishedOf(
+    revision(setOf({ "house.jsonl": HOUSE }), { changed: [], removed: ["notes.md"] }, 2),
+    held.entries,
+  )
 
-  expect(changeOf(snapshot, cut(snapshot), cut(revision(setOf({ "house.jsonl": HOUSE }))))
-    .removes).toEqual([])
+  expect(published.removes).toEqual([])
 })
 
 test("the manifest carries the revision and the documents, text and all", () => {
-  const snapshot = revision(
-    setOf({ "house.jsonl": HOUSE }, [["notes.md", "# hello"]]),
-    {},
-    3,
+  const { manifest } = publishedOf(
+    revision(setOf({ "house.jsonl": HOUSE }, [["notes.md", "# hello"]]), {}, 3),
+    NOTHING_HELD,
   )
 
-  expect(manifestOf(snapshot)).toEqual({
-    rev: 3,
-    documents: [{ file: "notes.md", text: "# hello" }],
-  })
+  expect(manifest).toEqual({ rev: 3, documents: [{ file: "notes.md", text: "# hello" }] })
 })

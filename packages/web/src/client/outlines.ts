@@ -87,15 +87,16 @@ export const createOutlines = (): Outlines => {
       const found = new Map<string, BrokenFile>()
       for (const file of files()) {
         const broken = entries.byKey(file)?.()?.broken
-        if (broken != null) found.set(file, broken)
+        if (broken !== undefined && broken !== null) found.set(file, broken)
       }
       return found
     }),
     // A set that has never loaded has nothing to derive FROM, and the page it
     // gets is the error report rather than an empty tree — so the `undefined`
     // here is the manifest's two absent states and not a third one.
-    derived: createMemo(() =>
-      manifest.value() == null ? undefined : derive(nodes())
-    ),
+    derived: createMemo(() => {
+      const set = manifest.value()
+      return set === undefined || set === null ? undefined : derive(nodes())
+    }),
   }
 }

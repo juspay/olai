@@ -45,7 +45,7 @@ import {
 import { Effect, Stream, SubscriptionRef } from "effect"
 
 import type { Change, Chat } from "@olai/chat"
-import { changeOf, cut, type Entries, manifestOf } from "./outlines.ts"
+import { publishedOf } from "./outlines.ts"
 
 /** What a transport needs, and nothing else. `ctx` is the write face, which
  *  belongs to the bindings below rather than to whoever serves them. */
@@ -79,10 +79,11 @@ export const bind = (
     const chat = wiring.chat
 
     /** The served directory as entries — the collection's own value, replaced
-     *  whole by the connector below. `readAll` hands this over, so a fresh
-     *  subscription's snapshot and the deltas an open one is watching are two
-     *  readings of one map rather than two copies to keep in step. */
-    let entries: Entries = new Map()
+     *  whole by the connector below and never mutated after, which is what lets
+     *  `readAll` hand it over as it is. A fresh subscription's snapshot and the
+     *  deltas an open one is watching are two readings of one map rather than
+     *  two copies to keep in step. */
+    let entries = new Map<string, OutlineEntry>()
     /** Where an entry write goes once there is a runtime to publish through —
      *  filled the moment `implementSurface` returns. The connector installs
      *  synchronously, so the FIRST revision is written before this exists; that
@@ -134,14 +135,13 @@ export const bind = (
               (snapshot) =>
                 Effect.sync(() => {
                   if (snapshot === null) return cell.set(null)
-                  const next = cut(snapshot)
-                  const change = changeOf(snapshot, next, entries)
-                  entries = next
-                  for (const [key, entry] of change.upserts) write?.upsert(key, entry)
-                  for (const key of change.removes) write?.remove(key)
+                  const published = publishedOf(snapshot, entries)
+                  entries = published.entries
+                  for (const [key, entry] of published.upserts) write?.upsert(key, entry)
+                  for (const key of published.removes) write?.remove(key)
                   // The manifest LAST: it is the revision announcing itself, and
                   // the entries it speaks for are already published when it does.
-                  cell.set(manifestOf(snapshot))
+                  cell.set(published.manifest)
                 }),
             ),
         },
@@ -155,7 +155,7 @@ export const bind = (
         // write needs somewhere to persist — and by the time one runs, the
         // projection it would persist has already been replaced whole.
         outlines: {
-          readAll: () => new Map(entries),
+          readAll: () => entries,
           upsert: () => {},
           remove: () => {},
         },
