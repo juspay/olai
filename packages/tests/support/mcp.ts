@@ -31,9 +31,6 @@ export interface TerminalAgent {
   readonly call: (method: string, params?: unknown) => Promise<Reply>;
   readonly notify: (method: string) => void;
   readonly stop: () => void;
-  /** What it has said on stderr — the only place it may say anything that is
-   *  not a frame, and so the only place a failure will explain itself. */
-  readonly said: () => string;
 }
 
 /**
@@ -51,6 +48,9 @@ export const connectTerminalAgent = async (
     stdio: ["pipe", "pipe", "pipe"],
   });
 
+  // stderr is where it may say anything that is not a frame, so it is where a
+  // failure will explain itself — kept for the diagnostics below and nowhere
+  // else, because a scenario has nothing to assert about it.
   let said = "";
   let pending = "";
   let next = 0;
@@ -107,7 +107,6 @@ export const connectTerminalAgent = async (
     stop: () => {
       if (child.exitCode === null) child.kill("SIGKILL");
     },
-    said: () => said,
   };
 
   const ready = await call("initialize", {

@@ -21,20 +21,6 @@ import { olaiBin } from "../support/hooks.ts";
 import { callTool, connectTerminalAgent } from "../support/mcp.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
-/** The directory this scenario's server is watching — the same one the agent
- *  is pointed at, which is the whole arrangement under test. */
-const directoryOf = (world: OlaiWorld): string => {
-  if (world.served === undefined) {
-    throw new Error(
-      "a terminal agent WRITES the directory it is pointed at, so this " +
-        "scenario must be tagged @scratch:<corpus> — the shared corpus " +
-        "directories are the tracked fixtures and are served to every other " +
-        "scenario in the run",
-    );
-  }
-  return world.served;
-};
-
 /** The half of a tool result a CALLER acts on. The prose beside it is what a
  *  model reads, and a test that parsed prose would be asserting on wording. */
 const structuredOf = (world: OlaiWorld): Record<string, unknown> =>
@@ -55,10 +41,10 @@ const agentOf = (world: OlaiWorld) => {
 Given(
   "a terminal agent is connected to the served directory",
   async function (this: OlaiWorld) {
-    this.terminalAgent = await connectTerminalAgent(
-      olaiBin(),
-      directoryOf(this),
-    );
+    // `scratch()` rather than `served` — a terminal agent WRITES the directory
+    // it is pointed at, and that is the world's own guard for "this scenario
+    // forgot its @scratch: tag", spelled once for every step that edits a file.
+    this.terminalAgent = await connectTerminalAgent(olaiBin(), this.scratch());
     const listed = await this.terminalAgent.call("tools/list");
     this.toolsOffered = (
       (listed.result?.tools ?? []) as ReadonlyArray<{ name: string }>

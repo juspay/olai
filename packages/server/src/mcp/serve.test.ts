@@ -29,6 +29,8 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
+import { stoppedWithin } from "../child.testlib.ts"
+
 const MAIN = path.join(import.meta.dirname, "..", "main.ts")
 
 /** How long a whole conversation may take before it is a hang. Generous: what
@@ -80,9 +82,9 @@ interface Said {
 /**
  * Launch it, say all of that, close the pipe, and collect everything it said.
  *
- * Waits for `close` rather than `exit` — `exit` can fire while stdout still
- * has bytes in flight, and a test that read nine of ten frames would fail
- * somewhere far from the reason.
+ * `stoppedWithin` is what makes the collection complete: it waits for the
+ * child's stdio to drain, not merely for the process to be gone, so a test
+ * that read nine of ten frames cannot happen.
  */
 const converse = async (
   root: string,
@@ -105,12 +107,7 @@ const converse = async (
 
   child.stdin?.end(messages.map((message) => `${JSON.stringify(message)}\n`).join(""))
 
-  const stopped = await Promise.race([
-    new Promise<boolean>((resolve) => {
-      child.on("close", () => resolve(true))
-    }),
-    Bun.sleep(BOUND_MS).then(() => false),
-  ])
+  const stopped = await stoppedWithin(child, BOUND_MS)
   if (!stopped) child.kill("SIGKILL")
 
   return { frames: framesOf(out), err, stopped }
