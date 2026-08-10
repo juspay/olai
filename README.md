@@ -24,13 +24,25 @@ or, in a clone:
 just serve docs     # serves this repo's own roadmap, and opens on 127.0.0.1:7714
 ```
 
-To keep it running as a user service (systemd on Linux, launchd on macOS),
-import the flake's home-manager module and set `dataDir`:
+`olai web <dir> [--port] [--host]` reads the directory recursively, picking up
+every `.jsonl` outline and every `.md` document, and serves them to a browser.
+It does not descend into dot-directories or `node_modules` — a directory of
+outlines is usually a git repository, and nothing anyone wrote is inside
+`.git`. It binds to loopback by default: the surface is unauthenticated, so
+anyone who can reach the port can read every outline under the directory.
+
+To keep it running as a user service (systemd on Linux, launchd on macOS), add
+the flake input and enable the home-manager module. Create `dataDir` first —
+`olai web` refuses a path that does not exist.
 
 ```nix
-{
-  inputs.olai.url = "github:juspay/olai";
-  # in a home-manager config:
+# flake.nix
+inputs.olai.url = "github:juspay/olai";
+```
+
+```nix
+# home.nix (a home-manager module)
+{ config, inputs, ... }: {
   imports = [ inputs.olai.homeManagerModules.default ];
   services.olai = {
     enable = true;
@@ -44,13 +56,6 @@ import the flake's home-manager module and set `dataDir`:
 The module fills `package` from the flake for the host platform. The packaged
 binary already bakes the browser bundle (`OLAI_DIST_DIR`), so the service
 needs no ambient environment.
-
-`olai web <dir> [--port] [--host]` reads the directory recursively, picking up
-every `.jsonl` outline and every `.md` document, and serves them to a browser.
-It does not descend into dot-directories or `node_modules` — a directory of
-outlines is usually a git repository, and nothing anyone wrote is inside
-`.git`. It binds to loopback by default: the surface is unauthenticated, so
-anyone who can reach the port can read every outline under the directory.
 
 Every node is also a page of its own at `/n/<id>` — the node as the heading,
 its note, its children as the tree — with breadcrumbs up its ancestry. Ids are

@@ -78,6 +78,8 @@ let
   _linux =
     assert linuxService.Unit.Description == "olai web view";
     assert linuxService.Service.Restart == "on-failure";
+    # Effect runMain exits 130 on SIGTERM; without this, clean stops are failed.
+    assert linuxService.Service.SuccessExitStatus == 130;
     assert linuxService.Install.WantedBy == [ "default.target" ];
     assert lib.hasInfix exePlain execPlain;
     assert lib.hasInfix " web " execPlain;

@@ -64,6 +64,10 @@ in
         Service = {
           ExecStart = lib.escapeShellArgs webArgs;
           Restart = "on-failure";
+          # Effect's runMain exits 130 when the main fiber is interrupted
+          # (SIGTERM from systemctl stop / session teardown). Without this,
+          # every clean stop lands the unit in failed.
+          SuccessExitStatus = 130;
         };
         Install = {
           WantedBy = [ "default.target" ];
