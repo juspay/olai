@@ -3,7 +3,7 @@ import { derive, type Located } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { only } from "./narrow.ts"
-import { outlineOf, type Page, pageOf, rowsFor } from "./page.ts"
+import { openDay, outlineOf, type Page, pageOf, rowsFor } from "./page.ts"
 import type { Route } from "./routes.ts"
 
 const located = (file: string, line: number, node: Located["node"]): Located => ({
@@ -19,6 +19,7 @@ const SET = derive([
     parent: "kitchen",
     ord: "a0",
     title: "install",
+    date: "2026-08-10",
   }),
   located("house.jsonl", 3, {
     id: "herbs-here",
@@ -27,9 +28,19 @@ const SET = derive([
     mirror: "herbs",
   }),
   located("garden.jsonl", 1, { id: "garden", ord: "a0", title: "garden" }),
-  located("garden.jsonl", 2, { id: "herbs", parent: "garden", ord: "a0", title: "herbs" }),
+  located("garden.jsonl", 2, {
+    id: "herbs",
+    parent: "garden",
+    ord: "a0",
+    title: "herbs",
+    date: "2026-08-10T09:00",
+  }),
 ])
 const FILES = ["garden.jsonl", "house.jsonl"]
+
+/** What day it is, for the arm that has to be told. Fixed, because a page
+ *  model that read a clock would be a page model whose tests expire. */
+const TODAY = "2026-08-10"
 
 /** No file in these fixtures failed to parse — the broken arm has its own
  *  cases below, where one did. */
@@ -39,7 +50,7 @@ const pageAt = (
   route: Route,
   files = FILES,
   broken = READABLE,
-): Page => pageOf(SET, files, broken, route)
+): Page => pageOf(SET, files, broken, route, TODAY)
 
 /** The ids a page's rows start from — what its screen would show. */
 const roots = (page: Page): ReadonlyArray<string> =>
@@ -128,8 +139,48 @@ test("a zoomed node's rows are its children, built new every time", () => {
   expect(rowsFor(SET, page)[0]).not.toBe(rowsFor(SET, page)[0]!)
 })
 
+// ── the day ────────────────────────────────────────────────────────────
+
+// A day is not a file and not a node: it collects whatever is dated it, from
+// every outline at once, which is what makes the journal a query rather than a
+// place (docs/roadmap.jsonl, resolved 2026-08-09).
+test("a day collects the dated nodes of every outline", () => {
+  const page = pageAt({ kind: "day", date: "2026-08-10" })
+  expect(only(page, "day")?.groups.map((group) => group.file)).toEqual([
+    "garden.jsonl",
+    "house.jsonl",
+  ])
+})
+
+test("a day with nothing dated it is an empty day, not a nothing", () => {
+  const page = pageAt({ kind: "day", date: "2026-08-11" })
+  expect(only(page, "day")?.date).toBe("2026-08-11")
+  expect(only(page, "day")?.groups).toEqual([])
+})
+
+// `/today` names no date, so the page model is told which day it is. That is
+// the whole of the difference: the two routes are one page.
+test("`/today` is the day it is", () => {
+  expect(pageAt({ kind: "today" })).toEqual(pageAt({ kind: "day", date: TODAY }))
+})
+
+// A day belongs to no outline — it crosses all of them — so nothing in the
+// sidebar's list is the page you are on.
+test("a day lights up no outline, and is the day the calendar fills in", () => {
+  const page = pageAt({ kind: "day", date: "2026-08-10" })
+  expect(outlineOf(page)).toBeUndefined()
+  expect(openDay(page)).toBe("2026-08-10")
+  expect(openDay(pageAt({ kind: "today" }))).toBe(TODAY)
+  expect(openDay(pageAt({ kind: "outline", file: "house.jsonl" }))).toBeUndefined()
+  expect(openDay(undefined)).toBeUndefined()
+})
+
+// A day draws no TREE. It is a list of nodes from all over the set, each with
+// its own ancestry — so the row store, which holds whichever tree is on screen,
+// holds nothing while one is open.
 test("a page with nothing to draw has no rows", () => {
   expect(rowsFor(SET, pageAt({ kind: "node", id: "nope" }))).toEqual([])
   expect(rowsFor(SET, pageAt({ kind: "outline", file: "shed.jsonl" }))).toEqual([])
+  expect(rowsFor(SET, pageAt({ kind: "day", date: "2026-08-10" }))).toEqual([])
   expect(rowsFor(SET, undefined)).toEqual([])
 })

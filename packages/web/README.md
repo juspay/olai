@@ -1,10 +1,10 @@
 # @olai/web — the SolidJS client, and the build that produces it
 
-A sidebar of the outlines found and one page open in the main pane — a whole
-outline, or one node zoomed — kept current by the live store underneath: an
-edit on disk arrives as the next frame of one subscription, so the page changes
-without reloading. SolidJS over a WebSocket, styled with Tailwind v4, bundled by
-`Bun.build`.
+A sidebar with a month and the outlines found, and one page open in the main
+pane — a whole outline, one node zoomed, or one day — kept current by the live
+store underneath: an edit on disk arrives as the next frame of one
+subscription, so the page changes without reloading. SolidJS over a WebSocket,
+styled with Tailwind v4, bundled by `Bun.build`.
 
 ## Three ways to say what is wrong, because there are three situations
 
@@ -33,7 +33,7 @@ file means because they run the same code, not because two implementations were
 written to the same paragraph. The one thing this package does interpret is a
 note, which is markdown, rendered and sanitised at view time.
 
-## Two routes, and what each is a property of
+## Four routes, and what each is a property of
 
 `routes.ts` is the whole of the URL contract, and it is a bijection its own
 test insists on: a link the app writes has to be a link it can read back.
@@ -43,6 +43,12 @@ test insists on: a link the app writes has to be a link it can read back.
   the loaded set and survive renames and moves across files, so the permalink
   outlives every edit short of a delete — while a URL that also carried the
   outline would be a URL that could disagree with the file it named.
+- `/d/<ISO-date>` names a day, which is not a thing on disk at all: it is a
+  question asked of every dated node in the set.
+- `/today` names no day. It names the day it *is*, which is what a bookmark, a
+  home screen and an agent can each keep — so resolving it takes a clock, and a
+  clock is exactly what parsing a URL must not have. `routes.ts` stays pure and
+  `page.ts` is handed the day.
 
 `page.ts` turns a route into the page it names, in one place, which is what
 keeps the sidebar and the main pane agreeing: the entry that lights up is the
@@ -55,6 +61,37 @@ Navigation is real `<a href>`s (`router.tsx`), so ⌘-click and "copy link
 address" behave the way they do everywhere else; a plain left click is
 intercepted and answered in place. There is no router library: two addresses do
 not need one.
+
+## The month, and a day
+
+`src/client/calendar/` is the month in the sidebar and `src/client/day/` is the
+page it opens. There is no journal file: the calendar aggregates the whole
+set's dated nodes and a day collects every node carrying that date, wherever it
+was written. Which days have something on them, and what is on one, are
+`@olai/format`'s to answer — the same derivations the validator's set is read
+with, so a dot and the day it opens cannot disagree.
+
+What is left here is the two things a day view has to decide for itself, and
+neither is about the format:
+
+- `month.ts` — where the days of a month land on a grid, and which month is
+  next to it. Integer arithmetic, unit-tested, and pointedly not a `Date`:
+  `new Date("2026-08-01")` is midnight UTC, which is the previous day for half
+  the world, and a calendar that shifted a column by time zone is the bug this
+  avoids by never leaving integers.
+- `clock.ts` — what day it is, in the reader's own time zone, re-read at the
+  next local midnight. The one clock in the client, because two components
+  asking a `Date` separately is two answers that can differ by a day at exactly
+  the wrong moment — and a tab left open overnight on `/today` would otherwise
+  be the one stale thing on a page whose whole promise is that it is not.
+
+Three marks, and they are three because a reader has to tell them apart at a
+glance in a 16rem column: a day with something on it is a link with a dot,
+today wears a ring, and the day being read is filled. An empty day is inert —
+pressing it could only mean "write something here", and this pane writes
+nothing. Every one of them is a `data-` fact on the cell (`data-dated`,
+`data-today`, `data-open`) rather than a colour, so the browser tests assert on
+the mark and never on the palette.
 
 ## The connection, said out loud
 

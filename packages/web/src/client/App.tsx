@@ -18,10 +18,11 @@
  *     carries its errors, and every other outline stays live
  *     (errors/Broken.tsx).
  *
- * What is open is a ROUTE — a whole outline (`/o/<file>`) or one node zoomed
- * (`/n/<id>`) — so every page is a link someone can send. Which places are
- * folded, and whether done nodes are drawn, are signals: they belong to this
- * tab's reading and not to the file.
+ * What is open is a ROUTE — a whole outline (`/o/<file>`), one node zoomed
+ * (`/n/<id>`), or one day of the journal (`/d/<date>`, and `/today`) — so
+ * every page is a link someone can send. Which places are folded, whether done
+ * nodes are drawn, and which month the calendar is showing are signals: they
+ * belong to this tab's reading and not to the file.
  *
  * This file is the composition and nothing else — the subscription, the route,
  * the one derivation of the set, which page that adds up to, and the one store
@@ -29,18 +30,20 @@
  * handed what it draws rather than the set to draw it from.
  */
 
-import { type BrokenFile, derive, type Row } from "@olai/format"
+import { type BrokenFile, datedDays, derive, type Row } from "@olai/format"
 import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 
+import { createToday } from "./calendar/clock.ts"
 import { Connection } from "./connection/Connection.tsx"
+import { DayPage } from "./day/DayPage.tsx"
 import { Banner } from "./errors/Banner.tsx"
 import { Broken } from "./errors/Broken.tsx"
 import { Page as ErrorPage } from "./errors/Page.tsx"
 import { only } from "./narrow.ts"
 import { NodePage } from "./NodePage.tsx"
 import { Nothing } from "./Nothing.tsx"
-import { outlineOf, pageOf, rowsFor } from "./page.ts"
+import { openDay, outlineOf, pageOf, rowsFor } from "./page.ts"
 import { OutlinePage } from "./OutlinePage.tsx"
 import { createRouter, RouterProvider } from "./router.tsx"
 import { Sidebar } from "./Sidebar.tsx"
@@ -53,6 +56,10 @@ export default function App() {
 
   const router = createRouter()
   const view = createView(router.route)
+  // The one clock in the client, and it moves: `/today` is an address a tab
+  // can sit on overnight, and a page whose promise is that it follows the
+  // files without a reload cannot have the day be the stale thing on it.
+  const today = createToday()
 
   const set = () => frame()?.set
   const files = () => set()?.files ?? []
@@ -82,8 +89,17 @@ export default function App() {
     const indexes = derived()
     return indexes === undefined
       ? undefined
-      : pageOf(indexes, files(), broken(), router.route())
+      : pageOf(indexes, files(), broken(), router.route(), today())
   })
+
+  /** Which days of a month have something dated them — the calendar's dots.
+   *  A QUESTION rather than a set, asked only about the month on screen, and
+   *  asked through the live derivation: a dated node saved on disk lights its
+   *  day on the next frame, with nothing watching for it. */
+  const dated = (month: string): ReadonlySet<string> => {
+    const indexes = derived()
+    return indexes === undefined ? new Set() : datedDays(indexes, month)
+  }
 
   // RECONCILED into a store rather than handed over as a fresh array, and the
   // live store is why. The row walk mints new objects every time it runs, and a
@@ -117,7 +133,14 @@ export default function App() {
           {(open) => (
             <RouterProvider router={router}>
               <div class="grid min-h-screen grid-cols-[16rem_1fr]">
-                <Sidebar files={files()} active={outlineOf(open())} broken={broken()} />
+                <Sidebar
+                  files={files()}
+                  active={outlineOf(open())}
+                  broken={broken()}
+                  today={today()}
+                  openDay={openDay(open())}
+                  datedDays={dated}
+                />
                 <main class="overflow-x-auto px-8 py-6">
                   <Show when={problems().length > 0}>
                     <Banner errors={problems()} />
@@ -133,6 +156,15 @@ export default function App() {
                     </Match>
                     <Match when={only(open(), "outline")}>
                       <OutlinePage rows={rows} view={view} />
+                    </Match>
+                    <Match when={only(open(), "day")}>
+                      {(day) => (
+                        <DayPage
+                          date={day().date}
+                          groups={day().groups}
+                          today={today()}
+                        />
+                      )}
                     </Match>
                     <Match when={only(open(), "nothing")}>
                       {(nothing) => <Nothing requested={nothing().requested} />}

@@ -2,9 +2,9 @@
 
 The format core ([docs/format.md](../../docs/format.md)): `parseOutline` per
 file, `validate` per set, and the derivations — status, sibling order, tags,
-mirror expansion — that both the validator and the view read from. It is the
-bottom of the layering: it knows about records, files and rules, and nothing
-about disks, servers or browsers.
+mirror expansion, what is dated a given day — that both the validator and the
+view read from. It is the bottom of the layering: it knows about records, files
+and rules, and nothing about disks, servers or browsers.
 
 Nothing outside these two functions may reject an outline. Not the reader, not
 the store, not the web layer. A second interpretation of the format would be
@@ -61,6 +61,16 @@ chain to the regular node at its end, so a node has one page and not one per
 placement), the canonical parent chain above it, and the rows beneath it.
 Where a node lives and what it is under are facts about the set, so they are
 answered here rather than carried in a URL that could disagree with the files.
+
+`dates.ts` is the same claim about a DAY. There is no journal file and no
+stored year→month hierarchy: a day is a question asked of every dated node in
+every outline, so `datedDays` (which days of a month have something on them)
+and `datedOn` (everything dated one day, grouped by outline, with each node's
+ancestry and derived status) are one reading of the set that the calendar and
+the day view both read from — a dot that disagreed with the page it opened
+would be worse than no dot. Dates stay TEXT here as everywhere else: a day is a
+ten-character prefix, a month a seven-character one, and a datetime counts for
+its own day.
 
 ## Layering
 
