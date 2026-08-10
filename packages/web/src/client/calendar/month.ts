@@ -57,9 +57,19 @@ export const parseMonth = (month: string): Month | null => {
     : null
 }
 
-/** Is this text a month? The one question a caller has before it trusts a
- *  `YYYY-MM` it did not mint itself. */
-export const isMonth = (month: string): boolean => parseMonth(month) !== null
+/**
+ * The month a date belongs to, or `null` for text that names no month.
+ *
+ * The one question a caller has about text it did not mint: `/d/<anything>` is
+ * an address a person can type, and the day being read is where the calendar
+ * would like to open. Asked and answered in ONE call, because "take the first
+ * seven characters" and "is that a month" are two halves of one question, and
+ * a caller composing them is a caller that can get the order wrong.
+ */
+export const monthOfDay = (date: string | undefined): string | null => {
+  const month = (date ?? "").slice(0, "YYYY-MM".length)
+  return parseMonth(month) === null ? null : month
+}
 
 const pad = (value: number): string => String(value).padStart(2, "0")
 

@@ -31,11 +31,11 @@ export { isMirror, Located } from "./node.ts"
 export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
 
 export { derive, rowsOf, rowsUnder, titleParts, withoutDone } from "./derive.ts"
-export type { Derived, Row, Status, TitlePart } from "./derive.ts"
+export type { Derived, Row, Situated, Status, TitlePart } from "./derive.ts"
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
-export { datedDays, datedOn, dayOf, monthOf } from "./dates.ts"
-export type { DatedNode, DayGroup } from "./dates.ts"
+export { datedDays, datedOn } from "./dates.ts"
+export type { DayGroup } from "./dates.ts"
 
 export {
   compareErrors,

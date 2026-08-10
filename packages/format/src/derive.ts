@@ -274,6 +274,32 @@ export const ancestorsOf = (
 }
 
 /**
+ * A node, and the derived facts that say what it IS.
+ *
+ * One concept with two readers so far, and they would otherwise be two
+ * identical structures: a zoomed page puts these above its heading, a day
+ * lists nodes from all over the set and each of them needs the same three, and
+ * search-with-ancestors will want them too. A title torn out of its outline
+ * says nothing — `order the new cabinets` is a different task under `kitchen
+ * remodel` than under `the office move` — so "the node plus its context" is a
+ * thing, and it is this one.
+ */
+export interface Situated {
+  /** The regular node at the end of the chain, whatever record was addressed
+   *  to reach it. */
+  readonly shows: LocatedRegular
+  readonly status: Status
+  /** The canonical parent chain, root first, `shows` excluded. */
+  readonly trail: ReadonlyArray<LocatedRegular>
+}
+
+export const situate = (derived: Derived, shows: LocatedRegular): Situated => ({
+  shows,
+  status: derived.status.get(shows.node.id) ?? "open",
+  trail: ancestorsOf(derived, shows.node.id),
+})
+
+/**
  * What a record actually shows: itself, or — following as many mirror hops as
  * it takes — the regular node at the end of the chain.
  *

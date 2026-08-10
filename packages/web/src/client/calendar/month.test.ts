@@ -1,6 +1,13 @@
 import { expect, test } from "bun:test"
 
-import { dayNumber, isMonth, monthGrid, monthLabel, shiftMonth, WEEKDAYS } from "./month.ts"
+import {
+  dayNumber,
+  monthGrid,
+  monthLabel,
+  monthOfDay,
+  shiftMonth,
+  WEEKDAYS,
+} from "./month.ts"
 
 /** The grid's days, with the padding dropped — what the month actually holds. */
 const days = (month: string): ReadonlyArray<string> =>
@@ -74,14 +81,22 @@ test("paging is reversible", () => {
 // `/d/<anything>` is an address a person can type, and its month is whatever
 // the first seven characters were. A grid is not the place to explain that:
 // it draws nothing, and the day view says what is wrong.
-test("text that is not a month is not one", () => {
-  expect(isMonth("2026-08")).toBe(true)
-  expect(isMonth("2026-13")).toBe(false)
-  expect(isMonth("2026-00")).toBe(false)
-  expect(isMonth("hello")).toBe(false)
-  expect(isMonth("2026-8")).toBe(false)
+test("a day names its month, and text that is not one names none", () => {
+  expect(monthOfDay("2026-08-10")).toBe("2026-08")
+  expect(monthOfDay("2026-08-10T14:30")).toBe("2026-08")
+  expect(monthOfDay("2026-08")).toBe("2026-08")
+  expect(monthOfDay("2026-13-01")).toBeNull()
+  expect(monthOfDay("2026-00-01")).toBeNull()
+  expect(monthOfDay("2026-8-1")).toBeNull()
+  expect(monthOfDay("hello")).toBeNull()
+  expect(monthOfDay(undefined)).toBeNull()
+})
+
+test("text that names no month draws no grid", () => {
   expect(monthGrid("hello")).toEqual([])
+  expect(monthGrid("")).toEqual([])
   expect(shiftMonth("hello", 1)).toBe("hello")
+  expect(monthLabel("")).toBe("")
 })
 
 // ── what a cell prints ─────────────────────────────────────────────────

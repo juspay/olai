@@ -25,7 +25,7 @@
  * business being the first place in the codebase that risks it.
  */
 
-import { ancestorsOf, type Derived, type Status } from "./derive.ts"
+import { type Derived, type Situated, situate } from "./derive.ts"
 import { isMirror, type LocatedRegular } from "./node.ts"
 
 /** How many characters of an ISO value name the day, and the month. A
@@ -81,27 +81,17 @@ export const datedDays = (derived: Derived, month: string): ReadonlySet<string> 
   return days
 }
 
-/**
- * One dated node, and what a reader needs around it to know what it IS.
+/** The nodes of one outline dated the same day, each with the context that
+ *  says what it is — the same {@link Situated} a zoomed page is built from,
+ *  because a day collects nodes from all over the set and a title torn out of
+ *  its outline says nothing.
  *
- * The same three facts a zoomed page puts above a node ({@link ./zoom.ts}),
- * and deliberately so: a day collects nodes from all over the set, and a title
- * torn out of its outline says nothing. `trail` is the CANONICAL parent chain,
- * root first, this node excluded.
- */
-export interface DatedNode {
-  readonly shows: LocatedRegular
-  readonly status: Status
-  readonly trail: ReadonlyArray<LocatedRegular>
-}
-
-/** The nodes of one outline dated the same day. The day view groups by file
- *  because a `parent` never crosses one: two nodes in two outlines have no
- *  common ancestry to draw them under, and the file is the only heading that
- *  is true. */
+ *  The day view groups by file because a `parent` never crosses one: two nodes
+ *  in two outlines have no common ancestry to draw them under, and the file is
+ *  the only heading that is true. */
 export interface DayGroup {
   readonly file: string
-  readonly nodes: ReadonlyArray<DatedNode>
+  readonly nodes: ReadonlyArray<Situated>
 }
 
 /**
@@ -129,11 +119,7 @@ export const datedOn = (derived: Derived, day: string): ReadonlyArray<DayGroup> 
     .sort(([left], [right]) => compare(left, right))
     .map(([file, nodes]) => ({
       file,
-      nodes: nodes.sort(byTime).map((dated) => ({
-        shows: dated.at,
-        status: derived.status.get(dated.at.node.id) ?? "open",
-        trail: ancestorsOf(derived, dated.at.node.id),
-      })),
+      nodes: nodes.sort(byTime).map((dated) => situate(derived, dated.at)),
     }))
 }
 

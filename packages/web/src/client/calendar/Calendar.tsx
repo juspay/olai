@@ -8,11 +8,16 @@
  * outlines carry no `date` sees a month of inert numbers.
  *
  * Which month is on screen is a reading, not an address — the same standing as
- * what is folded (view.ts) — and it is held the same way: stamped with the
- * month it was paged AWAY from, so opening a day in another month starts over
- * without an effect watching the route to reset anything. There is no frame in
- * which the held month and the open day disagree, because a month stamped with
- * another anchor is never the one that gets read.
+ * what is folded — and it is held the way view.ts holds those: stamped with
+ * what invalidates it, so it starts over without an effect watching anything,
+ * and there is no frame in which the held value and the page disagree.
+ *
+ * It is held HERE rather than in view.ts because what invalidates it is
+ * different. A reading of a page dies with the page; this is chrome, and
+ * walking from one outline to another is no reason to snap the month back to
+ * today. What it dies with is the ANCHOR — the month the calendar would be
+ * showing if nobody had paged it — so paging survives every navigation that
+ * does not change which month the reader is looking at.
  *
  * The dots are asked for per month rather than handed over as a set, so the
  * question is only asked about the month being drawn — and asking it INSIDE a
@@ -21,11 +26,10 @@
  * re-runs this.
  */
 
-import { monthOf } from "@olai/format"
 import { createMemo, createSignal, For, Show } from "solid-js"
 
 import { TESTID, type TestId } from "../testids.ts"
-import { isMonth, monthGrid, monthLabel, shiftMonth, WEEKDAYS } from "./month.ts"
+import { monthGrid, monthLabel, monthOfDay, shiftMonth, WEEKDAYS } from "./month.ts"
 import { Day } from "./Day.tsx"
 
 /** A month being read, and the anchor it was reached from. */
@@ -46,10 +50,11 @@ export function Calendar(props: {
    *  read, or today. A `/d/<anything>` address is a day nothing can be dated
    *  and is not a month either — the day view says so, and the grid stays on
    *  the month a reader can still use. */
-  const anchor = createMemo(() => {
-    const open = props.open === undefined ? undefined : monthOf(props.open)
-    return open !== undefined && isMonth(open) ? open : monthOf(props.today)
-  })
+  const anchor = createMemo(
+    // The last answer needs no guard of its own: text that names no month
+    // draws no grid, which is month.ts's own contract.
+    () => monthOfDay(props.open) ?? monthOfDay(props.today) ?? "",
+  )
 
   const [paged, setPaged] = createSignal<Paged | undefined>(undefined)
   const month = createMemo(() => {

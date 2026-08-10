@@ -72,6 +72,11 @@ would be worse than no dot. Dates stay TEXT here as everywhere else: a day is a
 ten-character prefix, a month a seven-character one, and a datetime counts for
 its own day.
 
+A day's nodes and a zoomed page are built from the same `Situated` — a node,
+its derived status and its canonical ancestry — because that is one concept
+with several readers, not a shape two surfaces happened to agree on. A title
+torn out of its outline says nothing, wherever it is being drawn.
+
 ## Layering
 
 Depends on nothing in this workspace, and must not — a workspace sibling in its
