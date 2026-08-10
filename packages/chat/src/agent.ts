@@ -56,6 +56,7 @@ import type {
   ToolCallLocation,
   ToolCallStatus,
 } from "@agentclientprotocol/sdk"
+import { emitter, reasonOf } from "@olai/log"
 import { Data, type Duration, Effect, Semaphore } from "effect"
 
 import type { AgentEvent, Command, Stored } from "./events.ts"
@@ -102,7 +103,6 @@ export interface Options {
    *  that hand-built one would be a second place that knows. */
   readonly tools: () => ToolServer | null
   readonly onEvent: (event: AgentEvent) => void
-  readonly log: (message: string) => void
 }
 
 export interface Agent {
@@ -162,6 +162,12 @@ interface Live {
 
 export const make = (options: Options): Effect.Effect<Agent, never, never> =>
   Effect.gen(function*() {
+    // Everything this module has to say happens in a protocol callback or on a
+    // subprocess's stderr, where there is no fiber to log from — so the fiber's
+    // logging settings are captured once, here, with the agent's own command on
+    // every line it will ever emit. `acp: ` used to be that, as a prefix.
+    const say = yield* Effect.annotateLogs(emitter, { agent: options.command })
+
     // The spawn/handshake takes its own permit, so two callers racing a cold
     // start share one subprocess rather than each getting their own.
     const booting = yield* Semaphore.make(1)
@@ -179,7 +185,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     }
 
     const trouble = (message: string) => {
-      options.log(`acp: ${message}`)
+      say(Effect.logWarning(message))
       emit({ _tag: "trouble", message })
     }
 
@@ -296,8 +302,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       if (baseline) return
       const name = labels.get(id)
       if (name === undefined) {
-        options.log(
-          `acp: the agent is running "${id}", which its model picker does not offer`,
+        say(
+          Effect.annotateLogs(
+            Effect.logWarning("the agent is running a model its picker does not offer"),
+            { model: id },
+          ),
         )
       }
       emit({ _tag: "model", name: name ?? id })
@@ -313,16 +322,18 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             }),
           catch: (cause) =>
             new AgentGone({
-              why: `could not start the agent \`${options.command}\`: ${String(cause)}`,
+              why: `could not start the agent \`${options.command}\`: ${reasonOf(cause)}`,
             }),
         })
 
         // The agent's stderr is a log sink, not a channel: the adapter
         // redirects all its console output there, and a pipe nobody drains
-        // eventually blocks the process writing to it.
+        // eventually blocks the process writing to it. DEBUG, because it is
+        // somebody else's program's log and by volume the loudest thing olai
+        // ever emits — `--log-level debug` is how you ask for it.
         child.stderr?.setEncoding("utf8")
         child.stderr?.on("data", (chunk: string) => {
-          options.log(`acp: ${chunk.trimEnd()}`)
+          say(Effect.logDebug(chunk.trimEnd()))
         })
 
         child.on("exit", (code, signal) => {
@@ -486,9 +497,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         if (live !== null && session !== null) return
         const started = live ?? (yield* start())
         live = started
+        // `onError` hands the fiber's CAUSE, not the failure — `String` on one
+        // of those is `Cause([Fail(…)])` with the reason buried in it, which
+        // is a notice a person reads. `reasonOf` squashes it back down.
         yield* Effect.onError(openSession(started), (cause) =>
           Effect.sync(() => {
-            trouble(`the agent could not open a session: ${String(cause)}`)
+            trouble(`the agent could not open a session: ${reasonOf(cause)}`)
           }))
       }),
     )
@@ -817,5 +831,3 @@ const mcpServersOf = (server: ToolServer | null): ReadonlyArray<McpServer> =>
     headers: [{ name: "Authorization", value: `Bearer ${server.token}` }],
   }]
 
-const reasonOf = (cause: unknown): string =>
-  cause instanceof Error ? cause.message : String(cause)

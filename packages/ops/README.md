@@ -98,7 +98,10 @@ named there.
 It cannot fail a write. The bytes are on disk and the browser has already seen
 them by the time git runs; a refusal is logged and reported as
 `committed: false`, and only the files this op wrote are ever named — a served
-directory is a working tree with other work in it.
+directory is a working tree with other work in it. What git actually said rides
+that line as a field (`said=…`) rather than inside the sentence, so the message
+stays greppable and the reason stays readable — `src/git.test.ts` holds both,
+against a real directory with no repository in it.
 
 ## The tool surface, and what is missing from it
 

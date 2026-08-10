@@ -23,6 +23,7 @@
 
 import { exceedsFrameLimit, RPC_MAX_FRAME_BYTES } from "@kolu/surface/frame-limit"
 import { NodeHttpServer, NodeServices } from "@effect/platform-node"
+import { collector, findSaid } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
 import * as fs from "node:fs"
@@ -68,8 +69,8 @@ const served = (): string => {
 const BOUND_MS = 10_000
 
 test("a 9 MiB frame reaches the surface and is answered", async () => {
+  const { layer, said } = collector()
   const answer = await Effect.gen(function*() {
-    const said: Array<string> = []
     yield* serve({
       root: served(),
       port: 0,
@@ -79,14 +80,13 @@ test("a 9 MiB frame reaches the surface and is answered", async () => {
       // A real server against a temp directory; committing to whatever
       // repository happens to contain it is not this test's to do.
       commit: false,
-      log: (message) => said.push(message),
     })
     // The port was asked for as `0`, so the log line is the only thing that
     // knows which one we got — the same reading `serve.test.ts` does.
-    const where = /^serving .* on (http:\/\/\S+)$/m.exec(said.join("\n"))
-    expect(where).not.toBeNull()
-    return yield* Effect.promise(() => ask(where![1]!))
-  }).pipe(Effect.scoped, Effect.provide(LAYERS), Effect.runPromise)
+    const where = findSaid(said, "serving")?.annotations.url
+    expect(typeof where).toBe("string")
+    return yield* Effect.promise(() => ask(String(where)))
+  }).pipe(Effect.scoped, Effect.provide(LAYERS), Effect.provide(layer), Effect.runPromise)
 
   // A real answer to a real call, which is only reachable if the frame that
   // carried it arrived: `system/identity` is the framework's own member, and

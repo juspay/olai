@@ -62,7 +62,7 @@ them; setting both, or neither, fails at `BeforeAll` and says which to pick.
 
 | variable | meaning |
 |---|---|
-| `OLAI_BIN` | Path to the `olai` executable. The harness **spawns** one server per corpus as `<bin> web <dir> --port <port> --host 127.0.0.1` and waits for its `http://127.0.0.1:<port>` line on stdout. This is what `just e2e` sets. |
+| `OLAI_BIN` | Path to the `olai` executable. The harness **spawns** one server per corpus as `<bin> web <dir> --port <port> --host 127.0.0.1` and waits for the `url=` field of its `serving` line on stdout, decoded with `@olai/log`'s own `findLogfmt` rather than a regex of ours. This is what `just e2e` sets. |
 | `OLAI_URL` | Base URL of a server you are **already running**, reused as it is. No spawning, so no per-corpus servers — see `OLAI_CORPUS`. |
 | `OLAI_CORPUS` | Only read with `OLAI_URL`: which fixture corpus that one server is serving (default `good`). A scenario needing a different one fails immediately, with the command to run instead — better than quietly asserting against the wrong outlines. |
 | `HEADLESS` | `false` opens a visible browser. Anything else (or unset) is headless. |

@@ -63,7 +63,6 @@ export interface Options {
   /** Publish transcript changes: upserts by key, and removes for a session
    *  that was replaced. */
   readonly onTranscript: (change: Change) => void
-  readonly log: (message: string) => void
 }
 
 export interface Chat {
@@ -99,7 +98,6 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         cwd: options.cwd,
         tools: options.tools,
         onEvent,
-        log: options.log,
       })
 
     const transcript = new Transcript()
@@ -360,7 +358,10 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           Effect.gen(function*() {
             const outcome = yield* Effect.result(agent.boot)
             if (outcome._tag === "Failure") {
-              options.log(`chat: ${outcome.failure.message}`)
+              // A warning rather than an error: the panel is already showing
+              // this, and the next prompt retries the boot exactly as a crash
+              // does. Nothing has stopped.
+              yield* Effect.logWarning(outcome.failure.message)
               move({ status: "gone", trouble: outcome.failure.message })
               return
             }

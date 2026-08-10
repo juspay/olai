@@ -92,7 +92,10 @@ export const commit = (
 
     const staged = yield* git(what.root, ["add", "--", ...what.paths])
     if (!staged.ok) {
-      yield* Effect.logWarning(`olai git: could not stage the write: ${staged.said}`)
+      yield* Effect.annotateLogs(
+        Effect.logWarning("olai git: could not stage the write"),
+        { said: staged.said },
+      )
       return false
     }
 
@@ -107,8 +110,9 @@ export const commit = (
     if (!committed.ok) {
       // The ordinary case is "nothing to commit" — a write that produced the
       // bytes already there. Worth a line in the log, never worth failing.
-      yield* Effect.logWarning(
-        `olai git: \`${what.message}\` was not committed: ${committed.said}`,
+      yield* Effect.annotateLogs(
+        Effect.logWarning("olai git: the write was not committed"),
+        { commitMessage: what.message, said: committed.said },
       )
       return false
     }

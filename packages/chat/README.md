@@ -64,14 +64,13 @@ Four exports. Resolve the adapter, build, wire the two publishers, register
 
 ```ts
 const adapter = adapterFrom(process.env[AGENT_ENV])
-if (adapter === null) log(whyNoAgent(process.env[AGENT_ENV]))
+if (adapter === null) yield* Effect.logInfo(whyNoAgent(process.env[AGENT_ENV]))
 const chat = adapter === null ? null : yield* make({
   adapter,
   cwd: servedDirectory,
   tools: () => mcpServerOnceTheListenerHasBound,
   onState,
   onTranscript,
-  log,
 })
 ```
 
@@ -80,6 +79,25 @@ listener has bound, and the session is opened after that.
 
 A `null` adapter is not an error. Serving a directory has never depended on an
 agent being installed; the panel says so and the outlines are unaffected.
+
+There is no `log` in that list any more, and that is the point: this package
+logs the way every other one does ([`@olai/log`](../log/README.md)), so nothing
+has to be handed a place to write. What it says lands at three levels. The
+agent's own stderr is relayed at `debug` — it is somebody else's program's log
+and by volume the loudest thing olai ever emits, so it is off until
+`--log-level debug` asks for it. Trouble the panel is already drawing (a session
+that would not open, a boot the next prompt will retry) is a `warn`, because
+nothing has stopped. Every line carries `agent=<command>`, which is what the
+`acp: ` prefix used to be, except now it is a field. There is no fiber inside an
+ACP notification handler or a subprocess `data` event, which is why the emitter
+is taken once at `make` rather than a line at a time.
+
+The same package owns how a FAILURE is rendered into the sentences this one
+hands a person — `AgentGone.why`, a `trouble` notice. All of them go through
+`reasonOf`, including the one that reads a fiber's `Cause`: `Effect.onError`
+hands the cause rather than the failure, and `String` on one of those is
+`Cause([Fail(…)])` with the reason buried inside it. There used to be three
+spellings of that in this file, one of them wrong.
 
 ## Two decisions worth naming
 

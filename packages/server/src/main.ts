@@ -18,10 +18,11 @@
  */
 
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
-import { parseAllowedOrigins } from "@kolu/surface/ws-origin"
+import { toStdout } from "@olai/log"
 import { Effect, Layer } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
 
+import { allowedOrigins } from "./allowedOrigins.ts"
 import { clientDist } from "./clientDist.ts"
 import { serveTools } from "./mcp/serve.ts"
 import { serve } from "./serve.ts"
@@ -59,21 +60,21 @@ const web = Command.make("web", {
   noCommit,
 }, ({ directory, host, noCommit, port }) =>
   Effect.gen(function*() {
-    yield* serve({
+    const faulted = yield* serve({
       root: directory,
       port,
       host,
       commit: !noCommit,
       clientDist: yield* clientDist,
-      allowedOrigins: parseAllowedOrigins(process.env.OLAI_ALLOWED_ORIGINS),
-      log: (message) => {
-        console.log(message)
-      },
+      allowedOrigins: allowedOrigins(),
     })
-    // Wait to be interrupted. The listener registered its teardown on this
-    // scope, so a signal below closes the sockets on the way out rather than
-    // leaving the port held by a process that has already stopped answering.
-    yield* Effect.never
+    // Wait to be interrupted — or for the surface runtime to fault, which is
+    // the one thing that stops a healthy server on its own. Either way the
+    // scope unwinds: the listener registered its teardown on it, so a signal
+    // here closes the sockets on the way out rather than leaving the port held
+    // by a process that has already stopped answering, and a fault takes the
+    // same road out rather than exiting from under those finalizers.
+    yield* faulted
   })).pipe(
     Command.withDescription("serve a directory of outlines in the browser"),
   )
@@ -95,12 +96,6 @@ const mcp = Command.make("mcp", { directory, noCommit }, ({ directory, noCommit 
     write: (frame) => {
       process.stdout.write(frame)
     },
-    // stderr, and it is not a detail: stdout is the wire. What a person reads
-    // and what the client parses are two different streams, which is the whole
-    // reason this transport can say anything at all.
-    log: (message) => {
-      process.stderr.write(`${message}\n`)
-    },
   })).pipe(
     Command.withDescription(
       "serve the outline tools over stdio, for a coding agent in a terminal",
@@ -113,17 +108,28 @@ const olai = Command.make("olai").pipe(
 )
 
 // `runMain` IS the signal handling, the keep-alive and the exit code, and it
-// is why `Effect.never` above is enough: interrupting on SIGINT or SIGTERM
-// runs the scope's finalizers — the listener's teardown — and only then exits.
-// Hand-rolling it dropped three things quietly, the one that mattered being
-// that the port stayed held long enough to break a harness starting a dozen
-// servers on it.
+// is why waiting on one effect above is enough: interrupting on SIGINT or
+// SIGTERM runs the scope's finalizers — the listener's teardown — and only then
+// exits, and a surface fault arrives as a failure it reports and sets the code
+// for. Hand-rolling it dropped three things quietly, the one that mattered
+// being that the port stayed held long enough to break a harness starting a
+// dozen servers on it.
+//
+// The LOG LEVEL is not set here and there is no flag of ours for it: Effect's
+// CLI already carries `--log-level`, parses it, documents it in `--help` and
+// provides the minimum level to whichever subcommand runs. Quiet is its default
+// (`Info`), so debug lines — a relayed agent stderr chunk, the loudest thing in
+// the program — are off until somebody asks. What IS ours is the sink, and only
+// one of the two subcommands keeps it: `olai mcp` swaps in the stderr one for
+// itself, because there stdout is the protocol.
 NodeRuntime.runMain(
   Command.run(olai, { version: "0.1.0" }).pipe(
     Effect.scoped,
     // NodeServices carries the CLI's own needs (stdio, terminal, file system);
     // layerHttpServices carries the static file layer's (the file-response
     // platform and ETags).
-    Effect.provide(Layer.mergeAll(NodeServices.layer, NodeHttpServer.layerHttpServices)),
+    Effect.provide(
+      Layer.mergeAll(NodeServices.layer, NodeHttpServer.layerHttpServices, toStdout),
+    ),
   ),
 )

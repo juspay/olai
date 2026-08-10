@@ -9,6 +9,7 @@
  */
 
 import { Then, When } from "@cucumber/cucumber";
+import { findLogfmt } from "@olai/log/testlib";
 
 import { startOwnServer, stopOwnServer } from "../support/hooks.ts";
 import {
@@ -79,7 +80,8 @@ Then("the server rejected the stale tab", async function (this: OlaiWorld) {
   // be satisfied by a reconnect that was ACCEPTED and merely landed on a new
   // process id — a different mechanism, and not the one this feature is about.
   await this.waitUntil(
-    async () => /stale tab rejected \(claimed pid \S+\)/.test(this.serverSaid),
+    async () =>
+      findLogfmt(this.serverSaid, "stale tab rejected")?.claimed !== undefined,
     "the restarted server reports having closed the stale tab at the handshake",
   );
 });

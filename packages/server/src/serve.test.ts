@@ -12,9 +12,16 @@
  * They start a real server on a real port. Nothing here is mocked, because the
  * thing under test is exactly the seam where Node's `listen` meets the Effect
  * runtime — the seam a mock would replace with an assumption.
+ *
+ * What they read is a collecting LOGGER rather than an injected callback: the
+ * server logs the way every other package does, so the way to hear it is the
+ * way anything hears an Effect log. That also means these assert on the pieces
+ * — the level, the message, the annotations — rather than on one interpolated
+ * sentence, which is the whole reason the pieces exist.
  */
 
 import { NodeHttpServer, NodeServices } from "@effect/platform-node"
+import { collector, findSaid, type Logged } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
 import * as fs from "node:fs"
@@ -57,8 +64,9 @@ const occupied = (): Promise<{ port: number; release: () => Promise<void> }> =>
 /** Run `serve` and shut it straight back down, collecting what it said. */
 const run = (
   options: { readonly port: number; readonly host?: string },
-): Promise<ReadonlyArray<string>> => {
-  const said: Array<string> = []
+): Promise<ReadonlyArray<Logged>> => {
+  const { layer, said } = collector()
+
   return Effect.gen(function*() {
     yield* serve({
       root: served(),
@@ -69,37 +77,49 @@ const run = (
       // These start and stop a real server against a temp directory; committing
       // to whatever repository happens to contain it is not theirs to do.
       commit: false,
-      log: (message) => said.push(message),
     })
   }).pipe(
     Effect.scoped,
     Effect.provide(LAYERS),
-    Effect.map(() => said as ReadonlyArray<string>),
+    Effect.provide(layer),
+    Effect.map(() => said),
     Effect.runPromise,
   )
 }
 
-const url = /http:\/\/127\.0\.0\.1:(\d+)/
+const url = /^http:\/\/127\.0\.0\.1:(\d+)$/
 
 test("a port that is already listening is a fallback, not a failure", async () => {
   const taken = await occupied()
   try {
     const said = await run({ port: taken.port })
 
-    const notice = said.find((line) => line.includes("in use"))
-    expect(notice).toContain(`port ${taken.port} in use`)
+    const notice = findSaid(said, "port in use")
+    expect(notice?.annotations.asked).toBe(taken.port)
     // It names where we went, and that is a DIFFERENT port that is really ours.
-    const landed = url.exec(notice ?? "")?.[1]
+    const landed = url.exec(String(notice?.annotations.url))?.[1]
     expect(landed).toBeDefined()
     expect(Number(landed)).not.toBe(taken.port)
     // And the line everyone reads for the address agrees with it: the bound
     // address is the single source of truth, fallback or not.
-    expect(said.find((line) => line.startsWith("serving "))).toContain(
+    expect(findSaid(said, "serving")?.annotations.url).toBe(
       `http://127.0.0.1:${landed}`,
     )
   } finally {
     await taken.release()
   }
+})
+
+// Every line the served directory produces says which directory it was —
+// including the ones a store fiber emits from three layers down, which is the
+// reason the annotation is set before anything is started rather than added to
+// each message by hand.
+test("every line says which directory it is about", async () => {
+  const said = await run({ port: 0 })
+
+  const root = findSaid(said, "serving")?.annotations.root
+  expect(typeof root).toBe("string")
+  expect(said.every((line) => line.annotations.root === root)).toBe(true)
 })
 
 // The regression this file exists for. A host that is not this machine's
@@ -124,6 +144,17 @@ test("a listen failure is reported as itself, not as a faulted runtime", async (
 // port 0 would be a way to hide a real bind failure behind a second one.
 test("port 0 is a request, not a collision", async () => {
   const said = await run({ port: 0 })
-  expect(said.some((line) => line.includes("in use"))).toBe(false)
-  expect(said.find((line) => line.startsWith("serving "))).toMatch(url)
+
+  expect(findSaid(said, "port in use")).toBeUndefined()
+  expect(String(findSaid(said, "serving")?.annotations.url)).toMatch(url)
+})
+
+// Binding off loopback is the one thing this layer warns about, and the LEVEL
+// is now what says so — the message used to have to shout `WARNING:` at itself.
+test("binding off loopback is a warning, not a line among lines", async () => {
+  const said = await run({ port: 0, host: "0.0.0.0" })
+
+  const warned = findSaid(said, "bound off loopback")
+  expect(warned?.level).toBe("Warn")
+  expect(warned?.annotations.host).toBe("0.0.0.0")
 })
