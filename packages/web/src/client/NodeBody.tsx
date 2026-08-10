@@ -22,6 +22,7 @@ import { createMemo, Show } from "solid-js"
 
 import { DocRef } from "./document/DocRef.tsx"
 import { Note, type NoteShape } from "./Note.tsx"
+import { SeeRefs } from "./SeeRefs.tsx"
 import type { View } from "./view.ts"
 
 export function NodeBody(props: {
@@ -71,6 +72,7 @@ export function NodeBody(props: {
           />
         )}
       </Show>
+      <SeeRefs node={props.shows.node} />
       <Show when={docOf(props.shows)}>
         {(doc) => <DocRef file={doc()} inline={props.zoomed} />}
       </Show>

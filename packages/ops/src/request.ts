@@ -1,5 +1,5 @@
 /**
- * The eight things a writer may ask for.
+ * The things a writer may ask for.
  *
  * They are SEMANTIC — "mark this node done", not "replace bytes 40 through 90"
  * — and that is the property the whole write path is built on. A semantic edit
@@ -125,6 +125,30 @@ export const ArchiveRequest = Schema.Struct({
   id: Id,
 })
 
+/**
+ * Add and/or remove `see` targets on an existing node. Incremental rather
+ * than a whole-array replace: an agent that has just discovered one reference
+ * should not have to re-state every other one it already set. Both fields are
+ * optional, but at least one target must be named — the planner refuses a
+ * no-op with a teaching message.
+ */
+export const SeeRequest = Schema.Struct({
+  op: Schema.Literal("see"),
+  id: Id,
+  add: Schema.optionalKey(
+    Schema.Array(Schema.String).annotate({
+      description:
+        "Ids to add to this node's `see` list. Each must name a node in the loaded set; unknowns are refused with the ids that do exist.",
+    }),
+  ),
+  remove: Schema.optionalKey(
+    Schema.Array(Schema.String).annotate({
+      description:
+        "Ids to drop from this node's `see` list. Naming one that is not there is a no-op for that id.",
+    }),
+  ),
+})
+
 export const Request = Schema.Union([
   AddRequest,
   MarkRequest,
@@ -133,6 +157,7 @@ export const Request = Schema.Union([
   DateRequest,
   MoveRequest,
   ArchiveRequest,
+  SeeRequest,
 ])
 export type Request = typeof Request.Type
 

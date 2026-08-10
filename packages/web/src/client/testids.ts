@@ -39,6 +39,11 @@ export const TESTID = {
    *  RESOLVED path as `data-doc`, and `data-inline` for the zoomed page that
    *  draws the whole document rather than a line of it. */
   docRef: "doc-ref",
+  /** A node's free cross-references (`see`), wherever the node is drawn. */
+  seeRefs: "see-refs",
+  /** One link inside those references. The target id rides `data-see` on a
+   *  child span (titles change; ids do not). */
+  seeLink: "see-link",
   /** The document itself, rendered — on its own page, or inline under the node
    *  that attaches it. */
   documentBody: "document-body",

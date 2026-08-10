@@ -336,6 +336,7 @@ describe("the internal MCP server", () => {
           "set_desc",
           "set_doing",
           "set_done",
+          "set_see",
           "set_title",
         ])
 
@@ -370,6 +371,61 @@ describe("the internal MCP server", () => {
         )
         expect(kitchen["status"]).toBe("doing")
       })))
+
+  test("search and subtree carry a node's see so an agent can traverse", () => {
+    const SEEING = [
+      `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","see":["install"]}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them"}`,
+      "",
+    ].join("\n")
+    return withOps({ "house.jsonl": SEEING }, (fixture) =>
+      Effect.gen(function*() {
+        const server = Mcp.make({ ops: fixture.ops })
+        let id = 0
+        const call = (method: string, params?: unknown) =>
+          Effect.map(
+            server.handle({ jsonrpc: "2.0", id: ++id, method, params }),
+            (reply) => {
+              if (reply === null) throw new Error(`\`${method}\` answered nothing`)
+              return reply as Record<string, unknown>
+            },
+          )
+        const body = (reply: Record<string, unknown>): Record<string, unknown> => {
+          if ("error" in reply) {
+            throw new Error(`JSON-RPC error: ${JSON.stringify(reply["error"])}`)
+          }
+          return (reply["result"] as Record<string, unknown>)["structuredContent"] as
+            Record<string, unknown>
+        }
+
+        const hits = body(
+          yield* call("tools/call", {
+            name: "search_nodes",
+            arguments: { text: "cabinets" },
+          }),
+        )
+        expect((hits["hits"] as ReadonlyArray<unknown>)[0]).toMatchObject({
+          id: "order",
+          see: ["install"],
+        })
+
+        const tree = body(
+          yield* call("tools/call", {
+            name: "read_subtree",
+            arguments: { id: "kitchen", depth: 1 },
+          }),
+        )
+        const children = tree["children"] as ReadonlyArray<Record<string, unknown>>
+        expect(children.find((child) => child["id"] === "order")).toMatchObject({
+          see: ["install"],
+        })
+        // A node with no see does not pretend to have one.
+        expect(
+          children.find((child) => child["id"] === "install"),
+        ).not.toHaveProperty("see")
+      }))
+  })
 
   test("a write through a tool changes the directory", () =>
     withMcp((call, fixture) =>
