@@ -57,7 +57,9 @@ export type Page =
  *  caller cannot hand over half of it. */
 export interface Found {
   readonly files: ReadonlyArray<string>
-  readonly documents: ReadonlyArray<Document>
+  /** By path, like `broken` — an address names one, and the app holds the one
+   *  index everything that answers "which document is this" reads. */
+  readonly documents: ReadonlyMap<string, Document>
   readonly broken: ReadonlyMap<string, BrokenFile>
 }
 
@@ -73,7 +75,7 @@ export const pageOf = (
   if (route.kind === "node") return { kind: "node", zoomed: zoom(derived, route.id) }
 
   if (route.kind === "document") {
-    const document = found.documents.find((served) => served.file === route.file)
+    const document = found.documents.get(route.file)
     return document === undefined
       ? { kind: "nothing", sought: "document", requested: route.file }
       : { kind: "document", document }

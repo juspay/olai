@@ -36,6 +36,7 @@ import {
   datedDays,
   type DayGroup,
   derive,
+  type Document,
   type Row,
 } from "@olai/format"
 import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
@@ -77,6 +78,17 @@ export default function App() {
    *  list, the document pages, and every `doc` preview come off this one
    *  field of the set. */
   const documents = () => set()?.documents ?? []
+  /** The same documents BY PATH — one index, built once. Everything that
+   *  answers "which document is this" reads it: the page a `/doc/<file>` route
+   *  names, and every `doc`-carrying node's reference, however deep in a tree
+   *  it is drawn. The list above stays the list, because order is what a
+   *  sidebar draws. */
+  const documentsByFile = createMemo(
+    () =>
+      new Map<string, Document>(
+        documents().map((document) => [document.file, document] as const),
+      ),
+  )
   /** What is wrong with the set as a WHOLE right now. Empty is the normal
    *  state, including when one file is unreadable — that one lands in the set
    *  itself, as `broken` below. */
@@ -103,7 +115,7 @@ export default function App() {
     const indexes = derived()
     return indexes === undefined ? undefined : pageOf(
       indexes,
-      { files: files(), documents: documents(), broken: broken() },
+      { files: files(), documents: documentsByFile(), broken: broken() },
       router.route(),
       today(),
     )
@@ -161,7 +173,7 @@ export default function App() {
         <Match when={page()}>
           {(open) => (
             <RouterProvider router={router}>
-              <DocumentsProvider documents={documents()}>
+              <DocumentsProvider documents={documentsByFile()}>
                 <div class="grid min-h-screen grid-cols-[16rem_1fr]">
                   <Sidebar
                     files={files()}

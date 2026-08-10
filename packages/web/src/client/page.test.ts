@@ -37,9 +37,10 @@ const SET = derive([
   }),
 ])
 const FILES = ["garden.jsonl", "house.jsonl"]
-const DOCUMENTS: ReadonlyArray<Document> = [
-  { file: "notes/finishes.md", text: "# Finishes\n\nBrushed brass.\n" },
-]
+/** By path, the way the app holds them. */
+const DOCUMENTS: ReadonlyMap<string, Document> = new Map([
+  ["notes/finishes.md", { file: "notes/finishes.md", text: "# Finishes\n\nBrushed brass.\n" }],
+])
 
 /** What day it is, for the arm that has to be told. Fixed, because a page
  *  model that read a clock would be a page model whose tests expire. */

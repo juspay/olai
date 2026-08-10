@@ -19,13 +19,12 @@
  * has to resolve anything here.
  */
 
-import { docOf, type Row } from "@olai/format"
+import { type Row } from "@olai/format"
 import { createMemo, For, Match, Show, Switch } from "solid-js"
 
 import { Bullet } from "./Bullet.tsx"
-import { DocRef } from "./document/DocRef.tsx"
+import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
-import { Note } from "./Note.tsx"
 import { TESTID } from "./testids.ts"
 
 export interface TreeProps {
@@ -124,26 +123,9 @@ function Branch(props: {
 
       <Show when={!collapsed() && shown()}>
         {(shows) => (
-          <>
-            <Show when={shows().node.desc}>
-              {(desc) => (
-                <Note
-                  desc={desc()}
-                  from={shows().file}
-                  class="mt-1 mb-2 ml-11 text-[0.9375rem] text-muted"
-                />
-              )}
-            </Show>
-            {/* A row is a row: the document is named and previewed here, and
-                drawn in full on the node's own page. */}
-            <Show when={docOf(shows())}>
-              {(doc) => (
-                <div class="ml-11">
-                  <DocRef file={doc()} />
-                </div>
-              )}
-            </Show>
-          </>
+          <div class="ml-11">
+            <NodeBody shows={shows()} />
+          </div>
         )}
       </Show>
 

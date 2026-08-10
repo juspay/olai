@@ -13,24 +13,19 @@
  */
 
 import type { Document } from "@olai/format"
-import { createContext, createMemo, type JSX, useContext } from "solid-js"
+import { createContext, type JSX, useContext } from "solid-js"
 
 const DocumentsContext = createContext<() => ReadonlyMap<string, Document>>()
 
 export function DocumentsProvider(props: {
-  readonly documents: ReadonlyArray<Document>
+  /** The app's one documents-by-path index, not a list to index again: a
+   *  second one built here would be the same derivation twice, and the page
+   *  model already reads the first. */
+  readonly documents: ReadonlyMap<string, Document>
   readonly children: JSX.Element
 }) {
-  // Indexed once per frame rather than scanned per row: a `doc` is looked up
-  // by path, and a page can draw many of them.
-  const byFile = createMemo(
-    () =>
-      new Map<string, Document>(
-        props.documents.map((document) => [document.file, document] as const),
-      ),
-  )
   return (
-    <DocumentsContext.Provider value={byFile}>
+    <DocumentsContext.Provider value={() => props.documents}>
       {props.children}
     </DocumentsContext.Provider>
   )

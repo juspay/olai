@@ -8,17 +8,16 @@
  * canonical ancestry rather than the path that was clicked.
  */
 
-import { docOf, type Row, type Zoomed } from "@olai/format"
+import type { Row, Zoomed } from "@olai/format"
 import { Show } from "solid-js"
 
 import { Breadcrumbs } from "./Breadcrumbs.tsx"
-import { DocRef } from "./document/DocRef.tsx"
 import { DateBadge } from "./DateBadge.tsx"
 import { DoneToggle } from "./DoneToggle.tsx"
 import { only } from "./narrow.ts"
+import { NodeBody } from "./NodeBody.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
 import { NotFound } from "./NotFound.tsx"
-import { Note } from "./Note.tsx"
 import { TESTID } from "./testids.ts"
 import { TONE } from "./tone.ts"
 import { Tree } from "./Tree.tsx"
@@ -71,21 +70,9 @@ function Zoom(props: {
           </Show>
         </div>
 
-        <Show when={props.zoomed.shows.node.desc}>
-          {(desc) => (
-            <Note
-              desc={desc()}
-              from={props.zoomed.shows.file}
-              class="mt-2 text-muted"
-            />
-          )}
-        </Show>
-
         {/* Zoomed, a node's document IS the page under it: the node said the
             rest was in the file, and this is where the file is. */}
-        <Show when={docOf(props.zoomed.shows)}>
-          {(doc) => <DocRef file={doc()} inline />}
-        </Show>
+        <NodeBody shows={props.zoomed.shows} zoomed />
       </header>
 
       <Show

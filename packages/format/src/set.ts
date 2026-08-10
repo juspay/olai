@@ -67,10 +67,18 @@ export interface Outline {
 /** What one file decoded to: an outline's nodes, or a document's text.
  *
  *  It carries no tag saying which it is. `fileKind` already answers that from
- *  the path, and `decode` branched on that same answer to produce this — so
- *  the shape and the name cannot disagree, and a tag would be a second answer
- *  that could. */
+ *  the path, and `decode` branched on that same answer to produce this — so a
+ *  tag would be a second answer that could disagree with the name. */
 export type DecodedFile = Outline | Document
+
+/** Which arm a decoded file is, asked once and named — the same shape this
+ *  package's other two-shape decision uses (`isMirror`, {@link ./node.ts}).
+ *  It reads BACK what `fileKind` already decided: `decode` branched on the
+ *  path to produce this value, so the shape is that answer in another form and
+ *  not a second one. Named rather than spelled inline at each site, because an
+ *  inline field test at two sites is exactly how the two would come to
+ *  disagree. */
+const isDocument = (decoded: DecodedFile): decoded is Document => "text" in decoded
 
 /**
  * Decoded files into the set the validator judges.
@@ -104,7 +112,10 @@ export const assemble = (
       continue
     }
     const value = decoded.success
-    if ("text" in value) documents.push({ file: path, text: value.text })
+    // The PATH is the caller's listing, not the decoded value's idea of it:
+    // one of them is where the file was found, and that is the one every other
+    // list here is built from.
+    if (isDocument(value)) documents.push({ file: path, text: value.text })
     else {
       outlines.push(path)
       nodes.push(...value.nodes)
