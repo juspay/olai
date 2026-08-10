@@ -28,10 +28,12 @@ summarising.
 The client computes nothing about the format on its own. `@olai/format` derives
 status, sibling order, mirror expansion, a node's ancestry and the guard that
 stops a mirror inside its own subtree, and hands back rows; `Tree.tsx` turns a
-row into markup and nothing else. The view and the validator agree about what a
-file means because they run the same code, not because two implementations were
-written to the same paragraph. The one thing this package does interpret is
-MARKDOWN, rendered and sanitised at view time.
+row into markup and nothing else — including the status checkbox beside each
+bullet (`Checkbox.tsx`: checked / half / empty for done / doing / open, drawn
+for every state, read-only until keyboard-editing). The view and the validator
+agree about what a file means because they run the same code, not because two
+implementations were written to the same paragraph. The one thing this package
+does interpret is MARKDOWN, rendered and sanitised at view time.
 
 ### And a fourth, for when the client itself is what is wrong
 

@@ -16,11 +16,13 @@
  * Every row's bullet is a link to that node's own page (./Bullet.tsx), on the
  * RECORD's id rather than the node it shows: a mirror's id resolves through
  * its chain to the same canonical page, so the two spellings agree and nothing
- * has to resolve anything here.
+ * has to resolve anything here. The status checkbox beside it (./Checkbox.tsx)
+ * reads the same derived done/doing/open the title tones with — open is an
+ * empty box, not the absence of one — and is read-only until keyboard-editing.
  *
  * The READING (./view.ts) is one thing — folds, density, which notes are open —
- * so it is handed as one prop rather than re-exploded into the four fields a
- * branch happens to need today.
+ * so it is handed as one prop rather than re-exploded into the fields a branch
+ * happens to need today.
  */
 
 import { type Row } from "@olai/format"
@@ -28,6 +30,7 @@ import { Key } from "@solid-primitives/keyed"
 import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { Bullet } from "./Bullet.tsx"
+import { Checkbox } from "./Checkbox.tsx"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
 import { TESTID } from "./testids.ts"
@@ -101,6 +104,7 @@ function Branch(props: {
         </Show>
 
         <Bullet id={props.row.at.node.id} />
+        <Checkbox status={props.row.status} />
 
         <Switch>
           <Match when={props.row.kind === "dangling" ? props.row : undefined}>

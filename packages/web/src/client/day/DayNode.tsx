@@ -8,8 +8,9 @@
  * page is built from (`@olai/format`'s `situate`) — because they are the same
  * node and have no business reading differently in two places.
  *
- * The bullet is the link, exactly as it is in the tree: a day is a way of
- * FINDING a node, and the node's own page is where it is read.
+ * The bullet is the link and the checkbox is the status, exactly as they are
+ * in the tree: a day is a way of FINDING a node, and the node's own page is
+ * where it is read.
  */
 
 import type { Situated } from "@olai/format"
@@ -17,6 +18,7 @@ import { Show } from "solid-js"
 
 import { Breadcrumbs } from "../Breadcrumbs.tsx"
 import { Bullet } from "../Bullet.tsx"
+import { Checkbox } from "../Checkbox.tsx"
 import { NodeBody } from "../NodeBody.tsx"
 import { NodeLine } from "../NodeLine.tsx"
 import { TESTID } from "../testids.ts"
@@ -45,6 +47,7 @@ export function DayNode(props: {
 
       <div class="flex items-baseline gap-1.5">
         <Bullet id={node().id} />
+        <Checkbox status={props.dated.status} />
         <NodeLine
           title={node().title}
           status={props.dated.status}
@@ -52,8 +55,8 @@ export function DayNode(props: {
         />
       </div>
 
-      {/* Past the bullet, which is wider where a finger is what taps it —
-          ../touch.ts, so this and the bullet cannot drift apart. */}
+      {/* Past the bullet and the checkbox — ../touch.ts, so this indent and
+          those two controls cannot drift apart. */}
       <div class={PAST_BULLET}>
         <NodeBody
           shows={props.dated.shows}

@@ -88,6 +88,8 @@ export const DESC = selector(TESTID.desc);
 export const TOGGLE = selector(TESTID.toggle);
 /** The bullet on every row: the link to that node's own page. */
 export const ZOOM = selector(TESTID.zoom);
+/** The status box beside that bullet: checked / half / empty. */
+export const CHECKBOX = selector(TESTID.checkbox);
 /** The heading of a zoomed page. Carries the CANONICAL node's id, which is
  *  what lets a scenario say "zooming a mirror lands on the node itself". */
 export const ZOOM_TITLE = selector(TESTID.zoomTitle);
