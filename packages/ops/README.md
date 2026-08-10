@@ -115,6 +115,12 @@ agent in somebody's terminal (`olai mcp`), and a test calls it directly. Three
 methods and one notification is the whole of MCP's tool half, which is why the
 official SDK would be a dependency for dispatch we would still have to route.
 
+One frame is exported beside the server, and it is the only one a transport
+ever builds: `parseError`, for bytes that never became a message. Detecting
+that is genuinely the transport's — an HTTP body and a line fail in different
+places — but what it IS is this dispatch's, so the two cannot drift into
+answering the same non-message differently.
+
 A refused write comes back as a successful JSON-RPC result carrying
 `isError: true` — a protocol error is for a call the server could not process,
 and a refusal is an answer that has to reach the model, with its structured

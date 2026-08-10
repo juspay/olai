@@ -25,7 +25,7 @@
  * ships.
  */
 
-import type { Mcp } from "@olai/ops"
+import { Mcp } from "@olai/ops"
 import { Effect, Stream } from "effect"
 
 export interface Options {
@@ -67,13 +67,11 @@ const answer = (options: Options, line: string) => {
   try {
     message = JSON.parse(line)
   } catch {
-    // -32700 with a null id, which is what a parse failure gets: the id is
-    // inside the thing that would not parse.
-    return frame(options, {
-      jsonrpc: "2.0",
-      id: null,
-      error: { code: -32700, message: "the line is not JSON" },
-    })
+    // The only frame a transport builds for itself, and it is the dispatch's
+    // own: a line that will not parse never reaches `handle`, and the two
+    // transports answer it identically because they are answering with the
+    // same function.
+    return frame(options, Mcp.parseError("the line is not JSON"))
   }
 
   return Effect.flatMap(options.server.handle(message), (reply) =>

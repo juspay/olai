@@ -210,5 +210,18 @@ const error = (
   error: { code, message },
 })
 
+/**
+ * The answer to something that never became a message.
+ *
+ * This one is EXPORTED, and it is the only frame a transport has to build: a
+ * body that will not parse is the one failure a transport meets before this
+ * dispatch can be reached, and both of ours meet it — the HTTP route with a
+ * request body, the stdio pump with a line. Left private, that was the same
+ * seven-key object written in three files, agreeing by memory. The id is
+ * always null: the id was inside the thing that would not parse.
+ */
+export const parseError = (message: string): Readonly<Record<string, unknown>> =>
+  error(null, -32700, message)
+
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
