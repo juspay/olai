@@ -48,7 +48,9 @@ export function NodeBody(props: {
     if (view === undefined || place === undefined) {
       return { kind: "full", class: "mt-1 mb-2 text-[0.9375rem] text-muted" }
     }
-    if (view.density() === "full") {
+    const density = view.density()
+    if (density === "hidden") return { kind: "hidden" }
+    if (density === "full") {
       return { kind: "full", class: "mt-1 mb-2 text-[0.9375rem] text-muted" }
     }
     return {

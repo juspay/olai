@@ -108,7 +108,7 @@ export const DAY_GROUP = selector(TESTID.dayGroup);
 export const DAY_EMPTY = selector(TESTID.dayEmpty);
 /** The per-view Visible/Hidden switch for nodes that are done. */
 export const DONE_TOGGLE = selector(TESTID.doneToggle);
-/** The per-view full / first-line switch for notes. */
+/** The per-view full / first-line / hidden switch for notes. */
 export const DENSITY_TOGGLE = selector(TESTID.densityToggle);
 /** Shown in the main pane when `/n/<id>` names no node. The sidebar stays. */
 export const NOT_FOUND = selector(TESTID.notFound);
