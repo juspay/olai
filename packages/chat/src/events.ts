@@ -51,6 +51,12 @@ export type AgentEvent =
     readonly title: string | undefined
     readonly status: "pending" | "in_progress" | "completed" | "failed" | undefined
     readonly detail: string | undefined
+    /** What the call has to SAY while it runs, out of the protocol's content
+     *  blocks. Its own field rather than more `detail` because the two answer
+     *  different questions — what was asked for, and what is happening. */
+    readonly progress: string | undefined
+    /** Where it is working: the follow-along file locations. */
+    readonly locations: ReadonlyArray<string> | undefined
   }
   /** The whole slash-command list, replaced rather than merged. */
   | { readonly _tag: "commands"; readonly commands: ReadonlyArray<Command> }

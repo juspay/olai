@@ -82,6 +82,15 @@ export const ChatEntry = Schema.Struct({
   /** `tool` only: the arguments and the result, as the agent reported them.
    *  Folded away by default — it is detail, not conversation. */
   detail: Schema.optionalKey(Schema.String),
+  /** `tool` only: what the call is SAYING as it runs — the protocol's
+   *  incremental content blocks. Separate from `detail` because it is the
+   *  live half: a call that has been running for thirty seconds has something
+   *  to show, and its arguments are not it. */
+  progress: Schema.optionalKey(Schema.String),
+  /** `tool` only: the files the call is working in, as `path` or `path:line`.
+   *  The protocol's follow-along locations, which is what lets a reader see
+   *  WHERE an agent is without unfolding anything. */
+  locations: Schema.optionalKey(Schema.Array(Schema.String)),
   /** `refusal` only: the refusal itself, so the panel draws the unfinished
    *  children as rows rather than printing a sentence about them. */
   refusal: Schema.optionalKey(OpFailure),

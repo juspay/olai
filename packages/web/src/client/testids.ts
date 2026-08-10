@@ -93,6 +93,11 @@ export const TESTID = {
   /** A tool call's row; `data-tool-status` is the agent's own status. */
   chatTool: "chat-tool",
   chatToolDetail: "chat-tool-detail",
+  /** What a call is SAYING as it runs — the protocol's incremental content,
+   *  drawn above the arguments because it is the live half. */
+  chatToolProgress: "chat-tool-progress",
+  /** Where it is working: the follow-along file locations, on the line. */
+  chatToolLocations: "chat-tool-locations",
   /** A refused write, with its structured detail drawn out. */
   chatRefusal: "chat-refusal",
   chatUnfinished: "chat-unfinished",

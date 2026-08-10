@@ -258,6 +258,22 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
         title: "a tool call you can watch",
         status: "in_progress",
         rawInput: { held: argument === "" ? "until released" : argument },
+        locations: [{ path: "/served/house.jsonl", line: 12 }],
+      },
+    })
+    // What a real call does while it runs: says something about itself. Sent
+    // BEFORE the release, so a scenario can prove the panel drew it without
+    // waiting for the call to finish — which is the whole difference between
+    // progress and a result.
+    notify("session/update", {
+      sessionId,
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId,
+        status: "in_progress",
+        content: [
+          { type: "content", content: { type: "text", text: "halfway through" } },
+        ],
       },
     })
     // AFTER the frame, so it is this paragraph that is left open: a tool call

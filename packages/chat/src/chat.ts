@@ -142,6 +142,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               title: event.title,
               status: event.status,
               detail: event.detail,
+              progress: event.progress,
+              locations: event.locations,
             }),
           )
           return

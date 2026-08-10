@@ -112,11 +112,18 @@ export class Transcript {
       readonly title?: string | undefined
       readonly status?: ChatEntry["status"] | undefined
       readonly detail?: string | undefined
+      readonly progress?: string | undefined
+      readonly locations?: ReadonlyArray<string> | undefined
     },
   ): Change {
     const key = `tool:${id}`
     const current = this.#entries.get(key)
     const detail = move.detail ?? current?.detail
+    // The protocol's own rule, and the reason neither of these accumulates: a
+    // report carries the call's content and locations AS THEY STAND, so
+    // appending would print the first half of a long output twice.
+    const progress = move.progress ?? current?.progress
+    const locations = move.locations ?? current?.locations
     return both(
       this.#close(),
       this.#put(key, {
@@ -124,6 +131,8 @@ export class Transcript {
         text: move.title ?? current?.text ?? id,
         status: move.status ?? current?.status ?? "pending",
         ...(detail === undefined ? {} : { detail }),
+        ...(progress === undefined ? {} : { progress }),
+        ...(locations === undefined ? {} : { locations }),
       }),
     )
   }

@@ -131,6 +131,22 @@ Feature: Talking to the agent
     And the chat is not streaming
 
   @scratch:chat
+  Scenario: A running tool call says what it is doing, before it is done
+    # ACP's tool_call_update carries incremental content and follow-along file
+    # locations, and neither was read: an unfolded running call showed the
+    # arguments it was given and then nothing at all until it completed, which
+    # is indistinguishable from one that had hung. Every assertion here is made
+    # while the call is still in progress — afterwards, a result would do.
+    When I ask the agent "hold"
+    Then the chat shows a running tool call
+    And the tool call says where it is working
+    When I unfold the tool call
+    Then the tool call is reporting "halfway through"
+    And the chat shows a running tool call
+    When the agent is released
+    Then the chat shows a completed tool call
+
+  @scratch:chat
   Scenario: A running turn is visible in three places
     # Ported back from racket, which had all three and this branch had none of
     # them: the only cue was the send button turning into cancel. One cue is not

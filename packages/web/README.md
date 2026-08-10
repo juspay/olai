@@ -180,6 +180,13 @@ Three components earn their own file:
   unfolded lives in `folds.ts`, module-scoped and keyed by the same call id,
   because closing and reopening the drawer rebuilds the panel from nothing and
   a fold held inside the row would come back shut.
+
+  Two things escape the fold, because both are about a call that is HAPPENING
+  rather than one that happened: where it is working (the protocol's
+  follow-along locations) is on the line itself, and what it is saying (its
+  incremental content) is the first thing in the unfolded body, above the
+  arguments. A call running for thirty seconds has something to show and its
+  arguments are not it.
 - **`SlashMenu.tsx`** takes Enter in the CAPTURE phase and stops it
   propagating, because the input owns Enter for sending: without that, a
   completion accepted would be a message sent. It is opened by typing `/` and

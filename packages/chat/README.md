@@ -35,6 +35,14 @@ second copy of the transcript would be a second thing to be wrong.
 | `transcript.ts` | the conversation as ROWS: chunks accumulate, tool calls update in place by id, a replay replaces rather than appends |
 | `chat.ts` | the join, and the only place that knows both halves |
 
+A tool call is not instantaneous, so a frame is not just a status that flips.
+`tool_call_update` carries incremental `content` and follow-along `locations`,
+and both reach the row while it runs — the transcript keys frames by the agent's
+own call id, so a report is an upsert on the same key rather than a second row.
+Content REPLACES rather than accumulates, which is the protocol's own rule for
+an update: a report carries the call's content as it stands, so appending would
+print the first half of a long output twice.
+
 `events.ts` is the seam that makes the rest of this hold. Nothing above it
 spells `session/update`, reads a `ContentBlock`, or knows which `configOptions`
 entry the model is. A consumer wanting something not in that union needs a new

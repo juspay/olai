@@ -128,6 +128,8 @@ export const CHAT_ENTRY_STREAMING =
   `${selector(TESTID.chatEntry)}[data-kind="agent"][data-streaming="true"]`;
 export const CHAT_TOOL = selector(TESTID.chatTool);
 export const CHAT_TOOL_DETAIL = selector(TESTID.chatToolDetail);
+export const CHAT_TOOL_PROGRESS = selector(TESTID.chatToolProgress);
+export const CHAT_TOOL_LOCATIONS = selector(TESTID.chatToolLocations);
 export const CHAT_REFUSAL = selector(TESTID.chatRefusal);
 export const CHAT_UNFINISHED_CHILD = selector(TESTID.chatUnfinishedChild);
 export const CHAT_INPUT = selector(TESTID.chatInput);

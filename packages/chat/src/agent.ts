@@ -52,6 +52,8 @@ import type {
   PromptResponse,
   SessionConfigOption,
   SessionNotification,
+  ToolCallContent,
+  ToolCallLocation,
   ToolCallStatus,
 } from "@agentclientprotocol/sdk"
 import { Data, type Duration, Effect, Semaphore } from "effect"
@@ -212,6 +214,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             title: update.title ?? undefined,
             status: (update.status ?? undefined) as ToolCallStatus | undefined,
             detail: detailOf(update.rawInput, update.rawOutput),
+            progress: progressOf(update.content),
+            locations: locationsOf(update.locations),
           })
           return
         case "available_commands_update":
@@ -697,6 +701,54 @@ const streamOver = (child: ChildProcess) => {
 
 const textOf = (content: ContentBlock): string =>
   content.type === "text" ? content.text : ""
+
+/**
+ * What a running call has to say for itself, out of the protocol's content
+ * blocks.
+ *
+ * A tool call is not instantaneous, and until this was read an unfolded one
+ * showed its arguments and then nothing at all until it completed — a grep over
+ * a large tree, a long shell command, a file being written line by line, all
+ * indistinguishable from a call that had hung.
+ *
+ * The protocol's three block kinds are read for the one thing a transcript row
+ * can show: text. `content` is prose or an embedded resource, `diff` is a file
+ * being rewritten and is named rather than rendered — a unified diff in a
+ * folded frame is a page of text where a line was wanted, and the outline
+ * itself is where an olai edit shows up anyway — and `terminal` is an id whose
+ * output arrives over a separate member this client does not open.
+ *
+ * REPLACES rather than appends, which is the protocol's own rule for an update:
+ * a report carries the call's content as it stands now, so accumulating them
+ * would print the first half of the output twice.
+ */
+const progressOf = (
+  content: ReadonlyArray<ToolCallContent> | null | undefined,
+): string | undefined => {
+  if (content == null || content.length === 0) return undefined
+  const lines = content
+    .map((block) =>
+      block.type === "content"
+        ? textOf(block.content)
+        : block.type === "diff"
+        ? `— ${block.path}`
+        : ""
+    )
+    .filter((line) => line !== "")
+  return lines.length === 0 ? undefined : lines.join("\n")
+}
+
+/** Where the call is working. `path:line` when the agent said which line, and
+ *  the path alone when it did not — a `:0` invented for the second case would
+ *  be a claim about a file nobody made. */
+const locationsOf = (
+  locations: ReadonlyArray<ToolCallLocation> | null | undefined,
+): ReadonlyArray<string> | undefined => {
+  if (locations == null || locations.length === 0) return undefined
+  return locations.map((at) =>
+    typeof at.line === "number" ? `${at.path}:${at.line}` : at.path
+  )
+}
 
 /** A tool call's arguments and result, as one folded block. JSON rather than
  *  prose: it is detail somebody opens deliberately, and the shape is the

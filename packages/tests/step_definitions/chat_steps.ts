@@ -37,6 +37,8 @@ import {
   CHAT_TOGGLE,
   CHAT_TOOL,
   CHAT_TOOL_DETAIL,
+  CHAT_TOOL_LOCATIONS,
+  CHAT_TOOL_PROGRESS,
   CHAT_TRANSCRIPT,
   CHAT_UNFINISHED_CHILD,
   CHAT_WORKING,
@@ -306,6 +308,35 @@ const heldTool = (world: OlaiWorld) => world.page.locator(CHAT_TOOL).first();
 When("I unfold the tool call", async function (this: OlaiWorld) {
   await heldTool(this).locator("button").click();
 });
+
+Then(
+  "the tool call is reporting {string}",
+  async function (this: OlaiWorld, said: string) {
+    await this.waitUntil(
+      async () => {
+        const progress = heldTool(this).locator(CHAT_TOOL_PROGRESS);
+        return (await progress.count()) > 0 &&
+          oneLine(await progress.innerText()).includes(said);
+      },
+      `the running tool call to report "${said}"`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+Then(
+  "the tool call says where it is working",
+  async function (this: OlaiWorld) {
+    const shown = heldTool(this).locator(CHAT_TOOL_LOCATIONS);
+    await shown.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.match(
+      oneLine(await shown.innerText()),
+      /house\.jsonl:12/,
+      "the follow-along location is what lets a reader see WHICH file an agent " +
+        "is in without unfolding anything",
+    );
+  },
+);
 
 Then("the tool call's detail is shown", async function (this: OlaiWorld) {
   await heldTool(this)
