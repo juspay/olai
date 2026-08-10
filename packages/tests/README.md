@@ -136,7 +136,9 @@ Those scenarios do two things nothing else in the suite does. They **tap**
 is the only way to find out that a control a pointer can reach is reachable
 without one. And they **measure**: "big enough for a finger" is a size, and no
 attribute can carry it — it is the sum of a font, a padding and a breakpoint —
-so `world.box()` reads what the browser laid out. That is the one exception to
+so `world.box()` / `world.boxes()` read what the browser laid out (the plural
+takes every match in one pass, because a rule that held for the first row and
+not the tenth is not in force). That is the one exception to
 the rule below, and it is confined to `step_definitions/phone_steps.ts`, where
 a map turns a reader's name for a control ("collapse toggle") into the
 `data-testid` it is found by. `features/on_a_phone.feature` ends with a laptop

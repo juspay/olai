@@ -63,43 +63,46 @@ const BOTTOM = "--visible-bottom"
  * Track the visible viewport for as long as the page lives, publishing it on
  * the document element.
  *
- * Returns a teardown, and a browser that has no `visualViewport` gets a no-op:
- * the properties are then simply unset, and every reader of them supplies its
- * own fallback (`var(--visible-bottom, 0px)`) — which is also the state of the
+ * There is no teardown, because there is nothing that could call one: the
+ * listeners belong to the document and die with it. A browser that has no
+ * `visualViewport` publishes nothing at all, and every reader supplies its own
+ * fallback (`var(--visible-bottom, 0px)`) — which is also the state of the
  * very first paint, before this has run.
  */
-export const trackVisibleViewport = (): (() => void) => {
+export const trackVisibleViewport = (): void => {
   const visual = window.visualViewport
-  if (visual == null) return () => {}
+  if (visual == null) return
 
   const style = document.documentElement.style
   // Both properties INHERIT, so writing one costs every node on the page a
   // style recalc — and this fires on every frame of a keyboard sliding up and
   // of an address bar sliding away, most of which move nothing. So the last
-  // published reading is kept, and an unchanged one is dropped here.
-  let published: VisibleViewport | undefined
+  // reading is kept, and an unchanged one is dropped here. `-1` is the "never
+  // published" state and no reading can collide with it.
+  let height = -1
+  let bottom = -1
 
-  const measure = (): void => {
-    const now = visibleViewport(visual, document.documentElement.clientHeight)
-    if (
-      published !== undefined &&
-      published.height === now.height &&
-      published.bottom === now.bottom
-    ) {
-      return
-    }
-    published = now
+  // The LAYOUT viewport, re-read only when something could have changed it.
+  // `clientHeight` forces layout, and a scroll with the keyboard up fires this
+  // on every frame — reading it there would be a reflow per frame to learn a
+  // number that only a resize can move.
+  let layout = document.documentElement.clientHeight
+
+  const publish = (): void => {
+    const now = visibleViewport(visual, layout)
+    if (now.height === height && now.bottom === bottom) return
+    height = now.height
+    bottom = now.bottom
     style.setProperty(HEIGHT, `${now.height}px`)
     style.setProperty(BOTTOM, `${now.bottom}px`)
   }
 
-  measure()
-  visual.addEventListener("resize", measure)
+  publish()
+  visual.addEventListener("resize", () => {
+    layout = document.documentElement.clientHeight
+    publish()
+  })
   // A page scrolled while the keyboard is up moves the visible strip without
   // resizing it, which changes `offsetTop` and nothing else.
-  visual.addEventListener("scroll", measure)
-  return () => {
-    visual.removeEventListener("resize", measure)
-    visual.removeEventListener("scroll", measure)
-  }
+  visual.addEventListener("scroll", publish)
 }

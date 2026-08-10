@@ -26,11 +26,10 @@ import {
   OUTLINE_LINK,
   OUTLINE_LIST,
   OUTLINE_TREE,
-  POLL_TIMEOUT,
   TOGGLE,
   ZOOM,
 } from "../support/world.ts";
-import type { OlaiWorld } from "../support/world.ts";
+import type { Box, OlaiWorld } from "../support/world.ts";
 
 /** The controls a feature can name, and what each one is on the page. */
 const TARGETS: Record<string, string> = {
@@ -58,55 +57,30 @@ const selectorFor = (name: string): string => {
 /** Every one of them that is on screen, measured. Every one rather than the
  *  first: a rule that held for the first row and not the tenth would be a rule
  *  that is not in force. */
-const boxesOf = async (
-  world: OlaiWorld,
-  name: string,
-): Promise<ReadonlyArray<{ width: number; height: number }>> => {
-  const all = world.page.locator(`${selectorFor(name)}:visible`);
-  await all.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  const count = await all.count();
-  const boxes = [];
-  for (let index = 0; index < count; index++) {
-    boxes.push(await world.box(all.nth(index), `${name} #${index + 1}`));
-  }
-  return boxes;
-};
+const boxesOf = (world: OlaiWorld, name: string): Promise<ReadonlyArray<Box>> =>
+  world.boxes(world.page.locator(`${selectorFor(name)}:visible`), name);
 
 // ── the thumb ──────────────────────────────────────────────────────────
-
-/** A node's own control, tapped. `.first()` is the node's own: a descendant's
- *  matches inside the scope too, and the node's own is rendered first. */
-const tapWithin = async (
-  world: OlaiWorld,
-  id: string,
-  control: string,
-): Promise<void> => {
-  const target = world.node(id).locator(control).first();
-  await target.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await target.tap();
-  await world.waitForFrame();
-};
+//
+// `press(target, "tap")` throughout. Waiting for the thing to be visible and
+// waiting out the frame the gesture schedules are the same as a click's, and
+// live on the World beside it — so what a step here says is only WHICH thing
+// is tapped, and the node-scoping rule (`within`) stays in one place.
 
 When("I tap the bullet of {string}", async function (this: OlaiWorld, id: string) {
-  await tapWithin(this, id, ZOOM);
+  await this.press(this.within(id, ZOOM), "tap");
 });
 
 When("I tap the toggle of {string}", async function (this: OlaiWorld, id: string) {
-  await tapWithin(this, id, TOGGLE);
+  await this.press(this.within(id, TOGGLE), "tap");
 });
 
 When("I tap the outline {string}", async function (this: OlaiWorld, file: string) {
-  const entry = this.outlineLink(file);
-  await entry.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await entry.tap();
-  await this.waitForFrame();
+  await this.press(this.outlineLink(file), "tap");
 });
 
 When("I tap the day {string}", async function (this: OlaiWorld, date: string) {
-  const day = this.calendarDay(date).locator("a");
-  await day.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await day.tap();
-  await this.waitForFrame();
+  await this.press(this.calendarDay(date).locator("a"), "tap");
 });
 
 // ── one column ─────────────────────────────────────────────────────────

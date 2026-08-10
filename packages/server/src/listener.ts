@@ -27,7 +27,6 @@ import type { AddressInfo } from "node:net"
 import { gateWsOrigin } from "@kolu/surface/ws-origin"
 import {
   acceptSurfaceSocket,
-  type ManifestOptions,
   type ServableSocket,
   serveSurfaceSocket,
   surfaceAppLayer,
@@ -37,6 +36,7 @@ import { Data, Effect, Scope } from "effect"
 import { HttpRouter } from "effect/unstable/http"
 import { WebSocketServer } from "ws"
 
+import { MANIFEST } from "./manifest.ts"
 import type { Bound } from "./runtime.ts"
 
 const WS_PATH = "/rpc/ws"
@@ -182,58 +182,12 @@ const bindOrFallBack = (
       ),
   )
 
-/**
- * What an installed olai is: the manifest the browser reads when someone adds
- * this page to a home screen or a dock.
- *
- * `start_url` and `display: standalone` are NOT here — the framework's
- * manifest layer owns the install-friendly defaults, and repeating them would
- * be two places to change one decision. Everything below is the part that is
- * olai's: the name, the description, and the mark.
- *
- * The icon FILES are the browser bundle's (`packages/web/src/client/public`,
- * copied to the dist root by its build) and the paths below are the URLs that
- * puts them at. They are the only two ends of this contract, they live in two
- * packages that do not import each other, and what checks that they still
- * agree is a browser test that fetches every `src` this names
- * (`packages/tests/features/install_it.feature`) — the static layer answers an
- * unmatched path with the HTML shell, so a typo here would 200 rather than
- * 404 and only the content type would say so.
- *
- * The colours are this app's own paper (`--color-paper`, light) rather than
- * the racket original's, because they have to match the page that opens under
- * them; the icons ARE the original, unchanged.
- */
-const MANIFEST: ManifestOptions = {
-  name: "olai",
-  short_name: "olai",
-  description: "Self-hosted outliner: your files, your agent, a live web view.",
-  themeColor: "#fdfdfc",
-  backgroundColor: "#fdfdfc",
-  lang: "en",
-  scope: "/",
-  orientation: "any",
-  categories: ["productivity", "utilities"],
-  icons: [
-    { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
-    { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-    { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-    {
-      src: "/icon-maskable-512.png",
-      sizes: "512x512",
-      type: "image/png",
-      // The one icon a platform may crop to its own shape: it carries the
-      // padding that survives being cut into a circle or a squircle.
-      purpose: "maskable",
-    },
-  ],
-}
-
 /** The `request` handler, as an Effect handler over the static layer.
  *  `surfaceAppLayer` owns the freshness contract: a `no-store` shell,
  *  immutable hashed assets, a 404 on an asset miss (never the shell), and the
- *  SPA fallback that makes `/o/<file>` a real URL. It also serves the manifest
- *  above, at `/manifest.webmanifest`. */
+ *  SPA fallback that makes `/o/<file>` a real URL. It also serves the web app
+ *  manifest at `/manifest.webmanifest`; what is IN that manifest is
+ *  `./manifest.ts`. */
 const requestHandler = (clientDist: string) =>
   Effect.gen(function*() {
     const scope = Scope.makeUnsafe()

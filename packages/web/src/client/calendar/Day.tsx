@@ -28,6 +28,7 @@ import { Show } from "solid-js"
 
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
+import { TARGET } from "../touch.ts"
 import { dayNumber } from "./month.ts"
 
 /** The cell itself, in every state: same size, same place, centred. It carries
@@ -36,11 +37,11 @@ import { dayNumber } from "./month.ts"
  *  settled by the order Tailwind emitted its rules in and not by the order
  *  they were written here.
  *
- *  Its HEIGHT is the one thing that changes with the pointer: 2.75rem below
- *  48rem — 44px, the number both mobile platforms print in their guidelines —
- *  and the compact 1.75rem row above it. A day is the smallest target in this
- *  app and the one a finger is likeliest to miss into the day beside it. */
-const BOX = "flex min-h-11 items-center justify-center rounded border text-xs " +
+ *  Its HEIGHT is the one thing that changes with the pointer: a target below
+ *  48rem (../touch.ts), the compact 1.75rem row above it. A day is the
+ *  smallest target in this app and the one a finger is likeliest to miss into
+ *  the day beside it. */
+const BOX = `flex ${TARGET} items-center justify-center rounded border text-xs ` +
   "tabular-nums no-underline md:min-h-7"
 
 /** The dot, as the pseudo-element it has to be — it sits UNDER the number

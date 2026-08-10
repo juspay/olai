@@ -21,13 +21,18 @@ import { For, Show } from "solid-js"
 
 import { Link } from "./router.tsx"
 import { TESTID } from "./testids.ts"
+import { TARGET } from "./touch.ts"
 
-/** A crumb is a link a finger taps, so below 48rem it is 44px tall like every
- *  other one — inline-flex rather than a block, because the trail wraps and a
- *  crumb has to keep sitting on the line with the separators between them. */
-const CRUMB =
-  "inline-flex min-h-11 items-center rounded px-1 text-inherit no-underline " +
-  "hover:bg-rule hover:text-ink md:min-h-0"
+/** A crumb is a link a finger taps, so it is a target below 48rem like every
+ *  other one (./touch.ts) — inline-flex rather than a block, because the trail
+ *  wraps and a crumb has to keep sitting on the line with the separators
+ *  between them.
+ *
+ *  EXPORTED, because a day page heads each group with the same kind of link to
+ *  the same kind of place (./day/DayPage.tsx). Two identical strings would be
+ *  two chances for one of them to stop being a target. */
+export const CRUMB = `inline-flex ${TARGET} items-center rounded px-1 ` +
+  "text-inherit no-underline hover:bg-rule hover:text-ink md:min-h-0"
 
 export function Breadcrumbs(props: {
   /** The outline the trail roots at. Left out where the screen has already

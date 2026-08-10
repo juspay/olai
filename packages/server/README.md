@@ -19,7 +19,8 @@ one-validator rule has been broken.
 | `serve.ts` | the order: store, then surface, then listener — the warning for binding off loopback, and which runtime failures are news |
 | `codec.ts` | the seam where the generic store meets the outline format |
 | `runtime.ts` | the two surface bindings: the stream is `SubscriptionRef.changes` verbatim, the errors cell is an owned source |
-| `listener.ts` | HTTP for the bundle, WebSocket for the surface: origin gate → upgrade → stale-tab gate → heartbeat → serve — and the web app manifest |
+| `listener.ts` | HTTP for the bundle, WebSocket for the surface: origin gate → upgrade → stale-tab gate → heartbeat → serve |
+| `manifest.ts` | what an installed olai is: name, description, colours, and the mark |
 | `clientDist.ts` | `OLAI_DIST_DIR`, the one place the built bundle is named |
 | `main.ts` | argv, defaults, and the top-level run |
 
@@ -33,10 +34,13 @@ two ends cannot be pointed at different ids.
 
 ## The manifest is served, the icons are not
 
-`/manifest.webmanifest` is assembled here — the name, the description, the
-colours and the icon list, through `@kolu/surface-app`'s manifest layer, which
-owns the install-friendly defaults (`start_url`, `display: standalone`) so they
-are not restated. The icon *files* belong to the browser bundle and are served
+`src/manifest.ts` is what an installed olai is — the name, the description, the
+colours and the icon list — served at `/manifest.webmanifest` through
+`@kolu/surface-app`'s manifest layer, which owns the install-friendly defaults
+(`start_url`, `display: standalone`) so they are not restated. Its own file
+rather than a block in `listener.ts`: the app's identity has nothing to do with
+sequencing an upgrade, and that file is one this repo means to give back
+upstream. The icon *files* belong to the browser bundle and are served
 as part of it, which means the two ends of that contract live in two packages
 that do not import each other. Nothing here can check that a `src` it names is
 a file that exists — and the static layer answers an unmatched path with the

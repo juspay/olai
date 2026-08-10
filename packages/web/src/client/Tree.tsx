@@ -23,10 +23,10 @@ import { type Row } from "@olai/format"
 import { createMemo, For, Match, Show, Switch } from "solid-js"
 
 import { Bullet } from "./Bullet.tsx"
-import { CONTROL, CONTROL_SPACER, PAST_CONTROLS } from "./gutter.ts"
 import { NodeLine } from "./NodeLine.tsx"
 import { Note } from "./Note.tsx"
 import { TESTID } from "./testids.ts"
+import { CONTROL, CONTROL_SPACER, PAST_CONTROLS } from "./touch.ts"
 
 export interface TreeProps {
   readonly rows: ReadonlyArray<Row>
@@ -83,7 +83,7 @@ function Branch(props: {
             type="button"
             // Sized like the bullet beside it, from the same place: the gutter
             // is one width, and the blank above and the indents below are all
-            // arithmetic over it (./gutter.ts).
+            // arithmetic over it (./touch.ts).
             class={`${CONTROL} cursor-pointer border-0 bg-transparent p-0 text-center text-xs text-muted hover:text-ink`}
             data-testid={TESTID.toggle}
             aria-expanded={!collapsed()}

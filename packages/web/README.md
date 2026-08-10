@@ -144,13 +144,20 @@ and a way to close, all of it to hide something that fits.
 
 And what a finger aims at grows to 44px, the number both mobile platforms
 print in their guidelines: sidebar entries, days of the month, the month's
-paging chevrons, the done switch, the crumbs. The tree's gutter is the one
-exception and a deliberate one — a 44px-wide toggle *and* a 44px-wide bullet at
+paging chevrons, the done switch, the crumbs. `touch.ts` is that decision —
+the target size once, since it is one policy, with each control's *compact*
+size spelled where that control is drawn, since that is a design per control.
+The same file holds the one place the rule cannot be obeyed in both
+directions: the tree's gutter. A 44px-wide toggle *and* a 44px-wide bullet at
 every level of indent leave a 390px screen no room for the title they are in
-front of — so those two take the full 44px in HEIGHT, the axis where a miss
-lands on the wrong node, and the racket original's 1.75rem across. Every one of
-these is a `md:` variant of the compact desktop rule, because it is a fact
-about the pointer and not about the app.
+front of, so those two take the full 44px in HEIGHT — the axis where a miss
+lands on the wrong node — and the racket original's 1.75rem across. Their two
+note indents are arithmetic over that width and live beside it, because when
+it moves they all move.
+
+The line is `md` (48rem) rather than `pointer: coarse` so the layout and the
+targets are one decision: the sidebar stops being a column at exactly that
+width, which is where the racket original put both.
 
 `viewport.ts` is the last piece: an on-screen keyboard covers the bottom of the
 viewport without shrinking it, so the page measures `visualViewport` and

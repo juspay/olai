@@ -31,6 +31,7 @@ import { For, type JSX, Show } from "solid-js"
 
 import { Link } from "./router.tsx"
 import { TESTID } from "./testids.ts"
+import { TARGET } from "./touch.ts"
 
 export function Sidebar(props: {
   readonly files: ReadonlyArray<string>
@@ -59,11 +60,9 @@ export function Sidebar(props: {
             <li class="mb-1">
               <Link
                 route={{ kind: "outline", file }}
-                // A row a finger aims at is 2.75rem tall — 44px, the number
-                // both mobile platforms print in their guidelines — and only
-                // where a finger is the pointer: on a laptop the same rule
-                // would space a directory listing out for nothing.
-                class="flex min-h-11 items-center break-all rounded px-2 py-1 text-sm no-underline text-inherit hover:bg-rule aria-[current=page]:bg-accent aria-[current=page]:text-paper md:block md:min-h-0"
+                // A row a finger aims at (./touch.ts), back to a line of text
+                // where the pointer is a mouse.
+                class={`flex ${TARGET} items-center break-all rounded px-2 py-1 text-sm no-underline text-inherit hover:bg-rule aria-[current=page]:bg-accent aria-[current=page]:text-paper md:block md:min-h-0`}
                 testid={TESTID.outlineLink}
                 current={props.active === file}
                 broken={props.broken.has(file)}

@@ -16,6 +16,15 @@
 import { LOOK, type SurfaceConnectionStatus } from "./status.ts"
 import { TESTID } from "../testids.ts"
 
+/** What a page has to keep clear at the bottom of its reading column so this
+ *  does not sit on the last row of it.
+ *
+ *  Exported because the room is reserved somewhere else — the main pane's
+ *  padding (../App.tsx) — and the size being reserved for is a fact about this
+ *  component: its type, its padding and its offset. A number chosen over there
+ *  would go on being 4rem after this grew a second line. */
+export const CLEARANCE = "pb-[calc(4rem+env(safe-area-inset-bottom,0px))]"
+
 export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
   const look = () => LOOK[props.status]
   return (

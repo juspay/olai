@@ -9,6 +9,7 @@
  */
 
 import { TESTID } from "./testids.ts"
+import { TARGET } from "./touch.ts"
 
 export function DoneToggle(
   props: { readonly hidden: boolean; readonly onToggle: () => void },
@@ -16,9 +17,8 @@ export function DoneToggle(
   return (
     <button
       type="button"
-      // A pill on a laptop, a 44px target on a phone — the same rule every
-      // other control here follows below 48rem.
-      class="inline-flex min-h-11 shrink-0 cursor-pointer items-center rounded-full border border-rule bg-transparent px-4 py-1 text-xs text-muted hover:text-ink md:min-h-0 md:px-3"
+      // A target on a phone (./touch.ts), a pill on a laptop.
+      class={`inline-flex ${TARGET} shrink-0 cursor-pointer items-center rounded-full border border-rule bg-transparent px-4 py-1 text-xs text-muted hover:text-ink md:min-h-0 md:px-3`}
       data-testid={TESTID.doneToggle}
       data-hidden={String(props.hidden)}
       aria-pressed={props.hidden}

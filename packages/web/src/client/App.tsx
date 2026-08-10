@@ -44,6 +44,7 @@ import { createStore, reconcile } from "solid-js/store"
 import { Calendar } from "./calendar/Calendar.tsx"
 import { createToday } from "./clock.ts"
 import { Connection } from "./connection/Connection.tsx"
+import { CLEARANCE } from "./connection/Indicator.tsx"
 import { DayPage } from "./day/DayPage.tsx"
 import { Banner } from "./errors/Banner.tsx"
 import { Broken } from "./errors/Broken.tsx"
@@ -177,8 +178,9 @@ export default function App() {
                     that a laptop does not: the home indicator (the inset is
                     real because the shell asks for `viewport-fit=cover`), and
                     the connection dot, which is fixed over this corner and
-                    would otherwise sit on the last row of the tree. */}
-                <main class="overflow-x-auto px-4 pt-4 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:px-8 md:py-6">
+                    would otherwise sit on the last row of the tree — so the
+                    amount is the dot's own (./connection/Indicator.tsx). */}
+                <main class={`overflow-x-auto px-4 pt-4 ${CLEARANCE} md:px-8 md:py-6`}>
                   <Show when={problems().length > 0}>
                     <Banner errors={problems()} />
                   </Show>
