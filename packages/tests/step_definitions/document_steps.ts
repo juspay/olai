@@ -134,10 +134,11 @@ Then(
 );
 
 Then("the page requested nothing off this server", function (this: OlaiWorld) {
+  const elsewhere = this.offSite();
   assert.deepStrictEqual(
-    this.offSite,
+    [...elsewhere],
     [],
-    `the page fetched ${this.offSite.length} thing(s) from elsewhere:\n  ${this.offSite.join("\n  ")}`,
+    `the page fetched ${elsewhere.length} thing(s) from elsewhere:\n  ${elsewhere.join("\n  ")}`,
   );
 });
 

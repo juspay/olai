@@ -645,12 +645,12 @@ Before(
 
     // Collected for the whole scenario, asserted on by whichever step cares.
     this.errors = [];
-    this.offSite = [];
+    this.requests = [];
+    // ONE listener, recording everything: which of those left this server, and
+    // which arrived after a step started watching, are both questions asked of
+    // the same list afterwards (see `world.offSite` / `world.watchRequests`).
     this.page.on("request", (request) => {
-      const url = request.url();
-      if (!url.startsWith(this.baseUrl) && !url.startsWith("data:")) {
-        this.offSite.push(url);
-      }
+      this.requests.push(request.url());
     });
     this.page.on("pageerror", (error) => {
       this.errors.push(`pageerror: ${error.message}`);

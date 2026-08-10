@@ -150,6 +150,27 @@ that grew everywhere would be a regression in the other direction.
 and it asks the SERVER rather than the page (`world.fetch`), because that is
 who an installer asks.
 
+## Colour, which is the one thing a step may not write down
+
+`features/theming.feature` is about fifteen palettes, and not one of its steps
+names a colour. The paper is compared against ITSELF (before a pick, after a
+pick), against the browser chrome and against what the manifest says — never
+against a hex, which would make the suite the place a design decision has to be
+changed. The default theme, the attribute, the storage key and the
+custom-property name are IMPORTED from the client that owns them — the same
+argument as `TESTID`, one level up: renaming any of them is a type error rather
+than a timeout, and markup added so a test can read a constant back is markup
+every reader ships. The only strings the feature spells are the two or three
+themes a scenario asks for by name, which is the scenario saying what it wants.
+
+Two of its scenarios are about what does NOT happen. One records every request
+the page makes (`world.watchRequests`) and asserts a pick made none: "it works"
+and "it works without asking anybody" look identical on screen. The other
+installs a `MutationObserver` before any page script and reads
+`document.readyState` at the moment `data-theme` appears — `loading` is the
+parser still going, and it is the only evidence that a stored theme beat the
+first paint rather than flashing the default at everybody on every load.
+
 ## The UI contract
 
 Steps address the app through `data-testid` and `data-*` attributes, never a
@@ -159,8 +180,12 @@ CSS class — a class is a styling decision a refactor is entitled to change; a
 
 The names are not written down twice. `support/world.ts` imports the client's
 own `TESTID` record and its `selector()` helper from
-`packages/web/src/client/testids.ts` (the only reason `@olai/web` is a
-dependency of this package), and builds every constant from it. A renamed
+`packages/web/src/client/testids.ts` (the first reason `@olai/web` is a
+dependency of this package), and builds every constant from it. The same rule
+covers the handful of other constants a step would otherwise re-spell — the
+day arithmetic in `clock.ts`, the theme table's attribute, storage key and
+default — but never behaviour: these tests drive the client through a browser,
+not through its modules. A renamed
 testid is therefore a type error at `bun run typecheck`, not a thirty-second
 timeout in a scenario that no longer says why it failed. `#root` stays spelled
 out locally: it is `index.html`'s mount point, which the client does not own.
@@ -198,6 +223,8 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="connection"][data-connection]` | the connection dot, in every shape of the app: `connecting`, `live`, `reconnecting`, `retired` |
 | `[data-testid="restarted"]` | over everything: the server that served this page has been replaced |
 | `[data-testid="reload"]` | the button in that surface — the whole of the recovery |
+| `[data-testid="theme-picker"]` | the theme picker in the sidebar |
+| `[data-testid="theme-chip"][data-value]` | one chip; `aria-pressed` says whether it is the one in force |
 
 ## Adding a test
 

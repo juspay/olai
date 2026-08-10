@@ -42,6 +42,16 @@ export const TESTID = {
   /** The document itself, rendered — on its own page, or inline under the node
    *  that attaches it. */
   documentBody: "document-body",
+  /** The theme picker in the sidebar. What the DEFAULT theme is and where a
+   *  pick is stored are not attributes on it: the browser tests import those
+   *  from `theme/palettes.ts` the same way they import these names, which is
+   *  a type error rather than a timeout when one is renamed — and markup that
+   *  exists only to be read back by a test is markup every reader ships. */
+  themePicker: "theme-picker",
+  /** One chip of it. `data-value` is the theme it offers, `aria-pressed` says
+   *  whether it is the one in force — never the colour it is painted, which is
+   *  the whole subject here and so the last thing to assert on. */
+  themeChip: "theme-chip",
   /** The bullet on every row: the link to that node's own page. */
   zoom: "zoom",
   /** The heading of a zoomed page — carries the CANONICAL node's id, which is

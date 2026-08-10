@@ -17,31 +17,22 @@
  *
  * Storage can throw — a browser with it disabled, a private window at quota —
  * and a panel that could not be opened because a preference could not be saved
- * would be a poor trade. Both halves degrade to "the default, this session".
+ * would be a poor trade. That contract is `../preference.ts`'s, shared with
+ * the theme: both degrade to "the default, this session".
  */
 
 import { type Accessor, createSignal } from "solid-js"
 
+import { readPreference, writePreference } from "../preference.ts"
+
 const KEY = "olai.chat.open"
 
-const read = (): boolean => {
-  try {
-    return localStorage.getItem(KEY) === "true"
-  } catch {
-    return false
-  }
-}
-
-const [isOpen, setOpen] = createSignal(read())
+const [isOpen, setOpen] = createSignal(readPreference(KEY) === "true")
 
 /** Is the agent panel open right now? */
 export const chatOpen: Accessor<boolean> = isOpen
 
 export const setChatOpen = (open: boolean): void => {
   setOpen(open)
-  try {
-    localStorage.setItem(KEY, String(open))
-  } catch {
-    // A preference that cannot be stored is still a preference for this tab.
-  }
+  writePreference(KEY, String(open))
 }
