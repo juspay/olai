@@ -7,6 +7,7 @@ import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
 import {
+  CHECKBOX,
   DATE,
   DESC,
   NODE,
@@ -93,6 +94,42 @@ Then(
   "the node {string} has status {string}",
   async function (this: OlaiWorld, id: string, status: string) {
     await this.expectNodeAttribute(id, "data-status", status);
+  },
+);
+
+/** The three faces of the status box beside the bullet. The MARK is the
+ *  assertion: open is an empty box, not the absence of one, so a regression
+ *  that only tones the title and drops the checkbox fails here on all three. */
+const CHECKBOX_FACE: Record<string, { readonly status: string; readonly mark: string }> = {
+  checked: { status: "done", mark: "☑" },
+  doing: { status: "doing", mark: "◧" },
+  empty: { status: "open", mark: "☐" },
+};
+
+Then(
+  "the node {string} shows a(n) {word} checkbox",
+  async function (this: OlaiWorld, id: string, face: string) {
+    const expected = CHECKBOX_FACE[face];
+    assert.ok(
+      expected !== undefined,
+      `unknown checkbox face ${JSON.stringify(face)}; want checked, doing or empty`,
+    );
+    const box = this.node(id).locator(CHECKBOX).first();
+    await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // VISIBLE, not merely present: an open box that is opacity-0 on desktop
+    // until hover would still be in the DOM, and the whole point of the empty
+    // face is that open is a drawn box, not the absence of one.
+    await this.waitUntil(
+      async () => {
+        const status = await box.getAttribute("data-status");
+        const mark = readable(await box.innerText());
+        return status === expected.status && mark === expected.mark;
+      },
+      `the node "${id}" shows a ${face} checkbox (${expected.mark}, data-status=${expected.status})`,
+    ).catch(async () => {
+      assert.strictEqual(await box.getAttribute("data-status"), expected.status);
+      assert.strictEqual(readable(await box.innerText()), expected.mark);
+    });
   },
 );
 

@@ -29,12 +29,12 @@ export const TARGET_BOX = "min-h-11 min-w-11"
 
 // ── the gutter, which is where the rule above cannot be obeyed ─────────────
 //
-// A row is a control or two, a gap after each, and then the title: a tree row
-// has a fold toggle and a bullet, a day's row has only the bullet, and under
-// either of them a note has to start where the title starts rather than under
-// the dot.
+// A row is a control or three, a gap after each, and then the title: a tree
+// row has a fold toggle, a bullet and a status checkbox; a day's row has the
+// bullet and the checkbox; and under either of them a note has to start where
+// the title starts rather than under the last control.
 //
-// Those two controls are the exception to `TARGET`, and a deliberate one: a
+// Those gutter controls are the exception to `TARGET`, and a deliberate one: a
 // 44px-WIDE toggle and a 44px-wide bullet at every level of indent leave a
 // 390px screen no room for the title they are in front of. So they take the
 // full 44px in height — the axis where a miss lands on the wrong node — and
@@ -44,11 +44,14 @@ export const TARGET_BOX = "min-h-11 min-w-11"
 // Which is why they and their indents live together here. One width, and
 // everything else arithmetic over it:
 //
-//              control    gap      control    gap
-//   a phone     1.75rem   0.375rem  1.75rem   0.375rem   →  past one: 2.125rem
-//   a pointer   1rem      0.375rem  1rem      0.375rem   →  past two: 4.25rem
+//              control    gap      control    gap      control    gap
+//   a phone     1.75rem   0.375rem  1.75rem   0.375rem  1.75rem   0.375rem
+//   a pointer   1rem      0.375rem  1rem      0.375rem  1rem      0.375rem
 //
-// When the width moves, four things move with it: the control, the blank where
+//   past two (day: bullet + checkbox) → phone 4.25rem, pointer 2.75rem
+//   past three (tree: toggle + bullet + checkbox) → phone 6.375rem, pointer 4.125rem
+//
+// When the width moves, five things move with it: the control, the blank where
 // a row has no toggle, and the two indents. Spread across the components that
 // draw them, that is a rule held in memory — and it had already been got wrong
 // once, with a day's notes left indented under the bullet on a phone while a
@@ -59,7 +62,8 @@ export const TARGET_BOX = "min-h-11 min-w-11"
 // emits a rule for. So the arithmetic is written above rather than run, and
 // the four strings below are the one place it lands.
 
-/** A row's control — the bullet, and the fold toggle beside it in a tree. */
+/** A row's control — the bullet, the fold toggle beside it in a tree, and the
+ *  status checkbox beside the bullet. */
 export const CONTROL =
   "inline-flex h-11 w-7 shrink-0 items-center justify-center md:h-auto md:w-4"
 
@@ -67,9 +71,9 @@ export const CONTROL =
  *  bullet up with the rows that do. */
 export const CONTROL_SPACER = "w-7 shrink-0 md:w-4"
 
-/** Past the bullet — where a day's row puts its note. */
-export const PAST_BULLET = "ml-[2.125rem] md:ml-5.5"
+/** Past the bullet AND the checkbox — where a day's row puts its note. */
+export const PAST_BULLET = "ml-[4.25rem] md:ml-11"
 
-/** Past the toggle AND the bullet — where a tree's row puts its note, and its
- *  one aside about a mirror it would not expand. */
-export const PAST_CONTROLS = "ml-[4.25rem] md:ml-11"
+/** Past the toggle, the bullet AND the checkbox — where a tree's row puts its
+ *  note, and its one aside about a mirror it would not expand. */
+export const PAST_CONTROLS = "ml-[6.375rem] md:ml-[4.125rem]"
