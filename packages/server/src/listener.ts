@@ -24,6 +24,7 @@
 import { createServer } from "node:http"
 import type { AddressInfo } from "node:net"
 
+import { RPC_MAX_FRAME_BYTES } from "@kolu/surface/frame-limit"
 import { gateWsOrigin } from "@kolu/surface/ws-origin"
 import {
   acceptSurfaceSocket,
@@ -42,6 +43,41 @@ import { mediaLayer } from "./media.ts"
 import type { Bound } from "./runtime.ts"
 
 const WS_PATH = "/rpc/ws"
+
+/** The newline an ndjson frame ends with. The encoder writes
+ *  `JSON.stringify(…) + "\n"` as one message, so it is on the wire — but the
+ *  decoder measures the line WITHOUT it (`nlIndex - position`). One byte, and
+ *  it is the difference between the two caps below meeting and missing. */
+const NDJSON_DELIMITER_BYTES = 1
+
+/**
+ * The largest websocket message this server will take — the framework's own
+ * frame cap, and not a number of ours.
+ *
+ * `@kolu/surface` owns the wire's frame size (`RPC_MAX_FRAME_BYTES`, 16 MiB)
+ * AND owns what happens to a frame that busts it: the ndjson decoder
+ * classifies it, closes with the code its `frameLimit` module documents, and
+ * the client recognises that close and re-subscribes over a fresh socket. A
+ * lower cap here does not make the wire safer — it moves the refusal one layer
+ * DOWN, to a place with no classifier, no documented close and no client that
+ * knows what happened, just a socket that died and took every other
+ * subscription on that tab with it. This file used to say `8 * 1024 * 1024`,
+ * half the framework's, so every frame in between died at the wrong layer;
+ * sourcing the number means the two layers can no longer disagree, whatever
+ * either of them is re-pinned to.
+ *
+ * It is a DECLARATION more than a setting today: bun's built-in `ws` is what
+ * `import { WebSocketServer } from "ws"` resolves to under the runtime we ship,
+ * and it ignores `maxPayload` in favour of a 16 MiB limit of its own (measured
+ * 2026-08-10: 16777216 delivered, one byte more closed 1006 "Received too big
+ * message"). No `maxPayload` we pass moves that, and while it stands the
+ * framework's handled INBOUND oversize path is unreachable here: a frame the
+ * decoder would refuse is already past bun's ceiling, and even one at exactly
+ * the cap arrives a delimiter byte over it. A node host obeys the option, and
+ * a bun that implements it would too, which is why the number still has to be
+ * right — and why the test pins the number rather than the behaviour.
+ */
+export const WS_MAX_PAYLOAD_BYTES = RPC_MAX_FRAME_BYTES + NDJSON_DELIMITER_BYTES
 
 export class ListenFailed extends Data.TaggedError("ListenFailed")<{
   readonly host: string
@@ -82,7 +118,7 @@ export const listen = (options: ListenOptions) =>
 
     const sockets = new WebSocketServer({
       noServer: true,
-      maxPayload: 8 * 1024 * 1024,
+      maxPayload: WS_MAX_PAYLOAD_BYTES,
     })
     // The gate compares the `pid` a reconnecting tab presents against the id
     // this process answers `system/identity` with — one id, minted and read by
