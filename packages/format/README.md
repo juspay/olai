@@ -99,6 +99,15 @@ reader could parse, out of a write every layer above believed had succeeded —
 and `write.test.ts` asserts the invariant directly, by parsing back what the
 writer produced for every shape of record the format has.
 
+It also gives "absent" ONE spelling. An optional field holding nothing —
+`undefined`, `null`, `[]` or `""` — is not written, so `{"after":[]}` cannot
+reach a file however a writer arrived at it. That is the same bet as the line
+format itself: two files that mean the same thing must not differ byte for
+byte, or a line-based git merge conflicts over nothing. A *required* field is
+written whatever it holds, because dropping one makes a line the reader rejects
+outright — worse than handing an odd value to the validator that is about to
+see it anyway.
+
 `ordBetween` is a fractional index over base62 in ASCII order, so the plain
 string comparison the format promises IS numeric order in this encoding. It
 answers `null` for the one pair with no answer — nothing sorts between `x` and

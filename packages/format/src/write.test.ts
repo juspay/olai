@@ -33,6 +33,54 @@ describe("serializeNode", () => {
     expect(serializeNode(regular({}))).toBe(`{"id":"n","ord":"a0","title":"a node"}`)
   })
 
+  /**
+   * The four ways to spell "this node has no note and no edges" produce ONE
+   * file. `undefined` is the schema's; `null`, `[]` and `""` are the three a
+   * writer can reach for by accident, and docs/format.md's Writing section
+   * says none of them may reach a file.
+   *
+   * The stake is the format's own bet: two files that mean the same thing must
+   * not differ byte-for-byte, or a line-based git merge conflicts over nothing.
+   */
+  test("an optional field holding nothing is not written at all", () => {
+    const empty = serializeNode(
+      regular({
+        after: [],
+        blocks: [],
+        see: [],
+        desc: "",
+        // `null` is not in the schema's type, but it is exactly what a writer
+        // reaching for "clear this" produces, and it must not reach a file.
+        date: null as unknown as string,
+        doc: undefined,
+      }),
+    )
+    expect(empty).toBe(`{"id":"n","ord":"a0","title":"a node"}`)
+    expect(empty).toBe(serializeNode(regular({})))
+  })
+
+  test("a non-empty array is written, so the rule is about EMPTY and not arrays", () => {
+    expect(serializeNode(regular({ after: ["demo"], see: [] }))).toBe(
+      `{"id":"n","ord":"a0","title":"a node","after":["demo"]}`,
+    )
+  })
+
+  /**
+   * The asymmetry, stated: a REQUIRED field is emitted whatever it holds.
+   *
+   * Dropping one makes a line the reader rejects outright — `\`title\` is
+   * required and missing` — which is strictly worse than handing an odd value
+   * to the validator that is about to see it anyway. The write gate validates
+   * the whole set before any of these bytes are renamed into place.
+   */
+  test("a required field is never dropped, however empty it is", () => {
+    expect(serializeNode(regular({ title: "" }))).toBe(
+      `{"id":"n","ord":"a0","title":""}`,
+    )
+    const mirror: MirrorNode = { id: "m", ord: "a0", mirror: "" }
+    expect(serializeNode(mirror)).toBe(`{"id":"m","ord":"a0","mirror":""}`)
+  })
+
   test("a mirror carries only its four", () => {
     const mirror: MirrorNode = { id: "m", parent: "p", ord: "a0", mirror: "target" }
     expect(serializeNode(mirror)).toBe(
@@ -87,7 +135,26 @@ describe("serializeOutline", () => {
       { id: "mirrored", parent: "root", ord: "a1", mirror: "child" },
       regular({ id: "quotes", parent: "root", ord: "a2", title: `he said "no"` }),
       regular({ id: "unicode", parent: "root", ord: "a3", title: "café — naïve 日本語" }),
+      // Every empty spelling, in the middle of a real write: the record that
+      // comes back has none of these keys, so the round-trip below compares it
+      // against the one WITHOUT them.
+      regular({
+        id: "hollow",
+        parent: "root",
+        ord: "a4",
+        title: "nothing on it",
+        after: [],
+        see: [],
+        desc: "",
+      }),
     ]
+
+    /** The same records as they will read back — the empty fields gone. */
+    const expected: ReadonlyArray<Node> = nodes.map((node) =>
+      node.id === "hollow"
+        ? { id: "hollow", parent: "root", ord: "a4", title: "nothing on it" }
+        : node
+    )
 
     const text = serializeOutline(nodes)
     expect(text.split("\n")).toHaveLength(nodes.length + 1)
@@ -100,8 +167,8 @@ describe("serializeOutline", () => {
         }`,
       )
     }
-    expect(parsed.success.nodes.map((located) => located.node)).toEqual([...nodes])
-    expect(parsed.success.nodes.map((located) => located.line)).toEqual([1, 2, 3, 4, 5])
+    expect(parsed.success.nodes.map((located) => located.node)).toEqual([...expected])
+    expect(parsed.success.nodes.map((located) => located.line)).toEqual([1, 2, 3, 4, 5, 6])
   })
 
   test("literal UTF-8, not \\u escapes", () => {

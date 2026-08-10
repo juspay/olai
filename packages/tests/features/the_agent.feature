@@ -6,7 +6,7 @@ Feature: Talking to the agent
 
   Every scenario here is `@scratch:chat` — the agent writes, so the directory
   is a private copy with a server of its own — and the agent behind them is the
-  scripted one in `support/fake-acp-agent.ts`. It calls the real internal MCP
+  scripted one in `agent/fake-acp-agent.ts`. It calls the real internal MCP
   server over the real HTTP route, so what is being tested is the whole path
   minus the language model: panel, surface, ops, write gate, disk, store, and
   back to the page.
@@ -41,6 +41,14 @@ Feature: Talking to the agent
       | order   |
       | install |
     And node "kitchen" is not done
+
+  @scratch:chat
+  Scenario: The header names the model the session runs on
+    # A turn's cost and character depend on the model and nothing else on the
+    # page says which one. The agent reports it as a session config option and
+    # a value the picker offers is shown by the picker's own LABEL, so what is
+    # asserted is "Fake One" rather than the raw `fake-model-1` it came as.
+    Then the panel header names the model "Fake One"
 
   @scratch:chat
   Scenario: A tool call is one foldable line

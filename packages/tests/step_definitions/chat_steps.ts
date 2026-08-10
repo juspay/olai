@@ -18,6 +18,7 @@ import { DataTable, Given, Then, When } from "@cucumber/cucumber";
 import {
   CHAT_CANCEL,
   CHAT_INPUT,
+  CHAT_MODEL,
   CHAT_PANEL,
   CHAT_REFUSAL,
   CHAT_SEND,
@@ -288,6 +289,24 @@ Then(
         return titles.some((each) => oneLine(each) === title);
       },
       `the tree to show a node titled "${title}"`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+Then(
+  "the panel header names the model {string}",
+  async function (this: OlaiWorld, model: string) {
+    // The model arrives on the session's config options and is LABELLED from
+    // the picker the agent offers — so asserting the label rather than the raw
+    // id is what says the labelling happened at all.
+    await this.waitUntil(
+      async () => {
+        const header = this.page.locator(CHAT_MODEL);
+        return (await header.count()) > 0 &&
+          oneLine(await header.innerText()) === model;
+      },
+      `the header to name the model "${model}"`,
       HYDRATION_TIMEOUT,
     );
   },

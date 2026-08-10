@@ -103,6 +103,7 @@ export const RELOAD = selector(TESTID.reload);
 export const CHAT_TOGGLE = selector(TESTID.chatToggle);
 export const CHAT_PANEL = selector(TESTID.chatPanel);
 export const CHAT_TITLE = selector(TESTID.chatTitle);
+export const CHAT_MODEL = selector(TESTID.chatModel);
 export const CHAT_SESSIONS = selector(TESTID.chatSessions);
 export const CHAT_SESSION = selector(TESTID.chatSession);
 export const CHAT_TRANSCRIPT = selector(TESTID.chatTranscript);

@@ -18,20 +18,44 @@
  * embedded newlines are escaped by JSON itself, which is the whole reason the
  * format is JSONL).
  *
- * Field order comes from {@link ./node.ts}'s two structs — the same file a
- * reader looks in for "what fields exist" — because a writer that kept its own
- * list is a list that drifts.
+ * Field order comes from docs/format.md's own table — the same place a reader
+ * looks for "what fields exist" — because a writer that kept its own list is a
+ * list that drifts.
+ *
+ * The other half of "one spelling" is {@link nothing}: an optional field that
+ * holds nothing is not written at all, so no writer can put `null`, `[]` or `""`
+ * into a file where the format says the field is simply absent.
  */
 
 import { isMirror, type Located, type Node } from "./node.ts"
 
-/** Canonical field order for a regular node. docs/format.md's table, in its
- *  order; a mirror carries only the four below. */
-const REGULAR_FIELDS = [
+/**
+ * Canonical field order, and which fields a record must carry.
+ *
+ * docs/format.md's table, in its order, split by its "required" column — the
+ * split is what {@link serializeNode}'s omission rule turns on, so it is
+ * declared once rather than re-derived from a list of names somewhere else.
+ * A mirror carries only its four (`parent` optional at top level).
+ */
+const REGULAR_FIELDS = {
+  required: ["id", "ord", "title"],
+  optional: ["parent", "done", "doing", "date", "desc", "doc", "after", "blocks", "see"],
+} as const
+
+const MIRROR_FIELDS = {
+  required: ["id", "ord", "mirror"],
+  optional: ["parent"],
+} as const
+
+/** The canonical ORDER, which is not the required/optional split: a reader
+ *  looks for `parent` between `id` and `ord`, wherever it sits in the table
+ *  above. Spelled from docs/format.md's row order. */
+const ORDER = [
   "id",
   "parent",
   "ord",
   "title",
+  "mirror",
   "done",
   "doing",
   "date",
@@ -42,22 +66,48 @@ const REGULAR_FIELDS = [
   "see",
 ] as const
 
-const MIRROR_FIELDS = ["id", "parent", "ord", "mirror"] as const
+/**
+ * Is this value NOTHING?
+ *
+ * `undefined` is how the schema spells absent, and `null`, `[]` and `""` are
+ * the three ways a writer can accidentally spell it as something. All four say
+ * the same thing about the node — it has no note, no edges, no date — and
+ * docs/format.md's Writing section requires one spelling of that on disk:
+ * "absent fields are omitted, never `null` or `[]`".
+ *
+ * That is not tidiness. Two files that mean the same thing must not differ
+ * byte-for-byte, because the format's whole bet is that a line-based git merge
+ * is safe — and `{"after":[]}` versus no `after` is a conflict about nothing.
+ */
+const nothing = (value: unknown): boolean =>
+  value === undefined || value === null ||
+  (Array.isArray(value) && value.length === 0) || value === ""
 
 /**
  * One record, as one line — no trailing newline, because who separates lines
  * is {@link serializeOutline}'s business and not this function's.
  *
- * Absent fields are OMITTED: the schema uses `optionalKey`, so a field that is
- * not there is not there, and writing `null` or `[]` in its place would be a
- * record the reader rejects.
+ * An OPTIONAL field holding nothing is omitted, so `after: []` and no `after`
+ * produce the same bytes and neither `null` nor `[]` can reach a file.
+ *
+ * A REQUIRED field is emitted whatever it holds, and that asymmetry is
+ * deliberate: dropping one produces a line the reader rejects outright
+ * (`\`title\` is required and missing`), which is strictly worse than passing an
+ * odd value to the validator that is about to see it. The write gate validates
+ * the whole set before any of these bytes are renamed into place, so a record
+ * that should not exist is refused rather than written — but only if it still
+ * SAYS what it is.
  */
 export const serializeNode = (node: Node): string => {
-  const fields: ReadonlyArray<string> = isMirror(node) ? MIRROR_FIELDS : REGULAR_FIELDS
+  const fields = isMirror(node) ? MIRROR_FIELDS : REGULAR_FIELDS
+  const required: ReadonlySet<string> = new Set(fields.required)
+  const known: ReadonlySet<string> = new Set([...fields.required, ...fields.optional])
+
   const record: Record<string, unknown> = {}
-  for (const field of fields) {
+  for (const field of ORDER) {
+    if (!known.has(field)) continue
     const value = (node as Record<string, unknown>)[field]
-    if (value !== undefined) record[field] = value
+    if (required.has(field) || !nothing(value)) record[field] = value
   }
   return JSON.stringify(record)
 }
