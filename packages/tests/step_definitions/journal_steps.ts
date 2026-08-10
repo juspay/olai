@@ -223,10 +223,7 @@ Then("today is not the one being read", async function (this: OlaiWorld) {
 });
 
 When("I click the day {string}", async function (this: OlaiWorld, date: string) {
-  const day = this.calendarDay(date).locator("a");
-  await day.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await day.click();
-  await this.waitForFrame();
+  await this.press(this.calendarDay(date).locator("a"));
 });
 
 const pageMonth = async (world: OlaiWorld, control: string): Promise<void> => {

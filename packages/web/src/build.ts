@@ -103,6 +103,12 @@ const buildClient = async (distDir: string): Promise<void> => {
         htmlPlaceholder: `href="./styles.css"`,
       },
     ],
+    // The install surface's icons, copied verbatim to the dist ROOT rather
+    // than hashed into /assets/: a manifest and an `apple-touch-icon` are read
+    // by an installer, not by the shell, so their URLs have to be stable ones
+    // the server's manifest can name (packages/server/src/listener.ts) and
+    // must not change with their bytes.
+    publicDir: resolve(CLIENT, "public"),
     plugins: [solidJsx],
   })
 }

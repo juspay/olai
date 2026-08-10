@@ -36,6 +36,7 @@ import { Data, Effect, Scope } from "effect"
 import { HttpRouter } from "effect/unstable/http"
 import { WebSocketServer } from "ws"
 
+import { MANIFEST } from "./manifest.ts"
 import type { Bound } from "./runtime.ts"
 
 const WS_PATH = "/rpc/ws"
@@ -184,13 +185,15 @@ const bindOrFallBack = (
 /** The `request` handler, as an Effect handler over the static layer.
  *  `surfaceAppLayer` owns the freshness contract: a `no-store` shell,
  *  immutable hashed assets, a 404 on an asset miss (never the shell), and the
- *  SPA fallback that makes `/o/<file>` a real URL. */
+ *  SPA fallback that makes `/o/<file>` a real URL. It also serves the web app
+ *  manifest at `/manifest.webmanifest`; what is IN that manifest is
+ *  `./manifest.ts`. */
 const requestHandler = (clientDist: string) =>
   Effect.gen(function*() {
     const scope = Scope.makeUnsafe()
     const layer = surfaceAppLayer({
       clientDist,
-      manifest: { name: "olai", themeColor: "#1b1b1f", icons: [] },
+      manifest: MANIFEST,
     })
     const httpEffect = yield* HttpRouter.toHttpEffect(layer)
     return yield* NodeHttpServer.makeHandler(httpEffect, { scope })

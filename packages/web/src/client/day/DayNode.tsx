@@ -20,6 +20,7 @@ import { Bullet } from "../Bullet.tsx"
 import { NodeLine } from "../NodeLine.tsx"
 import { Note } from "../Note.tsx"
 import { TESTID } from "../testids.ts"
+import { PAST_BULLET } from "../touch.ts"
 
 export function DayNode(props: { readonly dated: Situated }) {
   const node = () => props.dated.shows.node
@@ -46,8 +47,12 @@ export function DayNode(props: { readonly dated: Situated }) {
         />
       </div>
 
+      {/* Past the bullet, which is wider where a finger is what taps it —
+          ../touch.ts, so this and the bullet cannot drift apart. */}
       <Show when={node().desc}>
-        {(desc) => <Note desc={desc()} class="mt-1 ml-5.5 text-[0.9375rem] text-muted" />}
+        {(desc) => (
+          <Note desc={desc()} class={`mt-1 ${PAST_BULLET} text-[0.9375rem] text-muted`} />
+        )}
       </Show>
     </li>
   )

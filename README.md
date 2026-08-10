@@ -84,6 +84,13 @@ server is actually answering. Restart the server under an open tab and the page
 does not pretend — it says the server it came from is gone and offers the one
 thing that recovers it, a reload.
 
+It reads on a phone, and it installs as one. Add it to a home screen or a dock
+and it opens in its own window under the olai mark; the sidebar becomes a
+capped header above the outline on a narrow screen, and everything a thumb aims
+at is sized for one. There is no offline mode, on purpose — a cached copy of an
+outline is a copy that has stopped being true, and this page's whole promise is
+that it has not.
+
 When something stops validating, what you see depends on what can still be
 shown. A file whose lines will not parse costs that one outline: it is marked
 in the sidebar, its errors are shown where its tree would have been, and the
