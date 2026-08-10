@@ -1,6 +1,7 @@
-import { expect, test } from "bun:test"
+import { afterEach, expect, setSystemTime, test } from "bun:test"
+import { createRoot } from "solid-js"
 
-import { isoDayOf, untilMidnight } from "./clock.ts"
+import { createToday, isoDayOf, untilMidnight } from "./clock.ts"
 
 /** An instant built from LOCAL parts, which is what these two functions read.
  *  A UTC literal would make the suite pass or fail by the runner's time zone,
@@ -39,4 +40,97 @@ test("waiting that long always lands on the next day", () => {
     expect(untilMidnight(now)).toBeGreaterThan(0)
     expect(isoDayOf(woken)).toBe("2026-03-01")
   }
+})
+
+// ── coming back to a page that was asleep ──────────────────────────────
+//
+// The timer is the easy half and the tests above are about the arithmetic it
+// runs on. These are about the half a timer cannot do: a machine that slept
+// through midnight ran no timer, and a backgrounded tab had its throttled to
+// minutes — so the page comes back showing yesterday, at exactly the moment
+// somebody is looking at it.
+
+/** A `document` with nothing on it but the one event this file listens for,
+ *  installed in the global the client reads, and returning only what a test
+ *  drives it by. Enough to run the clock outside a browser, which is what makes
+ *  the wake testable at all — everything else about it is a clock reading, and
+ *  `setSystemTime` is how a machine is put to sleep in a unit test. */
+const fakePage = () => {
+  const listeners = new Set<EventListener>()
+  let visibility = "visible"
+
+  const went = (state: string): void => {
+    visibility = state
+    for (const listener of [...listeners]) listener(new Event("visibilitychange"))
+  }
+
+  Object.defineProperty(globalThis, "document", {
+    configurable: true,
+    value: {
+      // A getter, as it is on the real thing: the clock asks AFTER the event,
+      // and a field read at install time would answer for the wrong moment.
+      get visibilityState() {
+        return visibility
+      },
+      addEventListener: (type: string, listener: EventListener): void => {
+        if (type === "visibilitychange") listeners.add(listener)
+      },
+      removeEventListener: (_type: string, listener: EventListener): void => {
+        listeners.delete(listener)
+      },
+    },
+  })
+
+  return {
+    /** The reader comes back to this tab. */
+    show: (): void => went("visible"),
+    /** They go somewhere else — another tab, another app. */
+    hide: (): void => went("hidden"),
+    /** How many listeners are still attached: what a teardown has to leave. */
+    watching: (): number => listeners.size,
+  }
+}
+
+afterEach(() => {
+  setSystemTime()
+  Reflect.deleteProperty(globalThis, "document")
+})
+
+/** The clock, in a root that can be torn down the way a component is. */
+const running = (): { readonly today: () => string; readonly dispose: () => void } =>
+  createRoot((dispose) => ({ today: createToday(), dispose }))
+
+test("a laptop shut before midnight and opened after it wakes on the new day", () => {
+  const page = fakePage()
+  setSystemTime(at(2026, 8, 9, 23, 50))
+  const clock = running()
+  expect(clock.today()).toBe("2026-08-09")
+
+  // Asleep for eight hours: no timer ran, and the one that was pending is
+  // hours late. Nothing but the wake can move this.
+  setSystemTime(at(2026, 8, 10, 7, 30))
+  page.show()
+  expect(clock.today()).toBe("2026-08-10")
+  clock.dispose()
+})
+
+test("a tab being hidden past midnight does not re-read anything", () => {
+  const page = fakePage()
+  setSystemTime(at(2026, 8, 9, 23, 50))
+  const clock = running()
+
+  setSystemTime(at(2026, 8, 10, 7, 30))
+  page.hide()
+  // Nobody is reading a hidden tab, so there is nothing to be stale FOR: the
+  // day it shows is settled on the way back in, which is the assertion above.
+  expect(clock.today()).toBe("2026-08-09")
+  clock.dispose()
+})
+
+test("the listener lives exactly as long as the clock", () => {
+  const page = fakePage()
+  const clock = running()
+  expect(page.watching()).toBe(1)
+  clock.dispose()
+  expect(page.watching()).toBe(0)
 })

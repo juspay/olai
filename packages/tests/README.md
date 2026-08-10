@@ -188,6 +188,30 @@ installs a `MutationObserver` before any page script and reads
 parser still going, and it is the only evidence that a stored theme beat the
 first paint rather than flashing the default at everybody on every load.
 
+Its last scenario opens a SECOND page in the same context, which is what makes
+it a second tab of the same browser rather than a second browser: one origin,
+one `localStorage`, and a `storage` event fired in every document of it except
+the one that wrote. The second tab is left open on purpose — a preference that
+only crossed once the other tab was gone would pass a scenario that closed it.
+
+## Breaking the client on purpose
+
+`features/the_client_breaks.feature` is the one scenario whose subject is a bug
+in olai rather than in an outline, and it is the only place in this suite that
+reaches past the app's own surface. Every other error here is DATA — a fixture
+that does not validate — while a fault in a render is not data, and the app
+deliberately offers no way to ask for one: a fault switch shipped is a fault
+switch in production.
+
+So it is injected with `addInitScript`, into `String.prototype.padStart` and
+only for the exact call the client's own date arithmetic makes, which every
+page runs through before it can draw. Narrow because a builtin broken for
+everybody would take out a dependency's module initialisation or the fault card
+itself, and the scenario would be proving something else. The coupling is
+answered rather than hidden: if that call stops happening the app draws itself
+perfectly, and the step fails in a second saying exactly that instead of timing
+out with nothing to say.
+
 ## The UI contract
 
 Steps address the app through `data-testid` and `data-*` attributes, never a

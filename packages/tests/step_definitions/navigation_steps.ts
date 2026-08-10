@@ -11,6 +11,7 @@
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
+import { DESKTOP } from "../support/hooks.ts";
 import {
   DONE_TOGGLE,
   NOT_FOUND,
@@ -127,4 +128,72 @@ Then("a not-found is shown", async function (this: OlaiWorld) {
   await this.page
     .locator(NOT_FOUND)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+// ── where a navigation leaves the page ─────────────────────────────────
+//
+// A route change redraws the main pane and moves nothing else, so without a
+// decision the reader keeps whatever scroll position the last page was left at.
+// The decision (`client/scroll.ts`) is that a page you go TO starts at the top
+// and a page you go BACK to is where you left it, and it can only be exercised
+// on a page that is taller than the window it is being read in — which is why
+// the window is made short rather than the fixtures made long: how tall a page
+// is belongs to the stylesheet, and a corpus grown until it happened to
+// overflow would be a scenario that stopped testing anything the day a margin
+// changed.
+
+Given("the window is shorter than the page", async function (this: OlaiWorld) {
+  // The laptop this suite reads on, made short: only the HEIGHT is this step's
+  // decision, and the width stays the one every other scenario is laid out at
+  // (`support/hooks.ts`) so the two-column breakpoint is not re-decided here.
+  await this.page.setViewportSize({ ...DESKTOP.viewport, height: 400 });
+});
+
+const scrollTop = (world: OlaiWorld): Promise<number> =>
+  world.page.evaluate(() => window.scrollY);
+
+When("I scroll to the bottom of the page", async function (this: OlaiWorld) {
+  // Scrolled and read in ONE round trip: `scrollTo` is synchronous, so where
+  // the page ended up is known before the browser has painted it, and asking
+  // twice would only be asking again.
+  this.scrolledTo = await this.page.evaluate(() => {
+    window.scrollTo(0, document.documentElement.scrollHeight);
+    return window.scrollY;
+  });
+  await this.waitForFrame();
+  assert.ok(
+    this.scrolledTo > 0,
+    "the page does not scroll in this window, so scrolling it proves nothing",
+  );
+});
+
+/** Wait for the page to be at a position, and say where it actually is when it
+ *  never gets there — a timeout that only says "it did not scroll" leaves the
+ *  two failures this can have (nothing moved, something moved it somewhere
+ *  else) looking identical. */
+const expectScroll = async (
+  world: OlaiWorld,
+  top: number,
+  what: string,
+): Promise<void> => {
+  try {
+    await world.waitUntil(async () => (await scrollTop(world)) === top, what);
+  } catch {
+    throw new Error(`${what}, and it is at ${await scrollTop(world)}px instead`);
+  }
+};
+
+Then("the page is at the top", async function (this: OlaiWorld) {
+  await expectScroll(this, 0, "the page is at the top");
+});
+
+When("I go back", async function (this: OlaiWorld) {
+  await this.page.goBack();
+  await this.waitForFrame();
+});
+
+Then("the page is back where I left it", async function (this: OlaiWorld) {
+  const left = this.scrolledTo;
+  assert.ok(left !== undefined, "nothing scrolled the page first");
+  await expectScroll(this, left, `the page is back at ${left}px`);
 });

@@ -93,8 +93,20 @@ export const TESTID = {
   connection: "connection",
   /** Over everything: the server that served this page has been replaced. */
   restarted: "restarted",
-  /** The button in that surface — the whole of the recovery. */
+  /** The button in that surface — the whole of the recovery. Shared with the
+   *  fault card below, which recovers the same way and for the same reason. */
   reload: "reload",
+  /** In the whole page's place: the CLIENT ITSELF threw while drawing, and the
+   *  boundary around the shell caught it. The three above are errors as data;
+   *  this one is a bug in this app. */
+  fault: "fault",
+  /** What threw, verbatim. Its own name because the claim worth asserting is
+   *  that the fault is ON the card rather than summarised away. */
+  faultDetail: "fault-detail",
+  /** The card's second way out: off the page that faulted. A reload alone is a
+   *  loop when the fault is deterministic for the route, which is the usual
+   *  case. */
+  faultHome: "fault-home",
 
   // ── the agent panel ──────────────────────────────────────────────────
   /** The shut panel's opener. Absent when no agent is configured. */

@@ -25,7 +25,7 @@
  * re-runs this.
  */
 
-import { createMemo, For, Show } from "solid-js"
+import { createMemo, createSelector, For, Show } from "solid-js"
 
 import { createStamped } from "../stamped.ts"
 import { TESTID, type TestId } from "../testids.ts"
@@ -59,6 +59,18 @@ export function Calendar(props: {
 
   const dated = createMemo(() => props.days(month()))
 
+  // Which cell is FILLED, as a selector rather than `day() === props.open` in
+  // each of them: that form subscribes all thirty-odd days to the open one, so
+  // clicking through a week re-runs the whole grid's effects to move one fill.
+  // theme/Picker.tsx is the house precedent and the reasoning is the same one;
+  // the difference here is that a day is also the cheapest thing on the page to
+  // click repeatedly, which is exactly when a grid-wide re-diff is felt.
+  //
+  // TODAY is deliberately not one. A selector earns its keep by making a
+  // comparison cheap to CHANGE, and today changes once a day (../clock.ts) —
+  // where the grid it redraws is the whole point.
+  const isOpen = createSelector(() => props.open)
+
   return (
     <section class="mb-5" data-testid={TESTID.calendar} data-month={month()}>
       <header class="mb-1 flex items-center justify-between gap-1">
@@ -89,7 +101,7 @@ export function Calendar(props: {
                   date={day()}
                   dated={dated().has(day())}
                   today={day() === props.today}
-                  open={day() === props.open}
+                  open={isOpen(day())}
                 />
               )}
             </Show>

@@ -39,12 +39,20 @@
  */
 
 import type { BrokenFile, Document } from "@olai/format"
-import { createSignal, For, type JSX, Show } from "solid-js"
+import { createSelector, createSignal, For, type JSX, Show } from "solid-js"
 
 import { Link } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import { ThemePicker } from "./theme/Picker.tsx"
 import { TARGET, TARGET_BOX } from "./touch.ts"
+
+/** One entry of either list. A row a finger aims at (./touch.ts), back to a
+ *  line of text where the pointer is a mouse — and one string, because an
+ *  outline and a document are the same row for the same reason: a finger aims
+ *  at both. `calendar/Day.tsx` spells its cell once for the same reason. */
+const ENTRY = `flex ${TARGET} items-center break-all rounded px-2 py-1 text-sm ` +
+  "no-underline text-inherit hover:bg-rule aria-[current=page]:bg-accent " +
+  "aria-[current=page]:text-paper md:block md:min-h-0"
 
 export function Sidebar(props: {
   readonly files: ReadonlyArray<string>
@@ -62,6 +70,19 @@ export function Sidebar(props: {
   readonly footer?: JSX.Element
 }) {
   const [open, setOpen] = createSignal(false)
+
+  // `createSelector` rather than `props.active === file` in each row, which is
+  // what this was: that form subscribes EVERY entry to the open page, so
+  // walking from one outline to another re-runs one effect per file in the
+  // directory to change two attributes. This notifies exactly the entry that
+  // lit and the one that went out — the pattern theme/Picker.tsx already
+  // established over fifteen chips, and this list is the one that grows
+  // without limit: it is the served directory.
+  //
+  // ONE selector for both lists, because an outline and a document cannot both
+  // be the open page: what is active is a FILE, and which of the two lists it
+  // is in is a fact about the directory rather than about the reading.
+  const isActive = createSelector(() => props.active)
 
   return (
     // Below 48rem there is no second column to be, so it is a HEADER above the
@@ -113,11 +134,9 @@ export function Sidebar(props: {
             <li class="mb-1">
               <Link
                 route={{ kind: "outline", file }}
-                // A row a finger aims at (./touch.ts), back to a line of text
-                // where the pointer is a mouse.
-                class={`flex ${TARGET} items-center break-all rounded px-2 py-1 text-sm no-underline text-inherit hover:bg-rule aria-[current=page]:bg-accent aria-[current=page]:text-paper md:block md:min-h-0`}
+                class={ENTRY}
                 testid={TESTID.outlineLink}
-                current={props.active === file}
+                current={isActive(file)}
                 broken={props.broken.has(file)}
               >
                 {file}
@@ -142,11 +161,9 @@ export function Sidebar(props: {
               <li class="mb-1">
                 <Link
                   route={{ kind: "document", file: document.file }}
-                  // The same row an outline gets, for the same reason: a
-                  // finger aims at both (./touch.ts).
-                  class={`flex ${TARGET} items-center break-all rounded px-2 py-1 text-sm no-underline text-inherit hover:bg-rule aria-[current=page]:bg-accent aria-[current=page]:text-paper md:block md:min-h-0`}
+                  class={ENTRY}
                   testid={TESTID.documentLink}
-                  current={props.active === document.file}
+                  current={isActive(document.file)}
                 >
                   {document.file}
                 </Link>

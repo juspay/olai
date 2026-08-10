@@ -113,7 +113,7 @@ const PHONE = {
   hasTouch: true,
 } as const;
 /** Everything else: a laptop, with a pointer. */
-const DESKTOP = { viewport: { width: 1440, height: 900 } } as const;
+export const DESKTOP = { viewport: { width: 1440, height: 900 } } as const;
 
 let browser: Browser | undefined;
 

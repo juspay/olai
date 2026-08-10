@@ -1,0 +1,107 @@
+/**
+ * The client's own faults: what a reader sees when olai, rather than an
+ * outline, is what is wrong.
+ *
+ * The whole difficulty here is PROVOKING one. Every other error surface in
+ * this suite is reached by serving a file that does not validate, because
+ * those errors are data. A bug in the render is not data, and this app
+ * deliberately offers no way to ask for one — a fault switch shipped to
+ * production is a fault switch in production.
+ *
+ * So it is injected from outside the bundle, into `String.prototype.padStart`
+ * and only for the exact call the client's own date arithmetic makes
+ * (`calendar/month.ts`'s zero-padding, which the month grid and the clock both
+ * run through before any page can be drawn). Narrow on purpose: a builtin
+ * broken for everybody would take out the bundler's own runtime, a
+ * dependency's module initialisation, or the fault card itself, and the
+ * scenario would be proving something else.
+ *
+ * The coupling that buys is real and is answered rather than hidden: if that
+ * call ever stops happening, the app draws itself perfectly and the step below
+ * fails saying exactly that, in a second, instead of timing out with nothing
+ * to say.
+ */
+
+import * as assert from "node:assert";
+import { Given, Then, When } from "@cucumber/cucumber";
+
+import {
+  FAULT,
+  FAULT_DETAIL,
+  FAULT_HOME,
+  oneLine,
+  POLL_TIMEOUT,
+  RELOAD,
+} from "../support/world.ts";
+import type { OlaiWorld } from "../support/world.ts";
+
+/** What the injected fault says. Asserted on later, so a card that drew SOME
+ *  other error — a real one, provoked by the injection rather than being it —
+ *  cannot pass for this one. */
+const THROWN = "olai e2e: a deliberate fault in the render";
+
+Given(
+  "this client's own code throws while it draws",
+  async function (this: OlaiWorld) {
+    await this.page.addInitScript((message: string) => {
+      const padStart = String.prototype.padStart;
+      String.prototype.padStart = function (
+        this: string,
+        length: number,
+        fill?: string,
+      ): string {
+        // `(2, "0")` is the client's own call and nobody else's plausible one.
+        if (length === 2 && fill === "0") throw new Error(message);
+        return padStart.call(this, length, fill);
+      };
+    }, THROWN);
+  },
+);
+
+When("I open a page it cannot draw", async function (this: OlaiWorld) {
+  // `settle`, not `open`: the same wait every scenario in the suite does, minus
+  // the one line that REJECTS a fault card as the failure it is for all of
+  // them. This is the scenario that wants one.
+  await this.settle("/");
+  assert.equal(
+    await this.page.locator(FAULT).count(),
+    1,
+    "the app drew itself, so nothing was broken on the render path: the " +
+      "injected fault (String.prototype.padStart(2, '0')) is no longer " +
+      "something this client does while drawing a page. Point it at whatever " +
+      "it does now — this scenario is about the boundary, not about dates.",
+  );
+});
+
+Then("the page says it broke", async function (this: OlaiWorld) {
+  await this.page
+    .locator(FAULT)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+Then("the fault is on the page, verbatim", async function (this: OlaiWorld) {
+  const detail = this.page.locator(FAULT_DETAIL);
+  await detail.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const said = oneLine(await detail.innerText());
+  assert.ok(
+    said.includes(THROWN),
+    `the card does not carry what threw; it says: ${said}`,
+  );
+});
+
+Then("both ways out are offered", async function (this: OlaiWorld) {
+  // A faulted render has no state left worth resuming, and a card that only
+  // announced the fault would be a dead end with better manners. TWO, because
+  // a fault is usually deterministic for the route it happened on: reload that
+  // page and it breaks again, so the card also offers the way off it.
+  for (const way of [RELOAD, FAULT_HOME]) {
+    await this.page
+      .locator(`${FAULT} ${way}`)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  }
+  assert.equal(
+    await this.page.locator(`${FAULT} ${FAULT_HOME}`).getAttribute("href"),
+    "/",
+    "the way off the page that faulted has to be a real document navigation",
+  );
+});
