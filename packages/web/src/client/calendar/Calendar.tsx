@@ -29,6 +29,7 @@ import { createMemo, For, Show } from "solid-js"
 
 import { createStamped } from "../stamped.ts"
 import { TESTID, type TestId } from "../testids.ts"
+import { TARGET_BOX } from "../touch.ts"
 import { monthGrid, monthLabel, monthOfDay, shiftMonth, WEEKDAYS } from "./month.ts"
 import { Day } from "./Day.tsx"
 
@@ -111,7 +112,10 @@ function Step(props: {
   return (
     <button
       type="button"
-      class="cursor-pointer rounded border-0 bg-transparent px-1 text-xs text-muted hover:bg-rule hover:text-ink"
+      // A chevron is a small thing to hit, and unlike a day of the month it
+      // has no grid column to fill it out — so it takes the box both ways
+      // (../touch.ts).
+      class={`inline-flex ${TARGET_BOX} cursor-pointer items-center justify-center rounded border-0 bg-transparent px-1 text-xs text-muted hover:bg-rule hover:text-ink md:min-h-0 md:min-w-0`}
       data-testid={props.testid}
       aria-label={props.label}
       onClick={props.onStep}

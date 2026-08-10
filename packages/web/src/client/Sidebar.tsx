@@ -36,6 +36,7 @@ import { For, type JSX, Show } from "solid-js"
 
 import { Link } from "./router.tsx"
 import { TESTID } from "./testids.ts"
+import { TARGET } from "./touch.ts"
 
 export function Sidebar(props: {
   readonly files: ReadonlyArray<string>
@@ -47,7 +48,17 @@ export function Sidebar(props: {
   readonly children?: JSX.Element
 }) {
   return (
-    <nav class="overflow-y-auto border-r border-rule p-4">
+    // Below 48rem there is no second column to be, so it is a HEADER: full
+    // width, above the outline, capped at 42dvh and scrolling inside itself.
+    // Capped rather than left to grow because a directory of thirty outlines
+    // would otherwise be a whole screen a reader has to scroll past to reach
+    // what they opened; a header they can scroll THROUGH keeps both axes one
+    // gesture away and the outline visible under it.
+    //
+    // No drawer, no overlay, no toggle: those need a state, a backdrop, a
+    // focus trap and a way to close, and all of it exists to hide something
+    // that fits. This is the smallest thing that is honest about the space.
+    <nav class="max-h-[42dvh] overflow-y-auto border-b border-rule p-4 md:max-h-none md:border-b-0 md:border-r">
       <h1 class="m-0 mb-4 text-base uppercase tracking-widest text-muted">olai</h1>
       {props.children}
       <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
@@ -56,7 +67,9 @@ export function Sidebar(props: {
             <li class="mb-1">
               <Link
                 route={{ kind: "outline", file }}
-                class="block break-all rounded px-2 py-1 text-sm no-underline text-inherit hover:bg-rule aria-[current=page]:bg-accent aria-[current=page]:text-paper"
+                // A row a finger aims at (./touch.ts), back to a line of text
+                // where the pointer is a mouse.
+                class={`flex ${TARGET} items-center break-all rounded px-2 py-1 text-sm no-underline text-inherit hover:bg-rule aria-[current=page]:bg-accent aria-[current=page]:text-paper md:block md:min-h-0`}
                 testid={TESTID.outlineLink}
                 current={props.active === file}
                 broken={props.broken.has(file)}
@@ -83,7 +96,9 @@ export function Sidebar(props: {
               <li class="mb-1">
                 <Link
                   route={{ kind: "document", file: document.file }}
-                  class="block break-all rounded px-2 py-1 text-sm no-underline text-inherit hover:bg-rule aria-[current=page]:bg-accent aria-[current=page]:text-paper"
+                  // The same row an outline gets, for the same reason: a
+                  // finger aims at both (./touch.ts).
+                  class={`flex ${TARGET} items-center break-all rounded px-2 py-1 text-sm no-underline text-inherit hover:bg-rule aria-[current=page]:bg-accent aria-[current=page]:text-paper md:block md:min-h-0`}
                   testid={TESTID.documentLink}
                   current={props.active === document.file}
                 >

@@ -59,6 +59,28 @@ const DEFAULT_CORPUS = "good";
  *  regexes is how the answer ends up parsed in two places. */
 const CORPUS_TAG = /^@(corpus|scratch):([A-Za-z0-9_-]+)$/;
 
+/** The screen a scenario is read on, and the pointer it is read with.
+ *
+ *  A `@phone` scenario gets a handset: 390×844 CSS pixels (an iPhone 13's, and
+ *  the size the mobile scenarios are written against), a touch screen and no
+ *  mouse. `isMobile` is what makes Chromium honour the shell's `<meta
+ *  name="viewport">` at all — without it the page is laid out as a 390px-wide
+ *  DESKTOP, which is a different thing that happens to have the same media
+ *  queries fire, and would let a broken viewport tag pass.
+ *
+ *  Not one of Playwright's `devices` entries: those also install a Safari user
+ *  agent on top of Chromium, and a browser lying about which browser it is has
+ *  nothing to do with what these scenarios are about. */
+const PHONE_TAG = "@phone";
+const PHONE = {
+  viewport: { width: 390, height: 844 },
+  deviceScaleFactor: 3,
+  isMobile: true,
+  hasTouch: true,
+} as const;
+/** Everything else: a laptop, with a pointer. */
+const DESKTOP = { viewport: { width: 1440, height: 900 } } as const;
+
 let browser: Browser | undefined;
 
 interface RunningServer {
@@ -532,8 +554,9 @@ Before(
       this.baseUrl = (await serverFor(this.corpus)).baseUrl;
     }
 
+    const handheld = scenario.pickle.tags.some((tag) => tag.name === PHONE_TAG);
     this.context = await browser.newContext({
-      viewport: { width: 1440, height: 900 },
+      ...(handheld ? PHONE : DESKTOP),
       baseURL: this.baseUrl,
     });
     this.page = await this.context.newPage();

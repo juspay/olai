@@ -120,6 +120,35 @@ port, because the page is already pointed at it — `startOwnServer` binds the
 exact port and fails loudly if the address it got back is a different one, so a
 port stolen in between reads as itself instead of as a mysteriously dead page.
 
+## A phone, and the two things it changes
+
+**`@phone`** on a scenario gives it a handset context instead of a laptop one:
+390×844 CSS pixels, a touch screen, no mouse. It is orthogonal to the corpus
+tags — a scenario carries both. `isMobile` is what makes Chromium honour the
+shell's `<meta name="viewport">` at all; without it the page is laid out as a
+very narrow desktop, which is a different thing that happens to fire the same
+media queries. It is not one of Playwright's `devices` presets, because those
+also install a Safari user agent on top of Chromium and none of these
+scenarios are about what the browser calls itself.
+
+Those scenarios do two things nothing else in the suite does. They **tap**
+(`locator.tap()`, a real `touchstart`/`touchend` pair) rather than click, which
+is the only way to find out that a control a pointer can reach is reachable
+without one. And they **measure**: "big enough for a finger" is a size, and no
+attribute can carry it — it is the sum of a font, a padding and a breakpoint —
+so `world.box()` / `world.boxes()` read what the browser laid out (the plural
+takes every match in one pass, because a rule that held for the first row and
+not the tenth is not in force). That is the one exception to
+the rule below, and it is confined to `step_definitions/phone_steps.ts`, where
+a map turns a reader's name for a control ("collapse toggle") into the
+`data-testid` it is found by. `features/on_a_phone.feature` ends with a laptop
+scenario on purpose: the finger-sized rule is about the pointer, and a control
+that grew everywhere would be a regression in the other direction.
+
+`features/install_it.feature` is the other half — the manifest and the icons —
+and it asks the SERVER rather than the page (`world.fetch`), because that is
+who an installer asks.
+
 ## The UI contract
 
 Steps address the app through `data-testid` and `data-*` attributes, never a

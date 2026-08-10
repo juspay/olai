@@ -159,6 +159,53 @@ asking is not a recovery. Both the dot and the screen read the SAME
 happened; the seam's required `retired` handler records the moment rather than
 driving a second path to the same fact.
 
+## On a phone, and on a home screen
+
+`src/client/public/` is the install surface's files — `icon.svg`, the 192 and
+512 PNGs, a maskable 512 and an `apple-touch-icon` — copied verbatim to the
+dist *root* by the build, outside `/assets/`: a manifest and an
+`apple-touch-icon` are read by an installer rather than by the shell, so their
+URLs have to be stable ones and must not change with their bytes. They are the
+original olai mark, ported unchanged from the racket implementation. The
+manifest that names them is the *server's* (`packages/server/src/listener.ts`,
+through kolu's manifest layer); `index.html` names the same mark again for what
+reads no manifest — the browser tab, and iOS's Add to Home Screen. There is no
+service worker and no offline shell: this app is live or nothing, and a cached
+shell would show outlines that had stopped being true.
+
+Below **48rem** — the racket original's own breakpoint, and Tailwind's `md` —
+two things change. There is no second column to put the sidebar in, so it
+becomes a header above the outline: capped at 42dvh and scrolling inside
+itself, so the outline it is a header *for* is still on screen under it. No
+drawer, no overlay, no toggle — those need a state, a backdrop, a focus trap
+and a way to close, all of it to hide something that fits.
+
+And what a finger aims at grows to 44px, the number both mobile platforms
+print in their guidelines: sidebar entries — outlines and documents alike —
+days of the month, the month's paging chevrons, the done switch, the crumbs,
+and the link on a node's `doc` reference. `touch.ts` is that decision —
+the target size once, since it is one policy, with each control's *compact*
+size spelled where that control is drawn, since that is a design per control.
+The same file holds the one place the rule cannot be obeyed in both
+directions: the tree's gutter. A 44px-wide toggle *and* a 44px-wide bullet at
+every level of indent leave a 390px screen no room for the title they are in
+front of, so those two take the full 44px in HEIGHT — the axis where a miss
+lands on the wrong node — and the racket original's 1.75rem across. Their two
+note indents are arithmetic over that width and live beside it, because when
+it moves they all move.
+
+The line is `md` (48rem) rather than `pointer: coarse` so the layout and the
+targets are one decision: the sidebar stops being a column at exactly that
+width, which is where the racket original put both.
+
+`viewport.ts` is the last piece: an on-screen keyboard covers the bottom of the
+viewport without shrinking it, so the page measures `visualViewport` and
+publishes `--visible-h` and `--visible-bottom`. The arithmetic is a plain
+function of two numbers and unit-tested as one; the connection dot is lifted by
+`--visible-bottom` today (with the home-bar inset, which is real because the
+shell asks for `viewport-fit=cover`), and the chat sheet will size itself by
+`--visible-h` when it lands.
+
 ## What belongs to a reading, not to the file
 
 `view.ts` holds the two per-view switches — what is folded, and whether done

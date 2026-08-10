@@ -19,6 +19,7 @@
 import type { DayGroup } from "@olai/format"
 import { For, Show } from "solid-js"
 
+import { CRUMB } from "../Breadcrumbs.tsx"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { DayNode } from "./DayNode.tsx"
@@ -57,7 +58,7 @@ export function DayPage(props: {
               <h2 class="m-0 mb-2 font-mono text-xs text-muted">
                 <Link
                   route={{ kind: "outline", file: group.file }}
-                  class="rounded px-1 text-inherit no-underline hover:bg-rule hover:text-ink"
+                  class={CRUMB}
                 >
                   {group.file}
                 </Link>

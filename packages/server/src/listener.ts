@@ -36,6 +36,7 @@ import { Data, Effect, Layer, Scope } from "effect"
 import { HttpRouter } from "effect/unstable/http"
 import { WebSocketServer } from "ws"
 
+import { MANIFEST } from "./manifest.ts"
 import { mediaLayer } from "./media.ts"
 import type { Bound } from "./runtime.ts"
 
@@ -187,10 +188,12 @@ const bindOrFallBack = (
 /** The `request` handler, as an Effect handler over two layers.
  *  `surfaceAppLayer` owns the freshness contract: a `no-store` shell,
  *  immutable hashed assets, a 404 on an asset miss (never the shell), and the
- *  SPA fallback that makes `/o/<file>` a real URL. `mediaLayer` owns the one
- *  route that answers with bytes from the SERVED directory rather than from the
- *  bundle — merge order carries no meaning, because `HttpRouter` ranks by
- *  specificity and `/media/*` is more specific than the shell's catch-all. */
+ *  SPA fallback that makes `/o/<file>` a real URL, and it serves the web app
+ *  manifest at `/manifest.webmanifest` — what is IN that manifest is
+ *  `./manifest.ts`. `mediaLayer` owns the one route that answers with bytes
+ *  from the SERVED directory rather than from the bundle — merge order carries
+ *  no meaning, because `HttpRouter` ranks by specificity and `/media/*` is more
+ *  specific than the shell's catch-all. */
 const requestHandler = (options: { readonly clientDist: string; readonly root: string }) =>
   Effect.gen(function*() {
     const scope = Scope.makeUnsafe()
@@ -198,7 +201,7 @@ const requestHandler = (options: { readonly clientDist: string; readonly root: s
       mediaLayer(options.root),
       surfaceAppLayer({
         clientDist: options.clientDist,
-        manifest: { name: "olai", themeColor: "#1b1b1f", icons: [] },
+        manifest: MANIFEST,
       }),
     )
     const httpEffect = yield* HttpRouter.toHttpEffect(layer)

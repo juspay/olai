@@ -16,11 +16,26 @@
 import { LOOK, type SurfaceConnectionStatus } from "./status.ts"
 import { TESTID } from "../testids.ts"
 
+/** What a page has to keep clear at the bottom of its reading column so this
+ *  does not sit on the last row of it.
+ *
+ *  Exported because the room is reserved somewhere else — the main pane's
+ *  padding (../App.tsx) — and the size being reserved for is a fact about this
+ *  component: its type, its padding and its offset. A number chosen over there
+ *  would go on being 4rem after this grew a second line. */
+export const CLEARANCE = "pb-[calc(4rem+env(safe-area-inset-bottom,0px))]"
+
 export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
   const look = () => LOOK[props.status]
   return (
     <div
-      class="fixed bottom-3 right-3 z-40 flex items-center gap-2 rounded-full border border-rule bg-paper px-3 py-1.5 text-xs text-muted"
+      // Fixed to the bottom right, and lifted by whatever is in the way there.
+      // `--visible-bottom` is how much of the page a phone is covering with an
+      // on-screen keyboard (../viewport.ts) and the safe-area inset is the home
+      // bar; both are zero on a laptop, so the offset is the plain 0.75rem
+      // there. It is a READOUT and not a control — nothing here is tappable —
+      // so it needs no target size, only to stay visible.
+      class="fixed right-3 bottom-[calc(0.75rem+var(--visible-bottom,0px)+env(safe-area-inset-bottom,0px))] z-40 flex items-center gap-2 rounded-full border border-rule bg-paper px-3 py-1.5 text-xs text-muted"
       data-testid={TESTID.connection}
       // The state as an attribute, so a test asserts on the STATE rather than
       // on a colour: which utility paints "live" is a styling decision and this
