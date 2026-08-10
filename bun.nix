@@ -328,6 +328,10 @@
     url = "https://registry.npmjs.org/@parcel/watcher/-/watcher-2.5.1.tgz";
     hash = "sha512-dfUnCxiN9H4ap84DvD2ubjw+3vUNpstxa0TneY/Paat8a3R4uQZDLSvWjmznAY/DoahqTHl9V46HF/Zs3F29pg==";
   };
+  "@solid-primitives/keyed@1.5.3" = fetchurl {
+    url = "https://registry.npmjs.org/@solid-primitives/keyed/-/keyed-1.5.3.tgz";
+    hash = "sha512-zNadtyYBhJSOjXtogkGHmRxjGdz9KHc8sGGVAGlUABkE8BED2tbIZoxkwSqzOwde8OcUEH0bb5DLZUWIMvyBSA==";
+  };
   "@solid-primitives/rootless@1.5.4" = fetchurl {
     url = "https://registry.npmjs.org/@solid-primitives/rootless/-/rootless-1.5.4.tgz";
     hash = "sha512-TOIZa1VUfVJ+9nkCcRajw3U4t9vBOP1HxX1WHNTbXq32mXwlqTvUnC4CRIilohcryBkT9u2ZkhUDSHRTaGp55g==";
