@@ -16,6 +16,7 @@
  * listener is up.
  */
 
+import { adapterFrom, AGENT_ENV, whyNoAgent } from "@olai/chat"
 import type { OutlineError, OutlineSet } from "@olai/format"
 import { codec, Mcp, make as makeOps } from "@olai/ops"
 import * as Store from "@olai/store"
@@ -23,9 +24,7 @@ import { Cause, Effect } from "effect"
 import { randomBytes } from "node:crypto"
 import { resolve } from "node:path"
 
-import { adapterFrom, AGENT_ENV, whyNoAgent } from "./chat/adapter.ts"
-import * as AcpAgent from "./chat/agent.ts"
-import * as Chat from "./chat/chat.ts"
+import * as Chat from "@olai/chat"
 import { listen } from "./listener.ts"
 import { MCP_PATH } from "./mcp/route.ts"
 import { bind, type Publishers } from "./runtime.ts"
@@ -83,23 +82,14 @@ export const serve = (options: ServeOptions) =>
     // Minted per process and handed only to the session we spawn: the write
     // surface is not something any page that can reach loopback may call.
     const token = randomBytes(24).toString("hex")
-    /** Filled once the listener has bound — see the thunk on the agent's
+    /** Filled once the listener has bound — see the thunk on the chat's
      *  options. Until then there is no session to hand it to. */
-    let tools: AcpAgent.ToolServer | null = null
+    let tools: Chat.ToolServer | null = null
 
     chat = adapter === null ? null : yield* Chat.make({
-      agent: (onEvent) =>
-        AcpAgent.make({
-          command: adapter.command,
-          args: adapter.args,
-          // The served directory, exactly — an agent keys its stored sessions
-          // by the directory it was started in, and that is what makes "the
-          // conversation you were last in" survive a restart.
-          cwd: root,
-          tools: () => tools,
-          onEvent,
-          log: options.log,
-        }),
+      adapter,
+      cwd: root,
+      tools: () => tools,
       onState: (state) => publish?.state(state),
       onTranscript: (change) => publish?.transcript(change),
       log: options.log,

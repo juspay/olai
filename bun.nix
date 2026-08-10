@@ -264,6 +264,7 @@
     url = "https://registry.npmjs.org/@napi-rs/wasm-runtime/-/wasm-runtime-1.2.2.tgz";
     hash = "sha512-JfB4kuJQjaoHuCTseIINHtHWeJnvgEcxjwA5t/Y00ZgaOO1Crz3fjT/p8kT28zA/Caz7oiUMn3d6H2yOVCVwuw==";
   };
+  "@olai/chat" = copyPathToStore ./packages/chat;
   "@olai/format" = copyPathToStore ./packages/format;
   "@olai/ops" = copyPathToStore ./packages/ops;
   "@olai/server" = copyPathToStore ./packages/server;

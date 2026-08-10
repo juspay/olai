@@ -18,16 +18,17 @@ because the agent is not started until the listener is up (it has to be told
 the address of the MCP route, which is only knowable once we know what we
 bound).
 
+Talking to the agent is not here. It was, and it was four modules of domain
+inside a file whose whole job is the ORDER things go in — so it left, as
+`@olai/chat`. What is left of it here is a workspace dependency and one call:
+resolve the adapter from the environment, build, wire the two publishers, and
+register `stop` as a finalizer.
+
 ## The files, and their separate reasons to change
 
 | file | what it owns |
 |---|---|
 | `serve.ts` | the order above — the warning for binding off loopback, and which runtime failures are news |
-| `chat/agent.ts` | the ACP client: one subprocess, one protocol. Nothing else in olai spells `session/prompt` |
-| `chat/events.ts` | the closed vocabulary of what an agent tells us — a consumer that needs more needs a new member, not a look at the wire |
-| `chat/transcript.ts` | the conversation as ROWS: chunks accumulate, tool calls update in place by id, a replay replaces rather than appends |
-| `chat/chat.ts` | the join, and the only place that knows both halves |
-| `chat/adapter.ts` | which executable speaks ACP: the pinned adapter by default, `OLAI_ACP_AGENT` to override, empty to turn chat off |
 | `mcp/route.ts` | the internal MCP server, mounted on this listener, behind a per-process bearer token |
 | `runtime.ts` | the surface bindings: the outline stream is `SubscriptionRef.changes` verbatim, the errors cell is an owned source, the transcript is server-authored |
 | `listener.ts` | HTTP for the bundle, WebSocket for the surface: origin gate → upgrade → stale-tab gate → heartbeat → serve |

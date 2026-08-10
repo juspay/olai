@@ -148,6 +148,7 @@ Everything runs inside the flake dev shell; the recipes re-enter it for you.
 | [`packages/store`](packages/store) | a directory of files as a validated, revision-tagged snapshot, and the one write gate — generic, with no outline types in it |
 | [`packages/ops`](packages/ops) | the only writer: the semantic edits, and the internal MCP server an agent reaches them through |
 | [`packages/surface`](packages/surface) | the typed reactive layer both ends speak, declared once |
+| [`packages/chat`](packages/chat) | one conversation with one ACP agent: the subprocess, the session, and the transcript a panel draws |
 | [`packages/server`](packages/server) | the composition root and the binary |
 | [`packages/web`](packages/web) | the SolidJS client (SolidJS + Tailwind v4), and the build that produces it |
 | [`packages/tests`](packages/tests) | Cucumber features driven through Playwright |

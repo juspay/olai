@@ -12,6 +12,14 @@
  * turns those into rows; the surface members below are how a browser sees them.
  * Nothing above knows an agent exists, and nothing below knows a browser does.
  *
+ * It BUILDS the agent rather than being handed one, and that is what keeps
+ * `session/update` a word this package is the last to say: a caller passes the
+ * adapter it resolved and the directory to run it in, never a protocol object.
+ * The seam for a scripted agent is one level further out and more honest for
+ * it — `OLAI_ACP_AGENT` pointed at a script, which is how the e2e suite drives
+ * every turn it asserts on, and which exercises the subprocess and the wire
+ * that an injected object would replace with an assumption.
+ *
  * Two decisions worth naming:
  *
  *   - **a turn is accepted, not awaited.** `send` answers the moment the prompt
@@ -29,19 +37,27 @@ import { CHAT_OFF, type ChatEntry, type ChatState, type OpFailure, type SessionI
 import { BusyFailure, UsageFailure } from "@olai/format"
 import { Effect, Fiber, Semaphore } from "effect"
 
+import type { Adapter } from "./adapter.ts"
 import * as AcpAgent from "./agent.ts"
 import type { AgentEvent } from "./events.ts"
 import { type Change, Transcript } from "./transcript.ts"
 
+export type { ToolServer } from "./agent.ts"
+
 export interface Options {
-  /** The agent, as a FACTORY over the event handler — because the two are
-   *  mutually referential: the agent needs somewhere to send its events, and
-   *  the thing that consumes them needs the agent to drive. Handing over a
-   *  built agent would mean building it with a handler that does not exist
-   *  yet. It is also the test seam: a scripted agent goes in the same slot. */
-  readonly agent: (
-    onEvent: (event: AgentEvent) => void,
-  ) => Effect.Effect<AcpAgent.Agent>
+  /** Which agent to start, already resolved from the environment
+   *  ({@link ./adapter.ts}). Resolving it is the caller's move — it is the
+   *  caller who knows there is a `--no-agent` flag or an env var — and what a
+   *  resolved one looks like is ours. */
+  readonly adapter: Adapter
+  /** Where to start it: the served directory, exactly. An agent keys its
+   *  stored sessions by the directory it was started in, and that is what
+   *  makes "the conversation you were last in" survive a restart. */
+  readonly cwd: string
+  /** The internal MCP server to hand the session, or nothing yet. A THUNK,
+   *  because its address is not known until the listener has bound and the
+   *  session is opened after that. */
+  readonly tools: () => AcpAgent.ToolServer | null
   /** Publish the state cell. Called on every change; the surface dedups. */
   readonly onState: (state: ChatState) => void
   /** Publish transcript changes: upserts by key, and removes for a session
@@ -73,6 +89,19 @@ export interface Chat {
 
 export const make = (options: Options): Effect.Effect<Chat, never, never> =>
   Effect.gen(function*() {
+    // A FACTORY over the handler, because the two are mutually referential:
+    // the agent needs somewhere to send its events, and the thing that
+    // consumes them needs the agent to drive.
+    const spawn = (onEvent: (event: AgentEvent) => void) =>
+      AcpAgent.make({
+        command: options.adapter.command,
+        args: options.adapter.args,
+        cwd: options.cwd,
+        tools: options.tools,
+        onEvent,
+        log: options.log,
+      })
+
     const transcript = new Transcript()
     // The cell's own default, with the one field that differs: an agent is
     // being started. Restating the other four here would be a second place to
@@ -162,7 +191,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       }
     }
 
-    const agent = yield* options.agent(receive)
+    const agent = yield* spawn(receive)
 
     /** An agent failure, as something a caller can render — ONE translation,
      *  used by every verb. Three call sites used to answer this differently

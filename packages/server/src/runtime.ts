@@ -31,8 +31,7 @@ import {
 } from "@kolu/surface/server"
 import { Effect, Stream, SubscriptionRef } from "effect"
 
-import type { Chat } from "./chat/chat.ts"
-import type { Change } from "./chat/transcript.ts"
+import type { Change, Chat } from "@olai/chat"
 
 /** What a transport needs, and nothing else. `ctx` is the write face, which
  *  belongs to the bindings below rather than to whoever serves them. */

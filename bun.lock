@@ -17,6 +17,20 @@
         "typescript": "^5.8.0",
       },
     },
+    "packages/chat": {
+      "name": "@olai/chat",
+      "version": "0.1.0",
+      "dependencies": {
+        "@agentclientprotocol/sdk": "^1.3.0",
+        "@olai/format": "workspace:*",
+        "@olai/surface": "workspace:*",
+        "effect": "4.0.0-beta.106",
+        "zod": "^4.0.0",
+      },
+      "devDependencies": {
+        "@types/node": "^22.0.0",
+      },
+    },
     "packages/format": {
       "name": "@olai/format",
       "version": "0.1.0",
@@ -42,15 +56,14 @@
       "name": "@olai/server",
       "version": "0.1.0",
       "dependencies": {
-        "@agentclientprotocol/sdk": "^1.3.0",
         "@effect/platform-node": "4.0.0-beta.106",
+        "@olai/chat": "workspace:*",
         "@olai/format": "workspace:*",
         "@olai/ops": "workspace:*",
         "@olai/store": "workspace:*",
         "@olai/surface": "workspace:*",
         "effect": "4.0.0-beta.106",
         "ws": "^8.18.0",
-        "zod": "^4.0.0",
       },
       "devDependencies": {
         "@types/node": "^22.0.0",
@@ -233,6 +246,8 @@
     "@msgpackr-extract/msgpackr-extract-linux-x64": ["@msgpackr-extract/msgpackr-extract-linux-x64@3.0.4", "", { "os": "linux", "cpu": "x64" }, "sha512-8TNXMEjJc3QEy7R/x1INhgiU+XakDAFUzBhaz7+Rbrs8NH5UQeHQxxmzsSBJGyV6I1jW79undiQm8tOI+D+8FQ=="],
 
     "@msgpackr-extract/msgpackr-extract-win32-x64": ["@msgpackr-extract/msgpackr-extract-win32-x64@3.0.4", "", { "os": "win32", "cpu": "x64" }, "sha512-CmCXPQrkbwExx3j946/PtHWHbYJiCRBRDl4BlkRQcJB/YOwQxJRTpoo7aTsortjgoJ1x7opzTSxn7C+ASSLVjQ=="],
+
+    "@olai/chat": ["@olai/chat@workspace:packages/chat"],
 
     "@olai/format": ["@olai/format@workspace:packages/format"],
 
