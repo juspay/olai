@@ -24,6 +24,27 @@ or, in a clone:
 just serve docs     # serves this repo's own roadmap, and opens on 127.0.0.1:7714
 ```
 
+To keep it running as a user service (systemd on Linux, launchd on macOS),
+import the flake's home-manager module and set `dataDir`:
+
+```nix
+{
+  inputs.olai.url = "github:juspay/olai";
+  # in a home-manager config:
+  imports = [ inputs.olai.homeManagerModules.default ];
+  services.olai = {
+    enable = true;
+    dataDir = "${config.home.homeDirectory}/outlines";
+    # host = "127.0.0.1";  # default
+    # port = 7714;         # default
+  };
+}
+```
+
+The module fills `package` from the flake for the host platform. The packaged
+binary already bakes the browser bundle (`OLAI_DIST_DIR`), so the service
+needs no ambient environment.
+
 `olai web <dir> [--port] [--host]` reads the directory recursively, picking up
 every `.jsonl` outline and every `.md` document, and serves them to a browser.
 It does not descend into dot-directories or `node_modules` — a directory of
