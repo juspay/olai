@@ -17,11 +17,9 @@ import { Show } from "solid-js"
 
 import { Breadcrumbs } from "../Breadcrumbs.tsx"
 import { Bullet } from "../Bullet.tsx"
-import { DateBadge } from "../DateBadge.tsx"
-import { NodeTitle } from "../NodeTitle.tsx"
+import { NodeLine } from "../NodeLine.tsx"
 import { Note } from "../Note.tsx"
 import { TESTID } from "../testids.ts"
-import { TONE } from "../tone.ts"
 
 export function DayNode(props: { readonly dated: Situated }) {
   const node = () => props.dated.shows.node
@@ -41,12 +39,11 @@ export function DayNode(props: { readonly dated: Situated }) {
 
       <div class="flex items-baseline gap-1.5">
         <Bullet id={node().id} />
-        <span class={`flex-1 ${TONE[props.dated.status]}`} data-testid={TESTID.nodeTitle}>
-          <NodeTitle title={node().title} />
-        </span>
-        <Show when={node().date}>
-          {(date) => <DateBadge date={date()} />}
-        </Show>
+        <NodeLine
+          title={node().title}
+          status={props.dated.status}
+          date={node().date}
+        />
       </div>
 
       <Show when={node().desc}>

@@ -92,6 +92,18 @@ Feature: The journal, and the month in the sidebar
     And there should be no page errors
 
   @corpus:journal
+  Scenario: An address that names no day is answered, not broken
+    # `/d/<anything>` is a URL a person can type. Nothing is dated `hello`,
+    # which is a true statement and the whole answer — the day view says it,
+    # and the calendar, which cannot lay out a month it does not have, stays on
+    # the one a reader can still use.
+    When I open the day "hello"
+    Then the day open is "hello"
+    And the day is empty
+    And the month shown is this month
+    And there should be no page errors
+
+  @corpus:journal
   Scenario: Paging back a month shows that month's days
     Given I open the day "2019-11-05"
     When I page the calendar back

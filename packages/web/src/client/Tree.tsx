@@ -23,11 +23,9 @@ import { type Row } from "@olai/format"
 import { createMemo, For, Match, Show, Switch } from "solid-js"
 
 import { Bullet } from "./Bullet.tsx"
-import { DateBadge } from "./DateBadge.tsx"
-import { NodeTitle } from "./NodeTitle.tsx"
+import { NodeLine } from "./NodeLine.tsx"
 import { Note } from "./Note.tsx"
 import { TESTID } from "./testids.ts"
-import { TONE } from "./tone.ts"
 
 export interface TreeProps {
   readonly rows: ReadonlyArray<Row>
@@ -104,24 +102,20 @@ function Branch(props: {
           </Match>
           <Match when={shown()}>
             {(node) => (
-              <span
-                class={`flex-1 ${TONE[props.row.status]}`}
-                data-testid={TESTID.nodeTitle}
+              <NodeLine
+                title={node().title}
+                status={props.row.status}
+                date={node().date}
               >
                 <Show when={props.row.kind !== "node"}>
                   <span class="mr-1 text-muted" title="a mirror of another node">
                     ⇢
                   </span>
                 </Show>
-                <NodeTitle title={node().title} />
-              </span>
+              </NodeLine>
             )}
           </Match>
         </Switch>
-
-        <Show when={shown()?.date}>
-          {(date) => <DateBadge date={date()} />}
-        </Show>
       </div>
 
       <Show when={!collapsed() && shown()?.desc}>

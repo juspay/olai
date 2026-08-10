@@ -84,13 +84,6 @@ export const outlineOf = (page: Page): string | undefined => {
   return undefined
 }
 
-/** The day the open page IS, or undefined for every page that is not one. What
- *  the calendar fills in: the day you are reading is not a shade of a day, it
- *  is the day, and only the page model knows which one that turned out to be
- *  (`/today` is a route that names no date). */
-export const openDay = (page: Page | undefined): string | undefined =>
-  page?.kind === "day" ? page.date : undefined
-
 /**
  * The rows a page draws, before this reading hides any of them. An outline's
  * roots and a zoomed node's children are the same kind of thing, which is what

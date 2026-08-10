@@ -25,16 +25,24 @@
  * belong to this tab's reading and not to the file.
  *
  * This file is the composition and nothing else — the subscription, the route,
- * the one derivation of the set, which page that adds up to, and the one store
- * the rows live in. Every screen it can show is its own component, and each is
- * handed what it draws rather than the set to draw it from.
+ * the clock, the one derivation of the set, which page that adds up to, and the
+ * stores the live node content is reconciled into. Every screen it can show is
+ * its own component, and each is handed what it draws rather than the set to
+ * draw it from.
  */
 
-import { type BrokenFile, datedDays, derive, type Row } from "@olai/format"
+import {
+  type BrokenFile,
+  datedDays,
+  type DayGroup,
+  derive,
+  type Row,
+} from "@olai/format"
 import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 
-import { createToday } from "./calendar/clock.ts"
+import { Calendar } from "./calendar/Calendar.tsx"
+import { createToday } from "./clock.ts"
 import { Connection } from "./connection/Connection.tsx"
 import { DayPage } from "./day/DayPage.tsx"
 import { Banner } from "./errors/Banner.tsx"
@@ -43,7 +51,7 @@ import { Page as ErrorPage } from "./errors/Page.tsx"
 import { only } from "./narrow.ts"
 import { NodePage } from "./NodePage.tsx"
 import { Nothing } from "./Nothing.tsx"
-import { openDay, outlineOf, pageOf, rowsFor } from "./page.ts"
+import { outlineOf, pageOf, rowsFor } from "./page.ts"
 import { OutlinePage } from "./OutlinePage.tsx"
 import { createRouter, RouterProvider } from "./router.tsx"
 import { Sidebar } from "./Sidebar.tsx"
@@ -119,6 +127,18 @@ export default function App() {
     setRows(reconcile([...view.visible(built)], { key: "key" }))
   })
 
+  // A day's nodes go through the same seam, for the same reason: `datedOn`
+  // mints fresh objects on every frame too, and a `<For>` over them would
+  // re-render — and re-parse the markdown of — every note on the page each time
+  // any file in the directory is saved. Keyed on the outline, which is what a
+  // group IS; the nodes inside merge positionally, which is enough to leave a
+  // note whose text did not change alone.
+  const [day, setDay] = createStore<Array<DayGroup>>([])
+  createEffect(() => {
+    const open = page()
+    setDay(reconcile(open?.kind === "day" ? [...open.groups] : [], { key: "file" }))
+  })
+
   return (
     <>
       {/* Outside the switch, and first: every shape below — the report, the
@@ -133,14 +153,13 @@ export default function App() {
           {(open) => (
             <RouterProvider router={router}>
               <div class="grid min-h-screen grid-cols-[16rem_1fr]">
-                <Sidebar
-                  files={files()}
-                  active={outlineOf(open())}
-                  broken={broken()}
-                  today={today()}
-                  openDay={openDay(open())}
-                  datedDays={dated}
-                />
+                <Sidebar files={files()} active={outlineOf(open())} broken={broken()}>
+                  <Calendar
+                    today={today()}
+                    open={only(open(), "day")?.date}
+                    days={dated}
+                  />
+                </Sidebar>
                 <main class="overflow-x-auto px-8 py-6">
                   <Show when={problems().length > 0}>
                     <Banner errors={problems()} />
@@ -158,12 +177,8 @@ export default function App() {
                       <OutlinePage rows={rows} view={view} />
                     </Match>
                     <Match when={only(open(), "day")}>
-                      {(day) => (
-                        <DayPage
-                          date={day().date}
-                          groups={day().groups}
-                          today={today()}
-                        />
+                      {(open) => (
+                        <DayPage date={open().date} groups={day} today={today()} />
                       )}
                     </Match>
                     <Match when={only(open(), "nothing")}>

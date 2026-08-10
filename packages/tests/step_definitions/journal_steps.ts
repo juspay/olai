@@ -5,7 +5,7 @@
  * it, today, the one being read — is read off `data-` attributes rather than
  * off the colour it is painted, because the marks are a promise and the
  * palette is a styling decision a refactor may change. And "today" is asked of
- * the clock with the same function the client uses (`calendar/clock.ts`),
+ * the clock with the same function the client uses (`client/clock.ts`),
  * imported rather than re-spelled: a suite that computed the day its own way
  * would disagree with the browser at exactly midnight, in one time zone, on
  * somebody else's machine.
@@ -14,7 +14,7 @@
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
-import { isoDayOf } from "@olai/web/src/client/calendar/clock.ts";
+import { isoDayOf } from "@olai/web/src/client/clock.ts";
 
 import {
   CALENDAR,
@@ -31,6 +31,7 @@ import {
   readable,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
+import type { Locator } from "playwright";
 
 // ── opening a day ──────────────────────────────────────────────────────
 
@@ -57,24 +58,42 @@ Then("the day is empty", async function (this: OlaiWorld) {
 
 // ── what a day holds ───────────────────────────────────────────────────
 
-/** The outlines that had something on this day, in the order they are drawn.
- *  Asserting the whole list rather than "contains X" is the point: the
- *  grouping IS the promise, and a file that should not be there is exactly the
- *  bug. */
+/** Wait for a list to be drawn before reading it. Reading a locator's elements
+ *  the instant a page renders races the frame that adds the second one, and an
+ *  empty list compares as a perfectly plausible wrong answer. */
+const drawn = async (found: Locator): Promise<Locator> => {
+  await found
+    .first()
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+    .catch(() => undefined);
+  return found;
+};
+
+/** One `data-` fact off every element of a drawn list, in DOM order, against a
+ *  comma-separated expectation.
+ *
+ *  The WHOLE list, not "contains X": the order and the membership are both the
+ *  promise — a group that should not be there, or a node above the one it is
+ *  dated after, is exactly the bug. */
+const expectDrawn = async (
+  found: Locator,
+  attribute: string,
+  expected: string,
+): Promise<void> => {
+  assert.deepStrictEqual(
+    await (await drawn(found)).evaluateAll(
+      (all, name) => all.map((element) => element.getAttribute(name)),
+      attribute,
+    ),
+    expected.split(",").map((one) => one.trim()),
+  );
+};
+
+/** The outlines that had something on this day, in the order they are drawn. */
 Then(
   "the day groups are {string}",
   async function (this: OlaiWorld, expected: string) {
-    const groups = this.page.locator(DAY_GROUP);
-    await groups
-      .first()
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
-      .catch(() => undefined);
-    assert.deepStrictEqual(
-      await groups.evaluateAll((found) =>
-        found.map((group) => group.getAttribute("data-file")),
-      ),
-      expected.split(",").map((file) => file.trim()),
-    );
+    await expectDrawn(this.page.locator(DAY_GROUP), "data-file", expected);
   },
 );
 
@@ -83,32 +102,22 @@ Then(
 Then(
   "the day lists {string}",
   async function (this: OlaiWorld, expected: string) {
-    const nodes = this.page.locator(`${DAY_PAGE} ${NODE}`);
-    await nodes
-      .first()
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
-      .catch(() => undefined);
-    assert.deepStrictEqual(
-      await nodes.evaluateAll((found) =>
-        found.map((node) => node.getAttribute("data-node-id")),
-      ),
-      expected.split(",").map((id) => id.trim()),
+    await expectDrawn(
+      this.page.locator(`${DAY_PAGE} ${NODE}`),
+      "data-node-id",
+      expected,
     );
   },
 );
 
-/** The context a day gives a node: its canonical ancestry, root first. The
- *  file is NOT among the crumbs here — the group heading has already said it,
- *  and saying it twice on one screen is what the optional crumb exists to
- *  avoid. */
+/** The context a day gives a node: its canonical ancestry, root first. Text
+ *  rather than an attribute, because what a crumb promises is what it READS —
+ *  and the file is not among these: the group heading has already said it, and
+ *  saying it twice on one screen is what the optional crumb exists to avoid. */
 Then(
   "the ancestors of {string} are {string}",
   async function (this: OlaiWorld, id: string, expected: string) {
-    const crumbs = this.node(id).locator(CRUMB);
-    await crumbs
-      .first()
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
-      .catch(() => undefined);
+    const crumbs = await drawn(this.node(id).locator(CRUMB));
     assert.deepStrictEqual(
       (await crumbs.allInnerTexts()).map(readable),
       expected.split(",").map((crumb) => readable(crumb.trim())),
@@ -120,6 +129,17 @@ Then(
 
 Then("the month shown is {string}", async function (this: OlaiWorld, month: string) {
   await this.expectAttribute(CALENDAR, "data-month", month, "the calendar");
+});
+
+/** Today's month, asked of the clock — the month the calendar falls back to
+ *  when the page it is chrome for names no day of its own. */
+Then("the month shown is this month", async function (this: OlaiWorld) {
+  await this.expectAttribute(
+    CALENDAR,
+    "data-month",
+    isoDayOf(new Date()).slice(0, "YYYY-MM".length),
+    "the calendar",
+  );
 });
 
 /** What a day cell says about itself. One helper for all three marks, so a

@@ -74,16 +74,18 @@ with, so a dot and the day it opens cannot disagree.
 What is left here is the two things a day view has to decide for itself, and
 neither is about the format:
 
-- `month.ts` — where the days of a month land on a grid, and which month is
-  next to it. Integer arithmetic, unit-tested, and pointedly not a `Date`:
-  `new Date("2026-08-01")` is midnight UTC, which is the previous day for half
-  the world, and a calendar that shifted a column by time zone is the bug this
-  avoids by never leaving integers.
+- `calendar/month.ts` — where the days of a month land on a grid, and which
+  month is next to it. Integer arithmetic, unit-tested, and pointedly not a
+  `Date`: `new Date("2026-08-01")` is midnight UTC, which is the previous day
+  for half the world, and a calendar that shifted a column by time zone is the
+  bug this avoids by never leaving integers.
 - `clock.ts` — what day it is, in the reader's own time zone, re-read at the
-  next local midnight. The one clock in the client, because two components
-  asking a `Date` separately is two answers that can differ by a day at exactly
-  the wrong moment — and a tab left open overnight on `/today` would otherwise
-  be the one stale thing on a page whose whole promise is that it is not.
+  next local midnight. It sits at the top rather than under `calendar/`,
+  because its readers are the page model (`/today` names no date), the day page
+  and the month: today is a fact about the tab, and two of them asking a `Date`
+  separately is two answers that can differ by a day at exactly the wrong
+  moment — a tab left open overnight on `/today` would otherwise be the one
+  stale thing on a page whose whole promise is that it is not.
 
 Three marks, and they are three because a reader has to tell them apart at a
 glance in a 16rem column: a day with something on it is a link with a dot,
@@ -122,14 +124,19 @@ driving a second path to the same fact.
 ## What belongs to a reading, not to the file
 
 `view.ts` holds the two per-view switches — what is folded, and whether done
-nodes are drawn. Neither goes to the server or to disk, and hiding what is done
-is a row not drawn rather than anything marked.
+nodes are drawn — and the calendar holds a third, which month is on screen.
+None of them goes to the server or to disk, and hiding what is done is a row
+not drawn rather than anything marked.
 
-A reading is OF A PAGE, and which page is part of the value. That is what makes
-navigating start fresh — a page you zoom into is a new thing to read, and
+All three are `createStamped` (`stamped.ts`): a value plus the thing it belongs
+to, read through a memo that compares them. That is what makes them start over
+at the right moment — a page you zoom into is a new thing to read, and
 inheriting the last page's folds would fold places this reader has never seen —
-with no effect watching the route to clear anything, and no frame in which the
-held reading and the open page disagree.
+with no effect watching a route to clear anything, and so no frame in which the
+held value and the thing it belongs to disagree. What they differ in is the
+stamp, and that is the whole of the difference: a reading belongs to the PAGE,
+while the month belongs to the month it is ANCHORED to, because walking from
+one outline to another is no reason to snap the calendar back to today.
 
 ## No exports, on purpose
 

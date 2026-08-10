@@ -8,16 +8,15 @@
  * outlines carry no `date` sees a month of inert numbers.
  *
  * Which month is on screen is a reading, not an address — the same standing as
- * what is folded — and it is held the way view.ts holds those: stamped with
- * what invalidates it, so it starts over without an effect watching anything,
- * and there is no frame in which the held value and the page disagree.
+ * what is folded — so it is held by the same `createStamped` (../stamped.ts)
+ * that view.ts uses, and starts over when the thing it belongs to moves rather
+ * than when an effect gets round to noticing.
  *
- * It is held HERE rather than in view.ts because what invalidates it is
- * different. A reading of a page dies with the page; this is chrome, and
- * walking from one outline to another is no reason to snap the month back to
- * today. What it dies with is the ANCHOR — the month the calendar would be
- * showing if nobody had paged it — so paging survives every navigation that
- * does not change which month the reader is looking at.
+ * What it belongs to is the ANCHOR, and that is the whole difference from a
+ * reading of a page: a page's folds die with the page, while this is chrome,
+ * and walking from one outline to another is no reason to snap the month back
+ * to today. Paging therefore survives every navigation that does not change
+ * which month the reader is looking at.
  *
  * The dots are asked for per month rather than handed over as a set, so the
  * question is only asked about the month being drawn — and asking it INSIDE a
@@ -26,20 +25,15 @@
  * re-runs this.
  */
 
-import { createMemo, createSignal, For, Show } from "solid-js"
+import { createMemo, For, Show } from "solid-js"
 
+import { createStamped } from "../stamped.ts"
 import { TESTID, type TestId } from "../testids.ts"
 import { monthGrid, monthLabel, monthOfDay, shiftMonth, WEEKDAYS } from "./month.ts"
 import { Day } from "./Day.tsx"
 
-/** A month being read, and the anchor it was reached from. */
-interface Paged {
-  readonly anchor: string
-  readonly month: string
-}
-
 export function Calendar(props: {
-  /** Today, in the reader's own time zone (calendar/clock.ts). */
+  /** Today, in the reader's own time zone (../clock.ts). */
   readonly today: string
   /** The day the open page is of, if it is a day at all. */
   readonly open: string | undefined
@@ -56,13 +50,10 @@ export function Calendar(props: {
     () => monthOfDay(props.open) ?? monthOfDay(props.today) ?? "",
   )
 
-  const [paged, setPaged] = createSignal<Paged | undefined>(undefined)
-  const month = createMemo(() => {
-    const held = paged()
-    return held !== undefined && held.anchor === anchor() ? held.month : anchor()
-  })
+  const shown = createStamped(anchor, (month) => month)
+  const month = shown.value
   const page = (delta: number): void => {
-    setPaged({ anchor: anchor(), month: shiftMonth(month(), delta) })
+    shown.edit((current) => shiftMonth(current, delta))
   }
 
   const dated = createMemo(() => props.days(month()))

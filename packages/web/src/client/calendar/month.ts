@@ -47,7 +47,7 @@ interface Month {
 
 const MONTH_SHAPE = /^(\d{4})-(\d{2})$/
 
-export const parseMonth = (month: string): Month | null => {
+const parseMonth = (month: string): Month | null => {
   const match = MONTH_SHAPE.exec(month)
   if (match === null) return null
   const [, year, index] = match as unknown as [string, string, string]
@@ -74,6 +74,12 @@ export const monthOfDay = (date: string | undefined): string | null => {
 const pad = (value: number): string => String(value).padStart(2, "0")
 
 const monthText = (year: number, month: number): string => `${year}-${pad(month)}`
+
+/** ISO date text from calendar parts. One spelling for the whole client — the
+ *  grid mints dates and the clock reads one off the machine, and two of these
+ *  would be two chances to zero-pad differently. */
+export const isoDate = (year: number, month: number, day: number): string =>
+  `${monthText(year, month)}-${pad(day)}`
 
 /**
  * The month `delta` away — what a prev/next button is.
@@ -153,7 +159,7 @@ export const monthGrid = (month: string): ReadonlyArray<string | null> => {
   const lead = weekday(parsed, 1)
   const cells: Array<string | null> = Array.from({ length: lead }, () => null)
   for (let day = 1; day <= daysInMonth(parsed); day++) {
-    cells.push(`${month}-${pad(day)}`)
+    cells.push(isoDate(parsed.year, parsed.month, day))
   }
   const trailing = cells.length % WEEK
   if (trailing !== 0) {

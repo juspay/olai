@@ -25,6 +25,8 @@
  * business being the first place in the codebase that risks it.
  */
 
+import { Order } from "effect"
+
 import { type Derived, type Situated, situate } from "./derive.ts"
 import { isMirror, type LocatedRegular } from "./node.ts"
 
@@ -116,17 +118,18 @@ export const datedOn = (derived: Derived, day: string): ReadonlyArray<DayGroup> 
   }
 
   return [...byFile.entries()]
-    .sort(([left], [right]) => compare(left, right))
+    .sort(([left], [right]) => Order.String(left, right))
     .map(([file, nodes]) => ({
       file,
       nodes: nodes.sort(byTime).map((dated) => situate(derived, dated.at)),
     }))
 }
 
-const compare = (left: string, right: string): number =>
-  left === right ? 0 : left < right ? -1 : 1
-
+/** Code-point order on the stored text, ties on the line — the same rule the
+ *  error report sorts by (./errors.ts), and effect's own comparator rather
+ *  than a hand-rolled one: `localeCompare` would put the same day in two
+ *  orders on two machines. */
 const byTime = (left: Dated, right: Dated): number =>
   left.date === right.date
     ? left.at.line - right.at.line
-    : compare(left.date, right.date)
+    : Order.String(left.date, right.date)

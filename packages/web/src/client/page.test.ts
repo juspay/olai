@@ -3,7 +3,7 @@ import { derive, type Located } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { only } from "./narrow.ts"
-import { openDay, outlineOf, type Page, pageOf, rowsFor } from "./page.ts"
+import { outlineOf, type Page, pageOf, rowsFor } from "./page.ts"
 import type { Route } from "./routes.ts"
 
 const located = (file: string, line: number, node: Located["node"]): Located => ({
@@ -165,14 +165,12 @@ test("`/today` is the day it is", () => {
 })
 
 // A day belongs to no outline — it crosses all of them — so nothing in the
-// sidebar's list is the page you are on.
-test("a day lights up no outline, and is the day the calendar fills in", () => {
-  const page = pageAt({ kind: "day", date: "2026-08-10" })
-  expect(outlineOf(page)).toBeUndefined()
-  expect(openDay(page)).toBe("2026-08-10")
-  expect(openDay(pageAt({ kind: "today" }))).toBe(TODAY)
-  expect(openDay(pageAt({ kind: "outline", file: "house.jsonl" }))).toBeUndefined()
-  expect(openDay(undefined)).toBeUndefined()
+// sidebar's list is the page you are on. Which day the calendar fills in is
+// the page's own `date`, and `/today` is where that is worth saying: the route
+// spells no date, and the page it opened does.
+test("a day lights up no outline, and says which day it turned out to be", () => {
+  expect(outlineOf(pageAt({ kind: "day", date: "2026-08-10" }))).toBeUndefined()
+  expect(only(pageAt({ kind: "today" }), "day")?.date).toBe(TODAY)
 })
 
 // A day draws no TREE. It is a list of nodes from all over the set, each with

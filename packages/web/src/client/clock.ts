@@ -1,10 +1,11 @@
 /**
  * What day it is, in the reader's own time zone, kept true past midnight.
  *
- * The one clock in the client, and it is here rather than wherever a component
- * happened to need it: today is a fact about the tab, not about a calendar
- * cell or a `/today` address, and two places asking a `Date` for it separately
- * is two answers that can differ by a day at exactly the wrong moment.
+ * The one clock in the client, and it sits at the top rather than inside
+ * whichever feature happened to need it first: today is a fact about the TAB,
+ * and its readers are the page model (`/today` names no date), the day page
+ * and the month in the sidebar. Two of them asking a `Date` separately is two
+ * answers that can differ by a day at exactly the wrong moment.
  *
  * LOCAL, deliberately. The dates in the files are what a person wrote down, so
  * the day they mean is the day where they are — `new Date().toISOString()`
@@ -19,11 +20,11 @@
 
 import { type Accessor, createSignal, onCleanup } from "solid-js"
 
-const pad = (value: number): string => String(value).padStart(2, "0")
+import { isoDate } from "./calendar/month.ts"
 
 /** The local calendar day of an instant, as the ISO text the format stores. */
 export const isoDayOf = (at: Date): string =>
-  `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`
+  isoDate(at.getFullYear(), at.getMonth() + 1, at.getDate())
 
 /** How long until the local day rolls over. A whole millisecond past midnight,
  *  so a timer that fires a hair early does not read the same day back and
