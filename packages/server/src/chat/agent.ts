@@ -102,8 +102,6 @@ export interface Agent {
   readonly loadSession: (id: string) => Effect.Effect<void, AgentGone>
   /** The stored conversations for this directory, newest first. */
   readonly sessions: Effect.Effect<ReadonlyArray<Stored>, AgentGone>
-  /** Which conversation we are in, or `null` between sessions. */
-  readonly current: () => string | null
   readonly stop: Effect.Effect<void>
 }
 
@@ -183,18 +181,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           if (text !== "") emit({ _tag: "userSaid", text })
           return
         }
+        // Announce and update are ONE event: the protocol distinguishes them
+        // by which fields it guarantees, and a consumer keyed by call id does
+        // the same thing with either.
         case "tool_call":
-          emit({
-            _tag: "tool",
-            id: update.toolCallId,
-            title: update.title,
-            status: update.status ?? "pending",
-            detail: detailOf(update.rawInput, update.rawOutput),
-          })
-          return
         case "tool_call_update":
           emit({
-            _tag: "toolMoved",
+            _tag: "tool",
             id: update.toolCallId,
             title: update.title ?? undefined,
             status: (update.status ?? undefined) as ToolCallStatus | undefined,
@@ -513,7 +506,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         if (at === null) return yield* new AgentGone({ why: "the agent is not running" })
         return yield* storedFor(at)
       }),
-      current: () => session,
       stop,
     }
   })

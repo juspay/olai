@@ -48,6 +48,11 @@ about an op is decided there, over a value, so it is testable without a disk
 and re-decidable against a newer snapshot. The two impure things an op needs —
 a fresh id and today's date — arrive as arguments.
 
+**The package exports four things, and the rest of that table is inside.**
+`codec`, `make`, `Query`, `Mcp` — one socket per concept, not the wires behind
+it. The planner, the tool table and the git hook are what those are made of; a
+consumer wants the writer, not the plan, and its own tests reach it directly.
+
 ## Archiving, in racket's terms
 
 `archive` moves a node's whole subtree into `Archive.jsonl` beside the outline

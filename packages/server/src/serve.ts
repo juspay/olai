@@ -103,7 +103,7 @@ export const serve = (options: ServeOptions) =>
       // A refusal reaches the agent as its tool result AND the panel as a row:
       // what the agent then says about it is prose, and the unfinished children
       // are data.
-      ...(chat === null ? {} : { onRefusal: chat.refused }),
+      ...(chat === null ? {} : { onRefusal: chat.recordRefusal }),
     })
 
     const wired = yield* bind({ store, chat })

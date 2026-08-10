@@ -145,11 +145,14 @@ export const surface = defineSurface({
 })
 
 export {
+  BusyFailure,
   CHAT_OFF,
   ChatEntry,
   ChatFailure,
   ChatState,
   Command,
+  isOpFailure,
+  kindOf,
   OpFailure,
   SessionInfo,
   Unfinished,

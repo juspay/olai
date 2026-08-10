@@ -15,13 +15,13 @@
  * belongs in the console loudly.
  */
 
-import type { OpFailure } from "@olai/surface"
+import { BusyFailure, isOpFailure, type OpFailure } from "@olai/surface"
 import { Effect, Result } from "effect"
 
 /** Anything a bound procedure hands back: a declared `OpFailure`, or one of the
  *  framework's own transport failures, which have no place in the panel and are
  *  reported as trouble. */
-type Call<A> = Effect.Effect<A, unknown>
+export type Call<A> = Effect.Effect<A, unknown>
 
 export const run = <A>(
   effect: Call<A>,
@@ -37,18 +37,13 @@ export const run = <A>(
   })
 }
 
-/** A failure the panel can draw. The declared ones already are one; a transport
- *  failure is not, and is re-said as `busy` — which is what it means to a
- *  reader: the server did not take it, try again. */
+/** A failure the panel can draw. The declared ones already are one — recognised
+ *  against the format's own closed table, not by the shape of a tag — and a
+ *  transport failure is re-said as `busy`, which is what it means to a reader:
+ *  the server did not take it, try again. */
 const asFailure = (failure: unknown): OpFailure =>
   isOpFailure(failure)
     ? failure
-    : ({
-      _tag: "BusyFailure",
+    : new BusyFailure({
       reason: failure instanceof Error ? failure.message : String(failure),
-    } as OpFailure)
-
-const isOpFailure = (failure: unknown): failure is OpFailure =>
-  typeof failure === "object" && failure !== null && "_tag" in failure &&
-  typeof (failure as { readonly _tag: unknown })._tag === "string" &&
-  (failure as { readonly _tag: string })._tag.endsWith("Failure")
+    })

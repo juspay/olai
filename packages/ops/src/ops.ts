@@ -28,7 +28,7 @@ import {
   serializeOutline,
   ValidationFailure,
 } from "@olai/format"
-import type { OutlineError, Store } from "./deps.ts"
+import type { Store } from "./deps.ts"
 import { Effect, Result, SubscriptionRef } from "effect"
 
 import * as Git from "./git.ts"
@@ -140,7 +140,3 @@ export const make = (options: Options): Ops => {
 
   return { run }
 }
-
-/** Re-exported so a consumer that only ever sees an `Applied` can still name
- *  the failure channel without reaching past this package. */
-export type { OpFailure, OutlineError }

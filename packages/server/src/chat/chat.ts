@@ -61,7 +61,10 @@ export interface Chat {
   readonly sessions: Effect.Effect<ReadonlyArray<SessionInfo>, OpFailure>
   /** Told by the MCP layer about a write it refused, so the panel can draw the
    *  refusal rather than the agent's account of it. */
-  readonly refused: (tool: string, failure: OpFailure) => Effect.Effect<void>
+  readonly recordRefusal: (
+    tool: string,
+    failure: OpFailure,
+  ) => Effect.Effect<void>
   /** Boot the agent in the background. A failure is not fatal: the panel shows
    *  it and the next prompt tries again, exactly as a crash does. */
   readonly start: Effect.Effect<void>
@@ -108,15 +111,6 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           publish(transcript.add("user", event.text))
           return
         case "tool":
-          publish(
-            transcript.tool(event.id, {
-              title: event.title,
-              status: event.status,
-              detail: event.detail,
-            }),
-          )
-          return
-        case "toolMoved":
           publish(
             transcript.tool(event.id, {
               title: event.title,
@@ -270,7 +264,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           }),
         )
       }),
-      refused: (tool: string, failure: OpFailure) =>
+      recordRefusal: (tool: string, failure: OpFailure) =>
         Effect.sync(() => {
           publish(transcript.refuse(`\`${tool}\` was refused`, failure))
         }),

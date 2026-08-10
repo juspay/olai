@@ -53,6 +53,7 @@ export { nodesOf, serializeNode, serializeOutline } from "./write.ts"
 export {
   BusyFailure,
   DerivedFailure,
+  isOpFailure,
   kindOf,
   NotFoundFailure,
   OpFailure,

@@ -15,6 +15,14 @@
  * session is replaced, and an explicit sequence means the panel never has to
  * know the difference.
  *
+ * ONE thing is open at a time, and {@link Transcript.open} is the whole of that
+ * fact: an entry's `streaming` flag is DERIVED from it on every write rather
+ * than set beside it. The two used to be kept in step by hand, and the bug that
+ * hid there is the one this shape makes unrepresentable — an agent that spoke,
+ * then called a tool, left a paragraph marked as still growing until the end of
+ * the turn, because the tool frame cleared the pointer and nobody re-published
+ * the paragraph.
+ *
  * Everything here is synchronous and in memory. The transcript is not
  * persisted: the agent's own session is the persistence (that is the whole
  * point of adopting one on boot), and a second copy would be a second thing to
@@ -28,21 +36,26 @@ export interface Change {
   readonly removes: ReadonlyArray<string>
 }
 
+const EMPTY: Change = { upserts: [], removes: [] }
+
+/** Two changes as one. Closing the open entry and writing the next one are two
+ *  upserts a subscriber should see in the same frame. */
+const both = (first: Change, second: Change): Change => ({
+  upserts: [...first.upserts, ...second.upserts],
+  removes: [...first.removes, ...second.removes],
+})
+
 export class Transcript {
   #entries = new Map<string, ChatEntry>()
   #seq = 0
-  /** The agent entry currently being streamed into, if any. Chunks accumulate
-   *  rather than each becoming a row: what a reader wants is one paragraph
-   *  growing, not forty. */
+  /** The agent entry currently being streamed into, if any — the ONE place
+   *  "still growing" is recorded. Chunks accumulate into it rather than each
+   *  becoming a row: what a reader wants is one paragraph growing, not forty. */
   #open: string | null = null
   #minted = 0
 
   entries(): ReadonlyMap<string, ChatEntry> {
     return this.#entries
-  }
-
-  get(key: string): ChatEntry | undefined {
-    return this.#entries.get(key)
   }
 
   /** Everything, gone — a new session, or one being loaded. The removes are
@@ -62,43 +75,33 @@ export class Transcript {
     text: string,
     extra: Partial<ChatEntry> = {},
   ): Change {
-    this.#open = null
-    return this.#put(this.#mint(kind), { kind, text, ...extra })
+    return both(this.#close(), this.#put(this.#next(kind), { kind, text, ...extra }))
   }
 
   /** One chunk of the agent's prose. Appends to the entry already open, or
    *  opens one. */
   say(text: string): Change {
-    if (this.#open === null) {
-      const key = this.#mint("agent")
-      this.#open = key
-      return this.#put(key, { kind: "agent", text, streaming: true })
-    }
-    const current = this.#entries.get(this.#open)
+    if (this.#open === null) this.#open = this.#next("agent")
     const key = this.#open
     return this.#put(key, {
       kind: "agent",
-      text: `${current?.text ?? ""}${text}`,
-      streaming: true,
+      text: `${this.#entries.get(key)?.text ?? ""}${text}`,
     })
   }
 
   /** The turn ended: whatever was streaming has stopped. */
   settle(): Change {
-    const key = this.#open
-    this.#open = null
-    if (key === null) return EMPTY
-    const current = this.#entries.get(key)
-    if (current === undefined || current.streaming !== true) return EMPTY
-    const { streaming: _dropped, ...rest } = current
-    this.#entries.set(key, rest)
-    return { upserts: [[key, rest]], removes: [] }
+    return this.#close()
   }
 
   /**
    * A tool call, announced or moved. Keyed by the agent's own call id, so the
    * second report of a call is the same row with a new status rather than a
    * second row — which is the whole reason the transcript is keyed.
+   *
+   * Fields that arrive `undefined` mean "unchanged", not "cleared": the
+   * protocol reports a call twice and the second report carries only what
+   * moved.
    *
    * A tool frame also CLOSES the open prose entry: the agent said something,
    * then did something, and the next thing it says is a new paragraph.
@@ -111,18 +114,18 @@ export class Transcript {
       readonly detail?: string | undefined
     },
   ): Change {
-    this.#open = null
     const key = `tool:${id}`
     const current = this.#entries.get(key)
-    const next: Omit<ChatEntry, "id" | "seq"> = {
-      kind: "tool",
-      text: move.title ?? current?.text ?? id,
-      status: move.status ?? current?.status ?? "pending",
-      ...(move.detail ?? current?.detail) === undefined
-        ? {}
-        : { detail: move.detail ?? current?.detail },
-    }
-    return this.#put(current === undefined ? this.#mint("tool", key) : key, next)
+    const detail = move.detail ?? current?.detail
+    return both(
+      this.#close(),
+      this.#put(key, {
+        kind: "tool",
+        text: move.title ?? current?.text ?? id,
+        status: move.status ?? current?.status ?? "pending",
+        ...(detail === undefined ? {} : { detail }),
+      }),
+    )
   }
 
   /** A write the ops layer refused. Its own kind, because the panel draws the
@@ -131,20 +134,41 @@ export class Transcript {
     return this.add("refusal", text, { refusal: failure })
   }
 
-  #mint(kind: string, key?: string): string {
-    return key ?? `${kind}:${++this.#minted}`
+  /** Stop streaming into whatever is open, and re-publish it without the flag.
+   *  Every path that ends a paragraph goes through here, which is what keeps
+   *  `#open` and the published `streaming` from disagreeing. */
+  #close(): Change {
+    const key = this.#open
+    this.#open = null
+    if (key === null) return EMPTY
+    const current = this.#entries.get(key)
+    if (current === undefined) return EMPTY
+    // The three fields `#put` mints are dropped rather than passed back in:
+    // `streaming` especially, because a spread of the old entry would carry the
+    // flag straight past the derivation that is supposed to decide it.
+    const { id: _id, seq: _seq, streaming: _streaming, ...content } = current
+    return this.#put(key, content)
   }
 
-  #put(key: string, entry: Omit<ChatEntry, "id" | "seq">): Change {
+  #next(kind: string): string {
+    return `${kind}:${++this.#minted}`
+  }
+
+  /** Write one entry and answer with the change. `streaming` is DERIVED here —
+   *  an entry is growing exactly while it is the open one — so no caller can
+   *  set it, and none can forget to. */
+  #put(
+    key: string,
+    entry: Omit<ChatEntry, "id" | "seq" | "streaming">,
+  ): Change {
     const existing = this.#entries.get(key)
     const next: ChatEntry = {
       ...entry,
       id: key,
       seq: existing?.seq ?? this.#seq++,
+      ...(key === this.#open ? { streaming: true as const } : {}),
     }
     this.#entries.set(key, next)
     return { upserts: [[key, next]], removes: [] }
   }
 }
-
-const EMPTY: Change = { upserts: [], removes: [] }

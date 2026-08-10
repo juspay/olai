@@ -7,37 +7,26 @@
  * the surface, the chat panel, the MCP tools — knows how a write is made; they
  * name an op and read the answer.
  *
- * Four things come out of here:
+ * FOUR things come out of here, and each is one socket rather than the wires
+ * behind it:
  *
- *   - `make`, the ops service: one `run` that plans, commits and retries;
- *   - `plan`, the pure decision behind it, exported because it is the part
- *     worth testing directly;
- *   - the query functions, which is how a reader that is not a browser sees
- *     the set — over parsed nodes, never over bytes;
- *   - `Mcp`, the tool surface those two are spoken through.
- *
- * The `codec` that joins `@olai/format` to `@olai/store` is here too: it is
- * the same joint this package is built on, and the write gate validates
- * through it on every commit.
+ *   - `codec` — the joint between the format and the store. It is here because
+ *     this is the layer that holds both, and because the write gate validates
+ *     through it on every commit;
+ *   - `make` — the ops service: one `run` that plans, commits and retries. The
+ *     planner behind it is deliberately NOT exported: it is the inside of this
+ *     one, and its own tests reach it directly;
+ *   - `Query` — how a reader that is not a browser sees the set, over parsed
+ *     nodes and never over bytes;
+ *   - `Mcp` — those two spoken as tools, with no transport in it. The tool
+ *     TABLE is not exported either: what a consumer wants is the server, and
+ *     the list is what the server is made of.
  */
 
 export { codec } from "./codec.ts"
 export type { Store } from "./deps.ts"
 export { make, type Ops, type Options } from "./ops.ts"
-export { type Context, type FilePlan, plan, type Plan } from "./plan.ts"
-export {
-  AddRequest,
-  type Applied,
-  ArchiveRequest,
-  DateRequest,
-  DescRequest,
-  MarkRequest,
-  MoveRequest,
-  Request,
-  TitleRequest,
-} from "./request.ts"
+export { type Applied, Request } from "./request.ts"
 
-export * as Query from "./query.ts"
 export * as Mcp from "./mcp.ts"
-export * as Git from "./git.ts"
-export { TOOLS, type Tool, toolNamed } from "./tools.ts"
+export * as Query from "./query.ts"

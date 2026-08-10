@@ -12,7 +12,7 @@
  * failure renders, with its detail (docs/brainstorming/acp.md).
  */
 
-import type { OpFailure } from "@olai/surface"
+import { kindOf, type OpFailure } from "@olai/surface"
 import { For, Match, Switch } from "solid-js"
 
 import { Rows } from "../errors/Report.tsx"
@@ -61,12 +61,6 @@ export function Refusal(props: { readonly failure: OpFailure }) {
     </div>
   )
 }
-
-/** The five kinds, as the word the taxonomy calls them. Spelled here rather
- *  than imported from the format's own `kindOf`, which takes the class: what
- *  crosses the wire is decoded data, and its `_tag` is what survived. */
-const kindOf = (failure: OpFailure): string =>
-  failure._tag.replace(/Failure$/, "").toLowerCase()
 
 const onlyDerived = (failure: OpFailure) =>
   failure._tag === "DerivedFailure" ? failure : undefined

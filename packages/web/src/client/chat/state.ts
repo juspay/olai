@@ -28,7 +28,7 @@ import {
 import { type Accessor, createMemo, createSignal } from "solid-js"
 
 import { olai } from "../wire.ts"
-import { run } from "./run.ts"
+import { type Call, run } from "./run.ts"
 
 export interface Chat {
   /** Where the conversation stands: session, model, commands, whether a turn
@@ -67,7 +67,7 @@ export const createChat = (): Chat => {
   /** Every verb the same way: clear the last refusal, run, and keep whatever
    *  this one refuses with. A verb that SUCCEEDS says nothing — the transcript
    *  is where its consequences show up. */
-  const verb = (effect: Parameters<typeof run>[0]) => {
+  const verb = (effect: Call<unknown>) => {
     setRefused(null)
     run(effect, (failure) => setRefused(failure))
   }

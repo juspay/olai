@@ -103,20 +103,27 @@ export const plan = (
     case "doing":
       return planMark(scope, request)
     case "title":
-      return planEdit(scope, request.id, (node) => ({ ...node, title: request.title }), "rename")
+      return planEdit(
+        scope,
+        request.id,
+        (node) => ({ ...node, title: request.title }),
+        (node) => `rename: ${node.title}`,
+      )
     case "desc":
       return planEdit(
         scope,
         request.id,
         (node) => withField(node, "desc", request.desc),
-        "note",
+        (node) => `note: ${node.title}`,
       )
     case "date":
+      // `move:` is the racket convention for a node's date, and a date IS what
+      // it named there.
       return planEdit(
         scope,
         request.id,
         (node) => withField(node, "date", request.date),
-        "date",
+        (node) => `move: ${node.title} -> ${node.date ?? "(cleared)"}`,
       )
     case "move":
       return planMove(scope, request)
@@ -482,11 +489,15 @@ const planMark = (
 
 // ── title / desc / date ────────────────────────────────────────────────
 
+/** The three field edits, which differ only in what they change and what the
+ *  commit line says. Both arrive as functions rather than as a tag this
+ *  function would switch on: a switch here would be the caller's decision,
+ *  made twice. */
 const planEdit = (
   scope: Scope,
   id: string,
   edit: (node: RegularNode) => RegularNode,
-  verb: "rename" | "note" | "date",
+  summarize: (node: RegularNode) => string,
 ): Planned => {
   const target = regularAt(scope, id)
   if (Result.isFailure(target)) return Result.fail(target.failure)
@@ -499,12 +510,7 @@ const planEdit = (
   if (next.title.trim() === "") {
     return Result.fail(new UsageFailure({ reason: "a node needs a title" }))
   }
-
-  // `move:` is the racket convention for a node's date, and a date IS what it
-  // named; the structural move and the two text edits get their own verbs.
-  const summary = verb === "date"
-    ? `move: ${next.title} -> ${next.date ?? "(cleared)"}`
-    : `${verb}: ${next.title}`
+  const summary = summarize(next)
 
   return Result.succeed({
     files: [{ file, nodes: replacing(recordsOf(scope, file), node.id, next) }],

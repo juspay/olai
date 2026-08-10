@@ -17,21 +17,33 @@ import { TESTID } from "../testids.ts"
 import type { Chat } from "./state.ts"
 import type { SessionInfo } from "@olai/surface"
 
+/**
+ * The picker is a small state machine, and it is ONE signal because it is one
+ * fact: shut, asking, or showing what came back.
+ *
+ * Spread over an `open` boolean, an `asking` boolean and a list, three of the
+ * eight combinations are unreachable and nothing says so — "asking while shut"
+ * and "a list while asking" are states the type would admit and the code would
+ * have to remember not to enter.
+ */
+type Picker = { readonly _tag: "shut" } | { readonly _tag: "asking" } | {
+  readonly _tag: "listed"
+  readonly sessions: ReadonlyArray<SessionInfo>
+}
+
 export function Sessions(props: { readonly chat: Chat }) {
-  const [open, setOpen] = createSignal(false)
-  const [listed, setListed] = createSignal<ReadonlyArray<SessionInfo>>([])
-  const [asking, setAsking] = createSignal(false)
+  const [picker, setPicker] = createSignal<Picker>({ _tag: "shut" })
 
   const toggle = () => {
-    if (open()) {
-      setOpen(false)
+    if (picker()._tag !== "shut") {
+      setPicker({ _tag: "shut" })
       return
     }
-    setOpen(true)
-    setAsking(true)
+    setPicker({ _tag: "asking" })
     void props.chat.sessions().then((sessions) => {
-      setListed(sessions)
-      setAsking(false)
+      // Ignore an answer that arrived after the popover was shut: the reader
+      // moved on, and re-opening it asks again.
+      if (picker()._tag === "asking") setPicker({ _tag: "listed", sessions })
     })
   }
 
@@ -43,60 +55,67 @@ export function Sessions(props: { readonly chat: Chat }) {
         type="button"
         class="rounded border border-rule px-2 py-1 text-xs text-muted hover:text-ink"
         data-testid={TESTID.chatSessions}
-        aria-expanded={open()}
+        aria-expanded={picker()._tag !== "shut"}
         onClick={toggle}
       >
         chats
       </button>
 
-      <Show when={open()}>
+      <Show when={picker()._tag !== "shut"}>
         <ul
           class="absolute right-0 top-full z-50 mt-1 max-h-80 w-80 list-none overflow-y-auto rounded border border-rule bg-paper p-1 shadow-lg"
           data-testid={TESTID.chatSessionList}
         >
           <Show
-            when={!asking()}
+            when={listedIn(picker())}
             fallback={<li class="px-2 py-1 text-xs text-muted">asking the agent…</li>}
           >
-            <Show
-              when={listed().length > 0}
-              fallback={
-                <li class="px-2 py-1 text-xs text-muted">no stored conversations</li>
-              }
-            >
-              <For each={listed()}>
-                {(session) => (
-                  <li>
-                    <button
-                      type="button"
-                      class="block w-full truncate rounded px-2 py-1 text-left text-xs hover:bg-rule"
-                      data-testid={TESTID.chatSession}
-                      data-session-id={session.id}
-                      data-current={session.id === current()}
-                      disabled={session.id === current()}
-                      onClick={() => {
-                        setOpen(false)
-                        props.chat.loadSession(session.id)
-                      }}
-                    >
-                      <span class={session.id === current() ? "text-accent" : ""}>
-                        {session.title ?? session.id}
-                      </span>
-                      <Show when={session.updatedAt}>
-                        {(at) => (
-                          <span class="ml-2 font-mono text-[0.625rem] text-muted">
-                            {at().slice(0, 10)}
-                          </span>
-                        )}
-                      </Show>
-                    </button>
-                  </li>
-                )}
-              </For>
-            </Show>
+            {(sessions) => (
+              <Show
+                when={sessions().length > 0}
+                fallback={
+                  <li class="px-2 py-1 text-xs text-muted">no stored conversations</li>
+                }
+              >
+                <For each={sessions()}>
+                  {(session) => (
+                    <li>
+                      <button
+                        type="button"
+                        class="block w-full truncate rounded px-2 py-1 text-left text-xs hover:bg-rule"
+                        data-testid={TESTID.chatSession}
+                        data-session-id={session.id}
+                        data-current={session.id === current()}
+                        disabled={session.id === current()}
+                        onClick={() => {
+                          setPicker({ _tag: "shut" })
+                          props.chat.loadSession(session.id)
+                        }}
+                      >
+                        <span class={session.id === current() ? "text-accent" : ""}>
+                          {session.title ?? session.id}
+                        </span>
+                        <Show when={session.updatedAt}>
+                          {(at) => (
+                            <span class="ml-2 font-mono text-[0.625rem] text-muted">
+                              {at().slice(0, 10)}
+                            </span>
+                          )}
+                        </Show>
+                      </button>
+                    </li>
+                  )}
+                </For>
+              </Show>
+            )}
           </Show>
         </ul>
       </Show>
     </div>
   )
 }
+
+/** The sessions, when there are some — `undefined` in the two states that have
+ *  none, which is what `<Show>` takes. */
+const listedIn = (picker: Picker): ReadonlyArray<SessionInfo> | undefined =>
+  picker._tag === "listed" ? picker.sessions : undefined

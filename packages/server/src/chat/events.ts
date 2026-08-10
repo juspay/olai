@@ -33,17 +33,20 @@ export type AgentEvent =
   /** A user message. Only a REPLAY carries these: live, we already know what
    *  was sent, because we sent it. */
   | { readonly _tag: "userSaid"; readonly text: string }
-  /** A tool call, announced. */
+  /**
+   * A tool call, as we last heard of it — announced or moved.
+   *
+   * ONE member rather than the announce/update pair the protocol has, because
+   * a consumer does the same thing with both: the transcript is keyed by
+   * `id`, so a second report of a call is the same row with new fields. Two
+   * events would be two arms of every switch that never differ, which is a
+   * distinction the wire makes and the conversation does not.
+   *
+   * `undefined` is "unchanged", not "cleared" — the protocol's own rule for
+   * an update, and the reason an announcement is expressible here at all.
+   */
   | {
     readonly _tag: "tool"
-    readonly id: string
-    readonly title: string
-    readonly status: "pending" | "in_progress" | "completed" | "failed"
-    readonly detail: string | undefined
-  }
-  /** ... changed. `undefined` is "unchanged", not "cleared". */
-  | {
-    readonly _tag: "toolMoved"
     readonly id: string
     readonly title: string | undefined
     readonly status: "pending" | "in_progress" | "completed" | "failed" | undefined

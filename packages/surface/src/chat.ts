@@ -38,7 +38,7 @@
  * was never sent.
  */
 
-import { OpFailure, Unfinished } from "@olai/format"
+import { BusyFailure, isOpFailure, kindOf, OpFailure, Unfinished } from "@olai/format"
 import { Schema } from "effect"
 
 /**
@@ -148,6 +148,8 @@ export const CHAT_OFF: ChatState = {
  *  empty prompt — and a second vocabulary would be a second thing to decode. */
 export const ChatFailure = OpFailure
 
-/** Re-exported so a consumer of the surface can name a refusal's children
- *  without also depending on the format package. */
-export { OpFailure, Unfinished }
+/** Re-exported so a consumer of the surface can name a refusal, ask which
+ *  KIND it is and draw its children without also depending on the format
+ *  package: the browser subscribes to this spec, not to the format, and a
+ *  second answer to "which kind is this" is exactly what it must not have. */
+export { BusyFailure, isOpFailure, kindOf, OpFailure, Unfinished }

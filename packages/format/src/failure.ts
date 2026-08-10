@@ -119,6 +119,10 @@ export const OpFailure = Schema.Union([
 ])
 export type OpFailure = typeof OpFailure.Type
 
+/** The closed table, and the only one. Every question about "which kind is
+ *  this" — the word an MCP result carries, the attribute the panel draws, the
+ *  test for whether an unknown failure is one of ours — reads it, so a sixth
+ *  kind is one edit and a `_tag` that stops matching is a type error. */
 const KINDS = {
   UsageFailure: "usage",
   NotFoundFailure: "not-found",
@@ -127,4 +131,20 @@ const KINDS = {
   BusyFailure: "busy",
 } as const satisfies Record<OpFailure["_tag"], FailureKind>
 
+/** Reads the DECODED value, so it answers for a refusal that has crossed the
+ *  wire as well as for one that never left: `_tag` is what survives. */
 export const kindOf = (failure: OpFailure): FailureKind => KINDS[failure._tag]
+
+/**
+ * Is this one of ours?
+ *
+ * A caller that runs a procedure sees two kinds of failure: the declared
+ * refusals, which it renders, and the framework's own transport failures,
+ * which it does not. Telling them apart against the closed table above rather
+ * than against the SHAPE of a tag — a name ending in `Failure`, say — is what
+ * keeps a framework error that happens to be spelled similarly from being
+ * drawn as a refused write.
+ */
+export const isOpFailure = (failure: unknown): failure is OpFailure =>
+  typeof failure === "object" && failure !== null && "_tag" in failure &&
+  (failure as { readonly _tag: unknown })._tag as string in KINDS
