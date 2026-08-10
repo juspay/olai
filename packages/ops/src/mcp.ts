@@ -1,12 +1,14 @@
 /**
- * The internal MCP server: the ops layer, spoken as tools.
+ * The MCP server: the ops layer, spoken as tools.
  *
  * ACP's `session/new` takes MCP server configurations, so the standard channel
  * from an agent to a host's own capabilities is an MCP server the host hands
- * its own session (docs/brainstorming/acp.md). This is that server — one
- * `handle` over JSON-RPC messages, with no transport in it at all. The
- * transport is the caller's: the olai server mounts it as an HTTP route
- * (`packages/server/src/mcp`), and a test calls it directly, which is what
+ * its own session (docs/brainstorming/acp.md). This is that server — and,
+ * having no transport in it at all, it is also the one an agent olai has never
+ * met reaches. One `handle` over JSON-RPC messages; the transport is the
+ * caller's. The olai server mounts it as an HTTP route for the session it
+ * spawns, and pumps it over stdin and stdout for the coding agent in somebody's
+ * terminal (`packages/server/src/mcp`); a test calls it directly, which is what
  * makes the tool surface unit-testable without a socket.
  *
  * Three methods and one notification is the whole of MCP's tool half —

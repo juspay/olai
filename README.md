@@ -146,6 +146,33 @@ agent, and setting it to the empty string turns chat off — the panel then says
 there is no agent and which variable would give it one, rather than quietly not
 being there. The outlines are served the same either way.
 
+## Or ask from a terminal
+
+The panel's agent is not the only one that can reach those tools. Any MCP
+client — a coding agent in a terminal, working in the same directory — gets the
+same closed list by launching olai:
+
+```sh
+claude mcp add olai -- olai mcp ~/outlines
+```
+
+`olai mcp <dir>` speaks MCP over its own stdin and stdout, so there is nothing
+to bind, nothing to configure and nothing to authenticate: the client proved
+who it is by being the process that started it. It needs no `olai web`
+running — a terminal in a notes directory is the ordinary case — and it does
+not mind one that is. Leave a tab open on that directory and it follows the
+terminal's edits the same way it follows yours, because both went to disk
+through the same gate, and the tab is watching the disk.
+
+It is the same bargain as the panel: the tools name nodes, never bytes, so a
+coding agent that would happily `sed` your notes cannot, and every write is a
+git commit you can read. `--no-commit` turns that off for a directory whose
+history is somebody else's job.
+
+There is still no write CLI, and there never will be — nothing you can type
+adds a node or marks one. `olai web` and `olai mcp` are the two ways of putting
+a write surface in front of a directory: a page, or a pipe.
+
 ## Develop
 
 ```sh
@@ -164,7 +191,7 @@ Everything runs inside the flake dev shell; the recipes re-enter it for you.
 |---|---|
 | [`packages/format`](packages/format) | the format, and the only place it is enforced: parse per line, validate the set |
 | [`packages/store`](packages/store) | a directory of files as a validated, revision-tagged snapshot, and the one write gate — generic, with no outline types in it |
-| [`packages/ops`](packages/ops) | the only writer: the semantic edits, and the internal MCP server an agent reaches them through |
+| [`packages/ops`](packages/ops) | the only writer: the semantic edits, and the MCP server both agents reach them through |
 | [`packages/surface`](packages/surface) | the typed reactive layer both ends speak, declared once |
 | [`packages/chat`](packages/chat) | one conversation with one ACP agent: the subprocess, the session, and the transcript a panel draws |
 | [`packages/server`](packages/server) | the composition root and the binary |

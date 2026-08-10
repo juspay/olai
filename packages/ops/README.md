@@ -108,8 +108,10 @@ byte, only a node. Reads answer with `file:line`, the node's DERIVED status —
 which for a parent is not in the file and can never be written there — and its
 ancestor titles, which is what makes a bare title mean something.
 
-`mcp.ts` has no transport in it: it is one `handle` over JSON-RPC messages, so
-the olai server mounts it as an HTTP route and a test calls it directly. Three
+`mcp.ts` has no transport in it: it is one `handle` over JSON-RPC messages, and
+that is what makes it serve every client at once. The olai server mounts it as
+an HTTP route for the agent it spawns, pumps it over stdin and stdout for the
+agent in somebody's terminal (`olai mcp`), and a test calls it directly. Three
 methods and one notification is the whole of MCP's tool half, which is why the
 official SDK would be a dependency for dispatch we would still have to route.
 

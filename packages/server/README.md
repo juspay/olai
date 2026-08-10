@@ -1,8 +1,9 @@
 # @olai/server — the composition root, and the binary
 
 One directory, read and served — and, since the agent arrived, written. Plus
-the `olai web <dir> [--port] [--host] [--no-commit]` entry point that starts
-it all in order.
+the two entry points that start it: `olai web <dir> [--port] [--host]
+[--no-commit]`, which puts a browser in front of the ops layer, and `olai mcp
+<dir> [--no-commit]`, which puts an agent's pipes in front of the same one.
 
 This is the only package allowed to know about all the others, which is what a
 composition root is for. The ORDER is the whole of what it decides: a store
@@ -29,7 +30,9 @@ register `stop` as a finalizer.
 | file | what it owns |
 |---|---|
 | `serve.ts` | the order above — the warning for binding off loopback, and which runtime failures are news |
-| `mcp/route.ts` | the internal MCP server, mounted on this listener, behind a per-process bearer token |
+| `mcp/route.ts` | the tool surface for the agent olai STARTED: mounted on this listener, behind a per-process bearer token |
+| `mcp/serve.ts` | the tool surface for an agent that started US: `olai mcp`'s own, much smaller, composition root |
+| `mcp/stdio.ts` | that one's transport — newline-framed JSON-RPC over a pair of pipes, and nothing else on stdout |
 | `runtime.ts` | the surface bindings: the outline stream is `SubscriptionRef.changes` verbatim, the errors cell is an owned source, the transcript is server-authored |
 | `listener.ts` | HTTP for the bundle, WebSocket for the surface: origin gate → upgrade → stale-tab gate → heartbeat → serve |
 | `media.ts` | `/media/*`: the pictures a document points at, and the only bytes that leave the served directory over HTTP without going through the store |
@@ -95,6 +98,35 @@ Everything `serve` opens is a finalizer of the enclosing scope, so shutting
 down is closing the scope; no caller holds a teardown function it might forget
 to call.
 
+## The tools, without a browser
+
+`olai mcp <dir>` is the other subcommand, and it is the same ops layer with a
+different thing in front of it. Its client is a coding agent in a terminal, so
+it gets what nearly every MCP client expects — a command it launches, and
+JSON-RPC over the pipes:
+
+```sh
+claude mcp add olai -- olai mcp ~/outlines
+```
+
+Three things about it are decisions rather than defaults, and `src/mcp/serve.ts`
+argues each where it happens:
+
+- **Its own store**, rather than a bridge into a running `olai web`. This has to
+  work with no server running, which is the ordinary case; a bridge would need
+  that server's port and its per-process token discovered from outside, and
+  would still have to do all of this on finding nothing listening. Two stores
+  over one directory is safe for the reason the write gate exists — it probes
+  before it judges, so an out-of-band change is part of the revision a write is
+  checked against — and it is not a lock, which is the same trade an editor and
+  a `git pull` already make.
+- **stdout is the protocol**, so the whole program's logging goes to stderr
+  (`Logger.LogToStderr`). A failed probe from the store on stdout is a frame
+  that is not a frame, and nothing downstream should have to know that.
+- **No port, no host, no token.** There is nothing to authenticate: the client
+  proved who it is by being the process that started this one. It stops when
+  that client closes stdin.
+
 ## Starting up, and what you are told when it will not
 
 **A busy port is not a refusal.** If the port asked for is already listening,
@@ -134,11 +166,22 @@ including the note that `listener.ts` is a sequence owed upstream to
 
 ```sh
 just serve docs              # build the client, serve this repo's own roadmap
+just run mcp docs            # the tool surface over stdio, from the working tree
 ```
 
-That is the edit loop: two `bun --watch` processes, so a validator rule you
+The first is the edit loop: two `bun --watch` processes, so a validator rule you
 change is live on the next reload. `just nix` is the other path — the packaged
 binary, built from tracked files only, which is what CI and `just e2e` prove.
+
+The second takes JSON-RPC on stdin, one message per line, which makes it
+pipeable — the fastest way to see what an agent is actually offered:
+
+```sh
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | just run mcp docs | tail -1
+```
+
+(`tail -1` is for the recipe, not the server: `just run` prints its own install
+line first. The binary itself writes nothing to stdout but frames.)
 
 ## The agent
 

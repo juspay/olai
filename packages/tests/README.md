@@ -12,7 +12,8 @@ packages/tests/
 ├── step_definitions/        # one file per feature
 ├── support/
 │   ├── world.ts             # OlaiWorld: page, locators, the UI contract
-│   └── hooks.ts             # browser + a server per corpus (and per scratch copy)
+│   ├── hooks.ts             # browser + a server per corpus (and per scratch copy)
+│   └── mcp.ts               # an MCP client, for the agent olai did not start
 ├── agent/                   # the scripted ACP agent the chat scenarios drive
 └── fixtures/                # the served directories (see fixtures/README.md)
 ```
@@ -149,6 +150,22 @@ that grew everywhere would be a regression in the other direction.
 `features/install_it.feature` is the other half — the manifest and the icons —
 and it asks the SERVER rather than the page (`world.fetch`), because that is
 who an installer asks.
+
+## The one client that is not a browser
+
+`features/an_external_agent.feature` is about the tool surface a coding agent in
+a terminal reaches, so its steps are not a browser at all: `support/mcp.ts`
+launches `olai mcp <dir>` — the same nix-built binary the servers come from, via
+`olaiBin()` — and speaks newline-framed JSON-RPC down its pipes. The client is
+hand-rolled and tiny on purpose; an MCP SDK here would be testing that SDK's
+framing against ours rather than ours.
+
+The assertions afterward DO go through the browser, and that is the whole point
+of putting these scenarios in this suite instead of a unit test: the claim is
+not "the write happened" but "the page a person is looking at followed a write
+made by a process it has never heard of". They are `@scratch:` for the usual
+reason — the agent writes — and the child process is killed in `After` beside
+the server, before the directory both were watching is removed.
 
 ## The UI contract
 

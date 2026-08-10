@@ -180,6 +180,25 @@ let mode: Mode | undefined;
  *  scenario would let the same mistake be reported forty times. */
 const modeOf = (): Mode => (mode ??= readMode());
 
+/** The olai executable this harness spawns.
+ *
+ *  For the one caller that launches something OTHER than a server with it: the
+ *  external tool surface is a subcommand of the same binary, and a scenario
+ *  about a terminal agent has to run the artefact a person would have, not a
+ *  script in this tree. A reused server (`OLAI_URL`) is somebody else's
+ *  process and says nothing about where its binary is. */
+export const olaiBin = (): string => {
+  const active = modeOf();
+  if (active.kind !== "spawn") {
+    throw new Error(
+      "this scenario launches the olai binary itself (`olai mcp`), so it needs " +
+        `OLAI_BIN — OLAI_URL (${active.baseUrl}) names a running server, not an ` +
+        "executable this harness can start.",
+    );
+  }
+  return active.bin;
+};
+
 /** `bun-types`' `node:net` and `node:child_process` declarations do not carry
  *  EventEmitter's methods, although the objects have them at runtime — a gap in
  *  the types, not in the behaviour (`node:stream`'s do, which is why the pipes
@@ -682,6 +701,12 @@ After(async function (this: OlaiWorld, scenario) {
   // cookies and any in-flight WebSocket go with it, so the next scenario's
   // first frame is a genuine cold load.
   if (this.context) await this.context.close();
+
+  // A terminal agent is a second process watching the same directory, and it
+  // goes first for the same reason the server goes before the directory: it is
+  // this scenario's, and nothing should still be reading a tree that is about
+  // to be removed.
+  this.terminalAgent?.stop();
 
   // A scratch scenario owns its server and its directory, and both die here —
   // the server first, so nothing is watching the tree while it is removed.
