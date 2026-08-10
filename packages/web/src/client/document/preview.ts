@@ -13,14 +13,23 @@
  */
 
 export const firstLine = (text: string): string => {
-  for (const line of text.split("\n")) {
-    const trimmed = line.trim()
-    if (trimmed === "") continue
-    // Only the heading marks, and only where markdown puts them: leading `#`s,
-    // and the optional closing run of them. Everything else stays as written —
-    // stripping emphasis and links here would be a second, worse renderer.
-    const stripped = trimmed.replace(/^#{1,6}\s+/, "").replace(/\s+#+$/, "")
-    return stripped === "" ? trimmed : stripped
+  // Scanned rather than split: a preview reads the top of a document, and
+  // `split("\n")` would allocate every line of one to throw all but the first
+  // away — on a page that draws this beside every `doc`-carrying row.
+  let at = 0
+  while (at < text.length) {
+    const end = text.indexOf("\n", at)
+    const line = (end === -1 ? text.slice(at) : text.slice(at, end)).trim()
+    if (line !== "") {
+      // Only the heading marks, and only where markdown puts them: leading
+      // `#`s, and the optional closing run of them. Everything else stays as
+      // written — stripping emphasis and links here would be a second, worse
+      // renderer.
+      const stripped = line.replace(/^#{1,6}\s+/, "").replace(/\s+#+$/, "")
+      return stripped === "" ? line : stripped
+    }
+    if (end === -1) break
+    at = end + 1
   }
   return ""
 }

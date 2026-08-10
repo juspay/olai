@@ -71,13 +71,11 @@ export interface Outline {
  *  tag would be a second answer that could disagree with the name. */
 export type DecodedFile = Outline | Document
 
-/** Which arm a decoded file is, asked once and named — the same shape this
- *  package's other two-shape decision uses (`isMirror`, {@link ./node.ts}).
- *  It reads BACK what `fileKind` already decided: `decode` branched on the
- *  path to produce this value, so the shape is that answer in another form and
- *  not a second one. Named rather than spelled inline at each site, because an
- *  inline field test at two sites is exactly how the two would come to
- *  disagree. */
+/** Which arm a decoded file is — named, like this package's other two-shape
+ *  decision (`isMirror`, {@link ./node.ts}), rather than spelled as a field
+ *  test wherever it is wanted. It reads BACK what `fileKind` already decided:
+ *  `decode` branched on the path to produce this value, so the shape is that
+ *  answer in another form and not a second one. */
 const isDocument = (decoded: DecodedFile): decoded is Document => "text" in decoded
 
 /**
@@ -101,18 +99,20 @@ export const assemble = (
   const documents: Array<Document> = []
   const broken: Array<BrokenFile> = []
 
+  // Two questions per file, and they are answered from two different places
+  // because two different things know them. WHICH LIST a file belongs to is its
+  // NAME's answer — a file that would not decode has no value to ask, and it
+  // still has to keep its place. WHAT IT HOLDS is the VALUE's answer, and the
+  // value is the only thing that has it.
   for (const [path, decoded] of files) {
     if (Result.isFailure(decoded)) {
       broken.push({ file: path, errors: decoded.failure })
-      // What a file IS comes from its name and from nowhere else, which is the
-      // only thing still true about a file that would not decode: it keeps its
-      // place, holding nothing.
       if (fileKind(path) === "document") documents.push({ file: path, text: "" })
       else outlines.push(path)
       continue
     }
     const value = decoded.success
-    // The PATH is the caller's listing, not the decoded value's idea of it:
+    // The path is the caller's listing rather than the value's idea of itself:
     // one of them is where the file was found, and that is the one every other
     // list here is built from.
     if (isDocument(value)) documents.push({ file: path, text: value.text })

@@ -12,7 +12,7 @@
  * `doc` field means once the outline it was written in is taken into account.
  */
 
-import { Show } from "solid-js"
+import { createMemo, Show } from "solid-js"
 
 import { Markdown } from "../markdown/Markdown.tsx"
 import { Link } from "../router.tsx"
@@ -27,6 +27,13 @@ export function DocRef(props: {
   readonly inline?: boolean
 }) {
   const document = useDocument(() => props.file)
+  // Two memos, and the first is why the second is cheap. Every frame the store
+  // publishes mints a new `Document` record, so a preview read off the record
+  // would re-scan the file on every save anywhere in the directory; read off
+  // the TEXT, which is a string and compares by value, it re-scans only when
+  // the document itself changed.
+  const text = createMemo(() => document()?.text ?? "")
+  const preview = createMemo(() => firstLine(text()))
 
   return (
     <div
@@ -47,7 +54,7 @@ export function DocRef(props: {
         {/* The preview is the ELSEWHERE shape only: under the whole document,
             a line of it would be the same words twice. */}
         <Show when={props.inline !== true}>
-          <span class="truncate text-muted">{firstLine(document()?.text ?? "")}</span>
+          <span class="truncate text-muted">{preview()}</span>
         </Show>
       </div>
 

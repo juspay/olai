@@ -39,15 +39,20 @@ walked from `clientDist.ts` into `packages/web/dist` would be a real
 `server → web` dependency expressed as a path — invisible to `bun install` and
 to any layering check.
 
-`media.ts` decides nothing about what it will answer — `@olai/surface`'s
-`mediaTarget` owns the traversal guard and the picture allowlist, because the
-client's renderer writes those URLs against the same function. What is left
-here is the disk: a name under the root, a stat that refuses anything but a
-readable file, and one 404 for every way a picture is not there. Which way it
-is missing is not the reader's business, and saying would describe the disk to
-anybody who can reach the port. The guard is lexical by design: it stops a URL
-from naming a file outside the directory, and does not chase a symlink someone
-put inside a tree they are already serving whole.
+`media.ts` is two decisions and no mechanism of its own. WHETHER to answer is
+`@olai/surface`'s `mediaTarget` — the traversal guard and the picture
+allowlist, which live there because the client's renderer writes those URLs
+against the same function. HOW to answer is the platform's own file engine
+(`HttpStaticServer`), the same one already serving the bundle from the layer
+beside it: reading a file under a root is not a thing to hand-roll twice in one
+process, and the engine brings the stat, the directory case, the MIME type, the
+byte range and the conditional `304` a browser asks for on its second look at a
+picture. What is left in this file is the wiring and one 404 for every way a
+picture is not there — which way it is missing is not the reader's business,
+and saying would describe the disk to anybody who can reach the port. The guard
+is lexical by design: it stops a URL from naming a file outside the directory,
+and does not chase a symlink someone put inside a tree they are already serving
+whole.
 
 ## Entry point
 

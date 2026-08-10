@@ -13,6 +13,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import {
+  DOC_LINK,
   DOC_REF,
   DOCUMENT_BODY,
   DOCUMENT_LINK,
@@ -182,11 +183,22 @@ Then(
 
 // ── what the route itself answers ──────────────────────────────────────
 
+/** Ask the server directly, as the browser's own `<img>` would — one place, so
+ *  the two steps below cannot start asking differently. */
+const requested = async (world: OlaiWorld, path: string, status: number) => {
+  const answer = await world.page.request.get(`${world.baseUrl}${path}`);
+  assert.strictEqual(
+    answer.status(),
+    status,
+    `${path} came back ${answer.status()}, expected ${status}`,
+  );
+  return answer;
+};
+
 Then(
   "requesting {string} answers {int} with type {string}",
   async function (this: OlaiWorld, path: string, status: number, type: string) {
-    const answer = await this.page.request.get(`${this.baseUrl}${path}`);
-    assert.strictEqual(answer.status(), status);
+    const answer = await requested(this, path, status);
     assert.ok(
       (answer.headers()["content-type"] ?? "").startsWith(type),
       `${path} came back as ${JSON.stringify(answer.headers()["content-type"])}, expected ${type}`,
@@ -197,12 +209,7 @@ Then(
 Then(
   "requesting {string} answers {int}",
   async function (this: OlaiWorld, path: string, status: number) {
-    const answer = await this.page.request.get(`${this.baseUrl}${path}`);
-    assert.strictEqual(
-      answer.status(),
-      status,
-      `${path} came back ${answer.status()}, expected ${status}`,
-    );
+    await requested(this, path, status);
   },
 );
 
@@ -226,6 +233,16 @@ Then(
       oneLine(await reference.innerText()).includes(text),
       `the reference on "${id}" reads ${JSON.stringify(oneLine(await reference.innerText()))}`,
     );
+  },
+);
+
+When(
+  "I follow the document link on {string}",
+  async function (this: OlaiWorld, id: string) {
+    const link = this.docRef(id).locator(DOC_LINK).first();
+    await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await link.click();
+    await this.waitForFrame();
   },
 );
 

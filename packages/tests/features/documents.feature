@@ -83,6 +83,15 @@ Feature: Documents
     And the document renders bold text "matte"
 
   @corpus:good
+  Scenario: The reference on a node is the way to the document's page
+    Given I open the outline "house.jsonl"
+    And I mark the page
+    When I follow the document link on "install"
+    Then the document open is "finishes.md"
+    And the address is "/doc/finishes.md"
+    And the page has not reloaded
+
+  @corpus:good
   Scenario: A document names no node, so nothing in the tree lights up
     When I open the document "notes/palette.md"
     Then no outline tree is shown

@@ -6,11 +6,17 @@
  * This route is that URL, and it is the ONE place bytes leave the served
  * directory over HTTP without having gone through the store.
  *
- * What it will answer is not decided here: `@olai/surface`'s `mediaTarget` is
- * the bijection the client's renderer writes against, and it is where the
- * traversal guard and the picture allowlist live. What is left for this file is
- * the disk — turn the name into a path under the root, refuse anything that is
- * not a readable file, and stream it.
+ * It is two decisions and no mechanism of its own:
+ *
+ *   - WHETHER to answer is `@olai/surface`'s `mediaTarget` — the traversal
+ *     guard and the picture allowlist, written against the same bijection the
+ *     client's renderer builds these URLs with. That is the only part of this
+ *     route that is olai's;
+ *   - HOW to answer is the platform's own file engine (`HttpStaticServer`),
+ *     which the bundle beside us is already served by. Reading a file under a
+ *     root is not a thing to hand-roll twice in one process: the engine owns
+ *     the stat, the directory case, the MIME type, the byte ranges and the
+ *     conditional `304` a browser asks for on every second look at a picture.
  *
  * Every way a picture is not there is one 404. The reader asked for a picture
  * and there is not one; which of the ways it is missing is not their business,
@@ -23,8 +29,13 @@
  */
 
 import { MEDIA_PREFIX, mediaTarget } from "@olai/surface"
-import { Effect, FileSystem, Path, Result } from "effect"
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
+import { Effect } from "effect"
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+  HttpStaticServer,
+} from "effect/unstable/http"
 
 /**
  * The route, over one served directory.
@@ -34,32 +45,44 @@ import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstab
  * falls through to the SPA shell.
  */
 export const mediaLayer = (root: string) =>
-  HttpRouter.add(
-    "GET",
-    `${MEDIA_PREFIX}*`,
-    (request: HttpServerRequest.HttpServerRequest) =>
-      Effect.gen(function*() {
-        const target = mediaTarget(request.url)
-        if (target === null) return missing
+  HttpRouter.use((router) =>
+    Effect.gen(function*() {
+      // `orDie`: a file engine that cannot be built for the directory we were
+      // told to serve is a misconfiguration, not a degraded mode.
+      const files = yield* Effect.orDie(
+        // No index and no SPA fallback: those turn a miss into a page, and a
+        // miss here is a miss. This route answers with a picture or with 404.
+        HttpStaticServer.make({ root, index: undefined, spa: false }),
+      )
 
-        const path = yield* Path.Path
-        const fs = yield* FileSystem.FileSystem
-        const absolute = path.join(root, ...target.split("/"))
+      yield* router.add(
+        "GET",
+        `${MEDIA_PREFIX}*`,
+        (request: HttpServerRequest.HttpServerRequest) =>
+          Effect.gen(function*() {
+            const target = mediaTarget(request.url)
+            if (target === null) return missing
 
-        // Stat before serving: a directory called `art.png` would otherwise be
-        // opened as a stream and fail with the response already begun.
-        const info = yield* Effect.result(fs.stat(absolute))
-        if (Result.isFailure(info) || info.success.type !== "File") return missing
-
-        // The platform names the content type from the file's own extension,
-        // and the extension is on the allowlist by now, so there is no second
-        // table here to disagree with the first.
-        return yield* Effect.orElseSucceed(
-          HttpServerResponse.file(absolute),
-          () => missing,
-        )
-      }),
+            // Handed to the engine as a path of its own, re-encoded because
+            // that is what it takes: `mediaTarget` decoded the URL to judge it,
+            // and the engine decodes what it is given.
+            return yield* files.pipe(
+              Effect.provideService(
+                HttpServerRequest.HttpServerRequest,
+                request.modify({ url: served(target) }),
+              ),
+              // The engine's own misses come back as failures; they are this
+              // route's 404 rather than the router's error page.
+              Effect.orElseSucceed(() => missing),
+            )
+          }),
+      )
+    })
   )
 
 /** One answer for every way a picture is not there. */
 const missing = HttpServerResponse.empty({ status: 404 })
+
+/** A checked target, as the URL the file engine resolves under the root. */
+const served = (target: string): string =>
+  `/${target.split("/").map(encodeURIComponent).join("/")}`
