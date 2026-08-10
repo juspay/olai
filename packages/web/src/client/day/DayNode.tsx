@@ -10,7 +10,8 @@
  *
  * The bullet is the link and the checkbox is the status, exactly as they are
  * in the tree: a day is a way of FINDING a node, and the node's own page is
- * where it is read.
+ * where it is read. Notes match the tree too — one dim clamped line under the
+ * title, click/tap expands in place (../note/expand.ts).
  */
 
 import type { Situated } from "@olai/format"
@@ -19,18 +20,17 @@ import { Show } from "solid-js"
 import { Breadcrumbs } from "../Breadcrumbs.tsx"
 import { Bullet } from "../Bullet.tsx"
 import { Checkbox } from "../Checkbox.tsx"
+import { createNoteExpand } from "../note/expand.ts"
 import { NodeBody } from "../NodeBody.tsx"
 import { NodeLine } from "../NodeLine.tsx"
 import { TESTID } from "../testids.ts"
 import { PAST_BULLET } from "../touch.ts"
-import type { View } from "../view.ts"
-import { placeOf } from "./place.ts"
 
 export function DayNode(props: {
   readonly dated: Situated
-  readonly view: View
 }) {
   const node = () => props.dated.shows.node
+  const note = createNoteExpand()
 
   return (
     <li
@@ -39,6 +39,7 @@ export function DayNode(props: {
       data-node-id={node().id}
       data-status={props.dated.status}
       data-file={props.dated.shows.file}
+      data-note-open={note.expanded() ? "true" : "false"}
     >
       {/* A root has no ancestry, and an empty trail is nothing to draw. */}
       <Show when={props.dated.trail.length > 0}>
@@ -57,11 +58,11 @@ export function DayNode(props: {
 
       {/* Past the bullet and the checkbox — ../touch.ts, so this indent and
           those two controls cannot drift apart. */}
-      <div class={PAST_BULLET}>
+      <div class={PAST_BULLET} ref={note.setRoot}>
         <NodeBody
           shows={props.dated.shows}
-          place={placeOf(props.dated)}
-          view={props.view}
+          expanded={note.expanded()}
+          onToggle={note.toggle}
         />
       </div>
     </li>

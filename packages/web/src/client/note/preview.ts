@@ -1,10 +1,10 @@
 /**
- * A note, as one plain-text line.
+ * A note, as one plain-text line for the title-row snippet.
  *
- * Wherever a `desc` is drawn but not opened — a row in a tree, an entry on a
- * day — it shows one line of the note rather than the note. Full markdown is
- * a document of its own, and drawing every note open is what used to leave
- * only a few nodes on a screen.
+ * Wherever a `desc` rides a closed row — a tree node, a day entry — it shows
+ * as one dim clamped line under the title (Workflowy-style), not open
+ * markdown. Full markdown is a document of its own, and drawing every note
+ * open is what used to leave only a few nodes on a screen.
  *
  * PLAIN TEXT, not rendered markdown: this sits inside a line beside a title,
  * and a list, a heading or a fenced block drawn there would be a note

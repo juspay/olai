@@ -13,7 +13,6 @@ import { Show } from "solid-js"
 
 import { Breadcrumbs } from "./Breadcrumbs.tsx"
 import { DateBadge } from "./DateBadge.tsx"
-import { DensityToggle } from "./DensityToggle.tsx"
 import { DoneToggle } from "./DoneToggle.tsx"
 import { only } from "./narrow.ts"
 import { NodeBody } from "./NodeBody.tsx"
@@ -51,16 +50,10 @@ function Zoom(props: {
       <header class="mb-4">
         <div class="flex items-baseline justify-between gap-4">
           <Breadcrumbs file={props.zoomed.shows.file} trail={props.zoomed.trail} />
-          <div class="flex items-baseline gap-2">
-            <DensityToggle
-              density={props.view.density()}
-              onCycle={props.view.cycleDensity}
-            />
-            <DoneToggle
-              hidden={props.view.doneHidden()}
-              onToggle={props.view.toggleDone}
-            />
-          </div>
+          <DoneToggle
+            hidden={props.view.doneHidden()}
+            onToggle={props.view.toggleDone}
+          />
         </div>
 
         {/* The subject is a node too — same testid a row uses — so "the
@@ -89,7 +82,7 @@ function Zoom(props: {
           </div>
 
           {/* Zoomed, a node's note and document ARE the page under it: the node
-              said the rest was here, and density does not apply to the subject. */}
+              said the rest was here, and the subject is never densified. */}
           <NodeBody shows={props.zoomed.shows} zoomed />
         </div>
       </header>

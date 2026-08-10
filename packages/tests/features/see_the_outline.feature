@@ -40,8 +40,8 @@ Feature: See the outline
     Then the node "order" shows the date "2026-08-10"
     And the node "demo" shows no date
 
-  Scenario: A description is a one-line preview by default
-    # Full markdown is the zoomed page and a click-to-unfold — see
+  Scenario: A description is one clamped line under the title by default
+    # Full markdown is the zoomed page and click-to-expand — see
     # note_density.feature. Here the outline only promises the default shape.
     Then the description of "order" is a preview of "Two ways to go:"
     And the description of "order" does not render as markdown blocks

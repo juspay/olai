@@ -81,6 +81,24 @@
  * block, because the scrollbars and the form controls are the browser's to
  * paint and that is how it is told which way. */
 
+/* In-place note expansion on a tree/day row. A short fade when motion is OK;
+ * none under prefers-reduced-motion so the reflow is instant for readers who
+ * asked for that (no rule at all in that case). */
+@media (prefers-reduced-motion: no-preference) {
+  .olai-row-detail {
+    animation: olai-row-detail-in 120ms ease-out;
+  }
+}
+
+@keyframes olai-row-detail-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* Rendered markdown — a note's, and a whole document's. Its `<p>`, `<ul>`,
  * `<code>` and `<pre>` are produced by the sanitiser at view time and carry no
  * classes, so they are the one place a descendant rule is the only tool there

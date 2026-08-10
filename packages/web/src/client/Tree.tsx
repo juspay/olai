@@ -20,9 +20,11 @@
  * reads the same derived done/doing/open the title tones with — open is an
  * empty box, not the absence of one — and is read-only until keyboard-editing.
  *
- * The READING (./view.ts) is one thing — folds, density, which notes are open —
- * so it is handed as one prop rather than re-exploded into the fields a branch
- * happens to need today.
+ * A note on a row is Workflowy-style: one dim line under the title, clamped
+ * with an ellipsis; click (or tap) expands in place to the full note and see
+ * links; click again or click away collapses (./note/expand.ts). The date
+ * badge stays on the title line. The READING (./view.ts) is only folds and
+ * done-visibility — notes are not a switch.
  */
 
 import { type Row } from "@olai/format"
@@ -31,6 +33,7 @@ import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { Bullet } from "./Bullet.tsx"
 import { Checkbox } from "./Checkbox.tsx"
+import { createNoteExpand } from "./note/expand.ts"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
 import { TESTID } from "./testids.ts"
@@ -72,6 +75,9 @@ function Branch(props: {
     ? props.row.shows
     : undefined
 
+  // Click/tap expand — local to this place, not a reading cell. No hover.
+  const note = createNoteExpand()
+
   return (
     <li
       class="my-0.5"
@@ -82,6 +88,7 @@ function Branch(props: {
       data-kind={props.row.kind}
       data-file={props.row.at.file}
       data-line={props.row.at.line}
+      data-note-open={note.expanded() ? "true" : "false"}
     >
       <div class="flex items-baseline gap-1.5">
         <Show
@@ -134,14 +141,14 @@ function Branch(props: {
 
       {/* Indented past both controls — which are wider where a finger is what
           taps them, so the note and the document under it line up with the
-          title on either. */}
+          title on either. The note control root is what "click away" uses. */}
       <Show when={!collapsed() && shown()}>
         {(shows) => (
-          <div class={PAST_CONTROLS}>
+          <div class={PAST_CONTROLS} ref={note.setRoot}>
             <NodeBody
               shows={shows()}
-              place={props.row.key}
-              view={props.view}
+              expanded={note.expanded()}
+              onToggle={note.toggle}
             />
           </div>
         )}

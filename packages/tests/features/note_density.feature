@@ -1,55 +1,55 @@
 @corpus:good
-Feature: Note density
-  A description that always opens in full is a page of three nodes. Workflowy's
-  answer, adopted: by default a note is one dim truncated plain-text line; the
-  full markdown is the node's own zoomed page and a click that REPLACES the
-  preview with the body (never stacks both); and a per-view switch cycles
-  full / first-line / hidden.
+Feature: Notes under the title
+  A description that always opens in full is a page of three nodes. Workflowy-
+  style, adopted: under the title, one dim plain-text line clamped with an
+  ellipsis; there is no density switch, no hover, and no per-place unfold cell.
+  Clicking the note expands it in place to the full multi-line desc and the
+  see links; clicking it again — or clicking away — collapses back to the one
+  clamped line. Touch is the same click. The date badge stays on the title
+  line. The zoomed page keeps the full note always.
 
   Background:
     Given I open the outline "house.jsonl"
 
-  Scenario: By default a note is one plain-text line
+  Scenario: By default a note is one clamped line under the title
     # `order` stores a multi-line markdown note with a list and bold. The
-    # preview is the first line as words, not the rendered blocks.
+    # preview is the first line as words, under the title, not on it and not
+    # as rendered blocks.
     Then the description of "order" is a preview of "Two ways to go:"
     And the description of "order" does not render as markdown blocks
+    And the description of "order" is under its title
+    And the description of "order" is clamped to one line
 
-  Scenario: Expanding replaces the preview — the first line is not shown twice
-    When I unfold the note of "order"
+  Scenario: Clicking the note expands it in place
+    When I click the note of "order"
     Then the description of "order" renders bold text "walnut"
     And the description of "order" renders 2 list items
     And the description of "order" does not show its markdown source
-    # The bug: open used to keep the preview button above the body, so
-    # "Two ways to go:" printed twice. Expanded is the body alone.
-    And the description of "order" shows the first line "Two ways to go:" exactly once
-    When I fold the note of "order"
+    And the node "order" sees "herbs" as "the herb bed by the door"
+    When I click the note of "order"
     Then the description of "order" is a preview of "Two ways to go:"
     And the description of "order" does not render as markdown blocks
+
+  Scenario: Clicking away collapses the open note
+    When I click the note of "order"
+    Then the description of "order" renders bold text "walnut"
+    When I click away from the note of "order"
+    Then the description of "order" is a preview of "Two ways to go:"
 
   Scenario: A zoomed page always shows the subject's note in full
     When I open the node "order"
     Then the zoomed node is "order"
-    # Density is first-line by default, but the subject is the page: its note
-    # is not densified.
+    # The subject is the page: its note is not a clamped line.
     And the description of "order" renders bold text "walnut"
     And the description of "order" renders 2 list items
+    And the node "order" shows the date "2026-08-10"
 
-  Scenario: The density switch shows every note in full
-    When I set note density to "full"
+  @phone
+  Scenario: On a phone, tapping the note toggles the same expansion
+    When I tap the note of "order"
     Then the description of "order" renders bold text "walnut"
     And the description of "order" renders 2 list items
-
-  Scenario: The density switch hides every note
-    When I set note density to "hidden"
-    Then the node "order" shows no description
-
-  Scenario: The density switch cycles first-line, full, and hidden
-    Then the note density is "first-line"
-    When I set note density to "full"
-    Then the note density is "full"
-    When I set note density to "hidden"
-    Then the note density is "hidden"
-    When I set note density to "first-line"
-    Then the note density is "first-line"
-    And the description of "order" is a preview of "Two ways to go:"
+    And the node "order" sees "herbs" as "the herb bed by the door"
+    When I tap the note of "order"
+    Then the description of "order" is a preview of "Two ways to go:"
+    And the description of "order" does not render as markdown blocks

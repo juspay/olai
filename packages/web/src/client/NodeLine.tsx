@@ -7,9 +7,12 @@
  * two chances for one of them to start toning a wrapper instead, or to move
  * the testid, while both still compiled and only one browser test noticed.
  *
+ * The note itself is NOT on this line. It hangs under the title as its own
+ * clamped one-line gray row (./NodeBody.tsx), Workflowy-style.
+ *
  * A FRAGMENT, not a box. The row it sits in belongs to whoever draws it — a
  * tree row also holds a fold toggle, and where that sits relative to the
- * bullet is the tree's business — so this contributes two siblings to a flex
+ * bullet is the tree's business — so this contributes siblings to a flex
  * row it does not own.
  */
 
