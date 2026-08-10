@@ -23,6 +23,14 @@ Feature: See the outline
     And the node "order" has status "doing"
     And the node "handles" has status "open"
 
+  Scenario: Status is a checkbox beside the bullet — including open
+    # The racket original drew status as a box, not only as title tone. All
+    # three states render a box: checked for done, half for doing, and an EMPTY
+    # box for open — the open state is not the absence of a checkbox.
+    Then the node "demo" shows a checked checkbox
+    And the node "order" shows a doing checkbox
+    And the node "handles" shows an empty checkbox
+
   Scenario: A parent shows the status derived from its children
     # `kitchen` stores no status at all: one child is done, one is under way,
     # one has not started, so it is `doing`. The mirror under it does not count.

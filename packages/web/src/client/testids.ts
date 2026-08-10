@@ -54,6 +54,9 @@ export const TESTID = {
   themeChip: "theme-chip",
   /** The bullet on every row: the link to that node's own page. */
   zoom: "zoom",
+  /** The status box beside that bullet: checked / half / empty for
+   *  done / doing / open. Read-only for now; the glyph is the assertion. */
+  checkbox: "checkbox",
   /** The heading of a zoomed page — carries the CANONICAL node's id, which is
    *  what makes "a mirror lands on the node itself" an assertion. */
   zoomTitle: "zoom-title",
