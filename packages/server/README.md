@@ -18,8 +18,7 @@ one-validator rule has been broken.
 |---|---|
 | `serve.ts` | the order: store, then surface, then listener — the warning for binding off loopback, and which runtime failures are news |
 | `codec.ts` | the seam where the generic store meets the outline format |
-| `runtime.ts` | the surface bindings: the stream is `SubscriptionRef.changes` verbatim, the errors cell is an owned source, and `identity.info` answers with this process's id |
-| `identity.ts` | that id, minted once — the runtime answers with it and the listener's stale-tab gate compares against it |
+| `runtime.ts` | the two surface bindings: the stream is `SubscriptionRef.changes` verbatim, the errors cell is an owned source |
 | `listener.ts` | HTTP for the bundle, WebSocket for the surface: origin gate → upgrade → stale-tab gate → heartbeat → serve |
 | `clientDist.ts` | `OLAI_DIST_DIR`, the one place the built bundle is named |
 | `main.ts` | argv, defaults, and the top-level run |
@@ -27,8 +26,10 @@ one-validator rule has been broken.
 The stale-tab gate in that sequence is not a formality: a browser reconnecting
 after a restart presents the process id it was given by the server that is
 gone, and this one closes the socket at the handshake rather than serving a
-page it did not build. The gate only fires because the browser has an id to
-present — the `identity.info` half — so the two live and die together.
+page it did not build. No id is threaded through this package to make that
+work — the gate compares against the framework's own `surfaceProcessId()`, the
+same value `system/identity` answers with and the browser echoes back, so the
+two ends cannot be pointed at different ids.
 
 The server does not build the client and does not import it. It serves a bundle
 it is handed, so `@olai/web` is deliberately absent from its dependencies and

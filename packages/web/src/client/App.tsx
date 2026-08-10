@@ -45,7 +45,7 @@ import { OutlinePage } from "./OutlinePage.tsx"
 import { createRouter, RouterProvider } from "./router.tsx"
 import { Sidebar } from "./Sidebar.tsx"
 import { createView } from "./view.ts"
-import { olai, serverLifecycle } from "./wire.ts"
+import { connectionStatus, olai } from "./wire.ts"
 
 export default function App() {
   const frame = olai.streams.outlines.use(() => ({}))
@@ -108,7 +108,7 @@ export default function App() {
       {/* Outside the switch, and first: every shape below — the report, the
           waiting page, the outline — is a page whose reader deserves to know
           whether the server behind it is still there. */}
-      <Connection event={serverLifecycle()} />
+      <Connection status={connectionStatus()} />
       <Switch fallback={<p class="p-8 text-muted">Reading…</p>}>
         <Match when={frame() === null}>
           <ErrorPage errors={problems()} />

@@ -20,9 +20,12 @@
  *     the snapshot: a set that stops validating leaves the last good tree on
  *     screen underneath a banner, which is only expressible if the two arrive
  *     separately.
- *   - `identity.info` is a PROCEDURE, and it is about the server rather than
- *     about any outline: it answers "which process am I talking to", which is
- *     what tells a transient drop from a restart. See its own note below.
+ *
+ * Who is on the other end is NOT a member here, and it was for one commit. The
+ * question is real — a page bound to a replaced server must know — but the
+ * framework reserves `system/identity` for it and answers it out of every
+ * surface, process id included, so an app that declares its own is declaring a
+ * second answer to a question already answered (juspay/kolu#2133).
  *
  * Ops arrive as procedures and chat as events when the agent does (they are one
  * roadmap item: chat's agent is the first writer). Both slot
@@ -64,35 +67,6 @@ export type OutlineFrame = typeof OutlineFrame.Type
  *  input keeps the member's shape ready for one. */
 const NoInput = Schema.Struct({})
 
-/**
- * Who is on the other end — one id per server process.
- *
- * It exists because a websocket that closes and opens again says nothing about
- * WHY: a laptop lid, a Wi-Fi roam and a server that was restarted under the tab
- * all look identical from the socket. Comparing this id across reconnects is
- * what separates them, and the difference is not cosmetic — a page that came
- * from a process that no longer exists is holding a bundle nobody is serving
- * any more, so its recovery is a reload and not a retry.
- *
- * The client also echoes the last id it saw back as the `pid` query parameter
- * on every re-dial, which is the other half of the same fact: the server that
- * receives an id it does not recognise knows the tab predates it and closes it
- * rather than serving it (`@kolu/surface-app`'s stale-tab handshake, which
- * packages/server has implemented since the scaffold — this member is what
- * finally gives the browser an id to present).
- *
- * `{ processId }` is `@kolu/surface-app`'s own `ServerProbeSchema` shape, spelled
- * here rather than imported: the framework's `createServerLifecycle` reads a
- * `{ processId: string }` off whatever probe it is handed, and serving one member
- * of our own is a smaller thing than mounting surface-app's whole surface as a
- * sibling (which is the day build-identity and PWA staleness arrive, not this
- * one). The framework's reserved `system/identity` is not a substitute: it
- * reports the server's start time, and the stale-tab gate compares the id the
- * SERVER chose, which nothing outside it can derive.
- */
-const ServerIdentity = Schema.Struct({ processId: Schema.String })
-export type ServerIdentity = typeof ServerIdentity.Type
-
 export const surface = defineSurface({
   cells: {
     // Wire-read-only: the server is the only writer, and a write verb it never
@@ -107,11 +81,6 @@ export const surface = defineSurface({
     outlines: {
       inputSchema: NoInput,
       outputSchema: OutlineFrame,
-    },
-  },
-  procedures: {
-    identity: {
-      info: { input: NoInput, output: ServerIdentity },
     },
   },
 })

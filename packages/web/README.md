@@ -65,20 +65,22 @@ keep showing the last thing they were told — so a dot in the corner reports it
 always, in every shape of the app, and is green only while a server is
 answering.
 
-`status.ts` is the whole policy and it is pure: the framework's lifecycle event
-narrowed to the four states a reader can act on (`connecting`, `live`, `lost`,
-`restarted`) and a table of what each looks like. That is where the mistake this
-folder exists to prevent would be made — a state that quietly reads as
-healthy — so it is unit-tested directly, with no socket and no browser.
+`status.ts` is the whole policy and it is pure: a table over the wire's own four
+states (`connecting`, `live`, `reconnecting`, `retired`) saying what each looks
+like. That is where the mistake this folder exists to prevent would be made — a
+state that quietly reads as healthy, or a terminal one drawn like a transient
+one — so it is unit-tested directly, with no socket and no browser.
 
-`restarted` is the one that takes the screen (`Restarted.tsx`). It means the
+`retired` is the one that takes the screen (`Restarted.tsx`). It means the
 server this page came from has been replaced: the tab presented its process id
 on the reconnect, the new server did not recognise it and closed the socket at
-the handshake, and the wire is retired for good. Nothing heals that, so the
-page offers the only thing that works — a reload, as a button rather than
-automatically, because throwing away a page someone is reading without asking
-is not a recovery. `wire.ts` is where the lifecycle is derived; the surface's
-`identity.info` is the id it reads.
+the handshake, and the wire has stopped dialling for good. Nothing heals that,
+so the page offers the only thing that works — a reload, as a button rather
+than automatically, because throwing away a page someone is reading without
+asking is not a recovery. Both the dot and the screen read the SAME
+`connectSurface` status (`wire.ts`), so they cannot disagree about what
+happened; the seam's required `retired` handler records the moment rather than
+driving a second path to the same fact.
 
 ## What belongs to a reading, not to the file
 

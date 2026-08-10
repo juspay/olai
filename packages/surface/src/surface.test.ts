@@ -12,9 +12,10 @@ const tags = [...surface.group.requests.keys()].sort()
 test("the surface claims our members alongside the framework's own", () => {
   expect(tags).toContain("surface/outlines/get")
   expect(tags).toContain("surface/errors/get")
-  // The restart probe. It is what an open tab compares across a reconnect to
-  // tell a dropped socket from a server that was replaced underneath it.
-  expect(tags).toContain("surface/identity/info")
+  // Reserved, and the reason this repo declares no identity member of its own:
+  // the framework answers "which process is this" out of every surface, and the
+  // stale-tab handshake on both ends reads THAT id.
+  expect(tags).toContain("surface/system/identity")
   // surface mints these itself for liveness and identity — seeing them is how
   // we know the group came from the framework and not from our spec alone.
   expect(tags).toContain("surface/system/live")

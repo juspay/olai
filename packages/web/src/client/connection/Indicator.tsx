@@ -13,11 +13,11 @@
  * about most of all.
  */
 
-import { type Connection, LOOK } from "./status.ts"
+import { LOOK, type SurfaceConnectionStatus } from "./status.ts"
 import { TESTID } from "../testids.ts"
 
-export function Indicator(props: { readonly connection: Connection }) {
-  const look = () => LOOK[props.connection]
+export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
+  const look = () => LOOK[props.status]
   return (
     <div
       class="fixed bottom-3 right-3 z-40 flex items-center gap-2 rounded-full border border-rule bg-paper px-3 py-1.5 text-xs text-muted"
@@ -25,7 +25,7 @@ export function Indicator(props: { readonly connection: Connection }) {
       // The state as an attribute, so a test asserts on the STATE rather than
       // on a colour: which utility paints "live" is a styling decision and this
       // is a contract (see ../testids.ts).
-      data-connection={props.connection}
+      data-connection={props.status}
       title={look().detail}
       // Announced when it changes, never focus-stealing: a screen reader should
       // hear "disconnected" without losing its place in the outline.

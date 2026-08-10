@@ -159,7 +159,7 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="stale-banner"]` | shown OVER a last-good tree: the files stopped validating |
 | `[data-testid="outline-failure"][data-file]` | shown in ONE outline's place: that file will not parse |
 | `[data-testid="outline-link"][data-broken]` | the sidebar entry of a file that will not parse |
-| `[data-testid="connection"][data-connection]` | the connection dot, in every shape of the app: `connecting`, `live`, `lost`, `restarted` |
+| `[data-testid="connection"][data-connection]` | the connection dot, in every shape of the app: `connecting`, `live`, `reconnecting`, `retired` |
 | `[data-testid="restarted"]` | over everything: the server that served this page has been replaced |
 | `[data-testid="reload"]` | the button in that surface — the whole of the recovery |
 
@@ -178,3 +178,8 @@ out locally: it is `index.html`'s mount point, which the client does not own.
    `world.writeServed`. The assertions that follow such a write usually need to
    wait for something to change or disappear, which a Playwright selector
    cannot state — `world.waitUntil` is what those steps are built on.
+6. If the edit changes WHICH records exist — an insert, a delete, a reorder —
+   assert the id multiset (`the outline "x.jsonl" shows exactly the nodes "…"`),
+   not that some title eventually reads a certain way. A tree that has lost one
+   node and drawn another twice still has all the right titles in it, which is
+   how a broken live view stayed green through a whole feature file.

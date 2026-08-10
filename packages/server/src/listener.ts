@@ -36,7 +36,6 @@ import { Data, Effect, Scope } from "effect"
 import { HttpRouter } from "effect/unstable/http"
 import { WebSocketServer } from "ws"
 
-import { PROCESS_ID } from "./identity.ts"
 import type { Bound } from "./runtime.ts"
 
 const WS_PATH = "/rpc/ws"
@@ -77,14 +76,15 @@ export const listen = (options: ListenOptions) =>
       maxPayload: 8 * 1024 * 1024,
     })
     // The gate compares the `pid` a reconnecting tab presents against the id
-    // this process answers `identity.info` with — one id, two readers
-    // (./identity.ts). A tab that presents none has never been served by
-    // anybody and is simply accepted; a tab that presents a DIFFERENT one is
-    // bound to a process that is gone, so it is closed with the stale code and
-    // its wire retires rather than reconnecting into a server it does not match.
+    // this process answers `system/identity` with — one id, minted and read by
+    // the framework, so no id is threaded through here and the two ends cannot
+    // be pointed at different ones. A tab that presents none has never been
+    // served by anybody and is simply accepted; a tab that presents a DIFFERENT
+    // one is bound to a process that is gone, so it is closed with the stale
+    // code and its wire retires rather than reconnecting into a server whose
+    // bundle it does not match.
     const acceptor = acceptSurfaceSocket({
       server: sockets,
-      liveProcessId: PROCESS_ID,
       onReject: (claimed) => options.log(`stale tab rejected (claimed pid ${claimed})`),
     })
 
