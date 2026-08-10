@@ -15,9 +15,10 @@
  * another page is simply never the one that gets read, so there is no frame in
  * which the held reading and the open page disagree.
  *
- * Notes are not a reading switch. Every row draws one way (title line carries
- * a gray ellipsized snippet; hover or tap expands in place) — see Tree.tsx and
- * day/DayNode.tsx. There is no density cell and no per-place unfold set.
+ * Notes are not a reading switch. Every row draws one way (one dim clamped
+ * line under the title; click or tap expands in place, click again or away
+ * collapses) — see Tree.tsx and day/DayNode.tsx. There is no density cell and
+ * no per-place unfold set.
  */
 
 import type { Row } from "@olai/format"

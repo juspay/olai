@@ -10,17 +10,16 @@
  *
  * The bullet is the link and the checkbox is the status, exactly as they are
  * in the tree: a day is a way of FINDING a node, and the node's own page is
- * where it is read. Notes match the tree too — gray snippet on the title line,
- * hover/tap expands in place (../note/expand.ts).
+ * where it is read. Notes match the tree too — one dim clamped line under the
+ * title, click/tap expands in place (../note/expand.ts).
  */
 
 import type { Situated } from "@olai/format"
-import { createMemo, Show } from "solid-js"
+import { Show } from "solid-js"
 
 import { Breadcrumbs } from "../Breadcrumbs.tsx"
 import { Bullet } from "../Bullet.tsx"
 import { Checkbox } from "../Checkbox.tsx"
-import { plainLine } from "../note/preview.ts"
 import { createNoteExpand } from "../note/expand.ts"
 import { NodeBody } from "../NodeBody.tsx"
 import { NodeLine } from "../NodeLine.tsx"
@@ -32,10 +31,6 @@ export function DayNode(props: {
 }) {
   const node = () => props.dated.shows.node
   const note = createNoteExpand()
-  const snippet = createMemo(() => {
-    const desc = node().desc
-    return desc === undefined || desc === "" ? undefined : plainLine(desc)
-  })
 
   return (
     <li
@@ -45,8 +40,6 @@ export function DayNode(props: {
       data-status={props.dated.status}
       data-file={props.dated.shows.file}
       data-note-open={note.expanded() ? "true" : "false"}
-      onMouseEnter={note.onMouseEnter}
-      onMouseLeave={note.onMouseLeave}
     >
       {/* A root has no ancestry, and an empty trail is nothing to draw. */}
       <Show when={props.dated.trail.length > 0}>
@@ -60,19 +53,16 @@ export function DayNode(props: {
           title={node().title}
           status={props.dated.status}
           date={node().date}
-          snippet={snippet()}
-          expanded={note.expanded()}
-          onSnippetToggle={note.toggle}
         />
       </div>
 
       {/* Past the bullet and the checkbox — ../touch.ts, so this indent and
           those two controls cannot drift apart. */}
-      <div class={PAST_BULLET}>
+      <div class={PAST_BULLET} ref={note.setRoot}>
         <NodeBody
           shows={props.dated.shows}
           expanded={note.expanded()}
-          onCollapse={note.toggle}
+          onToggle={note.toggle}
         />
       </div>
     </li>

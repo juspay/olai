@@ -20,10 +20,11 @@
  * reads the same derived done/doing/open the title tones with — open is an
  * empty box, not the absence of one — and is read-only until keyboard-editing.
  *
- * A note on a row is Things-style: the title line carries a gray ellipsized
- * snippet; hovering the row (or tapping the snippet on touch) expands in place
- * to the full note, date badge and see links (./note/expand.ts). The READING
- * (./view.ts) is only folds and done-visibility — notes are not a switch.
+ * A note on a row is Workflowy-style: one dim line under the title, clamped
+ * with an ellipsis; click (or tap) expands in place to the full note and see
+ * links; click again or click away collapses (./note/expand.ts). The date
+ * badge stays on the title line. The READING (./view.ts) is only folds and
+ * done-visibility — notes are not a switch.
  */
 
 import { type Row } from "@olai/format"
@@ -32,7 +33,6 @@ import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { Bullet } from "./Bullet.tsx"
 import { Checkbox } from "./Checkbox.tsx"
-import { plainLine } from "./note/preview.ts"
 import { createNoteExpand } from "./note/expand.ts"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
@@ -75,12 +75,8 @@ function Branch(props: {
     ? props.row.shows
     : undefined
 
-  // Hover / tap expand — local to this place, not a reading cell.
+  // Click/tap expand — local to this place, not a reading cell. No hover.
   const note = createNoteExpand()
-  const snippet = createMemo(() => {
-    const desc = shown()?.node.desc
-    return desc === undefined || desc === "" ? undefined : plainLine(desc)
-  })
 
   return (
     <li
@@ -93,8 +89,6 @@ function Branch(props: {
       data-file={props.row.at.file}
       data-line={props.row.at.line}
       data-note-open={note.expanded() ? "true" : "false"}
-      onMouseEnter={note.onMouseEnter}
-      onMouseLeave={note.onMouseLeave}
     >
       <div class="flex items-baseline gap-1.5">
         <Show
@@ -133,9 +127,6 @@ function Branch(props: {
                 title={shows().node.title}
                 status={props.row.status}
                 date={shows().node.date}
-                snippet={snippet()}
-                expanded={note.expanded()}
-                onSnippetToggle={note.toggle}
               >
                 <Show when={props.row.kind !== "node"}>
                   <span class="mr-1 text-muted" title="a mirror of another node">
@@ -150,14 +141,14 @@ function Branch(props: {
 
       {/* Indented past both controls — which are wider where a finger is what
           taps them, so the note and the document under it line up with the
-          title on either. */}
+          title on either. The note control root is what "click away" uses. */}
       <Show when={!collapsed() && shown()}>
         {(shows) => (
-          <div class={PAST_CONTROLS}>
+          <div class={PAST_CONTROLS} ref={note.setRoot}>
             <NodeBody
               shows={shows()}
               expanded={note.expanded()}
-              onCollapse={note.toggle}
+              onToggle={note.toggle}
             />
           </div>
         )}

@@ -207,8 +207,8 @@ Then(
   },
 );
 
-/** Same-line gray plain-text snippet — the only closed shape. Asserted as
- *  words, not as source: the preview strips markdown marks. */
+/** One dim clamped plain-text line under the title — the only closed shape.
+ *  Asserted as words, not as source: the preview strips markdown marks. */
 Then(
   "the description of {string} is a preview of {string}",
   async function (this: OlaiWorld, id: string, expected: string) {
@@ -217,12 +217,12 @@ Then(
     assert.strictEqual(
       await desc.getAttribute("data-preview"),
       "true",
-      `the description of "${id}" is not a same-line snippet`,
+      `the description of "${id}" is not a clamped one-line preview`,
     );
     assert.strictEqual(
       await desc.getAttribute("data-open"),
       "false",
-      `the description of "${id}" is open; a snippet is the folded shape`,
+      `the description of "${id}" is open; a preview is the folded shape`,
     );
     await this.waitUntil(
       async () => readable(await desc.innerText()) === readable(expected),
@@ -233,7 +233,7 @@ Then(
   },
 );
 
-/** No list, no bold — the closed snippet is plain text, not half-rendered. */
+/** No list, no bold — the closed preview is plain text, not half-rendered. */
 Then(
   "the description of {string} does not render as markdown blocks",
   async function (this: OlaiWorld, id: string) {
@@ -247,9 +247,9 @@ Then(
   },
 );
 
-/** Things-style: the snippet rides the title row, not a second line under it. */
+/** Workflowy-style: the note is its own line under the title, not beside it. */
 Then(
-  "the description of {string} is on the same line as its title",
+  "the description of {string} is under its title",
   async function (this: OlaiWorld, id: string) {
     const title = this.nodeTitle(id);
     const desc = this.node(id).locator(DESC).first();
@@ -259,88 +259,101 @@ Then(
     const descBox = await desc.boundingBox();
     assert.ok(titleBox !== null, `the title of "${id}" has no box`);
     assert.ok(descBox !== null, `the description of "${id}" has no box`);
-    // Same baseline row: the vertical centres share a band, and the snippet
-    // starts to the right of the title. A second line under the title would
-    // put the snippet wholly below the title's bottom.
-    const titleMid = titleBox.y + titleBox.height / 2;
-    const descMid = descBox.y + descBox.height / 2;
     assert.ok(
-      Math.abs(titleMid - descMid) <= Math.max(titleBox.height, descBox.height),
-      `the description of "${id}" is not on the title line ` +
-        `(title y=${titleBox.y}+${titleBox.height}, desc y=${descBox.y}+${descBox.height})`,
-    );
-    assert.ok(
-      descBox.x >= titleBox.x + titleBox.width * 0.5,
-      `the description of "${id}" is not after the title ` +
-        `(title ends ${titleBox.x + titleBox.width}, desc at ${descBox.x})`,
+      descBox.y >= titleBox.y + titleBox.height - 2,
+      `the description of "${id}" is not under the title ` +
+        `(title ends y=${titleBox.y + titleBox.height}, desc y=${descBox.y})`,
     );
   },
 );
 
-// ── hover expand / touch toggle ────────────────────────────────────────
+/** Clamped: one line of layout height, not a multi-line block. */
+Then(
+  "the description of {string} is clamped to one line",
+  async function (this: OlaiWorld, id: string) {
+    const desc = this.node(id).locator(DESC).first();
+    await desc.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const box = await desc.boundingBox();
+    assert.ok(box !== null, `the description of "${id}" has no box`);
+    // A single line of ~0.875rem text is well under 2rem; a multi-line note
+    // (the open body) is not. The clamp is CSS `truncate`, which is height.
+    assert.ok(
+      box.height <= 32,
+      `the description of "${id}" is ${Math.round(box.height)}px tall — ` +
+        "a one-line clamp should be a single line of text",
+    );
+  },
+);
+
+// ── click / tap expand ─────────────────────────────────────────────────
+
+/** The note control for a node: closed preview or open body. */
+const noteControl = (world: OlaiWorld, id: string) =>
+  world.node(id).locator(DESC).first();
+
+const setNoteOpen = async (
+  world: OlaiWorld,
+  id: string,
+  open: boolean,
+  gesture: "click" | "tap",
+): Promise<void> => {
+  const row = world.node(id).first();
+  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const current =
+    (await row.getAttribute("data-note-open")) === "true";
+  if (current === open) {
+    await world.waitForFrame();
+    return;
+  }
+  const control = noteControl(world, id);
+  await control.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await control.scrollIntoViewIfNeeded();
+  await world.press(control, gesture);
+  await world.waitUntil(
+    async () =>
+      (await world.node(id).first().getAttribute("data-note-open"))
+        === String(open),
+    `the note of "${id}" is ${open ? "open" : "folded"}`,
+  );
+};
 
 When(
-  "I hover the row of {string}",
+  "I click the note of {string}",
+  async function (this: OlaiWorld, id: string) {
+    // Toggle: if closed, open; if open, close. The feature says which.
+    const row = this.node(id).first();
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const wasOpen =
+      (await row.getAttribute("data-note-open")) === "true";
+    await setNoteOpen(this, id, !wasOpen, "click");
+  },
+);
+
+When(
+  "I tap the note of {string}",
   async function (this: OlaiWorld, id: string) {
     const row = this.node(id).first();
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await row.hover();
-    await this.waitForFrame();
-    await this.waitUntil(
-      async () =>
-        (await this.node(id).first().getAttribute("data-note-open")) === "true",
-      `the row of "${id}" is open after hover`,
-    );
+    const wasOpen =
+      (await row.getAttribute("data-note-open")) === "true";
+    await setNoteOpen(this, id, !wasOpen, "tap");
   },
 );
 
 When(
-  "I stop hovering the row of {string}",
+  "I click away from the note of {string}",
   async function (this: OlaiWorld, id: string) {
-    // Park the pointer on the page chrome so the row receives mouseleave.
-    // Hovering the sidebar (always on a laptop) is more reliable than (0,0),
-    // which can still sit over a tall tree.
+    // The sidebar is outside every note control. Clicking it collapses an
+    // open note without following a navigation that would leave the page.
     const sidebar = this.page.locator('[data-testid="sidebar"]').first();
-    await sidebar.hover({ position: { x: 8, y: 8 } }).catch(async () => {
-      await this.page.mouse.move(0, 0);
-    });
+    await sidebar.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await sidebar.click({ position: { x: 8, y: 8 } });
     await this.waitForFrame();
     await this.waitUntil(
       async () =>
         (await this.node(id).first().getAttribute("data-note-open"))
           === "false",
-      `the row of "${id}" is closed after mouse-out`,
-    );
-  },
-);
-
-When(
-  "I tap the note snippet of {string}",
-  async function (this: OlaiWorld, id: string) {
-    const snippet = this.node(id).locator(`${DESC}[data-preview="true"]`).first();
-    await snippet.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
-    await snippet.scrollIntoViewIfNeeded();
-    await this.press(snippet, "tap");
-    await this.waitUntil(
-      async () =>
-        (await this.node(id).first().getAttribute("data-note-open")) === "true",
-      `the row of "${id}" is open after tapping the snippet`,
-    );
-  },
-);
-
-When(
-  "I tap the open note of {string}",
-  async function (this: OlaiWorld, id: string) {
-    const body = this.node(id).locator(`${DESC}[data-open="true"]`).first();
-    await body.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
-    await body.scrollIntoViewIfNeeded();
-    await this.press(body, "tap");
-    await this.waitUntil(
-      async () =>
-        (await this.node(id).first().getAttribute("data-note-open"))
-          === "false",
-      `the row of "${id}" is closed after tapping the open note`,
+      `the note of "${id}" is closed after clicking away`,
     );
   },
 );
