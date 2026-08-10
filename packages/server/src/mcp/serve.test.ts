@@ -200,7 +200,12 @@ test("stdout is the protocol, and the notice a person reads is not on it", async
     // The line that says what is being served went to the other stream, and
     // it names the directory — a person debugging a client's config has to be
     // able to see which one it opened.
-    expect(session.err()).toInclude(`olai mcp: serving ${fs.realpathSync(root)}`)
+    //
+    // `path.resolve`, deliberately not `fs.realpathSync`: the server resolves
+    // the argument it was given and does not chase symlinks, and on macOS
+    // `/tmp` IS one (`/private/tmp`). Realpathing here would assert that olai
+    // prints a path nobody typed.
+    expect(session.err()).toInclude(`olai mcp: serving ${path.resolve(root)}`)
   } finally {
     session.kill()
   }
