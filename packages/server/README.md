@@ -19,7 +19,7 @@ one-validator rule has been broken.
 | `serve.ts` | the order: store, then surface, then listener — the warning for binding off loopback, and which runtime failures are news |
 | `codec.ts` | the seam where the generic store meets the outline format |
 | `runtime.ts` | the two surface bindings: the stream is `SubscriptionRef.changes` verbatim, the errors cell is an owned source |
-| `listener.ts` | HTTP for the bundle, WebSocket for the surface: origin gate → upgrade → stale-tab gate → heartbeat → serve |
+| `listener.ts` | HTTP for the bundle, WebSocket for the surface: origin gate → upgrade → stale-tab gate → heartbeat → serve — and the web app manifest |
 | `clientDist.ts` | `OLAI_DIST_DIR`, the one place the built bundle is named |
 | `main.ts` | argv, defaults, and the top-level run |
 
@@ -30,6 +30,19 @@ page it did not build. No id is threaded through this package to make that
 work — the gate compares against the framework's own `surfaceProcessId()`, the
 same value `system/identity` answers with and the browser echoes back, so the
 two ends cannot be pointed at different ids.
+
+## The manifest is served, the icons are not
+
+`/manifest.webmanifest` is assembled here — the name, the description, the
+colours and the icon list, through `@kolu/surface-app`'s manifest layer, which
+owns the install-friendly defaults (`start_url`, `display: standalone`) so they
+are not restated. The icon *files* belong to the browser bundle and are served
+as part of it, which means the two ends of that contract live in two packages
+that do not import each other. Nothing here can check that a `src` it names is
+a file that exists — and the static layer answers an unmatched path with the
+HTML shell, so a stale one would return 200 rather than 404. What checks it is
+a browser test that follows every `src` and asserts on the content type
+(`packages/tests/features/install_it.feature`).
 
 The server does not build the client and does not import it. It serves a bundle
 it is handed, so `@olai/web` is deliberately absent from its dependencies and

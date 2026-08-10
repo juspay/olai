@@ -22,6 +22,7 @@ import {
   CALENDAR_NEXT,
   CALENDAR_PREV,
   DONE_TOGGLE,
+  NODE_TITLE,
   OUTLINE_LINK,
   OUTLINE_LIST,
   OUTLINE_TREE,
@@ -133,19 +134,33 @@ Then(
   },
 );
 
-Then(
-  "the tree starts in the top half of the screen",
-  async function (this: OlaiWorld) {
-    const viewport = this.page.viewportSize();
-    assert.ok(viewport !== null, "this scenario has no viewport size");
-    const tree = await this.box(this.page.locator(OUTLINE_TREE), "the tree");
-    assert.ok(
-      tree.y < viewport.height / 2,
-      `the outline starts ${tree.y}px down a ${viewport.height}px screen — the ` +
-        "header above it is meant to be capped so the outline is still visible",
-    );
-  },
-);
+/** What the cap on the header is FOR. Not the cap itself — 42dvh is a styling
+ *  decision, and the promise it is there to keep is this one: a reader who
+ *  opens an outline on a phone can see the outline. */
+Then("the outline is on screen under it", async function (this: OlaiWorld) {
+  const viewport = this.page.viewportSize();
+  assert.ok(viewport !== null, "this scenario has no viewport size");
+  const tree = await this.box(this.page.locator(OUTLINE_TREE), "the tree");
+  const room = viewport.height - tree.y;
+  assert.ok(
+    room >= viewport.height / 3,
+    `the header leaves the outline ${Math.round(room)}px of a ` +
+      `${viewport.height}px screen — it is meant to be capped and to scroll ` +
+      "inside itself rather than to be a page of its own",
+  );
+  // The first TITLE, not the first row: a row is a whole subtree and is
+  // taller than any screen the moment the outline has depth.
+  const first = await this.box(
+    this.page.locator(`${OUTLINE_TREE} ${NODE_TITLE}`).first(),
+    "the first title in the outline",
+  );
+  assert.ok(
+    first.y + first.height <= viewport.height,
+    `the first row of the outline ends ${
+      Math.round(first.y + first.height)
+    }px down a ${viewport.height}px screen, which is below the fold`,
+  );
+});
 
 // ── the size of a target ───────────────────────────────────────────────
 

@@ -24,7 +24,7 @@ Feature: On a phone
     Then the outline list is above the tree, not beside it
     # Capped, and scrolling inside itself: whatever is in the header, the
     # outline it is a header FOR has to still be on screen under it.
-    And the tree starts in the top half of the screen
+    And the outline is on screen under it
     And there should be no page errors
 
   @corpus:good @phone
