@@ -248,6 +248,25 @@ Feature: It stays live
     And the page has not reloaded
     And there should be no page errors
 
+  Scenario: An outline that arrives beside the open one leaves it whole
+    # The shape the residual report came in on: new `.jsonl` files appearing
+    # under a live tab while ANOTHER outline is being read — a port, a clone, a
+    # sync finishing. Every scenario above edits the file on screen; this one
+    # never touches it, which makes the promise absolute. Nothing about
+    # garden.jsonl changed, so nothing drawn from it may change either — and
+    # that is a claim only the whole multiset can make, since a tree that drew
+    # one node twice still reads correctly.
+    When I rewrite "shed.jsonl" as:
+      """
+      {"id":"shed","ord":"a0","title":"clear out the shed"}
+      {"id":"rake","parent":"shed","ord":"a0","title":"hang up the rake"}
+      """
+    Then the outline list has 3 entries
+    And the outline "garden.jsonl" shows exactly the nodes "garden, herbs, basil, mint"
+    And the node "basil" has the title "sow the basil"
+    And the page has not reloaded
+    And there should be no page errors
+
   Scenario: A zoomed node's own page is as live as its outline
     # `/n/<id>` draws from the same store as a whole outline, so "it stays
     # live" has to mean the same thing there. Zooming is a route change and not

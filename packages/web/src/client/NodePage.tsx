@@ -25,8 +25,8 @@ import type { View } from "./view.ts"
 
 export function NodePage(props: {
   readonly zoomed: Zoomed
-  /** The children, as the app's one reconciled row store — the same rows an
-   *  outline draws, so a zoomed page is as live as any other. */
+  /** The children, off the app's one row derivation — the same rows an outline
+   *  draws, so a zoomed page is as live as any other. */
   readonly rows: ReadonlyArray<Row>
   readonly view: View
 }) {

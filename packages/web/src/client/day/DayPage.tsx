@@ -16,13 +16,20 @@
  * empty day.
  */
 
-import type { DayGroup } from "@olai/format"
-import { For, Show } from "solid-js"
+import type { DayGroup, Situated } from "@olai/format"
+import { Key } from "@solid-primitives/keyed"
+import { Show } from "solid-js"
 
 import { CRUMB } from "../Breadcrumbs.tsx"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { DayNode } from "./DayNode.tsx"
+
+/** Which record an entry is, as a key. The node's own id, under the file that
+ *  declares it: a day crosses the whole set, and `parent` never crosses a file,
+ *  so the pair is what names one record wherever it was written. */
+const keyOf = (dated: Situated): string =>
+  `${dated.shows.file}/${dated.shows.node.id}`
 
 export function DayPage(props: {
   readonly date: string
@@ -52,23 +59,35 @@ export function DayPage(props: {
           </p>
         }
       >
-        <For each={props.groups}>
+        {/* Keyed, like the tree is (../Tree.tsx): every frame the live store
+            publishes mints these afresh, and a group or an entry that is the
+            same one as last frame keeps its DOM — and its rendered note —
+            rather than being rebuilt. A group IS its outline, so that is its
+            key; an entry is one record of the set, which `file/id` names the
+            same way `Row.key` names a place. */}
+        <Key each={props.groups} by="file">
           {(group) => (
-            <section class="mb-6" data-testid={TESTID.dayGroup} data-file={group.file}>
+            <section
+              class="mb-6"
+              data-testid={TESTID.dayGroup}
+              data-file={group().file}
+            >
               <h2 class="m-0 mb-2 font-mono text-xs text-muted">
                 <Link
-                  route={{ kind: "outline", file: group.file }}
+                  route={{ kind: "outline", file: group().file }}
                   class={CRUMB}
                 >
-                  {group.file}
+                  {group().file}
                 </Link>
               </h2>
               <ul class="m-0 list-none p-0">
-                <For each={group.nodes}>{(dated) => <DayNode dated={dated} />}</For>
+                <Key each={group().nodes} by={keyOf}>
+                  {(dated) => <DayNode dated={dated()} />}
+                </Key>
               </ul>
             </section>
           )}
-        </For>
+        </Key>
       </Show>
     </section>
   )
