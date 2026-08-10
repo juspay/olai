@@ -20,6 +20,7 @@
  * lands on one of those two levels, so proving both proves the switch.
  */
 
+import { STALE_PROCESS_CLOSE_CODE } from "@kolu/surface-app"
 import { collector, findSaid, type Logged } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
@@ -164,7 +165,10 @@ const heard = async (
 test("a tab from a previous process is closed, and the log says which", async () => {
   await withServer(async (url, said) => {
     const gone = "a-process-that-is-gone"
-    expect(await dial(wsUrl(url, `?pid=${gone}`))).toBe(4001)
+    // The framework's own code, not a `4001` retyped here: this half of the
+    // handshake is the framework's to decide, and the browser recognises it by
+    // the same constant.
+    expect(await dial(wsUrl(url, `?pid=${gone}`))).toBe(STALE_PROCESS_CLOSE_CODE)
 
     const line = await heard(said, "stale tab rejected")
     expect(line.level).toBe("Info")

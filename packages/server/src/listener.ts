@@ -112,8 +112,13 @@ export const listen = (
 
 /** The whole listener, at one port. Spelled once and called twice, which is
  *  what makes the fallback above a retry of the SAME server rather than a
- *  second one that could drift from it. */
-const app = (options: ListenOptions, port: number, say: Emit) =>
+ *  second one that could drift from it.
+ *
+ *  The port arrives as an ARGUMENT and is taken off the options: the retry's
+ *  whole point is that it binds somewhere else, so a `port` still sitting in
+ *  scope here would be a field that is right at one call site and wrong at the
+ *  other. */
+const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
   serveSurfaceApp({
     group: options.bound.group,
     handlers: options.bound.handlers,
