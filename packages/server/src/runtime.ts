@@ -3,12 +3,18 @@
  *
  * Two subjects, and the bindings say which is which:
  *
- *   - the OUTLINE is the store's, and it needed nothing new when the store went
- *     live: the stream is `SubscriptionRef.changes` verbatim — current value
- *     first, then every later one — which is already surface's
- *     snapshot-then-deltas contract, and the error cell is an OWNED source, so
- *     the fiber that follows the other ref lives on the runtime's own scope and
- *     a failure in it settles `done`.
+ *   - the OUTLINE is the store's. One fiber follows `SubscriptionRef.changes`
+ *     of the snapshot — current value first, then every later one — and each
+ *     revision it sees becomes three writes: the entries whose file moved, the
+ *     keys whose file is gone, and the manifest. It is an OWNED source (the
+ *     `manifest` cell's `connect`), like the error cell's, so it lives on the
+ *     runtime's own scope and a failure in it settles `done`.
+ *
+ *     What makes that ONE fiber rather than two is that the collection and the
+ *     cell are two halves of one revision: publishing them from two
+ *     subscriptions to the same ref would let a reader see a manifest naming a
+ *     revision whose entries had not been written yet, from a server that knew
+ *     both.
  *   - the CONVERSATION is the chat's: a cell for where it stands, a collection
  *     for the rows, and the procedures. The collection is deliberately
  *     server-authored — `readAll` is the transcript itself and the writes come
@@ -21,7 +27,14 @@
 
 import type { OutlineError, OutlineSet } from "@olai/format"
 import type { Store } from "@olai/store"
-import { CHAT_OFF, type ChatState, type OpFailure, surface } from "@olai/surface"
+import {
+  CHAT_OFF,
+  type ChatState,
+  type Manifest,
+  type OpFailure,
+  type OutlineEntry,
+  surface,
+} from "@olai/surface"
 import { UsageFailure } from "@olai/format"
 import {
   type ImplementSurfaceDeps,
@@ -32,6 +45,7 @@ import {
 import { Effect, Stream, SubscriptionRef } from "effect"
 
 import type { Change, Chat } from "@olai/chat"
+import { publishedOf } from "./outlines.ts"
 
 /** What a transport needs, and nothing else. `ctx` is the write face, which
  *  belongs to the bindings below rather than to whoever serves them. */
@@ -64,6 +78,19 @@ export const bind = (
     const errors = inMemoryStore<ReadonlyArray<OutlineError>>([])
     const chat = wiring.chat
 
+    /** The served directory as entries — the collection's own value, replaced
+     *  whole by the connector below and never mutated after, which is what lets
+     *  `readAll` hand it over as it is. A fresh subscription's snapshot and the
+     *  deltas an open one is watching are two readings of one map rather than
+     *  two copies to keep in step. */
+    let entries = new Map<string, OutlineEntry>()
+    /** The surface's own write face, once there is one to publish through —
+     *  filled the moment `implementSurface` returns. The connector installs
+     *  synchronously, so the FIRST revision is written before this exists; that
+     *  is exactly the moment there is nobody subscribed to hear it, and
+     *  `entries` above has it. */
+    let published: SurfaceRuntime<typeof surface.spec>["ctx"] | null = null
+
     /** A chat verb, when there may be no chat. The cell already reads `off`, so
      *  a browser has been told; a stray call is answered as a REFUSAL rather
      *  than as a runtime defect, because "chat is off" is a thing a caller can
@@ -92,8 +119,48 @@ export const bind = (
         chat: {
           store: inMemoryStore<ChatState>(chat === null ? CHAT_OFF : chat.state()),
         },
+        /** The whole outline binding, because one revision is one write of all
+         *  three things: the entries that moved, the keys that went, and the
+         *  facts that belong to no file. `null` reaches the wire verbatim — a
+         *  store with no snapshot has never loaded, and an empty collection on
+         *  its own cannot say that. */
+        manifest: {
+          store: inMemoryStore<Manifest>(null),
+          connect: (cell) =>
+            Stream.runForEach(
+              SubscriptionRef.changes(wiring.store.snapshot),
+              (snapshot) =>
+                Effect.sync(() => {
+                  if (snapshot === null) return cell.set(null)
+                  const revision = publishedOf(snapshot, entries)
+                  entries = revision.entries
+                  const outlines = published?.collections.outlines
+                  for (const [key, entry] of revision.upserts) outlines?.upsert(key, entry)
+                  for (const key of revision.removes) outlines?.remove(key)
+                  // Written last, which is NOT the order they arrive in: a cell
+                  // publishes on this stack while the collection's frame is
+                  // coalesced into one delta on a microtask, so the manifest
+                  // reaches a socket first. Nothing here may promise otherwise
+                  // — a reader tolerates the skew either way, and that is the
+                  // cross-file consistency paragraph in the design doc.
+                  cell.set(revision.manifest)
+                }),
+            ),
+        },
       },
       collections: {
+        // Server-authored and read-only on the wire: a change to an outline is
+        // a change to a FILE, and the only way to make one is the ops layer.
+        // `readAll` is the projection above rather than a copy of it, so the
+        // snapshot a late subscriber gets is the one the deltas have been
+        // moving. The write seams are the surface's own requirement — a `ctx`
+        // write needs somewhere to persist — and by the time one runs, the
+        // projection it would persist has already been replaced whole.
+        outlines: {
+          readAll: () => entries,
+          upsert: () => {},
+          remove: () => {},
+        },
         // Server-authored, one writer: `readAll` reads the transcript itself,
         // so a fresh subscription is seeded from the same object every later
         // upsert moves. There is no second copy to keep in step.
@@ -104,15 +171,6 @@ export const bind = (
           // and the transcript has already recorded it by the time we publish.
           upsert: () => {},
           remove: () => {},
-        },
-      },
-      streams: {
-        outlines: {
-          source: () =>
-            Stream.map(SubscriptionRef.changes(wiring.store.snapshot), (snapshot) =>
-              snapshot === null
-                ? null
-                : { rev: snapshot.rev, set: snapshot.value }),
         },
       },
       procedures: {
@@ -130,6 +188,13 @@ export const bind = (
     // which is the runtime with `ctx` taken off, so nothing that serves a
     // socket can also publish into the surface.
     const runtime = implementSurface(surface, deps)
+
+    // From here on an entry write PUBLISHES as well as landing in the
+    // projection. Before this line the connector had already run its first
+    // revision into `entries`, which is what a subscription is snapshotted
+    // from — and there can be no subscription yet, because the listener is
+    // built from what this function returns.
+    published = runtime.ctx
 
     return {
       bound: runtime,

@@ -12,30 +12,61 @@ declared once at the workspace root; see `bunfig.toml`).
 
 ## The members, and the shapes are the argument
 
-Which kind each member is was a decision. Two are the outline:
+Which kind each member is was a decision. Three are the outline:
 
-- **`outlines` is a stream, not a cell.** The files belong to the disk, not to
-  the server, so the server reports what it read rather than owning a value it
-  could be asked to change. Every subscription opens with a full snapshot, so a
-  reconnect is a fresh read and nothing has to be resumed — and a probe that
-  found a change sends the next frame down that same subscription, which is the
-  whole of how the page stays live.
+- **`outlines` is a collection keyed by root-relative path**, read-only on the
+  wire and served with the batched `deltas` verb. The files belong to the disk,
+  not to the server, so the server reports what it read rather than owning a
+  value it could be asked to change. The unit is one FILE: a probe tick that
+  touched one outline sends that outline's entry and not the corpus, and a
+  `git pull` that rewrote forty of them is still one coalesced
+  `{upserts, removes}` frame. A (re)subscribe opens with the whole keyed set,
+  so a reconnect is a fresh read and nothing has to be resumed.
+
+  The key is DECLARED — `keySchema` — rather than inherited from a client
+  library's default, which is the type-level half of why this member was
+  re-modelled at all
+  ([docs/brainstorming/outlines-as-collection.md](../../docs/brainstorming/outlines-as-collection.md)).
+- **`manifest` is a cell**: what is true of the SET rather than of any one file
+  — today, the documents. Its `null` is the state a collection cannot express:
+  an empty snapshot means "this directory holds no outlines", and a first probe
+  that has not finished has to say something else. So a reader tells three
+  states apart from this one member — no frame yet, `null`, a value — exactly
+  as it did from the nullable stream frame this replaced.
+
+  It carries NO set revision, and that is what keeps every document's text off
+  the wire: a revision belongs to a file, each entry carries the one it was
+  published at, and a second copy of it here would have made this value differ
+  on every probe tick. Without it the cell's `equals` holds, and a tick that
+  touched no `.md` publishes nothing at all.
 - **`errors` is a cell**, read-only on the wire, because "what is wrong right
   now" is one value the server does own. It is deliberately independent of the
-  snapshot, and that independence is load-bearing: a set that stops validating
+  entries, and that independence is load-bearing: a set that stops validating
   leaves the last good tree on screen underneath a banner, which is only
   expressible if the two arrive separately.
 
-`OutlineFrame` is nullable on purpose. A reader must tell three states apart —
-no answer yet (no frame), nothing has ever validated (`null`), here is your
-outline (a snapshot) — and a nullable frame says all three with no second
-encoding.
+`OutlineEntry` carries a file's nodes, its `rev`, and its `broken` — and the
+last of those is the per-entity error scope as DATA: a file that stopped
+parsing KEEPS ITS KEY and carries its errors, so the sidebar still lists it and
+its own pane is what shows the trouble. The two error channels are not a
+duplication: an entry's `broken` says WHICH outline is unreadable, because that
+is a property of the file the pane is drawn from, and the cell says what is
+wrong with the set AS A WHOLE, which no single file owns. A file with `broken`
+is being rendered around; anything in the cell is being held back.
 
-The two error channels are not a duplication: `set.broken` says WHICH outline
-is unreadable, because that is a property of the set the sidebar and the pane
-are drawn from, and the cell says what is wrong with the set AS A WHOLE, which
-no single file owns. A file listed in `broken` is being rendered around;
-anything in the cell is being held back.
+**Entries of one revision arrive together; entries of DIFFERENT revisions coexist.**
+Only the files a tick touched are upserted, so an unchanged neighbour keeps the
+`rev` it was last published at — a consumer rendering B's subtree from A's
+mirror must tolerate A@42 beside B@41 for a frame. That is deliberate and it is
+the price of the wire being O(changed files); the design doc's cross-file
+consistency paragraph is the long version.
+
+Documents stay set-wide, in the manifest, and they carry their TEXT: markdown is
+interpreted at view time and a `doc` reference is drawn wherever its node is, so
+a paths-only list would need a second read path the app does not have. What that
+still costs is granularity rather than frequency — one edited `.md` sends every
+`.md`, because the cell's value is the list — and making them a collection of
+their own is the obvious next step and deliberately not that change.
 
 Three more are the chat, declared next door in `src/chat.ts` because they are a
 subject of their own:
@@ -67,7 +98,7 @@ because the server put it there, exactly like everything else, so two tabs
 always agree and a send that failed never leaves a message on screen that was
 never sent. The agent's WRITES are not members at all: they reach the ops layer
 through the internal MCP server, and what a reader sees of them is the outline
-stream moving.
+entries moving.
 
 Who is on the other end is deliberately NOT a member here. It is a real
 question — a page bound to a server that has been replaced must know, and both
@@ -92,9 +123,9 @@ loosely than the client writes is a file nobody meant to serve.
 ## Entry point
 
 `main`, `types` and `exports` all point at `src/index.ts`, which exports the
-`surface` definition, the `OutlineFrame` schema and the media URL above. That
-is the whole package — a declaration, with no implementation on either side of
-it.
+`surface` definition, the `OutlineEntry` and `Manifest` schemas and the media
+URL above. That is the whole package — a declaration, with no implementation on
+either side of it.
 
 ## Layering
 
@@ -109,8 +140,10 @@ reasoning.
 just test                    # the whole workspace's unit tests
 ```
 
-`src/surface.test.ts` is two tests, and it earns more than it looks. It asserts
-that `errors` serves no `set` verb — the browser may not write it — and that
+`src/surface.test.ts` is four tests, and it earns more than it looks. It asserts
+that `errors` and `manifest` serve no `set` verb and that `outlines` serves no
+`upsert`/`delete` — the browser may not write any of the three — that the
+collection really is served with `deltas` and `keys`, and that
 the assembled RPC group contains the framework's own members alongside ours,
 which only holds if the `@kolu/surface` sources hydrated from the Nix store
 resolved `effect` out of the root `node_modules`. A second copy of effect, a

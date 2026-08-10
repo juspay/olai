@@ -293,6 +293,82 @@ test("a deletion something referenced holds the last good set", () =>
       expect(yield* errorsOf(store)).toEqual(["a.txt: needs b.txt, which is not in the set"])
     })))
 
+// ── what moved ─────────────────────────────────────────────────────────
+
+// A consumer that publishes PER FILE needs the probe's own diff, and this is
+// it. The first revision names everything, because everything is new to
+// somebody holding nothing.
+test("the first revision names every file as changed", () =>
+  withStore({ "a.txt": "alpha", "sub/b.txt": "beta" }, ({ store }) =>
+    Effect.gen(function*() {
+      const snapshot = yield* snapshotOf(store)
+      expect(snapshot?.changed).toEqual(["a.txt", "sub/b.txt"])
+      expect(snapshot?.removed).toEqual([])
+    })))
+
+test("a revision names the file that moved and nothing else", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ store, write, remove }) =>
+    Effect.gen(function*() {
+      write("b.txt", "beta, revised")
+      yield* store.refresh
+      expect((yield* snapshotOf(store))?.changed).toEqual(["b.txt"])
+
+      remove("b.txt")
+      yield* store.refresh
+      const gone = yield* snapshotOf(store)
+      expect(gone?.changed).toEqual([])
+      expect(gone?.removed).toEqual(["b.txt"])
+    })))
+
+// The summary spans the gap between two PUBLISHED revisions, not one probe. A
+// probe whose set is refused publishes nothing, and the file it re-decoded is
+// still what changed when a later probe finally validates — a consumer told
+// only about the second one would be holding the first file's old contents
+// forever.
+test("what a refused probe found is still owed to the next revision", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ store, write }) =>
+    Effect.gen(function*() {
+      write("a.txt", "alpha, revised")
+      write("b.txt", "needs missing")
+      yield* store.refresh
+      expect((yield* snapshotOf(store))?.rev).toBe(1)
+
+      write("b.txt", "beta again")
+      yield* store.refresh
+      const snapshot = yield* snapshotOf(store)
+      expect(snapshot?.rev).toBe(2)
+      expect([...(snapshot?.changed ?? [])].sort()).toEqual(["a.txt", "b.txt"])
+    })))
+
+// A path lands in ONE of the two lists, whichever happened last: a file edited
+// and then deleted is gone, and a consumer that upserted it because an earlier
+// probe saw it change would be left holding a file the directory does not have.
+test("a file edited and then deleted is removed, not changed", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ store, write, remove }) =>
+    Effect.gen(function*() {
+      write("a.txt", "needs missing")
+      write("b.txt", "beta, revised")
+      yield* store.refresh
+      expect((yield* snapshotOf(store))?.rev).toBe(1)
+
+      write("a.txt", "alpha again")
+      remove("b.txt")
+      yield* store.refresh
+      const snapshot = yield* snapshotOf(store)
+      expect(snapshot?.changed).toEqual(["a.txt"])
+      expect(snapshot?.removed).toEqual(["b.txt"])
+    })))
+
+test("a commit's own files are what the revision it publishes names", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ store }) =>
+    Effect.gen(function*() {
+      yield* store.commit({
+        baseRev: 1,
+        changes: [{ path: "b.txt", contents: "beta, committed" }],
+      })
+      expect((yield* snapshotOf(store))?.changed).toEqual(["b.txt"])
+    })))
+
 // ── the two error scopes ───────────────────────────────────────────────
 
 // Per-entity degrade: the codec decided this set is still a set, so it is

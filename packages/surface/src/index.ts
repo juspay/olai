@@ -6,18 +6,24 @@
  * sockets, no hand-rolled routes, no message envelopes — the only protocol is
  * this spec, and both sides are type errors away from disagreeing about it.
  *
- * Two members are the outline, which is the whole of "see your outline" and,
+ * Three members are the outline, which is the whole of "see your outline" and,
  * once the store went live, of "watch it stay right" as well:
  *
- *   - `outlines` is a STREAM, not a cell: the files belong to the disk, not to
- *     the server, so the server reports what it read rather than owning a
- *     value it could be asked to change. Every subscription opens with a full
- *     snapshot, so a reconnect is a fresh read and nothing has to be resumed,
- *     and a probe that found a change publishes the next frame down the same
- *     subscription.
+ *   - `outlines` is a COLLECTION keyed by root-relative path, read-only on the
+ *     wire: the files belong to the disk, not to the server, so the server
+ *     reports what it read rather than owning a value it could be asked to
+ *     change. One entry per outline FILE, so editing one line of one file sends
+ *     that file's slice and not the corpus, and the key is DECLARED
+ *     (`keySchema`) rather than inherited from a client library's default.
+ *     Every subscription opens with a full snapshot and a reconnect is a fresh
+ *     one — the framework's own contract — so there is nothing to resume.
+ *   - `manifest` is a CELL: the set-wide facts that belong to no one file, and
+ *     the answer to "is there a set at all". Its `null` is the state a
+ *     collection cannot express — an empty snapshot means "this directory has
+ *     no outlines", and a first probe still running has to say something else.
  *   - `errors` is a CELL, read-only on the wire, because "what is wrong right
  *     now" is one value the server does own. It is deliberately independent of
- *     the snapshot: a set that stops validating leaves the last good tree on
+ *     the entries: a set that stops validating leaves the last good tree on
  *     screen underneath a banner, which is only expressible if the two arrive
  *     separately.
  *
@@ -37,7 +43,7 @@
  * moving — server-authoritative, never an optimistic echo.
  */
 
-import { OutlineError, OutlineSet } from "@olai/format"
+import { BrokenFile, Document, Located, OutlineError } from "@olai/format"
 import { defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
 
@@ -50,35 +56,84 @@ import {
 } from "./chat.ts"
 
 /**
- * One frame of the outline stream: the loaded set, or `null` for a set that
- * has never loaded.
+ * One outline file's slice of the set, as published at set revision `rev`.
  *
- * `null` is a state, not an absence. Three things a reader must tell apart —
- * "the server has not answered yet" (no frame), "the server has never had a
- * valid set to show" (`null`), "here is your outline" (a snapshot) — and a
- * nullable frame says all three with no second encoding.
+ * Exactly one of `nodes` / `broken` is meaningful: a file that stopped parsing
+ * keeps its key and carries its errors, which is the per-entity half of the
+ * error scope expressed as DATA rather than by absence. A reader that had only
+ * the `errors` cell would have to guess which outline a `file:line` belonged to
+ * and hope the two lists agreed.
  *
- * Note the two ways a frame and the error cell divide the labour, which is not
- * a duplication: `set.broken` says WHICH outline is unreadable, because that is
- * a property of the set the sidebar and the pane are drawn from, and the cell
- * says what is wrong with the set AS A WHOLE right now, which no single file
- * owns. A file listed in `broken` is being rendered around; anything in the
- * cell is being held back.
+ * `rev` is the SET's revision at the moment this entry was published, and it
+ * travels per entry rather than per frame for one reason and against one
+ * expectation. The reason: a phase-4 write names it as the base it edited, and
+ * the base a write is derived from is the revision the entry it read was at.
+ * The expectation it defeats is that all the entries on screen share it — see
+ * the cross-file consistency paragraph in
+ * `docs/brainstorming/outlines-as-collection.md`. Only the files that MOVED in
+ * a tick are upserted, so an unchanged neighbour keeps the older number until
+ * something changes it.
  */
-export const OutlineFrame = Schema.NullOr(
+export const OutlineEntry = Schema.Struct({
+  rev: Schema.Int,
+  /** This file's nodes only, in file order. Empty for a file that did not
+   *  parse, and empty for one that holds nothing — the difference is `broken`. */
+  nodes: Schema.Array(Located),
+  broken: Schema.NullOr(BrokenFile),
+})
+export type OutlineEntry = typeof OutlineEntry.Type
+
+/**
+ * The set-wide facts, or `null` for a set that has never loaded.
+ *
+ * `null` is a state, not an absence, and it is the one thing the collection
+ * cannot say. Three things a reader must tell apart — "the server has not
+ * answered yet" (no frame at all), "the server has never had a valid set to
+ * show" (`null`), "here is your directory" (a value) — and an empty collection
+ * snapshot is the SECOND and THIRD at once unless something else carries the
+ * bit. This is that something.
+ *
+ * `documents` is here rather than in the collection because a document is not
+ * an outline: nothing keys off it, no entry of the collection is one, and the
+ * sidebar's second list is a fact about the SET. They carry their text, as they
+ * always have — markdown is interpreted at view time and a `doc` reference is
+ * drawn wherever its node is, so a paths-only list would need a second read
+ * path the app does not have. Making them a collection of their own, so that
+ * one edited document is one document on the wire, is the obvious next step and
+ * is deliberately not this change.
+ *
+ * There is NO set revision here, and that is what keeps the text off the wire
+ * in the meantime. A revision belongs to a file — every entry carries the one
+ * it was published at, which is the number a write names as its base — and a
+ * second copy of it beside the documents would have made this value differ on
+ * every probe tick, which is every document's text to every open tab because
+ * one line of one outline moved. Without it, {@link sameManifest} holds, and a
+ * directory whose `.md` files did not change publishes nothing at all.
+ */
+export const Manifest = Schema.NullOr(
   Schema.Struct({
-    /** The store revision this snapshot is. Phase 4's writes name it as the
-     *  base they edited; today it is what proves two frames differ. */
-    rev: Schema.Int,
-    set: OutlineSet,
+    documents: Schema.Array(Document),
   }),
 )
-export type OutlineFrame = typeof OutlineFrame.Type
+export type Manifest = typeof Manifest.Type
 
-/** Nothing selects a subset yet — the browser takes the whole served
- *  directory, and the sidebar is a view over it rather than a query. An empty
- *  input keeps the member's shape ready for one. */
-const NoInput = Schema.Struct({})
+/** When two manifests are the same one, so the cell can stay quiet.
+ *
+ *  Text is compared by `===`, which is a POINTER compare for the case that
+ *  matters: an unchanged file keeps its cached decode, so its text is the same
+ *  string the last revision published, not an equal copy of it. */
+const sameManifest = (a: Manifest, b: Manifest): boolean => {
+  if (a === null || b === null) return a === b
+  return (
+    a.documents.length === b.documents.length &&
+    a.documents.every((document, at) => {
+      const other = b.documents[at]
+      return other !== undefined &&
+        document.file === other.file &&
+        document.text === other.text
+    })
+  )
+}
 
 export const surface = defineSurface({
   cells: {
@@ -89,6 +144,19 @@ export const surface = defineSurface({
       default: [],
       verbs: ["get"],
     },
+    /** What is true of the SET rather than of any one file — see
+     *  {@link Manifest}. Wire-read-only for the same reason the entries are:
+     *  the directory is the disk's.
+     *
+     *  `equals` is what keeps the documents off the wire: the server writes
+     *  this cell on every revision, because that is when it learns anything,
+     *  and most revisions have nothing to say about a `.md`. */
+    manifest: {
+      schema: Manifest,
+      default: null,
+      verbs: ["get"],
+      equals: sameManifest,
+    },
     chat: {
       schema: ChatState,
       default: CHAT_OFF,
@@ -96,6 +164,27 @@ export const surface = defineSurface({
     },
   },
   collections: {
+    /**
+     * The served directory, one entry per outline file.
+     *
+     * `deltas` is what makes it worth being a collection: a (re)subscribe gets
+     * the whole keyed set, and a probe tick that touched three files sends ONE
+     * coalesced `{upserts, removes}` frame naming those three — so the wire
+     * cost is the files that moved rather than the corpus, and a `git pull`
+     * that rewrites forty of them is still one frame.
+     *
+     * Read-only on the wire. There is no `upsert` a browser could call: a
+     * change to an outline is a change to a FILE, and the only way to make one
+     * is the ops layer, whose writes come back through the probe like every
+     * other change on the disk.
+     */
+    outlines: {
+      /** Root-relative, `/`-spelled — `"roadmap.jsonl"`, `"notes/todo.jsonl"`.
+       *  The same spelling the store's paths and every `file:line` use. */
+      keySchema: Schema.String,
+      schema: OutlineEntry,
+      verbs: ["keys", "get", "deltas"],
+    },
     /** The conversation. `deltas` is the whole point — see {@link ./chat.ts}:
      *  one subscription carries both the history a late joiner needs and the
      *  frames a live tab is watching. Read-only on the wire: a transcript is
@@ -104,12 +193,6 @@ export const surface = defineSurface({
       keySchema: Schema.String,
       schema: ChatEntry,
       verbs: ["keys", "get", "deltas"],
-    },
-  },
-  streams: {
-    outlines: {
-      inputSchema: NoInput,
-      outputSchema: OutlineFrame,
     },
   },
   procedures: {

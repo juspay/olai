@@ -1,12 +1,13 @@
 /**
  * The whole app: a sidebar of the outlines found, and one page open.
  *
- * The page is decided by ONE subscription. The outline stream carries three
- * answers — no frame yet, a `null` frame, a snapshot — and they are exactly
- * the three things a reader can be looking at: waiting, never-loaded, or
- * reading. The error cell is a DETAIL of what is on screen and never the
- * decision, because two subscriptions arriving independently would otherwise
- * disagree for a frame and the page would flash the wrong story.
+ * The page is decided by the MANIFEST, which carries three answers — no frame
+ * yet, a `null`, a value — and they are exactly the three things a reader can
+ * be looking at: waiting, never-loaded, or reading. The outlines themselves are
+ * a collection of per-file entries beside it (./outlines.ts), and the error
+ * cell is a DETAIL of what is on screen and never the decision, because a
+ * subscription arriving independently would otherwise disagree for a frame and
+ * the page would flash the wrong story.
  *
  * Which is why a live store shows what is wrong in three different places, and
  * they are three because the reader is in three different situations:
@@ -30,7 +31,7 @@
  * is handed what it draws rather than the set to draw it from.
  */
 
-import { type BrokenFile, datedDays, derive, type Document } from "@olai/format"
+import { datedDays } from "@olai/format"
 import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { Calendar } from "./calendar/Calendar.tsx"
@@ -49,6 +50,7 @@ import { Page as ErrorPage } from "./errors/Page.tsx"
 import { only } from "./narrow.ts"
 import { NodePage } from "./NodePage.tsx"
 import { Nothing } from "./Nothing.tsx"
+import { createOutlines } from "./outlines.ts"
 import { fileOf, pageOf, rowsFor } from "./page.ts"
 import { OutlinePage } from "./OutlinePage.tsx"
 import { createRouter, RouterProvider } from "./router.tsx"
@@ -57,7 +59,7 @@ import { createView } from "./view.ts"
 import { connectionStatus, olai } from "./wire.ts"
 
 export default function App() {
-  const frame = olai.streams.outlines.use(() => ({}))
+  const outlines = createOutlines()
   const errors = olai.cells.errors.use()
 
   const router = createRouter()
@@ -67,50 +69,20 @@ export default function App() {
   // files without a reload cannot have the day be the stale thing on it.
   const today = createToday()
 
-  const set = () => frame()?.set
-  const files = () => set()?.files ?? []
-  /** Every `.md` the directory holds, text and all — the sidebar's second
-   *  list, the document pages, and every `doc` preview come off this one
-   *  field of the set. */
-  const documents = () => set()?.documents ?? []
-  /** The same documents BY PATH — one index, built once. Everything that
-   *  answers "which document is this" reads it: the page a `/doc/<file>` route
-   *  names, and every `doc`-carrying node's reference, however deep in a tree
-   *  it is drawn. The list above stays the list, because order is what a
-   *  sidebar draws. */
-  const documentsByFile = createMemo(
-    () =>
-      new Map<string, Document>(
-        documents().map((document) => [document.file, document] as const),
-      ),
-  )
   /** What is wrong with the set as a WHOLE right now. Empty is the normal
-   *  state, including when one file is unreadable — that one lands in the set
-   *  itself, as `broken` below. */
+   *  state, including when one file is unreadable — that one lands in the
+   *  file's own entry, as `broken`. */
   const problems = () => errors.value() ?? []
 
-  /** The files that did not parse, by path — the sidebar marks them and the
-   *  main pane draws one of them instead of a tree. */
-  const broken = createMemo(
-    () =>
-      new Map<string, BrokenFile>(
-        (set()?.broken ?? []).map((file) => [file.file, file] as const),
-      ),
-  )
-
-  // One derivation for the whole set — the same call the validator makes. The
-  // rows are per-file; the indexes are not, because a mirror may point into
-  // any file and resolving it needs every node.
-  const derived = createMemo(() => {
-    const loaded = set()
-    return loaded === undefined ? undefined : derive(loaded.nodes)
-  })
-
   const page = createMemo(() => {
-    const indexes = derived()
+    const indexes = outlines.derived()
     return indexes === undefined ? undefined : pageOf(
       indexes,
-      { files: files(), documents: documentsByFile(), broken: broken() },
+      {
+        files: outlines.files(),
+        documents: outlines.documentsByFile(),
+        broken: outlines.broken(),
+      },
       router.route(),
       today(),
     )
@@ -121,7 +93,7 @@ export default function App() {
    *  asked through the live derivation: a dated node saved on disk lights its
    *  day on the next frame, with nothing watching for it. */
   const dated = (month: string): ReadonlySet<string> => {
-    const indexes = derived()
+    const indexes = outlines.derived()
     return indexes === undefined ? new Set() : datedDays(indexes, month)
   }
 
@@ -149,14 +121,14 @@ export default function App() {
    * tear down and rebuild the tree.
    */
   const rows = createMemo(() => {
-    const indexes = derived()
+    const indexes = outlines.derived()
     return indexes === undefined ? [] : view.visible(rowsFor(indexes, page()))
   })
 
   /** Is there a sidebar on screen to hold the app's own chrome? Only the page
    *  that draws one does; the error report and the waiting page replace the
    *  whole layout. */
-  const docked = () => frame() !== null && page() !== undefined
+  const docked = () => outlines.manifest() !== null && page() !== undefined
 
   /** The two pills that are about the APP rather than about the page: whether
    *  the server is still there, and the way into the agent. One expression,
@@ -194,14 +166,14 @@ export default function App() {
           room to share. */}
       <div classList={{ "lg:pr-[var(--width-chat)]": chatOpen() }}>
         <Switch fallback={<p class="p-8 text-muted">Reading…</p>}>
-        <Match when={frame() === null}>
+        <Match when={outlines.manifest() === null}>
           <ErrorPage errors={problems()} />
         </Match>
         <Match when={page()}>
           {(open) => (
             <RouterProvider router={router}>
-              <DerivedProvider derived={derived()}>
-              <DocumentsProvider documents={documentsByFile()}>
+              <DerivedProvider derived={outlines.derived()}>
+              <DocumentsProvider documents={outlines.documentsByFile()}>
                 {/* Two columns where there is room for two, one where there is
                     not. `md` is 48rem, which is where the racket original put
                     the same line: below it the sidebar stops being a column
@@ -217,10 +189,10 @@ export default function App() {
                     bar is showing. */}
                 <div class="grid min-h-dvh grid-cols-1 grid-rows-[auto_1fr] md:grid-cols-[16rem_1fr] md:grid-rows-none">
                   <Sidebar
-                    files={files()}
-                    documents={documents()}
+                    files={outlines.files()}
+                    documents={outlines.documents()}
                     active={fileOf(open())}
-                    broken={broken()}
+                    broken={outlines.broken()}
                     footer={chrome()}
                   >
                     <Calendar

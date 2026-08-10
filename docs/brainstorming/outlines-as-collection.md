@@ -1,6 +1,6 @@
 # `outlines` as a collection, not a stream
 
-Status: brainstorming, 2026-08-09. Prompted by the surface-utilization audit: the framework ships keyed incremental delivery (`CollectionDeltasMsg`) and olai routes around it, resending the whole corpus on every change. Not scheduled — a re-modeling to adopt when corpus size makes full-snapshot frames hurt, or earlier if the live-dead fix makes touching this layer natural anyway.
+Status: BUILT, 2026-08-10 — this is what shipped, not a proposal. Prompted by the surface-utilization audit: the framework ships keyed incremental delivery (`CollectionDeltasMsg`) and olai routed around it, resending the whole corpus on every change. What follows is the design as brainstormed (2026-08-09); the three open questions at the bottom are answered, and the two places the built thing differs from the sketch above are named there. The kolu `writeWrappedValue` fix was NOT bundled with it — that is separate work, and the timing question is answered below.
 
 ## Today: one stream, whole corpus per frame
 
@@ -43,13 +43,13 @@ export const surface = defineSurface({
     /** Set-wide facts that belong to no one file. `documents` moves here too. */
     manifest:  { schema: Schema.NullOr(Schema.Struct({
                    rev: Schema.Int,
-                   documents: Schema.Array(Schema.String),
+                   documents: Schema.Array(Schema.String),  // BUILT AS: Array(Document) — see below
                  })), default: null, verbs: ["get"] },
   },
   collections: {
     outlines: {
       keySchema: Schema.String,          // root-relative path: "roadmap.jsonl"
-      valueSchema: OutlineEntry,
+      schema: OutlineEntry,              // (the framework's own spelling for the value)
       verbs: ["keys", "get", "deltas"],  // read-only on the wire; no upsert/delete served
     },
   },
@@ -126,9 +126,80 @@ Three layers, two owners:
 - **Atomicity**: entries changed in one tick share one `rev` in one frame, so a consumer never renders half a probe. Cross-file consistency for readers of *unchanged* files relies on unchanged entries still being at their old rev — a mirror rendering B's subtree from A must tolerate A@42/B@41 for a frame; today's all-at-once snapshot hides this. Worth one deliberate paragraph in the spec when built.
 - **Migration, not ongoing cost**: the client data-access layer is rewritten once — stream hook → collection hooks, the derive memo and sidebar re-derive from entries/`keys`, tests follow — and the set-wide facts need their second home (`manifest`). After that the ongoing model is arguably *simpler*: per-entry stores instead of one corpus-sized value. The earlier draft called this a "cost"; it is a one-time diff.
 
-## Open
+## Cross-file consistency: what a consumer must tolerate
 
-- `manifest` cell vs folding `documents`/set-rev elsewhere — smallest honest home for set-wide facts.
-- Whether the store grows the per-probe change summary or the server diffs snapshots.
-- Null-vs-empty at boot: today's `NullOr` frame distinguishes "never loaded"; a collection's empty snapshot must not read as "no outlines" while the first probe is still running (the `manifest` cell's `null` can carry that bit).
-- Timing: bundle with the kolu `writeWrappedValue` fix (both touch the same client layer), or wait for a corpus that hurts.
+The deliberate paragraph the bullet above asked for, now that it is built.
+
+Entries changed in one tick share one `rev` and arrive in one frame, so nobody
+renders half a probe. What is NOT true — and was, while the whole set travelled
+as one value — is that everything on screen is at the same revision. Only the
+files that moved are upserted, so a reader that mirrors B's subtree into A's
+page can be holding **A@42 beside B@41** for a frame, and after a tick that
+touched neither, indefinitely. The `manifest` is a member of its own and arrives
+on its own schedule — in fact usually FIRST, because a cell publishes on the
+writer's stack while the collection's frame is coalesced onto a microtask. All
+of that is the price of the wire being O(changed files), and it is paid on
+purpose.
+
+What the wire says and what a fresh subscriber READS are held to the same
+number, though, and that one is not negotiable: an unchanged file keeps the
+entry it was published with rather than being rebuilt at the new revision, so
+the snapshot a tab opened just now gets cannot name a revision no delta ever
+announced. Two tabs watching one directory hold the same `rev` for the same
+file. (`packages/server/src/outlines.ts`, and the test that pins it.)
+
+The rule that makes it safe is that **nothing reads `rev` to decide what to
+draw**. Every view is derived from what the entries currently SAY — the
+derivation, the sidebar, which files are broken, what a mirror resolves to —
+and a stale-by-one-tick neighbour is exactly the file as it is on disk, because
+nothing moved it. `rev` is for display, for proving two frames differ, and as
+the `baseRev` a phase-4 write will name; a consumer that started branching on
+it would be the one to break this, and would have to say why.
+
+One skew is a reader's to notice: the `manifest` decides between "waiting",
+"never loaded" and "reading", so a manifest that lands before the collection's
+first snapshot shows an empty directory for a frame. Both are seeded on
+subscribe over one ordered socket, so the window is a paint at most, and the
+alternative — a second copy of the file list on the manifest, so the two could
+be compared — is a duplication that would have to be kept in step for a
+sub-frame flash. Not taken.
+
+## The open questions, answered
+
+- **`manifest` cell vs folding `documents`/set-rev elsewhere.** The cell for the
+  documents, as leaned; NOT for the set rev. It is also where the boot bit lives
+  (below). Two DEVIATIONS from the sketch, and they are connected:
+
+  `documents` carries `Document` records — text and all — not `Array(String)`. A
+  path-only list would need a second read path for a document's text, and there
+  is not one: markdown is interpreted at view time and a `doc` reference is
+  drawn wherever its node is.
+
+  Which is why the set rev is NOT here. Carried beside that payload it would
+  have made the cell's value differ on every probe tick — every document's text
+  to every open tab because one line of one outline moved, which is the very
+  thing this re-modelling is against. Nothing reads it (a revision belongs to a
+  file, and every entry carries the one it was published at, which is the number
+  a phase-4 write will name), so it is gone and the cell declares an `equals`
+  instead: a tick that touched no `.md` publishes nothing at all. What remains
+  is granularity rather than frequency — one edited document sends the list —
+  and documents as a collection of their own is the next step, deliberately not
+  bundled in.
+- **Store summary vs server diffing snapshots.** The store, as leaned:
+  `Snapshot` grew `changed` / `removed`, which is the probe's stamp diff kept
+  instead of thrown away, and the server maps changed paths to `OutlineEntry`
+  upserts (`packages/server/src/outlines.ts`). One thing the sketch did not
+  see: the summary has to span the gap between two PUBLISHED revisions, not one
+  probe. A probe whose set the codec refuses publishes nothing, and the files it
+  re-decoded are still what changed when a later probe validates — so it
+  accumulates until a revision carries it out, and a path lands in exactly one
+  of the two lists (edited-then-deleted is a remove).
+- **Null-vs-empty at boot.** The `manifest`'s `null` carries it, as leaned: no
+  frame yet is "waiting", `null` is "nothing has ever validated", a value is
+  "here is your directory" — the same three states the nullable stream frame
+  said, in the member that is not the collection.
+- **Timing.** Built on its own, without the kolu `writeWrappedValue` fix. The
+  two touch the same client layer but not the same question, and the client
+  rewrite here — stream hook → `outlines.ts`, the derivation and the sidebar
+  re-derived from entries and keys — is small enough not to want a second
+  subject in it.

@@ -34,7 +34,8 @@ register `stop` as a finalizer.
 | `mcp/route.ts` | the tool surface for the agent olai STARTED: mounted on this listener, behind a per-process bearer token |
 | `mcp/serve.ts` | the tool surface for an agent that started US: `olai mcp`'s own, much smaller, composition root |
 | `mcp/stdio.ts` | that one's transport — newline-framed JSON-RPC over a pair of pipes, and nothing else on stdout |
-| `runtime.ts` | the surface bindings: the outline stream is `SubscriptionRef.changes` verbatim, the errors cell is an owned source, the transcript is server-authored |
+| `runtime.ts` | the surface bindings: one owned fiber turns each store revision into the entries that moved and the manifest that names it, the errors cell is a second owned source, the transcript is server-authored |
+| `outlines.ts` | the projection that fiber publishes: one published revision cut into per-file entries, and the store's own `changed`/`removed` mapped onto the collection's upserts and removes |
 | `listener.ts` | one `serveSurfaceApp` call, and the one decision it leaves that is a policy: whose port this is |
 | `report.ts` | the other one: what a listener event — a stale tab, a refused origin, a faulted connection — sounds like in olai's log |
 | `media.ts` | `/media/*`: the pictures a document points at, and the only bytes that leave the served directory over HTTP without going through the store |
