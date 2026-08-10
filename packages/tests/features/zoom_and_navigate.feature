@@ -74,6 +74,27 @@ Feature: Zoom and navigate
     Then the node "basil" is not shown
     And the node "mint" is shown
 
+  Scenario: A page you go to starts at the top, and the one you come back to does not
+    # Two halves of one decision, and neither happens by itself: a route change
+    # redraws the main pane and moves nothing else, so zooming from the bottom
+    # of a long outline used to land the new page mid-scroll at a line nobody
+    # chose, and coming back landed wherever the redraw happened to leave
+    # things. The window is made short because the page has to be taller than
+    # what is showing for any of this to mean anything.
+    Given the window is shorter than the page
+    And I open the outline "house.jsonl"
+    And I mark the page
+    And I scroll to the bottom of the page
+    When I zoom into the node "install"
+    Then the page is at the top
+    When I go back
+    Then the tree is shown
+    And the page is back where I left it
+    # One document throughout: where the reader was is remembered per history
+    # entry, in this page's own memory, and a reload would have emptied it.
+    And the page has not reloaded
+    And there should be no page errors
+
   Scenario: An id nothing declares is a clean not-found
     When I open the node "no-such-node"
     Then a not-found is shown

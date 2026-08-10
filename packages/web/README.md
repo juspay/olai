@@ -6,7 +6,7 @@ store underneath: an edit on disk arrives as the next frame of one
 subscription, so the page changes without reloading. SolidJS over a WebSocket,
 styled with Tailwind v4, bundled by `Bun.build`.
 
-## Three ways to say what is wrong, because there are three situations
+## Three ways to say what is wrong about the FILES, because there are three situations
 
 They live in `src/client/errors/`, and which one a reader gets is decided by
 what is still on screen rather than by how bad the errors are.
@@ -32,6 +32,22 @@ row into markup and nothing else. The view and the validator agree about what a
 file means because they run the same code, not because two implementations were
 written to the same paragraph. The one thing this package does interpret is
 MARKDOWN, rendered and sanitised at view time.
+
+### And a fourth, for when the client itself is what is wrong
+
+The three above are errors as DATA — read off the wire and drawn on purpose —
+so none of them can say anything about a bug in this client: a render that has
+thrown is not running the code that would draw them, and what a reader got was
+a white tab with the truth in a console they had no reason to open. So the
+shell is wrapped in an `<ErrorBoundary>` (`main.tsx`) and `errors/Fault.tsx` is
+what it draws: what threw, verbatim, and the two ways out — a reload for a
+bundle that is stale, and `/` for a page that is poison, because a fault is
+usually deterministic for the route it happened on and Reload alone would be a
+loop. A boundary SWALLOWS, so the fallback also logs the fault once: otherwise
+the truth is in no console at all, and a browser test meets it as a timeout on a
+missing element. There is no way to ASK the app for one —
+`features/the_client_breaks.feature` injects a fault from outside the bundle,
+and says why at length.
 
 ## Markdown, and documents
 
@@ -103,6 +119,16 @@ address" behave the way they do everywhere else; a plain left click is
 intercepted and answered in place. There is no router library: five addresses
 do not need one.
 
+Navigating is also the one thing here that moves the page, so the router is
+where that is decided (`scroll.ts`): a page you go TO starts at the top, a page
+you go BACK to is where you left it. Both are decisions rather than the
+browser's leftovers — a route change redraws the main pane and touches nothing
+else, so zooming from the bottom of a long outline used to land the new page
+mid-scroll at a line nobody chose. The position is recorded as the reader
+scrolls and against the history entry they are on, because `popstate` fires
+after the entry has changed: by the time a navigation can be observed, where it
+was made from is already gone.
+
 ## The month, and a day
 
 `src/client/calendar/` is the month in the sidebar and `src/client/day/` is the
@@ -121,7 +147,11 @@ neither is about the format:
   for half the world, and a calendar that shifted a column by time zone is the
   bug this avoids by never leaving integers.
 - `clock.ts` — what day it is, in the reader's own time zone, re-read at the
-  next local midnight. It sits at the top rather than under `calendar/`,
+  next local midnight AND whenever the page becomes visible again. The second
+  is not belt-and-braces: a laptop shut at eleven and opened at nine ran no
+  timers while it slept, and a backgrounded tab has its throttled to minutes,
+  so the timer alone comes back showing yesterday at exactly the moment
+  somebody is looking. It sits at the top rather than under `calendar/`,
   because its readers are the page model (`/today` names no date), the day page
   and the month: today is a fact about the tab, and two of them asking a `Date`
   separately is two answers that can differ by a day at exactly the wrong
@@ -156,13 +186,17 @@ mapping is written down where the table is.
 A pick is CLIENT state and never leaves the browser — a preference of this
 browser's (`preference.ts`, shared with the agent drawer's open state: storage
 can throw, and a preference that cannot be remembered is still a preference for
-this tab). `state.ts` writes `data-theme` on `<html>`, remembers it, and asks
+this tab). It belongs to the browser rather than to the tab, so both preferences
+follow the browser's own `storage` event into every OTHER tab that has this app
+open: a theme picked in one window lands in the next one without a reload, which
+is the same promise `clock.ts` makes about the day. `state.ts` writes
+`data-theme` on `<html>`, remembers it, and asks
 `chrome.ts` to repaint `<meta name="theme-color">` from the same table that
 painted the page — but it is not what puts the theme there on a reload. Four inline lines in `<head>` (`index.html`) do that, before
 the first paint, because everything on this page is deferred and a theme
 restored by the bundle is a flash of the wrong colours on every load. Those
 lines know no theme names, so a stored value no row offers is forgotten by
-`adoptStoredTheme` instead — the first moment anything knows the list.
+`followStoredTheme` instead — the first moment anything knows the list.
 
 There is no "system" chip and no `prefers-color-scheme` rule in the sheet. The
 OS used to choose the palette, which meant a page that changed under a reader

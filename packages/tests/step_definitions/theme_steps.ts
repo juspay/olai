@@ -27,7 +27,12 @@ import {
 } from "@olai/web/src/client/theme/palettes.ts";
 
 import { manifestOf } from "./install_steps.ts";
-import { POLL_TIMEOUT, THEME_CHIP, THEME_PICKER } from "../support/world.ts";
+import {
+  HYDRATION_TIMEOUT,
+  POLL_TIMEOUT,
+  THEME_CHIP,
+  THEME_PICKER,
+} from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 /** What the parse probe leaves on `window`. Named once: an init script and two
@@ -75,10 +80,16 @@ Then("the page names no theme", async function (this: OlaiWorld) {
   assert.equal(named, null, `the page already names a theme: ${named}`);
 });
 
+/** Waited for, not read once — one sentence for the claim however the theme
+ *  got here. A pick made in this tab is already on `<html>` by the time the
+ *  step that made it returns, and one that crossed from another tab arrives on
+ *  a `storage` event a moment later; asserting the second with a bare read
+ *  would be asserting that the event crossed instantly. `expectAttribute` is
+ *  also what makes the failure name the theme the page IS in. */
 Then(
   "the page is in the theme {string}",
   async function (this: OlaiWorld, theme: string) {
-    assert.equal(await namedTheme(this), theme);
+    await this.expectAttribute("html", THEME_ATTRIBUTE, theme, "the page");
   },
 );
 
@@ -140,6 +151,41 @@ Then(
       await namedTheme(this) ?? DEFAULT_THEME,
       "the lit chip is not the theme the page is in",
     );
+  },
+);
+
+// ── the other tab ──────────────────────────────────────────────────────
+
+/** A SECOND page in the same context, which is what makes it a second tab of
+ *  the same browser rather than a second browser: one origin, one
+ *  `localStorage`, and the `storage` event the client listens for is fired in
+ *  every document of it except the one that wrote.
+ *
+ *  It is left open. Closing it would be the tidier line and a weaker scenario —
+ *  a preference that only crossed once the other tab was gone would pass it. */
+When(
+  "a second tab picks the theme {string}",
+  async function (this: OlaiWorld, theme: string) {
+    const other = await this.context.newPage();
+    await other.goto("/");
+    // The same three things `pick` does in this tab, against that one: reach
+    // the chips (below 48rem they are behind the burger — the second tab is at
+    // the context's width like any other), press, and wait for THAT tab to be
+    // in the theme, so everything after this step is about the pick CROSSING
+    // rather than about the click landing.
+    await this.showSidebar(other);
+    const chip = other.locator(`${THEME_CHIP}[data-value="${theme}"]`);
+    await chip.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await chip.click();
+    await other
+      .locator(`html[${THEME_ATTRIBUTE}="${theme}"]`)
+      .waitFor({ state: "attached", timeout: POLL_TIMEOUT })
+      .catch(() => {
+        throw new Error(
+          `the second tab never took the theme "${theme}", so there was ` +
+            "nothing for this one to hear",
+        );
+      });
   },
 );
 

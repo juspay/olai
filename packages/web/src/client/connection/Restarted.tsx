@@ -10,14 +10,16 @@
  * A button, not an automatic reload. The reload lands a different bundle and
  * throws away whatever is on screen, and doing that to a page someone is
  * reading — mid-sentence, mid-scroll — without asking is how a live app becomes
- * a rude one. It is also what kolu does, and this is kolu's pattern.
+ * a rude one. It is also what kolu does, and this is kolu's pattern. The button
+ * itself is ../Reload.tsx, shared with the one other screen a reload is the
+ * only way out of (../errors/Fault.tsx).
  *
  * The dim lets clicks through so the outline underneath stays readable and
  * scrollable while the reader finishes what they were doing; the card does not.
  */
 
+import { Reload } from "../Reload.tsx"
 import { TESTID } from "../testids.ts"
-import { TARGET } from "../touch.ts"
 
 export function Restarted(props: { readonly onReload: () => void }) {
   return (
@@ -31,14 +33,7 @@ export function Restarted(props: { readonly onReload: () => void }) {
           This page came from a server process that is gone, so nothing on it
           will change again. Reloading connects to the one running now.
         </p>
-        <button
-          type="button"
-          class={`inline-flex ${TARGET} items-center rounded bg-accent px-4 py-1.5 text-sm font-semibold text-paper hover:opacity-90 md:min-h-0 md:px-3`}
-          data-testid={TESTID.reload}
-          onClick={() => props.onReload()}
-        >
-          Reload
-        </button>
+        <Reload onReload={props.onReload} />
       </div>
     </div>
   )

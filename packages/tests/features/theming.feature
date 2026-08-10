@@ -73,6 +73,19 @@ Feature: The theme is a pick, and it is yours
     And the lit theme chip is the default
     And this browser has stored no theme
 
+  Scenario: A theme picked in another tab lands in this one
+    # A preference belongs to the BROWSER, and a browser is more than one tab.
+    # Two tabs on the same outlines are one browser and one theme, so a sibling
+    # left in the old palette until somebody reloads it is the one stale thing
+    # on the screen — on a page whose whole promise is that it does not need
+    # reloading. Nothing about this reaches the server either: the browser's own
+    # `storage` event is what crosses.
+    When I open the app
+    And a second tab picks the theme "pitch"
+    Then the page is in the theme "pitch"
+    And the lit theme chip is "pitch"
+    And there should be no page errors
+
   Scenario: The browser chrome follows the paper
     # The status bar on a phone, the title bar of an installed window. The
     # shell ships the default's paper, so it is right on the first paint; a

@@ -122,8 +122,14 @@ export const OUTLINE_FAILURE = selector(TESTID.outlineFailure);
 export const CONNECTION = selector(TESTID.connection);
 /** Over everything: the server that served this page has been replaced. */
 export const RESTARTED = selector(TESTID.restarted);
-/** The button in that surface. */
+/** The button in that surface, and in the fault card — one control, one name. */
 export const RELOAD = selector(TESTID.reload);
+/** In the whole app's place: the CLIENT threw while drawing, and the boundary
+ *  around the shell caught it. Its `fault-detail` is what threw, verbatim. */
+export const FAULT = selector(TESTID.fault);
+export const FAULT_DETAIL = selector(TESTID.faultDetail);
+/** The card's second way out, off the page that faulted. */
+export const FAULT_HOME = selector(TESTID.faultHome);
 
 /** The theme picker in the sidebar, and one chip of it. The picker carries
  *  `data-default` (the theme a page with no pick reads in) and
@@ -165,10 +171,17 @@ export const CHAT_CANCEL = selector(TESTID.chatCancel);
 export const CHAT_SLASH_COMMAND = selector(TESTID.chatSlashCommand);
 
 /** The app has finished its first render when it has committed to one of its
- *  two shapes: a sidebar (the set loaded) or the error view (it did not).
- *  Waiting on either — rather than on the one the scenario expects — means a
- *  broken-set regression fails with "expected a tree, found the error view for
- *  house.jsonl:3" instead of a bare 30-second timeout.
+ *  three shapes: a sidebar (the set loaded), the error view (it did not), or
+ *  the fault card (the client threw while drawing). Waiting on any — rather
+ *  than on the one the scenario expects — means a broken-set regression fails
+ *  with "expected a tree, found the error view for house.jsonl:3" instead of a
+ *  bare 30-second timeout.
+ *
+ *  The FAULT is the third for exactly that reason and no other: it is the one
+ *  shape no scenario but `the_client_breaks.feature` ever wants, so leaving it
+ *  out is how every other scenario would meet a client bug — as a timeout
+ *  naming a selector, with nothing about the fault anywhere near it. `open()`
+ *  quotes the card instead.
  *
  *  The SIDEBAR, not the outline list inside it. Below 48rem that list is behind
  *  a burger and starts collapsed, so waiting on it meant waiting for something
@@ -176,7 +189,7 @@ export const CHAT_SLASH_COMMAND = selector(TESTID.chatSlashCommand);
  *  first step, and a 40-second suite took twenty-five minutes to say so. What
  *  this is asking is whether the app has decided what to draw, and the nav
  *  answers that whether or not anybody has opened it. */
-export const SETTLED_SELECTOR = `${SIDEBAR}, ${ERROR_VIEW}`;
+export const SETTLED_SELECTOR = `${SIDEBAR}, ${ERROR_VIEW}, ${FAULT}`;
 
 /** A sentinel planted on `window` to prove a later assertion ran against the
  *  SAME document. Any full page load wipes it, so a step that claims "without
@@ -243,6 +256,13 @@ export class OlaiWorld extends World {
    *  recordings of one fact can only ever disagree. */
   requests: string[] = [];
 
+  /** How far down the page a scenario deliberately scrolled, so a later step
+   *  can claim the page came back to exactly there. A number the SCENARIO
+   *  chose to remember rather than one written down here: how tall a page is
+   *  depends on the fixture, the window and the stylesheet, and a step that
+   *  asserted a pixel count would be asserting on all three. */
+  scrolledTo?: number;
+
   /** Which fixture corpus this scenario's server is serving, from its
    *  `@corpus:<name>` or `@scratch:<name>` tag. See `support/hooks.ts`. */
   corpus!: string;
@@ -302,8 +322,31 @@ export class OlaiWorld extends World {
     );
   }
 
-  /** Open the app and wait for it to commit to a shape. */
+  /** Open the app and wait for it to commit to a shape.
+   *
+   *  One of those shapes is the client having thrown, and no scenario that
+   *  came through here wanted it — so it is reported HERE, with the card's own
+   *  text, rather than left to fail as a timeout on whatever element the next
+   *  step was looking for. The one feature that does want it opens the page
+   *  itself (`step_definitions/fault_steps.ts`). */
   async open(path = "/"): Promise<void> {
+    await this.settle(path);
+    const fault = this.page.locator(FAULT_DETAIL);
+    if ((await fault.count()) > 0) {
+      throw new Error(
+        `the client threw while drawing ${path}, so the app is a fault card:\n` +
+          oneLine(await fault.innerText()),
+      );
+    }
+  }
+
+  /** Go to a path and wait for the app to commit to one of its shapes — the
+   *  whole of the opening protocol except the verdict on which shape it is.
+   *  Its own method because the ONE feature that wants a fault card
+   *  (`step_definitions/fault_steps.ts`) needs everything here and none of the
+   *  rejection above; a second copy of this over there is how the burger
+   *  regression that `SETTLED_SELECTOR` documents would be re-learnt. */
+  async settle(path = "/"): Promise<void> {
     await this.page.goto(path);
     await this.page
       .locator(SETTLED_SELECTOR)
@@ -337,13 +380,18 @@ export class OlaiWorld extends World {
    * clicks an outline, a document or a day has to open it first. Above it
    * there is no burger and this does nothing — which is why it is one call at
    * the top of those steps rather than a `@phone` branch inside each.
+   *
+   * Takes a PAGE, defaulting to the scenario's, because a second tab of the
+   * same browser is still a browser at whatever width the context has (see the
+   * cross-tab theme scenario): the rule is about the viewport, not about which
+   * document is in front.
    */
-  async showSidebar(): Promise<void> {
-    const burger = this.page.locator(SIDEBAR_TOGGLE);
+  async showSidebar(page: Page = this.page): Promise<void> {
+    const burger = page.locator(SIDEBAR_TOGGLE);
     if (!(await burger.isVisible())) return;
     if ((await burger.getAttribute("data-open")) === "true") return;
     await burger.click();
-    await this.page
+    await page
       .locator(SIDEBAR_BODY)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   }
