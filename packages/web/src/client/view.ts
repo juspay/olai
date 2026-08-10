@@ -16,7 +16,7 @@
  * another page is simply never the one that gets read, so there is no frame in
  * which the held reading and the open page disagree.
  *
- * Per-note expansion (a preview line clicked open) is also of a PLACE
+ * Per-note expansion (the first-line control toggled open) is also of a PLACE
  * (`Row.key`), like fold: the same node reached through two mirrors is two
  * rows, and opening one must not open the other.
  */
@@ -28,15 +28,11 @@ import { type Accessor, createMemo } from "solid-js"
 import { hrefOf, type Route } from "./routes.ts"
 import { createStamped } from "./stamped.ts"
 
-/** How this reading draws notes under rows. The zoomed subject's own note is
+/** How this reading draws notes under rows. Two states, like done visibility:
+ *  `first-line` (default) is one plain line you click to open or close the
+ *  full note; `full` draws every note open. The zoomed subject's own note is
  *  never densified — it is the body of the page. */
-export type DescDensity = "full" | "first-line" | "hidden"
-
-export const DESC_DENSITIES: ReadonlyArray<DescDensity> = [
-  "first-line",
-  "full",
-  "hidden",
-]
+export type DescDensity = "full" | "first-line"
 
 export interface View {
   /** Places the reader has folded, keyed by PLACE (`Row.key`) — the same node
@@ -46,12 +42,11 @@ export interface View {
   readonly toggle: (key: string) => void
   readonly doneHidden: Accessor<boolean>
   readonly toggleDone: () => void
-  /** How dense notes are under rows. `first-line` is the default: one plain
-   *  truncated line, click to unfold. */
+  /** How dense notes are under rows. `first-line` is the default. */
   readonly density: Accessor<DescDensity>
-  readonly cycleDensity: () => void
-  /** Places whose note the reader has unfolded, keyed by PLACE. Only meaningful
-   *  under `first-line`; full/hidden ignore it. */
+  readonly toggleDensity: () => void
+  /** Places whose note the reader has opened under first-line density, keyed
+   *  by PLACE. Ignored when density is `full`. */
   readonly noteOpen: Accessor<ReadonlySet<string>>
   readonly toggleNote: (key: string) => void
   /** The rows this reading actually draws. The switch and what it does to a
@@ -75,11 +70,6 @@ const fresh = (): Reading => ({
   density: "first-line",
   noteOpen: new Set<string>(),
 })
-
-const nextDensity = (current: DescDensity): DescDensity => {
-  const at = DESC_DENSITIES.indexOf(current)
-  return DESC_DENSITIES[(at + 1) % DESC_DENSITIES.length]!
-}
 
 export const createView = (route: Accessor<Route>): View => {
   const reading = createStamped(() => hrefOf(route()), fresh)
@@ -106,10 +96,10 @@ export const createView = (route: Accessor<Route>): View => {
     toggleDone: () =>
       reading.edit((current) => ({ ...current, doneHidden: !current.doneHidden })),
     density,
-    cycleDensity: () =>
+    toggleDensity: () =>
       reading.edit((current) => ({
         ...current,
-        density: nextDensity(current.density),
+        density: current.density === "full" ? "first-line" : "full",
       })),
     noteOpen,
     toggleNote: (key) =>

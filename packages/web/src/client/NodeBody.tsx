@@ -18,7 +18,7 @@
  */
 
 import { docOf, type LocatedRegular } from "@olai/format"
-import { Show } from "solid-js"
+import { createMemo, Show } from "solid-js"
 
 import { DocRef } from "./document/DocRef.tsx"
 import { Note, type NoteShape } from "./Note.tsx"
@@ -37,7 +37,9 @@ export function NodeBody(props: {
   /** The reading this body is drawn under. Required when not zoomed. */
   readonly view?: View
 }) {
-  const shape = (): NoteShape => {
+  // One memo for the shape so a density flip or a note-open click re-decides
+  // once, and Markdown only rebuilds when the shape that feeds it moved.
+  const shape = createMemo((): NoteShape => {
     if (props.zoomed === true) {
       return { kind: "full", class: "mt-2 text-muted" }
     }
@@ -46,17 +48,15 @@ export function NodeBody(props: {
     if (view === undefined || place === undefined) {
       return { kind: "full", class: "mt-1 mb-2 text-[0.9375rem] text-muted" }
     }
-    const density = view.density()
-    if (density === "hidden") return { kind: "hidden" }
-    if (density === "full") {
+    if (view.density() === "full") {
       return { kind: "full", class: "mt-1 mb-2 text-[0.9375rem] text-muted" }
     }
     return {
-      kind: "preview",
+      kind: "first-line",
       open: view.noteOpen().has(place),
       onToggle: () => view.toggleNote(place),
     }
-  }
+  })
 
   return (
     <>

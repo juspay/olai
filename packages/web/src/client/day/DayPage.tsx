@@ -49,7 +49,7 @@ export function DayPage(props: {
         </div>
         <DensityToggle
           density={props.view.density()}
-          onCycle={props.view.cycleDensity}
+          onToggle={props.view.toggleDensity}
         />
       </header>
 

@@ -54,7 +54,7 @@ function Zoom(props: {
           <div class="flex items-baseline gap-2">
             <DensityToggle
               density={props.view.density()}
-              onCycle={props.view.cycleDensity}
+              onToggle={props.view.toggleDensity}
             />
             <DoneToggle
               hidden={props.view.doneHidden()}
