@@ -41,6 +41,7 @@ import { Connection } from "./connection/Connection.tsx"
 import { CLEARANCE, CORNER, Indicator } from "./connection/Indicator.tsx"
 import { DayPage } from "./day/DayPage.tsx"
 import { DocumentPage } from "./document/DocumentPage.tsx"
+import { DerivedProvider } from "./derived.tsx"
 import { DocumentsProvider } from "./document/documents.tsx"
 import { Banner } from "./errors/Banner.tsx"
 import { Broken } from "./errors/Broken.tsx"
@@ -199,6 +200,7 @@ export default function App() {
         <Match when={page()}>
           {(open) => (
             <RouterProvider router={router}>
+              <DerivedProvider derived={derived()}>
               <DocumentsProvider documents={documentsByFile()}>
                 {/* Two columns where there is room for two, one where there is
                     not. `md` is 48rem, which is where the racket original put
@@ -274,6 +276,7 @@ export default function App() {
                   </main>
                 </div>
               </DocumentsProvider>
+              </DerivedProvider>
             </RouterProvider>
           )}
           </Match>

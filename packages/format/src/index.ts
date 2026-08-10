@@ -41,6 +41,7 @@ export {
   byOrd,
   countedChildren,
   derive,
+  follow,
   rowsOf,
   rowsUnder,
   siblingsOf,

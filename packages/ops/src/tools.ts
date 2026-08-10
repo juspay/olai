@@ -36,6 +36,7 @@ import {
   DescRequest,
   MarkRequest,
   MoveRequest,
+  SeeRequest,
   TitleRequest,
 } from "./request.ts"
 
@@ -218,6 +219,13 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "Move a node and everything under it into `Archive.jsonl` beside its outline, re-creating the chain of ancestor titles it hung off. Ids move with the nodes, so mirrors and edges pointing at them keep resolving. Nothing is stamped: archiving is not finishing.",
     ArchiveRequest,
     { op: "archive" },
+  ),
+  write(
+    "set_see",
+    "Set see references",
+    "Add and/or remove free cross-references (`see`) on an existing node. `see` is a link and nothing more — no ordering, no blocking, cycles fine. Give `add` and/or `remove` (ids of targets in the loaded set); an unknown add is refused with the ids that do exist, so the next call can name one. Search and subtree reads carry a node's `see` so you can traverse what is already there.",
+    SeeRequest,
+    { op: "see" },
   ),
 ]
 
