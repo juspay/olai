@@ -44,6 +44,40 @@ export const TESTID = {
   restarted: "restarted",
   /** The button in that surface — the whole of the recovery. */
   reload: "reload",
+
+  // ── the agent panel ──────────────────────────────────────────────────
+  /** The shut panel's opener. Absent when no agent is configured. */
+  chatToggle: "chat-toggle",
+  /** The open panel. Its `data-status` carries the cell's own state —
+   *  `booting` / `idle` / `thinking` / `gone` — so a scenario waits on the
+   *  state rather than on a spinner's styling. */
+  chatPanel: "chat-panel",
+  chatClose: "chat-close",
+  chatTitle: "chat-title",
+  chatModel: "chat-model",
+  chatNew: "chat-new",
+  chatSessions: "chat-sessions",
+  chatSessionList: "chat-session-list",
+  chatSession: "chat-session",
+  chatTranscript: "chat-transcript",
+  /** One row. `data-kind` is which of the five it is. */
+  chatEntry: "chat-entry",
+  /** A tool call's row; `data-tool-status` is the agent's own status. */
+  chatTool: "chat-tool",
+  chatToolDetail: "chat-tool-detail",
+  /** A refused write, with its structured detail drawn out. */
+  chatRefusal: "chat-refusal",
+  chatUnfinished: "chat-unfinished",
+  chatUnfinishedChild: "chat-unfinished-child",
+  /** What the last VERB refused — an empty send, a turn already running. */
+  chatRefused: "chat-refused",
+  /** What went wrong where nobody was waiting: a boot, a dead agent. */
+  chatTrouble: "chat-trouble",
+  chatInput: "chat-input",
+  chatSend: "chat-send",
+  chatCancel: "chat-cancel",
+  chatSlashMenu: "chat-slash-menu",
+  chatSlashCommand: "chat-slash-command",
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]

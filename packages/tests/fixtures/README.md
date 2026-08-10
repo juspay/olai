@@ -43,6 +43,21 @@ Note what is absent: no `done` or `doing` on `kitchen`, `install` or `herbs`. A
 node with children never stores its status; it is computed from them, and
 storing one is a load error.
 
+## `chat/` — a set the agent writes to
+
+Deliberately plain: one outline, one parent, three children of it — one done,
+two open. Everything `features/the_agent.feature` asks for is a property of
+that shape rather than of anything ornamental in it:
+
+| what | where |
+|---|---|
+| a leaf the agent can mark | `order`, `install` |
+| a leaf that is already done | `demo` |
+| a node whose status is DERIVED | `kitchen` — marking it is the refusal that lists `order` and `install` |
+
+Every chat scenario is `@scratch:chat`, because the agent WRITES: it is served a
+private temp copy with a server of its own, and both go away with the scenario.
+
 ## `broken/` — a set that does not parse
 
 - `pantry.jsonl:3` — an unquoted key, so the line is not JSON (`not-json`).

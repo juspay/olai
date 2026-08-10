@@ -33,6 +33,7 @@ import { type BrokenFile, derive, type Row } from "@olai/format"
 import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 
+import { Panel as ChatPanel } from "./chat/Panel.tsx"
 import { Connection } from "./connection/Connection.tsx"
 import { Banner } from "./errors/Banner.tsx"
 import { Broken } from "./errors/Broken.tsx"
@@ -109,6 +110,11 @@ export default function App() {
           waiting page, the outline — is a page whose reader deserves to know
           whether the server behind it is still there. */}
       <Connection status={connectionStatus()} />
+      {/* Also outside the switch, and for a related reason: the agent is a
+          property of the SERVED DIRECTORY, not of whichever page is open, so it
+          stays put across a zoom, a broken file and the error report. Asking it
+          about a set that will not load is a reasonable thing to want to do. */}
+      <ChatPanel />
       <Switch fallback={<p class="p-8 text-muted">Reading…</p>}>
         <Match when={frame() === null}>
           <ErrorPage errors={problems()} />

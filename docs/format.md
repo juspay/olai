@@ -59,9 +59,15 @@ Every error names its location: `file:line` of the bad record (one node per line
 
 ## Writing
 
-The server is the only writer; git merges are the only edits that bypass it, and validation on load catches those. A write goes: same-directory temp file(s) → re-validate the whole edited set → atomic rename (all files or none) → commit.
+The server is the only writer; git merges are the only edits that bypass it, and validation on load catches those. A write goes: re-validate the whole edited set → same-directory temp file(s) → atomic rename (all files or none) → commit. Validation comes FIRST, over the set the write would produce, so a refused write costs nothing on disk: the bytes are under names nothing reads, or they were never written at all.
 
 Writers emit canonical field order, literal UTF-8 (no `\uXXXX` escaping beyond JSON's structural escapes), no blank lines, exactly one trailing newline. Readers tolerate blank lines.
+
+**There is one writer, and callers do not assemble bytes.** A writer is handed the records of a whole file and hands back the whole file, so every separator — the newline between two records, the one at the end, the absence of a blank line — has exactly one owner. That is not tidiness: a caller that built its own bytes once produced two records glued onto one line, out of a write that every layer above believed had succeeded, and the file that came out was one no reader could parse. The shape is what makes it unrepresentable, and there is a test that says so.
+
+**A record is one line by construction**, not by care: a `desc`'s embedded newlines are escaped by JSON itself, which is the whole reason the format is JSONL rather than indented JSON.
+
+**Sibling order is an insert, not a renumbering.** `ord` is a fractional index over base62, so a node placed between two neighbours mints a key that sorts between them and touches neither — a one-line diff, which is what keeps line-based git merges worth having. The one case with no answer is arithmetic rather than a gap: nothing sorts between `x` and `x0`, because every string above `x` begins with `x` and the least of those IS `x0`. The writer renumbers that row rather than guessing.
 
 Because each node is one line with a stable id, plain line-based git merges are safe; a merge driver keyed by node id can be added later if concurrent-edit conflicts become painful.
 

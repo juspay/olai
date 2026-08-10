@@ -8,9 +8,10 @@ One `.jsonl` file per outline, one JSON object per line, one line per node
 subtree move is a one-field write, so plain line-based git merges are safe and
 a diff shows what actually changed.
 
-Status: phase 3 of the [roadmap](docs/roadmap.jsonl) — you can serve a
-directory, read your outlines, and watch the page follow the files as you edit
-them or pull them. Editing from inside olai arrives in phases 4–6.
+Status: you can serve a directory, read your outlines, watch the page follow the
+files as you edit them or pull them, and ASK AN AGENT to change them — the chat
+panel writes through the same ops layer the keyboard editor will
+([roadmap](docs/roadmap.jsonl)).
 
 ## Run it
 
@@ -60,6 +61,32 @@ because "which file is broken" has no single answer for those. Error quality is
 the product here, not a consolation prize: the format exists so that a bad edit
 is a caught edit.
 
+## Ask it to change something
+
+Open the panel in the corner and tell the agent what you want. Ask it to check
+something off and the checkbox in front of you moves — not because the panel
+echoed anything, but because the write went to disk, through the same validator
+a load runs, and came back on the same subscription every other change does.
+Each one is a git commit, with a subject you can read (`done: order the new
+cabinets`).
+
+The agent cannot touch a file. It has no filesystem access at all: the only
+things it can name are NODES, through a closed list of tools — search, read a
+subtree, add, mark, retitle, note, schedule, move, archive. So the edits it can
+express are the edits the format can be, and a malformed outline is not
+something it can produce. Whether that is a restriction or the point depends on
+how you feel about a coding agent with `sed` and your notes.
+
+When it asks for something the outline will not do, you get the reason rather
+than an apology. Marking a node whose status is computed from its children is
+refused, and the refusal lists the children that are unfinished, as rows, which
+are what to mark instead.
+
+The conversation is Claude Code's own session for that directory: close olai,
+reopen it, and you are back in it — and `claude --resume` in a terminal reaches
+the same conversations. `OLAI_ACP_AGENT` points at a different ACP agent;
+unset entirely, olai serves the outlines with no panel at all.
+
 ## Develop
 
 ```sh
@@ -77,7 +104,8 @@ Everything runs inside the flake dev shell; the recipes re-enter it for you.
 | package | what it is |
 |---|---|
 | [`packages/format`](packages/format) | the format, and the only place it is enforced: parse per line, validate the set |
-| [`packages/store`](packages/store) | a directory of files as a validated, revision-tagged snapshot — generic, with no outline types in it |
+| [`packages/store`](packages/store) | a directory of files as a validated, revision-tagged snapshot, and the one write gate — generic, with no outline types in it |
+| [`packages/ops`](packages/ops) | the only writer: the semantic edits, and the internal MCP server an agent reaches them through |
 | [`packages/surface`](packages/surface) | the typed reactive layer both ends speak, declared once |
 | [`packages/server`](packages/server) | the composition root and the binary |
 | [`packages/web`](packages/web) | the SolidJS client (SolidJS + Tailwind v4), and the build that produces it |

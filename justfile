@@ -96,6 +96,16 @@ build-client: install
 serve dir="docs" *args: build-client
     #!/usr/bin/env bash
     set -euo pipefail
+    # The chat panel needs an ACP agent. The packaged binary bakes the pinned
+    # adapter into its wrapper (default.nix); this loop runs the tree directly,
+    # so it resolves the same derivation on demand — HERE rather than in
+    # shell.nix, because the dev shell is entered by every recipe and cold
+    # `nix develop` is deliberately about a second. Export the variable
+    # yourself to point at a different agent, or at nothing.
+    if [ -z "${OLAI_ACP_AGENT:-}" ]; then
+      agent=$(nix build .#acp-agent --no-link --print-out-paths --accept-flake-config)
+      export OLAI_ACP_AGENT="$agent/bin/claude-agent-acp"
+    fi
     # `kill 0` takes the whole process group down together: a stray bundler
     # watching a tree nobody is serving is a confusing thing to leave behind.
     trap 'kill 0' EXIT INT TERM

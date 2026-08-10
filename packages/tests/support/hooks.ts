@@ -51,6 +51,33 @@ const ciArgs = [
 const FIXTURES = path.resolve(import.meta.dirname, "..", "fixtures");
 const REPORTS = path.resolve(import.meta.dirname, "..", "reports");
 
+/**
+ * The ACP agent every server under test is pointed at.
+ *
+ * It is the scripted one (`support/fake-acp-agent.ts`), and it is handed to
+ * EVERY server rather than only to the chat scenarios, for the same reason the
+ * browser flags are not branched on `CI`: a server configured differently for
+ * one feature than for another is a class of bug that only reproduces where it
+ * is hardest to see. A scenario that never opens the panel is unaffected — the
+ * agent is spawned lazily and says nothing.
+ *
+ * The real Claude adapter is for driving this by hand. It needs a model, a
+ * network and an account, and a CI lane can afford none of the three.
+ */
+const FAKE_AGENT = path.resolve(
+  import.meta.dirname,
+  "..",
+  "agent",
+  "fake-acp-agent.ts",
+);
+
+/** `@agent-stored`: the fake agent answers `session/list` with two stored
+ *  conversations, so the server's boot ADOPTS the most recent one and replays
+ *  it. Unset, nothing is stored and boot opens a fresh session — the two boot
+ *  paths, chosen by a property of the machine rather than by anything the
+ *  client says. */
+const STORED_TAG = "@agent-stored";
+
 /** The corpus a scenario gets when it names none. */
 const DEFAULT_CORPUS = "good";
 /** `@corpus:<name>` shares the tracked fixture directory; `@scratch:<name>`
@@ -198,6 +225,7 @@ const startServerChild = async (
   dir: string,
   label: string,
   fixedPort?: number,
+  stored?: boolean,
 ): Promise<RunningServer> => {
   let lastFailure = "";
   const attempts = fixedPort === undefined ? MAX_SPAWN_ATTEMPTS : 1;
@@ -205,8 +233,26 @@ const startServerChild = async (
   for (let attempt = 1; attempt <= attempts; attempt++) {
     if (stopped) throw new Error(shuttingDown(label));
     const port = fixedPort ?? (await freePort());
-    const argv = ["web", dir, "--port", String(port), "--host", "127.0.0.1"];
-    const child = spawn(bin, argv, { stdio: ["ignore", "pipe", "pipe"] });
+    // `--no-commit`: a scratch directory is a temp copy, and committing to
+    // whatever repository happens to contain the temp dir is not the suite's
+    // business. The git path has its own unit tests, against its own repo.
+    const argv = [
+      "web",
+      dir,
+      "--port",
+      String(port),
+      "--host",
+      "127.0.0.1",
+      "--no-commit",
+    ];
+    const child = spawn(bin, argv, {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        OLAI_ACP_AGENT: FAKE_AGENT,
+        ...(stored === true ? { OLAI_FAKE_ACP_STORED: "yes" } : {}),
+      },
+    });
     live.add(child);
     events(child).once("exit", () => live.delete(child));
 
@@ -344,6 +390,10 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
     world.scratch(),
     `the restarted server for corpus "${world.corpus}"`,
     port,
+    // The SAME agent configuration as the first boot, because that is the whole
+    // claim being tested: a restarted server comes up in the conversation it was
+    // last in, which it can only do if its agent still keeps the same sessions.
+    world.storedSessions,
   );
   if (started.baseUrl !== world.baseUrl) {
     killChild(started.child);
@@ -424,6 +474,7 @@ const serverFor = (corpus: string): Promise<RunningServer> => {
  *  goes away with the scenario rather than with the run. */
 const scratchServerFor = async (
   corpus: string,
+  stored: boolean,
 ): Promise<RunningServer & { readonly root: string }> => {
   const active = modeOf();
   if (active.kind === "reuse") {
@@ -441,6 +492,8 @@ const scratchServerFor = async (
       active.bin,
       root,
       `scratch copy of corpus "${corpus}"`,
+      undefined,
+      stored,
     );
     return { ...server, root };
   } catch (cause) {
@@ -522,9 +575,12 @@ Before(
     this.browser = browser;
     const asked = requestOf(scenario.pickle.tags);
     this.corpus = asked.corpus;
+    this.storedSessions = scenario.pickle.tags.some(
+      (tag) => tag.name === STORED_TAG,
+    );
 
     if (asked.scratch) {
-      const own = await scratchServerFor(asked.corpus);
+      const own = await scratchServerFor(asked.corpus, this.storedSessions);
       this.baseUrl = own.baseUrl;
       this.served = own.root;
       this.ownServer = own.child;

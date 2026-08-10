@@ -1,24 +1,35 @@
 # @olai/server — the composition root, and the binary
 
-One directory, read and served. A store over the directory, the surface bound
-to it, a listener in front — plus the `olai web <dir> [--port] [--host]` entry
-point that starts the three in that order.
+One directory, read and served — and, since the agent arrived, written. Plus
+the `olai web <dir> [--port] [--host] [--no-commit]` entry point that starts
+it all in order.
 
 This is the only package allowed to know about all the others, which is what a
-composition root is for. It is also the only place `@olai/format` and
-`@olai/store` meet: `src/codec.ts` is four bindings with no branch of its own,
-because every decision it would otherwise make — which files belong to the set,
-how decoded files become one set, how failures join — is a statement about the
-format and lives in `@olai/format`. If a rule ever appears in that file, the
-one-validator rule has been broken.
+composition root is for. The ORDER is the whole of what it decides: a store
+over the directory, the ops layer over the store, an internal MCP server over
+the ops, an ACP agent handed that server, the surface bound to both, a listener
+in front. Each of those lives in its own file with its own reason to change.
+
+One ordering is not arbitrary and is written down where it happens: the chat is
+built BEFORE the surface, because the surface's transcript collection is seeded
+from it, and the surface is what the chat publishes through — so its publishers
+are handed back and installed once it exists. Nothing publishes in between,
+because the agent is not started until the listener is up (it has to be told
+the address of the MCP route, which is only knowable once we know what we
+bound).
 
 ## The files, and their separate reasons to change
 
 | file | what it owns |
 |---|---|
-| `serve.ts` | the order: store, then surface, then listener — the warning for binding off loopback, and which runtime failures are news |
-| `codec.ts` | the seam where the generic store meets the outline format |
-| `runtime.ts` | the two surface bindings: the stream is `SubscriptionRef.changes` verbatim, the errors cell is an owned source |
+| `serve.ts` | the order above — the warning for binding off loopback, and which runtime failures are news |
+| `chat/agent.ts` | the ACP client: one subprocess, one protocol. Nothing else in olai spells `session/prompt` |
+| `chat/events.ts` | the closed vocabulary of what an agent tells us — a consumer that needs more needs a new member, not a look at the wire |
+| `chat/transcript.ts` | the conversation as ROWS: chunks accumulate, tool calls update in place by id, a replay replaces rather than appends |
+| `chat/chat.ts` | the join, and the only place that knows both halves |
+| `chat/adapter.ts` | which executable speaks ACP, and that an unset `OLAI_ACP_AGENT` means no panel rather than no server |
+| `mcp/route.ts` | the internal MCP server, mounted on this listener, behind a per-process bearer token |
+| `runtime.ts` | the surface bindings: the outline stream is `SubscriptionRef.changes` verbatim, the errors cell is an owned source, the transcript is server-authored |
 | `listener.ts` | HTTP for the bundle, WebSocket for the surface: origin gate → upgrade → stale-tab gate → heartbeat → serve |
 | `clientDist.ts` | `OLAI_DIST_DIR`, the one place the built bundle is named |
 | `main.ts` | argv, defaults, and the top-level run |
@@ -80,8 +91,8 @@ both halves against a real socket.
 
 ## Layering
 
-Depends on `format`, `store` and `surface`, strictly downward. Nothing depends
-on this. [docs/architecture.md](../../docs/architecture.md) has the reasoning —
+Depends on `format`, `ops`, `store` and `surface`, strictly downward. Nothing
+depends on this. [docs/architecture.md](../../docs/architecture.md) has the reasoning —
 including the note that `listener.ts` is a sequence owed upstream to
 `@kolu/surface-app`.
 
@@ -94,3 +105,34 @@ just serve docs              # build the client, serve this repo's own roadmap
 That is the edit loop: two `bun --watch` processes, so a validator rule you
 change is live on the next reload. `just nix` is the other path — the packaged
 binary, built from tracked files only, which is what CI and `just e2e` prove.
+
+## The agent
+
+`OLAI_ACP_AGENT` names an executable that speaks the Agent Client Protocol on
+stdio. The nix-built binary bakes the pinned adapter in (`nix/acp-agent.nix`,
+via `--set-default`), so a packaged olai needs nothing ambient; exporting the
+variable yourself wins, which is how the e2e suite points at a scripted agent
+and how you point at a different one.
+
+**Unset, olai serves without a chat panel** rather than refusing to start. That
+is the one place this differs from the racket reference, which made the variable
+a usage error, and the reason is that olai's product is the outline: reading it
+must not depend on an agent being installed. The `chat` cell reads `off` and
+the panel draws nothing.
+
+Boot is EAGER and runs on its own fiber, so pages serve while the handshake
+happens and a boot that fails changes nothing — the next prompt retries it
+exactly as a crash does. What it does, in an order that is a protocol fact
+rather than a preference: `initialize` (which is what says whether this agent
+keeps conversations at all), then `session/list` for the served directory, then
+`session/load` of the most recently updated one — or `session/new` when there
+is nothing stored. The list is narrowed to the exact directory here, once:
+the Claude Code adapter scopes its answer by PREFIX, so a server started in a
+checkout is told about every agent working under it, and adopting the newest of
+that would make an orchestrator's coding session this panel's conversation.
+
+The MCP server the session is handed is this process's own, on this process's
+listener, behind a bearer token minted per process. `mcp/route.ts` says why
+HTTP rather than stdio: the tools are this process's ops over this process's
+store, and a stdio server would be a second olai with a second store watching
+the same directory.

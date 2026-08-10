@@ -11,16 +11,29 @@
  * is not always drawn: a set that never loaded replaces the whole layout with
  * its error report, and that is a page whose connection a reader wants to know
  * about most of all.
+ *
+ * The one thing it moves for is the agent panel, which is a drawer along the
+ * same edge. Stepping aside rather than being covered: a dot that is sometimes
+ * behind a panel is a dot a reader cannot rely on, and "always on screen" is
+ * the whole of what this promises.
  */
 
+import { chatOpen } from "../chat/open.ts"
 import { LOOK, type SurfaceConnectionStatus } from "./status.ts"
 import { TESTID } from "../testids.ts"
+
+/** The panel's width plus its gap. Spelled here rather than shared, because
+ *  what this needs is "clear of the drawer" and the drawer's own width is its
+ *  business — the two only have to agree on the direction. */
+const CLEAR_OF_PANEL = "right-[27rem]"
 
 export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
   const look = () => LOOK[props.status]
   return (
     <div
-      class="fixed bottom-3 right-3 z-40 flex items-center gap-2 rounded-full border border-rule bg-paper px-3 py-1.5 text-xs text-muted"
+      class={`fixed bottom-3 z-40 flex items-center gap-2 rounded-full border border-rule bg-paper px-3 py-1.5 text-xs text-muted ${
+        chatOpen() ? CLEAR_OF_PANEL : "right-3"
+      }`}
       data-testid={TESTID.connection}
       // The state as an attribute, so a test asserts on the STATE rather than
       // on a colour: which utility paints "live" is a styling decision and this

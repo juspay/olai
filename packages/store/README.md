@@ -69,12 +69,40 @@ would have made that call for every codec, by omission.
 - revisions are minted from the beginning rather than retrofitted onto data
   consumers have already learned to read.
 
-## Not here yet
+## The write gate
 
-Writing. The ops layer brings `commit({baseRev, changes})` behind the same gate
-the probe runs in, failing with `StaleWrite` when the store has moved past
-`baseRev`. Nothing writes today, so nothing needs it — the design doc holds the
-shape.
+`commit({baseRev, changes, afterPublish?})` is the one way in, and it takes the
+same permit the probe does — so a write and a `git pull` can never interleave
+over the stamp table they both read. Inside it the order is fixed:
+
+1. **probe**, so a change that arrived out of band is part of the revision the
+   write is judged against;
+2. **the optimistic-concurrency check**: a `baseRev` the store has moved past
+   fails with `StaleWrite{baseRev, currentRev}`, and the caller re-derives its
+   edit from the newer snapshot. Because ops are SEMANTIC — mark node X, move
+   node Y — a retry lands cleanly unless the two edits genuinely collide;
+3. **validate** the set the write WOULD produce: the last decode with the
+   changed files swapped in. A refusal costs nothing on disk, which is why this
+   happens before any bytes move;
+4. **stage then rename**: every file is written to a temp beside its
+   destination, and only then are they all renamed. A reader sees the old bytes
+   or the new ones, never a partial write, and a write that cannot be written
+   at all fails with the destinations untouched;
+5. **re-probe and publish**. The changed files are re-read because the gate says
+   so, not because a stat noticed: stamps are mtime+size, and a write that
+   lands in the same second at the same length is exactly what they cannot see.
+   For a change from outside that is the accepted trade; for one this process
+   just made it would mean a browser never getting the frame.
+
+Two channels, and the split says who is at fault. `StaleWrite` is a FAILURE —
+the caller re-derives and asks again. A set the codec REFUSES is an ANSWER, in
+the success channel as `Result.fail`: the write was well-formed and the tree it
+would make is not, so the caller renders the errors rather than retrying.
+
+`afterPublish` is the caller's Effect, run after the snapshot moves and still
+inside the gate. It is how the git commit rides along without this package ever
+learning what git is. Typed as unfailing: the bytes are already on disk and
+already visible, so there is nothing here that could undo them.
 
 ## Entry point
 
@@ -85,8 +113,9 @@ cache, `store.ts` is the loop and the two refs.
 
 ## Layering
 
-Depends on no workspace sibling, on purpose (see above). Only `server` depends
-on it — it supplies the codec that joins this to `@olai/format`.
+Depends on no workspace sibling, on purpose (see above). `@olai/ops` is what
+joins it to `@olai/format` — it owns the codec and everything that writes
+through this gate — and `server` composes the two.
 [docs/architecture.md](../../docs/architecture.md) has the reasoning.
 
 ## Running

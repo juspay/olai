@@ -1,0 +1,54 @@
+/**
+ * The one place the client runs an Effect.
+ *
+ * A surface procedure is an `Effect`; a click is a DOM event. Something has to
+ * be the boundary, and having exactly one of them named is the whole point:
+ * `Effect.run*` is the edge where a program stops composing, so an app that
+ * scatters them has as many places to forget an error handler.
+ *
+ * The signature is what enforces that. There is no overload without
+ * `onFailure`: a procedure's DECLARED failures are the interesting half of its
+ * type, and a caller that could ignore them would be a caller whose refusals
+ * vanish — which is exactly the thing chat is not allowed to do (only a
+ * succeeding `StaleWrite` retry is invisible; every genuine failure renders).
+ * A DEFECT is different and is deliberately not caught: it is a bug, and it
+ * belongs in the console loudly.
+ */
+
+import type { OpFailure } from "@olai/surface"
+import { Effect, Result } from "effect"
+
+/** Anything a bound procedure hands back: a declared `OpFailure`, or one of the
+ *  framework's own transport failures, which have no place in the panel and are
+ *  reported as trouble. */
+type Call<A> = Effect.Effect<A, unknown>
+
+export const run = <A>(
+  effect: Call<A>,
+  onFailure: (failure: OpFailure) => void,
+  onSuccess?: (value: A) => void,
+): void => {
+  void Effect.runPromise(Effect.result(effect)).then((outcome) => {
+    if (Result.isSuccess(outcome)) {
+      onSuccess?.(outcome.success)
+      return
+    }
+    onFailure(asFailure(outcome.failure))
+  })
+}
+
+/** A failure the panel can draw. The declared ones already are one; a transport
+ *  failure is not, and is re-said as `busy` — which is what it means to a
+ *  reader: the server did not take it, try again. */
+const asFailure = (failure: unknown): OpFailure =>
+  isOpFailure(failure)
+    ? failure
+    : ({
+      _tag: "BusyFailure",
+      reason: failure instanceof Error ? failure.message : String(failure),
+    } as OpFailure)
+
+const isOpFailure = (failure: unknown): failure is OpFailure =>
+  typeof failure === "object" && failure !== null && "_tag" in failure &&
+  typeof (failure as { readonly _tag: unknown })._tag === "string" &&
+  (failure as { readonly _tag: string })._tag.endsWith("Failure")

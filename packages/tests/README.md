@@ -13,6 +13,7 @@ packages/tests/
 ├── support/
 │   ├── world.ts             # OlaiWorld: page, locators, the UI contract
 │   └── hooks.ts             # browser + a server per corpus (and per scratch copy)
+├── agent/                   # the scripted ACP agent the chat scenarios drive
 └── fixtures/                # the served directories (see fixtures/README.md)
 ```
 
@@ -183,3 +184,33 @@ out locally: it is `index.html`'s mount point, which the client does not own.
    not that some title eventually reads a certain way. A tree that has lost one
    node and drawn another twice still has all the right titles in it, which is
    how a broken live view stayed green through a whole feature file.
+
+## The scripted agent
+
+`agent/fake-acp-agent.ts` is a deterministic ACP agent: line-delimited JSON-RPC
+on stdio, just enough of the protocol to be indistinguishable from a real one
+as far as the server's client is concerned. Every server this suite spawns is
+pointed at it, for the same reason the Chromium flags are not branched on `CI`
+— a server configured differently for one feature than for another is a class
+of bug that only reproduces where it is hardest to see.
+
+What makes it worth having is the last thing it does: it calls the **real**
+internal MCP server, over the real HTTP route, with the token the real
+`session/new` handed it. So a chat scenario drives the real panel, the real ops
+layer and the real store — everything except the part that would need a
+language model, which is the one thing a CI lane cannot afford to be
+non-deterministic about. Behaviour is keyed on the prompt text (`done <id>`,
+`add <title>`, `slow`, `crash`), so a scenario asks for what it needs.
+
+It lives in `agent/` rather than `support/` because Cucumber imports everything
+under `support/` as part of the world, and importing this reads stdin — which,
+in the runner's own process, ends immediately and takes the run down with it.
+
+`@agent-stored` is the second knob: with it, the agent answers `session/list`
+with two stored conversations, so the server's boot ADOPTS the most recent one
+and replays it. Without it, nothing is stored and boot opens a fresh session.
+The two boot paths, chosen by a property of the machine the agent woke up on
+rather than by anything the client says.
+
+The real Claude adapter is for driving the panel by hand: `just serve` resolves
+the pinned one on demand.

@@ -82,6 +82,41 @@ asking is not a recovery. Both the dot and the screen read the SAME
 happened; the seam's required `retired` handler records the moment rather than
 driving a second path to the same fact.
 
+## The agent panel
+
+`src/client/chat/` is a drawer on the right, open or shut. It is a drawer
+rather than a column in the layout, and that is a decision about what olai is:
+the outline is the page, and the agent is something you open beside it.
+
+Everything in it is a projection of two surface members — a `transcript`
+collection and a `chat` cell — so there is no chat state in the browser the
+server does not own. What was typed appears because the server put it there,
+which is why two tabs cannot disagree and why a send that failed never leaves
+a message on screen that was never sent. The transcript's `deltas` verb is what
+makes a tab opened halfway through a turn show the whole conversation: its
+first frame is the snapshot.
+
+Three components earn their own file:
+
+- **`Refusal.tsx`** is the one the error taxonomy exists for. A `derived`
+  refusal carries the children that are in the way as DATA, so they are drawn
+  as rows a reader can act on — "mark those instead" is a list, not a sentence
+  — and a `validation` refusal renders through the same `errors/Report.tsx`
+  rows a broken file does, so a refused write and a broken file are explained
+  the same way.
+- **`ToolFrame.tsx`** is one line, foldable. A turn can be a dozen of these and
+  unfolded they would bury the conversation. The row is UPDATED rather than
+  replaced — the transcript keys them by the agent's own call id — so a fold
+  you opened stays open while the call is still running.
+- **`SlashMenu.tsx`** takes Enter in the CAPTURE phase and stops it
+  propagating, because the input owns Enter for sending: without that, a
+  completion accepted would be a message sent.
+
+`run.ts` is the one place the client runs an Effect, and its signature is the
+enforcement: there is no overload without `onFailure`. A caller that could
+ignore a procedure's declared failures would be a caller whose refusals
+vanish, which is exactly what chat is not allowed to do.
+
 ## What belongs to a reading, not to the file
 
 `view.ts` holds the two per-view switches — what is folded, and whether done
