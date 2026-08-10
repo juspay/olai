@@ -42,6 +42,14 @@ export const TESTID = {
   /** The document itself, rendered — on its own page, or inline under the node
    *  that attaches it. */
   documentBody: "document-body",
+  /** The theme picker in the sidebar. It carries what a scenario needs to
+   *  know without re-spelling it: `data-default` is the theme a page with no
+   *  pick reads in, `data-store-key` is where this browser keeps one. */
+  themePicker: "theme-picker",
+  /** One chip of it. `data-value` is the theme it offers, `aria-pressed` says
+   *  whether it is the one in force — never the colour it is painted, which is
+   *  the whole subject here and so the last thing to assert on. */
+  themeChip: "theme-chip",
   /** The bullet on every row: the link to that node's own page. */
   zoom: "zoom",
   /** The heading of a zoomed page — carries the CANONICAL node's id, which is

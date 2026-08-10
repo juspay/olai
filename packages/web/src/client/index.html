@@ -15,15 +15,43 @@
     />
     <title>olai</title>
     <meta name="description" content="outlines in flat-record JSONL" />
-    <!-- The browser chrome around an installed app. Two of them rather than a
-         script that rewrites one: this app has no theme toggle — the OS
-         preference IS the setting (src/client/styles.css) — so the same media
-         query that picks the palette can pick the chrome, and no JavaScript
-         has to run before the status bar is the right colour. Both values are
-         `--color-paper` from that stylesheet, which cannot be read from here
-         (the sheet is a build artifact and this shell is what loads it). -->
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fdfdfc" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#16161a" />
+    <!-- INLINE-NESS IS LOAD-BEARING, and this is the only script in the shell.
+         A theme picked in this browser has to be on <html> before the FIRST
+         PAINT; everything else on this page is deferred, so a theme restored
+         from the bundle would land after it, which is a flash of the wrong
+         colours on every single load. So this much runs in <head>, and nothing
+         else does — what happens after a chip is pressed is
+         src/client/theme/.
+
+         It deliberately knows no theme names: the sheet carries a block per
+         palette and the table that generates them lives in one place
+         (src/client/theme/palettes.ts). A stored name no palette offers is
+         forgotten by the app once it is up, which is the first moment anything
+         knows the list. The key is that table's THEME_STORAGE_KEY and the
+         attribute is its THEME_ATTRIBUTE; theme/css.test.ts holds this script
+         to both.
+
+         `setAttribute`, not `dataset.theme`: they are the same thing today,
+         and the day a pref's name has a hyphen in it they are not. -->
+    <script>
+      try {
+        var picked = localStorage.getItem("olai.theme");
+        if (picked) document.documentElement.setAttribute("data-theme", picked);
+      } catch (e) {}
+    </script>
+    <!-- The browser chrome around an installed app: a phone's status bar, an
+         installed window's title bar. ONE of them, holding the DEFAULT theme's
+         paper — the palette a page that has picked nothing reads in — because
+         that is the only one this shell can know before the bundle runs. A
+         page that did pick repaints this from the table (theme/state.ts). The
+         value is `--color-paper` of the default palette, which cannot be read
+         from here (the sheet is a build artifact and this shell is what loads
+         it) and is pinned by theme/css.test.ts instead. -->
+    <meta name="theme-color" content="#FAFAF6" />
+    <!-- What the browser should assume before the sheet lands: it cannot know
+         yet which theme this page is in, and the themes come both ways. Once
+         the sheet is in, each palette's own `color-scheme` is what wins. -->
+    <meta name="color-scheme" content="light dark" />
     <!-- The install surface. The manifest is the SERVER's
          (packages/server/src/listener.ts, through kolu's manifest layer); the
          icons are files copied to the dist root by the build. `rel="icon"` is

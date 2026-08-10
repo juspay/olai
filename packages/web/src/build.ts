@@ -31,6 +31,8 @@ import babelSolid from "babel-preset-solid"
 import { buildSurfaceClient } from "@kolu/surface-app/bun"
 import type { BunPlugin } from "bun"
 
+import { paletteCss } from "./client/theme/css.ts"
+
 const CLIENT = resolve(dirname(fileURLToPath(import.meta.url)), "client")
 
 const solidJsx: BunPlugin = {
@@ -51,7 +53,8 @@ const solidJsx: BunPlugin = {
 }
 
 /**
- * The stylesheet, as bytes for the helper to hash, name and write.
+ * The stylesheet, as bytes for the helper to hash, name and write: Tailwind's
+ * output with the named palettes after it.
  *
  * `@tailwindcss/cli` is invoked by its IN-TREE path, never `bunx`: bunx
  * resolves by name and falls back to fetching the package when the local copy
@@ -63,8 +66,16 @@ const solidJsx: BunPlugin = {
  * in the OS temp dir — both the source tree and the Nix dist may be read-only
  * — and we hand the bytes back for `buildSurfaceClient` to place under
  * `/assets/styles-<hash>.css` on the same immutable-caching contract as the JS.
+ *
+ * The palettes are APPENDED rather than written into `styles.css`, because
+ * they are generated from a TypeScript table (`client/theme/palettes.ts`,
+ * which the picker reads too) and there is no way for a `.css` file to import
+ * one. Appended, they are also last, which is what a plain unlayered rule
+ * needs in order to beat the `@layer theme` block Tailwind emits its own
+ * `:root` in. The bytes are hashed after this, so a palette edited on disk is
+ * a new `/assets/styles-<hash>.css` like any other change.
  */
-const buildTailwindCss = async (): Promise<ArrayBuffer> => {
+const buildStylesheet = async (): Promise<ArrayBuffer> => {
   const cli = createRequire(import.meta.url)
     .resolve("@tailwindcss/cli/package.json")
     .replace(/package\.json$/, "dist/index.mjs")
@@ -82,9 +93,10 @@ const buildTailwindCss = async (): Promise<ArrayBuffer> => {
   const code = await tailwind.exited
   if (code !== 0) throw new Error(`@tailwindcss/cli exited ${code}`)
 
-  const bytes = await Bun.file(out).arrayBuffer()
+  const utilities = await Bun.file(out).text()
   await Bun.$`rm -rf ${dirname(out)}`
-  return bytes
+  return new TextEncoder().encode(`${utilities}\n${paletteCss()}`).buffer as
+    ArrayBuffer
 }
 
 const buildClient = async (distDir: string): Promise<void> => {
@@ -99,7 +111,7 @@ const buildClient = async (distDir: string): Promise<void> => {
       {
         name: "styles",
         ext: "css",
-        build: buildTailwindCss,
+        build: buildStylesheet,
         htmlPlaceholder: `href="./styles.css"`,
       },
     ],

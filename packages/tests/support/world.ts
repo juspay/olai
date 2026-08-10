@@ -123,6 +123,16 @@ export const RESTARTED = selector(TESTID.restarted);
 /** The button in that surface. */
 export const RELOAD = selector(TESTID.reload);
 
+/** The theme picker in the sidebar, and one chip of it. The picker carries
+ *  `data-default` (the theme a page with no pick reads in) and
+ *  `data-store-key` (where this browser keeps one), so the steps ask the page
+ *  for both rather than re-spelling what the client already owns. A chip's
+ *  `data-value` is the theme it offers and `aria-pressed` says whether it is
+ *  the one in force — never the colour it is painted, which is the subject
+ *  here and so the last thing to assert on. */
+export const THEME_PICKER = selector(TESTID.themePicker);
+export const THEME_CHIP = selector(TESTID.themeChip);
+
 /** The agent panel. Absent entirely when no ACP agent is configured, which is
  *  a state the suite never runs in: every server it spawns is pointed at the
  *  scripted agent (`support/hooks.ts`). */
@@ -575,6 +585,38 @@ export class OlaiWorld extends World {
       }
       await this.page.waitForTimeout(100);
     }
+  }
+
+  /** The paper the page was painted in before a theme was picked. The only
+   *  colour any scenario holds on to, and it is compared against itself: what
+   *  a palette's paper IS is a design decision, and that it CHANGED is the
+   *  claim. */
+  paperBefore?: string;
+
+  /** Every URL the page has asked for since a scenario started watching, or
+   *  `undefined` while none is. Separate from `offSite`, which is collected for
+   *  the whole scenario and is only about the ones that left this server: what
+   *  this answers is "did that gesture reach the network AT ALL", which needs a
+   *  window with a beginning. */
+  asked?: Array<string>;
+
+  /** Start recording what the page asks for. */
+  watchRequests(): void {
+    const asked: Array<string> = [];
+    this.asked = asked;
+    this.page.on("request", (request) => asked.push(request.url()));
+  }
+
+  /** What it has asked for since, or the diagnostic for a step that forgot to
+   *  start watching — an empty list would otherwise read as a pass. */
+  requestsWatched(): ReadonlyArray<string> {
+    if (this.asked === undefined) {
+      throw new Error(
+        "nothing is recording what the page asks for; a step has to start " +
+          "watching before the gesture it is making a claim about",
+      );
+    }
+    return this.asked;
   }
 
   /** Is the sentinel still there? False after any navigation. */

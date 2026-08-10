@@ -24,7 +24,10 @@
  * `<nav>` for why that beats the capped header it replaces. Below the lists is where the app's own chrome lives — the
  * connection dot and the agent toggle — because those two are about the APP
  * rather than about the page, and a pill fixed to the corner of the viewport is
- * a pill on top of whatever is being read.
+ * a pill on top of whatever is being read. Last of all is the theme picker,
+ * which is about neither: it is what this BROWSER looks like, and it is the
+ * one thing in the column that is drawn here rather than handed in, because it
+ * needs nothing from the app to draw itself.
  *
  * The entry that lights up is the outline the OPEN PAGE lives in — for a
  * zoomed node, the file of the canonical record, which is not something the
@@ -40,6 +43,7 @@ import { createSignal, For, type JSX, Show } from "solid-js"
 
 import { Link } from "./router.tsx"
 import { TESTID } from "./testids.ts"
+import { ThemePicker } from "./theme/Picker.tsx"
 import { TARGET, TARGET_BOX } from "./touch.ts"
 
 export function Sidebar(props: {
@@ -157,6 +161,20 @@ export function Sidebar(props: {
             {props.footer}
           </div>
         </Show>
+
+        {/* The last thing in the column, and the only one that is about the
+            READER rather than about the directory or the app: which palette
+            this browser reads in. Drawn here rather than handed in as a slot
+            like the month and the chrome, because it needs nothing from the
+            app — no data, and no second home to be placed in.
+
+            The one exception to "any tap in here shuts it": a pick repaints
+            the whole page, including this column, so the reader is looking at
+            the answer already — and shutting would make comparing two
+            palettes on a phone cost a trip through the burger each time. */}
+        <div onClick={(event) => event.stopPropagation()}>
+          <ThemePicker />
+        </div>
       </div>
     </nav>
   )

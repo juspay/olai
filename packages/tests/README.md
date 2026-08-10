@@ -150,6 +150,26 @@ that grew everywhere would be a regression in the other direction.
 and it asks the SERVER rather than the page (`world.fetch`), because that is
 who an installer asks.
 
+## Colour, which is the one thing a step may not write down
+
+`features/theming.feature` is about fifteen palettes, and not one of its steps
+names a colour. The paper is compared against ITSELF (before a pick, after a
+pick), against the browser chrome and against what the manifest says — never
+against a hex, which would make the suite the place a design decision has to be
+changed. The theme names come off the page too: the picker carries
+`data-default` and `data-store-key`, every chip carries `data-value`, and the
+client owns that table. The only strings the feature spells are the two or
+three themes a scenario asks for by name, which is the scenario saying what it
+wants.
+
+Two of its scenarios are about what does NOT happen. One records every request
+the page makes (`world.watchRequests`) and asserts a pick made none: "it works"
+and "it works without asking anybody" look identical on screen. The other
+installs a `MutationObserver` before any page script and reads
+`document.readyState` at the moment `data-theme` appears — `loading` is the
+parser still going, and it is the only evidence that a stored theme beat the
+first paint rather than flashing the default at everybody on every load.
+
 ## The UI contract
 
 Steps address the app through `data-testid` and `data-*` attributes, never a
@@ -198,6 +218,8 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="connection"][data-connection]` | the connection dot, in every shape of the app: `connecting`, `live`, `reconnecting`, `retired` |
 | `[data-testid="restarted"]` | over everything: the server that served this page has been replaced |
 | `[data-testid="reload"]` | the button in that surface — the whole of the recovery |
+| `[data-testid="theme-picker"][data-default][data-store-key]` | the theme picker: which palette an unpicked page reads in, and where this browser keeps a pick |
+| `[data-testid="theme-chip"][data-value]` | one chip; `aria-pressed` says whether it is the one in force |
 
 ## Adding a test
 
