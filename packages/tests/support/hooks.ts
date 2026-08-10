@@ -29,6 +29,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 import { After, AfterAll, Before, BeforeAll, Status } from "@cucumber/cucumber";
+import { findLogfmt } from "@olai/log/testlib";
 import { chromium } from "playwright";
 import type { Browser } from "playwright";
 
@@ -252,12 +253,18 @@ const shuttingDown = (label: string): string =>
 
 const MAX_SPAWN_ATTEMPTS = 3;
 
-/** The address a `serving … on <url>` line reports. The server prints the
- *  address it ACTUALLY bound, which is not always the one it was asked for: a
- *  port that turns out to be busy is retried on one the OS picks. So the URL is
- *  read out of the line rather than assumed from the argv — the printed
- *  address is the contract, and it is the only thing that knows. */
-const SERVING = /serving .* on (http:\/\/127\.0\.0\.1:\d+)/;
+/** The address the `serving` line reports, as its own `url=` field. The server
+ *  prints the address it ACTUALLY bound, which is not always the one it was
+ *  asked for: a port that turns out to be busy is retried on one the OS picks.
+ *  So the URL is read out of the line rather than assumed from the argv — the
+ *  printed address is the contract, and it is the only thing that knows.
+ *
+ *  `findLogfmt` rather than a regex of this suite's own: the format belongs to
+ *  `@olai/log`, so its decoder does too — and it matches the message EXACTLY,
+ *  which matters because the busy-port fallback line carries a `url=` of its
+ *  own and a looser match would be a coin toss between the two. */
+const servingUrl = (out: string): string | null =>
+  findLogfmt(out, "serving")?.url ?? null;
 
 /** Spawn the server against one fixture directory and wait until it says it is
  *  listening. The contract is that line, not a sleep and not a health poll: it
@@ -344,7 +351,7 @@ const startServerChild = async (
         clearTimeout(timer);
         resolve(url);
       };
-      const served = (): string | null => SERVING.exec(out)?.[1] ?? null;
+      const served = (): string | null => servingUrl(out);
       const poll = setInterval(() => {
         const url = served();
         if (url !== null) finish(url);
@@ -384,7 +391,7 @@ const startServerChild = async (
     killChild(child);
     if (!lastFailure) {
       lastFailure =
-        `never printed a "serving … on <url>" line within ${SERVER_START_TIMEOUT}ms`;
+        `never printed a "serving" line with a url= field within ${SERVER_START_TIMEOUT}ms`;
     }
     // Quote the child's own diagnostics: a bind race, a missing fixture dir and
     // a crash-on-load all look identical from out here otherwise.
@@ -467,7 +474,7 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
   }
   world.ownServer = started.child;
   // Keep what it says from here on. A scenario asserts on the rejection line
-  // ("stale tab rejected (claimed pid …)"), which is the server's own record
+  // (`message="stale tab rejected" … claimed=…`), which is the server's own record
   // that the stale-tab gate fired — the half of the handshake a browser cannot
   // see. The startup listeners are detached by then, so this attaches its own.
   started.child?.stdout?.on("data", (chunk: string) => {

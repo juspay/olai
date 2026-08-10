@@ -1,0 +1,20 @@
+{
+  "name": "@olai/log",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "//exports": "Two entries, and the second is not product. `./testlib` is how a test hears a line — the collecting logger for a test inside the process, and the logfmt DECODER for one reading a spawned binary's stdout. Published so packages ABOVE can hear a line the same way: the alternative was a byte-identical `Logger.make` incantation in every unit test and a hand-rolled regex in every e2e one, which is what there was. The same carve-out @olai/format's `./testlib` is, for the same reason, and the kolu pin ships its logger stubs from the same place.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testlib": "./src/lines.testlib.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//dependencies": "`effect` and nothing else, deliberately: this is the bottom of the layering beside `format` and `store` (docs/architecture.md), and every package above logs. A workspace sibling appearing here would put a package between a caller and the ability to say what it is doing, which is the one thing everything needs. It is also why the LEVELS are Effect's own rather than a vocabulary of ours — an `Effect.logDebug` in `store` and one in `server` are already the same thing.",
+  "dependencies": {
+    "effect": "4.0.0-beta.106"
+  }
+}

@@ -29,7 +29,8 @@ register `stop` as a finalizer.
 
 | file | what it owns |
 |---|---|
-| `serve.ts` | the order above — the warning for binding off loopback, and which runtime failures are news |
+| `serve.ts` | the order above, and the warning for binding off loopback |
+| `fault.ts` | which runtime failures are news, and how the one that is stops the server — a typed failure the scope unwinds through, never `process.exit` |
 | `mcp/route.ts` | the tool surface for the agent olai STARTED: mounted on this listener, behind a per-process bearer token |
 | `mcp/serve.ts` | the tool surface for an agent that started US: `olai mcp`'s own, much smaller, composition root |
 | `mcp/stdio.ts` | that one's transport — newline-framed JSON-RPC over a pair of pipes, and nothing else on stdout |
@@ -37,8 +38,10 @@ register `stop` as a finalizer.
 | `listener.ts` | HTTP for the bundle, WebSocket for the surface: origin gate → upgrade → stale-tab gate → heartbeat → serve |
 | `media.ts` | `/media/*`: the pictures a document points at, and the only bytes that leave the served directory over HTTP without going through the store |
 | `manifest.ts` | what an installed olai is: name, description, colours, and the mark |
+| `directory.ts` | the served directory, opened: resolved, annotated onto the log, and a store over it — in the order both composition roots need and neither should have to remember |
 | `clientDist.ts` | `OLAI_DIST_DIR`, the one place the built bundle is named |
-| `main.ts` | argv, defaults, and the top-level run |
+| `allowedOrigins.ts` | `OLAI_ALLOWED_ORIGINS`, the one place the websocket's origin allowlist is named |
+| `main.ts` | argv, defaults, the log sink, and the top-level run |
 
 The stale-tab gate in that sequence is not a formality: a browser reconnecting
 after a restart presents the process id it was given by the server that is
@@ -121,8 +124,9 @@ argues each where it happens:
   checked against — and it is not a lock, which is the same trade an editor and
   a `git pull` already make.
 - **stdout is the protocol**, so the whole program's logging goes to stderr
-  (`Logger.LogToStderr`). A failed probe from the store on stdout is a frame
-  that is not a frame, and nothing downstream should have to know that.
+  (`@olai/log`'s `toStderr`, one line at that composition root). A failed probe
+  from the store on stdout is a frame that is not a frame, and nothing
+  downstream should have to know that.
 - **No port, no host, no token.** There is nothing to authenticate: the client
   proved who it is by being the process that started this one. It stops when
   that client closes stdin.
@@ -133,16 +137,20 @@ argues each where it happens:
 the listener binds once more on a port the OS picks and says so:
 
 ```
-port 7714 in use — serving on http://127.0.0.1:40429 instead
-serving /home/you/outlines on http://127.0.0.1:40429
+timestamp=… level=Info fiber=#5 message="port in use — serving elsewhere" serve=24ms root=/home/you/outlines asked=7714 url=http://127.0.0.1:40429
+timestamp=… level=Info fiber=#5 message=serving serve=25ms root=/home/you/outlines url=http://127.0.0.1:40429
 ```
 
 The reader asked to read their outlines, not to own port 7714. Every other
 listen failure still is a refusal — a host that is not this machine's, a
 privileged port — which is why exactly one error code recovers rather than
 "listen failed". The address that gets reported is always the one **actually
-bound**: the browser tests read the URL out of that line rather than assuming
-the port they passed, because the printed address is the only thing that knows.
+bound**, and it is its own `url=` field: the browser tests read it out of that
+line rather than assuming the port they passed, because the printed address is
+the only thing that knows. Everything about the shape of those lines — one
+format, the levels, what is a message and what is an annotation, and the
+`--log-level` that turns the quiet half on — is
+[`@olai/log`](../log/README.md).
 
 **A failure is reported as itself.** The surface runtime's `done` settles for
 two very different reasons — it faulted, or it is being closed — and only the
@@ -150,17 +158,25 @@ first is news. Treating the second as a fault is how a busy port used to print
 `surface runtime faulted — unrecoverable: [object Object]` and exit before the
 real `cannot listen on 127.0.0.1:7714: …` could be reported at all: the
 teardown that a failed `listen` starts closes the runtime, and closing it
-settled `done`. So the fault handler only speaks while we are still meant to be
-serving, and it renders an Effect `Cause` with `Cause.pretty` rather than
-`String`, which on a `Cause` is `[object Object]`. `src/serve.test.ts` holds
-both halves against a real socket.
+settled `done`. So `src/fault.ts` only speaks while we are still meant to be
+serving, and it renders the rejection with `prettyCause` rather than `String`,
+which on an Effect `Cause` is `[object Object]`. `src/serve.test.ts` holds that
+against a real socket; `src/fault.test.ts` holds the three outcomes apart.
+
+**A fault stops the server; it does not exit the process.** `serve` returns an
+effect that never settles unless the runtime faults, in which case it FAILS —
+so `olai web` staying up is "waiting on that", and an unrecoverable fault
+unwinds this scope the way Ctrl+C does, running the finalizers that close the
+sockets and stop the agent, before `runMain` sets the exit code. It used to
+call `process.exit(1)` from inside the `catch`, which ran none of them and took
+any test that came near the path down with it — which is why there was no test.
 
 ## Layering
 
-Depends on `format`, `ops`, `store` and `surface`, strictly downward. Nothing
-depends on this. [docs/architecture.md](../../docs/architecture.md) has the reasoning —
-including the note that `listener.ts` is a sequence owed upstream to
-`@kolu/surface-app`.
+Depends on `chat`, `format`, `log`, `ops`, `store` and `surface`, strictly
+downward. Nothing depends on this. [docs/architecture.md](../../docs/architecture.md)
+has the reasoning — including the note that `listener.ts` is a sequence owed
+upstream to `@kolu/surface-app`.
 
 ## Running
 

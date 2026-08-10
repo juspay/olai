@@ -30,7 +30,14 @@ every `.jsonl` outline and every `.md` document, and serves them to a browser.
 It does not descend into dot-directories or `node_modules` — a directory of
 outlines is usually a git repository, and nothing anyone wrote is inside
 `.git`. It binds to loopback by default: the surface is unauthenticated, so
-anyone who can reach the port can read every outline under the directory.
+anyone who can reach the port can read every outline under the directory. Put
+it behind a reverse proxy or `tailscale serve` and the browser's origin will
+not be the `Host` it forwards, so name the origins you are serving from in
+`OLAI_ALLOWED_ORIGINS` (comma-separated); the websocket refuses the rest.
+
+It says what it is doing on stdout, one line per event, quietly: the address it
+bound, the agent it started, and anything that went wrong. `--log-level debug`
+turns on the rest, including everything the agent itself writes.
 
 To keep it running as a user service (systemd on Linux, launchd on macOS), add
 the flake input and enable the home-manager module. Create `dataDir` first —
@@ -203,6 +210,7 @@ Everything runs inside the flake dev shell; the recipes re-enter it for you.
 |---|---|
 | [`packages/format`](packages/format) | the format, and the only place it is enforced: parse per line, validate the set |
 | [`packages/store`](packages/store) | a directory of files as a validated, revision-tagged snapshot, and the one write gate — generic, with no outline types in it |
+| [`packages/log`](packages/log) | how olai says what it is doing: one format, two streams, and the levels `--log-level` turns on |
 | [`packages/ops`](packages/ops) | the only writer: the semantic edits, and the MCP server both agents reach them through |
 | [`packages/surface`](packages/surface) | the typed reactive layer both ends speak, declared once |
 | [`packages/chat`](packages/chat) | one conversation with one ACP agent: the subprocess, the session, and the transcript a panel draws |

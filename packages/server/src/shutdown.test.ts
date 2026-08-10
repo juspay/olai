@@ -16,6 +16,7 @@
  * tab is the ordinary case and was the broken one.
  */
 
+import { findLogfmt } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
 import { spawn } from "node:child_process"
 import * as fs from "node:fs"
@@ -78,9 +79,11 @@ test("SIGINT stops a server that a browser is connected to", async () => {
   // timeout, which says only that something took too long.
 }, BOUND_MS * 3)
 
-/** Where it says it is serving. Read off stdout because that IS the interface —
- *  the port was asked for as `0`, so the process is the only thing that knows
- *  which one it got. */
+/** The `url=` field of the `serving` line. Read off stdout because that IS the
+ *  interface — the port was asked for as `0`, so the process is the only thing
+ *  that knows which one it got — and read as a FIELD, through the decoder that
+ *  belongs to the package that owns the format, rather than through a regex
+ *  this file would be alone in maintaining. */
 const addressOf = (child: ReturnType<typeof spawn>): Promise<string> =>
   new Promise((resolve, reject) => {
     let said = ""
@@ -90,10 +93,10 @@ const addressOf = (child: ReturnType<typeof spawn>): Promise<string> =>
     )
     child.stdout?.on("data", (chunk: Buffer) => {
       said += String(chunk)
-      const found = /^serving .* on (http:\/\/\S+)$/m.exec(said)
-      if (found === null) return
+      const url = findLogfmt(said, "serving")?.url
+      if (url === undefined) return
       clearTimeout(timer)
-      resolve(found[1]!)
+      resolve(url)
     })
     child.stderr?.on("data", (chunk: Buffer) => {
       said += String(chunk)

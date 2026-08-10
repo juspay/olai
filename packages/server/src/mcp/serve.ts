@@ -29,15 +29,15 @@
  * **stdout is the protocol**, so the logging goes to stderr — the whole
  * program's, not just this file's. The store logs a failed probe, git logs a
  * refused commit, and neither knows it is running under a pipe a JSON-RPC
- * parser is reading; `Logger.LogToStderr` is the framework's own switch for
- * exactly this, and setting it here means nothing downstream has to remember.
+ * parser is reading; `@olai/log`'s `toStderr` is one line here and nothing
+ * downstream has to remember.
  */
 
-import { codec, Mcp, make as makeOps } from "@olai/ops"
-import * as Store from "@olai/store"
-import { Effect, Logger } from "effect"
-import { resolve } from "node:path"
+import { toStderr } from "@olai/log"
+import { Mcp, make as makeOps } from "@olai/ops"
+import { Effect } from "effect"
 
+import { openDirectory } from "../directory.ts"
 import { pump } from "./stdio.ts"
 
 export interface McpServeOptions {
@@ -50,8 +50,6 @@ export interface McpServeOptions {
    *  binary, a pair of fakes for a test. */
   readonly input: AsyncIterable<Uint8Array>
   readonly write: (frame: string) => void
-  /** Where to say what we are doing. NOT stdout: see the header. */
-  readonly log: (message: string) => void
 }
 
 /**
@@ -63,18 +61,17 @@ export interface McpServeOptions {
  */
 export const serveTools = (options: McpServeOptions) =>
   Effect.gen(function*() {
-    const root = resolve(options.root)
-    const store = yield* Store.make({ root, codec })
+    const { root, store } = yield* openDirectory(options.root)
     const ops = makeOps({ store, root, commit: options.commit })
 
     // After the store, so the line means READY: a directory that cannot be
     // read has already failed by here, and an MCP client's first act is to
     // send `initialize` and wait.
-    options.log(`olai mcp: serving ${root}`)
+    yield* Effect.logInfo("serving the outline tools over stdio")
 
     yield* pump({
       server: Mcp.make({ ops }),
       input: options.input,
       write: options.write,
     })
-  }).pipe(Effect.provideService(Logger.LogToStderr, true))
+  }).pipe(Effect.provide(toStderr), Effect.withLogSpan("mcp"))

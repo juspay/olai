@@ -14,17 +14,23 @@
  * chat publishes through, so its publishers are handed back and installed once
  * it exists. Nothing publishes in between: the agent is not started until the
  * listener is up.
+ *
+ * It says what it is doing through Effect's own logging rather than a `log`
+ * callback a caller passes in — see `@olai/log`. Two settings are established
+ * here and inherited by everything below, including fibers the store and the
+ * agent fork for themselves: the `root` annotation (`./directory.ts`, which
+ * owns the reason it has to be set before the store is opened) and the `serve`
+ * log span, so every line says how far into this serve it was emitted.
  */
 
 import { adapterFrom, AGENT_ENV, whyNoAgent } from "@olai/chat"
-import type { OutlineError, OutlineSet } from "@olai/format"
-import { codec, Mcp, make as makeOps } from "@olai/ops"
-import * as Store from "@olai/store"
-import { Cause, Effect } from "effect"
+import { Mcp, make as makeOps } from "@olai/ops"
+import { Effect } from "effect"
 import { randomBytes } from "node:crypto"
-import { resolve } from "node:path"
 
 import * as Chat from "@olai/chat"
+import { openDirectory } from "./directory.ts"
+import { watchFault } from "./fault.ts"
 import { listen } from "./listener.ts"
 import { MCP_PATH } from "./mcp/route.ts"
 import { bind, type Publishers } from "./runtime.ts"
@@ -42,19 +48,22 @@ export interface ServeOptions {
   /** Commit every write to git when the served directory is a work tree.
    *  `olai web --no-commit` is the opt-out. */
   readonly commit: boolean
-  /** Where to say what we are doing. Injected so a test can read it and a
-   *  future caller can silence it. */
-  readonly log: (message: string) => void
 }
 
-/** Serves until the enclosing scope closes. Everything it opens is registered
- *  as a finalizer of that scope, so shutting down is closing the scope and no
- *  caller holds a teardown function it might forget to call. */
+/**
+ * Serves until the enclosing scope closes. Everything it opens is registered
+ * as a finalizer of that scope, so shutting down is closing the scope and no
+ * caller holds a teardown function it might forget to call.
+ *
+ * It RETURNS once everything is up, and what it hands back is the one thing a
+ * caller still has to wait on: an effect that never settles unless the surface
+ * runtime faults, in which case it FAILS. That is what keeps `olai web` alive —
+ * and it is why an unrecoverable fault now unwinds this scope like every other
+ * shutdown instead of exiting the process from under its finalizers.
+ */
 export const serve = (options: ServeOptions) =>
   Effect.gen(function*() {
-    const root = resolve(options.root)
-    const store: Store.Store<OutlineSet, ReadonlyArray<OutlineError>> = yield* Store
-      .make({ root, codec })
+    const { root, store } = yield* openDirectory(options.root)
 
     // The chat publishes through the surface, and the surface is seeded from
     // the chat. One mutable slot resolves that, and it is safe because nothing
@@ -77,7 +86,7 @@ export const serve = (options: ServeOptions) =>
     })
 
     const adapter = adapterFrom(process.env[AGENT_ENV])
-    if (adapter === null) options.log(whyNoAgent(process.env[AGENT_ENV]))
+    if (adapter === null) yield* Effect.logInfo(whyNoAgent(process.env[AGENT_ENV]))
 
     // Minted per process and handed only to the session we spawn: the write
     // surface is not something any page that can reach loopback may call.
@@ -92,7 +101,6 @@ export const serve = (options: ServeOptions) =>
       tools: () => tools,
       onState: (state) => publish?.state(state),
       onTranscript: (change) => publish?.transcript(change),
-      log: options.log,
     })
 
     const mcp = Mcp.make({ ops })
@@ -100,63 +108,45 @@ export const serve = (options: ServeOptions) =>
     const wired = yield* bind({ store, chat })
     publish = wired.publish
 
-    // A faulted runtime is unrecoverable structural damage. Serving past it
-    // would answer subscriptions with silence, which is worse than stopping.
-    //
-    // But `done` settles for TWO reasons — it faulted, or it is being closed —
-    // and only the first is news. The second happens on every shutdown,
-    // including the shutdown a failed `listen` starts, and treating it as a
-    // fault meant a busy port printed `[object Object]` over the perfectly
-    // good "cannot listen on 127.0.0.1:7714: address already in use" and then
-    // exited before the runtime could report it at all. So the handler only
-    // speaks while we are still meant to be serving.
-    let serving = true
-    const stopped = Effect.sync(() => {
-      serving = false
-    })
-    wired.bound.done.catch((cause: unknown) => {
-      if (!serving) return
-      options.log(`surface runtime faulted — unrecoverable:\n${render(cause)}`)
-      process.exit(1)
-    })
+    // A faulted runtime is unrecoverable structural damage, and telling that
+    // apart from the ordinary settle of a shutdown is `fault.ts`'s whole job.
+    const runtime = yield* watchFault(wired.bound)
 
     const url = yield* Effect.onError(
       listen({ ...options, bound: wired.bound, mcp: { server: mcp, token } }),
-      () => stopped,
+      () => runtime.stopped,
     )
     // Registered AFTER the listener's own, so it runs BEFORE it: finalizers
     // run in reverse, and this one has to be true by the time anything starts
     // closing the runtime.
-    yield* Effect.addFinalizer(() => stopped)
+    yield* Effect.addFinalizer(() => runtime.stopped)
 
-    options.log(`serving ${root} on ${url}`)
+    yield* Effect.annotateLogs(Effect.logInfo("serving"), { url })
     if (!LOOPBACK.has(options.host)) {
-      options.log(
-        `WARNING: bound to ${options.host}, not loopback — the surface is unauthenticated, so anyone who can reach this port can read every outline in ${root}`,
+      yield* Effect.annotateLogs(
+        Effect.logWarning(
+          "bound off loopback — the surface is unauthenticated, so anyone who can reach this port can read every outline here",
+        ),
+        { host: options.host },
       )
     }
 
-    if (chat !== null) {
+    // One condition in two spellings: `chat` is non-null exactly when `adapter`
+    // is, and saying so is what lets the line below name the command rather
+    // than fall back to a word no reader will ever see.
+    if (chat !== null && adapter !== null) {
       // LAST, and after the listener is up: the session is handed the MCP
       // server's address, which is only knowable once we know what we bound.
       tools = { name: "olai", url: `${url}${MCP_PATH}`, token }
       yield* Effect.addFinalizer(() => chat.stop)
       yield* chat.start
-      options.log(`chat agent: ${adapter?.command ?? "none"} (mcp at ${url}${MCP_PATH})`)
+      yield* Effect.annotateLogs(Effect.logInfo("chat agent started"), {
+        agent: adapter.command,
+        mcp: tools.url,
+      })
     }
-  })
+
+    return runtime.faulted
+  }).pipe(Effect.withLogSpan("serve"))
 
 const LOOPBACK: ReadonlySet<string> = new Set(["127.0.0.1", "localhost", "::1"])
-
-/** What a rejection from the surface runtime actually says.
- *
- *  `done` rejects with an Effect `Cause`, and `String(cause)` on one of those
- *  is `[object Object]` — the least informative thing available about the one
- *  failure we exit the process for. `Cause.pretty` is what renders it, and
- *  the other two arms are for a rejection that never went through Effect. */
-const render = (cause: unknown): string =>
-  Cause.isCause(cause)
-    ? Cause.pretty(cause)
-    : cause instanceof Error
-    ? cause.stack ?? cause.message
-    : String(cause)

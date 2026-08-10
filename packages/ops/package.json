@@ -17,9 +17,10 @@
     "@olai/store": "workspace:*",
     "effect": "4.0.0-beta.106"
   },
-  "//devDependencies": "@effect/platform-node is the FileSystem the tests drive a real temp directory through, exactly as @olai/store's are. @types/node is for `node:child_process`, which the git hook shells out with.",
+  "//devDependencies": "@effect/platform-node is the FileSystem the tests drive a real temp directory through, exactly as @olai/store's are. @types/node is for `node:child_process`, which the git hook shells out with. @olai/log is here for its `./testlib` collector ONLY — the git hook reports a refusal as a log line, so a test of what it reports has to hear one, and hearing one has exactly one spelling in this tree. It is deliberately not a runtime dependency: the levels and the verbs are Effect's, so nothing in src/ imports it.",
   "devDependencies": {
     "@effect/platform-node": "4.0.0-beta.106",
+    "@olai/log": "workspace:*",
     "@types/node": "^22.0.0"
   }
 }

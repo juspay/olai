@@ -32,6 +32,7 @@ import {
   surfaceAppLayer,
 } from "@kolu/surface-app/server"
 import { NodeHttpServer } from "@effect/platform-node"
+import { emitter, prettyCause, reasonOf } from "@olai/log"
 import { Data, Effect, Layer, Scope } from "effect"
 import { HttpRouter } from "effect/unstable/http"
 import { WebSocketServer } from "ws"
@@ -49,9 +50,7 @@ export class ListenFailed extends Data.TaggedError("ListenFailed")<{
   readonly cause: unknown
 }> {
   override get message(): string {
-    return `cannot listen on ${this.host}:${this.port}: ${
-      this.cause instanceof Error ? this.cause.message : String(this.cause)
-    }`
+    return `cannot listen on ${this.host}:${this.port}: ${reasonOf(this.cause)}`
   }
 }
 
@@ -69,7 +68,6 @@ export interface ListenOptions {
    *  {@link ./mcp/route.ts} for why it rides this listener rather than a
    *  transport of its own. */
   readonly mcp: Parameters<typeof mcpRoute>[0]
-  readonly log: (message: string) => void
 }
 
 /** Binds, and registers its own teardown on the enclosing scope — so a caller
@@ -77,6 +75,11 @@ export interface ListenOptions {
  *  shutdown function. Returns the URL actually bound. */
 export const listen = (options: ListenOptions) =>
   Effect.gen(function*() {
+    // Everything below says what it has to say from a Node callback — a
+    // websocket that hung up, a tab closed at the handshake — so the fiber's
+    // logging settings are captured once, here, rather than lost per line.
+    const say = yield* emitter
+
     const server = createServer()
     server.on("request", yield* requestHandler(options))
 
@@ -94,7 +97,10 @@ export const listen = (options: ListenOptions) =>
     // bundle it does not match.
     const acceptor = acceptSurfaceSocket({
       server: sockets,
-      onReject: (claimed) => options.log(`stale tab rejected (claimed pid ${claimed})`),
+      onReject: (claimed) =>
+        say(
+          Effect.annotateLogs(Effect.logInfo("stale tab rejected"), { claimed }),
+        ),
     })
 
     sockets.on("connection", (peer, request) => {
@@ -111,9 +117,15 @@ export const listen = (options: ListenOptions) =>
           socket: peer as unknown as ServableSocket,
         })
         // A serving site owns its `done`: it resolves on hang-up and REJECTS
-        // if the serving stack failed. An ignored rejection is an unhandled one.
+        // if the serving stack failed. An ignored rejection is an unhandled one
+        // — and a rejection rendered with `String` is an Effect `Cause` read as
+        // `[object Object]`, which is what `prettyCause` exists to stop.
         serving.done.catch((cause: unknown) =>
-          options.log(`surface connection failed: ${String(cause)}`)
+          say(
+            Effect.annotateLogs(Effect.logWarning("surface connection failed"), {
+              why: prettyCause(cause),
+            }),
+          )
         )
       })
     })
@@ -196,9 +208,10 @@ const bindOrFallBack = (
     (asked) =>
       bind(server, { ...options, port: ANY_PORT }).pipe(
         Effect.tap((url) =>
-          Effect.sync(() =>
-            options.log(`port ${options.port} in use — serving on ${url} instead`)
-          )
+          Effect.annotateLogs(Effect.logInfo("port in use — serving elsewhere"), {
+            asked: options.port,
+            url,
+          })
         ),
         // The retry is OUR idea, not the operator's. If even a port the OS
         // picks will not bind, the failure to report is still the one for what
