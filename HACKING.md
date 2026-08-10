@@ -10,3 +10,5 @@
 - Web
   - UI components are encapsulated & isolated
   - Prefer multiple files & folder hierarchy for ease of navigation, over monolithic modules.
+- SolidJS
+  - Make full use of the ecosystem of libraries in SolidJS instead of hard-rolling.
