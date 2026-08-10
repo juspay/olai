@@ -9,6 +9,14 @@
  */
 
 export const TESTID = {
+  /** The sidebar itself. Always drawn when the set loaded — which is what
+   *  makes it, rather than anything inside it, the sign that the app has
+   *  committed to a shape. */
+  sidebar: "sidebar",
+  /** The burger, below 48rem only: the whole sidebar is behind it. */
+  sidebarToggle: "sidebar-toggle",
+  /** Everything the burger reveals — the month, both lists, and the chrome. */
+  sidebarBody: "sidebar-body",
   outlineList: "outline-list",
   outlineLink: "outline-link",
   outlineTree: "outline-tree",

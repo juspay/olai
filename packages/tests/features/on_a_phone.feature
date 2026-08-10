@@ -2,10 +2,17 @@ Feature: On a phone
   The same app, on a screen 390 points wide and read with a thumb.
 
   Two things change and nothing else does. There is no second column to put
-  the sidebar in, so it becomes a header above the outline — capped, and
-  scrolling inside itself, so the outline is still on screen under it. And
-  what a finger aims at gets bigger: 44px, the number both mobile platforms
-  print in their guidelines.
+  the sidebar in, so it goes behind a BURGER: one row while it is shut, and
+  the whole sidebar — the month, both lists, and the app's own chrome — when
+  it is not. And what a finger aims at gets bigger: 44px, the number both
+  mobile platforms print in their guidelines.
+
+  An always-open capped header was the first answer here and it was worse in
+  both directions: it took a third of the screen from the outline to show a
+  list nobody had asked for, and the one control that HAS to be reachable —
+  the way into the agent — ended up somewhere down inside a strip that
+  scrolled. Two taps is the budget for anything in the sidebar: one to open
+  it, one to press what you came for.
 
   The tree's gutter is the one exception, and it is a deliberate one: a
   44px-wide toggle AND a 44px-wide bullet at every level of indent leave a
@@ -19,13 +26,29 @@ Feature: On a phone
   in the other direction.
 
   @corpus:good @phone
-  Scenario: One column — the sidebar is a header above the outline
+  Scenario: One column — the sidebar is behind a burger, above the outline
     Given I open the outline "house.jsonl"
+    Then the burger is on screen
+    And the sidebar is put away
+    When I tap the burger
     Then the outline list is above the tree, not beside it
     # Capped, and scrolling inside itself: whatever is in the header, the
     # outline it is a header FOR has to still be on screen under it.
     And the outline is on screen under it
     And there should be no page errors
+
+  @scratch:chat @phone
+  Scenario: The agent is two taps away on a phone
+    # The one control that has to be reachable. It lives with the connection
+    # dot in the sidebar's footer, which on a phone is behind the burger — so
+    # this is the scenario that says the burger is not just a place to put
+    # things out of the way.
+    Given I open the app
+    Then the burger is on screen
+    When I tap the burger
+    And I tap the agent toggle
+    Then the agent panel is showing
+    And I can type into the chat
 
   @corpus:good @phone
   Scenario: A tap on a bullet zooms into that node
@@ -49,20 +72,23 @@ Feature: On a phone
   @corpus:good @phone
   Scenario: A tap on an outline entry opens that outline
     Given I open the outline "house.jsonl"
-    When I tap the outline "garden.jsonl"
+    When I tap the burger
+    And I tap the outline "garden.jsonl"
     Then the address is "/o/garden.jsonl"
     And the node "herbs" is shown
 
   @corpus:journal @phone
   Scenario: A tap on a day of the month opens that day
     Given I open the day "2019-11-05"
-    When I tap the day "2019-11-06"
+    When I tap the burger
+    And I tap the day "2019-11-06"
     Then the day open is "2019-11-06"
     And the address is "/d/2019-11-06"
 
   @corpus:good @phone
   Scenario: What a finger aims at is big enough to aim at
     Given I open the outline "house.jsonl"
+    When I tap the burger
     Then every "outline entry" is at least 44px tall and 44px wide
     # A document in the sidebar is the same kind of thing as an outline in it.
     And every "document entry" is at least 44px tall and 44px wide
@@ -73,6 +99,7 @@ Feature: On a phone
   @corpus:journal @phone
   Scenario: The month is a grid of targets, not of numbers
     Given I open the day "2019-11-05"
+    When I tap the burger
     Then every "calendar day" is at least 44px tall and 44px wide
     And every "month step" is at least 44px tall and 44px wide
 
@@ -87,8 +114,11 @@ Feature: On a phone
     Given I open the outline "house.jsonl"
     Then the page reports the visible strip as the whole viewport
 
+  # A laptop, on purpose: the burger is a fact about the WIDTH, so above 48rem
+  # there is a column, everything is in it, and there is nothing to press.
   @corpus:good
   Scenario: On a laptop the same controls stay compact
     Given I open the outline "house.jsonl"
     Then every "collapse toggle" is smaller than 44px tall
     And every "outline entry" is smaller than 44px tall
+    And there is no burger

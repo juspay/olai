@@ -259,11 +259,19 @@ service worker and no offline shell: this app is live or nothing, and a cached
 shell would show outlines that had stopped being true.
 
 Below **48rem** — the racket original's own breakpoint, and Tailwind's `md` —
-two things change. There is no second column to put the sidebar in, so it
-becomes a header above the outline: capped at 42dvh and scrolling inside
-itself, so the outline it is a header *for* is still on screen under it. No
-drawer, no overlay, no toggle — those need a state, a backdrop, a focus trap
-and a way to close, all of it to hide something that fits.
+two things change. There is no second column to put the sidebar in, so it goes
+behind a BURGER: one row while it is shut, and the whole sidebar — the month,
+both lists, and the app's own chrome — when it is not, capped at 42dvh and
+scrolling inside itself so the outline is still on screen under it. Any tap
+inside shuts it, because every control in there either goes somewhere or opens
+something over it.
+
+An always-open capped header was the first answer, and it was worse in both
+directions: it took a third of the screen from the outline to show a list
+nobody had asked for, and the one control that HAS to be reachable — the way
+into the agent, which lives in that footer — ended up somewhere down inside a
+strip that scrolled. Two taps is the budget for anything in the sidebar: one to
+open it, one to press what you came for.
 
 And what a finger aims at grows to 44px, the number both mobile platforms
 print in their guidelines: sidebar entries — outlines and documents alike —

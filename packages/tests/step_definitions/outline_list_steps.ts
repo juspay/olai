@@ -52,6 +52,7 @@ Then(
 Then(
   "the outline list links to {string}",
   async function (this: OlaiWorld, file: string) {
+    await this.showSidebar();
     await this.outlineLink(file).waitFor({
       state: "visible",
       timeout: HYDRATION_TIMEOUT,
@@ -62,6 +63,7 @@ Then(
 Then(
   "the outline list does not link to {string}",
   async function (this: OlaiWorld, file: string) {
+    await this.showSidebar();
     assert.strictEqual(
       await this.outlineLink(file).count(),
       0,
@@ -74,6 +76,8 @@ Given(
   "I open the outline {string}",
   async function (this: OlaiWorld, file: string) {
     await this.open("/");
+    // On a phone the list is behind the burger; on a laptop this does nothing.
+    await this.showSidebar();
     const link = this.outlineLink(file);
     await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await link.click();
