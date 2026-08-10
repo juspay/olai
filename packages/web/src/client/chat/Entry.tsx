@@ -97,18 +97,6 @@ export function Entry(props: { readonly entry: ChatEntry }) {
         <Match when={props.entry.kind === "notice"}>
           <p class="font-mono text-[0.6875rem] text-muted">{props.entry.text}</p>
         </Match>
-
-        {/* A break, not a clear: what is above it still happened, and the rule
-            it draws is where the agent's context was dropped. */}
-        <Match when={props.entry.kind === "break"}>
-          <div class="my-3 flex items-center gap-2" data-testid={TESTID.chatBreak}>
-            <span class="h-px flex-1 bg-rule" />
-            <span class="font-mono text-[0.625rem] uppercase tracking-wide text-muted">
-              {props.entry.text}
-            </span>
-            <span class="h-px flex-1 bg-rule" />
-          </div>
-        </Match>
       </Switch>
     </div>
   )

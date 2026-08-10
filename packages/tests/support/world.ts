@@ -123,7 +123,6 @@ export const CHAT_TRANSCRIPT = selector(TESTID.chatTranscript);
 export const CHAT_NO_AGENT = selector(TESTID.chatNoAgent);
 export const CHAT_ENTRY = selector(TESTID.chatEntry);
 export const CHAT_NEW = selector(TESTID.chatNew);
-export const CHAT_BREAK = selector(TESTID.chatBreak);
 export const CHAT_ENTRY_STREAMING =
   `${selector(TESTID.chatEntry)}[data-kind="agent"][data-streaming="true"]`;
 export const CHAT_TOOL = selector(TESTID.chatTool);

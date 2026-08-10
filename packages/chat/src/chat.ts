@@ -165,14 +165,15 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           move({ session: { ...state.session, title: event.title } })
           return
         case "sessionOver":
-          // A NEW conversation keeps the history and says where the break is:
-          // within one server's life the panel is a log, and throwing away what
-          // you were just reading because you asked for a fresh context is a
-          // cost with nothing bought by it. A LOAD is different — the replay
-          // that follows replaces the transcript, because a transcript of a
-          // conversation you are not in IS a lie — and a dead agent leaves
-          // everything where it is, with the `gone` notice to explain it.
-          if (event.why === "new") publish(transcript.mark("new conversation"))
+          // The panel shows ONE conversation, so asking for a new one empties
+          // it. A break line under the old rows was tried and is not what "new
+          // conversation" means to the person who pressed it: the agent's
+          // context is gone, nothing above the line can be followed up, and a
+          // transcript you cannot refer to is history the panel is keeping for
+          // its own sake. A LOAD clears too, in the replay that follows. Only a
+          // DEAD agent leaves the rows where they are — nobody asked for that,
+          // and the `gone` notice explains them.
+          if (event.why === "new") publish(transcript.clear())
           move({ session: null, commands: [] })
           return
         case "replayStarted":

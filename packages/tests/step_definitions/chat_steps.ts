@@ -19,9 +19,9 @@ import { DataTable, Given, Then, When } from "@cucumber/cucumber";
 import type { Locator } from "playwright";
 
 import {
-  CHAT_BREAK,
   CHAT_CANCEL,
   CHAT_CLOSE,
+  CHAT_ENTRY,
   CHAT_ENTRY_STREAMING,
   CHAT_INPUT,
   CHAT_MODEL,
@@ -224,6 +224,57 @@ Then("the chat says the turn was cancelled", async function (this: OlaiWorld) {
     "the chat to report the cancellation",
   );
 });
+
+// ── following the newest line ──────────────────────────────────────────
+
+/** How far the pane is from the bottom, and how far it could be. Both, because
+ *  "at the bottom" is only a claim worth making about a pane that HAS a
+ *  bottom to be away from — a transcript shorter than its own window is at the
+ *  bottom by construction and would pass every assertion here saying nothing. */
+const scrollOf = (world: OlaiWorld) =>
+  world.page.locator(CHAT_TRANSCRIPT).evaluate((pane) => ({
+    fromBottom: pane.scrollHeight - pane.scrollTop - pane.clientHeight,
+    overflow: pane.scrollHeight - pane.clientHeight,
+  }));
+
+Then(
+  "the transcript is scrolled to the newest line",
+  async function (this: OlaiWorld) {
+    await this.waitUntil(
+      async () => {
+        const at = await scrollOf(this);
+        return at.overflow > 0 && at.fromBottom < 64;
+      },
+      "the transcript to be following the newest line",
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+When("I scroll the transcript to the top", async function (this: OlaiWorld) {
+  await this.page
+    .locator(CHAT_TRANSCRIPT)
+    .evaluate((pane) => {
+      pane.scrollTop = 0;
+    });
+  await this.waitUntil(
+    async () => (await scrollOf(this)).fromBottom > 64,
+    "the transcript to be scrolled away from the bottom",
+  );
+});
+
+Then(
+  "the transcript has stayed where I left it",
+  async function (this: OlaiWorld) {
+    const at = await scrollOf(this);
+    assert.ok(
+      at.fromBottom > 64,
+      "the panel scrolled a reader who had deliberately scrolled away back to " +
+        "the newest token. Being yanked out of what the agent did two turns " +
+        "ago is worse than a panel that never scrolled at all.",
+    );
+  },
+);
 
 // ── refusals ───────────────────────────────────────────────────────────
 
@@ -460,13 +511,15 @@ When("I start a new conversation", async function (this: OlaiWorld) {
   await this.page.locator(CHAT_NEW).click();
 });
 
-Then("the chat marks a new conversation", async function (this: OlaiWorld) {
-  // A BREAK, not a clear. The rule it draws is where the agent's context was
-  // dropped, and everything above it is still what happened.
-  await this.page
-    .locator(CHAT_BREAK)
-    .first()
-    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+Then("the chat is empty", async function (this: OlaiWorld) {
+  // A new conversation EMPTIES the panel. The agent's context is gone, so
+  // nothing above could be followed up — a transcript you cannot refer to is
+  // history the panel would be keeping for its own sake.
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_ENTRY).count()) === 0,
+    "the transcript to empty",
+    HYDRATION_TIMEOUT,
+  );
 });
 
 When("I open the session picker", async function (this: OlaiWorld) {

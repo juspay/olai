@@ -21,6 +21,7 @@
  *   done <id>    call `set_done` on that node, then say so
  *   add <title>  call `add_node` under the first outline's first root
  *   slow         dawdle, long enough to cancel
+ *   flood        say more than fits, so scrolling is a thing that can be tested
  *   hold         start a tool call and STOP there, until released
  *   model <id>   switch the model the way the wrapped CLI does
  *   crash        exit mid-turn
@@ -245,6 +246,18 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     say("thinking")
     for (let tick = 0; tick < 200 && !cancelled; tick++) await sleep(50)
     respond(id, { stopReason: cancelled ? "cancelled" : "end_turn" })
+    return
+  }
+
+  if (verb === "flood") {
+    // Chunk by chunk into ONE entry, which is what an answer is: what has to
+    // overflow the pane is a single growing paragraph, because a list that
+    // grows by rows and an answer that grows by tokens are the two cases and
+    // only the second one is hard.
+    for (let line = 0; line < 40; line++) {
+      say(`line ${line} — ${"the quick brown fox jumps over the lazy dog. ".repeat(3)}\n\n`)
+    }
+    respond(id, { stopReason: "end_turn" })
     return
   }
 

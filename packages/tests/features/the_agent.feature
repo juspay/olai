@@ -219,12 +219,29 @@ Feature: Talking to the agent
     Then the panel header names the model "Fake Two"
 
   @scratch:chat
-  Scenario: A new conversation draws a line rather than emptying the panel
-    # The agent's context is dropped; the log of this server's life is not.
-    # What is above the line still happened, and a panel that erased it would
-    # be answering a question nobody asked.
+  Scenario: The transcript follows the newest line, unless I have scrolled away
+    # It stopped following, and the reason is the shape of the two questions.
+    # Whether a reader is following is a decision they make by SCROLLING, and it
+    # was being re-derived from the scroll position after new content had
+    # already pushed the bottom out of reach — so a long answer read as "they
+    # have scrolled away" the instant it arrived. And what grows is the text
+    # inside a row, not the list of rows, so watching the list saw the
+    # paragraph appear and none of the four hundred tokens that filled it.
+    When I ask the agent "flood"
+    Then the agent is idle
+    And the transcript is scrolled to the newest line
+    When I scroll the transcript to the top
+    And I ask the agent "flood"
+    Then the agent is idle
+    And the transcript has stayed where I left it
+
+  @scratch:chat
+  Scenario: A new conversation empties the panel
+    # The panel shows ONE conversation. A break line under the old rows was
+    # tried and is not what "new conversation" means to the person who pressed
+    # it: the agent's context is gone, so nothing above could be followed up,
+    # and a transcript you cannot refer to is history kept for its own sake.
     When I ask the agent "hello"
     Then the agent's answer mentions "you said: hello"
     When I start a new conversation
-    Then the chat marks a new conversation
-    And the agent's answer mentions "you said: hello"
+    Then the chat is empty
