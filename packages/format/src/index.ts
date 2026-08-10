@@ -10,9 +10,10 @@
  *
  *   - the codec, `parseOutline` (per file) and `validate` (per set);
  *   - what they produce, `OutlineSet` and the records inside it;
- *   - what a set MEANS, `derive` with `rowsOf`, `zoom` and `withoutDone` — so
- *     a reader and the validator compute status, order, mirror expansion and
- *     one node's ancestry with the same code;
+ *   - what a set MEANS, `derive` with `rowsOf`, `zoom`, `withoutDone` and the
+ *     date derivations (`datedDays`, `datedOn`) — so a reader and the
+ *     validator compute status, order, mirror expansion, one node's ancestry
+ *     and what is on a day with the same code;
  *   - what went wrong, `OutlineError` and the two things a view does with it.
  *
  * Everything else in `src/` is internal. The spellings a rule happens to use —
@@ -30,9 +31,11 @@ export { isMirror, Located } from "./node.ts"
 export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
 
 export { derive, rowsOf, rowsUnder, titleParts, withoutDone } from "./derive.ts"
-export type { Derived, Row, Status, TitlePart } from "./derive.ts"
+export type { Derived, Row, Situated, Status, TitlePart } from "./derive.ts"
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
+export { datedDays, datedOn } from "./dates.ts"
+export type { DayGroup } from "./dates.ts"
 
 export {
   compareErrors,

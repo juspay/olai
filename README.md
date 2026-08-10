@@ -58,6 +58,15 @@ stable and unique across the whole directory, so that address survives renames
 and moves, even to another file, and a mirror of a node resolves to the same
 one page as the node itself.
 
+Anything with a `date` is also in the journal, and the journal is a query
+rather than a place: a month in the sidebar marks the days the *whole
+directory* has something on, whichever outline it was written in, and clicking
+one opens `/d/<date>` — every node dated that day, grouped by its outline and
+shown with the ancestry that says what it is about. `/today` is the same page
+for whatever day it is now. Nothing is stored to make this work: there is no
+journal file, no year→month scaffolding and no filename that means anything, so
+a `date` on a node in any outline is all there is to it.
+
 It keeps reading. Save a file, `git pull`, drop a new outline into the
 directory, and the open page updates in place — no reload, no restart. There is
 no polling of the browser and no cache to invalidate: the server watches the

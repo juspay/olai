@@ -7,21 +7,33 @@
  * for a zoomed node that answer is the canonical node's file — which no amount
  * of reading the URL would tell you.
  *
+ * A route is text and so is a DAY, which is why `today` is an argument here
+ * rather than a clock read further down: `/today` and `/d/<date>` are the same
+ * page, and the only difference between them is who says which day it is.
+ *
  * Every arm carries exactly what its screen needs and nothing else, so no
  * component re-decides what it is looking at. The ROWS are the exception, and
  * {@link rowsFor} says why. Nothing about the format is decided here either:
- * `@olai/format` says what an id resolves to, which file a node lives in, and
- * what a file's tree is; this picks the arm.
+ * `@olai/format` says what an id resolves to, which file a node lives in, what
+ * a file's tree is and what is dated a given day; this picks the arm.
  */
 
-import type { BrokenFile, Derived, Row, Zoomed } from "@olai/format"
-import { rowsOf, rowsUnder, zoom } from "@olai/format"
+import type { BrokenFile, DayGroup, Derived, Row, Zoomed } from "@olai/format"
+import { datedOn, rowsOf, rowsUnder, zoom } from "@olai/format"
 
 import type { Route } from "./routes.ts"
 
 export type Page =
   | { readonly kind: "outline"; readonly file: string }
   | { readonly kind: "node"; readonly zoomed: Zoomed }
+  /** One day, whatever it holds: every node dated it, grouped by the outline
+   *  it lives in. An empty `groups` is a day with nothing on it, which is a
+   *  page that says so rather than a page that is missing. */
+  | {
+    readonly kind: "day"
+    readonly date: string
+    readonly groups: ReadonlyArray<DayGroup>
+  }
   /** An outline whose file did not parse: it has no tree to draw, so its own
    *  pane carries its errors instead. Every other outline is unaffected. */
   | { readonly kind: "broken"; readonly file: BrokenFile }
@@ -35,8 +47,17 @@ export const pageOf = (
   files: ReadonlyArray<string>,
   broken: ReadonlyMap<string, BrokenFile>,
   route: Route,
+  /** What day it is, as text. The one thing here that is not a fact about the
+   *  set — and the only reason `/today` can be an address rather than a
+   *  redirect that would put yesterday in someone's history. */
+  today: string,
 ): Page => {
   if (route.kind === "node") return { kind: "node", zoomed: zoom(derived, route.id) }
+
+  if (route.kind === "day" || route.kind === "today") {
+    const date = route.kind === "today" ? today : route.date
+    return { kind: "day", date, groups: datedOn(derived, date) }
+  }
 
   // `/` is whichever outline was found first; a named one has to be served.
   const file = route.file === null

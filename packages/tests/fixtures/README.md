@@ -43,6 +43,28 @@ Note what is absent: no `done` or `doing` on `kitchen`, `install` or `herbs`. A
 node with children never stores its status; it is computed from them, and
 storing one is a load error.
 
+## `journal/` — a set with dates in it
+
+Two outlines whose nodes carry `date`, for the month in the sidebar and the day
+view. Neither file is a journal and neither is named like one: that is the
+point, since a day is a query over the whole set.
+
+| what | where |
+|---|---|
+| one day, two outlines | `2019-11-05` has `ferry` (life.jsonl) and `posts` + `rails` (work.jsonl) |
+| a bare date and a datetime on the same day | `posts` is `2019-11-05`, `rails` `2019-11-05T14:30` |
+| a datetime that must count for its own day | `ferry` is `2019-11-05T09:00` |
+| a day with one node | `2019-11-06` — `pack` |
+| a day in the month before | `2019-10-28` — `survey`, which is what paging back finds |
+| a dated node with a note, a tag and a derived status | `posts` (`doing`), `rails` (`#home`) |
+| undated nodes, which no day may collect | `deck`, `trip`, `sweep` |
+
+**The dates are in 2019 on purpose.** A calendar is one of the few things whose
+behaviour depends on what day it *is*, and `features/journal_and_calendar.feature`
+has a scenario that asserts `/today` is empty. Dating the fixtures to a year
+that has already happened is what keeps that scenario honest on every day it
+will ever run.
+
 ## `broken/` — a set that does not parse
 
 - `pantry.jsonl:3` — an unquoted key, so the line is not JSON (`not-json`).
