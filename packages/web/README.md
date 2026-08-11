@@ -7,6 +7,11 @@ underneath: an edit on disk arrives as the next frame of a subscription, so
 the page changes without reloading. SolidJS over a WebSocket, styled with
 Tailwind v4, bundled by `Bun.build`.
 
+The build (`src/build.ts`) also writes `.br` / `.gz` siblings next to the
+hashed `/assets/*` files (`src/precompress.ts`). The static layer in
+`@kolu/surface-app` negotiates them on `Accept-Encoding` (brotli preferred,
+gzip fallback, identity honoured); the shell is never compressed.
+
 ## What the client reads, and how it is put back together
 
 `src/client/outlines.ts` is the whole read side, and it is two subscriptions:

@@ -9,7 +9,9 @@
  * The freshness contract — content-hashed `/assets/*` names, the `no-store`
  * shell that points at them, the commit stamped onto that shell — belongs to
  * `@kolu/surface-app/bun`. This file composes it and supplies only what is
- * genuinely olai's: the Solid JSX transform and the Tailwind stylesheet.
+ * genuinely olai's: the Solid JSX transform, the Tailwind stylesheet, and the
+ * build-time `.br`/`.gz` siblings (`./precompress.ts`) the static layer
+ * negotiates on the wire.
  *
  * The Solid transform is a Bun plugin rather than Bun's own JSX handling:
  * Bun's default transform emits `React.createElement`, which Solid does not
@@ -32,6 +34,7 @@ import { buildSurfaceClient } from "@kolu/surface-app/bun"
 import type { BunPlugin } from "bun"
 
 import { paletteCss } from "./client/theme/css.ts"
+import { precompressAssets } from "./precompress.ts"
 
 const CLIENT = resolve(dirname(fileURLToPath(import.meta.url)), "client")
 
@@ -130,6 +133,17 @@ const buildClient = async (distDir: string): Promise<void> => {
     publicDir: resolve(CLIENT, "public"),
     plugins: [solidJsx],
   })
+  // Precompressed siblings for `/assets/*` — see ./precompress.ts. The static
+  // layer in @kolu/surface-app negotiates them; without this step the build
+  // ships identity-only and the negotiation has nothing to serve.
+  const written = await precompressAssets(resolve(distDir, "assets"))
+  for (const row of written) {
+    if (row.br === null && row.gz === null) continue
+    const parts = [`${row.file} ${row.raw}B`]
+    if (row.br !== null) parts.push(`br=${row.br}B`)
+    if (row.gz !== null) parts.push(`gz=${row.gz}B`)
+    console.log(`precompress: ${parts.join(" ")}`)
+  }
 }
 
 if (import.meta.main) {
