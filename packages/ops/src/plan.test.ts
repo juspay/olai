@@ -313,12 +313,15 @@ describe("title, note and date", () => {
     expect("desc" in record(fileOf(cleared, "a.jsonl"), "x")).toBe(false)
   })
 
-  test("a date reads as racket's `move:` line, cleared included", () => {
+  // `date:`, not the reference implementation's `move:`. Beside this format's
+  // real reparenting op, `move:` read as a structural change that never
+  // happened — which is exactly how it looked in a log of eleven auto-commits.
+  test("a date says it is a date, cleared included", () => {
     expect(planned(house(), { op: "date", id: "order", date: "2026-08-10" }).summary).toBe(
-      "move: order the cabinets -> 2026-08-10",
+      "date: order the cabinets -> 2026-08-10",
     )
     expect(planned(house(), { op: "date", id: "order", date: null }).summary).toBe(
-      "move: order the cabinets -> (cleared)",
+      "date: order the cabinets -> (cleared)",
     )
   })
 })

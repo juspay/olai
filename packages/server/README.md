@@ -2,8 +2,18 @@
 
 One directory, read and served — and, since the agent arrived, written. Plus
 the two entry points that start it: `olai web <dir> [--port] [--host]
-[--no-commit]`, which puts a browser in front of the ops layer, and `olai mcp
-<dir> [--no-commit]`, which puts an agent's pipes in front of the same one.
+[--commit]`, which puts a browser in front of the ops layer, and `olai mcp
+<dir> [--commit]`, which puts an agent's pipes in front of the same one.
+
+`--commit=off | manual | auto` says how writes reach git, `manual` by default:
+a write lands on disk and waits, and a Commit button or the agent's `commit`
+tool asks for one. `--no-commit` still means `off`, and wins when both are
+given. This package decides one thing about that and it is not the mode — it is
+WHO each transport is: the internal MCP route is handed to the session olai
+spawns, so it says `chat-agent`; `olai mcp` is somebody's own coding agent, so
+it says `mcp`; the surface procedure is `web`. That word is the commit's
+`X-Olai-Writer` trailer, and a transport that claimed it about itself would be
+a transport that could claim to be another.
 
 This is the only package allowed to know about all the others, which is what a
 composition root is for. The ORDER is the whole of what it decides: a store

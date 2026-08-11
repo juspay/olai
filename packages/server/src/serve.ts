@@ -24,8 +24,8 @@
  */
 
 import { adapterFrom, AGENT_ENV, whyNoAgent } from "@olai/chat"
-import { Mcp, make as makeOps } from "@olai/ops"
-import { Effect } from "effect"
+import { type CommitMode, Mcp, make as makeOps } from "@olai/ops"
+import { Effect, SubscriptionRef } from "effect"
 import { randomBytes } from "node:crypto"
 
 import * as Chat from "@olai/chat"
@@ -45,9 +45,9 @@ export interface ServeOptions {
   readonly clientDist: string
   /** Browser origins allowed to open the websocket, beyond same-origin. */
   readonly allowedOrigins: ReadonlyArray<string>
-  /** Commit every write to git when the served directory is a work tree.
-   *  `olai web --no-commit` is the opt-out. */
-  readonly commit: boolean
+  /** How writes reach git — `--commit=off | manual | auto`, `manual` by
+   *  default. See `@olai/ops`'s `Options`. */
+  readonly commits: CommitMode
 }
 
 /**
@@ -73,10 +73,18 @@ export const serve = (options: ServeOptions) =>
     // its refusals, because the chat is not what writes.
     let chat: Chat.Chat | null = null
 
+    // Bumped whenever a commit lands, by whichever door — the button, the
+    // agent's tool, or `--commit=auto`. A commit moves no served file, so
+    // nothing else in this process can say that what is waiting has changed.
+    const committed = yield* SubscriptionRef.make(0)
+
     const ops = makeOps({
       store,
       root,
-      commit: options.commit,
+      commits: options.commits,
+      onCommitted: () => {
+        Effect.runSync(SubscriptionRef.update(committed, (count) => count + 1))
+      },
       // A refusal reaches the agent as its tool result AND the panel as a row:
       // what the agent then says about it is prose, and the unfinished
       // children are data. On OPS rather than on the MCP server, because it is
@@ -103,9 +111,23 @@ export const serve = (options: ServeOptions) =>
       onTranscript: (change) => publish?.transcript(change),
     })
 
-    const mcp = Mcp.make({ ops })
+    // `chat-agent`, because the only client this route is ever handed to is
+    // the session started below. The agent in somebody's terminal reaches the
+    // same tools through `olai mcp`, and says `mcp`.
+    const mcp = Mcp.make({ ops, writer: "chat-agent" })
 
-    const wired = yield* bind({ store, chat })
+    const wired = yield* bind({
+      store,
+      chat,
+      // `web` is decided HERE and not in the binding: this is where the ops
+      // layer is built, and which writer a transport is is not something the
+      // transport gets to claim about itself.
+      git: {
+        pending: ops.pending,
+        commit: (request) => ops.commit(request, "web"),
+        committed,
+      },
+    })
     publish = wired.publish
 
     // A faulted runtime is unrecoverable structural damage, and telling that

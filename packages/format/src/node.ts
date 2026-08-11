@@ -103,3 +103,18 @@ export type FileKind = "outline" | "document"
 
 export const fileKind = (path: string): FileKind | null =>
   path.endsWith(".jsonl") ? "outline" : path.endsWith(".md") ? "document" : null
+
+/**
+ * Where an archived subtree goes: beside the outline it left, always by this
+ * name — the same rule as the racket reference, so a directory that has been
+ * archived from before goes on reading the way it did.
+ *
+ * Here rather than beside the op that writes it, because two layers need the
+ * same answer and they are in different packages: the ops layer DECIDES to move
+ * a subtree here, and `./changes.ts` is what tells a cross-file move that
+ * landed here (*archived*) from one that did not (*moved*). Two spellings would
+ * mean renaming it in one place and silently mislabelling every archive in the
+ * panel and in the commit log — permanently, since a commit message cannot be
+ * corrected after the fact.
+ */
+export const ARCHIVE = "Archive.jsonl"

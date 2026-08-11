@@ -20,7 +20,7 @@ import { Show } from "solid-js"
 import { Breadcrumbs } from "../Breadcrumbs.tsx"
 import { Bullet } from "../Bullet.tsx"
 import { Checkbox } from "../Checkbox.tsx"
-import { createNoteExpand } from "../note/expand.ts"
+import { createClickAway } from "../away.ts"
 import { NodeBody } from "../NodeBody.tsx"
 import { NodeLine } from "../NodeLine.tsx"
 import { TESTID } from "../testids.ts"
@@ -30,7 +30,7 @@ export function DayNode(props: {
   readonly dated: Situated
 }) {
   const node = () => props.dated.shows.node
-  const note = createNoteExpand()
+  const note = createClickAway()
 
   return (
     <li
@@ -39,7 +39,7 @@ export function DayNode(props: {
       data-node-id={node().id}
       data-status={props.dated.status}
       data-file={props.dated.shows.file}
-      data-note-open={note.expanded() ? "true" : "false"}
+      data-note-open={note.open() ? "true" : "false"}
     >
       {/* A root has no ancestry, and an empty trail is nothing to draw. */}
       <Show when={props.dated.trail.length > 0}>
@@ -58,10 +58,10 @@ export function DayNode(props: {
 
       {/* Past the bullet and the checkbox — ../touch.ts, so this indent and
           those two controls cannot drift apart. */}
-      <div class={PAST_BULLET} ref={note.setRoot}>
+      <div class={PAST_BULLET} ref={note.inside}>
         <NodeBody
           shows={props.dated.shows}
-          expanded={note.expanded()}
+          expanded={note.open()}
           onToggle={note.toggle}
         />
       </div>

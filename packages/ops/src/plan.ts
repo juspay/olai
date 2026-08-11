@@ -26,6 +26,7 @@
 
 import {
   ancestorsOf,
+  ARCHIVE,
   derive,
   type Derived,
   DerivedFailure,
@@ -85,11 +86,6 @@ type Planned = Result.Result<Plan, OpFailure>
  *  in the way rather than in the right. */
 type Draft<N> = { -readonly [K in keyof N]: N[K] }
 
-/** Where an archived subtree goes: beside the outline it left, always by this
- *  name — the same rule as the racket reference, so a directory that has been
- *  archived from before goes on reading the way it did. */
-const ARCHIVE = "Archive.jsonl"
-
 export const plan = (
   set: OutlineSet,
   context: Context,
@@ -119,13 +115,15 @@ export const plan = (
         (node) => `note: ${node.title}`,
       )
     case "date":
-      // `move:` is the racket convention for a node's date, and a date IS what
-      // it named there.
+      // `date:`, not the reference implementation's `move:`. That word was
+      // right there — a date WAS what `move` named — and it is wrong here:
+      // beside this format's real reparenting op it reads as a structural
+      // change that never happened.
       return planEdit(
         scope,
         request.id,
         (node) => withField(node, "date", request.date),
-        (node) => `move: ${node.title} -> ${node.date ?? "(cleared)"}`,
+        (node) => `date: ${node.title} -> ${node.date ?? "(cleared)"}`,
       )
     case "move":
       return planMove(scope, request)

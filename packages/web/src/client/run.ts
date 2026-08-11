@@ -6,6 +6,11 @@
  * `Effect.run*` is the edge where a program stops composing, so an app that
  * scatters them has as many places to forget an error handler.
  *
+ * At the client's root rather than inside the panel that used to be its only
+ * caller: the sentence above is about THIS APP, not about chat, and the moment
+ * a second surface verb existed — the Commit button — the file's own claim
+ * would have been false where it stood.
+ *
  * The signature is what enforces that. There is no overload without
  * `onFailure`: a procedure's DECLARED failures are the interesting half of its
  * type, and a caller that could ignore them would be a caller whose refusals

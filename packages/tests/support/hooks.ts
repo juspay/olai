@@ -21,7 +21,7 @@
  * where the per-scenario spawn is worth paying for.
  */
 
-import { spawn, type ChildProcess } from "node:child_process";
+import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import type { EventEmitter } from "node:events";
 import * as fs from "node:fs";
 import * as net from "node:net";
@@ -102,6 +102,19 @@ const STORED_TAG = "@agent-stored";
  *  same way a person would reach it deliberately: `OLAI_ACP_AGENT` set to the
  *  empty string, which survives the packaged binary's `${VAR-…}` wrapper. */
 const NO_AGENT_TAG = "@no-agent";
+
+/** `@git`: this scenario's scratch copy is made a git repository with one
+ *  commit in it, and its server is started with `--commit=manual` rather than
+ *  the harness's usual `--commit=off`. It is what the Commit button needs to
+ *  have anything to say, and it is deliberately opt-in: every other scenario
+ *  serves a temp directory whose history is nobody's business. */
+const GIT_TAG = "@git";
+
+/** `@no-git`: commits are ON for this scenario's server, and its scratch copy
+ *  is deliberately NOT a repository. It is the one way to reach the pill's
+ *  "no git here" face — a directory olai will never record anything in, which
+ *  is the state the always-visible rule exists to make visible. */
+const NO_GIT_TAG = "@no-git";
 
 /** The corpus a scenario gets when it names none. */
 const DEFAULT_CORPUS = "good";
@@ -302,6 +315,12 @@ interface Spawn {
   readonly stored?: boolean;
   /** `false` starts the server with no agent at all. */
   readonly agent?: boolean;
+  /** `true` makes the scratch copy a repository — see {@link GIT_TAG}. */
+  readonly repo?: boolean;
+  /** How the server is told to commit. Two facts rather than one: a directory
+   *  that is not a repository with commits ON is a state of its own, and the
+   *  pill has a face for it. */
+  readonly commits?: "off" | "manual";
   /** `true` puts a kolu on PATH that a padi answers, which is the whole of
    *  "this host is running kolu". Otherwise the one on PATH reaches no daemon,
    *  which detection must refuse. */
@@ -321,9 +340,11 @@ const startServerChild = async (
   for (let attempt = 1; attempt <= attempts; attempt++) {
     if (stopped) throw new Error(shuttingDown(label));
     const port = fixedPort ?? (await freePort());
-    // `--no-commit`: a scratch directory is a temp copy, and committing to
-    // whatever repository happens to contain the temp dir is not the suite's
-    // business. The git path has its own unit tests, against its own repo.
+    // `--commit=off` unless the scenario said otherwise: a scratch directory is
+    // a temp copy, and committing to whatever repository happens to contain the
+    // temp dir is not the suite's business. A `@git` scenario made itself one,
+    // so there is somewhere safe to commit — and `manual` is what a person
+    // gets, which is the thing under test.
     const argv = [
       "web",
       dir,
@@ -331,7 +352,7 @@ const startServerChild = async (
       String(port),
       "--host",
       "127.0.0.1",
-      "--no-commit",
+      `--commit=${spawnOptions.commits ?? "off"}`,
     ];
     const child = spawn(bin, argv, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -582,6 +603,7 @@ const scratchServerFor = async (
   const root = fs.mkdtempSync(path.join(os.tmpdir(), `olai-scratch-${corpus}-`));
   try {
     fs.cpSync(fixtureDir(corpus), root, { recursive: true });
+    if (spawnOptions.repo === true) initRepo(root);
     const server = await startServerChild(
       active.bin,
       root,
@@ -593,6 +615,21 @@ const scratchServerFor = async (
     fs.rmSync(root, { recursive: true, force: true });
     throw cause;
   }
+};
+
+/** A repository around a scratch copy, with the fixtures already in it — so
+ *  what the Commit button has to say afterwards is exactly what the scenario
+ *  did and nothing else. Its identity is the suite's, not the machine's:
+ *  `--no-verify` is the server's business, but a runner with no `user.email`
+ *  configured would otherwise fail the first commit. */
+const initRepo = (root: string): void => {
+  const git = (...argv: ReadonlyArray<string>) =>
+    execFileSync("git", argv, { cwd: root, stdio: "ignore" });
+  git("init", "--quiet", "--initial-branch", "main");
+  git("config", "user.email", "tests@olai.invalid");
+  git("config", "user.name", "olai e2e");
+  git("add", "-A");
+  git("commit", "--quiet", "-m", "fixtures");
 };
 
 /** The synchronous half of the teardown: every child that has a process right
@@ -687,9 +724,14 @@ Before(
     }
 
     if (asked.scratch) {
+      const wantsRepo = scenario.pickle.tags.some((tag) => tag.name === GIT_TAG);
+      const commitsOn = wantsRepo ||
+        scenario.pickle.tags.some((tag) => tag.name === NO_GIT_TAG);
       const own = await scratchServerFor(asked.corpus, {
         stored: this.storedSessions,
         agent: this.hasAgent,
+        repo: wantsRepo,
+        commits: commitsOn ? "manual" : "off",
         kolu: this.hasKolu,
       });
       this.baseUrl = own.baseUrl;

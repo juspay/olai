@@ -48,7 +48,7 @@ export const connectTerminalAgent = async (
   bin: string,
   directory: string,
 ): Promise<TerminalAgent> => {
-  const child: ChildProcess = spawn(bin, ["mcp", directory, "--no-commit"], {
+  const child: ChildProcess = spawn(bin, ["mcp", directory, "--commit=off"], {
     stdio: ["pipe", "pipe", "pipe"],
   });
 

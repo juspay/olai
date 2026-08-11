@@ -26,7 +26,15 @@
 
 import { Schema } from "effect"
 
-import type { Derived, OutlineSet } from "@olai/format"
+import {
+  type CommitRequest,
+  CommitRequest as CommitRequestSchema,
+  type CommitResult,
+  type Derived,
+  type OutlineSet,
+  type Writer,
+} from "@olai/format"
+import type { Effect } from "effect"
 
 import * as Query from "./query.ts"
 import {
@@ -57,13 +65,30 @@ interface Described {
   readonly schema: Schema.Top
 }
 
+/** The half of the ops layer a self-answering tool reaches. Named as an
+ *  argument rather than imported as the whole `Ops`, so the table below stays a
+ *  declaration of tools rather than a consumer of the writer. */
+export interface Acting {
+  readonly commit: (
+    request: CommitRequest,
+    writer: Writer,
+  ) => Effect.Effect<CommitResult>
+}
+
 /**
  * A tool, as this package declares it.
  *
- * The two arms are the two halves of the surface, and they differ in what they
- * carry rather than in a flag: a READ answers from a snapshot and says how; a
- * WRITE names the part of the request its own NAME already decides (`set_done`
- * is `op: "done"`), so that field never appears in the schema an agent fills in.
+ * Three arms, and each CARRIES what answers it rather than leaving the
+ * dispatcher to know: a READ answers from a snapshot and says how; an ACT
+ * answers from the ops layer and says how; a WRITE names the part of the
+ * request its own NAME already decides (`set_done` is `op: "done"`), so that
+ * field never appears in the schema an agent fills in — and it is the one arm
+ * with nothing to carry, because every write is the same call.
+ *
+ * That is the rule the read arm was built on and the reason it is worth
+ * keeping: a tool the table declares and nothing answers is a type error rather
+ * than something a caller discovers. A tag the dispatcher had to branch on
+ * would put the next verb's answer in a switch in another file.
  */
 export type Tool =
   | (Described & {
@@ -73,6 +98,14 @@ export type Tool =
   | (Described & {
     readonly kind: "write"
     readonly fixed: Readonly<Record<string, unknown>>
+  })
+  | (Described & {
+    readonly kind: "act"
+    readonly act: (
+      ops: Acting,
+      args: never,
+      writer: Writer,
+    ) => Effect.Effect<unknown, never>
   })
 
 // ── reading ────────────────────────────────────────────────────────────
@@ -128,6 +161,21 @@ const write = (
   schema: Schema.Top,
   fixed: Readonly<Record<string, unknown>>,
 ): Tool => ({ name, title, description, schema, kind: "write", fixed })
+
+const act = <A>(
+  name: string,
+  title: string,
+  description: string,
+  schema: Schema.Codec<A, never, never, never> | Schema.Top,
+  answer: (ops: Acting, args: A, writer: Writer) => Effect.Effect<unknown, never>,
+): Tool => ({
+  name,
+  title,
+  description,
+  schema,
+  kind: "act",
+  act: answer as (ops: Acting, args: never, writer: Writer) => Effect.Effect<unknown, never>,
+})
 
 export const TOOLS: ReadonlyArray<Tool> = [
   read(
@@ -234,6 +282,14 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "Add and/or remove free cross-references (`see`) on an existing node. `see` is a link and nothing more — no ordering, no blocking, cycles fine. Give `add` and/or `remove` (ids of targets in the loaded set); an unknown add is refused with the ids that do exist, so the next call can name one. Search and subtree reads carry a node's `see` so you can traverse what is already there.",
     SeeRequest,
     { op: "see" },
+  ),
+
+  act(
+    "commit",
+    "Commit what you changed",
+    "Record the outline edits waiting in the served directory as one git commit — the audit trail of what this tool wrote. Writes land on disk immediately and WAIT for this; nothing commits on your behalf. Call it when a train of thought is finished, not after every edit, and give `message` saying what the work was (`reconcile the roadmap with the #70-#81 merges`) — an omitted one is composed from what changed, which can only describe the edits and not why you made them. It commits every outline that differs from HEAD, including any a person edited by hand, and refuses while the repository is mid-merge, mid-rebase or on a detached HEAD.",
+    CommitRequestSchema,
+    (ops, args: CommitRequest, writer) => ops.commit(args, writer),
   ),
 ]
 

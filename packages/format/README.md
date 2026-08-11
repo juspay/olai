@@ -104,6 +104,31 @@ other — the renderer that rewrites a picture into a URL, and the route that
 answers it — and two allowlists that drifted apart would mean either a broken
 image or a served file nobody meant to serve.
 
+## Two readings of a set, and what they differ by
+
+`src/changes.ts` takes two sets of records and answers with what CHANGED, node
+by node — created, archived, marked done, note rewritten. It is here for the
+same reason the writer is: it is a statement about records, and it has no idea
+where either side came from. That is what lets it serve two callers whose inputs
+are nothing alike — what is pending is HEAD against the working tree, a past
+change is a commit against its parent — with no git anywhere near this package.
+
+It is never a text diff, and that is the format paying for itself in the other
+direction: a `.jsonl` diff is one enormous line per node with everything on it
+changing at once, which is exactly the shape that made line-based merges safe
+and exactly the shape nobody can read. Matching is by ID ACROSS FILES, so
+archiving reads as one change to one node rather than as a removal and an
+unrelated arrival.
+
+`src/committing.ts` is the values that answer travels in — what is waiting,
+what was last recorded, whether the repository can take a commit, what asking
+for one answers with. Git plumbing is `@olai/ops`'s, and so is everything that
+never crosses the wire: how olai spells a commit message, and the values of the
+`--commit` flag. What is here is exactly what `@olai/surface` imports, which is
+why it is here at all — this package is the floor both that layer and the wire
+spec stand on, as the refusal vocabulary already is. Design:
+[docs/brainstorming/git-commits.md](../../docs/brainstorming/git-commits.md).
+
 ## Layering
 
 Depends on nothing in this workspace, and must not — a workspace sibling in its

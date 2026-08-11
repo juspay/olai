@@ -150,8 +150,6 @@ Open the panel in the corner and tell the agent what you want. Ask it to check
 something off and the checkbox in front of you moves — not because the panel
 echoed anything, but because the write went to disk, through the same validator
 a load runs, and came back on the same subscription every other change does.
-Each one is a git commit, with a subject you can read (`done: order the new
-cabinets`).
 
 The agent cannot free-write a file. It has no filesystem access at all: the
 only things it can name are NODES, through a closed list of tools — search,
@@ -189,6 +187,57 @@ agent, and setting it to the empty string turns chat off — the panel then says
 there is no agent and which variable would give it one, rather than quietly not
 being there. The outlines are served the same either way.
 
+## And commit it when you mean to
+
+Those writes land on disk and WAIT. Git is how you see what the tool did to
+your files — an audit trail, not sync and not undo — so a pill in the corner
+says where that stands, and opening it shows what is waiting the way olai would
+say it rather than as a diff:
+
+```
+┌─ Changes ─────────────────────────────────┐
+│ olai: outlines-collection done            │
+│   · chat agent · 12m ago · 1a2b3c4        │
+│                                           │
+│ roadmap.jsonl                             │
+│   ✓  Outlines as a collection    done     │
+│   ✎  Notes: one state, same line  note    │
+│   +  Kolu integration: auto-…    created  │
+│                                           │
+│ chat agent 3 · you 1                      │
+│                      [ Commit 3 changes ] │
+└───────────────────────────────────────────┘
+```
+
+The pill is always there, because *there is no audit trail here* is the most
+important thing it can say and a control that vanished is how you would never
+find that out. It reads `✓ committed · 12m ago` when everything is recorded,
+`no commits yet` when olai has never committed in this directory — a different
+fact, and not one an empty list can express — `4 uncommitted` when something is
+waiting, and `no git here` / `commits off` when there is nothing to record at
+all. Those last two are settings rather than problems, so they are dim and
+inert; the warning is saved for a repository that is mid-rebase.
+
+Nothing is stored to make any of it work: it is `git status`, `git show HEAD:`
+and one `git log` against what is on disk, so an outline you edited in vim is
+in the list too, and committing in a terminal takes it out.
+The agent has the same button as a tool of its own, which is the better one to
+use — it knows where a train of thought ended, so its message can say
+`olai: reconcile the roadmap with the #70–#81 merges` instead of describing
+edits. Every message starts with `olai`, so `git log --grep '^olai'` is the
+audit view and `--invert-grep` gives you back your own history, and each
+commit carries an `X-Olai-Writer` trailer saying which of you wrote it.
+
+If the repository is mid-merge, mid-rebase or on a detached HEAD, the button
+says so and does nothing — an agent that committed into a conflict could
+swallow the resolution.
+
+`--commit=auto` is the old behaviour, one commit per write, for a server with
+no browser in front of it; `--commit=off` (or `--no-commit`) is for a
+directory whose history is somebody else's job. The pill says which of those
+two it is rather than vanishing, and nothing is ever `git init`ed on your
+behalf.
+
 ## Or ask from a terminal
 
 The panel's agent is not the only one that can reach those tools. Any MCP
@@ -209,9 +258,10 @@ through the same gate, and the tab is watching the disk.
 
 It is the same bargain as the panel: the tools name nodes (and, for a brand-new
 outline, a relative `.jsonl` path), never free-form bytes, so a coding agent
-that would happily `sed` your notes cannot, and every write is a git commit you
-can read. `--no-commit` turns that off for a directory whose history is
-somebody else's job.
+that would happily `sed` your notes cannot. It gets the `commit` tool too, so
+an agent working in your notes directory records what it did when it is done —
+and `--commit=off` turns that off for a directory whose history is somebody
+else's job.
 
 There is still no write CLI, and there never will be — nothing you can type
 adds a node or marks one. `olai web` and `olai mcp` are the two ways of putting
