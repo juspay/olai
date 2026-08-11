@@ -17,18 +17,27 @@
  *   - **ids belong to the page, not to the parser.** Every rendered block on a
  *     page — a note per row, a document, and every note under it — is a
  *     separate run of the pipeline, and each would otherwise mint `fn-1` for
- *     its first footnote. So every id gets this block's own prefix, and every
- *     link into the same block gets the same prefix, which keeps a footnote
- *     pointing at its own note and out of the one above it.
+ *     its first footnote, and `#shape` for its first `## Shape`. So every id
+ *     gets this block's own prefix, and every link into the same block gets the
+ *     same prefix, which keeps a footnote pointing at its own note and out of
+ *     the one above it, and a heading anchor pointing at its own heading.
  *
  * It runs LAST, after the sanitiser, and that order is what makes it safe to
  * write attributes here: what the sanitiser passed is a URL we then narrow, and
  * what it rejected never reaches this walk at all.
+ *
+ * Being last is also why the walk REPORTS the heading tree on its way through
+ * (./outline.ts). The contents a document draws has to name the ids a reader
+ * can actually jump to, and until this pass has run those ids do not exist yet.
+ * A second walk to collect them would be a second walk over the same tree
+ * asking a question this one already has the answer to.
  */
 
 import { pictureOf } from "@olai/format"
 import { mediaHref } from "@olai/surface"
 import type { Element, Root } from "hast"
+
+import { type Heading, headingOf } from "./outline.ts"
 
 export interface Rewrite {
   /** The file the markdown was written in — an outline, for a note; the
@@ -39,11 +48,15 @@ export interface Rewrite {
   readonly ids: string
 }
 
-export const rewrite = (tree: Root, options: Rewrite): void => {
-  walk(tree, options)
+/** Rewrite the tree in place, and say what headings it turned out to have —
+ *  in document order, which is the order a table of contents is read in. */
+export const rewrite = (tree: Root, options: Rewrite): readonly Heading[] => {
+  const headings: Heading[] = []
+  walk(tree, options, headings)
+  return headings
 }
 
-const walk = (parent: Root | Element, options: Rewrite): void => {
+const walk = (parent: Root | Element, options: Rewrite, headings: Heading[]): void => {
   // Filtered rather than mutated in place, because one of the answers is "this
   // element is not drawn": `keep` is the walk AND the verdict, so an image that
   // resolves to nothing is gone with its subtree instead of left behind as an
@@ -52,7 +65,11 @@ const walk = (parent: Root | Element, options: Rewrite): void => {
     if (child.type !== "element") return true
     if (child.tagName === "img" && !point(child, options.from)) return false
     mint(child, options.ids)
-    walk(child, options)
+    walk(child, options, headings)
+    // AFTER the subtree, so what a heading reads as is what is left of it: a
+    // picture inside one that resolved to nothing is gone by now.
+    const heading = headingOf(child)
+    if (heading !== null) headings.push(heading)
     return true
   })
 }
