@@ -29,8 +29,13 @@ export function DocRef(props: {
 }) {
   // The body is asked for HERE, by the row that is showing it — one narrowed
   // per-key subscription, shared with every other place drawing the same
-  // document (../document/documents.tsx). A row that names no document costs
-  // nothing, which is what makes a directory of thousands affordable.
+  // document (./documents.tsx). What that costs is the documents DRAWN, never
+  // the directory: a corpus of thousands is thousands of paths in the sidebar
+  // and the bodies of what is on screen. The honest edge is that the preview
+  // below is one line read out of a whole body, so an outline attaching
+  // hundreds of documents at once pays for hundreds of them — the answer to
+  // that is a preview on the wire, once something measures it needing one
+  // (docs/brainstorming/surface-mcp-viewing.md).
   const document = useDocument(() => props.file)
   // Two memos, and the first is why the second is cheap. Every frame the store
   // publishes mints a new entry, so a preview read off the record would

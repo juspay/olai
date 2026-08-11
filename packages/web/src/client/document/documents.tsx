@@ -1,30 +1,44 @@
 /**
- * The documents of the set, read one at a time, from wherever one is drawn.
+ * The documents of the set: the paths, and one body at a time.
  *
- * A node's `doc` shows a line of its document, and a node is drawn on every
- * page there is — a tree row, a zoomed heading, a day. Threading the set's
- * documents through every row of a thousand-row tree to answer that would make
- * every component's signature a function of what one of its descendants
- * happens to need, which is exactly the reason the router is a context too.
+ * ONE module owns `olai.collections.documents`, and that is the point of it
+ * being one. The collection is served `keys` + `get` with no `deltas`
+ * (`@olai/surface`), so a plain `.use()` — which opens the key stream AND a
+ * value stream per key — would pull every `.md` body in the directory onto the
+ * first paint, which is the defect `snapshot-scale` removed. That rule is
+ * enforceable only where the member is reached, so the member is reached here
+ * and nowhere else:
  *
- * What this holds is no longer a map of the corpus: it is the set of documents
- * SOMEBODY IS SHOWING, which is the `keys` of one narrowed subscription over
- * the `documents` collection. A `.md` body reaches this tab when a component
- * asks for it and stops arriving when the last one that asked goes away —
- * because the wire's whole shape (`@olai/surface`: `keys` + `get`, no
- * `deltas`) is that a body is fetched per key rather than pushed per set. A
- * directory with a thousand documents in it costs a thousand paths and the
- * bodies of the one or two on screen.
+ *   - {@link Documents.paths} is the KEY SET, driven on its own through
+ *     `rawStream`. That is the framework's composition for this shape — its
+ *     `unenrolledKeys` docs describe feeding the raw list back into a narrowed
+ *     `.use({ keys })`, which is exactly what happens below — and `rawStream`
+ *     rather than a bare `unenrolledStreamCall` so the stream is still in
+ *     `client.health()`: a key stream that died would otherwise read as a
+ *     directory with no documents in it.
+ *   - {@link Documents.read} is the BODY of one document, from a narrowed
+ *     subscription whose keys are the documents somebody is showing. A body
+ *     reaches this tab when a component asks for it and stops arriving when
+ *     the last one that asked goes away.
  *
- * ONE subscription per PATH, however many components ask: the count is what
+ * ONE subscription per PATH, however many components ask: `askers` is what
  * decides membership, so two rows attached to the same document share the
- * stream, and neither one's unmount cancels the other's. A narrowed `.use()`
- * is honestly its own subscription with no dedup of its own, so a per-consumer
+ * stream and neither one's unmount cancels the other's. A narrowed `.use()` is
+ * honestly its own subscription with no dedup of its own, so a per-consumer
  * `.use()` here would be one socket stream per doc-carrying ROW.
  *
- * The value is an ACCESSOR, not a record: documents change under an open page
- * — that is the whole point of the live store — and what a per-key `get`
- * delivers on an edit is the new body on the same key.
+ * The bound is worth naming: what this costs is the documents ON SCREEN, and a
+ * `doc` reference draws a one-line preview out of a whole body. An outline that
+ * attaches hundreds of documents at once therefore pays for hundreds of them.
+ * That is the shape the design agreed (`docs/brainstorming/surface-mcp-viewing.md`):
+ * if a preview for many nodes at once is needed, the answer is a small head
+ * member on the wire — measured first, not guessed at here.
+ *
+ * A node's `doc` is drawn on every page there is — a tree row, a zoomed
+ * heading, a day — so the reader is a CONTEXT rather than a prop: threading it
+ * through every row of a thousand-row tree would make every component's
+ * signature a function of what one of its descendants happens to need, which is
+ * the same reason the router is a context.
  */
 
 import type { DocumentEntry } from "@olai/surface"
@@ -32,6 +46,7 @@ import {
   type Accessor,
   createContext,
   createEffect,
+  createMemo,
   createSignal,
   type JSX,
   onCleanup,
@@ -40,31 +55,46 @@ import {
 
 import { olai } from "../wire.ts"
 
-/** Ask for one document by path, for as long as the calling owner lives. */
-type Reader = (file: Accessor<string>) => Accessor<DocumentEntry | undefined>
+export interface Documents {
+  /** Every `.md` the directory holds, by path. ARRIVAL order, deliberately:
+   *  the sidebar's tree sorts each of its own levels (`../fileTree.ts`) and the
+   *  page model only asks whether a path is in here, so an order imposed on a
+   *  corpus-sized list every time one file arrives would be work nobody reads. */
+  readonly paths: Accessor<ReadonlyArray<string>>
+  /** One document's body, for as long as the calling owner lives. `undefined`
+   *  while it is still on the way — the normal first state — and also what a
+   *  set being edited answers for a `doc` naming a file that is no longer
+   *  there (a valid set cannot produce that: `doc` is validated against the
+   *  documents found). */
+  readonly read: (file: Accessor<string>) => Accessor<DocumentEntry | undefined>
+}
 
-const DocumentsContext = createContext<Reader>()
+export const createDocuments = (): Documents => {
+  const [paths, setPaths] = createSignal<ReadonlyArray<string>>([])
+  // No `onRetry`: every frame is the whole key set, so a reconnect replaces
+  // this list wholesale, and clearing it in the gap would empty the sidebar's
+  // documents for as long as the socket takes to come back.
+  olai.rawStream(
+    "documents.keys",
+    olai.collections.documents.unenrolledKeys,
+    undefined,
+    { onItem: setPaths },
+  )
 
-export function DocumentsProvider(props: { readonly children: JSX.Element }) {
-  /** The paths asked for, and how many askers each has. The signal is what the
-   *  subscription watches; the map is the bookkeeping that keeps a path in it
-   *  until the LAST asker is gone. */
-  const [wanted, setWanted] = createSignal<string[]>([])
-  const askers = new Map<string, number>()
-
-  const hold = (file: string): void => {
-    const before = askers.get(file) ?? 0
-    askers.set(file, before + 1)
-    if (before === 0) setWanted((paths) => [...paths, file])
-  }
-  const release = (file: string): void => {
-    const before = askers.get(file) ?? 0
-    if (before > 1) {
-      askers.set(file, before - 1)
-      return
-    }
-    askers.delete(file)
-    setWanted((paths) => paths.filter((path) => path !== file))
+  /** Who wants what: a path is wanted while at least one owner is showing it.
+   *  ONE value, so membership cannot disagree with the count that decides it —
+   *  a path stuck in the key set is a stream that never closes, and one missing
+   *  from it is a body that never arrives for a row still on screen. */
+  const [askers, setAskers] = createSignal<ReadonlyMap<string, number>>(new Map())
+  const wanted = createMemo(() => [...askers().keys()])
+  const held = (file: string, by: number): void => {
+    setAskers((before) => {
+      const after = new Map(before)
+      const now = (after.get(file) ?? 0) + by
+      if (now > 0) after.set(file, now)
+      else after.delete(file)
+      return after
+    })
   }
 
   // A NARROWED subscription: `keys` is the set above rather than the server's
@@ -73,29 +103,40 @@ export function DocumentsProvider(props: { readonly children: JSX.Element }) {
   // owner, which closes that stream server-side — no teardown to write here.
   const entries = olai.collections.documents.use({ keys: wanted })
 
-  const read: Reader = (file) => {
-    // An EFFECT, so the interest follows a component whose `file` moves (a doc
-    // reference re-keyed onto another node) and is dropped when the component
-    // that wanted it goes away — the cleanup runs on both.
-    createEffect(() => {
-      const path = file()
-      hold(path)
-      onCleanup(() => release(path))
-    })
-    return () => entries.byKey(file())?.()
+  return {
+    paths,
+    read: (file) => {
+      // An EFFECT, so the interest follows a component whose `file` moves (a
+      // doc reference re-keyed onto another node) and is dropped when the
+      // component that wanted it goes away — the cleanup runs on both.
+      createEffect(() => {
+        const path = file()
+        held(path, 1)
+        onCleanup(() => held(path, -1))
+      })
+      return () => entries.byKey(file())?.()
+    },
   }
+}
 
+const DocumentsContext = createContext<Documents["read"]>()
+
+export function DocumentsProvider(props: {
+  /** The app's one reader of the documents collection. Handed in rather than
+   *  created here for the reason `DerivedProvider`'s value is: the sidebar and
+   *  the page model need the PATHS above this provider, and one module owning
+   *  the member is the whole arrangement (see the note at the top). */
+  readonly documents: Documents
+  readonly children: JSX.Element
+}) {
   return (
-    <DocumentsContext.Provider value={read}>
+    <DocumentsContext.Provider value={props.documents.read}>
       {props.children}
     </DocumentsContext.Provider>
   )
 }
 
-/** One served document, by its path. `undefined` while its body is still on the
- *  way — which is the normal first state now, and also what a set being edited
- *  answers for a `doc` naming a file that is no longer there (a valid set
- *  cannot produce that: `doc` is validated against the documents found). */
+/** One served document, by its path — see {@link Documents.read}. */
 export const useDocument = (
   file: () => string,
 ): Accessor<DocumentEntry | undefined> => {

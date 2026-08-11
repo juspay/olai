@@ -111,18 +111,20 @@ test("a removed path that was never an entry is not a remove", () => {
 })
 
 // The whole of snapshot-scale, as one assertion: a document's body is in that
-// document's entry, and the manifest — the value EVERY subscription reads on
-// its first frame — knows nothing about it. A `documents` array here again,
-// however small, is the corpus back on first paint.
-test("a document's text is in its own entry, and the manifest carries none", () => {
-  const { documents, manifest } = publishedOf(
+// document's ENTRY, keyed by its path, and it is the only place a projection
+// puts one. The other half — that the value every subscription reads on its
+// first frame carries no documents — is the `manifest` cell, which this
+// projection no longer has anything to say about at all.
+test("a document's text is in its own entry, keyed by its path", () => {
+  const { outlines, documents } = publishedOf(
     revision(setOf({ "house.jsonl": HOUSE }, [["notes.md", "# hello"]]), {}, 3),
     NOTHING_HELD,
   )
 
   expect([...documents.entries.keys()]).toEqual(["notes.md"])
   expect(documents.entries.get("notes.md")).toEqual({ rev: 3, text: "# hello" })
-  expect(manifest).toEqual({ rev: 3 })
+  // Not smuggled into the outline's slice either: an outline entry is nodes.
+  expect(JSON.stringify([...outlines.entries.values()])).not.toContain("# hello")
 })
 
 test("a document that left the directory is a remove of its key", () => {

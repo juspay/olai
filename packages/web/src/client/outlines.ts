@@ -1,21 +1,18 @@
 /**
- * The served directory, as this tab sees it.
+ * The outlines of the served directory, as this tab sees it.
  *
- * THREE subscriptions, and between them they are the whole read side of the
- * app: a COLLECTION of outlines keyed by root-relative path, the KEY SET of the
- * documents collection beside it, and a `manifest` CELL for what belongs to no
- * one file. The outlines are served with batched `deltas`, so a probe tick that
- * touched one file sends that file's entry and not the corpus — and the key is
- * the protocol's (`keySchema`) rather than a client library's default, which is
- * the whole point of the re-modelling
- * (`docs/brainstorming/outlines-as-collection.md`).
+ * TWO subscriptions: a COLLECTION of outlines keyed by root-relative path, and
+ * a `manifest` CELL for whether there is a set at all. The collection is served
+ * with batched `deltas`, so a probe tick that touched one file sends that
+ * file's entry and not the corpus — and the key is the protocol's (`keySchema`)
+ * rather than a client library's default, which is the whole point of the
+ * re-modelling (`docs/brainstorming/outlines-as-collection.md`).
  *
- * The documents are the OPPOSITE case, and this module takes only half of them:
- * their key set. A `.md` is drawn in exactly two places — as a path in the
- * sidebar's file tree, and as a body on the one document a reader has open —
- * and the first of those is every document in the directory while the second is
- * one. So the paths arrive here, and a body is asked for by whoever is showing
- * it (`./document/documents.tsx`). What that replaced was the manifest carrying
+ * The DOCUMENTS are not here, and their being elsewhere is a decision rather
+ * than a filing accident: they are served the opposite way — a key set for
+ * everyone and a body for whoever opens one — and the module that owns that
+ * member is the module that can hold the rule
+ * (`./document/documents.tsx`). What that replaced was the manifest carrying
  * every document's full text in the first frame: ~124 KB of a ~212 KB snapshot
  * for this project's own `docs/`, and O(corpus) for a directory of thousands.
  *
@@ -28,11 +25,11 @@
  *
  * Two frames of one revision may arrive a beat apart, and nothing here pretends
  * otherwise: entries are upserted per changed file, so an unchanged neighbour
- * keeps the `rev` it was last published at, and the manifest is a member of its
- * own. What that costs a reader is spelled out in the design doc's cross-file
- * consistency paragraph; what it costs THIS module is nothing, because
- * everything below is derived from whatever the entries currently say rather
- * than from a claim about which revision they are all at.
+ * keeps the `rev` it was last published at. What that costs a reader is spelled
+ * out in the design doc's cross-file consistency paragraph; what it costs THIS
+ * module is nothing, because everything below is derived from whatever the
+ * entries currently say rather than from a claim about which revision they are
+ * all at.
  *
  * Nothing here writes to what the wire hands it — see App.tsx's note on
  * `reconcile` — and nothing here interprets it either: the nodes of every entry
@@ -42,7 +39,7 @@
 import type { BrokenFile, Derived } from "@olai/format"
 import { derive } from "@olai/format"
 import type { Manifest } from "@olai/surface"
-import { type Accessor, createMemo, createSignal } from "solid-js"
+import { type Accessor, createMemo } from "solid-js"
 
 import { sortByPath } from "./paths.ts"
 import { olai } from "./wire.ts"
@@ -53,11 +50,6 @@ export interface Outlines {
   readonly manifest: Accessor<Manifest | undefined>
   /** Every outline file, in path order. */
   readonly files: Accessor<ReadonlyArray<string>>
-  /** Every `.md` the directory holds, by path and in path order — the sidebar's
-   *  file tree mixes them with the outlines under the folders they live in, and
-   *  an address that names one is answered against this list. The TEXT is not
-   *  here: it travels per document, to whoever opens one. */
-  readonly documents: Accessor<ReadonlyArray<string>>
   /** The files that did not parse, by path — the sidebar marks them and the
    *  main pane draws one of them instead of a tree. */
   readonly broken: Accessor<ReadonlyMap<string, BrokenFile>>
@@ -69,32 +61,6 @@ export interface Outlines {
 export const createOutlines = (): Outlines => {
   const entries = olai.collections.outlines.use()
   const manifest = olai.cells.manifest.use()
-
-  /**
-   * The documents' KEY SET, and only it.
-   *
-   * `.use()` on this collection would open the keys stream AND a value stream
-   * per key — every body in the directory, which is the thing the collection
-   * exists to stop sending. So the keys ref is driven on its own, through
-   * `rawStream`: the framework's own composition for exactly this (its
-   * `unenrolledKeys` docs describe feeding the raw list back as a narrowed
-   * `.use({ keys })`, which is what `./document/documents.tsx` then does with
-   * the one document a reader has open), and `rawStream` rather than a bare
-   * `unenrolledStreamCall` so the stream is still IN `client.health()` — a
-   * keys stream that dies would otherwise read as a directory with no
-   * documents in it.
-   *
-   * No `onRetry`: every frame is the whole key set, so a reconnect replaces
-   * this list wholesale, and clearing it in the gap would empty the sidebar's
-   * documents for as long as the socket takes to come back.
-   */
-  const [documents, setDocuments] = createSignal<ReadonlyArray<string>>([])
-  olai.rawStream(
-    "documents.keys",
-    olai.collections.documents.unenrolledKeys,
-    undefined,
-    { onItem: (keys) => setDocuments(sortByPath(keys)) },
-  )
 
   const files = createMemo(() => sortByPath(entries.keys()))
 
@@ -108,7 +74,6 @@ export const createOutlines = (): Outlines => {
   return {
     manifest: manifest.value,
     files,
-    documents,
     broken: createMemo(() => {
       const found = new Map<string, BrokenFile>()
       for (const file of files()) {

@@ -119,29 +119,33 @@ export const DocumentEntry = Schema.Struct({
 export type DocumentEntry = typeof DocumentEntry.Type
 
 /**
- * The set-wide facts, or `null` for a set that has never loaded.
+ * Whether there is a set at all, and nothing else.
  *
  * `null` is a state, not an absence, and it is the one thing the collections
  * cannot say. Three things a reader must tell apart — "the server has not
  * answered yet" (no frame at all), "the server has never had a valid set to
  * show" (`null`), "here is your directory" (a value) — and an empty collection
  * snapshot is the SECOND and THIRD at once unless something else carries the
- * bit. This is that something.
+ * bit. This is that something, and being that is its whole job.
  *
- * `rev` is the revision the SET is at, and it is the only fact here that
- * belongs to no file. Every entry carries the revision it was PUBLISHED at,
- * which is an older number for a file that has not moved since; this is the
- * one the whole directory has reached. The value is small and it moves once
- * per revision, which is a frame that only happens when something on disk
- * already changed — the earlier objection to putting it here was that it would
- * drag every document's text along with it, and the text is gone.
+ * So the value carries NOTHING. It used to carry the documents, which is what
+ * {@link DocumentEntry} was cut out of it to stop; what is left is a fact with
+ * no fields, because every fact about this directory now belongs to a file and
+ * travels on that file's entry. A set revision here would be the obvious thing
+ * to reach for and is deliberately absent twice over: nothing reads it, and it
+ * moves on every revision, so it would wake every open tab's derivation — the
+ * cell that is quiet is the point of {@link sameSet}.
  */
-export const Manifest = Schema.NullOr(
-  Schema.Struct({
-    rev: Schema.Int,
-  }),
-)
+export const Manifest = Schema.NullOr(Schema.Struct({}))
 export type Manifest = typeof Manifest.Type
+
+/** A directory that has loaded, as the one value there is of it. */
+export const LOADED: Manifest = {}
+
+/** When two answers are the same answer, so the cell can stay quiet. There is
+ *  exactly one thing this value can say, so there is exactly one thing that can
+ *  change about it: whether there is a set. */
+const sameSet = (a: Manifest, b: Manifest): boolean => (a === null) === (b === null)
 
 export const surface = defineSurface({
   cells: {
@@ -152,13 +156,17 @@ export const surface = defineSurface({
       default: [],
       verbs: ["get"],
     },
-    /** What is true of the SET rather than of any one file — see
-     *  {@link Manifest}. Wire-read-only for the same reason the entries are:
-     *  the directory is the disk's. */
+    /** Whether there is a set — see {@link Manifest}. Wire-read-only for the
+     *  same reason the entries are: the directory is the disk's.
+     *
+     *  `equals` is what keeps it quiet: the server writes this cell on every
+     *  revision, because that is when it learns anything, and almost every
+     *  revision has nothing new to say about whether a directory loaded. */
     manifest: {
       schema: Manifest,
       default: null,
       verbs: ["get"],
+      equals: sameSet,
     },
     chat: {
       schema: ChatState,

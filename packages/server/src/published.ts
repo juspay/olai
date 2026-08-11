@@ -20,15 +20,23 @@
  * that file's new slice, a removed one is a remove of its key.
  *
  * ONE function, and that is the point: a revision reaching the wire is one
- * thing — the entries the collections now hold, the writes that get them
- * there, and the facts that belong to no file — and a caller assembling that
- * from three exports would be a caller who could do it in the wrong order or
- * leave a piece out.
+ * thing — the entries both collections now hold and the writes that get them
+ * there — and a caller assembling that from two exports would be a caller who
+ * could do it in the wrong order or leave a piece out. What is NOT here is the
+ * `manifest`: whether a directory has a set at all is a fact about the store
+ * having published anything, which is answered where the snapshot is read
+ * (`runtime.ts`) and needs no projection.
  */
 
 import type { OutlineSet } from "@olai/format"
 import type { Snapshot } from "@olai/store"
-import type { DocumentEntry, Manifest, OutlineEntry } from "@olai/surface"
+import type { DocumentEntry, OutlineEntry } from "@olai/surface"
+
+/** Which paths a revision moved — the store's own diff, and the only part of a
+ *  snapshot the slicing rule below reads. Named rather than taken as the whole
+ *  `Snapshot`, so the one generic thing in this file is not pinned to the
+ *  app's set type to read two arrays off it. */
+type Moved = Pick<Snapshot<unknown>, "changed" | "removed">
 
 /** One collection's revision: what it holds now, and what moved to get there.
  *  Keyed by root-relative path, in the set's own order (which is the listing's,
@@ -46,7 +54,6 @@ export interface Change<T> {
 export interface Published {
   readonly outlines: Change<OutlineEntry>
   readonly documents: Change<DocumentEntry>
-  readonly manifest: Manifest
 }
 
 /**
@@ -68,11 +75,11 @@ const changeOf = <S, T>(
   sources: ReadonlyArray<S>,
   keyOf: (source: S) => string,
   build: (source: S) => T,
-  snapshot: Snapshot<OutlineSet>,
+  moved: Moved,
   previous: Change<T> | undefined,
 ): Change<T> => {
   const held = previous?.entries
-  const changed = new Set(snapshot.changed)
+  const changed = new Set(moved.changed)
   const entries = new Map<string, T>()
   for (const source of sources) {
     const key = keyOf(source)
@@ -81,12 +88,12 @@ const changeOf = <S, T>(
   }
   return {
     entries,
-    upserts: snapshot.changed.flatMap((path) => {
+    upserts: moved.changed.flatMap((path) => {
       const entry = entries.get(path)
       return entry === undefined ? [] : [[path, entry] as const]
     }),
     // A collection may not be told to drop a key it never had.
-    removes: snapshot.removed.filter((path) => held?.has(path) === true),
+    removes: moved.removed.filter((path) => held?.has(path) === true),
   }
 }
 
@@ -133,6 +140,5 @@ export const publishedOf = (
       snapshot,
       published?.documents,
     ),
-    manifest: { rev: snapshot.rev },
   }
 }

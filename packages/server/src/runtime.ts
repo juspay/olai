@@ -31,6 +31,7 @@ import type { Store } from "@olai/store"
 import {
   CHAT_OFF,
   type ChatState,
+  LOADED,
   type Manifest,
   type OpFailure,
   surface,
@@ -45,11 +46,31 @@ import {
 import { Effect, Stream, SubscriptionRef } from "effect"
 
 import type { Change, Chat } from "@olai/chat"
-import { type Published, publishedOf } from "./published.ts"
+import {
+  type Change as CollectionChange,
+  type Published,
+  publishedOf,
+} from "./published.ts"
 
 /** What a transport needs, and nothing else. `ctx` is the write face, which
  *  belongs to the bindings below rather than to whoever serves them. */
 export type Bound = Omit<SurfaceRuntime<typeof surface.spec>, "ctx">
+
+/** One collection's revision, written to the collection. The two directory
+ *  collections are published by the same two statements in the same order, and
+ *  one spelling of them is one place for that order to be decided — a third
+ *  collection is a line rather than a loop nobody re-reads. Structural in what
+ *  it writes to, so it is the CHANGE it knows about and not the surface. */
+const apply = <T>(
+  collection: {
+    upsert: (key: string, value: T) => void
+    remove: (key: string) => void
+  } | undefined,
+  change: CollectionChange<T>,
+): void => {
+  for (const [key, entry] of change.upserts) collection?.upsert(key, entry)
+  for (const key of change.removes) collection?.remove(key)
+}
 
 export interface Wiring {
   readonly store: Store<OutlineSet, ReadonlyArray<OutlineError>>
@@ -141,28 +162,21 @@ export const bind = (
                   const revision = publishedOf(snapshot, held)
                   held = revision
                   const collections = published?.collections
-                  for (const [key, entry] of revision.outlines.upserts) {
-                    collections?.outlines.upsert(key, entry)
-                  }
-                  for (const key of revision.outlines.removes) {
-                    collections?.outlines.remove(key)
-                  }
+                  apply(collections?.outlines, revision.outlines)
                   // A document's upsert reaches only the sockets that asked for
                   // THAT key (there is no `deltas` verb here) — which is a
                   // reader with the document open, and nobody else.
-                  for (const [key, entry] of revision.documents.upserts) {
-                    collections?.documents.upsert(key, entry)
-                  }
-                  for (const key of revision.documents.removes) {
-                    collections?.documents.remove(key)
-                  }
+                  apply(collections?.documents, revision.documents)
                   // Written last, which is NOT the order they arrive in: a cell
                   // publishes on this stack while the collection's frame is
                   // coalesced into one delta on a microtask, so the manifest
                   // reaches a socket first. Nothing here may promise otherwise
                   // — a reader tolerates the skew either way, and that is the
-                  // cross-file consistency paragraph in the design doc.
-                  cell.set(revision.manifest)
+                  // cross-file consistency paragraph in the design doc. It is
+                  // also the only write here that is usually a no-op: the cell
+                  // says whether there is a set, and its `equals` keeps every
+                  // revision after the first one quiet.
+                  cell.set(LOADED)
                 }),
             ),
         },
