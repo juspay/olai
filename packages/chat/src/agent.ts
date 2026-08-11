@@ -452,7 +452,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  is picked up by the next conversation instead of the next restart. */
     const servers = Effect.map(
       Kolu.detect,
-      (kolu) => mcpServersOf(options.tools(), kolu),
+      (found) => mcpServersOf(options.tools(), Kolu.serverOf(found)),
     )
 
     const fresh = (at: Live): Effect.Effect<void, AgentGone> =>
