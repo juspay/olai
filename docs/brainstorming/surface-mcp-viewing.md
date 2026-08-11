@@ -304,3 +304,29 @@ Adopt, with the shape above:
 - Hold the bridge for the parent item: it only retires the second store if writes cross it too, and until writes are surface procedures that means shipping the server's token in a state file — trading a clean permission boundary for a secret on disk, to solve a problem the write gate already handles.
 
 If waiting on upstream is unacceptable, option B (§c) delivers the resource half today with full tool parity, at the cost of losing `instructions` and permanently forgoing surface-mcp's tool machinery. Not recommended, but real — and it is what I would build if the upstream PR stalls.
+
+---
+
+## Implementation log
+
+Approved 2026-08-11 as designed. The branch is built so the upstream-gated part is the LAST commit and nothing before it depends on the gate.
+
+| commit | what | gated |
+| --- | --- | --- |
+| `9163310` | `@kolu/surface-mcp` hydrated; `@modelcontextprotocol/sdk` + `ts-pattern` at kolu's versions; `bun.lock`/`bun.nix` regenerated | no |
+| `6cd0532` | `packages/server/src/mcp/expose.ts` — the two-member allowlist — and `expose.test.ts` | no |
+| `c992c04` | `packages/server/src/mcp/face.ts` — serve-fresh — and `face.test.ts`, including the wire-cost fence | no |
+| *(open)* | `bespokeFrom(TOOLS, ops)`; `olai mcp` and the `/mcp` route flipped onto the face; `ops/src/mcp.ts` and `mcp/stdio.ts` deleted | **yes — `structuredContent`** |
+
+### Corrections and findings from building it
+
+- **The dependency cost, measured rather than estimated: 385 → 474 installed packages.** The SDK brings express, hono, ajv, cors, jose, zod, eventsource and pkce-challenge, none of which olai reaches. (A cold `bun install` prints "846 packages", which is the resolve-tree count, not the installed set — do not quote that number.)
+- **`scripts/check-kolu-deps.sh` needed no change, as predicted**, and passed on the first run with the new package and its two deps. §e stands exactly as written.
+- **The projection was confirmed against olai's real spec before any wiring**: `resolveExpose(surface.spec, EXPOSE)` yields `surface://collections/outlines` (kind `collection`), `surface://cells/errors` (kind `cell`), the template `surface://collections/outlines/{id}`, and zero tools. The Effect-Schema pin accepts olai's surface with no adapter of our own.
+- **The wire-cost claim is now a fence, not a paragraph.** `face.test.ts` serves a directory holding a ~40 KiB `.md` and asserts that reading the outlines collection comes back under a kilobyte and contains no byte of that body. This is the assertion that catches a future `manifest`-shaped mistake, and it exists because the eager/lazy split is a property of the *adapter's* verb choice and is invisible from the expose map.
+- **A finding the design did not anticipate**: the surface runtime's `done` promise REJECTS when it is closed, so any test standing a runtime up without `watchFault` holding that catch produces an unhandled rejection attributed to whichever test was running. `fault.ts` is not optional ceremony for `serve.ts` — it is what makes the runtime testable at all. The harness mirrors `serve.ts`'s finalizer ordering (`stopped` registered last so it runs first) for the same reason.
+- **`resources/read` narrowing**: MCP types a resource content as text-or-blob. The adapter only ever emits text, so the test narrows by throwing on a blob rather than handling one. Caught by `tsc`, not by a passing test.
+
+### What is still owed, unchanged
+
+The four upstream asks in the section above are the spec for the kolu-side work. The two that gate this branch are (1) `structuredContent` on `ToolResult`/`ok`/`fail` and (2) `instructions` passthrough. Nothing found during implementation changes either ask or adds a fifth.
