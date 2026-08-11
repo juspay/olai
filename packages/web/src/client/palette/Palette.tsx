@@ -21,12 +21,7 @@ import type { Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
 import { run } from "../chat/run.ts"
-import {
-  askQuery,
-  filterItems,
-  type PaletteItem,
-  SHELL_ITEMS,
-} from "./items.ts"
+import { askQuery, filterItems, type PaletteItem } from "./items.ts"
 import { isEditingTarget, matchKey } from "./keys.ts"
 
 export function Palette(props: {
@@ -212,9 +207,6 @@ export function Palette(props: {
               </Show>
             </div>
           </Show>
-          {/* Keep shell items referenced so tree-shaking never drops the table
-              mid-edit of filterItems defaults. */}
-          <span class="hidden">{SHELL_ITEMS.length}</span>
         </div>
       </div>
     </Show>

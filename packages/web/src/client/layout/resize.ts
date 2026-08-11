@@ -27,6 +27,21 @@ export interface ResizeStart {
 }
 
 /**
+ * Pure half of a drag: how an edge maps a pointer delta onto a width.
+ * Right-edge (sidebar) grows with +dx; left-edge (chat) grows with −dx.
+ */
+export const widthAfter = (
+  edge: ResizeEdge,
+  start: number,
+  dx: number,
+  min: number,
+  max: number,
+): number => {
+  const raw = edge === "right" ? start + dx : start - dx
+  return clamp(Math.round(raw), min, max)
+}
+
+/**
  * Begin a drag. Attaches window listeners until pointerup/cancel; returns a
  * teardown if the caller needs to cancel early (unmount mid-drag).
  */
@@ -40,9 +55,13 @@ export const startResize = (opts: ResizeStart): (() => void) => {
   document.body.style.userSelect = "none"
 
   const onMove = (event: PointerEvent) => {
-    const dx = event.clientX - originX
-    const raw = opts.edge === "right" ? originW + dx : originW - dx
-    last = clamp(Math.round(raw), opts.min, opts.max)
+    last = widthAfter(
+      opts.edge,
+      originW,
+      event.clientX - originX,
+      opts.min,
+      opts.max,
+    )
     opts.onMove(last)
   }
 

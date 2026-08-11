@@ -7,9 +7,9 @@ import { ErrorBoundary } from "solid-js"
 import { render } from "solid-js/web"
 
 import App from "./App.tsx"
-import { followChatOpen } from "./chat/open.ts"
 import { Fault } from "./errors/Fault.tsx"
 import { trackDesktop } from "./layout/media.ts"
+import { followLayout } from "./layout/prefs.ts"
 import { followStoredTheme } from "./theme/state.ts"
 import { trackVisibleViewport } from "./viewport.ts"
 
@@ -35,7 +35,7 @@ followStoredTheme()
 
 // Layout preferences (sidebar open/width, chat open/width/snap) and the
 // phone/desktop media query — document-lifetime, like the theme.
-followChatOpen()
+followLayout()
 trackDesktop()
 
 const root = document.getElementById("root")

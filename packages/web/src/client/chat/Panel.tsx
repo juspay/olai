@@ -33,10 +33,9 @@ import {
 import { TESTID } from "../testids.ts"
 import { Composer } from "./Composer.tsx"
 import { Header } from "./Header.tsx"
+import { Minimized } from "./Minimized.tsx"
 import { NoAgent } from "./NoAgent.tsx"
-import { Pill } from "./Pill.tsx"
 import { createChat, createChatState } from "./state.ts"
-import { Strip } from "./Strip.tsx"
 import { Transcript } from "./Transcript.tsx"
 
 export function Panel() {
@@ -47,8 +46,7 @@ export function Panel() {
           <DesktopDock />
         </Show>
       </Show>
-      <Pill />
-      <Strip />
+      <Minimized />
     </>
   )
 }

@@ -1,22 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { clamp } from "./prefs.ts"
-
-/**
- * The pure half of a drag: how an edge maps a pointer delta onto a width.
- * The window listeners live in `resize.ts` and need a browser; the math is
- * what a regression would actually break about "dragging the wrong way".
- */
-const widthAfter = (
-  edge: "left" | "right",
-  start: number,
-  dx: number,
-  min: number,
-  max: number,
-): number => {
-  const raw = edge === "right" ? start + dx : start - dx
-  return clamp(Math.round(raw), min, max)
-}
+import { widthAfter } from "./resize.ts"
 
 test("right-edge drag grows to the right", () => {
   expect(widthAfter("right", 256, 40, 180, 480)).toBe(296)
