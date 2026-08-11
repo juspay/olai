@@ -116,9 +116,23 @@ chat panel. They are the same language read out of the same directory (an agent
 writing a fenced diff into the panel and a person writing one into a note are
 doing the same thing), and a second pipeline for any of them would be a second
 dialect nobody asked for: footnotes in one place and not the other, a
-highlighter kept in step by hand. Parse with GFM, to HTML, sanitise,
-highlight, rewrite, stringify:
+highlighter kept in step by hand. Parse with GFM, to HTML, anchor the headings,
+sanitise, highlight, rewrite, stringify:
 
+- **the heading anchors run BEFORE the sanitiser**, which is the other half of
+  the rule below. `rehype-slug` gives every heading an id made from its own
+  text and `rehype-autolink-headings` puts a link beside it (`anchors.ts`) — so
+  the input is a heading somebody WROTE, and what it produces is checked by the
+  allowlist rather than trusted for arriving late.
+- **the allowlist is `sanitise.ts`**, its own module, because it is the
+  security boundary: one file to review, and a feature that wants something
+  from it has to come there to ask. Named additions only, and there is exactly
+  one — the class VALUE `olai-md-anchor` on `a`, added to the value-restricted
+  entry the default already has for the footnote backref. Nothing else moved:
+  `id` on a heading and `href="#…"` were already allowed, which is how
+  footnotes have always worked. `sanitise.test.ts` holds the whole schema to
+  "one value more than upstream, and nothing else", asserted against the
+  default rather than a copy of it.
 - **highlighting runs after the sanitiser**, deliberately. The `hljs-` spans
   are ours, produced from the code's own text, so they need no allowlist entry
   — while the `language-…` class that produced them is the reader's, and is on
@@ -139,7 +153,20 @@ highlight, rewrite, stringify:
   this app can: a relative picture becomes a `/media/…` URL and anything else
   is not drawn at all, and every id (and every link into the same block) is
   re-minted under a prefix derived from the block itself, so the first footnote
-  of one note cannot answer for the first footnote of the next.
+  of one note cannot answer for the first footnote of the next — and, now, so
+  that two notes both opening `## Shape` cannot answer for each other either.
+  On its way through it REPORTS the heading tree (`outline.ts`), because the
+  ids a contents has to name do not exist until this pass has run.
+
+A document is surveyed and jumped around through those anchors:
+`document/Toc.tsx` draws a collapsible contents above the body, derived from
+that heading tree at view time and stored nowhere, so it cannot disagree with
+the text and needs nothing on the wire (the body already arrives one at a
+time — `document/documents.tsx`). It sits IN the page rather than in a floating
+rail beside it: the complaint is "I cannot survey this", and a list met on the
+way in answers that where furniture beside the text does not — and there is no
+column for a rail below 48rem. Documents only. A note gets the ids and the
+links; it does not get a contents, because a note is a tree row and not a page.
 
 How that markdown is SET is the other half. The numbers are **not** in the
 stylesheet: `src/client/markdown/scale.ts` declares the type scale and the two

@@ -9,7 +9,8 @@
 
 import { expect, test } from "bun:test"
 
-import { renderMarkdown } from "./render.ts"
+import { ANCHOR_CLASS } from "./anchors.ts"
+import { outlineOf, renderMarkdown } from "./render.ts"
 
 const NOTE = "house.jsonl"
 
@@ -93,6 +94,56 @@ test("a picture this app will not fetch is not drawn", () => {
   }
   // Not a picture, so not an image either, whatever the route would say.
   expect(renderMarkdown("![a](notes.md)", NOTE)).not.toContain("<img")
+})
+
+// ── heading anchors, and the contents derived from them ──────────────────
+//
+// The anchor is minted INSIDE the boundary (./anchors.ts), so what is pinned
+// here is that it comes out the other side: an allowlist that stopped naming
+// the class would leave the link working and the styling gone, which is
+// exactly the kind of thing nothing else notices.
+test("a heading carries an id and a link to it", () => {
+  const html = renderMarkdown("## The sync loop\n", NOTE)
+  const id = /<h2 id="([^"]+)"/.exec(html)?.[1]
+  expect(id).toMatch(/^md-[a-z0-9]+-the-sync-loop$/)
+  expect(html).toContain(`<a class="${ANCHOR_CLASS}"`)
+  expect(html).toContain(`href="#${id}"`)
+  // The label names the section: a page of anchors is a page of `#`s to
+  // anyone reading by ear.
+  expect(html).toContain("aria-label=\"Link to “The sync loop”\"")
+})
+
+// Every rendered block on a page mints its own, for the reason footnotes do:
+// two notes both opening `## Shape` would otherwise answer for each other.
+// (That the id is namespaced at all is the regex above; what is left to say is
+// that the namespace is the BLOCK's.)
+test("heading ids belong to the block, not to the parser", () => {
+  const source = "## Shape\n"
+  expect(renderMarkdown(source, "house.jsonl")).not
+    .toEqual(renderMarkdown(source, "garden.jsonl"))
+})
+
+// The contents is derived from the RENDERING, so what it points at is what is
+// on the page — the whole reason it is not parsed out of the source again.
+test("the outline names the ids the page carries", () => {
+  const source = "# Top\n\n## The `sync` loop\n\n### Deeper\n"
+  const html = renderMarkdown(source, NOTE)
+  const headings = outlineOf(source, NOTE)
+
+  expect(headings.map((heading) => [heading.depth, heading.text]))
+    .toEqual([[1, "Top"], [2, "The sync loop"], [3, "Deeper"]])
+  for (const heading of headings) expect(html).toContain(`id="${heading.id}"`)
+})
+
+// The anchor is a CHILD of the heading, so the naive reading puts a hash on
+// the end of every line of the contents.
+test("the anchor is not part of the heading's text", () => {
+  expect(outlineOf("## Shape\n", NOTE).map((heading) => heading.text)).toEqual(["Shape"])
+})
+
+// Nothing to choose between, and nothing to point at: neither is a contents.
+test("a document with no headings has no outline", () => {
+  expect(outlineOf("Just a paragraph.\n", NOTE)).toEqual([])
 })
 
 // The reason it is safe to hand this to `innerHTML`. These files are written

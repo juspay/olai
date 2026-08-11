@@ -72,6 +72,57 @@ Feature: Documents
     Then every rendered element is on the markdown scale
     And nothing overflows the pane
 
+  # Survey and jump. A document long enough to be worth opening is long enough
+  # to be lost in, and the two halves of the answer are one feature: an id and a
+  # link on every heading, and a contents derived from them at view time. There
+  # is nothing stored to go stale — what a line of the contents points at is an
+  # id the rendered page is carrying.
+  @corpus:good
+  Scenario: A document opens with a contents of its own headings
+    When I open the document "kitchen-sink.md"
+    Then the contents is open
+    And the contents lists every heading in the document
+    # A survey you cannot put away is furniture. The collapse is the
+    # platform's, so this is the element's own state and not a flag beside it.
+    When I shut the contents
+    Then the contents is shut
+    And there should be no page errors
+
+  @corpus:good
+  Scenario: A line of the contents lands on its heading
+    When I open the document "kitchen-sink.md"
+    And I follow the contents line "Footnotes"
+    # The address, because the whole point of an anchor is that it can be
+    # copied and handed to somebody — and it is asked against the HEADING,
+    # because a fragment that names nothing changes the address too.
+    Then the address names the heading "Footnotes"
+    And the heading "Footnotes" is at the top of the pane
+
+  @corpus:good
+  Scenario: Every heading is a place a reader can link to
+    When I open the document "kitchen-sink.md"
+    Then every heading links to itself
+
+  # A note is a tree row, not a page: it is drawn under a title the page owns,
+  # three of them on screen at once. `catch-up`'s note has two headings, so a
+  # contents WOULD be drawn here if this were decided by the markdown rather
+  # than by what kind of thing is being read.
+  @corpus:good
+  Scenario: A note has headings and no contents
+    When I open the node "catch-up"
+    Then the note has headings of its own
+    And there is no contents on the page
+    And there should be no page errors
+
+  # Same rule, the other shape: the whole document drawn under the node that
+  # attaches it is still not that document's page.
+  @corpus:good
+  Scenario: A document drawn under a node has no contents
+    Given I open the outline "house.jsonl"
+    When I zoom into the node "install"
+    Then the reference on "install" draws the document
+    And there is no contents on the page
+
   @corpus:good
   Scenario: A footnote links to its own note
     When I open the document "finishes.md"
