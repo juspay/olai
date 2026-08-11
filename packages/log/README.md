@@ -59,6 +59,11 @@ a line — the `@olai/log` testlib decoder, the e2e suite reading the bound
 address off stdout, any agent grepping `url=`. Pretty may only exist where no
 machine reads; colour and multi-line pretty layout would break those readers.
 
+Colour follows the **destination** stream (stdout for `toStdout`, stderr for
+`toStderr`), not always stdout — otherwise `olai mcp` would never colour, since
+its stdout is the protocol pipe. `NO_COLOR` (set and non-empty) turns colour
+off on a TTY.
+
 ### logfmt (machines)
 
 One line per event, `key=value`, quoted only where it has to be:
@@ -96,6 +101,7 @@ a non-TTY you still want to read):
 ```sh
 OLAI_LOG=logfmt olai web ~/outlines | …   # keep logfmt on a TTY
 OLAI_LOG=pretty olai web ~/outlines       # pretty even when redirected
+NO_COLOR=1 olai web ~/outlines            # pretty layout, no ANSI
 ```
 
 ## Two lengths for a failure

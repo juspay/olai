@@ -22,7 +22,15 @@ import { expect, test } from "bun:test"
 import { Effect, Layer, Logger } from "effect"
 import { TestConsole } from "effect/testing"
 
-import { formatFor, toStderr, toStdout } from "./sinks.ts"
+import {
+  colorsFor,
+  formatFor,
+  prettyFor,
+  resetInvalidOlaiLogWarning,
+  type Stream,
+  toStderr,
+  toStdout,
+} from "./sinks.ts"
 
 /** Say one thing through `sink`, and answer which stream it went to. */
 const written = (
@@ -51,6 +59,36 @@ const withOlaiLog = async <A>(
     else process.env["OLAI_LOG"] = prev
   }
 }
+
+/** Force `NO_COLOR` for the duration of `body`, then restore. */
+const withNoColor = async <A>(
+  value: string | undefined,
+  body: () => Promise<A>,
+): Promise<A> => {
+  const prev = process.env["NO_COLOR"]
+  if (value === undefined) delete process.env["NO_COLOR"]
+  else process.env["NO_COLOR"] = value
+  try {
+    return await body()
+  } finally {
+    if (prev === undefined) delete process.env["NO_COLOR"]
+    else process.env["NO_COLOR"] = prev
+  }
+}
+
+/**
+ * Render one pretty line for `stream` through TestConsole — the bytes a sink
+ * built from {@link prettyFor} would write. Asserting on these is what locks
+ * colour to the destination stream (mutation: wire prettyStderr off stdout
+ * must fail).
+ */
+const renderedPretty = (stream: Stream): Promise<string> =>
+  Effect.gen(function*() {
+    yield* Effect.logInfo("serving").pipe(
+      Effect.provide(Logger.layer([prettyFor(stream)])),
+    )
+    return (yield* TestConsole.logLines).map(String).join("\n")
+  }).pipe(Effect.provide(TestConsole.layer), Effect.runPromise)
 
 /**
  * One log event through `sink`, with a parallel `formatLogFmt` collector on
@@ -147,6 +185,22 @@ test("OLAI_LOG=pretty forces pretty even when the stream is not a TTY", async ()
   })
 })
 
+// The load-bearing new wiring: pretty on toStderr must still leave stdout
+// empty. If LogToStderr were dropped, pretty would land on stdout and corrupt
+// the JSON-RPC stream on `olai mcp`, with every logfmt-only test still green.
+test("OLAI_LOG=pretty on toStderr keeps stdout empty (the protocol stream)", async () => {
+  await withOlaiLog("pretty", async () => {
+    const { err, out } = await written(toStderr)
+
+    expect(out).toEqual([])
+    expect(err.length).toBeGreaterThan(0)
+    const joined = err.map(String).join("\n")
+    expect(joined).toContain("serving")
+    expect(joined).not.toMatch(/^timestamp=\S+ level=Info /m)
+    expect(joined).toMatch(/INFO/)
+  })
+})
+
 test("OLAI_LOG=logfmt forces logfmt even when the stream is a TTY", () => {
   const prev = process.env["OLAI_LOG"]
   process.env["OLAI_LOG"] = "logfmt"
@@ -168,5 +222,152 @@ test("without OLAI_LOG, a TTY is pretty and a pipe is logfmt", () => {
   } finally {
     if (prev === undefined) delete process.env["OLAI_LOG"]
     else process.env["OLAI_LOG"] = prev
+  }
+})
+
+// Factory lock: stub streams, not the real process fds. Necessary but not
+// sufficient — under bun test both real streams have isTTY undefined, so
+// wiring prettyStderr off process.stdout still passes this alone.
+test("prettyFor emits ANSI only for a TTY stream", async () => {
+  await withNoColor(undefined, async () => {
+    const onTty = await renderedPretty({ isTTY: true })
+    const onPipe = await renderedPretty({ isTTY: false })
+
+    expect(onTty).toContain("serving")
+    expect(onPipe).toContain("serving")
+    // ESC[ — Effect's withColor codes. Stub streams, not process.stdout, so
+    // this is independent of how the test process was launched.
+    expect(onTty).toContain("\u001b[")
+    expect(onPipe).not.toContain("\u001b[")
+  })
+})
+
+test("prettyFor honours NO_COLOR even on a TTY stream", async () => {
+  await withNoColor("1", async () => {
+    expect(colorsFor({ isTTY: true })).toBe(false)
+    const line = await renderedPretty({ isTTY: true })
+    expect(line).toContain("serving")
+    expect(line).not.toContain("\u001b[")
+  })
+})
+
+/**
+ * Stub isTTY on a real WriteStream for the duration of `body`. Colour is
+ * re-read at emit, so this is what lets a test present the mixed case
+ * (stdout pipe + stderr TTY) to the actual sink wiring.
+ */
+const withIsTTY = async <A>(
+  stream: NodeJS.WriteStream,
+  value: boolean,
+  body: () => Promise<A>,
+): Promise<A> => {
+  const prev = Object.getOwnPropertyDescriptor(stream, "isTTY")
+  Object.defineProperty(stream, "isTTY", { value, configurable: true, writable: true })
+  try {
+    return await body()
+  } finally {
+    if (prev !== undefined) Object.defineProperty(stream, "isTTY", prev)
+    else delete (stream as unknown as { isTTY?: boolean }).isTTY
+  }
+}
+
+// The WIRING lock for toStderr (reviewer-written, M1). prettyFor's factory
+// tests cannot see which real stream the sink is bound to — under bun test
+// both process fds have isTTY undefined. Stub the real streams and drive
+// toStderr: stderr TTY + stdout pipe must colour. The converse (stderr pipe
+// + stdout TTY → no ANSI) locks emit-time colour selection for this sink; it
+// does *not* lock toStdout's binding (that is the symmetric test below).
+test("toStderr's pretty colour comes from stderr, not stdout", async () => {
+  await withNoColor(undefined, async () => {
+    await withOlaiLog("pretty", async () => {
+      await withIsTTY(process.stdout, false, () =>
+        withIsTTY(process.stderr, true, async () => {
+          const { err, out } = await written(toStderr)
+          expect(out).toEqual([])
+          expect(err.map(String).join("\n")).toContain("\u001b[")
+        }),
+      )
+      // Converse: stderr is the pipe → no ANSI even though stdout is a TTY
+      // (emit-time colour from *this* stream, not the sibling).
+      await withIsTTY(process.stdout, true, () =>
+        withIsTTY(process.stderr, false, async () => {
+          const { err } = await written(toStderr)
+          expect(err.map(String).join("\n")).not.toContain("\u001b[")
+        }),
+      )
+    })
+  })
+})
+
+// Symmetric wiring lock for toStdout (M5). Both halves exercise only
+// prettyStdout, so the toStderr test cannot see this binding.
+test("toStdout's pretty colour comes from stdout, not stderr", async () => {
+  await withNoColor(undefined, async () => {
+    await withOlaiLog("pretty", async () => {
+      // stdout is the pipe: no ANSI, even though stderr is a TTY.
+      await withIsTTY(process.stdout, false, () =>
+        withIsTTY(process.stderr, true, async () => {
+          const { out } = await written(toStdout)
+          expect(out.map(String).join("\n")).not.toContain("\u001b[")
+        }),
+      )
+      // Converse: stdout is the TTY, so it colours even though stderr is a pipe.
+      await withIsTTY(process.stdout, true, () =>
+        withIsTTY(process.stderr, false, async () => {
+          const { out } = await written(toStdout)
+          expect(out.map(String).join("\n")).toContain("\u001b[")
+        }),
+      )
+    })
+  })
+})
+
+// LogToStderr must stay local to toStderr's pretty logger. A program-wide
+// Layer.succeed would force every mergeWithExisting peer onto stderr too.
+test("toStderr does not force LogToStderr on sibling loggers", async () => {
+  await withOlaiLog("pretty", async () => {
+    let saw: boolean | undefined
+    const probe = Logger.make((options) => {
+      saw = options.fiber.getRef(Logger.LogToStderr)
+    })
+    await Effect.gen(function*() {
+      yield* Effect.logInfo("serving").pipe(
+        Effect.provide(Logger.layer([probe], { mergeWithExisting: true })),
+        Effect.provide(toStderr),
+      )
+    }).pipe(Effect.provide(TestConsole.layer), Effect.runPromise)
+
+    expect(saw).toBe(false)
+  })
+})
+
+test("unrecognised OLAI_LOG is diagnosed once then ignored", () => {
+  resetInvalidOlaiLogWarning()
+  const prev = process.env["OLAI_LOG"]
+  const errors: Array<string> = []
+  const orig = console.error
+  console.error = (...args: Array<unknown>) => {
+    errors.push(args.map(String).join(" "))
+  }
+  try {
+    process.env["OLAI_LOG"] = "json"
+    expect(formatFor({ isTTY: false })).toBe("logfmt")
+    expect(formatFor({ isTTY: true })).toBe("pretty")
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain('OLAI_LOG="json"')
+    expect(errors[0]).toContain("logfmt")
+    expect(errors[0]).toContain("pretty")
+
+    // Empty is not a typo — treat as unset.
+    process.env["OLAI_LOG"] = ""
+    resetInvalidOlaiLogWarning()
+    errors.length = 0
+    formatFor({ isTTY: false })
+    expect(errors).toHaveLength(0)
+  } finally {
+    console.error = orig
+    if (prev === undefined) delete process.env["OLAI_LOG"]
+    else process.env["OLAI_LOG"] = prev
+    resetInvalidOlaiLogWarning()
   }
 })

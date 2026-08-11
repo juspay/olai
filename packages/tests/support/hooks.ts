@@ -346,6 +346,9 @@ const startServerChild = async (
         // scenario. Which one this is, is the tag's business.
         PATH: `${FAKE_KOLU_DIR}${path.delimiter}${process.env.PATH ?? ""}`,
         OLAI_FAKE_KOLU: spawnOptions.kolu === true ? "live" : "stale",
+        // The harness parses logfmt (`findLogfmt` for the serving line). A
+        // developer's `OLAI_LOG=pretty` would make every boot hang on readiness.
+        OLAI_LOG: "logfmt",
       },
     });
     live.add(child);
