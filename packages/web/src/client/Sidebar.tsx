@@ -151,15 +151,20 @@ export function Sidebar(props: {
   return (
     // Below 48rem there is no second column to be, so this is a SHEET behind
     // the header's burger — capped and scrolling so the outline under it is
-    // still on screen. Shut, the nav is not drawn (the header is the one row
-    // the reader sees). Above 48rem none of that applies: there is a column
-    // and the burger is not drawn.
+    // still on screen. Shut, the body is `hidden` and the nav carries no
+    // border or overflow of its own (a bare `border-b` around a zero-height
+    // body used to leave a ghost 1px rule under the header). Above 48rem none
+    // of that applies: there is a column and the burger is not drawn.
     //
-    // The nav stays in the DOM even when the sheet is shut, so the e2e
-    // "has the set loaded?" probe (`SETTLED_SELECTOR`) can attach to it on a
-    // phone without opening the burger — the body is what starts collapsed.
+    // The e2e "has the set loaded?" probe keys on the header's
+    // `data-layout="docked"`, not on this nav's box — so a shut phone sheet
+    // does not have to fake a 1px layout box to settle.
     <nav
-      class="overflow-y-auto border-b border-rule md:max-h-none md:border-b-0 md:border-r md:p-4"
+      class={
+        props.open
+          ? "overflow-y-auto border-b border-rule md:max-h-none md:border-b-0 md:border-r md:p-4"
+          : "md:overflow-y-auto md:border-r md:p-4"
+      }
       data-testid={TESTID.sidebar}
     >
       <div

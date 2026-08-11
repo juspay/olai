@@ -50,6 +50,30 @@ Feature: On a phone
     Then the agent panel is showing
     And I can type into the chat
 
+  @scratch:good @phone
+  Scenario: Header chrome stays inside the bar in every connection state
+    # A fixed-height bar with flex-wrap used to centre a two-row pill group so
+    # the first row sat above the viewport at 390pt — including in `connecting`
+    # (every first paint) and `retired` (the state that must never look
+    # healthy). Every pill's box must lie inside the header's own, in every
+    # state the wire can report.
+    Given I open the outline "garden.jsonl"
+    Then the connection is "live"
+    And the app chrome is inside the header
+    When the server stops
+    Then the connection is "reconnecting"
+    And the app chrome is inside the header
+    When the server starts again on the same port
+    Then the connection is "retired"
+    And the app chrome is inside the header
+
+  @scratch:good @phone
+  Scenario: Header chrome is inside the bar while connecting
+    # `connecting` is the state of every first paint and is gone by the time
+    # settle returns, so it has its own step that catches it mid-load.
+    When I open the app catching the connecting state
+    Then the app chrome is inside the header
+
   @corpus:good @phone
   Scenario: A tap on a bullet zooms into that node
     Given I open the outline "house.jsonl"

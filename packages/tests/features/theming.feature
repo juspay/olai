@@ -27,6 +27,7 @@ Feature: The theme is a pick, and it is yours
   Scenario: A fresh browser reads in the default theme
     When I open the app
     Then the page names no theme
+    And the theme trigger names the theme in force
     And the lit theme chip is the default
     And every theme chip agrees with what it announces
 
@@ -36,6 +37,8 @@ Feature: The theme is a pick, and it is yours
     And I mark the page
     And I pick the theme "pitch"
     Then the page is in the theme "pitch"
+    And the theme trigger names the theme in force
+    And the theme popover is shut
     And the lit theme chip is "pitch"
     And the paper colour has changed
     And the page has not reloaded

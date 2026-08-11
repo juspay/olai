@@ -18,10 +18,12 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import {
+  APP_HEADER,
   CALENDAR_DAY,
   CHAT_INPUT,
   CHAT_PANEL,
   CHAT_TOGGLE,
+  CONNECTION,
   DOCUMENT_LINK,
   CALENDAR_NEXT,
   CALENDAR_PREV,
@@ -33,6 +35,7 @@ import {
   OUTLINE_TREE,
   SIDEBAR_BODY,
   SIDEBAR_TOGGLE,
+  THEME_TRIGGER,
   TOGGLE,
   ZOOM,
 } from "../support/world.ts";
@@ -132,6 +135,80 @@ Then("there is no burger", async function (this: OlaiWorld) {
       "to be and nothing to put away",
   );
 });
+
+/** Every chrome pill's border box lies inside the header's own.
+ *
+ *  A fixed-height bar with flex-wrap used to centre a wrapped pill group so
+ *  the first row sat above the viewport at 390pt. The assertion is geometry,
+ *  not a colour: the header's own box is the clip region. */
+Then("the app chrome is inside the header", async function (this: OlaiWorld) {
+  const header = await this.box(this.page.locator(APP_HEADER), "the app header");
+  const pills = [
+    { name: "connection", sel: CONNECTION },
+    { name: "agent toggle", sel: CHAT_TOGGLE },
+    { name: "theme trigger", sel: THEME_TRIGGER },
+  ];
+  for (const pill of pills) {
+    const box = await this.box(this.page.locator(pill.sel), pill.name);
+    assert.ok(
+      box.y >= header.y - 0.5 &&
+        box.y + box.height <= header.y + header.height + 0.5 &&
+        box.x >= header.x - 0.5 &&
+        box.x + box.width <= header.x + header.width + 0.5,
+      `${pill.name} is at (${Math.round(box.x)},${Math.round(box.y)}) ` +
+        `${Math.round(box.width)}×${Math.round(box.height)} outside the ` +
+        `header (${Math.round(header.x)},${Math.round(header.y)}) ` +
+        `${Math.round(header.width)}×${Math.round(header.height)}`,
+    );
+  }
+});
+
+/** Navigate and catch `connecting` before settle turns it into `live`.
+ *  That state is the first paint of every load and is what used to clip the
+ *  header on a phone. */
+When(
+  "I open the app catching the connecting state",
+  async function (this: OlaiWorld) {
+    await this.page.goto("/");
+    // Poll for the connection pill; accept connecting, and if we only ever
+    // saw live the load was too fast — still wait for docked/error/fault so
+    // the page is usable for the geometry assertion that follows.
+    let sawConnecting = false;
+    const deadline = Date.now() + HYDRATION_TIMEOUT;
+    while (Date.now() < deadline) {
+      const state = await this.page
+        .locator(CONNECTION)
+        .getAttribute("data-connection")
+        .catch(() => null);
+      if (state === "connecting") {
+        sawConnecting = true;
+        break;
+      }
+      if (state === "live" || state === "reconnecting" || state === "retired") {
+        break;
+      }
+      await this.page.waitForTimeout(10);
+    }
+    if (!sawConnecting) {
+      // Fast machines skip connecting before we sample; still settle so the
+      // follow-up geometry step has a real header. The other phone scenario
+      // covers reconnecting/retired labels (the long ones).
+      await this.page
+        .locator(`${APP_HEADER}[data-layout="docked"], [data-testid="error-view"], [data-testid="fault"]`)
+        .first()
+        .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    } else {
+      await this.expectAttribute(
+        CONNECTION,
+        "data-connection",
+        "connecting",
+        "the connection indicator",
+        500,
+      );
+    }
+    await this.waitForFrame();
+  },
+);
 
 // ── the agent, from a thumb ────────────────────────────────────────────
 

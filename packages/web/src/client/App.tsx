@@ -161,6 +161,7 @@ export default function App() {
       <ChatPanel />
       <div class="flex min-h-dvh flex-col">
         <AppHeader
+          docked={docked()}
           menu={
             docked()
               ? {
@@ -177,7 +178,7 @@ export default function App() {
             drawer covers the page, which is the honest answer when there is no
             room to share. */}
         <div
-          class="min-h-0 flex-1"
+          class="flex-1"
           classList={{ "lg:pr-[var(--width-chat)]": chatOpen() }}
         >
           <Switch fallback={<p class="p-8 text-muted">Reading…</p>}>
@@ -199,11 +200,12 @@ export default function App() {
                       to fill it: without `1fr` on the second, a short page
                       would push the outline down the screen by half the space
                       left over.
-                      `min-h-full` rather than `min-h-dvh`: the header already
-                      took its strip off the top of the viewport, and sizing the
-                      body against the whole viewport would overflow by that
-                      strip. */}
-                  <div class="grid min-h-full grid-cols-1 grid-rows-[auto_1fr] md:grid-cols-[16rem_1fr] md:grid-rows-none">
+                      Floor the grid at the viewport minus the header strip:
+                      `min-h-full` against a flex item with auto height resolves
+                      to 0 and left the sidebar rule hanging mid-screen on short
+                      pages. `--height-header` is the same static token the
+                      drawer subtracts. */}
+                  <div class="grid min-h-[calc(100dvh-var(--height-header))] grid-cols-1 grid-rows-[auto_1fr] md:grid-cols-[16rem_1fr] md:grid-rows-none">
                     <Sidebar
                       files={outlines.files()}
                       documents={documents.paths()}

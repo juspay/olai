@@ -356,9 +356,11 @@ burger joins the left edge next to the wordmark.
 
 Principle: the header carries what is about the app; the sidebar
 (`Sidebar.tsx`) carries what is about the DIRECTORY — calendar + file tree
-only. The header is on every screen, including the error report and the
-waiting page, so there is one home for chrome and no corner-pills special case
-those screens used to need.
+only. The header is on every screen App draws, including the error report and
+the waiting page, so there is one home for chrome and no corner-pills special
+case those screens used to need. The sole exception is the fault card:
+`main.tsx`'s `<ErrorBoundary>` sits above `App`, so a thrown render never
+reaches the header (a broken client has no chrome to trust).
 
 The chat drawer sits **under** the header, not over it (`chat/Panel.tsx`
 subtracts `--height-header`): the bar stays reachable while the agent is open.

@@ -14,7 +14,20 @@
  * (burger, then footer) — which is why the phone e2e no longer opens the sheet
  * to reach it.
  *
+ * The bar is a fixed `h-12` and the right-hand group is `flex-nowrap`: wrapping
+ * inside a fixed height centred the second row off the top of the viewport on a
+ * 390pt phone in every connection state longer than `live`. The connection
+ * label truncates instead; the agent and theme pills keep their intrinsic size.
+ *
+ * The one screen without this bar is the fault card: `main.tsx`'s
+ * `<ErrorBoundary>` sits above `App`, so a thrown render never reaches here.
+ * That is pre-existing and intentional — a broken client has no chrome to
+ * trust — and is the sole exception to "the header is on every screen".
+ *
  * Styled like the rest of the chrome: mono, muted, a rule under it, paper.
+ * Height is `h-12` (3rem) and the static `--height-header` token in
+ * `styles.css` — the chat drawer subtracts the same token so it sits under
+ * this bar, not over it.
  */
 
 import { Show } from "solid-js"
@@ -34,15 +47,17 @@ export function AppHeader(props: {
     readonly open: boolean
     readonly onToggle: () => void
   }
+  /** Whether a directory column is present. The e2e settle probe keys on this
+   *  (`data-layout="docked"`) so a phone can settle without opening the sheet. */
+  readonly docked?: boolean
 }) {
   return (
-    // Height is `h-12` (3rem) and `--height-header` in styles.css — the chat
-    // drawer subtracts the same token so it sits under this bar, not over it.
     <header
-      class="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-rule bg-paper px-3 font-mono md:px-4"
+      class="flex h-12 shrink-0 items-center gap-2 border-b border-rule bg-paper px-3 font-mono md:px-4"
       data-testid={TESTID.appHeader}
+      data-layout={props.docked ? "docked" : "chrome-only"}
     >
-      <div class="flex min-w-0 items-center gap-2">
+      <div class="flex shrink-0 items-center gap-2">
         <Show when={props.menu}>
           {(menu) => (
             <button
@@ -63,8 +78,9 @@ export function AppHeader(props: {
 
       {/* The three pills that are about the app rather than about the page.
           Always here, so a reader of the error report still has the connection
-          answer — which is the one they want most of all. */}
-      <div class="flex flex-wrap items-center justify-end gap-2">
+          answer — which is the one they want most of all. Nowrap + truncate on
+          the connection label keeps them inside the bar at 390pt. */}
+      <div class="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1.5 sm:gap-2">
         <Indicator status={connectionStatus()} />
         <ChatToggle />
         <ThemePicker />

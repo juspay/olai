@@ -15,6 +15,11 @@
  * when there was no sidebar) collapsed with the header; a pill fixed to the
  * corner of a page with an outline on it used to sit on the last line of
  * whatever scrolled under it.
+ *
+ * The label truncates rather than forcing the header to wrap: on a 390pt phone
+ * `server restarted` / `reconnecting` / `connecting` are wider than the room
+ * left beside the wordmark, and a wrap inside a fixed-height bar clipped the
+ * first row off the top of the viewport. The full sentence still rides `title`.
  */
 
 import { LOOK, type SurfaceConnectionStatus } from "./status.ts"
@@ -35,8 +40,9 @@ export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
     <div
       // No position of its own: it is a READOUT and not a control — nothing
       // here is tappable — so all it needs is to be legible wherever the layout
-      // decides to put it.
-      class="flex items-center gap-2 rounded-full border border-rule bg-paper px-3 py-1.5 text-xs text-muted"
+      // decides to put it. `min-w-0` + truncate is what lets the header keep a
+      // single row when the label is long.
+      class="flex min-w-0 max-w-[9.5rem] items-center gap-1.5 truncate rounded-full border border-rule bg-paper px-2 py-1.5 text-xs text-muted sm:max-w-none sm:gap-2 sm:px-3"
       data-testid={TESTID.connection}
       // The state as an attribute, so a test asserts on the STATE rather than
       // on a colour: which utility paints "live" is a styling decision and this
@@ -47,8 +53,8 @@ export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
       // hear "disconnected" without losing its place in the outline.
       aria-live="polite"
     >
-      <span class={`inline-block size-2 rounded-full ${look().dot}`} aria-hidden="true" />
-      {look().label}
+      <span class={`inline-block size-2 shrink-0 rounded-full ${look().dot}`} aria-hidden="true" />
+      <span class="min-w-0 truncate">{look().label}</span>
     </div>
   )
 }

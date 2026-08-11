@@ -14,10 +14,13 @@
  *
  * Both are what a fixed box needs to stay on screen: `--visible-bottom` is the
  * distance a bottom-anchored thing must be lifted by to clear the keyboard,
- * and `--visible-h` is the height a full-height sheet may have. The connection
- * dot is lifted by the first today (connection/Indicator.tsx); the chat panel,
- * which is the reason the second exists in the racket original, arrives with
- * the chat sheet and reads it the same way.
+ * and `--visible-h` is the height a full-height sheet may have. Today only
+ * `--visible-h` has a consumer in the client — the chat drawer sizes itself by
+ * it (`chat/Panel.tsx`). `--visible-bottom` is still published: it is the other
+ * half of the same measure (a keyboard that shrinks the strip also raises the
+ * bottom), the phone e2e asserts the property is written, and a future
+ * bottom-anchored affordance reuses it rather than re-deriving the strip.
+ * The corner pills that used to lift by it live in the header now.
  *
  * The measurement is a plain function of two numbers, so the arithmetic — the
  * part that is easy to get subtly wrong, and that the racket original had a

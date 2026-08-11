@@ -211,11 +211,11 @@ export const CHAT_CANCEL = selector(TESTID.chatCancel);
 export const CHAT_SLASH_COMMAND = selector(TESTID.chatSlashCommand);
 
 /** The app has finished its first render when it has committed to one of its
- *  three shapes: a sidebar (the set loaded), the error view (it did not), or
- *  the fault card (the client threw while drawing). Waiting on any — rather
- *  than on the one the scenario expects — means a broken-set regression fails
- *  with "expected a tree, found the error view for house.jsonl:3" instead of a
- *  bare 30-second timeout.
+ *  three shapes: a docked header (the set loaded and the directory column is
+ *  present), the error view (it did not), or the fault card (the client threw
+ *  while drawing). Waiting on any — rather than on the one the scenario
+ *  expects — means a broken-set regression fails with "expected a tree, found
+ *  the error view for house.jsonl:3" instead of a bare 30-second timeout.
  *
  *  The FAULT is the third for exactly that reason and no other: it is the one
  *  shape no scenario but `the_client_breaks.feature` ever wants, so leaving it
@@ -223,14 +223,15 @@ export const CHAT_SLASH_COMMAND = selector(TESTID.chatSlashCommand);
  *  naming a selector, with nothing about the fault anywhere near it. `open()`
  *  quotes the card instead.
  *
- *  The SIDEBAR, not the outline list inside it. Below 48rem that list is behind
- *  a burger and starts collapsed, so waiting on the BODY meant waiting for
- *  something the reader had not asked to see — every phone scenario timed out
- *  at its first step, and a 40-second suite took twenty-five minutes to say so.
- *  The nav stays attached whether or not anybody has opened it; settle waits
- *  for `attached` rather than `visible` because a shut phone sheet is
- *  display:none and would otherwise look like the app never loaded. */
-export const SETTLED_SELECTOR = `${SIDEBAR}, ${ERROR_VIEW}, ${FAULT}`;
+ *  The HEADER's `data-layout="docked"`, not the sidebar nav. Below 48rem the
+ *  directory sheet starts shut and the nav is a zero-size host (no border, no
+ *  body), so waiting on the sidebar's box would either time out or need a ghost
+ *  1px rule to keep Playwright's `visible` happy. The header is always a real
+ *  box once the set is on screen, and `docked` is exactly "a directory is
+ *  present". Settle waits for `visible` so a render that never gets a box is
+ *  red rather than a silent pass on an attached but empty node. */
+export const SETTLED_SELECTOR =
+  `${APP_HEADER}[data-layout="docked"], ${ERROR_VIEW}, ${FAULT}`;
 
 /** A sentinel planted on `window` to prove a later assertion ran against the
  *  SAME document. Any full page load wipes it, so a step that claims "without
@@ -393,14 +394,14 @@ export class OlaiWorld extends World {
    *  regression that `SETTLED_SELECTOR` documents would be re-learnt. */
   async settle(path = "/"): Promise<void> {
     await this.page.goto(path);
-    // `attached`, not `visible`: on a phone the directory sheet starts shut
-    // (display:none) and the sidebar nav is still the sign the set loaded —
-    // see SETTLED_SELECTOR. Error and fault cards are attached the moment
-    // they draw, so the same state works for every shape.
+    // `visible`: a node that exists but never gets a box is exactly the class
+    // of layout defect settle is meant to catch. SETTLED_SELECTOR keys on the
+    // docked header (always a real box when the set loaded), the error view,
+    // or the fault card — not on the shut phone sheet's empty nav.
     await this.page
       .locator(SETTLED_SELECTOR)
       .first()
-      .waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await this.waitForFrame();
   }
 

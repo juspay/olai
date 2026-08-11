@@ -89,7 +89,7 @@ export function Toggle() {
   return (
     <button
       type="button"
-      class={`rounded-full border bg-paper px-3 py-1.5 font-mono text-xs hover:text-ink ${
+      class={`shrink-0 rounded-full border bg-paper px-2 py-1.5 font-mono text-xs hover:text-ink sm:px-3 ${
         working()
           ? "animate-pulse border-doing text-doing"
           : open()
@@ -128,9 +128,10 @@ function Conversation() {
       // the viewport's own height: an on-screen keyboard covers the bottom of
       // the page without shrinking it (../viewport.ts), so a panel sized by
       // `100dvh` puts its composer underneath the keyboard being typed into.
-      // Falls back to `100dvh` where nothing publishes the variable, which is
-      // every desktop; falls back to `3rem` for the header where the bar has
-      // not painted yet (a single frame, if any).
+      // `--height-header` is a static `:root` token in styles.css (3rem, the
+      // bar's `h-12`); the `3rem` fallback only fires if the sheet failed to
+      // load. `--visible-h` falls back to `100dvh` on desktops that never
+      // publish the variable.
       class="fixed right-0 top-[var(--height-header,3rem)] z-30 flex h-[calc(var(--visible-h,100dvh)-var(--height-header,3rem))] w-chat max-w-full flex-col border-l border-rule bg-paper"
       data-testid={TESTID.chatPanel}
       data-status={chat.state().status}

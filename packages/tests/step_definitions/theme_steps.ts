@@ -75,11 +75,17 @@ const showChips = async (
  *  Waiting on the page rather than on the click is what keeps everything after
  *  it an assertion about the theme instead of about timing; `expectAttribute`
  *  is what makes the failure say which theme the page is in instead of timing
- *  out with nothing to show. */
+ *  out with nothing to show. Also waits for the popover to shut — a pick that
+ *  left the strip open would pass the attribute and still fail the
+ *  presentation promise. */
 const pick = async (world: OlaiWorld, theme: string): Promise<void> => {
   await showChips(world);
   await world.press(world.page.locator(`${THEME_CHIP}[data-value="${theme}"]`));
   await world.expectAttribute("html", THEME_ATTRIBUTE, theme, "the page");
+  await world.page
+    .locator(THEME_CHIP)
+    .first()
+    .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 };
 
 // ── what the page is in ────────────────────────────────────────────────
@@ -94,6 +100,32 @@ Then("the page names no theme", async function (this: OlaiWorld) {
   // nobody has picked on yet.
   const named = await namedTheme(this);
   assert.equal(named, null, `the page already names a theme: ${named}`);
+});
+
+/** The header pill names the theme in force — including the default when
+ *  nobody has picked. Mutation-tested: hard-coding the trigger to "chalk"
+ *  still passed every theming scenario until this step existed. */
+Then(
+  "the theme trigger names the theme in force",
+  async function (this: OlaiWorld) {
+    const expected = (await namedTheme(this)) ?? DEFAULT_THEME;
+    const trigger = this.page.locator(THEME_TRIGGER);
+    await trigger.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const shown = ((await trigger.innerText()) ?? "").trim();
+    assert.equal(
+      shown,
+      expected,
+      `the theme trigger says "${shown}", but the page is in "${expected}"`,
+    );
+  },
+);
+
+Then("the theme popover is shut", async function (this: OlaiWorld) {
+  assert.strictEqual(
+    await this.page.locator(THEME_CHIP).first().isVisible().catch(() => false),
+    false,
+    "the theme chip strip is still open after a pick (or Escape)",
+  );
 });
 
 /** Waited for, not read once — one sentence for the claim however the theme

@@ -62,8 +62,8 @@
 
   /* The app header's height. The drawer sits UNDER the bar (chat/Panel.tsx),
    * so its `top` and its height both subtract this; the header itself is
-   * `h-12` (3rem). A fallback of 3rem rides the drawer for the frame before
-   * the bar paints the custom property. */
+   * `h-12` (3rem). Static on `:root` — the bar does not paint it; a `3rem`
+   * fallback on the drawer only fires if this sheet failed to load. */
   --height-header: 3rem;
 }
 

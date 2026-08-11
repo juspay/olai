@@ -6,8 +6,14 @@
  * is in force. The presentation is what moved: the header is a slim bar, so
  * fifteen chips cannot live in a row of it. A pill names the theme in force and
  * opens a popover of the same chips; picking one (or pressing the pill again,
- * or clicking away) shuts it. Persistence, the storage event, the boot script
- * and the contrast promise are all untouched — this file only draws.
+ * Escape, or clicking away) shuts it and returns focus to the trigger.
+ * Persistence, the storage event, the boot script and the contrast promise are
+ * all untouched — this file only draws.
+ *
+ * ARIA is the pre-popover shape moved up: plain toggle buttons with
+ * `aria-pressed`, wrapped in `role="group"`, trigger with `aria-haspopup`. A
+ * `listbox`/`option` would misstate the control (no arrow-key roving, no
+ * `aria-activedescendant`) and would forbid `aria-pressed` on the options.
  *
  * There is still no "system" chip and no "auto": a theme is a pick.
  */
@@ -34,32 +40,52 @@ export function ThemePicker() {
   const isInForce = createSelector(currentTheme)
   const [open, setOpen] = createSignal(false)
 
-  // Click away shuts the popover. Scoped to the open state so a shut picker
-  // is not a document listener for nothing; disposed with the effect when it
-  // closes or the component unmounts.
+  let root: HTMLDivElement | undefined
+  let trigger: HTMLButtonElement | undefined
+
+  /** Shut the popover and put focus back on the trigger when the close came
+   *  from Escape or a pick — a keyboard user who opened, moved, and chose
+   *  would otherwise land on `<body>`. Click-away leaves focus where the
+   *  pointer went. */
+  const close = (restoreFocus: boolean) => {
+    setOpen(false)
+    if (restoreFocus) trigger?.focus()
+  }
+
+  // Click-away and Escape. Scoped to the open state so a shut picker is not a
+  // document listener for nothing; disposed with the effect when it closes or
+  // the component unmounts.
   createEffect(() => {
     if (!open()) return
     const onPointer = (event: PointerEvent) => {
       const target = event.target
       if (!(target instanceof Node)) return
       if (root?.contains(target)) return
-      setOpen(false)
+      close(false)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return
+      event.preventDefault()
+      close(true)
     }
     // Capture so a press that also navigates still closes us first.
     document.addEventListener("pointerdown", onPointer, true)
-    onCleanup(() => document.removeEventListener("pointerdown", onPointer, true))
+    document.addEventListener("keydown", onKey)
+    onCleanup(() => {
+      document.removeEventListener("pointerdown", onPointer, true)
+      document.removeEventListener("keydown", onKey)
+    })
   })
 
-  let root: HTMLDivElement | undefined
-
   return (
-    <div class="relative" data-testid={TESTID.themePicker} ref={root}>
+    <div class="relative shrink-0" data-testid={TESTID.themePicker} ref={root}>
       <button
         type="button"
-        class={`rounded-full border border-rule bg-paper px-3 py-1.5 font-mono text-xs text-muted hover:text-ink ${TARGET_BOX} md:min-h-0 md:min-w-0`}
+        ref={trigger}
+        class={`max-w-[6.5rem] truncate rounded-full border border-rule bg-paper px-2 py-1.5 font-mono text-xs text-muted hover:text-ink sm:max-w-none sm:px-3 ${TARGET_BOX} md:min-h-0 md:min-w-0`}
         data-testid={TESTID.themeTrigger}
         aria-expanded={open()}
-        aria-haspopup="listbox"
+        aria-haspopup="true"
         title="pick a theme"
         onClick={() => setOpen(!open())}
       >
@@ -68,7 +94,7 @@ export function ThemePicker() {
       <Show when={open()}>
         <div
           class="absolute right-0 top-full z-50 mt-1 w-[min(18rem,calc(100vw-1.5rem))] rounded border border-rule bg-paper p-2 shadow-sm"
-          role="listbox"
+          role="group"
           aria-label="themes"
         >
           <div class="flex flex-wrap gap-1">
@@ -91,11 +117,9 @@ export function ThemePicker() {
                   // NOT in force have to announce that, and an attribute a
                   // framework drops when it is false announces nothing at all.
                   aria-pressed={isInForce(palette.name) ? "true" : "false"}
-                  role="option"
-                  aria-selected={isInForce(palette.name) ? "true" : "false"}
                   onClick={() => {
                     pickTheme(palette)
-                    setOpen(false)
+                    close(true)
                   }}
                 >
                   {palette.name}
