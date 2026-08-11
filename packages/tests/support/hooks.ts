@@ -350,7 +350,6 @@ const startServerChild = async (
         // developer's `OLAI_LOG=pretty` would make every boot hang on readiness.
         OLAI_LOG: "logfmt",
       },
-
     });
     live.add(child);
     events(child).once("exit", () => live.delete(child));

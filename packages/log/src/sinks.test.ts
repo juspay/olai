@@ -22,7 +22,15 @@ import { expect, test } from "bun:test"
 import { Effect, Layer, Logger } from "effect"
 import { TestConsole } from "effect/testing"
 
-import { colorsFor, formatFor, toStderr, toStdout } from "./sinks.ts"
+import {
+  colorsFor,
+  formatFor,
+  prettyFor,
+  resetInvalidOlaiLogWarning,
+  type Stream,
+  toStderr,
+  toStdout,
+} from "./sinks.ts"
 
 /** Say one thing through `sink`, and answer which stream it went to. */
 const written = (
@@ -51,6 +59,36 @@ const withOlaiLog = async <A>(
     else process.env["OLAI_LOG"] = prev
   }
 }
+
+/** Force `NO_COLOR` for the duration of `body`, then restore. */
+const withNoColor = async <A>(
+  value: string | undefined,
+  body: () => Promise<A>,
+): Promise<A> => {
+  const prev = process.env["NO_COLOR"]
+  if (value === undefined) delete process.env["NO_COLOR"]
+  else process.env["NO_COLOR"] = value
+  try {
+    return await body()
+  } finally {
+    if (prev === undefined) delete process.env["NO_COLOR"]
+    else process.env["NO_COLOR"] = prev
+  }
+}
+
+/**
+ * Render one pretty line for `stream` through TestConsole — the bytes a sink
+ * built from {@link prettyFor} would write. Asserting on these is what locks
+ * colour to the destination stream (mutation: wire prettyStderr off stdout
+ * must fail).
+ */
+const renderedPretty = (stream: Stream): Promise<string> =>
+  Effect.gen(function*() {
+    yield* Effect.logInfo("serving").pipe(
+      Effect.provide(Logger.layer([prettyFor(stream)])),
+    )
+    return (yield* TestConsole.logLines).map(String).join("\n")
+  }).pipe(Effect.provide(TestConsole.layer), Effect.runPromise)
 
 /**
  * One log event through `sink`, with a parallel `formatLogFmt` collector on
@@ -187,22 +225,30 @@ test("without OLAI_LOG, a TTY is pretty and a pipe is logfmt", () => {
   }
 })
 
-// Colour is a property of the DESTINATION stream (and NO_COLOR), not of
-// stdout — the bug that left `olai mcp` monochrome whenever stdout was piped.
-test("colours follow the destination stream and honour NO_COLOR", () => {
-  const prev = process.env["NO_COLOR"]
-  try {
-    delete process.env["NO_COLOR"]
-    expect(colorsFor({ isTTY: true })).toBe(true)
-    expect(colorsFor({ isTTY: false })).toBe(false)
-    expect(colorsFor({})).toBe(false)
+// The load-bearing colour lock: prettyFor is what both sinks use, and the
+// *rendered bytes* carry ANSI only when that stream is a TTY. Mutation that
+// wires prettyStderr off process.stdout fails this — colorsFor alone would not.
+test("prettyFor emits ANSI only for a TTY stream", async () => {
+  await withNoColor(undefined, async () => {
+    const onTty = await renderedPretty({ isTTY: true })
+    const onPipe = await renderedPretty({ isTTY: false })
 
-    process.env["NO_COLOR"] = "1"
+    expect(onTty).toContain("serving")
+    expect(onPipe).toContain("serving")
+    // ESC[ — Effect's withColor codes. Stub streams, not process.stdout, so
+    // this is independent of how the test process was launched.
+    expect(onTty).toContain("\u001b[")
+    expect(onPipe).not.toContain("\u001b[")
+  })
+})
+
+test("prettyFor honours NO_COLOR even on a TTY stream", async () => {
+  await withNoColor("1", async () => {
     expect(colorsFor({ isTTY: true })).toBe(false)
-  } finally {
-    if (prev === undefined) delete process.env["NO_COLOR"]
-    else process.env["NO_COLOR"] = prev
-  }
+    const line = await renderedPretty({ isTTY: true })
+    expect(line).toContain("serving")
+    expect(line).not.toContain("\u001b[")
+  })
 })
 
 // LogToStderr must stay local to toStderr's pretty logger. A program-wide
@@ -222,4 +268,35 @@ test("toStderr does not force LogToStderr on sibling loggers", async () => {
 
     expect(saw).toBe(false)
   })
+})
+
+test("unrecognised OLAI_LOG is diagnosed once then ignored", () => {
+  resetInvalidOlaiLogWarning()
+  const prev = process.env["OLAI_LOG"]
+  const errors: Array<string> = []
+  const orig = console.error
+  console.error = (...args: Array<unknown>) => {
+    errors.push(args.map(String).join(" "))
+  }
+  try {
+    process.env["OLAI_LOG"] = "json"
+    expect(formatFor({ isTTY: false })).toBe("logfmt")
+    expect(formatFor({ isTTY: true })).toBe("pretty")
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain('OLAI_LOG="json"')
+    expect(errors[0]).toContain("logfmt")
+    expect(errors[0]).toContain("pretty")
+
+    // Empty is not a typo — treat as unset.
+    process.env["OLAI_LOG"] = ""
+    resetInvalidOlaiLogWarning()
+    errors.length = 0
+    formatFor({ isTTY: false })
+    expect(errors).toHaveLength(0)
+  } finally {
+    console.error = orig
+    if (prev === undefined) delete process.env["OLAI_LOG"]
+    else process.env["OLAI_LOG"] = prev
+    resetInvalidOlaiLogWarning()
+  }
 })

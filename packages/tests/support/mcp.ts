@@ -57,7 +57,6 @@ export const connectTerminalAgent = async (
     },
   });
 
-
   // stderr is where it may say anything that is not a frame, so it is where a
   // failure will explain itself — kept for the diagnostics below and nowhere
   // else, because a scenario has nothing to assert about it.

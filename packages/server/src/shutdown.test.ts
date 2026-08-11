@@ -59,7 +59,6 @@ test("SIGINT stops a server that a browser is connected to", async () => {
         // developer's OLAI_LOG=pretty.
         OLAI_LOG: "logfmt",
       },
-
       stdio: ["ignore", "pipe", "pipe"],
     },
   )

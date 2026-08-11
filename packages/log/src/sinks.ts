@@ -23,8 +23,9 @@
  * Colour follows the *destination* stream, not stdout: Effect's
  * `consolePretty` defaults colour off `process.stdout.isTTY` at construction,
  * which is wrong for `olai mcp` (stdout is the protocol pipe; the human is on
- * stderr). Each sink builds its own pretty logger with `colors` taken from
- * the stream it writes to, and from `NO_COLOR` when that is set.
+ * stderr). {@link prettyFor} builds a pretty logger that re-reads colour from
+ * its stream at emit time (and honours `NO_COLOR`), same discipline as
+ * {@link formatFor}.
  *
  * `OLAI_LOG=logfmt|pretty` forces either face regardless of the TTY. The check
  * lives here, inside the sink layer, so `toStdout` / `toStderr` call sites do
@@ -51,9 +52,18 @@
 import { Context, type Layer, Logger } from "effect"
 
 /** Stream shape we need for the TTY check — Node's stdout/stderr, or a stub. */
-type Stream = { readonly isTTY?: boolean }
+export type Stream = { readonly isTTY?: boolean }
 
+/** Latch for the once-per-process invalid-`OLAI_LOG` diagnostic. */
 let warnedInvalidOlaiLog = false
+
+/**
+ * Clears the invalid-`OLAI_LOG` latch so a test can assert the one-line-once
+ * diagnostic without depending on suite order.
+ */
+export const resetInvalidOlaiLogWarning = (): void => {
+  warnedInvalidOlaiLog = false
+}
 
 /**
  * Which face a line gets. `OLAI_LOG=logfmt|pretty` wins; otherwise a TTY is
@@ -85,6 +95,17 @@ export const colorsFor = (stream: Stream): boolean => {
   if (noColor !== undefined && noColor !== "") return false
   return stream.isTTY === true
 }
+
+/**
+ * Pretty logger for `stream`, with colour re-read at **emit** time from that
+ * stream (and `NO_COLOR`) — same discipline as {@link formatFor}. Binding
+ * colour once at module load is what left `olai mcp` monochrome when stdout
+ * was the protocol pipe.
+ */
+export const prettyFor = (stream: Stream): Logger.Logger<unknown, void> =>
+  Logger.make((options) => {
+    Logger.consolePretty({ colors: colorsFor(stream) }).log(options)
+  })
 
 /**
  * Pick pretty or logfmt at emit time so a test can flip `OLAI_LOG` without
@@ -121,13 +142,10 @@ const withLogToStderr = (
     }
   })
 
-// One pretty logger per destination: colour is fixed from *that* stream (and
-// NO_COLOR), not from stdout. Sharing a single consolePretty() left `olai mcp`
-// monochrome whenever stdout was the protocol pipe.
-const prettyStdout = Logger.consolePretty({ colors: colorsFor(process.stdout) })
-const prettyStderr = withLogToStderr(
-  Logger.consolePretty({ colors: colorsFor(process.stderr) }),
-)
+// One pretty logger per destination stream. Colour is chosen at emit via
+// prettyFor(stream) — not from a shared consolePretty() keyed off stdout.
+const prettyStdout = prettyFor(process.stdout)
+const prettyStderr = withLogToStderr(prettyFor(process.stderr))
 const logfmtStdout = Logger.consoleLogFmt
 const logfmtStderr = Logger.withConsoleError(Logger.formatLogFmt)
 
