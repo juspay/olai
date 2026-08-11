@@ -29,5 +29,5 @@ Status: brainstorming ahead of the Editor theme (keyboard editing, then editor g
 
 ## Open
 
-- **Derived status in the edit UI**: unlike Workflowy, completing a parent isn't just unpropagated — it's *refused* (derived state). The checkbox on a node with children must read as computed, and the refusal's structured detail (unfinished children) needs an inline rendering.
+- ~~**Derived status in the edit UI**: unlike Workflowy, completing a parent isn't just unpropagated — it's *refused* (derived state).~~ **Closed 2026-08-11** (`hide-done-scope`): status derivation is gone, so olai IS the Workflowy model here — `Ctrl+Enter` on a parent stores a mark like it would on a leaf. What the edit UI still owes it is the rollup badge in an editable row, and somewhere to show a write's `nudge` (the last task under a parent going done) that is not a refusal, because nothing about this is refused any more.
 - **Delete without undo**: until the undo item lands, a keyboard delete is unrecoverable inside the app — whether it needs a confirm step (or a brief in-app grace) is a first-PR design detail.

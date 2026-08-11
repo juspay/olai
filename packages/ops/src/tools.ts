@@ -12,9 +12,9 @@
  *     writer, so the glued-line file of 2026-08-09 — two records on one line,
  *     produced by an agent editing text — is not a thing these tools can
  *     express;
- *   - a refusal is structured. A `derived` write comes back with the unfinished
- *     children as data, which is what lets the agent do them one at a time and
- *     the chat panel draw them as rows.
+ *   - a refusal is structured. A `validation` refusal comes back with the
+ *     validator's own rows as data, which is what lets the agent fix the one
+ *     line that is wrong and the chat panel draw the report.
  *
  * Each entry carries its request schema, and the JSON Schema an agent sees is
  * DERIVED from it ({@link ./mcp.ts}) rather than written beside it. A READ
@@ -139,17 +139,17 @@ const MARK_TOOL = {
   done: {
     title: "Mark done",
     description:
-      "Mark a node done, or undo that with `undo: true`. Refused for a node whose status is DERIVED from its children — the refusal lists the unfinished ones, which are what to mark instead.",
+      "Mark a node done, or undo that with `undo: true`. Works on any node, children or not — a mark is a stored fact, never computed from what hangs below. Done-hidden hides a done node WITH its subtree, so this is a claim about the whole branch; marking one over unfinished tasks is allowed and comes back with a `nudge` saying so.",
   },
   doing: {
     title: "Mark doing",
     description:
-      "Mark a node as under way, or undo that with `undo: true`. A node that is already done must be un-done first, and one whose status is DERIVED from its children is refused the same way `set_done` is.",
+      "Mark a node as under way, or undo that with `undo: true`. A node that is already done must be un-done first. Works on any node, children or not.",
   },
   todo: {
     title: "Mark todo",
     description:
-      "Mark a node as work that has not started, or undo that with `undo: true`. This is what makes a bullet a TASK: a node with no mark is not an unstarted task, it is not a task at all, so there is nothing to derive and nothing to search for until someone says otherwise. Same refusals as `set_doing`.",
+      "Mark a node as work that has not started, or undo that with `undo: true`. This is what makes a bullet a TASK: a node with no mark is not an unstarted task, it is not a task at all, so there is nothing to search for until someone says otherwise. Works on any node, children or not — a parent whose children are all notes is marked exactly like a leaf.",
   },
 } as const satisfies Record<Status, { readonly title: string; readonly description: string }>
 
@@ -177,14 +177,14 @@ export const TOOLS: ReadonlyArray<Tool> = [
   read(
     "search_nodes",
     "Search nodes",
-    "Find nodes by title, id, `#tag` or note. Results carry `file:line`, its ancestor titles and — for a node that is MARKED — its derived status, so a hit can be acted on without reading the file. A node with no `status` is a bullet rather than an unstarted task.",
+    "Find nodes by title, id, `#tag` or note. Results carry `file:line`, its ancestor titles and — for a node that is MARKED — that mark, so a hit can be acted on without reading the file. A node with no `status` is a bullet rather than an unstarted task.",
     SearchArgs,
     (at, args: typeof SearchArgs.Type) => Query.search(at.derived, args),
   ),
   read(
     "read_node",
     "Read a node",
-    "One node in full: its record, its `#tags`, its ancestors, its immediate children, and its derived status when it has one — a node with no `status` carries no mark and is not a task.",
+    "One node in full: its record, its `#tags`, its ancestors, its immediate children, and its mark when it carries one — a node with no `status` is not a task. `progress` counts how many of its child tasks are done, which is an annotation and nothing more.",
     NodeArgs,
     (at, args: typeof NodeArgs.Type) =>
       Query.detail(at.derived, args.id) ?? { missing: args.id },

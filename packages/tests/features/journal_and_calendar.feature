@@ -86,7 +86,7 @@ Feature: The journal, and the month in the sidebar
     # the ancestry that says what it is about.
     And the ancestors of "ferry" are "the coast trip"
     And the ancestors of "posts" are "the deck #home"
-    # The same node the tree would draw: derived status, inline tags, the note
+    # The same node the tree would draw: its mark, inline tags, the note
     # as one clamped line under the title — one component each, so a day cannot
     # render them its own way. Full markdown is a click away (note_density.feature).
     And the node "posts" has status "doing"

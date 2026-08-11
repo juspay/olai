@@ -2,8 +2,9 @@
  * One outline, drawn.
  *
  * The shape of the tree is not decided here. `@olai/format` derives it —
- * status, sibling order, mirror expansion and the guard that stops a mirror
- * inside its own subtree — and hands back rows; this file turns a row into
+ * sibling order, mirror expansion, the rollup beside a title and the guard
+ * that stops a mirror inside its own subtree — and hands back rows, each
+ * carrying the mark its node stores; this file turns a row into
  * markup and nothing else. That is the point: the view and the validator agree
  * about what a file means because they are running the same code, not because
  * two implementations were written to the same paragraph.
@@ -17,7 +18,7 @@
  * RECORD's id rather than the node it shows: a mirror's id resolves through
  * its chain to the same canonical page, so the two spellings agree and nothing
  * has to resolve anything here. The status checkbox beside it (./Checkbox.tsx)
- * reads the same derived done/doing the title tones with, and a row with no
+ * reads the same stored done/doing the title tones with, and a row with no
  * mark shows no box at all — a bullet is not a task. Read-only until
  * keyboard-editing.
  *
@@ -127,6 +128,7 @@ function Branch(props: {
               <NodeLine
                 title={shows().node.title}
                 status={props.row.status}
+                progress={props.row.progress}
                 date={shows().node.date}
               >
                 <Show when={props.row.kind !== "node"}>

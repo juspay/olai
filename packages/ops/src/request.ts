@@ -212,6 +212,11 @@ export interface Applied {
   readonly title: string
   readonly file: string
   readonly summary: string
+  /** What the rollup noticed about a write that landed — the last task under a
+   *  parent going done, a branch ticked over unfinished ones. Advice, carried
+   *  back so an agent and a person both see it; absent when there is nothing
+   *  to say, and never a reason a write did not happen. */
+  readonly nudge?: string
   /** The store revision this write produced. */
   readonly rev: number
   /** Whether the write was committed to git. `false` when the directory is not

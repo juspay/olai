@@ -1,5 +1,5 @@
 /**
- * How a derived status colours the title it belongs to.
+ * How a node's mark colours the title it belongs to.
  *
  * Status is a property of the thing being drawn, so it styles the title
  * directly rather than through a `[data-status]` descendant rule — and it is

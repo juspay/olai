@@ -15,7 +15,7 @@
 
 import * as assert from "node:assert";
 
-import { DataTable, Given, Then, When } from "@cucumber/cucumber";
+import { Given, Then, When } from "@cucumber/cucumber";
 
 import { olaiBin } from "../support/hooks.ts";
 import { callTool, connectTerminalAgent } from "../support/mcp.ts";
@@ -85,7 +85,7 @@ Then("the terminal agent is offered no file tools", function (this: OlaiWorld) {
 When(
   "the terminal agent marks {string} done",
   async function (this: OlaiWorld, id: string) {
-    await callTool(agentOf(this), "set_done", { id });
+    this.toolAnswer = await callTool(agentOf(this), "set_done", { id });
   },
 );
 
@@ -136,27 +136,32 @@ When(
 // ── what it was told ───────────────────────────────────────────────────
 
 Then(
-  "the terminal agent was refused, and told the children to mark instead:",
-  function (this: OlaiWorld, table: DataTable) {
+  "the terminal agent was refused with the kind {string}",
+  function (this: OlaiWorld, kind: string) {
     const answer = this.toolAnswer ?? {};
     assert.strictEqual(
       answer["isError"],
       true,
       `the write was not refused: ${JSON.stringify(answer)}`,
     );
-    const detail = structuredOf(this) as {
-      readonly kind?: string;
-      readonly children?: ReadonlyArray<{ readonly id?: string }>;
-    };
     assert.strictEqual(
-      detail.kind,
-      "derived",
-      `the refusal came back as ${detail.kind ?? "nothing"}, so the agent was ` +
-        "given a sentence to parse rather than the reason as data",
+      structuredOf(this)["kind"],
+      kind,
+      "the refusal has to carry its kind as data — a sentence to parse is " +
+        "what the taxonomy exists to replace",
     );
-    assert.deepStrictEqual(
-      (detail.children ?? []).map((child) => child.id).sort(),
-      table.raw().map((row) => row[0]).sort(),
+  },
+);
+
+Then(
+  "the terminal agent was told {string}",
+  function (this: OlaiWorld, said: string) {
+    const nudge = structuredOf(this)["nudge"];
+    assert.ok(
+      typeof nudge === "string" && nudge.includes(said),
+      `the answer's nudge was ${JSON.stringify(nudge)}, which does not mention ` +
+        `${JSON.stringify(said)} — advice about a write that HAPPENED travels ` +
+        "on the answer, in a field of its own",
     );
   },
 );

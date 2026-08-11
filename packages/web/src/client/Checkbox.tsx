@@ -2,9 +2,9 @@
  * The status box beside a node's bullet — where a node has one.
  *
  * Three readings of one box — empty, half-filled, checked — the racket
- * original's three (`olai/web/checkbox.rkt`), drawn from the SAME derived
- * status the title tones with (`./tone.ts`): a done node is checked, a doing
- * node is half-marked, a `todo` node is an empty box.
+ * original's three (`olai/web/checkbox.rkt`), drawn from the SAME mark the
+ * title tones with (`./tone.ts`): a done node is checked, a doing node is
+ * half-marked, a `todo` node is an empty box.
  *
  * The empty box is for `todo` and ONLY for it. A node with NO mark draws no
  * box at all, and the difference between those two is the whole model: an
