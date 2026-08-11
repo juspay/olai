@@ -17,6 +17,7 @@ import { Then, When } from "@cucumber/cucumber";
 import {
   COMMIT_BLOCKED,
   COMMIT_CHANGE,
+  COMMIT_LAST,
   COMMIT_MESSAGE,
   COMMIT_NOW,
   COMMIT_PANEL,
@@ -39,19 +40,50 @@ Then(
   },
 );
 
-/** Nothing pending, nothing shown — so this is an assertion about ABSENCE, and
- *  it has to wait for one: the page may not have heard about the commit yet. */
-Then("there is nothing to commit", async function (this: OlaiWorld) {
-  await this.page
-    .locator(COMMIT_PILL)
-    .waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+/** WHICH of the six faces the pill is wearing. It is never absent — this
+ *  feature is an audit trail, so "there is no audit trail here" is the most
+ *  important thing it can say — which is why every assertion here is about the
+ *  state it reports rather than about whether it is on screen. */
+Then(
+  "the commit pill says {string}",
+  async function (this: OlaiWorld, state: string) {
+    await this.expectAttribute(
+      COMMIT_PILL,
+      "data-state",
+      state,
+      "the commit pill",
+    );
+  },
+);
+
+Then("the commit pill cannot be pressed", async function (this: OlaiWorld) {
+  const disabled = await this.page.locator(COMMIT_PILL).isDisabled();
+  assert.ok(
+    disabled,
+    "expected the commit pill to be inert — no repository, or commits off",
+  );
 });
 
+Then(
+  "the panel says the last commit was {string}",
+  async function (this: OlaiWorld, said: string) {
+    const last = await this.page
+      .locator(COMMIT_LAST)
+      .textContent({ timeout: POLL_TIMEOUT });
+    assert.ok(
+      (last ?? "").includes(said),
+      `expected the last commit line to mention "${said}", but it says "${last}"`,
+    );
+  },
+);
+
+/** Open it, or leave it open. The pill TOGGLES — a step that clicked
+ *  unconditionally would shut a panel that was already up, which is what a
+ *  scenario asking twice actually meant to avoid. */
 When("I open the commit panel", async function (this: OlaiWorld) {
-  await this.page.locator(COMMIT_PILL).click();
-  await this.page
-    .locator(COMMIT_PANEL)
-    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const panel = this.page.locator(COMMIT_PANEL);
+  if (!(await panel.isVisible())) await this.page.locator(COMMIT_PILL).click();
+  await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
 Then(

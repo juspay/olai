@@ -113,14 +113,16 @@ next scenario would inherit the edit) and neither could the repository (the
 fixtures are tracked). `world.writeServed` refuses to write anywhere else, so
 "a scenario scribbled on the fixtures" is not a thing that can happen quietly.
 
-**`@git`** rides on top of `@scratch:`, and one feature asks for it: the scratch
-copy is made a git repository with the fixtures already committed, and its server
-is started with `--commit=manual` rather than the harness's usual
-`--no-commit`. What is waiting to be committed is DERIVED from git rather than
-counted, so there is nothing to test without a repository — and the assertions at
-the end of those scenarios are lines out of its log, read through `world.git`.
-Every other scenario keeps `--no-commit`: committing into whatever repository
-happens to contain a temp directory is not this suite's business.
+**`@git`** rides on top of `@scratch:`: the scratch copy is made a git
+repository with the fixtures already committed, and its server is started with
+`--commit=manual` rather than the harness's usual `--commit=off`. What is
+waiting to be committed is DERIVED from git rather than counted, so there is
+nothing to test without a repository — and the assertions at the end of those
+scenarios are lines out of its log, read through `world.git`. **`@no-git`** is
+the other half of the same knob: commits ON, and deliberately no repository,
+which is the only way to reach the Commit pill's "no git here" face. Every other
+scenario keeps `--commit=off`: committing into whatever repository happens to
+contain a temp directory is not this suite's business.
 
 A `@scratch:` scenario may also RESTART its server, which nothing else in the
 suite may do — a shared corpus server is running for every other scenario in
@@ -275,7 +277,8 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="connection"][data-connection]` | the connection dot, in every shape of the app: `connecting`, `live`, `reconnecting`, `retired` |
 | `[data-testid="restarted"]` | over everything: the server that served this page has been replaced |
 | `[data-testid="reload"]` | the button in that surface — the whole of the recovery |
-| `[data-testid="commit-pill"][data-uncommitted][data-repo]` | the Commit pill, drawn only when something is waiting — so its ABSENCE is an assertion too |
+| `[data-testid="commit-pill"][data-state][data-uncommitted][data-repo]` | the Commit pill, ALWAYS drawn; `data-state` is which of its six faces — `off`, `no-repo`, `never`, `committed`, `waiting`, `blocked` |
+| `[data-testid="commit-last"]` | what olai last recorded here, or the words saying it never has |
 | `[data-testid="commit-panel"]` | the panel it opens |
 | `[data-testid="commit-change"][data-node-id][data-sort]` | one node that changed, and WHAT changed about it — never the phrase it is rendered as |
 | `[data-testid="commit-blocked"]` | why the repository cannot take a commit right now |

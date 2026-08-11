@@ -77,6 +77,10 @@ export interface Wiring {
   readonly git: {
     readonly pending: Effect.Effect<Pending>
     readonly commit: (request: CommitRequest) => Effect.Effect<CommitResult>
+    /** Bumped by the ops layer whenever a commit lands, by whichever door. A
+     *  commit changes what is waiting without changing a served file, so this
+     *  is the only thing that can say so. */
+    readonly committed: SubscriptionRef.SubscriptionRef<number>
   }
 }
 
@@ -175,6 +179,14 @@ export const bind = (
                   SubscriptionRef.changes(wiring.store.snapshot),
                   () => republishPending,
                 ),
+                // A commit is the second clock, and it is not a revision: it
+                // moves no served byte. Every door goes through the ops layer,
+                // so subscribing here is what makes them all correct rather
+                // than each of them remembering.
+                Stream.runForEach(
+                  SubscriptionRef.changes(wiring.git.committed),
+                  () => republishPending,
+                ),
                 Effect.forever(Effect.andThen(Effect.sleep(SWEEP), republishPending)),
               ],
               { concurrency: "unbounded", discard: true },
@@ -247,9 +259,10 @@ export const bind = (
           // The button's door. `writer: "web"` is decided in `serve.ts`, where
           // the ops layer is built — a procedure is a transport, and which
           // transport this one is is not a thing it should be able to claim
-          // about itself.
-          commit: ({ input }) =>
-            Effect.tap(wiring.git.commit(input), () => republishPending),
+          // about itself. What republishes afterwards is NOT here: it is the
+          // `committed` subscription above, so the agent's tool and
+          // `--commit=auto` get it too.
+          commit: ({ input }) => wiring.git.commit(input),
         },
       },
     }

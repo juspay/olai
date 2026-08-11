@@ -29,14 +29,6 @@ import { NodeChange } from "./changes.ts"
 export const Writer = Schema.Literals(["chat-agent", "mcp", "web"])
 export type Writer = typeof Writer.Type
 
-/** The trailer that puts {@link Writer} in the commit permanently. */
-export const WRITER_TRAILER = "X-Olai-Writer"
-
-/** Every message olai writes starts with this. In a project repository the
- *  prefix is what separates tool writes from a person's: `git log --grep
- *  '^olai'` is the audit view, and `--invert-grep` gives back real history. */
-export const MESSAGE_PREFIX = "olai"
-
 /** Why the repository cannot take a commit right now. Nothing today checks for
  *  any of them, which is how an agent marking a node done mid-conflict can
  *  swallow a resolution — and it is the hole that decided manual over
@@ -47,11 +39,18 @@ export type Reason = typeof Reason.Type
 /**
  * Whether the served directory can be committed to.
  *
- * Four arms, and each is a different thing to draw: `Off` and `NoRepo` mean
- * there is nothing to show at all — a directory of notes under Dropbox is not
- * this program's business, and neither is a server started with `--commit=off`
- * — while `Blocked` is the one that says so out loud, because a button that
- * quietly did nothing would be worse than no button.
+ * Four arms, and EVERY ONE OF THEM IS DRAWN. That is the decision the whole
+ * control turns on: this feature exists to be an audit trail of what the tool
+ * wrote, so "there is no audit trail here" is the single most important thing
+ * it can say, and a pill that disappeared is exactly how a person would never
+ * find that out. Same argument as the connection dot, which stays green when it
+ * is healthy rather than vanishing.
+ *
+ * `Off` and `NoRepo` are SETTINGS, not faults — a directory of notes under
+ * Dropbox is not this program's business, and neither is a server started with
+ * `--commit=off`. They are drawn dim and inert, with no warning colour;
+ * `Blocked` is the only one a person can act on, so it is the only one that
+ * gets a warning.
  */
 export const RepoState = Schema.Union([
   Schema.Struct({ _tag: Schema.Literal("Off") }),
@@ -68,6 +67,33 @@ export type RepoState = typeof RepoState.Type
 
 /** Whether a commit could be asked for at all. */
 export const isReady = (repo: RepoState): boolean => repo._tag === "Ready"
+
+/** Whether committing is a thing that could ever happen here. `false` is the
+ *  two SETTINGS — no repository, or commits turned off — which the panel draws
+ *  as a statement rather than as a problem. */
+export const isPossible = (repo: RepoState): boolean =>
+  repo._tag === "Ready" || repo._tag === "Blocked"
+
+/**
+ * The last commit OLAI made here — not the repository's HEAD.
+ *
+ * A person's own commits are not what this feature reports on, so it is HEAD as
+ * seen through the same filter the audit view uses: the `olai` message prefix.
+ * The trailer is what says WHO, and it is separate because a commit can carry
+ * the prefix without one (a person typing it by hand, a trailer stripped by a
+ * rebase) — reporting `null` there is more honest than guessing.
+ */
+export const LastCommit = Schema.Struct({
+  sha: Schema.String,
+  /** The subject line. The body is the per-node list, which is what the
+   *  pending panel draws for itself. */
+  message: Schema.String,
+  writer: Schema.NullOr(Writer),
+  /** ISO 8601, so "12m ago" is the reader's clock and their time zone rather
+   *  than the server's. */
+  at: Schema.String,
+})
+export type LastCommit = typeof LastCommit.Type
 
 /** One writer's share of what is waiting. Counts, not messages: the messages
  *  are the changes, which come from git. */
@@ -104,6 +130,19 @@ export const Pending = Schema.Struct({
   /** The message a commit gets when nobody supplies one. Composed here so the
    *  panel can show it before it is used and a person can edit it. */
   message: Schema.String,
+  /**
+   * The last commit olai made here, or `null` for a directory it has never
+   * committed in.
+   *
+   * The `null` is load-bearing and not an absence to paper over. What is
+   * WAITING does not say whether anything was ever recorded, and those are two
+   * different facts about the same directory: a clean tree that just committed
+   * and a clean tree where olai has never written anything both have nothing
+   * pending, and telling the second one "✓ committed" would be a lie. Same
+   * reasoning as the manifest cell's `null` — "never" is a state that cannot be
+   * expressed by an empty value.
+   */
+  last: Schema.NullOr(LastCommit),
 })
 export type Pending = typeof Pending.Type
 
@@ -112,40 +151,20 @@ export type Pending = typeof Pending.Type
  * quiet.
  *
  * It earns its place: this value is recomputed on a timer as well as on every
- * revision, and without this every open tab would get a frame every thirty
- * seconds saying exactly what it already knew. The comparison is deep because
- * the equality has to be about what is SAID — a fresh derivation is a fresh
- * object every time, so identity would never hold.
+ * revision, and without it every open tab would get a frame every thirty
+ * seconds saying exactly what it already knew. The equality has to be about
+ * what is SAID rather than about identity — a fresh derivation is a fresh
+ * object every time, so `===` would never hold.
+ *
+ * DERIVED from the schema, and that is the whole point: written out by hand it
+ * was three levels of field-by-field comparison beside the declaration of those
+ * same fields, and the next field added to any of them would simply not be
+ * compared. The failure mode of that is a frame that is never sent — a browser
+ * showing stale data, with nothing anywhere raising an error — which is exactly
+ * what an `equals` is here to prevent, in the other direction.
  */
-export const samePending = (a: Pending, b: Pending): boolean =>
-  sameRepo(a.repo, b.repo) &&
-  a.message === b.message &&
-  same(a.unreadable, b.unreadable, (x, y) => x === y) &&
-  same(a.wrote, b.wrote, (x, y) => x.writer === y.writer && x.ops === y.ops) &&
-  same(
-    a.changes,
-    b.changes,
-    (x, y) =>
-      x.id === y.id && x.file === y.file && x.kind === y.kind &&
-      x.sort === y.sort && x.title === y.title &&
-      same(x.fields, y.fields, (p, q) => p === q),
-  )
-
-const sameRepo = (a: RepoState, b: RepoState): boolean => {
-  if (a._tag !== b._tag) return false
-  if (a._tag === "Ready" && b._tag === "Ready") return a.branch === b.branch
-  if (a._tag === "Blocked" && b._tag === "Blocked") {
-    return a.reason === b.reason && a.said === b.said
-  }
-  return true
-}
-
-const same = <A>(
-  a: ReadonlyArray<A>,
-  b: ReadonlyArray<A>,
-  eq: (x: A, y: A) => boolean,
-): boolean =>
-  a.length === b.length && a.every((entry, at) => eq(entry, b[at] as A))
+export const samePending: (a: Pending, b: Pending) => boolean = Schema
+  .toEquivalence(Pending)
 
 /** What a page holds before the first frame, and what a server with commits
  *  turned off keeps holding. A value a reader ends up looking at (which is
@@ -156,6 +175,7 @@ export const NOTHING_PENDING: Pending = {
   unreadable: [],
   wrote: [],
   message: "",
+  last: null,
 }
 
 /** Asking for a commit. An omitted message is the composed one — which is what
@@ -192,8 +212,3 @@ export const CommitResult = Schema.Union([
 ])
 export type CommitResult = typeof CommitResult.Type
 
-/** How olai commits, and it is a three-state answer rather than a boolean:
- *  `manual` is the default and the whole point, `auto` is for a headless server
- *  with no browser to press anything, and `off` is `--no-commit`. */
-export const COMMIT_MODES = ["off", "manual", "auto"] as const
-export type CommitMode = (typeof COMMIT_MODES)[number]

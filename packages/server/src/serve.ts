@@ -24,9 +24,8 @@
  */
 
 import { adapterFrom, AGENT_ENV, whyNoAgent } from "@olai/chat"
-import type { CommitMode } from "@olai/format"
-import { Mcp, make as makeOps } from "@olai/ops"
-import { Effect } from "effect"
+import { type CommitMode, Mcp, make as makeOps } from "@olai/ops"
+import { Effect, SubscriptionRef } from "effect"
 import { randomBytes } from "node:crypto"
 
 import * as Chat from "@olai/chat"
@@ -74,10 +73,18 @@ export const serve = (options: ServeOptions) =>
     // its refusals, because the chat is not what writes.
     let chat: Chat.Chat | null = null
 
+    // Bumped whenever a commit lands, by whichever door — the button, the
+    // agent's tool, or `--commit=auto`. A commit moves no served file, so
+    // nothing else in this process can say that what is waiting has changed.
+    const committed = yield* SubscriptionRef.make(0)
+
     const ops = makeOps({
       store,
       root,
       commits: options.commits,
+      onCommitted: () => {
+        Effect.runSync(SubscriptionRef.update(committed, (count) => count + 1))
+      },
       // A refusal reaches the agent as its tool result AND the panel as a row:
       // what the agent then says about it is prose, and the unfinished
       // children are data. On OPS rather than on the MCP server, because it is
@@ -118,6 +125,7 @@ export const serve = (options: ServeOptions) =>
       git: {
         pending: ops.pending,
         commit: (request) => ops.commit(request, "web"),
+        committed,
       },
     })
     publish = wired.publish

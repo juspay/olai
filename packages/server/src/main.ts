@@ -18,8 +18,8 @@
  */
 
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
-import { COMMIT_MODES, type CommitMode } from "@olai/format"
 import { toStdout } from "@olai/log"
+import { COMMIT_MODES, type CommitMode } from "@olai/ops"
 import { Effect, Layer } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
 

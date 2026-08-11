@@ -75,7 +75,7 @@ test("a served subdirectory answers in ITS own path spelling", async () => {
   // git prints `notes/b.jsonl`, because git speaks repo-relative paths. What
   // comes back is what the SERVED root calls it — which is the whole reason
   // the placement belongs to the handle rather than to a caller.
-  expect(await asked(path.join(root, "notes"), (git) => git.dirty(() => true)))
+  expect(await asked(path.join(root, "notes"), (git) => git.dirty))
     .toEqual(["b.jsonl"])
 })
 
@@ -116,15 +116,52 @@ test("a detached HEAD is blocked, in git's own words", async () => {
   expect(repoState._tag === "Blocked" ? repoState.said : "").not.toBe("")
 })
 
-test("dirty names the served files that moved, filtered by the caller", async () => {
+// EVERY served file that moved, including the ones that are not outlines:
+// which of them matter is a statement about the format, and this module has
+// none of that in it.
+test("dirty names every served file that moved, tracked or not", async () => {
   const { root, file } = repo()
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
   fs.writeFileSync(path.join(root, "new.jsonl"), `{"id":"n","ord":"a0","title":"n"}\n`)
   fs.writeFileSync(path.join(root, "notes.md"), "not an outline\n")
 
-  const found = await asked(root, (git) =>
-    git.dirty((name) => name.endsWith(".jsonl")))
-  expect([...found].sort()).toEqual(["a.jsonl", "new.jsonl"])
+  const found = await asked(root, (git) => git.dirty)
+  expect([...found].sort()).toEqual(["a.jsonl", "new.jsonl", "notes.md"])
+})
+
+test("the last commit is olai's own, never the repository's HEAD", async () => {
+  const { root, file } = repo()
+  const run = git(root)
+
+  // Nothing of olai's yet, however many commits the person has made.
+  expect(await asked(root, (git) => git.last("olai"))).toBe(null)
+
+  fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
+  await asked(root, (git) =>
+    git.commit({
+      paths: [file],
+      message: "olai: one edit\n\nX-Olai-Writer: chat-agent\n",
+    }))
+  // ... and a person's commit on top of it does not become olai's.
+  fs.writeFileSync(path.join(root, "b.jsonl"), `{"id":"b","ord":"a0","title":"b"}\n`)
+  run("add", "-A")
+  run("commit", "--quiet", "-m", "mine, by hand")
+
+  const last = await asked(root, (git) => git.last("olai"))
+  expect(last?.message).toBe("olai: one edit")
+  expect(last?.writer).toBe("chat-agent")
+  expect(last?.sha).toMatch(/^[0-9a-f]{40}$/)
+  expect(last?.at).not.toBe("")
+})
+
+test("a commit carrying the prefix but no trailer has no writer, rather than a guessed one", async () => {
+  const { root, file } = repo()
+  const run = git(root)
+  fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
+  run("add", "-A")
+  run("commit", "--quiet", "-m", "olai: typed by a person")
+
+  expect((await asked(root, (git) => git.last("olai")))?.writer).toBe(null)
 })
 
 test("show is HEAD's copy, and null for a file HEAD has never had", async () => {

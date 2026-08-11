@@ -23,30 +23,36 @@
 
 import { Schema } from "effect"
 
-import { isMirror, type Node } from "./node.ts"
+import { ARCHIVE, isMirror, MirrorNode, type Node, RegularNode } from "./node.ts"
 
-/** Every field of a record that can differ between two readings. `id` is not
- *  one: it is what the two readings are matched BY. In canonical order, which
- *  is `./node.ts`'s. */
-const RECORD_FIELDS = [
-  "parent",
-  "ord",
-  "title",
-  "done",
-  "doing",
-  "date",
-  "desc",
-  "doc",
-  "after",
-  "blocks",
-  "see",
-  "mirror",
-] as const
+/**
+ * Every field of a record that can differ between two readings, DERIVED from
+ * the schemas rather than listed again.
+ *
+ * `id` is not one: it is what the two readings are matched BY. Everything else
+ * on either shape is, and the schemas are where "what fields exist" is already
+ * declared — `./node.ts` says so in as many words. A hand-kept copy is the one
+ * mistake this comparison cannot survive: the next field the format grows would
+ * simply never be compared, so a node whose only change was that field would
+ * report as unchanged, show no row in the panel and put no line in the commit
+ * body. A silent hole in the audit trail, with no test to fail.
+ *
+ * Declaration order is canonical order — the writer's, and the one a reader
+ * sees in the file.
+ */
+const RECORD_FIELDS: ReadonlyArray<string> = [
+  ...Object.keys(RegularNode.fields),
+  ...Object.keys(MirrorNode.fields),
+].filter((field, at, all) => field !== "id" && all.indexOf(field) === at)
 
 /** A field that differs, or `file` — the one difference that is not a field of
  *  the record at all. A node's file changes when it is archived, which is the
- *  only op that moves one between outlines. */
-export const Field = Schema.Literals(["file", ...RECORD_FIELDS])
+ *  only op that moves one between outlines.
+ *
+ *  `Schema.String` rather than a literal union, because the members are the
+ *  schemas' own field names: spelling them here would be the hand-kept list
+ *  above exists to avoid, one level up. */
+export const Field = Schema.String
 export type Field = typeof Field.Type
 
 /**
@@ -79,10 +85,7 @@ export const Sort = Schema.Literals([
 ])
 export type Sort = typeof Sort.Type
 
-/** The priority above, as a lookup: lower sorts first. */
-const RANK: ReadonlyMap<Sort, number> = new Map(
-  Sort.literals.map((sort, at) => [sort, at] as const),
-)
+
 
 /**
  * One node, as it differs between the two readings.
@@ -90,14 +93,19 @@ const RANK: ReadonlyMap<Sort, number> = new Map(
  * `file` is where the node is NOW — and where it WAS, for one that is gone,
  * since there is nowhere else to point. Same for `title`: as it reads now, or
  * as it read on the side that still had it.
+ *
+ * There is deliberately no added/removed/changed tag beside `sort`. It would be
+ * a function of `sort` (`created` is an arrival, `gone` is a departure,
+ * everything else is neither) said in a second vocabulary, and nothing reads it:
+ * the panel, the commit body and the subject all switch on `sort`.
  */
 export const NodeChange = Schema.Struct({
   /** Root-relative, the same spelling every `file:line` uses. */
   file: Schema.String,
   id: Schema.String,
   title: Schema.String,
-  kind: Schema.Literals(["added", "removed", "changed"]),
-  /** Empty unless `kind` is `changed`. */
+  /** Which fields differ. Empty for a node that arrived or left, where the
+   *  answer would be "all of them" and mean nothing. */
   fields: Schema.Array(Field),
   sort: Sort,
 })
@@ -106,10 +114,6 @@ export type NodeChange = typeof NodeChange.Type
 /** One side of the comparison: each outline's records, keyed by its path. A
  *  file missing from the map is a file that side did not have. */
 export type Records = ReadonlyMap<string, ReadonlyArray<Node>>
-
-/** Where archiving puts things — the one name a cross-file move can land in,
- *  and the difference between "archived" and the "moved" nothing writes. */
-const ARCHIVE = "Archive.jsonl"
 
 interface Placed {
   readonly file: string
@@ -136,18 +140,15 @@ export const changesOf = (
   const now = placed(after)
 
   const changes: Array<NodeChange> = []
-  const seen = new Set<string>()
 
   for (const [file, nodes] of after) {
     for (const node of nodes) {
-      seen.add(node.id)
       const previous = was.get(node.id)
       if (previous === undefined) {
         changes.push({
           file,
           id: node.id,
           title: nameOf(node),
-          kind: "added",
           fields: [],
           sort: "created",
         })
@@ -159,7 +160,6 @@ export const changesOf = (
         file,
         id: node.id,
         title: nameOf(node),
-        kind: "changed",
         fields,
         sort: sortOf(fields, { file, node }),
       })
@@ -170,12 +170,11 @@ export const changesOf = (
   // already been reported, under the file it is in now.
   for (const [file, nodes] of before) {
     for (const node of nodes) {
-      if (seen.has(node.id) || now.has(node.id)) continue
+      if (now.has(node.id)) continue
       changes.push({
         file,
         id: node.id,
         title: nameOf(node),
-        kind: "removed",
         fields: [],
         sort: "gone",
       })
@@ -197,7 +196,9 @@ export const biggestOf = (
   return best
 }
 
-const rank = (sort: Sort): number => RANK.get(sort) ?? Sort.literals.length
+/** Where a sort sits in the fixed priority — its position in the declaration,
+ *  which IS the order. */
+const rank = (sort: Sort): number => Sort.literals.indexOf(sort)
 
 /** Every record of every file, by id. Ids are unique across the SET, which is
  *  what lets one map hold them all and what makes a cross-file move visible. */

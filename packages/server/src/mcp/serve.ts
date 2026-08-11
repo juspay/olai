@@ -33,9 +33,8 @@
  * downstream has to remember.
  */
 
-import type { CommitMode } from "@olai/format"
 import { toStderr } from "@olai/log"
-import { Mcp, make as makeOps } from "@olai/ops"
+import { type CommitMode, Mcp, make as makeOps } from "@olai/ops"
 import { Effect } from "effect"
 
 import { openDirectory } from "../directory.ts"

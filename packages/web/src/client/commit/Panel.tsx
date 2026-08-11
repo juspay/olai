@@ -11,6 +11,11 @@
  * sidebar already lists. Ordered as the server derived them, which is the
  * outline's own order.
  *
+ * The LAST COMMIT is at the top, above everything waiting, because the two are
+ * one question asked twice: what is waiting does not say whether anything was
+ * ever recorded here, and a directory olai has never committed in looks exactly
+ * like one it committed a minute ago if you only count what is pending.
+ *
  * The MESSAGE is a suggestion and not a decision: it arrives composed from what
  * changed, and the moment somebody types in the box it is theirs. A composed
  * message can only ever describe the edits; a person — or an agent, through its
@@ -21,16 +26,17 @@
  * log's from being kept in step by hand.
  */
 
-import type { NodeChange } from "@olai/format"
+import { isReady, type NodeChange } from "@olai/format"
 import { createSignal, For, Show } from "solid-js"
 
+import { agoOf } from "./ago.ts"
 import { because, GLYPH, SAID, trouble, verbatim, WHO } from "./said.ts"
 import type { Commit } from "./state.ts"
 import { TESTID } from "../testids.ts"
 
-export function Panel(props: { readonly commit: Commit }) {
+export function Panel(props: { readonly commit: Commit; readonly now: number }) {
   const pending = () => props.commit.pending()
-  const ready = () => pending().repo._tag === "Ready"
+  const ready = () => isReady(pending().repo)
 
   /** The draft, seeded from the composed suggestion and then left alone.
    *
@@ -42,17 +48,8 @@ export function Panel(props: { readonly commit: Commit }) {
   const [draft, setDraft] = createSignal(pending().message)
 
   /** The changes, in file order, as one group per file. */
-  const groups = (): ReadonlyArray<
-    readonly [string, ReadonlyArray<NodeChange>]
-  > => {
-    const by = new Map<string, Array<NodeChange>>()
-    for (const change of pending().changes) {
-      const group = by.get(change.file)
-      if (group === undefined) by.set(change.file, [change])
-      else group.push(change)
-    }
-    return [...by]
-  }
+  const groups = (): ReadonlyArray<readonly [string, ReadonlyArray<NodeChange>]> =>
+    [...Map.groupBy(pending().changes, (change) => change.file)]
 
   return (
     <section
@@ -61,6 +58,29 @@ export function Panel(props: { readonly commit: Commit }) {
       data-repo={pending().repo._tag}
       aria-label="uncommitted changes"
     >
+      {/* What was last recorded, and by whom — the other half of the question
+          "is this directory being audited". `null` is not an absence to hide:
+          it means olai has never committed here, which is the one thing a
+          count of what is pending can never say. */}
+      <p class="text-xs text-muted" data-testid={TESTID.commitLast}>
+        <Show
+          when={pending().last}
+          fallback={<>olai has not committed in this directory yet</>}
+        >
+          {(last) => (
+            <>
+              <span class="text-ink">{last().message}</span>
+              {" · "}
+              {last().writer === null ? "writer not recorded" : WHO[last().writer!]}
+              {" · "}
+              {agoOf(last().at, props.now)}
+              {" · "}
+              <span class="font-mono">{last().sha.slice(0, 7)}</span>
+            </>
+          )}
+        </Show>
+      </p>
+
       <For each={groups()}>
         {([file, changes]) => (
           <div data-testid={TESTID.commitGroup} data-file={file}>
@@ -132,13 +152,15 @@ export function Panel(props: { readonly commit: Commit }) {
         </p>
       </Show>
 
-      <textarea
-        class="min-h-16 w-full resize-y rounded border border-rule bg-paper p-2 font-mono text-xs"
-        data-testid={TESTID.commitMessage}
-        aria-label="commit message"
-        value={draft()}
-        onInput={(event) => setDraft(event.currentTarget.value)}
-      />
+      <Show when={pending().changes.length + pending().unreadable.length > 0}>
+        <textarea
+          class="min-h-16 w-full resize-y rounded border border-rule bg-paper p-2 font-mono text-xs"
+          data-testid={TESTID.commitMessage}
+          aria-label="commit message"
+          value={draft()}
+          onInput={(event) => setDraft(event.currentTarget.value)}
+        />
+      </Show>
 
       <Show when={trouble(props.commit.attempt())}>
         {(said) => (
@@ -148,15 +170,17 @@ export function Panel(props: { readonly commit: Commit }) {
         )}
       </Show>
 
-      <button
-        type="button"
-        class="self-end rounded border border-rule px-3 py-1.5 text-xs hover:text-ink disabled:opacity-50"
-        data-testid={TESTID.commitNow}
-        disabled={!ready() || props.commit.working()}
-        onClick={() => props.commit.commit(draft())}
-      >
-        {props.commit.working() ? "Committing…" : label(pending().changes.length)}
-      </button>
+      <Show when={pending().changes.length + pending().unreadable.length > 0}>
+        <button
+          type="button"
+          class="self-end rounded border border-rule px-3 py-1.5 text-xs hover:text-ink disabled:opacity-50"
+          data-testid={TESTID.commitNow}
+          disabled={!ready() || props.commit.working()}
+          onClick={() => props.commit.commit(draft())}
+        >
+          {props.commit.working() ? "Committing…" : label(pending().changes.length)}
+        </button>
+      </Show>
     </section>
   )
 }

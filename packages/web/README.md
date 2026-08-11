@@ -349,12 +349,19 @@ this app rather than about chat — the Commit button is its second caller.
 
 ## The Commit button
 
-`src/client/commit/` is the third pill of the chrome, and the only one that is
-sometimes absent: nothing waiting, nothing shown. A control that were always
-there would be a permanent nag about a directory that is usually clean, and the
-two states this can be in are exactly a pill that is drawn or not — including
-"this is not a git work tree" and "the server was started with
-`--commit=off`", which are also nothing to say.
+`src/client/commit/` is the third pill of the chrome, and like the connection
+dot it is NEVER ABSENT. Six states, all drawn: a clean tree that has committed
+(`✓ committed · 12m ago`), one olai has never committed in (`no commits yet`),
+edits waiting (`4 uncommitted`), a busy repository (`⚠` and the reason), a
+directory that is not a work tree, and a server with commits off. The rule
+comes straight from what the feature is FOR: if the job is an audit trail, then
+"there is no audit trail here" is the most important thing the pill can say, and
+a control that disappeared is exactly how a person would never find that out.
+
+The last two are SETTINGS rather than faults — dim, inert, no warning colour.
+`⚠` is reserved for the busy repository, which is the only one anybody can act
+on. `faceOf` in `said.ts` is the whole of that decision, as a pure function of
+the pending value, and `data-state` on the pill is what a scenario asserts on.
 
 It exists because every write olai makes is a write nobody typed: the agent
 auto-approves its ops, so git is how you see what the tool did to your files.
@@ -372,6 +379,10 @@ Nothing here is state this browser keeps. What is waiting arrives on the
 `pending` cell, derived from git on the server, so a tab open all day is
 looking at the repository as it is rather than at a tally it kept — an outline
 edited in vim is in the list, and a commit made in a terminal takes itself out.
+The panel carries the LAST COMMIT above it, because "what is waiting" and "was
+anything ever recorded" are two questions and only the second one distinguishes
+a directory olai has never touched. The one clock is `ago.ts`: the phrase moves
+on its own, since the value it is drawn beside can sit unchanged all afternoon.
 The one thing that IS local is the draft message: it is seeded from the composed
 suggestion when the panel opens and never overwritten under the person typing
 it, because a box that re-synced would rewrite what they were writing every time

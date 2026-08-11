@@ -71,9 +71,13 @@ their own is the obvious next step and deliberately not that change.
 One more pair is GIT:
 
 - **`pending` is a cell**, read-only on the wire: what is waiting to be
-  committed, which the server DERIVES from git on every published revision and
-  on a slow sweep of its own — nothing watches `.git`, so committing in a
-  terminal changes this without changing one served byte. Its default is the
+  committed AND what olai last recorded, which the server DERIVES from git on
+  every published revision, whenever a commit lands by any door, and on a slow
+  sweep of its own — nothing watches `.git`, so committing in a terminal
+  changes this without changing one served byte. The two facts ride together
+  because they are one question asked twice: an empty pending list cannot say
+  whether anything was ever committed here, and `last: null` is what says
+  "never". Its default is the
   empty value rather than `null`, and there is no third state to tell apart: a
   page that has not heard yet, a directory that is not a repository and a server
   with `--commit=off` all draw the same thing, which is nothing. It carries an

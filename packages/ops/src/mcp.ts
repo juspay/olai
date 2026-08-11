@@ -25,7 +25,7 @@
  * parse.
  */
 
-import { type CommitRequest, kindOf, type OpFailure, type Writer } from "@olai/format"
+import { kindOf, type OpFailure, type Writer } from "@olai/format"
 import { Effect, Result, Schema, SchemaRepresentation } from "effect"
 
 import type { Ops } from "./ops.ts"
@@ -134,17 +134,18 @@ const call = (
       return result(id, refusal(`\`${name}\`: ${decoded.failure.message}`))
     }
 
+    // Every answer is the TOOL's own, carried in the table beside it — so a
+    // tool the table declares and nothing answers is a type error rather than
+    // something a caller discovers here. A write is the one arm with nothing to
+    // carry: every write is the same call.
     const answered = yield* Effect.result(
       tool.kind === "write"
         ? Effect.map(
           options.ops.run(decoded.success as Request, options.writer),
           (applied) => ({ ...applied, did: tool.name }),
         )
-        : tool.kind === "commit"
-        ? options.ops.commit(decoded.success as CommitRequest, options.writer)
-        // The reader is the tool's OWN, carried in the table beside it — so a
-        // tool the table declares and nothing answers is a type error rather
-        // than something a caller discovers.
+        : tool.kind === "act"
+        ? tool.act(options.ops, decoded.success as never, options.writer)
         : Effect.map(options.ops.read, (at) => tool.read(at, decoded.success as never)),
     )
 

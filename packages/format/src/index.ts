@@ -37,7 +37,7 @@ export { validate } from "./validate.ts"
 export { assemble, BrokenFile, fileKind, OutlineSet } from "./set.ts"
 export type { DecodedFile, Outline } from "./set.ts"
 export { docOf, Document, isPicture, pictureOf } from "./documents.ts"
-export { isMirror, Located } from "./node.ts"
+export { ARCHIVE, isMirror, Located } from "./node.ts"
 export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
 
 export {
@@ -63,21 +63,19 @@ export { biggestOf, changesOf, Field, NodeChange, Sort } from "./changes.ts"
 export type { Records } from "./changes.ts"
 
 export {
-  COMMIT_MODES,
   CommitRequest,
   CommitResult,
+  isPossible,
   isReady,
-  MESSAGE_PREFIX,
+  LastCommit,
   NOTHING_PENDING,
   Pending,
   Reason,
   RepoState,
   samePending,
   Writer,
-  WRITER_TRAILER,
   Wrote,
 } from "./committing.ts"
-export type { CommitMode } from "./committing.ts"
 
 export { ordBetween } from "./ord.ts"
 export { nodesOf, serializeOutline } from "./write.ts"

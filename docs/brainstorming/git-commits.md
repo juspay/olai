@@ -41,7 +41,28 @@ It lives beside the connection dot and the agent pill — the sidebar's footer o
 every page that draws a sidebar, a corner of the viewport on the ones that do
 not. That is the pair the bottom-right chrome strip `panels` is building will be
 made of; the strip itself does not exist yet, and this did not wait for it.
-Nothing pending, nothing shown.
+
+**It is always there, and every state has a face.** (Corrected 2026-08-10,
+human: the proposal said "nothing pending, nothing shown", and that was wrong.)
+The reasoning is the whole reason this feature exists: if the job is an audit
+trail of what the tool wrote, then *there is no audit trail here* is the single
+most important thing the pill can say, and hiding it is exactly how a person
+would never find that out. Same argument as the connection dot, which stays
+green while it is healthy rather than disappearing — an indicator that is only
+present when something is wrong cannot be trusted when it is absent.
+
+| state | face |
+|---|---|
+| work tree, clean, has committed before | `✓ committed · 12m ago` |
+| work tree, clean, never committed | `no commits yet` |
+| work tree, N pending | `4 uncommitted` |
+| mid-rebase / merge / cherry-pick / detached | `⚠ 4 uncommitted` + the reason |
+| not a work tree | `no git here` — dim, inert |
+| `--commit=off` | `commits off` — dim, inert |
+
+The last two are **settings, not faults**: dim, inert when pressed, and no
+warning colour. `⚠` is reserved for the busy-repo case, because that is the only
+one a person can act on.
 
 ```
                                     ┌──────────────────────────┐
@@ -53,6 +74,9 @@ Opened:
 
 ```
 ┌─ Changes ─────────────────────────────────┐
+│ olai: outlines-collection done            │
+│   · chat agent · 12m ago · 1a2b3c4        │
+│                                           │
 │ roadmap.jsonl                             │
 │   ✓  Outlines as a collection    done     │
 │   ✎  Notes: one state, same line  note    │
@@ -69,6 +93,11 @@ Opened:
 └───────────────────────────────────────────┘
 ```
 
+The LAST COMMIT is at the top, above everything waiting, because the two are one
+question asked twice: what is waiting says nothing about whether anything was
+ever recorded, and a directory olai has never committed in has exactly the same
+empty pending list as one it committed a minute ago.
+
 When the repository is mid-rebase, mid-merge, mid-cherry-pick or on a detached
 HEAD, the button says so instead of quietly doing nothing:
 
@@ -77,7 +106,8 @@ HEAD, the button says so instead of quietly doing nothing:
 │                         [ Commit 4 changes ] │   ← disabled
 ```
 
-Not a work tree, or `--commit=off`: no indicator, no panel.
+Not a work tree, or `--commit=off`: the pill still says so, and pressing it does
+nothing — there is no panel behind it, because there is nothing to put in one.
 
 ## The data model
 
@@ -141,7 +171,8 @@ type Reason = "merge" | "rebase" | "cherry-pick" | "detached"
 
 `Off` is the fourth arm the proposal did not have: `--commit=off` has to be
 visible somewhere, and a mode is exactly a thing the repository can be in as far
-as everything above is concerned. It draws like `NoRepo` — nothing at all.
+as everything above is concerned. It draws like `NoRepo` — dim and inert, and
+saying which of the two it is.
 
 This is what drives the disabled button and its explanation. It is also the check
 `git.ts` was missing — it asked only whether the directory is a work tree. The
@@ -159,10 +190,31 @@ type Pending = {
   readonly unreadable: ReadonlyArray<string>   // dirty files we cannot parse
   readonly wrote: ReadonlyArray<{ readonly writer: Writer; readonly ops: number }>
   readonly message: string                     // composed suggestion
+  readonly last: LastCommit | null             // what olai last recorded here
+}
+
+type LastCommit = {
+  readonly sha: string
+  readonly message: string
+  readonly writer: Writer | null    // from the trailer
+  readonly at: string               // ISO 8601; the phrase is the reader's clock
 }
 
 type Writer = "chat-agent" | "mcp" | "web"
 ```
+
+`last` is `git log -1` through the same filter the audit view uses — the `olai`
+message prefix, restricted to the served directory — so it is the last commit
+OLAI made, never the repository's HEAD: a person's own commits are not what this
+feature reports on. The trailer is what says who; a commit carrying the prefix
+without one (typed by hand, or stripped by a rebase) reports `writer: null`
+rather than a guess.
+
+**The `null` is load-bearing.** It means olai has never committed in this
+directory, which is a different fact from "nothing is waiting" and cannot be
+derived from it — and telling a directory olai has never touched that it is
+`✓ committed` would be a lie. Same reasoning as the manifest cell's `null`:
+"never" is a state an empty value cannot express.
 
 `changes` comes from git: ask `git status --porcelain -z -uall` which served
 files are dirty, read each one's committed version with `git show HEAD:<file>`,

@@ -40,7 +40,7 @@ in the system had to arrange:
 | `ops.ts` | the loop — read, plan, commit, re-plan on a stale base — and nothing else |
 | `pending.ts` | what is waiting to be committed, derived from git, and the one verb that commits it |
 | `message.ts` | what a commit nobody wrote a message for says |
-| `git.ts` | the plumbing, behind one socket: `open(root)` answers with a repository — its state, what is dirty, what HEAD had, and `commit` — or `null` for a directory that is not a work tree |
+| `git.ts` | the plumbing, behind one socket: `open(root)` answers with a repository — its state, what is dirty, what HEAD had, what olai last committed, and `commit` — or `null` for a directory that is not a work tree |
 | `query.ts` | reading the set as NODES: search, one node, a subtree, the outlines |
 | `tools.ts` | the closed list of what an agent may do, and what it may not |
 | `mcp.ts` | those tools spoken as MCP, with no transport in it |
@@ -94,8 +94,16 @@ for a directory whose history is somebody else's job.
 What is waiting is DERIVED (`pending.ts`): `git status --porcelain` names the
 dirty outlines, `git show HEAD:<file>` is the committed side, the store's own
 last-good parse is the working side, and `@olai/format`'s `changesOf` compares
-them into node-level changes. A clean directory costs one `rev-parse`, one
-`git status` and no parsing at all. Only `.jsonl` outlines are ever named on
+them into node-level changes. Beside it rides the LAST COMMIT olai made —
+`git log -1` through the audit filter, so a person's own commits are not
+reported — because what is waiting says nothing about whether anything was ever
+recorded, and `null` there means "never" rather than "nothing right now".
+
+A clean directory costs one `rev-parse` and three concurrent asks (state, what
+is dirty, what was last recorded), with no parsing at all. The repository handle
+is kept once it is one — a directory does not stop being a work tree — while a
+negative answer is re-asked, so a `git init` under a running server is picked up
+on the next sweep. Only `.jsonl` outlines are ever named on
 `add` or `commit`: they are the only files this package writes, and a served
 directory is a working tree with other work in it.
 

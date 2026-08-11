@@ -25,7 +25,7 @@ describe("what changed", () => {
   test("a node nobody had before is created", () => {
     const changes = changesOf(at("a.jsonl"), at("a.jsonl", node({ id: "x" })))
     expect(changes).toEqual([
-      { file: "a.jsonl", id: "x", title: "x", kind: "added", fields: [], sort: "created" },
+      { file: "a.jsonl", id: "x", title: "x", fields: [], sort: "created" },
     ])
   })
 
@@ -34,7 +34,6 @@ describe("what changed", () => {
     const done = node({ id: "x", title: "order the cabinets", done: "2026-08-10" })
 
     expect(changesOf(at("a.jsonl", open), at("a.jsonl", done))[0]).toMatchObject({
-      kind: "changed",
       fields: ["done"],
       sort: "done",
     })
@@ -55,7 +54,6 @@ describe("what changed", () => {
         file: "Archive.jsonl",
         id: "x",
         title: "install them",
-        kind: "changed",
         fields: ["file"],
         sort: "archived",
       },
@@ -64,7 +62,7 @@ describe("what changed", () => {
 
   test("a node that is nowhere on the new side is gone", () => {
     const changes = changesOf(at("a.jsonl", node({ id: "x" })), at("a.jsonl"))
-    expect(changes[0]).toMatchObject({ kind: "removed", sort: "gone" })
+    expect(changes[0]).toMatchObject({ sort: "gone" })
   })
 
   test("an unchanged node is not a change", () => {

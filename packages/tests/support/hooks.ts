@@ -93,6 +93,12 @@ const NO_AGENT_TAG = "@no-agent";
  *  serves a temp directory whose history is nobody's business. */
 const GIT_TAG = "@git";
 
+/** `@no-git`: commits are ON for this scenario's server, and its scratch copy
+ *  is deliberately NOT a repository. It is the one way to reach the pill's
+ *  "no git here" face — a directory olai will never record anything in, which
+ *  is the state the always-visible rule exists to make visible. */
+const NO_GIT_TAG = "@no-git";
+
 /** The corpus a scenario gets when it names none. */
 const DEFAULT_CORPUS = "good";
 /** `@corpus:<name>` shares the tracked fixture directory; `@scratch:<name>`
@@ -292,9 +298,12 @@ interface Spawn {
   readonly stored?: boolean;
   /** `false` starts the server with no agent at all. */
   readonly agent?: boolean;
-  /** `true` makes the scratch copy a repository and lets the server commit
-   *  into it when something asks — see {@link GIT_TAG}. */
+  /** `true` makes the scratch copy a repository — see {@link GIT_TAG}. */
   readonly repo?: boolean;
+  /** How the server is told to commit. Two facts rather than one: a directory
+   *  that is not a repository with commits ON is a state of its own, and the
+   *  pill has a face for it. */
+  readonly commits?: "off" | "manual";
 }
 
 const startServerChild = async (
@@ -310,11 +319,11 @@ const startServerChild = async (
   for (let attempt = 1; attempt <= attempts; attempt++) {
     if (stopped) throw new Error(shuttingDown(label));
     const port = fixedPort ?? (await freePort());
-    // `--no-commit` unless the scenario asked for a repository of its own: a
-    // scratch directory is a temp copy, and committing to whatever repository
-    // happens to contain the temp dir is not the suite's business. A `@git`
-    // scenario made itself one, so there is somewhere safe to commit — and
-    // `manual` is the default a person gets, which is the thing under test.
+    // `--commit=off` unless the scenario said otherwise: a scratch directory is
+    // a temp copy, and committing to whatever repository happens to contain the
+    // temp dir is not the suite's business. A `@git` scenario made itself one,
+    // so there is somewhere safe to commit — and `manual` is what a person
+    // gets, which is the thing under test.
     const argv = [
       "web",
       dir,
@@ -322,7 +331,7 @@ const startServerChild = async (
       String(port),
       "--host",
       "127.0.0.1",
-      ...(spawnOptions.repo === true ? ["--commit=manual"] : ["--no-commit"]),
+      `--commit=${spawnOptions.commits ?? "off"}`,
     ];
     const child = spawn(bin, argv, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -679,10 +688,14 @@ Before(
     );
 
     if (asked.scratch) {
+      const wantsRepo = scenario.pickle.tags.some((tag) => tag.name === GIT_TAG);
+      const commitsOn = wantsRepo ||
+        scenario.pickle.tags.some((tag) => tag.name === NO_GIT_TAG);
       const own = await scratchServerFor(asked.corpus, {
         stored: this.storedSessions,
         agent: this.hasAgent,
-        repo: scenario.pickle.tags.some((tag) => tag.name === GIT_TAG),
+        repo: wantsRepo,
+        commits: commitsOn ? "manual" : "off",
       });
       this.baseUrl = own.baseUrl;
       this.served = own.root;

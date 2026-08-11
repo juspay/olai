@@ -42,9 +42,10 @@ export interface Commit {
    *  directory that is not a repository draw the same thing, which is nothing,
    *  so there is no third state worth a `null`. */
   readonly pending: Accessor<Pending>
-  /** How much there is to say about. Zero is the pill not being drawn at all —
-   *  including for a directory that is not a repository, and for a server
-   *  started with `--commit=off`, which have nothing to say either. */
+  /** How many node-level changes and unreadable files are waiting. Zero is a
+   *  clean directory — and also every directory olai cannot commit in, because
+   *  the server answers those with nothing rather than making the browser
+   *  decide. */
   readonly waiting: Accessor<number>
   /** True between asking and being answered. A second press while a commit is
    *  in flight would be a second commit. */
@@ -63,11 +64,7 @@ export const createCommit = (): Commit => {
 
   return {
     pending,
-    waiting: () => {
-      const now = pending()
-      if (now.repo._tag === "Off" || now.repo._tag === "NoRepo") return 0
-      return now.changes.length + now.unreadable.length
-    },
+    waiting: () => pending().changes.length + pending().unreadable.length,
     working,
     attempt,
     commit: (message) => {

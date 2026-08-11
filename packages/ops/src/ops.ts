@@ -23,7 +23,6 @@
 
 import {
   BusyFailure,
-  type CommitMode,
   type CommitRequest,
   type CommitResult,
   type OpFailure,
@@ -36,7 +35,7 @@ import {
 import { Effect, Result, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
-import * as Committing from "./pending.ts"
+import { type CommitMode, make as makeCommits } from "./pending.ts"
 import { type Context, plan } from "./plan.ts"
 import { index } from "./query.ts"
 import type { Applied, Request } from "./request.ts"
@@ -73,6 +72,9 @@ export interface Options {
    * front of the person watching.
    */
   readonly onRefusal?: (request: Request, failure: OpFailure) => Effect.Effect<void>
+  /** Told whenever a commit lands, by whichever door — see
+   *  {@link ../pending.ts}'s `Options`. */
+  readonly onCommitted?: () => void
 }
 
 export interface Ops {
@@ -123,10 +125,11 @@ export const make = (options: Options): Ops => {
     today: () => new Date().toISOString().slice(0, 10),
   }
 
-  const committing = Committing.make({
+  const commits = makeCommits({
     store: options.store,
     root: options.root,
     mode: options.commits,
+    ...(options.onCommitted === undefined ? {} : { onCommitted: options.onCommitted }),
   })
 
   const read: Effect.Effect<Reading, OpFailure> = Effect.gen(function*() {
@@ -179,7 +182,7 @@ export const make = (options: Options): Ops => {
             baseRev: snapshot.rev,
             changes,
             afterPublish: Effect.map(
-              committing.automatic(paths, about.summary, writer),
+              commits.automatic(paths, about.summary, writer),
               (did) => {
                 committed = did
               },
@@ -209,7 +212,7 @@ export const make = (options: Options): Ops => {
 
         // Recorded AFTER the write landed and only then: the counter answers
         // "how many ops are waiting", and a refused one is not waiting.
-        committing.wrote(writer)
+        commits.wrote(writer)
         return { ...about, rev: written.success, committed }
       }
 
@@ -234,7 +237,7 @@ export const make = (options: Options): Ops => {
   return {
     run: reported,
     read,
-    pending: committing.pending,
-    commit: committing.commit,
+    pending: commits.pending,
+    commit: commits.commit,
   }
 }

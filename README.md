@@ -162,12 +162,15 @@ the same conversations.
 ## And commit it when you mean to
 
 Those writes land on disk and WAIT. Git is how you see what the tool did to
-your files — an audit trail, not sync and not undo — so a pill appears in the
-corner saying how many changes are uncommitted, and opening it shows them the
-way olai would say them rather than as a diff:
+your files — an audit trail, not sync and not undo — so a pill in the corner
+says where that stands, and opening it shows what is waiting the way olai would
+say it rather than as a diff:
 
 ```
 ┌─ Changes ─────────────────────────────────┐
+│ olai: outlines-collection done            │
+│   · chat agent · 12m ago · 1a2b3c4        │
+│                                           │
 │ roadmap.jsonl                             │
 │   ✓  Outlines as a collection    done     │
 │   ✎  Notes: one state, same line  note    │
@@ -178,9 +181,18 @@ way olai would say them rather than as a diff:
 └───────────────────────────────────────────┘
 ```
 
-Nothing waiting, nothing shown. Nothing is stored to make that work: it is
-`git status` and `git show HEAD:` against what is on disk, so an outline you
-edited in vim is in the list too, and committing in a terminal takes it out.
+The pill is always there, because *there is no audit trail here* is the most
+important thing it can say and a control that vanished is how you would never
+find that out. It reads `✓ committed · 12m ago` when everything is recorded,
+`no commits yet` when olai has never committed in this directory — a different
+fact, and not one an empty list can express — `4 uncommitted` when something is
+waiting, and `no git here` / `commits off` when there is nothing to record at
+all. Those last two are settings rather than problems, so they are dim and
+inert; the warning is saved for a repository that is mid-rebase.
+
+Nothing is stored to make any of it work: it is `git status`, `git show HEAD:`
+and one `git log` against what is on disk, so an outline you edited in vim is
+in the list too, and committing in a terminal takes it out.
 The agent has the same button as a tool of its own, which is the better one to
 use — it knows where a train of thought ended, so its message can say
 `olai: reconcile the roadmap with the #70–#81 merges` instead of describing

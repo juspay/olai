@@ -117,13 +117,19 @@ export const TESTID = {
   faultHome: "fault-home",
 
   // ── the Commit button ────────────────────────────────────────────────
-  /** The pill in the chrome. Drawn only when something is waiting, which is
-   *  why its ABSENCE is as much an assertion as its `data-uncommitted` count.
-   *  `data-repo` carries the repository's own state — `Ready`, `Blocked`,
-   *  `NoRepo`, `Off`. */
+  /** The pill in the chrome. ALWAYS drawn — the feature is an audit trail, so
+   *  "there is no audit trail here" is the most important thing it can say, and
+   *  a control that disappeared is how nobody would ever find that out.
+   *  `data-state` carries which of its six faces this is (`off`, `no-repo`,
+   *  `never`, `committed`, `waiting`, `blocked`), `data-uncommitted` the count,
+   *  and `data-repo` the repository's own state. */
   commitPill: "commit-pill",
   /** The panel it opens. One row per node, never a text diff. */
   commitPanel: "commit-panel",
+  /** What olai last recorded here — message, writer, how long ago, short sha.
+   *  Says so in words when there is nothing: "never committed here" is a fact a
+   *  count of what is pending cannot express. */
+  commitLast: "commit-last",
   /** One outline's worth of those rows; `data-file` is which. */
   commitGroup: "commit-group",
   /** One node that changed. `data-node-id` is which, and `data-sort` is what

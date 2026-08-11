@@ -16,7 +16,6 @@ const change = (over: Partial<NodeChange>): NodeChange => ({
   file: "roadmap.jsonl",
   id: "x",
   title: "a node",
-  kind: "changed",
   fields: [],
   sort: "noted",
   ...over,
@@ -27,7 +26,7 @@ describe("a composed message", () => {
     const message = composed([
       change({ id: "outlines-collection", title: "Outlines as a collection", sort: "done" }),
       change({ id: "notes", title: "Notes: one state, same line", sort: "noted" }),
-      change({ id: "kolu", title: "Kolu integration", kind: "added", sort: "created" }),
+      change({ id: "kolu", title: "Kolu integration", sort: "created" }),
     ])
 
     expect(message.split("\n")[0]).toBe("olai: 3 edits to roadmap — kolu created")

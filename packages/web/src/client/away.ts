@@ -26,7 +26,6 @@ export interface ClickAway {
   readonly open: Accessor<boolean>
   /** Toggle it — the control's own click. */
   readonly toggle: () => void
-  readonly close: () => void
   /** Wire as `ref` on the root of everything that counts as INSIDE, the
    *  control included: a click on the toggle must not both close this and
    *  re-open it. */
@@ -55,7 +54,6 @@ export const createClickAway = (): ClickAway => {
   return {
     open,
     toggle: () => setOpen((current) => !current),
-    close: () => setOpen(false),
     setRoot: (el) => {
       root = el
     },

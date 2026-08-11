@@ -111,7 +111,6 @@ describe("manual is the default", () => {
             file: "house.jsonl",
             id: "order",
             title: "order the cabinets",
-            kind: "changed",
             fields: ["done"],
             sort: "done",
           },
@@ -147,6 +146,34 @@ describe("manual is the default", () => {
         expect(after.wrote).toEqual([])
       })))
 
+  test("what was last recorded is answered beside what is waiting", () =>
+    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        // NEVER, which is not the same as "nothing waiting" and cannot be
+        // derived from it: a directory olai has never committed in and one it
+        // committed a second ago both have an empty pending list.
+        expect((yield* fixture.ops.pending).last).toBe(null)
+
+        yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "chat-agent"))
+        yield* fixture.ops.commit({ message: "the cabinets are ordered" }, "chat-agent")
+
+        const after = yield* fixture.ops.pending
+        expect(after.changes).toEqual([])
+        expect(after.last).toMatchObject({
+          message: "olai: the cabinets are ordered",
+          writer: "chat-agent",
+        })
+
+        // A person's own commit on top does not become olai's: the audit view
+        // is what this reports on, not the repository's HEAD.
+        fixture.write("notes.md", "mine\n")
+        fixture.git("add", "-A")
+        fixture.git("commit", "--quiet", "-m", "mine, by hand")
+        expect((yield* fixture.ops.pending).last).toMatchObject({
+          message: "olai: the cabinets are ordered",
+        })
+      })))
+
   test("a second commit with nothing waiting is an answer, not a commit", () =>
     withRepo({ "house.jsonl": HOUSE }, (fixture) =>
       Effect.gen(function*() {
@@ -169,7 +196,6 @@ describe("manual is the default", () => {
             file: "house.jsonl",
             id: "install",
             title: "install the cabinets",
-            kind: "changed",
             fields: ["title"],
             sort: "renamed",
           },

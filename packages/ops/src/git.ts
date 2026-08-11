@@ -39,7 +39,7 @@
  * than thirteen.
  */
 
-import type { Reason, RepoState } from "@olai/format"
+import type { LastCommit, Reason, RepoState, Writer } from "@olai/format"
 import { Effect } from "effect"
 import { execFile } from "node:child_process"
 import * as fs from "node:fs"
@@ -133,13 +133,17 @@ const IN_PROGRESS: ReadonlyArray<readonly [string, Reason]> = [
 export interface Repo {
   /** Whether it can take a commit right now, and why not when it cannot. */
   readonly state: Effect.Effect<RepoState>
-  /** Which served files git thinks have moved, root-relative and in git's own
-   *  order. */
-  readonly dirty: (keep: (file: string) => boolean) => Effect.Effect<ReadonlyArray<string>>
+  /** Every served file git thinks has moved, root-relative and in git's own
+   *  order. Every one of them: WHICH of those matter is a statement about the
+   *  format, and this file has none of that in it. */
+  readonly dirty: Effect.Effect<ReadonlyArray<string>>
   /** One served file as HEAD has it, or `null` when HEAD does not. */
   readonly show: (file: string) => Effect.Effect<string | null>
+  /** The last commit olai made here, or `null` for a repository it has never
+   *  committed in. */
+  readonly last: (prefix: string) => Effect.Effect<LastCommit | null>
   /** Commit exactly these ABSOLUTE paths with exactly this message. */
-  readonly commit: (what: Committing) => Effect.Effect<Done>
+  readonly commit: (what: CommitInput) => Effect.Effect<Done>
 }
 
 /** Open the directory as a repository, or answer `null` for one that is not a
@@ -151,8 +155,9 @@ export const open = (root: string): Effect.Effect<Repo | null> =>
   Effect.map(place(root), (placed) =>
     placed === null ? null : {
       state: state(root, placed),
-      dirty: (keep) => dirty(root, placed, keep),
+      dirty: dirty(root, placed),
       show: (file) => show(root, placed, file),
+      last: (prefix) => last(root, placed, prefix),
       commit: (what) => commit(root, what),
     })
 
@@ -161,8 +166,14 @@ const state = (
   placed: Placement,
 ): Effect.Effect<RepoState> =>
   Effect.gen(function*() {
+    // ONE directory read rather than a stat per marker: they all live at the
+    // top of the git directory, and this runs on every revision and every
+    // sweep.
+    const inGitDir = new Set(
+      fs.existsSync(placed.gitDir) ? fs.readdirSync(placed.gitDir) : [],
+    )
     for (const [file, reason] of IN_PROGRESS) {
-      if (fs.existsSync(path.join(placed.gitDir, file))) {
+      if (inGitDir.has(file)) {
         return {
           _tag: "Blocked",
           reason,
@@ -192,17 +203,19 @@ const state = (
 const dirty = (
   root: string,
   placed: Placement,
-  keep: (file: string) => boolean,
 ): Effect.Effect<ReadonlyArray<string>> =>
   Effect.gen(function*() {
     const status = yield* git(root, ["status", "--porcelain", "-z", "-uall", "--", "."])
     if (!status.ok) return []
 
     const found: Array<string> = []
+    const seen = new Set<string>()
     const take = (repoPath: string): void => {
       if (!repoPath.startsWith(placed.prefix)) return
       const file = repoPath.slice(placed.prefix.length)
-      if (file !== "" && keep(file) && !found.includes(file)) found.push(file)
+      if (file === "" || seen.has(file)) return
+      seen.add(file)
+      found.push(file)
     }
 
     // `XY <path>\0`, with a second `<path>\0` after a rename or a copy naming
@@ -235,6 +248,55 @@ const show = (
     (shown) => (shown.ok ? shown.out : null),
   )
 
+/**
+ * The last commit olai made, as HEAD seen through the audit filter.
+ *
+ * `--grep` does the filtering in git rather than here, so a repository with a
+ * hundred thousand of somebody else's commits still costs one walk that stops
+ * at the first match. The four fields come back NUL-separated because a subject
+ * may contain anything a person can type, a newline included.
+ *
+ * The prefix is the caller's, not this file's: what olai's commits look like is
+ * a statement about how olai writes them, and it lives beside the composer.
+ */
+const last = (
+  root: string,
+  placed: Placement,
+  prefix: string,
+): Effect.Effect<LastCommit | null> =>
+  Effect.map(
+    git(root, [
+      "log",
+      "-1",
+      `--grep=^${prefix}`,
+      "--format=%H%x00%s%x00%aI%x00%(trailers:key=X-Olai-Writer,valueonly)",
+      // Only commits that touched the served directory: one olai serving
+      // `docs/` should not report a commit another made elsewhere in the same
+      // repository.
+      "--",
+      ".",
+    ]),
+    ({ ok, out }) => {
+      if (!ok) return null
+      const [sha, message, at, writer] = out.split("\0")
+      if (sha === undefined || sha.trim() === "") return null
+      return {
+        sha: sha.trim(),
+        message: message ?? "",
+        at: at ?? "",
+        // A commit carrying the prefix but no trailer is not a lie to correct
+        // — it is a commit whose writer nothing recorded, which is exactly
+        // what `null` says.
+        writer: asWriter(writer?.trim() ?? ""),
+      }
+    },
+  )
+
+const WRITERS: ReadonlySet<string> = new Set(["chat-agent", "mcp", "web"])
+
+const asWriter = (said: string): Writer | null =>
+  WRITERS.has(said) ? (said as Writer) : null
+
 /** What committing did. Deliberately not `CommitResult`: that one carries a
  *  change count and a repository state, and neither is a thing this file
  *  knows. */
@@ -242,7 +304,7 @@ export type Done =
   | { readonly _tag: "Committed"; readonly sha: string }
   | { readonly _tag: "Failed"; readonly said: string }
 
-export interface Committing {
+export interface CommitInput {
   /** Absolute paths of the files to commit. */
   readonly paths: ReadonlyArray<string>
   /** Subject, body and trailer, whole. The `olai` prefix and the writer
@@ -261,7 +323,7 @@ export interface Committing {
  * it is part of: a linter refusing an outline write would leave the bytes on
  * disk and the reason somewhere nobody is looking.
  */
-const commit = (root: string, what: Committing): Effect.Effect<Done> =>
+const commit = (root: string, what: CommitInput): Effect.Effect<Done> =>
   Effect.gen(function*() {
     const staged = yield* git(root, ["add", "--", ...what.paths])
     if (!staged.ok) {

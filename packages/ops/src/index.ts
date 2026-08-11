@@ -28,6 +28,7 @@
 export { codec } from "./codec.ts"
 export type { Store } from "./deps.ts"
 export { make, type Ops, type Options } from "./ops.ts"
+export { COMMIT_MODES, type CommitMode } from "./pending.ts"
 export { type Applied, Request } from "./request.ts"
 
 export * as Mcp from "./mcp.ts"

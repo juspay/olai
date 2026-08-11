@@ -32,15 +32,14 @@
  */
 
 import {
-  type CommitMode,
   type CommitRequest,
   type CommitResult,
   changesOf,
   fileKind,
   type Node,
   NOTHING_PENDING,
-  nodesOf,
   parseOutline,
+  type Located,
   type Pending,
   type RepoState,
   type Writer,
@@ -50,13 +49,39 @@ import { Effect, Result, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
 import * as Git from "./git.ts"
-import { composed, signed } from "./message.ts"
+import { composed, MESSAGE_PREFIX, signed } from "./message.ts"
+
+/**
+ * How writes reach git.
+ *
+ * `manual` is the point of the whole thing: a write lands on disk and WAITS,
+ * and something asks for a commit. `auto` is for a headless server with no
+ * browser to press anything, and commits each write on its own the way olai
+ * used to. `off` is `--no-commit`.
+ *
+ * Here rather than in `@olai/format`: these are the values of a CLI flag and
+ * they never travel the wire, so the bottom package has no business knowing
+ * that olai has one.
+ */
+export const COMMIT_MODES = ["off", "manual", "auto"] as const
+export type CommitMode = (typeof COMMIT_MODES)[number]
 
 export interface Options {
   /** Absolute path of the directory being served — where git runs. */
   readonly root: string
   readonly store: Store
   readonly mode: CommitMode
+  /**
+   * Told whenever a commit lands, by whichever door.
+   *
+   * It hangs HERE rather than on the transport that asked, for the same reason
+   * `onRefusal` hangs on the ops layer: a commit changes what is waiting
+   * without changing one served byte, so no revision will ever say so — and a
+   * caller that had to remember to republish is a caller that can forget.
+   * The button did remember; the agent's `commit` tool and `--commit=auto`
+   * did not, and every open tab sat on a stale count until the next sweep.
+   */
+  readonly onCommitted?: () => void
 }
 
 /**
@@ -98,6 +123,8 @@ interface Survey {
   readonly repo: RepoState
   /** The dirty outlines, root-relative. Empty whenever `git` is `null`. */
   readonly files: ReadonlyArray<string>
+  /** The last commit olai made here, or `null` for one it never has. */
+  readonly last: Pending["last"]
 }
 
 /** The node-level answer for one survey: what changed, and what could not be
@@ -118,19 +145,51 @@ export const make = (options: Options): Committing => {
   const counted = (): ReadonlyArray<Wrote> =>
     [...counts].map(([writer, ops]) => ({ writer, ops }))
 
-  /** One round of git questions. Three subprocesses at most, and one when the
+  /**
+   * The repository, once it is one.
+   *
+   * A POSITIVE answer is kept: a directory does not stop being a work tree, and
+   * neither its git directory nor its name from the repository root moves. A
+   * negative one is asked again every round, so a `git init` while the server
+   * is running is picked up on the next sweep — which is the half the old
+   * memoised work-tree check got wrong, and the half that matters, since the
+   * expensive direction is the one that repeats.
+   */
+  let opened: Git.Repo | null = null
+  const repository: Effect.Effect<Git.Repo | null> = Effect.suspend(() =>
+    opened !== null ? Effect.succeed(opened) : Effect.map(
+      Git.open(options.root),
+      (git) => {
+        opened = git
+        return git
+      },
+    )
+  )
+
+  /** One round of git questions. Four subprocesses at most, and one when the
    *  directory is not a repository. */
   const survey: Effect.Effect<Survey> = Effect.gen(function*() {
     if (options.mode === "off") {
-      return { git: null, repo: { _tag: "Off" }, files: [] } as const
+      return { git: null, repo: { _tag: "Off" }, files: [], last: null } as const
     }
-    const git = yield* Git.open(options.root)
+    const git = yield* repository
     if (git === null) {
-      return { git: null, repo: { _tag: "NoRepo" }, files: [] } as const
+      return { git: null, repo: { _tag: "NoRepo" }, files: [], last: null } as const
     }
-    const repo = yield* git.state
-    const files = yield* git.dirty((file) => fileKind(file) === "outline")
-    return { git, repo, files }
+    // Independent questions, asked together: what state the repository is in,
+    // what has moved in it, and what olai last recorded there.
+    const [repo, dirty, last] = yield* Effect.all(
+      [git.state, git.dirty, git.last(MESSAGE_PREFIX)],
+      { concurrency: 3 },
+    )
+    return {
+      git,
+      repo,
+      // WHICH dirty files matter is a statement about the format, so it is made
+      // here rather than handed to the plumbing as a callback.
+      files: dirty.filter((file) => fileKind(file) === "outline"),
+      last,
+    }
   })
 
   /**
@@ -152,40 +211,57 @@ export const make = (options: Options): Committing => {
       const snapshot = yield* SubscriptionRef.get(options.store.snapshot)
       const set = snapshot?.value ?? null
 
+      // ONE pass over the set for all of it. `nodesOf` filters and sorts the
+      // whole node list per call, and `files`/`broken` are scanned per file —
+      // which is the corpus walked once per dirty outline, on every revision
+      // and every sweep.
+      const served: ReadonlyMap<string, ReadonlyArray<Located>> = set === null
+        ? new Map()
+        : Map.groupBy(set.nodes, (located) => located.file)
+      const known = new Set(set?.files ?? [])
+      const broken = new Set((set?.broken ?? []).map((entry) => entry.file))
+
+      // A file that cannot be read on ONE side is dropped from BOTH, and that
+      // is the whole reason `unreadable` exists rather than being a silent
+      // omission: keeping the half that parsed would report every node in it
+      // as created, or every node in it as gone — a screen of alarming changes
+      // with one real cause, which is that somebody's file does not parse.
+      const unreadable = new Set<string>()
+      const readable = survey.files.filter((file) => {
+        if (set === null || broken.has(file)) {
+          unreadable.add(file)
+          return false
+        }
+        return true
+      })
+
+      // CONCURRENTLY: each is its own subprocess, and they do not depend on
+      // each other. Bounded, because a `git pull` can make a hundred outlines
+      // dirty at once and a hundred simultaneous processes is its own problem.
+      const heads = yield* Effect.all(readable.map((file) => git.show(file)), {
+        concurrency: 8,
+      })
+
       const before = new Map<string, ReadonlyArray<Node>>()
       const after = new Map<string, ReadonlyArray<Node>>()
-      const unreadable = new Set<string>()
-
-      for (const file of survey.files) {
-        // A file that cannot be read on ONE side is dropped from BOTH, and
-        // that is the whole reason `unreadable` exists rather than being a
-        // silent omission: keeping the half that parsed would report every
-        // node in it as created, or every node in it as gone — a screen of
-        // alarming changes with one real cause, which is that somebody's file
-        // does not parse.
-        if (set === null || set.broken.some((broken) => broken.file === file)) {
-          unreadable.add(file)
-          continue
-        }
-
-        const head = yield* git.show(file)
-        if (head !== null) {
+      readable.forEach((file, at) => {
+        const head = heads[at]
+        if (head !== undefined && head !== null) {
           const parsed = parseOutline(file, head)
           if (Result.isFailure(parsed)) {
             // The COMMITTED copy does not parse. Rare, and not this working
             // tree's doing — but nothing can be said about what changed in it.
             unreadable.add(file)
-            continue
+            return
           }
           before.set(file, parsed.success.nodes.map((located) => located.node))
         }
-
         // A dirty file the set does not list has left the disk, and an absent
         // `after` side is exactly how that reads: every node in it is gone.
-        if (set.files.includes(file)) {
-          after.set(file, nodesOf(set.nodes, file).map((located) => located.node))
+        if (known.has(file)) {
+          after.set(file, (served.get(file) ?? []).map((located) => located.node))
         }
-      }
+      })
 
       return { changes: changesOf(before, after), unreadable: [...unreadable] }
     })
@@ -200,6 +276,7 @@ export const make = (options: Options): Committing => {
       unreadable,
       wrote: counted(),
       message: composed(changes),
+      last: looked.last,
     }
   })
 
@@ -226,6 +303,7 @@ export const make = (options: Options): Committing => {
       // The counters are what "since the last commit" means, so this is where
       // they stop meaning anything.
       counts.clear()
+      options.onCommitted?.()
       return { _tag: "Committed", sha: done.sha, changes: changes.length } as const
     })
 
@@ -248,7 +326,7 @@ export const make = (options: Options): Committing => {
   ): Effect.Effect<boolean> =>
     Effect.gen(function*() {
       if (options.mode !== "auto" || paths.length === 0) return false
-      const git = yield* Git.open(options.root)
+      const git = yield* repository
       if (git === null) return false
       const repo = yield* git.state
       if (repo._tag !== "Ready") {
@@ -261,6 +339,7 @@ export const make = (options: Options): Committing => {
         return false
       }
       const done = yield* git.commit({ paths, message: signed(summary, writer) })
+      if (done._tag === "Committed") options.onCommitted?.()
       return done._tag === "Committed"
     })
 

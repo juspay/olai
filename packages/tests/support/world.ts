@@ -147,11 +147,14 @@ export const FAULT_HOME = selector(TESTID.faultHome);
 export const THEME_PICKER = selector(TESTID.themePicker);
 export const THEME_CHIP = selector(TESTID.themeChip);
 
-/** The Commit pill in the chrome, and the panel it opens. The pill is drawn
- *  only when something is waiting, so its ABSENCE is as much an assertion as
- *  its `data-uncommitted` count. */
+/** The Commit pill in the chrome, and the panel it opens. The pill is ALWAYS
+ *  drawn — `data-state` is which of its six faces it is wearing, and that is
+ *  what a scenario asserts on. */
 export const COMMIT_PILL = selector(TESTID.commitPill);
 export const COMMIT_PANEL = selector(TESTID.commitPanel);
+/** What olai last recorded here, in the panel — or the words that say it never
+ *  has, which is a fact no count of what is pending can express. */
+export const COMMIT_LAST = selector(TESTID.commitLast);
 /** One node that changed. `data-sort` is WHAT changed about it — never the
  *  words it is rendered as, which the view is entitled to reword. */
 export const COMMIT_CHANGE = selector(TESTID.commitChange);

@@ -21,14 +21,18 @@
  * real reparenting ops read as a structural change that never happened.
  */
 
-import {
-  biggestOf,
-  MESSAGE_PREFIX,
-  type NodeChange,
-  type Sort,
-  type Writer,
-  WRITER_TRAILER,
-} from "@olai/format"
+import { biggestOf, type NodeChange, type Sort, type Writer } from "@olai/format"
+
+/** Every message olai writes starts with this. In a project repository the
+ *  prefix is what separates tool writes from a person's: `git log --grep
+ *  '^olai'` is the audit view, and `--invert-grep` gives back real history.
+ *
+ *  Here rather than in `@olai/format`: it never travels the wire, and the
+ *  package below this one has no business knowing how olai spells a commit. */
+export const MESSAGE_PREFIX = "olai"
+
+/** The trailer that puts the writer in the commit permanently. */
+const WRITER_TRAILER = "X-Olai-Writer"
 
 /** What each kind of change is called in a commit line. The reference
  *  implementation's vocabulary; the panel keeps its own, in its own words
