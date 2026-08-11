@@ -74,10 +74,7 @@ function Zoom(props: {
               data-node-id={props.zoomed.shows.node.id}
               data-status={props.zoomed.status}
             >
-              <NodeTitle
-                title={props.zoomed.shows.node.title}
-                from={props.zoomed.shows.file}
-              />
+              <NodeTitle title={props.zoomed.shows.node.title} />
             </h1>
             <Show when={props.zoomed.shows.node.date}>
               {(date) => <DateBadge date={date()} />}

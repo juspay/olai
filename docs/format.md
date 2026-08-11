@@ -21,7 +21,7 @@ In canonical order (writes always re-serialize the whole record in this order; a
 | `id` | both shapes | Stable identity: a chosen slug (`[A-Za-z0-9_-]+`) or a minted short string. Unique across the whole loaded set; survives renames and moves. |
 | `parent` | no | Parent id, same file. Absent at top level. |
 | `ord` | both shapes | Sibling order: a fractional-index string over base62 (`0-9A-Za-z`). Plain string comparison is the sort; never a float. |
-| `title` | regular nodes | Verbatim text. Inline `#tags` live here and are extracted at view time. Rendered as **inline-only** markdown (bold, links, code — no block elements) through the same sanitised pipeline a note uses. |
+| `title` | regular nodes | Verbatim text. Inline `#tags` live here and are extracted at view time. |
 | `done` / `doing` | no | The two MARKS: `true` or an ISO date/datetime string. At most one of the two. Never stored on a node with children (see below). A node carrying neither is not a task at all — see [Status](#status). |
 | `date` | no | ISO date/datetime. A node with a `date` is a day/scheduled node; the journal, calendar and today views are derived from dates at view time — there is no stored year/month hierarchy. |
 | `desc` | no | The note: one string, embedded newlines. Markdown, rendered only at view time; stored verbatim. |

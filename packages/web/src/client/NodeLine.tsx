@@ -26,9 +26,6 @@ import { toneOf } from "./tone.ts"
 
 export function NodeLine(props: {
   readonly title: string
-  /** Outline the title is written in — handed to {@link NodeTitle} for the
-   *  markdown pipeline's relative-picture resolution. */
-  readonly from: string
   /** Absent for a plain bullet, which is toned like the text it is. */
   readonly status: Status | undefined
   readonly date?: string
@@ -39,7 +36,7 @@ export function NodeLine(props: {
     <>
       <span class={`flex-1 ${toneOf(props.status)}`} data-testid={TESTID.nodeTitle}>
         {props.children}
-        <NodeTitle title={props.title} from={props.from} />
+        <NodeTitle title={props.title} />
       </span>
       <Show when={props.date}>
         {(date) => <DateBadge date={date()} />}

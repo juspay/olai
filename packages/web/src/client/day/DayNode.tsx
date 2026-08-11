@@ -51,7 +51,6 @@ export function DayNode(props: {
         <Checkbox status={props.dated.status} />
         <NodeLine
           title={node().title}
-          from={props.dated.shows.file}
           status={props.dated.status}
           date={node().date}
         />

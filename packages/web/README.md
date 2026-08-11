@@ -85,13 +85,13 @@ and says why at length.
 ## Markdown, and documents
 
 `src/client/markdown/` is one pipeline for every piece of markdown this app
-draws — a node's note, a whole `.md` document, what the agent says in the chat
-panel, and a node's title. They are the same language read out of the same
-directory (an agent writing a fenced diff into the panel and a person writing
-one into a note are doing the same thing), and a second pipeline for any of
-them would be a second dialect nobody asked for: footnotes in one place and not
-the other, a highlighter kept in step by hand. Parse with GFM, to HTML,
-sanitise, highlight, rewrite, stringify:
+draws — a node's note, a whole `.md` document and what the agent says in the
+chat panel. They are the same language read out of the same directory (an agent
+writing a fenced diff into the panel and a person writing one into a note are
+doing the same thing), and a second pipeline for any of them would be a second
+dialect nobody asked for: footnotes in one place and not the other, a
+highlighter kept in step by hand. Parse with GFM, to HTML, sanitise,
+highlight, rewrite, stringify:
 
 - **highlighting runs after the sanitiser**, deliberately. The `hljs-` spans
   are ours, produced from the code's own text, so they need no allowlist entry
@@ -109,16 +109,6 @@ sanitise, highlight, rewrite, stringify:
   is not drawn at all, and every id (and every link into the same block) is
   re-minted under a prefix derived from the block itself, so the first footnote
   of one note cannot answer for the first footnote of the next.
-- **titles are inline-only** (`renderTitle` → `renderToTree` + `inline.ts`).
-  Same pipeline, then every block is unwrapped to phrasing, then `#tags` are
-  styled by walking text nodes (skipping `code` and `a` so constructs stay
-  whole; the alphabet is `titleTagRe` from `@olai/format`), then stringify.
-  When the pipeline loses text the source still accounts for — empty, or
-  shorter than the source with markdown marks removed — fall back to the
-  escaped source. Breadcrumbs and see-refs pass `links: false` so a markdown
-  link in a title cannot nest `<a>` inside the surrounding `Link`. Titles keep
-  their own cache; they are short and numerous, and would thrash the
-  note/document map if they shared it.
 
 `src/client/document/` is what a document looks like: its own page, the
 reference a `doc`-carrying node shows wherever it is drawn, and the context

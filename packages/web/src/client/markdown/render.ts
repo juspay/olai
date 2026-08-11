@@ -5,12 +5,10 @@
  * so this is a pure function from a string in a file to HTML — no caching
  * layer on disk, no pre-rendered field in a record, nothing that could go
  * stale. One pipeline serves every piece of markdown this app draws: a node's
- * note, a whole `.md` document, what the agent says in the chat panel, and a
- * node's title (inline only — see {@link renderToTree} and
- * `./title.ts`). They are the same language — an agent writing a fenced diff
- * into the panel and a person writing one into a note are doing the same thing
- * — and a second pipeline for any of them would be a second dialect nobody
- * asked for.
+ * note, a whole `.md` document, and what the agent says in the chat panel. They
+ * are the same language — an agent writing a fenced diff into the panel and a
+ * person writing one into a note are doing the same thing — and a second
+ * pipeline for any of them would be a second dialect nobody asked for.
  *
  * The stages, and why each is where it is:
  *
@@ -38,10 +36,6 @@
  * plugin, which is what lets the pipeline be built ONCE — `rehype-highlight`
  * registers three dozen languages when it is attached, and a pipeline rebuilt
  * per note would pay for that on every row of every frame.
- *
- * Titles take one extra step after the pipeline has run: {@link toInline}
- * unwraps every block to phrasing content, so a heading or a fence that a
- * person put in a title cannot break the row's baseline layout.
  */
 
 import rehypeHighlight from "rehype-highlight"
@@ -53,7 +47,6 @@ import remarkRehype from "remark-rehype"
 import { unified } from "unified"
 import type { Root } from "hast"
 
-import { toInline } from "./inline.ts"
 import { rewrite } from "./rewrite.ts"
 
 const pipeline = unified()
@@ -82,20 +75,16 @@ const pipeline = unified()
 const rendered = new Map<string, string>()
 const CACHE_LIMIT = 512
 
-export const renderMarkdown = (source: string, from: string): string =>
-  cached(source, from, "block")
+export const renderMarkdown = (source: string, from: string): string => {
+  const key = `${from}\n${source}`
+  const hit = rendered.get(key)
+  if (hit !== undefined) return hit
 
-/**
- * The same pipeline as {@link renderMarkdown}, forced down to phrasing content.
- *
- * A title is one line of a tree row (or a page heading): bold, links and code
- * are welcome; a heading, a list or a fence must not introduce a block that
- * would break that layout. The words of a block stay — a fence becomes its
- * inline `<code>`, a heading becomes its text — the boxes do not. See
- * ./inline.ts.
- */
-export const renderInlineMarkdown = (source: string, from: string): string =>
-  cached(source, from, "inline")
+  const html = render(source, from, key)
+  if (rendered.size >= CACHE_LIMIT) rendered.clear()
+  rendered.set(key, html)
+  return html
+}
 
 /**
  * The same rendering, for text that is still arriving — and deliberately not
@@ -111,64 +100,10 @@ export const renderInlineMarkdown = (source: string, from: string): string =>
  * about the panel rather than about markdown.
  */
 export const renderStreaming = (source: string, from: string): string =>
-  // Same key shape as {@link cached} for "block": footnote ids are minted
-  // from the key, so a streamed answer and its final render must agree or
-  // every `href="#md-…-fn-1"` breaks the instant streaming ends.
-  render(source, from, keyFor("block", from, source), "block")
+  render(source, from, `${from}\n${source}`)
 
-/**
- * The sanitised HAST for a source, before stringify.
- *
- * Titles need a further walk (style `#tags`, optionally unwrap anchors) that
- * cannot run on the finished string, so they build the tree once and finish
- * it themselves. Notes and documents stay on {@link renderMarkdown}.
- */
-export const renderToTree = (
-  source: string,
-  from: string,
-  shape: "block" | "inline",
-): Root => {
-  const key = keyFor(shape, from, source)
+const render = (source: string, from: string, key: string): string => {
   const tree = pipeline.runSync(pipeline.parse(source)) as Root
-  if (shape === "inline") toInline(tree)
-  rewrite(tree, { from, ids: idsFor(key) })
-  return tree
-}
-
-/** Stringify a tree the pipeline already ran — titles finish their own walk. */
-export const hastToHtml = (tree: Root): string => pipeline.stringify(tree)
-
-const keyFor = (
-  shape: "block" | "inline",
-  from: string,
-  source: string,
-): string => `${shape}\n${from}\n${source}`
-
-const cached = (
-  source: string,
-  from: string,
-  shape: "block" | "inline",
-): string => {
-  // Shape rides the key: the same source is two renderings, and a title that
-  // cached a full document would poison every later note of that text.
-  const key = keyFor(shape, from, source)
-  const hit = rendered.get(key)
-  if (hit !== undefined) return hit
-
-  const html = render(source, from, key, shape)
-  if (rendered.size >= CACHE_LIMIT) rendered.clear()
-  rendered.set(key, html)
-  return html
-}
-
-const render = (
-  source: string,
-  from: string,
-  key: string,
-  shape: "block" | "inline",
-): string => {
-  const tree = pipeline.runSync(pipeline.parse(source)) as Root
-  if (shape === "inline") toInline(tree)
   rewrite(tree, { from, ids: idsFor(key) })
   return pipeline.stringify(tree)
 }

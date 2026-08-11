@@ -1,16 +1,11 @@
 /**
- * Markdown from a file, on the page — a note, a document, or the agent.
+ * Markdown from a file, on the page.
  *
- * Titles go through the same pipeline forced to phrasing content
- * (`renderTitle` → `renderToTree` in ./title.ts / ./render.ts), drawn by
- * `NodeTitle` rather than this component, because a title is not a block of
- * prose.
- *
- * The one component that hands full rendered HTML to `innerHTML`, so the
- * reason that is safe is written down once, wherever markdown appears:
- * ./render.ts sanitises, and everything it points at — a picture, a footnote,
- * a link into itself — has been narrowed to something this app is willing to
- * draw (./rewrite.ts).
+ * The one component that hands rendered HTML to `innerHTML`, so the reason
+ * that is safe is written down once, wherever markdown appears: ./render.ts
+ * sanitises, and everything it points at — a picture, a footnote, a link into
+ * itself — has been narrowed to something this app is willing to draw
+ * (./rewrite.ts).
  *
  * `from` is the file the markdown was written in, and it is required rather
  * than optional because a relative picture cannot be resolved without it. A
