@@ -1,0 +1,194 @@
+/**
+ * What counts as "kolu is running here", against real subprocesses.
+ *
+ * The detection is a probe, so the fixtures are executables: a `kolu` written
+ * into a directory this test puts on PATH, answering the way a real one would.
+ * Nothing here talks to a padi daemon — what is being asserted is the RULE, and
+ * the rule is that only an answered read counts.
+ *
+ * The middle case is the one that matters most, and it is the reason this file
+ * exists rather than a version check: a `kolu` that speaks the protocol
+ * perfectly and reaches no daemon is exactly what a stale bundled build looks
+ * like (juspay/kolu#2146), and it must not become a session's MCP server.
+ */
+
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { delimiter, join } from "node:path"
+
+import { afterEach, describe, expect, test } from "bun:test"
+import { Effect } from "effect"
+
+import { mcpServersOf } from "./agent.ts"
+import { detect, PROBE_ID, type Server } from "./kolu.ts"
+
+/** Everything this test made, undone after each case: the directories it put
+ *  on PATH, and PATH itself. */
+const made: Array<string> = []
+const PATH = process.env["PATH"]
+const SOCKET = process.env["PADI_SOCKET"]
+
+afterEach(() => {
+  for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true })
+  process.env["PATH"] = PATH
+  if (SOCKET === undefined) delete process.env["PADI_SOCKET"]
+  else process.env["PADI_SOCKET"] = SOCKET
+})
+
+/**
+ * A `kolu` on PATH, in a directory of its own, running the given script under
+ * the interpreter this test is itself running under — so the fixture needs
+ * nothing on PATH, which is the one thing this test is rearranging.
+ *
+ * PATH is REPLACED rather than prepended: a machine that really is running kolu
+ * (the ordinary one to develop this on) would otherwise decide half of these
+ * cases itself.
+ */
+const koluOnPath = (body: string): string => {
+  const dir = mkdtempSync(join(tmpdir(), "olai-kolu-"))
+  made.push(dir)
+  const bin = join(dir, "kolu")
+  writeFileSync(bin, `#!${process.execPath}\n${body}`)
+  chmodSync(bin, 0o755)
+  process.env["PATH"] = dir
+  return bin
+}
+
+/**
+ * What the probe has to ask for, spelled HERE rather than imported.
+ *
+ * These two strings are the guarantee this whole file exists to hold. A real
+ * kolu completes `initialize`, lists all its tools and lists its resources with
+ * no daemon behind it at all (juspay/kolu#2148) — only READING a cell the
+ * daemon owns tells the two apart. So a probe quietly swapped to `tools/list`
+ * would be worthless, and the fixtures below refuse to answer anything else:
+ * taking these from `kolu.ts` would move with such a swap and go on passing,
+ * which is the opposite of a lock.
+ */
+const ASKS = "resources/read"
+const ABOUT = "surface://cells/identity"
+
+/**
+ * A fixture that answers the identity read the way the flag says: with what a
+ * live padi has, or with the error a kolu that reached no daemon sends. It
+ * answers NOTHING else, so a probe that stopped asking for the daemon's own
+ * cell fails these cases rather than passing them.
+ *
+ * It watches the bytes for those two strings instead of parsing frames, and
+ * that is deliberate: parsing would put a fourth copy of ndjson framing in this
+ * repo — the suite's fakes share one (`packages/tests/support/ndjson.ts`), and
+ * this file cannot import it without `@olai/chat` depending on `@olai/tests`,
+ * which is backwards. A substring watch is not a second framing implementation,
+ * and it is enough to say what was asked for. The ID is the one thing taken
+ * from the prober (an answer under a different id is not an answer, but WHICH
+ * id is bookkeeping rather than the claim).
+ */
+const script = (reachable: boolean): string =>
+  `
+const ANSWER = ${
+    JSON.stringify(
+      reachable
+        ? { jsonrpc: "2.0", id: PROBE_ID, result: { contents: [] } }
+        : {
+          jsonrpc: "2.0",
+          id: PROBE_ID,
+          error: { code: -32603, message: "padi transport down" },
+        },
+    )
+  }
+let heard = ""
+process.stdin.on("data", (chunk) => {
+  heard += chunk
+  if (!heard.includes(${JSON.stringify(ASKS)}) || !heard.includes(${JSON.stringify(ABOUT)})) return
+  heard = ""
+  process.stdout.write(JSON.stringify(ANSWER) + "\\n")
+})
+`
+
+const detected = (): Promise<Server | null> => Effect.runPromise(detect)
+
+describe("detecting kolu", () => {
+  test("a kolu whose padi answers is the session's server", async () => {
+    const bin = koluOnPath(script(true))
+    process.env["PADI_SOCKET"] = "/run/user/1000/padi-abc/padi.sock"
+
+    expect(await detected()).toEqual({
+      name: "kolu",
+      // The path that ANSWERED, absolute — not the word we looked up.
+      command: bin,
+      args: ["mcp"],
+      env: { PADI_SOCKET: "/run/user/1000/padi-abc/padi.sock" },
+    })
+  })
+
+  test("a kolu that reached no padi is not one", async () => {
+    koluOnPath(script(false))
+
+    expect(await detected()).toBeNull()
+  })
+
+  test("a binary that is not kolu at all is not one", async () => {
+    koluOnPath(`process.stdout.write("hello from something else\\n")\n`)
+
+    expect(await detected()).toBeNull()
+  })
+
+  // The lock the fixtures above carry, stated where a reader will look for it:
+  // they answer only what a daemon owns, so a probe swapped to `initialize`,
+  // `tools/list` or `resources/list` — every one of which a real kolu answers
+  // with nothing behind it (juspay/kolu#2148) — stops being answered at all,
+  // and the first case in this file goes red instead of quietly passing.
+  //
+  // The DEADLINE has no case here, and that is a cost decision rather than an
+  // oversight: the only way to exercise it is to spend it, and five seconds
+  // per lane on every run, forever, is not what that one `setTimeout` is
+  // worth. It is exercised in production terms instead — a `kolu` that reads
+  // and says nothing is the wedge, and what happens then is the same `null`
+  // every other refusal produces.
+
+  test("no kolu on PATH is the ordinary case, not a failure", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "olai-kolu-"))
+    made.push(dir)
+    process.env["PATH"] = dir
+
+    expect(await detected()).toBeNull()
+  })
+
+  test("no PADI_SOCKET forwards nothing, and kolu resolves its own", async () => {
+    koluOnPath(script(true))
+    delete process.env["PADI_SOCKET"]
+
+    expect(await detected()).toMatchObject({ env: {} })
+  })
+})
+
+describe("what the session is handed", () => {
+  const tools = { name: "olai", url: "http://127.0.0.1:7714/mcp", token: "secret" }
+  const kolu: Server = {
+    name: "kolu",
+    command: "/nix/store/x/bin/kolu",
+    args: ["mcp"],
+    env: { PADI_SOCKET: "/run/padi.sock" },
+  }
+
+  test("kolu rides beside olai's own, as stdio beside http", () => {
+    expect(mcpServersOf(tools, kolu)).toEqual([
+      {
+        type: "http",
+        name: "olai",
+        url: "http://127.0.0.1:7714/mcp",
+        headers: [{ name: "Authorization", value: "Bearer secret" }],
+      },
+      {
+        name: "kolu",
+        command: "/nix/store/x/bin/kolu",
+        args: ["mcp"],
+        env: [{ name: "PADI_SOCKET", value: "/run/padi.sock" }],
+      },
+    ])
+  })
+
+  test("no kolu leaves the list exactly as it was", () => {
+    expect(mcpServersOf(tools, null)).toHaveLength(1)
+  })
+})
