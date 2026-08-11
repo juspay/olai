@@ -18,8 +18,18 @@
 
 import { isMirror, type Located, type LocatedRegular } from "./node.ts"
 
-/** What a node's checkbox shows. Derived for a parent, stored for a leaf. */
-export type Status = "done" | "doing" | "open"
+/**
+ * A MARK — what a node's checkbox shows. Derived for a parent, stored for a
+ * leaf, and OPTIONAL everywhere: a node with no status is a bullet and not a
+ * task at all.
+ *
+ * There is deliberately no third member for "unmarked". `open` used to be one,
+ * and it was what a node got for carrying nothing, which made every node a
+ * task and left one value answering two questions — "a task nobody has
+ * started" and "not a task at all". Absence answers the second, and only a
+ * node someone marked has a `Status`.
+ */
+export type Status = "done" | "doing"
 
 /**
  * A set of nodes and everything computed from it.
@@ -37,7 +47,10 @@ export interface Derived {
   readonly byId: ReadonlyMap<string, Located>
   /** parent id → its children, in sibling order. */
   readonly children: ReadonlyMap<string, ReadonlyArray<Located>>
-  /** id → derived status. Total over `nodes`. */
+  /** id → derived status, for the nodes that HAVE one. PARTIAL over `nodes`,
+   *  and that is the answer rather than a gap in it: a node missing from this
+   *  map is a plain bullet — nobody marked it, nothing under it is marked, so
+   *  there is nothing to finish. */
   readonly status: ReadonlyMap<string, Status>
 }
 
@@ -111,61 +124,93 @@ export const countedChildren = (
 ): ReadonlyArray<Located> => counted(derived.children, id)
 
 /**
- * A leaf says what it is. A parent is the sum of its children: all done →
- * done; anything under way, or some-but-not-all finished → doing; otherwise
- * open. A mirror reports its target's status, because that is what it shows.
+ * The counted children standing between a node and `done`: the ones that are
+ * TASKS and are not finished.
+ *
+ * Not `status !== "done"`. That test reads an unmarked child as an unfinished
+ * one, which is the whole defect this model drops: a plain bullet has nothing
+ * to finish, so it stands between nobody and anything. Under the two marks
+ * there are, this is exactly the `doing` children.
+ *
+ * One function, because the validator's load error and the ops layer's refused
+ * write both list them, and a set that disagreed about which children are in
+ * the way would refuse a write for children the error report did not name.
+ */
+export const unfinishedChildren = (
+  derived: Derived,
+  id: string,
+): ReadonlyArray<LocatedRegular> =>
+  countedChildren(derived, id).flatMap((child) => {
+    const status = derived.status.get(child.node.id)
+    // `counted` has already dropped the mirrors; what is left is regular.
+    return status === undefined || status === "done"
+      ? []
+      : [child as LocatedRegular]
+  })
+
+/**
+ * A leaf says what it is, and says nothing at all when it carries no mark.
+ *
+ * A parent counts only the children that are TASKS — the ones with a status of
+ * their own: all of them done → done, any of them still under way → doing. A
+ * parent whose counted children include no task is no more a task than they
+ * are, so it has no status either: an unmarked child is not an unfinished
+ * obligation, it is a bullet, and a subtree of bullets adds up to a bullet.
+ *
+ * A mirror reports its target's status, because that is what it shows — which
+ * for a plain bullet is nothing.
  */
 const statuses = (
   nodes: ReadonlyArray<Located>,
   byId: ReadonlyMap<string, Located>,
   children: ReadonlyMap<string, ReadonlyArray<Located>>,
 ): ReadonlyMap<string, Status> => {
-  const status = new Map<string, Status>()
+  // `null` is a settled answer here, not a missing one, which is why the memo
+  // holds it and the map handed back does not: a key whose value said "no
+  // status" would be a second spelling of the absence callers already read.
+  const settled = new Map<string, Status | null>()
   const walking = new Set<string>()
 
-  const of = (located: Located): Status => {
+  const of = (located: Located): Status | null => {
     const id = located.node.id
-    const known = status.get(id)
-    if (known !== undefined) return known
-    // A loop the validator will report; treat the re-entry as unfinished
+    if (settled.has(id)) return settled.get(id) ?? null
+    // A loop the validator will report; treat the re-entry as carrying nothing
     // rather than recursing into it.
-    if (walking.has(id)) return "open"
+    if (walking.has(id)) return null
     walking.add(id)
 
     const computed = compute(located)
     walking.delete(id)
-    status.set(id, computed)
+    settled.set(id, computed)
     return computed
   }
 
-  const compute = (located: Located): Status => {
+  const compute = (located: Located): Status | null => {
     if (isMirror(located.node)) {
       const target = byId.get(located.node.mirror)
-      return target === undefined ? "open" : of(target)
+      return target === undefined ? null : of(target)
     }
 
     const own = counted(children, located.node.id)
-    if (own.length === 0) return storedStatus(located.node)
+    if (own.length === 0) return storedMarker(located.node)
 
-    const seen = own.map(of)
-    if (seen.every((child) => child === "done")) return "done"
-    return seen.some((child) => child !== "open") ? "doing" : "open"
+    const tasks = own.flatMap((child) => of(child) ?? [])
+    if (tasks.length === 0) return null
+    return tasks.every((task) => task === "done") ? "done" : "doing"
   }
 
   for (const located of nodes) of(located)
+
+  const status = new Map<string, Status>()
+  for (const [id, mark] of settled) if (mark !== null) status.set(id, mark)
   return status
 }
 
-/** What a leaf claims about itself. `done` wins over `doing` — they are
- *  mutually exclusive on disk, so the order only decides what a set the
- *  validator has already condemned looks like. */
-export const storedMarker = (
-  node: LocatedRegular["node"],
-): "done" | "doing" | null =>
+/** What a leaf claims about itself, which for a leaf IS its status. `done`
+ *  wins over `doing` — they are mutually exclusive on disk, so the order only
+ *  decides what a set the validator has already condemned looks like. */
+export const storedMarker = (node: LocatedRegular["node"]): Status | null =>
   node.done !== undefined ? "done" : node.doing !== undefined ? "doing" : null
-
-const storedStatus = (node: LocatedRegular["node"]): Status =>
-  storedMarker(node) ?? "open"
 
 // ── the drawable tree ──────────────────────────────────────────────────
 
@@ -173,7 +218,9 @@ const storedStatus = (node: LocatedRegular["node"]): Status =>
 interface Place {
   /** The record occupying this place — the mirror itself, for a mirror. */
   readonly at: Located
-  readonly status: Status
+  /** Absent when this place draws a plain bullet — there is no mark, and no
+   *  box to draw one in. */
+  readonly status: Status | undefined
   /** Stable identity of this PLACE, not of the node. The same node reached
    *  through two mirrors is two rows on screen, and folding one must not fold
    *  the other. */
@@ -229,8 +276,7 @@ const expand = (
   parentKey: string,
 ): Row => {
   const key = `${parentKey}/${at.node.id}`
-  const status = derived.status.get(at.node.id) ?? "open"
-  const place = { at, status, key }
+  const place = { at, status: derived.status.get(at.node.id), key }
 
   const found = follow(derived, at)
   if (found.kind !== "found") {
@@ -256,10 +302,11 @@ const expand = (
  * which is a property of a reading and not of the file. Nothing is touched on
  * disk and nothing is marked: a hidden row is a row not drawn.
  *
- * A done node takes its whole subtree with it. That is not a shortcut: a node
- * with counted children IS done exactly when all of them are, so every row
- * underneath one would be hidden on its own account anyway — and a row kept
- * under a hidden parent would have nowhere to hang.
+ * A done node takes its whole subtree with it, INCLUDING the plain bullets
+ * under it. Every task below a done node is done — that is what made the node
+ * done — and a bullet that is not a task is a note on finished work rather
+ * than something outstanding; a row kept under a hidden parent would have
+ * nowhere to hang anyway.
  */
 export const withoutDone = (rows: ReadonlyArray<Row>): ReadonlyArray<Row> =>
   rows.flatMap((row) =>
@@ -314,14 +361,15 @@ export interface Situated {
   /** The regular node at the end of the chain, whatever record was addressed
    *  to reach it. */
   readonly shows: LocatedRegular
-  readonly status: Status
+  /** Absent when the node carries no mark and derives none. */
+  readonly status: Status | undefined
   /** The canonical parent chain, root first, `shows` excluded. */
   readonly trail: ReadonlyArray<LocatedRegular>
 }
 
 export const situate = (derived: Derived, shows: LocatedRegular): Situated => ({
   shows,
-  status: derived.status.get(shows.node.id) ?? "open",
+  status: derived.status.get(shows.node.id),
   trail: ancestorsOf(derived, shows.node.id),
 })
 

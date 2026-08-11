@@ -17,8 +17,9 @@
  * RECORD's id rather than the node it shows: a mirror's id resolves through
  * its chain to the same canonical page, so the two spellings agree and nothing
  * has to resolve anything here. The status checkbox beside it (./Checkbox.tsx)
- * reads the same derived done/doing/open the title tones with — open is an
- * empty box, not the absence of one — and is read-only until keyboard-editing.
+ * reads the same derived done/doing the title tones with, and a row with no
+ * mark shows no box at all — a bullet is not a task. Read-only until
+ * keyboard-editing.
  *
  * A note on a row is Workflowy-style: one dim line under the title, clamped
  * with an ellipsis; click (or tap) expands in place to the full note and see

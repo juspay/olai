@@ -19,7 +19,7 @@ import { NodeBody } from "./NodeBody.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
 import { NotFound } from "./NotFound.tsx"
 import { TESTID } from "./testids.ts"
-import { TONE } from "./tone.ts"
+import { toneOf } from "./tone.ts"
 import { Tree } from "./Tree.tsx"
 import type { View } from "./view.ts"
 
@@ -69,7 +69,7 @@ function Zoom(props: {
         >
           <div class="flex items-baseline gap-3">
             <h1
-              class={`m-0 flex-1 text-2xl font-bold ${TONE[props.zoomed.status]}`}
+              class={`m-0 flex-1 text-2xl font-bold ${toneOf(props.zoomed.status)}`}
               data-testid={TESTID.zoomTitle}
               data-node-id={props.zoomed.shows.node.id}
               data-status={props.zoomed.status}

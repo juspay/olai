@@ -88,7 +88,9 @@ test("a group's nodes are in time order, a bare date first", () => {
 test("a node dated a day carries its status and its canonical ancestry", () => {
   const [dated] = datedOn(SET, "2026-08-05")[0]!.nodes
   expect(dated!.shows.node.id).toBe("ferry")
-  expect(dated!.status).toBe("open")
+  // Dated and unmarked: a day is a thing on the calendar, not a to-do list, so
+  // `ferry` has no status at all until somebody marks it.
+  expect(dated!.status).toBeUndefined()
   expect(dated!.trail.map((crumb) => crumb.node.id)).toEqual(["trip"])
 })
 

@@ -57,7 +57,18 @@ the path resolver are spellings a rule happens to use, not contract, and a
 consumer reaching for one would be re-implementing a rule that lives here.
 
 The derivations are exported for exactly this reason: the browser draws the
-tree with the same code the validator judged it with. `zoom` is the same claim
+tree with the same code the validator judged it with.
+
+`Status` is two values, `done` and `doing`, and it is OPTIONAL wherever it
+appears: a node nobody marked has no status, and `derive`'s status index is
+partial over the set rather than total — a node missing from it is a bullet,
+not a task nobody has started (docs/format.md's Status section). A parent is
+the sum of the children that ARE tasks, and one whose children include none is
+a bullet like they are. `unfinishedChildren` is the other half of that rule and
+exists once for the same reason as everything else here: the validator's load
+error and the ops layer's refused write have to name the same children.
+
+`zoom` is the same claim
 about one node as a page — which record an id resolves to (following a mirror
 chain to the regular node at its end, so a node has one page and not one per
 placement), the canonical parent chain above it, and the rows beneath it.

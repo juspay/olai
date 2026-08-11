@@ -251,7 +251,7 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="doc-ref"][data-doc]` | a node's `doc`, at its RESOLVED path; `data-inline` when the document is drawn whole |
 | `[data-testid="doc-link"]` | the link inside that reference |
 | `[data-testid="zoom"]` | a row's bullet: the link to that node's own page |
-| `[data-testid="checkbox"][data-status]` | the status box beside that bullet: checked / half / empty for done / doing / open |
+| `[data-testid="checkbox"][data-status]` | the status box beside that bullet: checked for done, half for doing — and NOT PRESENT on a node carrying neither, which is how a bullet is told from a task |
 | `[data-testid="zoom-title"][data-node-id]` | the heading of a zoomed page — the CANONICAL node's id |
 | `[data-testid="breadcrumbs"]` / `[data-testid="crumb"]` | the ancestry above a zoomed node, and one link in it |
 | `[data-testid="done-toggle"][data-hidden]` | the per-view Visible/Hidden switch for done nodes |

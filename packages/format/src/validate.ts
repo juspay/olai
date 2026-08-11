@@ -26,7 +26,13 @@
 import { distance } from "fastest-levenshtein"
 import { Result } from "effect"
 
-import { countedChildren, derive, type Derived, storedMarker } from "./derive.ts"
+import {
+  countedChildren,
+  derive,
+  type Derived,
+  storedMarker,
+  unfinishedChildren,
+} from "./derive.ts"
 import { type Document, resolveRelative } from "./documents.ts"
 import { compareErrors, isGuessWhileUnreadable, type OutlineError } from "./errors.ts"
 import { EDGE_FIELDS, isMirror, type Located } from "./node.ts"
@@ -274,13 +280,18 @@ const checkDerivedState = (
     const own = countedChildren(derived, node.id)
     if (own.length === 0) continue
 
-    const unfinished = own.filter(
-      (child) => derived.status.get(child.node.id) !== "done",
-    )
+    // What the tree makes of this node — `done`, `doing`, or nothing at all
+    // when none of its children is a task. The three are the three sentences
+    // below, and they are exhaustive: a node derives `doing` exactly when a
+    // child of it is unfinished.
+    const computed = derived.status.get(node.id)
+    const unfinished = unfinishedChildren(derived, node.id)
     errors.push({
       code: "stored-derived-state",
       ...siteOf(located),
-      message: unfinished.length === 0
+      message: computed === undefined
+        ? `\`${stored}\` is stored on a node with ${own.length} children, none of which is marked; a node with children takes its status from them — mark one of those instead`
+        : unfinished.length === 0
         ? `\`${stored}\` is computed from this node's ${own.length} children and must not be stored`
         : `\`${stored}\` is stored above ${unfinished.length} of ${own.length} children that ${unfinished.length === 1 ? "is" : "are"} not done; a parent's status is computed, never written`,
       // Omitted rather than empty when there is nothing to link — the same
@@ -288,7 +299,7 @@ const checkDerivedState = (
       ...(unfinished.length === 0 ? {} : {
         related: unfinished.map((child) => ({
           ...siteOf(child),
-          note: `\`${child.node.id}\` is ${derived.status.get(child.node.id) ?? "open"}`,
+          note: `\`${child.node.id}\` is ${derived.status.get(child.node.id)}`,
         })),
       }),
     })

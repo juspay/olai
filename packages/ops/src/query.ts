@@ -40,8 +40,10 @@ export interface Found {
   readonly file: string
   readonly line: number
   /** DERIVED — what the tree makes of it, which for a parent is not in the
-   *  file and can never be written there. */
-  readonly status: Status
+   *  file and can never be written there. ABSENT when the node has no status
+   *  at all: nobody marked it and nothing under it is marked, so it is a
+   *  bullet rather than a task nobody has started. */
+  readonly status?: Status
   /** The canonical ancestor titles, outermost first. What makes a bare title
    *  like "order" mean something. */
   readonly path: ReadonlyArray<string>
@@ -128,17 +130,23 @@ export const index = (set: OutlineSet): Derived => {
  */
 const INDEXED = new WeakMap<OutlineSet, Derived>()
 
-const foundOf = (derived: Derived, located: LocatedRegular): Found => ({
-  id: located.node.id,
-  title: located.node.title,
-  file: located.file,
-  line: located.line,
-  status: derived.status.get(located.node.id) ?? "open",
-  path: ancestorsOf(derived, located.node.id).map((crumb) => crumb.node.title),
-  ...(located.node.see === undefined || located.node.see.length === 0
-    ? {}
-    : { see: located.node.see }),
-})
+const foundOf = (derived: Derived, located: LocatedRegular): Found => {
+  const status = derived.status.get(located.node.id)
+  return {
+    id: located.node.id,
+    title: located.node.title,
+    file: located.file,
+    line: located.line,
+    // Omitted rather than sent as a word for "none" — the same rule the format
+    // applies to its own absent fields, and an agent reading a corpus of notes
+    // should not have to filter a status out of every answer.
+    ...(status === undefined ? {} : { status }),
+    path: ancestorsOf(derived, located.node.id).map((crumb) => crumb.node.title),
+    ...(located.node.see === undefined || located.node.see.length === 0
+      ? {}
+      : { see: located.node.see }),
+  }
+}
 
 /** Every regular node of the set, in file-then-line order. Mirrors are left
  *  out of every answer here: a mirror is a second PLACEMENT of a node, and

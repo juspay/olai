@@ -31,7 +31,7 @@ const page = (zoomed: Zoomed): Extract<Zoomed, { readonly kind: "node" }> => {
 const HOUSE = `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}\n` +
   `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters","done":true}\n` +
   `{"id":"install","parent":"kitchen","ord":"a1","title":"install the cabinets"}\n` +
-  `{"id":"handles","parent":"install","ord":"a0","title":"choose the handles"}`
+  `{"id":"handles","parent":"install","ord":"a0","title":"choose the handles","doing":true}`
 
 // ── the parent chain ───────────────────────────────────────────────────
 
@@ -76,9 +76,18 @@ test("the page shows the node and its children, not its parents' other branches"
 })
 
 test("the page carries the node's derived status, not a stored one", () => {
-  // `kitchen` stores nothing: one child done, one not.
+  // `kitchen` stores nothing: one child done, one still under way.
   expect(page(zoomOf(HOUSE, "kitchen")).status).toBe("doing")
   expect(page(zoomOf(HOUSE, "demo")).status).toBe("done")
+})
+
+// And a page can carry no status at all — the heading of a bullet is a
+// heading, not an unfinished to-do.
+test("the page of an unmarked node has no status", () => {
+  const notes = `{"id":"trip","ord":"a0","title":"the coast trip"}\n` +
+    `{"id":"ferry","parent":"trip","ord":"a0","title":"ferry times"}`
+  expect(page(zoomOf(notes, "trip")).status).toBeUndefined()
+  expect(page(zoomOf(notes, "ferry")).status).toBeUndefined()
 })
 
 test("a leaf's page has no children", () => {
