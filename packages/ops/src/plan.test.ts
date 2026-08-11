@@ -179,20 +179,6 @@ describe("done and doing", () => {
     expect(result.summary).toBe("done: order the cabinets")
   })
 
-  // The stamp is what the CONTEXT says the time is, and the context says an
-  // instant: a mark carries when the work was finished, so a day-only value
-  // and a bare `true` are both answers to a question that was not asked.
-  // `@olai/format`'s `stampOf` is what shapes it; this is the assertion that
-  // the op writes that value through rather than a day sliced off it.
-  test("a mark is stamped with an instant, not a day", () => {
-    const done = record(
-      fileOf(planned(house(), { op: "done", id: "order" }), "house.jsonl"),
-      "order",
-    ).done
-    expect(done).not.toBe(true)
-    expect(done).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/)
-  })
-
   // A plan re-emits every record of the file it touches, and the format is
   // validated AS TEXT because a writer must reproduce what it read
   // (docs/format.md). So a neighbour's day-only `done` — and every `true` still

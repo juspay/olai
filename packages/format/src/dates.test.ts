@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { datedDays, datedOn, dayOf, monthOf } from "./dates.ts"
+import { datedDays, datedOn, dayOf, type DayEntry, monthOf } from "./dates.ts"
 import { derive, type Derived } from "./derive.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"
 
@@ -56,19 +56,19 @@ const MARKED = derive(
   }),
 )
 
+/** Every row of a day, across its groups — the order and the membership both,
+ *  which is what every assertion below is about. */
+const rowsOn = (derived: Derived, day: string): ReadonlyArray<DayEntry> =>
+  datedOn(derived, day).flatMap((group) => group.nodes)
+
 const idsOf = (derived: Derived, day: string): ReadonlyArray<string> =>
-  datedOn(derived, day).flatMap((group) =>
-    group.nodes.map((dated) => dated.shows.node.id)
-  )
+  rowsOn(derived, day).map((dated) => dated.shows.node.id)
 
 const ids = (day: string): ReadonlyArray<string> => idsOf(SET, day)
 
 /** What one node's row on a day says it is there for. */
 const occasionOf = (day: string, id: string): string | undefined =>
-  datedOn(MARKED, day)
-    .flatMap((group) => group.nodes)
-    .find((dated) => dated.shows.node.id === id)
-    ?.occasion
+  rowsOn(MARKED, day).find((dated) => dated.shows.node.id === id)?.occasion
 
 // ── what a value's day and month are ───────────────────────────────────
 
@@ -127,7 +127,7 @@ test("a group's nodes are in time order, a bare date first", () => {
 })
 
 test("a node dated a day carries its status and its canonical ancestry", () => {
-  const [dated] = datedOn(SET, "2026-08-05")[0]!.nodes
+  const [dated] = rowsOn(SET, "2026-08-05")
   expect(dated!.shows.node.id).toBe("ferry")
   // Dated and unmarked: a day is a thing on the calendar, not a to-do list, so
   // `ferry` has no status at all until somebody marks it.
@@ -138,9 +138,9 @@ test("a node dated a day carries its status and its canonical ancestry", () => {
 // The status is the node's own mark, the same answer the tree draws: `rails`
 // says `doing` about itself and its parent says nothing at all.
 test("a dated node carries the mark it stores", () => {
-  const rails = datedOn(SET, "2026-08-05")
-    .flatMap((group) => group.nodes)
-    .find((dated) => dated.shows.node.id === "rails")
+  const rails = rowsOn(SET, "2026-08-05").find((dated) =>
+    dated.shows.node.id === "rails"
+  )
   expect(rails?.status).toBe("doing")
 })
 
@@ -211,7 +211,7 @@ test("a day's rows are in time order across the fields", () => {
 // The row carries the date it is THERE for, not whatever else the node stores
 // — a completion instant on the day it was completed.
 test("a row shows the date that put it on the day", () => {
-  const [row] = datedOn(MARKED, "2026-08-12")[0]!.nodes
+  const [row] = rowsOn(MARKED, "2026-08-12")
   expect(row!.date).toBe("2026-08-12T09:15:00-04:00")
   expect(row!.status).toBe("done")
 })

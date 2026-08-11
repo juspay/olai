@@ -3,11 +3,17 @@
  *
  * Reading a date is deliberately textual (./parse.ts): a value is written back
  * exactly as it was read, so a date-only `2026-08-10` cannot come back a
- * datetime. This is the other direction, and it is the only one in the
- * codebase — the single place an instant becomes a date value. It lives beside
- * the rule that accepts one so that what olai WRITES and what olai ACCEPTS are
- * two functions in one package, rather than a writer somewhere above guessing
- * at a shape this one validates.
+ * datetime. This is the other direction, and it is the only one that reaches a
+ * FILE: every date value olai writes is minted here. It lives beside the rule
+ * that accepts one so that what olai writes and what olai accepts are two
+ * functions in one package, rather than a writer somewhere above guessing at a
+ * shape this one validates.
+ *
+ * The browser's clock (`@olai/web`'s `clock.ts`) also turns an instant into
+ * date text, and that is not this rule twice: what it mints is a QUESTION —
+ * which day `/today` is — and nothing it produces is ever stored. The two do
+ * have to agree about where a local day ends, and that agreement is a test
+ * rather than an argument (`clock.test.ts`).
  *
  * LOCAL, with the offset spelled out (`2026-08-11T15:40:03-04:00`). A mark is
  * stamped where the person marking it is standing, and that is the day they

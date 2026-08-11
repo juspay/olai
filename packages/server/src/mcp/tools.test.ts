@@ -27,6 +27,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { type OutlineError, type OutlineSet } from "@olai/format"
 import { codec, make as makeOps, TOOLS } from "@olai/ops"
+import { STAMP, steady } from "@olai/ops/testlib"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
 import { expect, test } from "bun:test"
@@ -77,14 +78,16 @@ const withTools = <A>(
       watch: false,
       settle: "10 millis",
     })
-    let minted = 0
     const refusals: Array<string> = []
     const ops = makeOps({
       store,
       root,
       commit: false,
-      // Deterministic, so an assertion can name the date a mark stamps.
-      context: { mint: () => `n${++minted}`, now: () => "2026-08-09T10:15:00-04:00" },
+      // The ops layer's own fixture context — deterministic ids and one fixed
+      // instant — rather than a second spelling of it up here, which is a
+      // fixture free to drift from the assertions that package is written
+      // against.
+      context: steady(),
       onRefusal: (request, failure) =>
         Effect.sync(() => {
           refusals.push(`${request.op}: ${failure._tag}`)
@@ -313,7 +316,7 @@ test("a write through a tool changes the directory", async () => {
     const answer = await call(client, "set_done", { id: "order" })
     expect(answer.isError).toBe(false)
     expect(answer.structured).toMatchObject({ did: "set_done", id: "order" })
-    expect(read("house.jsonl")).toContain(`"done":"2026-08-09T10:15:00-04:00"`)
+    expect(read("house.jsonl")).toContain(`"done":${JSON.stringify(STAMP)}`)
   })
 })
 
@@ -351,7 +354,7 @@ test("marking a parent lands, and the answer carries what the rollup noticed", a
     expect(answer.structured["nudge"]).not.toContain("order the cabinets")
     expect(refusals).toEqual([])
     expect(read("house.jsonl")).toContain(`"id":"kitchen"`)
-    expect(read("house.jsonl")).toContain(`"done":"2026-08-09T10:15:00-04:00"`)
+    expect(read("house.jsonl")).toContain(`"done":${JSON.stringify(STAMP)}`)
   })
 })
 

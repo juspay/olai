@@ -15,7 +15,7 @@
 
 import type { Context } from "./plan.ts"
 
-export { failureOf, setOf } from "@olai/format/testlib"
+export { failureOf, setOf, STAMP_SHAPE } from "@olai/format/testlib"
 
 /** A planner context with no surprises in it: ids counted up from `n1`, and one
  *  fixed instant. Both of the impure things an op needs, made boring.

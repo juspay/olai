@@ -118,9 +118,9 @@ const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
   const dates: Array<Occasioned> = []
   if (node.date !== undefined) dates.push({ occasion: "date", date: node.date })
   const mark = storedMarker(node)
-  const marked = mark === undefined ? undefined : node[mark]
-  if (mark !== undefined && typeof marked === "string") {
-    dates.push({ occasion: mark, date: marked })
+  if (mark !== undefined) {
+    const marked = node[mark]
+    if (typeof marked === "string") dates.push({ occasion: mark, date: marked })
   }
   return dates
 }
@@ -204,12 +204,11 @@ export const datedOn = (derived: Derived, day: string): ReadonlyArray<DayGroup> 
     .sort(([left], [right]) => Order.String(left, right))
     .map(([file, nodes]) => ({
       file,
-      // The node, situated, wearing the date that put it here: the occasion
-      // travels as it was carried rather than being restated field by field,
-      // so nothing here has to be told when a date grows a second thing to say.
-      nodes: nodes.sort(byTime).map(({ at, ...occasioned }) => ({
+      // The node, situated, wearing the date that put it here.
+      nodes: nodes.sort(byTime).map(({ at, occasion, date }) => ({
         ...situate(derived, at),
-        ...occasioned,
+        occasion,
+        date,
       })),
     }))
 }

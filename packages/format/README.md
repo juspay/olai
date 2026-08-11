@@ -122,11 +122,14 @@ finished-on are two different sentences and only the reader can be told which
 one they are reading. A mark holding `true` is on no day: it declines to say
 when, and inventing an answer would file every old `true` under today.
 
-`stamp.ts` is the other direction, and the only place in the codebase an
-instant becomes a date value: `stampOf` writes a local ISO datetime carrying
-its offset, which is what the ops layer marks a node with. It lives beside the
-rule that ACCEPTS one so that what olai writes and what olai reads are two
-functions in one package rather than a writer above guessing at a shape.
+`stamp.ts` is the other direction, and every date value olai WRITES is minted
+there: `stampOf` produces a local ISO datetime carrying its offset, which is
+what the ops layer marks a node with. It lives beside the rule that ACCEPTS one
+so that what olai writes and what olai reads are two functions in one package
+rather than a writer above guessing at a shape. (The browser's clock turns an
+instant into date text too, for the question "which day is `/today`" — nothing
+it mints is stored, and that the two agree about where a local day ends is a
+test in `@olai/web` rather than an argument.)
 
 A day's nodes and a zoomed page are built from the same `Situated` — a node,
 its mark, its rollup, what is standing in its way and its canonical ancestry —

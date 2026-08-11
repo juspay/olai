@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 
 import { dayOf } from "./dates.ts"
-import { outlineOf } from "./fixtures.testlib.ts"
+import { outlineOf, STAMP_SHAPE } from "./fixtures.testlib.ts"
 import { offsetOf, stampOf } from "./stamp.ts"
 
 /** An instant with nothing round about it, so a stamp of it is legible in a
@@ -23,7 +23,7 @@ test("the offset inverts the sign the platform reports", () => {
 // ── the stamp ──────────────────────────────────────────────────────────
 
 test("a stamp is an ISO datetime with seconds and a zone", () => {
-  expect(stampOf(AT)).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/)
+  expect(stampOf(AT)).toMatch(STAMP_SHAPE)
 })
 
 // The local fields and the offset have to AGREE, which is exactly what a

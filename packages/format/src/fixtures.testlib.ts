@@ -90,6 +90,14 @@ export const failureOf = (
   return parsed.failure
 }
 
+/** What {@link ../stamp.ts}'s `stampOf` writes: an ISO datetime, to the
+ *  second, carrying its zone. Here rather than in the test that proves it,
+ *  because three suites in two packages assert the same promise about a value
+ *  they did not mint — the format's, the planner's and the ops layer's — and
+ *  three regexes would be three chances to go on passing against a shape the
+ *  mint had stopped writing. */
+export const STAMP_SHAPE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/
+
 /** Several files' worth of records, flat — the shape every rule and every walk
  *  wants, for the tests that need no set around them. */
 export const nodesOfFiles = (

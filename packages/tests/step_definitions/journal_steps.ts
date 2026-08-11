@@ -27,6 +27,7 @@ import {
   DAY_PAGE,
   daySelector,
   NODE,
+  nodeSelector,
   oneLine,
   POLL_TIMEOUT,
   readable,
@@ -119,9 +120,16 @@ Then(
 Then(
   "the node {string} is on the day for its {string}",
   async function (this: OlaiWorld, id: string, occasion: string) {
-    const badge = this.node(id).locator(DATE).first();
-    await badge.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.strictEqual(await badge.getAttribute("data-occasion"), occasion);
+    // `expectAttribute` rather than one `getAttribute`: it waits on a selector
+    // that only matches once the badge says so, which is what survives the
+    // render between clicking a day and that day's rows arriving — a one-shot
+    // read is free to answer with the day before's badge.
+    await this.expectAttribute(
+      `${nodeSelector(id)} ${DATE}`,
+      "data-occasion",
+      occasion,
+      `the date badge on "${id}"`,
+    );
   },
 );
 

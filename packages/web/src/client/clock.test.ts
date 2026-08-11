@@ -1,4 +1,5 @@
 import { afterEach, expect, setSystemTime, test } from "bun:test"
+import { stampOf } from "@olai/format"
 import { createRoot } from "solid-js"
 
 import { createToday, isoDayOf, untilMidnight } from "./clock.ts"
@@ -21,6 +22,20 @@ test("today is the local calendar day, as ISO text", () => {
   expect(isoDayOf(at(2026, 8, 9, 23, 59))).toBe("2026-08-09")
   expect(isoDayOf(at(2026, 8, 10, 0, 0))).toBe("2026-08-10")
   expect(isoDayOf(at(2026, 1, 5, 12, 0))).toBe("2026-01-05")
+})
+
+// Two functions in two packages turn an instant into date text, and they have
+// to agree about where a local day ENDS: this one says which day `/today` is,
+// and `@olai/format`'s `stampOf` says which day a mark that was just written
+// lands on. Marking something done and not finding it on today's page is what
+// a disagreement would look like, in a scenario neither file mentions — so the
+// agreement is asserted rather than assumed.
+test("today is the day a stamp written at that instant falls on", () => {
+  for (const instant of [at(2026, 8, 9), at(2026, 8, 9, 23, 59), at(2026, 1, 5, 12)]) {
+    // A day is the first ten characters of a date value (docs/format.md), so
+    // "the stamp is on this day" is the stamp starting with it.
+    expect(stampOf(instant).startsWith(isoDayOf(instant))).toBe(true)
+  }
 })
 
 test("the wait is until the next local midnight, and lands past it", () => {
