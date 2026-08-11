@@ -296,6 +296,12 @@ test("a subtree captured in one call is one revision and one commit", () =>
       expect(Result.isSuccess(parseOutline("house.jsonl", text))).toBe(true)
       expect(text.split("\n").filter((line) => line !== "")).toHaveLength(8)
 
+      // The round-trip promise, over the op that rewrites the most records at
+      // once: a capture re-emits the WHOLE file, so every line that was already
+      // there has to come back as the bytes it was read as — `demo`'s day-only
+      // `done` and `install`'s `doing` included. Only the new lines are new.
+      expect(text.split("\n").slice(0, 4)).toEqual(HOUSE.trimEnd().split("\n"))
+
       // The ids in the answer are the ids in the set, which is what makes a
       // second call under one of them possible without a search.
       const set = yield* fixture.set()

@@ -557,8 +557,8 @@ const emit = (
       reason:
         `a capture nests at most ${NESTING} levels of \`children\`, and ` +
         `\`${capture.title}\` is already that deep, so nothing was written. Capture ` +
-        `down to \`${capture.title}\`, then hang the rest off it with a second ` +
-        `\`add_node\` — the answer names every node it made, id and title.`,
+        `down to \`${capture.title}\` first — THAT answer's \`captured\` gives it an ` +
+        `id — then hang the rest off it with a second \`add_node\`.`,
     })
   }
 

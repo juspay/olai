@@ -269,9 +269,9 @@ export const CreateRequest = Schema.Struct({
   seed: Schema.optionalKey(
     Seed.annotate({
       description:
-        "Optional first node. Same shape a capture mints: a title, and optional " +
-        "note, date and id. Absent leaves an empty outline the agent can fill with " +
-        "`add_node`.",
+        "Optional first node. The same fields a capture mints: a title, and optional " +
+        "note, date, mark and id. Absent leaves an empty outline to fill with " +
+        "`add_node` — which is also how a subtree gets in, since a seed is one node.",
     }),
   ),
 })
