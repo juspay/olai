@@ -32,9 +32,10 @@ export type Page =
    *  belongs to the page that draws it. */
   | { readonly kind: "document"; readonly file: string }
   | { readonly kind: "node"; readonly zoomed: Zoomed }
-  /** One day, whatever it holds: every node dated it, grouped by the outline
-   *  it lives in. An empty `groups` is a day with nothing on it, which is a
-   *  page that says so rather than a page that is missing. */
+  /** One day, whatever it holds: every node with a date on it — scheduled for
+   *  it or marked on it — grouped by the outline it lives in. An empty
+   *  `groups` is a day with nothing on it, which is a page that says so rather
+   *  than a page that is missing. */
   | {
     readonly kind: "day"
     readonly date: string

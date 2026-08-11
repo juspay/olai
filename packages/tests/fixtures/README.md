@@ -122,6 +122,8 @@ point, since a day is a query over the whole set.
 | a datetime that must count for its own day | `ferry` is `2019-11-05T09:00` |
 | a day with one node | `2019-11-06` — `pack` |
 | a day in the month before | `2019-10-28` — `survey`, which is what paging back finds |
+| a node scheduled one day and FINISHED another | `survey`: `date` `2019-10-28`, `done` `2019-10-29`, so it is on both, once each |
+| a dated `todo`, which no day reads | `filed` is `todo: 2019-11-21`, and the 21st is inert — only `date` and a dated `done` place a node |
 | a dated node with a note, a tag and a mark | `posts` (`doing`), `rails` (`#home`) |
 | undated nodes, which no day may collect | `deck`, `trip`, `sweep` |
 

@@ -6,6 +6,15 @@
  * mirror's id resolves through its chain, so there is exactly one page per
  * node however many placements it has, and the crumbs above it are the
  * canonical ancestry rather than the path that was clicked.
+ *
+ * The date beside the heading is the node's `date` — what it is SCHEDULED for
+ * — and deliberately not the instant on its mark, which a `done` now carries.
+ * That is a decision rather than an omission: this page answers "what is this
+ * node", where the checkbox says the work is finished and when it happened is
+ * a fact about a DAY. The day is where that is read — `/d/<date>` puts the
+ * node under the day it was finished on, with the instant on its badge
+ * (`day/DayNode.tsx`) — and repeating it here would put a second date beside a
+ * heading that already has one, meaning something else.
  */
 
 import type { Row, Zoomed } from "@olai/format"

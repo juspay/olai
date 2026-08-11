@@ -103,6 +103,46 @@ Feature: The journal, and the month in the sidebar
 
 
   @corpus:journal
+  Scenario: A mark's own date puts a node on that day
+    # Every date a node carries counts, not only its `date` field: `survey` was
+    # scheduled for the 28th and FINISHED on the 29th, and the 29th is a day
+    # with something on it because of the mark alone. That is the whole of the
+    # requirement — work that was done vanished from the calendar while only
+    # `date` was read.
+    When I open the day "2019-10-29"
+    Then the day "2019-10-29" has something on it
+    And the day lists "survey"
+    And the node "survey" has status "done"
+    And there should be no page errors
+
+  @corpus:journal
+  Scenario: A date on a `todo` is not a day
+    # Two fields put a node on a day — `date` and a dated `done` — and the
+    # other two marks are passed over however legal their dates are (resolved
+    # 2026-08-11 by the human, from a day page buried under everything filed
+    # that morning). `filed` carries `todo: 2019-11-21` and nothing else, so
+    # the 21st has nothing on it: no dot to press, and a page that says so.
+    When I open the day "2019-11-21"
+    Then the day "2019-11-21" is inert
+    And the day is empty
+    And there should be no page errors
+
+  @corpus:journal
+  Scenario: A node with two dates is on both days, and each says which
+    # Scheduled-on and completed-on are two different sentences about one node,
+    # so a reader has to be able to tell which one they are reading. The badge
+    # says it in a word, and it shows the date the row is actually there for.
+    When I open the day "2019-10-28"
+    Then the day lists "survey"
+    And the node "survey" shows the date "2019-10-28"
+    And the node "survey" is on the day for its "date"
+    When I click the day "2019-10-29"
+    Then the day open is "2019-10-29"
+    And the day lists "survey"
+    And the node "survey" shows the date "2019-10-29"
+    And the node "survey" is on the day for its "done"
+
+  @corpus:journal
   Scenario: Today, opened, is the fill inside the ring
     # The two marks are different things and they stack: the ring says which
     # day it is, the fill says you are standing on it. `/today` is the one

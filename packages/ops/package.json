@@ -5,8 +5,10 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "//exports": "Two entries, and the second is not product. `./testlib` is the planner context this package's own tests run on — ids counted from `n1`, one fixed instant — published so the package ABOVE can drive the ops layer the same way; the alternative was @olai/server keeping its own copy of that instant, which is a fixture drifting from the one the assertions in here are written against. Same argument, and the same shape, as @olai/format's.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testlib": "./src/fixtures.testlib.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

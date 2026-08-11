@@ -39,6 +39,21 @@ Feature: An agent olai did not start
     And the page has not reloaded
     And there should be no page errors
 
+  Scenario: What a terminal marks done turns up on today
+    # The two halves of "every date counts", end to end and in one sentence:
+    # the ops layer stamps the mark with the INSTANT it was made — never a bare
+    # `true`, never a day with no time — and the journal reads the dates on
+    # marks as well as the `date` field. So finishing something puts it on
+    # today's page and lights today in the calendar, with nothing scheduled and
+    # nothing else written. Nothing in this fixture is dated this century, so
+    # today is empty until the write lands.
+    When the terminal agent marks "order" done
+    Then node "order" is done
+    When I open today
+    Then the day lists "order"
+    And today has something on it
+    And there should be no page errors
+
   Scenario: A terminal starts a new outline and the open page lists it
     # The gap `create_outline` closes: `add_node` refuses any file the set does
     # not already hold, so without this an agent cannot open a fresh outline at

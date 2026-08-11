@@ -106,12 +106,37 @@ answered here rather than carried in a URL that could disagree with the files.
 `dates.ts` is the same claim about a DAY. There is no journal file and no
 stored year→month hierarchy: a day is a question asked of every dated node in
 every outline, so `datedDays` (which days of a month have something on them)
-and `datedOn` (everything dated one day, grouped by outline, with each node's
+and `datedOn` (everything on one day, grouped by outline, with each node's
 ancestry and mark) are one reading of the set that the calendar and
 the day view both read from — a dot that disagreed with the page it opened
 would be worse than no dot. Dates stay TEXT here as everywhere else: a day is a
 ten-character prefix, a month a seven-character one, and a datetime counts for
 its own day.
+
+TWO fields are read, not only `date`: a dated `done`
+(`{"done":"2026-08-11T15:40:03-04:00"}`) places a node too, because a journal
+without the work that was finished is missing the half of the day that
+happened. A dated `doing` or `todo` is read by neither question (2026-08-11,
+human): the format allows it, a journal is narrower than the format, and
+"picked up on Tuesday" buried the day under everything filed that morning. So a
+node with two dates is on two days, two dates on one day are one row, and each row says
+which of the node's dates put it there (`Occasion`), because scheduled-on and
+finished-on are two different sentences and only the reader can be told which
+one they are reading. A `done` holding `true` is on no day: it declines to say
+when, and inventing an answer would file every old `true` under today. The
+ARCHIVE is not filtered out and that is a decision (2026-08-11): blockedness
+exempts archived work at both ends because nothing waits on what is over, and a
+journal asks the other question — what happened — so a day keeps the work that
+was put away after it was finished.
+
+`stamp.ts` is the other direction, and every date value olai WRITES is minted
+there: `stampOf` produces a local ISO datetime carrying its offset, which is
+what the ops layer marks a node with. It lives beside the rule that ACCEPTS one
+so that what olai writes and what olai reads are two functions in one package
+rather than a writer above guessing at a shape. (The browser's clock turns an
+instant into date text too, for the question "which day is `/today`" — nothing
+it mints is stored, and that the two agree about where a local day ends is a
+test in `@olai/web` rather than an argument.)
 
 A day's nodes and a zoomed page are built from the same `Situated` — a node,
 its mark, its rollup, what is standing in its way and its canonical ancestry —

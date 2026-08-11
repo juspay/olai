@@ -12,9 +12,16 @@
  * in the tree: a day is a way of FINDING a node, and the node's own page is
  * where it is read. Notes match the tree too — one dim clamped line under the
  * title, click/tap expands in place (../note/expand.ts).
+ *
+ * WHY a node is on this day is the one thing a day says that a tree row does
+ * not have to. A node is here because it is scheduled for the day or because a
+ * mark of its own is dated it — finished on it, started on it — and the entry
+ * arrives already knowing which (`@olai/format`'s `Occasion`), so the badge
+ * says it in a word. Nothing else changes: it is the same row, and the answer
+ * rides the date that was going to be drawn anyway.
  */
 
-import type { Situated } from "@olai/format"
+import type { DayEntry } from "@olai/format"
 import { Show } from "solid-js"
 
 import { blockedIds, WAITING_DIM } from "../blocked.ts"
@@ -28,7 +35,7 @@ import { TESTID } from "../testids.ts"
 import { GUTTER_GAP, PAST_BULLET } from "../touch.ts"
 
 export function DayNode(props: {
-  readonly dated: Situated
+  readonly dated: DayEntry
 }) {
   const node = () => props.dated.shows.node
   const note = createNoteExpand()
@@ -58,11 +65,15 @@ export function DayNode(props: {
           blocked={props.dated.blocked}
           id={node().id}
         />
+        {/* The date this row is HERE for, and which of the node's dates that
+            is — not the `date` field, which for work finished on this day is
+            either another day's business or not written at all. */}
         <NodeLine
           title={node().title}
           status={props.dated.status}
           progress={props.dated.progress}
-          date={node().date}
+          date={props.dated.date}
+          occasion={props.dated.occasion}
         />
       </div>
 

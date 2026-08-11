@@ -19,7 +19,7 @@ import {
 import { describe, expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { setOf, steady } from "./fixtures.testlib.ts"
+import { setOf, STAMP, steady } from "./fixtures.testlib.ts"
 import { plan, type Plan } from "./plan.ts"
 import type { Request } from "./request.ts"
 
@@ -173,10 +173,34 @@ describe("add", () => {
 // ── done / doing ───────────────────────────────────────────────────────
 
 describe("done and doing", () => {
-  test("marking a leaf stamps today and says so in the commit line", () => {
+  test("marking a leaf stamps the instant and says so in the commit line", () => {
     const result = planned(house(), { op: "done", id: "order" })
-    expect(record(fileOf(result, "house.jsonl"), "order").done).toBe("2026-08-09")
+    expect(record(fileOf(result, "house.jsonl"), "order").done).toBe(STAMP)
     expect(result.summary).toBe("done: order the cabinets")
+  })
+
+  // A plan re-emits every record of the file it touches, and the format is
+  // validated AS TEXT because a writer must reproduce what it read
+  // (docs/format.md). So a neighbour's day-only `done` — and every `true` still
+  // out there — comes back exactly as written: the op stamps the node it was
+  // asked about and nothing else.
+  test("the dates on the other records come back as they were written", () => {
+    const nodes = fileOf(planned(house(), { op: "done", id: "order" }), "house.jsonl")
+    expect(record(nodes, "demo").done).toBe("2026-08-01")
+  })
+
+  // Resolved 2026-08-11 by the human, and it is a decision about the JOURNAL
+  // rather than about symmetry between three ops: a date on a mark puts the
+  // node on that day (docs/format.md's Days), so a stamped `todo` would file
+  // every capture onto the day it was written down and `/today` would stop
+  // being about what happened. Finishing is the event a day page is about;
+  // starting and filing are not.
+  test("only `done` carries an instant — the other two say `true`", () => {
+    const marked = (op: "done" | "doing" | "todo"): RegularNode =>
+      record(fileOf(planned(house(), { op, id: "order" }), "house.jsonl"), "order")
+    expect(marked("done").done).toBe(STAMP)
+    expect(marked("doing").doing).toBe(true)
+    expect(marked("todo").todo).toBe(true)
   })
 
   test("undo takes the mark off", () => {
@@ -194,7 +218,7 @@ describe("done and doing", () => {
 
     const undone = setOf({ "a.jsonl": `{"id":"x","ord":"a0","title":"x"}` })
     const node = record(fileOf(planned(undone, { op: "doing", id: "x" }), "a.jsonl"), "x")
-    expect(node.doing).toBe("2026-08-09")
+    expect(node.doing).toBe(true)
     expect(node.done).toBeUndefined()
   })
 
@@ -203,11 +227,11 @@ describe("done and doing", () => {
   })
 
   // The third mark is the same op with a third word, and that is the claim:
-  // it stamps, it clears whatever was there, it undoes, and it refuses to walk
+  // it lands, it clears whatever was there, it undoes, and it refuses to walk
   // finished work backwards without being told to.
   test("`todo` is a mark like the other two", () => {
     const result = planned(house(), { op: "todo", id: "order" })
-    expect(record(fileOf(result, "house.jsonl"), "order").todo).toBe("2026-08-09")
+    expect(record(fileOf(result, "house.jsonl"), "order").todo).toBe(true)
     expect(result.summary).toBe("todo: order the cabinets")
 
     // Started, then put back on the pile: `doing` goes, `todo` arrives.
@@ -215,7 +239,7 @@ describe("done and doing", () => {
       "a.jsonl": `{"id":"x","ord":"a0","title":"x","doing":"2026-08-01"}`,
     })
     const node = record(fileOf(planned(under, { op: "todo", id: "x" }), "a.jsonl"), "x")
-    expect(node.todo).toBe("2026-08-09")
+    expect(node.todo).toBe(true)
     expect(node.doing).toBeUndefined()
 
     // A done node is not quietly un-finished, whichever mark is asked for.
@@ -253,7 +277,7 @@ describe("done and doing", () => {
       ].join("\n"),
     })
     const result = planned(set, { op: "done", id: "kitchen" })
-    expect(record(fileOf(result, "house.jsonl"), "kitchen").done).toBe("2026-08-09")
+    expect(record(fileOf(result, "house.jsonl"), "kitchen").done).toBe(STAMP)
     expect(result.summary).toBe("done: Kitchen remodel")
   })
 
@@ -269,7 +293,7 @@ describe("done and doing", () => {
       ].join("\n"),
     })
     const result = planned(set, { op: "todo", id: "p" })
-    expect(record(fileOf(result, "a.jsonl"), "p").todo).toBe("2026-08-09")
+    expect(record(fileOf(result, "a.jsonl"), "p").todo).toBe(true)
     // Nothing under it is a task, so there is nothing to remark on either.
     expect(result.nudge).toBeUndefined()
   })
@@ -287,7 +311,7 @@ describe("done and doing", () => {
       ].join("\n"),
     })
     const result = planned(set, { op: "done", id: "p" })
-    expect(record(fileOf(result, "a.jsonl"), "p").done).toBe("2026-08-09")
+    expect(record(fileOf(result, "a.jsonl"), "p").done).toBe(STAMP)
     expect(result.nudge).toContain("1 unfinished task")
     expect(result.nudge).toContain("`pack`")
     expect(result.nudge).not.toContain("ferry times")

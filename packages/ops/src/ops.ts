@@ -26,6 +26,7 @@ import {
   type OpFailure,
   type OutlineSet,
   serializeOutline,
+  stampOf,
   ValidationFailure,
 } from "@olai/format"
 import { Effect, Result, SubscriptionRef } from "effect"
@@ -47,8 +48,8 @@ export interface Options {
    *  checkout). */
   readonly commit?: boolean
   /** Overridable so tests are deterministic: the id a new node gets and the
-   *  date a mark is stamped with are the only two things about an op that are
-   *  not a function of the snapshot. */
+   *  instant a mark is stamped with are the only two things about an op that
+   *  are not a function of the snapshot. */
   readonly context?: Context
   /**
    * Told about every write this layer REFUSED.
@@ -89,7 +90,11 @@ const ROUNDS = 5
 export const make = (options: Options): Ops => {
   const context: Context = options.context ?? {
     mint: () => Math.random().toString(36).slice(2, 10),
-    today: () => new Date().toISOString().slice(0, 10),
+    // The clock, read through the format's own minting: a mark is stamped with
+    // the instant it was made, in the zone the person marking it is standing
+    // in, and what that text looks like is the format's business rather than
+    // this file's (`@olai/format`'s `stampOf`).
+    now: () => stampOf(new Date()),
   }
 
   /** Whether the served directory is a git work tree. Asked once and kept: it
