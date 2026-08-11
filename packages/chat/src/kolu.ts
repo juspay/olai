@@ -118,8 +118,10 @@ export const detect: Effect.Effect<Server | null> = Effect.gen(function*() {
 const onPath = (name: string): string | null => Bun.which(name, { PATH: process.env["PATH"] ?? "" })
 
 /** The id the read is sent under, so the answer to it is the only message that
- *  decides anything. */
-const PROBE_ID = 2
+ *  decides anything. Exported for `kolu.test.ts`, whose fixtures answer under
+ *  it — an answer carrying a different id is not an answer, and a test that
+ *  spelled the number itself could go on passing while this one moved. */
+export const PROBE_ID = 2
 
 /** The whole conversation, sent at once. A server that reads its input in order
  *  answers in order, and one that cannot is one whose answer we would not

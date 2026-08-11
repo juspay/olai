@@ -53,6 +53,8 @@
 
 import { existsSync, rmSync } from "node:fs"
 
+import { readMessages } from "../support/ndjson.ts"
+
 const OUT = process.stdout
 
 const emit = (message: unknown): void => {
@@ -491,37 +493,23 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
 
 // ── stdin, line by line ────────────────────────────────────────────────
 
-let buffered = ""
 /** One turn at a time, in the order they arrived — but the READ loop keeps
  *  going, which is what lets a cancel arrive during a prompt. */
 let queue: Promise<void> = Promise.resolve()
 
-process.stdin.setEncoding("utf8")
-process.stdin.on("data", (chunk: string) => {
-  buffered += chunk
-  for (;;) {
-    const cut = buffered.indexOf("\n")
-    if (cut === -1) break
-    const line = buffered.slice(0, cut).trim()
-    buffered = buffered.slice(cut + 1)
-    if (line === "") continue
-
-    let message: Record<string, unknown>
-    try {
-      message = JSON.parse(line) as Record<string, unknown>
-    } catch {
-      noise(`fake agent: not JSON: ${line}`)
-      continue
-    }
+readMessages(
+  process.stdin,
+  (message) => {
     // A cancel must be seen NOW, not behind the turn it is cancelling.
     if (message["method"] === "session/cancel") {
       cancelled = true
-      continue
+      return
     }
     queue = queue.then(() => handle(message)).catch((cause: unknown) => {
       noise(`fake agent: ${String(cause)}`)
     })
-  }
-})
+  },
+  (line) => noise(`fake agent: not JSON: ${line}`),
+)
 
 process.stdin.on("end", () => process.exit(0))

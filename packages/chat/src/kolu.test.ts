@@ -20,7 +20,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 
 import { mcpServersOf } from "./agent.ts"
-import { detect, type Server } from "./kolu.ts"
+import { detect, PROBE_ID, type Server } from "./kolu.ts"
 
 /** Everything this test made, undone after each case: the directories it put
  *  on PATH, and PATH itself. */
@@ -54,35 +54,35 @@ const koluOnPath = (body: string): string => {
   return bin
 }
 
-/** A fixture that reads line-delimited JSON-RPC and answers `resources/read`
- *  the way the flag says: with the identity a live padi has, or with the error
- *  a kolu that reached no daemon sends. */
+/**
+ * A fixture that answers the read the way the flag says: with what a live padi
+ * has, or with the error a kolu that reached no daemon sends.
+ *
+ * It answers the first thing the prober SAYS rather than reading what was
+ * said. Parsing the conversation would put a fourth copy of ndjson framing in
+ * this repo — the suite's fakes share one
+ * (`packages/tests/support/ndjson.ts`), and this file cannot import it without
+ * `@olai/chat` depending on `@olai/tests`, which is backwards. What it must
+ * get right is the ID: an answer under a different one is not an answer, so it
+ * comes from the prober's own constant rather than a number spelled here. That
+ * a real `resources/read` is what gets sent is asserted where a real binary
+ * can be asked — `features/kolu_terminals.feature`, whose fake kolu does read
+ * the method.
+ */
 const script = (reachable: boolean): string =>
   `
-let pending = ""
-process.stdin.setEncoding("utf8")
-process.stdin.on("data", (chunk) => {
-  pending += chunk
-  const lines = pending.split("\\n")
-  pending = lines.pop() ?? ""
-  for (const line of lines) {
-    if (line.trim() === "") continue
-    const message = JSON.parse(line)
-    if (message.method === "initialize") {
-      process.stdout.write(JSON.stringify({
-        jsonrpc: "2.0",
-        id: message.id,
-        result: { serverInfo: { name: "kolu-mcp", version: "2.2.0" } },
-      }) + "\\n")
-    }
-    if (message.method === "resources/read") {
-      process.stdout.write(JSON.stringify(${reachable}
-        ? { jsonrpc: "2.0", id: message.id, result: { contents: [] } }
-        : { jsonrpc: "2.0", id: message.id, error: { code: -32603, message: "padi transport down" } }
-      ) + "\\n")
-    }
+const ANSWER = ${
+    JSON.stringify(
+      reachable
+        ? { jsonrpc: "2.0", id: PROBE_ID, result: { contents: [] } }
+        : {
+          jsonrpc: "2.0",
+          id: PROBE_ID,
+          error: { code: -32603, message: "padi transport down" },
+        },
+    )
   }
-})
+process.stdin.once("data", () => process.stdout.write(JSON.stringify(ANSWER) + "\\n"))
 `
 
 const detected = (): Promise<Server | null> => Effect.runPromise(detect)

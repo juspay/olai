@@ -13,7 +13,9 @@ packages/tests/
 ├── support/
 │   ├── world.ts             # OlaiWorld: page, locators, the UI contract
 │   ├── hooks.ts             # browser + a server per corpus (and per scratch copy)
-│   └── mcp.ts               # an MCP client, for the agent olai did not start
+│   ├── mcp.ts               # an MCP client, for the agent olai did not start
+│   └── ndjson.ts            # line-delimited JSON off a pipe — one copy, shared
+│                           #   by that client and both fakes below
 ├── agent/                   # the scripted ACP agent the chat scenarios drive,
 │                           #   and the fake `kolu` every server finds on PATH
 └── fixtures/                # the served directories (see fixtures/README.md)
@@ -321,6 +323,8 @@ for one is not itself an edit.
 It lives in `agent/` rather than `support/` because Cucumber imports everything
 under `support/` as part of the world, and importing this reads stdin — which,
 in the runner's own process, ends immediately and takes the run down with it.
+It imports the other way round freely: `support/ndjson.ts` is a function and
+nothing else, so there is nothing for Cucumber's import of it to start.
 
 `@no-agent` is the other knob, and it starts the server with `OLAI_ACP_AGENT`
 set to the EMPTY string — the same way a person turns chat off, rather than
@@ -357,3 +361,19 @@ server and nothing else, deterministically.
 Nothing about a terminal is simulated. What a scenario can ask is which MCP
 servers the SESSION was given, and the scripted agent answers that when asked
 (`servers`).
+
+## Reading a pipe, once
+
+Three things here speak newline-framed JSON-RPC down or up a pipe — the MCP
+client, the scripted agent, the fake kolu — and each used to carry its own copy
+of the same six lines: keep what has not ended in a buffer, cut on newlines,
+parse each whole line. That is `support/ndjson.ts` now, and the copies were the
+bug: a chunk boundary is not a message boundary, which is the one thing this is
+easy to get wrong about, and getting it right in three places means fixing it in
+three places.
+
+It is framing and nothing more. Who a message is for and what to do about it is
+each caller's own, which is why it takes a callback and knows no method names. A
+line that will not parse goes to a caller's handler — and the MCP client passes
+none on purpose, so a frame that is not one throws rather than being skipped:
+that client is reading a protocol *we* serve.

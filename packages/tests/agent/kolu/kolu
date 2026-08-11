@@ -24,6 +24,8 @@
  * that. Anything more here would be simulating kolu, which is kolu's job.
  */
 
+import { readMessages } from "../../support/ndjson.ts";
+
 const LIVE = process.env.OLAI_FAKE_KOLU === "live";
 
 const emit = (message: unknown): void => {
@@ -62,20 +64,12 @@ const answer = (id: unknown, method: string): void => {
   }
 };
 
-let pending = "";
-process.stdin.setEncoding("utf8");
-process.stdin.on("data", (chunk: string) => {
-  pending += chunk;
-  const lines = pending.split("\n");
-  pending = lines.pop() ?? "";
-  for (const line of lines) {
-    if (line.trim() === "") continue;
-    try {
-      const message = JSON.parse(line) as { id?: unknown; method?: unknown };
-      if (typeof message.method === "string") answer(message.id, message.method);
-    } catch {
-      // A client that wrote something that is not a message gets silence, the
-      // same as the real one gives it.
-    }
-  }
-});
+readMessages<{ id?: unknown; method?: unknown }>(
+  process.stdin,
+  (message) => {
+    if (typeof message.method === "string") answer(message.id, message.method);
+  },
+  // A client that wrote something that is not a message gets silence, the same
+  // as the real one gives it.
+  () => {},
+);
