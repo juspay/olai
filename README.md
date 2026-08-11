@@ -185,9 +185,14 @@ cabinets`).
 The agent cannot free-write a file. It has no filesystem access at all: the
 only things it can name are NODES, through a closed list of tools — search,
 read a subtree, create an outline, add, mark, retitle, note, schedule, move,
-archive. Creating an outline is the one place a path is named, and it is a
-relative `.jsonl` under the served directory, refused if it already exists and
-written only as whole records. So the edits it can express are the edits the
+archive. Adding takes a whole subtree, nested, so capturing an outline is one
+call rather than one per bullet — and one call is one validation and one
+commit, which is what makes a half-captured outline impossible rather than
+unlikely. A new outline is born the same way, holding whatever it was created
+with: the file and its contents land together or not at all, so nothing is left
+behind by a capture that was refused. Creating one is the one place a path is
+named, and it is a relative `.jsonl` under the served directory, refused if it
+already exists and written only as whole records. So the edits it can express are the edits the
 format can be, and a malformed outline is not something it can produce. Whether
 that is a restriction or the point depends on how you feel about a coding agent
 with `sed` and your notes.
