@@ -340,10 +340,42 @@ Three components earn their own file:
   only when the agent offers commands: one that opens nothing would be a button
   that lies.
 
-`run.ts` is the one place the client runs an Effect, and its signature is the
-enforcement: there is no overload without `onFailure`. A caller that could
-ignore a procedure's declared failures would be a caller whose refusals
-vanish, which is exactly what chat is not allowed to do.
+`src/client/run.ts` is the one place the client runs an Effect, and its
+signature is the enforcement: there is no overload without `onFailure`. A caller
+that could ignore a procedure's declared failures would be a caller whose
+refusals vanish, which is exactly what chat is not allowed to do. It sits at the
+client's root rather than inside the panel, because the sentence above is about
+this app rather than about chat — the Commit button is its second caller.
+
+## The Commit button
+
+`src/client/commit/` is the third pill of the chrome, and the only one that is
+sometimes absent: nothing waiting, nothing shown. A control that were always
+there would be a permanent nag about a directory that is usually clean, and the
+two states this can be in are exactly a pill that is drawn or not — including
+"this is not a git work tree" and "the server was started with
+`--commit=off`", which are also nothing to say.
+
+It exists because every write olai makes is a write nobody typed: the agent
+auto-approves its ops, so git is how you see what the tool did to your files.
+Writes land on disk and WAIT; this is what asks for the commit, and the agent's
+`commit` tool is the same action through the other door.
+
+The panel never shows a text diff — a `.jsonl` diff is one enormous line per
+node — so every row is a NODE and what changed about it. The classification is
+the server's (one `Sort` per change, from `@olai/format`), and `said.ts` is
+this client's own table of words for it: the log says `done:`, the panel says
+"marked done". `data-sort` is what a test asserts on, never the phrase, which
+the view is entitled to reword.
+
+Nothing here is state this browser keeps. What is waiting arrives on the
+`pending` cell, derived from git on the server, so a tab open all day is
+looking at the repository as it is rather than at a tally it kept — an outline
+edited in vim is in the list, and a commit made in a terminal takes itself out.
+The one thing that IS local is the draft message: it is seeded from the composed
+suggestion when the panel opens and never overwritten under the person typing
+it, because a box that re-synced would rewrite what they were writing every time
+the server swept.
 
 ## On a phone, and on a home screen
 

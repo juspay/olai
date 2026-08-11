@@ -139,8 +139,6 @@ Open the panel in the corner and tell the agent what you want. Ask it to check
 something off and the checkbox in front of you moves — not because the panel
 echoed anything, but because the write went to disk, through the same validator
 a load runs, and came back on the same subscription every other change does.
-Each one is a git commit, with a subject you can read (`done: order the new
-cabinets`).
 
 The agent cannot free-write a file. It has no filesystem access at all: the
 only things it can name are NODES, through a closed list of tools — search,
@@ -160,6 +158,44 @@ are what to mark instead.
 The conversation is Claude Code's own session for that directory: close olai,
 reopen it, and you are back in it — and `claude --resume` in a terminal reaches
 the same conversations.
+
+## And commit it when you mean to
+
+Those writes land on disk and WAIT. Git is how you see what the tool did to
+your files — an audit trail, not sync and not undo — so a pill appears in the
+corner saying how many changes are uncommitted, and opening it shows them the
+way olai would say them rather than as a diff:
+
+```
+┌─ Changes ─────────────────────────────────┐
+│ roadmap.jsonl                             │
+│   ✓  Outlines as a collection    done     │
+│   ✎  Notes: one state, same line  note    │
+│   +  Kolu integration: auto-…    created  │
+│                                           │
+│ chat agent 3 · you 1                      │
+│                      [ Commit 3 changes ] │
+└───────────────────────────────────────────┘
+```
+
+Nothing waiting, nothing shown. Nothing is stored to make that work: it is
+`git status` and `git show HEAD:` against what is on disk, so an outline you
+edited in vim is in the list too, and committing in a terminal takes it out.
+The agent has the same button as a tool of its own, which is the better one to
+use — it knows where a train of thought ended, so its message can say
+`olai: reconcile the roadmap with the #70–#81 merges` instead of describing
+edits. Every message starts with `olai`, so `git log --grep '^olai'` is the
+audit view and `--invert-grep` gives you back your own history, and each
+commit carries an `X-Olai-Writer` trailer saying which of you wrote it.
+
+If the repository is mid-merge, mid-rebase or on a detached HEAD, the button
+says so and does nothing — an agent that committed into a conflict could
+swallow the resolution.
+
+`--commit=auto` is the old behaviour, one commit per write, for a server with
+no browser in front of it; `--commit=off` (or `--no-commit`) is for a
+directory whose history is somebody else's job. Not a git work tree: no pill,
+no panel, and nothing is ever `git init`ed on your behalf.
 
 The agent is the pinned Claude Code adapter, and it comes with olai: `nix run`,
 the packaged binary and `just serve` all default to it, so there is nothing to
@@ -188,9 +224,10 @@ through the same gate, and the tab is watching the disk.
 
 It is the same bargain as the panel: the tools name nodes (and, for a brand-new
 outline, a relative `.jsonl` path), never free-form bytes, so a coding agent
-that would happily `sed` your notes cannot, and every write is a git commit you
-can read. `--no-commit` turns that off for a directory whose history is
-somebody else's job.
+that would happily `sed` your notes cannot. It gets the `commit` tool too, so
+an agent working in your notes directory records what it did when it is done —
+and `--commit=off` turns that off for a directory whose history is somebody
+else's job.
 
 There is still no write CLI, and there never will be — nothing you can type
 adds a node or marks one. `olai web` and `olai mcp` are the two ways of putting

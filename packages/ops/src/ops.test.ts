@@ -77,7 +77,10 @@ const withOps = <A>(
     const ops = Ops.make({
       store,
       root,
-      commit: options.git === true,
+      // The old behaviour, and the reason these tests can still assert on a
+      // log: `auto` is one commit per op. The manual path — a commit somebody
+      // asks for — is `pending.test.ts`'s.
+      commits: options.git === true ? "auto" : "off",
       context: { mint: () => `n${++minted}`, today: () => "2026-08-09" },
       onRefusal: (request, failure) =>
         Effect.sync(() => {
@@ -114,7 +117,7 @@ const run = (
   fixture: Fixture,
   request: Request,
 ): Effect.Effect<Applied> =>
-  Effect.catch(fixture.ops.run(request), (failure) =>
+  Effect.catch(fixture.ops.run(request, "mcp"), (failure) =>
     Effect.die(
       new Error(`\`${request.op}\` was refused: ${failure._tag} — ${failure.message}`),
     ))
@@ -199,7 +202,7 @@ test("a refusal writes nothing and comes back with its structured detail", () =>
   withOps({ "house.jsonl": HOUSE }, (fixture) =>
     Effect.gen(function*() {
       const failure = yield* Effect.orDie(
-        Effect.flip(fixture.ops.run({ op: "done", id: "kitchen" })),
+        Effect.flip(fixture.ops.run({ op: "done", id: "kitchen" }, "mcp")),
       )
       expect(failure._tag).toBe("DerivedFailure")
       expect(fixture.read("house.jsonl")).toBe(HOUSE)
@@ -259,8 +262,8 @@ test("concurrent ops all land, each re-derived from the set the last one left", 
 
 // ── git ────────────────────────────────────────────────────────────────
 
-describe("the auto-commit", () => {
-  test("commits each write with racket's message convention", () =>
+describe("--commit=auto", () => {
+  test("commits each write, prefixed and signed, with racket's convention", () =>
     withOps({ "house.jsonl": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         expect((yield* run(fixture, { op: "done", id: "order" })).committed).toBe(true)
@@ -273,12 +276,23 @@ describe("the auto-commit", () => {
         })).committed).toBe(true)
         expect((yield* run(fixture, { op: "archive", id: "install" })).committed).toBe(true)
 
+        // `olai:` on every one of them, so `git log --grep '^olai'` is the
+        // audit view and `--invert-grep` gives back a person's own history.
         expect(gitLog(fixture.root).slice(0, 4)).toEqual([
-          "archive: install them",
-          "capture: clear the shed",
-          "capture: paint",
-          "done: order the cabinets",
+          "olai: archive: install them",
+          "olai: capture: clear the shed",
+          "olai: capture: paint",
+          "olai: done: order the cabinets",
         ])
+        // And who asked is on the commit permanently: git would otherwise
+        // record only the repository's own user, which every commit has.
+        expect(
+          execFileSync(
+            "git",
+            ["log", "--format=%(trailers:key=X-Olai-Writer,valueonly)", "-1"],
+            { cwd: fixture.root, encoding: "utf8" },
+          ).trim(),
+        ).toBe("mcp")
         // Both files of the archive landed in ONE commit.
         expect(
           execFileSync("git", ["show", "--name-only", "--format=", "HEAD"], {
@@ -291,9 +305,9 @@ describe("the auto-commit", () => {
   test("a directory that is not a work tree is written anyway, and says so", () =>
     withOps({ "house.jsonl": HOUSE }, (fixture) =>
       Effect.gen(function*() {
-        // `commit: true`, but there is no repository here.
-        const ops = Ops.make({ store: fixture.store, root: fixture.root, commit: true })
-        const applied = yield* Effect.orDie(ops.run({ op: "done", id: "order" }))
+        // `commits: "auto"`, but there is no repository here.
+        const ops = Ops.make({ store: fixture.store, root: fixture.root, commits: "auto" })
+        const applied = yield* Effect.orDie(ops.run({ op: "done", id: "order" }, "mcp"))
         expect(applied.committed).toBe(false)
         expect(fixture.read("house.jsonl")).toContain(`"done"`)
       })))
@@ -301,8 +315,8 @@ describe("the auto-commit", () => {
   test("the opt-out writes without committing", () =>
     withOps({ "house.jsonl": HOUSE }, (fixture) =>
       Effect.gen(function*() {
-        const ops = Ops.make({ store: fixture.store, root: fixture.root, commit: false })
-        expect((yield* Effect.orDie(ops.run({ op: "done", id: "order" }))).committed)
+        const ops = Ops.make({ store: fixture.store, root: fixture.root, commits: "off" })
+        expect((yield* Effect.orDie(ops.run({ op: "done", id: "order" }, "mcp"))).committed)
           .toBe(false)
         expect(gitLog(fixture.root)).toEqual(["fixtures"])
       }), { git: true }))
@@ -318,7 +332,7 @@ describe("the internal MCP server", () => {
     ) => Effect.Effect<A, never>,
   ) =>
     withOps({ "house.jsonl": HOUSE }, (fixture) => {
-      const server = Mcp.make({ ops: fixture.ops })
+      const server = Mcp.make({ ops: fixture.ops, writer: "mcp" })
       let id = 0
       const call = (method: string, params?: unknown) =>
         Effect.map(
@@ -350,7 +364,7 @@ describe("the internal MCP server", () => {
   test("a notification is not answered", () =>
     withOps({ "house.jsonl": HOUSE }, (fixture) =>
       Effect.gen(function*() {
-        const server = Mcp.make({ ops: fixture.ops })
+        const server = Mcp.make({ ops: fixture.ops, writer: "mcp" })
         expect(yield* server.handle({ jsonrpc: "2.0", method: "notifications/initialized" }))
           .toBeNull()
       })))
@@ -366,6 +380,7 @@ describe("the internal MCP server", () => {
         expect(tools.map((tool) => tool.name).sort()).toEqual([
           "add_node",
           "archive_node",
+          "commit",
           "create_outline",
           "list_outlines",
           "move_node",
@@ -443,7 +458,7 @@ describe("the internal MCP server", () => {
     ].join("\n")
     return withOps({ "house.jsonl": SEEING }, (fixture) =>
       Effect.gen(function*() {
-        const server = Mcp.make({ ops: fixture.ops })
+        const server = Mcp.make({ ops: fixture.ops, writer: "mcp" })
         let id = 0
         const call = (method: string, params?: unknown) =>
           Effect.map(

@@ -38,7 +38,9 @@ in the system had to arrange:
 | `request.ts` | the things a writer may ask for, as schemas — one declaration serving the planner's switch, the tool schemas and the decoder |
 | `plan.ts` | the whole decision, PURE: a snapshot and a request into the files that write would produce |
 | `ops.ts` | the loop — read, plan, commit, re-plan on a stale base — and nothing else |
-| `git.ts` | the auto-commit, as the store's post-publish hook |
+| `pending.ts` | what is waiting to be committed, derived from git, and the one verb that commits it |
+| `message.ts` | what a commit nobody wrote a message for says |
+| `git.ts` | the plumbing: where the directory sits in a repository, whether it can take a commit, what is dirty, what HEAD had — and `commit` |
 | `query.ts` | reading the set as NODES: search, one node, a subtree, the outlines |
 | `tools.ts` | the closed list of what an agent may do, and what it may not |
 | `mcp.ts` | those tools spoken as MCP, with no transport in it |
@@ -48,6 +50,12 @@ in the system had to arrange:
 about an op is decided there, over a value, so it is testable without a disk
 and re-decidable against a newer snapshot. The two impure things an op needs —
 a fresh id and today's date — arrive as arguments.
+
+`pending.ts` derives and stores nothing, which is the same design in the other
+direction: what is waiting is a question git already answers, and a tally of our
+own would be a second answer that goes wrong the moment somebody edits a file in
+vim. The comparison it runs is not here either — it is pure, and it lives beside
+the format.
 
 **The package exports four things, and the rest of that table is inside.**
 `codec`, `make`, `Query`, `Mcp` — one socket per concept, not the wires behind
@@ -76,19 +84,44 @@ because they are what the archive is for:
 
 ## The git commit
 
-Each write commits the files it produced, gated on the served directory
-actually being a git work tree, with `olai web --no-commit` as the opt-out. The
-message convention is the reference implementation's, because a log a person
-already knows how to read is worth more than a better one they do not:
+A commit is something somebody ASKS for. Writes land on disk and wait; the two
+doors are a Commit button in the browser and the `commit` tool an agent calls
+when it knows its work is finished, and both are callers of one `Ops.commit`.
+`--commit=auto` is the old behaviour — one commit per write — for a headless
+server with no browser to press anything, and `--commit=off` (`--no-commit`) is
+for a directory whose history is somebody else's job.
 
-| op | subject |
+What is waiting is DERIVED (`pending.ts`): `git status --porcelain` names the
+dirty outlines, `git show HEAD:<file>` is the committed side, the store's own
+last-good parse is the working side, and `@olai/format`'s `changesOf` compares
+them into node-level changes. A clean directory costs one `rev-parse`, one
+`git status` and no parsing at all. Only `.jsonl` outlines are ever named on
+`add` or `commit`: they are the only files this package writes, and a served
+directory is a working tree with other work in it.
+
+Committing checks that the repository is FREE first — no merge, rebase or
+cherry-pick in flight, and not a detached HEAD. Nothing used to, which is how an
+agent marking a node done mid-conflict could swallow a resolution, and that hole
+is what decided manual over automatic.
+
+Messages are prefixed `olai`, so `git log --grep '^olai'` is the audit view and
+`--invert-grep` gives back a person's own history, and every commit carries an
+`X-Olai-Writer: chat-agent | mcp | web` trailer — git records only the
+repository's own user, which every commit in it already has. A composed message
+names the biggest change by a fixed order and lists the rest.
+
+The per-op summary — which is what `auto` commits with, and what a tool result
+reports — keeps the reference implementation's convention, because a log a
+person already knows how to read is worth more than a better one they do not:
+
+| op | summary |
 |---|---|
 | create (with seed) | `capture: TITLE` — the first node is a capture |
 | create (empty) | `create: path.jsonl` |
 | add | `capture: TITLE` |
 | done / undo | `done: TITLE` / `undone: TITLE` |
 | doing / undo | `doing: TITLE` / `not-doing: TITLE` |
-| date | `move: TITLE -> 2026-08-10` (or `-> (cleared)`) |
+| date | `date: TITLE -> 2026-08-10` (or `-> (cleared)`) |
 | archive | `archive: TITLE` |
 | move | `move: TITLE` |
 | title | `rename: TITLE` |
@@ -103,16 +136,17 @@ overwritten. A seeded create mints the first node the same way a capture does;
 an empty one leaves a zero-byte outline for later `add_node`s.
 
 The last field edits (including `see`) are this format's own: the reference had
-no structural move, no separate note edit, and no agent-writable `see`. `move:`
-keeps its meaning for a date, which is what it named there.
+no structural move, no separate note edit, and no agent-writable `see`. `date`
+is the one word that CHANGED — it printed as `move:` there, where a date was
+what `move` named, and beside this format's real reparenting op that read as a
+structural change that never happened.
 
-It cannot fail a write. The bytes are on disk and the browser has already seen
-them by the time git runs; a refusal is logged and reported as
-`committed: false`, and only the files this op wrote are ever named — a served
-directory is a working tree with other work in it. What git actually said rides
-that line as a field (`said=…`) rather than inside the sentence, so the message
-stays greppable and the reason stays readable — `src/git.test.ts` holds both,
-against a real directory with no repository in it.
+Git can never fail a write. The bytes are on disk and the browser has already
+seen them by the time git runs, so a refusal is a `Failed` carrying git's own
+words and a warning in the log — with those words as a FIELD (`said=…`) rather
+than inside the sentence, so the message stays greppable and the reason stays
+readable. `src/git.test.ts` holds that shape, along with the repository states
+that are only testable by putting a repository in them.
 
 ## The tool surface, and what is missing from it
 
@@ -156,7 +190,9 @@ just test                                        # the whole workspace
 bun test packages/ops                            # this package, in the dev shell
 ```
 
-`src/plan.test.ts` is values in and values out — no disk, no store, no
-protocol. `src/ops.test.ts` is the other half: a real temp directory, a real
-store, a real git repository and the MCP surface in front of them, asserting
-the things that are only true end to end.
+`src/plan.test.ts` and `src/message.test.ts` are values in and values out — no
+disk, no store, no protocol. `src/ops.test.ts` and `src/pending.test.ts` are
+the other half: a real temp directory, a real store, a real git repository and
+the MCP surface in front of them, asserting the things that are only true end to
+end — that a write WAITS, that what is waiting comes from git rather than from a
+tally, and that a busy repository refuses.

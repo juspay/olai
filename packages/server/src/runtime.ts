@@ -25,7 +25,13 @@
  * the chat decided onto the wire, and that is all.
  */
 
-import type { OutlineError, OutlineSet } from "@olai/format"
+import type {
+  CommitRequest,
+  CommitResult,
+  OutlineError,
+  OutlineSet,
+  Pending,
+} from "@olai/format"
 import type { Store } from "@olai/store"
 import {
   CHAT_OFF,
@@ -35,14 +41,14 @@ import {
   type OutlineEntry,
   surface,
 } from "@olai/surface"
-import { UsageFailure } from "@olai/format"
+import { NOTHING_PENDING, UsageFailure } from "@olai/format"
 import {
   type ImplementSurfaceDeps,
   implementSurface,
   inMemoryStore,
   type SurfaceRuntime,
 } from "@kolu/surface/server"
-import { Effect, Stream, SubscriptionRef } from "effect"
+import { Duration, Effect, Stream, SubscriptionRef } from "effect"
 
 import type { Change, Chat } from "@olai/chat"
 import { publishedOf } from "./outlines.ts"
@@ -51,12 +57,27 @@ import { publishedOf } from "./outlines.ts"
  *  belongs to the bindings below rather than to whoever serves them. */
 export type Bound = Omit<SurfaceRuntime<typeof surface.spec>, "ctx">
 
+/** How often the pending cell is recomputed with nothing having asked. It is
+ *  the same argument as the store's backstop: a watcher is a latency
+ *  optimisation and never a guarantee, and here there is no watcher at all —
+ *  `.git` is deliberately not watched (the probe prunes it, and it is the
+ *  busiest thing under a served directory). A person committing in a terminal
+ *  is the case this covers. */
+const SWEEP = Duration.seconds(30)
+
 export interface Wiring {
   readonly store: Store<OutlineSet, ReadonlyArray<OutlineError>>
   /** Absent when no ACP agent is configured: the cell stays `off` and the
    *  procedures answer that they are. A directory is readable whether or not
    *  an agent is installed. */
   readonly chat: Chat | null
+  /** The two git verbs, taken from the ops layer rather than the layer itself:
+   *  this file publishes what somebody else decided, and "what is waiting to
+   *  be committed" is the whole of what it needs to know about writing. */
+  readonly git: {
+    readonly pending: Effect.Effect<Pending>
+    readonly commit: (request: CommitRequest) => Effect.Effect<CommitResult>
+  }
 }
 
 /** The chat, plus the two publishers the surface hands back once it exists.
@@ -84,6 +105,16 @@ export const bind = (
      *  deltas an open one is watching are two readings of one map rather than
      *  two copies to keep in step. */
     let entries = new Map<string, OutlineEntry>()
+    /** The pending cell, once its connector has been handed one. Held rather
+     *  than reached for through `ctx` because the commit procedure has to
+     *  republish the moment it is done — a commit changes what is waiting
+     *  without changing one byte on disk, so no revision will say so. */
+    let pendingCell: { set: (value: Pending) => void } | null = null
+    const republishPending = Effect.flatMap(
+      wiring.git.pending,
+      (pending) => Effect.sync(() => pendingCell?.set(pending)),
+    )
+
     /** The surface's own write face, once there is one to publish through —
      *  filled the moment `implementSurface` returns. The connector installs
      *  synchronously, so the FIRST revision is written before this exists; that
@@ -118,6 +149,37 @@ export const bind = (
         },
         chat: {
           store: inMemoryStore<ChatState>(chat === null ? CHAT_OFF : chat.state()),
+        },
+        /**
+         * What is waiting to be committed, on TWO clocks.
+         *
+         * Every published revision is one of them, and it is the one that
+         * matters: a write olai made and a file somebody saved in vim both
+         * arrive as a revision, so the count in the chrome follows the disk
+         * the way everything else on the page does.
+         *
+         * The slow sweep is the other, and it exists because NOTHING WATCHES
+         * `.git`: a person who commits in a terminal changes what is pending
+         * without changing a single served file, and the panel would go on
+         * offering to commit what is already committed until the next write.
+         * It costs one `git status` on a clean directory, which is what the
+         * whole derivation was designed to cost.
+         */
+        pending: {
+          store: inMemoryStore<Pending>(NOTHING_PENDING),
+          connect: (cell) => {
+            pendingCell = cell
+            return Effect.all(
+              [
+                Stream.runForEach(
+                  SubscriptionRef.changes(wiring.store.snapshot),
+                  () => republishPending,
+                ),
+                Effect.forever(Effect.andThen(Effect.sleep(SWEEP), republishPending)),
+              ],
+              { concurrency: "unbounded", discard: true },
+            )
+          },
         },
         /** The whole outline binding, because one revision is one write of all
          *  three things: the entries that moved, the keys that went, and the
@@ -180,6 +242,14 @@ export const bind = (
           newSession: () => withChat((open) => open.newSession),
           loadSession: ({ input }) => withChat((open) => open.loadSession(input.id)),
           sessions: () => withChat((open) => open.sessions),
+        },
+        git: {
+          // The button's door. `writer: "web"` is decided in `serve.ts`, where
+          // the ops layer is built — a procedure is a transport, and which
+          // transport this one is is not a thing it should be able to claim
+          // about itself.
+          commit: ({ input }) =>
+            Effect.tap(wiring.git.commit(input), () => republishPending),
         },
       },
     }

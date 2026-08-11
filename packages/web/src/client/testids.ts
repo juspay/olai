@@ -116,6 +116,33 @@ export const TESTID = {
    *  case. */
   faultHome: "fault-home",
 
+  // ── the Commit button ────────────────────────────────────────────────
+  /** The pill in the chrome. Drawn only when something is waiting, which is
+   *  why its ABSENCE is as much an assertion as its `data-uncommitted` count.
+   *  `data-repo` carries the repository's own state — `Ready`, `Blocked`,
+   *  `NoRepo`, `Off`. */
+  commitPill: "commit-pill",
+  /** The panel it opens. One row per node, never a text diff. */
+  commitPanel: "commit-panel",
+  /** One outline's worth of those rows; `data-file` is which. */
+  commitGroup: "commit-group",
+  /** One node that changed. `data-node-id` is which, and `data-sort` is what
+   *  changed about it — `done`, `noted`, `archived` — never the word it is
+   *  rendered as, which is the view's to reword. */
+  commitChange: "commit-change",
+  /** Dirty outlines whose working copy does not parse. */
+  commitUnreadable: "commit-unreadable",
+  /** Who has written since the last commit. Intent, not truth: empty after a
+   *  restart, and blind to an edit made in an editor. */
+  commitWriters: "commit-writers",
+  /** Why the repository cannot take a commit right now. */
+  commitBlocked: "commit-blocked",
+  commitMessage: "commit-message",
+  /** The button itself. */
+  commitNow: "commit-now",
+  /** What the last attempt refused with, when it left anything to say. */
+  commitRefused: "commit-refused",
+
   // ── the agent panel ──────────────────────────────────────────────────
   /** The shut panel's opener. Absent when no agent is configured. */
   chatToggle: "chat-toggle",

@@ -38,6 +38,7 @@ import { Calendar } from "./calendar/Calendar.tsx"
 import { chatOpen } from "./chat/open.ts"
 import { Panel as ChatPanel, Toggle as ChatToggle } from "./chat/Panel.tsx"
 import { createToday } from "./clock.ts"
+import { Commit } from "./commit/Commit.tsx"
 import { Connection } from "./connection/Connection.tsx"
 import { CLEARANCE, CORNER, Indicator } from "./connection/Indicator.tsx"
 import { DayPage } from "./day/DayPage.tsx"
@@ -130,11 +131,17 @@ export default function App() {
    *  whole layout. */
   const docked = () => outlines.manifest() !== null && page() !== undefined
 
-  /** The two pills that are about the APP rather than about the page: whether
-   *  the server is still there, and the way into the agent. One expression,
-   *  rendered in whichever of the two places the layout has for it. */
+  /** The pills that are about the APP rather than about the page: what olai
+   *  has written and not committed, whether the server is still there, and the
+   *  way into the agent. One expression, rendered in whichever of the two
+   *  places the layout has for it.
+   *
+   *  Commit goes FIRST because it is the only one of the three that is
+   *  sometimes absent, and a row whose last item moves under the reader's
+   *  cursor is worse than one whose first does. */
   const chrome = () => (
     <>
+      <Commit />
       <Indicator status={connectionStatus()} />
       <ChatToggle />
     </>

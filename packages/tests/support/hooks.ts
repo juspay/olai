@@ -21,7 +21,7 @@
  * where the per-scenario spawn is worth paying for.
  */
 
-import { spawn, type ChildProcess } from "node:child_process";
+import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import type { EventEmitter } from "node:events";
 import * as fs from "node:fs";
 import * as net from "node:net";
@@ -85,6 +85,13 @@ const STORED_TAG = "@agent-stored";
  *  same way a person would reach it deliberately: `OLAI_ACP_AGENT` set to the
  *  empty string, which survives the packaged binary's `${VAR-…}` wrapper. */
 const NO_AGENT_TAG = "@no-agent";
+
+/** `@git`: this scenario's scratch copy is made a git repository with one
+ *  commit in it, and its server is started with `--commit=manual` rather than
+ *  the harness's usual `--no-commit`. It is what the Commit button needs to
+ *  have anything to say, and it is deliberately opt-in: every other scenario
+ *  serves a temp directory whose history is nobody's business. */
+const GIT_TAG = "@git";
 
 /** The corpus a scenario gets when it names none. */
 const DEFAULT_CORPUS = "good";
@@ -285,6 +292,9 @@ interface Spawn {
   readonly stored?: boolean;
   /** `false` starts the server with no agent at all. */
   readonly agent?: boolean;
+  /** `true` makes the scratch copy a repository and lets the server commit
+   *  into it when something asks — see {@link GIT_TAG}. */
+  readonly repo?: boolean;
 }
 
 const startServerChild = async (
@@ -300,9 +310,11 @@ const startServerChild = async (
   for (let attempt = 1; attempt <= attempts; attempt++) {
     if (stopped) throw new Error(shuttingDown(label));
     const port = fixedPort ?? (await freePort());
-    // `--no-commit`: a scratch directory is a temp copy, and committing to
-    // whatever repository happens to contain the temp dir is not the suite's
-    // business. The git path has its own unit tests, against its own repo.
+    // `--no-commit` unless the scenario asked for a repository of its own: a
+    // scratch directory is a temp copy, and committing to whatever repository
+    // happens to contain the temp dir is not the suite's business. A `@git`
+    // scenario made itself one, so there is somewhere safe to commit — and
+    // `manual` is the default a person gets, which is the thing under test.
     const argv = [
       "web",
       dir,
@@ -310,7 +322,7 @@ const startServerChild = async (
       String(port),
       "--host",
       "127.0.0.1",
-      "--no-commit",
+      ...(spawnOptions.repo === true ? ["--commit=manual"] : ["--no-commit"]),
     ];
     const child = spawn(bin, argv, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -557,6 +569,7 @@ const scratchServerFor = async (
   const root = fs.mkdtempSync(path.join(os.tmpdir(), `olai-scratch-${corpus}-`));
   try {
     fs.cpSync(fixtureDir(corpus), root, { recursive: true });
+    if (spawnOptions.repo === true) initRepo(root);
     const server = await startServerChild(
       active.bin,
       root,
@@ -568,6 +581,21 @@ const scratchServerFor = async (
     fs.rmSync(root, { recursive: true, force: true });
     throw cause;
   }
+};
+
+/** A repository around a scratch copy, with the fixtures already in it — so
+ *  what the Commit button has to say afterwards is exactly what the scenario
+ *  did and nothing else. Its identity is the suite's, not the machine's:
+ *  `--no-verify` is the server's business, but a runner with no `user.email`
+ *  configured would otherwise fail the first commit. */
+const initRepo = (root: string): void => {
+  const git = (...argv: ReadonlyArray<string>) =>
+    execFileSync("git", argv, { cwd: root, stdio: "ignore" });
+  git("init", "--quiet", "--initial-branch", "main");
+  git("config", "user.email", "tests@olai.invalid");
+  git("config", "user.name", "olai e2e");
+  git("add", "-A");
+  git("commit", "--quiet", "-m", "fixtures");
 };
 
 /** The synchronous half of the teardown: every child that has a process right
@@ -654,6 +682,7 @@ Before(
       const own = await scratchServerFor(asked.corpus, {
         stored: this.storedSessions,
         agent: this.hasAgent,
+        repo: scenario.pickle.tags.some((tag) => tag.name === GIT_TAG),
       });
       this.baseUrl = own.baseUrl;
       this.served = own.root;

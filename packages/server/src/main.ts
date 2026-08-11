@@ -18,6 +18,7 @@
  */
 
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
+import { COMMIT_MODES, type CommitMode } from "@olai/format"
 import { toStdout } from "@olai/log"
 import { Effect, Layer } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
@@ -34,13 +35,34 @@ const directory = Argument.directory("directory", { mustExist: true }).pipe(
   Argument.withDescription("the directory of outlines, read recursively"),
 )
 
-/** Both subcommands write, so both have the opt-out — a directory whose
- *  history is somebody else's job. */
-const noCommit = Flag.boolean("no-commit").pipe(
+/**
+ * How writes reach git. Both subcommands write, so both take it.
+ *
+ * `manual` is the default and the point of the whole thing: a write lands on
+ * disk and WAITS, and a commit is something somebody asks for — the button in
+ * the browser, or the agent's `commit` tool, which knows where its work ends
+ * and can say why. `auto` is the old behaviour, one commit per op, for a
+ * headless server with no browser to press anything.
+ *
+ * `--no-commit` stays, and it means `--commit=off`: it is in scripts and in
+ * this repo's own test harness, and a flag that quietly changed meaning would
+ * be worse than one that is spelled twice. Given both, `--no-commit` wins,
+ * because it is the one that turns something off.
+ */
+const commits = Flag.choice("commit", COMMIT_MODES).pipe(
   Flag.withDescription(
-    "do not git-commit writes; the default commits each one when the directory is a work tree",
+    "when to git-commit writes: manual (a Commit button and a `commit` tool ask for one), auto (every write commits itself), off",
   ),
+  Flag.withDefault("manual" as CommitMode),
 )
+
+const noCommit = Flag.boolean("no-commit").pipe(
+  Flag.withDescription("the same as --commit=off"),
+)
+
+/** The two flags above, as the one answer they are between them. */
+const commitMode = (chosen: CommitMode, off: boolean): CommitMode =>
+  off ? "off" : chosen
 
 /** No registered port, and memorable: 7714 is "olai" on a phone keypad. */
 const DEFAULT_PORT = 7714
@@ -57,14 +79,15 @@ const web = Command.make("web", {
     ),
     Flag.withDefault("127.0.0.1"),
   ),
+  commits,
   noCommit,
-}, ({ directory, host, noCommit, port }) =>
+}, ({ commits, directory, host, noCommit, port }) =>
   Effect.gen(function*() {
     const faulted = yield* serve({
       root: directory,
       port,
       host,
-      commit: !noCommit,
+      commits: commitMode(commits, noCommit),
       clientDist: yield* clientDist,
       allowedOrigins: allowedOrigins(),
     })
@@ -88,10 +111,10 @@ const web = Command.make("web", {
  * authenticate: the client already proved who it is by being the process that
  * started this one.
  */
-const mcp = Command.make("mcp", { directory, noCommit }, ({ directory, noCommit }) =>
+const mcp = Command.make("mcp", { directory, commits, noCommit }, ({ commits, directory, noCommit }) =>
   serveTools({
     root: directory,
-    commit: !noCommit,
+    commits: commitMode(commits, noCommit),
     input: process.stdin,
     write: (frame) => {
       process.stdout.write(frame)

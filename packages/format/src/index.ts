@@ -6,7 +6,7 @@
  * browsers. Everything above it — the store's codec, the server, the web
  * client — reads the format through this one surface.
  *
- * Six things are exported, and that is the whole contract:
+ * Seven things are exported, and that is the whole contract:
  *
  *   - the codec, `parseOutline` (per file) and `validate` (per set);
  *   - what they produce, `OutlineSet` and the records inside it;
@@ -19,7 +19,11 @@
  *     canonical bytes and the sibling order, held here for the same reason the
  *     rules are: a writer with its own copy of either is a second format;
  *   - what went wrong, `OutlineError` and the two things a view does with it;
- *   - what a write says when it refuses, `OpFailure` and its five kinds.
+ *   - what a write says when it refuses, `OpFailure` and its five kinds;
+ *   - what two readings of a set DIFFER by, `changesOf` and the vocabulary a
+ *     pending commit is spoken in — pure, with no git in it, because it is a
+ *     statement about records and this package is the floor both the ops layer
+ *     and the wire spec stand on.
  *
  * Everything else in `src/` is internal. The spellings a rule happens to use —
  * the id regex, the edge-field list, the path resolver — are not contract; a
@@ -54,6 +58,26 @@ export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
 export { datedDays, datedOn } from "./dates.ts"
 export type { DayGroup } from "./dates.ts"
+
+export { biggestOf, changesOf, Field, NodeChange, Sort } from "./changes.ts"
+export type { Records } from "./changes.ts"
+
+export {
+  COMMIT_MODES,
+  CommitRequest,
+  CommitResult,
+  isReady,
+  MESSAGE_PREFIX,
+  NOTHING_PENDING,
+  Pending,
+  Reason,
+  RepoState,
+  samePending,
+  Writer,
+  WRITER_TRAILER,
+  Wrote,
+} from "./committing.ts"
+export type { CommitMode } from "./committing.ts"
 
 export { ordBetween } from "./ord.ts"
 export { nodesOf, serializeOutline } from "./write.ts"

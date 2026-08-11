@@ -26,7 +26,7 @@
 
 import { Schema } from "effect"
 
-import type { Derived, OutlineSet } from "@olai/format"
+import { CommitRequest, type Derived, type OutlineSet } from "@olai/format"
 
 import * as Query from "./query.ts"
 import {
@@ -60,10 +60,12 @@ interface Described {
 /**
  * A tool, as this package declares it.
  *
- * The two arms are the two halves of the surface, and they differ in what they
- * carry rather than in a flag: a READ answers from a snapshot and says how; a
- * WRITE names the part of the request its own NAME already decides (`set_done`
- * is `op: "done"`), so that field never appears in the schema an agent fills in.
+ * The three arms are the three things the ops layer can be asked for, and they
+ * differ in what they carry rather than in a flag: a READ answers from a
+ * snapshot and says how; a WRITE names the part of the request its own NAME
+ * already decides (`set_done` is `op: "done"`), so that field never appears in
+ * the schema an agent fills in; a COMMIT carries nothing extra, because the
+ * whole of what it does is `ops.commit` and there is exactly one of it.
  */
 export type Tool =
   | (Described & {
@@ -74,6 +76,7 @@ export type Tool =
     readonly kind: "write"
     readonly fixed: Readonly<Record<string, unknown>>
   })
+  | (Described & { readonly kind: "commit" })
 
 // ── reading ────────────────────────────────────────────────────────────
 
@@ -128,6 +131,13 @@ const write = (
   schema: Schema.Top,
   fixed: Readonly<Record<string, unknown>>,
 ): Tool => ({ name, title, description, schema, kind: "write", fixed })
+
+const commit = (
+  name: string,
+  title: string,
+  description: string,
+  schema: Schema.Top,
+): Tool => ({ name, title, description, schema, kind: "commit" })
 
 export const TOOLS: ReadonlyArray<Tool> = [
   read(
@@ -234,6 +244,13 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "Add and/or remove free cross-references (`see`) on an existing node. `see` is a link and nothing more — no ordering, no blocking, cycles fine. Give `add` and/or `remove` (ids of targets in the loaded set); an unknown add is refused with the ids that do exist, so the next call can name one. Search and subtree reads carry a node's `see` so you can traverse what is already there.",
     SeeRequest,
     { op: "see" },
+  ),
+
+  commit(
+    "commit",
+    "Commit what you changed",
+    "Record the outline edits waiting in the served directory as one git commit — the audit trail of what this tool wrote. Writes land on disk immediately and WAIT for this; nothing commits on your behalf. Call it when a train of thought is finished, not after every edit, and give `message` saying what the work was (`reconcile the roadmap with the #70-#81 merges`) — an omitted one is composed from what changed, which can only describe the edits and not why you made them. It commits every outline that differs from HEAD, including any a person edited by hand, and refuses while the repository is mid-merge, mid-rebase or on a detached HEAD.",
+    CommitRequest,
   ),
 ]
 

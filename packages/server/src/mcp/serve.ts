@@ -33,6 +33,7 @@
  * downstream has to remember.
  */
 
+import type { CommitMode } from "@olai/format"
 import { toStderr } from "@olai/log"
 import { Mcp, make as makeOps } from "@olai/ops"
 import { Effect } from "effect"
@@ -43,9 +44,9 @@ import { pump } from "./stdio.ts"
 export interface McpServeOptions {
   /** The directory of outlines the tools operate on, read recursively. */
   readonly root: string
-  /** Commit every write to git when the directory is a work tree.
-   *  `olai mcp --no-commit` is the opt-out. */
-  readonly commit: boolean
+  /** How writes reach git — `--commit=off | manual | auto`, `manual` by
+   *  default, which is what puts the `commit` tool in the agent's hands. */
+  readonly commits: CommitMode
   /** Bytes in and frames out — `process.stdin` and `process.stdout` for the
    *  binary, a pair of fakes for a test. */
   readonly input: AsyncIterable<Uint8Array>
@@ -62,7 +63,7 @@ export interface McpServeOptions {
 export const serveTools = (options: McpServeOptions) =>
   Effect.gen(function*() {
     const { root, store } = yield* openDirectory(options.root)
-    const ops = makeOps({ store, root, commit: options.commit })
+    const ops = makeOps({ store, root, commits: options.commits })
 
     // After the store, so the line means READY: a directory that cannot be
     // read has already failed by here, and an MCP client's first act is to
@@ -70,7 +71,10 @@ export const serveTools = (options: McpServeOptions) =>
     yield* Effect.logInfo("serving the outline tools over stdio")
 
     yield* pump({
-      server: Mcp.make({ ops }),
+      // `mcp`, not `chat-agent`: the client here is somebody's own coding
+      // agent, launched from their terminal, and the commit trailer is the
+      // only place that difference is ever recorded.
+      server: Mcp.make({ ops, writer: "mcp" }),
       input: options.input,
       write: options.write,
     })
