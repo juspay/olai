@@ -5,8 +5,10 @@
  * client offers `br` / `gzip` and a same-named `.br` / `.gz` file sits beside
  * the identity bytes under the hashed-asset prefix, the response goes out with
  * the matching `Content-Encoding`, the ORIGINAL `Content-Type`, and
- * `Vary: Accept-Encoding`. Identity when nothing matches. Negotiation is scoped
- * to `/assets/*` only (never the `no-store` shell — kolu#1319). Binary /
+ * `Vary: Accept-Encoding`. Identity when nothing matches. Matching is a bare
+ * token set — no q-value parsing — so `br;q=0.8` does not select brotli
+ * (upstream-deliberate; browsers send bare tokens). Negotiation is scoped to
+ * `/assets/*` only (never the `no-store` shell — kolu#1319). Binary /
  * already-compressed media types are refused server-side even if a sibling
  * exists.
  *

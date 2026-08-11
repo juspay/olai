@@ -753,6 +753,93 @@ json: ${jsonPath}
   writeFileSync(latestTxt, summary + "\n")
   console.log("\n" + summary)
   console.log(`\nwrote ${jsonPath}`)
+
+  // A standing baseline that cannot fail is not a baseline: one broken leg
+  // used to print `first node: ?` and exit 0. Assert the numbers that make
+  // the summary meaningful — and die loud when they are missing.
+  assertBaseline(report)
+}
+
+/**
+ * Hard requirements for a successful measurement run. Soft warnings (a
+ * second browser pass flaking, etc.) stay out of this list: the point is
+ * that the headline numbers cannot be placeholders.
+ */
+const assertBaseline = (report) => {
+  const failures = []
+  const b0 = report.browser?.[0]
+  if (b0 == null || b0.error) {
+    failures.push(`browser leg failed: ${b0?.error ?? "missing"}`)
+  } else {
+    const painted = b0.painted
+    if (painted?.kind !== "nodes") {
+      failures.push(
+        `browser did not paint outline nodes (kind=${painted?.kind ?? "?"})`,
+      )
+    }
+    if (typeof painted?.t !== "number" || !(painted.t > 0)) {
+      failures.push(
+        `first-node time missing or non-positive (got ${JSON.stringify(painted?.t)})`,
+      )
+    }
+    const nodes = painted?.count ?? painted?.nodeCountAfterSettle ?? b0.ui?.nodeCount
+    if (typeof nodes !== "number" || nodes < 1) {
+      failures.push(`node count empty (got ${JSON.stringify(nodes)})`)
+    }
+    if (b0.ui?.connection !== "live") {
+      failures.push(`connection not live (got ${JSON.stringify(b0.ui?.connection)})`)
+    }
+    if (!(b0.websocket?.framesIn > 0) || !(b0.websocket?.bytesIn > 0)) {
+      failures.push(
+        `websocket payload empty (framesIn=${b0.websocket?.framesIn}, bytesIn=${b0.websocket?.bytesIn})`,
+      )
+    }
+    if (!Array.isArray(b0.perf?.paints) || b0.perf.paints.length === 0) {
+      failures.push("performance paint entries empty")
+    }
+  }
+
+  const shell = report.http?.shell
+  if (!(shell?.bytes > 0) || !(shell?.ttfbMs >= 0)) {
+    failures.push(`shell metrics empty (${JSON.stringify(shell)})`)
+  }
+  // Compression is the P0 this harness tracks: a run that did not see br on
+  // the main JS is a broken baseline for this PR family (and a useful canary
+  // once precompress ships, so the failure stays).
+  const br = report.http?.gzipProbe?.br
+  if (br?.contentEncoding !== "br" || !(br?.bytesReceived > 0)) {
+    failures.push(
+      `br probe failed (encoding=${br?.contentEncoding}, bytes=${br?.bytesReceived})`,
+    )
+  }
+  const identity = report.http?.gzipProbe?.identity
+  if (identity?.contentEncoding != null && identity.contentEncoding !== "") {
+    failures.push(
+      `identity probe unexpectedly compressed (${identity.contentEncoding})`,
+    )
+  }
+  if (
+    br?.bytesReceived != null &&
+    identity?.bytesReceived != null &&
+    br.bytesReceived >= identity.bytesReceived
+  ) {
+    failures.push(
+      `br body not smaller than identity (${br.bytesReceived} >= ${identity.bytesReceived})`,
+    )
+  }
+
+  if (report.format?.error) {
+    failures.push(`format microbench failed: ${report.format.error}`)
+  } else if (!(report.format?.shape?.nodes > 0)) {
+    failures.push(
+      `format microbench empty (shape=${JSON.stringify(report.format?.shape)})`,
+    )
+  }
+
+  if (failures.length === 0) return
+  console.error("\nload-perf baseline FAILED:")
+  for (const f of failures) console.error(`  - ${f}`)
+  process.exit(1)
 }
 
 main().catch((e) => {

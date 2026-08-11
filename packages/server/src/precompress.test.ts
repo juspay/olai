@@ -165,3 +165,46 @@ test("the no-store shell is never served compressed, even with a sibling on disk
     fs.rmSync(dist, { recursive: true, force: true })
   }
 })
+
+test("an already-compressed media type stays identity even with a stray .br sibling", async () => {
+  // The content-type guard in @kolu/surface-app: a .png (or woff2, …) whose
+  // build wrongly wrote a .br next to it must never go out as Content-Encoding:
+  // br — that would be double-compressed bytes under the image MIME. Verified
+  // by the review against a live serve; this pins it.
+  const dist = clientDist()
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0xff, 0xfe])
+  fs.writeFileSync(path.join(dist, "assets", "logo-abc123.png"), png)
+  fs.writeFileSync(path.join(dist, "assets", "logo-abc123.png.br"), "BROTLI-PNG-NOT-USED")
+  try {
+    await withServer(dist, async (base) => {
+      const res = await get(`${base}/assets/logo-abc123.png`, {
+        "Accept-Encoding": "br, gzip",
+      })
+      expect(res.status).toBe(200)
+      expect(res.headers["content-encoding"]).toBeUndefined()
+      expect(String(res.headers["content-type"] ?? "")).toMatch(/png/i)
+      expect(res.body.equals(png)).toBe(true)
+    })
+  } finally {
+    fs.rmSync(dist, { recursive: true, force: true })
+  }
+})
+
+test("q-valued Accept-Encoding tokens do not match — identity, by design", async () => {
+  // Upstream negotiate() is a bare token Set (ported from serve-static): the
+  // string "br;q=0.8" is not the string "br", so a client that attaches a
+  // q-value to every encoding gets identity. Real browsers send bare tokens
+  // (`br, gzip`), so the shipped path is fine; this documents the edge.
+  const dist = clientDist()
+  try {
+    await withServer(dist, async (base) => {
+      const res = await get(`${base}/assets/main-abc123.js`, {
+        "Accept-Encoding": "gzip;q=1.0, br;q=0.8",
+      })
+      expect(res.headers["content-encoding"]).toBeUndefined()
+      expect(res.body.toString("utf8")).toContain("identity-bundle-body")
+    })
+  } finally {
+    fs.rmSync(dist, { recursive: true, force: true })
+  }
+})
