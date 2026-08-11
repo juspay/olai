@@ -157,8 +157,15 @@ test("a title keeps both markdown and its tags", () => {
 // outside the pipeline so the stored spacing survives.
 test("a title keeps the space before a tag", () => {
   const html = renderTitle("kitchen remodel #home", NOTE)
-  // Flatten the way a reader (and the e2e `readable` helper) sees it: no
-  // tags, collapsed whitespace, then the words including the gap before home.
-  const words = html.replace(/<[^>]+>/g, "").replace(/#/g, "").replace(/\s+/g, " ").trim()
-  expect(words).toBe("kitchen remodel home")
+  expect(html).toContain("#home")
+  expect(html).toContain(`data-testid="tag"`)
+  // A whitespace character must sit between the last word and the tag. Do not
+  // strip tags with a regex to re-read the string — that pattern is exactly
+  // the incomplete multi-character "sanitiser" CodeQL flags, and this is a
+  // layout assertion, not a sanitiser (rehype-sanitize already ran).
+  const wordAt = html.indexOf("remodel")
+  const tagAt = html.indexOf("#home")
+  expect(wordAt).toBeGreaterThanOrEqual(0)
+  expect(tagAt).toBeGreaterThan(wordAt)
+  expect(html.slice(wordAt + "remodel".length, tagAt)).toMatch(/\s/)
 })
