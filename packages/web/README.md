@@ -1,12 +1,14 @@
 # @olai/web — the SolidJS client, and the build that produces it
 
-An app header (wordmark, connection, agent, theme), a sidebar of the directory
+An app header (wordmark, connection, agent toggle, theme), a directory panel
 (month + file tree of every outline and document under the folders they live
-in), and one page open in the main pane — a whole outline, one node zoomed, a
-document, or one day — kept current by the live store underneath: an edit on
-disk arrives as the next frame of a subscription, so the page changes without
-reloading. SolidJS over a WebSocket, styled with Tailwind v4, bundled by
-`Bun.build`.
+in — full column or a ~3rem icon rail on desktop; slide-over drawer with scrim
+on a phone), a resizable agent dock (or bottom sheet on a phone; minimized to a
+pill / thumb strip carrying the last agent message), and one page open in the
+main pane — a whole outline, one node zoomed, a document, or one day — kept
+current by the live store underneath. ⌘K opens the command-palette shell
+(navigation, panel toggles, `>` to ask the agent). SolidJS over a WebSocket,
+styled with Tailwind v4, bundled by `Bun.build`.
 
 The build (`src/build.ts`) also writes `.br` / `.gz` siblings next to the
 hashed `/assets/*` files (`src/precompress.ts`). The static layer in
@@ -362,21 +364,24 @@ component draws would be rejecting it over a page that does not exist.
 `src/client/AppHeader.tsx` is a slim bar above every column: the `olai`
 wordmark on the left, and on the right the three pills that are about the APP
 rather than about the page — the connection indicator, the agent toggle
-(always on screen; pressed while the drawer is open; busy pulse in either
+(always on screen; pressed while the agent panel is open; busy pulse in either
 state while a turn runs), and the theme picker as a compact popover (a pill
 names the theme in force; chips open under it). On a phone the directory
 burger joins the left edge next to the wordmark.
 
 Principle: the header carries what is about the app; the sidebar
-(`Sidebar.tsx`) carries what is about the DIRECTORY — calendar + file tree
-only. The header is on every screen App draws, including the error report and
-the waiting page, so there is one home for chrome and no corner-pills special
-case those screens used to need. The sole exception is the fault card:
-`main.tsx`'s `<ErrorBoundary>` sits above `App`, so a thrown render never
-reaches the header (a broken client has no chrome to trust).
+(`Sidebar.tsx` / `layout/Rail.tsx`) carries what is about the DIRECTORY —
+calendar + file tree only, collapsing on desktop to an icon rail. The header
+is on every screen App draws, including the error report and the waiting page,
+so there is one home for chrome and no corner-pills special case those screens
+used to need. The sole exception is the fault card: `main.tsx`'s
+`<ErrorBoundary>` sits above `App`, so a thrown render never reaches the header
+(a broken client has no chrome to trust).
 
-The chat drawer sits **under** the header, not over it (`chat/Panel.tsx`
+The chat dock sits **under** the header, not over it (`chat/Panel.tsx`
 subtracts `--height-header`): the bar stays reachable while the agent is open.
+Layout widths, open/minimized state and the mobile chat snap live in
+`layout/prefs.ts` (client-local, never sent).
 
 ## The connection, said out loud
 
@@ -413,25 +418,25 @@ driving a second path to the same fact.
 
 ## The agent panel
 
-`src/client/chat/` is a drawer on the right, open or shut. It is a drawer
-rather than a column in the layout, and that is a decision about what olai is:
-the outline is the page, and the agent is something you open beside it.
+`src/client/chat/` is a dock on the right (desktop) or a bottom sheet (phone).
+Every panel has exactly two states — open, or minimized-with-signal — nothing
+closes to nowhere. Minimized desktop is a bottom-right **pill** carrying the
+last agent message and pulsing while a turn runs (`Minimized.tsx`); minimized
+phone is a **strip** above the thumb (same component). The header keeps the connection
+dot and the agent toggle (app chrome); the pill does not carry the connection.
 
-Open, it takes its width out of the layout on a screen wide enough to spare it
-rather than lying over the outline — a drawer you have to shut to finish reading
-a sentence costs more than it is worth. On a narrow one it covers the page
-(under the header), because there is no width to give it. Open and shut are the
-same control: a permanent toggle in the app header (`Toggle`) — always on
-screen, pressed while the drawer is open, busy-pulsing in either state while a
-turn runs. The panel has no × of its own; two ways to close one thing is one
-too many.
+Open on desktop, it drag-resizes and takes its width out of the layout on a
+screen wide enough to spare it rather than lying over the outline. On a phone
+it is a bottom sheet with half/full snap points over a scrim. Open and
+minimized are the same control: a permanent toggle in the app header
+(`Toggle`) — always on screen, pressed while open, busy-pulsing in either
+state. The panel has no × of its own.
 
-It ALWAYS draws. Whether an agent is configured is the server's answer, and when
-the answer is no the panel says so (`NoAgent.tsx`, naming `OLAI_ACP_AGENT`)
-rather than disappearing — a feature that is silently absent cannot be told
-apart from one that is broken, or from one you have not found yet. The composer
-and the transcript are what the explanation replaces, since there is nothing to
-send and nothing to show.
+It ALWAYS has a face. Whether an agent is configured is the server's answer,
+and when the answer is no the open panel says so (`NoAgent.tsx`, naming
+`OLAI_ACP_AGENT`) rather than disappearing — a feature that is silently absent
+cannot be told apart from one that is broken, or from one you have not found
+yet. The composer and the transcript are what the explanation replaces.
 
 Everything in it is a projection of two surface members — a `transcript`
 collection and a `chat` cell — so there is no chat state in the browser the
@@ -502,16 +507,18 @@ shell would show outlines that had stopped being true.
 
 Below **48rem** — the racket original's own breakpoint, and Tailwind's `md` —
 two things change. There is no second column to put the directory in, so the
-sidebar (calendar + file tree only) goes behind a BURGER in the app header:
-shut, the outline has the screen under the header; open, the sheet is capped at
-42dvh and scrolling inside itself so the outline is still under it. Any tap
-inside shuts it, because every control in there either goes somewhere or opens
-something over it. App chrome stays in the header, so the agent is one tap away.
+sidebar (calendar + file tree only) goes behind a BURGER in the app header as a
+slide-over **drawer with scrim**: shut, the outline has the screen under the
+header; open, the drawer covers the left with a dim scrim over the page.
+Navigation taps (and the scrim) put it away; folder folds do not. App chrome
+stays in the header, so the agent is one tap away. Chat is a bottom sheet
+(half/full snap), collapsed to the thumb strip — the mobile-pwa "chat full
+sheet" debt is discharged here.
 
 An always-open capped strip of the whole sidebar was the first answer, and it
 was worse in both directions: it took a third of the screen from the outline to
 show a list nobody had asked for, and the agent ended up inside a strip that
-scrolled. Two taps is still the budget for anything in the directory sheet.
+scrolled. Two taps is still the budget for anything in the directory drawer.
 
 And what a finger aims at grows to 44px, the number both mobile platforms
 print in their guidelines: sidebar entries — outlines and documents alike —
@@ -536,12 +543,18 @@ width, which is where the racket original put both.
 `viewport.ts` is the last piece: an on-screen keyboard covers the bottom of the
 viewport without shrinking it, so the page measures `visualViewport` and
 publishes `--visible-h` and `--visible-bottom`. The arithmetic is a plain
-function of two numbers and unit-tested as one. The agent drawer is sized by
-`--visible-h` minus the header strip, which is what keeps its composer on
+function of two numbers and unit-tested as one. The agent dock / sheet is sized
+by `--visible-h` minus the header strip, which is what keeps its composer on
 screen while the keyboard that is being typed into is up. The main column still
-clears the home-bar inset (`CLEARANCE`). The rest of the panel on a small
-screen — where it should open from, what it should cover — is roadmapped
-separately.
+clears the home-bar inset (`CLEARANCE`).
+
+## Command palette shell
+
+`src/client/palette/` is the ⌘K shell: navigation (home, today), panel toggles,
+and a `>` prefix that sends the rest to the agent. Jump-to-node type-ahead and
+op actions belong to the separate `palette` roadmap item. Keyboard map reserved
+so keyboard-editing cannot collide later: **⌘K** palette, **⌘\\** sidebar,
+**⌘J** chat (`palette/keys.ts`).
 
 
 ## What belongs to a reading, not to the file

@@ -154,10 +154,13 @@ contrast on everything it paints.
 
 It reads on a phone, and it installs as one. Add it to a home screen or a dock
 and it opens in its own window under the olai mark; the directory (calendar and
-file tree) goes behind a burger in the app header on a narrow screen, app chrome
-stays in that header, and everything a thumb aims at is sized for one. There is
-no offline mode, on purpose — a cached copy of an outline is a copy that has
-stopped being true, and this page's whole promise is that it has not.
+file tree) is a slide-over drawer behind a burger on a narrow screen, chat is a
+bottom sheet (or a strip above the thumb when minimized), app chrome stays in
+the header, and everything a thumb aims at is sized for one. On a laptop the
+directory collapses to an icon rail and both panels drag-resize; ⌘K opens a
+command palette for navigation and panel toggles. There is no offline mode, on
+purpose — a cached copy of an outline is a copy that has stopped being true, and
+this page's whole promise is that it has not.
 
 When something stops validating, what you see depends on what can still be
 shown. A file whose lines will not parse costs that one outline: it is marked
