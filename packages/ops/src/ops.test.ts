@@ -447,6 +447,35 @@ describe("the auto-commit", () => {
         expect(fixture.gitMoves.map((move) => move.status)).toEqual(["error", "repo"])
       }), { git: true, identity: false }))
 
+  /**
+   * The observer runs inside `afterPublish`, which is inside the write gate and
+   * after the bytes are on disk. So a transport that threw while publishing
+   * would come back to the caller as a FAILED op about a write that had already
+   * happened — the exact lie this change exists to stop, arriving through the
+   * mechanism that was supposed to end it.
+   */
+  test("a publisher that throws cannot fail the write it was told about", () =>
+    withOps({ "house.jsonl": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        const ops = Ops.make({
+          store: fixture.store,
+          root: fixture.root,
+          commit: true,
+          context: steady(),
+          onGit: () => {
+            throw new Error("the surface is gone")
+          },
+        })
+
+        const applied = yield* Effect.orDie(ops.run({ op: "done", id: "order" }))
+
+        expect(applied.committed).toBe(false)
+        expect(applied.why).toContain("identity")
+        expect(fixture.read("house.jsonl")).toContain(`"done"`)
+        // And the layer still knows what it was trying to say.
+        expect((yield* ops.git).status).toBe("error")
+      }), { git: true, identity: false }))
+
   test("the opt-out writes without committing, and says that is why", () =>
     withOps({ "house.jsonl": HOUSE }, (fixture) =>
       Effect.gen(function*() {

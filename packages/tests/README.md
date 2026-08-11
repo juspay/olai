@@ -146,6 +146,12 @@ Like `@kolu` and `@agent-stored`, it needs `@scratch:<corpus>` — what a server
 commits to is decided when it is started, and a `@corpus:` server is running for
 every other scenario in the run. The `Before` hook says so by name.
 
+One of those scenarios goes the whole way rather than reading chrome: it asks
+the agent for a write under a broken git and opens the tool call's detail, which
+is the op's own reply as the reader gets it. That is the only assertion in the
+suite that follows one field (`Applied.why`) from the ops layer, through the
+internal MCP server and the transcript, onto a screen.
+
 ## A phone, and the two things it changes
 
 **`@phone`** on a scenario gives it a handset context instead of a laptop one:

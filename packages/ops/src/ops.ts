@@ -153,6 +153,29 @@ export const make = (options: Options): Ops => {
   const reading = (directory: Git.GitState): Git.GitState =>
     refused === null ? directory : Git.errorState(refused)
 
+  /**
+   * Tell the transport, and never let it fail the write.
+   *
+   * This runs inside the store's `afterPublish`, which is inside the write
+   * gate and AFTER the bytes are on disk — so a publisher that threw would
+   * come back to the caller as a failed op about a write that had already
+   * happened, which is the exact lie this whole change exists to stop. The
+   * observer is a plain callback rather than an Effect (a transport setting a
+   * cell has nothing to fail with), so the guard belongs here rather than in
+   * every caller's handler. A publisher that does throw is not swallowed: it
+   * is the one thing left that a log is the right place for, because there is
+   * no longer any surface to say it on.
+   */
+  const published = (next: Git.GitState): Effect.Effect<void> =>
+    Effect.catch(
+      Effect.try(() => options.onGit?.(next)),
+      (thrown) =>
+        Effect.annotateLogs(
+          Effect.logWarning("olai git: the git state could not be published"),
+          { said: String(thrown), status: next.status },
+        ),
+    )
+
   const read: Effect.Effect<Reading, OpFailure> = Effect.gen(function*() {
     const snapshot = yield* SubscriptionRef.get(options.store.snapshot)
     if (snapshot === null) {
@@ -223,7 +246,7 @@ export const make = (options: Options): Ops => {
               // on every op.
               const before = refused
               refused = commitment.kind === "refused" ? commitment.said : null
-              if (refused !== before) options.onGit?.(reading(directory))
+              if (refused !== before) yield* published(reading(directory))
             }),
           }),
         )

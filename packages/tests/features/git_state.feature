@@ -41,6 +41,20 @@ Feature: What git is doing is on screen
     And the git readout explains "not a git work tree"
 
   @scratch:good @git:broken
+  Scenario: A write that could not be committed says why where the reader is looking
+    # The other half of the bug, and the half the header cannot answer: the
+    # write LANDED — that is the guarantee — and the reply says why it is not in
+    # the history, in git's own words, in the block a reader opens on the call
+    # that made it. The whole path is real here: panel, ops, git, and the tool
+    # result coming back.
+    Given the agent panel is open
+    When I ask the agent "done mint"
+    Then the chat shows a completed tool call
+    And node "mint" is done
+    When I unfold the tool call
+    Then the tool call's detail says "dubious ownership"
+
+  @scratch:good @git:broken
   Scenario: A git that fails says so, in git's own words
     # The state that used to be indistinguishable from the one above: git ran,
     # refused, and said why. What it said is the answer a reader wants, so it is

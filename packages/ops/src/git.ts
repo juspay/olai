@@ -177,13 +177,11 @@ const git = (
         env: { ...process.env, LC_ALL: "C", GIT_TERMINAL_PROMPT: "0" },
       },
       (error, stdout, stderr) => {
-        const code = (error as { readonly code?: unknown } | null)?.code
         resume(
-          Effect.succeed({
+          Effect.succeed<Ran>({
             ok: error === null,
             said: `${stdout}${stderr}`.trim() ||
               (error === null ? "" : error.message),
-            code: error === null ? 0 : typeof code === "number" ? code : null,
           }),
         )
       },
