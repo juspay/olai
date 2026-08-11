@@ -263,15 +263,9 @@ export const detail = (derived: Derived, id: string): Detail | null => {
     tags: titleParts(node.title).flatMap((part) =>
       part.kind === "tag" ? [part.tag] : []
     ),
-    children: childrenOf(derived, id).map((child) => foundOf(derived, child)),
+    children: countedChildren(derived, id).map((child) => foundOf(derived, child)),
   }
 }
-
-/** The counted children as located regular nodes, in sibling order — a mirror
- *  resolved to what it shows would be that node at somebody else's location,
- *  so it is left out. */
-const childrenOf = (derived: Derived, id: string): ReadonlyArray<LocatedRegular> =>
-  countedChildren(derived, id) as ReadonlyArray<LocatedRegular>
 
 export const subtree = (
   derived: Derived,
@@ -283,7 +277,7 @@ export const subtree = (
 
   const depth = options.depth ?? 3
   const walk = (at: LocatedRegular, left: number): Subtree => {
-    const children = childrenOf(derived, at.node.id)
+    const children = countedChildren(derived, at.node.id)
     return {
       ...foundOf(derived, at),
       ...(at.node.date === undefined ? {} : { date: at.node.date }),

@@ -115,13 +115,18 @@ export const siblingsOf = (
 const counted = (
   children: ReadonlyMap<string, ReadonlyArray<Located>>,
   id: string,
-): ReadonlyArray<Located> =>
-  (children.get(id) ?? []).filter((child) => !isMirror(child.node))
+): ReadonlyArray<LocatedRegular> =>
+  // A type guard, so what comes back IS the regular records rather than a
+  // list every caller has to assert about: dropping the mirrors is exactly
+  // what makes that true, and saying so here is what deletes the casts.
+  (children.get(id) ?? []).filter((child): child is LocatedRegular =>
+    !isMirror(child.node)
+  )
 
 export const countedChildren = (
   derived: Derived,
   id: string,
-): ReadonlyArray<Located> => counted(derived.children, id)
+): ReadonlyArray<LocatedRegular> => counted(derived.children, id)
 
 /**
  * What a node's CHILDREN say about it — and the whole of what a refusal needs
@@ -137,17 +142,31 @@ export const countedChildren = (
  * `null` when the node has no counted children: then it speaks for itself, and
  * neither refusal is about it.
  */
+/** How many children answered, on every one of the three. Factored the way
+ *  {@link Row} factors {@link Place}: one field, one place to describe it. */
+interface Asked {
+  readonly counted: number
+}
+
+/** One of the children in the way, and WHY it is — a task that is not done.
+ *  The reason travels with the child rather than being restated by each
+ *  reader: that restatement is what the union exists to stop, and blockedness
+ *  will give a second reason for a child to be here. */
+export interface InTheWay {
+  readonly at: LocatedRegular
+  readonly status: Exclude<Status, "done">
+}
+
 export type FromChildren =
   /** None of them is a task, so neither is the node. */
-  | { readonly kind: "nothing"; readonly counted: number }
+  | (Asked & { readonly kind: "nothing" })
   /** Every task among them is finished. */
-  | { readonly kind: "done"; readonly counted: number }
+  | (Asked & { readonly kind: "done" })
   /** Some are not, and they are what to mark instead. Non-empty. */
-  | {
+  | (Asked & {
     readonly kind: "unfinished"
-    readonly counted: number
-    readonly children: ReadonlyArray<LocatedRegular>
-  }
+    readonly children: ReadonlyArray<InTheWay>
+  })
 
 export const fromChildren = (derived: Derived, id: string): FromChildren | null => {
   const own = counted(derived.children, id)
@@ -164,10 +183,10 @@ export const fromChildren = (derived: Derived, id: string): FromChildren | null 
     counted: own.length,
     // A child is in the way if it is a TASK that is not done — never merely
     // `!== "done"`, which reads a plain bullet as an obstacle that can never
-    // be cleared. `counted` has already dropped the mirrors.
-    children: own.flatMap((child) => {
-      const status = derived.status.get(child.node.id)
-      return status === undefined || status === "done" ? [] : [child as LocatedRegular]
+    // be cleared.
+    children: own.flatMap((at) => {
+      const status = derived.status.get(at.node.id)
+      return status === undefined || status === "done" ? [] : [{ at, status }]
     }),
   }
 }
@@ -189,15 +208,18 @@ const statuses = (
   byId: ReadonlyMap<string, Located>,
   children: ReadonlyMap<string, ReadonlyArray<Located>>,
 ): ReadonlyMap<string, Status> => {
-  // "No status" is a settled ANSWER here, not a missing one — so the memo is
-  // keyed on `has` and the map handed back simply omits it. One spelling of
-  // absence, the same one every caller reads off `status.get`.
-  const settled = new Map<string, Status | undefined>()
+  // The map handed back IS the one the walk fills, and "no status" is a
+  // settled ANSWER rather than a missing one — so `settled` records that the
+  // question was asked and `status` holds only the nodes with an answer. One
+  // spelling of absence, the same one every caller reads off `status.get`,
+  // and no second table to copy out of at the end.
+  const status = new Map<string, Status>()
+  const settled = new Set<string>()
   const walking = new Set<string>()
 
   const of = (located: Located): Status | undefined => {
     const id = located.node.id
-    if (settled.has(id)) return settled.get(id)
+    if (settled.has(id)) return status.get(id)
     // A loop the validator will report; treat the re-entry as carrying nothing
     // rather than recursing into it.
     if (walking.has(id)) return undefined
@@ -205,7 +227,8 @@ const statuses = (
 
     const computed = compute(located)
     walking.delete(id)
-    settled.set(id, computed)
+    settled.add(id)
+    if (computed !== undefined) status.set(id, computed)
     return computed
   }
 
@@ -218,15 +241,14 @@ const statuses = (
     const own = counted(children, located.node.id)
     if (own.length === 0) return storedMarker(located.node)
 
-    const tasks = own.flatMap((child) => of(child) ?? [])
+    // One array, not one per unmarked child: most nodes carry no mark, so
+    // this runs over every parent-child edge in the set on every derive.
+    const tasks = own.map(of).filter((mark) => mark !== undefined)
     if (tasks.length === 0) return undefined
     return tasks.every((task) => task === "done") ? "done" : "doing"
   }
 
   for (const located of nodes) of(located)
-
-  const status = new Map<string, Status>()
-  for (const [id, mark] of settled) if (mark !== undefined) status.set(id, mark)
   return status
 }
 

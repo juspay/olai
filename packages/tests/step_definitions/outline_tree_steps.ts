@@ -11,6 +11,8 @@ import {
   DATE,
   DESC,
   NODE,
+  NODE_GUTTER,
+  nodeSelector,
   readable,
   OUTLINE_TREE,
   POLL_TIMEOUT,
@@ -102,12 +104,8 @@ Then(
   async function (this: OlaiWorld, id: string) {
     // ABSENT, not a word for "none": the row of a bullet says nothing about
     // status at all, which is what "not a task" is spelled as everywhere else.
-    await this.waitUntil(
-      async () => (await this.nodeAttribute(id, "data-status")) === null,
-      `the node "${id}" carries no data-status`,
-    ).catch(async () => {
-      assert.strictEqual(await this.nodeAttribute(id, "data-status"), null);
-    });
+    // The same waiting machinery `has status` uses, from the other side.
+    await this.expectAttributeAbsent(nodeSelector(id), "data-status", `node "${id}"`);
   },
 );
 
@@ -149,12 +147,12 @@ Then(
   "the node {string} shows no checkbox",
   async function (this: OlaiWorld, id: string) {
     // A bullet draws no box — not an empty one. The blank holding the column
-    // open carries no testid, so counting the boxes is the whole assertion.
-    // Scoped to this row's OWN gutter (`:scope > div >`): a node's rows nest,
-    // and a descendant's checkbox is that node's business, not this one's.
-    const row = this.node(id).first();
-    await row.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
-    const own = row.locator(`:scope > div > ${CHECKBOX}`);
+    // open carries no testid, so counting the boxes is the whole assertion,
+    // and the count is asked of this row's own LINE: rows nest, and a
+    // descendant's checkbox is that node's business rather than this one's.
+    const line = this.node(id).locator(NODE_GUTTER).first();
+    await line.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+    const own = line.locator(CHECKBOX);
     await this.waitUntil(
       async () => (await own.count()) === 0,
       `the node "${id}" shows no checkbox`,

@@ -36,19 +36,20 @@ export function Checkbox(props: { readonly status: Status | undefined }) {
       when={props.status}
       fallback={<span class={CONTROL_SPACER} aria-hidden="true" />}
     >
-      {(status) => (
-        <span
-          class={`${CONTROL} select-none text-center text-[0.8125rem] leading-none md:text-[0.8125rem] ${
-            FACE[status()].tone
-          }`}
-          data-testid={TESTID.checkbox}
-          data-status={status()}
-          title={FACE[status()].hint}
-          aria-hidden="true"
-        >
-          {FACE[status()].mark}
-        </span>
-      )}
+      {(status) => {
+        const face = () => FACE[status()]
+        return (
+          <span
+            class={`${CONTROL} select-none text-center text-[0.8125rem] leading-none md:text-[0.8125rem] ${face().tone}`}
+            data-testid={TESTID.checkbox}
+            data-status={status()}
+            title={face().hint}
+            aria-hidden="true"
+          >
+            {face().mark}
+          </span>
+        )
+      }}
     </Show>
   )
 }

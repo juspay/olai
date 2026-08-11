@@ -91,7 +91,7 @@ function Branch(props: {
       data-line={props.row.at.line}
       data-note-open={note.expanded() ? "true" : "false"}
     >
-      <div class="flex items-baseline gap-1.5">
+      <div class="flex items-baseline gap-1.5" data-testid={TESTID.nodeGutter}>
         <Show
           when={props.row.children.length > 0}
           fallback={<span class={CONTROL_SPACER} aria-hidden="true" />}

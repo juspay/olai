@@ -426,10 +426,12 @@ const planMark = (
   if (said !== null) {
     const unfinished: ReadonlyArray<Unfinished> = said.kind !== "unfinished"
       ? []
+      // The status travels with the child from the derivation — the planner
+      // does not get to type in why a child is in the way.
       : said.children.map((child) => ({
-        id: child.node.id,
-        title: child.node.title,
-        status: "doing" as const,
+        id: child.at.node.id,
+        title: child.at.node.title,
+        status: child.status,
       }))
     return Result.fail(
       new DerivedFailure({

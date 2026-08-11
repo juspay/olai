@@ -4,6 +4,7 @@ import {
   countedChildren,
   derive,
   fromChildren,
+  type FromChildren,
   type Row,
   rowsOf,
   type Status,
@@ -139,6 +140,15 @@ test("a parent is the sum of the children that are tasks", () => {
 test("what the children say is one of three answers", () => {
   const said = (contents: string, id: string) => fromChildren(derive(nodesOf(contents)), id)
 
+  /** The children in the way, as `id status` pairs — both halves, because the
+   *  answer carrying the reason with the child is the point of it. */
+  const inTheWay = (
+    from: FromChildren | null,
+  ): ReadonlyArray<readonly [string, string]> =>
+    from?.kind === "unfinished"
+      ? from.children.map((child) => [child.at.node.id, child.status] as const)
+      : []
+
   // Nothing: a node whose children are all bullets is a bullet.
   expect(said(
     `{"id":"p","ord":"a","title":"p"}\n` +
@@ -168,7 +178,9 @@ test("what the children say is one of three answers", () => {
   )
   expect(unfinished?.kind).toBe("unfinished")
   expect(unfinished?.counted).toBe(3)
-  expect(ids(unfinished?.kind === "unfinished" ? unfinished.children : [])).toEqual(["c2"])
+  // Each carries WHY it is in the way, so neither refusal has to say it for
+  // itself: `doing` is what a task that is not done is.
+  expect(inTheWay(unfinished)).toEqual([["c2", "doing"]])
 
   // A child that is a task because of ITS children counts the same way.
   const nested = said(
@@ -177,7 +189,7 @@ test("what the children say is one of three answers", () => {
       `{"id":"leaf","parent":"mid","ord":"a","title":"leaf","doing":true}`,
     "p",
   )
-  expect(ids(nested?.kind === "unfinished" ? nested.children : [])).toEqual(["mid"])
+  expect(inTheWay(nested)).toEqual([["mid", "doing"]])
 
   // And a node with no counted children is not what either refusal is about.
   expect(said(`{"id":"p","ord":"a","title":"p","done":true}`, "p")).toBeNull()

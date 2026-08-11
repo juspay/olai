@@ -289,8 +289,8 @@ const checkDerivedState = (
       // rule the format applies to its own absent fields.
       ...(said.kind !== "unfinished" ? {} : {
         related: said.children.map((child) => ({
-          ...siteOf(child),
-          note: `\`${child.node.id}\` is ${derived.status.get(child.node.id)}`,
+          ...siteOf(child.at),
+          note: `\`${child.at.node.id}\` is ${child.status}`,
         })),
       }),
     })

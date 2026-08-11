@@ -57,6 +57,11 @@ export const TESTID = {
    *  whether it is the one in force — never the colour it is painted, which is
    *  the whole subject here and so the last thing to assert on. */
   themeChip: "theme-chip",
+  /** A row's own LINE: the controls in its gutter and the title beside them,
+   *  and nothing belonging to a row nested under it. Rows nest, so "this
+   *  node's checkbox" needs a handle on the line rather than on the subtree —
+   *  without one, the absence of a box has to be asked of markup shape. */
+  nodeGutter: "node-gutter",
   /** The bullet on every row: the link to that node's own page. */
   zoom: "zoom",
   /** The status box beside that bullet: checked for done, half for doing —
