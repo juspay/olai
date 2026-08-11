@@ -50,6 +50,11 @@ export const connectTerminalAgent = async (
 ): Promise<TerminalAgent> => {
   const child: ChildProcess = spawn(bin, ["mcp", directory, "--no-commit"], {
     stdio: ["pipe", "pipe", "pipe"],
+    env: {
+      ...process.env,
+      // stderr diagnostics stay logfmt; do not inherit OLAI_LOG=pretty.
+      OLAI_LOG: "logfmt",
+    },
   });
 
   // stderr is where it may say anything that is not a frame, so it is where a

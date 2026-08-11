@@ -16,14 +16,20 @@
  *      lists and strikethrough) into the same dialect an agent and a reader
  *      already write.
  *   2. **to HTML**, with footnote ids left bare (`clobberPrefix: ""`). They are
- *      re-minted in step 4 against this block, so a prefix here would only be a
+ *      re-minted in step 5 against this block, so a prefix here would only be a
  *      second one to strip.
- *   3. **sanitise**, which is what makes the result safe to hand to
+ *   3. **anchor the headings** — an `id` per heading and a link beside it
+ *      pointing at it, which is what makes a section a place a reader can jump
+ *      to and hand to somebody else. Before the sanitiser, not after: the id is
+ *      made out of a heading somebody WROTE, so what it produces is checked by
+ *      the allowlist rather than trusted for having arrived late. ./anchors.ts
+ *      is that decision.
+ *   4. **sanitise**, which is what makes the result safe to hand to
  *      `innerHTML`: these files are written by people, by agents and by git
- *      merges, and a note is not a place a `<script>` may appear. Clobbering is
- *      off for the same reason as above — every id on the page is minted in
- *      step 4, which is a stronger rule than a shared prefix.
- *   4. **highlight**, and then **rewrite**. Highlighting runs AFTER the
+ *      merges, and a note is not a place a `<script>` may appear. The allowlist
+ *      is ./sanitise.ts — the security boundary, in one file, with everything
+ *      this app has ever added to it named there.
+ *   5. **highlight**, and then **rewrite**. Highlighting runs AFTER the
  *      sanitiser deliberately: the `hljs-` spans are ours, produced from the
  *      code's own text, so they need no allowlist entry — while `language-…`
  *      on a `<code>`, which is the reader's, is on the sanitiser's default
@@ -37,12 +43,18 @@
  * plugin, which is what lets the pipeline be built ONCE — `rehype-highlight`
  * registers three dozen languages when it is attached, and a pipeline rebuilt
  * per note would pay for that on every row of every frame.
+ *
+ * A rendering is therefore two things, and both come out of one run: the HTML,
+ * and the heading tree it turned out to have ({@link Rendered}). A table of
+ * contents is derived from the second at view time and stored nowhere.
  */
 
 import nix from "highlight.js/lib/languages/nix"
 import { common } from "lowlight"
+import rehypeAutolinkHeadings from "rehype-autolink-headings"
 import rehypeHighlight from "rehype-highlight"
-import rehypeSanitize, { defaultSchema } from "rehype-sanitize"
+import rehypeSanitize from "rehype-sanitize"
+import rehypeSlug from "rehype-slug"
 import rehypeStringify from "rehype-stringify"
 import remarkGfm from "remark-gfm"
 import remarkParse from "remark-parse"
@@ -50,7 +62,10 @@ import remarkRehype from "remark-rehype"
 import { unified } from "unified"
 import type { Root } from "hast"
 
+import { AUTOLINK } from "./anchors.ts"
+import type { Heading } from "./outline.ts"
 import { rewrite } from "./rewrite.ts"
+import { SANITISE } from "./sanitise.ts"
 
 /**
  * The grammars a fence may name: `lowlight`'s common set, plus Nix.
@@ -72,9 +87,20 @@ const pipeline = unified()
   .use(remarkParse)
   .use(remarkGfm)
   .use(remarkRehype, { clobberPrefix: "" })
-  .use(rehypeSanitize, { ...defaultSchema, clobberPrefix: "" })
+  .use(rehypeSlug)
+  .use(rehypeAutolinkHeadings, AUTOLINK)
+  .use(rehypeSanitize, SANITISE)
   .use(rehypeHighlight, { detect: false, languages })
   .use(rehypeStringify)
+
+/** What one run of it produces: the HTML, and the headings that are in it.
+ *  Not exported — the two entry points below hand out one half each, so
+ *  nothing outside has to hold a pair to ask for either. */
+interface Rendered {
+  readonly html: string
+  /** In document order, with the ids the page actually carries. */
+  readonly headings: readonly Heading[]
+}
 
 /**
  * Keyed by the text AND the file it is in, because both are the input: the
@@ -91,19 +117,34 @@ const pipeline = unified()
  * cap is a whole-cache drop rather than an eviction policy — an LRU here would
  * be more machinery than the thing it manages.
  */
-const rendered = new Map<string, string>()
+const rendered = new Map<string, Rendered>()
 const CACHE_LIMIT = 512
 
-export const renderMarkdown = (source: string, from: string): string => {
+const renderingOf = (source: string, from: string): Rendered => {
   const key = `${from}\n${source}`
   const hit = rendered.get(key)
   if (hit !== undefined) return hit
 
-  const html = render(source, from, key)
+  const result = render(source, from, key)
   if (rendered.size >= CACHE_LIMIT) rendered.clear()
-  rendered.set(key, html)
-  return html
+  rendered.set(key, result)
+  return result
 }
+
+export const renderMarkdown = (source: string, from: string): string =>
+  renderingOf(source, from).html
+
+/**
+ * The heading tree of the same rendering — what a table of contents is made of
+ * (./outline.ts), and the ONLY thing needed to make one.
+ *
+ * A second entry point rather than a second return value, so the page that
+ * wants a contents and the component that draws the body ask their own
+ * questions and neither has to hold the other's answer. They still cost one
+ * run between them: both go through the memo above, on the same key.
+ */
+export const outlineOf = (source: string, from: string): readonly Heading[] =>
+  renderingOf(source, from).headings
 
 /**
  * The same rendering, for text that is still arriving — and deliberately not
@@ -119,12 +160,12 @@ export const renderMarkdown = (source: string, from: string): string => {
  * about the panel rather than about markdown.
  */
 export const renderStreaming = (source: string, from: string): string =>
-  render(source, from, `${from}\n${source}`)
+  render(source, from, `${from}\n${source}`).html
 
-const render = (source: string, from: string, key: string): string => {
+const render = (source: string, from: string, key: string): Rendered => {
   const tree = pipeline.runSync(pipeline.parse(source)) as Root
-  rewrite(tree, { from, ids: idsFor(key) })
-  return pipeline.stringify(tree)
+  const headings = rewrite(tree, { from, ids: idsFor(key) })
+  return { html: pipeline.stringify(tree), headings }
 }
 
 /**

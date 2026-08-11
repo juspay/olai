@@ -149,7 +149,9 @@ when the promise is a property no attribute can carry, and only then. Two
 places qualify so far — the finger-sized controls here, and the rendered
 markdown a document draws (`document_steps.ts`, `app_steps.ts`), where the
 tags are correct however badly they are set and the damage is only in the
-layout. In `step_definitions/phone_steps.ts`, a map turns a reader's name for
+layout. An anchor jump (`toc_steps.ts`) is the same exception said about
+movement: a fragment that changes the address and scrolls nowhere leaves every
+attribute on the page exactly as it was, and only the heading's box says so. In `step_definitions/phone_steps.ts`, a map turns a reader's name for
 a control ("collapse toggle") into the `data-testid` it is found by. `features/on_a_phone.feature` ends with a laptop
 scenario on purpose: the finger-sized rule is about the pointer, and a control
 that grew everywhere would be a regression in the other direction.
@@ -256,6 +258,8 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="document-link"][data-file]` | one document entry in the file tree |
 | `[data-testid="document-page"][data-file]` | one document, as a page |
 | `[data-testid="document-body"]` | a document's rendered markdown, on its page or inline under a node |
+| `[data-testid="toc"]` | a document's table of contents, above its body — a `<details>`, so whether it is open is the element's own state; ABSENT on anything that is not a document's own page, and on a document with fewer than two headings |
+| `[data-testid="toc-link"]` | one line of it: a link to a heading in the same page, its `href` naming the id that heading carries |
 | `[data-testid="doc-ref"][data-doc]` | a node's `doc`, at its RESOLVED path; `data-inline` when the document is drawn whole |
 | `[data-testid="doc-link"]` | the link inside that reference |
 | `[data-testid="node-gutter"]` | one row's own line — its controls and title, and nothing from the rows nested under it |

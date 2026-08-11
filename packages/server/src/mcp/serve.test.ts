@@ -92,6 +92,12 @@ const converse = async (
 ): Promise<Said> => {
   const child = spawn(process.execPath, [MAIN, "mcp", root, "--no-commit"], {
     stdio: ["pipe", "pipe", "pipe"],
+    env: {
+      ...process.env,
+      // Assertions on stderr read logfmt fields (`root=`); pin so a shell
+      // with OLAI_LOG=pretty cannot reshape them.
+      OLAI_LOG: "logfmt",
+    },
   })
 
   let out = ""

@@ -79,6 +79,16 @@ export const DOCUMENT_PAGE = selector(TESTID.documentPage);
 /** The rendered markdown of a document — on its own page, or inline under the
  *  node that attaches it. */
 export const DOCUMENT_BODY = selector(TESTID.documentBody);
+/** A document's table of contents, above its body. A `<details>`: whether it is
+ *  open is the element's own state. */
+export const TOC = selector(TESTID.toc);
+/** One line of it — a link to a heading in the same page. */
+export const TOC_LINK = selector(TESTID.tocLink);
+/** Every heading of a rendered block. Rendered markdown carries no testid —
+ *  its tags come out of a file on disk — so the tags themselves are the
+ *  selector, spelled once here like every other one rather than in the steps
+ *  that reach for them. */
+export const HEADINGS = "h1, h2, h3, h4, h5, h6";
 /** A node's `doc`: the reference, carrying the RESOLVED path as `data-doc`. */
 export const DOC_REF = selector(TESTID.docRef);
 /** The link inside that reference, to the document's own page. */
@@ -439,6 +449,15 @@ export class OlaiWorld extends World {
   /** One sidebar document entry, by the path it stands for. */
   documentLink(file: string): Locator {
     return this.page.locator(`${DOCUMENT_LINK}[data-file="${file}"]`);
+  }
+
+  /** The rendered document on screen — its own page, or the one drawn inline
+   *  under a zoomed node. Both are the same component and the same pipeline,
+   *  so a step says "the document" and means whichever is there. Here rather
+   *  than in a step file because two of them now ask (`document_steps.ts`,
+   *  `toc_steps.ts`), and `.first()` being the right answer is one decision. */
+  documentBody(): Locator {
+    return this.page.locator(DOCUMENT_BODY).first();
   }
 
   /** One folder in the sidebar's file tree, by its root-relative path. */

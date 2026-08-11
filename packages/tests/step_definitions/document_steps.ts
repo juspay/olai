@@ -97,10 +97,9 @@ Then(
   },
 );
 
-/** The rendered body — a document's own page, or the one drawn inline under a
- *  zoomed node. Both are the same component and the same pipeline, so a
- *  scenario says "the document" and means whichever is on screen. */
-const body = (world: OlaiWorld) => world.page.locator(DOCUMENT_BODY).first();
+/** The rendered body — `world.documentBody()`, kept as a local name because
+ *  every step below reads better for it. */
+const body = (world: OlaiWorld) => world.documentBody();
 
 Then(
   "the document renders bold text {string}",

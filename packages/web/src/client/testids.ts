@@ -81,6 +81,15 @@ export const TESTID = {
   /** The document itself, rendered — on its own page, or inline under the node
    *  that attaches it. */
   documentBody: "document-body",
+  /** A document's table of contents, above its body. A `<details>`, so whether
+   *  it is open is the element's own `open` property and not a second flag —
+   *  and ABSENT on a document with fewer than two headings, which is what makes
+   *  "a note never gets one" assertable. */
+  toc: "toc",
+  /** One line of it: a link to a heading in the same page. Its `href` is the
+   *  fragment, which is the whole claim — the id it names is the one the
+   *  rendered heading carries. */
+  tocLink: "toc-link",
   /** The theme picker in the header: a compact pill that opens the chip strip.
    *  What the DEFAULT theme is and where a pick is stored are not attributes on
    *  it: the browser tests import those from `theme/palettes.ts` the same way
