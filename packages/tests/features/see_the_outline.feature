@@ -40,18 +40,27 @@ Feature: See the outline
     And the node "order" shows a doing checkbox
     And the node "hinges" shows an empty checkbox
 
-  Scenario: A parent shows the status derived from its children
-    # `kitchen` stores no status at all: one child is done and one is under
-    # way, so it is `doing`. The unmarked child is a bullet and counts for
-    # nothing either way; the mirror does not count either.
+  Scenario: A parent shows the mark it stores, like any other node
+    # `kitchen` carries `doing` itself. Nothing is computed from its children:
+    # a mark is on the node that carries it, whether or not anything hangs
+    # below (resolved 2026-08-11).
     Then the node "kitchen" has status "doing"
+    And the node "kitchen" shows a doing checkbox
 
-  Scenario: A parent whose tasks have all been declared and none started is todo
-    # `install` stores nothing either. Under it are one bullet and one `todo`,
-    # so the one task it has has not started — and a parent that read `doing`
-    # there would be claiming progress nobody has made.
-    Then the node "install" has status "todo"
-    And the node "install" shows an empty checkbox
+  Scenario: A parent nobody marked is a bullet, whatever its children carry
+    # `install` carries no mark, and a `todo` child does not make it a task —
+    # someone has to say so. So it draws no box at all, exactly like a note.
+    Then the node "install" has no status
+    And the node "install" shows no checkbox
+
+  Scenario: A parent with tasks under it shows how far they have got
+    # An ANNOTATION beside the title, never the checkbox: `kitchen` is `doing`
+    # because somebody said so, and `1/2` is what its two task children add up
+    # to. The unmarked child is not counted, and neither is the mirror.
+    Then the node "kitchen" shows the progress "1/2"
+    # A node with no tasks under it shows none — there is nothing to count,
+    # rather than nothing done out of nothing.
+    And the node "demo" shows no progress
 
   Scenario: A node waiting on unfinished work says so on its row
     # `hinges` is `after` `order`, and `order` is under way — so `hinges`

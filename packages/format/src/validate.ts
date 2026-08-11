@@ -26,7 +26,7 @@
 import { distance } from "fastest-levenshtein"
 import { Result } from "effect"
 
-import { derive, type Derived, fromChildren, storedMarker } from "./derive.ts"
+import { derive, type Derived } from "./derive.ts"
 import { type Document, resolveRelative } from "./documents.ts"
 import { compareErrors, isGuessWhileUnreadable, type OutlineError } from "./errors.ts"
 import { EDGE_FIELDS, isMirror, type Located } from "./node.ts"
@@ -37,8 +37,8 @@ export const validate = (
 ): Result.Result<OutlineSet, ReadonlyArray<OutlineError>> => {
   const errors: Array<OutlineError> = []
   // One set of indexes, built once and shared by every rule below, so no two
-  // of them can disagree about which record an id names or what a node's
-  // status is — and so the browser derives the tree from the same code.
+  // of them can disagree about which record an id names or what hangs under it
+  // — and so the browser derives the tree from the same code.
   const derived = derive(set.nodes)
 
   reportDuplicateIds(set.nodes, derived, errors)
@@ -47,7 +47,6 @@ export const validate = (
   checkAfterAcyclic(set.nodes, derived, errors)
   checkMirrorContainment(set.nodes, derived, errors)
   checkDocs(set.nodes, set.documents, errors)
-  checkDerivedState(set.nodes, derived, errors)
 
   const unreadable = set.broken.flatMap((file) => [...file.errors])
   // A file that did not parse contributes no ids, so a reference resolving to
@@ -172,12 +171,15 @@ const targetsOf = (
 /** The ordering graph is `derive`'s (`blocks` normalised into `after`, in the
  *  one place that happens), so this rule and the blockedness the view draws
  *  are reading the same edges rather than two normalisations that could
- *  disagree.
+ *  disagree. That graph is in terms of NODES — an edge naming a mirror is an
+ *  edge to the node standing there — which is what makes a deadlock closing
+ *  through a placement one loop this walk can find, rather than two dead ends
+ *  the view drew as blocked and nothing ever refused.
  *
- *  This is also where the two part company: blockedness exempts what has been
- *  put away and what nobody marked, because it is about what is on a plate.
- *  A cycle exempts NOTHING — it is a claim about the file, and an `after` loop
- *  is one whether or not it is archived. */
+ *  This is where the two part company: blockedness exempts what has been put
+ *  away and what nobody marked, because it is about what is on a plate. A
+ *  cycle exempts NOTHING — it is a claim about the file, and an `after` loop is
+ *  one whether or not it is archived, and whether or not anyone marked it. */
 const checkAfterAcyclic = (
   all: ReadonlyArray<Located>,
   derived: Derived,
@@ -242,53 +244,6 @@ const checkDocs = (
       code: "missing-doc",
       ...siteOf(located),
       message: `\`doc\` is \`${node.doc}\`, which resolves to \`${resolved}\` — no such \`.md\` file is served`,
-    })
-  }
-}
-
-// ── derived state ──────────────────────────────────────────────────────
-
-/** A parent's status is computed from its children, so a parent may not store
- *  one. This is the rule the whole format leans on: if `done` could be both
- *  stored and derived, a git merge could make the two disagree and nothing
- *  would notice. Mirrors do not count as children — a mirror is a second view
- *  of a node, not a second obligation. */
-const checkDerivedState = (
-  all: ReadonlyArray<Located>,
-  derived: Derived,
-  errors: Array<OutlineError>,
-): void => {
-  for (const located of all) {
-    const { node } = located
-    if (isMirror(node)) continue
-    const stored = storedMarker(node)
-    if (stored === undefined) continue
-
-    // What the children already say — nothing, done, or some still under way.
-    // The three sentences are those three cases, and only the third has
-    // children to link, so the union is what keeps the two in step.
-    const said = fromChildren(derived, node.id)
-    if (said === null) continue
-
-    errors.push({
-      code: "stored-derived-state",
-      ...siteOf(located),
-      message: said.kind === "nothing"
-        ? `\`${stored}\` is stored on a node with ${said.counted} children, none of which is marked; a node with children takes its status from them — mark one of those instead`
-        : said.kind === "done"
-        ? `\`${stored}\` is computed from this node's ${said.counted} children and must not be stored`
-        // "N of M children are not done" would count the bullets among them,
-        // which are not unfinished — they are not tasks. The number that means
-        // something is how many unfinished TASKS there are among the children.
-        : `\`${stored}\` is stored above ${said.children.length} unfinished ${said.children.length === 1 ? "task" : "tasks"} among this node's ${said.counted} children; a parent's status is computed, never written`,
-      // Omitted rather than empty when there is nothing to link — the same
-      // rule the format applies to its own absent fields.
-      ...(said.kind !== "unfinished" ? {} : {
-        related: said.children.map((child) => ({
-          ...siteOf(child.at),
-          note: `\`${child.at.node.id}\` is ${child.status}`,
-        })),
-      }),
     })
   }
 }

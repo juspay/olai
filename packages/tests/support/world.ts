@@ -95,6 +95,9 @@ export const NODE = selector(TESTID.node);
 export const NODE_TITLE = selector(TESTID.nodeTitle);
 export const TAG = selector(TESTID.tag);
 export const DATE = selector(TESTID.date);
+/** The rollup badge beside a title: how many of the tasks under this node are
+ *  done. An annotation — the node's OWN mark is the checkbox. */
+export const PROGRESS = selector(TESTID.progress);
 export const DESC = selector(TESTID.desc);
 export const TOGGLE = selector(TESTID.toggle);
 /** A row's own line — its gutter controls and title, and nothing from the
@@ -181,7 +184,6 @@ export const CHAT_TOOL_DETAIL = selector(TESTID.chatToolDetail);
 export const CHAT_TOOL_PROGRESS = selector(TESTID.chatToolProgress);
 export const CHAT_TOOL_LOCATIONS = selector(TESTID.chatToolLocations);
 export const CHAT_REFUSAL = selector(TESTID.chatRefusal);
-export const CHAT_UNFINISHED_CHILD = selector(TESTID.chatUnfinishedChild);
 export const CHAT_INPUT = selector(TESTID.chatInput);
 export const CHAT_QUEUED = selector(TESTID.chatQueued);
 export const CHAT_SEND = selector(TESTID.chatSend);

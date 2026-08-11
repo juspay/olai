@@ -1,4 +1,4 @@
-{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
 {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
 {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","doing":"2026-08-05","date":"2026-08-10","desc":"Two ways to go:\n\n- **walnut** — six week lead time\n- *birch* — in stock today\n\nMeasure the alcove before ordering.","after":["demo"],"see":["herbs"]}
 {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doc":"finishes.md","after":["order"]}

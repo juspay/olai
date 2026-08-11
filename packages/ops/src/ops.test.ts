@@ -199,15 +199,15 @@ test("a refusal writes nothing and comes back with its structured detail", () =>
   withOps({ "house.jsonl": HOUSE }, (fixture) =>
     Effect.gen(function*() {
       const failure = yield* Effect.orDie(
-        Effect.flip(fixture.ops.run({ op: "done", id: "kitchen" })),
+        Effect.flip(fixture.ops.run({ op: "done", id: "kitchen", undo: true })),
       )
-      expect(failure._tag).toBe("DerivedFailure")
+      expect(failure._tag).toBe("UsageFailure")
       expect(fixture.read("house.jsonl")).toBe(HOUSE)
       expect((yield* SubscriptionRef.get(fixture.store.snapshot))?.rev).toBe(1)
       // Reported wherever it came from: the observer hangs off the WRITER, so
       // a second caller — the web UI's own procedures, when they arrive — is
       // not a second place to remember to report from.
-      expect(fixture.refusals).toEqual(["done: DerivedFailure"])
+      expect(fixture.refusals).toEqual(["done: UsageFailure"])
     })))
 
 /**
@@ -409,7 +409,7 @@ describe("the internal MCP server", () => {
         expect((yield* fixture.set()).files).toContain("inbox.jsonl")
       })))
 
-  test("a read answers over parsed nodes, with file:line and derived status", () =>
+  test("a read answers over parsed nodes, with file:line and the marks", () =>
     withMcp((call) =>
       Effect.gen(function*() {
         const hits = structured(
@@ -431,12 +431,15 @@ describe("the internal MCP server", () => {
         // it. An agent reading a corpus of notes gets nodes, not to-dos.
         expect(hit).not.toHaveProperty("status")
 
-        // The parent's status is DERIVED — it is not in the file, and this is
-        // the only way an agent can learn it.
+        // `kitchen` carries no mark either, so it has no status — and what an
+        // agent learns instead is the ROLLUP: two of its children are tasks,
+        // one of them done. An annotation, and the reason it is not a status
+        // is that nobody has called `kitchen` work.
         const kitchen = structured(
           yield* call("tools/call", { name: "read_node", arguments: { id: "kitchen" } }),
         )
-        expect(kitchen["status"]).toBe("doing")
+        expect(kitchen).not.toHaveProperty("status")
+        expect(kitchen["progress"]).toEqual({ done: 1, total: 2 })
       })))
 
   test("search and subtree carry a node's see so an agent can traverse", () => {
@@ -505,26 +508,42 @@ describe("the internal MCP server", () => {
       })))
 
   /**
-   * The refusal, all the way through: the agent gets an `isError` result whose
-   * structured half carries the unfinished children, and whoever is watching
-   * gets told so the panel can draw them. Two audiences, one refusal, no prose
-   * to parse on either side.
+   * Marking a parent, all the way through. It used to be the refusal this
+   * whole error taxonomy was built around; it is now an ordinary write, and
+   * what the agent gets back instead is the NUDGE — the one task still open
+   * under the branch it just ticked, as part of the answer rather than as a
+   * reason nothing happened.
    */
-  test("a refused write is an isError result with the children as data", () =>
+  test("marking a parent lands, and the answer carries what the rollup noticed", () =>
     withMcp((call, fixture) =>
       Effect.gen(function*() {
         const reply = resultOf(
           yield* call("tools/call", { name: "set_done", arguments: { id: "kitchen" } }),
         )
+        expect(reply["isError"]).toBeUndefined()
+        const answer = reply["structuredContent"] as Record<string, unknown>
+        // Only `install` is unfinished: `demo` is done, and `order` carries no
+        // mark at all, so it is a bullet rather than an unstarted task.
+        expect(answer["nudge"]).toContain("`install them`")
+        expect(answer["nudge"]).not.toContain("order the cabinets")
+        expect(fixture.refusals).toEqual([])
+        expect(fixture.read("house.jsonl")).toContain(`"id":"kitchen"`)
+        expect(fixture.read("house.jsonl")).toContain(`"done":"2026-08-09"`)
+      })))
+
+  /** A refusal, all the way through: an `isError` result whose structured half
+   *  says which kind it is, and whoever is watching gets told. */
+  test("a refused write is an isError result carrying its kind", () =>
+    withMcp((call, fixture) =>
+      Effect.gen(function*() {
+        const reply = resultOf(
+          yield* call("tools/call", { name: "set_done", arguments: { id: "nowhere" } }),
+        )
         expect(reply["isError"]).toBe(true)
         const detail = reply["structuredContent"] as Record<string, unknown>
-        expect(detail["kind"]).toBe("derived")
-        // Only `install` is in the way: `demo` is done, and `order` carries no
-        // mark at all, so it is a bullet rather than an unstarted task.
-        expect(detail["children"]).toEqual([
-          { id: "install", title: "install them", status: "doing" },
-        ])
-        expect(fixture.refusals).toEqual(["done: DerivedFailure"])
+        expect(detail["kind"]).toBe("not-found")
+        expect(detail["named"]).toBe("nowhere")
+        expect(fixture.refusals).toEqual(["done: NotFoundFailure"])
         expect(fixture.read("house.jsonl")).toBe(HOUSE)
       })))
 

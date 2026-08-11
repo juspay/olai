@@ -32,10 +32,11 @@ each thing the view has to draw:
 | a done child | `demo` (house.jsonl:2) |
 | a doing child | `order` (house.jsonl:3) |
 | a todo child | `hinges` — an unstarted task, so an EMPTY box |
-| a parent the done toggle must not hide | `frames` (garden.jsonl) — `glazing` done, `sowing` todo |
+| a parent the done toggle must not hide | `frames` (garden.jsonl) — both its tasks done, and NOBODY marked it |
+| a note that must survive the done toggle | `slugs` under `frames` — nobody finished it, nobody called it work |
 | a bullet that is not a task | `handles` — no mark, so no status and no box at all |
-| a derived status | `kitchen` is `doing` — it stores nothing; its children say so |
-| a derived `todo` | `install` — its one task (`hinges`) has not started |
+| a marked parent | `kitchen` is `doing`, `herbs` is `doing` — stored, like any other mark |
+| a rollup | `kitchen` shows `1/2`: `demo` done, `order` under way, `install` not a task |
 | an inline `#tag` | `kitchen remodel #home`, `garden #outdoors` |
 | a `date` | `order` is dated `2026-08-10` |
 | a markdown `desc` | `order` — a paragraph, a two-item list, bold and italic |
@@ -54,21 +55,27 @@ a `parent` may not cross files — so showing the herb bed inside the kitchen
 remodel is exactly what a mirror is *for*, and it is the one relation that
 cannot be exercised with a single file.
 
+The marks on the parents are the point rather than an oversight. `kitchen` and
+`herbs` carry their own, because a mark is a stored fact on whatever carries it
+— children or not — and nothing is computed from what hangs below (resolved
+2026-08-11). `install` carries none, and that is a second real state: a `todo`
+child does not make it a task, so it draws no box at all, exactly like a note.
+
+`frames` is the case worth reading twice, because it is the bug this model
+replaced. Nobody marked it; both of its task children are done; a plain note
+(`slugs`) hangs beside them. Deriving a status made it read `done`, so the done
+toggle hid the branch and took the note with it — the view whose job is showing
+what is left hiding exactly what was left. Now the two done rows go and `frames`
+and `slugs` stay.
+
 The `after` edges are one rule read three ways, and `hinges` carries two of
 them at once: `b` blocks `a` while `b` is a task that is *not done*, so `order`
 (under way) holds `hinges` up while `handles` — which nobody marked — never
 blocked anything to begin with, and `demo` (done) has cleared the way for
 `order`. Reading the `handles` edge as an obstacle would be reading every plain
 bullet as work that can never be finished. Both ends of the blocking edge carry
-a mark somebody wrote, so what the scenarios assert is the rule rather than any
-arithmetic over children.
-
-Note what is absent: no mark at all on `kitchen`, `install` or `herbs`. A node
-with children never stores its status; it is computed from them, and storing
-one is a load error. `install` is the case worth reading twice: its children
-are the unmarked `handles` and the `todo` `hinges`, so the one task under it
-has not started and `install` derives `todo` — while `kitchen`, whose children
-are done, doing and that `todo`, reads `doing`.
+a mark somebody wrote, so what the scenarios assert is the rule rather than
+anything about the nodes' children.
 
 ## `chat/` — a set the agent writes to
 
@@ -82,13 +89,13 @@ of anything ornamental in it:
 | a leaf the agent can mark | `order` — a bullet, so marking it is what makes it a task |
 | a leaf that is already done | `demo` |
 | a leaf still under way | `install` |
-| a node whose status is DERIVED | `kitchen` — marking it is the refusal that lists `install` |
+| a parent to mark | `kitchen` — an ordinary write, answered with a nudge naming `install` |
 
 The third child is the model in one line: `order` carries no mark, so it is a
-bullet rather than a task nobody has started, and the refusal above does **not**
-name it — an unmarked child is in nobody's way (docs/format.md's Status
-section). `install` is what stands between `kitchen` and `done`, and it is the
-whole of what the refusal lists.
+bullet rather than a task nobody has started, and the nudge above does **not**
+name it — an unmarked child is not an unfinished one (docs/format.md's Status
+section). `install` is the one task still open under `kitchen`, and it is the
+whole of what the nudge names.
 
 Every chat scenario is `@scratch:chat`, because the agent WRITES: it is served a
 private temp copy with a server of its own, and both go away with the scenario.
@@ -106,7 +113,7 @@ point, since a day is a query over the whole set.
 | a datetime that must count for its own day | `ferry` is `2019-11-05T09:00` |
 | a day with one node | `2019-11-06` — `pack` |
 | a day in the month before | `2019-10-28` — `survey`, which is what paging back finds |
-| a dated node with a note, a tag and a derived status | `posts` (`doing`), `rails` (`#home`) |
+| a dated node with a note, a tag and a mark | `posts` (`doing`), `rails` (`#home`) |
 | undated nodes, which no day may collect | `deck`, `trip`, `sweep` |
 
 **The dates are in 2019 on purpose.** A calendar is one of the few things whose

@@ -4,7 +4,7 @@
  * A day collects nodes from all over the set, so a title on its own would say
  * nothing: `order the new cabinets` is a different task under `kitchen
  * remodel` than under `the office move`. Every node therefore arrives already
- * SITUATED — the same ancestry, derived status and canonical record a zoomed
+ * SITUATED — the same ancestry, mark, rollup and canonical record a zoomed
  * page is built from (`@olai/format`'s `situate`) — because they are the same
  * node and have no business reading differently in two places.
  *
@@ -53,6 +53,7 @@ export function DayNode(props: {
           title={node().title}
           status={props.dated.status}
           blocked={props.dated.blocked}
+          progress={props.dated.progress}
           date={node().date}
         />
       </div>

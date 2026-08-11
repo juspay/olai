@@ -19,6 +19,7 @@ import { only } from "./narrow.ts"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
 import { NotFound } from "./NotFound.tsx"
+import { ProgressBadge } from "./ProgressBadge.tsx"
 import { TESTID } from "./testids.ts"
 import { toneOf } from "./tone.ts"
 import { Tree } from "./Tree.tsx"
@@ -77,6 +78,9 @@ function Zoom(props: {
             >
               <NodeTitle title={props.zoomed.shows.node.title} />
             </h1>
+            <Show when={props.zoomed.progress}>
+              {(progress) => <ProgressBadge progress={progress()} />}
+            </Show>
             <Show when={props.zoomed.shows.node.date}>
               {(date) => <DateBadge date={date()} />}
             </Show>

@@ -94,9 +94,9 @@ test("a node dated a day carries its status and its canonical ancestry", () => {
   expect(dated!.trail.map((crumb) => crumb.node.id)).toEqual(["trip"])
 })
 
-// The status is DERIVED, the same answer the tree draws: `rails` says `doing`
-// about itself and its parent says nothing at all.
-test("a stored status is the derived one", () => {
+// The status is the node's own mark, the same answer the tree draws: `rails`
+// says `doing` about itself and its parent says nothing at all.
+test("a dated node carries the mark it stores", () => {
   const rails = datedOn(SET, "2026-08-05")
     .flatMap((group) => group.nodes)
     .find((dated) => dated.shows.node.id === "rails")

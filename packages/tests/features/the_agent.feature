@@ -31,16 +31,22 @@ Feature: Talking to the agent
     Then the tree eventually shows a node titled "water the plants"
 
   @scratch:chat
-  Scenario: A refused write shows its unfinished children in chat
-    # `kitchen` takes its status from its children, so it cannot store one.
-    # The refusal is data: the panel draws the children that are in the way,
-    # which are what to mark instead. `order` is NOT one of them — it carries
-    # no mark, so it is a bullet rather than a task nobody has started.
+  Scenario: A parent is marked like any other node
+    # A mark is a stored fact on whatever carries it. `kitchen` has three
+    # children, one of them still under way, and marking it done is an
+    # ordinary write — a claim about the branch, which somebody is allowed to
+    # make. Nothing derives a status any more, so there is nothing to refuse.
     When I ask the agent "done kitchen"
+    Then node "kitchen" is done
+    And the chat shows no refusal
+
+  @scratch:chat
+  Scenario: A refused write shows its detail in chat
+    # A refusal is DATA, not a sentence: the panel draws what the refusal
+    # carried, so a person watching sees why rather than the agent's summary
+    # of why. Nothing in the set declares `nowhere`.
+    When I ask the agent "done nowhere"
     Then the chat shows a refusal
-    And the refusal lists the unfinished children:
-      | install |
-    And node "kitchen" is not done
 
   @scratch:chat
   Scenario: The header names the model the session runs on

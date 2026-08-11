@@ -2,11 +2,11 @@
  * A node, on one line: its title, and the date it carries.
  *
  * The same promises wherever a node is drawn — a row in a tree, an entry on a
- * day: the title span is what carries `TESTID.nodeTitle`, it is what the
- * derived status tones, a node that cannot start yet says so beside it
- * (./Blocked.tsx), and the date badge follows. Two copies of that were two
- * chances for one of them to start toning a wrapper instead, or to move the
- * testid, while both still compiled and only one browser test noticed.
+ * day: the title span is what carries `TESTID.nodeTitle`, it is what the mark
+ * tones, a node that cannot start yet says so beside it (./Blocked.tsx), and
+ * the rollup and date badges follow it in that order. Two copies of that were
+ * two chances for one of them to start toning a wrapper instead, or to move
+ * the testid, while both still compiled and only one browser test noticed.
  *
  * The note itself is NOT on this line. It hangs under the title as its own
  * clamped one-line gray row (./NodeBody.tsx), Workflowy-style.
@@ -17,12 +17,13 @@
  * row it does not own.
  */
 
-import type { InTheWay, Status } from "@olai/format"
+import type { InTheWay, Progress, Status } from "@olai/format"
 import { type JSX, Show } from "solid-js"
 
 import { Blocked } from "./Blocked.tsx"
 import { DateBadge } from "./DateBadge.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
+import { ProgressBadge } from "./ProgressBadge.tsx"
 import { TESTID } from "./testids.ts"
 import { toneOf } from "./tone.ts"
 
@@ -35,6 +36,9 @@ export function NodeLine(props: {
    *  keeps the mark it carries and the date it is due on, and says as well
    *  that it cannot start yet. */
   readonly blocked: ReadonlyArray<InTheWay>
+  /** Absent when nothing under the node is a task. Beside the title rather
+   *  than in the box: it is what the children say, not what this node is. */
+  readonly progress: Progress | undefined
   readonly date?: string
   /** Drawn inside the title and before it — the tree's mirror mark. */
   readonly children?: JSX.Element
@@ -46,6 +50,9 @@ export function NodeLine(props: {
         <NodeTitle title={props.title} />
       </span>
       <Blocked blocked={props.blocked} />
+      <Show when={props.progress}>
+        {(progress) => <ProgressBadge progress={progress()} />}
+      </Show>
       <Show when={props.date}>
         {(date) => <DateBadge date={date()} />}
       </Show>

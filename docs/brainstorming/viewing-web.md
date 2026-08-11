@@ -4,7 +4,7 @@ Status: brainstorming ahead of the Viewing theme's next items. Reference model r
 
 ## Where we are (shipped in see-outline)
 
-Sidebar of found outlines, one tree per route, mirrors inline (marked), client-local collapse/expand, derived done/doing/open status, #tags styled in titles, all-errors view.
+Sidebar of found outlines, one tree per route, mirrors inline (marked), client-local collapse/expand, done/doing/todo marks with a rollup badge beside a parent's title, #tags styled in titles, all-errors view. (Written when status was derived and `open` was the residual; both went — #86, #88 and `hide-done-scope`. A mark is stored on whatever node carries it.)
 
 ## Workflowy's model (the distilled facts)
 
@@ -53,5 +53,5 @@ Racket parity, and the parity is the *palettes*: fifteen named ones, `chalk` the
 
 ## Open
 
-- **The search operator language**: filter-in-place with ancestors kept is settled direction (derived status gives `is:done` free; `has:desc`, `date:`, tag filters map directly), but the operator language is a design of its own — brainstorm before the search item dispatches.
+- **The search operator language**: filter-in-place with ancestors kept is settled direction (a node's stored mark gives `is:done` free; `has:desc`, `date:`, tag filters map directly), but the operator language is a design of its own — brainstorm before the search item dispatches.
 - Starred pages / jump-to / named shortcuts: later, unscoped.

@@ -1,9 +1,9 @@
 # @olai/format — the format, and the only place it is enforced
 
 The format core ([docs/format.md](../../docs/format.md)): `parseOutline` per
-file, `validate` per set, and the derivations — status, sibling order, tags,
-mirror expansion, what is dated a given day — that both the validator and the
-view read from. It is the bottom of the layering: it knows about records, files
+file, `validate` per set, and the derivations — sibling order, tags, mirror
+expansion, the rollup a parent displays, what is dated a given day — that both
+the validator and the view read from. It is the bottom of the layering: it knows about records, files
 and rules, and nothing about disks, servers or browsers.
 
 Nothing outside these two functions may reject an outline. Not the reader, not
@@ -17,7 +17,7 @@ Validation is two phases, and the seam is load-bearing rather than tidy.
 `parseOutline` sees one line at a time and checks everything a single line can
 answer alone — shape, id spelling, ISO dates, the two exclusivity rules.
 `validate` sees the whole set and owns every rule that needs to know what else
-exists: parents, mirror targets, `after` cycles, derived state.
+exists: parents, mirror targets, `after` cycles, documents.
 
 A file is decoded whole or not at all. The set-wide rules then run over the
 files that DID parse, and what happens to the one that did not is the error
@@ -60,19 +60,21 @@ The derivations are exported for exactly this reason: the browser draws the
 tree with the same code the validator judged it with.
 
 `Status` is the three `MARKS` — `done`, `doing`, `todo`, declared once in
-`node.ts` because the per-line rule, the ISO check and the status walk all read
-that one list — and it is OPTIONAL wherever it appears: a node nobody marked
-has no status, and `derive`'s status index is partial over the set rather than
-total. A node missing from it is a bullet, and `todo` is how a node says the
-other thing, which someone has to put there (docs/format.md's Status section).
-A parent is the sum of the children that ARE tasks — all done, all unstarted,
-or under way — and one whose children include none is a bullet like they are.
-`fromChildren` is the other half of that rule: what a node's children say about
-it, as ONE union of three answers — nothing, done, or these particular children
-are unfinished — because the validator's load error and the ops layer's refused
-write both switch on it and must name the same children, with the same reason
-per child. The list lives on the one answer that has one, so the two sites
-cannot disagree about whether there are any.
+`node.ts` because the per-line rule, the ISO check and the index all read that
+one list — and it is OPTIONAL wherever it appears: a node nobody marked has no
+status, and `derive`'s status index is partial over the set rather than total.
+A node missing from it is a bullet, and `todo` is how a node says the other
+thing, which someone has to put there (docs/format.md's Status section).
+
+A status is STORED, on whatever record carries it, parent or leaf; the index
+resolves exactly one hop, a mirror standing for its target's mark because that
+is what it shows. Nothing is computed from a node's children — that was
+derivation, deleted 2026-08-11 with the rule that existed to defend it, because
+it read containment as decomposition and made a parent a task nobody had called
+one. What survives is `progressOf`: how many of a node's child tasks are done,
+`3/5`, an annotation carried on `Row` and `Situated` for the view to draw
+beside a title. It feeds nothing — not `withoutDone`, which reads the stored
+mark, and not blocking.
 
 **Blocked** is the other thing the marks are read for, and it is derived beside
 them: `after` (with `blocks` normalised into it in the one place that happens,
@@ -83,11 +85,16 @@ spelling the test `status !== "done"` is the trap docs/format.md writes the
 rule against. One predicate at both ends of the arrow, racket's own shape: a
 done node is waiting on nothing, a bullet is neither blocked nor blocking, and
 archived work is out of it in both directions because it is over. What a
-blocker IS is `InTheWay` — the same "this one is unfinished, and here is why"
-that `fromChildren` names children with, off the same test, because it is the
-same sentence about the other kind of edge. Nothing outside this package asks
-for the index: what is in a node's way rides on the `Row` and the `Situated` it
-belongs to, the way its status does.
+blocker IS is `InTheWay`: a node and the mark that makes it unfinished, which
+is the same sentence `unfinishedUnder` says about children and about the other
+kind of edge. The ordering graph is built in two passes — every node's own
+`after` first, then the `blocks` pointing back at it — so the order a reader
+with room for ONE blocker sees is a promise rather than an accident of where in
+the directory somebody wrote an unrelated edge; and both halves are filed under
+the node their target NAMES, mirrors resolved, so the acyclicity rule and this
+cannot disagree about whether two records mean one edge. Nothing outside this
+package asks for the index: what is in a node's way rides on the `Row` and the
+`Situated` it belongs to, the way its mark does.
 
 `zoom` is the same claim
 about one node as a page — which record an id resolves to (following a mirror
@@ -100,14 +107,14 @@ answered here rather than carried in a URL that could disagree with the files.
 stored year→month hierarchy: a day is a question asked of every dated node in
 every outline, so `datedDays` (which days of a month have something on them)
 and `datedOn` (everything dated one day, grouped by outline, with each node's
-ancestry and derived status) are one reading of the set that the calendar and
+ancestry and mark) are one reading of the set that the calendar and
 the day view both read from — a dot that disagreed with the page it opened
 would be worse than no dot. Dates stay TEXT here as everywhere else: a day is a
 ten-character prefix, a month a seven-character one, and a datetime counts for
 its own day.
 
 A day's nodes and a zoomed page are built from the same `Situated` — a node,
-its derived status, what is standing in its way and its canonical ancestry —
+its mark, its rollup, what is standing in its way and its canonical ancestry —
 because that is one concept
 with several readers, not a shape two surfaces happened to agree on. A title
 torn out of its outline says nothing, wherever it is being drawn.
@@ -173,10 +180,11 @@ answers `null` for the one pair with no answer — nothing sorts between `x` and
 `x0` — rather than inventing a key in the wrong place; the ops layer renumbers
 that row instead.
 
-`src/failure.ts` is the other half of the error story: the five KINDS a write
-refuses with (`usage`, `not-found`, `validation`, `derived`, `busy`), as
-schemas, so a refusal travels the wire and an MCP tool result as itself. Five
-classes rather than one with a `kind` string because they carry different
-things — only `derived` has children to list, only `validation` has a report to
-show — and a single struct would make every field optional and push "which
-fields are meaningful" back into prose.
+`src/failure.ts` is the other half of the error story: the four KINDS a write
+refuses with (`usage`, `not-found`, `validation`, `busy`), as schemas, so a
+refusal travels the wire and an MCP tool result as itself. Four classes rather
+than one with a `kind` string because they carry different things — only
+`validation` has a report to show, only `not-found` names what was missed — and
+a single struct would make every field optional and push "which fields are
+meaningful" back into prose. There were five: `derived` refused a write that
+would have stored a computed status, and went with derivation itself.

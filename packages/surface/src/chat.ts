@@ -38,7 +38,7 @@
  * was never sent.
  */
 
-import { BusyFailure, isOpFailure, kindOf, OpFailure, Unfinished } from "@olai/format"
+import { BusyFailure, isOpFailure, kindOf, OpFailure } from "@olai/format"
 import { Schema } from "effect"
 
 /**
@@ -54,7 +54,7 @@ import { Schema } from "effect"
  *   - `refusal` — a write the ops layer said no to, with the structured detail
  *     the refusal carried. This is the one entry olai mints on its own behalf:
  *     the agent gets the same detail in its tool result, and a person watching
- *     deserves to see the unfinished children rather than the agent's summary
+ *     deserves to see the validator's own rows rather than the agent's summary
  *     of them.
  *   - `notice` — the conversation reporting on itself: the agent died, a turn
  *     was cancelled, a session was loaded.
@@ -90,8 +90,9 @@ export const ChatEntry = Schema.Struct({
    *  The protocol's follow-along locations, which is what lets a reader see
    *  WHERE an agent is without unfolding anything. */
   locations: Schema.optionalKey(Schema.Array(Schema.String)),
-  /** `refusal` only: the refusal itself, so the panel draws the unfinished
-   *  children as rows rather than printing a sentence about them. */
+  /** `refusal` only: the refusal itself, so the panel draws what it carries —
+   *  a validation report's rows, each at its own `file:line` — rather than
+   *  printing a sentence about them. */
   refusal: Schema.optionalKey(OpFailure),
   /** True while the agent is still adding to this entry. The panel shows a
    *  cursor; nothing else depends on it. */
@@ -172,13 +173,13 @@ export const CHAT_OFF: ChatState = {
   trouble: null,
 }
 
-/** Why a chat verb said no. `OpFailure`'s five kinds already cover it — `busy`
+/** Why a chat verb said no. `OpFailure`'s four kinds already cover it — `busy`
  *  for a turn in flight, `not-found` for a session that is gone, `usage` for an
  *  empty prompt — and a second vocabulary would be a second thing to decode. */
 export const ChatFailure = OpFailure
 
 /** Re-exported so a consumer of the surface can name a refusal, ask which
- *  KIND it is and draw its children without also depending on the format
+ *  KIND it is and draw its detail without also depending on the format
  *  package: the browser subscribes to this spec, not to the format, and a
  *  second answer to "which kind is this" is exactly what it must not have. */
-export { BusyFailure, isOpFailure, kindOf, OpFailure, Unfinished }
+export { BusyFailure, isOpFailure, kindOf, OpFailure }

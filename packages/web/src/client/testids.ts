@@ -28,6 +28,9 @@ export const TESTID = {
   nodeTitle: "node-title",
   tag: "tag",
   date: "date",
+  /** The rollup badge — `3/5` of the tasks under a node. An annotation beside
+   *  the title, never the node's own mark, which is the checkbox. */
+  progress: "progress",
   desc: "desc",
   toggle: "toggle",
   /** One folder in the sidebar's file tree. `data-path` is the root-relative
@@ -178,8 +181,6 @@ export const TESTID = {
   chatToolLocations: "chat-tool-locations",
   /** A refused write, with its structured detail drawn out. */
   chatRefusal: "chat-refusal",
-  chatUnfinished: "chat-unfinished",
-  chatUnfinishedChild: "chat-unfinished-child",
   /** What the last VERB refused — an empty send, a turn already running. */
   chatRefused: "chat-refused",
   /** What went wrong where nobody was waiting: a boot, a dead agent. */

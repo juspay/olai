@@ -12,14 +12,15 @@
  *   - what they produce, `OutlineSet` and the records inside it;
  *   - what a set MEANS, `derive` with `rowsOf`, `zoom`, `withoutDone`, the
  *     date derivations (`datedDays`, `datedOn`) and the document rules
- *     (`docOf`, `isPicture`) — so a reader and the validator compute status,
+ *     (`docOf`, `isPicture`) — so a reader and the validator agree on sibling
  *     order, mirror expansion, one node's ancestry, what is standing in its
- *     way, what is on a day and where a `doc` lands with the same code;
+ *     way, what is on a day and where a `doc` lands, computing all of it with
+ *     the same code;
  *   - how a set is WRITTEN back, `serializeOutline` and `ordBetween` — the
  *     canonical bytes and the sibling order, held here for the same reason the
  *     rules are: a writer with its own copy of either is a second format;
  *   - what went wrong, `OutlineError` and the two things a view does with it;
- *   - what a write says when it refuses, `OpFailure` and its five kinds.
+ *   - what a write says when it refuses, `OpFailure` and its four kinds.
  *
  * Everything else in `src/` is internal. The spellings a rule happens to use —
  * the id regex, the edge-field list, the path resolver — are not contract; a
@@ -42,19 +43,20 @@ export {
   countedChildren,
   derive,
   follow,
-  fromChildren,
   nodeNamed,
+  progressOf,
   rowsOf,
   rowsUnder,
   siblingsOf,
   storedMarker,
   titleParts,
+  unfinishedUnder,
   withoutDone,
 } from "./derive.ts"
 export type {
   Derived,
-  FromChildren,
   InTheWay,
+  Progress,
   Row,
   Situated,
   Status,
@@ -70,12 +72,10 @@ export { nodesOf, serializeOutline } from "./write.ts"
 
 export {
   BusyFailure,
-  DerivedFailure,
   isOpFailure,
   kindOf,
   NotFoundFailure,
   OpFailure,
-  Unfinished,
   UsageFailure,
   ValidationFailure,
 } from "./failure.ts"
