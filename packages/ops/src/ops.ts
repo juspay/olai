@@ -125,40 +125,33 @@ export const make = (options: Options): Ops => {
    * TWO facts about git, and keeping them apart is the difference between a
    * state that recovers and one that gets stuck.
    *
-   * `asked` is what git makes of the DIRECTORY — a work tree, not one, or a git
-   * that could not be run. It is a property of the root, so it is probed once
-   * and kept: asking per write meant a third subprocess inside the store's
-   * write gate every time. A repository created after the server started is not
-   * noticed until it restarts, which is the trade. `--no-commit` seeds it, so
-   * the opt-out never spawns git at all — which is what keeps olai out of the
+   * What git makes of the DIRECTORY — a work tree, not one, or a git that could
+   * not be run — is a property of the root, so it is probed once and kept:
+   * asking per write meant a third subprocess inside the store's write gate
+   * every time. A repository created after the server started is not noticed
+   * until it restarts, which is the trade. `--no-commit` seeds it, so the
+   * opt-out never spawns git at all — which is what keeps olai out of the
    * history of a directory whose history is somebody else's job.
    *
-   * `state` is what a READER is told, and it moves: a commit git refuses puts
-   * it into `error`, and the next one that lands takes it back out. It is the
-   * probe's answer until something happens to it — and the probe's answer is
+   * What the last COMMIT did is the other, and it is the one that moves. It is
+   * kept as the refusal itself rather than as a second state, so what a reader
+   * is told can be DERIVED from the two ({@link reading}) instead of written a
+   * third time: the directory's own answer, unless a commit refused. That is
+   * also what keeps a refusal from wedging the writes — the probe's answer is
    * still what decides whether a commit is attempted, so a directory that IS a
    * repository keeps being written to a repository however loudly the last
    * commit failed.
    */
   let probed: Git.GitState | null = options.commit === false ? Git.OFF : null
-  let state: Git.GitState | null = probed
+  let refused: string | null = null
 
   const asked: Effect.Effect<Git.GitState> = Effect.gen(function*() {
-    if (probed === null) {
-      probed = yield* Git.probe(options.root)
-      state ??= probed
-    }
+    probed ??= yield* Git.probe(options.root)
     return probed
   })
 
-  /** What git is doing now, if it is different. Quiet when it is not: a write
-   *  landing in a healthy repository is the ordinary case, and republishing it
-   *  would wake every open tab on every op. */
-  const gitBecame = (next: Git.GitState): void => {
-    if (state !== null && Git.sameGit(state, next)) return
-    state = next
-    options.onGit?.(next)
-  }
+  const reading = (directory: Git.GitState): Git.GitState =>
+    refused === null ? directory : Git.errorState(refused)
 
   const read: Effect.Effect<Reading, OpFailure> = Effect.gen(function*() {
     const snapshot = yield* SubscriptionRef.get(options.store.snapshot)
@@ -224,10 +217,13 @@ export const make = (options: Options): Ops => {
               why = Git.why(commitment)
               // A refusal is the state of this directory until something
               // works: the header should say so while it is true, and stop
-              // saying so when the next write lands.
-              gitBecame(
-                commitment.kind === "refused" ? Git.errorState(commitment.said) : Git.REPO,
-              )
+              // saying so when the next write lands. Published only when it
+              // MOVED — a write landing in a healthy repository is the
+              // ordinary case, and republishing it would wake every open tab
+              // on every op.
+              const before = refused
+              refused = commitment.kind === "refused" ? commitment.said : null
+              if (refused !== before) options.onGit?.(reading(directory))
             }),
           }),
         )
@@ -272,11 +268,5 @@ export const make = (options: Options): Ops => {
       ? run(request)
       : Effect.tapError(run(request), (failure) => options.onRefusal!(request, failure))
 
-  return {
-    run: reported,
-    read,
-    // The probe first, so the answer exists — then whatever the state has
-    // become since, which for an unwritten-to directory is the same thing.
-    git: Effect.map(asked, (directory) => state ?? directory),
-  }
+  return { run: reported, read, git: Effect.map(asked, reading) }
 }

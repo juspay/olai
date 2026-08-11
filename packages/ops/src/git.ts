@@ -84,15 +84,13 @@ export interface GitState {
   readonly said: string | null
 }
 
+/** The opt-out, which is the one state git is never asked about — so it is the
+ *  caller's to raise, and the only constant here that leaves this file. */
 export const OFF: GitState = { status: "off", said: null }
-export const REPO: GitState = { status: "repo", said: null }
-export const NONE: GitState = { status: "none", said: null }
 export const errorState = (said: string): GitState => ({ status: "error", said })
 
-/** Are two readings the same reading? So a caller can stay quiet rather than
- *  republishing the state it is already in. */
-export const sameGit = (a: GitState, b: GitState): boolean =>
-  a.status === b.status && a.said === b.said
+const REPO: GitState = { status: "repo", said: null }
+const NONE: GitState = { status: "none", said: null }
 
 /**
  * What happened to one write's files.
