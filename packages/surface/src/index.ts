@@ -32,6 +32,11 @@
  *     the entries: a set that stops validating leaves the last good tree on
  *     screen underneath a banner, which is only expressible if the two arrive
  *     separately.
+ *   - `git` is a CELL, for the same reason and about the other half of what a
+ *     write costs: whether this directory is a repository, and whether the last
+ *     commit worked. A directory that is not one, or a git that cannot be run,
+ *     is news a reader is owed rather than a line in a server log
+ *     ({@link GitState}).
  *
  * Who is on the other end is NOT a member here, and it was for one commit. The
  * question is real — a page bound to a replaced server must know — but the
@@ -142,6 +147,47 @@ export type Manifest = typeof Manifest.Type
 /** A directory that has loaded, as the one value there is of it. */
 export const LOADED: Manifest = {}
 
+/**
+ * What git is doing for the served directory.
+ *
+ * A member because of a bug: writes came back `committed: false` with nothing
+ * on screen saying so, on a directory its owner knew was a repository, and the
+ * reason went to the server log where a browser reader never sees it. Every
+ * cause looked the same from out here — no work tree, no git on the service's
+ * PATH, a refused commit, an identity nobody set — so the page could not have
+ * told the truth even if it had wanted to. Now the server says which, and the
+ * four states are four different things to draw (`web/src/client/git/`):
+ *
+ *   - `off` — `--no-commit`. An owner's choice; the page shows nothing.
+ *   - `repo` — a work tree, and writes are committing. Quiet: this is the
+ *     healthy default and a page that shouted it would teach a reader to
+ *     ignore the thing that matters.
+ *   - `none` — not a work tree. Calm and informational: "Not a Git repo".
+ *   - `error` — git tried and could not, and `said` is its own words.
+ *
+ * A CELL, and read-only on the wire, for the reason the manifest is: one value
+ * the server owns, about the directory rather than about any file in it. It
+ * moves twice at most in an ordinary serve — once when the directory is probed,
+ * and again if a commit ever refuses — so nothing here is a stream of anything.
+ *
+ * The shape is deliberately the same as `@olai/ops`' own `GitState`, which is
+ * where the value comes from: the server hands one straight to the other, so
+ * the two declarations drifting is a type error at the seam rather than a
+ * mapping nobody re-reads.
+ */
+export const GitState = Schema.Struct({
+  status: Schema.Literals(["off", "repo", "none", "error"]),
+  /** What git said, for the state that has something to quote — the reason a
+   *  reader gets rather than "something went wrong". `null` otherwise. */
+  said: Schema.NullOr(Schema.String),
+})
+export type GitState = typeof GitState.Type
+
+/** What a page reads before the first frame arrives, and what a `--no-commit`
+ *  serve stays in. `off` is the right default twice over: it draws nothing, so
+ *  a page cannot flash "Not a Git repo" at a repository on its way to the truth. */
+export const GIT_OFF: GitState = { status: "off", said: null }
+
 /** When two answers are the same answer, so the cell can stay quiet. There is
  *  exactly one thing this value can say, so there is exactly one thing that can
  *  change about it: whether there is a set. */
@@ -171,6 +217,14 @@ export const surface = defineSurface({
     chat: {
       schema: ChatState,
       default: CHAT_OFF,
+      verbs: ["get"],
+    },
+    /** What git is doing for this directory — see {@link GitState}. Wire-read-only:
+     *  it is the server's reading of somebody's working tree, and nothing a
+     *  browser could set. */
+    git: {
+      schema: GitState,
+      default: GIT_OFF,
       verbs: ["get"],
     },
   },

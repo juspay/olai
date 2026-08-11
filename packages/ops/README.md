@@ -43,7 +43,7 @@ in the system had to arrange:
 | `request.ts` | the things a writer may ask for, as schemas — one declaration serving the planner's switch, the tool schemas and the decoder |
 | `plan.ts` | the whole decision, PURE: a snapshot and a request into the files that write would produce |
 | `ops.ts` | the loop — read, plan, commit, re-plan on a stale base — and nothing else |
-| `git.ts` | the auto-commit, as the store's post-publish hook |
+| `git.ts` | the auto-commit, as the store's post-publish hook — and what it has to say for itself: which of the four states this directory is in, and why a write was not committed |
 | `query.ts` | reading the set as NODES: search, one node, a subtree, the outlines |
 | `tools.ts` | the closed list of what an agent may do, and what it may not |
 | `codec.ts` | the seam where the generic store meets the outline format |
@@ -74,7 +74,9 @@ validating dates as text.
 **The package exports four things, and the rest of that table is inside.**
 `codec`, `make`, `Query`, `TOOLS` — one socket per concept, not the wires behind
 it. The planner and the git hook are what those are made of; a consumer wants
-the writer, not the plan, and its own tests reach it directly.
+the writer, not the plan, and its own tests reach it directly. The one type that
+travels with them is `GitState`, because a consumer PUBLISHES that value; the
+two subprocesses that produce it stay in here.
 
 The TABLE is exported and used to be private, and the reason it changed is that
 this package used to own an MCP server too. What a consumer wanted then was the
@@ -141,12 +143,38 @@ no structural move, no separate note edit, and no agent-writable `see`. `move:`
 keeps its meaning for a date, which is what it named there.
 
 It cannot fail a write. The bytes are on disk and the browser has already seen
-them by the time git runs; a refusal is logged and reported as
-`committed: false`, and only the files this op wrote are ever named — a served
-directory is a working tree with other work in it. What git actually said rides
-that line as a field (`said=…`) rather than inside the sentence, so the message
-stays greppable and the reason stays readable — `src/git.test.ts` holds both,
-against a real directory with no repository in it.
+them by the time git runs; a refusal is reported rather than raised, and only
+the files this op wrote are ever named — a served directory is a working tree
+with other work in it. What git actually said rides the log line as a field
+(`said=…`) rather than inside the sentence, so the message stays greppable and
+the reason stays readable.
+
+**And it says WHY, because `committed: false` on its own is four different
+pieces of news.** That was the bug (`git-invisible`): a person writing to a
+directory they knew was a repository got the boolean and nothing else, while the
+cause — not a work tree, no git on the service's PATH, a staging refusal, an
+identity nobody set — went only to a log they were not reading. So this layer
+answers with two values a caller can render, and neither of them is a boolean:
+
+- **`Applied.why`** — one sentence on the reply of any write that was not
+  committed, absent when it was. Additive, so nothing that read the reply had to
+  change. The agent reads it in its tool result; the panel draws it beside the
+  call.
+- **`Ops.git`** — what git is doing for this directory: `off` (`--no-commit`),
+  `repo`, `none`, or `error` with git's own words. Probed once per serve and
+  kept, so a page can say so before anybody writes anything, and republished
+  through `onGit` when a commit refuses (and again when one lands). The server
+  puts it on the `git` cell and the app header draws it.
+
+Two classifications make that honest, and both are exit codes rather than
+guesses where they can be. A commit that failed is asked whether anything was
+even STAGED (`diff --cached --quiet`, on the failure path only), because a write
+that produced the bytes already there is ordinary and must not be drawn as a
+fault. And a directory git will not answer about is an `error` unless git said
+its own "not a git repository" — collapsing a broken git into "you have no
+repository" is precisely what this package used to do. git runs under `LC_ALL=C`
+so that one sentence is stable. `src/git.test.ts` holds all of it against real
+repositories, the unset identity included.
 
 ## The tool surface, and what is missing from it
 

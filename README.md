@@ -182,6 +182,17 @@ a load runs, and came back on the same subscription every other change does.
 Each one is a git commit, with a subject you can read (`done: order the new
 cabinets`).
 
+Which raises the second question the page had better answer, beside "is it
+still reading": is any of this being kept? A git failure never fails a write —
+the bytes are on disk and you have already seen them — but it is never silent
+either. A second pill in the header says what git is doing with this directory,
+and it is quiet when the answer is "committing every write". A directory that is
+not a repository says so calmly; a git that tried and could not says `Git error`
+and hands you its own words. Nothing is shown at all when you served the
+directory with `--no-commit`, because that is a choice you made rather than
+something that went wrong. And a write that did not reach the history comes back
+saying why, where the agent and the panel both read it.
+
 The agent cannot free-write a file. It has no filesystem access at all: the
 only things it can name are NODES, through a closed list of tools — search,
 read a subtree, create an outline, add, mark, retitle, note, schedule, move,

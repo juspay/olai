@@ -167,6 +167,10 @@ export const OUTLINE_FAILURE = selector(TESTID.outlineFailure);
 /** The connection dot, on screen in every shape of the app. The state it is
  *  reporting is its `data-connection`, never its colour. */
 export const CONNECTION = selector(TESTID.connection);
+/** The git readout beside it: `data-git` is the state, its `aria-label` is the
+ *  sentence (git's own words included), and it is ABSENT on a `--no-commit`
+ *  serve — which is a claim a scenario makes rather than an accident. */
+export const GIT = selector(TESTID.git);
 /** Over everything: the server that served this page has been replaced. */
 export const RESTARTED = selector(TESTID.restarted);
 /** The button in that surface, and in the fault card — one control, one name. */
@@ -335,6 +339,12 @@ export class OlaiWorld extends World {
    *  are handed kolu's terminals as well as olai's own tools. Carried for the
    *  same reason again: a restart has to reproduce the first boot. */
   hasKolu = false;
+  /** Which git situation this scenario's server was started into (`@git:…`),
+   *  or `undefined` for the `--no-commit` every other scenario runs with.
+   *  Carried for the same reason as the three above: a restart mid-scenario has
+   *  to reproduce the first boot, and this one decides both the argv and what
+   *  the served directory IS. */
+  gitMode?: "repo" | "none" | "broken";
   /** The URL that corpus's server answers on; also the context's `baseURL`. */
   baseUrl!: string;
 

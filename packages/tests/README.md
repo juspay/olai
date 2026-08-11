@@ -18,6 +18,7 @@ packages/tests/
 │                           #   by that client and both fakes below
 ├── agent/                   # the scripted ACP agent the chat scenarios drive,
 │                           #   and the fake `kolu` every server finds on PATH
+├── bin/broken-git/git       # a `git` that is found and fails, for @git:broken
 └── fixtures/                # the served directories (see fixtures/README.md)
 ```
 
@@ -124,6 +125,26 @@ do when the process behind it is replaced? The restart comes back on the SAME
 port, because the page is already pointed at it — `startOwnServer` binds the
 exact port and fails loudly if the address it got back is a different one, so a
 port stolen in between reads as itself instead of as a mysteriously dead page.
+
+## Git, which every other scenario is served without
+
+Every server this harness spawns runs with `--no-commit`: a scratch corpus is a
+temp copy, and committing into whatever repository happens to contain the temp
+directory is not the suite's business. That is also a STATE — the one where the
+page says nothing about git at all — so it is asserted rather than assumed.
+
+**`@git:<repo|none|broken>`** starts a scenario's server without the opt-out and
+says which of the three things git is for its directory: a real repository (the
+scratch copy is `git init`ed with a local identity and a first commit), a
+directory that is not one, or a git that is FOUND and fails —
+`bin/broken-git/git`, put first on that server's PATH, answering every call with
+git's own `fatal: detected dubious ownership`. The last one is the case the
+readout exists for: it is not "there is no repository here", and reporting it as
+if it were is the bug `features/git_state.feature` holds shut.
+
+Like `@kolu` and `@agent-stored`, it needs `@scratch:<corpus>` — what a server
+commits to is decided when it is started, and a `@corpus:` server is running for
+every other scenario in the run. The `Before` hook says so by name.
 
 ## A phone, and the two things it changes
 
@@ -285,6 +306,7 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="outline-failure"][data-file]` | shown in ONE outline's place: that file will not parse |
 | `[data-testid="outline-link"][data-broken]` | the sidebar entry of a file that will not parse |
 | `[data-testid="connection"][data-connection]` | the connection dot, in every shape of the app: `connecting`, `live`, `reconnecting`, `retired` |
+| `[data-testid="git"][data-git]` | the git readout beside it: `repo`, `none`, `error` — and ABSENT under `--no-commit`, which is the fourth state. What git said is its `aria-label` and its tip, never a colour |
 | `[data-testid="restarted"]` | over everything: the server that served this page has been replaced |
 | `[data-testid="reload"]` | the button in that surface — the whole of the recovery |
 | `[data-testid="theme-picker"]` | the theme picker in the sidebar |

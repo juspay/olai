@@ -22,6 +22,12 @@
  *     from `ctx`, never from the wire — because a transcript is something that
  *     HAPPENED and the only way to add to it is to prompt.
  *
+ * And one fact belongs to neither: what GIT is doing for the directory. It is
+ * the ops layer's — the only thing here that commits — so it arrives seeded and
+ * is written by that layer's observer, with no `connect` of its own: there is
+ * no stream behind it, only a probe once per serve and whatever a refused
+ * commit has to say afterwards.
+ *
  * Nothing here interprets an outline or an agent. It moves what the store and
  * the chat decided onto the wire, and that is all.
  */
@@ -31,6 +37,7 @@ import type { Store } from "@olai/store"
 import {
   CHAT_OFF,
   type ChatState,
+  type GitState,
   LOADED,
   type Manifest,
   type OpFailure,
@@ -78,6 +85,14 @@ export interface Wiring {
    *  procedures answer that they are. A directory is readable whether or not
    *  an agent is installed. */
   readonly chat: Chat | null
+  /** What git is doing for this directory, as the ops layer found it — the
+   *  value the cell OPENS on, so a page that never sees a write still knows
+   *  whether the directory it is reading has a history. Later changes arrive
+   *  through {@link Publishers.git}.
+   *
+   *  Typed as the surface's own shape, which `@olai/ops` declares structurally:
+   *  the two drifting is a type error here rather than a mapping to maintain. */
+  readonly git: GitState
 }
 
 /** The chat, plus the two publishers the surface hands back once it exists.
@@ -87,6 +102,10 @@ export interface Wiring {
 export interface Publishers {
   readonly state: (state: ChatState) => void
   readonly transcript: (change: Change) => void
+  /** What git is doing now. Called by the ops layer's observer, and only when
+   *  it CHANGED — a healthy write says nothing, so an open tab is not woken on
+   *  every op. */
+  readonly git: (state: GitState) => void
 }
 
 export const bind = (
@@ -146,6 +165,11 @@ export const bind = (
         chat: {
           store: inMemoryStore<ChatState>(chat === null ? CHAT_OFF : chat.state()),
         },
+        /** Seeded from what the ops layer already found, and written by its
+         *  observer afterwards — no `connect`, because there is no stream to
+         *  follow: git is asked once per serve and only speaks again when a
+         *  commit refuses. */
+        git: { store: inMemoryStore<GitState>(wiring.git) },
         /** The whole directory binding, because one revision is one write of
          *  everything it moved: for each collection the entries that changed
          *  and the keys that went, and then the facts that belong to no file.
@@ -242,6 +266,7 @@ export const bind = (
       bound: runtime,
       publish: {
         state: (state) => runtime.ctx.cells.chat.set(state),
+        git: (state) => runtime.ctx.cells.git.set(state),
         transcript: (change) => {
           for (const key of change.removes) runtime.ctx.collections.transcript.remove(key)
           for (const [key, entry] of change.upserts) {

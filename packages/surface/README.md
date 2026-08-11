@@ -44,6 +44,18 @@ Which kind each member is was a decision. Three are the outline:
   entries, and that independence is load-bearing: a set that stops validating
   leaves the last good tree on screen underneath a banner, which is only
   expressible if the two arrive separately.
+- **`git` is a cell**, read-only on the wire, and it is here because of a bug:
+  writes came back `committed: false` on a directory its owner knew was a
+  repository, and the reason went to the server's log where a browser reader
+  never sees it. Whether this directory is a work tree, and whether the last
+  commit worked, is one value the server owns about the DIRECTORY rather than
+  about any file in it — four states (`off` under `--no-commit`, `repo`, `none`,
+  `error` with git's own words), which the app header draws as three: a quiet
+  one, a calm "Not a Git repo", and a "Git error" carrying what git said. It
+  moves at most twice in an ordinary serve — the probe, and a commit that
+  refuses — so nothing about it is a stream. Its shape is deliberately the same
+  as `@olai/ops`' own `GitState`: the server hands one straight to the other,
+  and the two drifting is a type error at that seam.
 
 `OutlineEntry` carries a file's nodes, its `rev`, and its `broken` — and the
 last of those is the per-entity error scope as DATA: a file that stopped

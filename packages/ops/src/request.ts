@@ -223,4 +223,19 @@ export interface Applied {
    *  a work tree, when the server was started with the opt-out, or when git
    *  itself refused — the write landed either way. */
   readonly committed: boolean
+  /**
+   * Why it was not, in one sentence. Absent when it was.
+   *
+   * The boolean above is four different pieces of news wearing one word, and
+   * for a while the difference between them went only to the server log — where
+   * somebody reading a browser can never see it, and where a person who knows
+   * perfectly well that their notes are a git repository is left with a write
+   * that quietly says `committed: false`. So the reason travels with the
+   * answer: the agent reads it in its tool result, the panel draws it beside
+   * the call, and nothing has to be inferred from a `false`.
+   *
+   * ADDITIVE and optional on purpose — a healthy commit says nothing, so
+   * nothing that reads this reply had to change to keep working.
+   */
+  readonly why?: string
 }
