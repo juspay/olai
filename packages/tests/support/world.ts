@@ -132,6 +132,7 @@ export const TOGGLE = selector(TESTID.toggle);
 export const NODE_MENU = selector(TESTID.nodeMenu);
 export const NODE_MENU_PANEL = selector(TESTID.nodeMenuPanel);
 export const NODE_MENU_ITEM = selector(TESTID.nodeMenuItem);
+export const NODE_MENU_SAID = selector(TESTID.nodeMenuSaid);
 /** A row's own line — its gutter controls and title, and nothing from the
  *  rows nested under it. What makes "this node has no checkbox" askable
  *  without reaching into markup shape. */

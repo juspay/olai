@@ -16,6 +16,7 @@ import {
   NODE_MENU,
   NODE_MENU_ITEM,
   NODE_MENU_PANEL,
+  NODE_MENU_SAID,
   oneLine,
   nodeSelector,
   PROGRESS,
@@ -797,6 +798,40 @@ Then(
       expected,
       `node menu offers ${JSON.stringify(labels)}, expected exactly ${JSON.stringify(expected)}`,
     );
+  },
+);
+
+/**
+ * A browser whose clipboard says no.
+ *
+ * Which is the ORDINARY browser for most olai readers: `navigator.clipboard`
+ * is gated on a secure context, and a server on the LAN read over plain http
+ * is not one. The e2e suite is served from `localhost`, which IS a secure
+ * context, so the refusal has to be put back — and put back as the same shape
+ * a real one has, a rejected promise from `writeText`.
+ */
+Given("this browser's clipboard refuses", async function (this: OlaiWorld) {
+  // `evaluate` on the page that is already open, rather than `addInitScript`:
+  // the feature's Background has navigated before this step runs, and an init
+  // script only reaches the NEXT navigation. Nothing here reloads — the app is
+  // a single page — so patching the live window is what a scenario sees.
+  await this.page.evaluate(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: () =>
+          Promise.reject(new Error("olai e2e: the clipboard is not available")),
+      },
+    });
+  });
+});
+
+Then(
+  "the node menu of {string} says {string}",
+  async function (this: OlaiWorld, id: string, text: string) {
+    const said = this.within(id, NODE_MENU_SAID);
+    await said.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(oneLine(await said.innerText()), text);
   },
 );
 

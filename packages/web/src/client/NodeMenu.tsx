@@ -70,31 +70,65 @@ export const nodeMenuActions = (args: {
   items.push({
     id: "copy-link",
     label: "Copy link to node",
+    // The failure is NOT caught here, and that is the fix: a clipboard write
+    // is refused as a matter of course on a page served over plain http to
+    // another machine — which is how olai is normally read — so a denial is
+    // the ordinary path rather than an exotic one, and swallowing it made a
+    // copy that did not happen look exactly like a copy that did. The menu
+    // below is what says so; an action's job is to do the thing or not.
     run: async () => {
       const url = new URL(hrefOf({ kind: "node", id: args.id }), location.href).href
-      try {
-        await navigator.clipboard.writeText(url)
-      } catch {
-        // Clipboard can refuse (insecure context, denied permission).
-      }
+      await navigator.clipboard.writeText(url)
     },
   })
   return items
 }
 
+/** How long a failed action's word stays on the row. Long enough to read where
+ *  the pointer already is, short enough that the gutter goes back to being a
+ *  gutter without anybody dismissing anything. */
+const SAID_MS = 4_000
+
 export function NodeMenu(props: {
   readonly actions: ReadonlyArray<MenuAction>
 }) {
   const [open, setOpen] = createSignal(false)
+  /** What the last action could not do, or `null`. The menu is CLOSED by the
+   *  time an action answers, so this belongs to the root beside the `•••`
+   *  rather than to the panel: a message inside something that has gone is a
+   *  message nobody reads. */
+  const [said, setSaid] = createSignal<string | null>(null)
   let root: HTMLDivElement | undefined
+  let clearing: ReturnType<typeof setTimeout> | undefined
+
+  onCleanup(() => clearTimeout(clearing))
 
   const close = (): void => {
     setOpen(false)
   }
 
+  /**
+   * Run it, and SAY SO if it did not happen.
+   *
+   * Every verb in the catalog either does its thing or throws, so this is the
+   * one place a reader is told about either. The one that throws in normal use
+   * is the clipboard — refused whenever the page is not a secure context,
+   * which is every LAN reader on plain http — and it used to be the one that
+   * caught its own failure and dropped it, so a copy that never happened was
+   * indistinguishable from one that did.
+   */
   const pick = async (action: MenuAction): Promise<void> => {
     close()
-    await action.run()
+    clearTimeout(clearing)
+    setSaid(null)
+    try {
+      await action.run()
+    } catch {
+      // The verb's own words, lower-cased into a sentence — so a sixth action
+      // needs no entry here, and none of them can be forgotten.
+      setSaid(`couldn't ${action.label.toLowerCase()}`)
+      clearing = setTimeout(() => setSaid(null), SAID_MS)
+    }
   }
 
   return (
@@ -123,6 +157,23 @@ export function NodeMenu(props: {
           onPick={pick}
           onClose={close}
         />
+      </Show>
+      <Show when={said()}>
+        {(message) => (
+          // Absolute, like the panel: the gutter's width is shared by every row
+          // in the tree (`touch.ts`), and a word that widened it would move the
+          // whole outline sideways for four seconds.
+          <span
+            class="absolute left-0 top-full z-20 mt-0.5 whitespace-nowrap rounded border border-rule bg-paper px-2 py-1 text-xs text-alarm shadow-md"
+            data-testid={TESTID.nodeMenuSaid}
+            // Announced, never focus-stealing — the reader's pointer is on the
+            // row and their place in the outline is not ours to take.
+            role="status"
+            aria-live="polite"
+          >
+            {message()}
+          </span>
+        )}
       </Show>
     </div>
   )

@@ -63,6 +63,11 @@ export const TESTID = {
   nodeMenuPanel: "node-menu-panel",
   /** One item inside that panel. `data-action` names the verb. */
   nodeMenuItem: "node-menu-item",
+  /** What the last-chosen action could NOT do, beside the `•••` for a few
+   *  seconds. It exists for the clipboard: a write is refused whenever the
+   *  page is not a secure context, which is every LAN reader on plain http,
+   *  and a copy that never happened used to look exactly like one that did. */
+  nodeMenuSaid: "node-menu-said",
   /** One folder in the sidebar's file tree. `data-path` is the root-relative
    *  path, `data-collapsed` says whether its children are hidden. */
   fileDir: "file-dir",
