@@ -281,6 +281,10 @@ export class OlaiWorld extends World {
    *  `@no-agent`, which is how the panel's no-agent state is reached. Carried
    *  for the same reason: a restart has to reproduce the first boot. */
   hasAgent = true;
+  /** Whether this scenario's host is running kolu (`@kolu`), so its sessions
+   *  are handed kolu's terminals as well as olai's own tools. Carried for the
+   *  same reason again: a restart has to reproduce the first boot. */
+  hasKolu = false;
   /** The URL that corpus's server answers on; also the context's `baseURL`. */
   baseUrl!: string;
 

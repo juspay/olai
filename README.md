@@ -161,6 +161,16 @@ The conversation is Claude Code's own session for that directory: close olai,
 reopen it, and you are back in it — and `claude --resume` in a terminal reaches
 the same conversations.
 
+If this machine is running [kolu](https://kolu.dev) — terminals for coding
+agents — the panel's agent gets kolu's terminals too, and there is nothing to
+set up: every new conversation looks for the padi daemon this host answers on,
+and hands the session `kolu mcp` when one is there. So you can ask about what
+your coding agents are doing in the same place you ask about your outlines. It
+is looked for rather than assumed: olai starts the `kolu` it found and asks it
+to read something only a running daemon can answer, because a `kolu` on a PATH
+is not always the one this host is running, and a wrong build will start
+perfectly well and know nothing.
+
 The agent is the pinned Claude Code adapter, and it comes with olai: `nix run`,
 the packaged binary and `just serve` all default to it, so there is nothing to
 install and nothing to configure. `OLAI_ACP_AGENT` points at a different ACP
