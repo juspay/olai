@@ -57,8 +57,11 @@ const SOCKET = "PADI_SOCKET"
 const IDENTITY = "surface://cells/identity"
 
 /** How long the probe gets. Generous for a process start and one round trip
- *  over a unix socket, and short enough that a wedged binary costs a session
- *  its kolu rather than its opening. */
+ *  over a unix socket — and it is spent BEFORE the session opens, so a host
+ *  whose kolu wedges pays this much per conversation and gets no kolu in it.
+ *  What makes five seconds affordable is where they are spent: booting the
+ *  agent is a background job with the panel already drawn (`chat.ts`'s
+ *  `start`), and a `session/load` next to it is allowed two minutes. */
 const PROBE_MS = 5_000
 
 /** An MCP server to spawn, in olai's terms — {@link ./agent.ts} renders it
