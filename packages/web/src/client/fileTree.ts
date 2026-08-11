@@ -113,3 +113,17 @@ export const fileTree = (
   for (const file of documents) put(root, file, "document")
   return freeze(root, "")
 }
+
+/** Directory paths that contain `file`, outermost first. Empty for a root
+ *  file — there is no folder chain to open for `house.jsonl`. The sidebar
+ *  uses this to keep the open file's ancestors unfolded so a collapsed-by-
+ *  default tree never hides the selection. */
+export const ancestorDirs = (file: string): ReadonlyArray<string> => {
+  const segments = file.split("/")
+  if (segments.length <= 1) return []
+  const out: string[] = []
+  for (let i = 1; i < segments.length; i++) {
+    out.push(segments.slice(0, i).join("/"))
+  }
+  return out
+}

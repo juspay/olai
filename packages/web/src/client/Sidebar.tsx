@@ -16,9 +16,12 @@
  * Directory nodes collapse, and that collapse is client-local the way the
  * outline tree's folds are (./view.ts): nothing is written, two readers of
  * the same directory may fold it differently, and a fold survives navigation
- * because the tree is of the directory rather than of the open page. A SLOT
- * rather than the calendar's own inputs threaded through: what the month
- * needs is the month's business.
+ * because the tree is of the directory rather than of the open page. Folders
+ * start collapsed — a deep corpus is not a wall of paths — and a directory
+ * the reader has unfolded stays open until they fold it again. The chain of
+ * folders holding the open file is always drawn open so the selection is
+ * never hidden under a shut parent. A SLOT rather than the calendar's own
+ * inputs threaded through: what the month needs is the month's business.
  *
  * The entry that lights up is the file the OPEN PAGE lives in — for a zoomed
  * node, the file of the canonical record, which is not something the URL says
@@ -46,7 +49,7 @@ import {
   Switch,
 } from "solid-js"
 
-import { type FileRow, fileTree } from "./fileTree.ts"
+import { ancestorDirs, type FileRow, fileTree } from "./fileTree.ts"
 import { Link } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import { CONTROL, TARGET } from "./touch.ts"
@@ -76,7 +79,12 @@ const DIR =
 interface TreeView {
   readonly isActive: (file: string) => boolean
   readonly broken: ReadonlyMap<string, BrokenFile>
-  readonly collapsed: () => ReadonlySet<string>
+  /** Directories the reader has unfolded. Absent = collapsed (the default). */
+  readonly expanded: () => ReadonlySet<string>
+  /** Directory chain of the open file — always drawn open so the selection
+   *  is reachable. Does not write into `expanded`; a preference the reader
+   *  set earlier still sits there for when the selection moves away. */
+  readonly openAncestry: () => ReadonlySet<string>
   readonly toggle: (path: string) => void
 }
 
@@ -99,18 +107,28 @@ export function Sidebar(props: {
    *  opens something over it, so a tap inside asks to put the sheet away. */
   readonly onClose: () => void
 }) {
-  // Folded directories, keyed by their root-relative path. A Set rather than a
-  // boolean per node so a directory that is not in it is simply expanded —
-  // the default a reader of a new directory expects, and the one that keeps
-  // every nested file a click away without a prior unfold.
-  const [collapsed, setCollapsed] = createSignal(new Set<string>())
+  // Unfolded directories, keyed by their root-relative path. A Set rather than
+  // a boolean per node so a directory that is not in it is simply collapsed —
+  // the default a deep corpus wants, and the same shape the outline tree uses
+  // for folds (./view.ts), only inverted: there the set holds what is shut
+  // because nodes start open; here it holds what is open because folders
+  // start shut. A toggle survives navigation because the tree is of the
+  // directory rather than of the open page.
+  const [expanded, setExpanded] = createSignal(new Set<string>())
   const toggle = (path: string) => {
-    setCollapsed((current) => {
+    setExpanded((current) => {
       const next = new Set(current)
       if (!next.delete(path)) next.add(path)
       return next
     })
   }
+
+  // The open file's parent chain, as a set for O(1) membership in each Dir.
+  // Memoised on the active path alone: folding a folder must not rewalk it.
+  const openAncestry = createMemo(() => {
+    const file = props.active
+    return file === undefined ? new Set<string>() : new Set(ancestorDirs(file))
+  })
 
   // `createSelector` rather than `props.active === file` in each row, which is
   // what this was: that form subscribes EVERY entry to the open page, so
@@ -148,7 +166,8 @@ export function Sidebar(props: {
     get broken() {
       return props.broken
     },
-    collapsed,
+    expanded,
+    openAncestry,
     toggle,
   }
 
@@ -214,8 +233,14 @@ function Dir(props: {
 }) {
   // A memo, not a plain accessor: folding one directory mints a new Set, and
   // both the chevron and the children list read it. Without the memo every
-  // directory re-runs both on every click.
-  const folded = createMemo(() => props.view.collapsed().has(props.row.path))
+  // directory re-runs both on every click. Ancestry wins over the default
+  // (collapsed) so the open file is never buried; a reader preference in
+  // `expanded` still wins over the default for every other folder.
+  const folded = createMemo(
+    () =>
+      !props.view.openAncestry().has(props.row.path) &&
+      !props.view.expanded().has(props.row.path),
+  )
 
   return (
     <li
