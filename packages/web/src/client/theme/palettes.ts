@@ -347,24 +347,27 @@ const TABLE = [
 
   // ── after the port ───────────────────────────────────────────────────
   //
-  // Prismatic: a whole spectrum in eight tokens, with purple as the anchor
-  // (lilac paper, violet accent) and every other slot a different hue family
-  // — teal ink, jade muted, peach rule, green done, orange doing, rose alarm.
-  // The ported rows are mostly muted; this one is saturated on purpose so a
-  // pick is unmistakable. Every pair this client paints clears AA.
+  // Prismatic: eight tokens, eight hue families — not tints of two. Purple
+  // anchors only the accent (links, tags, focus); the page, body, chrome and
+  // states each take a different family so borders, labels and code do not
+  // collapse into one second colour. Saturated on purpose. Every painted pair
+  // clears AA.
+  //
+  //   paper  yellow   ink  blue     muted  teal    rule  lime
+  //   accent purple   done green    doing  orange  alarm rose
   {
     name: "prismatic",
     scheme: "light",
     aa: true,
     colors: {
-      paper: "#F2E8FF",
-      ink: "#0C2840",
-      muted: "#0A6A58",
-      rule: "#FFB898",
+      paper: "#FFF4B0",
+      ink: "#102860",
+      muted: "#0A6A78",
+      rule: "#A8D850",
       accent: "#7818B8",
       done: "#007040",
-      doing: "#8A4000",
-      alarm: "#B81048",
+      doing: "#9A3000",
+      alarm: "#B81050",
     },
   },
 ] as const satisfies ReadonlyArray<Palette>
