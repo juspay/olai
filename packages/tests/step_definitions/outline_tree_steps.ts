@@ -13,6 +13,7 @@ import {
   NODE,
   NODE_GUTTER,
   nodeSelector,
+  PROGRESS,
   readable,
   OUTLINE_TREE,
   POLL_TIMEOUT,
@@ -158,6 +159,36 @@ Then(
     await this.waitUntil(
       async () => (await own.count()) === 0,
       `the node "${id}" shows no checkbox`,
+    ).catch(async () => {
+      assert.strictEqual(await own.count(), 0);
+    });
+  },
+);
+
+Then(
+  "the node {string} shows the progress {string}",
+  async function (this: OlaiWorld, id: string, progress: string) {
+    // This row's OWN badge: rows nest, and a child's rollup is that child's.
+    const badge = this.node(id).locator(NODE_GUTTER).first().locator(PROGRESS);
+    await badge.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => readable(await badge.first().innerText()) === progress,
+      `the node "${id}" to show the progress ${progress}`,
+    );
+  },
+);
+
+Then(
+  "the node {string} shows no progress",
+  async function (this: OlaiWorld, id: string) {
+    // Absent, not `0/0`: a node with no tasks under it has nothing to count,
+    // which is the same answer the derivation gives.
+    const line = this.node(id).locator(NODE_GUTTER).first();
+    await line.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+    const own = line.locator(PROGRESS);
+    await this.waitUntil(
+      async () => (await own.count()) === 0,
+      `the node "${id}" shows no progress badge`,
     ).catch(async () => {
       assert.strictEqual(await own.count(), 0);
     });

@@ -2,9 +2,9 @@
  * A request plus a snapshot, into the whole files that write would produce.
  *
  * PURE, and that is the design rather than a tidiness preference. Everything
- * hard about an op — where a node goes among its siblings, which children make
- * a mark a refusal, what an archived subtree hangs off — is decided here, over
- * a value, so it can be tested without a disk and re-decided against a newer
+ * hard about an op — where a node goes among its siblings, what a mark is
+ * worth remarking on, what an archived subtree hangs off — is decided here,
+ * over a value, so it can be tested without a disk and re-decided against a newer
  * snapshot when the store has moved ({@link ./ops.ts}'s retry loop). Nothing in
  * this file touches a file system, a clock or a random source: the two it needs
  * arrive as {@link Context}.
@@ -20,16 +20,15 @@
  * asks the one validator that question over the set the plan would produce
  * ({@link ../../store/src/store.ts}), which is the only place that can see the
  * whole set. So this file refuses only what it can refuse WITHOUT re-validating
- * — an id nobody declares, a mark on a node whose status is derived — and lets
- * the validator speak for everything else, in its own words, with `file:line`.
+ * — an id nobody declares, an undo of a mark that is not there — and lets the
+ * validator speak for everything else, in its own words, with `file:line`.
  */
 
 import {
   ancestorsOf,
+  countedChildren,
   derive,
   type Derived,
-  DerivedFailure,
-  fromChildren,
   isMirror,
   type Located,
   type LocatedRegular,
@@ -44,7 +43,6 @@ import {
   type OutlineSet,
   type RegularNode,
   storedMarker,
-  type Unfinished,
   UsageFailure,
   ValidationFailure,
 } from "@olai/format"
@@ -68,6 +66,9 @@ export interface Plan {
    *  `capture:` / `done:` / `doing:` / `todo:` / `move:` / `archive:` / `create:` /
    *  `see:` and a title (or a path, when an outline is born empty). */
   readonly summary: string
+  /** What the rollup would like the writer to notice, on a write that HAPPENED
+   *  ({@link nudged}). Absent unless there is something to say. */
+  readonly nudge?: string
 }
 
 /** The two impure things an op needs, handed in so the planner stays a
@@ -428,47 +429,6 @@ const planMark = (
   const mark = request.op
   const undo = request.undo === true
 
-  // The refusal that teaches. A node with counted children has no stored
-  // status at all — the tree answers — so a mark on one is refused with the
-  // children that are not finished, as data, and an undo is refused because
-  // there is no mark to take off. Which of the three things the children are
-  // already saying is what picks the sentence, and it is the SAME answer the
-  // validator's load error is built from.
-  const said = fromChildren(scope.derived, node.id)
-  if (said !== null) {
-    const unfinished: ReadonlyArray<Unfinished> = said.kind !== "unfinished"
-      ? []
-      // The status travels with the child from the derivation — the planner
-      // does not get to type in why a child is in the way.
-      : said.children.map((child) => ({
-        id: child.at.node.id,
-        title: child.at.node.title,
-        status: child.status,
-      }))
-    return Result.fail(
-      new DerivedFailure({
-        reason: said.kind === "nothing"
-          ? `\`${node.title}\` takes its status from its children, and none of its ` +
-            `${said.counted} is marked — it is a bullet, not a task. Mark one of ` +
-            `those instead.`
-          : said.kind === "done"
-          ? `\`${node.title}\` takes its status from its children, and all of the ` +
-            `marked ones are done — so it already reads done and there is nothing ` +
-            `to store.`
-          // Not "N of M unfinished": the bullets among those M are not
-          // unfinished, they are not tasks, and counting them would say the
-          // opposite of what this whole model is for.
-          : `\`${node.title}\` takes its status from its children, ` +
-            `${unfinished.length} unfinished among ${said.counted}: ` +
-            `${unfinished.map((child) => `\`${child.title}\``).join(", ")}. ` +
-            `Mark those instead.`,
-        id: node.id,
-        title: node.title,
-        children: unfinished,
-      }),
-    )
-  }
-
   const stored = storedMarker(node)
   if (undo && stored !== mark) {
     return Result.fail(
@@ -502,14 +462,91 @@ const planMark = (
     ? `${UNMARKED[mark]}: ${node.title}`
     : `${mark}: ${node.title}`
 
+  const note = nudged(scope, node, mark, undo)
+
   return Result.succeed({
     files: [{ file, nodes: replacing(recordsOf(scope, file), node.id, next) }],
     id: node.id,
     title: node.title,
     file,
     summary,
+    ...(note === undefined ? {} : { nudge: note }),
   })
 }
+
+/**
+ * What the rollup has to say about a mark that has just been written — and it
+ * is a REMARK, never a refusal.
+ *
+ * A mark is a stored fact on the node that carries it, so nothing here can
+ * make a write illegal: the two things a rollup notices are the two a person
+ * usually wants noticed, and both arrive after the fact.
+ *
+ *   - a branch ticked done over tasks nobody finished. Sometimes exactly what
+ *     was meant ("shipped, dropping the rest"), which is why it is said and
+ *     not refused;
+ *   - the last unfinished task under a parent going done, which is the moment
+ *     somebody might want to tick the parent too — and now can, whatever else
+ *     hangs off it.
+ *
+ * Deliberately not a load invariant. A set arrives from a git merge with
+ * nobody to nudge, and a file that will not load is a worse answer to "these
+ * two disagree" than a file that loads and says so.
+ */
+const nudged = (
+  scope: Scope,
+  node: RegularNode,
+  mark: Status,
+  undo: boolean,
+): string | undefined => {
+  if (undo || mark !== "done") return undefined
+
+  const said: Array<string> = []
+
+  const own = unfinishedUnder(scope, node.id)
+  if (own.length > 0) {
+    said.push(
+      `\`${node.title}\` is done over ${own.length} unfinished ` +
+        `${own.length === 1 ? "task" : "tasks"}: ${titles(own)}. Done-hidden hides ` +
+        `the branch, so mark those too if they are finished.`,
+    )
+  }
+
+  // The parent as it reads AFTER this write: the node being marked is what
+  // makes the difference, so a snapshot that still calls it unfinished would
+  // never fire the one nudge worth having.
+  const parent = node.parent === undefined ? undefined : scope.derived.byId.get(node.parent)
+  if (
+    parent !== undefined && !isMirror(parent.node) &&
+    storedMarker(parent.node) !== "done" &&
+    unfinishedUnder(scope, parent.node.id, node.id).length === 0
+  ) {
+    said.push(
+      `every task under \`${parent.node.title}\` is done now — mark it done too if ` +
+        `the branch is finished.`,
+    )
+  }
+
+  return said.length === 0 ? undefined : said.join(" ")
+}
+
+/** The titles of `parent`'s counted children that are TASKS and not done —
+ *  `done` read for `becoming`, the node this write is about, since the write
+ *  is the thing the snapshot has not seen yet. A bullet is never in the list:
+ *  it is not a task, so there is nothing under it to finish. */
+const unfinishedUnder = (
+  scope: Scope,
+  parent: string,
+  becoming?: string,
+): ReadonlyArray<string> =>
+  countedChildren(scope.derived, parent).flatMap((child) => {
+    if (child.node.id === becoming) return []
+    const status = scope.derived.status.get(child.node.id)
+    return status === undefined || status === "done" ? [] : [child.node.title]
+  })
+
+const titles = (all: ReadonlyArray<string>): string =>
+  all.map((title) => `\`${title}\``).join(", ")
 
 // ── title / desc / date ────────────────────────────────────────────────
 

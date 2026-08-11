@@ -57,14 +57,20 @@ Feature: An agent olai did not start
     And the page has not reloaded
 
   Scenario: A refused write is an answer, not a protocol error
-    # `kitchen` takes its status from its children, so it cannot store one.
-    # The refusal reaches the agent as a tool RESULT carrying the unfinished
-    # children as data — a JSON-RPC error would be the server saying it could
-    # not process the call, which is not what happened.
-    When the terminal agent tries to mark "kitchen" done
-    Then the terminal agent was refused, and told the children to mark instead:
-      | install |
-    And node "kitchen" is not done
+    # Nothing in the set declares `nowhere`. The refusal reaches the agent as a
+    # tool RESULT carrying its kind as data — a JSON-RPC error would be the
+    # server saying it could not process the call, which is not what happened.
+    When the terminal agent tries to mark "nowhere" done
+    Then the terminal agent was refused with the kind "not-found"
+
+  Scenario: Marking a branch tells the agent what is still open under it
+    # A mark is a stored fact on any node, so this lands — and the answer says
+    # what the rollup noticed, because "done over an unfinished task" is worth
+    # knowing and is not worth refusing. Advice, in the answer to a write that
+    # happened.
+    When the terminal agent marks "kitchen" done
+    Then node "kitchen" is done
+    And the terminal agent was told "install the cabinets"
 
   Scenario: It reads the outlines as nodes, with file and line
     # A hit says where it is, so the agent can act on it without ever reading

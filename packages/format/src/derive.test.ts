@@ -3,8 +3,8 @@ import { expect, test } from "bun:test"
 import {
   countedChildren,
   derive,
-  fromChildren,
-  type FromChildren,
+  type Progress,
+  progressOf,
   type Row,
   rowsOf,
   type Status,
@@ -57,9 +57,8 @@ const stubbed = (row: Row): string =>
 
 // ── the indexes ────────────────────────────────────────────────────────
 
-// A leaf is the only node allowed to store a status, so a leaf is the only
-// place the stored value is read back as-is — and a leaf carrying no mark is
-// not a task, which the index says by not holding it at all.
+// A node's status is the mark it stores, and one carrying no mark is not a
+// task — which the index says by not holding it at all.
 test("a leaf reports what it stores, and an unmarked one reports nothing", () => {
   const status = statusesOf(
     `{"id":"a","ord":"a","title":"a","done":true}\n` +
@@ -74,9 +73,8 @@ test("a leaf reports what it stores, and an unmarked one reports nothing", () =>
   expect(status.has("c")).toBe(false)
 })
 
-// What a record CLAIMS about itself, as opposed to what it ends up showing: the
-// validator's refusal quotes the stored marker by name ("`done` is computed
-// from this node's 3 children"), so the two read the same field the same way.
+// Which field a record actually carries, which is also its status — the ops
+// layer reads this to decide whether an undo has anything to take off.
 test("the stored marker is the field a record actually carries, or nothing", () => {
   expect(
     regulars(
@@ -96,183 +94,113 @@ test("the stored marker is the field a record actually carries, or nothing", () 
     .toBe("doing")
 })
 
-// A parent's status is the sum of the children that are TASKS — the one rule
-// the validator refuses to let anyone store, so this is where it actually
-// lives.
-test("a parent is the sum of the children that are tasks", () => {
-  const done = statusesOf(
+// A PARENT is what it stores too, and nothing about its children changes that.
+// This is the 2026-08-11 decision in one test: derivation read containment as
+// decomposition, so a parent of tasks became a task nobody had called one, and
+// a parent of notes could not be called one at all.
+test("a parent says what it stores, whatever hangs under it", () => {
+  // Children all done, parent unmarked: the parent is a BULLET. Nothing has
+  // made it a task, and the done toggle will not touch it — which is the whole
+  // bug this replaced, where those findings vanished with a parent nobody had
+  // finished.
+  const unmarked = statusesOf(
     `{"id":"p","ord":"a","title":"p"}\n` +
       `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
       `{"id":"c2","parent":"p","ord":"b","title":"c2","done":true}`,
   )
-  expect(done.get("p")).toBe("done")
+  expect(unmarked.get("p")).toBeUndefined()
 
-  // Something still under way is what makes a parent unfinished.
-  const partly = statusesOf(
-    `{"id":"p","ord":"a","title":"p"}\n` +
-      `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
-      `{"id":"c2","parent":"p","ord":"b","title":"c2","doing":true}`,
-  )
-  expect(partly.get("p")).toBe("doing")
-
-  // An UNMARKED sibling is not an unfinished one. It is a bullet, it owes
-  // nothing, and it does not hold its parent back: every task under `p` is
-  // done, so `p` is done. This is the line the old `open` residual got wrong —
-  // it counted `c2` as a to-do nobody had started and read `p` as `doing`.
-  const alongsideBullets = statusesOf(
-    `{"id":"p","ord":"a","title":"p"}\n` +
-      `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
-      `{"id":"c2","parent":"p","ord":"b","title":"c2"}`,
-  )
-  expect(alongsideBullets.get("p")).toBe("done")
-
-  // And a parent whose children are ALL bullets is a bullet itself: nothing
-  // under it is a task, so there is nothing for it to be the sum of.
-  const bullets = statusesOf(
-    `{"id":"p","ord":"a","title":"p"}\n` +
+  // A parent whose children are all NOTES can be a task, which derivation had
+  // no way to express: the four findings under it are not four subtasks.
+  const overNotes = statusesOf(
+    `{"id":"p","ord":"a","title":"p","todo":"2026-08-11"}\n` +
       `{"id":"c1","parent":"p","ord":"a","title":"c1"}\n` +
       `{"id":"c2","parent":"p","ord":"b","title":"c2"}`,
   )
-  expect(bullets.get("p")).toBeUndefined()
+  expect(overNotes.get("p")).toBe("todo")
+
+  // And a stored mark that disagrees with the arithmetic is simply the mark:
+  // `done` over an unfinished child is a claim about the branch, which somebody
+  // is allowed to make (the ops layer says so out loud — plan.ts's nudge).
+  const disagreeing = statusesOf(
+    `{"id":"p","ord":"a","title":"p","done":"2026-08-11"}\n` +
+      `{"id":"c1","parent":"p","ord":"a","title":"c1","doing":true}`,
+  )
+  expect(disagreeing.get("p")).toBe("done")
+  expect(disagreeing.get("c1")).toBe("doing")
 })
 
-// The third mark, and the case the two-mark rule had no answer for: a parent
-// whose task children have all been declared and none of them started. It is
-// `todo`, not `doing` — a parent that read `doing` would be claiming progress
-// nobody has made — and it is not nothing, because those children ARE tasks.
-test("a parent whose tasks are all unstarted is todo, not doing", () => {
-  const unstarted = statusesOf(
-    `{"id":"p","ord":"a","title":"p"}\n` +
-      `{"id":"c1","parent":"p","ord":"a","title":"c1","todo":true}\n` +
-      `{"id":"c2","parent":"p","ord":"b","title":"c2","todo":true}\n` +
-      `{"id":"c3","parent":"p","ord":"c","title":"c3"}`,
-  )
-  expect(unstarted.get("p")).toBe("todo")
+// What the children DO add up to, and the whole of it: an annotation. It is
+// beside the title, never in the checkbox, and nothing reads it to decide what
+// is hidden or what is blocked.
+test("the rollup counts the child tasks, and only the child tasks", () => {
+  const progress = (contents: string, id: string): Progress | undefined =>
+    progressOf(derive(nodesOf(contents)), id)
 
-  // One of them started, and the parent is under way.
-  const started = statusesOf(
-    `{"id":"p","ord":"a","title":"p"}\n` +
-      `{"id":"c1","parent":"p","ord":"a","title":"c1","todo":true}\n` +
-      `{"id":"c2","parent":"p","ord":"b","title":"c2","doing":true}`,
-  )
-  expect(started.get("p")).toBe("doing")
-
-  // MIXED done and todo is the case worth naming: nothing is under way, and
-  // the parent is still not unstarted — work has been finished under it.
-  const halfway = statusesOf(
-    `{"id":"p","ord":"a","title":"p"}\n` +
-      `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
-      `{"id":"c2","parent":"p","ord":"b","title":"c2","todo":true}`,
-  )
-  // …which is also what makes a `todo` child hold `done` back, where the plain
-  // bullet in the test above does not.
-  expect(halfway.get("p")).toBe("doing")
-})
-
-// What the children say is one answer with three shapes, and it is what both
-// refusals — the validator's load error and the ops layer's refused write —
-// are built from. The children to name exist only in the third, so the two
-// sites cannot disagree about whether there are any.
-test("what the children say is one of three answers", () => {
-  const said = (contents: string, id: string) => fromChildren(derive(nodesOf(contents)), id)
-
-  /** The children in the way, as `id status` pairs — both halves, because the
-   *  answer carrying the reason with the child is the point of it. */
-  const inTheWay = (
-    from: FromChildren | null,
-  ): ReadonlyArray<readonly [string, string]> =>
-    from?.kind === "unfinished"
-      ? from.children.map((child) => [child.at.node.id, child.status] as const)
-      : []
-
-  // Nothing: a node whose children are all bullets is a bullet.
-  expect(said(
-    `{"id":"p","ord":"a","title":"p"}\n` +
-      `{"id":"c1","parent":"p","ord":"a","title":"c1"}\n` +
-      `{"id":"c2","parent":"p","ord":"b","title":"c2"}`,
-    "p",
-  )).toEqual({ kind: "nothing", counted: 2 })
-
-  // Done: every task under it is finished. The unmarked sibling is counted as
-  // a child — the sentence says how many there are — and is not in the way.
-  expect(said(
-    `{"id":"p","ord":"a","title":"p"}\n` +
-      `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
-      `{"id":"c2","parent":"p","ord":"b","title":"c2"}`,
-    "p",
-  )).toEqual({ kind: "done", counted: 2 })
-
-  // Unfinished: the tasks that are not done, and nothing else — not the
-  // bullet, not the mirror, not the child that is already finished.
-  const unfinished = said(
+  expect(progress(
     `{"id":"p","ord":"a","title":"p"}\n` +
       `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
       `{"id":"c2","parent":"p","ord":"b","title":"c2","doing":true}\n` +
-      `{"id":"c3","parent":"p","ord":"c","title":"c3"}\n` +
-      `{"id":"c4","parent":"p","ord":"d","mirror":"c1"}`,
+      `{"id":"c3","parent":"p","ord":"c","title":"c3","todo":true}`,
     "p",
-  )
-  expect(unfinished?.kind).toBe("unfinished")
-  expect(unfinished?.counted).toBe(3)
-  // Each carries WHY it is in the way, so neither refusal has to say it for
-  // itself: `doing` is what a task that is not done is.
-  expect(inTheWay(unfinished)).toEqual([["c2", "doing"]])
+  )).toEqual({ done: 1, total: 3 })
 
-  // A child that is a task because of ITS children counts the same way.
-  const nested = said(
+  // A note under an item is not a task, so it neither adds to the total nor
+  // holds it back — the same rule that keeps a bullet from blocking anything.
+  expect(progress(
     `{"id":"p","ord":"a","title":"p"}\n` +
-      `{"id":"mid","parent":"p","ord":"a","title":"mid"}\n` +
-      `{"id":"leaf","parent":"mid","ord":"a","title":"leaf","doing":true}`,
+      `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
+      `{"id":"aside","parent":"p","ord":"b","title":"how it went"}`,
     "p",
-  )
-  expect(inTheWay(nested)).toEqual([["mid", "doing"]])
+  )).toEqual({ done: 1, total: 1 })
 
-  // And a node with no counted children is not what either refusal is about.
-  expect(said(`{"id":"p","ord":"a","title":"p","done":true}`, "p")).toBeNull()
-})
+  // Nothing under it is a task: there is no progress to show, rather than
+  // progress of zero. A subtree of notes annotates nothing.
+  expect(progress(
+    `{"id":"p","ord":"a","title":"p"}\n` +
+      `{"id":"c1","parent":"p","ord":"a","title":"c1"}`,
+    "p",
+  )).toBeUndefined()
+  expect(progress(`{"id":"p","ord":"a","title":"p","done":true}`, "p")).toBeUndefined()
 
-// The rule has to hold through a whole branch, not one level: a grandparent's
-// status is computed from statuses that were themselves computed.
-test("a parent of parents composes rather than looking one level down", () => {
-  const status = statusesOf(
+  // ITS OWN children, one level. A grandchild is counted by the row it hangs
+  // under, which is the row a reader is looking at when they want the number.
+  expect(progress(
     `{"id":"top","ord":"a","title":"top"}\n` +
-      `{"id":"mid","parent":"top","ord":"a","title":"mid"}\n` +
-      `{"id":"leaf1","parent":"mid","ord":"a","title":"l1","done":true}\n` +
-      `{"id":"leaf2","parent":"mid","ord":"b","title":"l2","doing":true}\n` +
-      `{"id":"other","parent":"top","ord":"b","title":"other"}`,
-  )
-  expect(status.get("mid")).toBe("doing")
-  // `other` is a bullet and counts for nothing, but `mid` is a task and is
-  // under way, so the top is under way too.
-  expect(status.get("top")).toBe("doing")
+      `{"id":"mid","parent":"top","ord":"a","title":"mid","doing":true}\n` +
+      `{"id":"leaf","parent":"mid","ord":"a","title":"leaf","done":true}`,
+    "top",
+  )).toEqual({ done: 0, total: 1 })
 })
 
-// A mirror shows a node, so it shows that node's status; a checkbox that
+// A mirror shows a node, so it shows that node's mark; a checkbox that
 // disagreed with the one two lines up would make mirrors unusable.
-test("a mirror reports its target's status, however deep the target's own is", () => {
+test("a mirror reports its target's mark, through as many hops as it takes", () => {
   const status = statusesOf(
-    `{"id":"p","ord":"a","title":"p"}\n` +
-      `{"id":"c","parent":"p","ord":"a","title":"c","done":true}\n` +
-      `{"id":"m","ord":"b","mirror":"p"}`,
+    `{"id":"p","ord":"a","title":"p","done":"2026-08-03"}\n` +
+      `{"id":"hop","ord":"b","mirror":"p"}\n` +
+      `{"id":"far","ord":"c","mirror":"hop"}`,
   )
   expect(status.get("p")).toBe("done")
-  expect(status.get("m")).toBe("done")
+  expect(status.get("hop")).toBe("done")
+  expect(status.get("far")).toBe("done")
 })
 
-// A mirror is a placement, not a second obligation. If it counted, showing a
-// node in a second place could flip an unrelated parent out of "done".
-test("a mirror child does not count toward the status of the node it sits under", () => {
-  const contents = `{"id":"elsewhere","ord":"z","title":"somewhere else"}\n` +
+// A mirror is a placement, not a second obligation, so it is not counted in
+// the rollup: showing a node in a second place must not make an unrelated
+// parent read `1/2`.
+test("a mirror child does not count toward the rollup of the node it sits under", () => {
+  const contents = `{"id":"elsewhere","ord":"z","title":"somewhere else","todo":true}\n` +
     `{"id":"p","ord":"a","title":"p"}\n` +
     `{"id":"c","parent":"p","ord":"a","title":"c","done":true}\n` +
     `{"id":"m","parent":"p","ord":"b","mirror":"elsewhere"}`
   const derived = derive(nodesOf(contents))
-  expect(derived.status.get("m")).toBeUndefined()
-  expect(derived.status.get("p")).toBe("done")
+  expect(derived.status.get("m")).toBe("todo")
+  expect(progressOf(derived, "p")).toEqual({ done: 1, total: 1 })
 
   // The mirror is still a child for *placement* — it renders under `p`…
   expect(ids(derived.children.get("p") ?? [])).toEqual(["c", "m"])
-  // …and still not one for *status*, which is the set the validator lists.
+  // …and still not one for the rollup, which is the set `countedChildren` is.
   expect(ids(countedChildren(derived, "p"))).toEqual(["c"])
 })
 
@@ -327,7 +255,7 @@ test("a duplicated id resolves to the record that claimed it first", () => {
 // mirror, and its children are the TARGET's, drawn under the mirror's own key.
 test("a mirror row is drawn with its target's children", () => {
   const nodes = nodesOf(
-    `{"id":"p","ord":"b","title":"p"}\n` +
+    `{"id":"p","ord":"b","title":"p","doing":true}\n` +
       `{"id":"c","parent":"p","ord":"a","title":"c","done":true}\n` +
       `{"id":"m","ord":"a","mirror":"p"}`,
   )
@@ -340,8 +268,10 @@ test("a mirror row is drawn with its target's children", () => {
   expect(mirror.shows.node.id).toBe("p")
   expect(mirror.shows.node.title).toBe("p")
   expect(mirror.children.map((row) => row.at.node.id)).toEqual(["c"])
-  // And it shows the target's status, the same one the index computed.
-  expect(mirror.status).toBe("done")
+  // And it shows the target's mark and the target's rollup: the row draws that
+  // node's children, so it annotates that node's children.
+  expect(mirror.status).toBe("doing")
+  expect(mirror.progress).toEqual({ done: 1, total: 1 })
   const node = drawn(rows, 1)
   expect(node.kind).toBe("node")
   // A regular node shows itself — the very record, not a copy of it.
@@ -440,8 +370,8 @@ test("a mirror chain that closes on itself is a cycle naming where it closed", (
 
 // The headline case for the cycle guard: a mirror of `a` placed inside `a`.
 // Drawing `a` draws the mirror, which draws `a`. The validator refuses this
-// set — and the rows are drawn anyway, because its own error messages quote
-// derived status. A renderer that hung is a worse way to learn about a bug
+// set — and the rows are drawn anyway, because the browser shows the outline
+// beside the errors. A renderer that hung is a worse way to learn about a bug
 // than a marked stub, so this test failing looks like a timeout.
 test("a mirror inside its own subtree is a cycle stub, not a hang", () => {
   const nodes = nodesOf(
@@ -487,7 +417,7 @@ test("roots are the requested file's own top-level nodes, in ord order", () => {
 
 // ── hiding what is done ────────────────────────────────────────────────
 
-const HOUSEWORK = `{"id":"kitchen","ord":"a0","title":"kitchen"}\n` +
+const HOUSEWORK = `{"id":"kitchen","ord":"a0","title":"kitchen","doing":true}\n` +
   `{"id":"demo","parent":"kitchen","ord":"a0","title":"demo","done":true}\n` +
   `{"id":"install","parent":"kitchen","ord":"a1","title":"install"}\n` +
   `{"id":"handles","parent":"install","ord":"a0","title":"handles","doing":true}`
@@ -507,17 +437,16 @@ test("hiding what is done drops the done rows and keeps the rest", () => {
   ])
 })
 
-// A done PARENT takes its subtree with it: every task below it is done — that
-// is what made it done — and the bullets among them are notes on finished work
-// rather than anything outstanding. A row kept under a hidden parent would
-// have nowhere to hang in any case.
-test("a done parent hides its whole subtree, bullets included", () => {
+// A node that STORES done takes its subtree with it, bullets included. That is
+// somebody's claim about the whole branch, made deliberately, so honouring it
+// is what the toggle is for.
+test("a stored done hides the whole subtree under it, bullets included", () => {
   const rows = rowsOf(
     derive(
       nodesOf(
-        `{"id":"finished","ord":"a0","title":"finished"}\n` +
+        `{"id":"finished","ord":"a0","title":"finished","done":"2026-08-10"}\n` +
           `{"id":"one","parent":"finished","ord":"a0","title":"one","done":true}\n` +
-          `{"id":"two","parent":"finished","ord":"a1","title":"two","done":true}\n` +
+          `{"id":"two","parent":"finished","ord":"a1","title":"two","doing":true}\n` +
           `{"id":"aside","parent":"finished","ord":"a2","title":"how it went"}`,
       ),
     ),
@@ -526,35 +455,34 @@ test("a done parent hides its whole subtree, bullets included", () => {
   expect(withoutDone(rows)).toEqual([])
 })
 
-// The other half of that, and the reason the third mark exists: a parent whose
-// finished children would otherwise make it done is NOT done while one of its
-// children has not started. Before `todo`, unstarted work could only be an
-// unmarked node — which counts for nothing — so the parent derived `done` and
-// hiding what is done took the unstarted work away with it. That is the view
-// whose job is showing what is left hiding exactly what was left.
-test("an unstarted child keeps its parent out of the done hiding", () => {
+// The bug this whole change is named after. `agents` was a parent nobody had
+// marked, its task children all finished, and it DERIVED done — so the toggle
+// dropped it and took four unmarked findings, which nobody had finished or
+// even called work, off the screen with it. The view whose job is showing what
+// is left hid exactly what was left.
+test("a parent nobody marked is not hidden, however finished its children are", () => {
   const rows = rowsOf(
     derive(
       nodesOf(
-        `{"id":"beds","ord":"a0","title":"beds"}\n` +
-          `{"id":"soil","parent":"beds","ord":"a0","title":"soil","done":true}\n` +
-          `{"id":"seeds","parent":"beds","ord":"a1","title":"seeds","todo":true}\n` +
-          `{"id":"aside","parent":"beds","ord":"a2","title":"which varieties"}`,
+        `{"id":"agents","ord":"a0","title":"agents"}\n` +
+          `{"id":"chat","parent":"agents","ord":"a0","title":"chat","done":true}\n` +
+          `{"id":"acp","parent":"agents","ord":"a1","title":"acp","done":true}\n` +
+          `{"id":"finding","parent":"agents","ord":"a2","title":"nothing wakes a chat agent"}`,
       ),
     ),
     FIXTURE_FILE,
   )
+  // The parent stays, the two done children go, and the finding — which is the
+  // thing worth reading — is still there.
   expect(shape(withoutDone(rows))).toEqual([
-    "/beds node",
-    "/beds/seeds node",
-    "/beds/aside node",
+    "/agents node",
+    "/agents/finding node",
   ])
-
-  // The bullet survives because its PARENT does. Under a parent that really is
-  // done it still goes, and that is intended — a note on finished work is not
-  // outstanding; "a done parent hides its whole subtree, bullets included"
-  // above is that half, and the two together are the distinction `todo` exists
-  // to draw.
+  // It reads as a bullet with a rollup beside it, not as a task: `2/2` is an
+  // annotation, and `status` is what a checkbox would be drawn from.
+  const agents = drawn(rows, 0)
+  expect(agents.status).toBeUndefined()
+  expect(agents.progress).toEqual({ done: 2, total: 2 })
 })
 
 // Hidden, never touched: the rows handed in are the same rows afterwards, so
@@ -606,16 +534,23 @@ test("tags come out in reading order, over the tag alphabet", () => {
 
 // ── loops ──────────────────────────────────────────────────────────────
 
-// Derivation runs against sets the validator has already condemned — its own
-// error messages quote derived status — so a loop must produce a stub, not a
-// hung renderer. This test failing looks like a timeout, which is the point.
+// Derivation runs against sets the validator has already condemned — the
+// browser draws the outline beside its errors — so a loop must produce a stub,
+// not a hung renderer. This test failing looks like a timeout, which is the
+// point.
 test("a cyclic set derives without hanging", () => {
+  // A parent loop no longer touches status at all: each node says what it
+  // stores. It is still walked for the rows, which is the guard below.
   const parents = statusesOf(
-    `{"id":"a","parent":"b","ord":"a","title":"a"}\n` +
+    `{"id":"a","parent":"b","ord":"a","title":"a","doing":true}\n` +
       `{"id":"b","parent":"a","ord":"b","title":"b"}`,
   )
-  expect(parents.get("a")).toBeUndefined()
+  expect(parents.get("a")).toBe("doing")
   expect(parents.get("b")).toBeUndefined()
+  expect(progressOf(derive(nodesOf(
+    `{"id":"a","parent":"b","ord":"a","title":"a","doing":true}\n` +
+      `{"id":"b","parent":"a","ord":"b","title":"b"}`,
+  )), "b")).toEqual({ done: 0, total: 1 })
 
   const mirrors = statusesOf(
     `{"id":"m1","ord":"a","mirror":"m2"}\n{"id":"m2","ord":"b","mirror":"m1"}`,

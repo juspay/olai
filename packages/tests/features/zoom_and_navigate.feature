@@ -67,21 +67,32 @@ Feature: Zoom and navigate
     When I show the done nodes
     Then the node "demo" is shown
 
-  Scenario: An unstarted task keeps its parent on screen when done is hidden
-    # The symptom `todo` exists to fix, in one outline. `frames` has two task
-    # children: `glazing`, finished, and `sowing`, which has not started.
-    # Before the third mark, `sowing` could only carry no mark at all — so
-    # `frames` counted one task, found it done, derived DONE, and the done
-    # toggle took the whole branch away, unstarted work included. The view
-    # whose job is showing what is left hid exactly what was left.
+  Scenario: A parent nobody marked stays on screen, with the notes under it
+    # The bug this replaced, in one outline. `frames` carries no mark, and both
+    # of its task children are done — so it used to DERIVE done, and the toggle
+    # took the whole branch away, `slugs` included. Nobody had finished `slugs`;
+    # nobody had even called it work. The view whose job is showing what is left
+    # hid exactly what was left.
     #
-    # A `todo` child is an unfinished task, so `frames` is `doing` and stays.
+    # Done-hidden now means what it says: the two DONE rows go, and the branch
+    # nobody marked stays, with its note.
     Given I open the outline "garden.jsonl"
     Then the node "glazing" is shown
     When I hide the done nodes
     Then the node "glazing" is not shown
+    And the node "sowing" is not shown
     And the node "frames" is shown
-    And the node "sowing" is shown
+    And the node "slugs" is shown
+
+  Scenario: A branch marked done is hidden with everything under it
+    # The other half, and what makes the sweep honest: `herbs` carries `doing`,
+    # so it stays — but a node whose own mark is `done` is somebody's claim
+    # about the whole branch, and the toggle honours it.
+    Given I open the outline "garden.jsonl"
+    Then the node "herbs" is shown
+    When I hide the done nodes
+    Then the node "herbs" is shown
+    And the node "basil" is not shown
 
   Scenario: Hiding done nodes works on a zoomed page too
     Given I open the node "herbs"

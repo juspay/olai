@@ -7,7 +7,7 @@
  */
 
 import type { ChatEntry } from "@olai/surface"
-import { DerivedFailure } from "@olai/format"
+import { ValidationFailure } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 
 import { type Change, Transcript } from "./transcript.ts"
@@ -124,11 +124,14 @@ describe("tool calls", () => {
 describe("refusals and replacement", () => {
   test("a refusal carries the failure itself, not a sentence about it", () => {
     const transcript = new Transcript()
-    const failure = new DerivedFailure({
-      reason: "it has children",
-      id: "kitchen",
-      title: "Kitchen remodel",
-      children: [{ id: "order", title: "order the cabinets", status: "doing" }],
+    const failure = new ValidationFailure({
+      reason: "`done: Kitchen remodel` would leave the outlines invalid",
+      errors: [{
+        code: "duplicate-id",
+        file: "house.jsonl",
+        line: 3,
+        message: "`order` is already the id of another node",
+      }],
     })
     transcript.refuse("`set_done` was refused", failure)
 

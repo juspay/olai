@@ -90,9 +90,6 @@ const CATALOGUE = {
   "mirror-cycle": "set",
   /** `doc` does not name an `.md` file under the served directory. */
   "missing-doc": "set",
-  /** A node with children stores a mark. A parent's status is computed from
-   *  its children and is never stored. */
-  "stored-derived-state": "set",
 } as const satisfies Record<string, Reach>
 
 export type ErrorCode = keyof typeof CATALOGUE
@@ -133,8 +130,8 @@ export const Site = Schema.Struct({
 export type Site = typeof Site.Type
 
 /** A second place the error is about, with a word on why it is implicated:
- *  the other record that claimed the id, the rest of the cycle, the child that
- *  is not done. This is the "structured detail, not prose" rule — the error
+ *  the other record that claimed the id, the rest of the cycle, the file the
+ *  parent lives in. This is the "structured detail, not prose" rule — the error
  *  view renders these as their own rows, and a cross-file error is recognised
  *  by having a related site in another file. */
 export const Related = Schema.Struct({

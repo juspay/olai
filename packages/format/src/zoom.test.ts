@@ -28,7 +28,7 @@ const page = (zoomed: Zoomed): Extract<Zoomed, { readonly kind: "node" }> => {
   return zoomed
 }
 
-const HOUSE = `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}\n` +
+const HOUSE = `{"id":"kitchen","ord":"a0","title":"kitchen remodel","doing":"2026-08-05"}\n` +
   `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters","done":true}\n` +
   `{"id":"install","parent":"kitchen","ord":"a1","title":"install the cabinets"}\n` +
   `{"id":"handles","parent":"install","ord":"a0","title":"choose the handles","doing":true}`
@@ -75,10 +75,15 @@ test("the page shows the node and its children, not its parents' other branches"
   expect(shape(zoomed.children)).toEqual(["/handles node"])
 })
 
-test("the page carries the node's derived status, not a stored one", () => {
-  // `kitchen` stores nothing: one child done, one still under way.
-  expect(page(zoomOf(HOUSE, "kitchen")).status).toBe("doing")
+test("the page carries the node's mark, and the rollup of its children beside it", () => {
+  const kitchen = page(zoomOf(HOUSE, "kitchen"))
+  expect(kitchen.status).toBe("doing")
+  // Two children, and one of them is a task that is done: `install` carries no
+  // mark, so it is not counted. The two answers are separate on purpose — the
+  // heading is toned by the mark, annotated by the rollup.
+  expect(kitchen.progress).toEqual({ done: 1, total: 1 })
   expect(page(zoomOf(HOUSE, "demo")).status).toBe("done")
+  expect(page(zoomOf(HOUSE, "demo")).progress).toBeUndefined()
 })
 
 // And a page can carry no status at all — the heading of a bullet is a

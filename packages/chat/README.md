@@ -171,5 +171,5 @@ reached it yet, which is a fact about the agent rather than about the message.
 **The refusals the ops layer produces are ours to render.** The agent gets the
 structured detail in its tool result, but what it then says about it is prose.
 So the MCP layer tells us about every refusal and it lands in the transcript as
-DATA — which is what makes "a refused write shows its unfinished children in
-chat" true regardless of how the agent phrases it.
+DATA — which is what makes "a refused write shows its detail in chat" true
+regardless of how the agent phrases it.

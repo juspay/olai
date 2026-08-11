@@ -15,7 +15,7 @@
 import * as assert from "node:assert";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { DataTable, Given, Then, When } from "@cucumber/cucumber";
+import { Given, Then, When } from "@cucumber/cucumber";
 import type { Locator } from "playwright";
 
 import {
@@ -41,7 +41,6 @@ import {
   CHAT_TOOL_LOCATIONS,
   CHAT_TOOL_PROGRESS,
   CHAT_TRANSCRIPT,
-  CHAT_UNFINISHED_CHILD,
   CHAT_WORKING,
   HYDRATION_TIMEOUT,
   NODE_TITLE,
@@ -312,29 +311,16 @@ Then("the chat shows a refusal", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
-Then(
-  "the refusal lists the unfinished children:",
-  async function (this: OlaiWorld, table: DataTable) {
-    const wanted = table.raw().map(([id]) => id ?? "");
-    await this.waitUntil(
-      async () =>
-        (await this.page.locator(CHAT_UNFINISHED_CHILD).count()) >= wanted.length,
-      `the refusal to list ${wanted.length} unfinished children`,
-    );
-    const listed = await this.page
-      .locator(CHAT_UNFINISHED_CHILD)
-      .evaluateAll((rows) =>
-        rows.map((row) => row.getAttribute("data-node-id") ?? ""),
-      );
-    assert.deepStrictEqual(
-      [...listed].sort(),
-      [...wanted].sort(),
-      // The whole point of the structured refusal: the children are DATA, so a
-      // scenario can name them. A prose summary would make this unassertable.
-      `the refusal lists ${listed.join(", ") || "nothing"}`,
-    );
-  },
-);
+Then("the chat shows no refusal", async function (this: OlaiWorld) {
+  // The turn has already been asserted to have LANDED by whatever step comes
+  // before this one, so there is nothing left to wait for: a refusal, if there
+  // were one, would be on screen by now.
+  assert.strictEqual(
+    await this.page.locator(CHAT_REFUSAL).count(),
+    0,
+    "the panel drew a refusal for a write that was supposed to land",
+  );
+});
 
 // ── tool frames ────────────────────────────────────────────────────────
 

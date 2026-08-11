@@ -27,9 +27,14 @@ in the system had to arrange:
   trailing newline are not something a caller can get wrong. The glued-line
   incident of 2026-08-09 — two records on one line, out of a byte-level edit —
   is not a thing these ops can express.
-- **a refusal can teach.** Marking a node whose status is computed from its
-  children is refused with the unfinished children AS DATA, so the agent can do
-  them one at a time and the chat panel can draw them as rows.
+- **a refusal can teach.** What a write is refused with travels as DATA — the
+  validator's own rows, pinned to `file:line` — so the agent fixes the line
+  rather than parsing a sentence, and the chat panel draws the same rows.
+- **a write that LANDED can carry advice.** Marking a branch done over tasks
+  nobody finished is allowed, and so is finishing the last open task under a
+  parent; both come back with a `nudge` saying what the rollup noticed. Policy,
+  in the answer, never an invariant — the format has nothing to say about a
+  mark and the children under it (docs/format.md's Status).
 
 ## The files
 

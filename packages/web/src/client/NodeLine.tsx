@@ -1,11 +1,12 @@
 /**
  * A node, on one line: its title, and the date it carries.
  *
- * The same three promises wherever a node is drawn — a row in a tree, an entry
- * on a day: the title span is what carries `TESTID.nodeTitle`, it is what the
- * derived status tones, and the date badge follows it. Two copies of that were
- * two chances for one of them to start toning a wrapper instead, or to move
- * the testid, while both still compiled and only one browser test noticed.
+ * The same promises wherever a node is drawn — a row in a tree, an entry on a
+ * day: the title span is what carries `TESTID.nodeTitle`, it is what the mark
+ * tones, and the rollup and date badges follow it in that order. Two copies of
+ * that were two chances for one of them to start toning a wrapper instead, or
+ * to move the testid, while both still compiled and only one browser test
+ * noticed.
  *
  * The note itself is NOT on this line. It hangs under the title as its own
  * clamped one-line gray row (./NodeBody.tsx), Workflowy-style.
@@ -16,11 +17,12 @@
  * row it does not own.
  */
 
-import type { Status } from "@olai/format"
+import type { Progress, Status } from "@olai/format"
 import { type JSX, Show } from "solid-js"
 
 import { DateBadge } from "./DateBadge.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
+import { ProgressBadge } from "./ProgressBadge.tsx"
 import { TESTID } from "./testids.ts"
 import { toneOf } from "./tone.ts"
 
@@ -28,6 +30,9 @@ export function NodeLine(props: {
   readonly title: string
   /** Absent for a plain bullet, which is toned like the text it is. */
   readonly status: Status | undefined
+  /** Absent when nothing under the node is a task. Beside the title rather
+   *  than in the box: it is what the children say, not what this node is. */
+  readonly progress?: Progress | undefined
   readonly date?: string
   /** Drawn inside the title and before it — the tree's mirror mark. */
   readonly children?: JSX.Element
@@ -38,6 +43,9 @@ export function NodeLine(props: {
         {props.children}
         <NodeTitle title={props.title} />
       </span>
+      <Show when={props.progress}>
+        {(progress) => <ProgressBadge progress={progress()} />}
+      </Show>
       <Show when={props.date}>
         {(date) => <DateBadge date={date()} />}
       </Show>

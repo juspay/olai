@@ -70,12 +70,15 @@ appears in front of it — checked, half-filled, or empty; leave it unmarked and
 it is text, with no box and nothing claiming it is a to-do nobody has got to
 yet. Those last two are different things on purpose: an empty box says someone
 decided this is work that has not started, and no box says nobody has called
-it work at all. A parent takes its status from the children that ARE marked:
-all done and it reads done, all unstarted and it reads todo, anything in
-between and it reads doing, none of them marked and it is a bullet like they
-are. None of that is stored — it is computed from the file every time it is
-drawn, which is why a node with children may not carry a mark of its own
-([docs/format.md](docs/format.md#status)).
+it work at all. A mark goes on whatever carries it, children or not — you can
+tick `read this book` with three notes hanging off it — and nothing is ever
+computed from what is underneath: a node is a task because someone said so.
+What the children add up to is shown beside the title as `3/5` and read as
+what it is, an annotation ([docs/format.md](docs/format.md#status)).
+
+Hiding what is done hides the nodes marked done, each with its subtree, and
+nothing else. A branch nobody marked stays on screen however finished the
+things under it are — the notes hanging off it are what you were looking for.
 
 Every node is also a page of its own at `/n/<id>` — the node as the heading,
 its note, its children as the tree — with breadcrumbs up its ancestry. Ids are
@@ -166,9 +169,11 @@ that is a restriction or the point depends on how you feel about a coding agent
 with `sed` and your notes.
 
 When it asks for something the outline will not do, you get the reason rather
-than an apology. Marking a node whose status is computed from its children is
-refused, and the refusal lists the children that are unfinished, as rows, which
-are what to mark instead.
+than an apology: a refused write comes back with the validator's own rows,
+each pinned to the line it is about. And when a write lands but is worth a
+second look — a branch ticked done over tasks nobody finished, or the last
+open task under a parent going done — the answer says so. Advice about
+something that happened, never a refusal.
 
 The conversation is Claude Code's own session for that directory: close olai,
 reopen it, and you are back in it — and `claude --resume` in a terminal reaches
