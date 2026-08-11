@@ -17,7 +17,15 @@
  * Every row's bullet is a link to that node's own page (./Bullet.tsx), on the
  * RECORD's id rather than the node it shows: a mirror's id resolves through
  * its chain to the same canonical page, so the two spellings agree and nothing
- * has to resolve anything here. The status checkbox beside it (./Checkbox.tsx)
+ * has to resolve anything here.
+ *
+ * A row that cannot start yet says so twice and quietly: the mark column draws
+ * the waiting glyph instead of the box (./Checkbox.tsx), and the row's own
+ * line and body dim. The dim is on those two rather than on the `<li>`,
+ * because opacity compounds through a subtree — dimming the item would dim
+ * every row nested under it, twice over for a blocked row under a blocked
+ * row, and what is waiting is this node rather than everything filed beneath
+ * it. The status checkbox beside it (./Checkbox.tsx)
  * reads the same stored done/doing the title tones with, and a row with no
  * mark shows no box at all — a bullet is not a task. Read-only until
  * keyboard-editing.
@@ -33,6 +41,7 @@ import { type Row } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, Match, Show, Switch } from "solid-js"
 
+import { blockedIds, WAITING_DIM } from "./blocked.ts"
 import { Bullet } from "./Bullet.tsx"
 import { Checkbox } from "./Checkbox.tsx"
 import { createNoteExpand } from "./note/expand.ts"
@@ -91,8 +100,15 @@ function Branch(props: {
       data-file={props.row.at.file}
       data-line={props.row.at.line}
       data-note-open={note.expanded() ? "true" : "false"}
+      // The ids this row is waiting on, in the promised order — absent when
+      // nothing is in its way. The dim beside it is a styling decision a
+      // refactor may change; this is the fact a scenario asks about.
+      data-blocked={blockedIds(props.row.blocked)}
     >
-      <div class="flex items-baseline gap-1.5" data-testid={TESTID.nodeGutter}>
+      <div
+        class={`flex items-baseline gap-1.5 ${WAITING_DIM(props.row.blocked)}`}
+        data-testid={TESTID.nodeGutter}
+      >
         <Show
           when={props.row.children.length > 0}
           fallback={<span class={CONTROL_SPACER} aria-hidden="true" />}
@@ -113,7 +129,11 @@ function Branch(props: {
         </Show>
 
         <Bullet id={props.row.at.node.id} />
-        <Checkbox status={props.row.status} />
+        <Checkbox
+          status={props.row.status}
+          blocked={props.row.blocked}
+          id={props.row.at.node.id}
+        />
 
         <Switch>
           <Match when={props.row.kind === "dangling" ? props.row : undefined}>
@@ -128,7 +148,6 @@ function Branch(props: {
               <NodeLine
                 title={shows().node.title}
                 status={props.row.status}
-                blocked={props.row.blocked}
                 progress={props.row.progress}
                 date={shows().node.date}
               >
@@ -148,7 +167,10 @@ function Branch(props: {
           title on either. The note control root is what "click away" uses. */}
       <Show when={!collapsed() && shown()}>
         {(shows) => (
-          <div class={PAST_CONTROLS} ref={note.setRoot}>
+          <div
+            class={`${PAST_CONTROLS} ${WAITING_DIM(props.row.blocked)}`}
+            ref={note.setRoot}
+          >
             <NodeBody
               shows={shows()}
               expanded={note.expanded()}

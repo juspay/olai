@@ -155,14 +155,15 @@ Feature: Zoom and navigate
     And the address is "/n/herbs"
     And there should be no page errors
 
-  Scenario: The blocked pill on a row opens what the node is waiting on
-    # A tree row has a column of titles to protect, so the marker is one word
-    # and a link: the next thing a reader wants is the node in the way.
+  Scenario: The waiting mark opens the page that names the blockers
+    # A row has room for a glyph, not for names, so the click is spent going
+    # to the node's OWN page — where they are all named. The box is
+    # display-only until keyboard-editing, so the click promises nothing else.
     Given I open the outline "house.jsonl"
     And I mark the page
-    When I follow the blocked link to "order" on "hinges"
-    Then the zoomed node is "order"
-    And the address is "/n/order"
+    When I follow the waiting mark on "hinges"
+    Then the zoomed node is "hinges"
+    And the address is "/n/hinges"
     And the page has not reloaded
     And there should be no page errors
 
@@ -175,3 +176,12 @@ Feature: Zoom and navigate
     Then the zoomed node is "order"
     And the address is "/n/order"
     And there should be no page errors
+
+  Scenario: The waiting mark's tip stays inside the window
+    # Its own tip rather than the platform's `title`, because a long one ran
+    # off the right edge with the end of the sentence outside the screen. What
+    # it says is the label's sentence; where it goes is arithmetic (tip.ts).
+    Given I open the outline "house.jsonl"
+    When I hover the waiting mark on "hinges"
+    Then a tip says "blocked by order the new cabinets"
+    And the tip is inside the window

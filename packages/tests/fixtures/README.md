@@ -31,7 +31,8 @@ each thing the view has to draw:
 | nesting | `kitchen` → `install` → `handles` (house.jsonl) |
 | a done child | `demo` (house.jsonl:2) |
 | a doing child | `order` (house.jsonl:3) |
-| a todo child | `hinges` — an unstarted task, so an EMPTY box |
+| a todo child | `knobs` — an unstarted task nothing is waiting on, so an EMPTY box |
+| a todo child that is BLOCKED | `hinges` — the waiting glyph in the mark column instead, and the row dimmed |
 | a parent the done toggle must not hide | `frames` (garden.jsonl) — both its tasks done, and NOBODY marked it |
 | a note that must survive the done toggle | `slugs` under `frames` — nobody finished it, nobody called it work |
 | a bullet that is not a task | `handles` — no mark, so no status and no box at all |
@@ -41,6 +42,7 @@ each thing the view has to draw:
 | a `date` | `order` is dated `2026-08-10` |
 | a markdown `desc` | `order` — a paragraph, a two-item list, bold and italic |
 | an `after` edge that BLOCKS | `hinges` after `order`, which is under way — so `hinges` cannot start |
+| two `todo` leaves, one blocked and one not | `hinges` and `knobs` under `install` — the whole difference the mark column draws |
 | an `after` edge that is clear | `order` after `demo`, which is done — nothing left to wait for |
 | an `after` edge that must NOT block | `hinges` after `handles`, a bullet nobody marked: not work, so nothing to wait for |
 | a `doc` | `install` attaches `finishes.md` |

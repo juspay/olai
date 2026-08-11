@@ -4,4 +4,5 @@
 {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doc":"finishes.md","after":["order"]}
 {"id":"handles","parent":"install","ord":"a0","title":"choose the handles"}
 {"id":"hinges","parent":"install","ord":"a1","title":"pick the hinges","todo":"2026-08-11","after":["handles","order"]}
+{"id":"knobs","parent":"install","ord":"a2","title":"pick the knobs","todo":"2026-08-11"}
 {"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}

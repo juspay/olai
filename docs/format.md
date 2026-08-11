@@ -61,7 +61,7 @@ That is ONE predicate and it is read at BOTH ends of the arrow, which is the rac
 
 The exemptions stop at the validator: `after` must stay **acyclic** whatever the marks say and wherever the nodes live, because a loop is a claim about the file rather than about what is on anyone's plate. Both rules read one graph — `blocks` normalised into `after`, with each edge filed under the node its target NAMES, so an edge written at a mirror and an edge written at the node it stands for are one edge. A deadlock that closes through a placement is a deadlock.
 
-Being blocked is a SECOND fact about a node, never a replacement for the first: a blocked task keeps the mark it carries and the date it is due on, and a view draws blockedness beside the status rather than instead of it.
+Being blocked is a SECOND fact about a node, never a replacement for the first: a blocked task keeps the mark it carries and the date it is due on. A view is free to draw the two together — olai answers both in one column, since "has this started" and "can it start" are the same kind of question about the same node — but nothing may make a node's mark depend on what it is waiting for.
 
 ## Documents
 

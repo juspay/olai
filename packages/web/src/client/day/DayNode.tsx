@@ -17,6 +17,7 @@
 import type { Situated } from "@olai/format"
 import { Show } from "solid-js"
 
+import { blockedIds, WAITING_DIM } from "../blocked.ts"
 import { Breadcrumbs } from "../Breadcrumbs.tsx"
 import { Bullet } from "../Bullet.tsx"
 import { Checkbox } from "../Checkbox.tsx"
@@ -40,19 +41,26 @@ export function DayNode(props: {
       data-status={props.dated.status}
       data-file={props.dated.shows.file}
       data-note-open={note.expanded() ? "true" : "false"}
+      data-blocked={blockedIds(props.dated.blocked)}
     >
       {/* A root has no ancestry, and an empty trail is nothing to draw. */}
       <Show when={props.dated.trail.length > 0}>
         <Breadcrumbs trail={props.dated.trail} />
       </Show>
 
-      <div class="flex items-baseline gap-1.5" data-testid={TESTID.nodeGutter}>
+      <div
+        class={`flex items-baseline gap-1.5 ${WAITING_DIM(props.dated.blocked)}`}
+        data-testid={TESTID.nodeGutter}
+      >
         <Bullet id={node().id} />
-        <Checkbox status={props.dated.status} />
+        <Checkbox
+          status={props.dated.status}
+          blocked={props.dated.blocked}
+          id={node().id}
+        />
         <NodeLine
           title={node().title}
           status={props.dated.status}
-          blocked={props.dated.blocked}
           progress={props.dated.progress}
           date={node().date}
         />
@@ -60,7 +68,10 @@ export function DayNode(props: {
 
       {/* Past the bullet and the checkbox — ../touch.ts, so this indent and
           those two controls cannot drift apart. */}
-      <div class={PAST_BULLET} ref={note.setRoot}>
+      <div
+        class={`${PAST_BULLET} ${WAITING_DIM(props.dated.blocked)}`}
+        ref={note.setRoot}
+      >
         <NodeBody
           shows={props.dated.shows}
           expanded={note.expanded()}

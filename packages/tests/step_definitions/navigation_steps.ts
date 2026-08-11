@@ -21,6 +21,7 @@ import {
   oneLine,
   POLL_TIMEOUT,
   SEE_REFS,
+  TIP,
   ZOOM,
   ZOOM_TITLE,
 } from "../support/world.ts";
@@ -193,15 +194,53 @@ When(
 When(
   "I follow the blocked link to {string} on {string}",
   async function (this: OlaiWorld, blocker: string, id: string) {
-    // One step for both shapes of the marker: a row's pill is a link to the
-    // first blocker and a page names every one of them, and either way the
-    // element carrying `data-ref` is inside the anchor that opens it.
+    // The node's own page, where every blocker is named — a row draws a glyph
+    // instead, and that goes to this page rather than to any one blocker.
     await followRef(
       this,
       this.node(id).locator(`${BLOCKED} [data-ref="${blocker}"]`).first(),
     );
   },
 );
+
+/** The mark column's waiting glyph on a row, which is a link to the node's own
+ *  page: a row has room for the fact, not for the names. */
+When(
+  "I follow the waiting mark on {string}",
+  async function (this: OlaiWorld, id: string) {
+    await followRef(this, this.within(id, BLOCKED));
+  },
+);
+
+When(
+  "I hover the waiting mark on {string}",
+  async function (this: OlaiWorld, id: string) {
+    const mark = this.within(id, BLOCKED);
+    await mark.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await mark.hover();
+    await this.page
+      .locator(TIP)
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then("a tip says {string}", async function (this: OlaiWorld, said: string) {
+  assert.strictEqual(oneLine(await this.page.locator(TIP).first().innerText()), said);
+});
+
+/** The whole reason this app draws its own tip: the platform put a long one
+ *  half outside the window. Asserted as geometry, because that is what went
+ *  wrong — not as a class name. */
+Then("the tip is inside the window", async function (this: OlaiWorld) {
+  const box = await this.page.locator(TIP).first().boundingBox();
+  assert.ok(box !== null, "the tip is not laid out");
+  const width = this.page.viewportSize()?.width ?? 0;
+  assert.ok(
+    box.x >= 0 && box.x + box.width <= width,
+    `the tip runs from ${box.x} to ${box.x + box.width}, outside a ${width}px window`,
+  );
+});
 
 // ── where a navigation leaves the page ─────────────────────────────────
 //

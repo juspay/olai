@@ -53,11 +53,16 @@ export const TESTID = {
    *  RESOLVED path as `data-doc`, and `data-inline` for the zoomed page that
    *  draws the whole document rather than a line of it. */
   docRef: "doc-ref",
-  /** A node held up by an `after` edge, wherever the node is drawn: the pill
-   *  on a row, the named row of blockers on the node's own page. Absent — not
-   *  empty — on a node with nothing in its way, which is how "this can start"
-   *  is asked. */
+  /** A node held up by an `after` edge, wherever the node is drawn: the mark
+   *  column's waiting glyph on a row or a day entry, the named row of blockers
+   *  on the node's own page. Absent — not empty — on a node with nothing in
+   *  its way. WHETHER a node is blocked, and by what, is `data-blocked` on the
+   *  node itself; this is the affordance that says so on screen. */
   blocked: "blocked",
+  /** This app's own hover tip, which replaced the platform's `title` on the
+   *  one control whose sentence is too long for it: what it says is also the
+   *  control's `aria-label`, so nothing here is hover-only. */
+  tip: "tip",
   /** A node's free cross-references (`see`), wherever the node is drawn. */
   seeRefs: "see-refs",
   /** One link from a node to another node, in any of those rows. Which

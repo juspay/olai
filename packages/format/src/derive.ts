@@ -88,9 +88,10 @@ export interface Derived {
    *
    *  ORDERED, and promised so rather than left to fall out: a node's own
    *  `after` in the order it writes them, then whatever `blocks` it from
-   *  elsewhere in file order. A reader with room for one blocker takes the
-   *  first, and a promise is what keeps that from moving when an unrelated
-   *  file gains an edge. */
+   *  elsewhere in file order. Every reader says them in that order — the label
+   *  a row's mark carries, the tip beside it, the list on the node's page —
+   *  and a promise is what keeps that from shuffling when an unrelated file
+   *  gains an edge. */
   readonly blocked: ReadonlyMap<string, ReadonlyArray<InTheWay>>
 }
 
@@ -267,9 +268,9 @@ export const unfinishedUnder = (
  * A node standing in another's way, and WHY it is — a task that is not done.
  *
  * The reason travels with the node rather than being restated by each reader,
- * because every one of them wants it: a pill tones what it is waiting for, a
- * list names it, and a caller left to look the mark up again is a caller free
- * to look it up differently.
+ * because every one of them wants it: a mark column tones the glyph with it, a
+ * page names the node, and a caller left to look the mark up again is a caller
+ * free to look it up differently.
  *
  * `Exclude<Status, "done">` says the whole rule in the type: what is in the way
  * is unfinished WORK. A node with no status is absent from this shape entirely

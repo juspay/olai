@@ -3,10 +3,14 @@
  *
  * The same promises wherever a node is drawn — a row in a tree, an entry on a
  * day: the title span is what carries `TESTID.nodeTitle`, it is what the mark
- * tones, a node that cannot start yet says so beside it (./Blocked.tsx), and
- * the rollup and date badges follow it in that order. Two copies of that were
- * two chances for one of them to start toning a wrapper instead, or to move
- * the testid, while both still compiled and only one browser test noticed.
+ * tones, and the rollup and date badges follow it in that order. Two copies of
+ * that were two chances for one of them to start toning a wrapper instead, or
+ * to move the testid, while both still compiled and only one browser test
+ * noticed.
+ *
+ * What a node cannot START yet is NOT on this line: it is answered in the mark
+ * column (./Checkbox.tsx), because it is the same kind of fact as whether the
+ * work has begun and a reader sorting rows is already looking there.
  *
  * The note itself is NOT on this line. It hangs under the title as its own
  * clamped one-line gray row (./NodeBody.tsx), Workflowy-style.
@@ -17,10 +21,9 @@
  * row it does not own.
  */
 
-import type { InTheWay, Progress, Status } from "@olai/format"
+import type { Progress, Status } from "@olai/format"
 import { type JSX, Show } from "solid-js"
 
-import { Blocked } from "./Blocked.tsx"
 import { DateBadge } from "./DateBadge.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
 import { ProgressBadge } from "./ProgressBadge.tsx"
@@ -31,11 +34,6 @@ export function NodeLine(props: {
   readonly title: string
   /** Absent for a plain bullet, which is toned like the text it is. */
   readonly status: Status | undefined
-  /** What holds this node up, and empty when nothing does. A second fact
-   *  about a node rather than a replacement for its status: a blocked task
-   *  keeps the mark it carries and the date it is due on, and says as well
-   *  that it cannot start yet. */
-  readonly blocked: ReadonlyArray<InTheWay>
   /** Absent when nothing under the node is a task. Beside the title rather
    *  than in the box: it is what the children say, not what this node is. */
   readonly progress: Progress | undefined
@@ -49,7 +47,6 @@ export function NodeLine(props: {
         {props.children}
         <NodeTitle title={props.title} />
       </span>
-      <Blocked blocked={props.blocked} />
       <Show when={props.progress}>
         {(progress) => <ProgressBadge progress={progress()} />}
       </Show>

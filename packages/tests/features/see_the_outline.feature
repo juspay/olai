@@ -26,7 +26,7 @@ Feature: See the outline
   Scenario: A bullet nobody marked is not a task
     # `handles` carries no mark. It is not "a task nobody has started" — it is
     # a bullet, and the page says so by saying nothing: no status on the row,
-    # no box beside it, no strike or tone on the title. `hinges` beside it IS
+    # no box beside it, no strike or tone on the title. `knobs` beside it IS
     # an unstarted task, and says so with the mark someone put there.
     Then the node "handles" has no status
     And the node "handles" shows no checkbox
@@ -38,7 +38,7 @@ Feature: See the outline
     # an unmarked node looks like, which is no box at all.
     Then the node "demo" shows a checked checkbox
     And the node "order" shows a doing checkbox
-    And the node "hinges" shows an empty checkbox
+    And the node "knobs" shows an empty checkbox
 
   Scenario: A parent shows the mark it stores, like any other node
     # `kitchen` carries `doing` itself. Nothing is computed from its children:
@@ -62,20 +62,36 @@ Feature: See the outline
     # rather than nothing done out of nothing.
     And the node "demo" shows no progress
 
-  Scenario: A node waiting on unfinished work says so on its row
+  Scenario: A node waiting on unfinished work says so in the mark column
     # `hinges` is `after` `order`, and `order` is under way — so `hinges`
-    # cannot start yet, and the row says that beside its title. A second fact
-    # about the node rather than a replacement for the first: it keeps the
-    # `todo` somebody marked it with, and the empty box that draws it.
+    # cannot start yet. That is the same KIND of fact as whether it has
+    # started, so it is answered where the box would be: the waiting glyph
+    # stands in for the box, and the row dims. The mark itself is untouched —
+    # `hinges` is still the `todo` somebody marked it with.
     Then the node "hinges" is blocked by "order"
     And the node "hinges" has status "todo"
-    And the node "hinges" shows an empty checkbox
+    And the node "hinges" shows the waiting mark
+    And the node "hinges" shows no checkbox
+
+  Scenario: Waiting is not the same news as finished
+    # `knobs` is an unstarted task nothing is waiting on: it keeps its empty
+    # box and its full weight on the page. Two `todo` leaves under one parent,
+    # one of them blocked, is the whole difference the mark column has to draw.
+    Then the node "knobs" is not blocked
+    And the node "knobs" shows an empty checkbox
+
+  Scenario: The waiting mark names what it is waiting on, without a hover
+    # An `aria-label` rather than a tooltip alone: what a row is waiting on is
+    # not information to hide behind a pointer. It names the blockers in the
+    # order the format promises — and `handles`, which nobody marked, is not
+    # among them.
+    Then the waiting mark on "hinges" says "blocked by order the new cabinets"
 
   Scenario: What is finished, and what was never a task, hold nothing up
     # Two readings of one rule. `order` is `after` `demo` and `demo` is done,
     # so the way is clear. `hinges` is ALSO `after` `handles`, which nobody
     # marked — a bullet is not work, so there is nothing under it to finish and
-    # nothing to wait for; the row above says `hinges` waits on `order` and
+    # nothing to wait for; the mark above says `hinges` waits on `order` and
     # says nothing about `handles`. Reading that edge as an obstacle is the
     # trap the rule is written against: it makes every plain bullet a thing
     # that can never be cleared.
