@@ -103,7 +103,9 @@ export function Sidebar(props: {
           // Desktop: in-flow column; width comes from the grid / CSS var.
           (props.open ? "flex " : "hidden ") +
           "relative z-40 flex-col border-r border-rule bg-paper " +
-          "fixed bottom-0 left-0 top-[var(--height-header,3rem)] w-[min(20rem,85vw)] " +
+          // Wide enough that the month's 7 day cells still hit 44×44 under
+          // the phone target rule (7×2.75rem + pad ≈ 90vw on a 390pt screen).
+          "fixed bottom-0 left-0 top-[var(--height-header,3rem)] w-[min(22rem,92vw)] " +
           "md:static md:flex md:h-full md:w-full md:translate-x-0"
         }
         data-testid={TESTID.sidebar}
