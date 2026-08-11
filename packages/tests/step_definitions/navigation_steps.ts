@@ -239,6 +239,28 @@ Then("a tip says {string}", async function (this: OlaiWorld, said: string) {
   assert.strictEqual(oneLine(await tips.first().innerText()), said);
 });
 
+/** A tip drawn inside a row inherits that row's opacity — and a blocked row is
+ *  DIMMED, which put the note underneath straight through the tip's own words.
+ *  Asserted as the opacity a reader actually gets, multiplied down the
+ *  ancestors, because that is what went wrong: every class on the tip itself
+ *  was right. */
+Then("the tip is fully opaque", async function (this: OlaiWorld) {
+  const opacity = await this.page.locator(TIP).first().evaluate((tip) => {
+    let at: Element | null = tip;
+    let effective = 1;
+    while (at !== null) {
+      effective *= Number(getComputedStyle(at).opacity);
+      at = at.parentElement;
+    }
+    return effective;
+  });
+  assert.strictEqual(
+    opacity,
+    1,
+    "the tip is drawn through something dimmed; it must not inherit a row's opacity",
+  );
+});
+
 /** Nothing is hovered any more, so nothing may be saying anything. A tip that
  *  outlived the pointer is the same defect one step earlier. */
 Then("no tip is shown", async function (this: OlaiWorld) {

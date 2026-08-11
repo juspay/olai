@@ -189,6 +189,9 @@ Feature: Zoom and navigate
     When I hover the waiting mark on "hinges"
     Then a tip says "blocked by order the new cabinets"
     And the tip is inside the window
+    # And READABLE: a blocked row is dimmed, and a tip drawn inside one wore
+    # that dim — the note underneath showed through its own words.
+    And the tip is fully opaque
     # And it goes when the pointer does — a tip that outlives its pointer is
     # the ghost that made two of them in the first place.
     When I move the pointer away
