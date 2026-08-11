@@ -112,6 +112,13 @@ accepted — and one picture is N calls to one send. What `send` grew is a list 
 PATHS, which are what `attach` answered with; the bytes are already on disk by
 then, and the agent is handed the path and reads the file itself.
 
+`attach` answers with the file's NAME as well as its path, and that is not a
+convenience. The name a caller SENT is a request: the server sanitizes it and
+suffixes a collision, so `shot.png` pasted twice is `shot.png` and `shot-1.png`,
+and it is the answer that the transcript row carries. A client keeping the name
+it sent would be keeping a second answer to "what is this called" — one paste
+away from drawing one picture on another message's row.
+
 Nothing in the transcript is an optimistic echo — what a person typed appears
 because the server put it there, exactly like everything else, so two tabs
 always agree and a send that failed never leaves a message on screen that was

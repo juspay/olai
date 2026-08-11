@@ -45,32 +45,32 @@ test("a picture arrives in chunks and is one file at the end", () => {
   const pieces = chunkBase64(picture.toString("base64"), 64)
   expect(pieces.length).toBeGreaterThan(1)
 
-  let path: string | undefined
+  let at: string | undefined
   for (const data of pieces) {
     const answer = receive(files, {
       name: "shot.png",
       data,
-      ...(path === undefined ? {} : { appendTo: path }),
+      ...(at === undefined ? {} : { appendTo: at }),
     })
     expect(Result.isSuccess(answer)).toBe(true)
     if (!Result.isSuccess(answer)) return
     // Every chunk answers with the SAME path — which is what makes it usable
     // as the next chunk's continuation token. It disagreed once, on macOS,
     // where `/tmp` is a symlink: the file appeared to be renamed mid-upload.
-    if (path !== undefined) expect(answer.success).toBe(path)
-    path = answer.success
+    if (at !== undefined) expect(answer.success.path).toBe(at)
+    at = answer.success.path
   }
 
-  expect(readFileSync(path!).equals(picture)).toBe(true)
+  expect(readFileSync(at!).equals(picture)).toBe(true)
   // Not under the served directory, and not readable by anyone else on the
   // host: this is whatever was on somebody's clipboard.
-  expect(statSync(path!).mode & 0o777).toBe(0o600)
-  expect(files.holds(path!)).toBe(true)
+  expect(statSync(at!).mode & 0o777).toBe(0o600)
+  expect(files.holds(at!)).toBe(true)
 
   Effect.runSync(files.discard)
-  expect(existsSync(path!)).toBe(false)
+  expect(existsSync(at!)).toBe(false)
   // ... and the directory with it, so nothing is left behind.
-  expect(existsSync(dirname(path!))).toBe(false)
+  expect(existsSync(dirname(at!))).toBe(false)
 })
 
 test("two pictures of the same name are two files", () => {
@@ -79,8 +79,12 @@ test("two pictures of the same name are two files", () => {
   const second = receive(files, { name: "shot.png", data: bytes(8).toString("base64") })
   expect(Result.isSuccess(first) && Result.isSuccess(second)).toBe(true)
   if (!Result.isSuccess(first) || !Result.isSuccess(second)) return
-  expect(second.success).not.toBe(first.success)
-  expect(second.success).toContain("shot-1.png")
+  expect(second.success.path).not.toBe(first.success.path)
+  // ... and the ANSWER says so. The name a caller keeps is this one and never
+  // the one it sent: a tab that kept `shot.png` for both would draw the second
+  // picture on the first message's row.
+  expect(first.success.name).toBe("shot.png")
+  expect(second.success.name).toBe("shot-1.png")
   Effect.runSync(files.discard)
 })
 
@@ -89,7 +93,7 @@ test("`appendTo` is a continuation token, not a capability", () => {
   const started = receive(files, { name: "shot.png", data: bytes(8).toString("base64") })
   expect(Result.isSuccess(started)).toBe(true)
   if (!Result.isSuccess(started)) return
-  const dir = dirname(started.success)
+  const dir = dirname(started.success.path)
 
   // Somewhere else entirely, and the climb that reaches it.
   const outside = join(mkdtempSync(join(tmpdir(), "olai-elsewhere-")), "victim.png")
@@ -139,11 +143,11 @@ test("the cap is on the FILE, so a chunk is judged against the total", () => {
   const refused = receive(files, {
     name: "shot.png",
     data: overflowing,
-    appendTo: started.success,
+    appendTo: started.success.path,
   })
   expect(Result.isFailure(refused)).toBe(true)
   // Refused BEFORE the write, so the file is what it was.
-  expect(statSync(started.success).size).toBe(1024)
+  expect(statSync(started.success.path).size).toBe(1024)
   Effect.runSync(files.discard)
 })
 

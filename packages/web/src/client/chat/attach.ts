@@ -22,6 +22,8 @@
  */
 
 import {
+  type Attached,
+  type AttachChunk,
   attachmentRejection,
   chunkBase64,
   type OpFailure,
@@ -31,21 +33,22 @@ import { Effect } from "effect"
 
 import { asFailure, type Call } from "./run.ts"
 
-/** A picture that made it: where the server put it, what it is called, and the
- *  Blob this tab already had — which is what lets the tab that pasted it draw
- *  a thumbnail nobody else can (see {@link ./previews.ts}). */
-export interface Attachment {
-  readonly path: string
-  readonly name: string
+/** A picture that made it: where the server put it, what the SERVER calls it,
+ *  and the Blob this tab already had — which is what lets the tab that pasted
+ *  it draw a thumbnail nobody else can (see {@link ./previews.ts}).
+ *
+ *  The name is the server's answer and never the one we sent. A sanitised name
+ *  and a collision suffix both happen down there — `shot.png` pasted twice is
+ *  `shot.png` and `shot-1.png` — and it is the answer that the transcript row
+ *  carries. Keeping the sent name would be a second answer to "what is this
+ *  called", and the first thing it costs is a thumbnail drawn against the
+ *  wrong row. */
+export interface Attachment extends Attached {
   readonly blob: Blob
 }
 
 /** The one verb this needs, so a test can pass its own. */
-export type Attach = (chunk: {
-  readonly name: string
-  readonly data: string
-  readonly appendTo?: string
-}) => Call<{ readonly path: string }>
+export type Attach = (chunk: AttachChunk) => Call<Attached>
 
 /**
  * Send `file` to the conversation, chunk by chunk.
@@ -68,22 +71,25 @@ export const attaching = (
     const bytes = new Uint8Array(yield* Effect.promise(() => file.arrayBuffer()))
     const chunks = chunkBase64(base64Of(bytes), chunkChars)
 
-    let path: string | undefined
+    let stored: Attached | undefined
     for (const data of chunks) {
-      const answer = yield* toRefusal(
-        attach(path === undefined ? { name, data } : { name, data, appendTo: path }),
+      stored = yield* toRefusal(
+        attach(
+          stored === undefined
+            ? { name, data }
+            : { name, data, appendTo: stored.path },
+        ),
       )
-      path = answer.path
     }
     // `chunkBase64` always yields at least one piece, so the loop always ran.
     // Said out loud rather than defaulted: a `?? ""` here would put an empty
     // path in somebody's prompt.
-    if (path === undefined) {
+    if (stored === undefined) {
       return yield* Effect.fail(
         new UsageFailure({ reason: "nothing was written — that is a bug" }),
       )
     }
-    return { path, name, blob: file }
+    return { ...stored, blob: file }
   })
 
 /**

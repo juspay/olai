@@ -35,7 +35,7 @@
  */
 
 import { type OpFailure, UsageFailure } from "@olai/format"
-import { attachmentRejection, base64DecodedLength } from "@olai/surface"
+import { type Attached, attachmentRejection, base64DecodedLength } from "@olai/surface"
 import { Effect } from "effect"
 import {
   appendFileSync,
@@ -58,9 +58,10 @@ export interface Chunk {
 }
 
 export interface Attachments {
-  /** Write one chunk, and answer with the path the whole file is at. The
-   *  first chunk (no `appendTo`) creates it; every later one appends. */
-  readonly receive: (chunk: Chunk) => Effect.Effect<string, OpFailure>
+  /** Write one chunk, and answer with where the whole file is and what it
+   *  ended up being called. The first chunk (no `appendTo`) creates it; every
+   *  later one appends. */
+  readonly receive: (chunk: Chunk) => Effect.Effect<Attached, OpFailure>
   /** Is this path one of ours — the check a prompt's attachment list goes
    *  through before it reaches the agent. */
   readonly holds: (path: string) => boolean
@@ -86,6 +87,9 @@ export const make = (): Attachments => {
   const refuse = (reason: string) => Effect.fail(new UsageFailure({ reason }))
 
   return {
+    // Both branches answer with a PATH and the mapping turns it into the
+    // answer, so a create and an append cannot disagree about what a file is
+    // called.
     receive: (chunk) =>
       Effect.suspend(() => {
         const name = safeName(chunk.name)
@@ -110,7 +114,7 @@ export const make = (): Attachments => {
         const rejection = attachmentRejection(name, statSync(at).size + bytes)
         if (rejection !== null) return refuse(rejection)
         return Effect.sync(() => append(at, chunk.data))
-      }),
+      }).pipe(Effect.map(named)),
     holds: (path) => holds(dir, path),
     discard: Effect.sync(() => {
       if (dir === null) return
@@ -140,6 +144,12 @@ export const promptWith = (
   const attached = paths.map((path) => `Attached image: ${path}`).join("\n")
   return said === "" ? attached : `${said}\n\n${attached}`
 }
+
+/** A path, as the answer a caller keeps: where the file is, and what it is
+ *  called there. The name is DERIVED from the path rather than carried
+ *  alongside it, because the path is the only one of the two the disk agrees
+ *  with — a collision suffix happens down here. */
+const named = (path: string): Attached => ({ path, name: basename(path) })
 
 /** A first chunk: mint a file nobody else in this conversation is using, and
  *  answer with its canonical path. */

@@ -38,7 +38,14 @@
  *     one place that knows otherwise is the module that owns that directory.
  */
 
-import { CHAT_OFF, type ChatEntry, type ChatState, type OpFailure, type SessionInfo } from "@olai/surface"
+import {
+  type Attached,
+  CHAT_OFF,
+  type ChatEntry,
+  type ChatState,
+  type OpFailure,
+  type SessionInfo,
+} from "@olai/surface"
 import { BusyFailure, UsageFailure } from "@olai/format"
 import { Effect, Fiber, Semaphore } from "effect"
 import { basename } from "node:path"
@@ -85,11 +92,11 @@ export interface Chat {
     attachments: ReadonlyArray<string>,
   ) => Effect.Effect<void, OpFailure>
   /** One chunk of a picture into the conversation's own tmp directory,
-   *  answering with the path the whole file is at. See
+   *  answering with where the whole file is and what it is called there. See
    *  {@link ./attachments.ts}. */
   readonly attach: (
     chunk: Attachments.Chunk,
-  ) => Effect.Effect<string, OpFailure>
+  ) => Effect.Effect<Attached, OpFailure>
   readonly cancel: Effect.Effect<void, OpFailure>
   readonly newSession: Effect.Effect<void, OpFailure>
   readonly loadSession: (id: string) => Effect.Effect<void, OpFailure>

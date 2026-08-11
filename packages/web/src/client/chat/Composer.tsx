@@ -96,14 +96,15 @@ export function Composer(props: { readonly chat: Chat }) {
    *
    *  Every file, not the first one: a drop of three screenshots is three
    *  attachments, and taking one of them silently would be the panel deciding
-   *  which. What is NOT a picture is ignored here rather than refused — a
-   *  paste of text with an image in it is a paste of text — while a picture
-   *  the server will not take is refused by `attach`, out loud. */
+   *  which. And every file is OFFERED, rather than filtered here by what this
+   *  component thinks a picture is: whether olai takes it is one rule in one
+   *  place (`@olai/surface`'s gate, which `attach` runs before it encodes
+   *  anything), and a second rule up here would be a dropped PDF vanishing
+   *  with nothing said about it. */
   const take = async (files: ReadonlyArray<File>) => {
-    const pictures = files.filter((file) => file.type.startsWith("image/"))
-    if (pictures.length === 0) return
-    setSending((count) => count + pictures.length)
-    for (const file of pictures) {
+    if (files.length === 0) return
+    setSending((count) => count + files.length)
+    for (const file of files) {
       const attached = await props.chat.attach(file)
       setSending((count) => count - 1)
       if (attached === null) continue
@@ -219,12 +220,12 @@ export function Composer(props: { readonly chat: Chat }) {
         onKeyDown={onKey}
         // The clipboard's FILES, not its items: a screenshot pastes as one,
         // and text pasted alongside goes on being pasted — nothing is
-        // prevented unless there is a picture to take.
+        // prevented unless there is a file to take.
         onPaste={(event) => {
-          const pictures = [...(event.clipboardData?.files ?? [])]
-          if (pictures.length === 0) return
+          const files = [...(event.clipboardData?.files ?? [])]
+          if (files.length === 0) return
           event.preventDefault()
-          void take(pictures)
+          void take(files)
         }}
       />
 

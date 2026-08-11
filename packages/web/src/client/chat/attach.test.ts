@@ -18,19 +18,26 @@ const picture = (name: string, bytes: Uint8Array, type = "image/png") =>
 
 const body = new Uint8Array(Array.from({ length: 300 }, (_, at) => (at * 17) % 256))
 
-/** A server that keeps what it is told, in the order it was told. */
+/**
+ * A server that keeps what it is told, in the order it was told — and RENAMES
+ * what it stores, because the real one does: a name is sanitized and a
+ * collision suffixed, so `shot.png` sent twice is `shot.png` and `shot-1.png`.
+ * A fake that echoed the name back would be a fake that agrees with a client
+ * keeping the name it sent, which is exactly the bug.
+ */
 const spy = () => {
   const files = new Map<string, Buffer>()
   const calls: Array<{ name: string; appendTo?: string | undefined }> = []
   const attach: Attach = (chunk) =>
     Effect.sync(() => {
       calls.push({ name: chunk.name, appendTo: chunk.appendTo })
-      const path = chunk.appendTo ?? `/tmp/olai-chat-x/${chunk.name}`
+      const name = `stored-${chunk.name}`
+      const path = chunk.appendTo ?? `/tmp/olai-chat-x/${name}`
       files.set(
         path,
         Buffer.concat([files.get(path) ?? Buffer.alloc(0), Buffer.from(chunk.data, "base64")]),
       )
-      return { path }
+      return { path, name }
     })
   return { attach, calls, files }
 }
@@ -51,6 +58,11 @@ test("a picture arrives whole, one chunk at a time", async () => {
     true,
   )
   expect(server.files.get(outcome.success.path)?.equals(Buffer.from(body))).toBe(true)
+  // What it is CALLED is the server's answer, not the name that was sent. The
+  // name is what the transcript row carries and what this tab's thumbnail is
+  // keyed by, so a client that kept its own would draw one picture on another
+  // picture's message the first time two pastes collided.
+  expect(outcome.success.name).toBe("stored-shot.png")
 })
 
 test("what the server will not take is refused before a byte is encoded", async () => {
@@ -73,5 +85,6 @@ test("a picture the clipboard did not name is named after its type", async () =>
 
   expect(Result.isSuccess(outcome)).toBe(true)
   if (!Result.isSuccess(outcome)) return
-  expect(outcome.success.name).toBe("pasted.webp")
+  // ... and the server still has the last word on what it is called.
+  expect(outcome.success.name).toBe("stored-pasted.webp")
 })

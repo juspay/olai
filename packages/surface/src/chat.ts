@@ -137,10 +137,24 @@ export const AttachChunk = Schema.Struct({
 })
 export type AttachChunk = typeof AttachChunk.Type
 
-/** Where the bytes landed. The same string for every chunk of one file, which
- *  is what makes it usable as the next chunk's `appendTo` — and it is what the
- *  prompt then names, because the agent reads the file itself. */
-export const Attached = Schema.Struct({ path: Schema.String })
+/**
+ * Where the bytes landed, and what they are called there.
+ *
+ * `path` is the same string for every chunk of one file, which is what makes
+ * it usable as the next chunk's `appendTo` — and it is what the prompt names,
+ * because the agent reads the file itself.
+ *
+ * `name` is here because the SENT name is a request and this is the answer:
+ * the server sanitizes it and suffixes a collision (`shot.png` pasted twice is
+ * `shot.png` and `shot-1.png`), and it is this name the transcript row carries.
+ * A caller that kept the name it sent would be keeping a second answer to
+ * "what is this file called" — which is one paste away from being wrong, and
+ * the thing that goes wrong is a thumbnail drawn against the wrong row.
+ */
+export const Attached = Schema.Struct({
+  path: Schema.String,
+  name: Schema.String,
+})
 export type Attached = typeof Attached.Type
 
 /** One of the agent's stored conversations, as the picker lists them. */
