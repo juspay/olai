@@ -25,6 +25,20 @@ import { Schema } from "effect"
 /** `true`, or the ISO date/datetime the state was reached at. */
 const Marker = Schema.Union([Schema.Literal(true), Schema.String])
 
+/**
+ * The three MARKS a record may carry, at most one of them, in the order a
+ * reader resolves them.
+ *
+ * One list, because three questions read it: the per-line rule that refuses a
+ * record carrying two, the ISO check over their values, and the walk that asks
+ * what a leaf claims about itself. A second list would be a fourth mark
+ * somewhere and three marks everywhere else.
+ *
+ * The order is precedence, and it decides only what a set the validator has
+ * ALREADY condemned looks like — the marks are exclusive on disk.
+ */
+export const MARKS = ["done", "doing", "todo"] as const
+
 /** The fields both shapes share: identity and placement. */
 const Placement = {
   id: Schema.String,
@@ -41,6 +55,9 @@ export const RegularNode = Schema.Struct({
   title: Schema.String,
   done: Schema.optionalKey(Marker),
   doing: Schema.optionalKey(Marker),
+  /** Work that has not started. The third MARK, and stored like the other two
+   *  — a node is a task because someone said so, never by default. */
+  todo: Schema.optionalKey(Marker),
   date: Schema.optionalKey(Schema.String),
   /** The note: one string, embedded newlines, markdown, stored verbatim. */
   desc: Schema.optionalKey(Schema.String),

@@ -14,6 +14,7 @@
  * field names kept in step by hand.
  */
 
+import { MARKS } from "@olai/format"
 import { Schema } from "effect"
 
 /** An id the request names. Spelled once so every op's `id` field carries the
@@ -81,10 +82,12 @@ export const AddRequest = Schema.Struct({
   ...Placement,
 })
 
-/** `done` and `doing` are one op with two marks: same resolver, same refusals,
- *  and the format's own exclusion rule means setting either clears the other. */
+/** The marks are one op: same resolver, same refusals, and the format's own
+ *  exclusion rule means setting any of them clears the others. The op names
+ *  ARE the format's mark names, read from it rather than re-listed — a fourth
+ *  mark should not be writable everywhere except here. */
 export const MarkRequest = Schema.Struct({
-  op: Schema.Literals(["done", "doing"]),
+  op: Schema.Literals(MARKS),
   id: Id,
   /** Take the mark off instead of putting it on. */
   undo: Schema.optionalKey(Schema.Boolean),

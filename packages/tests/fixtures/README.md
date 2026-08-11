@@ -31,8 +31,11 @@ each thing the view has to draw:
 | nesting | `kitchen` → `install` → `handles` (house.jsonl) |
 | a done child | `demo` (house.jsonl:2) |
 | a doing child | `order` (house.jsonl:3) |
-| a bullet that is not a task | `handles` — no mark, so no status and no checkbox |
+| a todo child | `hinges` — an unstarted task, so an EMPTY box |
+| a parent the done toggle must not hide | `frames` (garden.jsonl) — `glazing` done, `sowing` todo |
+| a bullet that is not a task | `handles` — no mark, so no status and no box at all |
 | a derived status | `kitchen` is `doing` — it stores nothing; its children say so |
+| a derived `todo` | `install` — its one task (`hinges`) has not started |
 | an inline `#tag` | `kitchen remodel #home`, `garden #outdoors` |
 | a `date` | `order` is dated `2026-08-10` |
 | a markdown `desc` | `order` — a paragraph, a two-item list, bold and italic |
@@ -49,11 +52,12 @@ a `parent` may not cross files — so showing the herb bed inside the kitchen
 remodel is exactly what a mirror is *for*, and it is the one relation that
 cannot be exercised with a single file.
 
-Note what is absent: no `done` or `doing` on `kitchen`, `install` or `herbs`. A
-node with children never stores its status; it is computed from them, and
-storing one is a load error. What that computes to may be nothing at all —
-`install`'s only child is the unmarked `handles`, so `install` is a bullet too,
-while `kitchen` reads `doing` from the two children that are marked.
+Note what is absent: no mark at all on `kitchen`, `install` or `herbs`. A node
+with children never stores its status; it is computed from them, and storing
+one is a load error. `install` is the case worth reading twice: its children
+are the unmarked `handles` and the `todo` `hinges`, so the one task under it
+has not started and `install` derives `todo` — while `kitchen`, whose children
+are done, doing and that `todo`, reads `doing`.
 
 ## `chat/` — a set the agent writes to
 

@@ -18,9 +18,12 @@
  * embedded newlines are escaped by JSON itself, which is the whole reason the
  * format is JSONL).
  *
- * Field order comes from docs/format.md's own table — the same place a reader
- * looks for "what fields exist" — because a writer that kept its own list is a
- * list that drifts.
+ * Field order comes from docs/format.md's own table, and that list is also
+ * what may be written at all — one list, walked once, so a field can be
+ * forgotten in one place rather than two. Forgetting it there is what
+ * write.test.ts fences, by asking the record SCHEMA which fields exist: a
+ * field with no place in the order is dropped on the next write, which is a
+ * writer losing data that parsed.
  *
  * The other half of "one spelling" is {@link nothing}: an optional field that
  * holds nothing is not written at all, so no writer can put `null`, `[]` or `""`
@@ -30,26 +33,31 @@
 import { isMirror, type Located, type Node } from "./node.ts"
 
 /**
- * Canonical field order, and which fields a record must carry.
+ * Which fields a record must carry WHATEVER it holds — docs/format.md's
+ * table, split by its "required" column. That split is a rule about meaning
+ * rather than about shape (see {@link serializeNode}'s asymmetry), so it is
+ * spelled here; everything else is optional and omitted when it holds nothing.
  *
- * docs/format.md's table, in its order, split by its "required" column — the
- * split is what {@link serializeNode}'s omission rule turns on, so it is
- * declared once rather than re-derived from a list of names somewhere else.
- * A mirror carries only its four (`parent` optional at top level).
+ * There is deliberately no second list of which fields a record MAY carry.
+ * {@link ORDER} is that list — the loop walks it — so one list decides both
+ * what is written and in what order, and a field can be forgotten in exactly
+ * one place instead of two.
  */
-const REGULAR_FIELDS = {
-  required: ["id", "ord", "title"],
-  optional: ["parent", "done", "doing", "date", "desc", "doc", "after", "blocks", "see"],
-} as const
-
-const MIRROR_FIELDS = {
-  required: ["id", "ord", "mirror"],
-  optional: ["parent"],
-} as const
+const REQUIRED = {
+  regular: new Set<string>(["id", "ord", "title"]),
+  mirror: new Set<string>(["id", "ord", "mirror"]),
+}
 
 /** The canonical ORDER, which is not the required/optional split: a reader
  *  looks for `parent` between `id` and `ord`, wherever it sits in the table
- *  above. Spelled from docs/format.md's row order. */
+ *  above. Spelled from docs/format.md's row order rather than taken from the
+ *  schema's declaration order — the order of fields in a file is a contract,
+ *  so it is written where the contract is rather than falling out of the order
+ *  somebody happened to declare a struct in. Both record shapes share this one
+ *  list: a field belonging to the other shape is absent on this record, so it
+ *  is omitted for holding nothing, and only its own required fields survive
+ *  that. A field the SCHEMA has and this list does not is a test failure
+ *  (`write.test.ts`), because it would otherwise never reach disk at all. */
 const ORDER = [
   "id",
   "parent",
@@ -58,6 +66,7 @@ const ORDER = [
   "mirror",
   "done",
   "doing",
+  "todo",
   "date",
   "desc",
   "doc",
@@ -99,13 +108,10 @@ const nothing = (value: unknown): boolean =>
  * SAYS what it is.
  */
 export const serializeNode = (node: Node): string => {
-  const fields = isMirror(node) ? MIRROR_FIELDS : REGULAR_FIELDS
-  const required: ReadonlySet<string> = new Set(fields.required)
-  const known: ReadonlySet<string> = new Set([...fields.required, ...fields.optional])
+  const required = REQUIRED[isMirror(node) ? "mirror" : "regular"]
 
   const record: Record<string, unknown> = {}
   for (const field of ORDER) {
-    if (!known.has(field)) continue
     const value = (node as Record<string, unknown>)[field]
     if (required.has(field) || !nothing(value)) record[field] = value
   }

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Result } from "effect"
 
-import type { MirrorNode, Node, RegularNode } from "./node.ts"
+import { MirrorNode, type Node, RegularNode } from "./node.ts"
 import { parseOutline } from "./parse.ts"
 import { serializeNode, serializeOutline } from "./write.ts"
 
@@ -176,4 +176,54 @@ describe("serializeOutline", () => {
       `{"id":"n","ord":"a0","title":"café"}\n`,
     )
   })
+
+  /**
+   * The writer emits the fields it has an ORDER for, so a field the record
+   * schema gained and that list did not would be dropped on the next write —
+   * data that parsed, lost, by a writer every layer above believes. Which
+   * fields EXIST now comes from the schema, so only the order is hand-written;
+   * this is what makes forgetting to place a new one loud instead of lossy.
+   * `todo` was exactly that edit.
+   */
+  test("every field of both record shapes has a place in the canonical order", () => {
+    const ordered = new Set(orderOf(serializeNode(EVERY_REGULAR_FIELD)))
+    for (const field of Object.keys(RegularNode.fields)) {
+      expect(ordered.has(field)).toBe(true)
+    }
+
+    const mirrored = new Set(orderOf(serializeNode(EVERY_MIRROR_FIELD)))
+    for (const field of Object.keys(MirrorNode.fields)) {
+      expect(mirrored.has(field)).toBe(true)
+    }
+  })
 })
+
+/** The keys of a serialized record, in the order the writer wrote them. */
+const orderOf = (line: string): ReadonlyArray<string> =>
+  Object.keys(JSON.parse(line) as Record<string, unknown>)
+
+/** Every optional field carrying something, so nothing is omitted for being
+ *  empty and what comes back is the writer's whole vocabulary. A field added
+ *  to the schema without a value here fails the test above by its absence. */
+const EVERY_REGULAR_FIELD: RegularNode = {
+  id: "n",
+  parent: "p",
+  ord: "a0",
+  title: "a node",
+  done: true,
+  doing: true,
+  todo: true,
+  date: "2026-08-11",
+  desc: "a note",
+  doc: "notes.md",
+  after: ["x"],
+  blocks: ["y"],
+  see: ["z"],
+}
+
+const EVERY_MIRROR_FIELD: MirrorNode = {
+  id: "m",
+  parent: "p",
+  ord: "a0",
+  mirror: "n",
+}

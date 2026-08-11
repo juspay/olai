@@ -60,9 +60,9 @@ const CATALOGUE = {
   "bad-record": "line",
   /** `id` is not a slug: `[A-Za-z0-9_-]+`. */
   "bad-id": "line",
-  /** `done` and `doing` are both set; at most one may be. */
-  "done-and-doing": "line",
-  /** `done`, `doing` or `date` is not a valid ISO date or datetime. */
+  /** Two of `done`, `doing` and `todo` are set; at most one may be. */
+  "several-marks": "line",
+  /** A mark or `date` is not a valid ISO date or datetime. */
   "bad-date": "line",
 
   // ── the whole set ───────────────────────────────────────────────────
@@ -90,8 +90,8 @@ const CATALOGUE = {
   "mirror-cycle": "set",
   /** `doc` does not name an `.md` file under the served directory. */
   "missing-doc": "set",
-  /** A node with children stores `done` or `doing`. A parent's status is
-   *  computed from its children and is never stored. */
+  /** A node with children stores a mark. A parent's status is computed from
+   *  its children and is never stored. */
   "stored-derived-state": "set",
 } as const satisfies Record<string, Reach>
 

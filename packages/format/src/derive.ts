@@ -16,20 +16,30 @@
  * learn about a bug than a marked stub.
  */
 
-import { isMirror, type Located, type LocatedRegular } from "./node.ts"
+import {
+  isMirror,
+  type Located,
+  type LocatedRegular,
+  MARKS,
+} from "./node.ts"
 
 /**
- * A MARK — what a node's checkbox shows. Derived for a parent, stored for a
- * leaf, and OPTIONAL everywhere: a node with no status is a bullet and not a
- * task at all.
+ * What a node's checkbox shows: one of the {@link MARKS}. Derived for a
+ * parent, stored for a leaf, and OPTIONAL everywhere — a node with no status
+ * is a bullet and not a task at all.
  *
- * There is deliberately no third member for "unmarked". `open` used to be one,
+ * Read off that list rather than spelled again, because it is the same set by
+ * design and not by coincidence: a leaf shows the mark it carries, a parent
+ * shows the mark its children add up to, and neither can produce a fourth
+ * thing. One name for it, so nobody has to learn that two are the same.
+ *
+ * What there is deliberately no member for is UNMARKED. `open` used to be one,
  * and it was what a node got for carrying nothing, which made every node a
  * task and left one value answering two questions — "a task nobody has
- * started" and "not a task at all". Absence answers the second, and only a
- * node someone marked has a `Status`.
+ * started" and "not a task at all". Absence answers the second; `todo` is how
+ * a node says the first, and someone has to put it there.
  */
-export type Status = "done" | "doing"
+export type Status = (typeof MARKS)[number]
 
 /**
  * A set of nodes and everything computed from it.
@@ -128,20 +138,6 @@ export const countedChildren = (
   id: string,
 ): ReadonlyArray<LocatedRegular> => counted(derived.children, id)
 
-/**
- * What a node's CHILDREN say about it — and the whole of what a refusal needs
- * in order to say why it refuses.
- *
- * Two places have to turn down a stored mark and explain it: the validator, on
- * load, and the ops layer, on a write. Both answer the same three-way
- * question, and the third answer is the only one that has children to name, so
- * a status beside a list would be two values with a rule between them — which
- * is what each of the two sites was holding in a comment. It is one union, and
- * the list exists exactly where it means something.
- *
- * `null` when the node has no counted children: then it speaks for itself, and
- * neither refusal is about it.
- */
 /** How many children answered, on every one of the three. Factored the way
  *  {@link Row} factors {@link Place}: one field, one place to describe it. */
 interface Asked {
@@ -157,6 +153,20 @@ export interface InTheWay {
   readonly status: Exclude<Status, "done">
 }
 
+/**
+ * What a node's CHILDREN say about it — and the whole of what a refusal needs
+ * in order to say why it refuses.
+ *
+ * Two places have to turn down a stored mark and explain it: the validator, on
+ * load, and the ops layer, on a write. Both answer the same three-way
+ * question, and the third answer is the only one that has children to name, so
+ * a status beside a list would be two values with a rule between them — which
+ * is what each of the two sites was holding in a comment. It is one union, and
+ * the list exists exactly where it means something.
+ *
+ * `null` when the node has no counted children: then it speaks for itself, and
+ * neither refusal is about it.
+ */
 export type FromChildren =
   /** None of them is a task, so neither is the node. */
   | (Asked & { readonly kind: "nothing" })
@@ -195,8 +205,15 @@ export const fromChildren = (derived: Derived, id: string): FromChildren | null 
  * A leaf says what it is, and says nothing at all when it carries no mark.
  *
  * A parent counts only the children that are TASKS — the ones with a status of
- * their own: all of them done → done, any of them still under way → doing. A
- * parent whose counted children include no task is no more a task than they
+ * their own — and reports how far along they have got as a whole:
+ *
+ * - every one of them done → **done**;
+ * - every one of them `todo` → **todo**, because nothing under it has started
+ *   and a parent that claimed otherwise would be inventing progress;
+ * - anything else → **doing**: something has started, or some are finished
+ *   while others are not, and both of those are a thing under way.
+ *
+ * A parent whose counted children include no task is no more a task than they
  * are, so it has no status either: an unmarked child is not an unfinished
  * obligation, it is a bullet, and a subtree of bullets adds up to a bullet.
  *
@@ -245,7 +262,12 @@ const statuses = (
     // this runs over every parent-child edge in the set on every derive.
     const tasks = own.map(of).filter((mark) => mark !== undefined)
     if (tasks.length === 0) return undefined
-    return tasks.every((task) => task === "done") ? "done" : "doing"
+    // The two unanimous answers first, and `doing` for everything else —
+    // including the mixed case, where some are finished and some have not
+    // started, which is exactly what a thing under way looks like.
+    if (tasks.every((task) => task === "done")) return "done"
+    if (tasks.every((task) => task === "todo")) return "todo"
+    return "doing"
   }
 
   for (const located of nodes) of(located)
@@ -254,11 +276,11 @@ const statuses = (
 
 /** What a leaf claims about itself, which for a leaf IS its status — and
  *  `undefined` for a leaf claiming nothing, the one spelling of absence this
- *  module has. `done` wins over `doing`: they are mutually exclusive on disk,
- *  so the order only decides what a set the validator has already condemned
- *  looks like. */
+ *  module has. Read in {@link MARKS} order, which is precedence: the three are
+ *  mutually exclusive on disk, so it only decides what a set the validator has
+ *  already condemned looks like. */
 export const storedMarker = (node: LocatedRegular["node"]): Status | undefined =>
-  node.done !== undefined ? "done" : node.doing !== undefined ? "doing" : undefined
+  MARKS.find((mark) => node[mark] !== undefined)
 
 // ── the drawable tree ──────────────────────────────────────────────────
 

@@ -378,6 +378,7 @@ describe("the internal MCP server", () => {
           "set_done",
           "set_see",
           "set_title",
+          "set_todo",
         ])
 
         // The discriminator the tool NAME already decides is not a field the

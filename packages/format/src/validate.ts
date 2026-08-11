@@ -284,10 +284,10 @@ const checkDerivedState = (
         ? `\`${stored}\` is stored on a node with ${said.counted} children, none of which is marked; a node with children takes its status from them — mark one of those instead`
         : said.kind === "done"
         ? `\`${stored}\` is computed from this node's ${said.counted} children and must not be stored`
-        // "of its N children" would count the bullets among them, which are
-        // not unfinished — they are not tasks. The number that means something
-        // is how many are still under way.
-        : `\`${stored}\` is stored above ${said.children.length} of this node's ${said.counted} children that ${said.children.length === 1 ? "is" : "are"} still under way; a parent's status is computed, never written`,
+        // "N of M children are not done" would count the bullets among them,
+        // which are not unfinished — they are not tasks. The number that means
+        // something is how many unfinished TASKS there are among the children.
+        : `\`${stored}\` is stored above ${said.children.length} unfinished ${said.children.length === 1 ? "task" : "tasks"} among this node's ${said.counted} children; a parent's status is computed, never written`,
       // Omitted rather than empty when there is nothing to link — the same
       // rule the format applies to its own absent fields.
       ...(said.kind !== "unfinished" ? {} : {

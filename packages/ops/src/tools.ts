@@ -26,7 +26,8 @@
 
 import { Schema } from "effect"
 
-import type { Derived, OutlineSet } from "@olai/format"
+import { MARKS } from "@olai/format"
+import type { Derived, OutlineSet, Status } from "@olai/format"
 
 import * as Query from "./query.ts"
 import {
@@ -129,6 +130,42 @@ const write = (
   fixed: Readonly<Record<string, unknown>>,
 ): Tool => ({ name, title, description, schema, kind: "write", fixed })
 
+/**
+ * What each MARK's tool says. The prose is per mark — they refuse for
+ * different reasons and mean different things — but WHICH marks there are is
+ * not this table's to decide, which is what the spread below is for.
+ */
+const MARK_TOOL = {
+  done: {
+    title: "Mark done",
+    description:
+      "Mark a node done, or undo that with `undo: true`. Refused for a node whose status is DERIVED from its children — the refusal lists the unfinished ones, which are what to mark instead.",
+  },
+  doing: {
+    title: "Mark doing",
+    description:
+      "Mark a node as under way, or undo that with `undo: true`. A node that is already done must be un-done first, and one whose status is DERIVED from its children is refused the same way `set_done` is.",
+  },
+  todo: {
+    title: "Mark todo",
+    description:
+      "Mark a node as work that has not started, or undo that with `undo: true`. This is what makes a bullet a TASK: a node with no mark is not an unstarted task, it is not a task at all, so there is nothing to derive and nothing to search for until someone says otherwise. Same refusals as `set_doing`.",
+  },
+} as const satisfies Record<Status, { readonly title: string; readonly description: string }>
+
+/** One tool per mark, keyed by the format's own list: written out one by one,
+ *  a mark could be plannable, writable and derivable everywhere and still have
+ *  no way for an agent to set it, silently. Keyed, that is a missing key. */
+const MARK_TOOLS: ReadonlyArray<Tool> = MARKS.map((mark) =>
+  write(
+    `set_${mark}`,
+    MARK_TOOL[mark].title,
+    MARK_TOOL[mark].description,
+    MarkRequest,
+    { op: mark },
+  )
+)
+
 export const TOOLS: ReadonlyArray<Tool> = [
   read(
     "list_outlines",
@@ -179,20 +216,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
     AddRequest,
     { op: "add" },
   ),
-  write(
-    "set_done",
-    "Mark done",
-    "Mark a node done, or undo that with `undo: true`. Refused for a node whose status is DERIVED from its children — the refusal lists the unfinished ones, which are what to mark instead.",
-    MarkRequest,
-    { op: "done" },
-  ),
-  write(
-    "set_doing",
-    "Mark doing",
-    "Mark a node as under way, or undo that with `undo: true`. A node that is already done must be un-done first, and one whose status is DERIVED from its children is refused the same way `set_done` is.",
-    MarkRequest,
-    { op: "doing" },
-  ),
+  ...MARK_TOOLS,
   write(
     "set_title",
     "Retitle a node",
