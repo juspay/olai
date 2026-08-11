@@ -1,9 +1,10 @@
 # @olai/web — the SolidJS client, and the build that produces it
 
-A sidebar with a month and the outlines found, and one page open in the main
-pane — a whole outline, one node zoomed, or one day — kept current by the live
-store underneath: an edit on disk arrives as the next frame of a subscription,
-so the page changes without reloading. SolidJS over a WebSocket, styled with
+A sidebar with a month and a file tree of every outline and document under the
+folders they live in, and one page open in the main pane — a whole outline,
+one node zoomed, a document, or one day — kept current by the live store
+underneath: an edit on disk arrives as the next frame of a subscription, so
+the page changes without reloading. SolidJS over a WebSocket, styled with
 Tailwind v4, bundled by `Bun.build`.
 
 ## What the client reads, and how it is put back together
@@ -14,11 +15,12 @@ path, served with batched `deltas` so an edit sends that file's entry and not
 the corpus — and the `manifest` CELL, which carries what belongs to no one file
 (today, the documents with their text).
 
-Everything above it is derived from those: the sidebar's file list is the
-collection's keys in path order (`paths.ts`, because a key set has arrival order
-and a directory has path order), the one derivation the whole app reads is
-`derive` over every entry's nodes — the same call the validator makes — and
-which files are unreadable is the entries that carry a `broken`.
+Everything above it is derived from those: the sidebar's file tree is the
+collection's outline keys plus the manifest's document paths, grouped by
+directory (`fileTree.ts`, order from `paths.ts` because a key set has arrival
+order and a directory has path order), the one derivation the whole app reads
+is `derive` over every entry's nodes — the same call the validator makes —
+and which files are unreadable is the entries that carry a `broken`.
 
 The manifest is what DECIDES the page, because it is the member that can say
 all three of the things a reader can be looking at: no frame yet (waiting),
@@ -373,7 +375,7 @@ shell would show outlines that had stopped being true.
 Below **48rem** — the racket original's own breakpoint, and Tailwind's `md` —
 two things change. There is no second column to put the sidebar in, so it goes
 behind a BURGER: one row while it is shut, and the whole sidebar — the month,
-both lists, and the app's own chrome — when it is not, capped at 42dvh and
+the file tree, and the app's own chrome — when it is not, capped at 42dvh and
 scrolling inside itself so the outline is still on screen under it. Any tap
 inside shuts it, because every control in there either goes somewhere or opens
 something over it.

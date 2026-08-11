@@ -60,14 +60,17 @@ export const SCENARIO_SETUP_TIMEOUT = SERVER_START_TIMEOUT + STEP_GUARD;
 /** The mount point — `index.html`'s, not the client's, so it is the one
  *  selector here the client does not own and the one spelled out locally. */
 export const ROOT = "#root";
-/** The sidebar: one entry per `.jsonl` found under the served directory. */
+/** The sidebar: the month, the file tree, and the app chrome. */
 export const SIDEBAR = selector(TESTID.sidebar);
 export const SIDEBAR_TOGGLE = selector(TESTID.sidebarToggle);
 export const SIDEBAR_BODY = selector(TESTID.sidebarBody);
+/** The file tree: every outline and document under the folders they live in. */
 export const OUTLINE_LIST = selector(TESTID.outlineList);
 export const OUTLINE_LINK = selector(TESTID.outlineLink);
-/** The sidebar's second list: one entry per `.md` found. */
-export const DOCUMENT_LIST = selector(TESTID.documentList);
+/** One folder in that tree. `data-path` / `data-collapsed` say which and how. */
+export const FILE_DIR = selector(TESTID.fileDir);
+export const FILE_DIR_TOGGLE = selector(TESTID.fileDirToggle);
+/** One document entry in the file tree (no second list — same folders). */
 export const DOCUMENT_LINK = selector(TESTID.documentLink);
 /** One document, as a page: `/doc/<file>`. */
 export const DOCUMENT_PAGE = selector(TESTID.documentPage);
@@ -413,7 +416,12 @@ export class OlaiWorld extends World {
 
   /** One sidebar document entry, by the path it stands for. */
   documentLink(file: string): Locator {
-    return this.page.locator(`${DOCUMENT_LIST} ${DOCUMENT_LINK}[data-file="${file}"]`);
+    return this.page.locator(`${DOCUMENT_LINK}[data-file="${file}"]`);
+  }
+
+  /** One folder in the sidebar's file tree, by its root-relative path. */
+  fileDir(path: string): Locator {
+    return this.page.locator(`${FILE_DIR}[data-path="${path}"]`);
   }
 
   /** A node's `doc` reference — its own, not a descendant's. */
