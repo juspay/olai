@@ -124,14 +124,6 @@ Then(
   },
 );
 
-When("I reload the page", async function (this: OlaiWorld) {
-  await this.page.reload({ waitUntil: "domcontentloaded" });
-  await this.page
-    .locator(APP_HEADER)
-    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  await this.waitForFrame();
-});
-
 Then("the sidebar width survived the reload", async function (this: OlaiWorld) {
   const expected = await this.page.evaluate(
     () => (window as unknown as { __olaiSideAfter?: number }).__olaiSideAfter,
@@ -234,20 +226,23 @@ When("I open the agent from the pill", async function (this: OlaiWorld) {
 
 // ── palette + keyboard ─────────────────────────────────────────────────
 
+/** Meta on Darwin (where Ctrl+K is kill-line), Control elsewhere — matches keys.ts. */
+const modKey = (): string => (process.platform === "darwin" ? "Meta" : "Control");
+
 When("I press the palette shortcut", async function (this: OlaiWorld) {
-  await this.page.keyboard.press("Control+k");
+  await this.page.keyboard.press(`${modKey()}+k`);
   await this.page
     .locator(PALETTE)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
 When("I press the sidebar shortcut", async function (this: OlaiWorld) {
-  await this.page.keyboard.press("Control+\\");
+  await this.page.keyboard.press(`${modKey()}+\\`);
   await this.waitForFrame();
 });
 
 When("I press the chat shortcut", async function (this: OlaiWorld) {
-  await this.page.keyboard.press("Control+j");
+  await this.page.keyboard.press(`${modKey()}+j`);
   await this.waitForFrame();
 });
 

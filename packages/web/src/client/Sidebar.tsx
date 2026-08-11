@@ -110,11 +110,11 @@ export function Sidebar(props: {
         data-testid={TESTID.sidebar}
         data-open={props.open ? "true" : "false"}
       >
-        {/* Desktop: collapse control floats at the top-right of the column
-            rather than owning a full toolbar band. */}
+        {/* Desktop: collapse sits at the bottom of the column so it cannot
+            cover the calendar's month-step chevrons (top-right of the body). */}
         <button
           type="button"
-          class={`absolute right-1 top-1 z-10 hidden ${TARGET_BOX} items-center justify-center rounded text-muted hover:bg-rule/60 hover:text-ink md:inline-flex md:min-h-8 md:min-w-8`}
+          class={`absolute bottom-2 right-2 z-10 hidden ${TARGET_BOX} items-center justify-center rounded border border-rule bg-paper text-muted hover:bg-rule/60 hover:text-ink md:inline-flex md:min-h-8 md:min-w-8`}
           data-testid={TESTID.sidebarCollapse}
           aria-label="collapse the sidebar to the icon rail"
           title="collapse sidebar"

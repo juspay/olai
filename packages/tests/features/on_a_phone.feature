@@ -35,10 +35,10 @@ Feature: On a phone
     Then the burger is on screen
     And the sidebar is put away
     When I tap the burger
-    Then the outline list is above the tree, not beside it
-    # Full-height drawer with scrim: the directory is on the drawer, not a
-    # capped sheet that left the outline readable underneath.
-    And the directory drawer is open with a scrim
+    # Full-height fixed drawer with scrim under the header (geometry asserted
+    # in panels.feature). The outline list lives in the drawer; the tree is
+    # under the scrim — not a one-column stack, so "list above tree" does not apply.
+    Then the directory drawer is open with a scrim
     And there should be no page errors
 
   @scratch:chat @phone
