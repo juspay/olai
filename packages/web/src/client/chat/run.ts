@@ -40,8 +40,13 @@ export const run = <A>(
 /** A failure the panel can draw. The declared ones already are one — recognised
  *  against the format's own closed table, not by the shape of a tag — and a
  *  transport failure is re-said as `busy`, which is what it means to a reader:
- *  the server did not take it, try again. */
-const asFailure = (failure: unknown): OpFailure =>
+ *  the server did not take it, try again.
+ *
+ *  Exported for the one caller that COMPOSES a procedure into a larger effect
+ *  rather than running it ({@link ./attach.ts}, whose chunk loop is a sequence
+ *  of calls): that caller needs the same translation, and a second one would be
+ *  a second answer to "what kind of refusal is this". */
+export const asFailure = (failure: unknown): OpFailure =>
   isOpFailure(failure)
     ? failure
     : new BusyFailure({

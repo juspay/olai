@@ -27,6 +27,7 @@
  *   hold         start a tool call and STOP there, until released
  *   model <id>   switch the model the way the wrapped CLI does
  *   crash        exit mid-turn
+ *   a prompt naming an attached image  read the file and say how big it is
  *   anything     one chunk of prose and an `end_turn`
  *
  * `hold` is how a scenario gets to look at a turn WHILE it is happening. A
@@ -52,7 +53,8 @@
  * run down with it. A directory of its own is what makes that unrepresentable.
  */
 
-import { existsSync, rmSync } from "node:fs"
+import { existsSync, rmSync, statSync } from "node:fs"
+import { basename } from "node:path"
 
 import { readMessages } from "../support/ndjson.ts"
 
@@ -380,6 +382,22 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   if (verb === "search") {
     const found = await useTool("search_nodes", { text: argument })
     say(`searched: ${JSON.stringify(found["structuredContent"])}`)
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  // A picture reaches an agent as a PATH in the prompt, and the whole claim of
+  // that design is that the agent can then READ it. So this one does: it opens
+  // the file the prompt named and says how big it is, which is a fact it can
+  // only have got off the disk. A scripted agent cannot look at a picture, and
+  // it does not have to — what an e2e can prove is that the bytes the browser
+  // pasted are the bytes at the path the agent was given.
+  const attached = [...text.matchAll(/^Attached image: (.+)$/gm)].map((match) => match[1] ?? "")
+  if (attached.length > 0) {
+    for (const file of attached) {
+      const bytes = existsSync(file) ? statSync(file).size : -1
+      say(`read ${bytes} bytes from ${basename(file)}\n`)
+    }
     respond(id, { stopReason: "end_turn" })
     return
   }

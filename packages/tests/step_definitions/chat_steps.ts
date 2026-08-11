@@ -18,7 +18,11 @@ import * as path from "node:path";
 import { Given, Then, When } from "@cucumber/cucumber";
 import type { Locator } from "playwright";
 
+import { TESTID } from "@olai/web/src/client/testids.ts";
+
 import {
+  CHAT_ATTACHMENT,
+  CHAT_ATTACHMENT_PREVIEW,
   CHAT_CANCEL,
   CHAT_ENTRY,
   CHAT_ENTRY_STREAMING,
@@ -183,7 +187,7 @@ Then("the chat input takes typing", async function (this: OlaiWorld) {
 Then("the chat input still has the caret", async function (this: OlaiWorld) {
   const focused = await this.page.evaluate(
     (id) => document.activeElement?.getAttribute("data-testid") === id,
-    "chat-input",
+    TESTID.chatInput,
   );
   assert.ok(
     focused,
@@ -665,3 +669,101 @@ Then("there is nothing to type into", async function (this: OlaiWorld) {
       "is worse than the explanation that replaces it",
   );
 });
+
+// ── pictures ───────────────────────────────────────────────────────────
+//
+// A paste is DISPATCHED rather than performed: Playwright cannot put an image
+// on the system clipboard portably, and what the panel actually listens to is
+// the `paste` event's `clipboardData.files`. So the step builds the event the
+// browser would have built — a real `File`, in a real `DataTransfer`, on a real
+// `ClipboardEvent` — and lets the composer take it from there. Everything after
+// that line is the app: the chunk loop, the procedure, the tmp directory, the
+// prompt the agent is handed.
+
+/** A 1×1 PNG, 70 bytes — small enough to inline and real enough that nothing
+ *  downstream has to pretend. The scenario asserts that size, which is how it
+ *  knows the agent read the file rather than the name of it. */
+const ONE_PIXEL_PNG =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+/** ... and something the clipboard calls a picture that this app does not: an
+ *  SVG is a document that can script. */
+const TINY_SVG = "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=";
+
+When(
+  "I paste a picture called {string} into the chat",
+  async function (this: OlaiWorld, name: string) {
+    const input = this.page.locator(CHAT_INPUT);
+    await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await input.click();
+    await this.page.evaluate(
+      ({ name, data, type, id }) => {
+        const bytes = Uint8Array.from(atob(data), (char) => char.charCodeAt(0));
+        const transfer = new DataTransfer();
+        transfer.items.add(new File([bytes], name, { type }));
+        const box = document.querySelector(`[data-testid="${id}"]`);
+        box?.dispatchEvent(
+          new ClipboardEvent("paste", {
+            clipboardData: transfer,
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      },
+      {
+        name,
+        data: name.endsWith(".svg") ? TINY_SVG : ONE_PIXEL_PNG,
+        type: name.endsWith(".svg") ? "image/svg+xml" : "image/png",
+        id: TESTID.chatInput,
+      },
+    );
+  },
+);
+
+/** Waiting, not asserting: the chip appears when the upload has answered, and
+ *  how many round trips that took is the chunker's business. */
+Then(
+  "the composer is holding the picture {string}",
+  async function (this: OlaiWorld, name: string) {
+    await this.waitUntil(
+      async () => (await this.page.locator(pictureChip(name)).count()) > 0,
+      `the composer to hold "${name}"`,
+    );
+  },
+);
+
+Then("the composer is holding nothing", async function (this: OlaiWorld) {
+  // Nowhere in the panel: the scenario that asks this has sent no message, so
+  // every chip on screen would be one the composer is holding.
+  assert.strictEqual(
+    await this.page.locator(CHAT_ATTACHMENT).count(),
+    0,
+    "a refused picture was left in the composer, so sending would try again " +
+      "with the file the server has already said no to",
+  );
+});
+
+Then(
+  "the conversation shows the picture {string}",
+  async function (this: OlaiWorld, name: string) {
+    await this.waitUntil(
+      async () =>
+        (await this.page.locator(`${CHAT_TRANSCRIPT} ${pictureChip(name)}`).count()) > 0,
+      `the transcript to show "${name}"`,
+    );
+    // The tab that pasted it has the Blob, so its own row is a THUMBNAIL and
+    // not just a name. Every other tab, and this one after a reload, has the
+    // name — which is why the chip is what the row is built on.
+    const preview = this.page.locator(
+      `${CHAT_TRANSCRIPT} ${pictureChip(name)} ${CHAT_ATTACHMENT_PREVIEW}`,
+    );
+    assert.strictEqual(
+      await preview.count(),
+      1,
+      "the tab that pasted the picture is drawing a name where it has the " +
+        "bytes to draw the picture",
+    );
+  },
+);
+
+const pictureChip = (name: string): string => `${CHAT_ATTACHMENT}[data-name="${name}"]`;
