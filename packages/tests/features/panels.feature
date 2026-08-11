@@ -96,7 +96,7 @@ Feature: Toggleable & resizable panels
     Given I open the outline "house.jsonl"
     Then the sidebar is put away
     When I tap the burger
-    Then the directory drawer is fixed under the header with a scrim
+    Then the directory drawer is open with a scrim
     And the header chrome stays tappable over the drawer
     When I tap the directory scrim
     Then the sidebar is put away

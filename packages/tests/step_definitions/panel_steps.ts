@@ -283,7 +283,7 @@ Then("the palette shows an ask error", async function (this: OlaiWorld) {
 // ── mobile drawer + sheet geometry ─────────────────────────────────────
 
 Then(
-  "the directory drawer is fixed under the header with a scrim",
+  "the directory drawer is open with a scrim",
   async function (this: OlaiWorld) {
     await this.page
       .locator(SIDEBAR_BODY)
