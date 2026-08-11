@@ -90,8 +90,9 @@ export const ChatEntry = Schema.Struct({
    *  The protocol's follow-along locations, which is what lets a reader see
    *  WHERE an agent is without unfolding anything. */
   locations: Schema.optionalKey(Schema.Array(Schema.String)),
-  /** `refusal` only: the refusal itself, so the panel draws the unfinished
-   *  children as rows rather than printing a sentence about them. */
+  /** `refusal` only: the refusal itself, so the panel draws what it carries —
+   *  a validation report's rows, each at its own `file:line` — rather than
+   *  printing a sentence about them. */
   refusal: Schema.optionalKey(OpFailure),
   /** True while the agent is still adding to this entry. The panel shows a
    *  cursor; nothing else depends on it. */

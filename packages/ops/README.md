@@ -125,11 +125,12 @@ against a real directory with no repository in it.
 
 `TOOLS` is a closed list, and the absences are the design: **no file read, no
 file write, no directory listing, no shell, no grep.** The agent cannot name a
-byte, only a node. Reads answer with `file:line`, the node's DERIVED status —
-which for a parent is not in the file and can never be written there — its
-ancestor titles, which is what makes a bare title mean something, and its `see`
-targets (when it has any), so a free cross-reference is traversable without a
-second read. `set_see` is the write half: add and/or remove target ids on an
+byte, only a node. Reads answer with `file:line`, the node's mark (absent when
+it carries none, because that is not a task), the ROLLUP of the tasks under it
+— which is not in the file and is an annotation, never a second answer to what
+the node is — its ancestor titles, which is what makes a bare title mean
+something, and its `see` targets (when it has any), so a free cross-reference
+is traversable without a second read. `set_see` is the write half: add and/or remove target ids on an
 existing node; an unknown add is refused with the ids the set does hold.
 
 `mcp.ts` has no transport in it: it is one `handle` over JSON-RPC messages, and
