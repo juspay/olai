@@ -30,7 +30,8 @@
  *      allowlist and survives to be read here. The highlighter is
  *      `rehype-highlight`, bundled with the client: it is in `bun.lock`, so
  *      `bun.nix` fetches it into the Nix build, and no page ever asks a CDN
- *      for the code that renders someone's private outline.
+ *      for the code that renders someone's private outline. Which grammars it
+ *      knows is a decision, made below.
  *
  * `rewrite` (./rewrite.ts) is a walk over the finished tree rather than a
  * plugin, which is what lets the pipeline be built ONCE — `rehype-highlight`
@@ -38,6 +39,8 @@
  * per note would pay for that on every row of every frame.
  */
 
+import nix from "highlight.js/lib/languages/nix"
+import { common } from "lowlight"
 import rehypeHighlight from "rehype-highlight"
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize"
 import rehypeStringify from "rehype-stringify"
@@ -49,12 +52,28 @@ import type { Root } from "hast"
 
 import { rewrite } from "./rewrite.ts"
 
+/**
+ * The grammars a fence may name: `lowlight`'s common set, plus Nix.
+ *
+ * Spelled out because the option REPLACES the default rather than adding to
+ * it — `rehype-highlight` builds its lowlight from whatever `languages` says,
+ * so `{ nix }` alone would be a client that had forgotten TypeScript.
+ *
+ * Nix is the one addition, and it is not a preference: this repository is
+ * built and run through Nix, its own `docs/` are what `just serve` serves with
+ * no arguments, and a ```nix fence there came out as grey text while the one
+ * above it was coloured. An unregistered language is not an error — the block
+ * is drawn as plain text, which is what ./render.test.ts pins — so this is the
+ * difference between a fence that reads and one that merely survives.
+ */
+const languages = { ...common, nix }
+
 const pipeline = unified()
   .use(remarkParse)
   .use(remarkGfm)
   .use(remarkRehype, { clobberPrefix: "" })
   .use(rehypeSanitize, { ...defaultSchema, clobberPrefix: "" })
-  .use(rehypeHighlight, { detect: false })
+  .use(rehypeHighlight, { detect: false, languages })
   .use(rehypeStringify)
 
 /**

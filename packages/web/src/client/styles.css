@@ -105,6 +105,24 @@
  * is. Kept to spacing, overflow and the few things a document needs that a
  * one-paragraph note did not — anything more opinionated would be styling
  * someone else's prose. */
+/* A pasted URL, a hash, a base62 key: text with nowhere to break in it. The
+ * page must not scroll sideways because a note contains one — the column is
+ * the measure, and a reader who has to pan the whole page to finish a sentence
+ * has lost the outline beside it. `anywhere` rather than `break-word` because
+ * only `anywhere` counts in the MIN-CONTENT width, which is what stops such a
+ * word pushing a table cell (and the column with it) wider than the page.
+ *
+ * A fence is the deliberate exception, and it is the same rule read the other
+ * way: code is not prose, a break invented inside it is a lie about the line,
+ * so a `<pre>` keeps its own horizontal scrollbar and wraps nothing. */
+.olai-md {
+  overflow-wrap: anywhere;
+}
+
+.olai-md pre {
+  overflow-wrap: normal;
+}
+
 .olai-md > :first-child {
   margin-top: 0;
 }
@@ -122,33 +140,107 @@
   margin: 0.25rem 0;
 }
 
+/* A heading belongs to what is UNDER it, so the space above is what separates
+ * one section from the last and the space below is only the gap to its own
+ * first line. They were nearly equal, which made a run of headings read as
+ * evenly spaced text rather than as structure. */
 .olai-md h1,
 .olai-md h2,
 .olai-md h3,
 .olai-md h4,
 .olai-md h5,
 .olai-md h6 {
-  margin: 1rem 0 0.375rem;
+  margin: 1.5rem 0 0.375rem;
   font-weight: 600;
   line-height: 1.25;
 }
 
+/* Six levels, six sizes, down to the body's own — because a document that uses
+ * `h4` is a document that has four levels to tell apart, and three identical
+ * ones are three levels it cannot. The last two share a size (there is nothing
+ * left below the body text), so `h6` is told apart by colour and letterspacing
+ * instead: small caps in the muted ink, which is a label rather than a
+ * heading, and that is what a sixth level is. */
 .olai-md h1 {
-  font-size: 1.375rem;
+  font-size: 1.5rem;
 }
 
 .olai-md h2 {
-  font-size: 1.1875rem;
+  font-size: 1.25rem;
 }
 
 .olai-md h3 {
+  font-size: 1.125rem;
+}
+
+.olai-md h4 {
+  font-size: 1rem;
+}
+
+.olai-md h5 {
+  font-size: 0.875rem;
+}
+
+.olai-md h6 {
+  font-size: 0.875rem;
+  letter-spacing: 0.06em;
+  color: var(--color-muted);
+  text-transform: uppercase;
+}
+
+/* A note is drawn UNDER the node's own title, and a `##` inside it was landing
+ * at nearly that title's size — the body shouting over the thing it is the
+ * body of. Clamped rather than demoted: the markdown still says `h2`, because
+ * what a heading IS is the file's to say and how loud it is drawn is the
+ * page's. Two steps, so a note keeps its own hierarchy inside the ceiling. */
+.olai-md-note h1,
+.olai-md-note h2 {
   font-size: 1.0625rem;
+}
+
+.olai-md-note h3,
+.olai-md-note h4 {
+  font-size: 1rem;
+}
+
+.olai-md-note h5,
+.olai-md-note h6 {
+  font-size: 0.875rem;
+}
+
+.olai-md-note h1,
+.olai-md-note h2,
+.olai-md-note h3,
+.olai-md-note h4,
+.olai-md-note h5,
+.olai-md-note h6 {
+  margin-top: 0.875rem;
 }
 
 .olai-md ul,
 .olai-md ol {
   padding-left: 1.25rem;
   list-style: revert;
+}
+
+/* A task list item has a box, so it does not also get a bullet: the checkbox
+ * IS the marker, which is what GFM draws everywhere else and what keeps a
+ * checked line from reading as two marks about the same thing. The box is
+ * pulled back into the space the marker vacated, so the text keeps the
+ * indent of the plain items beside it — a mixed list stays one column of
+ * prose whichever items happen to be tasks.
+ *
+ * The classes are `remark-gfm`'s own, through the sanitiser's allowlist. */
+.olai-md .task-list-item {
+  list-style: none;
+}
+
+.olai-md .task-list-item > input[type="checkbox"] {
+  width: 0.8125rem;
+  height: 0.8125rem;
+  margin: 0 0.375rem 0 -1.25rem;
+  vertical-align: baseline;
+  accent-color: var(--color-accent);
 }
 
 .olai-md blockquote {
@@ -167,6 +259,18 @@
 .olai-md code {
   font-family: var(--font-mono);
   font-size: 0.875em;
+}
+
+/* Inline code is a chip; a fence is not. `code` inside a `<pre>` is already
+ * inside a bordered block, and a second background there would be a box drawn
+ * around every line of it. The tint is the rule colour thinned, so it is one
+ * value per palette rather than a fifteen-row table of its own — faint in the
+ * light themes, a slight lift in the dark ones, and legible in both because
+ * the ink over it never changes. */
+.olai-md :not(pre) > code {
+  border-radius: 0.25rem;
+  padding: 0.0625rem 0.25rem;
+  background: color-mix(in srgb, var(--color-rule) 45%, transparent);
 }
 
 /* The caret at the end of an answer that is still arriving. On the LAST BLOCK
@@ -206,15 +310,43 @@
   border-radius: 0.25rem;
 }
 
+/* A table is rows of prose, not a spreadsheet: horizontal rules separate the
+ * rows and nothing separates the columns, because the alignment already does
+ * and a full grid draws four borders around every cell to say what one line
+ * says.
+ *
+ * `display: block` makes the table its own scroll container. It is the whole
+ * point: a table wide enough to overflow scrolls WITHIN the column instead of
+ * widening the page under everything else, and it is the one place a sideways
+ * scrollbar is the right answer, for the same reason a fence has one — a
+ * column of a table cannot be broken mid-word without lying about the value in
+ * it. */
 .olai-md table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
   border-collapse: collapse;
 }
 
+/* A cell is not prose flow, so the aggressive wrap stops here: a path or an
+ * identifier broken across two lines inside a column reads as two values, and
+ * a table is read down a column rather than along a sentence. Ordinary
+ * wrapping still applies — a cell of prose breaks at its spaces — and a token
+ * with nowhere to break simply makes the table wider than the column, which is
+ * what the scroll container above it is FOR. Scrolling a table is recoverable;
+ * mis-reading a value in one is not. */
 .olai-md th,
 .olai-md td {
-  border: 1px solid var(--color-rule);
-  padding: 0.125rem 0.5rem;
+  border: 0;
+  border-bottom: 1px solid var(--color-rule);
+  padding: 0.3125rem 0.625rem;
   text-align: left;
+  overflow-wrap: normal;
+}
+
+.olai-md th {
+  background: color-mix(in srgb, var(--color-rule) 45%, transparent);
+  border-bottom-color: var(--color-muted);
 }
 
 .olai-md hr {

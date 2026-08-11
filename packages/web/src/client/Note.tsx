@@ -9,6 +9,14 @@
  * On a row, `data-open="true"` and `data-preview="false"` mark the expanded
  * body so a scenario can tell it from the clamped preview without reading
  * class names.
+ *
+ * `olai-md-note` is the one thing this component says about how the markdown
+ * is SET rather than about what it is: a note always hangs under a node's
+ * title, so its headings are clamped below that title's size (styles.css). A
+ * document has no title over it and keeps the full scale, which is why the
+ * rule cannot live on `.olai-md` — and why the class is added here, by the
+ * component that knows a note is what this is, rather than asked for by each
+ * of the two callers.
  */
 
 import { Markdown } from "./markdown/Markdown.tsx"
@@ -30,7 +38,7 @@ export function Note(props: {
       <Markdown
         source={props.desc}
         from={props.from}
-        class={props.class}
+        class={`olai-md-note ${props.class ?? ""}`}
       />
     </div>
   )

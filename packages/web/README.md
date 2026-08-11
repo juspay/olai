@@ -100,7 +100,12 @@ highlight, rewrite, stringify:
   client (about 180 kB of it): it is in `bun.lock`, so the Nix build fetches it
   like everything else, and no page asks a CDN for the code that renders
   someone's private outline. The colours are this theme's tokens, so a fence
-  follows the light/dark palette the rest of the page does.
+  follows the light/dark palette the rest of the page does. Which grammars it
+  knows is spelled out (`render.ts`), because the option REPLACES the default
+  set rather than adding to it: lowlight's common set, plus Nix — this
+  repository is built with it and `just serve` with no arguments serves its own
+  `docs/`, where a ```nix fence would otherwise be grey text. A language nobody
+  registered is not an error; the block is drawn as what it is.
 - **`rewrite.ts`** is a walk over the finished tree rather than a plugin, which
   is what lets the pipeline be built once — the highlighter registers three
   dozen languages when it is attached, and a pipeline rebuilt per note would
@@ -109,6 +114,17 @@ highlight, rewrite, stringify:
   is not drawn at all, and every id (and every link into the same block) is
   re-minted under a prefix derived from the block itself, so the first footnote
   of one note cannot answer for the first footnote of the next.
+
+How that markdown is SET is the other half, and it is in `styles.css` because
+the tags come off a file on disk and carry no classes. The rules with a reason
+behind them: prose wraps anywhere rather than pushing the page sideways for one
+pasted URL, while a fence and a table — where a break invented mid-token would
+be a lie about a line or a value — scroll within themselves instead; a task
+list drops its bullet, since the checkbox is the marker; and a note's headings
+are clamped below the node title they hang under, which is the one thing a note
+is set differently from a document (`olai-md-note`, added by `Note.tsx`).
+`packages/tests/fixtures/good/kitchen-sink.md` is the page to open in a light
+theme and a dark one after changing any of it.
 
 `src/client/document/` is what a document looks like: its own page, the
 reference a `doc`-carrying node shows wherever it is drawn, and the context

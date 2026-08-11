@@ -133,6 +133,73 @@ Then(
   },
 );
 
+/**
+ * The three things a rendered document can do to the page around it, asked of
+ * the LAID-OUT page rather than of the HTML.
+ *
+ * None of them is visible in the markup — the tags are right in every case and
+ * the damage is done by how they are set — so each is read off the browser's
+ * own geometry, which is the only witness that a rule in `styles.css` is doing
+ * what its comment says.
+ */
+
+Then("the page does not scroll sideways", async function (this: OlaiWorld) {
+  await body(this).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const [scrollable, visible] = await this.page.evaluate(() => [
+    document.documentElement.scrollWidth,
+    document.documentElement.clientWidth,
+  ]);
+  // A document is prose in a column, and one pasted URL used to widen the whole
+  // page — the outline beside it included — until the reader panned to finish a
+  // sentence. Anything wider than the column scrolls WITHIN itself (a fence, a
+  // table); the page does not.
+  assert.ok(
+    scrollable <= visible,
+    `the page scrolls sideways: ${scrollable}px of content in a ${visible}px viewport`,
+  );
+});
+
+Then(
+  "the task list is drawn with checkboxes and no bullets",
+  async function (this: OlaiWorld) {
+    const items = body(this).locator("li.task-list-item");
+    await items.first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    // The checkbox IS the marker. A list-style left in place draws both, which
+    // reads as two marks about one line — and it is invisible in the HTML,
+    // because the item is a correct `<li>` either way.
+    const markers = await items.evaluateAll((nodes) =>
+      nodes.map((node) => ({
+        marker: getComputedStyle(node).listStyleType,
+        boxes: node.querySelectorAll(":scope > input[type=checkbox]").length,
+      })),
+    );
+    assert.ok(markers.length > 0, "the document draws no task list items at all");
+    assert.deepStrictEqual(
+      markers.filter((item) => item.marker !== "none" || item.boxes !== 1),
+      [],
+      `every task list item should draw one checkbox and no bullet: ${JSON.stringify(markers)}`,
+    );
+  },
+);
+
+Then(
+  "no code span in a table is broken across lines",
+  async function (this: OlaiWorld) {
+    const spans = body(this).locator("td code, th code");
+    await spans.first().waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    // A path or an identifier wrapped mid-token inside a column reads as two
+    // values. `getClientRects` is the question asked directly: one rect is one
+    // line. A cell too wide for the column is the table's own scrollbar's
+    // problem, which is a recoverable thing to be — a mis-read value is not.
+    const broken = await spans.evaluateAll((nodes) =>
+      nodes
+        .filter((node) => node.getClientRects().length > 1)
+        .map((node) => node.textContent ?? ""),
+    );
+    assert.deepStrictEqual(broken, [], "these code spans in a table wrapped mid-token");
+  },
+);
+
 Then("the page requested nothing off this server", function (this: OlaiWorld) {
   const elsewhere = this.offSite();
   assert.deepStrictEqual(

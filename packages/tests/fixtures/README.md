@@ -23,8 +23,8 @@ from `broken/` and `tangled/`.
 
 ## `good/` — a set that validates
 
-Three outlines, two documents and a picture. Between them they exercise one of
-each thing the view has to draw:
+Three outlines, three documents and a picture. Between them they exercise one
+of each thing the view has to draw:
 
 | what | where |
 |---|---|
@@ -45,8 +45,15 @@ each thing the view has to draw:
 | a document nothing attaches | `notes/palette.md` — still a page, still in the sidebar |
 | a nested outline | `Daily/2026-08.jsonl` — the sidebar's file tree, not a path string |
 | a fenced code block, a footnote | `finishes.md` |
+| every mark the markdown pipeline draws, once each | `kitchen-sink.md` |
 | a relative picture | `finishes.md` names `art/handle.png`; `notes/palette.md` names the same file through `../` |
 | a cross-file mirror | `kitchen-herbs` (house.jsonl) mirrors `herbs` (garden.jsonl) |
+
+`kitchen-sink.md` is the odd one out and says so in its own first paragraph: it
+is not there to be a plausible document but to be LOOKED AT, in a light theme
+and a dark one, by whoever is changing how markdown is set. Only the few of its
+claims that can go silently wrong are asserted
+(`features/documents.feature`) — the rest are for the eye.
 
 The mirror is why there are two files. Every `.jsonl` is an independent tree —
 a `parent` may not cross files — so showing the herb bed inside the kitchen
