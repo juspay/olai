@@ -53,7 +53,7 @@ import { foldableKeys } from "./fold.ts"
 import { createNoteExpand } from "./note/expand.ts"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
-import { NodeMenu } from "./NodeMenu.tsx"
+import { nodeMenuActions, NodeMenu } from "./NodeMenu.tsx"
 import { TESTID } from "./testids.ts"
 import {
   CHILD_INDENT,
@@ -136,12 +136,14 @@ function Branch(props: {
             children do not inherit. */}
         <div class={HOVER_GUTTER}>
           <NodeMenu
-            id={props.row.at.node.id}
-            placeKey={props.row.key}
-            hasChildren={hasChildren()}
-            collapsed={collapsed()}
-            foldable={foldable()}
-            view={props.view}
+            actions={nodeMenuActions({
+              id: props.row.at.node.id,
+              placeKey: props.row.key,
+              hasChildren: hasChildren(),
+              collapsed: collapsed(),
+              foldable: foldable(),
+              view: props.view,
+            })}
           />
           <Show
             when={hasChildren()}

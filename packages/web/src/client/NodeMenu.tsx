@@ -1,11 +1,11 @@
 /**
  * The `•••` hover menu to the left of a row's collapse triangle.
  *
- * Workflowy's gutter control: on row hover it appears left of the triangle,
- * and it only carries actions the client can already perform. olai's web
- * client has no write path yet, so the menu is Zoom / Expand / Collapse /
- * Expand all / Collapse all / Copy link — structured so a future mark-done or
- * date edit can slot in without reshaping the component.
+ * Workflowy's gutter control: on row hover it appears left of the triangle.
+ * This file is the MENU — open, close, portal, list of verbs. What those
+ * verbs ARE is the caller's catalog (`nodeMenuActions` below for the outline
+ * tree): presentation and the list of things a client can do are two concerns,
+ * and a third write-path action later should not reshape the panel.
  *
  * Opens on click (and Enter/Space when focused). Closes on Escape, outside
  * click, or picking an item. The menu body is portaled so a row's overflow or
@@ -26,16 +26,65 @@ export interface MenuAction {
   readonly run: () => void | Promise<void>
 }
 
-export function NodeMenu(props: {
+/**
+ * The read-only verbs a tree row's menu currently offers. One table, so the
+ * panel never has to know about zoom routes or fold keys, and a future write
+ * action is another entry here rather than a branch inside the component.
+ */
+export const nodeMenuActions = (args: {
   readonly id: string
-  /** Place key — what fold/expand names in the reading. */
   readonly placeKey: string
   readonly hasChildren: boolean
   readonly collapsed: boolean
-  /** Keys of every foldable place under this row, including itself. Empty
-   *  when the row is a leaf. Used by expand/collapse all. */
   readonly foldable: ReadonlyArray<string>
   readonly view: View
+}): ReadonlyArray<MenuAction> => {
+  const items: MenuAction[] = [
+    {
+      id: "zoom",
+      label: "Zoom in",
+      run: () => {
+        location.assign(hrefOf({ kind: "node", id: args.id }))
+      },
+    },
+  ]
+  if (args.hasChildren) {
+    items.push({
+      id: args.collapsed ? "expand" : "collapse",
+      label: args.collapsed ? "Expand" : "Collapse",
+      run: () => args.view.toggle(args.placeKey),
+    })
+    items.push(
+      {
+        id: "expand-all",
+        label: "Expand all",
+        run: () => args.view.expandKeys(args.foldable),
+      },
+      {
+        id: "collapse-all",
+        label: "Collapse all",
+        run: () => args.view.collapseKeys(args.foldable),
+      },
+    )
+  }
+  items.push({
+    id: "copy-link",
+    label: "Copy link to node",
+    run: async () => {
+      const url = new URL(hrefOf({ kind: "node", id: args.id }), location.href).href
+      try {
+        await navigator.clipboard.writeText(url)
+      } catch {
+        // Clipboard can refuse (insecure context, denied permission). No toast
+        // surface yet; the action still ran.
+      }
+    },
+  })
+  return items
+}
+
+export function NodeMenu(props: {
+  readonly actions: ReadonlyArray<MenuAction>
 }) {
   const [open, setOpen] = createSignal(false)
   let trigger: HTMLButtonElement | undefined
@@ -44,62 +93,13 @@ export function NodeMenu(props: {
     setOpen(false)
   }
 
-  const actions = (): ReadonlyArray<MenuAction> => {
-    const items: MenuAction[] = [
-      {
-        id: "zoom",
-        label: "Zoom in",
-        run: () => {
-          // A real navigation: the bullet already does this, and the menu
-          // offers the same without inventing a second address.
-          location.assign(hrefOf({ kind: "node", id: props.id }))
-        },
-      },
-    ]
-    if (props.hasChildren) {
-      items.push({
-        id: props.collapsed ? "expand" : "collapse",
-        label: props.collapsed ? "Expand" : "Collapse",
-        run: () => props.view.toggle(props.placeKey),
-      })
-      if (props.foldable.length > 1 || props.hasChildren) {
-        items.push(
-          {
-            id: "expand-all",
-            label: "Expand all",
-            run: () => props.view.expandKeys(props.foldable),
-          },
-          {
-            id: "collapse-all",
-            label: "Collapse all",
-            run: () => props.view.collapseKeys(props.foldable),
-          },
-        )
-      }
-    }
-    items.push({
-      id: "copy-link",
-      label: "Copy link to node",
-      run: async () => {
-        const url = new URL(hrefOf({ kind: "node", id: props.id }), location.href).href
-        try {
-          await navigator.clipboard.writeText(url)
-        } catch {
-          // Clipboard can refuse (insecure context, denied permission). The
-          // action still "ran"; there is no toast surface yet.
-        }
-      },
-    })
-    return items
-  }
-
   const pick = async (action: MenuAction): Promise<void> => {
     close()
     await action.run()
   }
 
   return (
-    <span class="relative contents">
+    <>
       <button
         ref={trigger}
         type="button"
@@ -125,12 +125,12 @@ export function NodeMenu(props: {
       <Show when={open()}>
         <MenuPanel
           anchor={trigger}
-          actions={actions()}
+          actions={props.actions}
           onPick={pick}
           onClose={close}
         />
       </Show>
-    </span>
+    </>
   )
 }
 
@@ -140,11 +140,9 @@ function MenuPanel(props: {
   readonly onPick: (action: MenuAction) => void | Promise<void>
   readonly onClose: () => void
 }) {
-  const at = (): { left: number; top: number } => {
-    const box = props.anchor?.getBoundingClientRect()
-    if (box === undefined) return { left: 0, top: 0 }
-    return { left: box.left, top: box.bottom + 2 }
-  }
+  const box = props.anchor?.getBoundingClientRect()
+  const left = box?.left ?? 0
+  const top = (box?.bottom ?? 0) + 2
 
   const onDoc = (event: MouseEvent): void => {
     const target = event.target
@@ -159,7 +157,6 @@ function MenuPanel(props: {
     if (event.key === "Escape") props.onClose()
   }
 
-  // Capture-phase so a click that also collapses a row still closes us.
   document.addEventListener("mousedown", onDoc, true)
   document.addEventListener("keydown", onKey, true)
   onCleanup(() => {
@@ -167,15 +164,13 @@ function MenuPanel(props: {
     document.removeEventListener("keydown", onKey, true)
   })
 
-  const spot = at()
-
   return (
     <Portal>
       <ul
         role="menu"
         data-testid={TESTID.nodeMenuPanel}
         class="fixed z-40 m-0 min-w-[10.5rem] list-none rounded border border-rule bg-paper py-1 text-sm text-ink shadow-md"
-        style={{ left: `${spot.left}px`, top: `${spot.top}px` }}
+        style={{ left: `${left}px`, top: `${top}px` }}
       >
         <For each={props.actions}>
           {(action) => (
