@@ -1,18 +1,19 @@
 /**
  * Reading the set, as an agent is allowed to read it.
  *
- * Every answer here is about NODES: an id, a title, a derived status, an
- * ancestry, a `file:line`. Never bytes, never a line of a file, never a
- * directory listing. That is the read half of the same decision the write half
- * makes — the agent works in the format's own terms, so the things it can
- * express are the things the format can be (docs/brainstorming/acp.md, resolved
- * 2026-08-09: "query tools are over parsed nodes, not raw lines").
+ * Every answer here is about NODES: an id, a title, a mark, an ancestry, a
+ * `file:line`. Never bytes, never a line of a file, never a directory listing.
+ * That is the read half of the same decision the write half makes — the agent
+ * works in the format's own terms, so the things it can express are the things
+ * the format can be (docs/brainstorming/acp.md, resolved 2026-08-09: "query
+ * tools are over parsed nodes, not raw lines").
  *
  * It is not a smaller `grep`. A grep over `.jsonl` answers with JSON fragments
- * out of context, invites byte-level edits back, and cannot say what a node's
- * status IS — which is derived, and therefore is not in the file at all. What
- * an agent needs to act is exactly what is here: which node, where it lives so
- * a person can be pointed at it, and what the tree currently makes of it.
+ * out of context, invites byte-level edits back, and cannot say where a node
+ * SITS — its ancestry, the tags in its title, how far the tasks under it have
+ * got, none of which is in the line it would print. What an agent needs to act
+ * is exactly what is here: which node, where it lives so a person can be
+ * pointed at it, and what hangs off it.
  *
  * Pure functions over a snapshot, like {@link ./plan.ts} and for the same
  * reason: they are the part worth testing, and neither a disk nor a protocol
@@ -29,6 +30,8 @@ import {
   type LocatedRegular,
   MARKS,
   type OutlineSet,
+  type Progress,
+  progressOf,
   type Status,
   titleParts,
 } from "@olai/format"
@@ -40,9 +43,8 @@ export interface Found {
   /** Where a person is pointed. Relative to the served directory, 1-based. */
   readonly file: string
   readonly line: number
-  /** DERIVED — what the tree makes of it, which for a parent is not in the
-   *  file and can never be written there. ABSENT when the node has no status
-   *  at all: nobody marked it and nothing under it is marked, so it is a
+  /** The mark the node carries — a mirror's being its target's, since that is
+   *  what it shows. ABSENT when it carries none: nobody marked it, so it is a
    *  bullet rather than a task nobody has started. */
   readonly status?: Status
   /** The canonical ancestor titles, outermost first. What makes a bare title
@@ -72,14 +74,18 @@ export interface Detail extends Found, Stamps {
   readonly date?: string | undefined
   readonly desc?: string | undefined
   readonly tags: ReadonlyArray<string>
+  /** How many of its child tasks are done, when any of them is a task. An
+   *  ANNOTATION: it decides nothing, and in particular the node's own status
+   *  is `status` above whatever this says. */
+  readonly progress?: Progress
   readonly children: ReadonlyArray<Found>
 }
 
-/** The mark a node STORES, with what it was stamped — `status` above is what
- *  the tree makes of the node, and for a leaf the two agree, but only this
- *  says when. Keyed by the format's own list rather than a field per mark: an
- *  agent that can `set_todo` should be able to read back the day it did, and
- *  a mark readable everywhere except here is how that drifts. */
+/** The mark a node stores, with what it was stamped — `status` above says
+ *  which mark, and only this says when. Keyed by the format's own list rather
+ *  than a field per mark: an agent that can `set_todo` should be able to read
+ *  back the day it did, and a mark readable everywhere except here is how that
+ *  drifts. */
 type Stamps = Partial<Record<Status, string | true>>
 
 /** A node and everything under it, nested — the shape a reader draws. */
@@ -268,6 +274,7 @@ export const detail = (derived: Derived, id: string): Detail | null => {
   if (located === undefined || isMirror(located.node)) return null
   const regular = located as LocatedRegular
   const node = regular.node
+  const progress = progressOf(derived, id)
   return {
     ...foundOf(derived, regular),
     ...(node.date === undefined ? {} : { date: node.date }),
@@ -276,6 +283,7 @@ export const detail = (derived: Derived, id: string): Detail | null => {
     tags: titleParts(node.title).flatMap((part) =>
       part.kind === "tag" ? [part.tag] : []
     ),
+    ...(progress === undefined ? {} : { progress }),
     children: countedChildren(derived, id).map((child) => foundOf(derived, child)),
   }
 }

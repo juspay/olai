@@ -231,24 +231,6 @@ describe("done and doing", () => {
     expect(cleared.summary).toBe("not-todo: x")
   })
 
-  // A `todo` child is an unfinished TASK, so it stands between its parent and
-  // `done` exactly as a `doing` one does — and it says which of the two it is,
-  // because the refusal carries the reason with the child.
-  test("an unstarted child is in the way, and says it is unstarted", () => {
-    const set = setOf({
-      "a.jsonl": [
-        `{"id":"p","ord":"a0","title":"the trip"}`,
-        `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","done":true}`,
-        `{"id":"c2","parent":"p","ord":"a1","title":"pack","todo":true}`,
-        `{"id":"c3","parent":"p","ord":"a2","title":"ferry times"}`,
-      ].join("\n"),
-    })
-    const failure = refused(set, { op: "done", id: "p" })
-    expect(failure._tag).toBe("DerivedFailure")
-    if (failure._tag !== "DerivedFailure") return
-    expect(failure.children).toEqual([{ id: "c2", title: "pack", status: "todo" }])
-  })
-
   test("undoing a mark that is not there is refused", () => {
     expect(refused(house(), { op: "done", id: "order", undo: true }).message).toContain(
       "not marked done",
@@ -256,12 +238,12 @@ describe("done and doing", () => {
   })
 
   /**
-   * The refusal the whole error taxonomy exists for: a node whose status is
-   * COMPUTED cannot store one, and saying so is only useful if it names the
-   * children that are in the way — as data, so the agent can do them one at a
-   * time and the panel can draw them as rows.
+   * The 2026-08-11 change, in the layer that used to refuse it: a mark is a
+   * stored fact on ANY node. The three shapes the old `derived` refusal had a
+   * sentence for — over unfinished tasks, over finished ones, over children
+   * that are all notes — are three ordinary writes.
    */
-  test("a node with children is refused, and the refusal lists the unfinished ones", () => {
+  test("a node with children is marked like any other", () => {
     const set = setOf({
       "house.jsonl": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
@@ -270,61 +252,94 @@ describe("done and doing", () => {
         `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
       ].join("\n"),
     })
-    const failure = refused(set, { op: "done", id: "kitchen" })
-    expect(failure._tag).toBe("DerivedFailure")
-    if (failure._tag !== "DerivedFailure") return
-    expect(failure.id).toBe("kitchen")
-    expect(failure.children).toEqual([
-      { id: "order", title: "order the cabinets", status: "doing" },
-    ])
-    // The finished child is not in the list: it is not what is in the way.
-    // Neither is `install`, and that is the model — an unmarked child is a
-    // bullet, not a to-do nobody has started, so it is in nobody's way.
-    expect(failure.children.map((child) => child.id)).not.toContain("demo")
-    expect(failure.children.map((child) => child.id)).not.toContain("install")
+    const result = planned(set, { op: "done", id: "kitchen" })
+    expect(record(fileOf(result, "house.jsonl"), "kitchen").done).toBe("2026-08-09")
+    expect(result.summary).toBe("done: Kitchen remodel")
   })
 
-  // The sharp edge of dropping `open`: `kitchen`'s only marked child is done,
-  // so `kitchen` READS done, unmarked siblings and all. Storing that is still
-  // refused — the tree already says it.
-  test("unmarked children do not hold a parent back from done", () => {
-    const failure = refused(house(), { op: "done", id: "kitchen" })
-    expect(failure._tag).toBe("DerivedFailure")
-    if (failure._tag !== "DerivedFailure") return
-    expect(failure.children).toEqual([])
-    expect(failure.message).toContain("already reads done")
+  // The case the model could not express at all, and the one that filed the
+  // item: the node IS the work, its children are findings about it. Nothing
+  // under it is a task, and it is `todo`.
+  test("a node whose children are all notes can be marked todo", () => {
+    const set = setOf({
+      "a.jsonl": [
+        `{"id":"p","ord":"a0","title":"orchestrator in chat"}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"nothing wakes a chat agent"}`,
+        `{"id":"c2","parent":"p","ord":"a1","title":"no shell, so no gh"}`,
+      ].join("\n"),
+    })
+    const result = planned(set, { op: "todo", id: "p" })
+    expect(record(fileOf(result, "a.jsonl"), "p").todo).toBe("2026-08-09")
+    // Nothing under it is a task, so there is nothing to remark on either.
+    expect(result.nudge).toBeUndefined()
   })
 
-  // And the third thing the tree can be saying: nothing at all. A node whose
-  // children are all bullets is a bullet, and the refusal says so rather than
-  // claiming it already reads done.
-  test("a parent whose children are all bullets is refused as a bullet", () => {
+  // Policy, not an invariant. The write lands — "shipped, dropping the rest"
+  // is a real thing to mean — and the answer says what it noticed, naming the
+  // tasks that are still open. The BULLET among them is not one of them.
+  test("done over unfinished tasks lands, and says so", () => {
     const set = setOf({
       "a.jsonl": [
         `{"id":"p","ord":"a0","title":"the trip"}`,
-        `{"id":"c1","parent":"p","ord":"a0","title":"ferry times"}`,
-        `{"id":"c2","parent":"p","ord":"a1","title":"what to pack"}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","done":true}`,
+        `{"id":"c2","parent":"p","ord":"a1","title":"pack","todo":true}`,
+        `{"id":"c3","parent":"p","ord":"a2","title":"ferry times"}`,
       ].join("\n"),
     })
-    const failure = refused(set, { op: "done", id: "p" })
-    expect(failure._tag).toBe("DerivedFailure")
-    if (failure._tag !== "DerivedFailure") return
-    expect(failure.children).toEqual([])
-    expect(failure.message).toContain("none of its 2 is marked")
+    const result = planned(set, { op: "done", id: "p" })
+    expect(record(fileOf(result, "a.jsonl"), "p").done).toBe("2026-08-09")
+    expect(result.nudge).toContain("1 unfinished task")
+    expect(result.nudge).toContain("`pack`")
+    expect(result.nudge).not.toContain("ferry times")
   })
 
-  test("a parent that already derives done is the same refusal with nothing to do", () => {
+  // The other nudge, and the one that replaces the old escape hatch: finishing
+  // the last open task under a parent is the moment to consider ticking the
+  // parent, which is now something a person can actually do.
+  test("finishing the last task under a parent suggests marking the parent", () => {
     const set = setOf({
       "a.jsonl": [
-        `{"id":"p","ord":"a0","title":"parent"}`,
-        `{"id":"c","parent":"p","ord":"a0","title":"child","done":true}`,
+        `{"id":"p","ord":"a0","title":"the trip"}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","done":true}`,
+        `{"id":"c2","parent":"p","ord":"a1","title":"pack","doing":true}`,
+        `{"id":"c3","parent":"p","ord":"a2","title":"ferry times"}`,
       ].join("\n"),
     })
-    const failure = refused(set, { op: "done", id: "p" })
-    expect(failure._tag).toBe("DerivedFailure")
-    if (failure._tag !== "DerivedFailure") return
-    expect(failure.children).toEqual([])
-    expect(failure.message).toContain("already reads done")
+    expect(planned(set, { op: "done", id: "c2" }).nudge)
+      .toContain("every task under `the trip` is done now")
+
+    // Not while another task is still open, and not when the parent is already
+    // done — neither is news.
+    const half = setOf({
+      "a.jsonl": [
+        `{"id":"p","ord":"a0","title":"the trip"}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","todo":true}`,
+        `{"id":"c2","parent":"p","ord":"a1","title":"pack","doing":true}`,
+      ].join("\n"),
+    })
+    expect(planned(half, { op: "done", id: "c2" }).nudge).toBeUndefined()
+
+    const already = setOf({
+      "a.jsonl": [
+        `{"id":"p","ord":"a0","title":"the trip","done":"2026-08-01"}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"pack","doing":true}`,
+      ].join("\n"),
+    })
+    expect(planned(already, { op: "done", id: "c1" }).nudge).toBeUndefined()
+  })
+
+  // A nudge is about a mark going ON, and only `done`: nothing is finished by
+  // starting a task, and taking a mark off is never news about the parent.
+  test("nothing is nudged for doing, todo, or an undo", () => {
+    const set = setOf({
+      "a.jsonl": [
+        `{"id":"p","ord":"a0","title":"the trip"}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"pack","done":true}`,
+      ].join("\n"),
+    })
+    expect(planned(set, { op: "done", id: "c1", undo: true }).nudge).toBeUndefined()
+    expect(planned(set, { op: "todo", id: "p" }).nudge).toBeUndefined()
+    expect(planned(set, { op: "doing", id: "p" }).nudge).toBeUndefined()
   })
 
   test("a mirror is not a node to mark, and the refusal names the one that is", () => {

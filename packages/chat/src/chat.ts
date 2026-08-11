@@ -30,7 +30,7 @@
  *     the structured detail in its tool result, but what it then says about it
  *     is prose. So the MCP layer tells us about every refusal and it lands in
  *     the transcript as data — which is what makes "a refused write shows its
- *     unfinished children in chat" true regardless of how the agent phrases it.
+ *     detail in chat" true regardless of how the agent phrases it.
  */
 
 import { CHAT_OFF, type ChatEntry, type ChatState, type OpFailure, type SessionInfo } from "@olai/surface"

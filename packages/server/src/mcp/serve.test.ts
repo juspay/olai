@@ -153,7 +153,7 @@ test("a client that launched it can mark a node, and the disk says so", async ()
     ask(null, "notifications/initialized"),
     ask(2, "tools/list"),
     ask(3, "tools/call", { name: "set_done", arguments: { id: "order" } }),
-    ask(4, "tools/call", { name: "set_done", arguments: { id: "kitchen" } }),
+    ask(4, "tools/call", { name: "set_done", arguments: { id: "nowhere" } }),
   ])
 
   expect(answerTo(said, 1).result?.protocolVersion).toBe("2025-06-18")
@@ -179,13 +179,12 @@ test("a client that launched it can mark a node, and the disk says so", async ()
     title: "order the cabinets",
   })
 
-  // A refusal is an ANSWER, not a protocol error: `kitchen` takes its status
-  // from its children, so it cannot store one, and what comes back is the
-  // unfinished children to mark instead.
+  // A refusal is an ANSWER, not a protocol error: nothing declares `nowhere`,
+  // and what comes back says which kind of refusal that is.
   const refused = answerTo(said, 4)
   expect(refused.error).toBeUndefined()
   expect(refused.result?.isError).toBe(true)
-  expect(refused.result?.structuredContent).toMatchObject({ kind: "derived" })
+  expect(refused.result?.structuredContent).toMatchObject({ kind: "not-found" })
 
   // Four requests, four frames: the notification in the middle was answered
   // with silence, which a client would otherwise have to match against nothing.

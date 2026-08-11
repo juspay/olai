@@ -18,7 +18,7 @@ Status: brainstorming ahead of the Agents theme. Direction set 2026-08-09: the c
 - **Permissions**: auto-approve ops tool calls for now (they are already mediated and validated); a permission UI is deferred to a future item.
 - **Read access**: query tools on the internal MCP only — no fs access to the served directory. The MCP should probably also expose a grep-like search tool.
 - **Transcript persistence**: always persist, as Claude Code's own session for the served directory — so the same conversation can be resumed from a terminal with `claude --resume`. Olai builds no transcript store of its own; the transcript is Claude's session JSONL, exactly as olai on `master-racket` did it.
-- **Errors are never silently ignored**: a `StaleWrite` retry that *succeeds* is invisible by design, but every genuine failure — a derived-state refusal, a retry that keeps colliding — renders in chat with its structured detail (e.g. the unfinished children), not prose.
+- **Errors are never silently ignored**: a `StaleWrite` retry that *succeeds* is invisible by design, but every genuine failure — a validation refusal, a retry that keeps colliding — renders in chat with its structured detail (e.g. the validator's own rows), not prose. (Named a derived-state refusal when this was written; that kind went with status derivation on 2026-08-11.)
 
 ## Resolved 2026-08-09, round two — racket semantics adopted
 

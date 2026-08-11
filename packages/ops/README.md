@@ -27,9 +27,14 @@ in the system had to arrange:
   trailing newline are not something a caller can get wrong. The glued-line
   incident of 2026-08-09 — two records on one line, out of a byte-level edit —
   is not a thing these ops can express.
-- **a refusal can teach.** Marking a node whose status is computed from its
-  children is refused with the unfinished children AS DATA, so the agent can do
-  them one at a time and the chat panel can draw them as rows.
+- **a refusal can teach.** What a write is refused with travels as DATA — the
+  validator's own rows, pinned to `file:line` — so the agent fixes the line
+  rather than parsing a sentence, and the chat panel draws the same rows.
+- **a write that LANDED can carry advice.** Marking a branch done over tasks
+  nobody finished is allowed, and so is finishing the last open task under a
+  parent; both come back with a `nudge` saying what the rollup noticed. Policy,
+  in the answer, never an invariant — the format has nothing to say about a
+  mark and the children under it (docs/format.md's Status).
 
 ## The files
 
@@ -120,11 +125,12 @@ against a real directory with no repository in it.
 
 `TOOLS` is a closed list, and the absences are the design: **no file read, no
 file write, no directory listing, no shell, no grep.** The agent cannot name a
-byte, only a node. Reads answer with `file:line`, the node's DERIVED status —
-which for a parent is not in the file and can never be written there — its
-ancestor titles, which is what makes a bare title mean something, and its `see`
-targets (when it has any), so a free cross-reference is traversable without a
-second read. `set_see` is the write half: add and/or remove target ids on an
+byte, only a node. Reads answer with `file:line`, the node's mark (absent when
+it carries none, because that is not a task), the ROLLUP of the tasks under it
+— which is not in the file and is an annotation, never a second answer to what
+the node is — its ancestor titles, which is what makes a bare title mean
+something, and its `see` targets (when it has any), so a free cross-reference
+is traversable without a second read. `set_see` is the write half: add and/or remove target ids on an
 existing node; an unknown add is refused with the ids the set does hold.
 
 `mcp.ts` has no transport in it: it is one `handle` over JSON-RPC messages, and

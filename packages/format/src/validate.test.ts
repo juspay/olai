@@ -282,73 +282,34 @@ test("a doc reached through ../ resolves against the outline's directory", () =>
   // The arithmetic behind it is `documents.ts`'s, and it is tested there.
 })
 
-// The rule the format leans on: if a parent's status could be both stored and
-// derived, a merge could make the two disagree and nothing would notice. The
-// refusal names the children that are in the way, as data.
-test("done stored above unfinished children lists them", () => {
-  const error = only(
-    errorsOf({
-      "a.jsonl": `{"id":"p","ord":"a","title":"p","done":true}\n` +
-        `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
-        `{"id":"c2","parent":"p","ord":"b","title":"c2"}\n` +
-        `{"id":"c3","parent":"p","ord":"c","title":"c3","doing":true}\n` +
-        `{"id":"c4","parent":"p","ord":"d","title":"c4","todo":true}`,
-    }),
-  )
-  expect(error.code).toBe("stored-derived-state")
-  expect(error.line).toBe(1)
-  // TWO of the four are in the way, and they are the two that are TASKS and
-  // not done — under way, and not started. `c2` carries no mark, so it is a
-  // bullet rather than an unstarted task: neither counted nor linked, and the
-  // report and the ops layer's refusal read the same list.
-  expect(error.message).toContain("2 unfinished tasks among this node's 4 children")
-  expect(error.related).toEqual([
-    { file: "a.jsonl", line: 4, note: "`c3` is doing" },
-    { file: "a.jsonl", line: 5, note: "`c4` is todo" },
-  ])
-})
-
-// The third sentence: a node with children can derive NOTHING, because none of
-// them is a task. Storing a mark there is still refused — the node's status is
-// its children's to say — but "it already reads done" would be a lie.
-test("done stored on a node whose children are all bullets says so", () => {
-  const error = only(
-    errorsOf({
-      "a.jsonl": `{"id":"p","ord":"a","title":"p","done":true}\n` +
-        `{"id":"c1","parent":"p","ord":"a","title":"c1"}\n` +
-        `{"id":"c2","parent":"p","ord":"b","title":"c2"}`,
-    }),
-  )
-  expect(error.code).toBe("stored-derived-state")
-  expect(error.message).toContain("2 children, none of which is marked")
-  expect(error.related).toBeUndefined()
-})
-
-// The other wording, and the subtler half of the rule: even when the stored
-// value agrees with what would be computed, storing it is the error — the
-// agreement is what stops being true after the next edit.
-test("done stored above children that are all done is still refused", () => {
-  const error = only(
-    errorsOf({
-      "a.jsonl": `{"id":"p","ord":"a","title":"p","done":true}\n` +
-        `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
-        `{"id":"c2","parent":"p","ord":"b","title":"c2","done":true}`,
-    }),
-  )
-  expect(error.code).toBe("stored-derived-state")
-  expect(error.message).toContain("computed from this node's 2 children")
-  // Nothing to link, so the key is absent rather than empty — the same rule
-  // the format applies to its own fields.
-  expect(error.related).toBeUndefined()
-})
-
-// A mirror is a second view of a node, not a second obligation: a node whose
-// only child is a mirror is still a leaf, and a leaf may say what it is.
-test("a mirror child does not make its host a parent", () => {
+// A mark is a stored fact about the node that carries it, and there is no rule
+// here about what hangs under it. The rule that used to be — no stored derived
+// state — existed only to keep a computed status and a written one from
+// disagreeing; nothing computes one now, so there is nothing to disagree with
+// (resolved 2026-08-11).
+test("a mark on a node with children is a set that loads", () => {
+  // Every shape the old rule refused, in one file: a mark over unfinished
+  // tasks, a mark over children that are all done, and a mark over children
+  // that are all plain notes.
   expectValid({
-    "a.jsonl": `{"id":"x","ord":"z","title":"elsewhere"}\n` +
-      `{"id":"p","ord":"a","title":"p","done":true}\n` +
-      `{"id":"m","parent":"p","ord":"a","mirror":"x"}`,
+    "a.jsonl": `{"id":"p","ord":"a","title":"p","done":"2026-08-11"}\n` +
+      `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
+      `{"id":"c2","parent":"p","ord":"b","title":"c2","doing":true}\n` +
+      `{"id":"q","ord":"b","title":"q","done":true}\n` +
+      `{"id":"q1","parent":"q","ord":"a","title":"q1","done":true}\n` +
+      `{"id":"notes","ord":"c","title":"read this book","todo":"2026-08-11"}\n` +
+      `{"id":"n1","parent":"notes","ord":"a","title":"chapter three is the good one"}`,
+  })
+})
+
+// The merge that used to break the set: mark a leaf in one branch, add a task
+// child under it in another, and a clean textual merge produced a file nothing
+// would load. Both edits are line-wise, so both survive — and now so does the
+// set they make.
+test("a merge that marks a leaf and gives it a child still loads", () => {
+  expectValid({
+    "a.jsonl": `{"id":"leaf","ord":"a","title":"leaf","done":"2026-08-10"}\n` +
+      `{"id":"arrived","parent":"leaf","ord":"a","title":"arrived from the other branch","todo":true}`,
   })
 })
 

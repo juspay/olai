@@ -81,15 +81,15 @@ test("an error is cross-file when a related site lives in another file", () => {
   expect(isCrossFile({ code: "bad-id", file: "a.jsonl", line: 1, message: "x" })).toBe(false)
 })
 
-// The stage is a pure function of the code rather than a stored field: this
-// format refuses derived state in its data, and storing it in its own errors
-// would be the same mistake with a second way to disagree.
+// The stage is a pure function of the code rather than a stored field: two
+// answers to "which stage is this" is one more than the report can have, and
+// the code already decides it.
 test("the stage is decided by the code alone", () => {
   expect(stageOf("not-json")).toBe("line")
   expect(stageOf("bad-date")).toBe("line")
   expect(stageOf("duplicate-id")).toBe("set")
   expect(stageOf("mirror-cycle")).toBe("set")
-  expect(stageOf("stored-derived-state")).toBe("set")
+  expect(stageOf("missing-doc")).toBe("set")
 })
 
 // A whole report has a stage too, and it is the pessimistic one. A file is
@@ -147,7 +147,6 @@ test("the line/set split is exactly the two halves of the codec", () => {
     "after-cycle",
     "mirror-cycle",
     "missing-doc",
-    "stored-derived-state",
   ])
   // Together, the whole catalogue: no code is in neither half, and none is in
   // both.

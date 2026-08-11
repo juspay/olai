@@ -310,12 +310,10 @@ first frame is the snapshot.
 
 Three components earn their own file:
 
-- **`Refusal.tsx`** is the one the error taxonomy exists for. A `derived`
-  refusal carries the children that are in the way as DATA, so they are drawn
-  as rows a reader can act on — "mark those instead" is a list, not a sentence
-  — and a `validation` refusal renders through the same `errors/Report.tsx`
-  rows a broken file does, so a refused write and a broken file are explained
-  the same way.
+- **`Refusal.tsx`** is the one the error taxonomy exists for. A `validation`
+  refusal carries the validator's own report as DATA, so it renders through the
+  same `errors/Report.tsx` rows a broken file does — a refused write and a
+  broken file are explained the same way, each line pinned to where it is.
 - **`ToolFrame.tsx`** is one line, foldable. A turn can be a dozen of these and
   unfolded they would bury the conversation. The row is UPDATED rather than
   replaced — the transcript keys them by the agent's own call id — so a fold
