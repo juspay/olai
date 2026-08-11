@@ -146,34 +146,46 @@ Then(
   },
 );
 
+/** "This row draws no such thing" — asked of the node's own LINE, because rows
+ *  nest and a descendant's badge or box is that node's business rather than
+ *  this one's. One helper, so the next thing that can be absent from a row does
+ *  not arrive with a third copy of the wait. */
+const drawsNothing = async (
+  world: OlaiWorld,
+  id: string,
+  control: string,
+  what: string,
+): Promise<void> => {
+  const line = world.within(id, NODE_GUTTER);
+  await line.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+  const own = line.locator(control);
+  await world
+    .waitUntil(async () => (await own.count()) === 0, `the node "${id}" shows no ${what}`)
+    .catch(async () => {
+      assert.strictEqual(await own.count(), 0);
+    });
+};
+
 Then(
   "the node {string} shows no checkbox",
   async function (this: OlaiWorld, id: string) {
     // A bullet draws no box — not an empty one. The blank holding the column
-    // open carries no testid, so counting the boxes is the whole assertion,
-    // and the count is asked of this row's own LINE: rows nest, and a
-    // descendant's checkbox is that node's business rather than this one's.
-    const line = this.node(id).locator(NODE_GUTTER).first();
-    await line.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
-    const own = line.locator(CHECKBOX);
-    await this.waitUntil(
-      async () => (await own.count()) === 0,
-      `the node "${id}" shows no checkbox`,
-    ).catch(async () => {
-      assert.strictEqual(await own.count(), 0);
-    });
+    // open carries no testid, so counting the boxes is the whole assertion.
+    await drawsNothing(this, id, CHECKBOX, "checkbox");
   },
 );
 
 Then(
   "the node {string} shows the progress {string}",
   async function (this: OlaiWorld, id: string, progress: string) {
-    // This row's OWN badge: rows nest, and a child's rollup is that child's.
-    const badge = this.node(id).locator(NODE_GUTTER).first().locator(PROGRESS);
-    await badge.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await this.waitUntil(
-      async () => readable(await badge.first().innerText()) === progress,
-      `the node "${id}" to show the progress ${progress}`,
+    // The badge publishes the value as an attribute, so this asks for it the
+    // way every other row assertion does — and hears what the badge carries
+    // instead when it disagrees.
+    await this.expectAttribute(
+      `${nodeSelector(id)} ${PROGRESS}`,
+      "data-progress",
+      progress,
+      `node "${id}"`,
     );
   },
 );
@@ -183,15 +195,7 @@ Then(
   async function (this: OlaiWorld, id: string) {
     // Absent, not `0/0`: a node with no tasks under it has nothing to count,
     // which is the same answer the derivation gives.
-    const line = this.node(id).locator(NODE_GUTTER).first();
-    await line.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
-    const own = line.locator(PROGRESS);
-    await this.waitUntil(
-      async () => (await own.count()) === 0,
-      `the node "${id}" shows no progress badge`,
-    ).catch(async () => {
-      assert.strictEqual(await own.count(), 0);
-    });
+    await drawsNothing(this, id, PROGRESS, "progress badge");
   },
 );
 

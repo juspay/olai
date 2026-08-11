@@ -32,7 +32,7 @@ export function NodeLine(props: {
   readonly status: Status | undefined
   /** Absent when nothing under the node is a task. Beside the title rather
    *  than in the box: it is what the children say, not what this node is. */
-  readonly progress?: Progress | undefined
+  readonly progress: Progress | undefined
   readonly date?: string
   /** Drawn inside the title and before it — the tree's mirror mark. */
   readonly children?: JSX.Element

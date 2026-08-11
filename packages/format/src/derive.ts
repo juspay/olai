@@ -216,10 +216,14 @@ export interface Progress {
 
 export const progressOf = (derived: Derived, id: string): Progress | undefined => {
   const tasks = tasksUnder(derived, id)
-  return tasks.length === 0 ? undefined : {
-    done: tasks.filter((task) => task.status === "done").length,
-    total: tasks.length,
+  if (tasks.length === 0) return undefined
+  // Counted in place rather than filtered: this runs once per drawn row, and
+  // the answer is two integers.
+  let done = 0
+  for (const task of tasks) {
+    if (task.status === "done") done += 1
   }
+  return { done, total: tasks.length }
 }
 
 /** The same list read the other way: the child tasks that are NOT done. A
@@ -299,20 +303,22 @@ const expand = (
   parentKey: string,
 ): Row => {
   const key = `${parentKey}/${at.node.id}`
-  const place = { at, status: derived.status.get(at.node.id), key }
+  // The fields every branch shares, including the rollup a stub has none of —
+  // the drawn branch below overrides it, and no branch has to remember to say
+  // it has nothing.
+  const place = {
+    at,
+    status: derived.status.get(at.node.id),
+    progress: undefined,
+    key,
+  }
 
   const found = follow(derived, at)
   if (found.kind !== "found") {
-    return { ...place, progress: undefined, children: [], ...found }
+    return { ...place, children: [], ...found }
   }
   if (ancestors.includes(found.shows.node.id)) {
-    return {
-      ...place,
-      progress: undefined,
-      children: [],
-      kind: "cycle",
-      through: found.shows.node.id,
-    }
+    return { ...place, children: [], kind: "cycle", through: found.shows.node.id }
   }
 
   const within = [...ancestors, found.shows.node.id]
@@ -435,6 +441,11 @@ export const follow = (
   derived: Pick<Derived, "byId">,
   from: Located,
 ): Found => {
+  // The common case, said first because this runs for every node of the set on
+  // every derive: a record that is not a mirror shows itself, and there is no
+  // chain to remember.
+  if (!isMirror(from.node)) return { kind: "found", shows: from as LocatedRegular }
+
   const seen = new Set<string>()
   let at: Located = from
   while (isMirror(at.node)) {

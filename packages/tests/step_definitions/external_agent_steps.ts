@@ -161,7 +161,7 @@ Then(
       typeof nudge === "string" && nudge.includes(said),
       `the answer's nudge was ${JSON.stringify(nudge)}, which does not mention ` +
         `${JSON.stringify(said)} — advice about a write that HAPPENED travels ` +
-        "in the answer, as data",
+        "on the answer, in a field of its own",
     );
   },
 );

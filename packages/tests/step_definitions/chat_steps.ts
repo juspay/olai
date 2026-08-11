@@ -570,15 +570,6 @@ Then("node {string} is done", async function (this: OlaiWorld, id: string) {
   );
 });
 
-Then("node {string} is not done", async function (this: OlaiWorld, id: string) {
-  const status = await this.nodeAttribute(id, "data-status");
-  assert.notStrictEqual(
-    status,
-    "done",
-    `node "${id}" was marked done by a write that should have been refused`,
-  );
-});
-
 Then(
   "the tree eventually shows a node titled {string}",
   async function (this: OlaiWorld, title: string) {

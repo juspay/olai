@@ -519,19 +519,17 @@ const nudged = (
   // The parent as it reads AFTER this write. The snapshot still calls the node
   // being marked unfinished, so "nothing else is open" is what is asked —
   // waiting for the write to land would be waiting for the moment to pass.
-  const parent = node.parent === undefined ? undefined : regularAt(scope, node.parent)
-  if (parent !== undefined && Result.isSuccess(parent)) {
-    const above = parent.success.node
-    if (
-      storedMarker(above) !== "done" &&
-      unfinishedUnder(scope.derived, above.id)
-        .every((child) => child.node.id === node.id)
-    ) {
-      said.push(
-        `every task under \`${above.title}\` is done now — mark it done too if ` +
-          `the branch is finished.`,
-      )
-    }
+  const above = node.parent === undefined
+    ? undefined
+    : scope.derived.byId.get(node.parent)?.node
+  if (
+    above !== undefined && !isMirror(above) && storedMarker(above) !== "done" &&
+    unfinishedUnder(scope.derived, above.id).every((child) => child.node.id === node.id)
+  ) {
+    said.push(
+      `every task under \`${above.title}\` is done now — mark it done too if ` +
+        `the branch is finished.`,
+    )
   }
 
   return said.length === 0 ? undefined : said.join(" ")

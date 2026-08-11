@@ -409,7 +409,7 @@ describe("the internal MCP server", () => {
         expect((yield* fixture.set()).files).toContain("inbox.jsonl")
       })))
 
-  test("a read answers over parsed nodes, with file:line and derived status", () =>
+  test("a read answers over parsed nodes, with file:line and the marks", () =>
     withMcp((call) =>
       Effect.gen(function*() {
         const hits = structured(

@@ -318,6 +318,14 @@ describe("done and doing", () => {
       ].join("\n"),
     })
     expect(planned(half, { op: "done", id: "c2" }).nudge).toBeUndefined()
+
+    const already = setOf({
+      "a.jsonl": [
+        `{"id":"p","ord":"a0","title":"the trip","done":"2026-08-01"}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"pack","doing":true}`,
+      ].join("\n"),
+    })
+    expect(planned(already, { op: "done", id: "c1" }).nudge).toBeUndefined()
   })
 
   // A nudge is about a mark going ON, and only `done`: nothing is finished by
