@@ -443,8 +443,11 @@ const planMark = (
           ? `\`${node.title}\` takes its status from its children, and all of the ` +
             `marked ones are done — so it already reads done and there is nothing ` +
             `to store.`
+          // Not "N of M unfinished": the bullets among those M are not
+          // unfinished, they are not tasks, and counting them would say the
+          // opposite of what this whole model is for.
           : `\`${node.title}\` takes its status from its children, ` +
-            `${unfinished.length} of ${said.counted} unfinished: ` +
+            `${unfinished.length} of ${said.counted} still under way: ` +
             `${unfinished.map((child) => `\`${child.title}\``).join(", ")}. ` +
             `Mark those instead.`,
         id: node.id,

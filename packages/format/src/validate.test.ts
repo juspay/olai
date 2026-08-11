@@ -299,7 +299,10 @@ test("done stored above unfinished children lists them", () => {
   // ONE of the three is in the way. `c2` carries no mark, so it is a bullet
   // rather than a to-do nobody has started, and it is neither counted nor
   // linked — the report and the ops layer's refusal read the same list.
-  expect(error.message).toContain("1 of 3 children that is not done")
+  // "1 of 3", not "2 of 3": `c2` carries no mark, so it is neither counted as
+  // unfinished nor called that — the number in the sentence is how many are
+  // still under way.
+  expect(error.message).toContain("1 of this node's 3 children that is still under way")
   expect(error.related).toEqual([
     { file: "a.jsonl", line: 4, note: "`c3` is doing" },
   ])
