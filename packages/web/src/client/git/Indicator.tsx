@@ -30,6 +30,7 @@ import { GIT_OFF } from "@olai/surface"
 import { Show } from "solid-js"
 
 import { LOOK, sentence } from "./state.ts"
+import { DOT, PILL } from "../readout.ts"
 import { TESTID } from "../testids.ts"
 import { Tip } from "../Tip.tsx"
 import { olai } from "../wire.ts"
@@ -43,13 +44,17 @@ export function GitIndicator() {
 
   return (
     <Show when={LOOK[state().status]}>
-      {(look) => (
-        <Tip text={sentence(state(), look())}>
+      {(look) => {
+        // One reading of the sentence for the two places it has to be: the tip
+        // a pointer opens, and the label everything else gets.
+        const said = () => sentence(state(), look())
+        return (
+        <Tip text={said()}>
           <span
-            // Same pill as the connection, one shade quieter, and truncating
-            // for the same reason: the header is a fixed height and a wrap
-            // inside one pushes its first row off the top of a phone.
-            class="flex min-w-0 max-w-[8rem] items-center gap-1.5 truncate rounded-full border border-rule bg-paper px-2 py-1.5 text-xs text-muted sm:max-w-none sm:gap-2 sm:px-3"
+            // The header's own pill (`../readout.ts`), the same one the
+            // connection wears: the bar is a fixed height, so both labels
+            // truncate rather than wrap.
+            class={`${PILL} max-w-[8rem] sm:max-w-none`}
             data-testid={TESTID.git}
             // The state as an attribute, so a test asserts on the STATE rather
             // than on a colour — the same contract the connection pill keeps.
@@ -59,16 +64,14 @@ export function GitIndicator() {
             // a sentence half the readers do not get.
             tabindex="0"
             role="status"
-            aria-label={sentence(state(), look())}
+            aria-label={said()}
           >
-            <span
-              class={`inline-block size-2 shrink-0 rounded-full ${look().dot}`}
-              aria-hidden="true"
-            />
+            <span class={`${DOT} ${look().dot}`} aria-hidden="true" />
             <span class="min-w-0 truncate">{look().label}</span>
           </span>
         </Tip>
-      )}
+        )
+      }}
     </Show>
   )
 }

@@ -28,7 +28,7 @@ import { describe, expect, test } from "bun:test"
 import { Effect, Result, SubscriptionRef } from "effect"
 
 import { codec } from "./codec.ts"
-import { STAMP, STAMP_SHAPE, steady } from "./fixtures.testlib.ts"
+import { repoAt, STAMP, STAMP_SHAPE, steady } from "./fixtures.testlib.ts"
 import type { GitState } from "./git.ts"
 import * as Ops from "./ops.ts"
 import type { Applied, Request } from "./request.ts"
@@ -80,26 +80,7 @@ const withOps = <A>(
   for (const [file, contents] of Object.entries(files)) write(file, contents)
 
   if (options.git === true) {
-    const git = (...argv: ReadonlyArray<string>) =>
-      execFileSync("git", argv, { cwd: root, stdio: "ignore" })
-    git("init", "--quiet")
-    git("config", "user.email", options.identity === false ? "" : "test@olai.invalid")
-    git("config", "user.name", options.identity === false ? "" : "olai tests")
-    git("add", "-A")
-    // The seed commit needs an author, so it is made with one even when the
-    // repository is about to have none: what is being set up is a repository
-    // whose NEXT commit cannot be made.
-    execFileSync("git", ["commit", "--quiet", "-m", "fixtures"], {
-      cwd: root,
-      stdio: "ignore",
-      env: {
-        ...process.env,
-        GIT_AUTHOR_NAME: "olai tests",
-        GIT_AUTHOR_EMAIL: "test@olai.invalid",
-        GIT_COMMITTER_NAME: "olai tests",
-        GIT_COMMITTER_EMAIL: "test@olai.invalid",
-      },
-    })
+    repoAt(root, ...(options.identity === false ? [{ identity: false }] : []))
   }
 
   return Effect.gen(function*() {

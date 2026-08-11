@@ -25,20 +25,19 @@
  *
  * WHERE any of it goes is the layout's to say (`../AppHeader.tsx`, beside the
  * connection): this file says what it looks like and what it says.
+ *
+ * The ops layer writes sentences about these conditions too (`Applied.why`),
+ * and they are deliberately not these ones. That one answers "why was MY write
+ * not committed", on the reply of the write it is about; these answer "what is
+ * this directory", in chrome that is on screen whether anybody has written
+ * anything or not. Nothing derives one from the other and nothing has to agree
+ * — and it could not be shared anyway: the layer that writes the first cannot
+ * see the wire, let alone the browser.
  */
 
 import type { GitState } from "@olai/surface"
 
-/** How one state is drawn: the dot's colour and the words beside it. */
-export interface Look {
-  /** The dot. A background utility, because the dot IS the colour. */
-  readonly dot: string
-  /** Two or three words, on screen next to the dot. */
-  readonly label: string
-  /** What that means, spelled out — the tip, and the `aria-label` that keeps
-   *  the tip from being the only copy. */
-  readonly detail: string
-}
+import type { Look } from "../readout.ts"
 
 /** A `Record`, so every state must be given an appearance — including the one
  *  whose appearance is NOTHING, which is a decision and is spelled as `null`
@@ -61,7 +60,11 @@ export const LOOK: Record<GitState["status"], Look | null> = {
   error: {
     dot: "bg-alarm",
     label: "Git error",
-    detail: "git could not be used in this directory",
+    // True of both ways this state is reached — a git that could not be asked
+    // about the directory at all, and a commit it refused — because what
+    // happened is in the words that follow, and what a reader needs from the
+    // label is the consequence.
+    detail: "git failed here, so writes are landing on disk but are not being committed",
   },
 }
 

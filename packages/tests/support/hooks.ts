@@ -34,6 +34,7 @@ import { chromium } from "playwright";
 import type { Browser } from "playwright";
 
 import { SCENARIO_SETUP_TIMEOUT, SERVER_START_TIMEOUT } from "./world.ts";
+import type { GitMode } from "./world.ts";
 import type { OlaiWorld } from "./world.ts";
 
 /** Chromium under Nix, in a container, on a CI runner with no display and a
@@ -122,7 +123,6 @@ const NO_AGENT_TAG = "@no-agent";
  * anything.
  */
 const GIT_TAG = /^@git:(repo|none|broken)$/;
-export type GitMode = "repo" | "none" | "broken";
 
 /** The corpus a scenario gets when it names none. */
 const DEFAULT_CORPUS = "good";

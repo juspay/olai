@@ -9,14 +9,15 @@
  *
  * The three assertions are the three halves a reader gets, and they are
  * deliberately not one: the STATE is an attribute (never a colour), the WORDS
- * are what is on screen, and the REASON is the accessible sentence — which has
- * to be readable without a pointer, so it is asserted off `aria-label` and then
- * once more through the tip a pointer opens.
+ * are what is on screen, and the REASON is the accessible sentence — asserted
+ * off `aria-label`, because it has to be readable without a pointer. The tip a
+ * pointer DOES open is checked by the step that already owns tips; this file
+ * only opens it.
  */
 
 import * as assert from "node:assert/strict";
 
-import { Then } from "@cucumber/cucumber";
+import { Then, When } from "@cucumber/cucumber";
 
 import { GIT, HYDRATION_TIMEOUT, oneLine, POLL_TIMEOUT, TIP } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
@@ -55,19 +56,18 @@ Then("the git readout explains {string}", async function (this: OlaiWorld, reaso
   );
 });
 
-Then(
-  "hovering the git readout shows a tip saying {string}",
-  async function (this: OlaiWorld, reason: string) {
-    await this.page.locator(GIT).hover();
-    const tip = this.page.locator(TIP);
-    await tip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const said = oneLine(await tip.innerText());
-    assert.ok(
-      said.includes(reason),
-      `the tip says "${said}", which does not mention "${reason}"`,
-    );
-  },
-);
+/** Open the tip, and leave the assertion to the step that already owns tips
+ *  (`navigation_steps.ts`'s `a tip says …`, which also holds the rule this app
+ *  learnt the hard way: exactly one tip on screen, ever). */
+When("I hover the git readout", async function (this: OlaiWorld) {
+  const readout = this.page.locator(GIT);
+  await readout.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await readout.hover();
+  await this.page
+    .locator(TIP)
+    .first()
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
 
 Then("there is no git readout", async function (this: OlaiWorld) {
   // Settle first: `--no-commit` and "the frame has not arrived yet" both look

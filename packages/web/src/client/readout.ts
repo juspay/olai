@@ -1,0 +1,38 @@
+/**
+ * A chrome readout: a dot, two or three words, and a sentence behind them.
+ *
+ * The header has two — the connection, and git — and they are the same OBJECT
+ * even though they answer different questions: "is this page still reading?"
+ * and "is what gets written to it being kept?". So the shape they are drawn in
+ * lives here rather than twice, which is a correctness matter and not tidiness:
+ * the bar is a fixed height, both labels truncate rather than wrap, and a wrap
+ * inside it pushed the first row off the top of a 390pt phone. Two copies of
+ * that geometry is one place for it to be fixed and another to stay broken.
+ *
+ * What is NOT here is what either of them SAYS. The tables live beside the
+ * thing they report on (`./connection/status.ts`, `./git/state.ts`), because a
+ * state's appearance is an argument about that state — and neither of them
+ * should have to be edited to add a third readout.
+ */
+
+/** How one state of a readout is drawn. */
+export interface Look {
+  /** The dot. A background utility, because the dot IS the colour. */
+  readonly dot: string
+  /** Two or three words, on screen next to the dot. */
+  readonly label: string
+  /** What that means, spelled out — the longer sentence a reader gets from the
+   *  tip or the `title`, and (where there is one) the `aria-label` that keeps it
+   *  from being hover-only. */
+  readonly detail: string
+}
+
+/** The pill both readouts wear, minus the width each one caps itself at. Quiet
+ *  by construction — a border, paper and muted text — because chrome that
+ *  competes with the outline is chrome a reader learns to skip. */
+export const PILL =
+  "flex min-w-0 items-center gap-1.5 truncate rounded-full border border-rule " +
+  "bg-paper px-2 py-1.5 text-xs text-muted sm:gap-2 sm:px-3"
+
+/** The dot itself, which the state's own `dot` utility colours. */
+export const DOT = "inline-block size-2 shrink-0 rounded-full"

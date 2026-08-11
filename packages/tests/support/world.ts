@@ -60,6 +60,12 @@ export const SCENARIO_SETUP_TIMEOUT = SERVER_START_TIMEOUT + STEP_GUARD;
 /** The mount point — `index.html`'s, not the client's, so it is the one
  *  selector here the client does not own and the one spelled out locally. */
 export const ROOT = "#root";
+
+/** Which of the three git situations a scenario's server was started into
+ *  (`@git:…`) — spelled here, where the world's field is, because `hooks.ts`
+ *  already reads this module and a second copy of the three words is a second
+ *  place for the tag pattern and the field to disagree. */
+export type GitMode = "repo" | "none" | "broken";
 /** The app header: wordmark + connection + agent + theme. Always on screen. */
 export const APP_HEADER = selector(TESTID.appHeader);
 /** The sidebar: the month and the file tree (directory chrome only). */
@@ -344,7 +350,7 @@ export class OlaiWorld extends World {
    *  Carried for the same reason as the three above: a restart mid-scenario has
    *  to reproduce the first boot, and this one decides both the argv and what
    *  the served directory IS. */
-  gitMode?: "repo" | "none" | "broken";
+  gitMode?: GitMode;
   /** The URL that corpus's server answers on; also the context's `baseURL`. */
   baseUrl!: string;
 

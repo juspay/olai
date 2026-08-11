@@ -12,5 +12,8 @@
 # repository git declines to touch both told the reader their notes were not
 # under version control. Anything git says that is not its own no-repository
 # sentence has to reach the page as an ERROR, with these words on it.
-echo "fatal: detected dubious ownership in repository at '$PWD'" >&2
+# The message carries no path on purpose: a scenario asserts the sentence a
+# reader gets, in full, and the served directory is a temp copy with a different
+# name every run.
+echo "fatal: detected dubious ownership in repository" >&2
 exit 128

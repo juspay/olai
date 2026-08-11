@@ -29,6 +29,7 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
+import { repoAt } from "./fixtures.testlib.ts"
 import { commit, probe, why } from "./git.ts"
 
 /** A directory with a file in it and no repository anywhere it can reach —
@@ -40,22 +41,14 @@ const loose = (): { readonly root: string; readonly file: string } => {
   return { root, file }
 }
 
-const git = (root: string, ...argv: ReadonlyArray<string>): void => {
-  execFileSync("git", argv, { cwd: root, stdio: "ignore" })
-}
-
-/** The same directory, with a repository around it and an identity to commit
- *  under. `identity: false` leaves the identity EMPTY, which is git's own
- *  "Author identity unknown" — the failure a person actually hits on a fresh
- *  machine or a service account, reproduced without depending on what the
- *  developer running this happens to have in their global config. */
+/** The same directory, with a repository around it — {@link repoAt}, which is
+ *  also what `./ops.test.ts` builds one with. No seed commit: these tests are
+ *  about the FIRST thing this module does to a repository. */
 const repo = (
   options: { readonly identity?: boolean } = {},
 ): { readonly root: string; readonly file: string } => {
   const made = loose()
-  git(made.root, "init", "--quiet")
-  git(made.root, "config", "user.email", options.identity === false ? "" : "test@olai.invalid")
-  git(made.root, "config", "user.name", options.identity === false ? "" : "olai tests")
+  repoAt(made.root, { ...options, seed: false })
   return made
 }
 
@@ -73,7 +66,7 @@ test("a work tree is a work tree", async () => {
 
 test("a bare repository is `none`: there is nowhere for the files to be", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-git-bare-"))
-  git(root, "init", "--quiet", "--bare")
+  execFileSync("git", ["init", "--quiet", "--bare"], { cwd: root, stdio: "ignore" })
   expect(await Effect.runPromise(probe(root))).toEqual({ status: "none", said: null })
 })
 

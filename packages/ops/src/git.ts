@@ -42,8 +42,10 @@
  *     is called a failure, because "nothing to commit" — a write that produced
  *     the bytes already there — is an ordinary outcome and not an error. That
  *     is `diff --cached --quiet`'s exit code rather than a second message to
- *     match, and it runs only on the failure path, so the healthy write still
- *     costs exactly two subprocesses.
+ *     match: git prints several sentences for that condition and exactly one
+ *     exit status. It costs a third subprocess, and only where the commit
+ *     already failed — a write that changed bytes in a working repository, the
+ *     case every op is, still spawns the two it always did.
  */
 
 import { execFile } from "node:child_process"
@@ -145,13 +147,12 @@ export const why = (outcome: GitState | Commitment): string | undefined => {
  *  hold the write gate open forever. */
 const BUDGET = 10_000
 
-/** One run of git: whether it worked, what it said, and the exit code when
- *  there was one (`null` when the process could not be started at all, which is
- *  the missing-binary case). */
+/** One run of git: whether it worked, and what it said. Nothing about the exit
+ *  code — every classification below is either `ok` or git's own words, which
+ *  is what makes them the same decision a person reading a terminal makes. */
 interface Ran {
   readonly ok: boolean
   readonly said: string
-  readonly code: number | null
 }
 
 /** Run git, and answer with whether it worked and what it said. Never fails:
