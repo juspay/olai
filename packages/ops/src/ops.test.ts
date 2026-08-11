@@ -249,6 +249,58 @@ test("creating an outline lands a new file the set and the disk both see", () =>
       expect(set.nodes.some((located) => located.node.id === applied.id)).toBe(true)
     })))
 
+/**
+ * The last hole in the atomicity claim, closed on disk.
+ *
+ * A new outline used to be `create` then `add_node` — two plans, two gates, two
+ * commits — so a second call that refused left an EMPTY outline behind that
+ * nobody had asked for. The seed is a whole capture now: one plan, one
+ * validation, one rename, and a refusal costs nothing at all, which is only
+ * checkable where the file system is.
+ */
+test("a new outline arrives holding its whole tree, or does not arrive", () =>
+  withOps({ "house.jsonl": HOUSE }, (fixture) =>
+    Effect.gen(function*() {
+      // Refused: the seed names an id the set already holds, two levels down.
+      const failure = yield* Effect.orDie(
+        Effect.flip(fixture.ops.run({
+          op: "create",
+          file: "shed.jsonl",
+          seed: {
+            title: "The shed",
+            children: [{ title: "clear it out", children: [{ title: "x", id: "order" }] }],
+          },
+        })),
+      )
+      expect(failure._tag).toBe("UsageFailure")
+      // Not an empty outline, not a partial one: no file.
+      expect(fixture.read("shed.jsonl")).toBeNull()
+      expect((yield* fixture.set()).files).toEqual(["house.jsonl"])
+      expect(gitLog(fixture.root)).toEqual(["fixtures"])
+      // And the outline that WAS there is untouched, byte for byte.
+      expect(fixture.read("house.jsonl")).toBe(HOUSE)
+
+      // The same call with the collision fixed lands all of it at once.
+      const applied = yield* run(fixture, {
+        op: "create",
+        file: "shed.jsonl",
+        seed: {
+          title: "The shed",
+          children: [{ title: "clear it out", children: [{ title: "the paint tins" }] }],
+        },
+      })
+      expect(applied.summary).toBe("capture: The shed (+2)")
+      expect(applied.captured).toHaveLength(3)
+      const text = fixture.read("shed.jsonl") ?? ""
+      expect(text.split("\n").filter((line) => line !== "")).toHaveLength(3)
+      expect(Result.isSuccess(parseOutline("shed.jsonl", text))).toBe(true)
+      expect(fixture.read("house.jsonl")).toBe(HOUSE)
+
+      // One revision and one commit for a file and everything in it.
+      expect(applied.rev).toBe(2)
+      expect(gitLog(fixture.root)).toEqual(["capture: The shed (+2)", "fixtures"])
+    }), { git: true }))
+
 test("creating an empty outline is a zero-byte file the sidebar can list", () =>
   withOps({ "house.jsonl": HOUSE }, (fixture) =>
     Effect.gen(function*() {
@@ -274,6 +326,58 @@ test("archiving writes both files, and the set stays valid across them", () =>
       const set = yield* fixture.set()
       expect([...set.files].sort()).toEqual(["Archive.jsonl", "house.jsonl"])
     })))
+
+/**
+ * The whole claim of a batch capture, and it is only true end to end: thirteen
+ * nodes used to be thirteen calls, thirteen revalidations and thirteen commits,
+ * with a failure partway through leaving half an outline behind. One call is
+ * ONE revision and ONE commit, and the ids it hands back are the ids on disk.
+ */
+test("a subtree captured in one call is one revision and one commit", () =>
+  withOps({ "house.jsonl": HOUSE }, (fixture) =>
+    Effect.gen(function*() {
+      const applied = yield* run(fixture, {
+        op: "add",
+        parent: "kitchen",
+        title: "the pantry",
+        children: [
+          { title: "shelves", children: [{ title: "measure", mark: "todo" }] },
+          { title: "paint", mark: "done" },
+        ],
+      })
+
+      expect(applied.summary).toBe("capture: the pantry (+3)")
+      // One revision for four records: the gate renamed the file once.
+      expect(applied.rev).toBe(2)
+      expect(applied.captured?.map((node) => node.title)).toEqual([
+        "the pantry",
+        "shelves",
+        "measure",
+        "paint",
+      ])
+
+      const text = fixture.read("house.jsonl") ?? ""
+      expect(Result.isSuccess(parseOutline("house.jsonl", text))).toBe(true)
+      expect(text.split("\n").filter((line) => line !== "")).toHaveLength(8)
+
+      // The round-trip promise, over the op that rewrites the most records at
+      // once: a capture re-emits the WHOLE file, so every line that was already
+      // there has to come back as the bytes it was read as — `demo`'s day-only
+      // `done` and `install`'s `doing` included. Only the new lines are new.
+      expect(text.split("\n").slice(0, 4)).toEqual(HOUSE.trimEnd().split("\n"))
+
+      // The ids in the answer are the ids in the set, which is what makes a
+      // second call under one of them possible without a search.
+      const set = yield* fixture.set()
+      const byId = new Map(set.nodes.map((located) => [located.node.id, located.node]))
+      for (const node of applied.captured ?? []) expect(byId.has(node.id)).toBe(true)
+      expect(byId.get(applied.captured?.[3]?.id ?? "")).toMatchObject({ done: STAMP })
+
+      expect(gitLog(fixture.root)).toEqual([
+        "capture: the pantry (+3)",
+        "fixtures",
+      ])
+    }), { git: true }))
 
 test("a refusal writes nothing and comes back with its structured detail", () =>
   withOps({ "house.jsonl": HOUSE }, (fixture) =>

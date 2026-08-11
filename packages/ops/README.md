@@ -1,7 +1,8 @@
 # @olai/ops — the only writer
 
-Semantic edits over a served directory: create an outline, add, mark done,
-doing or todo, retitle, note, schedule, move, archive, set see references.
+Semantic edits over a served directory: create an outline, add a node or a
+whole subtree, mark done, doing or todo, retitle, note, schedule, move,
+archive, set see references.
 Everything that changes an outline goes through here, and everything an agent
 may READ of one comes out of here too.
 
@@ -84,6 +85,69 @@ server, and the list was what the server was made of. `@kolu/surface-mcp` is the
 server now — so the list is what a consumer wants, and the projection onto MCP
 lives in `@olai/server`, which keeps the MCP SDK out of this layer entirely.
 
+## A subtree in one call
+
+`add` takes an optional `children`, and each child takes the same fields the
+node itself does — `title`, and optional `desc` / `date` / `mark` / `id` — with
+`children` of its own. So capturing an outline is ONE call: one plan, one
+validation of the whole set, one atomic rename, one commit.
+
+It is a fix for two things that were the same thing. An agent capturing a house
+outline issued one `add_node` per node — thirteen calls, each paying the full
+write gate and a round trip — and a failure partway through that sequence left
+a half-captured subtree behind, with nothing to say which half. A tree that is
+planned at once cannot half-land: the gate already writes all files or none.
+
+**`create`'s `seed` is that same capture**, `children` and all, so a brand-new
+outline arrives holding everything it was born with. That is the same argument
+one level up: `create` then `add` was two plans, and a second one that refused
+left an EMPTY outline on disk nobody had asked for. Now the file and its
+contents are one plan — a seed refused anywhere in its tree leaves no file at
+all, which `src/ops.test.ts` asserts against a real directory. The two tools
+therefore take one shape (`ROOT` in `src/request.ts`): a seed that could say
+less than a capture would be a reason to make the second call this exists to
+delete.
+
+- **The mark rides along.** A captured node may be born `done`, `doing` or
+  `todo`, written exactly as `set_done` / `set_doing` / `set_todo` write it —
+  one `marker` function, read by both — so a `done` records the instant and
+  lands on today's page, and the other two store `true` and place the node on
+  no day. One field rather than three flags, because the format allows at most
+  one mark and a shape that can spell two is a shape a caller can get wrong.
+- **Placement is the root's.** `before` / `after` place the node being added
+  among its new siblings; the children are being born, so there is nobody to
+  place them among and they land in the order they were written. File order is
+  the outline's reading order: a parent, then its subtree, then the next
+  sibling.
+- **A collision refuses everything.** A chosen `id` that the set already holds,
+  or that another node in the same call also chose, refuses the whole capture —
+  which is also what a cycle attempt looks like when every node is being born
+  at once, since a child naming an ancestor's chosen id is naming a taken one.
+  Nothing lands, because "nothing landed" is the only answer that makes the
+  call atomic.
+- **The answer names what it made.** `captured` carries every node's id and
+  title, parent before child. A minted id is unguessable, and an agent that
+  just wrote thirteen nodes should not have to search for them to mark one. It
+  has ONE shape: a plain capture is a list of one, a seeded `create` is too,
+  and it is absent only from the ops that create nothing — which is how the
+  format spells an empty list everywhere else. Only the commit subject asks
+  whether anything came along, since `(+0)` would count nothing.
+- **It nests three levels deep, and that cap is the JSON Schema's.** Neither
+  the format nor planning a tree wants a depth limit; what has one is the
+  schema an MCP host reads, and the planner enforces THAT rather than one of
+  its own. A recursive Effect schema compiles to a `$ref` into a
+  `$defs` pool, and the adapter that projects these schemas inlines every local
+  ref and strips the pool, because `$ref` is rejected across the host matrix it
+  is byte-compatible with — so a ref it cannot inline finitely would survive as
+  a pointer into nothing and take the whole tool down. The nesting is therefore
+  unrolled, and three levels is what the capture this was filed for needs while
+  each further level is another whole copy of the child schema in every
+  `tools/list`. The floor of the unrolled schema still declares `children`, on
+  purpose: an Effect struct silently DROPS a key it does not declare, so a
+  schema that simply stopped would swallow the deepest level of a capture and
+  report success. It is refused by name instead, pointing at the id in
+  `captured` a second call should hang the rest off.
+
 ## Archiving, in racket's terms
 
 `archive` moves a node's whole subtree into `Archive.jsonl` beside the outline
@@ -119,8 +183,10 @@ already knows how to read is worth more than a better one they do not:
 | op | subject |
 |---|---|
 | create (with seed) | `capture: TITLE` — the first node is a capture |
+| create (seed with children) | `capture: TITLE (+N)` |
 | create (empty) | `create: path.jsonl` |
 | add | `capture: TITLE` |
+| add (with children) | `capture: TITLE (+N)` — N is what came with it |
 | done / undo | `done: TITLE` / `undone: TITLE` |
 | doing / undo | `doing: TITLE` / `not-doing: TITLE` |
 | todo / undo | `todo: TITLE` / `not-todo: TITLE` |
@@ -135,8 +201,11 @@ already knows how to read is worth more than a better one they do not:
 the set already holds. The path is a relative `.jsonl` under the served
 directory, judged segment by segment the way `/media/*` judges a picture name
 (no absolute path, no `..`), and an existing file is refused rather than
-overwritten. A seeded create mints the first node the same way a capture does;
-an empty one leaves a zero-byte outline for later `add_node`s.
+overwritten. A seeded create mints its nodes the way a capture does, and that is
+now one walk rather than a promise: `seed` IS a capture — the same fields, the
+same `children`, the same depth — through the same `emit` `add` uses, so a new
+outline holding a dozen nodes is one call and a refused seed leaves no file. An
+empty one leaves a zero-byte outline for later `add_node`s.
 
 The last field edits (including `see`) are this format's own: the reference had
 no structural move, no separate note edit, and no agent-writable `see`. `move:`
@@ -187,6 +256,8 @@ the node is — its ancestor titles, which is what makes a bare title mean
 something, and its `see` targets (when it has any), so a free cross-reference
 is traversable without a second read. `set_see` is the write half: add and/or remove target ids on an
 existing node; an unknown add is refused with the ids the set does hold.
+`add_node`'s description teaches the one gesture the surface is shaped around:
+when you already know more than one node, they go in one call.
 
 How those tools reach an agent is NOT this package's any more. `@olai/server`
 projects the table onto `@kolu/surface-mcp` bespoke tools, so the browser and
