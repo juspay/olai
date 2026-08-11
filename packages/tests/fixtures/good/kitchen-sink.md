@@ -4,10 +4,16 @@ This document exists to be LOOKED AT. Everything the one markdown pipeline
 claims to draw is below, once each, so a person changing how markdown is set
 can serve this corpus (`just serve packages/tests/fixtures/good`), open this
 page in a light theme and a dark one, and see the whole surface at a glance
-instead of discovering a month later that `h5` and `h6` were the same size. The
-scenarios in `features/documents.feature` hold the few of these that can be
-asserted; the rest are here for the eye, which is the only thing that can
-judge them.
+instead of discovering a month later that two heading levels had quietly become
+the same size.
+
+It is also what the RHYTHM is checked against. The type and spacing scales are
+declared in `packages/web/src/client/markdown/scale.ts`, the stylesheet is
+generated from them, and `features/documents.feature` walks every element of
+this page — and of a note carrying the same surface — asserting each computed
+size, gap, pad and border is a value from those sets. So a drive-by `margin:
+6px` goes red here rather than going unnoticed. What no test can judge is
+whether the result reads well, which is what the eye below is for.
 
 A first paragraph, to see what a plain run of prose looks like at the top of a
 document: the line height, the measure, and how far it sits from the heading
@@ -31,8 +37,10 @@ Prose under a level-three heading.
 
 #### Heading four
 
-Prose under a level-four heading. From here down the pipeline says nothing
-about size, so `h4`, `h5` and `h6` may all be rendering identically.
+Prose under a level-four heading. This is where the scale gets interesting:
+`h4` sits at the body's own size and is told apart by weight alone, and the
+two below it have to be told apart by something other than size, because there
+is no size left under the text they introduce.
 
 ##### Heading five
 
@@ -40,7 +48,9 @@ Prose under a level-five heading.
 
 ###### Heading six
 
-Prose under a level-six heading.
+Prose under a level-six heading — which is drawn as a label rather than a
+heading (muted, letterspaced small caps), because that is what a sixth level
+is once the sizes have run out.
 
 ---
 

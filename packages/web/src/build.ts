@@ -31,6 +31,7 @@ import babelSolid from "babel-preset-solid"
 import { buildSurfaceClient } from "@kolu/surface-app/bun"
 import type { BunPlugin } from "bun"
 
+import { scaleCss } from "./client/markdown/scale.ts"
 import { paletteCss } from "./client/theme/css.ts"
 
 const CLIENT = resolve(dirname(fileURLToPath(import.meta.url)), "client")
@@ -89,11 +90,13 @@ const tailwindUtilities = async (): Promise<string> => {
 
 /**
  * The whole stylesheet, as bytes for the helper to hash, name and write: the
- * utilities, and then the named palettes.
+ * utilities, then the markdown scales, then the named palettes.
  *
- * The palettes are generated from a TypeScript table (`client/theme/
- * palettes.ts`, which the picker reads too) and a `.css` file cannot import
- * one, so they are composed in here rather than written into `styles.css`.
+ * Both generated blocks are TypeScript tables that something else also reads —
+ * `client/theme/palettes.ts` by the theme picker, `client/markdown/scale.ts`
+ * by the browser test that holds the rendered page to it — and a `.css` file
+ * cannot import one, so they are composed in here rather than written into
+ * `styles.css`.
  * Their POSITION is not load-bearing — an unlayered rule beats the
  * `@layer theme` block Tailwind emits its own `:root` in wherever it is
  * written — they go last because that is the simplest composition. The one
@@ -104,7 +107,9 @@ const tailwindUtilities = async (): Promise<string> => {
  * `/assets/styles-<hash>.css` on the same immutable-caching contract as the JS.
  */
 const buildStylesheet = async (): Promise<ArrayBuffer> =>
-  new Response(`${await tailwindUtilities()}\n${paletteCss()}`).arrayBuffer()
+  new Response(
+    `${await tailwindUtilities()}\n${scaleCss()}\n${paletteCss()}`,
+  ).arrayBuffer()
 
 const buildClient = async (distDir: string): Promise<void> => {
   await buildSurfaceClient({

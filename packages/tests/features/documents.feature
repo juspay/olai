@@ -56,6 +56,22 @@ Feature: Documents
     And the document highlights a code block as "ts"
     And there should be no page errors
 
+  # The RHYTHM, as an invariant rather than a look somebody once approved. The
+  # scale is declared in `@olai/web`'s markdown/scale.ts, the stylesheet is
+  # generated from it, and these two walk every element the fixture draws —
+  # once as a document, once as a note, because a note re-answers three of the
+  # sizes and the sweep has to see both sets.
+  @corpus:good
+  Scenario: A document is set on the declared scale, and nothing else
+    When I open the document "kitchen-sink.md"
+    Then every rendered element is on the markdown scale
+
+  @corpus:good
+  Scenario: A note is set on the same scale, clamped under its title
+    When I open the node "catch-up"
+    Then every rendered element is on the markdown scale
+    And nothing overflows the pane
+
   @corpus:good
   Scenario: A footnote links to its own note
     When I open the document "finishes.md"
