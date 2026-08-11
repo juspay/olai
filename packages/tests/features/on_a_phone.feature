@@ -51,12 +51,19 @@ Feature: On a phone
     And I can type into the chat
 
   @scratch:good @phone
-  Scenario: Header chrome stays inside the bar in every connection state
-    # A fixed-height bar with flex-wrap used to centre a two-row pill group so
-    # the first row sat above the viewport at 390pt — including in `connecting`
-    # (every first paint) and `retired` (the state that must never look
-    # healthy). Every pill's box must lie inside the header's own, in every
-    # state the wire can report.
+  Scenario: Header chrome stays inside the bar while connecting
+    # `connecting` is the state of every first paint. A real dial races past it
+    # before a poll can sample (0/8 on the reviewer's machine), so this holds
+    # WebSocket in CONNECTING — the indicator must say connecting or the step
+    # fails, and only then is geometry checked.
+    When I open the app held at connecting
+    Then the connection is "connecting"
+    And the app chrome is inside the header
+
+  @scratch:good @phone
+  Scenario: Header chrome stays inside the bar after the wire is live
+    # live, reconnecting, and retired (the longest label, and the state that
+    # must never look healthy). Sister of the held-connecting scenario.
     Given I open the outline "garden.jsonl"
     Then the connection is "live"
     And the app chrome is inside the header
@@ -66,13 +73,6 @@ Feature: On a phone
     When the server starts again on the same port
     Then the connection is "retired"
     And the app chrome is inside the header
-
-  @scratch:good @phone
-  Scenario: Header chrome is inside the bar while connecting
-    # `connecting` is the state of every first paint and is gone by the time
-    # settle returns, so it has its own step that catches it mid-load.
-    When I open the app catching the connecting state
-    Then the app chrome is inside the header
 
   @corpus:good @phone
   Scenario: A tap on a bullet zooms into that node
@@ -149,3 +149,11 @@ Feature: On a phone
     Then every "collapse toggle" is smaller than 44px tall
     And every "outline entry" is smaller than 44px tall
     And there is no burger
+
+  # Desktop geometry (default 1440×900). Short page + full-height column: the
+  # grid floor used to resolve to 0 (`min-h-full` against auto height) and left
+  # the sidebar rule hanging at y≈777 on a 900px viewport.
+  @corpus:good
+  Scenario: The directory column reaches the bottom of a short page
+    Given I open the outline "house.jsonl"
+    Then the sidebar reaches the bottom of the viewport

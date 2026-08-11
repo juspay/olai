@@ -33,6 +33,7 @@ import {
   OUTLINE_LINK,
   OUTLINE_LIST,
   OUTLINE_TREE,
+  SIDEBAR,
   SIDEBAR_BODY,
   SIDEBAR_TOGGLE,
   THEME_TRIGGER,
@@ -163,52 +164,63 @@ Then("the app chrome is inside the header", async function (this: OlaiWorld) {
   }
 });
 
-/** Navigate and catch `connecting` before settle turns it into `live`.
- *  That state is the first paint of every load and is what used to clip the
- *  header on a phone. */
-When(
-  "I open the app catching the connecting state",
-  async function (this: OlaiWorld) {
-    await this.page.goto("/");
-    // Poll for the connection pill; accept connecting, and if we only ever
-    // saw live the load was too fast — still wait for docked/error/fault so
-    // the page is usable for the geometry assertion that follows.
-    let sawConnecting = false;
-    const deadline = Date.now() + HYDRATION_TIMEOUT;
-    while (Date.now() < deadline) {
-      const state = await this.page
-        .locator(CONNECTION)
-        .getAttribute("data-connection")
-        .catch(() => null);
-      if (state === "connecting") {
-        sawConnecting = true;
-        break;
-      }
-      if (state === "live" || state === "reconnecting" || state === "retired") {
-        break;
-      }
-      await this.page.waitForTimeout(10);
+/**
+ * Open the app with the wire stuck in `connecting`.
+ *
+ * A real dial races past `connecting` before a poll can sample it. Replacing
+ * `WebSocket` with a stub that never leaves CONNECTING is deterministic: the
+ * header paints, the indicator must say connecting or this step fails, and
+ * the geometry assertion that follows can fail for its stated reason. No soft
+ * fallback to live.
+ */
+When("I open the app held at connecting", async function (this: OlaiWorld) {
+  // Serialized into the page — no TypeScript syntax inside (Playwright
+  // stringifies the function body as-is).
+  await this.page.addInitScript(() => {
+    function HeldWebSocket(url) {
+      this.readyState = 0;
+      this.bufferedAmount = 0;
+      this.extensions = "";
+      this.protocol = "";
+      this.binaryType = "blob";
+      this.url = String(url);
+      this.onopen = null;
+      this.onclose = null;
+      this.onerror = null;
+      this.onmessage = null;
     }
-    if (!sawConnecting) {
-      // Fast machines skip connecting before we sample; still settle so the
-      // follow-up geometry step has a real header. The other phone scenario
-      // covers reconnecting/retired labels (the long ones).
-      await this.page
-        .locator(`${APP_HEADER}[data-layout="docked"], [data-testid="error-view"], [data-testid="fault"]`)
-        .first()
-        .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    } else {
-      await this.expectAttribute(
-        CONNECTION,
-        "data-connection",
-        "connecting",
-        "the connection indicator",
-        500,
-      );
-    }
-    await this.waitForFrame();
-  },
-);
+    HeldWebSocket.CONNECTING = 0;
+    HeldWebSocket.OPEN = 1;
+    HeldWebSocket.CLOSING = 2;
+    HeldWebSocket.CLOSED = 3;
+    HeldWebSocket.prototype.CONNECTING = 0;
+    HeldWebSocket.prototype.OPEN = 1;
+    HeldWebSocket.prototype.CLOSING = 2;
+    HeldWebSocket.prototype.CLOSED = 3;
+    HeldWebSocket.prototype.close = function () {
+      this.readyState = 3;
+    };
+    HeldWebSocket.prototype.send = function () {};
+    HeldWebSocket.prototype.addEventListener = function () {};
+    HeldWebSocket.prototype.removeEventListener = function () {};
+    HeldWebSocket.prototype.dispatchEvent = function () {
+      return true;
+    };
+    window.WebSocket = HeldWebSocket;
+  });
+  await this.page.goto("/");
+  await this.page
+    .locator(APP_HEADER)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.expectAttribute(
+    CONNECTION,
+    "data-connection",
+    "connecting",
+    "the connection indicator",
+    HYDRATION_TIMEOUT,
+  );
+  await this.waitForFrame();
+});
 
 // ── the agent, from a thumb ────────────────────────────────────────────
 
@@ -327,6 +339,29 @@ Then(
           "laptop — the finger-sized rule is meant to apply below 48rem only",
       );
     }
+  },
+);
+
+// ── full-height column ─────────────────────────────────────────────────
+
+/** The directory column floors at the viewport bottom on a short page.
+ *
+ *  Mutant: `min-h-full` against a flex item with auto height resolves to 0 and
+ *  left the sidebar rule at y≈777 on a 900px desktop viewport. Content taller
+ *  than the viewport still passes (bottom past the fold). */
+Then(
+  "the sidebar reaches the bottom of the viewport",
+  async function (this: OlaiWorld) {
+    const viewport = this.page.viewportSize();
+    assert.ok(viewport !== null, "this scenario has no viewport size");
+    const nav = await this.box(this.page.locator(SIDEBAR), "the sidebar");
+    const bottom = nav.y + nav.height;
+    assert.ok(
+      bottom >= viewport.height - 1,
+      `the sidebar ends at y=${Math.round(bottom)} on a ${viewport.height}px ` +
+        "viewport — the directory column is meant to floor at the fold " +
+        "(broken form: ~777 on 900)",
+    );
   },
 );
 
