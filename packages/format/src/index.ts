@@ -48,6 +48,7 @@ export {
   siblingsOf,
   storedMarker,
   titleParts,
+  titleTagRe,
   withoutDone,
 } from "./derive.ts"
 export type { Derived, FromChildren, Row, Situated, Status, TitlePart } from "./derive.ts"
