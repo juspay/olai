@@ -38,10 +38,19 @@ export type Attempt =
   | { readonly _tag: "Refused"; readonly failure: OpFailure }
 
 export interface Commit {
-  /** What is waiting. Always a value: a page that has heard nothing yet and a
-   *  directory that is not a repository draw the same thing, which is nothing,
-   *  so there is no third state worth a `null`. */
+  /** What is waiting. Always a value, so nothing downstream branches on an
+   *  absence — see {@link Commit.heard} for the one thing that absence means. */
   readonly pending: Accessor<Pending>
+  /**
+   * Whether the server has said anything yet.
+   *
+   * Its own fact rather than a `null` on the value above, because "we have not
+   * been told" and "commits are off" are two different things and the default
+   * value cannot be both. Before the first frame the pill said `commits off`,
+   * which is a SETTING somebody could go and change — a claim this page had no
+   * business making about a server it had not heard from.
+   */
+  readonly heard: Accessor<boolean>
   /** How many node-level changes and unreadable files are waiting. Zero is a
    *  clean directory — and also every directory olai cannot commit in, because
    *  the server answers those with nothing rather than making the browser
@@ -64,6 +73,7 @@ export const createCommit = (): Commit => {
 
   return {
     pending,
+    heard: () => cell.value() !== undefined,
     waiting: () => pending().changes.length + pending().unreadable.length,
     working,
     attempt,

@@ -111,6 +111,51 @@ test("a detached HEAD is blocked, in git's own words", async () => {
 // EVERY served file that moved, including the ones that are not outlines:
 // which of them matter is a statement about the format, and this module has
 // none of that in it.
+// A conflicting rebase leaves `rebase-merge` behind, and it also detaches
+// HEAD — which is exactly why the markers are read BEFORE the branch is asked
+// for. Reported as "detached", this would be true and useless: the thing to do
+// about it is `git rebase --continue`, not `git checkout`.
+test("a repository mid-rebase says rebase, not detached", async () => {
+  const { root, file } = repo()
+  const run = git(root)
+  run("checkout", "--quiet", "-b", "other")
+  fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"other"}\n`)
+  run("commit", "--quiet", "-am", "other")
+  run("checkout", "--quiet", "main")
+  fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"main"}\n`)
+  run("commit", "--quiet", "-am", "main")
+  run("checkout", "--quiet", "other")
+  try {
+    run("rebase", "main")
+  } catch {
+    // Expected: the rebase stops on the conflict, which is the state under test.
+  }
+
+  const repoState = await asked(root, (git) => git.state)
+  expect(repoState._tag).toBe("Blocked")
+  expect(repoState._tag === "Blocked" ? repoState.reason : null).toBe("rebase")
+})
+
+test("a repository mid-cherry-pick says so", async () => {
+  const { root, file } = repo()
+  const run = git(root)
+  run("checkout", "--quiet", "-b", "other")
+  fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"other"}\n`)
+  run("commit", "--quiet", "-am", "other")
+  run("checkout", "--quiet", "main")
+  fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"main"}\n`)
+  run("commit", "--quiet", "-am", "main")
+  try {
+    run("cherry-pick", "other")
+  } catch {
+    // Expected: it conflicts, leaving CHERRY_PICK_HEAD.
+  }
+
+  const repoState = await asked(root, (git) => git.state)
+  expect(repoState._tag).toBe("Blocked")
+  expect(repoState._tag === "Blocked" ? repoState.reason : null).toBe("cherry-pick")
+})
+
 test("dirty names every served file that moved, tracked or not", async () => {
   const { root, file } = repo()
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)

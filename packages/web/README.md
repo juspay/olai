@@ -350,13 +350,20 @@ this app rather than about chat — the Commit button is its second caller.
 ## The Commit button
 
 `src/client/commit/` is the third pill of the chrome, and like the connection
-dot it is NEVER ABSENT. Six states, all drawn: a clean tree that has committed
+dot it is NEVER ABSENT. Every state is drawn: a clean tree that has committed
 (`✓ committed · 12m ago`), one olai has never committed in (`no commits yet`),
 edits waiting (`4 uncommitted`), a busy repository (`⚠` and the reason), a
 directory that is not a work tree, and a server with commits off. The rule
 comes straight from what the feature is FOR: if the job is an audit trail, then
 "there is no audit trail here" is the most important thing the pill can say, and
 a control that disappeared is exactly how a person would never find that out.
+
+One more face is about THIS PAGE rather than the directory: until the server has
+said anything, the pill says so. It used to draw the default value's `commits
+off`, which is a setting somebody could go and change — a claim a page has no
+business making about a server it has not heard from. "Not told yet" and "turned
+off" being two different things is the same distinction the manifest cell draws
+with its `null`.
 
 The last two are SETTINGS rather than faults — dim, inert, no warning colour.
 `⚠` is reserved for the busy repository, which is the only one anybody can act

@@ -277,7 +277,7 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="connection"][data-connection]` | the connection dot, in every shape of the app: `connecting`, `live`, `reconnecting`, `retired` |
 | `[data-testid="restarted"]` | over everything: the server that served this page has been replaced |
 | `[data-testid="reload"]` | the button in that surface — the whole of the recovery |
-| `[data-testid="commit-pill"][data-state][data-uncommitted][data-repo]` | the Commit pill, ALWAYS drawn; `data-state` is which of its six faces — `off`, `no-repo`, `never`, `committed`, `waiting`, `blocked` |
+| `[data-testid="commit-pill"][data-state][data-uncommitted][data-repo]` | the Commit pill, ALWAYS drawn; `data-state` is the face — `off`, `no-repo`, `never`, `committed`, `waiting`, `blocked`, or `unknown` before the first frame |
 | `[data-testid="commit-last"]` | what olai last recorded here, or the words saying it never has |
 | `[data-testid="commit-panel"]` | the panel it opens |
 | `[data-testid="commit-change"][data-node-id][data-sort]` | one node that changed, and WHAT changed about it — never the phrase it is rendered as |

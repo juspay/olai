@@ -7,19 +7,21 @@
  * job: an audit trail. Not history (the notes carry their own dates), not sync
  * (olai never pushes), not undo.
  *
- * **It is ALWAYS drawn**, in every one of its six states. That follows directly
- * from what it is for: if the job is to be an audit trail, then "there is no
- * audit trail here" — no repository, or commits turned off — is the single most
- * important thing it can say, and a control that disappeared is exactly how a
- * person would never find that out. The connection dot's header makes the same
+ * **It is ALWAYS drawn**, in every state the directory can be in. That follows
+ * directly from what it is for: if the job is to be an audit trail, then "there
+ * is no audit trail here" — no repository, or commits turned off — is the single
+ * most important thing it can say, and a control that disappeared is exactly how
+ * a person would never find that out. The connection dot's header makes the same
  * argument in the same words: an indicator that is only there when something is
  * wrong cannot be trusted when it is absent, because healthy and not-rendered
  * look identical.
  *
- * Two of the six are SETTINGS rather than faults — `--commit=off`, and a
- * directory that is not a work tree — so they are dim and inert, and they get
- * no warning colour. `⚠` is reserved for the one state a person can act on: a
- * repository that is mid-rebase and could take a commit once they finish.
+ * Two of them are SETTINGS rather than faults — `--commit=off`, and a directory
+ * that is not a work tree — so they are dim and inert, and they get no warning
+ * colour. `⚠` is reserved for the one state a person can act on: a repository
+ * that is mid-rebase and could take a commit once they finish. A seventh face is
+ * this PAGE rather than the directory: before the server has said anything, it
+ * says so instead of claiming one of the settings.
  *
  * WHERE it goes is the layout's to say, like the connection dot beside it: the
  * sidebar's footer on the pages that draw a sidebar, a corner of the viewport
@@ -49,14 +51,18 @@ export function Commit() {
   const panel = createClickAway()
   const now = createNow()
 
-  const face = () => faceOf(commit.pending())
-  const inert = () => isInert(commit.pending())
+  const face = () => faceOf(commit.pending(), commit.heard())
+  const inert = () => isInert(face())
 
   /** What the pill says. One line per state, and the reason each is worth its
    *  own words rather than a count is in the header above. */
   const says = () => {
     const pending = commit.pending()
     switch (face()) {
+      // Not a claim about the directory — a claim about this page, which has
+      // not been told anything yet.
+      case "unknown":
+        return "…"
       case "off":
         return "commits off"
       case "no-repo":
@@ -91,7 +97,9 @@ export function Commit() {
         data-repo={commit.pending().repo._tag}
         aria-expanded={panel.open()}
         disabled={inert()}
-        title={inert() ? SETTING[face() as "off" | "no-repo"] : "what olai has written, and what it last recorded"}
+        title={inert()
+          ? SETTING[face() as "unknown" | "off" | "no-repo"]
+          : "what olai has written, and what it last recorded"}
         onClick={panel.toggle}
       >
         <Show when={face() === "blocked"}>

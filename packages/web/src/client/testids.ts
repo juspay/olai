@@ -120,9 +120,10 @@ export const TESTID = {
   /** The pill in the chrome. ALWAYS drawn — the feature is an audit trail, so
    *  "there is no audit trail here" is the most important thing it can say, and
    *  a control that disappeared is how nobody would ever find that out.
-   *  `data-state` carries which of its six faces this is (`off`, `no-repo`,
-   *  `never`, `committed`, `waiting`, `blocked`), `data-uncommitted` the count,
-   *  and `data-repo` the repository's own state. */
+   *  `data-state` carries which face this is — `off`, `no-repo`, `never`,
+   *  `committed`, `waiting`, `blocked`, and `unknown` for a page that has not
+   *  heard from the server yet — `data-uncommitted` the count, and `data-repo`
+   *  the repository's own state. */
   commitPill: "commit-pill",
   /** The panel it opens. One row per node, never a text diff. */
   commitPanel: "commit-panel",

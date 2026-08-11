@@ -210,9 +210,12 @@ export const make = (options: Options): Ops => {
           })
         }
 
-        // Recorded AFTER the write landed and only then: the counter answers
-        // "how many ops are waiting", and a refused one is not waiting.
-        commits.wrote(writer)
+        // Recorded AFTER the write landed, and only when it is actually
+        // WAITING. The counter answers "how many ops have not been committed
+        // yet": a refused write is not waiting, and neither is one that
+        // `--commit=auto` has already committed — counting that one left a
+        // clean tree reporting `chat agent 3` for work that is in the log.
+        if (!committed) commits.wrote(writer)
         return { ...about, rev: written.success, committed }
       }
 

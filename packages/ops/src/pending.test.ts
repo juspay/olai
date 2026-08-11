@@ -87,6 +87,37 @@ const withRepo = <A>(
 const subjects = (fixture: Fixture): ReadonlyArray<string> =>
   fixture.git("log", "--format=%s").trim().split("\n")
 
+/**
+ * Two branches that touch the same line, merged: the repository is left
+ * mid-merge with `MERGE_HEAD` on disk, which is the state every refusal below
+ * is about.
+ *
+ * The conflict is in a DOCUMENT rather than in an outline, and that is the case
+ * worth testing: a person resolving a merge in one file while an agent goes on
+ * writing outlines is exactly the situation where a commit would bury the
+ * resolution. Conflicting an outline instead would leave it unparseable, so the
+ * write under test could not land and the refusal would prove nothing.
+ */
+const conflicted = (fixture: Fixture): Effect.Effect<void> =>
+  Effect.gen(function*() {
+    fixture.write("notes.md", "as it was\n")
+    fixture.git("add", "-A")
+    fixture.git("commit", "--quiet", "-m", "notes")
+
+    fixture.git("checkout", "--quiet", "-b", "other")
+    fixture.write("notes.md", "their side\n")
+    fixture.git("commit", "--quiet", "-am", "other")
+    fixture.git("checkout", "--quiet", "main")
+    fixture.write("notes.md", "our side\n")
+    fixture.git("commit", "--quiet", "-am", "main")
+    try {
+      fixture.git("merge", "other")
+    } catch {
+      // Expected: the merge conflicts, which is the state under test.
+    }
+    yield* fixture.refresh
+  })
+
 describe("manual is the default", () => {
   test("a write lands on disk and waits, and says what is waiting", () =>
     withRepo({ "house.jsonl": HOUSE }, (fixture) =>
@@ -249,18 +280,7 @@ describe("a repository that cannot take a commit", () => {
   test("says so instead of committing into a conflict", () =>
     withRepo({ "house.jsonl": HOUSE }, (fixture) =>
       Effect.gen(function*() {
-        fixture.git("checkout", "--quiet", "-b", "other")
-        fixture.write("house.jsonl", HOUSE.replace("install them", "other"))
-        fixture.git("commit", "--quiet", "-am", "other")
-        fixture.git("checkout", "--quiet", "main")
-        fixture.write("house.jsonl", HOUSE.replace("install them", "main"))
-        fixture.git("commit", "--quiet", "-am", "main")
-        try {
-          fixture.git("merge", "other")
-        } catch {
-          // Expected: the merge conflicts, which is the state under test.
-        }
-        yield* fixture.refresh
+        yield* conflicted(fixture)
 
         const result = yield* fixture.ops.commit({}, "web")
         expect(result._tag).toBe("Blocked")
@@ -300,6 +320,49 @@ describe("the agent's door", () => {
           fixture.git("log", "--format=%(trailers:key=X-Olai-Writer,valueonly)", "-1").trim(),
         ).toBe("mcp")
       })))
+})
+
+describe("--commit=auto", () => {
+  test("a write that committed itself is not also reported as waiting", () =>
+    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        const applied = yield* Effect.orDie(
+          fixture.ops.run({ op: "done", id: "order" }, "chat-agent"),
+        )
+        expect(applied.committed).toBe(true)
+
+        // The counter answers "how many ops have not been committed yet", and
+        // this one has. Counting it left a clean tree reporting `chat agent 1`
+        // for work that was already in the log — which is not the staleness the
+        // design allows: the counter may be wrong after a RESTART, never after
+        // a successful commit of its own.
+        const pending = yield* fixture.ops.pending
+        expect(pending.changes).toEqual([])
+        expect(pending.wrote).toEqual([])
+        expect(pending.last).toMatchObject({
+          message: "olai: done: order the cabinets",
+          writer: "chat-agent",
+        })
+      }), { commits: "auto" }))
+
+  test("a busy repository is declined, and the write still lands", () =>
+    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        yield* conflicted(fixture)
+
+        // The worst case the design names: nobody is watching, so an op that
+        // committed here would bury a half-finished merge.
+        const applied = yield* Effect.orDie(
+          fixture.ops.run({ op: "done", id: "order" }, "chat-agent"),
+        )
+        expect(applied.committed).toBe(false)
+        expect(subjects(fixture)[0]).not.toStartWith("olai:")
+
+        // ... and because it did NOT commit, it is waiting, and says so.
+        expect((yield* fixture.ops.pending).wrote).toEqual([
+          { writer: "chat-agent", ops: 1 },
+        ])
+      }), { commits: "auto" }))
 })
 
 describe("--commit=off", () => {

@@ -40,12 +40,18 @@ import type { Attempt } from "./state.ts"
  * dim, inert, no warning. `blocked` is the only one a person can act on, so it
  * is the only one that gets a warning.
  *
+ * `unknown` is the seventh and it is not a state of the DIRECTORY at all: it is
+ * this page, before the server has said anything. It is here because the
+ * alternative is what the pill used to do — draw the default value's `off`
+ * face, claiming a setting about a server it had not heard from.
+ *
  * `never` is not the same as `committed` and the difference is the whole reason
  * the last commit is carried at all: a clean tree that just committed and a
  * clean tree where olai has never written anything both have nothing pending,
  * and saying "committed" to the second would be a lie.
  */
 export type Face =
+  | "unknown"
   | "off"
   | "no-repo"
   | "blocked"
@@ -53,7 +59,8 @@ export type Face =
   | "committed"
   | "never"
 
-export const faceOf = (pending: Pending): Face => {
+export const faceOf = (pending: Pending, heard: boolean): Face => {
+  if (!heard) return "unknown"
   if (pending.repo._tag === "Off") return "off"
   if (pending.repo._tag === "NoRepo") return "no-repo"
   const waiting = pending.changes.length + pending.unreadable.length
@@ -64,8 +71,10 @@ export const faceOf = (pending: Pending): Face => {
 }
 
 /** Whether pressing it could do anything. The two settings are inert — there is
- *  no panel to open, because there is nothing behind it to say. */
-export const isInert = (pending: Pending): boolean => !isPossible(pending.repo)
+ *  no panel to open, because there is nothing behind it to say — and so is a
+ *  page that has not been told anything yet. */
+export const isInert = (face: Face): boolean =>
+  face === "unknown" || face === "off" || face === "no-repo"
 
 /** The phrase, in the past tense, because every one of these has happened
  *  already: the write is on disk and this is what is waiting to be recorded. */
@@ -130,9 +139,10 @@ export const because = (repo: RepoState): string => {
   switch (repo._tag) {
     case "Blocked":
       return BLOCKED[repo.reason]
-    // Neither of these is ever drawn — the pill is absent for both — but a
-    // total function is what makes that true by construction rather than by
-    // the caller remembering.
+    // The two settings, and the pill DOES draw for both — it is never absent
+    // — but their sentence is {@link SETTING}'s, because they are statements
+    // rather than something to fix. This is the fallback that keeps the
+    // function total.
     default:
       return "there is nowhere to commit to"
   }
@@ -141,7 +151,8 @@ export const because = (repo: RepoState): string => {
 /** Why the pill says what it says, when the reason is a SETTING rather than
  *  something to fix. Kept out of `because` below, which is about a repository
  *  that could take a commit and will not right now. */
-export const SETTING: Readonly<Record<"off" | "no-repo", string>> = {
+export const SETTING: Readonly<Record<"unknown" | "off" | "no-repo", string>> = {
+  unknown: "waiting to hear from the server",
   off: "commits are off for this server (`--commit=off`)",
   "no-repo": "this directory is not a git work tree, so nothing is recorded",
 }

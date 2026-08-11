@@ -132,13 +132,12 @@ export default function App() {
   const docked = () => outlines.manifest() !== null && page() !== undefined
 
   /** The pills that are about the APP rather than about the page: what olai
-   *  has written and not committed, whether the server is still there, and the
+   *  has written and last recorded, whether the server is still there, and the
    *  way into the agent. One expression, rendered in whichever of the two
    *  places the layout has for it.
    *
-   *  Commit goes FIRST because it is the only one of the three that is
-   *  sometimes absent, and a row whose last item moves under the reader's
-   *  cursor is worse than one whose first does. */
+   *  All three are always drawn, and for the same reason: an indicator that is
+   *  only there when something is wrong cannot be trusted when it is absent. */
   const chrome = () => (
     <>
       <Commit />

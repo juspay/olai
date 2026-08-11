@@ -111,8 +111,15 @@ export interface Committing {
     summary: string,
     writer: Writer,
   ) => Effect.Effect<boolean>
-  /** Told that one write landed. The only thing in here that is remembered,
-   *  and the only thing that is allowed to be wrong. */
+  /**
+   * Told that one write landed AND IS WAITING. The only thing in here that is
+   * remembered, and the only thing that is allowed to be wrong.
+   *
+   * A write that committed itself is not waiting, so it is not counted — see
+   * `ops.ts`. What this counts and what {@link commit} clears are then the same
+   * set, which is what keeps a clean tree from reporting work that is already
+   * in the log.
+   */
   readonly wrote: (writer: Writer) => void
 }
 
@@ -318,6 +325,12 @@ export const make = (options: Options): Committing => {
    * The repository check is also the part that is NEW. An agent marking a node
    * done in the middle of a rebase could swallow the resolution, and a mode with
    * nobody watching is exactly where that would happen unseen.
+   *
+   * It does NOT clear the writer counters the way {@link commit} does, and that
+   * is deliberate: this commit names only the paths one write produced, so an op
+   * that landed earlier while the repository was busy is still on disk and still
+   * waiting. Clearing here would under-report it. What keeps the counters honest
+   * on this path is that a write which commits itself is never counted at all.
    */
   const automatic = (
     paths: ReadonlyArray<string>,

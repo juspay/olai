@@ -29,10 +29,11 @@ import { NodeChange } from "./changes.ts"
 export const Writer = Schema.Literals(["chat-agent", "mcp", "web"])
 export type Writer = typeof Writer.Type
 
-/** Why the repository cannot take a commit right now. Nothing today checks for
- *  any of them, which is how an agent marking a node done mid-conflict can
- *  swallow a resolution — and it is the hole that decided manual over
- *  automatic. */
+/** Why the repository cannot take a commit right now. Nothing used to check
+ *  for any of them, which is how an agent marking a node done mid-conflict
+ *  could swallow a resolution — the hole that decided manual over automatic,
+ *  and the reason this type exists. Every commit path now refuses when the
+ *  answer is one of these. */
 export const Reason = Schema.Literals(["merge", "rebase", "cherry-pick", "detached"])
 export type Reason = typeof Reason.Type
 

@@ -59,10 +59,17 @@ present when something is wrong cannot be trusted when it is absent.
 | mid-rebase / merge / cherry-pick / detached | `⚠ 4 uncommitted` + the reason |
 | not a work tree | `no git here` — dim, inert |
 | `--commit=off` | `commits off` — dim, inert |
+| the page has not heard from the server yet | `…` — dim, inert |
 
-The last two are **settings, not faults**: dim, inert when pressed, and no
+The two settings are **settings, not faults**: dim, inert when pressed, and no
 warning colour. `⚠` is reserved for the busy-repo case, because that is the only
 one a person can act on.
+
+The last row is not a state of the DIRECTORY at all — it is this page before its
+first frame. It is drawn separately because the value a page holds before it has
+heard anything reads as `commits off`, which is a setting somebody could go and
+change: claiming that about a server nobody has heard from is the same kind of
+lie as `✓ committed` in a directory olai has never written to.
 
 ```
                                     ┌──────────────────────────┐
@@ -133,14 +140,28 @@ type NodeChange = {
   readonly file: string      // root-relative; where it IS, or where it was
   readonly id: string
   readonly title: string     // as it reads now; as it read at HEAD when removed
-  readonly kind: "added" | "removed" | "changed"
-  readonly fields: ReadonlyArray<Field>   // empty unless kind is "changed"
+  readonly fields: ReadonlyArray<Field>   // empty for one that arrived or left
   readonly sort: Sort
 }
 
-type Field = "file" | "parent" | "ord" | "title" | "done" | "doing" | "date"
-           | "desc" | "doc" | "after" | "blocks" | "see" | "mirror"
+// The record's own field names, derived from the schemas rather than listed
+// again: parent, ord, title, done, doing, date, desc, doc, after, blocks,
+// see, mirror — plus `file`, the one difference that is not a field at all.
+type Field = string
 ```
+
+There is no added/removed/changed tag beside `sort`, and the proposal's one was
+dropped rather than shipped: it is a function of `sort` (`created` is an
+arrival, `gone` is a departure, everything else is neither) said in a second
+vocabulary, and every consumer switches on `sort`. `fields` is empty for the two
+arms where the answer would be "all of them" and mean nothing.
+
+`Field` is not a literal union either. The members are the record schemas' own
+field names, taken from them rather than written out again — a hand-kept copy is
+the one mistake this comparison cannot survive, because the next field the format
+grew would simply never be compared, and a node whose only change was that field
+would report as unchanged. A silent hole in the audit trail, with no test to
+fail.
 
 `sort` is the one thing the change is mostly ABOUT — `created`, `archived`,
 `done`, `undone`, `moved`, `noted`, `renamed` — and it is on the change rather
