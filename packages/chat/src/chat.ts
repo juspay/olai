@@ -125,12 +125,6 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     /** Typed while a turn was running, in the order it was typed. Drained by
      *  the turn's own fiber as it ends — see {@link begin}. */
     const queue: Array<string> = []
-    /** The questions waiting on a person. A SET rather than a count, because
-     *  the events that move it are keyed by id and arrive from a protocol
-     *  callback: a `++`/`--` pair would drift the first time one arrived twice,
-     *  and the number on the state is what tells a person the turn is stopped
-     *  on them. */
-    const asking = new Set<string>()
     /** One session change at a time: a load and a new-session racing each other
      *  would leave the transcript holding half of each. */
     const switching = yield* Semaphore.make(1)
@@ -143,6 +137,24 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const move = (next: Partial<ChatState>) => {
       state = { ...state, ...next }
       options.onState(state)
+    }
+
+    /**
+     * How many questions are still waiting on a person, COUNTED off the rows
+     * rather than tallied beside them.
+     *
+     * A question being open is already written down — it is the row whose
+     * outcome is `null`, which is the thing the panel draws and the thing the
+     * transcript's own tests are about. A counter kept alongside would be that
+     * same fact in a second place, staying right only for as long as every
+     * future writer remembered both.
+     */
+    const asking = (): number => {
+      let waiting = 0
+      for (const entry of transcript.entries().values()) {
+        if (entry.kind === "ask" && entry.ask?.outcome === null) waiting++
+      }
+      return waiting
     }
 
     /** The agent's events, as rows and as state. The one place the vocabulary
@@ -169,14 +181,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           )
           return
         case "asked":
-          asking.add(event.id)
           publish(transcript.ask(event.id, event.message, event.fields))
-          move({ asking: asking.size })
+          move({ asking: asking() })
           return
         case "askSettled":
-          asking.delete(event.id)
           publish(transcript.settleAsk(event.id, event.outcome))
-          move({ asking: asking.size })
+          move({ asking: asking() })
           return
         case "commands":
           move({ commands: event.commands })
@@ -205,10 +215,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           // DEAD agent leaves the rows where they are — nobody asked for that,
           // and the `gone` notice explains them.
           if (event.why === "new") publish(transcript.clear())
-          move({ session: null, commands: [] })
+          move({ session: null, commands: [], asking: asking() })
           return
         case "replayStarted":
           publish(transcript.clear())
+          // Emptying the rows is one of the three things that can change how
+          // many questions are open, so it is one of the three that recounts.
+          // Every clear is preceded by the agent withdrawing what was waiting,
+          // so this is belt to that brace rather than the only strap — but the
+          // count is a function of the rows, and that should be true at every
+          // point the rows move rather than at the two it usually moves at.
+          move({ asking: asking() })
           return
         case "replayEnded":
           publish(transcript.settle())

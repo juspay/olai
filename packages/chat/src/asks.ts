@@ -31,6 +31,12 @@
  * the failure this rule exists to prevent. Never silently ignored — it renders
  * as a notice, like every other thing that went wrong (HACKING.md).
  *
+ * "A value, or a `UsageFailure` saying why not" is how everything here answers,
+ * in both directions. It is the vocabulary the rest of olai already refuses
+ * things in — `UsageFailure` is precisely "the request itself is wrong; nothing
+ * was read" — so a question this panel cannot draw and an answer that does not
+ * fit its question are the same kind of no, spelled the same way.
+ *
  * ## Text, both ways
  *
  * An answer travels as STRINGS ({@link AskAnswer}), whatever the field's type,
@@ -50,7 +56,7 @@ import type {
   RequestPermissionRequest,
 } from "@agentclientprotocol/sdk"
 import { UsageFailure } from "@olai/format"
-import type { AskAnswer, AskChoice, AskField } from "@olai/surface"
+import { type AskAnswer, type AskChoice, type AskField, YES_NO } from "@olai/surface"
 
 /** A form to put in front of a person: what the agent said it needs, and the
  *  fields to fill in. */
@@ -58,11 +64,6 @@ export interface Form {
   readonly message: string
   readonly fields: ReadonlyArray<AskField>
 }
-
-/** A payload projected, or the reason it cannot be drawn. */
-export type Projected =
-  | { readonly _tag: "form"; readonly form: Form }
-  | { readonly _tag: "undrawable"; readonly why: string }
 
 /**
  * The `_meta` key an agent marks a per-question free-text box with.
@@ -78,24 +79,20 @@ const CUSTOM_ANSWER = "_askUserQuestionCustomAnswer"
 // ── elicitation/create, form mode ──────────────────────────────────────
 
 /** A form elicitation, as a form. */
-export const formOf = (request: CreateElicitationRequest): Projected => {
+export const formOf = (request: CreateElicitationRequest): Form | UsageFailure => {
   if (request.mode !== "form") {
-    return {
-      _tag: "undrawable",
-      why: `the agent asked for a \`${request.mode}\` elicitation, which this panel does not draw`,
-    }
+    return new UsageFailure({
+      reason:
+        `the agent asked for a \`${request.mode}\` elicitation, which this panel does not draw`,
+    })
   }
   const fields = fieldsOf((request as { requestedSchema?: ElicitationSchema }).requestedSchema)
-  return fields._tag === "undrawable"
-    ? fields
-    : { _tag: "form", form: { message: request.message, fields: fields.fields } }
+  return fields instanceof UsageFailure ? fields : { message: request.message, fields }
 }
 
-type Fields =
-  | { readonly _tag: "fields"; readonly fields: ReadonlyArray<AskField> }
-  | { readonly _tag: "undrawable"; readonly why: string }
-
-const fieldsOf = (schema: ElicitationSchema | undefined): Fields => {
+const fieldsOf = (
+  schema: ElicitationSchema | undefined,
+): ReadonlyArray<AskField> | UsageFailure => {
   const properties = schema?.properties ?? {}
   const required = new Set(schema?.required ?? [])
   const fields: Array<AskField> = []
@@ -105,16 +102,15 @@ const fieldsOf = (schema: ElicitationSchema | undefined): Fields => {
   for (const [key, property] of Object.entries(properties)) {
     const field = fieldOf(key, property, required.has(key))
     if (field === null) {
-      return {
-        _tag: "undrawable",
-        why: `the agent asked for \`${key}\`, a \`${
+      return new UsageFailure({
+        reason: `the agent asked for \`${key}\`, a \`${
           String((property as { type?: unknown }).type)
         }\` field this panel does not draw`,
-      }
+      })
     }
     fields.push(field)
   }
-  return { _tag: "fields", fields }
+  return fields
 }
 
 /** One property, as a field — or `null` for a type this panel has no control
@@ -256,7 +252,7 @@ export const permissionFormOf = (request: RequestPermissionRequest): Form => ({
 export const contentOf = (
   fields: ReadonlyArray<AskField>,
   answers: ReadonlyArray<AskAnswer>,
-): { readonly content: Record<string, string | number | boolean | Array<string>> } | UsageFailure => {
+): Record<string, string | number | boolean | Array<string>> | UsageFailure => {
   const byKey = new Map(fields.map((field) => [field.key, field]))
   const content: Record<string, string | number | boolean | Array<string>> = {}
 
@@ -279,7 +275,7 @@ export const contentOf = (
       })
     }
   }
-  return { content }
+  return content
 }
 
 /** One field's answer, typed — or `undefined` for one left alone. */
@@ -295,7 +291,7 @@ const valueOf = (
   if (only === "") return undefined
   switch (field.kind) {
     case "boolean":
-      return only === "true"
+      return only === YES_NO.yes
     case "number":
     case "integer": {
       const number = Number(only)

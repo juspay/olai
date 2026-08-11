@@ -17,7 +17,7 @@ import type {
   RequestPermissionRequest,
 } from "@agentclientprotocol/sdk"
 import { UsageFailure } from "@olai/format"
-import type { AskField } from "@olai/surface"
+import { type AskField, YES_NO } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 
 import { contentOf, formOf, PERMISSION_FIELD, permissionFormOf } from "./asks.ts"
@@ -60,9 +60,9 @@ const field = (fields: ReadonlyArray<AskField>, key: string): AskField => {
 }
 
 const formIn = (request: CreateElicitationRequest) => {
-  const projected = formOf(request)
-  if (projected._tag !== "form") throw new Error(`undrawable: ${projected.why}`)
-  return projected.form
+  const form = formOf(request)
+  if (form instanceof UsageFailure) throw new Error(`undrawable: ${form.reason}`)
+  return form
 }
 
 describe("a question, as a form", () => {
@@ -165,7 +165,7 @@ describe("a question, as a form", () => {
     // Half a form is worse than none: somebody submits believing they answered
     // all of it, and the agent acts on the half that arrived. The caller
     // declines and SAYS so — never silently ignored (HACKING.md).
-    const projected = formOf({
+    const refused = formOf({
       ...oneQuestion,
       requestedSchema: {
         type: "object",
@@ -176,21 +176,19 @@ describe("a question, as a form", () => {
       },
     } as CreateElicitationRequest)
 
-    expect(projected._tag).toBe("undrawable")
-    if (projected._tag !== "undrawable") return
-    expect(projected.why).toContain("weird")
-    expect(projected.why).toContain("_something-new")
+    expect(refused).toBeInstanceOf(UsageFailure)
+    expect((refused as UsageFailure).reason).toContain("weird")
+    expect((refused as UsageFailure).reason).toContain("_something-new")
   })
 
   test("a url elicitation is undrawable rather than half-drawn", () => {
-    const projected = formOf({
+    expect(formOf({
       mode: "url",
       sessionId: "s1",
       elicitationId: "e1",
       message: "Sign in",
       url: "https://example.invalid/auth",
-    })
-    expect(projected._tag).toBe("undrawable")
+    })).toBeInstanceOf(UsageFailure)
   })
 })
 
@@ -241,14 +239,14 @@ describe("the answers, going back", () => {
 
   test("a picked option travels as the option's own value", () => {
     const content = contentOf(fields, [{ key: "question_0", values: ["Luxon"] }])
-    expect(content).toEqual({ content: { question_0: "Luxon" } })
+    expect(content).toEqual({ question_0: "Luxon" })
   })
 
   test("a field left alone is absent rather than empty", () => {
     // Absent is the schema's own way of saying nothing was chosen, and the
     // adapter reads it as "skipped". An empty string would be an answer.
     const content = contentOf(fields, [{ key: "question_0_custom", values: ["  "] }])
-    expect(content).toEqual({ content: {} })
+    expect(content).toEqual({})
   })
 
   test("a multi-select travels as the list it is", () => {
@@ -261,9 +259,7 @@ describe("the answers, going back", () => {
       required: false,
       attachedTo: null,
     }]
-    expect(contentOf(many, [{ key: "question_0", values: ["a", "b"] }])).toEqual({
-      content: { question_0: ["a", "b"] },
-    })
+    expect(contentOf(many, [{ key: "question_0", values: ["a", "b"] }])).toEqual({ question_0: ["a", "b"] })
   })
 
   test("a number is a number and a boolean is a boolean", () => {
@@ -287,12 +283,17 @@ describe("the answers, going back", () => {
         attachedTo: null,
       },
     ]
+    // `YES_NO` rather than a spelling of our own: it is what the panel actually
+    // writes into a boolean answer, so this is a round trip against the one
+    // constant both ends read rather than two files agreeing by luck.
     expect(
       contentOf(typed, [
         { key: "age", values: ["41"] },
-        { key: "agree", values: ["false"] },
+        { key: "agree", values: [YES_NO.no] },
       ]),
-    ).toEqual({ content: { age: 41, agree: false } })
+    ).toEqual({ age: 41, agree: false })
+    expect(contentOf(typed, [{ key: "agree", values: [YES_NO.yes] }]))
+      .toEqual({ agree: true })
   })
 
   test("a number field given something else is refused, not coerced to zero", () => {

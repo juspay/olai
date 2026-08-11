@@ -19,17 +19,18 @@
  * three turns ago.
  */
 
-import type { AskField } from "@olai/surface"
+import { type AskField, YES_NO } from "@olai/surface"
 import { For, Match, Show, Switch } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 
-/** Yes and no, as the two choices they are. `value` is what {@link
- *  ../../../../chat/src/asks.ts} reads back into a boolean, so the two files
- *  agree on one spelling. */
+/** Yes and no, as the two choices they are. The VALUES are the surface's, not
+ *  ours: the far end reads them back into an actual boolean, so a spelling the
+ *  two ends agreed by comment is one that eventually stops agreeing — silently,
+ *  because a word that no longer matches just stops registering. */
 const BOOLEAN = [
-  { value: "true", label: "yes" },
-  { value: "false", label: "no" },
+  { value: YES_NO.yes, label: "yes" },
+  { value: YES_NO.no, label: "no" },
 ]
 
 export function AskControl(props: {

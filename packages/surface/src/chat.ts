@@ -98,6 +98,19 @@ export const AskAnswer = Schema.Struct({
 })
 export type AskAnswer = typeof AskAnswer.Type
 
+/**
+ * How a `boolean` field's answer is spelled.
+ *
+ * Here, rather than in either end, because it is the one value in this
+ * vocabulary that both ends have to spell the SAME and neither owns: the panel
+ * writes one of these two when somebody presses yes or no, and the chat package
+ * reads it back into an actual boolean for the schema that asked. Agreed by
+ * comment, it is a spelling that eventually stops agreeing — silently, since a
+ * changed word would simply stop matching and every press would register as
+ * nothing.
+ */
+export const YES_NO = { yes: "true", no: "false" } as const
+
 /** How a question stopped waiting.
  *
  *   - `answered` — a person filled it in and submitted.

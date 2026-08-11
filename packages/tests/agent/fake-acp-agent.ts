@@ -284,6 +284,14 @@ const sdkInit = (model: string): void => {
   })
 }
 
+/** A turn that was cancelled while it was waiting on the client ends as a
+ *  cancelled turn. Answers whether it did, so the caller stops there. */
+const endedCancelled = (id: unknown): boolean => {
+  if (!cancelled) return false
+  respond(id, { stopReason: "cancelled" })
+  return true
+}
+
 /** Whether the client said it can draw a form. `{}` is how the protocol spells
  *  "yes" — the presence of the key is the whole of the claim. */
 const canElicit = (): boolean => {
@@ -426,10 +434,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
         },
       },
     })
-    if (cancelled) {
-      respond(id, { stopReason: "cancelled" })
-      return
-    }
+    if (endedCancelled(id)) return
     say(`you answered: ${JSON.stringify(answer)}`)
     respond(id, { stopReason: "end_turn" })
     return
@@ -470,10 +475,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
           { kind: "allow_once", name: "Allow Once", optionId: "allow" },
         ],
     })
-    if (cancelled) {
-      respond(id, { stopReason: "cancelled" })
-      return
-    }
+    if (endedCancelled(id)) return
     const outcome = (answer as { outcome?: { outcome?: string; optionId?: string } })
       ?.outcome
     say(`permission: ${outcome?.optionId ?? outcome?.outcome ?? "nothing"}`)

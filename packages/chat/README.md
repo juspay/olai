@@ -35,6 +35,7 @@ second copy of the transcript would be a second thing to be wrong.
 | `kolu.ts` | whether this host is running kolu, and the stdio server to hand a session if it is |
 | `pipes.ts` | a subprocess's pipes as a stream of JSON-RPC messages — the one thing the two subprocesses above have in common |
 | `asks.ts` | the two payloads that ask a PERSON something, projected into one form — and the answer projected back |
+| `questions.ts` | the questions on the wire, and the one rule about them: each ends exactly once, however it ends |
 | `events.ts` | the closed vocabulary of what an agent tells us — a consumer that needs more needs a new member, not a look at the wire |
 | `transcript.ts` | the conversation as ROWS: chunks accumulate, tool calls update in place by id, a replay replaces rather than appends |
 | `chat.ts` | the join, and the only place that knows both halves |
@@ -86,8 +87,22 @@ afterwards saying what was asked and what was chosen:
 nobody has asked yet is a unit test. A property whose type this panel has no
 control for makes the whole request UNDRAWABLE: it is declined and said out
 loud, because half a form is one somebody submits believing they answered all of
-it. **A dismissal is a decline on the wire** — the agent is told a person would
-not say — and never a fabricated answer.
+it. Both directions answer the same way the rest of olai refuses things — a
+value, or a `UsageFailure` saying why not — so a question that cannot be drawn
+and an answer that does not fit its question are one kind of no.
+
+`questions.ts` holds the promises, and has one rule: a question ends exactly
+once. Somebody answers in one tab while somebody dismisses in another, while the
+agent withdraws it because the turn was cancelled, while the subprocess dies —
+all four are a call to `settle`, first one wins, and every ending goes down one
+channel so the row on screen and the value on the wire cannot disagree. It is
+its own module because it is a state machine rather than a protocol fact, and
+that is not taste: `withdrawAll` was first written to empty the map and then
+settle what it had taken out, which settles nothing, and every question would
+have hung on a conversation that had already ended. Inside the ACP client's
+closure that needed an agent, a browser and a cancelled turn to see. **A
+dismissal is a decline on the wire** — the agent is told a person would not
+say — and never a fabricated answer.
 
 Nothing times out. A pending question holds the ACP request open, which is
 exactly what a blocked turn is; what the panel owes in return is that the block

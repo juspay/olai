@@ -19,11 +19,11 @@
  *     in" survive a restart (racket's mechanism, kept).
  *   - **the questions the agent asks a person**, both kinds. An
  *     `elicitation/create` is a form; a `session/request_permission` that is not
- *     one of ours is a single-select. Both become an `asked` event and both wait
- *     — the request's promise is held open until somebody answers it, dismisses
- *     it, or the agent takes it back. Projecting the payloads is
- *     {@link ./asks.ts}; holding the wire open is here, because a pending
- *     JSON-RPC request is exactly the thing this module exists to own.
+ *     one of ours is a single-select. What is HERE is that both are the same
+ *     question and which methods carry them; the payload shapes are
+ *     {@link ./asks.ts} and the promise-per-question state machine is
+ *     {@link ./questions.ts}, so neither is one more thing this file's closure
+ *     has to get right at the same time as a subprocess.
  *   - **which permission requests are answered without asking.** Bypass mode is
  *     the design (resolved 2026-08-09), so a call to one of the MCP servers WE
  *     handed this session — olai's mediated ops, kolu's terminals — is allowed
@@ -75,19 +75,14 @@ import type {
 } from "@agentclientprotocol/sdk"
 import { UsageFailure } from "@olai/format"
 import { emitter, reasonOf } from "@olai/log"
-import type { AskAnswer, AskField, AskOutcome } from "@olai/surface"
+import type { AskAnswer } from "@olai/surface"
 import { Data, type Duration, Effect, Semaphore } from "effect"
 
-import {
-  contentOf,
-  type Form,
-  formOf,
-  PERMISSION_FIELD,
-  permissionFormOf,
-} from "./asks.ts"
+import { type Form, formOf, PERMISSION_FIELD, permissionFormOf } from "./asks.ts"
 import type { AgentEvent, Command, Stored } from "./events.ts"
 import * as Kolu from "./kolu.ts"
 import { streamOver } from "./pipes.ts"
+import * as Questions from "./questions.ts"
 
 /** An MCP server to hand a session, in olai's terms. {@link mcpServersOf}
  *  renders it into what the protocol wants. */
@@ -171,25 +166,6 @@ export interface Agent {
   readonly stop: Effect.Effect<void>
 }
 
-/** How a question ended: what the row records, and what goes on the wire. The
- *  two are computed together and travel together, so a row that says "answered"
- *  cannot belong to a response that says anything else. */
-interface Settled {
-  readonly outcome: AskOutcome
-  readonly content: Record<string, string | number | boolean | Array<string>>
-}
-
-/** Nobody answered, and nobody is going to. */
-const WITHDRAWN: Settled = { outcome: { how: "withdrawn", answers: [] }, content: {} }
-
-/** A question on the wire: the fields it is waiting on, and the one call that
- *  ends the wait. Whoever calls `settle` first wins; the rest are no-ops, which
- *  is what makes a decline racing an answer harmless. */
-interface Pending {
-  readonly fields: ReadonlyArray<AskField>
-  readonly settle: (settled: Settled) => void
-}
-
 /** The ACP major version this client speaks. */
 const PROTOCOL = 1
 
@@ -262,9 +238,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  said, not something being said. */
     let replaying = false
 
-    /** The questions on the wire right now, by the id we minted for them. */
-    const pending = new Map<string, Pending>()
-    let asked = 0
+    /** The questions on the wire right now ({@link ./questions.ts}), told to
+     *  report every ending down the same channel everything else uses. */
+    const questions = Questions.make((id, outcome) => {
+      emit({ _tag: "askSettled", id, outcome })
+    })
 
     /**
      * The MCP servers this conversation was handed, by name.
@@ -286,52 +264,30 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * the programmatic name in its `_meta`. So the name is remembered as the
      * frames go past, and the permission handler looks it up. A miss is a name
      * we do not know, which is answered by ASKING; nothing here guesses.
+     *
+     * Emptied with the conversation ({@link leaving}), because a call id is only
+     * ever looked up inside the session that minted it — otherwise this would be
+     * every tool call the process had ever seen, kept for the life of a server
+     * that is meant to run for weeks.
      */
     const toolNames = new Map<string, string>()
 
-    /** Settle everything still waiting. The conversation these questions
-     *  belonged to is over — replaced, reloaded, or dead — so nobody is going
-     *  to answer them and a form left live on screen would be a control that
-     *  does nothing. */
-    const withdrawAll = (): void => {
-      // A snapshot, because `settle` is what removes an entry — clearing the
-      // map first would make every settle a no-op and leave the promises (and
-      // therefore the rows) hanging on a conversation that no longer exists.
-      for (const one of [...pending.values()]) one.settle(WITHDRAWN)
+    /** The conversation is over — replaced, reloaded, or dead. Everything keyed
+     *  to it goes: the questions nobody is going to answer now, and the tool
+     *  names they were keyed alongside. One function, because "this session is
+     *  finished" is one fact and four call sites remembering two things each is
+     *  how one of them ends up remembering one. */
+    const leaving = (): void => {
+      questions.withdrawAll()
+      toolNames.clear()
     }
 
-    /**
-     * Put a form in front of a person and wait for it.
-     *
-     * The promise IS the protocol's pending request: an ACP request handler
-     * that has not returned is a turn that has not moved, which is exactly the
-     * state a blocked question is in. Three things end it — an answer, a
-     * dismissal, and the agent withdrawing (`$/cancel_request` aborts the
-     * handler's signal, which is how a cancelled turn takes its own question
-     * back) — and every one of them goes through the same `settle`, so the row
-     * on screen and the value on the wire cannot disagree.
-     */
-    const put = (form: Form, signal: AbortSignal): Promise<Settled> => {
-      // The transcript's own key shape (`kind:n`), because a question's row key
-      // IS this id: it is the one row a browser talks back about, and one
-      // spelling is one thing to be right about. See `Transcript.ask`.
-      const id = `ask:${++asked}`
-      return new Promise<Settled>((resolve) => {
-        const settle = (settled: Settled): void => {
-          if (pending.delete(id)) {
-            emit({ _tag: "askSettled", id, outcome: settled.outcome })
-            resolve(settled)
-          }
-        }
-        pending.set(id, { fields: form.fields, settle })
-        // Checked as well as listened for: a signal that aborted before this
-        // handler ran will never fire the event, and a question waiting on
-        // something that has already happened waits forever.
-        if (signal.aborted) return settle(WITHDRAWN)
-        signal.addEventListener("abort", () => settle(WITHDRAWN), { once: true })
+    /** Put a form in front of a person and wait for it — the registry holds the
+     *  promise, and this is the one place the row it draws is announced. */
+    const put = (form: Form, signal: AbortSignal): Promise<Questions.Settled> =>
+      questions.ask(form, signal, (id) => {
         emit({ _tag: "asked", id, message: form.message, fields: form.fields })
       })
-    }
 
     /** A question we cannot draw. Declined on the wire and SAID out loud: an
      *  agent that got an empty answer and a person who never saw the question
@@ -344,12 +300,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       params: CreateElicitationRequest,
       signal: AbortSignal,
     ): Promise<CreateElicitationResponse> => {
-      const projected = formOf(params)
-      if (projected._tag === "undrawable") {
-        undrawable(projected.why)
+      const form = formOf(params)
+      if (form instanceof UsageFailure) {
+        undrawable(form.reason)
         return { action: "decline" }
       }
-      const settled = await put(projected.form, signal)
+      const settled = await put(form, signal)
       // A dismissal is a DECLINE and a withdrawal is a CANCEL, and the adapter
       // reads them differently: decline tells the model the person skipped and
       // lets the turn go on, cancel aborts the tool use. Saying "cancel" for a
@@ -375,6 +331,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       signal: AbortSignal,
     ): Promise<RequestPermissionResponse> => {
       const tool = toolOf(params)
+      // `mcp__<server>__<tool>` is the Claude Code CLI's own naming for the
+      // tools an MCP server contributes, and reading it is a bet on that
+      // adapter exactly as `toolNameIn` is. The bet is safe to lose in one
+      // direction only, which is the direction it loses in: an agent that names
+      // its MCP tools some other way matches nothing here and every request
+      // goes to a person. Nothing is ever approved by failing to recognise it.
       const ours = tool !== null &&
         given.some((server) => tool.startsWith(`mcp__${server}__`))
       if (ours) {
@@ -556,7 +518,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // Before anything else it emits: a form left live on a dead wire is a
           // control that does nothing, and pressing it is how a person finds
           // out.
-          withdrawAll()
+          leaving()
           if (stopped) return
           emit({ _tag: "sessionOver", why: "gone" })
           emit({
@@ -811,7 +773,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       const at = live
       live = null
       session = null
-      withdrawAll()
+      leaving()
       if (at === null) return
       at.connection.close()
       if (at.child.exitCode === null) at.child.kill()
@@ -826,7 +788,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           session = null
           // BEFORE the break, so the question is settled on the row it is
           // drawn on rather than after that row has been cleared away.
-          withdrawAll()
+          leaving()
           emit({ _tag: "sessionOver", why: "new" })
           yield* fresh(at)
         })
@@ -842,7 +804,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             const stored = yield* storedFor(at)
             const wanted = stored.find((entry) => entry.id === id)
             session = null
-            withdrawAll()
+            leaving()
             emit({ _tag: "sessionOver", why: "load" })
             yield* load(at, id, wanted?.title ?? null)
           })
@@ -850,22 +812,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       sessions: withLive(storedFor),
       answer: (id, answers) =>
         Effect.suspend(() => {
-          const waiting = pending.get(id)
-          if (waiting === undefined) return Effect.succeed(false)
-          if (answers === null) {
-            waiting.settle({ outcome: { how: "declined", answers: [] }, content: {} })
-            return Effect.succeed(true)
-          }
-          // Typed against the schema that asked for it BEFORE the row moves, so
-          // an answer that does not fit leaves the question waiting rather than
-          // recording one the agent was never sent.
-          const content = contentOf(waiting.fields, answers)
-          if (content instanceof UsageFailure) return Effect.fail(content)
-          waiting.settle({
-            outcome: { how: "answered", answers },
-            content: content.content,
-          })
-          return Effect.succeed(true)
+          const took = questions.answer(id, answers)
+          if (took instanceof UsageFailure) return Effect.fail(took)
+          return Effect.succeed(took === "settled")
         }),
       stop,
     }

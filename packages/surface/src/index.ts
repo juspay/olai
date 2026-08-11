@@ -296,6 +296,7 @@ export {
   kindOf,
   OpFailure,
   SessionInfo,
+  YES_NO,
 } from "./chat.ts"
 
 /** The one HTTP address both ends spell — see {@link ./media.ts}. */
