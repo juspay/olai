@@ -105,21 +105,33 @@
  * is. Kept to spacing, overflow and the few things a document needs that a
  * one-paragraph note did not — anything more opinionated would be styling
  * someone else's prose. */
-/* A pasted URL, a hash, a base62 key: text with nowhere to break in it. The
- * page must not scroll sideways because a note contains one — the column is
- * the measure, and a reader who has to pan the whole page to finish a sentence
- * has lost the outline beside it. `anywhere` rather than `break-word` because
- * only `anywhere` counts in the MIN-CONTENT width, which is what stops such a
- * word pushing a table cell (and the column with it) wider than the page.
+/* Where an unbreakable word may be broken, and where it may not — one rule,
+ * because the two halves only make sense against each other.
  *
- * A fence is the deliberate exception, and it is the same rule read the other
- * way: code is not prose, a break invented inside it is a lie about the line,
- * so a `<pre>` keeps its own horizontal scrollbar and wraps nothing. */
+ * PROSE breaks anywhere. A pasted URL, a hash, a base62 key must not widen the
+ * column past the viewport: the column is the measure, and a reader panning
+ * the whole page to finish a sentence has lost the outline beside it.
+ * `anywhere` rather than `break-word` because only `anywhere` counts in the
+ * MIN-CONTENT width, which is what stops such a word pushing a container
+ * wider than the page in the first place.
+ *
+ * A FENCE and a TABLE CELL do not, and it is the same rule read the other way:
+ * neither holds prose. A break invented inside code is a lie about the line,
+ * and a path broken mid-token inside a column reads as two values. Both have
+ * somewhere else to put the width — each scrolls within itself — and scrolling
+ * is a recoverable thing to be doing, where mis-reading a value is not. */
 .olai-md {
   overflow-wrap: anywhere;
+
+  /* The tint a rendered block lifts a surface with: an inline code chip, a
+   * table head. Derived from the rule colour rather than named in the palette,
+   * so it follows all fifteen without a sixteenth token to keep in step — and
+   * named here rather than spelled at each surface, because the two are one
+   * decision and would have to be changed together. */
+  --olai-md-tint: color-mix(in srgb, var(--color-rule) 45%, transparent);
 }
 
-.olai-md pre {
+.olai-md :is(pre, th, td) {
   overflow-wrap: normal;
 }
 
@@ -208,12 +220,9 @@
   font-size: 0.875rem;
 }
 
-.olai-md-note h1,
-.olai-md-note h2,
-.olai-md-note h3,
-.olai-md-note h4,
-.olai-md-note h5,
-.olai-md-note h6 {
+/* The space above comes down with the scale: a note is a body, not a document,
+ * and a document's section break inside one would be a gap in a paragraph. */
+.olai-md-note :is(h1, h2, h3, h4, h5, h6) {
   margin-top: 0.875rem;
 }
 
@@ -263,14 +272,12 @@
 
 /* Inline code is a chip; a fence is not. `code` inside a `<pre>` is already
  * inside a bordered block, and a second background there would be a box drawn
- * around every line of it. The tint is the rule colour thinned, so it is one
- * value per palette rather than a fifteen-row table of its own — faint in the
- * light themes, a slight lift in the dark ones, and legible in both because
- * the ink over it never changes. */
+ * around every line of it. Faint in the light palettes, a slight lift in the
+ * dark ones, and legible in both because the ink over it never changes. */
 .olai-md :not(pre) > code {
   border-radius: 0.25rem;
   padding: 0.0625rem 0.25rem;
-  background: color-mix(in srgb, var(--color-rule) 45%, transparent);
+  background: var(--olai-md-tint);
 }
 
 /* The caret at the end of an answer that is still arriving. On the LAST BLOCK
@@ -328,24 +335,19 @@
   border-collapse: collapse;
 }
 
-/* A cell is not prose flow, so the aggressive wrap stops here: a path or an
- * identifier broken across two lines inside a column reads as two values, and
- * a table is read down a column rather than along a sentence. Ordinary
- * wrapping still applies — a cell of prose breaks at its spaces — and a token
- * with nowhere to break simply makes the table wider than the column, which is
- * what the scroll container above it is FOR. Scrolling a table is recoverable;
- * mis-reading a value in one is not. */
+/* Read down a column rather than along a sentence, which is why a cell keeps
+ * its tokens whole (the wrap rule at the top of this block) and why it is
+ * given room to be read in. */
 .olai-md th,
 .olai-md td {
   border: 0;
   border-bottom: 1px solid var(--color-rule);
   padding: 0.3125rem 0.625rem;
   text-align: left;
-  overflow-wrap: normal;
 }
 
 .olai-md th {
-  background: color-mix(in srgb, var(--color-rule) 45%, transparent);
+  background: var(--olai-md-tint);
   border-bottom-color: var(--color-muted);
 }
 
