@@ -72,6 +72,23 @@ const FAKE_AGENT = path.resolve(
   "fake-acp-agent.ts",
 );
 
+/**
+ * The directory holding a fake `kolu`, put FIRST on every spawned server's
+ * PATH — so whether this host "is running kolu" is a property of the scenario
+ * rather than of the laptop the run is on. A developer whose machine really is
+ * running one would otherwise get a different suite than a CI lane does.
+ *
+ * The default that fixture answers with is the unhelpful one (a kolu that
+ * reaches no daemon), so a scenario that says nothing about kolu is a scenario
+ * whose session gets olai's tool server and nothing else. `@kolu` is what makes
+ * it answer.
+ */
+const FAKE_KOLU_DIR = path.resolve(import.meta.dirname, "..", "agent", "kolu");
+
+/** `@kolu`: this scenario's host is running kolu, so its session should be
+ *  handed kolu's terminals alongside olai's own tools. */
+const KOLU_TAG = "@kolu";
+
 /** `@agent-stored`: the fake agent answers `session/list` with two stored
  *  conversations, so the server's boot ADOPTS the most recent one and replays
  *  it. Unset, nothing is stored and boot opens a fresh session — the two boot
@@ -88,7 +105,7 @@ const NO_AGENT_TAG = "@no-agent";
 
 /** `@git`: this scenario's scratch copy is made a git repository with one
  *  commit in it, and its server is started with `--commit=manual` rather than
- *  the harness's usual `--no-commit`. It is what the Commit button needs to
+ *  the harness's usual `--commit=off`. It is what the Commit button needs to
  *  have anything to say, and it is deliberately opt-in: every other scenario
  *  serves a temp directory whose history is nobody's business. */
 const GIT_TAG = "@git";
@@ -304,6 +321,10 @@ interface Spawn {
    *  that is not a repository with commits ON is a state of its own, and the
    *  pill has a face for it. */
   readonly commits?: "off" | "manual";
+  /** `true` puts a kolu on PATH that a padi answers, which is the whole of
+   *  "this host is running kolu". Otherwise the one on PATH reaches no daemon,
+   *  which detection must refuse. */
+  readonly kolu?: boolean;
 }
 
 const startServerChild = async (
@@ -342,6 +363,10 @@ const startServerChild = async (
         // state the same way rather than through a hole in the harness.
         OLAI_ACP_AGENT: spawnOptions.agent === false ? "" : FAKE_AGENT,
         ...(spawnOptions.stored === true ? { OLAI_FAKE_ACP_STORED: "yes" } : {}),
+        // FIRST, so a real kolu on the developer's PATH does not decide a
+        // scenario. Which one this is, is the tag's business.
+        PATH: `${FAKE_KOLU_DIR}${path.delimiter}${process.env.PATH ?? ""}`,
+        OLAI_FAKE_KOLU: spawnOptions.kolu === true ? "live" : "stale",
       },
     });
     live.add(child);
@@ -483,7 +508,7 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
     // The SAME agent configuration as the first boot, because that is the whole
     // claim being tested: a restarted server comes up in the conversation it was
     // last in, which it can only do if its agent still keeps the same sessions.
-    { port, stored: world.storedSessions, agent: world.hasAgent },
+    { port, stored: world.storedSessions, agent: world.hasAgent, kolu: world.hasKolu },
   );
   if (started.baseUrl !== world.baseUrl) {
     killChild(started.child);
@@ -686,6 +711,17 @@ Before(
     this.hasAgent = !scenario.pickle.tags.some(
       (tag) => tag.name === NO_AGENT_TAG,
     );
+    this.hasKolu = scenario.pickle.tags.some((tag) => tag.name === KOLU_TAG);
+    // A shared corpus server is running for every other scenario too, so which
+    // kolu it found is not this one's to choose. Said here rather than left to
+    // the assertion, which would fail thirty seconds later about the transcript
+    // instead of about the tag.
+    if (this.hasKolu && !asked.scratch) {
+      throw new Error(
+        `${KOLU_TAG} decides what its server finds on PATH, so the scenario must own that ` +
+          `server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
+      );
+    }
 
     if (asked.scratch) {
       const wantsRepo = scenario.pickle.tags.some((tag) => tag.name === GIT_TAG);
@@ -696,6 +732,7 @@ Before(
         agent: this.hasAgent,
         repo: wantsRepo,
         commits: commitsOn ? "manual" : "off",
+        kolu: this.hasKolu,
       });
       this.baseUrl = own.baseUrl;
       this.served = own.root;

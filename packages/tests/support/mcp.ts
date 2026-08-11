@@ -9,10 +9,14 @@
  *
  * It is deliberately hand-rolled and tiny. Pulling in an MCP SDK here would
  * test that SDK's framing against ours; forty lines of `write a line, read a
- * line` tests OURS, which is the thing that could be wrong.
+ * line` tests OURS, which is the thing that could be wrong. Reading the lines
+ * is `./ndjson.ts`, which is this package's own and shared with the two fake
+ * servers — the same argument, one directory over.
  */
 
 import { type ChildProcess, spawn } from "node:child_process";
+
+import { readMessages } from "./ndjson.ts";
 
 /** How long one call may take before it is a hang, and how long the process
  *  gets to come up. Generous by the same argument as the rest of the harness:
@@ -52,26 +56,21 @@ export const connectTerminalAgent = async (
   // failure will explain itself — kept for the diagnostics below and nowhere
   // else, because a scenario has nothing to assert about it.
   let said = "";
-  let pending = "";
   let next = 0;
   const waiting = new Map<number, (reply: Reply) => void>();
 
-  child.stdout?.setEncoding("utf8");
   child.stderr?.setEncoding("utf8");
-  child.stdout?.on("data", (chunk: string) => {
-    pending += chunk;
-    // One message per line is the transport's contract; a client that buffered
-    // any other way would be reading a different protocol.
-    const lines = pending.split("\n");
-    pending = lines.pop() ?? "";
-    for (const line of lines) {
-      if (line.trim() === "") continue;
-      const message = JSON.parse(line) as Reply;
-      if (message.id === undefined) continue;
+  // One message per line is the transport's contract, and reading it that way
+  // is `support/ndjson.ts` — a line that will not parse is left to throw here,
+  // because this client is reading a protocol WE serve and a frame that is not
+  // one is the bug this suite exists to catch.
+  if (child.stdout !== null) {
+    readMessages<Reply>(child.stdout, (message) => {
+      if (message.id === undefined) return;
       waiting.get(message.id)?.(message);
       waiting.delete(message.id);
-    }
-  });
+    });
+  }
   child.stderr?.on("data", (chunk: string) => {
     said += chunk;
   });

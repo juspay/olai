@@ -159,6 +159,23 @@ The conversation is Claude Code's own session for that directory: close olai,
 reopen it, and you are back in it — and `claude --resume` in a terminal reaches
 the same conversations.
 
+If this machine is running [kolu](https://kolu.dev) — terminals for coding
+agents — the panel's agent gets kolu's terminals too, and there is nothing to
+set up: every new conversation looks for the padi daemon this host answers on,
+and hands the session `kolu mcp` when one is there. So you can ask about what
+your coding agents are doing in the same place you ask about your outlines. It
+is looked for rather than assumed: olai starts the `kolu` it found and asks it
+to read something only a running daemon can answer, because a `kolu` on a PATH
+is not always the one this host is running, and a wrong build will start
+perfectly well and know nothing.
+
+The agent is the pinned Claude Code adapter, and it comes with olai: `nix run`,
+the packaged binary and `just serve` all default to it, so there is nothing to
+install and nothing to configure. `OLAI_ACP_AGENT` points at a different ACP
+agent, and setting it to the empty string turns chat off — the panel then says
+there is no agent and which variable would give it one, rather than quietly not
+being there. The outlines are served the same either way.
+
 ## And commit it when you mean to
 
 Those writes land on disk and WAIT. Git is how you see what the tool did to
@@ -206,15 +223,9 @@ swallow the resolution.
 
 `--commit=auto` is the old behaviour, one commit per write, for a server with
 no browser in front of it; `--commit=off` (or `--no-commit`) is for a
-directory whose history is somebody else's job. Not a git work tree: no pill,
-no panel, and nothing is ever `git init`ed on your behalf.
-
-The agent is the pinned Claude Code adapter, and it comes with olai: `nix run`,
-the packaged binary and `just serve` all default to it, so there is nothing to
-install and nothing to configure. `OLAI_ACP_AGENT` points at a different ACP
-agent, and setting it to the empty string turns chat off — the panel then says
-there is no agent and which variable would give it one, rather than quietly not
-being there. The outlines are served the same either way.
+directory whose history is somebody else's job. The pill says which of those
+two it is rather than vanishing, and nothing is ever `git init`ed on your
+behalf.
 
 ## Or ask from a terminal
 
