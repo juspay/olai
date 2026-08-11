@@ -208,6 +208,38 @@ test("a mirror reports its target's mark, through as many hops as it takes", () 
   expect(status.get("far")).toBe("done")
 })
 
+// EVERY mark, and the absence of one, because the report this locks down
+// (`mirror-status`, 2026-08-11) was that a mirror of a `doing` node drew a
+// plain bullet where the target drew the half-filled box. Read through the
+// ROWS rather than off the index, since the row is what a checkbox is drawn
+// from: a hop the map made and the walk then keyed by the placement's own id
+// would pass the test above and still leave the screen wrong. The unmarked
+// target is the case the other three are only meaningful against — a mirror of
+// a bullet has no box either, because there is no mark to show.
+test("a mirror row draws its target's mark, whichever of them it is", () => {
+  const rows = rowsOf(
+    derive(nodesOfFiles({
+      "a.jsonl": `{"id":"working","ord":"a","title":"working","doing":"2026-08-11"}\n` +
+        `{"id":"waiting","ord":"b","title":"waiting","todo":"2026-08-11"}\n` +
+        `{"id":"finished","ord":"c","title":"finished","done":"2026-08-11"}\n` +
+        `{"id":"note","ord":"d","title":"a note about all three"}`,
+      // In another file, which is where a mirror usually lives: the one
+      // relation that crosses files must not be the one that drops the mark.
+      "b.jsonl": `{"id":"m-working","ord":"a","mirror":"working"}\n` +
+        `{"id":"m-waiting","ord":"b","mirror":"waiting"}\n` +
+        `{"id":"m-finished","ord":"c","mirror":"finished"}\n` +
+        `{"id":"m-note","ord":"d","mirror":"note"}`,
+    })),
+    "b.jsonl",
+  )
+  expect(rows.map((row) => [row.at.node.id, row.status])).toEqual([
+    ["m-working", "doing"],
+    ["m-waiting", "todo"],
+    ["m-finished", "done"],
+    ["m-note", undefined],
+  ])
+})
+
 // A mirror is a placement, not a second obligation, so it is not counted in
 // the rollup: showing a node in a second place must not make an unrelated
 // parent read `1/2`.
@@ -435,6 +467,27 @@ test("a row, a mirror row and a page all say what the node is waiting on", () =>
   ])
   expect(situate(derived, drawn(rows, 1).shows).blocked.map((one) => one.at.node.id))
     .toEqual(["first"])
+})
+
+// The waiting glyph is drawn from TWO facts at once — the mark it is toned
+// with and the blockers it stands in for — so a mirror needs both of them from
+// its target or the column falls back to a box, or to nothing at all. `blocked`
+// is keyed by the node while `status` is keyed by every record, and the row is
+// where those two key domains have to meet.
+test("a mirror row carries both halves of the waiting glyph", () => {
+  const derived = derive(nodesOfFiles({
+    "a.jsonl": `{"id":"first","ord":"a","title":"first","doing":true}\n` +
+      `{"id":"second","ord":"b","title":"second","todo":true,"after":["first"]}`,
+    "b.jsonl": `{"id":"m","ord":"a","mirror":"second"}`,
+  }))
+  const mirror = drawn(rowsOf(derived, "b.jsonl"), 0)
+  expect(mirror.kind).toBe("mirror")
+  // The mark the glyph is toned with…
+  expect(mirror.status).toBe("todo")
+  // …and what it says the row is waiting on, with its reason.
+  expect(mirror.blocked.map((one) => `${one.at.node.id} ${one.status}`)).toEqual([
+    "first doing",
+  ])
 })
 
 // A row that draws no node is waiting on nothing — there is no node there to
@@ -710,6 +763,32 @@ test("a parent nobody marked is not hidden, however finished its children are", 
   const agents = drawn(rows, 0)
   expect(agents.status).toBeUndefined()
   expect(agents.progress).toEqual({ done: 2, total: 2 })
+})
+
+// Done-hiding reads the row's status, and a mirror's status is its target's —
+// so a mirror of a done node goes, and the subtree it was drawing goes with it,
+// which is the same sweep the target's own row gets. The rest of the mirroring
+// file stays: hiding is per row, and a placement being dropped says nothing
+// about the one written after it.
+test("done-hidden drops a mirror of a done node with the subtree it draws", () => {
+  const rows = rowsOf(
+    derive(nodesOfFiles({
+      "a.jsonl": `{"id":"finished","ord":"a","title":"finished","done":"2026-08-11"}\n` +
+        `{"id":"how","parent":"finished","ord":"a","title":"how it went"}\n` +
+        `{"id":"open","ord":"b","title":"open","doing":true}`,
+      "b.jsonl": `{"id":"m-finished","ord":"a","mirror":"finished"}\n` +
+        `{"id":"m-open","ord":"b","mirror":"open"}`,
+    })),
+    "b.jsonl",
+  )
+  // Drawn, the mirror carries the target's subtree — the bullet under a done
+  // node is exactly what the sweep is about.
+  expect(shape(rows)).toEqual([
+    "/m-finished mirror",
+    "/m-finished/how node",
+    "/m-open mirror",
+  ])
+  expect(shape(withoutDone(rows))).toEqual(["/m-open mirror"])
 })
 
 // Hidden, never touched: the rows handed in are the same rows afterwards, so

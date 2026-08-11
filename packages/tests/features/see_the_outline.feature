@@ -134,3 +134,13 @@ Feature: See the outline
     And the node "basil" is a child of "kitchen-herbs"
     And the node "mint" is a child of "kitchen-herbs"
     And there should be no page errors
+
+  Scenario: A mirror draws the mark its target stores
+    # A mirror asks EVERYTHING of what it shows: `kitchen-herbs` stands for
+    # `herbs`, which carries `doing`, so it draws the same half-filled box the
+    # target draws in garden.jsonl — and the same rollup over the target's own
+    # children. A row that showed a title but no box would say the node is not
+    # a task in one place and a task in another.
+    Then the node "kitchen-herbs" has status "doing"
+    And the node "kitchen-herbs" shows a doing checkbox
+    And the node "kitchen-herbs" shows the progress "1/2"
