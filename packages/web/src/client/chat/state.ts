@@ -1,7 +1,7 @@
 /**
  * The conversation, as this tab sees it.
  *
- * Two subscriptions and six verbs, and every one of them is a surface member —
+ * Two subscriptions and five verbs, and every one of them is a surface member —
  * there is no chat state in the browser that the server does not own. What was
  * typed, what the agent said, which tool ran, which session this is: all of it
  * arrives as frames, so two tabs cannot disagree and a reload is a fresh read
@@ -39,18 +39,15 @@
  */
 
 import {
-  type Attached,
   CHAT_OFF,
   type ChatEntry,
   type ChatState,
   type OpFailure,
   type SessionInfo,
 } from "@olai/surface"
-import { type Accessor, createEffect, createMemo, createSignal, on } from "solid-js"
+import { type Accessor, createMemo, createSignal } from "solid-js"
 
 import { olai } from "../wire.ts"
-import { attaching } from "./attach.ts"
-import { forget, remember } from "./previews.ts"
 import { type Call, run } from "./run.ts"
 
 export interface Chat {
@@ -67,21 +64,7 @@ export interface Chat {
    *  Separate from `state().trouble`, which is what went wrong where nobody was
    *  waiting: this one belongs to the click that caused it. */
   readonly refused: Accessor<OpFailure | null>
-  /** What was typed, and the pictures already attached to it — by the paths
-   *  {@link Chat.attach} answered with.
-   *
-   *  Answers whether the server TOOK it. A composer clears the box the moment
-   *  it sends, which is right — but a send that was refused has to be able to
-   *  put back what it threw away, and the refusal alone does not say what the
-   *  message was. */
-  readonly send: (
-    text: string,
-    attachments: ReadonlyArray<string>,
-  ) => Promise<boolean>
-  /** Send a picture to the conversation's tmp directory, chunk by chunk, and
-   *  answer with where it landed — or `null` when it was refused, which the
-   *  panel is already showing through {@link Chat.refused}. */
-  readonly attach: (file: File) => Promise<Attached | null>
+  readonly send: (text: string) => void
   readonly cancel: () => void
   readonly newSession: () => void
   readonly loadSession: (id: string) => void
@@ -135,63 +118,12 @@ export const createChat = (): Chat => {
     run(effect, (failure) => setRefused(failure))
   }
 
-  // A conversation ended, so what belonged to it did too: the server threw its
-  // tmp directory away, and the thumbnails this tab was keeping are of files
-  // that no longer exist under names the next conversation will mint again.
-  // Here rather than in a component because this is where the session is
-  // known — the cell is the only thing that says a conversation changed.
-  createEffect(
-    on(() => state().session?.id, () => forget(), { defer: true }),
-  )
-
   return {
     state,
     rows,
     entry,
     refused,
-    send: (text, attachments) =>
-      new Promise((resolve) => {
-        setRefused(null)
-        run(
-          olai.procedures.chat.send({ text, attachments }),
-          (failure) => {
-            setRefused(failure)
-            resolve(false)
-          },
-          () => resolve(true),
-        )
-      }),
-    // The chunk loop is a composed effect ({@link ./attach.ts}) rather than a
-    // verb of its own: what a caller waits for is the path, because it is what
-    // the next `send` carries.
-    attach: (file) =>
-      new Promise((resolve) => {
-        // WHICH conversation this is being attached to, read before the first
-        // chunk goes out. An upload takes as many round trips as the picture
-        // has chunks, and leaving a conversation is allowed throughout — only
-        // a running TURN blocks that. So the answer can arrive after the
-        // server has thrown the directory it names away, and after the effect
-        // below has cleared what belonged to it. Answering `null` then is the
-        // honest thing: the file is gone, and a chip for it would offer a send
-        // the server would refuse.
-        const asked = state().session?.id
-        setRefused(null)
-        run(
-          attaching(file, (chunk) => olai.procedures.chat.attach(chunk)),
-          (failure) => {
-            setRefused(failure)
-            resolve(null)
-          },
-          (stored) => {
-            if (state().session?.id !== asked) return resolve(null)
-            // The Blob is the one already in hand — this tab is the only
-            // reader that will ever have it, and the name it is filed under is
-            // the SERVER's, which is what the transcript row will carry.
-            remember(stored.name, file)
-            resolve(stored)
-          },
-        )
-      }),
+    send: (text) => verb(olai.procedures.chat.send({ text })),
     cancel: () => verb(olai.procedures.chat.cancel()),
     newSession: () => verb(olai.procedures.chat.newSession()),
     loadSession: (id) => verb(olai.procedures.chat.loadSession({ id })),
