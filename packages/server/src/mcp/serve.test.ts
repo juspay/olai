@@ -1,8 +1,9 @@
 /**
  * `olai mcp <dir>` against a real directory, as a real child process.
  *
- * The unit tests either side of this one prove the halves: `stdio.test.ts` the
- * framing, `@olai/ops`'s `ops.test.ts` the tools and the write gate. What is
+ * The unit tests beside this one prove the halves: `tools.test.ts` the tool
+ * contract and `face.test.ts` the resources, both through an in-memory MCP
+ * client, and `@olai/ops`'s `ops.test.ts` the write gate under them. What is
  * only true end to end is what this file is for — that a client which knows
  * nothing about olai except how to launch a command can mark a node, and that
  * the bytes it changed are on the disk of a process it does not share.
@@ -11,16 +12,20 @@
  * the claims are about a PROCESS: that stdout carries the protocol and nothing
  * else, that the notice a person reads went somewhere a parser will not see,
  * and that closing the client's end of the pipe is what stops it. None of
- * those can be observed from inside.
+ * those can be observed from inside — and the last one is the reason this file
+ * is the ONLY place the stdio drain is proven, because a drain is a claim about
+ * a process exiting rather than about a function returning.
  *
  * Every test is one CONVERSATION — write the messages, close stdin, read
- * everything back — which is the shape stdin's close being the shutdown makes
- * available, and it is worth taking. There is no id table and no per-call
- * timeout here because there is nothing to interleave: the pump answers in
- * order, and a process that failed to stop would fail every test in the file
- * rather than only the one about stopping. The interactive client, which has
- * to leave the pipe open while a browser is looked at, is the e2e suite's
- * (`packages/tests/support/mcp.ts`).
+ * everything back. That shape is available because stdin's close IS the
+ * shutdown, and it is worth taking: the multi-message test below hands the
+ * server several requests and closes the pipe under them, so a drain that lost
+ * a reply fails it. Answers are matched BY ID rather than by position, which
+ * matters more than it used to: the pump this replaced answered in order, and
+ * the SDK's transport does not promise to.
+ *
+ * The interactive client, which has to leave the pipe open while a browser is
+ * looked at, is the e2e suite's (`packages/tests/support/mcp.ts`).
  */
 
 import { expect, test } from "bun:test"
@@ -210,7 +215,7 @@ test("the notice a person reads is not on the protocol's stream", async () => {
   const root = served()
   const said = await converse(root, [ask(1, "initialize", HANDSHAKE)])
 
-  expect(said.err).toInclude("serving the outline tools over stdio")
+  expect(said.err).toInclude("serving the outline surface over stdio")
   expect(said.err).toInclude(`root=${path.resolve(root)}`)
 })
 
@@ -221,4 +226,42 @@ test("closing the client's end of the pipe stops it", async () => {
   const said = await converse(served(), [ask(1, "initialize", HANDSHAKE)])
 
   expect(said.stopped).toBe(true)
+}, BOUND_MS * 3)
+
+/**
+ * The no-argument tool, called down the real pipe.
+ *
+ * `tools.test.ts` proves both halves of this in memory — that `list_outlines`
+ * is ADVERTISED as the empty object rather than wrapped under `value`, and that
+ * calling it returns the outlines. This closes the gap between those two
+ * proofs and a child process: the wrapping bug that made every no-argument call
+ * fail was a property of the SCHEMA BRIDGE, which is transport-independent, but
+ * "transport-independent" is a claim and this is the cheap way to hold it.
+ *
+ * It is also the first call an agent makes, so a regression here is not one
+ * tool failing — it is the whole capture flow, before an agent has learned
+ * which outlines exist.
+ */
+test("the no-argument tool works over the pipe, advertised and called", async () => {
+  const said = await converse(served(), [
+    ask(1, "initialize", HANDSHAKE),
+    ask(null, "notifications/initialized"),
+    ask(2, "tools/list"),
+    ask(3, "tools/call", { name: "list_outlines", arguments: {} }),
+  ])
+
+  // Advertised as the empty object. `value` here is the wrapping that broke it.
+  const listed = (answerTo(said, 2).result?.tools ?? []) as ReadonlyArray<
+    { name: string; inputSchema: unknown }
+  >
+  const tool = listed.find((entry) => entry.name === "list_outlines")
+  expect(tool?.inputSchema).toMatchObject({ type: "object", properties: {} })
+  expect(JSON.stringify(tool?.inputSchema)).not.toContain(`"value"`)
+
+  // And answered, with the fixture's outline in it.
+  const answer = answerTo(said, 3).result
+  expect(answer?.isError).toBeUndefined()
+  const outlines = (answer?.structuredContent as { outlines?: ReadonlyArray<{ file: string }> })
+    ?.outlines ?? []
+  expect(outlines.map((outline) => outline.file)).toContain("house.jsonl")
 }, BOUND_MS * 3)

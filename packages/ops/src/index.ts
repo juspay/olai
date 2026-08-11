@@ -18,15 +18,21 @@
  *     one, and its own tests reach it directly;
  *   - `Query` — how a reader that is not a browser sees the set, over parsed
  *     nodes and never over bytes;
- *   - `Mcp` — those two spoken as tools, with no transport in it. The tool
- *     TABLE is not exported either: what a consumer wants is the server, and
- *     the list is what the server is made of.
+ *   - `TOOLS` — the closed list of what an agent may do, each entry carrying
+ *     its own schema and, for a read, its own reader.
+ *
+ * The table was private while this package also owned an MCP server (`Mcp`,
+ * a hand-rolled JSON-RPC dispatch): what a consumer wanted then was the server,
+ * and the list was what the server was made of. `@kolu/surface-mcp` is the
+ * server now, so the list is what a consumer wants — and the projection onto MCP
+ * moved up to `@olai/server`, which keeps the SDK out of this layer's dependency
+ * closure. An op still does not know it is being called over a wire.
  */
 
 export { codec } from "./codec.ts"
 export type { Store } from "./deps.ts"
 export { make, type Ops, type Options } from "./ops.ts"
 export { type Applied, Request } from "./request.ts"
+export { type Reading, type Tool, TOOLS, toolNamed } from "./tools.ts"
 
-export * as Mcp from "./mcp.ts"
 export * as Query from "./query.ts"

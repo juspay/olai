@@ -80,22 +80,23 @@ const web = Command.make("web", {
   )
 
 /**
- * The same tools the chat panel's agent gets, for an agent that is not ours.
+ * The same surface the chat panel's agent gets, for an agent that is not ours.
  *
  * Registered with an MCP client as a command it launches — `claude mcp add
  * olai -- olai mcp ~/outlines` — so it speaks JSON-RPC down its own pipes and
  * exits when the client closes them. There is nothing to bind and nothing to
  * authenticate: the client already proved who it is by being the process that
  * started this one.
+ *
+ * The pipes are not named here any more: the SDK's `StdioServerTransport` takes
+ * `process.stdin`/`stdout` itself, and handing them in was only ever how the
+ * hand-rolled pump was made testable. What replaced that seam is an injectable
+ * TRANSPORT, which a test drives in memory.
  */
 const mcp = Command.make("mcp", { directory, noCommit }, ({ directory, noCommit }) =>
   serveTools({
     root: directory,
     commit: !noCommit,
-    input: process.stdin,
-    write: (frame) => {
-      process.stdout.write(frame)
-    },
   })).pipe(
     Command.withDescription(
       "serve the outline tools over stdio, for a coding agent in a terminal",
