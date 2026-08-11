@@ -27,10 +27,11 @@
  *     entry is the model, how a session list sorts. An event carries what was
  *     READ, never the raw protocol value.
  *
- * The MCP servers a session is given are the caller's — olai hands its own
- * internal one, which is the standard ACP shape and the only channel the agent
- * has to the ops layer. `fs` capabilities are FALSE in both directions on
- * purpose: this is not an editor, and an agent that could write a file whole
+ * The MCP servers a session is given are olai's own internal one — the standard
+ * ACP shape, and the only channel the agent has to the ops layer — plus, when
+ * this host is running kolu, kolu's terminals ({@link ./kolu.ts}), detected per
+ * session rather than at boot. `fs` capabilities are FALSE in both directions
+ * on purpose: this is not an editor, and an agent that could write a file whole
  * would be routing around the format.
  */
 
@@ -60,6 +61,7 @@ import { emitter, reasonOf } from "@olai/log"
 import { Data, type Duration, Effect, Semaphore } from "effect"
 
 import type { AgentEvent, Command, Stored } from "./events.ts"
+import * as Kolu from "./kolu.ts"
 
 /** An MCP server to hand a session, in olai's terms. {@link mcpServersOf}
  *  renders it into what the protocol wants. */
@@ -438,11 +440,20 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         yield* fresh(at)
       })
 
+    /** The MCP servers this conversation gets: olai's own tool server, and
+     *  kolu's terminals if this host is running kolu. Asked FRESH every time a
+     *  session is opened rather than once at boot, so a padi started after olai
+     *  is picked up by the next conversation instead of the next restart. */
+    const servers = Effect.map(
+      Kolu.detect,
+      (kolu) => mcpServersOf(options.tools(), kolu),
+    )
+
     const fresh = (at: Live): Effect.Effect<void, AgentGone> =>
       Effect.gen(function*() {
         const made = (yield* ask(at.connection, methods.agent.session.new, {
           cwd: options.cwd,
-          mcpServers: [...mcpServersOf(options.tools())],
+          mcpServers: [...(yield* servers)],
           _meta: META,
         })) as NewSessionResponse
         session = made.sessionId
@@ -457,6 +468,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       title: string | null,
     ): Effect.Effect<void, AgentGone> =>
       Effect.gen(function*() {
+        // Before the flag below, because a detection is not a replay.
+        const mcpServers = [...(yield* servers)]
         session = id
         emit({ _tag: "session", id, title })
         // Everything between these two is history. The flag is set before the
@@ -467,7 +480,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           ask(
             at.connection,
             methods.agent.session.load,
-            { sessionId: id, cwd: options.cwd, mcpServers: [...mcpServersOf(options.tools())] },
+            { sessionId: id, cwd: options.cwd, mcpServers },
             LOAD_TIMEOUT,
           ),
           () =>
@@ -821,13 +834,25 @@ const liveModelIn = (params: unknown): string | null => {
 const sameDirectory = (a: string, b: string): boolean =>
   a.replace(/\/+$/, "") === b.replace(/\/+$/, "")
 
-/** Olai's tool server as ACP's `mcpServers` entry. The one place the protocol's
- *  shape for this is spelled. */
-const mcpServersOf = (server: ToolServer | null): ReadonlyArray<McpServer> =>
-  server === null ? [] : [{
-    type: "http",
+/** What a session is handed, as ACP's `mcpServers`. The one place the
+ *  protocol's shape for either transport is spelled: olai's own tool server is
+ *  http because it is a route on the listener this process already has, and
+ *  kolu's is stdio because it is somebody else's program on this host. */
+export const mcpServersOf = (
+  server: ToolServer | null,
+  kolu: Kolu.Server | null,
+): ReadonlyArray<McpServer> => [
+  ...server === null ? [] : [{
+    type: "http" as const,
     name: server.name,
     url: server.url,
     headers: [{ name: "Authorization", value: `Bearer ${server.token}` }],
-  }]
+  }],
+  ...kolu === null ? [] : [{
+    name: kolu.name,
+    command: kolu.command,
+    args: [...kolu.args],
+    env: Object.entries(kolu.env).map(([name, value]) => ({ name, value })),
+  }],
+]
 

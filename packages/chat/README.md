@@ -25,12 +25,13 @@ the panel comes up where you left it, and `claude --resume` in a terminal
 reaches the same conversations. Nothing is persisted on this side, because a
 second copy of the transcript would be a second thing to be wrong.
 
-## The four modules, and their separate reasons to change
+## The modules, and their separate reasons to change
 
 | file | what it owns |
 |---|---|
 | `adapter.ts` | which executable speaks ACP: the pinned adapter by default, `OLAI_ACP_AGENT` to override, empty to turn chat off |
 | `agent.ts` | the ACP client: one subprocess, one protocol. Nothing else in olai spells `session/prompt` |
+| `kolu.ts` | whether this host is running kolu, and the stdio server to hand a session if it is |
 | `events.ts` | the closed vocabulary of what an agent tells us — a consumer that needs more needs a new member, not a look at the wire |
 | `transcript.ts` | the conversation as ROWS: chunks accumulate, tool calls update in place by id, a replay replaces rather than appends |
 | `chat.ts` | the join, and the only place that knows both halves |
@@ -56,6 +57,40 @@ scripted agent is one level further out and more honest for it —
 `OLAI_ACP_AGENT` pointed at a script, which is how the e2e suite drives every
 turn it asserts on, and which exercises the subprocess and the wire that an
 injected object would replace with an assumption.
+
+## Kolu's terminals, when the host has them
+
+A session is handed olai's own tool server, and a second one when this host is
+running [kolu](https://kolu.dev): `kolu mcp` over stdio, so the agent you are
+talking to about your outlines can also see the terminals your coding agents are
+running in. It is automatic and has no knob — the cost of being wrong is one MCP
+server an agent never uses — and the caller is not asked, because the answer can
+change between one conversation and the next.
+
+Which is the first of three decisions in `kolu.ts` worth knowing:
+
+**Per conversation, not per boot.** A padi started after olai is picked up by
+the next conversation rather than the next restart. It costs one process start
+on a path that already spawns a subprocess and handshakes with it.
+
+**The probe IS the detection.** A `kolu` on PATH is not necessarily the host's
+kolu: a padi-spawned terminal prepends its own bundled copy, and one of those
+was an older build reporting the same version string while missing most of the
+verbs ([juspay/kolu#2146](https://github.com/juspay/kolu/issues/2146), fixed by
+#2147 — but the wrong build still SPAWNS, so the lesson outlives the fix). So
+nothing here trusts a path, a version or an exit code: the executable is
+started, handshaken with, and asked to read a resource only a live daemon can
+answer. One answer is evidence of both halves — this binary speaks the protocol,
+AND a padi is behind it — and the absolute path that answered is what the
+session is given, so the agent cannot resolve the bare word against a different
+PATH and spawn something else. Anything short of an answer is a `null`,
+silently: a host without kolu is the ordinary case, not a fault.
+
+**What is detected is the DAEMON, not kolu's web server**, which may be running
+on another machine reaching this host as a remote. `PADI_SOCKET` is forwarded
+when olai was launched inside a kolu terminal, and kolu resolves its own default
+when it was not — socket discovery is not reimplemented here, and a host running
+two padis says so and is left alone rather than guessed about.
 
 ## What the caller does
 

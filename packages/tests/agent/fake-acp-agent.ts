@@ -20,6 +20,7 @@
  *
  *   done <id>    call `set_done` on that node, then say so
  *   add <title>  call `add_node` under the first outline's first root
+ *   servers      name the MCP servers this session was handed
  *   slow         dawdle, long enough to cancel
  *   flood        say more than fits, so scrolling is a thing that can be tested
  *   hold         start a tool call and STOP there, until released
@@ -79,6 +80,12 @@ let cwd = process.cwd()
 let sessionId = "fake-session-1"
 /** The MCP server the client handed us, if any: `{url, headers}`. */
 let mcp: { url: string; headers: Record<string, string> } | null = null
+/** The NAMES of every MCP server the client handed us, in the order it sent
+ *  them. Olai's own is the http one this file actually calls; the rest are
+ *  somebody else's programs on the host, which this file has no business
+ *  spawning — reporting that they arrived is the whole of what a scenario
+ *  about them can ask. */
+let servers: ReadonlyArray<string> = []
 /** Set by a `session/cancel` notification, cleared when a prompt is accepted. */
 let cancelled = false
 
@@ -249,6 +256,16 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
+  if (verb === "servers") {
+    // The list, as one definite line: `servers: [olai kolu]`. A scenario about
+    // what a session was GIVEN can then assert the whole answer rather than
+    // the absence of a word, which is the only shape of that claim a streaming
+    // panel can be asked for without waiting to see whether more arrives.
+    say(`servers: [${servers.join(" ")}]`)
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
   if (verb === "flood") {
     // Chunk by chunk into ONE entry, which is what an answer is: what has to
     // overflow the pane is a single growing paragraph, because a list that
@@ -353,12 +370,14 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
 
 const openSession = (params: Record<string, unknown>): void => {
   if (typeof params["cwd"] === "string") cwd = params["cwd"].replace(/\/+$/, "")
-  const servers = (params["mcpServers"] ?? []) as ReadonlyArray<{
+  const given = (params["mcpServers"] ?? []) as ReadonlyArray<{
     type?: string
+    name?: string
     url?: string
     headers?: ReadonlyArray<{ name: string; value: string }>
   }>
-  const http = servers.find((server) => server.type === "http")
+  servers = given.map((server) => server.name ?? "?")
+  const http = given.find((server) => server.type === "http")
   mcp = http?.url === undefined ? null : {
     url: http.url,
     headers: Object.fromEntries(

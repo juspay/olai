@@ -1,0 +1,81 @@
+#!/usr/bin/env bun
+/**
+ * A `kolu` on PATH, for the suite's servers to find.
+ *
+ * Every server this harness spawns gets this directory FIRST on its PATH, so
+ * what "is kolu running here?" answers is a property of the scenario rather
+ * than of the laptop the run is on. A developer whose machine really is running
+ * kolu would otherwise get a different suite than CI does — and the interesting
+ * case is not "was a binary found" but "did a padi answer it", which no real
+ * machine can be relied on to have either way.
+ *
+ * `OLAI_FAKE_KOLU` says which kolu this is, and the DEFAULT is the unhelpful
+ * one:
+ *
+ *   stale (or unset) — speaks the protocol, reaches no daemon. This is what a
+ *     wrong build looks like (juspay/kolu#2146: a padi-spawned terminal
+ *     prepends its own bundled copy, and one of those was an older build
+ *     reporting the same version while missing most of the verbs). Detection
+ *     must refuse it, so every scenario that says nothing about kolu gets it.
+ *   live — a daemon answers, which is the whole of "kolu is running here".
+ *
+ * It serves no terminals and holds no state: what a scenario asserts is which
+ * MCP servers the SESSION was given, and the fake ACP agent is what reports
+ * that. Anything more here would be simulating kolu, which is kolu's job.
+ */
+
+const LIVE = process.env.OLAI_FAKE_KOLU === "live";
+
+const emit = (message: unknown): void => {
+  process.stdout.write(`${JSON.stringify(message)}\n`);
+};
+
+const answer = (id: unknown, method: string): void => {
+  if (method === "initialize") {
+    emit({
+      jsonrpc: "2.0",
+      id,
+      result: {
+        protocolVersion: "2024-11-05",
+        capabilities: { tools: {}, resources: { subscribe: true } },
+        serverInfo: { name: "kolu-mcp", version: "0.0.0-fake" },
+      },
+    });
+    return;
+  }
+  if (method === "resources/read") {
+    // The one that decides it. A kolu that reached no padi answers exactly
+    // this way — the daemon is what the identity cell belongs to.
+    emit(
+      LIVE
+        ? { jsonrpc: "2.0", id, result: { contents: [] } }
+        : {
+          jsonrpc: "2.0",
+          id,
+          error: { code: -32603, message: "surface-mcp: padi transport down" },
+        },
+    );
+    return;
+  }
+  if (id !== undefined) {
+    emit({ jsonrpc: "2.0", id, error: { code: -32601, message: `no such method: ${method}` } });
+  }
+};
+
+let pending = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", (chunk: string) => {
+  pending += chunk;
+  const lines = pending.split("\n");
+  pending = lines.pop() ?? "";
+  for (const line of lines) {
+    if (line.trim() === "") continue;
+    try {
+      const message = JSON.parse(line) as { id?: unknown; method?: unknown };
+      if (typeof message.method === "string") answer(message.id, message.method);
+    } catch {
+      // A client that wrote something that is not a message gets silence, the
+      // same as the real one gives it.
+    }
+  }
+});

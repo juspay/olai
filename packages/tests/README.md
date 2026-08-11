@@ -14,7 +14,8 @@ packages/tests/
 │   ├── world.ts             # OlaiWorld: page, locators, the UI contract
 │   ├── hooks.ts             # browser + a server per corpus (and per scratch copy)
 │   └── mcp.ts               # an MCP client, for the agent olai did not start
-├── agent/                   # the scripted ACP agent the chat scenarios drive
+├── agent/                   # the scripted ACP agent the chat scenarios drive,
+│                           #   and the fake `kolu` every server finds on PATH
 └── fixtures/                # the served directories (see fixtures/README.md)
 ```
 
@@ -305,8 +306,8 @@ internal MCP server, over the real HTTP route, with the token the real
 layer and the real store — everything except the part that would need a
 language model, which is the one thing a CI lane cannot afford to be
 non-deterministic about. Behaviour is keyed on the prompt text (`done <id>`,
-`add <title>`, `slow`, `hold`, `model <id>`, `crash`), so a scenario asks for
-what it needs.
+`add <title>`, `servers`, `slow`, `hold`, `model <id>`, `crash`), so a scenario
+asks for what it needs.
 
 `hold` is the one worth knowing about: it starts a tool call, streams a chunk,
 and goes on streaming until the scenario touches `.agent-release` in the served
@@ -335,3 +336,24 @@ rather than by anything the client says.
 
 The real Claude adapter is for driving the panel by hand: `just serve` resolves
 the pinned one on demand.
+
+## The fake kolu
+
+`agent/kolu/kolu` is an executable named exactly that, and its directory goes
+FIRST on the PATH of every server this suite spawns. Olai looks for a `kolu`
+when it opens a conversation and hands the session kolu's terminals if a padi
+daemon answers it, so without this the suite would ask the laptop it is running
+on — and a developer working inside a kolu terminal would get a different run
+than a CI lane does.
+
+It answers the probe two ways, and the DEFAULT is the unhelpful one: it speaks
+the protocol and reaches no daemon, which is both "no kolu here" and what a
+wrong build looks like (a padi-spawned terminal prepends its own bundled copy,
+and one of those was an older build reporting the same version while missing
+most of the verbs). `@kolu` is the knob that makes a daemon answer. So a
+scenario that says nothing about kolu is one whose session gets olai's own tool
+server and nothing else, deterministically.
+
+Nothing about a terminal is simulated. What a scenario can ask is which MCP
+servers the SESSION was given, and the scripted agent answers that when asked
+(`servers`).
