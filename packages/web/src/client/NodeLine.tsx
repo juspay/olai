@@ -43,7 +43,10 @@ export function NodeLine(props: {
 }) {
   return (
     <>
-      <span class={`flex-1 ${toneOf(props.status)}`} data-testid={TESTID.nodeTitle}>
+      <span
+        class={`flex-1 text-[0.9375rem] leading-snug ${toneOf(props.status)}`}
+        data-testid={TESTID.nodeTitle}
+      >
         {props.children}
         <NodeTitle title={props.title} />
       </span>

@@ -13,6 +13,9 @@ import {
   DESC,
   NODE,
   NODE_GUTTER,
+  NODE_MENU,
+  NODE_MENU_ITEM,
+  NODE_MENU_PANEL,
   oneLine,
   nodeSelector,
   PROGRESS,
@@ -21,7 +24,7 @@ import {
   POLL_TIMEOUT,
   TAG,
   TOGGLE,
-  WAITING_GLYPH,
+  ZOOM,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -113,14 +116,15 @@ Then(
   },
 );
 
-/** The three faces of the status box beside the bullet. The MARK is the
- *  assertion, so a regression that only tones the title and drops the checkbox
- *  fails here on all three — and `empty` is `todo`, never the absence of a
+/** The three faces of the status box beside the bullet. Asserted as
+ *  `data-face` + `data-status` rather than a Unicode glyph: the faces are CSS
+ *  squares now (Workflowy), and a restyle is entitled to redraw the pixels
+ *  without breaking the contract. `empty` is `todo`, never the absence of a
  *  mark, which is a box that is not drawn at all (see "shows no checkbox"). */
-const CHECKBOX_FACE: Record<string, { readonly status: string; readonly mark: string }> = {
-  checked: { status: "done", mark: "☑" },
-  doing: { status: "doing", mark: "◧" },
-  empty: { status: "todo", mark: "☐" },
+const CHECKBOX_FACE: Record<string, { readonly status: string; readonly face: string }> = {
+  checked: { status: "done", face: "checked" },
+  doing: { status: "doing", face: "doing" },
+  empty: { status: "todo", face: "empty" },
 };
 
 Then(
@@ -138,13 +142,13 @@ Then(
     await this.waitUntil(
       async () => {
         const status = await box.getAttribute("data-status");
-        const mark = readable(await box.innerText());
-        return status === expected.status && mark === expected.mark;
+        const drawn = await box.getAttribute("data-face");
+        return status === expected.status && drawn === expected.face;
       },
-      `the node "${id}" shows a ${face} checkbox (${expected.mark}, data-status=${expected.status})`,
+      `the node "${id}" shows a ${face} checkbox (data-face=${expected.face}, data-status=${expected.status})`,
     ).catch(async () => {
       assert.strictEqual(await box.getAttribute("data-status"), expected.status);
-      assert.strictEqual(readable(await box.innerText()), expected.mark);
+      assert.strictEqual(await box.getAttribute("data-face"), expected.face);
     });
   },
 );
@@ -596,10 +600,13 @@ Then(
   async function (this: OlaiWorld, id: string) {
     const mark = this.within(id, BLOCKED);
     await mark.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // Face, not a Unicode glyph: the hourglass is drawn CSS/SVG now, and the
+    // contract is `data-face="waiting"` on the mark column's waiting control.
+    const face = await mark.locator("[data-face]").first().getAttribute("data-face");
     assert.strictEqual(
-      oneLine(await mark.innerText()),
-      WAITING_GLYPH,
-      `the waiting mark on "${id}" is not the glyph the mark column draws`,
+      face,
+      "waiting",
+      `the waiting mark on "${id}" does not carry data-face=waiting`,
     );
   },
 );
@@ -612,5 +619,118 @@ Then(
     // The LABEL, not the tip: what a row is waiting on must be readable
     // without a pointer, so this is the copy that has to be right.
     assert.strictEqual(await mark.getAttribute("aria-label"), said);
+  },
+);
+
+// ── Workflowy gutter: hover-reveal, halo, menu ─────────────────────────
+
+/** Force the row's hover gutter visible for assertions that would otherwise
+ *  depend on a real pointer hover (opacity-0 until group-hover on desktop).
+ *  Hovers the LINE, not the whole <li>: the group/row lives on the gutter,
+ *  and an expanded parent li's centre is over nested children. */
+const revealGutter = async (world: OlaiWorld, id: string): Promise<void> => {
+  const line = world.within(id, NODE_GUTTER);
+  await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await line.hover();
+  await world.waitForFrame();
+};
+
+Then(
+  "the node {string} shows a collapsed halo",
+  async function (this: OlaiWorld, id: string) {
+    const bullet = this.within(id, ZOOM);
+    await bullet.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => (await bullet.getAttribute("data-halo")) === "true",
+      `the bullet of "${id}" carries data-halo=true`,
+    ).catch(async () => {
+      assert.strictEqual(await bullet.getAttribute("data-halo"), "true");
+    });
+  },
+);
+
+Then(
+  "the node {string} shows no collapsed halo",
+  async function (this: OlaiWorld, id: string) {
+    const bullet = this.within(id, ZOOM);
+    await bullet.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.expectAttributeAbsent(
+      `${nodeSelector(id)} ${ZOOM}`,
+      "data-halo",
+      `bullet of "${id}"`,
+    );
+  },
+);
+
+When(
+  "I hover the node {string}",
+  async function (this: OlaiWorld, id: string) {
+    await revealGutter(this, id);
+  },
+);
+
+Then(
+  "the node menu of {string} is revealed",
+  async function (this: OlaiWorld, id: string) {
+    await revealGutter(this, id);
+    const menu = this.within(id, NODE_MENU);
+    await menu.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // Opacity, not presence: the trigger is always in the DOM so the title
+    // does not shift, and "revealed" means a reader can see it.
+    await this.waitUntil(async () => {
+      const opacity = await menu.evaluate((el) => getComputedStyle(el).opacity);
+      return Number.parseFloat(opacity) > 0.5;
+    }, `the node menu of "${id}" is visible (opacity > 0.5)`);
+  },
+);
+
+Then(
+  "the collapse control of {string} is revealed",
+  async function (this: OlaiWorld, id: string) {
+    await revealGutter(this, id);
+    const toggle = this.within(id, TOGGLE);
+    await toggle.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(async () => {
+      const opacity = await toggle.evaluate((el) => getComputedStyle(el).opacity);
+      return Number.parseFloat(opacity) > 0.5;
+    }, `the collapse control of "${id}" is visible (opacity > 0.5)`);
+  },
+);
+
+When(
+  "I open the node menu of {string}",
+  async function (this: OlaiWorld, id: string) {
+    await revealGutter(this, id);
+    const menu = this.within(id, NODE_MENU);
+    await menu.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await menu.click();
+    await this.page
+      .locator(NODE_MENU_PANEL)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the node menu offers {string}",
+  async function (this: OlaiWorld, label: string) {
+    const panel = this.page.locator(NODE_MENU_PANEL);
+    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const items = panel.locator(NODE_MENU_ITEM);
+    const labels = (await items.allInnerTexts()).map((t) => t.trim());
+    assert.ok(
+      labels.includes(label),
+      `node menu offers ${JSON.stringify(labels)}, expected ${JSON.stringify(label)}`,
+    );
+  },
+);
+
+When(
+  "I choose {string} from the node menu",
+  async function (this: OlaiWorld, label: string) {
+    const panel = this.page.locator(NODE_MENU_PANEL);
+    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const item = panel.locator(NODE_MENU_ITEM).filter({ hasText: label }).first();
+    await item.click();
+    await this.waitForFrame();
   },
 );

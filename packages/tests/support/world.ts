@@ -98,10 +98,6 @@ export const DOC_LINK = selector(TESTID.docLink);
  *  on a node with nothing in its way — WHETHER it is blocked, and by what, is
  *  `data-blocked` on the node itself. */
 export const BLOCKED = selector(TESTID.blocked);
-/** What that mark column draws: U+29D6, an hourglass. Spelled here rather than
- *  in a step because it is a contract with `Checkbox.tsx` like the three boxes
- *  beside it, and a glyph nobody can see is a mark nobody can read. */
-export const WAITING_GLYPH = "⧖";
 /** This app's own hover tip. Its text is also the control's `aria-label`, so a
  *  scenario asserting the label is asserting the sentence that matters. */
 export const TIP = selector(TESTID.tip);
@@ -121,6 +117,10 @@ export const DATE = selector(TESTID.date);
 export const PROGRESS = selector(TESTID.progress);
 export const DESC = selector(TESTID.desc);
 export const TOGGLE = selector(TESTID.toggle);
+/** The `•••` trigger left of the collapse triangle. */
+export const NODE_MENU = selector(TESTID.nodeMenu);
+export const NODE_MENU_PANEL = selector(TESTID.nodeMenuPanel);
+export const NODE_MENU_ITEM = selector(TESTID.nodeMenuItem);
 /** A row's own line — its gutter controls and title, and nothing from the
  *  rows nested under it. What makes "this node has no checkbox" askable
  *  without reaching into markup shape. */

@@ -23,7 +23,10 @@ export function NodeTitle(props: { readonly title: string }) {
       {(part) =>
         part.kind === "tag"
           ? (
-            <span class="font-semibold text-accent" data-testid={TESTID.tag}>
+            <span
+              class="mx-0.5 rounded-sm bg-rule px-1 py-px text-[0.9em] font-normal text-ink"
+              data-testid={TESTID.tag}
+            >
               #{part.tag}
             </span>
           )

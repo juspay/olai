@@ -19,6 +19,11 @@
  * its chain to the same canonical page, so the two spellings agree and nothing
  * has to resolve anything here.
  *
+ * Gutter layout matches Workflowy: on the left, a hover-reveal strip holds the
+ * `•••` menu and the collapse triangle; then the filled bullet (with a gray
+ * halo when children are hidden); then the status checkbox. The hover strip
+ * is always visible on a phone (no hover there) — see ./touch.ts.
+ *
  * A row that cannot start yet says so twice and quietly: the mark column draws
  * the waiting glyph instead of the box (./Checkbox.tsx), and the row's own
  * line and body dim. The dim is on those two rather than on the `<li>`,
@@ -44,11 +49,19 @@ import { createMemo, Match, Show, Switch } from "solid-js"
 import { blockedIds, WAITING_DIM } from "./blocked.ts"
 import { Bullet } from "./Bullet.tsx"
 import { Checkbox } from "./Checkbox.tsx"
+import { foldableKeys } from "./fold.ts"
 import { createNoteExpand } from "./note/expand.ts"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
+import { NodeMenu } from "./NodeMenu.tsx"
 import { TESTID } from "./testids.ts"
-import { CONTROL, CONTROL_SPACER, PAST_CONTROLS } from "./touch.ts"
+import {
+  CHILD_INDENT,
+  HOVER_CELL,
+  HOVER_GUTTER,
+  HOVER_REVEAL,
+  PAST_CONTROLS,
+} from "./touch.ts"
 import type { View } from "./view.ts"
 
 export function Tree(props: {
@@ -56,7 +69,7 @@ export function Tree(props: {
   readonly view: View
 }) {
   return (
-    <ul class="list-none m-0 p-0" data-testid={TESTID.outlineTree}>
+    <ul class="m-0 list-none p-0" data-testid={TESTID.outlineTree}>
       {/* `<Key>`, not `<For>`, and `Row.key` is why it can be: the walk mints
           fresh rows on every frame the live store publishes, and `<For>`
           compares by reference — so one character changing in one title on
@@ -86,6 +99,10 @@ function Branch(props: {
     ? props.row.shows
     : undefined
 
+  const hasChildren = () => props.row.children.length > 0
+  // Keys for expand/collapse all — recomputed only when the row object moves.
+  const foldable = createMemo(() => foldableKeys(props.row))
+
   // Click/tap expand — local to this place, not a reading cell. No hover.
   const note = createNoteExpand()
 
@@ -105,30 +122,55 @@ function Branch(props: {
       // refactor may change; this is the fact a scenario asks about.
       data-blocked={blockedIds(props.row.blocked)}
     >
+      {/* group/row is on the LINE, not the <li>: a parent li also contains
+          every nested child, and a named group-hover on the li would reveal
+          every descendant's menu and triangle at once. */}
       <div
-        class={`flex items-baseline gap-1.5 ${WAITING_DIM(props.row.blocked)}`}
+        class={`group/row flex items-center gap-1 ${WAITING_DIM(props.row.blocked)}`}
         data-testid={TESTID.nodeGutter}
       >
-        <Show
-          when={props.row.children.length > 0}
-          fallback={<span class={CONTROL_SPACER} aria-hidden="true" />}
-        >
-          <button
-            type="button"
-            // Sized like the bullet beside it, from the same place: the gutter
-            // is one width, and the blank above and the indents below are all
-            // arithmetic over it (./touch.ts).
-            class={`${CONTROL} cursor-pointer border-0 bg-transparent p-0 text-center text-xs text-muted hover:text-ink`}
-            data-testid={TESTID.toggle}
-            aria-expanded={!collapsed()}
-            aria-label={collapsed() ? "expand" : "collapse"}
-            onClick={() => props.view.toggle(props.row.key)}
+        {/* Hover gutter: ••• menu + collapse triangle, left of the bullet.
+            Always shown on a phone; hover/focus-only on a pointer device.
+            Reveal class is on each control (not the strip) so a computed
+            opacity a test reads is the control's own, not a parent's that
+            children do not inherit. */}
+        <div class={HOVER_GUTTER}>
+          <NodeMenu
+            id={props.row.at.node.id}
+            placeKey={props.row.key}
+            hasChildren={hasChildren()}
+            collapsed={collapsed()}
+            foldable={foldable()}
+            view={props.view}
+          />
+          <Show
+            when={hasChildren()}
+            fallback={<span class={HOVER_CELL} aria-hidden="true" />}
           >
-            {collapsed() ? "▸" : "▾"}
-          </button>
-        </Show>
+            <button
+              type="button"
+              class={`${HOVER_CELL} ${HOVER_REVEAL} cursor-pointer border-0 bg-transparent p-0 text-[0.6rem] leading-none text-muted hover:text-ink`}
+              data-testid={TESTID.toggle}
+              aria-expanded={!collapsed()}
+              aria-label={collapsed() ? "expand" : "collapse"}
+              onClick={() => props.view.toggle(props.row.key)}
+            >
+              {/* Small filled triangle — Workflowy's chevron, rotated. */}
+              <span
+                class="inline-block transition-transform duration-100"
+                classList={{ "-rotate-90": collapsed() }}
+                aria-hidden="true"
+              >
+                ▼
+              </span>
+            </button>
+          </Show>
+        </div>
 
-        <Bullet id={props.row.at.node.id} />
+        <Bullet
+          id={props.row.at.node.id}
+          collapsed={hasChildren() && collapsed()}
+        />
         <Checkbox
           status={props.row.status}
           blocked={props.row.blocked}
@@ -138,7 +180,7 @@ function Branch(props: {
         <Switch>
           <Match when={props.row.kind === "dangling" ? props.row : undefined}>
             {(row) => (
-              <span class="flex-1 text-sm text-alarm" data-testid={TESTID.nodeTitle}>
+              <span class="flex-1 text-[0.9375rem] leading-snug text-alarm" data-testid={TESTID.nodeTitle}>
                 a mirror of `{row().missing}`, which no node declares
               </span>
             )}
@@ -162,8 +204,8 @@ function Branch(props: {
         </Switch>
       </div>
 
-      {/* Indented past both controls — which are wider where a finger is what
-          taps them, so the note and the document under it line up with the
+      {/* Indented past the gutter controls — which are wider where a finger is
+          what taps them, so the note and the document under it line up with the
           title on either. The note control root is what "click away" uses. */}
       <Show when={!collapsed() && shown()}>
         {(shows) => (
@@ -190,7 +232,7 @@ function Branch(props: {
       </Show>
 
       <Show when={!collapsed() && props.row.children.length > 0}>
-        <ul class="ml-5 list-none border-l border-rule pl-3">
+        <ul class={CHILD_INDENT}>
           <Key each={props.row.children} by="key">
             {(child) => <Branch row={child()} view={props.view} />}
           </Key>
