@@ -14,6 +14,8 @@ Feature: Documents
   @corpus:good
   Scenario: Every document found has a page, and the sidebar says so
     When I open the app
+    # Folders start collapsed; open `notes` so the nested document is listed.
+    When I expand the folder "notes"
     Then the documents listed are "finishes.md, kitchen-sink.md, notes/palette.md"
     Given I mark the page
     When I click the document "notes/palette.md"
@@ -111,7 +113,8 @@ Feature: Documents
 
       One more, on its own breaker.
       """
-    When I click the document "notes/wiring.md"
+    When I expand the folder "notes"
+    And I click the document "notes/wiring.md"
     Then the document open is "notes/wiring.md"
     And the contents is open
     When I click the document "kitchen-sink.md"
@@ -236,6 +239,7 @@ Feature: Documents
   @scratch:good
   Scenario: A document dropped into the directory joins the sidebar
     Given I open the app
+    And I expand the folder "notes"
     And I mark the page
     When I rewrite "notes/wiring.md" as:
       """
