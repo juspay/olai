@@ -53,11 +53,24 @@ export const TESTID = {
    *  RESOLVED path as `data-doc`, and `data-inline` for the zoomed page that
    *  draws the whole document rather than a line of it. */
   docRef: "doc-ref",
+  /** A node held up by an `after` edge, wherever the node is drawn: the mark
+   *  column's waiting glyph on a row or a day entry, the named row of blockers
+   *  on the node's own page. Absent — not empty — on a node with nothing in
+   *  its way. WHETHER a node is blocked, and by what, is `data-blocked` on the
+   *  node itself; this is the affordance that says so on screen. */
+  blocked: "blocked",
+  /** This app's own hover tip, which replaced the platform's `title` on the
+   *  one control whose sentence is too long for it: what it says is also the
+   *  control's `aria-label`, so nothing here is hover-only. */
+  tip: "tip",
   /** A node's free cross-references (`see`), wherever the node is drawn. */
   seeRefs: "see-refs",
-  /** One link inside those references. The target id rides `data-see` on a
-   *  child span (titles change; ids do not). */
-  seeLink: "see-link",
+  /** One link from a node to another node, in any of those rows. Which
+   *  RELATION it came from is the row it is in, so this name is the same for
+   *  `see` and for `blocked by`; the target id rides `data-ref` on a child
+   *  span (titles change under a live page; ids do not) — and the blocked pill
+   *  carries that span too, being a link to the first blocker. */
+  nodeRef: "node-ref",
   /** The document itself, rendered — on its own page, or inline under the node
    *  that attaches it. */
   documentBody: "document-body",

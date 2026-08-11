@@ -55,12 +55,28 @@ summarising.
 The client computes nothing about the format on its own. `@olai/format` derives
 status, sibling order, mirror expansion, a node's ancestry and the guard that
 stops a mirror inside its own subtree, and hands back rows; `Tree.tsx` turns a
-row into markup and nothing else — including the status checkbox beside each
-bullet (`Checkbox.tsx`: checked for done, half for doing, EMPTY for todo, and
-no box at all on a node carrying none of them, because a bullet is not a task;
-read-only until keyboard-editing) and a node's free
-cross-references (`SeeRefs.tsx`: each `see` target is a link to `/n/<id>` whose
-text is the target's title, resolved at view time through the same indexes).
+row into markup and nothing else — including the MARK COLUMN beside each bullet
+(`Checkbox.tsx`: checked for done, half for doing, EMPTY for todo, and no box
+at all on a node carrying none of them, because a bullet is not a task;
+read-only until keyboard-editing) and a node's free cross-references
+(`SeeRefs.tsx`: each `see` target is a link to `/n/<id>` whose text is the
+target's title, resolved at view time through the same indexes).
+
+What a node cannot start until is answered in that same column (resolved
+2026-08-11, human): an `after` target that is a task and not done is in the
+way, an unmarked one never is, and a row that is waiting draws an hourglass
+where its box would be — toned with the mark it stands in for, since either
+`todo` or `doing` can be blocked — with the row dimmed behind it (`blocked.ts`,
+applied to the row's line and body rather than to the `<li>`, because opacity
+compounds through a subtree). "Has this started" and "can it start" are the
+same kind of question about the same node, so they are answered in the same
+place. The NAMES live where there is room for them: an `aria-label` on the
+glyph, so nothing is hover-only; a tip this app places itself (`Tip.tsx` +
+`tip.ts`, which is the clamp, unit-tested, because the platform's own tooltip
+ran a long one off the right edge of the window); and the full list on the
+node's own page (`Blocked.tsx` through the shared `NodeRefs.tsx`), which is
+where the glyph's click goes — the box promises no toggle yet, so the click was
+free to mean the obvious thing.
 The view and the validator agree about what a file means because they run the
 same code, not because two implementations were written to the same paragraph.
 The one thing this package does interpret is MARKDOWN, rendered and sanitised at

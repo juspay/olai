@@ -7,11 +7,13 @@ import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
 import {
+  BLOCKED,
   CHECKBOX,
   DATE,
   DESC,
   NODE,
   NODE_GUTTER,
+  oneLine,
   nodeSelector,
   PROGRESS,
   readable,
@@ -19,6 +21,7 @@ import {
   POLL_TIMEOUT,
   TAG,
   TOGGLE,
+  WAITING_GLYPH,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -545,5 +548,69 @@ Then(
   "the node {string} is marked as a mirror",
   async function (this: OlaiWorld, id: string) {
     await this.expectNodeAttribute(id, "data-kind", "mirror");
+  },
+);
+
+// ── what cannot start yet ──────────────────────────────────────────────
+//
+// Blockedness is DERIVED — `a after b` holds `a` up while `b` is a task that
+// is not done — so what these steps are really asking is whether the page
+// agrees with the edges and the marks in the fixture. WHETHER a node is
+// blocked, and by what, is `data-blocked` on the node itself: a fact, in the
+// promised order, and never the dim it is drawn with. The affordance beside
+// it — the mark column's waiting glyph on a row, the named list on a page —
+// carries `TESTID.blocked`, and both are asserted, because a fact nothing
+// draws is a fact nobody can read.
+
+Then(
+  "the node {string} is blocked by {string}",
+  async function (this: OlaiWorld, id: string, blocker: string) {
+    // `~=` is a space-separated token match: the attribute lists every blocker,
+    // and this step is about one of them being among them.
+    await this.page
+      .locator(`${nodeSelector(id)}[data-blocked~="${blocker}"]`)
+      .first()
+      .waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+    await this.node(id)
+      .locator(BLOCKED)
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the node {string} is not blocked",
+  async function (this: OlaiWorld, id: string) {
+    // The ABSENCE of the attribute, which is how the row says "nothing is in
+    // my way" — an empty one would be a second spelling of nothing.
+    await this.expectAttributeAbsent(
+      nodeSelector(id),
+      "data-blocked",
+      `node "${id}"`,
+    );
+  },
+);
+
+Then(
+  "the node {string} shows the waiting mark",
+  async function (this: OlaiWorld, id: string) {
+    const mark = this.within(id, BLOCKED);
+    await mark.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(
+      oneLine(await mark.innerText()),
+      WAITING_GLYPH,
+      `the waiting mark on "${id}" is not the glyph the mark column draws`,
+    );
+  },
+);
+
+Then(
+  "the waiting mark on {string} says {string}",
+  async function (this: OlaiWorld, id: string, said: string) {
+    const mark = this.within(id, BLOCKED);
+    await mark.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // The LABEL, not the tip: what a row is waiting on must be readable
+    // without a pointer, so this is the copy that has to be right.
+    assert.strictEqual(await mark.getAttribute("aria-label"), said);
   },
 );

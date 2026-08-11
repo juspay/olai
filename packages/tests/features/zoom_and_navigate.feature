@@ -154,3 +154,46 @@ Feature: Zoom and navigate
     Then the zoomed node is "herbs"
     And the address is "/n/herbs"
     And there should be no page errors
+
+  Scenario: The waiting mark opens the page that names the blockers
+    # A row has room for a glyph, not for names, so the click is spent going
+    # to the node's OWN page — where they are all named. The box is
+    # display-only until keyboard-editing, so the click promises nothing else.
+    Given I open the outline "house.jsonl"
+    And I mark the page
+    When I follow the waiting mark on "hinges"
+    Then the zoomed node is "hinges"
+    And the address is "/n/hinges"
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: A zoomed page names every blocker, and each one is a link
+    # The page is where the node is READ, so "waiting on what?" is answered
+    # rather than hinted at — the blocker by title, at its own address.
+    Given I open the node "hinges"
+    Then the node "hinges" is blocked by "order"
+    When I follow the blocked link to "order" on "hinges"
+    Then the zoomed node is "order"
+    And the address is "/n/order"
+    And there should be no page errors
+
+  Scenario: The waiting mark's tip stays inside the window, and there is one of it
+    # Its own tip rather than the platform's `title`, because a long one ran
+    # off the right edge with the end of the sentence outside the screen. What
+    # it says is the label's sentence; where it goes is arithmetic (tip.ts).
+    #
+    # "A tip says" counts as well as reads: a doubled tip said the right thing
+    # twice, a few pixels apart and unreadable, and every assertion about the
+    # TEXT passed while the screen was wrong.
+    Given I open the outline "house.jsonl"
+    When I hover the waiting mark on "hinges"
+    Then a tip says "blocked by order the new cabinets"
+    And the tip is inside the window
+    # And READABLE: a blocked row is dimmed, and a tip drawn inside one wore
+    # that dim — the note underneath showed through its own words.
+    And the tip is fully opaque
+    # And it goes when the pointer does — a tip that outlives its pointer is
+    # the ghost that made two of them in the first place.
+    When I move the pointer away
+    Then no tip is shown
+    And there should be no page errors

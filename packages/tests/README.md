@@ -257,6 +257,11 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="node-gutter"]` | one row's own line — its controls and title, and nothing from the rows nested under it |
 | `[data-testid="zoom"]` | a row's bullet: the link to that node's own page |
 | `[data-testid="checkbox"][data-status]` | the status box beside that bullet: checked for done, half for doing, empty for todo — and NOT PRESENT on a node carrying none of them, which is how a bullet is told from an unstarted task |
+| `[data-testid="node"][data-blocked]` | the ids a node is waiting on, space-separated and in the promised order; ABSENT when nothing is in its way |
+| `[data-testid="blocked"]` | what draws that: the mark column's waiting glyph (⧖) on a row or a day entry, the named blockers on a zoomed page |
+| `[data-testid="tip"]` | this app's own hover tip; what it says is also the control's `aria-label`, and where it goes is clamped to the window |
+| `[data-testid="see-refs"]` | a node's free cross-references (`see`) |
+| `[data-testid="node-ref"]` | one link from a node to another node inside either of those rows; the target id rides `data-ref` on a span inside it |
 | `[data-testid="zoom-title"][data-node-id]` | the heading of a zoomed page — the CANONICAL node's id |
 | `[data-testid="breadcrumbs"]` / `[data-testid="crumb"]` | the ancestry above a zoomed node, and one link in it |
 | `[data-testid="done-toggle"][data-hidden]` | the per-view Visible/Hidden switch for done nodes |

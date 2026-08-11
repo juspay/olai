@@ -26,7 +26,7 @@ In canonical order (writes always re-serialize the whole record in this order; a
 | `date` | no | ISO date/datetime. A node with a `date` is a day/scheduled node; the journal, calendar and today views are derived from dates at view time — there is no stored year/month hierarchy. |
 | `desc` | no | The note: one string, embedded newlines. Markdown, rendered only at view time; stored verbatim. |
 | `doc` | no | Relative path to an attached `.md` document, resolved against the directory of the outline that names it. |
-| `after` / `blocks` / `see` | no | Arrays of target ids (any file in the set). Closed set of relations. `blocks` is sugar: `a blocks b` means `b after a`. `after` (with normalized `blocks`) must stay acyclic; `see` is a free cross-reference. |
+| `after` / `blocks` / `see` | no | Arrays of target ids (any file in the set). Closed set of relations. `blocks` is sugar: `a blocks b` means `b after a`. `after` (with normalized `blocks`) must stay acyclic, and is what a node being **blocked** is derived from ([Status](#status)); `see` is a free cross-reference. |
 | `mirror` | mirrors | Makes this record a mirror: it shows the node with that id at a second location. The target may live in any file of the set, and may itself be a mirror — the chain is followed to the regular node at its end. |
 
 There are no include records; the served directory is the only composition mechanism.
@@ -55,7 +55,13 @@ What follows from the marks on disk:
 
 **Merge safety is better for it.** Marks merge line-wise, and there is no longer a cross-line invariant a clean textual merge can break. The one that existed did break: mark a leaf in one branch, add a task child under it in another, and git merges both edits cleanly into a set nothing will load.
 
-**Blocked** has not shipped (the `edges-ui` item), and this is written here so that it inherits the rule rather than deciding it again: `a after b` means `b` blocks `a` while `b` is a task that is not done — with the three marks there are, while `b` is `doing` **or** `todo`, read off `b`'s own record. A target with no status **never blocks**: it is not a task, there is nothing to finish, so there is nothing to wait for — and to block on a branch, mark the branch. The trap the rule is written against is spelling it `status !== "done"`, which reads every plain bullet as an obstacle that can never be cleared.
+**Blocked** is the same kind of answer, computed from the edges and the marks together and stored nowhere: `a after b` means `b` blocks `a` while `b` is a task that is not done — with the three marks there are, while `b` is `doing` **or** `todo`, read off `b`'s own record. A target with no status **never blocks**: it is not a task, there is nothing to finish, so there is nothing to wait for — and to block on a branch, mark the branch. The trap the rule is written against is spelling it `status !== "done"`, which reads every plain bullet as an obstacle that can never be cleared.
+
+That is ONE predicate and it is read at BOTH ends of the arrow, which is the racket reference's own shape: "a node this can be said about" and "a node that still stands in the way" are the same question asked from either side, and two spellings of it would be two chances to disagree about what unfinished work is. So a `done` node is waiting on nothing whatever it is after — it has happened, and the order it happened in is no longer a question — and an unmarked node is neither blocked nor blocking, because a bullet is not work. **Archived** work is exempt at both ends for the same reason from the other side: a subtree put away in an `Archive.jsonl` is over, so nothing waits on it (a live node that did would wait forever) and nothing tells it that it cannot start.
+
+The exemptions stop at the validator: `after` must stay **acyclic** whatever the marks say and wherever the nodes live, because a loop is a claim about the file rather than about what is on anyone's plate. Both rules read one graph — `blocks` normalised into `after`, with each edge filed under the node its target NAMES, so an edge written at a mirror and an edge written at the node it stands for are one edge. A deadlock that closes through a placement is a deadlock.
+
+Being blocked is a SECOND fact about a node, never a replacement for the first: a blocked task keeps the mark it carries and the date it is due on. A view is free to draw the two together — olai answers both in one column, since "has this started" and "can it start" are the same kind of question about the same node — but nothing may make a node's mark depend on what it is waiting for.
 
 ## Documents
 

@@ -218,6 +218,46 @@ test("a cycle written only in blocks is the same after-cycle", () => {
   expect(error.message).toContain("`a` → `b` → `a`")
 })
 
+// The same loop closed THROUGH A PLACEMENT. An edge may name a mirror — an id
+// is an id — and what it names is the node standing there, which is how the
+// view resolves it when it draws both of these as blocked. So the graph this
+// rule walks resolves it too (`derive`'s `orderings`, in terms of nodes at both
+// ends). Before that, the walk stepped onto a record carrying no edges of its
+// own and stopped: a set nobody can start anywhere in loaded clean, with two
+// rows saying `blocked` at each other for ever.
+test("an after cycle closing through a mirror is refused", () => {
+  const error = only(
+    errorsOf({
+      "a.jsonl": `{"id":"x","ord":"a","title":"x","after":["m"]}\n` +
+        `{"id":"y","ord":"b","title":"y","after":["x"]}`,
+      "b.jsonl": `{"id":"m","ord":"a","mirror":"y"}`,
+    }),
+  )
+  expect(error.code).toBe("after-cycle")
+  // Named as the NODES it deadlocks between, which is what a person has to
+  // edit — the placement is not one of them.
+  expect(error.message).toContain("`x` → `y` → `x`")
+})
+
+// The one place the two `after` rules deliberately part company, locked from
+// the side that exempts NOTHING. Blockedness lets archived work out at both
+// ends — it is over, so nothing waits on it and nothing tells it it cannot
+// start — while a loop is a claim about the FILE: nothing in it can start
+// first, whether or not somebody has put half of it away. Without this test a
+// future "skip archived in findCycles" stays green.
+test("an after cycle through the archive is still refused", () => {
+  const error = only(
+    errorsOf({
+      "a.jsonl": `{"id":"live","ord":"a","title":"live","doing":true,"after":["old"]}`,
+      "Archive.jsonl": `{"id":"old","ord":"a","title":"old","done":true,"after":["live"]}`,
+    }),
+  )
+  expect(error.code).toBe("after-cycle")
+  // Anchored at the earliest record of the loop, which here is the archived
+  // one — the report is about the file, and the archive is a file in the set.
+  expect(error.message).toContain("`old` → `live` → `old`")
+})
+
 // Containment that closes a loop through a mirror never finishes expanding, so
 // the browser would render forever.
 test("mirrors that show each other are a mirror-cycle", () => {

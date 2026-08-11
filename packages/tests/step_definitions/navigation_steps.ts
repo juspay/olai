@@ -10,15 +10,18 @@
 
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
+import type { Locator } from "playwright";
 
 import { DESKTOP } from "../support/hooks.ts";
 import {
+  BLOCKED,
   DONE_TOGGLE,
+  NODE_REF,
   NOT_FOUND,
   oneLine,
   POLL_TIMEOUT,
-  SEE_LINK,
   SEE_REFS,
+  TIP,
   ZOOM,
   ZOOM_TITLE,
 } from "../support/world.ts";
@@ -135,14 +138,25 @@ Then("a not-found is shown", async function (this: OlaiWorld) {
 // ── free cross-references (`see`) ──────────────────────────────────────
 
 /** The see-link on a node that points at a particular target. Selected by
- *  `data-see` (the target id), never by link text — titles change under a live
+ *  `data-ref` (the target id), never by link text — titles change under a live
  *  page, and a scenario that pinned one would flake the moment the target was
- *  retitled. */
+ *  retitled. Scoped to the see row, because a node's blockers are links to
+ *  nodes in exactly the same shape and this step is about `see`. */
 const seeLinkTo = (world: OlaiWorld, source: string, target: string) =>
   world
     .node(source)
-    .locator(`${SEE_LINK}:has([data-see="${target}"])`)
+    .locator(`${SEE_REFS} ${NODE_REF}:has([data-ref="${target}"])`)
     .first();
+
+/** Click a link from a node to a node, and land. One helper for both relations
+ *  — a `see` ref and a blocker are the same link — over `press`, which is
+ *  already "wait until it is there, click it, wait out the frame". */
+const followRef = async (world: OlaiWorld, link: Locator): Promise<void> => {
+  await world.press(link);
+  await world.page
+    .locator(ZOOM_TITLE)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+};
 
 Then(
   "the node {string} sees {string} as {string}",
@@ -171,14 +185,112 @@ Then(
 When(
   "I follow the see link to {string} on {string}",
   async function (this: OlaiWorld, target: string, source: string) {
-    const link = seeLinkTo(this, source, target);
-    await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await link.click();
+    await followRef(this, seeLinkTo(this, source, target));
+  },
+);
+
+// ── what a node is waiting on (`after`) ────────────────────────────────
+
+When(
+  "I follow the blocked link to {string} on {string}",
+  async function (this: OlaiWorld, blocker: string, id: string) {
+    // The node's own page, where every blocker is named — a row draws a glyph
+    // instead, and that goes to this page rather than to any one blocker.
+    await followRef(
+      this,
+      this.node(id).locator(`${BLOCKED} [data-ref="${blocker}"]`).first(),
+    );
+  },
+);
+
+/** The mark column's waiting glyph on a row, which is a link to the node's own
+ *  page: a row has room for the fact, not for the names. */
+When(
+  "I follow the waiting mark on {string}",
+  async function (this: OlaiWorld, id: string) {
+    await followRef(this, this.within(id, BLOCKED));
+  },
+);
+
+When(
+  "I hover the waiting mark on {string}",
+  async function (this: OlaiWorld, id: string) {
+    const mark = this.within(id, BLOCKED);
+    await mark.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await mark.hover();
     await this.page
-      .locator(ZOOM_TITLE)
+      .locator(TIP)
+      .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
+
+Then("a tip says {string}", async function (this: OlaiWorld, said: string) {
+  const tips = this.page.locator(TIP);
+  // EXACTLY one, in the whole document. The doubled tip the human caught said
+  // the right thing twice — two copies of one sentence, a few pixels apart and
+  // unreadable — so every assertion about its TEXT passed while the screen was
+  // wrong. Counting is the only part of this step that would have failed.
+  assert.strictEqual(
+    await tips.count(),
+    1,
+    "more than one tip is on screen; only one may ever be",
+  );
+  assert.strictEqual(oneLine(await tips.first().innerText()), said);
+});
+
+/** A tip drawn inside a row inherits that row's opacity — and a blocked row is
+ *  DIMMED, which put the note underneath straight through the tip's own words.
+ *  Asserted as the opacity a reader actually gets, multiplied down the
+ *  ancestors, because that is what went wrong: every class on the tip itself
+ *  was right. */
+Then("the tip is fully opaque", async function (this: OlaiWorld) {
+  const opacity = await this.page.locator(TIP).first().evaluate((tip) => {
+    let at: Element | null = tip;
+    let effective = 1;
+    while (at !== null) {
+      effective *= Number(getComputedStyle(at).opacity);
+      at = at.parentElement;
+    }
+    return effective;
+  });
+  assert.strictEqual(
+    opacity,
+    1,
+    "the tip is drawn through something dimmed; it must not inherit a row's opacity",
+  );
+});
+
+/** Nothing is hovered any more, so nothing may be saying anything. A tip that
+ *  outlived the pointer is the same defect one step earlier. */
+Then("no tip is shown", async function (this: OlaiWorld) {
+  const tips = this.page.locator(TIP);
+  await this.waitUntil(
+    async () => (await tips.count()) === 0,
+    "a tip is still on screen with nothing hovered",
+  ).catch(async () => {
+    assert.strictEqual(await tips.count(), 0);
+  });
+});
+
+/** Away from every control, so the pointer is over nothing in particular. */
+When("I move the pointer away", async function (this: OlaiWorld) {
+  await this.page.mouse.move(2, 2);
+  await this.waitForFrame();
+});
+
+/** The whole reason this app draws its own tip: the platform put a long one
+ *  half outside the window. Asserted as geometry, because that is what went
+ *  wrong — not as a class name. */
+Then("the tip is inside the window", async function (this: OlaiWorld) {
+  const box = await this.page.locator(TIP).first().boundingBox();
+  assert.ok(box !== null, "the tip is not laid out");
+  const width = this.page.viewportSize()?.width ?? 0;
+  assert.ok(
+    box.x >= 0 && box.x + box.width <= width,
+    `the tip runs from ${box.x} to ${box.x + box.width}, outside a ${width}px window`,
+  );
+});
 
 // ── where a navigation leaves the page ─────────────────────────────────
 //
