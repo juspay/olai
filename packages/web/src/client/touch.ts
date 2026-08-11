@@ -68,7 +68,8 @@ export const CONTROL =
   "inline-flex h-11 w-7 shrink-0 items-center justify-center md:h-auto md:w-4"
 
 /** The same width, holding a place: a row with nothing to fold still lines its
- *  bullet up with the rows that do. */
+ *  bullet up with the rows that do, and a row with no MARK still lines its
+ *  title up with the rows that carry one. */
 export const CONTROL_SPACER = "w-7 shrink-0 md:w-4"
 
 /** Past the bullet AND the checkbox — where a day's row puts its note. */

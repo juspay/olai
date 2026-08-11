@@ -26,7 +26,7 @@
 import { distance } from "fastest-levenshtein"
 import { Result } from "effect"
 
-import { countedChildren, derive, type Derived, storedMarker } from "./derive.ts"
+import { derive, type Derived, fromChildren, storedMarker } from "./derive.ts"
 import { type Document, resolveRelative } from "./documents.ts"
 import { compareErrors, isGuessWhileUnreadable, type OutlineError } from "./errors.ts"
 import { EDGE_FIELDS, isMirror, type Located } from "./node.ts"
@@ -269,26 +269,31 @@ const checkDerivedState = (
     const { node } = located
     if (isMirror(node)) continue
     const stored = storedMarker(node)
-    if (stored === null) continue
+    if (stored === undefined) continue
 
-    const own = countedChildren(derived, node.id)
-    if (own.length === 0) continue
+    // What the children already say — nothing, done, or some still under way.
+    // The three sentences are those three cases, and only the third has
+    // children to link, so the union is what keeps the two in step.
+    const said = fromChildren(derived, node.id)
+    if (said === null) continue
 
-    const unfinished = own.filter(
-      (child) => derived.status.get(child.node.id) !== "done",
-    )
     errors.push({
       code: "stored-derived-state",
       ...siteOf(located),
-      message: unfinished.length === 0
-        ? `\`${stored}\` is computed from this node's ${own.length} children and must not be stored`
-        : `\`${stored}\` is stored above ${unfinished.length} of ${own.length} children that ${unfinished.length === 1 ? "is" : "are"} not done; a parent's status is computed, never written`,
+      message: said.kind === "nothing"
+        ? `\`${stored}\` is stored on a node with ${said.counted} children, none of which is marked; a node with children takes its status from them — mark one of those instead`
+        : said.kind === "done"
+        ? `\`${stored}\` is computed from this node's ${said.counted} children and must not be stored`
+        // "of its N children" would count the bullets among them, which are
+        // not unfinished — they are not tasks. The number that means something
+        // is how many are still under way.
+        : `\`${stored}\` is stored above ${said.children.length} of this node's ${said.counted} children that ${said.children.length === 1 ? "is" : "are"} still under way; a parent's status is computed, never written`,
       // Omitted rather than empty when there is nothing to link — the same
       // rule the format applies to its own absent fields.
-      ...(unfinished.length === 0 ? {} : {
-        related: unfinished.map((child) => ({
-          ...siteOf(child),
-          note: `\`${child.node.id}\` is ${derived.status.get(child.node.id) ?? "open"}`,
+      ...(said.kind !== "unfinished" ? {} : {
+        related: said.children.map((child) => ({
+          ...siteOf(child.at),
+          note: `\`${child.at.node.id}\` is ${child.status}`,
         })),
       }),
     })
