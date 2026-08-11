@@ -3,18 +3,20 @@ Feature: On a phone
 
   Two things change and nothing else does. There is no second column to put
   the sidebar in, so the DIRECTORY (calendar + file tree) goes behind a
-  BURGER in the app header: shut, the outline has the whole screen under the
-  header; open, the sheet is capped and scrolling so the outline is still
-  under it. App chrome — connection, agent, theme — lives in the header and
-  is never behind the burger. And what a finger aims at gets bigger: 44px,
-  the number both mobile platforms print in their guidelines.
+  BURGER in the app header as a slide-over DRAWER with scrim: shut, the
+  outline has the whole screen under the header; open, the drawer covers the
+  left with a dim scrim over the page. App chrome — connection, agent, theme
+  — lives in the header and is never behind the burger. Chat is a bottom
+  sheet (half/full snap) rather than a side dock; minimized it is a strip
+  above the thumb. And what a finger aims at gets bigger: 44px, the number
+  both mobile platforms print in their guidelines.
 
   An always-open capped header of the whole sidebar was the first answer here
   and it was worse in both directions: it took a third of the screen from the
   outline to show a list nobody had asked for, and the one control that HAS
   to be reachable — the way into the agent — ended up somewhere down inside a
   strip that scrolled. With the agent in the app header it is one tap; two
-  taps is still the budget for anything in the directory sheet.
+  taps is still the budget for anything in the directory drawer.
 
   The tree's gutter is the one exception, and it is a deliberate one: a
   44px-wide toggle AND a 44px-wide bullet at every level of indent leave a
@@ -28,15 +30,15 @@ Feature: On a phone
   in the other direction.
 
   @corpus:good @phone
-  Scenario: One column — the sidebar is behind a burger, above the outline
+  Scenario: One column — the sidebar is a drawer behind a burger
     Given I open the outline "house.jsonl"
     Then the burger is on screen
     And the sidebar is put away
     When I tap the burger
-    Then the outline list is above the tree, not beside it
-    # Capped, and scrolling inside itself: whatever is in the sheet, the
-    # outline it is a header FOR has to still be on screen under it.
-    And the outline is on screen under it
+    # Full-height fixed drawer with scrim under the header (geometry asserted
+    # in panels.feature). The outline list lives in the drawer; the tree is
+    # under the scrim — not a one-column stack, so "list above tree" does not apply.
+    Then the directory drawer is open with a scrim
     And there should be no page errors
 
   @scratch:chat @phone

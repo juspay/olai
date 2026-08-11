@@ -77,11 +77,10 @@ export interface Chat {
  * Where the conversation stands, and NOTHING else.
  *
  * For a reader that has to know whether a turn is running without drawing the
- * conversation — the toggle in the app header, which is only on screen while the
- * drawer is shut. It subscribes the cell (small, and it changes when the state
- * changes) and deliberately not the transcript, which is the expensive one: a
- * shut drawer taking every streaming frame is the thing {@link ./Panel.tsx}
- * closes the subscription to avoid.
+ * conversation — the header toggle and the minimized pill. It subscribes the
+ * cell (small) and deliberately not the transcript. The minimized face's last
+ * message is a module snapshot in `last.ts`, written only while the open panel
+ * is mounted — never a second transcript subscription.
  */
 export const createChatState = (): Accessor<ChatState> => {
   const cell = olai.cells.chat.use()

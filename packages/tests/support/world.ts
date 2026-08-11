@@ -66,6 +66,11 @@ export const APP_HEADER = selector(TESTID.appHeader);
 export const SIDEBAR = selector(TESTID.sidebar);
 export const SIDEBAR_TOGGLE = selector(TESTID.sidebarToggle);
 export const SIDEBAR_BODY = selector(TESTID.sidebarBody);
+export const SIDEBAR_SCRIM = selector(TESTID.sidebarScrim);
+export const SIDEBAR_COLLAPSE = selector(TESTID.sidebarCollapse);
+export const SIDEBAR_EXPAND = selector(TESTID.sidebarExpand);
+export const SIDEBAR_RAIL = selector(TESTID.sidebarRail);
+export const SIDEBAR_RESIZE = selector(TESTID.sidebarResize);
 /** The file tree: every outline and document under the folders they live in. */
 export const OUTLINE_LIST = selector(TESTID.outlineList);
 export const OUTLINE_LINK = selector(TESTID.outlineLink);
@@ -188,6 +193,15 @@ export const THEME_CHIP = selector(TESTID.themeChip);
  *  scripted agent (`support/hooks.ts`). */
 export const CHAT_TOGGLE = selector(TESTID.chatToggle);
 export const CHAT_PANEL = selector(TESTID.chatPanel);
+export const CHAT_PILL = selector(TESTID.chatPill);
+export const CHAT_STRIP = selector(TESTID.chatStrip);
+export const CHAT_RESIZE = selector(TESTID.chatResize);
+export const CHAT_SHEET = selector(TESTID.chatSheet);
+export const CHAT_SHEET_SCRIM = selector(TESTID.chatSheetScrim);
+export const CHAT_SHEET_HANDLE = selector(TESTID.chatSheetHandle);
+export const PALETTE = selector(TESTID.palette);
+export const PALETTE_ITEM = selector(TESTID.paletteItem);
+export const PALETTE_ASK_ERROR = selector(TESTID.paletteAskError);
 export const CHAT_TITLE = selector(TESTID.chatTitle);
 export const CHAT_WORKING = selector(TESTID.chatWorking);
 export const CHAT_MODEL = selector(TESTID.chatModel);
