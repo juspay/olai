@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 
 import { dayOf } from "./dates.ts"
-import { outlineOf, STAMP_SHAPE } from "./fixtures.testlib.ts"
+import { inZone, outlineOf, STAMP_SHAPE } from "./fixtures.testlib.ts"
 import { offsetOf, stampOf } from "./stamp.ts"
 
 /** An instant with nothing round about it, so a stamp of it is legible in a
@@ -24,6 +24,27 @@ test("the offset inverts the sign the platform reports", () => {
 
 test("a stamp is an ISO datetime with seconds and a zone", () => {
   expect(stampOf(AT)).toMatch(STAMP_SHAPE)
+})
+
+/**
+ * The promise at the centre of this module, pinned to named zones rather than
+ * to the runner's: the stamp is written where the person marking it is
+ * STANDING, and never as UTC.
+ *
+ * Every other assertion in this file is satisfied by a `stampOf` that returned
+ * `at.toISOString()` with a `+00:00` glued on — under a UTC lane, which is the
+ * ordinary Linux CI, local and UTC agree and there is nothing to catch. These
+ * two are the ones that fail on that impostor, and they are two because a zone
+ * on each side of Greenwich also fences the sign: Kolkata's stamp is on the
+ * NEXT day and New York's is on the same one, out of the same instant.
+ */
+test("a stamp is written in the marker's zone, never in UTC", () => {
+  inZone("Asia/Kolkata", () => {
+    expect(stampOf(new Date("2026-08-11T19:40:03Z"))).toBe("2026-08-12T01:10:03+05:30")
+  })
+  inZone("America/New_York", () => {
+    expect(stampOf(new Date("2026-08-11T19:40:03Z"))).toBe("2026-08-11T15:40:03-04:00")
+  })
 })
 
 // The local fields and the offset have to AGREE, which is exactly what a

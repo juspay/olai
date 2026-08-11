@@ -216,6 +216,39 @@ test("a row shows the date that put it on the day", () => {
   expect(row!.status).toBe("done")
 })
 
+// One row per RECORD, which is not the same promise as one row per id: these
+// walks run over sets the validator has condemned as well as over legal ones,
+// and two files each claiming `dup` are two nodes a reader is still being
+// shown. Deduping on the id would quietly draw one of them.
+test("two records claiming one id are two rows, not one", () => {
+  const duplicated = derive(
+    nodesOfFiles({
+      "a.jsonl": `{"id":"dup","ord":"a0","title":"one","done":"2026-08-11T09:00:00-04:00"}`,
+      "b.jsonl": `{"id":"dup","ord":"a0","title":"the other","done":"2026-08-11T10:00:00-04:00"}`,
+    }),
+  )
+  expect(idsOf(duplicated, "2026-08-11")).toEqual(["dup", "dup"])
+})
+
+// Work that was put away is still work that happened. Blockedness exempts the
+// archive at both ends — nothing waits on what is over — and a journal asks the
+// other question, so the exemption does not carry across (resolved 2026-08-11,
+// human). The `Archive.jsonl` heading on the group is what tells the reader
+// where the row lives.
+test("an archived node keeps the day its mark was dated", () => {
+  const archived = derive(
+    nodesOfFiles({
+      "Archive.jsonl":
+        `{"id":"deck","ord":"a0","title":"the deck","done":"2026-08-11T09:00:00-04:00"}`,
+    }),
+  )
+  expect(idsOf(archived, "2026-08-11")).toEqual(["deck"])
+  expect(datedOn(archived, "2026-08-11").map((group) => group.file)).toEqual([
+    "Archive.jsonl",
+  ])
+  expect(datedDays(archived, "2026-08").has("2026-08-11")).toBe(true)
+})
+
 // A mirror is a second PLACEMENT of a node, and the format gives it no field
 // to carry a date. So a dated node that is mirrored elsewhere appears on its
 // day once, at the record that actually declares it.

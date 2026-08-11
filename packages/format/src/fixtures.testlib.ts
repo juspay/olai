@@ -90,6 +90,39 @@ export const failureOf = (
   return parsed.failure
 }
 
+/**
+ * Run `body` as if this machine were in `zone`.
+ *
+ * Anything about a LOCAL time that is asserted in the runner's own zone is
+ * asserted nowhere: a CI lane is UTC, and under UTC a function that had
+ * dropped local time entirely — `toISOString`, the exact regression
+ * `../stamp.ts` is written against — satisfies every assertion about offsets
+ * and days, because local IS UTC there. So the zone is named by the test
+ * rather than inherited from whoever is running it.
+ *
+ * Bun reads `process.env.TZ` at `Date` construction, so a date built inside
+ * `body` is in `zone`. RESTORING matters and is why this is a helper rather
+ * than two lines at a call site: `bun test` shares one process across every
+ * file, so a zone left set here is a zone every later suite silently runs in.
+ *
+ * The restore ASSIGNS and never deletes, which is not a style choice. Deleting
+ * the variable stops Bun honouring any further change to it for the rest of
+ * the process — the zone sticks at whatever was set last, and the second call
+ * here would run in the first one's zone (measured, not guessed: after a
+ * `delete`, setting `TZ` to three different zones in turn moved the offset not
+ * at all). So a runner that had no `TZ` is restored to the zone it resolves
+ * to, which is the same clock it started with under a name.
+ */
+export const inZone = (zone: string, body: () => void): void => {
+  const was = process.env["TZ"] ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+  process.env["TZ"] = zone
+  try {
+    body()
+  } finally {
+    process.env["TZ"] = was
+  }
+}
+
 /** What {@link ../stamp.ts}'s `stampOf` writes: an ISO datetime, to the
  *  second, carrying its zone. Here rather than in the test that proves it,
  *  because three suites in two packages assert the same promise about a value

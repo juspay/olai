@@ -95,12 +95,27 @@ journal is most often asked about — was the one thing not in it.)
   and a `2026-08-10` parsed into an instant comes back a datetime. So an
   offset is part of the day it names — a stamp is written in the zone of the
   person who made it, and the day is theirs.
+- **Work that was archived keeps its days** (resolved 2026-08-11). A node in an
+  `Archive.jsonl` with a dated mark lights its day and is on its page, and the
+  group heading says which file it came out of. Blockedness exempts the archive
+  at both ends because nothing can be waiting on work that is over
+  ([Status](#status)); a journal is asking the other question — what happened —
+  and archiving is what people do with work *after* they finish it, so a day
+  that dropped the archived half would be the day with its ending torn out.
 
-What a WRITER does with that is policy, not format ([Writing](#writing)): olai's
-ops layer stamps a mark with the instant it was made, local, with its offset. It
-is only ever the record being marked that is rewritten, so `true` and day-only
-values elsewhere keep the spelling they were read with — and every view and
-every derivation goes on accepting all three shapes.
+What a WRITER does with that is policy, not format ([Writing](#writing)), and
+olai's ops layer stamps **only `done`**, with the instant it was made, local and
+with its offset (resolved 2026-08-11). `doing` and `todo` are written `true`.
+The rule follows from what a date on a mark now MEANS: it puts the node on that
+day. Finishing is an event a journal is about; filing a task is not, and a
+stamped `todo` would fill every day page with what was written down that day
+rather than what happened on it. Scheduling has a field of its own — that is
+what `date` is for.
+
+It is only ever the record being marked that is rewritten, so `true` and
+day-only values elsewhere keep the spelling they were read with — and every
+view and every derivation goes on accepting all three shapes, whoever wrote
+them.
 
 ## Documents
 

@@ -125,10 +125,24 @@ const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
   return dates
 }
 
-/** Every date of every node of the set, in file order, a node contributing one
- *  for each date it carries. A mirror contributes none — it is a placement,
- *  and the format gives it no field to carry a date or a mark — so a node on
- *  the 10th is on the 10th once, however many places it is shown. */
+/**
+ * Every date of every node of the set, in file order, a node contributing one
+ * for each date it carries.
+ *
+ * A MIRROR contributes none — it is a placement, and the format gives it no
+ * field to carry a date or a mark — so a node on the 10th is on the 10th once,
+ * however many places it is shown.
+ *
+ * The ARCHIVE is not excluded, and that is a decision rather than an omission
+ * (resolved 2026-08-11, human). Blockedness exempts archived work at both ends
+ * because nothing can be waiting on something that is over (./derive.ts) — a
+ * journal asks a different question. It asks what happened, and archiving is
+ * what people do with work AFTER they finish it, so a day that dropped the
+ * archived half would be a record of the day with its ending torn out. The
+ * node is still under `Archive.jsonl` when the day draws it, and the day view
+ * groups by file, so the reader is told where it lives by the same heading
+ * that tells them about every other row.
+ */
 const datedNodes = (derived: Derived): ReadonlyArray<Dated> =>
   derived.nodes.flatMap((located) =>
     isMirror(located.node) ? [] : datesOf(located.node).map((dated) => ({
@@ -191,10 +205,15 @@ export interface DayGroup {
  */
 export const datedOn = (derived: Derived, day: string): ReadonlyArray<DayGroup> => {
   const byFile = new Map<string, Array<Dated>>()
-  const placed = new Set<string>()
+  // Keyed by the RECORD, not by its id. Both dates of a node come off one
+  // `located`, so this says "one row per record" without borrowing the
+  // validator's uniqueness rule — and these walks deliberately run over sets it
+  // has condemned (./derive.ts), where two files claiming one id are two nodes
+  // a reader still has to be shown.
+  const placed = new Set<LocatedRegular>()
   for (const dated of datedNodes(derived)) {
-    if (dayOf(dated.date) !== day || placed.has(dated.at.node.id)) continue
-    placed.add(dated.at.node.id)
+    if (dayOf(dated.date) !== day || placed.has(dated.at)) continue
+    placed.add(dated.at)
     const group = byFile.get(dated.at.file)
     if (group === undefined) byFile.set(dated.at.file, [dated])
     else group.push(dated)

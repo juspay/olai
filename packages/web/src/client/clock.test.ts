@@ -1,5 +1,6 @@
 import { afterEach, expect, setSystemTime, test } from "bun:test"
 import { stampOf } from "@olai/format"
+import { inZone } from "@olai/format/testlib"
 import { createRoot } from "solid-js"
 
 import { createToday, isoDayOf, untilMidnight } from "./clock.ts"
@@ -30,11 +31,21 @@ test("today is the local calendar day, as ISO text", () => {
 // lands on. Marking something done and not finding it on today's page is what
 // a disagreement would look like, in a scenario neither file mentions — so the
 // agreement is asserted rather than assumed.
+// In NAMED zones, not the runner's: under a UTC lane local is UTC, so a writer
+// that had dropped local time would agree with this clock about every day and
+// the assertion would pass while promising nothing (`@olai/format`'s
+// `fixtures.testlib`). One zone on each side of Greenwich, at the two ends of a
+// day, is where the two can disagree — a minute before local midnight is
+// already tomorrow in UTC for the west, and yesterday for the east.
 test("today is the day a stamp written at that instant falls on", () => {
-  for (const instant of [at(2026, 8, 9), at(2026, 8, 9, 23, 59), at(2026, 1, 5, 12)]) {
-    // A day is the first ten characters of a date value (docs/format.md), so
-    // "the stamp is on this day" is the stamp starting with it.
-    expect(stampOf(instant).startsWith(isoDayOf(instant))).toBe(true)
+  for (const zone of ["America/New_York", "Asia/Kolkata"]) {
+    inZone(zone, () => {
+      for (const instant of [at(2026, 8, 9), at(2026, 8, 9, 23, 59), at(2026, 1, 5, 12)]) {
+        // A day is the first ten characters of a date value (docs/format.md),
+        // so "the stamp is on this day" is the stamp starting with it.
+        expect(stampOf(instant).startsWith(isoDayOf(instant))).toBe(true)
+      }
+    })
   }
 })
 

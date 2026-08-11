@@ -155,6 +155,35 @@ test("a mark lands on disk as bytes the parser reads back", () =>
     })))
 
 /**
+ * The round-trip promise, in the language it is made in.
+ *
+ * `docs/format.md` and `packages/ops/README.md` both say it about BYTES — a
+ * writer must reproduce what it read — and the planner's test compares
+ * records, which is a different sentence about the same thing. Here the file
+ * is read back as text, so a `true` that came back `"true"`, a day-only value
+ * widened into an instant, or a neighbour restamped by the op would all be
+ * caught where the claim is actually made.
+ */
+test("the marks on the other records come back as the bytes they were", () =>
+  withOps({
+    "house.jsonl": [
+      `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+      `{"id":"old","parent":"kitchen","ord":"a0","title":"an old habit","done":true}`,
+      `{"id":"quote","parent":"kitchen","ord":"a1","title":"get a quote","done":"2026-08-01"}`,
+      `{"id":"order","parent":"kitchen","ord":"a2","title":"order the cabinets"}`,
+      "",
+    ].join("\n"),
+  }, (fixture) =>
+    Effect.gen(function*() {
+      yield* run(fixture, { op: "done", id: "order" })
+
+      const text = fixture.read("house.jsonl") ?? ""
+      expect(text).toContain(`"done":true`)
+      expect(text).toContain(`"done":"2026-08-01"`)
+      expect(text).toContain(`"done":${JSON.stringify(STAMP)}`)
+    })))
+
+/**
  * What the layer stamps when nobody hands it a clock — the whole of the
  * `set_done`-stamps-itself promise, and the one test that has to use the real
  * one.

@@ -120,7 +120,11 @@ two dates is on two days, two dates on one day are one row, and each row says
 which of the node's dates put it there (`Occasion`), because scheduled-on and
 finished-on are two different sentences and only the reader can be told which
 one they are reading. A mark holding `true` is on no day: it declines to say
-when, and inventing an answer would file every old `true` under today.
+when, and inventing an answer would file every old `true` under today. The
+ARCHIVE is not filtered out and that is a decision (2026-08-11): blockedness
+exempts archived work at both ends because nothing waits on what is over, and a
+journal asks the other question — what happened — so a day keeps the work that
+was put away after it was finished.
 
 `stamp.ts` is the other direction, and every date value olai WRITES is minted
 there: `stampOf` produces a local ISO datetime carrying its offset, which is

@@ -77,8 +77,9 @@ export interface Plan {
 export interface Context {
   /** A candidate id. Called again if the set already holds the one it gave. */
   readonly mint: () => string
-  /** The instant a mark is stamped with, as the format's own text: a local ISO
-   *  datetime carrying its offset (`@olai/format`'s `stampOf`). */
+  /** The instant a `done` is stamped with, as the format's own text: a local
+   *  ISO datetime carrying its offset (`@olai/format`'s `stampOf`). The other
+   *  two marks store `true` and never read this. */
   readonly now: () => string
 }
 
@@ -452,20 +453,27 @@ const planMark = (
   // Setting one mark CLEARS the others: a node carrying two is a record the
   // format rejects, so this is not tidiness — it is what makes the write valid.
   //
-  // The mark is stamped with the INSTANT it was made, not the day: a `done`
-  // says when the work was finished, and "some time on Tuesday" is the answer
-  // to a question nobody asked — the day view and the calendar read the day
-  // off the front of it either way (`@olai/format`'s `dayOf`), so the time
-  // costs a reader nothing and orders a day's finished work. All three marks
-  // are stamped the same way, and one rule is why: they are three answers to
-  // one question, they are written by one op, and a `doing` that recorded
-  // nothing about when work started would be the odd one out for no reason
-  // anybody could state. Only the node being marked is touched — every other
-  // record in the file is re-emitted exactly as it was read, so a `true` or a
-  // day-only value elsewhere stays what it is.
+  // ONLY `done` IS STAMPED, and it is stamped with the INSTANT it was made
+  // rather than the day: finishing something happens AT a moment, "some time on
+  // Tuesday" is the answer to a question nobody asked, and the day view reads
+  // the day off the front of the value either way (`@olai/format`'s `dayOf`),
+  // so the time costs a reader nothing and orders a day's finished work.
+  //
+  // `doing` and `todo` store `true` (resolved 2026-08-11, human). The symmetry
+  // argument — three answers to one question, written by one op — loses to what
+  // a date on a mark now MEANS: it puts the node on that day (docs/format.md's
+  // Days). A stamped `todo` would file everything on the day it was captured,
+  // so a day page would fill up with work that was written down then rather
+  // than done then, and `/today` would drift into a capture log. Finishing is
+  // the event a journal is about; filing is not, and neither is starting.
+  // Nothing is lost for a person who wants one: `set_date` schedules, and a
+  // hand-written date on any mark still reads (the format takes all three).
   const next: Draft<RegularNode> = { ...node }
   for (const other of MARKS) delete next[other]
-  if (!undo) next[mark] = scope.context.now()
+  // Only the node being marked is touched — every other record in the file is
+  // re-emitted exactly as it was read, so a `true` or a day-only value
+  // elsewhere stays the text it was.
+  if (!undo) next[mark] = mark === "done" ? scope.context.now() : true
 
   const summary = undo
     ? `${UNMARKED[mark]}: ${node.title}`

@@ -101,7 +101,10 @@ did it — so the work you finished today is on today, beside the thing you had
 scheduled for it, and the day says which of the two each row is. A node
 scheduled one day and finished another is on both, once each; a task ticked
 with nothing but a `true` says it is done and declines to say when, which puts
-it on no day at all.
+it on no day at all. Only finishing is recorded that way: starting something or
+writing it down is not the kind of thing a day is a record of. And work you
+have archived keeps the day it was finished on — putting it away is what you do
+*after* it happens, not a reason for the day to forget it.
 
 Some notes are not a line. Every `.md` under the directory is a **document**:
 it has a page of its own at `/doc/<path>`, it sits in the sidebar's file tree
