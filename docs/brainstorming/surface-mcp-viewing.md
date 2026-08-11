@@ -1,6 +1,6 @@
 # Viewing over surface-mcp
 
-Status: APPROVED 2026-08-11 and BEING BUILT — see the implementation log at the foot of this file for what has landed and what is still gated. Written the same day for roadmap item `surface-mcp-viewing` (child of `surface-mcp`), design-first by instruction. It doubles as the spec for the upstream kolu work: the four asks in "Owed upstream to kolu" are that terminal's brief. Every claim about `@kolu/surface-mcp` below was verified against **the revision olai actually pins**, `580ab79e8cc7715103af4bddb35d5c9128f897dc` (`npins/sources.json`, 2026-08-10), read with `git show` out of the local kolu clone. Revised the same day to absorb the `snapshot-scale` requirement (roadmap `b794e1d`, on origin/master and not yet in this worktree).
+Status: BUILT. Approved 2026-08-11 and delivered the same day; the implementation log at the foot of this file records what landed, what the upstream ruling changed, and the four SDK behaviours that had to be closed on olai's side. It also served as the spec for the upstream kolu work (juspay/kolu#2155), which is merged and consumed. **Sections 0.2 and (c) below describe the gap as it stood BEFORE that PR and are kept as the record of why the migration waited** — they are history now, not current behaviour. Written for roadmap item `surface-mcp-viewing` (child of `surface-mcp`), design-first by instruction. Every claim about `@kolu/surface-mcp` below was verified against **the revision olai actually pins**, `580ab79e8cc7715103af4bddb35d5c9128f897dc` (`npins/sources.json`, 2026-08-10), read with `git show` out of the local kolu clone. Revised the same day to absorb the `snapshot-scale` requirement (roadmap `b794e1d`, on origin/master and not yet in this worktree).
 
 Scope, from the roadmap node: olai's READ side. The surface's cells and collections exposed as subscribable MCP resources behind a default-deny `expose` list; the existing query tools riding as bespoke tools; write tools keeping their current path. Both deployment shapes — serve-fresh for `olai mcp <dir>`, bridge for a session attached to a running server.
 
@@ -317,7 +317,64 @@ Approved 2026-08-11 as designed. The branch is built so the upstream-gated part 
 | `6cd0532` | `packages/server/src/mcp/expose.ts` — the two-member allowlist — and `expose.test.ts` | no |
 | `28f659e` | `packages/server/src/mcp/face.ts` — serve-fresh — and `face.test.ts`, including the wire-cost fence | no |
 | `9d9658f` | `OlaiSurfaceClient` + `clientOver`: the client typed off the spec instead of cast at the adapter's door (upstream ask 3, closed here) | no |
-| *(open)* | `bespokeFrom(TOOLS, ops)` carrying name/title/description; `olai mcp` and the `/mcp` route flipped onto the face; `ops/src/mcp.ts` and `mcp/stdio.ts` deleted | **yes — `ToolFailure` + `instructions`** |
+| `a573251` | kolu pin bumped to `4e3b757` (juspay/kolu#2155) | — |
+| `691b797` | `bespokeFrom(TOOLS, ops)` carrying name/title/description; `olai mcp` and the `/mcp` route flipped onto the face; `ops/src/mcp.ts` and `mcp/stdio.ts` deleted | was the gate; **closed** |
+| `8de93e4` | `documents: "resource"` — step D of the sequencing table, once `snapshot-scale` landed | — |
+
+### Closing the gate: what the SDK does not do that the pump did
+
+The upstream half arrived exactly as specified. The olai half turned up four
+behaviours the hand-rolled transport had provided for free, each found by a test
+that already existed, and each is worth recording because none of them is
+visible from the adapter's API:
+
+1. **The stdio transport never notices stdin ENDING.** It attaches listeners for
+   `data` and `error` and nothing else, so `olai mcp` outlived its client and sat
+   holding a watcher on somebody's notes directory.
+2. **And it does not DRAIN.** The old pump answered lines through
+   `Stream.runForEach`, which awaits each reply before reading the next, so when
+   the stream ended every message had been answered. Closing on `end` alone
+   exited before a single frame was written. The end of stdin now ARMS a shutdown
+   that the last reply performs — requests counted in, replies counted out.
+3. **The Streamable HTTP transport fits neither of its modes.** Stateless refuses
+   reuse ("create a new transport per request"), and a transport per request is a
+   `Server` per request, because an MCP `Server` binds exactly one — that would
+   rebuild the face, its expose walk and its resource pusher on every call.
+   Stateful keeps one transport but issues an `Mcp-Session-Id` clients must echo,
+   which this endpoint has never required. Both prefer SSE, which a client that
+   called `response.json()` waits on forever — the failure the e2e chat scenarios
+   actually showed. So the route keeps a small half-duplex transport of its own.
+   That is not a retreat from the migration: what was bought upstream is the
+   SERVER, and `serveSurfaceAsMcp` takes a transport as an option precisely
+   because the shape of the pipe is the embedder's business.
+4. **`Schema.Struct({})` is not an object to the schema bridge.** Effect compiles
+   it to `anyOf: [object, array]`, so a no-argument tool was advertised wrapped
+   under `value` and every call refused with "Expected object | array".
+   `list_outlines` is that tool and it is the first call an agent makes, so this
+   was the entire capture flow. Fixed by giving a tool that takes nothing no
+   input schema at all, which is the honest spelling — and fenced by a test.
+
+`route.ts` had no test before this, which is how (3) reached the e2e suite. It
+has one now, over real HTTP on olai's real listener.
+
+**One deliberate behaviour change**: an unknown tool is an `isError` result
+rather than JSON-RPC `-32602`. That is the SDK's convention and the better one —
+a model that named a tool it does not have can read the answer and pick another,
+where a protocol error throws inside its client. A second, smaller one: a write
+tool is now advertised `destructiveHint: true` (the adapter derives both hints
+from `mutates`) where the old `describe()` said `false` for everything.
+
+### Where the projection lives, and why it moved
+
+`bespokeFrom` is in `@olai/server`, not beside the table in `@olai/ops`. The
+table was private because that package owned an MCP server, and "what a consumer
+wants is the server, and the list is what the server is made of". Both halves
+stopped being true at once: the server is the framework's now, so the list IS
+what a consumer wants — and the framework brings the MCP SDK, which would put
+express, hono and ajv in the dependency closure of a package whose own manifest
+says it knows "nothing about a listener, a socket or a browser". The ops tests
+for the tool surface moved with it and got stronger: they run through a real MCP
+client instead of a dispatch function.
 
 ### Corrections and findings from building it
 
@@ -341,4 +398,6 @@ kolu approved the design with **ask (3) declined**, the other two accepted, and 
 
 ### What is still owed
 
-Two things, both upstream, both in the last commit slot: `ToolFailure` and `instructions`. Nothing found during implementation adds a fifth ask, and (3) is closed.
+Nothing. All four asks are closed: (1) `ToolFailure` and (2) `instructions` landed in juspay/kolu#2155 and are consumed here; (3) was declined and fixed on olai's side; (4) `title` arrived unasked and is carried. The bridge shape and writes-as-procedures remain the PARENT item's, as designed.
+
+One observation worth passing upstream, not a blocker: `failFrom` brands every failure `surface-mcp: …`, including a `ToolFailure`, whose message the CONSUMER wrote deliberately. The module's own rule is that the adapter brands what it raised; a consumer's refusal is not that. So olai's refusals currently reach an agent as "surface-mcp: `set_done` was refused (not-found): …". Cosmetic, and no test depends on the prose.
