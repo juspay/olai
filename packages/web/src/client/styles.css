@@ -189,40 +189,41 @@
   font-size: 1rem;
 }
 
-.olai-md h5 {
+.olai-md h5,
+.olai-md h6 {
   font-size: 0.875rem;
 }
 
 .olai-md h6 {
-  font-size: 0.875rem;
   letter-spacing: 0.06em;
   color: var(--color-muted);
   text-transform: uppercase;
 }
 
-/* A note is drawn UNDER the node's own title, and a `##` inside it was landing
- * at nearly that title's size — the body shouting over the thing it is the
- * body of. Clamped rather than demoted: the markdown still says `h2`, because
- * what a heading IS is the file's to say and how loud it is drawn is the
- * page's. Two steps, so a note keeps its own hierarchy inside the ceiling. */
-.olai-md-note h1,
-.olai-md-note h2 {
+/* Markdown drawn UNDER a title of the page's own — a node's note, and the
+ * document an open node attaches. A `##` inside one was landing at nearly the
+ * title's size, and an attached document's `#` at exactly it: the body
+ * shouting over the thing it is the body of. Clamped rather than demoted — the
+ * markdown still says `h2`, because what a heading IS is the file's to say and
+ * how loud it is drawn is the page's.
+ *
+ * ONLY the levels that are actually too loud: `h4` down already sits at the
+ * body's size or under it, and repeating those numbers here would be a second
+ * copy of the scale above to keep in step for no effect. What is left is the
+ * ceiling — the top three, brought under the title — and the hierarchy inside
+ * it (`h1`/`h2` above `h3`) survives. */
+.olai-md-under-title :is(h1, h2) {
   font-size: 1.0625rem;
 }
 
-.olai-md-note h3,
-.olai-md-note h4 {
+.olai-md-under-title h3 {
   font-size: 1rem;
 }
 
-.olai-md-note h5,
-.olai-md-note h6 {
-  font-size: 0.875rem;
-}
-
-/* The space above comes down with the scale: a note is a body, not a document,
- * and a document's section break inside one would be a gap in a paragraph. */
-.olai-md-note :is(h1, h2, h3, h4, h5, h6) {
+/* The space above comes down with the scale: a body under a title is not a
+ * document, and a document's section break inside one would be a gap in a
+ * paragraph. */
+.olai-md-under-title :is(h1, h2, h3, h4, h5, h6) {
   margin-top: 0.875rem;
 }
 
@@ -330,9 +331,7 @@
  * it. */
 .olai-md table {
   display: block;
-  max-width: 100%;
   overflow-x: auto;
-  border-collapse: collapse;
 }
 
 /* Read down a column rather than along a sentence, which is why a cell keeps
@@ -340,7 +339,6 @@
  * given room to be read in. */
 .olai-md th,
 .olai-md td {
-  border: 0;
   border-bottom: 1px solid var(--color-rule);
   padding: 0.3125rem 0.625rem;
   text-align: left;

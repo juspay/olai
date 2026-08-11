@@ -20,13 +20,13 @@ test("a fenced block is highlighted, in classes rather than colours", () => {
 })
 
 // Nix is registered ON TOP of lowlight's common set rather than instead of it
-// (render.ts says why), so this pins both halves: the language this repo is
-// built with, and the one every other fence is written in.
-test("a nix fence is highlighted, and registering it kept the common set", () => {
-  const nix = renderMarkdown("```nix\npkgs.mkShell { name = \"olai\"; }\n```\n", NOTE)
-  expect(nix).toContain(`<code class="hljs language-nix">`)
-  expect(nix).toContain(`<span class="hljs-string">"olai"</span>`)
-  expect(renderMarkdown("```python\nx = 1\n```\n", NOTE)).toContain("hljs-")
+// (render.ts says why). Only the addition needs its own test: the test above
+// is a `ts` fence, which is IN that common set, so a `languages` option that
+// stopped spreading it fails there first.
+test("a nix fence is highlighted", () => {
+  const html = renderMarkdown("```nix\npkgs.mkShell { name = \"olai\"; }\n```\n", NOTE)
+  expect(html).toContain(`<code class="hljs language-nix">`)
+  expect(html).toContain(`<span class="hljs-string">"olai"</span>`)
 })
 
 // An unknown language is not an error and not a reason to lose the block: it

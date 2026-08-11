@@ -120,9 +120,12 @@ the tags come off a file on disk and carry no classes. The rules with a reason
 behind them: prose wraps anywhere rather than pushing the page sideways for one
 pasted URL, while a fence and a table — where a break invented mid-token would
 be a lie about a line or a value — scroll within themselves instead; a task
-list drops its bullet, since the checkbox is the marker; and a note's headings
-are clamped below the node title they hang under, which is the one thing a note
-is set differently from a document (`olai-md-note`, added by `Note.tsx`).
+list drops its bullet, since the checkbox is the marker; and markdown drawn
+under a title of the page's own has its headings clamped below that title,
+which is the one thing that varies by WHERE a block is drawn rather than by
+what it says (`olai-md-under-title` — a note always, and the document an open
+node attaches, which is under the same title and would otherwise open at
+exactly its size).
 `packages/tests/fixtures/good/kitchen-sink.md` is the page to open in a light
 theme and a dark one after changing any of it.
 
