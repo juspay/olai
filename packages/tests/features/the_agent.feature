@@ -85,6 +85,16 @@ Feature: Talking to the agent
     And the agent is working
 
   @scratch:chat
+  Scenario: An answer this panel cannot draw leaves a mark, not a blank
+    # The panel renders text and nothing else, which is fair — doing it
+    # SILENTLY was not. An agent answering with a picture, a sound or an
+    # attached resource used to leave a gap in the transcript that reads
+    # exactly like an agent that said nothing at all.
+    When I ask the agent "picture"
+    Then the agent's answer mentions "here it is:"
+    And the agent's answer mentions "[image]"
+
+  @scratch:chat
   Scenario: The input completes the agent's own slash commands
     # The list is the AGENT'S — olai keeps none of its own — so what is offered
     # is whatever that agent reported over the session.

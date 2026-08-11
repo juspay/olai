@@ -23,6 +23,7 @@
  *   servers      name the MCP servers this session was handed
  *   slow         dawdle, long enough to cancel
  *   deaf         dawdle, with our stdin closed, so nothing said back arrives
+ *   picture      answer with an `image` block, which the panel cannot draw
  *   flood        say more than fits, so scrolling is a thing that can be tested
  *   hold         start a tool call and STOP there, until released
  *   model <id>   switch the model the way the wrapped CLI does
@@ -207,6 +208,25 @@ const say = (text: string): void => {
   })
 }
 
+/** An answer that is NOT prose — the protocol's `image` content block, which
+ *  the panel cannot draw. One pixel of base64, because what is under test is
+ *  that a block of this kind leaves a mark rather than a blank, and the bytes
+ *  are the one part of it nothing reads. */
+const showPicture = (): void => {
+  notify("session/update", {
+    sessionId,
+    update: {
+      sessionUpdate: "agent_message_chunk",
+      content: {
+        type: "image",
+        mimeType: "image/png",
+        data:
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      },
+    },
+  })
+}
+
 const sleep = (millis: number) => new Promise<void>((done) => setTimeout(done, millis))
 
 /** The file a scenario touches to let a held turn go on. */
@@ -277,6 +297,16 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     process.stdin.destroy()
     for (let tick = 0; tick < 200 && !cancelled; tick++) await sleep(50)
     respond(id, { stopReason: cancelled ? "cancelled" : "end_turn" })
+    return
+  }
+
+  // An answer with something in it this panel cannot draw. It used to be
+  // dropped on the floor — the row was there and it was EMPTY — so the whole
+  // claim is that the transcript says a picture arrived.
+  if (verb === "picture") {
+    say("here it is:")
+    showPicture()
+    respond(id, { stopReason: "end_turn" })
     return
   }
 

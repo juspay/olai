@@ -705,8 +705,41 @@ const notify = (
 
 // ── reading the payloads ───────────────────────────────────────────────
 
-const textOf = (content: ContentBlock): string =>
-  content.type === "text" ? content.text : ""
+/**
+ * What a content block says — and, when it is not prose, THAT IT WAS THERE.
+ *
+ * The panel draws text and nothing else, which is a fair thing for it to do and
+ * was never a fair thing for it to do silently: a block this returned `""` for
+ * was dropped by every caller, so an agent that answered with a picture, a
+ * sound or an attached resource left a blank in the conversation where its
+ * answer had been. A reader cannot tell that from an agent that said nothing,
+ * and the two need entirely different things done about them.
+ *
+ * So a marker, in the shape the transcript already uses for its own asides
+ * (`[image]`), naming what arrived and — where the protocol gives one — what it
+ * was called. Rendering the picture itself is a bigger question that belongs
+ * with the attachments the composer already sends; what is owed here is the
+ * difference between "nothing" and "something this panel cannot draw".
+ *
+ * The `default` arm is not dead code: `ContentBlock` is somebody else's union
+ * and it gains variants, so an unknown block is a marker rather than a hole.
+ */
+const textOf = (content: ContentBlock): string => {
+  switch (content.type) {
+    case "text":
+      return content.text
+    case "image":
+      return "[image]"
+    case "audio":
+      return "[audio]"
+    case "resource_link":
+      return `[resource: ${content.name}]`
+    case "resource":
+      return `[resource: ${content.resource.uri}]`
+    default:
+      return "[unsupported content]"
+  }
+}
 
 /**
  * What a running call has to say for itself, out of the protocol's content
