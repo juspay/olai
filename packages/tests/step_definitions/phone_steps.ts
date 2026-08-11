@@ -26,6 +26,7 @@ import {
   CALENDAR_NEXT,
   CALENDAR_PREV,
   DONE_TOGGLE,
+  FILE_DIR_TOGGLE,
   NODE_TITLE,
   OUTLINE_LINK,
   OUTLINE_LIST,
@@ -42,6 +43,10 @@ import type { Box, OlaiWorld } from "../support/world.ts";
 const TARGETS: Record<string, string> = {
   "outline entry": OUTLINE_LINK,
   "document entry": DOCUMENT_LINK,
+  // The folder row's fold control — its own name, not the outline tree's
+  // `collapse toggle`. The enumeration being exhaustive is the point of the
+  // phone scenario; a new finger target must land here.
+  "folder toggle": FILE_DIR_TOGGLE,
   "collapse toggle": TOGGLE,
   "zoom bullet": ZOOM,
   "done switch": DONE_TOGGLE,

@@ -237,18 +237,19 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | selector | what it marks |
 |---|---|
 | `#root` | the mount point |
-| `[data-testid="outline-list"]` | the sidebar of found outlines |
-| `[data-testid="outline-link"][data-file]` | one sidebar entry per `.jsonl` |
-| `[data-testid="outline-tree"]` | the tree pane |
+| `[data-testid="outline-list"]` | the sidebar's file tree (outlines and documents under folders) |
+| `[data-testid="outline-link"][data-file]` | one outline entry in that tree |
+| `[data-testid="outline-tree"]` | the outline tree pane (nodes of one file) |
 | `[data-testid="node"][data-node-id]` | one node; also `data-status`, `data-collapsed`, `data-mirror` |
 | `[data-testid="node-title"]` | the title text |
 | `[data-testid="tag"]` | a styled inline `#tag` |
 | `[data-testid="date"]` | the date badge |
 | `[data-testid="desc"]` | a node's note — one clamped plain line under the title when closed (`data-preview="true"`, `data-open="false"`), full markdown when open (`data-open="true"`); always full on a zoomed page |
 | `[data-testid="node"][data-note-open]` | note expansion: `true` while click/tap-opened |
-| `[data-testid="toggle"]` | the collapse/expand control |
-| `[data-testid="document-list"]` | the sidebar's second list, one entry per `.md` |
-| `[data-testid="document-link"][data-file]` | one of those entries |
+| `[data-testid="toggle"]` | the collapse/expand control on an outline node |
+| `[data-testid="file-dir"][data-path]` | one folder in the sidebar file tree; `data-collapsed` says whether its children are hidden |
+| `[data-testid="file-dir-toggle"]` | the fold control on that folder |
+| `[data-testid="document-link"][data-file]` | one document entry in the file tree |
 | `[data-testid="document-page"][data-file]` | one document, as a page |
 | `[data-testid="document-body"]` | a document's rendered markdown, on its page or inline under a node |
 | `[data-testid="doc-ref"][data-doc]` | a node's `doc`, at its RESOLVED path; `data-inline` when the document is drawn whole |
