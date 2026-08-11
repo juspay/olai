@@ -283,8 +283,6 @@ export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
 export {
   attachmentRejection,
   base64DecodedLength,
-  CHUNK_BASE64_CHARS,
-  CHUNK_BYTES,
   chunkBase64,
   MAX_ATTACHMENT_BYTES,
 } from "./attach.ts"

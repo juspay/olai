@@ -18,6 +18,8 @@ import * as path from "node:path";
 import { DataTable, Given, Then, When } from "@cucumber/cucumber";
 import type { Locator } from "playwright";
 
+import { TESTID } from "@olai/web/src/client/testids.ts";
+
 import {
   CHAT_ATTACHMENT,
   CHAT_ATTACHMENT_PREVIEW,
@@ -177,7 +179,7 @@ Then("the chat input takes typing", async function (this: OlaiWorld) {
 Then("the chat input still has the caret", async function (this: OlaiWorld) {
   const focused = await this.page.evaluate(
     (id) => document.activeElement?.getAttribute("data-testid") === id,
-    "chat-input",
+    TESTID.chatInput,
   );
   assert.ok(
     focused,
@@ -702,7 +704,7 @@ When(
         name,
         data: name.endsWith(".svg") ? TINY_SVG : ONE_PIXEL_PNG,
         type: name.endsWith(".svg") ? "image/svg+xml" : "image/png",
-        id: "chat-input",
+        id: TESTID.chatInput,
       },
     );
   },

@@ -27,8 +27,10 @@ import { chunkBase64, MAX_ATTACHMENT_BYTES } from "@olai/surface"
 import { make, promptWith, safeName } from "./attachments.ts"
 
 /** Run one, and answer with the value or the refusal — the two things a caller
- *  of these verbs can get. */
-const outcome = <A, E>(effect: Effect.Effect<A, E>) => Effect.runSync(Effect.result(effect))
+ *  of these verbs can get. A PROMISE: the writes are asynchronous, which is
+ *  the point of them (a chunk is three megabytes and the loop underneath is
+ *  the one serving every socket). */
+const outcome = <A, E>(effect: Effect.Effect<A, E>) => Effect.runPromise(Effect.result(effect))
 
 const receive = (files: ReturnType<typeof make>, chunk: {
   name: string
@@ -39,7 +41,7 @@ const receive = (files: ReturnType<typeof make>, chunk: {
 const bytes = (size: number) =>
   Buffer.from(Array.from({ length: size }, (_, at) => (at * 31) % 256))
 
-test("a picture arrives in chunks and is one file at the end", () => {
+test("a picture arrives in chunks and is one file at the end", async () => {
   const files = make()
   const picture = bytes(4096)
   const pieces = chunkBase64(picture.toString("base64"), 64)
@@ -47,7 +49,7 @@ test("a picture arrives in chunks and is one file at the end", () => {
 
   let at: string | undefined
   for (const data of pieces) {
-    const answer = receive(files, {
+    const answer = await receive(files, {
       name: "shot.png",
       data,
       ...(at === undefined ? {} : { appendTo: at }),
@@ -65,18 +67,19 @@ test("a picture arrives in chunks and is one file at the end", () => {
   // Not under the served directory, and not readable by anyone else on the
   // host: this is whatever was on somebody's clipboard.
   expect(statSync(at!).mode & 0o777).toBe(0o600)
-  expect(files.holds(at!)).toBe(true)
+  // ... and this conversation will have it named on a prompt.
+  expect(Result.isSuccess(await outcome(files.claim(at!)))).toBe(true)
 
-  Effect.runSync(files.discard)
+  await Effect.runPromise(files.discard)
   expect(existsSync(at!)).toBe(false)
   // ... and the directory with it, so nothing is left behind.
   expect(existsSync(dirname(at!))).toBe(false)
 })
 
-test("two pictures of the same name are two files", () => {
+test("two pictures of the same name are two files", async () => {
   const files = make()
-  const first = receive(files, { name: "shot.png", data: bytes(8).toString("base64") })
-  const second = receive(files, { name: "shot.png", data: bytes(8).toString("base64") })
+  const first = await receive(files, { name: "shot.png", data: bytes(8).toString("base64") })
+  const second = await receive(files, { name: "shot.png", data: bytes(8).toString("base64") })
   expect(Result.isSuccess(first) && Result.isSuccess(second)).toBe(true)
   if (!Result.isSuccess(first) || !Result.isSuccess(second)) return
   expect(second.success.path).not.toBe(first.success.path)
@@ -85,12 +88,12 @@ test("two pictures of the same name are two files", () => {
   // picture on the first message's row.
   expect(first.success.name).toBe("shot.png")
   expect(second.success.name).toBe("shot-1.png")
-  Effect.runSync(files.discard)
+  await Effect.runPromise(files.discard)
 })
 
-test("`appendTo` is a continuation token, not a capability", () => {
+test("`appendTo` is a continuation token, not a capability", async () => {
   const files = make()
-  const started = receive(files, { name: "shot.png", data: bytes(8).toString("base64") })
+  const started = await receive(files, { name: "shot.png", data: bytes(8).toString("base64") })
   expect(Result.isSuccess(started)).toBe(true)
   if (!Result.isSuccess(started)) return
   const dir = dirname(started.success.path)
@@ -104,7 +107,7 @@ test("`appendTo` is a continuation token, not a capability", () => {
   symlinkSync(outside, planted)
 
   for (const appendTo of [outside, planted, join(dir, "..", "escape.png")]) {
-    const refused = receive(files, {
+    const refused = await receive(files, {
       name: "shot.png",
       data: bytes(8).toString("base64"),
       appendTo,
@@ -112,24 +115,24 @@ test("`appendTo` is a continuation token, not a capability", () => {
     expect(Result.isFailure(refused)).toBe(true)
   }
   expect(readFileSync(outside, "utf8")).toBe("before")
-  Effect.runSync(files.discard)
+  await Effect.runPromise(files.discard)
   rmSync(dirname(outside), { recursive: true, force: true })
 })
 
-test("a file that is not a picture is refused, whatever it is called", () => {
+test("a file that is not a picture is refused, whatever it is called", async () => {
   const files = make()
   // The name is sanitized BEFORE it is judged, so a name that would have been
   // a path cannot smuggle a picture extension past the gate either.
   for (const name of ["notes.txt", "shot.png/../notes.txt", "logo.svg"]) {
-    expect(Result.isFailure(receive(files, { name, data: "AAAA" }))).toBe(true)
+    expect(Result.isFailure(await receive(files, { name, data: "AAAA" }))).toBe(true)
   }
   // Nothing was created, so there is nothing to clean up.
-  Effect.runSync(files.discard)
+  await Effect.runPromise(files.discard)
 })
 
-test("the cap is on the FILE, so a chunk is judged against the total", () => {
+test("the cap is on the FILE, so a chunk is judged against the total", async () => {
   const files = make()
-  const started = receive(files, {
+  const started = await receive(files, {
     name: "shot.png",
     data: bytes(1024).toString("base64"),
   })
@@ -140,7 +143,7 @@ test("the cap is on the FILE, so a chunk is judged against the total", () => {
   // of a file that already has bytes in it. Judging each chunk alone is how a
   // capped upload becomes an uncapped one nobody refused.
   const overflowing = Buffer.alloc(MAX_ATTACHMENT_BYTES).toString("base64")
-  const refused = receive(files, {
+  const refused = await receive(files, {
     name: "shot.png",
     data: overflowing,
     appendTo: started.success.path,
@@ -148,10 +151,10 @@ test("the cap is on the FILE, so a chunk is judged against the total", () => {
   expect(Result.isFailure(refused)).toBe(true)
   // Refused BEFORE the write, so the file is what it was.
   expect(statSync(started.success.path).size).toBe(1024)
-  Effect.runSync(files.discard)
+  await Effect.runPromise(files.discard)
 })
 
-test("a name is a label, never a path", () => {
+test("a name is a label, never a path", async () => {
   expect(safeName("../../etc/passwd.png")).toBe("passwd.png")
   expect(safeName("/tmp/shot.png")).toBe("shot.png")
   expect(safeName("shot; rm -rf ~.png")).toBe("shot__rm_-rf__.png")
@@ -162,7 +165,7 @@ test("a name is a label, never a path", () => {
   expect(safeName("")).toBe("attachment")
 })
 
-test("what the agent is asked is the path, as text", () => {
+test("what the agent is asked is the path, as text", async () => {
   expect(promptWith("what is this", [])).toBe("what is this")
   expect(promptWith("what is this", ["/tmp/olai-chat-x/shot.png"])).toBe(
     "what is this\n\nAttached image: /tmp/olai-chat-x/shot.png",

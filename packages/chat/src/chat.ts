@@ -40,6 +40,7 @@
 
 import {
   type Attached,
+  type AttachChunk,
   CHAT_OFF,
   type ChatEntry,
   type ChatState,
@@ -48,7 +49,6 @@ import {
 } from "@olai/surface"
 import { BusyFailure, UsageFailure } from "@olai/format"
 import { Effect, Fiber, Semaphore } from "effect"
-import { basename } from "node:path"
 
 import type { Adapter } from "./adapter.ts"
 import * as AcpAgent from "./agent.ts"
@@ -95,7 +95,7 @@ export interface Chat {
    *  answering with where the whole file is and what it is called there. See
    *  {@link ./attachments.ts}. */
   readonly attach: (
-    chunk: Attachments.Chunk,
+    chunk: AttachChunk,
   ) => Effect.Effect<Attached, OpFailure>
   readonly cancel: Effect.Effect<void, OpFailure>
   readonly newSession: Effect.Effect<void, OpFailure>
@@ -262,14 +262,10 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         if (said === "" && attachments.length === 0) {
           return yield* new UsageFailure({ reason: "there is nothing to send" })
         }
-        for (const path of attachments) {
-          if (files.holds(path)) continue
-          // A path is not authority: it arrived over the wire, and the only
-          // ones that mean anything are the ones this conversation wrote.
-          return yield* new UsageFailure({
-            reason: "that attachment is not part of this conversation",
-          })
-        }
+        // A path is not authority: it arrived over the wire, and the only ones
+        // that mean anything are the ones this conversation wrote. The check
+        // and what it says when it fails belong to the directory's own module.
+        for (const path of attachments) yield* files.claim(path)
 
         // The user's own message goes in FIRST and from the server, so both
         // tabs see it and a send that fails does not leave one behind. What
@@ -281,7 +277,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             said,
             attachments.length === 0
               ? {}
-              : { attachments: attachments.map((path) => basename(path)) },
+              : { attachments: attachments.map(Attachments.nameOf) },
           ),
         )
 

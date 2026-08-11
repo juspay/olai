@@ -33,25 +33,19 @@ import { Effect } from "effect"
 
 import { asFailure, type Call } from "./run.ts"
 
-/** A picture that made it: where the server put it, what the SERVER calls it,
- *  and the Blob this tab already had — which is what lets the tab that pasted
- *  it draw a thumbnail nobody else can (see {@link ./previews.ts}).
- *
- *  The name is the server's answer and never the one we sent. A sanitised name
- *  and a collision suffix both happen down there — `shot.png` pasted twice is
- *  `shot.png` and `shot-1.png` — and it is the answer that the transcript row
- *  carries. Keeping the sent name would be a second answer to "what is this
- *  called", and the first thing it costs is a thumbnail drawn against the
- *  wrong row. */
-export interface Attachment extends Attached {
-  readonly blob: Blob
-}
-
 /** The one verb this needs, so a test can pass its own. */
 export type Attach = (chunk: AttachChunk) => Call<Attached>
 
 /**
- * Send `file` to the conversation, chunk by chunk.
+ * Send `file` to the conversation, chunk by chunk, and answer with where it
+ * landed and what the SERVER calls it there.
+ *
+ * That name is the server's answer and never the one we sent: sanitising and
+ * the collision suffix both happen down there — `shot.png` pasted twice is
+ * `shot.png` and `shot-1.png` — and it is the answer the transcript row
+ * carries. Keeping the sent name would be a second answer to "what is this
+ * called", and the first thing that costs is a thumbnail drawn on the wrong
+ * row.
  *
  * `chunkChars` exists so a test can drive the loop with a size it can read;
  * production passes nothing and gets the derived one.
@@ -60,7 +54,7 @@ export const attaching = (
   file: File,
   attach: Attach,
   chunkChars?: number,
-): Effect.Effect<Attachment, OpFailure> =>
+): Effect.Effect<Attached, OpFailure> =>
   Effect.gen(function*() {
     const name = nameOf(file)
     const rejection = attachmentRejection(name, file.size)
@@ -68,28 +62,23 @@ export const attaching = (
       return yield* Effect.fail(new UsageFailure({ reason: rejection }))
     }
 
-    const bytes = new Uint8Array(yield* Effect.promise(() => file.arrayBuffer()))
-    const chunks = chunkBase64(base64Of(bytes), chunkChars)
+    // Encoded in one pass and let go of: the raw bytes are dead the moment the
+    // base64 exists, and a 50 MB paste holding both while it makes seventeen
+    // round trips is 50 MB nobody is reading.
+    const [creating, ...continuing] = chunkBase64(
+      base64Of(new Uint8Array(yield* Effect.promise(() => file.arrayBuffer()))),
+      chunkChars,
+    )
 
-    let stored: Attached | undefined
-    for (const data of chunks) {
-      stored = yield* toRefusal(
-        attach(
-          stored === undefined
-            ? { name, data }
-            : { name, data, appendTo: stored.path },
-        ),
-      )
+    // The protocol, as the shape of the code: the first chunk creates the
+    // file, every later one continues the path it was answered with. Sequential
+    // by construction, because the server appends to one growing file and two
+    // chunks in flight would interleave their bytes.
+    let stored = yield* toRefusal(attach({ name, data: creating }))
+    for (const data of continuing) {
+      stored = yield* toRefusal(attach({ name, data, appendTo: stored.path }))
     }
-    // `chunkBase64` always yields at least one piece, so the loop always ran.
-    // Said out loud rather than defaulted: a `?? ""` here would put an empty
-    // path in somebody's prompt.
-    if (stored === undefined) {
-      return yield* Effect.fail(
-        new UsageFailure({ reason: "nothing was written — that is a bug" }),
-      )
-    }
-    return { ...stored, blob: file }
+    return stored
   })
 
 /**
@@ -121,4 +110,4 @@ const base64Of = (bytes: Uint8Array): string => {
  *  {@link ./run.ts} owns that translation for the verbs it RUNS; this is the
  *  same one, for calls composed into the loop above. */
 const toRefusal = <A>(call: Call<A>): Effect.Effect<A, OpFailure> =>
-  Effect.catch(call, (failure) => Effect.fail(asFailure(failure)))
+  Effect.mapError(call, asFailure)

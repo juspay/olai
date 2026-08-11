@@ -16,9 +16,18 @@ import {
   base64DecodedLength,
   CHUNK_BASE64_CHARS,
   CHUNK_BYTES,
+  CHUNK_FRAME_BUDGET,
   chunkBase64,
   MAX_ATTACHMENT_BYTES,
 } from "./attach.ts"
+
+// The derivation's own conclusion, measured against the framework's frame cap
+// rather than against the number the comment says it is. A bump that moved the
+// cap fails here, which is the only place that would notice.
+test("a chunk fits a frame, with the headroom the derivation claims", () => {
+  expect(CHUNK_BASE64_CHARS).toBeLessThan(CHUNK_FRAME_BUDGET)
+  expect(CHUNK_FRAME_BUDGET / CHUNK_BASE64_CHARS).toBeGreaterThan(3)
+})
 
 test("the chunk size divides base64's grouping exactly", () => {
   expect(CHUNK_BYTES % 3).toBe(0)

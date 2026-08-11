@@ -35,36 +35,28 @@
  */
 
 import { type OpFailure, UsageFailure } from "@olai/format"
-import { type Attached, attachmentRejection, base64DecodedLength } from "@olai/surface"
-import { Effect } from "effect"
 import {
-  appendFileSync,
-  existsSync,
-  mkdtempSync,
-  realpathSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs"
+  type Attached,
+  type AttachChunk,
+  attachmentRejection,
+  base64DecodedLength,
+} from "@olai/surface"
+import { Effect } from "effect"
+import { appendFile, mkdtemp, realpath, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { basename, join, parse, sep } from "node:path"
-
-/** One chunk on its way in — the wire's `AttachChunk`, spelled without a
- *  dependency on the wire: this module is about a directory. */
-export interface Chunk {
-  readonly name: string
-  readonly data: string
-  readonly appendTo?: string | undefined
-}
 
 export interface Attachments {
   /** Write one chunk, and answer with where the whole file is and what it
    *  ended up being called. The first chunk (no `appendTo`) creates it; every
    *  later one appends. */
-  readonly receive: (chunk: Chunk) => Effect.Effect<Attached, OpFailure>
-  /** Is this path one of ours — the check a prompt's attachment list goes
-   *  through before it reaches the agent. */
-  readonly holds: (path: string) => boolean
+  readonly receive: (chunk: AttachChunk) => Effect.Effect<Attached, OpFailure>
+  /** Refuse a path that is not a file in this conversation's own directory —
+   *  what a continuation goes through, and what every attachment on a prompt
+   *  goes through before it reaches the agent. The predicate and the sentence
+   *  it fails with are ONE thing, so its two callers cannot come to answer
+   *  differently. */
+  readonly claim: (path: string) => Effect.Effect<void, OpFailure>
   /** Everything, gone. A conversation was left, or the server is stopping. */
   readonly discard: Effect.Effect<void>
 }
@@ -77,52 +69,85 @@ export const make = (): Attachments => {
   /** `mkdtemp` mints it, which is also what makes it owner-only: POSIX says
    *  the directory is created with mode 0700, and the name is unpredictable —
    *  two olai servers on one host never share one. The temp root is resolved
-   *  first so every path this module answers with is already canonical on a
-   *  host where `/tmp` is a symlink, which is every macOS. */
-  const directory = (): string => {
-    if (dir === null) dir = mkdtempSync(join(realpathSync(tmpdir()), "olai-chat-"))
+   *  ONCE, here, so the directory is canonical BY CONSTRUCTION and nothing
+   *  below re-resolves it. That matters on a host where `/tmp` is a symlink,
+   *  which is every macOS. */
+  const directory = async (): Promise<string> => {
+    if (dir === null) dir = await mkdtemp(join(await realpath(tmpdir()), "olai-chat-"))
     return dir
   }
 
   const refuse = (reason: string) => Effect.fail(new UsageFailure({ reason }))
 
+  /** The path, resolved, if this conversation will have it — and `null` for
+   *  every other path there is. Answering with the RESOLVED one is what keeps
+   *  a caller from resolving it a second time and getting a second spelling of
+   *  the same file. */
+  const resolved = async (path: string): Promise<string | null> => {
+    if (dir === null) return null
+    try {
+      const real = await realpath(path)
+      // `sep`-terminated, so `/tmp/olai-chat-a` does not match
+      // `/tmp/olai-chat-ab`. Both sides resolved, so a symlink planted inside
+      // the directory cannot point an append out of it.
+      if (!real.startsWith(`${dir}${sep}`)) return null
+      return (await stat(real)).isFile() ? real : null
+    } catch {
+      // A path that does not resolve is not one of ours.
+      return null
+    }
+  }
+
+  const claim = (path: string): Effect.Effect<string, OpFailure> =>
+    Effect.flatMap(
+      Effect.promise(() => resolved(path)),
+      (real) => (real === null ? refuse(NOT_OURS) : Effect.succeed(real)),
+    )
+
+  /** Where a chunk's bytes end up. One path out of both branches, so
+   *  {@link named} is the only place a path becomes an answer. */
+  const stored = (chunk: AttachChunk): Effect.Effect<string, OpFailure> =>
+    Effect.gen(function*() {
+      const name = safeName(chunk.name)
+      const bytes = base64DecodedLength(chunk.data)
+      const continuing = chunk.appendTo
+
+      if (continuing === undefined) {
+        // The AUTHORITATIVE gate. The browser runs the same one before it
+        // encodes anything, which makes a refusal here a caller that is not
+        // the browser — and either way it is refused.
+        const rejection = attachmentRejection(name, bytes)
+        if (rejection !== null) return yield* refuse(rejection)
+        return yield* Effect.promise(async () =>
+          create(await directory(), name, chunk.data)
+        )
+      }
+
+      const at = yield* claim(continuing)
+      // The cap is on the FILE, so a continuation is judged against what is
+      // already on disk PLUS what it carries. Judging the chunk alone would
+      // make fifty legal chunks an illegal file nobody refused.
+      const already = yield* Effect.promise(() => stat(at))
+      const rejection = attachmentRejection(name, already.size + bytes)
+      if (rejection !== null) return yield* refuse(rejection)
+      return yield* Effect.promise(() => append(at, chunk.data))
+    })
+
   return {
-    // Both branches answer with a PATH and the mapping turns it into the
-    // answer, so a create and an append cannot disagree about what a file is
-    // called.
-    receive: (chunk) =>
-      Effect.suspend(() => {
-        const name = safeName(chunk.name)
-        const bytes = base64DecodedLength(chunk.data)
-
-        if (chunk.appendTo === undefined) {
-          // The AUTHORITATIVE gate. The browser runs the same one before it
-          // encodes anything, which is what makes a refusal here a caller
-          // that is not the browser — and either way it is refused.
-          const rejection = attachmentRejection(name, bytes)
-          if (rejection !== null) return refuse(rejection)
-          return Effect.sync(() => create(directory(), name, chunk.data))
-        }
-
-        const at = chunk.appendTo
-        if (!holds(dir, at)) {
-          return refuse("that attachment is not part of this conversation")
-        }
-        // The cap is on the FILE, so a continuation is judged against what is
-        // already on disk PLUS what it carries. Judging the chunk alone would
-        // make fifty legal chunks an illegal file nobody refused.
-        const rejection = attachmentRejection(name, statSync(at).size + bytes)
-        if (rejection !== null) return refuse(rejection)
-        return Effect.sync(() => append(at, chunk.data))
-      }).pipe(Effect.map(named)),
-    holds: (path) => holds(dir, path),
-    discard: Effect.sync(() => {
-      if (dir === null) return
-      rmSync(dir, { recursive: true, force: true })
+    receive: (chunk) => Effect.map(stored(chunk), named),
+    claim: (path) => Effect.asVoid(claim(path)),
+    discard: Effect.promise(async () => {
+      const going = dir
       dir = null
+      if (going !== null) await rm(going, { recursive: true, force: true })
     }),
   }
 }
+
+/** What this conversation says about a path that is not its own. One sentence,
+ *  because it is one refusal: a chunk continuing somebody else's file and an
+ *  attachment on a prompt fail the same check. */
+const NOT_OURS = "that attachment is not part of this conversation"
 
 /**
  * What the agent is actually asked, once a message has pictures on it.
@@ -145,41 +170,36 @@ export const promptWith = (
   return said === "" ? attached : `${said}\n\n${attached}`
 }
 
-/** A path, as the answer a caller keeps: where the file is, and what it is
- *  called there. The name is DERIVED from the path rather than carried
- *  alongside it, because the path is the only one of the two the disk agrees
- *  with — a collision suffix happens down here. */
-const named = (path: string): Attached => ({ path, name: basename(path) })
+/** What a stored attachment is CALLED — the one rule, so the answer `attach`
+ *  gives and the name the transcript row carries cannot come apart. Derived
+ *  from the path rather than carried beside it, because the path is the half
+ *  the disk agrees with: the collision suffix happens down here. */
+export const nameOf = (path: string): string => basename(path)
+
+/** A path, as the answer a caller keeps. */
+const named = (path: string): Attached => ({ path, name: nameOf(path) })
 
 /** A first chunk: mint a file nobody else in this conversation is using, and
- *  answer with its canonical path. */
-const create = (dir: string, name: string, data: string): string => {
-  const path = free(dir, name)
+ *  answer with its path.
+ *
+ *  Every write here is ASYNCHRONOUS, and the size is why: one chunk is three
+ *  megabytes, and the loop this server runs is also the one serving every open
+ *  websocket, the store's probe and the MCP route. A synchronous write would
+ *  stop all of them, seventeen times, for one large picture. */
+const create = async (dir: string, name: string, data: string): Promise<string> => {
+  const path = await free(dir, name)
   // Owner-only, like the directory holding it: this is clipboard content, and
   // the only reader that needs it is the agent running as this same user.
-  writeFileSync(path, Buffer.from(data, "base64"), { mode: 0o600 })
-  // After the write: realpath needs the file to exist.
-  return realpathSync(path)
-}
-
-/** A later chunk. The path was checked by {@link holds} before we got here. */
-const append = (path: string, data: string): string => {
-  appendFileSync(path, Buffer.from(data, "base64"), { mode: 0o600 })
+  await writeFile(path, Buffer.from(data, "base64"), { mode: 0o600 })
+  // The directory is canonical already, and the name is ours, so the path is
+  // too — nothing here has to be resolved a second time.
   return path
 }
 
-/** Is `path` a file inside `dir`? Both sides resolved, so a symlink cannot
- *  point out of it, and `sep`-terminated so `/tmp/olai-chat-a` does not match
- *  `/tmp/olai-chat-ab`. */
-const holds = (dir: string | null, path: string): boolean => {
-  if (dir === null || !existsSync(path)) return false
-  try {
-    return realpathSync(path).startsWith(`${realpathSync(dir)}${sep}`) &&
-      statSync(path).isFile()
-  } catch {
-    // A path that cannot be resolved is not one of ours.
-    return false
-  }
+/** A later chunk. The path came back resolved from `claim`. */
+const append = async (path: string, data: string): Promise<string> => {
+  await appendFile(path, Buffer.from(data, "base64"), { mode: 0o600 })
+  return path
 }
 
 /**
@@ -204,11 +224,22 @@ export const safeName = (raw: string): string => {
 /** A path in `dir` that no file has yet, suffixing `-1`, `-2`, … before the
  *  extension. Two pictures pasted before the agent has read the first must
  *  not be one file. */
-const free = (dir: string, name: string): string => {
+const free = async (dir: string, name: string): Promise<string> => {
   const { name: stem, ext } = parse(name)
   let candidate = join(dir, name)
-  for (let at = 1; existsSync(candidate); at++) {
+  for (let at = 1; await taken(candidate); at++) {
     candidate = join(dir, `${stem}-${at}${ext}`)
   }
   return candidate
+}
+
+/** Is there something there already? `stat` rather than an existence check,
+ *  because the answer this asks for is the one `stat` throws about. */
+const taken = async (path: string): Promise<boolean> => {
+  try {
+    await stat(path)
+    return true
+  } catch {
+    return false
+  }
 }

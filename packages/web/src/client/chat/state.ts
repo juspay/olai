@@ -39,17 +39,18 @@
  */
 
 import {
+  type Attached,
   CHAT_OFF,
   type ChatEntry,
   type ChatState,
   type OpFailure,
   type SessionInfo,
 } from "@olai/surface"
-import { type Accessor, createMemo, createSignal } from "solid-js"
+import { type Accessor, createEffect, createMemo, createSignal, on } from "solid-js"
 
 import { olai } from "../wire.ts"
-import { type Attachment, attaching } from "./attach.ts"
-import { remember } from "./previews.ts"
+import { attaching } from "./attach.ts"
+import { forget, remember } from "./previews.ts"
 import { type Call, run } from "./run.ts"
 
 export interface Chat {
@@ -72,7 +73,7 @@ export interface Chat {
   /** Send a picture to the conversation's tmp directory, chunk by chunk, and
    *  answer with where it landed — or `null` when it was refused, which the
    *  panel is already showing through {@link Chat.refused}. */
-  readonly attach: (file: File) => Promise<Attachment | null>
+  readonly attach: (file: File) => Promise<Attached | null>
   readonly cancel: () => void
   readonly newSession: () => void
   readonly loadSession: (id: string) => void
@@ -126,6 +127,15 @@ export const createChat = (): Chat => {
     run(effect, (failure) => setRefused(failure))
   }
 
+  // A conversation ended, so what belonged to it did too: the server threw its
+  // tmp directory away, and the thumbnails this tab was keeping are of files
+  // that no longer exist under names the next conversation will mint again.
+  // Here rather than in a component because this is where the session is
+  // known — the cell is the only thing that says a conversation changed.
+  createEffect(
+    on(() => state().session?.id, () => forget(), { defer: true }),
+  )
+
   return {
     state,
     rows,
@@ -145,9 +155,12 @@ export const createChat = (): Chat => {
             setRefused(failure)
             resolve(null)
           },
-          (attachment) => {
-            remember(attachment.name, attachment.blob)
-            resolve(attachment)
+          (stored) => {
+            // The Blob is the one already in hand — this tab is the only
+            // reader that will ever have it, and the name it is filed under is
+            // the SERVER's, which is what the transcript row will carry.
+            remember(stored.name, file)
+            resolve(stored)
           },
         )
       }),

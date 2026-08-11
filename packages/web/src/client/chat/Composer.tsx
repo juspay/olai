@@ -35,10 +35,10 @@
  * fight over one box.
  */
 
-import { createSignal, Show } from "solid-js"
+import type { Attached } from "@olai/surface"
+import { createEffect, createSignal, on, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
-import type { Attachment } from "./attach.ts"
 import { Attachments } from "./Attachments.tsx"
 import { SlashMenu } from "./SlashMenu.tsx"
 import type { Chat } from "./state.ts"
@@ -57,8 +57,13 @@ export function Composer(props: { readonly chat: Chat }) {
   const [asked, setAsked] = createSignal(false)
   /** Pictures already on the server and waiting for a message to go with.
    *  Local to this tab, exactly like the draft: an attachment nobody has sent
-   *  is part of what is being typed. */
-  const [pending, setPending] = createSignal<ReadonlyArray<Attachment>>([])
+   *  is part of what is being typed.
+   *
+   *  Unlike the draft, it refers to something the SERVER owns — files in the
+   *  conversation's tmp directory — so it is dropped when the conversation is,
+   *  below. A chip left over from the last one is a send the server would
+   *  refuse, pointing at a file it has already deleted. */
+  const [pending, setPending] = createSignal<ReadonlyArray<Attached>>([])
   /** How many are in flight, so the box can say so. A count rather than a
    *  flag: two pictures dropped at once are two uploads. */
   const [sending, setSending] = createSignal(0)
@@ -112,6 +117,13 @@ export function Composer(props: { readonly chat: Chat }) {
     }
     input?.focus()
   }
+
+  // The conversation these belong to is over, and the server has already
+  // deleted the files: keeping the chips would offer a send it would refuse,
+  // naming pictures that are gone.
+  createEffect(
+    on(() => props.chat.state().session?.id, () => setPending([]), { defer: true }),
+  )
 
   const send = () => {
     const text = draft()
