@@ -44,7 +44,7 @@ Feature: It stays live
       {"id":"shed","ord":"a0","title":"clear out the shed"}
       {"id":"rake","parent":"shed","ord":"a0","title":"hang up the rake"}
       """
-    Then the outline list has 3 entries
+    Then the outline list has 4 entries
     And the node "compost" is shown
     And the page has not reloaded
     And there should be no page errors
@@ -261,7 +261,7 @@ Feature: It stays live
       {"id":"shed","ord":"a0","title":"clear out the shed"}
       {"id":"rake","parent":"shed","ord":"a0","title":"hang up the rake"}
       """
-    Then the outline list has 3 entries
+    Then the outline list has 4 entries
     And the outline "garden.jsonl" shows exactly the nodes "garden, herbs, basil, mint"
     And the node "basil" has the title "sow the basil"
     And the page has not reloaded

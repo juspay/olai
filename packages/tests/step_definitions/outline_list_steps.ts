@@ -8,8 +8,8 @@ import { Given, Then, When } from "@cucumber/cucumber";
 import {
   DOCUMENT_LINK,
   FILE_DIR,
-  FILE_DIR_TOGGLE,
   HYDRATION_TIMEOUT,
+  oneLine,
   OUTLINE_LINK,
   OUTLINE_LIST,
   OUTLINE_TREE,
@@ -20,6 +20,12 @@ import type { OlaiWorld } from "../support/world.ts";
 /** One folder in the file tree, as a selector string `expectAttribute` takes. */
 const folderSelector = (path: string): string =>
   `${FILE_DIR}[data-path="${path}"]`;
+
+/** The fold button of ONE folder — a direct child of its `<li>`, not a
+ *  descendant's. Nested folders nest their `li`s, so an unscoped
+ *  `FILE_DIR_TOGGLE` under a parent would match every toggle inside it. */
+const folderToggle = (world: OlaiWorld, path: string) =>
+  world.fileDir(path).locator(":scope > button");
 
 Then("the outline list is shown", async function (this: OlaiWorld) {
   await this.page
@@ -141,7 +147,7 @@ When(
     const folder = this.fileDir(path);
     await folder.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     if ((await folder.getAttribute("data-collapsed")) === "true") return;
-    await folder.locator(FILE_DIR_TOGGLE).click();
+    await folderToggle(this, path).click();
     await this.expectAttribute(
       folderSelector(path),
       "data-collapsed",
@@ -158,7 +164,7 @@ When(
     const folder = this.fileDir(path);
     await folder.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     if ((await folder.getAttribute("data-collapsed")) === "false") return;
-    await folder.locator(FILE_DIR_TOGGLE).click();
+    await folderToggle(this, path).click();
     await this.expectAttribute(
       folderSelector(path),
       "data-collapsed",
@@ -190,6 +196,41 @@ Then(
       await this.page.locator(`${DOCUMENT_LINK}[data-file="${file}"]`).count(),
       0,
       `the document "${file}" is still in the tree after its folder collapsed`,
+    );
+  },
+);
+
+// ── leaf labels — the visible point of the file tree ───────────────────
+//
+// `data-file` carries the full path by design (routes, broken marks, tests
+// that open a file). The label the reader SEES is the basename. Asserting
+// only on `data-file` would pass if every nested entry drew the wrapped
+// path string this tree exists to remove.
+
+Then(
+  "the document link {string} reads {string}",
+  async function (this: OlaiWorld, file: string, label: string) {
+    await this.showSidebar();
+    const link = this.documentLink(file);
+    await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      oneLine(await link.innerText()),
+      label,
+      `the document "${file}" draws ${JSON.stringify(oneLine(await link.innerText()))}, not the basename ${JSON.stringify(label)}`,
+    );
+  },
+);
+
+Then(
+  "the outline link {string} reads {string}",
+  async function (this: OlaiWorld, file: string, label: string) {
+    await this.showSidebar();
+    const link = this.outlineLink(file);
+    await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      oneLine(await link.innerText()),
+      label,
+      `the outline "${file}" draws ${JSON.stringify(oneLine(await link.innerText()))}, not the basename ${JSON.stringify(label)}`,
     );
   },
 );

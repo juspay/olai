@@ -13,7 +13,8 @@ Feature: Serve a directory
 
   Scenario: Every outline in the directory is listed
     When I open the app
-    Then the outline list has 2 entries
+    Then the outline list has 3 entries
+    And the outline list links to "Daily/2026-08.jsonl"
     And the outline list links to "garden.jsonl"
     And the outline list links to "house.jsonl"
 
@@ -24,14 +25,18 @@ Feature: Serve a directory
     Then the outline list does not link to "finishes.md"
 
   Scenario: Nested paths are folders, not path strings
-    # notes/palette.md lives under notes/, so the tree draws a folder and the
-    # basename — never the wrapped "notes/palette.md" string the flat list used
-    # to spell. Collapsing hides the document; expanding brings it back. The
-    # fold is client-local: the page does not reload.
+    # Nested files live under folders, so the tree draws a folder and the
+    # BASENAME — never the wrapped path string the flat list used to spell.
+    # That label is the whole point of this tree: asserting only on data-file
+    # would still pass if the leaf drew the full path. Collapsing hides the
+    # children; expanding brings them back. The fold is client-local.
     When I open the app
-    Then the file tree shows the folder "notes"
+    Then the file tree shows the folder "Daily"
+    And the file tree shows the folder "notes"
+    And the folder "Daily" is expanded
     And the folder "notes" is expanded
-    And the document link "notes/palette.md" is shown
+    And the outline link "Daily/2026-08.jsonl" reads "2026-08.jsonl"
+    And the document link "notes/palette.md" reads "palette.md"
     Given I mark the page
     When I collapse the folder "notes"
     Then the folder "notes" is collapsed

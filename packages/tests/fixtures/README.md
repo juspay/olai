@@ -23,7 +23,7 @@ from `broken/` and `tangled/`.
 
 ## `good/` — a set that validates
 
-Two outlines, two documents and a picture. Between them they exercise one of
+Three outlines, two documents and a picture. Between them they exercise one of
 each thing the view has to draw:
 
 | what | where |
@@ -38,6 +38,7 @@ each thing the view has to draw:
 | an `after` edge | `order` after `demo`; `install` after `order` |
 | a `doc` | `install` attaches `finishes.md` |
 | a document nothing attaches | `notes/palette.md` — still a page, still in the sidebar |
+| a nested outline | `Daily/2026-08.jsonl` — the sidebar's file tree, not a path string |
 | a fenced code block, a footnote | `finishes.md` |
 | a relative picture | `finishes.md` names `art/handle.png`; `notes/palette.md` names the same file through `../` |
 | a cross-file mirror | `kitchen-herbs` (house.jsonl) mirrors `herbs` (garden.jsonl) |

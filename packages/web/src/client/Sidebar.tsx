@@ -34,11 +34,11 @@
  */
 
 import type { BrokenFile, Document } from "@olai/format"
+import { Key } from "@solid-primitives/keyed"
 import {
   createMemo,
   createSelector,
   createSignal,
-  For,
   type JSX,
   Match,
   Show,
@@ -125,7 +125,16 @@ export function Sidebar(props: {
   // One tree, rebuilt only when the directory's paths move — not when a page
   // changes or a folder folds. Document *text* is not an input: the tree is
   // of paths, and a rewrite of a document's body is not a reshape of the
-  // directory.
+  // directory. (manifest's equals gates on file+text and patches text in
+  // place; the outline collection keeps `order` by reference on a values-only
+  // tick — so this memo stays quiet when a body moves and only re-runs when a
+  // path arrives or leaves.)
+  //
+  // The walk mints fresh row objects each time; `<Key by="key">` holds each
+  // place across that mint the way Tree.tsx holds outline rows — without it
+  // `<For>` would compare by reference and rebuild the whole sidebar DOM on
+  // one membership change, which is O(corpus) on the Dropbox-sized tree this
+  // item targets.
   const tree = createMemo(() =>
     fileTree(
       props.files,
@@ -192,9 +201,9 @@ export function Sidebar(props: {
         {props.children}
 
         <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
-          <For each={tree()}>
-            {(row) => <Entry row={row} view={view} />}
-          </For>
+          <Key each={tree()} by="key">
+            {(row) => <Entry row={row()} view={view} />}
+          </Key>
         </ul>
 
         <Show when={props.footer}>
@@ -278,9 +287,9 @@ function Dir(props: {
       </button>
       <Show when={!folded()}>
         <ul class="m-0 ml-2 list-none border-l border-rule p-0 pl-2">
-          <For each={props.row.children}>
-            {(child) => <Entry row={child} view={props.view} />}
-          </For>
+          <Key each={props.row.children} by="key">
+            {(child) => <Entry row={child()} view={props.view} />}
+          </Key>
         </ul>
       </Show>
     </li>

@@ -12,6 +12,11 @@
  * is are the drawer's business, not this one's. Order is by name at each
  * level, which is what segment-by-segment path order (`./paths.ts`) produces
  * for the flat lists this replaces.
+ *
+ * Every row carries a `key` (`dir:<path>` / `file:<path>`) so the drawer can
+ * hold each place across frames the way the outline tree does (`Tree.tsx`):
+ * this walk mints fresh objects every time, and `<For>` would compare them by
+ * reference and rebuild the whole sidebar on one membership change.
  */
 
 /** What a leaf of the tree is: the two kinds of file the sidebar draws. */
@@ -19,10 +24,13 @@ export type FileOf = "outline" | "document"
 
 /** One row of the tree. A directory carries its own root-relative path so
  *  collapse state can key on it without re-walking parents; a file carries
- *  the full path the rest of the app already names pages by. */
+ *  the full path the rest of the app already names pages by. `key` is the
+ *  stable identity of the PLACE — unique across dirs and files. */
 export type FileRow =
   | {
       readonly kind: "dir"
+      /** Stable place id for `<Key by="key">` — `dir:<path>`. */
+      readonly key: string
       readonly name: string
       /** Root-relative path of this directory (`notes`, `Daily/2026`). */
       readonly path: string
@@ -30,6 +38,8 @@ export type FileRow =
     }
   | {
       readonly kind: "file"
+      /** Stable place id for `<Key by="key">` — `file:<path>`. */
+      readonly key: string
       readonly name: string
       /** Root-relative path the page routes already use. */
       readonly file: string
@@ -66,10 +76,22 @@ const freeze = (node: Building, prefix: string): ReadonlyArray<FileRow> => {
   const rows: FileRow[] = []
   for (const [name, child] of node.dirs) {
     const path = prefix === "" ? name : `${prefix}/${name}`
-    rows.push({ kind: "dir", name, path, children: freeze(child, path) })
+    rows.push({
+      kind: "dir",
+      key: `dir:${path}`,
+      name,
+      path,
+      children: freeze(child, path),
+    })
   }
   for (const [name, entry] of node.files) {
-    rows.push({ kind: "file", name, file: entry.file, of: entry.of })
+    rows.push({
+      kind: "file",
+      key: `file:${entry.file}`,
+      name,
+      file: entry.file,
+      of: entry.of,
+    })
   }
   rows.sort((left, right) =>
     left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
