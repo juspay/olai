@@ -12,8 +12,9 @@
  *     relative picture is not drawn AT ALL — no remote host (a page that
  *     fetched one would tell a third party what someone is reading), no
  *     `data:`, no absolute path. `@olai/format` decides what resolves and
- *     `@olai/surface` spells the URL; this drops the element when the answer is
- *     nothing.
+ *     `@olai/surface` spells the URL; this SAYS SO where the picture would have
+ *     been when the answer is nothing, rather than deleting the element, which
+ *     is how a typo'd filename used to render as a page with a hole in it.
  *   - **ids belong to the page, not to the parser.** Every rendered block on a
  *     page — a note per row, a document, and every note under it — is a
  *     separate run of the pipeline, and each would otherwise mint `fn-1` for
@@ -38,6 +39,7 @@ import { mediaHref } from "@olai/surface"
 import type { Element, Root } from "hast"
 
 import { type Heading, headingOf } from "./outline.ts"
+import { TESTID } from "../testids.ts"
 
 export interface Rewrite {
   /** The file the markdown was written in — an outline, for a note; the
@@ -57,32 +59,61 @@ export const rewrite = (tree: Root, options: Rewrite): readonly Heading[] => {
 }
 
 const walk = (parent: Root | Element, options: Rewrite, headings: Heading[]): void => {
-  // Filtered rather than mutated in place, because one of the answers is "this
-  // element is not drawn": `keep` is the walk AND the verdict, so an image that
-  // resolves to nothing is gone with its subtree instead of left behind as an
-  // empty box.
-  parent.children = parent.children.filter((child) => {
-    if (child.type !== "element") return true
-    if (child.tagName === "img" && !point(child, options.from)) return false
+  for (const child of parent.children) {
+    if (child.type !== "element") continue
+    if (child.tagName === "img") point(child, options.from)
     mint(child, options.ids)
     walk(child, options, headings)
-    // AFTER the subtree, so what a heading reads as is what is left of it: a
-    // picture inside one that resolved to nothing is gone by now.
+    // AFTER the subtree, so what a heading reads as is what is left of it.
     const heading = headingOf(child)
     if (heading !== null) headings.push(heading)
-    return true
-  })
+  }
 }
 
-/** Point an `<img>` at the media route, or say it cannot be drawn. */
-const point = (element: Element, from: string): boolean => {
+/**
+ * Point an `<img>` at the media route — or, when nothing here resolves, say so
+ * IN PLACE OF THE PICTURE.
+ *
+ * It used to be deleted, subtree and all, and that is the bug: `![](shot.pngg)`
+ * and `![](sh0t.png)` are the ordinary way of getting a picture wrong, and what
+ * they produced was a page with nothing on it where the picture was meant to
+ * be. Nobody can debug a blank — not the person who wrote the typo, and not the
+ * agent asked why its picture is missing.
+ *
+ * The allowlist is unchanged and deliberately so: what is drawn is still only a
+ * relative picture under the served root ({@link pictureOf} owns that rule, and
+ * `.svg`, `data:` and remote hosts are still refused). What changes is that a
+ * refusal is now VISIBLE and names what it refused, which costs the reader
+ * nothing and tells them everything. The name is the `src` the markdown wrote,
+ * because that is the string a reader has to go and fix — never the resolved
+ * path, which is ours.
+ *
+ * The element is REWRITTEN rather than replaced so the walk above stays one
+ * pass over one array: an `<img>` is void, so there is no subtree to carry.
+ */
+const point = (element: Element, from: string): void => {
   const src = element.properties?.["src"]
-  if (typeof src !== "string") return false
-  const picture = pictureOf(from, src)
-  if (picture === null) return false
-  element.properties["src"] = mediaHref(picture)
-  return true
+  const picture = typeof src === "string" ? pictureOf(from, src) : null
+  if (picture !== null && element.properties !== undefined) {
+    element.properties["src"] = mediaHref(picture)
+    return
+  }
+
+  const named = typeof src === "string" && src !== "" ? src : "no file named"
+  element.tagName = "span"
+  element.properties = {
+    className: [UNDRAWN],
+    "data-testid": TESTID.undrawnPicture,
+    "data-src": named,
+  }
+  element.children = [{ type: "text", value: `this picture could not be drawn: ${named}` }]
 }
+
+/** What an undrawn picture looks like: a quiet inline box, in the same family
+ *  as the app's other readouts — visible enough to be seen where the picture
+ *  was, quiet enough that a page of them is still a page of text. */
+const UNDRAWN = "inline-block rounded border border-rule px-1.5 py-0.5 " +
+  "font-mono text-xs text-muted"
 
 /** Move this element's id, and any link into this block, into the block's own
  *  namespace. Applied to every id rather than to the footnote ids alone: the

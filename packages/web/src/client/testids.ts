@@ -109,6 +109,13 @@ export const TESTID = {
    *  and ABSENT on a document with fewer than two headings, which is what makes
    *  "a note never gets one" assertable. */
   toc: "toc",
+  /** A `![](…)` this app will not draw — a remote host, a `data:`, an `.svg`,
+   *  or the ordinary case, a filename with a typo in it. Drawn WHERE THE
+   *  PICTURE WOULD HAVE BEEN and naming the `src` that was written, because
+   *  the alternative (which this replaced) is a page with a hole in it that
+   *  neither the person who wrote the typo nor the agent asked about it can
+   *  see. The written `src` also rides `data-src`. */
+  undrawnPicture: "undrawn-picture",
   /** One line of it: a link to a heading in the same page. Its `href` is the
    *  fragment, which is the whole claim — the id it names is the one the
    *  rendered heading carries. */
