@@ -13,6 +13,7 @@ import { Given, Then, When } from "@cucumber/cucumber";
 
 import { DESKTOP } from "../support/hooks.ts";
 import {
+  BLOCKED,
   DONE_TOGGLE,
   NOT_FOUND,
   oneLine,
@@ -172,6 +173,25 @@ When(
   "I follow the see link to {string} on {string}",
   async function (this: OlaiWorld, target: string, source: string) {
     const link = seeLinkTo(this, source, target);
+    await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await link.click();
+    await this.page
+      .locator(ZOOM_TITLE)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+// ── what a node is waiting on (`after`) ────────────────────────────────
+
+When(
+  "I follow the blocked link to {string} on {string}",
+  async function (this: OlaiWorld, blocker: string, id: string) {
+    // One step for both shapes of the marker: a row's pill is a link to the
+    // first blocker and a page names every one of them, and either way the
+    // element carrying `data-blocked` is inside the anchor that opens it.
+    const link = this.node(id)
+      .locator(`${BLOCKED} [data-blocked="${blocker}"]`)
+      .first();
     await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await link.click();
     await this.page

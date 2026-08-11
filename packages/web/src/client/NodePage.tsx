@@ -11,6 +11,7 @@
 import type { Row, Zoomed } from "@olai/format"
 import { Show } from "solid-js"
 
+import { Blocked } from "./Blocked.tsx"
 import { Breadcrumbs } from "./Breadcrumbs.tsx"
 import { DateBadge } from "./DateBadge.tsx"
 import { DoneToggle } from "./DoneToggle.tsx"
@@ -80,6 +81,11 @@ function Zoom(props: {
               {(date) => <DateBadge date={date()} />}
             </Show>
           </div>
+
+          {/* What the node is waiting on, named in full and above its note:
+              a page whose subject cannot start yet should say so before it
+              says anything else about it. */}
+          <Blocked blocked={props.zoomed.blocked} zoomed />
 
           {/* Zoomed, a node's note and document ARE the page under it: the node
               said the rest was here, and the subject is never densified. */}

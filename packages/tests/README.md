@@ -257,6 +257,8 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="node-gutter"]` | one row's own line — its controls and title, and nothing from the rows nested under it |
 | `[data-testid="zoom"]` | a row's bullet: the link to that node's own page |
 | `[data-testid="checkbox"][data-status]` | the status box beside that bullet: checked for done, half for doing, empty for todo — and NOT PRESENT on a node carrying none of them, which is how a bullet is told from an unstarted task |
+| `[data-testid="blocked"]` | a node waiting on unfinished work — the pill on a row, the named blockers on a zoomed page — and NOT PRESENT when nothing is in its way; the blocker it opens rides `data-blocked` on a span inside it |
+| `[data-testid="blocked-link"]` | one blocker, as a link, in that named list |
 | `[data-testid="zoom-title"][data-node-id]` | the heading of a zoomed page — the CANONICAL node's id |
 | `[data-testid="breadcrumbs"]` / `[data-testid="crumb"]` | the ancestry above a zoomed node, and one link in it |
 | `[data-testid="done-toggle"][data-hidden]` | the per-view Visible/Hidden switch for done nodes |

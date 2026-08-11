@@ -53,6 +53,25 @@ Feature: See the outline
     Then the node "install" has status "todo"
     And the node "install" shows an empty checkbox
 
+  Scenario: A node waiting on unfinished work says so on its row
+    # `install` is `after` `order`, and `order` is under way — so `install`
+    # cannot start yet, and the row says that beside its title. A second fact
+    # about the node rather than a replacement for the first: it keeps the
+    # `todo` its children derive, and the box that draws it.
+    Then the node "install" is blocked by "order"
+    And the node "install" has status "todo"
+
+  Scenario: What is finished, and what was never a task, hold nothing up
+    # Two readings of one rule. `order` is `after` `demo` and `demo` is done,
+    # so the way is clear. `hinges` is `after` `handles`, which nobody marked —
+    # a bullet is not work, so there is nothing under it to finish and nothing
+    # to wait for. Reading that second edge as an obstacle is the trap the rule
+    # is written against: it makes every plain bullet a thing that can never be
+    # cleared.
+    Then the node "order" is not blocked
+    And the node "hinges" is not blocked
+    And the node "handles" is not blocked
+
   Scenario: A dated node shows a date badge
     Then the node "order" shows the date "2026-08-10"
     And the node "demo" shows no date

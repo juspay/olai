@@ -69,6 +69,10 @@ because they are what the archive is for:
   finished on its way out. What changes is where the node lives;
 - **ids move with the nodes**, so a `mirror`, `after`, `blocks` or `see` target
   goes on resolving — the served directory is one set and the archive is in it.
+  What changes is that those edges stop holding anything up: archived work is
+  over, so it blocks nothing and nothing blocks it (docs/format.md), and the
+  file name that decides which nodes are in the archive is the format's own
+  `ARCHIVE` rather than a second copy of it here.
   That is exactly why the scaffold nodes get MINTED ids rather than copies of
   the live ancestors': an id is unique across the set, and a copy would collide
   with the node it was copied from;

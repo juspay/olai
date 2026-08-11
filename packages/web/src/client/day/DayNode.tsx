@@ -52,6 +52,7 @@ export function DayNode(props: {
         <NodeLine
           title={node().title}
           status={props.dated.status}
+          blocked={props.dated.blocked}
           date={node().date}
         />
       </div>

@@ -39,7 +39,9 @@ each thing the view has to draw:
 | an inline `#tag` | `kitchen remodel #home`, `garden #outdoors` |
 | a `date` | `order` is dated `2026-08-10` |
 | a markdown `desc` | `order` — a paragraph, a two-item list, bold and italic |
-| an `after` edge | `order` after `demo`; `install` after `order` |
+| an `after` edge that BLOCKS | `install` after `order`, which is under way — so `install` cannot start |
+| an `after` edge that is clear | `order` after `demo`, which is done — nothing left to wait for |
+| an `after` edge that must NOT block | `hinges` after `handles`, a bullet nobody marked: not work, so nothing to wait for |
 | a `doc` | `install` attaches `finishes.md` |
 | a document nothing attaches | `notes/palette.md` — still a page, still in the sidebar |
 | a nested outline | `Daily/2026-08.jsonl` — the sidebar's file tree, not a path string |
@@ -51,6 +53,12 @@ The mirror is why there are two files. Every `.jsonl` is an independent tree —
 a `parent` may not cross files — so showing the herb bed inside the kitchen
 remodel is exactly what a mirror is *for*, and it is the one relation that
 cannot be exercised with a single file.
+
+The three `after` edges are one rule read three ways, and the last of them is
+the trap: `b` blocks `a` while `b` is a task that is *not done*, so a done
+target clears the way and a target nobody marked never blocked anything to
+begin with. Reading that third edge as an obstacle would be reading every plain
+bullet as work that can never be finished.
 
 Note what is absent: no mark at all on `kitchen`, `install` or `herbs`. A node
 with children never stores its status; it is computed from them, and storing

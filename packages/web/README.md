@@ -58,7 +58,10 @@ stops a mirror inside its own subtree, and hands back rows; `Tree.tsx` turns a
 row into markup and nothing else — including the status checkbox beside each
 bullet (`Checkbox.tsx`: checked for done, half for doing, EMPTY for todo, and
 no box at all on a node carrying none of them, because a bullet is not a task;
-read-only until keyboard-editing) and a node's free
+read-only until keyboard-editing), what a node cannot start until
+(`Blocked.tsx`: an `after` target that is a task and not done is in the way, an
+unmarked one never is — one word on a row, linking the first blocker, and every
+blocker named on the node's own page) and a node's free
 cross-references (`SeeRefs.tsx`: each `see` target is a link to `/n/<id>` whose
 text is the target's title, resolved at view time through the same indexes).
 The view and the validator agree about what a file means because they run the

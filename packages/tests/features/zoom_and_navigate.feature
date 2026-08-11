@@ -143,3 +143,24 @@ Feature: Zoom and navigate
     Then the zoomed node is "herbs"
     And the address is "/n/herbs"
     And there should be no page errors
+
+  Scenario: The blocked pill on a row opens what the node is waiting on
+    # A tree row has a column of titles to protect, so the marker is one word
+    # and a link: the next thing a reader wants is the node in the way.
+    Given I open the outline "house.jsonl"
+    And I mark the page
+    When I follow the blocked link to "order" on "install"
+    Then the zoomed node is "order"
+    And the address is "/n/order"
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: A zoomed page names every blocker, and each one is a link
+    # The page is where the node is READ, so "waiting on what?" is answered
+    # rather than hinted at — the blocker by title, at its own address.
+    Given I open the node "install"
+    Then the node "install" is blocked by "order"
+    When I follow the blocked link to "order" on "install"
+    Then the zoomed node is "order"
+    And the address is "/n/order"
+    And there should be no page errors

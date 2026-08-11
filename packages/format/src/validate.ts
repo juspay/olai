@@ -169,29 +169,22 @@ const targetsOf = (
   )
 }
 
-/** `blocks` is sugar — `a blocks b` means `b after a` — and this is the only
- *  place it is normalised, so the acyclicity rule sees one graph rather than
- *  two that could disagree. */
+/** The ordering graph is `derive`'s (`blocks` normalised into `after`, in the
+ *  one place that happens), so this rule and the blockedness the view draws
+ *  are reading the same edges rather than two normalisations that could
+ *  disagree.
+ *
+ *  This is also where the two part company: blockedness exempts what has been
+ *  put away and what nobody marked, because it is about what is on a plate.
+ *  A cycle exempts NOTHING — it is a claim about the file, and an `after` loop
+ *  is one whether or not it is archived. */
 const checkAfterAcyclic = (
   all: ReadonlyArray<Located>,
   derived: Derived,
   errors: Array<OutlineError>,
 ): void => {
-  const after = new Map<string, Array<string>>()
-  const edge = (from: string, to: string): void => {
-    const existing = after.get(from)
-    if (existing === undefined) after.set(from, [to])
-    else existing.push(to)
-  }
-
-  for (const { node } of all) {
-    if (isMirror(node)) continue
-    for (const target of node.after ?? []) edge(node.id, target)
-    for (const target of node.blocks ?? []) edge(target, node.id)
-  }
-
   reportCycles(
-    findCycles(all, derived, (node) => after.get(node.id) ?? []),
+    findCycles(all, derived, (node) => derived.after.get(node.id) ?? []),
     "after-cycle",
     "`after` (with `blocks` normalised into it) closes a loop, so nothing in it can start first",
     errors,

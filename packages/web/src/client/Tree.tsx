@@ -127,6 +127,7 @@ function Branch(props: {
               <NodeLine
                 title={shows().node.title}
                 status={props.row.status}
+                blocked={props.row.blocked}
                 date={shows().node.date}
               >
                 <Show when={props.row.kind !== "node"}>

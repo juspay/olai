@@ -50,6 +50,14 @@ export const TESTID = {
    *  RESOLVED path as `data-doc`, and `data-inline` for the zoomed page that
    *  draws the whole document rather than a line of it. */
   docRef: "doc-ref",
+  /** A node held up by an `after` edge, wherever the node is drawn: the pill
+   *  on a row, the named list on the node's own page. Absent — not empty — on
+   *  a node with nothing in its way, which is how "this can start" is asked.
+   *  The blocker it opens rides `data-blocked` on a child span. */
+  blocked: "blocked",
+  /** One link inside that list. The pill is a link too and carries the
+   *  `blocked` name itself: a row names one blocker, a page names them all. */
+  blockedLink: "blocked-link",
   /** A node's free cross-references (`see`), wherever the node is drawn. */
   seeRefs: "see-refs",
   /** One link inside those references. The target id rides `data-see` on a

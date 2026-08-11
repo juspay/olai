@@ -74,6 +74,19 @@ write both switch on it and must name the same children, with the same reason
 per child. The list lives on the one answer that has one, so the two sites
 cannot disagree about whether there are any.
 
+**Blocked** is the other thing the marks are read for, and it is derived beside
+them: `after` (with `blocks` normalised into it in the one place that happens,
+so the acyclicity rule and this see one graph) says `a` comes after `b`, and
+`b` is in the way while it is a TASK that is not done. A target with no status
+never blocks — it is not work, so there is nothing under it to finish — and
+spelling the test `status !== "done"` is the trap docs/format.md writes the
+rule against. One predicate at both ends of the arrow, racket's own shape: a
+done node is waiting on nothing, a bullet is neither blocked nor blocking, and
+archived work is out of it in both directions because it is over. `blockersOf`
+is the reading side, and what it hands back is `InTheWay` — the same "this one
+is unfinished, and here is why" that `fromChildren` names children with,
+because it is the same sentence about the other kind of edge.
+
 `zoom` is the same claim
 about one node as a page — which record an id resolves to (following a mirror
 chain to the regular node at its end, so a node has one page and not one per
@@ -92,7 +105,8 @@ ten-character prefix, a month a seven-character one, and a datetime counts for
 its own day.
 
 A day's nodes and a zoomed page are built from the same `Situated` — a node,
-its derived status and its canonical ancestry — because that is one concept
+its derived status, what is standing in its way and its canonical ancestry —
+because that is one concept
 with several readers, not a shape two surfaces happened to agree on. A title
 torn out of its outline says nothing, wherever it is being drawn.
 

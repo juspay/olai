@@ -7,6 +7,7 @@ import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
 import {
+  BLOCKED,
   CHECKBOX,
   DATE,
   DESC,
@@ -510,5 +511,52 @@ Then(
   "the node {string} is marked as a mirror",
   async function (this: OlaiWorld, id: string) {
     await this.expectNodeAttribute(id, "data-kind", "mirror");
+  },
+);
+
+// ── what cannot start yet ──────────────────────────────────────────────
+//
+// Blockedness is DERIVED — `a after b` holds `a` up while `b` is a task that
+// is not done — so what these steps are really asking is whether the page
+// agrees with the edges and the marks in the fixture. They read the marker
+// wherever the node is drawn: the pill on a tree row and the named list on a
+// zoomed page are two shapes of one testid, because they are one fact.
+
+/** The blocked marker a node draws for ITSELF. Rows nest, so a descendant's
+ *  marker matches inside the scope too — and the node's own is the difference
+ *  between what is inside it and what is inside the nodes inside it. */
+const blockedOn = (world: OlaiWorld, id: string) => ({
+  all: world.node(id).locator(BLOCKED),
+  nested: world.node(id).locator(`${NODE} ${BLOCKED}`),
+});
+
+Then(
+  "the node {string} is blocked by {string}",
+  async function (this: OlaiWorld, id: string, blocker: string) {
+    // Picked by `data-blocked` — the id the marker OPENS — never by its text:
+    // a row says the word "blocked" and a page says the blocker's title, and
+    // an assertion pinned to either would be about the shape rather than the
+    // fact.
+    const marker = this.node(id)
+      .locator(`${BLOCKED}:has([data-blocked="${blocker}"])`)
+      .first();
+    await marker.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the node {string} is not blocked",
+  async function (this: OlaiWorld, id: string) {
+    const marker = blockedOn(this, id);
+    await this.node(id)
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const own = async () => (await marker.all.count()) - (await marker.nested.count());
+    await this.waitUntil(
+      async () => (await own()) === 0,
+      `the node "${id}" says it is blocked, and nothing in the fixture is in its way`,
+    ).catch(async () => {
+      assert.strictEqual(await own(), 0);
+    });
   },
 );

@@ -1,12 +1,14 @@
 import { expect, test } from "bun:test"
 
 import {
+  blockersOf,
   countedChildren,
   derive,
   fromChildren,
   type FromChildren,
   type Row,
   rowsOf,
+  situate,
   type Status,
   storedMarker,
   titleParts,
@@ -318,6 +320,187 @@ test("a duplicated id resolves to the record that claimed it first", () => {
   expect([across.byId.get("x")?.file, across.byId.get("x")?.line]).toEqual(["a.jsonl", 1])
   // One entry per id, not one per record: the map is an index, not a list.
   expect(across.byId.size).toBe(1)
+})
+
+// ── what cannot start yet ──────────────────────────────────────────────
+
+/** What one node is waiting on, as `id status` per blocker — the two facts a
+ *  reader draws off a blocker, and the two this section is about. */
+const waiting = (
+  derived: ReturnType<typeof derive>,
+  id: string,
+): ReadonlyArray<string> =>
+  blockersOf(derived, id).map((one) => `${one.at.node.id} ${one.status}`)
+
+/** The same, for a set written as one file. */
+const waitingIn = (contents: string, id: string): ReadonlyArray<string> =>
+  waiting(derive(nodesOf(contents)), id)
+
+// The rule, and the whole of it: `a after b` holds `a` up while `b` is a task
+// that is NOT DONE — with the three marks there are, while it is doing or
+// todo. The blocker travels with its reason, so a reader never re-derives why.
+test("an after target blocks while it is a task that is not done", () => {
+  const of = (mark: string): ReadonlyArray<string> =>
+    waitingIn(
+      `{"id":"a","ord":"a","title":"a","doing":true,"after":["b"]}\n` +
+        `{"id":"b","ord":"b","title":"b"${mark}}`,
+      "a",
+    )
+  expect(of(`,"doing":true`)).toEqual(["b doing"])
+  expect(of(`,"todo":true`)).toEqual(["b todo"])
+  // Done is what clears the way: it has happened, so nothing is waiting.
+  expect(of(`,"done":"2026-08-10"`)).toEqual([])
+})
+
+// THE TRAP the rule is written against (docs/format.md): spelling it
+// `status !== "done"` reads every plain bullet as an obstacle that can never
+// be cleared, because nothing can ever finish a node that is not a task.
+// Adding `todo` did not narrow it by one case — the unmarked node is still the
+// one that must not block.
+test("a target nobody marked never blocks, however unfinished it looks", () => {
+  expect(
+    waitingIn(
+      `{"id":"a","ord":"a","title":"a","todo":true,"after":["note"]}\n` +
+        `{"id":"note","ord":"b","title":"a note nobody marked"}`,
+      "a",
+    ),
+  ).toEqual([])
+
+  // Nor does a parent whose children are all bullets: a subtree of bullets
+  // adds up to a bullet, and this is where that answer earns its keep.
+  expect(
+    waitingIn(
+      `{"id":"a","ord":"a","title":"a","todo":true,"after":["notes"]}\n` +
+        `{"id":"notes","ord":"b","title":"notes"}\n` +
+        `{"id":"one","parent":"notes","ord":"a","title":"one"}`,
+      "a",
+    ),
+  ).toEqual([])
+})
+
+// The same predicate at the other end of the arrow, which is the racket
+// reference's own shape: a done node has happened and the order it happened in
+// is no longer a question, and a bullet is not work, so neither is waiting on
+// anything however unfinished what they point at is.
+test("a node that is done or unmarked is waiting on nothing", () => {
+  const set = (mark: string): string =>
+    `{"id":"a","ord":"a","title":"a"${mark},"after":["b"]}\n` +
+      `{"id":"b","ord":"b","title":"b","doing":true}`
+  expect(waitingIn(set(`,"doing":true`), "a")).toEqual(["b doing"])
+  expect(waitingIn(set(`,"done":"2026-08-10"`), "a")).toEqual([])
+  expect(waitingIn(set(""), "a")).toEqual([])
+})
+
+// `blocks` is sugar for the same edge written from the other end, normalised
+// in ONE place (`derive`) so the acyclicity rule and this read one graph.
+test("blocks is the same edge, and both halves land in one answer", () => {
+  const derived = derive(nodesOf(
+    `{"id":"a","ord":"a","title":"a","todo":true,"after":["b"]}\n` +
+      `{"id":"b","ord":"b","title":"b","doing":true}\n` +
+      `{"id":"c","ord":"c","title":"c","doing":true,"blocks":["a"]}`,
+  ))
+  expect(waiting(derived, "a")).toEqual(["b doing", "c doing"])
+  // The graph itself, as the validator's cycle check reads it.
+  expect(derived.after.get("a")).toEqual(["b", "c"])
+  expect(derived.blocked.has("b")).toBe(false)
+})
+
+// A parent stores no mark and derives one, and that derived answer is what
+// blocks: the outline must not have two answers to "is this finished".
+test("a target's derived status is what blocks, not only a stored mark", () => {
+  expect(
+    waitingIn(
+      `{"id":"a","ord":"a","title":"a","todo":true,"after":["p"]}\n` +
+        `{"id":"p","ord":"b","title":"p"}\n` +
+        `{"id":"kid","parent":"p","ord":"a","title":"kid","todo":true}`,
+      "a",
+    ),
+  ).toEqual(["p todo"])
+})
+
+// Work that was put away is over: it blocks nothing, because a node waiting on
+// it would wait forever, and it is not blocked either, because the archive is
+// read as history rather than as a plate. Both ends, one rule.
+test("archived work neither blocks nor is blocked", () => {
+  const derived = derive(nodesOfFiles({
+    "house.jsonl": `{"id":"a","ord":"a","title":"a","todo":true,"after":["put-away"]}`,
+    "Archive.jsonl":
+      `{"id":"put-away","ord":"a","title":"put away half-finished","doing":true}\n` +
+        `{"id":"old","ord":"b","title":"old","todo":true,"after":["a"]}`,
+  }))
+  expect(waiting(derived, "a")).toEqual([])
+  expect(waiting(derived, "old")).toEqual([])
+  // The status index still knows what they are; it is blocking they are out of.
+  expect(derived.status.get("put-away")).toBe("doing")
+})
+
+// An archive one directory down is the same archive: `archive` puts a subtree
+// beside the outline it left, wherever that outline lives.
+test("an archive beside any outline is an archive", () => {
+  expect(
+    waiting(
+      derive(nodesOfFiles({
+        "work/plans.jsonl": `{"id":"a","ord":"a","title":"a","todo":true,"after":["old"]}`,
+        "work/Archive.jsonl": `{"id":"old","ord":"a","title":"old","doing":true}`,
+      })),
+      "a",
+    ),
+  ).toEqual([])
+})
+
+// An edge may name a MIRROR — a placement is addressable like anything else —
+// and what it means is the node standing there. Followed at either end, so the
+// blocker a reader is handed is a node with a title to show.
+test("an edge naming a mirror means the node it shows", () => {
+  const derived = derive(nodesOfFiles({
+    "a.jsonl": `{"id":"a","ord":"a","title":"a","todo":true,"after":["m"]}\n` +
+      `{"id":"b","ord":"b","title":"the real one","doing":true}\n` +
+      `{"id":"m","ord":"c","mirror":"b"}\n` +
+      `{"id":"c","ord":"d","title":"c","doing":true,"blocks":["m2"]}\n` +
+      `{"id":"m2","ord":"e","mirror":"a"}`,
+  }))
+  expect(waiting(derived, "a")).toEqual(["b doing", "c doing"])
+  // Under the NODE's id, never the placement's: two records naming one node
+  // are one node waiting on both of them.
+  expect(derived.blocked.has("m2")).toBe(false)
+})
+
+// Blockedness is read off the same index wherever a node is drawn: a row, a
+// mirror row (which says what its target says, the way its status does) and
+// the node's own page.
+test("a row, a mirror row and a page all say what the node is waiting on", () => {
+  const derived = derive(nodesOf(
+    `{"id":"first","ord":"a","title":"first","doing":true}\n` +
+      `{"id":"second","ord":"b","title":"second","todo":true,"after":["first"]}\n` +
+      `{"id":"m","ord":"c","mirror":"second"}`,
+  ))
+  const rows = rowsOf(derived, FIXTURE_FILE)
+  expect(rows.map((row) => row.blocked.map((one) => one.at.node.id))).toEqual([
+    [],
+    ["first"],
+    ["first"],
+  ])
+  expect(situate(derived, drawn(rows, 1).shows).blocked.map((one) => one.at.node.id))
+    .toEqual(["first"])
+})
+
+// A row that draws no node is waiting on nothing — there is no node there to
+// be held up — and asking is not an error.
+test("a dangling row is waiting on nothing", () => {
+  const rows = rowsOf(derive(nodesOf(`{"id":"m","ord":"a","mirror":"gone"}`)), FIXTURE_FILE)
+  expect(rows[0]?.blocked).toEqual([])
+})
+
+// An `after` loop is a set the validator refuses — nothing in it can start
+// first — but the derivation still runs against it, because that report is
+// drawn over a tree. Each of them is waiting on the other, and nothing hangs.
+test("an after loop derives without hanging", () => {
+  const derived = derive(nodesOf(
+    `{"id":"a","ord":"a","title":"a","doing":true,"after":["b"]}\n` +
+      `{"id":"b","ord":"b","title":"b","doing":true,"after":["a"]}`,
+  ))
+  expect(waiting(derived, "a")).toEqual(["b doing"])
+  expect(waiting(derived, "b")).toEqual(["a doing"])
 })
 
 // ── the drawable tree ──────────────────────────────────────────────────
