@@ -96,13 +96,14 @@ export type OutlineEntry = typeof OutlineEntry.Type
  * bit. This is that something.
  *
  * `documents` is here rather than in the collection because a document is not
- * an outline: nothing keys off it, no entry of the collection is one, and the
- * sidebar's second list is a fact about the SET. They carry their text, as they
- * always have — markdown is interpreted at view time and a `doc` reference is
- * drawn wherever its node is, so a paths-only list would need a second read
- * path the app does not have. Making them a collection of their own, so that
- * one edited document is one document on the wire, is the obvious next step and
- * is deliberately not this change.
+ * an outline: nothing keys off it, no entry of the collection is one, and that
+ * they exist at all is a fact about the SET (the sidebar's file tree mixes
+ * them with outlines under the folders they live in). They carry their text,
+ * as they always have — markdown is interpreted at view time and a `doc`
+ * reference is drawn wherever its node is, so a paths-only list would need a
+ * second read path the app does not have. Making them a collection of their
+ * own, so that one edited document is one document on the wire, is the
+ * obvious next step and is deliberately not this change.
  *
  * There is NO set revision here, and that is what keeps the text off the wire
  * in the meantime. A revision belongs to a file — every entry carries the one

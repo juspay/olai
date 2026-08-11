@@ -1,18 +1,31 @@
 /**
- * The sidebar: what the served directory turned out to contain.
+ * The sidebar's file tree: what the served directory turned out to contain.
  */
 
 import * as assert from "node:assert";
-import { Given, Then } from "@cucumber/cucumber";
+import { Given, Then, When } from "@cucumber/cucumber";
 
 import {
+  DOCUMENT_LINK,
+  FILE_DIR,
   HYDRATION_TIMEOUT,
+  oneLine,
   OUTLINE_LINK,
   OUTLINE_LIST,
   OUTLINE_TREE,
   POLL_TIMEOUT,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
+
+/** One folder in the file tree, as a selector string `expectAttribute` takes. */
+const folderSelector = (path: string): string =>
+  `${FILE_DIR}[data-path="${path}"]`;
+
+/** The fold button of ONE folder — a direct child of its `<li>`, not a
+ *  descendant's. Nested folders nest their `li`s, so an unscoped
+ *  `FILE_DIR_TOGGLE` under a parent would match every toggle inside it. */
+const folderToggle = (world: OlaiWorld, path: string) =>
+  world.fileDir(path).locator(":scope > button");
 
 Then("the outline list is shown", async function (this: OlaiWorld) {
   await this.page
@@ -87,5 +100,137 @@ Given(
       .locator(OUTLINE_TREE)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitForFrame();
+  },
+);
+
+// ── folders in the file tree ───────────────────────────────────────────
+
+Then(
+  "the file tree shows the folder {string}",
+  async function (this: OlaiWorld, path: string) {
+    await this.showSidebar();
+    await this.fileDir(path).waitFor({
+      state: "visible",
+      timeout: HYDRATION_TIMEOUT,
+    });
+  },
+);
+
+Then(
+  "the folder {string} is expanded",
+  async function (this: OlaiWorld, path: string) {
+    await this.expectAttribute(
+      folderSelector(path),
+      "data-collapsed",
+      "false",
+      `the folder "${path}"`,
+    );
+  },
+);
+
+Then(
+  "the folder {string} is collapsed",
+  async function (this: OlaiWorld, path: string) {
+    await this.expectAttribute(
+      folderSelector(path),
+      "data-collapsed",
+      "true",
+      `the folder "${path}"`,
+    );
+  },
+);
+
+When(
+  "I collapse the folder {string}",
+  async function (this: OlaiWorld, path: string) {
+    await this.showSidebar();
+    const folder = this.fileDir(path);
+    await folder.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    if ((await folder.getAttribute("data-collapsed")) === "true") return;
+    await folderToggle(this, path).click();
+    await this.expectAttribute(
+      folderSelector(path),
+      "data-collapsed",
+      "true",
+      `the folder "${path}"`,
+    );
+  },
+);
+
+When(
+  "I expand the folder {string}",
+  async function (this: OlaiWorld, path: string) {
+    await this.showSidebar();
+    const folder = this.fileDir(path);
+    await folder.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    if ((await folder.getAttribute("data-collapsed")) === "false") return;
+    await folderToggle(this, path).click();
+    await this.expectAttribute(
+      folderSelector(path),
+      "data-collapsed",
+      "false",
+      `the folder "${path}"`,
+    );
+  },
+);
+
+Then(
+  "the document link {string} is shown",
+  async function (this: OlaiWorld, file: string) {
+    await this.showSidebar();
+    await this.documentLink(file).waitFor({
+      state: "visible",
+      timeout: HYDRATION_TIMEOUT,
+    });
+  },
+);
+
+Then(
+  "the document link {string} is hidden",
+  async function (this: OlaiWorld, file: string) {
+    await this.showSidebar();
+    // Collapsed children are not drawn, so the link is gone rather than
+    // merely display:none — the same contract a collapsed outline node has
+    // for its children.
+    assert.strictEqual(
+      await this.page.locator(`${DOCUMENT_LINK}[data-file="${file}"]`).count(),
+      0,
+      `the document "${file}" is still in the tree after its folder collapsed`,
+    );
+  },
+);
+
+// ── leaf labels — the visible point of the file tree ───────────────────
+//
+// `data-file` carries the full path by design (routes, broken marks, tests
+// that open a file). The label the reader SEES is the basename. Asserting
+// only on `data-file` would pass if every nested entry drew the wrapped
+// path string this tree exists to remove.
+
+Then(
+  "the document link {string} reads {string}",
+  async function (this: OlaiWorld, file: string, label: string) {
+    await this.showSidebar();
+    const link = this.documentLink(file);
+    await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      oneLine(await link.innerText()),
+      label,
+      `the document "${file}" draws ${JSON.stringify(oneLine(await link.innerText()))}, not the basename ${JSON.stringify(label)}`,
+    );
+  },
+);
+
+Then(
+  "the outline link {string} reads {string}",
+  async function (this: OlaiWorld, file: string, label: string) {
+    await this.showSidebar();
+    const link = this.outlineLink(file);
+    await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      oneLine(await link.innerText()),
+      label,
+      `the outline "${file}" draws ${JSON.stringify(oneLine(await link.innerText()))}, not the basename ${JSON.stringify(label)}`,
+    );
   },
 );
