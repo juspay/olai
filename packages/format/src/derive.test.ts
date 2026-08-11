@@ -10,6 +10,7 @@ import {
   type Status,
   storedMarker,
   titleParts,
+  unfinishedUnder,
   withoutDone,
 } from "./derive.ts"
 import { FIXTURE_FILE, nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
@@ -171,6 +172,25 @@ test("the rollup counts the child tasks, and only the child tasks", () => {
       `{"id":"leaf","parent":"mid","ord":"a","title":"leaf","done":true}`,
     "top",
   )).toEqual({ done: 0, total: 1 })
+})
+
+// The same list read the other way, and the reason it is one list: the ops
+// layer names these in a write-time nudge, and a second walk over the same
+// edges would be a second answer to "is a bullet unfinished".
+test("the unfinished ones are the child tasks that are not done", () => {
+  const derived = derive(nodesOf(
+    `{"id":"p","ord":"a","title":"p"}\n` +
+      `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
+      `{"id":"c2","parent":"p","ord":"b","title":"c2","doing":true}\n` +
+      `{"id":"c3","parent":"p","ord":"c","title":"c3","todo":true}\n` +
+      `{"id":"aside","parent":"p","ord":"d","title":"a note about it"}\n` +
+      `{"id":"m","parent":"p","ord":"e","mirror":"c3"}`,
+  ))
+  // `doing` and `todo` alike — both are tasks that are not done. Never the
+  // note, which is not a task, and never the mirror, which is not a second
+  // obligation.
+  expect(ids(unfinishedUnder(derived, "p"))).toEqual(["c2", "c3"])
+  expect(unfinishedUnder(derived, "c1")).toEqual([])
 })
 
 // A mirror shows a node, so it shows that node's mark; a checkbox that

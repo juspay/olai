@@ -155,9 +155,10 @@ const statuses = (
   nodes: ReadonlyArray<Located>,
   byId: ReadonlyMap<string, Located>,
 ): ReadonlyMap<string, Status> => {
+  const index = { byId }
   const status = new Map<string, Status>()
   for (const located of nodes) {
-    const found = follow({ byId }, located)
+    const found = follow(index, located)
     const mark = found.kind === "found" ? storedMarker(found.shows.node) : undefined
     if (mark !== undefined) status.set(located.node.id, mark)
   }
@@ -173,8 +174,30 @@ export const storedMarker = (node: LocatedRegular["node"]): Status | undefined =
   MARKS.find((mark) => node[mark] !== undefined)
 
 /**
- * How far along the tasks under a node have got — an ANNOTATION, and the whole
- * of what children add up to.
+ * The children of a node that are TASKS, each with the mark that makes it one.
+ *
+ * The whole of what children add up to, in one place, because the two things
+ * anyone asks of it are two readings of this one list: how far along they are
+ * ({@link progressOf}, an annotation) and which of them are still open
+ * ({@link unfinishedUnder}, what a write-time nudge names). A second walk over
+ * the same edges — the ops layer had one — is one computation in two copies,
+ * free to disagree about whether a bullet counts.
+ *
+ * Only the node's own children: a deep count would answer a question no row is
+ * asking. And never a mirror, which is a second view of a node rather than a
+ * second obligation.
+ */
+const tasksUnder = (
+  derived: Derived,
+  id: string,
+): ReadonlyArray<{ readonly at: LocatedRegular; readonly status: Status }> =>
+  counted(derived.children, id).flatMap((at) => {
+    const status = derived.status.get(at.node.id)
+    return status === undefined ? [] : [{ at, status }]
+  })
+
+/**
+ * How far along the tasks under a node have got — an ANNOTATION.
  *
  * A parent showing `3/5` is telling the reader something the rows below it
  * already say, in one glance. It is not a status: it does not decide whether
@@ -182,10 +205,6 @@ export const storedMarker = (node: LocatedRegular["node"]): Status | undefined =
  * block anything, and no write is refused because of it. That separation is
  * the point — rollup as a status is what made a parent a task nobody had
  * called one.
- *
- * Counts only children that are TASKS, so a note under an item neither adds to
- * the total nor holds it back, and only the node's own children: a deep count
- * would answer a question no row is asking.
  *
  * `undefined` when nothing under it is a task — there is no progress to show
  * rather than progress of zero.
@@ -196,16 +215,22 @@ export interface Progress {
 }
 
 export const progressOf = (derived: Derived, id: string): Progress | undefined => {
-  let done = 0
-  let total = 0
-  for (const child of counted(derived.children, id)) {
-    const mark = derived.status.get(child.node.id)
-    if (mark === undefined) continue
-    total += 1
-    if (mark === "done") done += 1
+  const tasks = tasksUnder(derived, id)
+  return tasks.length === 0 ? undefined : {
+    done: tasks.filter((task) => task.status === "done").length,
+    total: tasks.length,
   }
-  return total === 0 ? undefined : { done, total }
 }
+
+/** The same list read the other way: the child tasks that are NOT done. A
+ *  bullet is never among them — it is not a task, so there is nothing under it
+ *  to finish — which is the rule a caller must not re-decide, and the reason
+ *  this is here rather than at the one site that names them. */
+export const unfinishedUnder = (
+  derived: Derived,
+  id: string,
+): ReadonlyArray<LocatedRegular> =>
+  tasksUnder(derived, id).flatMap((task) => task.status === "done" ? [] : [task.at])
 
 // ── the drawable tree ──────────────────────────────────────────────────
 

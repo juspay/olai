@@ -26,7 +26,6 @@
 
 import {
   ancestorsOf,
-  countedChildren,
   derive,
   type Derived,
   isMirror,
@@ -43,6 +42,7 @@ import {
   type OutlineSet,
   type RegularNode,
   storedMarker,
+  unfinishedUnder,
   UsageFailure,
   ValidationFailure,
 } from "@olai/format"
@@ -503,50 +503,39 @@ const nudged = (
 
   const said: Array<string> = []
 
-  const own = unfinishedUnder(scope, node.id)
+  // Both questions are the format's one answer, read twice: which child tasks
+  // are still open. A second walk here would be a second rule about what
+  // counts as unfinished, and the bullets are what it would get wrong.
+  const own = unfinishedUnder(scope.derived, node.id)
   if (own.length > 0) {
     said.push(
       `\`${node.title}\` is done over ${own.length} unfinished ` +
-        `${own.length === 1 ? "task" : "tasks"}: ${titles(own)}. Done-hidden hides ` +
-        `the branch, so mark those too if they are finished.`,
+        `${own.length === 1 ? "task" : "tasks"}: ` +
+        `${own.map((child) => `\`${child.node.title}\``).join(", ")}. Done-hidden ` +
+        `hides the branch, so mark those too if they are finished.`,
     )
   }
 
-  // The parent as it reads AFTER this write: the node being marked is what
-  // makes the difference, so a snapshot that still calls it unfinished would
-  // never fire the one nudge worth having.
-  const parent = node.parent === undefined ? undefined : scope.derived.byId.get(node.parent)
-  if (
-    parent !== undefined && !isMirror(parent.node) &&
-    storedMarker(parent.node) !== "done" &&
-    unfinishedUnder(scope, parent.node.id, node.id).length === 0
-  ) {
-    said.push(
-      `every task under \`${parent.node.title}\` is done now — mark it done too if ` +
-        `the branch is finished.`,
-    )
+  // The parent as it reads AFTER this write. The snapshot still calls the node
+  // being marked unfinished, so "nothing else is open" is what is asked —
+  // waiting for the write to land would be waiting for the moment to pass.
+  const parent = node.parent === undefined ? undefined : regularAt(scope, node.parent)
+  if (parent !== undefined && Result.isSuccess(parent)) {
+    const above = parent.success.node
+    if (
+      storedMarker(above) !== "done" &&
+      unfinishedUnder(scope.derived, above.id)
+        .every((child) => child.node.id === node.id)
+    ) {
+      said.push(
+        `every task under \`${above.title}\` is done now — mark it done too if ` +
+          `the branch is finished.`,
+      )
+    }
   }
 
   return said.length === 0 ? undefined : said.join(" ")
 }
-
-/** The titles of `parent`'s counted children that are TASKS and not done —
- *  `done` read for `becoming`, the node this write is about, since the write
- *  is the thing the snapshot has not seen yet. A bullet is never in the list:
- *  it is not a task, so there is nothing under it to finish. */
-const unfinishedUnder = (
-  scope: Scope,
-  parent: string,
-  becoming?: string,
-): ReadonlyArray<string> =>
-  countedChildren(scope.derived, parent).flatMap((child) => {
-    if (child.node.id === becoming) return []
-    const status = scope.derived.status.get(child.node.id)
-    return status === undefined || status === "done" ? [] : [child.node.title]
-  })
-
-const titles = (all: ReadonlyArray<string>): string =>
-  all.map((title) => `\`${title}\``).join(", ")
 
 // ── title / desc / date ────────────────────────────────────────────────
 
