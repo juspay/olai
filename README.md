@@ -168,6 +168,16 @@ than an apology. Marking a node whose status is computed from its children is
 refused, and the refusal lists the children that are unfinished, as rows, which
 are what to mark instead.
 
+You can paste a picture into the box — a screenshot, a photo of a whiteboard —
+and ask about it. Drag one onto the panel, or pick one from a phone's roll,
+which is the same thing without a Ctrl+V. The bytes go into a temporary
+directory belonging to that conversation, never under the directory being
+served, and what the agent is handed is the PATH: it reads the file itself, so
+no image rides the prompt into the stored session, and nothing pasted here can
+end up committed with your outlines. The pictures go away when you start a new
+conversation or stop the server. The transcript names each one; the tab you
+pasted from also shows it.
+
 The conversation is Claude Code's own session for that directory: close olai,
 reopen it, and you are back in it — and `claude --resume` in a terminal reaches
 the same conversations.

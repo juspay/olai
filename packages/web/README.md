@@ -335,6 +335,36 @@ Three components earn their own file:
   BESIDE it rather than replacing it — sending and stopping are two things a
   person can want at the same moment. Disabling cost the caret as well as the
   thought: coming back to a re-enabled box meant reaching for the mouse.
+
+  It is also where a picture comes in, three ways for one reason: paste is the
+  desktop gesture, drop is the one for a file already on screen, and the picker
+  is the only one a phone has. All three end in the same call, and attaching
+  does not send — the picture waits in a strip above the box, where it can be
+  removed or typed at, because "what is wrong here" needs the picture and the
+  question together.
+
+  The box empties the moment it sends and PUTS BACK what the server would not
+  take. Emptying immediately is not optional — waiting for the round trip would
+  send twice for two quick presses of Enter — but a refusal used to leave the
+  message and the chips gone with only a red line to say why, and a chip stands
+  for round trips somebody already waited through. It is put back only into a
+  box that is still empty: an answer that arrives while the next thing is being
+  typed loses to what is being typed.
+- **`attach.ts`** is that call: read the Blob, base64 it once, and send it as a
+  SEQUENCE of bounded `chat.attach` calls, the first creating the file and each
+  later one appending to the path it was answered with. Sequential by
+  construction — the server appends to one growing file, so two chunks in
+  flight would interleave their bytes and corrupt the picture silently. The
+  size and kind gate runs before a byte is encoded, and it is the same function
+  the server refuses with (`@olai/surface`), so a 60 MB drop costs nothing and
+  says exactly what the server would have said.
+- **`Attachments.tsx`** draws a picture on a message two ways, and the chip is
+  the base case. A row carries file NAMES; whether there is anything to look at
+  depends on which tab is looking, because the bytes are in a tmp directory no
+  browser can reach and `/media/*` is guarded to the served directory. The tab
+  that pasted it still has the Blob (`previews.ts`, a bounded per-tab cache) and
+  draws a thumbnail; every other tab, and this one after a reload, draws the
+  name.
 - **`SlashMenu.tsx`** takes Enter in the CAPTURE phase and stops it
   propagating, because the input owns Enter for sending: without that, a
   completion accepted would be a message sent. It is opened by typing `/` and

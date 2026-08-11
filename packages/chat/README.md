@@ -1,8 +1,9 @@
 # @olai/chat — one conversation with one agent
 
 Talking to a coding agent over ACP: starting the subprocess, holding the
-session, turning what it says into rows a panel can draw, and answering the five
-verbs a person has (send, cancel, new conversation, load one, list them).
+session, turning what it says into rows a panel can draw, and answering the six
+verbs a person has (send, cancel, new conversation, load one, list them, attach
+a picture to what they are about to send).
 
 It sits BESIDE `@olai/ops` rather than above or below it. A conversation and an
 edit are two things a person does to the same directory and neither is built out
@@ -35,6 +36,7 @@ second copy of the transcript would be a second thing to be wrong.
 | `pipes.ts` | a subprocess's pipes as a stream of JSON-RPC messages — the one thing the two subprocesses above have in common |
 | `events.ts` | the closed vocabulary of what an agent tells us — a consumer that needs more needs a new member, not a look at the wire |
 | `transcript.ts` | the conversation as ROWS: chunks accumulate, tool calls update in place by id, a replay replaces rather than appends |
+| `attachments.ts` | the conversation's tmp directory: where a pasted picture lands, what a chunked upload may continue, and what the prompt says about it |
 | `chat.ts` | the join, and the only place that knows both halves |
 
 A tool call is not instantaneous, so a frame is not just a status that flips.
@@ -148,7 +150,7 @@ hands the cause rather than the failure, and `String` on one of those is
 `Cause([Fail(…)])` with the reason buried inside it. There used to be three
 spellings of that in this file, one of them wrong.
 
-## Two decisions worth naming
+## Three decisions worth naming
 
 **A turn is accepted, not awaited.** `send` answers the moment the prompt is on
 the wire; what happens next arrives on the transcript, so every open tab stays
@@ -173,3 +175,31 @@ structured detail in its tool result, but what it then says about it is prose.
 So the MCP layer tells us about every refusal and it lands in the transcript as
 DATA — which is what makes "a refused write shows its unfinished children in
 chat" true regardless of how the agent phrases it.
+
+**A pasted picture is a PATH by the time the conversation sees it.** The bytes
+arrive over `chat.attach` as bounded chunks and are written straight into a tmp
+directory of this conversation's own — `attachments.ts`, and never under the
+served directory, where the store probes and a commit would sweep them up. What
+`send` then carries is where they landed, and what the prompt says is
+`Attached image: <path>`: Claude Code reads the file itself. So no base64 rides
+the prompt into the session the agent persists, nothing here depends on the
+session's `promptCapabilities.image`, and the whole path from browser to agent
+stays a string. The directory goes when the conversation is left and when the
+chat stops — which is a finalizer of the serve scope, so it goes with the
+server too.
+
+A path that arrives over the wire is checked, never believed. A chunk's
+`appendTo` and a send's attachment list are both re-resolved against that
+directory, through symlinks, on both sides of the comparison — so a continuation
+token is exactly that, and not a capability to append to any file this process
+can write.
+
+`attach` takes the SAME permit as a session change, because the two touch one
+directory. Leaving a conversation is allowed while an upload is running — only
+a running turn blocks it — so without that, a chunk could be writing into a
+directory `discard` was removing. Serialized, both orders are whole: an upload
+finishes into the conversation it began in, or it starts in the one that
+replaced it. One chunk is a three-megabyte write, so the permit is held for
+milliseconds rather than for an upload. A continuation whose conversation was
+left in between is refused like any other path that is not ours, and the browser
+drops an answer that arrives for a conversation it is no longer in.

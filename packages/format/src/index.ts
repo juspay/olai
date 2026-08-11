@@ -32,7 +32,7 @@ export { validate } from "./validate.ts"
 
 export { assemble, BrokenFile, fileKind, OutlineSet } from "./set.ts"
 export type { DecodedFile, Outline } from "./set.ts"
-export { docOf, Document, isPicture, pictureOf } from "./documents.ts"
+export { docOf, Document, isPicture, PICTURE_EXTENSIONS, pictureOf } from "./documents.ts"
 export { isMirror, Located } from "./node.ts"
 export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
 
