@@ -170,13 +170,14 @@ export const TESTID = {
   faultHome: "fault-home",
 
   // ── the agent panel ──────────────────────────────────────────────────
-  /** The shut panel's opener. Absent when no agent is configured. */
+  /** The header's permanent agent toggle. Always on screen; `aria-pressed`
+   *  says whether the drawer is open, `data-busy` whether a turn is running
+   *  (including while the drawer is open). */
   chatToggle: "chat-toggle",
   /** The open panel. Its `data-status` carries the cell's own state —
    *  `booting` / `idle` / `thinking` / `gone` — so a scenario waits on the
    *  state rather than on a spinner's styling. */
   chatPanel: "chat-panel",
-  chatClose: "chat-close",
   chatTitle: "chat-title",
   chatModel: "chat-model",
   chatNew: "chat-new",

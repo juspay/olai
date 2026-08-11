@@ -157,8 +157,9 @@ Feature: Talking to the agent
     # Ported back from racket, which had all three and this branch had none of
     # them: the only cue was the send button turning into cancel. One cue is not
     # enough because a person is not always looking at the one place it is —
-    # and the shut drawer was the worst of it, since a turn behind a closed
-    # panel was invisible including when it ended.
+    # and a turn behind a closed panel used to be invisible including when it
+    # ended — the header toggle's busy pulse is that cue, and it stays on
+    # screen whether the drawer is open or shut.
     When I ask the agent "hold"
     Then the agent is working
     # BESIDE the model, not instead of it. The status used to give that line up
@@ -166,6 +167,8 @@ Feature: Talking to the agent
     # answered a different question than the one being asked of it.
     And the panel header names the model "Fake One"
     And the header says the agent is working
+    # Close via the permanent header toggle (no × in the panel). The toggle
+    # stays visible, unpressed, and still busy while the turn runs.
     When I close the agent panel
     Then the agent toggle says a turn is running
     When I open the agent panel again

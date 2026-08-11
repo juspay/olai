@@ -348,10 +348,11 @@ component draws would be rejecting it over a page that does not exist.
 
 `src/client/AppHeader.tsx` is a slim bar above every column: the `olai`
 wordmark on the left, and on the right the three pills that are about the APP
-rather than about the page — the connection indicator, the agent toggle (with
-its busy pulse while a turn runs behind a shut panel), and the theme picker as
-a compact popover (a pill names the theme in force; chips open under it). On a
-phone the directory burger joins the left edge next to the wordmark.
+rather than about the page — the connection indicator, the agent toggle
+(always on screen; pressed while the drawer is open; busy pulse in either
+state while a turn runs), and the theme picker as a compact popover (a pill
+names the theme in force; chips open under it). On a phone the directory
+burger joins the left edge next to the wordmark.
 
 Principle: the header carries what is about the app; the sidebar
 (`Sidebar.tsx`) carries what is about the DIRECTORY — calendar + file tree
@@ -404,9 +405,11 @@ the outline is the page, and the agent is something you open beside it.
 Open, it takes its width out of the layout on a screen wide enough to spare it
 rather than lying over the outline — a drawer you have to shut to finish reading
 a sentence costs more than it is worth. On a narrow one it covers the page
-(under the header), because there is no width to give it. Shut, the way back in
-is a button in the app header (`Toggle`), placed by the layout for the same
-reason the connection pill is.
+(under the header), because there is no width to give it. Open and shut are the
+same control: a permanent toggle in the app header (`Toggle`) — always on
+screen, pressed while the drawer is open, busy-pulsing in either state while a
+turn runs. The panel has no × of its own; two ways to close one thing is one
+too many.
 
 It ALWAYS draws. Whether an agent is configured is the server's answer, and when
 the answer is no the panel says so (`NoAgent.tsx`, naming `OLAI_ACP_AGENT`)

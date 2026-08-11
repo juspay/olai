@@ -189,7 +189,6 @@ export const THEME_CHIP = selector(TESTID.themeChip);
 export const CHAT_TOGGLE = selector(TESTID.chatToggle);
 export const CHAT_PANEL = selector(TESTID.chatPanel);
 export const CHAT_TITLE = selector(TESTID.chatTitle);
-export const CHAT_CLOSE = selector(TESTID.chatClose);
 export const CHAT_WORKING = selector(TESTID.chatWorking);
 export const CHAT_MODEL = selector(TESTID.chatModel);
 export const CHAT_SESSIONS = selector(TESTID.chatSessions);
