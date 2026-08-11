@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { fileTree } from "./fileTree.ts"
+import { ancestorDirs, fileTree } from "./fileTree.ts"
 
 test("a flat directory is one list of files, outlines and documents mixed", () => {
   expect(fileTree(["garden.jsonl", "house.jsonl"], ["finishes.md"])).toEqual([
@@ -201,4 +201,12 @@ test("every row's key names its place", () => {
     "dir:notes",
     "file:notes/palette.md",
   ])
+})
+
+// The open file's parent chain — what the sidebar force-opens so a
+// collapsed-by-default tree never hides the selection.
+test("ancestorDirs is the directory chain above a nested file", () => {
+  expect(ancestorDirs("house.jsonl")).toEqual([])
+  expect(ancestorDirs("notes/palette.md")).toEqual(["notes"])
+  expect(ancestorDirs("a/b/c.jsonl")).toEqual(["a", "a/b"])
 })

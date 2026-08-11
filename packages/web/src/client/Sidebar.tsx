@@ -2,12 +2,22 @@
  * The ways around the DIRECTORY: the month, and the directory as a TREE.
  *
  * Desktop: a resizable column when open, replaced by the icon rail when
- * minimized (./layout/Rail.tsx). Mobile: a slide-over drawer with scrim —
- * not the old capped close-on-any-tap sheet. App chrome (connection, agent,
- * theme) lives in the header; this column is only the directory.
+ * minimized (./layout/Rail.tsx). Mobile: a slide-over drawer with scrim under
+ * the header — not the old capped close-on-any-tap sheet. App chrome
+ * (connection, agent, theme) lives in the header; this column is only the
+ * directory.
  *
  * Directory nodes collapse client-locally like the outline tree's folds
- * (./view.ts). The entry that lights up is the file the open page lives in.
+ * (./view.ts): nothing is written, two readers of the same directory may fold
+ * it differently, and a fold survives navigation because the tree is of the
+ * directory rather than of the open page. Folders start collapsed — a deep
+ * corpus is not a wall of paths — and a directory the reader has unfolded
+ * stays open until they fold it again. The chain of folders holding the open
+ * file is always drawn open so the selection is never hidden under a shut
+ * parent (#105).
+ *
+ * The entry that lights up is the file the open page lives in. A day page
+ * lights none. An entry is marked when its file could not be read.
  */
 
 import type { BrokenFile } from "@olai/format"
@@ -22,7 +32,7 @@ import {
   Switch,
 } from "solid-js"
 
-import { type FileRow, fileTree } from "./fileTree.ts"
+import { ancestorDirs, type FileRow, fileTree } from "./fileTree.ts"
 import { SidebarHandle } from "./layout/Handle.tsx"
 import { setSidebarOpen } from "./layout/prefs.ts"
 import { Link } from "./router.tsx"
@@ -43,7 +53,12 @@ const DIR =
 interface TreeView {
   readonly isActive: (file: string) => boolean
   readonly broken: ReadonlyMap<string, BrokenFile>
-  readonly collapsed: () => ReadonlySet<string>
+  /** Directories the reader has unfolded. Absent = collapsed (the default). */
+  readonly expanded: () => ReadonlySet<string>
+  /** Directory chain of the open file — always drawn open so the selection
+   *  is reachable. Does not write into `expanded`; a preference the reader
+   *  set earlier still sits there for when the selection moves away. */
+  readonly openAncestry: () => ReadonlySet<string>
   readonly toggle: (path: string) => void
 }
 
@@ -61,15 +76,31 @@ export function Sidebar(props: {
   /** Shut the mobile drawer (navigation, scrim). */
   readonly onClose: () => void
 }) {
-  const [collapsed, setCollapsed] = createSignal(new Set<string>())
+  // Unfolded directories, keyed by their root-relative path. A Set rather than
+  // a boolean per node so a directory that is not in it is simply collapsed —
+  // the default a deep corpus wants, and the same shape the outline tree uses
+  // for folds (./view.ts), only inverted: there the set holds what is shut
+  // because nodes start open; here it holds what is open because folders
+  // start shut (#105).
+  const [expanded, setExpanded] = createSignal(new Set<string>())
   const toggle = (path: string) => {
-    setCollapsed((current) => {
+    setExpanded((current) => {
       const next = new Set(current)
       if (!next.delete(path)) next.add(path)
       return next
     })
   }
 
+  // The open file's parent chain, as a set for O(1) membership in each Dir.
+  // Memoised on the active path alone: folding a folder must not rewalk it.
+  const openAncestry = createMemo(() => {
+    const file = props.active
+    return file === undefined ? new Set<string>() : new Set(ancestorDirs(file))
+  })
+
+  // `createSelector` rather than `props.active === file` in each row: that
+  // form subscribes every entry to the open page. This notifies exactly the
+  // entry that lit and the one that went out.
   const isActive = createSelector(() => props.active)
   const tree = createMemo(() => fileTree(props.files, props.documents))
 
@@ -78,7 +109,8 @@ export function Sidebar(props: {
     get broken() {
       return props.broken
     },
-    collapsed,
+    expanded,
+    openAncestry,
     toggle,
   }
 
@@ -169,7 +201,14 @@ function Dir(props: {
   readonly row: Extract<FileRow, { kind: "dir" }>
   readonly view: TreeView
 }) {
-  const folded = createMemo(() => props.view.collapsed().has(props.row.path))
+  // Ancestry wins over the default (collapsed) so the open file is never
+  // buried; a reader preference in `expanded` still wins over the default for
+  // every other folder (#105).
+  const folded = createMemo(
+    () =>
+      !props.view.openAncestry().has(props.row.path) &&
+      !props.view.expanded().has(props.row.path),
+  )
 
   return (
     <li
