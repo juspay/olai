@@ -239,6 +239,25 @@ test("an after cycle closing through a mirror is refused", () => {
   expect(error.message).toContain("`x` → `y` → `x`")
 })
 
+// The one place the two `after` rules deliberately part company, locked from
+// the side that exempts NOTHING. Blockedness lets archived work out at both
+// ends — it is over, so nothing waits on it and nothing tells it it cannot
+// start — while a loop is a claim about the FILE: nothing in it can start
+// first, whether or not somebody has put half of it away. Without this test a
+// future "skip archived in findCycles" stays green.
+test("an after cycle through the archive is still refused", () => {
+  const error = only(
+    errorsOf({
+      "a.jsonl": `{"id":"live","ord":"a","title":"live","doing":true,"after":["old"]}`,
+      "Archive.jsonl": `{"id":"old","ord":"a","title":"old","done":true,"after":["live"]}`,
+    }),
+  )
+  expect(error.code).toBe("after-cycle")
+  // Anchored at the earliest record of the loop, which here is the archived
+  // one — the report is about the file, and the archive is a file in the set.
+  expect(error.message).toContain("`old` → `live` → `old`")
+})
+
 // Containment that closes a loop through a mirror never finishes expanding, so
 // the browser would render forever.
 test("mirrors that show each other are a mirror-cycle", () => {
