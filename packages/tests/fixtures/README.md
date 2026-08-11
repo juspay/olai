@@ -31,6 +31,7 @@ each thing the view has to draw:
 | nesting | `kitchen` → `install` → `handles` (house.jsonl) |
 | a done child | `demo` (house.jsonl:2) |
 | a doing child | `order` (house.jsonl:3) |
+| a bullet that is not a task | `handles` — no mark, so no status and no checkbox |
 | a derived status | `kitchen` is `doing` — it stores nothing; its children say so |
 | an inline `#tag` | `kitchen remodel #home`, `garden #outdoors` |
 | a `date` | `order` is dated `2026-08-10` |
@@ -49,19 +50,29 @@ cannot be exercised with a single file.
 
 Note what is absent: no `done` or `doing` on `kitchen`, `install` or `herbs`. A
 node with children never stores its status; it is computed from them, and
-storing one is a load error.
+storing one is a load error. What that computes to may be nothing at all —
+`install`'s only child is the unmarked `handles`, so `install` is a bullet too,
+while `kitchen` reads `doing` from the two children that are marked.
 
 ## `chat/` — a set the agent writes to
 
 Deliberately plain: one outline, one parent, three children of it — one done,
-two open. Everything `features/the_agent.feature` asks for is a property of
-that shape rather than of anything ornamental in it:
+one under way, one carrying no mark at all. Everything
+`features/the_agent.feature` asks for is a property of that shape rather than
+of anything ornamental in it:
 
 | what | where |
 |---|---|
-| a leaf the agent can mark | `order`, `install` |
+| a leaf the agent can mark | `order` — a bullet, so marking it is what makes it a task |
 | a leaf that is already done | `demo` |
-| a node whose status is DERIVED | `kitchen` — marking it is the refusal that lists `order` and `install` |
+| a leaf still under way | `install` |
+| a node whose status is DERIVED | `kitchen` — marking it is the refusal that lists `install` |
+
+The third child is the model in one line: `order` carries no mark, so it is a
+bullet rather than a task nobody has started, and the refusal above does **not**
+name it — an unmarked child is in nobody's way (docs/format.md's Status
+section). `install` is what stands between `kitchen` and `done`, and it is the
+whole of what the refusal lists.
 
 Every chat scenario is `@scratch:chat`, because the agent WRITES: it is served a
 private temp copy with a server of its own, and both go away with the scenario.
