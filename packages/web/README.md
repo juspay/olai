@@ -131,19 +131,34 @@ highlight, rewrite, stringify:
   re-minted under a prefix derived from the block itself, so the first footnote
   of one note cannot answer for the first footnote of the next.
 
-How that markdown is SET is the other half, and it is in `styles.css` because
-the tags come off a file on disk and carry no classes. The rules with a reason
-behind them: prose wraps anywhere rather than pushing the page sideways for one
-pasted URL, while a fence and a table — where a break invented mid-token would
-be a lie about a line or a value — scroll within themselves instead; a task
-list drops its bullet, since the checkbox is the marker; and markdown drawn
-under a title of the page's own has its headings clamped below that title,
-which is the one thing that varies by WHERE a block is drawn rather than by
-what it says (`olai-md-under-title` — a note always, and the document an open
-node attaches, which is under the same title and would otherwise open at
-exactly its size).
+How that markdown is SET is the other half. The numbers are **not** in the
+stylesheet: `src/client/markdown/scale.ts` declares the type scale and the two
+spacing scales, `src/build.ts` generates the CSS from it (the same arrangement
+the palettes use), and every rule in `styles.css` reads a custom property. That
+is what makes the rhythm testable — `packages/tests` walks a rendered document
+and a rendered note and asserts every computed size, gap, pad, weight and
+border is a value from those sets, so a drive-by `margin: 6px` is red rather
+than invisible.
+
+Two densities, because there are two kinds of place. A **document** is a
+reading page — the whole main pane, opened to be read — and is set like one. A
+**compact** block is markdown inside the app's furniture: a note under a node's
+title, the document an open node attaches, an agent's reply in the drawer. Same
+proportions one notch tighter, plus a ceiling on the heading sizes, since all
+three hang under a title the page owns (`olai-md-compact`, added by the three
+components that know which they are).
+
+The rules with a reason behind them: prose wraps anywhere rather than pushing
+the page sideways for one pasted URL, while a fence and a table — where a break
+invented mid-token would be a lie about a line or a value — scroll within
+themselves instead; the gap always goes UNDER a block, so the space between any
+two is one value rather than the larger of two that met; a task list drops its
+bullet, since the checkbox is the marker; and a fence carries the code's own
+font-size, because a `<pre>` at the body's size sets a taller strut than the
+lines inside it and drags the first line down.
 `packages/tests/fixtures/good/kitchen-sink.md` is the page to open in a light
-theme and a dark one after changing any of it.
+theme and a dark one after changing any of it; `just serve docs` is the other
+one, and the more honest, since those are real documents somebody wrote.
 
 `src/client/document/` is what a document looks like: its own page, the
 reference a `doc`-carrying node shows wherever it is drawn, and the context

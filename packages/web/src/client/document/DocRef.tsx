@@ -12,7 +12,7 @@
  * `doc` field means once the outline it was written in is taken into account.
  *
  * The inline shape is drawn under the zoomed node's own title, so it is set
- * like a note and not like a page: `olai-md-under-title` clamps its headings
+ * like a note and not like a page: `olai-md-compact` clamps its headings
  * below that title, which is the same class `Note.tsx` adds for the same
  * reason. Without it a document opening with `# Title` draws that line at
  * exactly the size of the node title above it. The document's OWN page is the
@@ -73,7 +73,7 @@ export function DocRef(props: {
           <Markdown
             source={served().text}
             from={served().file}
-            class="olai-md-under-title mt-2"
+            class="olai-md-compact mt-2"
             testid={TESTID.documentBody}
           />
         )}

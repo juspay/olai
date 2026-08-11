@@ -99,16 +99,23 @@
   }
 }
 
-/* Rendered markdown — a note's, a whole document's, an agent's reply. Its
+/* Rendered markdown — a whole document, a node's note, an agent's reply. Its
  * `<p>`, `<ul>`, `<code>` and `<pre>` are produced by the sanitiser at view
  * time and carry no classes, so they are the one place a descendant rule is
  * the only tool there is.
  *
- * NO NUMBER IN THIS BLOCK IS A LITERAL. Every size, gap and pad reads a custom
- * property generated from `src/client/markdown/scale.ts` — the declared type
- * and spacing scales, which `packages/tests` then holds the rendered page to,
- * element by element. A rule that wanted a value the scale does not have is a
- * rule that has to change the scale, in front of everyone. */
+ * NO NUMBER IN THIS BLOCK IS A LITERAL. Every size, gap, pad, weight and rule
+ * reads a custom property generated from `src/client/markdown/scale.ts` — the
+ * declared scales, which `packages/tests` then holds the rendered page to,
+ * element by element, against the set for the context it is in. A rule that
+ * wanted a value the scale does not have is a rule that has to change the
+ * scale, in front of everyone.
+ *
+ * TWO CONTEXTS, one design. A document is a reading page and is set like one.
+ * `.olai-md-compact` is markdown inside the app's furniture — a note under a
+ * node's title, an attached document, an agent's reply in the drawer — and
+ * re-answers the same properties one notch tighter, with a ceiling on the
+ * heading sizes. Every rule below is written once and serves both. */
 
 /* Where an unbreakable word may be broken, and where it may not — one rule,
  * because the two halves only make sense against each other.
@@ -147,63 +154,60 @@
   overflow-wrap: normal;
 }
 
-/* An edge has no gap. Every container that PADS or RULES its contents gets
- * this, not just the block itself: a quote opening with a paragraph, a cell
- * holding one — each would otherwise draw its own top margin inside the
- * padding or beside the rule that already separated it, which is a gap counted
- * twice. A cell is the case that is actually visible, since a cell does not
- * collapse its children's margins the way a quote does.
- *
- * A LIST ITEM is deliberately not in that set, and it is the one place the gap
- * is carrying information. Markdown draws a "loose" item — one with a blank
- * line before it — as a paragraph inside the `<li>` and a "tight" one as bare
- * text, so those paragraph margins are the whole visible difference between a
- * list somebody spaced out and a list somebody packed. Zeroing them here made
- * every list tight and threw the author's own decision away. */
-.olai-md > :first-child,
-.olai-md :is(blockquote, td, th) > :first-child {
-  margin-top: var(--olai-md-space-none);
+/* THE GAP GOES UNDER. Every block reserves space below itself and none above,
+ * which is what makes the space between any two of them exactly one value
+ * instead of the larger of two that happened to meet — and what lets a
+ * heading's own top margin be the section break without fighting the
+ * paragraph above it. It is also what the reference does, and the reason is
+ * the same. */
+.olai-md :is(p, ul, ol, pre, blockquote, table) {
+  margin: 0 0 var(--olai-md-space-block);
 }
 
+/* An edge has no gap. A container that PADS or RULES its contents has already
+ * separated them; a trailing margin inside it is space counted twice, and at a
+ * full line of it that is a visible hole at the bottom of every quote and
+ * every cell. */
 .olai-md > :last-child,
-.olai-md :is(blockquote, td, th) > :last-child {
+.olai-md :is(blockquote, td, th, li) > :last-child {
   margin-bottom: var(--olai-md-space-none);
 }
 
-/* One gap between blocks, and it is SMALL. This is an outliner: a note is
- * drawn inside a row of a tree, and blocks that each reserved a line of air
- * would push the next node off the screen. What separates sections is the gap
- * above a heading, not uniform space everywhere. */
-.olai-md :is(p, ul, ol, pre, blockquote, table) {
-  margin: var(--olai-md-space-block) 0;
+/* A heading belongs to what is UNDER it: the space above separates it from the
+ * section that ended, the space below is only the gap to its own first line.
+ * The two are deliberately far apart — a heading floating midway between two
+ * bodies of text belongs to neither. `h1` and `h2` take more of both, and the
+ * rule under them is the third thing telling a level apart, after size and
+ * weight. */
+.olai-md :is(h1, h2, h3, h4, h5, h6) {
+  margin: var(--olai-md-space-headTopMinor) 0 var(--olai-md-space-headBottomMinor);
+  font-weight: var(--olai-md-weight-heading);
+  line-height: var(--olai-md-leading-heading);
 }
 
-/* A heading belongs to what is UNDER it: the space above separates it from the
- * section that ended, the space below is only the gap to its own first line. */
-.olai-md :is(h1, h2, h3, h4, h5, h6) {
-  margin: var(--olai-md-heading-top) 0 var(--olai-md-space-tight);
-  font-weight: 600;
-  line-height: var(--olai-md-leading-heading);
+.olai-md :is(h1, h2) {
+  margin-top: var(--olai-md-space-headTopMajor);
+  margin-bottom: var(--olai-md-space-headBottomMajor);
+  padding-bottom: var(--olai-md-pad-headRule);
+  border-bottom: var(--olai-md-border-head) solid var(--color-rule);
+  font-weight: var(--olai-md-weight-major);
 }
 
 /* Two headings in a row have nothing between them to be separated FROM, so the
  * section gap would be a hole in the middle of one label. They close up to the
- * same gap a heading leaves above its own text. */
+ * gap a heading leaves above its own text. */
 .olai-md :is(h1, h2, h3, h4, h5, h6) + :is(h1, h2, h3, h4, h5, h6) {
-  margin-top: var(--olai-md-space-tight);
+  margin-top: var(--olai-md-space-headBottomMajor);
 }
 
-/* Six levels, six sizes, down to the body's own — because a document that uses
- * `h4` is a document that has four levels to tell apart, and three identical
- * ones are three levels it cannot. The last two share a size (there is nothing
- * left below the body text), so `h6` is told apart by colour and letterspacing
- * instead: small caps in the muted ink, which is a label rather than a
- * heading, and that is what a sixth level is.
+/* Six levels, six sizes, and three axes telling them apart: size, weight, and
+ * — for the two that introduce a section — a rule. The last two share a size
+ * because there is nothing left below the body text, so `h6` is told apart by
+ * colour and letterspacing instead: small caps in the muted ink, which is a
+ * label rather than a heading, and that is what a sixth level is.
  *
- * The values are the scale's, and `.olai-md-under-title` re-answers three of
- * them for markdown drawn under a title the page owns — one redefinition
- * rather than a second set of rules, so there is no pair of equal-weight
- * selectors whose order decides the answer. */
+ * The values are the scale's, and `.olai-md-compact` re-answers the top three
+ * for markdown drawn under a title the page owns. */
 .olai-md h1 {
   font-size: var(--olai-md-h1);
 }
@@ -236,6 +240,19 @@
   list-style: revert;
 }
 
+/* Items need a gap even when the author wrote none. A "tight" list — no blank
+ * lines between the items — draws each item as bare text, and on items that
+ * wrap to four or five lines that is a paragraph-shaped block with no seams in
+ * it. Small, so a tight list still reads as tighter than a loose one, whose
+ * items are paragraphs and keep the full block gap on top of this. */
+.olai-md li + li {
+  margin-top: var(--olai-md-space-item);
+}
+
+.olai-md li > p {
+  margin-top: var(--olai-md-space-block);
+}
+
 /* A task list item has a box, so it does not also get a bullet: the checkbox
  * IS the marker, which is what GFM draws everywhere else and what keeps a
  * checked line from reading as two marks about the same thing. The box is
@@ -262,17 +279,31 @@
   color: var(--color-muted);
 }
 
+/* The fence carries the CODE's size and leading itself, rather than leaving
+ * them on the `<code>` inside it. That is not tidiness: a `<pre>` at the
+ * body's 16px sets a 24px strut, the code lines inside it are 21px, and the
+ * first line box is dragged to the taller of the two — so the gap above the
+ * first line came out visibly bigger than the gap under the last, on every
+ * fence in the app. One font-size here and the block is symmetrical. */
 .olai-md pre {
   overflow-x: auto;
   border: var(--olai-md-border-rule) solid var(--color-rule);
   border-radius: 0.25rem;
   padding: var(--olai-md-pad-fenceY) var(--olai-md-pad-fenceX);
+  font-size: calc(var(--olai-md-of-code) * 1em);
+  line-height: var(--olai-md-leading-body);
 }
 
 .olai-md code {
   font-family: var(--font-mono);
   font-size: calc(var(--olai-md-of-code) * 1em);
   line-height: var(--olai-md-leading-body);
+}
+
+/* …and inside the fence it is already at that size, so it does not take the
+ * fraction a second time. */
+.olai-md pre > code {
+  font-size: 1em;
 }
 
 /* Inline code is a chip; a fence is not. `code` inside a `<pre>` is already
@@ -284,7 +315,6 @@
   padding: var(--olai-md-pad-chipY) var(--olai-md-pad-chipX);
   background: var(--olai-md-tint);
 }
-
 /* The caret at the end of an answer that is still arriving. On the LAST BLOCK
  * of the rendered markdown rather than after it: an element of its own would
  * sit on a line below the paragraph it belongs to, because what the last block
@@ -429,7 +459,7 @@
 .olai-md .hljs-title,
 .olai-md .hljs-selector-id,
 .olai-md .hljs-selector-class {
-  font-weight: 600;
+  font-weight: var(--olai-md-weight-heading);
 }
 
 .olai-md .hljs-deletion {
@@ -441,5 +471,5 @@
 }
 
 .olai-md .hljs-strong {
-  font-weight: 700;
+  font-weight: var(--olai-md-weight-major);
 }

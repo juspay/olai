@@ -25,31 +25,46 @@ import { Then } from "@cucumber/cucumber";
 
 import {
   BORDER_PX,
+  COMPACT_CLASS,
+  type Density,
+  HEAD_BORDER_PX,
   LEADING,
   PAD,
   RELATIVE,
   SPACE,
   TYPE,
   UNDER_TITLE,
+  WEIGHT,
 } from "@olai/web/src/client/markdown/scale.ts";
 
 import { HYDRATION_TIMEOUT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
-/** Every value the scale allows, in the units a computed style is read in.
- *  Assembled here rather than in the page, so what crosses into the browser is
- *  data and not this module. */
-const allowed = {
+/**
+ * Every value one density allows, in the units a computed style is read in.
+ * Assembled here rather than in the page, so what crosses into the browser is
+ * data and not this module.
+ *
+ * Per DENSITY rather than a union of both, which is the whole point: a
+ * document that quietly took the compact gaps (or a note that took the
+ * reading ones) would pass a union and be exactly the bug this exists to
+ * catch.
+ */
+const allowed = (density: Density) => ({
   /** Absolute font sizes, in rem. A size not in here has to be inherited or a
-   *  declared fraction of its parent — see `RELATIVE`. */
-  sizeRem: [...new Set([...Object.values(TYPE), ...Object.values(UNDER_TITLE)])],
+   *  declared fraction of its parent — see `RELATIVE`. A compact block clamps
+   *  the top three, so only its own set is legal there. */
+  sizeRem: density === "compact"
+    ? [...new Set([...Object.values(UNDER_TITLE), TYPE.h4, TYPE.h5, TYPE.h6])]
+    : Object.values(TYPE),
   /** The fractions that are allowed to be a fraction. */
   factors: Object.values(RELATIVE),
-  marginRem: Object.values(SPACE),
-  padRem: Object.values(PAD),
+  marginRem: Object.values(SPACE[density]),
+  padRem: Object.values(PAD[density]),
   leading: Object.values(LEADING),
-  borderPx: Object.values(BORDER_PX),
-};
+  weight: Object.values(WEIGHT),
+  borderPx: [...new Set([...Object.values(BORDER_PX), HEAD_BORDER_PX[density]])],
+});
 
 /**
  * What is NOT swept, and why each is a rule rather than an exemption:
@@ -73,9 +88,17 @@ interface Offence {
 
 Then(
   "every rendered element is on the markdown scale",
-  async function (this: OlaiWorld, ) {
+  async function (this: OlaiWorld) {
     const block = this.page.locator(".olai-md").first();
     await block.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+
+    // Which set applies is the PAGE's answer, not the scenario's: the class is
+    // what the stylesheet keys off, so reading it back is the same question
+    // the browser asked.
+    const density: Density = await block.evaluate(
+      (node, compact) => (node.classList.contains(compact as string) ? "compact" : "reading"),
+      COMPACT_CLASS,
+    );
 
     const offences: Offence[] = await block.evaluate((root, sets) => {
       const rootSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
@@ -134,6 +157,13 @@ Then(
           const value = Number.parseFloat(style[side]);
           if (!oneOfRem(value, sets.padRem)) complain(side, style[side]);
         }
+        // Weight is a scale value too: it is the axis that tells `h1` from
+        // `h3` when a reader is skimming rather than reading.
+        const weight = Number.parseFloat(style.fontWeight);
+        if (!sets.weight.some((allowedWeight: number) => near(weight, allowedWeight))) {
+          complain("font-weight", style.fontWeight);
+        }
+
         for (
           const side of [
             "borderTopWidth",
@@ -149,7 +179,7 @@ Then(
         }
       }
       return found;
-    }, { ...allowed, skip: SKIP });
+    }, { ...allowed(density), skip: SKIP });
 
     assert.deepStrictEqual(
       offences,
