@@ -251,9 +251,12 @@ describe("add with children", () => {
     expect(result.summary).toBe("capture: Bathroom remodel (+4)")
   })
 
-  test("a capture of one node says nothing about a subtree it did not make", () => {
+  // `captured` is what the write MADE, so it has one shape whatever it made:
+  // a plain capture is a list of one, and only the commit subject asks whether
+  // anything came with it — `(+0)` would be a line counting nothing.
+  test("a capture of one node is a list of one, and no count in the subject", () => {
     const result = planned(house(), { op: "add", parent: "kitchen", title: "x" })
-    expect(result.captured).toBeUndefined()
+    expect(result.captured).toEqual([{ id: "n1", title: "x" }])
     expect(result.summary).toBe("capture: x")
 
     // An empty `children` is the same statement, spelled with brackets.
@@ -263,8 +266,30 @@ describe("add with children", () => {
       title: "x",
       children: [],
     })
-    expect(empty.captured).toBeUndefined()
+    expect(empty.captured).toHaveLength(1)
     expect(empty.summary).toBe("capture: x")
+  })
+
+  // The seed of a brand-new outline is a capture too — same fields, same
+  // record, same id rule — so it answers the same way.
+  test("a seeded create names the node it made, and may mark it", () => {
+    const result = planned(house(), {
+      op: "create",
+      file: "shed.jsonl",
+      seed: { title: "clear out the shed", id: "shed", mark: "todo" },
+    })
+    expect(result.captured).toEqual([{ id: "shed", title: "clear out the shed" }])
+    expect(fileOf(result, "shed.jsonl")[0]).toMatchObject({ id: "shed", todo: true })
+
+    // And the id rule is `add`'s, spelled once: a chosen id the set holds is
+    // refused with the same words.
+    expect(
+      refused(house(), {
+        op: "create",
+        file: "shed.jsonl",
+        seed: { title: "x", id: "order" },
+      }).message,
+    ).toContain("already the id")
   })
 
   test("a child's fields are the node's fields, marks stamped the same way", () => {

@@ -259,6 +259,19 @@ interface Placement {
   readonly after?: string | undefined
 }
 
+/** The next key after `previous`, appending at the end of a row.
+ *
+ *  `ordBetween` answers `null` when nothing sorts between its two bounds, and
+ *  with `null` above there is always room — so a `null` here is the ENCODING
+ *  having run out, which is not a condition any caller can act on. Spelled once
+ *  because four places append a key, and four copies of an impossible case is
+ *  four chances to spell it differently. */
+const nextOrd = (previous: string | null): string => {
+  const next = ordBetween(previous, null)
+  if (next === null) throw new Error("the order encoding ran out of keys")
+  return next
+}
+
 /**
  * The `ord`s a row should carry once `moving` sits where `placement` says.
  *
@@ -310,8 +323,7 @@ const placed = (
   const renumbered: Array<{ id: string; ord: string }> = []
   let previous: string | null = null
   for (const entry of order) {
-    const next = ordBetween(previous, null)
-    if (next === null) throw new Error("the order encoding ran out of keys")
+    const next = nextOrd(previous)
     renumbered.push({ id: entry === null ? moving : entry.node.id, ord: next })
     previous = next
   }
@@ -411,13 +423,10 @@ const planAdd = (
   })
   if (refused !== null) return Result.fail(refused)
 
-  // ONE decision, read twice: a capture of a single node is already answered by
-  // `id` above, so a list of one would be that answer again and `(+0)` would be
-  // a commit line counting nothing.
-  const captured: ReadonlyArray<Minted> | undefined = minted.length === 1
-    ? undefined
-    : minted.map((node) => ({ id: node.id, title: node.title }))
-
+  // What came WITH the node the caller named. Only the commit line asks: the
+  // answer says what it made whether that is one node or fifteen, and `(+0)`
+  // would be a subject counting nothing.
+  const under = minted.length - 1
   return Result.succeed({
     files: [
       { file, nodes: withOrds([...recordsOf(scope, file), ...minted], ords.success) },
@@ -425,12 +434,16 @@ const planAdd = (
     id,
     title: request.title,
     file,
-    summary: captured === undefined
+    summary: under === 0
       ? `capture: ${request.title}`
-      : `capture: ${request.title} (+${captured.length - 1})`,
-    ...(captured === undefined ? {} : { captured }),
+      : `capture: ${request.title} (+${under})`,
+    captured: mintedOf(minted),
   })
 }
+
+/** The records a write created, as the answer names them. */
+const mintedOf = (records: ReadonlyArray<RegularNode>): ReadonlyArray<Minted> =>
+  records.map((record) => ({ id: record.id, title: record.title }))
 
 /**
  * The id one captured node will carry: the one it chose, or a minted one.
@@ -472,6 +485,15 @@ const idFor = (
   return Result.succeed(chosen)
 }
 
+/** Where a captured node lands: the three things a record needs that the
+ *  capture itself does not say. One declaration, because the walk and the
+ *  record builder are describing the same placement. */
+interface At {
+  readonly id: string
+  readonly parent?: string | undefined
+  readonly ord: string
+}
+
 /**
  * One captured node, as the record it will be written as.
  *
@@ -487,7 +509,7 @@ const idFor = (
 const capturedNode = (
   scope: Scope,
   capture: Capture,
-  at: { readonly id: string; readonly parent?: string | undefined; readonly ord: string },
+  at: At,
 ): RegularNode => {
   const node: Draft<RegularNode> = {
     id: at.id,
@@ -516,13 +538,8 @@ const emit = (
   taken: Set<string>,
   records: Array<RegularNode>,
   capture: Capture,
-  at: {
-    readonly id: string
-    readonly parent: string | undefined
-    readonly ord: string
-    /** How many further generations may hang off this node. */
-    readonly below: number
-  },
+  /** Where this node lands, and how many further generations may hang off it. */
+  at: At & { readonly below: number },
 ): OpFailure | null => {
   if (capture.title.trim() === "") {
     return new UsageFailure({ reason: "a node needs a title" })
@@ -547,8 +564,7 @@ const emit = (
 
   let previous: string | null = null
   for (const child of children) {
-    const ord = ordBetween(previous, null)
-    if (ord === null) throw new Error("the order encoding ran out of keys")
+    const ord = nextOrd(previous)
     const id = idFor(scope, taken, child)
     if (Result.isFailure(id)) return id.failure
     const refused = emit(scope, taken, records, child, {
@@ -883,31 +899,27 @@ const planCreate = (
     })
   }
 
+  // The seed is a CAPTURE — same fields, same record, same id rule — so it is
+  // minted the way a capture is rather than by a second copy of those lines.
   const seed = request.seed
   if (seed.title.trim() === "") {
     return Result.fail(new UsageFailure({ reason: "a node needs a title" }))
   }
-
-  const id = seed.id ?? freshId(scope, new Set())
-  if (seed.id !== undefined && scope.derived.byId.has(seed.id)) {
-    return Result.fail(
-      new UsageFailure({
-        reason: `\`${seed.id}\` is already the id of a node in this set`,
-      }),
-    )
-  }
+  const chosen = idFor(scope, new Set(), seed)
+  if (Result.isFailure(chosen)) return Result.fail(chosen.failure)
+  const id = chosen.success
 
   // First (and only) row of an empty parent: the same key an `add` would mint
   // when there are no siblings yet.
-  const ord = ordBetween(null, null)
-  if (ord === null) throw new Error("the order encoding ran out of keys")
+  const node = capturedNode(scope, seed, { id, ord: nextOrd(null) })
 
   return Result.succeed({
-    files: [{ file, nodes: [capturedNode(scope, seed, { id, ord })] }],
+    files: [{ file, nodes: [node] }],
     id,
     title: seed.title,
     file,
     summary: `capture: ${seed.title}`,
+    captured: mintedOf([node]),
   })
 }
 
@@ -1090,9 +1102,7 @@ const appendedOrd = (
       }
     }
   }
-  const next = ordBetween(last, null)
-  if (next === null) throw new Error("the order encoding ran out of keys")
-  return next
+  return nextOrd(last)
 }
 
 // ── see ────────────────────────────────────────────────────────────────

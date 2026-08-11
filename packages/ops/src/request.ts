@@ -99,15 +99,26 @@ export interface Capture extends CaptureFields {
   readonly children?: ReadonlyArray<Capture>
 }
 
+/** The same fields with their descriptions taken off, for every level BELOW the
+ *  first ({@link childAt}). Derived rather than re-listed: a second field table
+ *  is the drift {@link CAPTURE} exists to prevent, and the prose is the only
+ *  thing that differs. */
+const TERSE = Object.fromEntries(
+  Object.entries(CAPTURE).map(([name, field]) => [
+    name,
+    field.annotate({ description: undefined }),
+  ]),
+) as unknown as typeof CAPTURE
+
 /**
  * How many generations of `children` one call may nest below the node it adds.
  *
  * A CAP, and one this file would rather not have had: the format has no depth
- * limit and neither does the planner's walk. What has one is the JSON Schema an
- * MCP host reads. A recursive Effect schema compiles to a `$ref` into a `$defs`
- * pool — and the adapter that projects these schemas onto MCP INLINES every
- * local ref and STRIPS the pool, because `$ref` is rejected across the host
- * matrix it is byte-compatible with. A ref that cannot be inlined finitely
+ * limit, and nothing about planning a tree wants one. What has one is the JSON
+ * Schema an MCP host reads. A recursive Effect schema compiles to a `$ref` into
+ * a `$defs` pool — and the adapter that projects these schemas onto MCP INLINES
+ * every local ref and STRIPS the pool, because `$ref` is rejected across the
+ * host matrix it is byte-compatible with. A ref that cannot be inlined finitely
  * survives as a pointer into a pool that is no longer there, so `add_node`
  * would advertise a dangling reference and a whole tool would be unusable.
  *
@@ -118,9 +129,13 @@ export interface Capture extends CaptureFields {
  * than that is a second call under an id the first one hands back, which is why
  * the answer names every node it created.
  *
- * It is read TWICE and spelled once: here, where the schema unrolls it, and in
- * {@link ./plan.ts}, which refuses what the floor below let through. Two
- * numbers would be two answers to how deep a capture goes.
+ * It lives HERE, beside the schema that unrolls it, and {@link ./plan.ts} reads
+ * it to refuse what the floor below lets through. That is the planner enforcing
+ * the schema's limit rather than one of its own, and it is the whole reason the
+ * limit is a refusal rather than a truncation. The alternative — a recursive
+ * schema here and an unrolled twin built in the MCP projection — is exactly the
+ * pair that projection deleted when it stopped advertising one object and
+ * decoding against another.
  */
 export const NESTING = 3
 
@@ -137,23 +152,31 @@ export const NESTING = 3
  */
 const childrenOf = (below: number) =>
   Schema.optionalKey(
-    // The unrolled schema stands in for the recursive interface, and the two
-    // agree everywhere except at the floor, which exists to be refused.
-    (below === 0
+    below === 0
+      // The one place the unrolled schema and the recursive interface disagree,
+      // and it exists to be refused — so it is the one place a cast is needed.
       ? Schema.Array(Schema.Unknown).annotate({
         description:
           `A capture nests ${NESTING} levels of children and this node is at the last of them, so anything here refuses the whole call. Hang it off a second \`add_node\` instead, under an id from \`captured\`.`,
-      })
+      }) as unknown as Schema.Codec<ReadonlyArray<Capture>>
       : Schema.Array(childAt(below - 1)).annotate({
         description:
           "Nodes to capture under this one, in this order. Each takes the same fields as this one, and may carry `children` of its own.",
-      })) as unknown as Schema.Codec<ReadonlyArray<Capture>>,
+      }),
   )
 
-/** The child schema, unrolled `below` further generations deep. */
+/**
+ * The child schema, unrolled `below` further generations deep.
+ *
+ * The fields are {@link CAPTURE}'s with their prose taken off, and that is a
+ * measured decision rather than a slip: the descriptions are identical at every
+ * level, so spelling them four times would put three redundant copies of every
+ * sentence in the first frame of every agent session (~2kB). The root says what
+ * each field means, and the `children` blurb says a child takes the same ones.
+ */
 const childAt = (below: number): Schema.Codec<Capture> =>
   Schema.Struct({
-    ...CAPTURE,
+    ...TERSE,
     children: childrenOf(below),
   }) as unknown as Schema.Codec<Capture>
 
@@ -226,16 +249,14 @@ export const ArchiveRequest = Schema.Struct({
   id: Id,
 })
 
-/** The optional first node of a brand-new outline. The capture fields, read
- *  from the one place they are declared, without a parent (it is top-level by
- *  definition), without placement (it is the only row) and without a subtree —
- *  a file is born with a title in it, and `add_node` is what fills it. */
-const Seed = Schema.Struct({
-  title: CAPTURE.title,
-  desc: CAPTURE.desc,
-  date: CAPTURE.date,
-  id: CAPTURE.id,
-})
+/** The optional first node of a brand-new outline: the capture fields exactly,
+ *  read from the one place they are declared. No parent (it is top-level by
+ *  definition), no placement (it is the only row) and no subtree — a file is
+ *  born with a node in it, and `add_node` is what fills it. Naming four of the
+ *  five here was a second field list, and the one it dropped — `mark` — was
+ *  dropped for no reason anybody could give: the same record builder writes a
+ *  seed and a capture, and it has always been able to write a mark. */
+const Seed = Schema.Struct(CAPTURE)
 
 export const CreateRequest = Schema.Struct({
   op: Schema.Literal("create"),
@@ -317,10 +338,11 @@ export interface Applied {
    *  back so an agent and a person both see it; absent when there is nothing
    *  to say, and never a reason a write did not happen. */
   readonly nudge?: string
-  /** Every node a capture created, parent before child and siblings in the
-   *  order they were given — id and title, so the caller can mark, note or
-   *  capture UNDER one of them without a search for the id it never chose.
-   *  Absent when the op created no subtree: `id` above is the whole answer. */
+  /** Every node this write brought into being, parent before child and siblings
+   *  in the order they were given — id and title, so the caller can mark, note
+   *  or capture UNDER one of them without a search for an id it never chose. A
+   *  plain capture is a list of one; absent only when the op created nothing,
+   *  which is how the format spells an empty list everywhere else. */
   readonly captured?: ReadonlyArray<Minted>
   /** The store revision this write produced. */
   readonly rev: number

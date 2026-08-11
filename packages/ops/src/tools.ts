@@ -205,14 +205,14 @@ export const TOOLS: ReadonlyArray<Tool> = [
   write(
     "create_outline",
     "Create an outline",
-    "Start a new outline file under the served directory. `file` is a relative `.jsonl` path (no absolute paths, no `..`); refused if that file already exists. Optionally pass `seed` with a title (and optional note/date/id) to mint the first node the way `add_node` does — otherwise the file is empty and further captures use `add_node` against it. This is how a brand-new outline is born: `add_node` only writes into outlines that are already loaded — and one `add_node` carrying `children` is how you fill it, so a fresh outline of a dozen nodes is two calls rather than thirteen.",
+    "Start a new outline file under the served directory. `file` is a relative `.jsonl` path (no absolute paths, no `..`); refused if that file already exists. Optionally pass `seed` with a title (and optional note/date/mark/id) to mint the first node the way `add_node` does — otherwise the file is empty and further captures use `add_node` against it. This is how a brand-new outline is born: `add_node` only writes into outlines that are already loaded — and one `add_node` carrying `children` is how you fill it, so a fresh outline of a dozen nodes is two calls rather than thirteen.",
     CreateRequest,
     { op: "create" },
   ),
   write(
     "add_node",
     "Add a node",
-    "Capture a new node, and — with `children` — everything under it. Give `parent` to put it under a node, or `file` to put it at the top level of an *existing* outline. It goes last among its siblings unless `before` or `after` names one. To start a brand-new outline file, use `create_outline` first.\n\nCAPTURE A WHOLE OUTLINE IN ONE CALL. `children` nests: each child takes the same fields as the node itself (`title`, and optional `desc` / `date` / `mark` / `id`) and may carry `children` of its own, three levels deep. Thirteen nodes is ONE call, not thirteen — one validation, one atomic write, one commit — so use it whenever you already know more than one node: rooms and what is in them, a plan and its steps, a page of notes. `before` / `after` place the node you are adding; the children land in the order you wrote them. Nothing is written unless all of it is, so a chosen `id` that collides anywhere in the tree refuses the whole call. The answer names every node it made in `captured` (id and title), which is how you mark, note or capture under one of them afterwards — including hanging a fourth level off a node from the third.",
+    "Capture a new node, and — with `children` — everything under it. Give `parent` to put it under a node, or `file` to put it at the top level of an *existing* outline. It goes last among its siblings unless `before` or `after` names one. To start a brand-new outline file, use `create_outline` first.\n\nUSE `children` WHENEVER YOU ALREADY KNOW MORE THAN ONE NODE — rooms and what is in them, a plan and its steps, a page of notes. Thirteen nodes is ONE call rather than thirteen: one validation, one atomic write, one commit, and nothing is written unless all of it is. The answer names every node it made in `captured` (id and title), which is how you mark, note or capture under one of them afterwards.",
     AddRequest,
     { op: "add" },
   ),

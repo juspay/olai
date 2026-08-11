@@ -115,10 +115,15 @@ planned at once cannot half-land: the gate already writes all files or none.
   call atomic.
 - **The answer names what it made.** `captured` carries every node's id and
   title, parent before child. A minted id is unguessable, and an agent that
-  just wrote thirteen nodes should not have to search for them to mark one.
+  just wrote thirteen nodes should not have to search for them to mark one. It
+  has ONE shape: a plain capture is a list of one, a seeded `create` is too,
+  and it is absent only from the ops that create nothing — which is how the
+  format spells an empty list everywhere else. Only the commit subject asks
+  whether anything came along, since `(+0)` would count nothing.
 - **It nests three levels deep, and that cap is the JSON Schema's.** Neither
-  the format nor the planner's walk has a depth limit; what does is the schema
-  an MCP host reads. A recursive Effect schema compiles to a `$ref` into a
+  the format nor planning a tree wants a depth limit; what has one is the
+  schema an MCP host reads, and the planner enforces THAT rather than one of
+  its own. A recursive Effect schema compiles to a `$ref` into a
   `$defs` pool, and the adapter that projects these schemas inlines every local
   ref and strips the pool, because `$ref` is rejected across the host matrix it
   is byte-compatible with — so a ref it cannot inline finitely would survive as
@@ -183,7 +188,9 @@ already knows how to read is worth more than a better one they do not:
 the set already holds. The path is a relative `.jsonl` under the served
 directory, judged segment by segment the way `/media/*` judges a picture name
 (no absolute path, no `..`), and an existing file is refused rather than
-overwritten. A seeded create mints the first node the same way a capture does;
+overwritten. A seeded create mints the first node the way a capture does, and
+that is now one function rather than a promise: `seed` IS the capture fields,
+mark included, through the same builder `add` uses;
 an empty one leaves a zero-byte outline for later `add_node`s.
 
 The last field edits (including `see`) are this format's own: the reference had
