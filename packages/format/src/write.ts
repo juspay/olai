@@ -18,49 +18,57 @@
  * embedded newlines are escaped by JSON itself, which is the whole reason the
  * format is JSONL).
  *
- * Field order comes from docs/format.md's own table — the same place a reader
- * looks for "what fields exist" — because a writer that kept its own list is a
- * list that drifts.
+ * Field order comes from docs/format.md's own table, and WHICH fields exist
+ * comes from the record schema itself — because a writer keeping its own copy
+ * of either is a copy that drifts, and the way it drifts here is by quietly
+ * not writing a field somebody added.
  *
  * The other half of "one spelling" is {@link nothing}: an optional field that
  * holds nothing is not written at all, so no writer can put `null`, `[]` or `""`
  * into a file where the format says the field is simply absent.
  */
 
-import { isMirror, type Located, type Node } from "./node.ts"
+import {
+  isMirror,
+  type Located,
+  MirrorNode,
+  type Node,
+  RegularNode,
+} from "./node.ts"
 
 /**
- * Canonical field order, and which fields a record must carry.
+ * WHICH fields a record may carry, from the schema that defines them.
  *
- * docs/format.md's table, in its order, split by its "required" column — the
- * split is what {@link serializeNode}'s omission rule turns on, so it is
- * declared once rather than re-derived from a list of names somewhere else.
- * A mirror carries only its four (`parent` optional at top level).
+ * Not a list beside the schema, and that is the whole point: this function
+ * writes only the fields it knows, so a field the record gained and a list
+ * here did not would be **silently dropped on the next write** — a format's
+ * writer losing data that parsed. `todo` arriving as a third mark is exactly
+ * that edit, and it should not have depended on anybody remembering.
  */
-const REGULAR_FIELDS = {
-  required: ["id", "ord", "title"],
-  optional: [
-    "parent",
-    "done",
-    "doing",
-    "todo",
-    "date",
-    "desc",
-    "doc",
-    "after",
-    "blocks",
-    "see",
-  ],
-} as const
+const KNOWN = {
+  regular: new Set<string>(Object.keys(RegularNode.fields)),
+  mirror: new Set<string>(Object.keys(MirrorNode.fields)),
+}
 
-const MIRROR_FIELDS = {
-  required: ["id", "ord", "mirror"],
-  optional: ["parent"],
-} as const
+/**
+ * Which of them a record must carry WHATEVER it holds — docs/format.md's
+ * table, split by its "required" column. That split is a rule about meaning
+ * rather than about the shape (see {@link serializeNode}'s asymmetry), so it
+ * is spelled here; everything not named is optional and omitted when empty.
+ */
+const REQUIRED = {
+  regular: new Set<string>(["id", "ord", "title"]),
+  mirror: new Set<string>(["id", "ord", "mirror"]),
+}
 
 /** The canonical ORDER, which is not the required/optional split: a reader
  *  looks for `parent` between `id` and `ord`, wherever it sits in the table
- *  above. Spelled from docs/format.md's row order. */
+ *  above. Spelled from docs/format.md's row order, and NOT taken from the
+ *  schema's declaration order like {@link KNOWN} — the order of fields in a
+ *  file is a contract, so it is written where the contract is rather than
+ *  falling out of the order somebody happened to declare a struct in. A field
+ *  the schema has and this list does not is a test failure (`write.test.ts`),
+ *  because it would otherwise be a field that never reaches disk. */
 const ORDER = [
   "id",
   "parent",
@@ -111,9 +119,9 @@ const nothing = (value: unknown): boolean =>
  * SAYS what it is.
  */
 export const serializeNode = (node: Node): string => {
-  const fields = isMirror(node) ? MIRROR_FIELDS : REGULAR_FIELDS
-  const required: ReadonlySet<string> = new Set(fields.required)
-  const known: ReadonlySet<string> = new Set([...fields.required, ...fields.optional])
+  const shape = isMirror(node) ? "mirror" : "regular"
+  const known = KNOWN[shape]
+  const required = REQUIRED[shape]
 
   const record: Record<string, unknown> = {}
   for (const field of ORDER) {
