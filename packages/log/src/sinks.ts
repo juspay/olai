@@ -20,6 +20,12 @@
  * decoder and any agent parsing depend on that shape. Pretty may only exist
  * where no machine reads.
  *
+ * Colour follows the *destination* stream, not stdout: Effect's
+ * `consolePretty` defaults colour off `process.stdout.isTTY` at construction,
+ * which is wrong for `olai mcp` (stdout is the protocol pipe; the human is on
+ * stderr). Each sink builds its own pretty logger with `colors` taken from
+ * the stream it writes to, and from `NO_COLOR` when that is set.
+ *
  * `OLAI_LOG=logfmt|pretty` forces either face regardless of the TTY. The check
  * lives here, inside the sink layer, so `toStdout` / `toStderr` call sites do
  * not change and do not re-decide the format.
@@ -47,14 +53,37 @@ import { Layer, Logger } from "effect"
 /** Stream shape we need for the TTY check — Node's stdout/stderr, or a stub. */
 type Stream = { readonly isTTY?: boolean }
 
+let warnedInvalidOlaiLog = false
+
 /**
  * Which face a line gets. `OLAI_LOG=logfmt|pretty` wins; otherwise a TTY is
- * pretty and everything else (pipe, systemd, tests) is logfmt.
+ * pretty and everything else (pipe, systemd, tests) is logfmt. An unrecognised
+ * value is ignored (with one diagnostic) rather than treated as a third face.
  */
 export const formatFor = (stream: Stream): "pretty" | "logfmt" => {
   const forced = process.env["OLAI_LOG"]
   if (forced === "pretty" || forced === "logfmt") return forced
+  if (forced !== undefined && forced !== "" && !warnedInvalidOlaiLog) {
+    warnedInvalidOlaiLog = true
+    // One line, once: a typo in the documented knob would otherwise look like
+    // "it works" while silently following the TTY.
+    console.error(
+      `@olai/log: ignoring OLAI_LOG=${JSON.stringify(forced)}; expected "logfmt" or "pretty"`,
+    )
+  }
   return stream.isTTY === true ? "pretty" : "logfmt"
+}
+
+/**
+ * Whether pretty output should carry ANSI. Follows the destination stream —
+ * not stdout — and the [NO_COLOR](https://no-color.org/) convention (set and
+ * non-empty disables). Effect's default looks only at stdout at construction,
+ * which is the wrong stream for `toStderr`.
+ */
+export const colorsFor = (stream: Stream): boolean => {
+  const noColor = process.env["NO_COLOR"]
+  if (noColor !== undefined && noColor !== "") return false
+  return stream.isTTY === true
 }
 
 /**
@@ -71,13 +100,17 @@ const adaptive = (
     ;(formatFor(stream) === "pretty" ? pretty : logfmt).log(options)
   })
 
-const pretty = Logger.consolePretty()
+// One pretty logger per destination: colour is fixed from *that* stream (and
+// NO_COLOR), not from stdout. Sharing a single consolePretty() left `olai mcp`
+// monochrome whenever stdout was the protocol pipe.
+const prettyStdout = Logger.consolePretty({ colors: colorsFor(process.stdout) })
+const prettyStderr = Logger.consolePretty({ colors: colorsFor(process.stderr) })
 const logfmtStdout = Logger.consoleLogFmt
 const logfmtStderr = Logger.withConsoleError(Logger.formatLogFmt)
 
 /** Logs on stdout — `olai web`, and the default for anything else. */
 export const toStdout: Layer.Layer<never> = Logger.layer([
-  adaptive(process.stdout, pretty, logfmtStdout),
+  adaptive(process.stdout, prettyStdout, logfmtStdout),
   Logger.tracerLogger,
 ])
 
@@ -90,7 +123,7 @@ export const toStdout: Layer.Layer<never> = Logger.layer([
  */
 export const toStderr: Layer.Layer<never> = Layer.merge(
   Logger.layer([
-    adaptive(process.stderr, pretty, logfmtStderr),
+    adaptive(process.stderr, prettyStderr, logfmtStderr),
     Logger.tracerLogger,
   ]),
   Layer.succeed(Logger.LogToStderr, true),

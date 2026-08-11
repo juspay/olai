@@ -22,7 +22,7 @@ import { expect, test } from "bun:test"
 import { Effect, Layer, Logger } from "effect"
 import { TestConsole } from "effect/testing"
 
-import { formatFor, toStderr, toStdout } from "./sinks.ts"
+import { colorsFor, formatFor, toStderr, toStdout } from "./sinks.ts"
 
 /** Say one thing through `sink`, and answer which stream it went to. */
 const written = (
@@ -147,6 +147,22 @@ test("OLAI_LOG=pretty forces pretty even when the stream is not a TTY", async ()
   })
 })
 
+// The load-bearing new wiring: pretty on toStderr must still leave stdout
+// empty. If LogToStderr were dropped, pretty would land on stdout and corrupt
+// the JSON-RPC stream on `olai mcp`, with every logfmt-only test still green.
+test("OLAI_LOG=pretty on toStderr keeps stdout empty (the protocol stream)", async () => {
+  await withOlaiLog("pretty", async () => {
+    const { err, out } = await written(toStderr)
+
+    expect(out).toEqual([])
+    expect(err.length).toBeGreaterThan(0)
+    const joined = err.map(String).join("\n")
+    expect(joined).toContain("serving")
+    expect(joined).not.toMatch(/^timestamp=\S+ level=Info /m)
+    expect(joined).toMatch(/INFO/)
+  })
+})
+
 test("OLAI_LOG=logfmt forces logfmt even when the stream is a TTY", () => {
   const prev = process.env["OLAI_LOG"]
   process.env["OLAI_LOG"] = "logfmt"
@@ -168,5 +184,23 @@ test("without OLAI_LOG, a TTY is pretty and a pipe is logfmt", () => {
   } finally {
     if (prev === undefined) delete process.env["OLAI_LOG"]
     else process.env["OLAI_LOG"] = prev
+  }
+})
+
+// Colour is a property of the DESTINATION stream (and NO_COLOR), not of
+// stdout — the bug that left `olai mcp` monochrome whenever stdout was piped.
+test("colours follow the destination stream and honour NO_COLOR", () => {
+  const prev = process.env["NO_COLOR"]
+  try {
+    delete process.env["NO_COLOR"]
+    expect(colorsFor({ isTTY: true })).toBe(true)
+    expect(colorsFor({ isTTY: false })).toBe(false)
+    expect(colorsFor({})).toBe(false)
+
+    process.env["NO_COLOR"] = "1"
+    expect(colorsFor({ isTTY: true })).toBe(false)
+  } finally {
+    if (prev === undefined) delete process.env["NO_COLOR"]
+    else process.env["NO_COLOR"] = prev
   }
 })
