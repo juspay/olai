@@ -15,11 +15,11 @@
 import { collector, findSaid } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
-import { execFileSync } from "node:child_process"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
+import { gitIn as git, repoAt } from "./fixtures.testlib.ts"
 import { open, type Repo } from "./git.ts"
 
 /** A directory with a file in it and no repository anywhere it can reach —
@@ -31,18 +31,10 @@ const loose = (): { readonly root: string; readonly file: string } => {
   return { root, file }
 }
 
-const git = (root: string) => (...argv: ReadonlyArray<string>): string =>
-  execFileSync("git", argv, { cwd: root, encoding: "utf8" })
-
 /** The same directory, with a repository and one commit in it. */
 const repo = (): { readonly root: string; readonly file: string } => {
   const made = loose()
-  const run = git(made.root)
-  run("init", "--quiet", "--initial-branch", "main")
-  run("config", "user.email", "test@olai.invalid")
-  run("config", "user.name", "olai tests")
-  run("add", "-A")
-  run("commit", "--quiet", "-m", "fixtures")
+  repoAt(made.root)
   return made
 }
 

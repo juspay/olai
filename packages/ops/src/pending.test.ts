@@ -14,7 +14,6 @@
  *   - that only the served outlines are ever staged.
  */
 
-import { execFileSync } from "node:child_process"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -26,6 +25,7 @@ import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 
 import { codec } from "./codec.ts"
+import { gitIn, repoAt } from "./fixtures.testlib.ts"
 import * as Mcp from "./mcp.ts"
 import * as Ops from "./ops.ts"
 
@@ -58,13 +58,8 @@ const withRepo = <A>(
   }
   for (const [file, contents] of Object.entries(files)) write(file, contents)
 
-  const git = (...argv: ReadonlyArray<string>): string =>
-    execFileSync("git", argv, { cwd: root, encoding: "utf8" })
-  git("init", "--quiet", "--initial-branch", "main")
-  git("config", "user.email", "test@olai.invalid")
-  git("config", "user.name", "olai tests")
-  git("add", "-A")
-  git("commit", "--quiet", "-m", "fixtures")
+  const git = gitIn(root)
+  repoAt(root)
 
   return Effect.gen(function*() {
     const store: Store.Store<OutlineSet, ReadonlyArray<OutlineError>> = yield* Store.make({

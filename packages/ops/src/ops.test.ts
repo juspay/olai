@@ -22,6 +22,7 @@ import { describe, expect, test } from "bun:test"
 import { Effect, Result, SubscriptionRef } from "effect"
 
 import { codec } from "./codec.ts"
+import { repoAt } from "./fixtures.testlib.ts"
 import * as Mcp from "./mcp.ts"
 import * as Ops from "./ops.ts"
 import type { Applied, Request } from "./request.ts"
@@ -60,15 +61,7 @@ const withOps = <A>(
   }
   for (const [file, contents] of Object.entries(files)) write(file, contents)
 
-  if (options.git === true) {
-    const git = (...argv: ReadonlyArray<string>) =>
-      execFileSync("git", argv, { cwd: root, stdio: "ignore" })
-    git("init", "--quiet")
-    git("config", "user.email", "test@olai.invalid")
-    git("config", "user.name", "olai tests")
-    git("add", "-A")
-    git("commit", "--quiet", "-m", "fixtures")
-  }
+  if (options.git === true) repoAt(root)
 
   return Effect.gen(function*() {
     const store = yield* Store.make({ root, codec, watch: false, settle: "10 millis" })

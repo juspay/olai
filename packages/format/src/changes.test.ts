@@ -13,13 +13,23 @@
 import { describe, expect, test } from "bun:test"
 
 import { biggestOf, changesOf, type Records } from "./changes.ts"
-import type { Node } from "./node.ts"
+import { nodesOf } from "./fixtures.testlib.ts"
 
-const node = (record: Partial<Node> & { id: string }): Node =>
-  ({ ord: "a0", title: record.id, ...record }) as Node
+/**
+ * One file's side of a comparison, out of JSONL text.
+ *
+ * Through the real parser rather than as record literals with a cast, for the
+ * reason the testlib exists: what is under test HERE is which fields differ, so
+ * a fixture free to carry a field the schema does not have — or to omit one it
+ * requires — would be a test measuring nothing. A fixture that will not parse
+ * throws, with the line quoted.
+ */
+const at = (file: string, ...lines: ReadonlyArray<string>): Records =>
+  new Map([[file, nodesOf(lines.join("\n"), file).map((located) => located.node)]])
 
-const at = (file: string, ...nodes: ReadonlyArray<Node>): Records =>
-  new Map([[file, nodes]])
+/** One record, as the line a writer would have produced. */
+const node = (record: Readonly<Record<string, unknown>>): string =>
+  JSON.stringify({ ord: "a0", title: String(record["id"]), ...record })
 
 describe("what changed", () => {
   test("a node nobody had before is created", () => {
@@ -67,8 +77,9 @@ describe("what changed", () => {
 
   test("an unchanged node is not a change", () => {
     const same = node({ id: "x", title: "x", see: ["y"] })
-    expect(changesOf(at("a.jsonl", same), at("a.jsonl", { ...same, see: ["y"] })))
-      .toEqual([])
+    // Two READINGS of the same bytes: equal lists compare equal, which is the
+    // one thing a shallow `===` over an array field would get wrong.
+    expect(changesOf(at("a.jsonl", same), at("a.jsonl", same))).toEqual([])
   })
 
   test("every field that differs is reported, and the sort is the biggest of them", () => {
@@ -81,12 +92,12 @@ describe("what changed", () => {
     expect(change?.sort).toBe("moved")
   })
 
+  // A mirror has no title of its own — it is a second placement of a node that
+  // does — so what a change calls it is the id it was named by.
   test("a mirror answers by the id it was named by", () => {
-    const before = at("a.jsonl", node({ id: "m", mirror: "x" } as Partial<Node> & { id: string }))
-    const after = at(
-      "a.jsonl",
-      node({ id: "m", ord: "a1", mirror: "x" } as Partial<Node> & { id: string }),
-    )
+    const mirror = (ord: string) => JSON.stringify({ id: "m", ord, mirror: "x" })
+    const before = at("a.jsonl", mirror("a0"), `{"id":"x","ord":"a1","title":"x"}`)
+    const after = at("a.jsonl", mirror("a2"), `{"id":"x","ord":"a1","title":"x"}`)
     expect(changesOf(before, after)[0]).toMatchObject({ title: "m", sort: "moved" })
   })
 })
@@ -94,18 +105,13 @@ describe("what changed", () => {
 describe("the biggest one", () => {
   test("is by the fixed priority, and the first read among equals", () => {
     const changes = changesOf(
-      new Map([[
+      at("a.jsonl", node({ id: "keep" }), node({ id: "mark", ord: "a1" })),
+      at(
         "a.jsonl",
-        [node({ id: "keep" }), node({ id: "mark" })],
-      ]]),
-      new Map([[
-        "a.jsonl",
-        [
-          node({ id: "keep", desc: "written" }),
-          node({ id: "mark", done: "2026-08-10" }),
-          node({ id: "fresh" }),
-        ],
-      ]]),
+        node({ id: "keep", desc: "written" }),
+        node({ id: "mark", ord: "a1", done: "2026-08-10" }),
+        node({ id: "fresh", ord: "a2" }),
+      ),
     )
     // created, then done, then noted — so the created one wins whatever order
     // the files put them in.
