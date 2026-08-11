@@ -144,12 +144,12 @@ const MARK_TOOL = {
   doing: {
     title: "Mark doing",
     description:
-      "Mark a node as under way, or undo that with `undo: true`. Stored as `true` and not dated: only finishing is stamped, because a date on a mark puts the node on that day's journal page and starting something is not what that page is about. A node that is already done must be un-done first. Works on any node, children or not.",
+      "Mark a node as under way, or undo that with `undo: true`. Stored as `true` and not dated, and a date written here by hand would place the node nowhere: the journal reads a node's `date` and its `done` instant only, because the day work was picked up is a fact about the task rather than about the day. A node that is already done must be un-done first. Works on any node, children or not.",
   },
   todo: {
     title: "Mark todo",
     description:
-      "Mark a node as work that has not started, or undo that with `undo: true`. Stored as `true` and not dated: filing something is not an event a day page is about, so use `set_date` to say which day it is FOR. This is what makes a bullet a TASK: a node with no mark is not an unstarted task, it is not a task at all, so there is nothing to search for until someone says otherwise. Works on any node, children or not — a parent whose children are all notes is marked exactly like a leaf.",
+      "Mark a node as work that has not started, or undo that with `undo: true`. Stored as `true` and not dated, and a date written here by hand would place the node nowhere: the journal reads a node's `date` and its `done` instant only, so `set_date` is what says which day a task is FOR. This is what makes a bullet a TASK: a node with no mark is not an unstarted task, it is not a task at all, so there is nothing to search for until someone says otherwise. Works on any node, children or not — a parent whose children are all notes is marked exactly like a leaf.",
   },
 } as const satisfies Record<Status, { readonly title: string; readonly description: string }>
 

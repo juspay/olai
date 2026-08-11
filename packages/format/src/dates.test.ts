@@ -48,10 +48,13 @@ const MARKED = derive(
       `{"id":"quote","ord":"a2","title":"get a quote","done":"2026-08-11T17:02:00-04:00","date":"2026-08-11T08:00"}`,
       // A mark that says only that the state was reached. Legal, and on no day.
       `{"id":"demo","ord":"a3","title":"take out the counters","done":true}`,
-      // The other two marks carry dates too, and the checkbox is what says
-      // which kind it is.
+      // The other two marks may carry dates — the format allows it, and these
+      // are what the roadmap was full of — and no view here reads them.
       `{"id":"cabinets","ord":"a4","title":"install the cabinets","doing":"2026-08-11T11:00:00-04:00"}`,
       `{"id":"paint","ord":"a5","title":"paint the hall","todo":"2026-08-13"}`,
+      // A dated `todo` that is ALSO scheduled: the `date` places it, the
+      // `todo` adds nothing, and it is one row rather than two.
+      `{"id":"tiles","ord":"a6","title":"pick the tiles","todo":"2026-08-11","date":"2026-08-14"}`,
     ].join("\n"),
   }),
 )
@@ -179,33 +182,49 @@ test("two dates on one day are one row", () => {
 })
 
 // `true` says the state was reached and declines to say when — the shape
-// everything written before the marks carried instants still has.
+// everything written before `done` carried instants still has.
 test("a mark with no date is on no day", () => {
   expect(idsOf(MARKED, "2026-08-11")).not.toContain("demo")
+})
+
+/**
+ * The rule the human resolved on 2026-08-11 after seeing a day page under it:
+ * `doing` and `todo` dates are NOT read, however legal they are on disk.
+ *
+ * Asserted negatively and from both ends, because the failure this pins is a
+ * row that should not be there: `cabinets` was picked up on the 11th and
+ * `paint` filed for the 13th, so under the old rule the 11th gained a row and
+ * the 13th gained a whole DAY — a dot on a calendar for a day nothing is
+ * actually on.
+ */
+test("a dated `doing` or `todo` puts a node nowhere", () => {
+  expect(idsOf(MARKED, "2026-08-11")).not.toContain("cabinets")
+  expect(datedOn(MARKED, "2026-08-13")).toEqual([])
+  expect(datedDays(MARKED, "2026-08").has("2026-08-13")).toBe(false)
+})
+
+// A node can carry both, and only the `date` half is read: one row, on the day
+// it is scheduled for, and nothing on the day it was filed.
+test("a node's `date` is read while its `todo` date is not", () => {
+  expect(idsOf(MARKED, "2026-08-14")).toEqual(["tiles"])
+  expect(occasionOf("2026-08-14", "tiles")).toBe("date")
+  expect(idsOf(MARKED, "2026-08-11")).not.toContain("tiles")
+})
+
+// The month's dots are that same rule, read the other way: three days have
+// something on them, and the two that only a `doing` or a `todo` named do not.
+test("only the read fields light a month's days", () => {
   expect([...datedDays(MARKED, "2026-08")].sort()).toEqual([
     "2026-08-11",
     "2026-08-12",
-    "2026-08-13",
+    "2026-08-14",
   ])
 })
 
-// Any dated mark places a node, not only `done`: the format lets all three
-// carry a date, and the checkbox is what says which kind it is.
-test("a dated `doing` or `todo` puts a node on its day too", () => {
-  expect(occasionOf("2026-08-11", "cabinets")).toBe("doing")
-  expect(occasionOf("2026-08-13", "paint")).toBe("todo")
-})
-
-// One order over every date on the day, whichever field it came off: a bare
-// date is the day itself and comes first, and the two instants follow in the
-// order they happened.
+// One order over both fields: a bare date is the day itself and comes first,
+// and the instants follow in the order they happened.
 test("a day's rows are in time order across the fields", () => {
-  expect(idsOf(MARKED, "2026-08-11")).toEqual([
-    "survey",
-    "quote",
-    "cabinets",
-    "header",
-  ])
+  expect(idsOf(MARKED, "2026-08-11")).toEqual(["survey", "quote", "header"])
 })
 
 // The row carries the date it is THERE for, not whatever else the node stores

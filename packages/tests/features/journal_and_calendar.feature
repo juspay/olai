@@ -116,6 +116,18 @@ Feature: The journal, and the month in the sidebar
     And there should be no page errors
 
   @corpus:journal
+  Scenario: A date on a `todo` is not a day
+    # Two fields put a node on a day — `date` and a dated `done` — and the
+    # other two marks are passed over however legal their dates are (resolved
+    # 2026-08-11 by the human, from a day page buried under everything filed
+    # that morning). `filed` carries `todo: 2019-11-21` and nothing else, so
+    # the 21st has nothing on it: no dot to press, and a page that says so.
+    When I open the day "2019-11-21"
+    Then the day "2019-11-21" is inert
+    And the day is empty
+    And there should be no page errors
+
+  @corpus:journal
   Scenario: A node with two dates is on both days, and each says which
     # Scheduled-on and completed-on are two different sentences about one node,
     # so a reader has to be able to tell which one they are reading. The badge

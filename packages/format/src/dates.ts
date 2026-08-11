@@ -7,14 +7,19 @@
  * node in every outline, and the answer is computed here, at view time, from
  * the same records the validator approved.
  *
- * EVERY date a node carries counts, and that is the 2026-08-11 decision. The
- * `date` field is what a node is scheduled for; a MARK may carry a date too —
+ * TWO fields put a node on a day, and that is the 2026-08-11 decision: `date`,
+ * which is what the node is scheduled for, and a dated `done` —
  * `{"done":"2026-08-11T15:40:03-04:00"}` is a node someone finished at that
- * instant (docs/format.md) — and a journal that showed what was scheduled but
- * not what was finished would be missing the half of the day that actually
+ * instant (docs/format.md). A journal that showed what was scheduled but not
+ * what was finished would be missing the half of the day that actually
  * happened. So both are read, one node can be on two days, and which of its
  * dates put it on a given day travels with it ({@link Occasion}) rather than
  * being guessed at by whoever draws the row.
+ *
+ * A dated `doing` or `todo` is read by NEITHER of the questions below. The
+ * format allows a date on any of the three marks; a journal is narrower than
+ * the format on purpose, and {@link datesOf} is where that line is drawn and
+ * argued.
  *
  * Two questions, because there are two surfaces asking:
  *
@@ -64,18 +69,24 @@ export const dayOf = (value: string): string => value.slice(0, DAY)
 export const monthOf = (value: string): string => value.slice(0, MONTH)
 
 /**
- * WHY a node is on a day: which of its dates put it there.
+ * WHY a node is on a day: which of its two dates put it there.
  *
- * `date` is what the node is scheduled for; a mark's date is when that state
- * was REACHED. Two different sentences about the same day, and a reader
- * looking at a day page is entitled to know which one they are reading — so
- * the answer is carried rather than inferred from the fields, which is a thing
- * a view could only get wrong.
+ * `date` is what the node is scheduled FOR; `done` is when the work was
+ * finished. Two different sentences about the same day, and a reader looking at
+ * a day page is entitled to know which one they are reading — so the answer is
+ * carried rather than inferred from the fields, which is a thing a view could
+ * only get wrong.
  *
- * The marks are read off {@link Status} rather than listed again: a fourth
- * mark should not be a date this module quietly ignores.
+ * TWO, and not one per mark. `doing` and `todo` may carry dates — the format
+ * takes an ISO value on any of the three — and a day page reads NEITHER
+ * (resolved 2026-08-11, human, from seeing it live). A journal is a record of
+ * what happened and what is coming: finishing is an event, and being scheduled
+ * is a plan, but "this was filed on Tuesday" and "this was picked up on
+ * Tuesday" are facts about a task's paperwork. Read as days they buried the
+ * 11th under every item captured that morning. The values stay legal and stay
+ * on disk untouched; these views simply do not ask about them.
  */
-export type Occasion = "date" | Status
+export type Occasion = "date" | Extract<Status, "done">
 
 /** A date a record carries, and the field that carried it — the pair, named
  *  once, because everything below passes them together and a row that had one
@@ -96,31 +107,40 @@ interface Dated extends Occasioned {
 }
 
 /**
- * Every date one record carries, in PRECEDENCE order: what it is scheduled
- * for, then the date on the mark it stores.
+ * The dates one record puts on a calendar, in PRECEDENCE order: what it is
+ * scheduled for, then when it was finished.
  *
- * A mark holding `true` is on no day at all. It says the state was reached and
- * declines to say when, which is a legal record (docs/format.md) and is the
- * shape everything written before the marks carried instants still has: there
- * is nothing to put on a calendar, and inventing a day for it would put years
- * of finished work on whatever day it was read.
+ * TWO FIELDS ARE READ — `date` and `done` — and this is the whole of the rule
+ * (resolved 2026-08-11, human). A dated `doing` or `todo` is a legal record and
+ * is passed over here: the format lets any mark carry an ISO value, and what a
+ * JOURNAL is for is narrower than what the format allows. A day answers "what
+ * is on, and what got done"; "this was filed on Tuesday" and "this was picked
+ * up on Tuesday" are facts about a task rather than about the day, and read as
+ * days they bury the day's real answer under everything captured that morning.
+ * Nothing is written or rewritten to make that true — the values stay on disk,
+ * and a reader that wants them can read them off the node.
+ *
+ * A mark holding `true` is on no day either. It says the state was reached and
+ * declines to say when, which is a legal record and is the shape everything
+ * written before `done` carried instants still has: there is nothing to put on
+ * a calendar, and inventing a day for it would put years of finished work on
+ * whatever day it was read.
  *
  * The mark is asked for through {@link storedMarker}, so a set the validator
  * has already condemned — two marks on one record — resolves the same one here
- * as it does in the checkbox.
+ * as it does in the checkbox: a record carrying `done` AND `todo` is on its
+ * `done` day exactly when its checkbox is the one that says done.
  *
- * The order decides exactly one thing, and only for a node whose dates land on
- * the SAME day: which occasion that day names ({@link datedOn}). `date` first,
- * because a mark's kind is already on the row in its checkbox and the day it
- * was scheduled for is not written anywhere else.
+ * The order decides exactly one thing, and only for a node whose two dates land
+ * on the SAME day: which occasion that day names ({@link datedOn}). `date`
+ * first, because the checkbox has already said the work is finished and the day
+ * it was scheduled for is not written anywhere else.
  */
 const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
   const dates: Array<Occasioned> = []
   if (node.date !== undefined) dates.push({ occasion: "date", date: node.date })
-  const mark = storedMarker(node)
-  if (mark !== undefined) {
-    const marked = node[mark]
-    if (typeof marked === "string") dates.push({ occasion: mark, date: marked })
+  if (storedMarker(node) === "done" && typeof node.done === "string") {
+    dates.push({ occasion: "done", date: node.done })
   }
   return dates
 }

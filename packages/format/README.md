@@ -113,13 +113,16 @@ would be worse than no dot. Dates stay TEXT here as everywhere else: a day is a
 ten-character prefix, a month a seven-character one, and a datetime counts for
 its own day.
 
-EVERY date a node carries is read, not only its `date` field: a mark may carry
-one — `{"done":"2026-08-11T15:40:03-04:00"}` — and a journal without the work
-that was finished is missing the half of the day that happened. So a node with
-two dates is on two days, two dates on one day are one row, and each row says
+TWO fields are read, not only `date`: a dated `done`
+(`{"done":"2026-08-11T15:40:03-04:00"}`) places a node too, because a journal
+without the work that was finished is missing the half of the day that
+happened. A dated `doing` or `todo` is read by neither question (2026-08-11,
+human): the format allows it, a journal is narrower than the format, and
+"picked up on Tuesday" buried the day under everything filed that morning. So a
+node with two dates is on two days, two dates on one day are one row, and each row says
 which of the node's dates put it there (`Occasion`), because scheduled-on and
 finished-on are two different sentences and only the reader can be told which
-one they are reading. A mark holding `true` is on no day: it declines to say
+one they are reading. A `done` holding `true` is on no day: it declines to say
 when, and inventing an answer would file every old `true` under today. The
 ARCHIVE is not filtered out and that is a decision (2026-08-11): blockedness
 exempts archived work at both ends because nothing waits on what is over, and a

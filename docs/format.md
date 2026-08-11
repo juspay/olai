@@ -22,8 +22,8 @@ In canonical order (writes always re-serialize the whole record in this order; a
 | `parent` | no | Parent id, same file. Absent at top level. |
 | `ord` | both shapes | Sibling order: a fractional-index string over base62 (`0-9A-Za-z`). Plain string comparison is the sort; never a float. |
 | `title` | regular nodes | Verbatim text. Inline `#tags` live here and are extracted at view time. |
-| `done` / `doing` / `todo` | no | The three MARKS: `true` or an ISO date/datetime string, which is WHEN that state was reached. At most ONE of the three — they are three answers to one question. Storable on ANY node, children or not. A node carrying none of them is not a task at all — see [Status](#status). A dated mark also puts the node on that day — see [Days](#days). |
-| `date` | no | ISO date/datetime: what the node is SCHEDULED for. A node with a `date` is a day node, and so is one whose mark carries a date — see [Days](#days). |
+| `done` / `doing` / `todo` | no | The three MARKS: `true` or an ISO date/datetime string, which is WHEN that state was reached. At most ONE of the three — they are three answers to one question. Storable on ANY node, children or not. A node carrying none of them is not a task at all — see [Status](#status). A dated `done` also puts the node on that day; a dated `doing` or `todo` does not — see [Days](#days). |
+| `date` | no | ISO date/datetime: what the node is SCHEDULED for. A node with a `date` is a day node, and so is one carrying a dated `done` — see [Days](#days). |
 | `desc` | no | The note: one string, embedded newlines. Markdown, rendered only at view time; stored verbatim. |
 | `doc` | no | Relative path to an attached `.md` document, resolved against the directory of the outline that names it. |
 | `after` / `blocks` / `see` | no | Arrays of target ids (any file in the set). Closed set of relations. `blocks` is sugar: `a blocks b` means `b after a`. `after` (with normalized `blocks`) must stay acyclic, and is what a node being **blocked** is derived from ([Status](#status)); `see` is a free cross-reference. |
@@ -71,14 +71,22 @@ TIME, over the whole served directory: there is no journal file, no stored
 year→month hierarchy and no filename that means anything. A day is a question
 asked of every node in every outline.
 
-**Every date a node carries counts**, and there are two kinds. `date` is what
-the node is scheduled for. A mark's date is when that state was REACHED —
-`{"done":"2026-08-11T15:40:03-04:00"}` is work someone finished at that
-instant. Both put the node on their day, identically: a node finished on the
-11th is on the 11th's page and lights the 11th in the calendar exactly as a
-node scheduled for it is. (That is a change, resolved 2026-08-11. Only `date`
-used to be read, and the consequence was that finished work — the thing a
-journal is most often asked about — was the one thing not in it.)
+**Two fields put a node on a day**: `date`, which is what it is scheduled for,
+and a dated `done` — `{"done":"2026-08-11T15:40:03-04:00"}` is work someone
+finished at that instant. Both place identically: a node finished on the 11th is
+on the 11th's page and lights the 11th in the calendar exactly as a node
+scheduled for it is. (That is a change, resolved 2026-08-11. Only `date` used to
+be read, and the consequence was that finished work — the thing a journal is
+most often asked about — was the one thing not in it.)
+
+**A dated `doing` or `todo` places nothing.** The format lets any of the three
+marks carry a date and these views read neither of those two (resolved
+2026-08-11, from seeing a day page under the other rule). A journal is narrower
+than the format on purpose: a day answers *what is on, and what got done*, while
+"this was picked up on Tuesday" and "this was filed on Tuesday" are facts about
+a task's own history — read as days they bury the day's real answer under
+everything that was captured that morning. The values stay legal, stay on disk
+untouched, and a node's own row still shows the mark it carries.
 
 - **A node with two dates is on two days**, once each. Scheduled for the 10th
   and finished on the 11th is a true statement about both days.
@@ -86,9 +94,9 @@ journal is most often asked about — was the one thing not in it.)
   day claiming two of it would be counting the record rather than the event.
   The row names which of its dates it is there for, and `date` wins that
   naming: which kind of mark it is, the checkbox has already said.
-- **A mark holding `true` is on no day.** It says the state was reached and
+- **A `done` holding `true` is on no day.** It says the work is finished and
   declines to say when — which is legal, and is the shape of everything written
-  before marks carried instants. There is nothing to put on a calendar, and
+  before `done` carried instants. There is nothing to put on a calendar, and
   inventing a day for it would file years of finished work under whatever day
   it was read on.
 - **The day is the first ten characters**, here as everywhere: dates are text,
@@ -96,7 +104,7 @@ journal is most often asked about — was the one thing not in it.)
   offset is part of the day it names — a stamp is written in the zone of the
   person who made it, and the day is theirs.
 - **Work that was archived keeps its days** (resolved 2026-08-11). A node in an
-  `Archive.jsonl` with a dated mark lights its day and is on its page, and the
+  `Archive.jsonl` with a dated `done` lights its day and is on its page, and the
   group heading says which file it came out of. Blockedness exempts the archive
   at both ends because nothing can be waiting on work that is over
   ([Status](#status)); a journal is asking the other question — what happened —
@@ -106,11 +114,10 @@ journal is most often asked about — was the one thing not in it.)
 What a WRITER does with that is policy, not format ([Writing](#writing)), and
 olai's ops layer stamps **only `done`**, with the instant it was made, local and
 with its offset (resolved 2026-08-11). `doing` and `todo` are written `true`.
-The rule follows from what a date on a mark now MEANS: it puts the node on that
-day. Finishing is an event a journal is about; filing a task is not, and a
-stamped `todo` would fill every day page with what was written down that day
-rather than what happened on it. Scheduling has a field of its own — that is
-what `date` is for.
+The two rules are one rule read twice: a `done` date is what a day page shows,
+so a `done` date is what the writer records. Nothing writes a `doing` or `todo`
+date, and nothing reads one — a value a view ignores is a value no writer should
+be minting. Scheduling has a field of its own, and that is what `date` is for.
 
 It is only ever the record being marked that is rewritten, so `true` and
 day-only values elsewhere keep the spelling they were read with — and every
