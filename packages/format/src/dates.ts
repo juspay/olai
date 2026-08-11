@@ -77,9 +77,13 @@ export const monthOf = (value: string): string => value.slice(0, MONTH)
  */
 export type Occasion = "date" | Status
 
-/** A date a record carries, and the field that carried it. */
-interface Occasioned {
+/** A date a record carries, and the field that carried it — the pair, named
+ *  once, because everything below passes them together and a row that had one
+ *  without the other would be a date nobody could say the meaning of. */
+export interface Occasioned {
   readonly occasion: Occasion
+  /** The value, verbatim: for a node here because it was finished today, the
+   *  completion instant, and not whatever it was scheduled for. */
   readonly date: string
 }
 
@@ -156,14 +160,7 @@ export const datedDays = (derived: Derived, month: string): ReadonlySet<string> 
  * over the set and a title torn out of its outline says nothing — plus which
  * of its dates put it here.
  */
-export interface DayEntry extends Situated {
-  /** Which of the node's dates this row is about. */
-  readonly occasion: Occasion
-  /** That date, verbatim — the one to show, which for a node on this day
-   *  because it was finished on it is the completion instant and not whatever
-   *  it was scheduled for. */
-  readonly date: string
-}
+export interface DayEntry extends Situated, Occasioned {}
 
 /** The nodes of one outline on the same day.
  *
@@ -207,10 +204,12 @@ export const datedOn = (derived: Derived, day: string): ReadonlyArray<DayGroup> 
     .sort(([left], [right]) => Order.String(left, right))
     .map(([file, nodes]) => ({
       file,
-      nodes: nodes.sort(byTime).map((dated) => ({
-        ...situate(derived, dated.at),
-        occasion: dated.occasion,
-        date: dated.date,
+      // The node, situated, wearing the date that put it here: the occasion
+      // travels as it was carried rather than being restated field by field,
+      // so nothing here has to be told when a date grows a second thing to say.
+      nodes: nodes.sort(byTime).map(({ at, ...occasioned }) => ({
+        ...situate(derived, at),
+        ...occasioned,
       })),
     }))
 }
