@@ -21,7 +21,7 @@
  */
 
 import { nodeNamed, type RegularNode } from "@olai/format"
-import { createMemo, Show } from "solid-js"
+import { createMemo } from "solid-js"
 
 import { useDerived } from "./derived.tsx"
 import { NodeRefs } from "./NodeRefs.tsx"
@@ -34,15 +34,15 @@ export function SeeRefs(props: {
   const derived = useDerived()
 
   const refs = createMemo(() => {
+    // BEFORE the indexes are read, so a node with no `see` — almost every node
+    // with a body drawn — never subscribes to the whole set and never re-runs
+    // on a frame that cannot concern it.
     const see = props.node.see
+    if (see === undefined || see.length === 0) return []
     const indexes = derived()
-    if (see === undefined || see.length === 0 || indexes === undefined) return []
+    if (indexes === undefined) return []
     return see.map((id) => ({ id, title: nodeNamed(indexes, id)?.node.title ?? id }))
   })
 
-  return (
-    <Show when={refs().length > 0}>
-      <NodeRefs label="see" refs={refs()} testid={TESTID.seeRefs} />
-    </Show>
-  )
+  return <NodeRefs label="see" refs={refs()} testid={TESTID.seeRefs} />
 }

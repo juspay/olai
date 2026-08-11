@@ -54,22 +54,23 @@ Feature: See the outline
     And the node "install" shows an empty checkbox
 
   Scenario: A node waiting on unfinished work says so on its row
-    # `install` is `after` `order`, and `order` is under way — so `install`
+    # `hinges` is `after` `order`, and `order` is under way — so `hinges`
     # cannot start yet, and the row says that beside its title. A second fact
     # about the node rather than a replacement for the first: it keeps the
-    # `todo` its children derive, and the box that draws it.
-    Then the node "install" is blocked by "order"
-    And the node "install" has status "todo"
+    # `todo` somebody marked it with, and the empty box that draws it.
+    Then the node "hinges" is blocked by "order"
+    And the node "hinges" has status "todo"
+    And the node "hinges" shows an empty checkbox
 
   Scenario: What is finished, and what was never a task, hold nothing up
     # Two readings of one rule. `order` is `after` `demo` and `demo` is done,
-    # so the way is clear. `hinges` is `after` `handles`, which nobody marked —
-    # a bullet is not work, so there is nothing under it to finish and nothing
-    # to wait for. Reading that second edge as an obstacle is the trap the rule
-    # is written against: it makes every plain bullet a thing that can never be
-    # cleared.
+    # so the way is clear. `hinges` is ALSO `after` `handles`, which nobody
+    # marked — a bullet is not work, so there is nothing under it to finish and
+    # nothing to wait for; the row above says `hinges` waits on `order` and
+    # says nothing about `handles`. Reading that edge as an obstacle is the
+    # trap the rule is written against: it makes every plain bullet a thing
+    # that can never be cleared.
     Then the node "order" is not blocked
-    And the node "hinges" is not blocked
     And the node "handles" is not blocked
 
   Scenario: A dated node shows a date badge

@@ -10,6 +10,7 @@
 
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
+import type { Locator } from "playwright";
 
 import { DESKTOP } from "../support/hooks.ts";
 import {
@@ -146,6 +147,16 @@ const seeLinkTo = (world: OlaiWorld, source: string, target: string) =>
     .locator(`${SEE_REFS} ${NODE_REF}:has([data-ref="${target}"])`)
     .first();
 
+/** Click a link from a node to a node, and land. One helper for both relations
+ *  — a `see` ref and a blocker are the same link — over `press`, which is
+ *  already "wait until it is there, click it, wait out the frame". */
+const followRef = async (world: OlaiWorld, link: Locator): Promise<void> => {
+  await world.press(link);
+  await world.page
+    .locator(ZOOM_TITLE)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+};
+
 Then(
   "the node {string} sees {string} as {string}",
   async function (
@@ -173,12 +184,7 @@ Then(
 When(
   "I follow the see link to {string} on {string}",
   async function (this: OlaiWorld, target: string, source: string) {
-    const link = seeLinkTo(this, source, target);
-    await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await link.click();
-    await this.page
-      .locator(ZOOM_TITLE)
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await followRef(this, seeLinkTo(this, source, target));
   },
 );
 
@@ -190,14 +196,10 @@ When(
     // One step for both shapes of the marker: a row's pill is a link to the
     // first blocker and a page names every one of them, and either way the
     // element carrying `data-ref` is inside the anchor that opens it.
-    const link = this.node(id)
-      .locator(`${BLOCKED} [data-ref="${blocker}"]`)
-      .first();
-    await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await link.click();
-    await this.page
-      .locator(ZOOM_TITLE)
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await followRef(
+      this,
+      this.node(id).locator(`${BLOCKED} [data-ref="${blocker}"]`).first(),
+    );
   },
 );
 

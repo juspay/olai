@@ -82,10 +82,12 @@ never blocks — it is not work, so there is nothing under it to finish — and
 spelling the test `status !== "done"` is the trap docs/format.md writes the
 rule against. One predicate at both ends of the arrow, racket's own shape: a
 done node is waiting on nothing, a bullet is neither blocked nor blocking, and
-archived work is out of it in both directions because it is over. `blockersOf`
-is the reading side, and what it hands back is `InTheWay` — the same "this one
-is unfinished, and here is why" that `fromChildren` names children with,
-because it is the same sentence about the other kind of edge.
+archived work is out of it in both directions because it is over. What a
+blocker IS is `InTheWay` — the same "this one is unfinished, and here is why"
+that `fromChildren` names children with, off the same test, because it is the
+same sentence about the other kind of edge. Nothing outside this package asks
+for the index: what is in a node's way rides on the `Row` and the `Situated` it
+belongs to, the way its status does.
 
 `zoom` is the same claim
 about one node as a page — which record an id resolves to (following a mirror

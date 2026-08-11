@@ -149,7 +149,7 @@ Feature: Zoom and navigate
     # and a link: the next thing a reader wants is the node in the way.
     Given I open the outline "house.jsonl"
     And I mark the page
-    When I follow the blocked link to "order" on "install"
+    When I follow the blocked link to "order" on "hinges"
     Then the zoomed node is "order"
     And the address is "/n/order"
     And the page has not reloaded
@@ -158,9 +158,9 @@ Feature: Zoom and navigate
   Scenario: A zoomed page names every blocker, and each one is a link
     # The page is where the node is READ, so "waiting on what?" is answered
     # rather than hinted at — the blocker by title, at its own address.
-    Given I open the node "install"
-    Then the node "install" is blocked by "order"
-    When I follow the blocked link to "order" on "install"
+    Given I open the node "hinges"
+    Then the node "hinges" is blocked by "order"
+    When I follow the blocked link to "order" on "hinges"
     Then the zoomed node is "order"
     And the address is "/n/order"
     And there should be no page errors

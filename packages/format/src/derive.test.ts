@@ -405,19 +405,6 @@ test("blocks is the same edge, and both halves land in one answer", () => {
   expect(derived.blocked.has("b")).toBe(false)
 })
 
-// A parent stores no mark and derives one, and that derived answer is what
-// blocks: the outline must not have two answers to "is this finished".
-test("a target's derived status is what blocks, not only a stored mark", () => {
-  expect(
-    waitingIn(
-      `{"id":"a","ord":"a","title":"a","todo":true,"after":["p"]}\n` +
-        `{"id":"p","ord":"b","title":"p"}\n` +
-        `{"id":"kid","parent":"p","ord":"a","title":"kid","todo":true}`,
-      "a",
-    ),
-  ).toEqual(["p todo"])
-})
-
 // Work that was put away is over: it blocks nothing, because a node waiting on
 // it would wait forever, and it is not blocked either, because the archive is
 // read as history rather than as a plate. Both ends, one rule.

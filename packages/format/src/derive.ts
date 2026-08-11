@@ -72,7 +72,13 @@ export interface Derived {
   /** id → what is standing in its way. PARTIAL like `status`, and non-empty
    *  wherever it is present: absence is the answer for everything that can
    *  start, which is nearly every node. Keyed by the node itself, so a mirror
-   *  asks this of what it SHOWS exactly as it asks for its status. */
+   *  asks this of what it SHOWS exactly as it asks for its status.
+   *
+   *  ORDERED, and promised so rather than left to fall out: a node's own
+   *  `after` in the order it writes them, then whatever `blocks` it from
+   *  elsewhere in file order. A reader with room for one blocker takes the
+   *  first, and a promise is what keeps that from moving when an unrelated
+   *  file gains an edge. */
   readonly blocked: ReadonlyMap<string, ReadonlyArray<InTheWay>>
 }
 
@@ -210,14 +216,26 @@ export const fromChildren = (derived: Derived, id: string): FromChildren | null 
   return {
     kind: "unfinished",
     counted: own.length,
-    // A child is in the way if it is a TASK that is not done — never merely
-    // `!== "done"`, which reads a plain bullet as an obstacle that can never
-    // be cleared.
-    children: own.flatMap((at) => {
-      const status = derived.status.get(at.node.id)
-      return status === undefined || status === "done" ? [] : [{ at, status }]
-    }),
+    children: own
+      .map((at) => inTheWay(derived.status, at))
+      .filter((child) => child !== undefined),
   }
+}
+
+/** Whether a node is unfinished work, and the whole of the test: it is a TASK
+ *  — someone marked it — and that mark is not `done`. Never merely `!==
+ *  "done"`, which reads a plain bullet as an obstacle that can never be
+ *  cleared, since nothing can finish a node that is not a task.
+ *
+ *  One spelling, because the two things that ask are the same sentence about
+ *  two different edges: a child holding its parent back, and an `after` target
+ *  holding the node after it back. */
+const inTheWay = (
+  status: ReadonlyMap<string, Status>,
+  at: LocatedRegular,
+): InTheWay | undefined => {
+  const mark = status.get(at.node.id)
+  return mark === undefined || mark === "done" ? undefined : { at, status: mark }
 }
 
 /**
@@ -365,31 +383,32 @@ const blockage = (
   status: ReadonlyMap<string, Status>,
   after: ReadonlyMap<string, ReadonlyArray<string>>,
 ): ReadonlyMap<string, ReadonlyArray<InTheWay>> => {
+  const index = { byId }
+
   /** The node an end of an arrow names, WHILE it is still in play: it exists,
-   *  it is a task that is not done, and it has not been put away. */
+   *  it is unfinished work ({@link inTheWay}, the same test a child in the way
+   *  answers), and it has not been put away. */
   const inPlay = (id: string): InTheWay | undefined => {
-    const at = nodeNamed({ byId }, id)
-    if (at === undefined || isArchived(at.file)) return undefined
-    const mark = status.get(at.node.id)
-    return mark === undefined || mark === "done" ? undefined : { at, status: mark }
+    const at = nodeNamed(index, id)
+    return at === undefined || isArchived(at.file) ? undefined : inTheWay(status, at)
   }
 
-  const blocked = new Map<string, ReadonlyArray<InTheWay>>()
+  const blocked = new Map<string, Array<InTheWay>>()
   for (const [id, targets] of after) {
     const source = inPlay(id)
     if (source === undefined) continue
 
-    const waiting = targets.flatMap((target) => {
-      const blocker = inPlay(target)
-      return blocker === undefined ? [] : [blocker]
-    })
+    const waiting = targets
+      .map((target) => inPlay(target))
+      .filter((blocker) => blocker !== undefined)
     if (waiting.length === 0) continue
 
     // Keyed by the node, not by the id the edge was written with: two records
     // can name one node — `x after b` and `a blocks m`, where `m` is a mirror
     // of `x` — and that is one node waiting on both of them.
-    const key = source.at.node.id
-    blocked.set(key, [...(blocked.get(key) ?? []), ...waiting])
+    const already = blocked.get(source.at.node.id)
+    if (already === undefined) blocked.set(source.at.node.id, waiting)
+    else already.push(...waiting)
   }
   return blocked
 }
@@ -596,6 +615,11 @@ type Found =
  *  walk reads, and saying so is what lets the blockedness derivation above
  *  follow a mirror while the indexes it belongs to are still being built. */
 export const follow = (derived: Pick<Derived, "byId">, from: Located): Found => {
+  // Almost every record is the node it stands for, and this walk now runs per
+  // row, per edge endpoint and per `see` target on every frame — so the memo a
+  // chain needs is minted only once there is a chain.
+  if (!isMirror(from.node)) return { kind: "found", shows: from as LocatedRegular }
+
   const seen = new Set<string>()
   let at: Located = from
   while (isMirror(at.node)) {
