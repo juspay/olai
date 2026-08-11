@@ -11,13 +11,20 @@ let
   # @kolu/surface-app is the app shell around it: the HttpRouter layers that
   # serve the browser bundle, the websocket acceptance seam, and the Bun.build
   # helper that produces the bundle in the first place.
+  # @kolu/surface-mcp is the third face on the same surface: it re-exposes a
+  # declared surface as an MCP server, so an agent reads the cells and
+  # collections the browser draws instead of a second projection of them. It is
+  # what `olai mcp` serves the READ side from — resources, with the
+  # subscribe/notify lifecycle and the Effect Schema → JSON Schema bridge that
+  # are the two things olai should not be writing by hand
+  # (docs/brainstorming/surface-mcp-viewing.md).
   # @kolu/log is the logger seam surface imports; a hydrated source resolves
   # its own imports from where it was copied, so its kolu siblings come too —
   # @kolu/url-shape is here for exactly that reason and no other: it is the
   # zero-dependency leaf `@kolu/surface-app/serve` reads its host/port
   # bracketing from, so the URL a listener reports is a URL when the host is an
   # IPv6 literal.
-  names = [ "surface" "surface-app" "log" "url-shape" ];
+  names = [ "surface" "surface-app" "surface-mcp" "log" "url-shape" ];
 
   pairs = pkgs: builtins.concatMap
     (name: [ "${pkgs."kolu-${name}"}" "@kolu/${name}" ])
