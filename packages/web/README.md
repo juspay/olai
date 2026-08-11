@@ -268,10 +268,14 @@ was made from is already gone.
 
 `src/client/calendar/` is the month in the sidebar and `src/client/day/` is the
 page it opens. There is no journal file: the calendar aggregates the whole
-set's dated nodes and a day collects every node carrying that date, wherever it
+set's dated nodes and a day collects every node on that date, wherever it
 was written. Which days have something on them, and what is on one, are
 `@olai/format`'s to answer — the same derivations the validator's set is read
-with, so a dot and the day it opens cannot disagree.
+with, so a dot and the day it opens cannot disagree. Every date a node carries
+counts there, its `date` and the date on its mark, so a day holds what was
+scheduled for it and what was finished on it; a row says which of the two it is
+in a word in front of its date badge, which is the only thing a day draws that
+a tree row does not.
 
 What is left here is the two things a day view has to decide for itself, and
 neither is about the format:

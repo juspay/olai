@@ -21,6 +21,7 @@ import {
   CALENDAR_NEXT,
   CALENDAR_PREV,
   CRUMB,
+  DATE,
   DAY_EMPTY,
   DAY_GROUP,
   DAY_PAGE,
@@ -107,6 +108,20 @@ Then(
       "data-node-id",
       expected,
     );
+  },
+);
+
+/** WHY a node is on the day being read: the date badge says which of the
+ *  node's dates put it there — the `date` field it is scheduled for, or the
+ *  mark that is dated it. A `data-` fact, like the day cell's marks, because
+ *  what the badge PRINTS is a styling decision and which date it is about is
+ *  the promise. */
+Then(
+  "the node {string} is on the day for its {string}",
+  async function (this: OlaiWorld, id: string, occasion: string) {
+    const badge = this.node(id).locator(DATE).first();
+    await badge.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(await badge.getAttribute("data-occasion"), occasion);
   },
 );
 
@@ -220,6 +235,13 @@ Then("today is the one being read", async function (this: OlaiWorld) {
 
 Then("today is not the one being read", async function (this: OlaiWorld) {
   await expectDay(this, isoDayOf(new Date()), "data-open", false);
+});
+
+/** Today, with something on it — asked of the clock rather than written down,
+ *  because the only way a fixture has something on TODAY is that a write put
+ *  it there while the scenario was running. */
+Then("today has something on it", async function (this: OlaiWorld) {
+  await expectDay(this, isoDayOf(new Date()), "data-dated", true);
 });
 
 When("I click the day {string}", async function (this: OlaiWorld, date: string) {

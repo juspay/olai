@@ -18,11 +18,16 @@ import type { Context } from "./plan.ts"
 export { failureOf, setOf } from "@olai/format/testlib"
 
 /** A planner context with no surprises in it: ids counted up from `n1`, and one
- *  fixed day. Both of the impure things an op needs, made boring. */
+ *  fixed instant. Both of the impure things an op needs, made boring.
+ *
+ *  The instant is shaped like the one the server mints — local, with its offset
+ *  — because that is what the tests are about to assert lands on disk. */
+export const STAMP = "2026-08-09T10:15:00-04:00"
+
 export const steady = (): Context => {
   let minted = 0
   return {
     mint: () => `n${++minted}`,
-    today: () => "2026-08-09",
+    now: () => STAMP,
   }
 }

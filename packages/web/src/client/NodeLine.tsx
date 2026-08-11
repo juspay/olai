@@ -21,7 +21,7 @@
  * row it does not own.
  */
 
-import type { Progress, Status } from "@olai/format"
+import type { Occasion, Progress, Status } from "@olai/format"
 import { type JSX, Show } from "solid-js"
 
 import { DateBadge } from "./DateBadge.tsx"
@@ -38,6 +38,10 @@ export function NodeLine(props: {
    *  than in the box: it is what the children say, not what this node is. */
   readonly progress: Progress | undefined
   readonly date?: string
+  /** Which of the node's dates {@link date} is, for the one surface that
+   *  collects more than one of them — a day page. Absent everywhere else,
+   *  where the date drawn is the `date` field and says so by being there. */
+  readonly occasion?: Occasion
   /** Drawn inside the title and before it — the tree's mirror mark. */
   readonly children?: JSX.Element
 }) {
@@ -51,7 +55,7 @@ export function NodeLine(props: {
         {(progress) => <ProgressBadge progress={progress()} />}
       </Show>
       <Show when={props.date}>
-        {(date) => <DateBadge date={date()} />}
+        {(date) => <DateBadge date={date()} occasion={props.occasion} />}
       </Show>
     </>
   )

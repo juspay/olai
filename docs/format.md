@@ -22,8 +22,8 @@ In canonical order (writes always re-serialize the whole record in this order; a
 | `parent` | no | Parent id, same file. Absent at top level. |
 | `ord` | both shapes | Sibling order: a fractional-index string over base62 (`0-9A-Za-z`). Plain string comparison is the sort; never a float. |
 | `title` | regular nodes | Verbatim text. Inline `#tags` live here and are extracted at view time. |
-| `done` / `doing` / `todo` | no | The three MARKS: `true` or an ISO date/datetime string. At most ONE of the three — they are three answers to one question. Storable on ANY node, children or not. A node carrying none of them is not a task at all — see [Status](#status). |
-| `date` | no | ISO date/datetime. A node with a `date` is a day/scheduled node; the journal, calendar and today views are derived from dates at view time — there is no stored year/month hierarchy. |
+| `done` / `doing` / `todo` | no | The three MARKS: `true` or an ISO date/datetime string, which is WHEN that state was reached. At most ONE of the three — they are three answers to one question. Storable on ANY node, children or not. A node carrying none of them is not a task at all — see [Status](#status). A dated mark also puts the node on that day — see [Days](#days). |
+| `date` | no | ISO date/datetime: what the node is SCHEDULED for. A node with a `date` is a day node, and so is one whose mark carries a date — see [Days](#days). |
 | `desc` | no | The note: one string, embedded newlines. Markdown, rendered only at view time; stored verbatim. |
 | `doc` | no | Relative path to an attached `.md` document, resolved against the directory of the outline that names it. |
 | `after` / `blocks` / `see` | no | Arrays of target ids (any file in the set). Closed set of relations. `blocks` is sugar: `a blocks b` means `b after a`. `after` (with normalized `blocks`) must stay acyclic, and is what a node being **blocked** is derived from ([Status](#status)); `see` is a free cross-reference. |
@@ -63,6 +63,44 @@ That is ONE predicate and it is read at BOTH ends of the arrow, which is the rac
 The exemptions stop at the validator: `after` must stay **acyclic** whatever the marks say and wherever the nodes live, because a loop is a claim about the file rather than about what is on anyone's plate. Both rules read one graph — `blocks` normalised into `after`, with each edge filed under the node its target NAMES, so an edge written at a mirror and an edge written at the node it stands for are one edge. A deadlock that closes through a placement is a deadlock.
 
 Being blocked is a SECOND fact about a node, never a replacement for the first: a blocked task keeps the mark it carries and the date it is due on. A view is free to draw the two together — olai answers both in one column, since "has this started" and "can it start" are the same kind of question about the same node — but nothing may make a node's mark depend on what it is waiting for.
+
+## Days
+
+The journal, the calendar and the today view are derived from dates AT VIEW
+TIME, over the whole served directory: there is no journal file, no stored
+year→month hierarchy and no filename that means anything. A day is a question
+asked of every node in every outline.
+
+**Every date a node carries counts**, and there are two kinds. `date` is what
+the node is scheduled for. A mark's date is when that state was REACHED —
+`{"done":"2026-08-11T15:40:03-04:00"}` is work someone finished at that
+instant. Both put the node on their day, identically: a node finished on the
+11th is on the 11th's page and lights the 11th in the calendar exactly as a
+node scheduled for it is. (That is a change, resolved 2026-08-11. Only `date`
+used to be read, and the consequence was that finished work — the thing a
+journal is most often asked about — was the one thing not in it.)
+
+- **A node with two dates is on two days**, once each. Scheduled for the 10th
+  and finished on the 11th is a true statement about both days.
+- **Two dates on one day are one row.** It is one thing that happened, and a
+  day claiming two of it would be counting the record rather than the event.
+  The row names which of its dates it is there for, and `date` wins that
+  naming: which kind of mark it is, the checkbox has already said.
+- **A mark holding `true` is on no day.** It says the state was reached and
+  declines to say when — which is legal, and is the shape of everything written
+  before marks carried instants. There is nothing to put on a calendar, and
+  inventing a day for it would file years of finished work under whatever day
+  it was read on.
+- **The day is the first ten characters**, here as everywhere: dates are text,
+  and a `2026-08-10` parsed into an instant comes back a datetime. So an
+  offset is part of the day it names — a stamp is written in the zone of the
+  person who made it, and the day is theirs.
+
+What a WRITER does with that is policy, not format ([Writing](#writing)): olai's
+ops layer stamps a mark with the instant it was made, local, with its offset. It
+is only ever the record being marked that is rewritten, so `true` and day-only
+values elsewhere keep the spelling they were read with — and every view and
+every derivation goes on accepting all three shapes.
 
 ## Documents
 

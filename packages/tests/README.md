@@ -249,7 +249,7 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="node"][data-node-id]` | one node; also `data-status`, `data-collapsed`, `data-mirror` |
 | `[data-testid="node-title"]` | the title text |
 | `[data-testid="tag"]` | a styled inline `#tag` |
-| `[data-testid="date"]` | the date badge |
+| `[data-testid="date"]` | the date badge; `data-occasion` is which of the node's dates it is (`date`, or the mark carrying one) |
 | `[data-testid="desc"]` | a node's note — one clamped plain line under the title when closed (`data-preview="true"`, `data-open="false"`), full markdown when open (`data-open="true"`); always full on a zoomed page |
 | `[data-testid="node"][data-note-open]` | note expansion: `true` while click/tap-opened |
 | `[data-testid="toggle"]` | the collapse/expand control on an outline node |

@@ -84,7 +84,7 @@ const withTools = <A>(
       root,
       commit: false,
       // Deterministic, so an assertion can name the date a mark stamps.
-      context: { mint: () => `n${++minted}`, today: () => "2026-08-09" },
+      context: { mint: () => `n${++minted}`, now: () => "2026-08-09T10:15:00-04:00" },
       onRefusal: (request, failure) =>
         Effect.sync(() => {
           refusals.push(`${request.op}: ${failure._tag}`)
@@ -313,7 +313,7 @@ test("a write through a tool changes the directory", async () => {
     const answer = await call(client, "set_done", { id: "order" })
     expect(answer.isError).toBe(false)
     expect(answer.structured).toMatchObject({ did: "set_done", id: "order" })
-    expect(read("house.jsonl")).toContain(`"done":"2026-08-09"`)
+    expect(read("house.jsonl")).toContain(`"done":"2026-08-09T10:15:00-04:00"`)
   })
 })
 
@@ -351,7 +351,7 @@ test("marking a parent lands, and the answer carries what the rollup noticed", a
     expect(answer.structured["nudge"]).not.toContain("order the cabinets")
     expect(refusals).toEqual([])
     expect(read("house.jsonl")).toContain(`"id":"kitchen"`)
-    expect(read("house.jsonl")).toContain(`"done":"2026-08-09"`)
+    expect(read("house.jsonl")).toContain(`"done":"2026-08-09T10:15:00-04:00"`)
   })
 })
 

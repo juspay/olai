@@ -51,7 +51,19 @@ in the system had to arrange:
 `plan.ts` being pure is the design rather than a preference: everything hard
 about an op is decided there, over a value, so it is testable without a disk
 and re-decidable against a newer snapshot. The two impure things an op needs —
-a fresh id and today's date — arrive as arguments.
+a fresh id and what time it is — arrive as arguments.
+
+**A mark is stamped with the instant it was made**: `set_done` stores
+`2026-08-11T15:40:03-04:00`, local and carrying its offset (`@olai/format`'s
+`stampOf`), never a bare `true` and never a day with no time in it. A `done`
+says when the work was finished, and the day view reads the day off the front
+of it either way — so the time costs a reader nothing and orders a day's
+finished work. All three marks are stamped the same way, because they are three
+answers to one question written by one op, and a `doing` that recorded nothing
+about when work started would be the odd one out for no reason anyone could
+state. Only the record being marked is rewritten; a `true` or a day-only value
+on any other node comes back exactly as it was read, which is what the format
+means by validating dates as text.
 
 **The package exports four things, and the rest of that table is inside.**
 `codec`, `make`, `Query`, `TOOLS` — one socket per concept, not the wires behind
