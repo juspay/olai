@@ -271,11 +271,12 @@ const withIsTTY = async <A>(
   }
 }
 
-// The WIRING lock (reviewer-written, M1). prettyFor's factory tests cannot see
-// which real stream the sink is bound to — under bun test both process fds
-// have isTTY undefined. Stub the real streams and drive toStderr: stderr TTY
-// + stdout pipe must colour; the converse must not. Without the converse,
-// wiring *both* sinks off process.stderr would still slip through.
+// The WIRING lock for toStderr (reviewer-written, M1). prettyFor's factory
+// tests cannot see which real stream the sink is bound to — under bun test
+// both process fds have isTTY undefined. Stub the real streams and drive
+// toStderr: stderr TTY + stdout pipe must colour. The converse (stderr pipe
+// + stdout TTY → no ANSI) locks emit-time colour selection for this sink; it
+// does *not* lock toStdout's binding (that is the symmetric test below).
 test("toStderr's pretty colour comes from stderr, not stdout", async () => {
   await withNoColor(undefined, async () => {
     await withOlaiLog("pretty", async () => {
@@ -286,11 +287,35 @@ test("toStderr's pretty colour comes from stderr, not stdout", async () => {
           expect(err.map(String).join("\n")).toContain("\u001b[")
         }),
       )
-      // Converse: stderr is the pipe, so no ANSI even though stdout is a TTY.
+      // Converse: stderr is the pipe → no ANSI even though stdout is a TTY
+      // (emit-time colour from *this* stream, not the sibling).
       await withIsTTY(process.stdout, true, () =>
         withIsTTY(process.stderr, false, async () => {
           const { err } = await written(toStderr)
           expect(err.map(String).join("\n")).not.toContain("\u001b[")
+        }),
+      )
+    })
+  })
+})
+
+// Symmetric wiring lock for toStdout (M5). Both halves exercise only
+// prettyStdout, so the toStderr test cannot see this binding.
+test("toStdout's pretty colour comes from stdout, not stderr", async () => {
+  await withNoColor(undefined, async () => {
+    await withOlaiLog("pretty", async () => {
+      // stdout is the pipe: no ANSI, even though stderr is a TTY.
+      await withIsTTY(process.stdout, false, () =>
+        withIsTTY(process.stderr, true, async () => {
+          const { out } = await written(toStdout)
+          expect(out.map(String).join("\n")).not.toContain("\u001b[")
+        }),
+      )
+      // Converse: stdout is the TTY, so it colours even though stderr is a pipe.
+      await withIsTTY(process.stdout, true, () =>
+        withIsTTY(process.stderr, false, async () => {
+          const { out } = await written(toStdout)
+          expect(out.map(String).join("\n")).toContain("\u001b[")
         }),
       )
     })
