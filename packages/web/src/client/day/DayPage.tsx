@@ -50,9 +50,11 @@ export function DayPage(props: {
         when={props.groups.length > 0}
         fallback={
           <p class="text-muted" data-testid={TESTID.dayEmpty}>
+            {/* "On", not "dated": a day holds what was scheduled for it and
+                what was marked on it, and only one of those is a `date`. */}
             {props.date === props.today
-              ? "Nothing is dated today."
-              : `Nothing is dated ${props.date}.`}
+              ? "Nothing is on today."
+              : `Nothing is on ${props.date}.`}
           </p>
         }
       >

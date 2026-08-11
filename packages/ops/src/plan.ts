@@ -73,12 +73,14 @@ export interface Plan {
 }
 
 /** The two impure things an op needs, handed in so the planner stays a
- *  function: a fresh id, and what day it is. */
+ *  function: a fresh id, and what time it is. */
 export interface Context {
   /** A candidate id. Called again if the set already holds the one it gave. */
   readonly mint: () => string
-  /** Today, as the ISO date a mark is stamped with. */
-  readonly today: () => string
+  /** The instant a `done` is stamped with, as the format's own text: a local
+   *  ISO datetime carrying its offset (`@olai/format`'s `stampOf`). The other
+   *  two marks store `true` and never read this. */
+  readonly now: () => string
 }
 
 type Planned = Result.Result<Plan, OpFailure>
@@ -450,9 +452,28 @@ const planMark = (
 
   // Setting one mark CLEARS the others: a node carrying two is a record the
   // format rejects, so this is not tidiness — it is what makes the write valid.
+  //
+  // ONLY `done` IS STAMPED, and it is stamped with the INSTANT it was made
+  // rather than the day: finishing something happens AT a moment, "some time on
+  // Tuesday" is the answer to a question nobody asked, and the day view reads
+  // the day off the front of the value either way (`@olai/format`'s `dayOf`),
+  // so the time costs a reader nothing and orders a day's finished work.
+  //
+  // `doing` and `todo` store `true` (resolved 2026-08-11, human). The symmetry
+  // argument — three answers to one question, written by one op — loses to what
+  // a date on a mark now MEANS: it puts the node on that day (docs/format.md's
+  // Days). A stamped `todo` would file everything on the day it was captured,
+  // so a day page would fill up with work that was written down then rather
+  // than done then, and `/today` would drift into a capture log. Finishing is
+  // the event a journal is about; filing is not, and neither is starting.
+  // Nothing is lost for a person who wants one: `set_date` schedules, and a
+  // hand-written date on any mark still reads (the format takes all three).
   const next: Draft<RegularNode> = { ...node }
   for (const other of MARKS) delete next[other]
-  if (!undo) next[mark] = scope.context.today()
+  // Only the node being marked is touched — every other record in the file is
+  // re-emitted exactly as it was read, so a `true` or a day-only value
+  // elsewhere stays the text it was.
+  if (!undo) next[mark] = mark === "done" ? scope.context.now() : true
 
   const summary = undo
     ? `${UNMARKED[mark]}: ${node.title}`

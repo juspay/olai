@@ -86,14 +86,29 @@ stable and unique across the whole directory, so that address survives renames
 and moves, even to another file, and a mirror of a node resolves to the same
 one page as the node itself.
 
-Anything with a `date` is also in the journal, and the journal is a query
+Anything with a date is also in the journal, and the journal is a query
 rather than a place: a month in the sidebar marks the days the *whole
 directory* has something on, whichever outline it was written in, and clicking
-one opens `/d/<date>` — every node dated that day, grouped by its outline and
+one opens `/d/<date>` — every node on that day, grouped by its outline and
 shown with the ancestry that says what it is about. `/today` is the same page
 for whatever day it is now. Nothing is stored to make this work: there is no
 journal file, no year→month scaffolding and no filename that means anything, so
-a `date` on a node in any outline is all there is to it.
+a date on a node in any outline is all there is to it.
+
+Two things put a node on a day, and they are the two a day is about: what it is
+scheduled for, and when it was finished. A `date` is the first; ticking
+something off records the instant you did it, which is the second — so the work
+you finished today is on today, beside the thing you had scheduled for it, and
+the day says which of the two each row is. A node scheduled one day and
+finished another is on both, once each; a task ticked with nothing but a `true`
+says it is done and declines to say when, which puts it on no day at all.
+
+Nothing else is a day. A task can carry a date on `doing` or `todo` — the
+format allows it — and the calendar reads neither: the day you picked something
+up, or wrote it down, is a fact about the task rather than about the day, and a
+journal that collected them buries what actually happened under the morning's
+filing. And work you have archived keeps the day it was finished on: putting it
+away is what you do *after* it happens, not a reason for the day to forget it.
 
 Some notes are not a line. Every `.md` under the directory is a **document**:
 it has a page of its own at `/doc/<path>`, it sits in the sidebar's file tree

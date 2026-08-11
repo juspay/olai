@@ -16,9 +16,10 @@
  *     order, mirror expansion, one node's ancestry, what is standing in its
  *     way, what is on a day and where a `doc` lands, computing all of it with
  *     the same code;
- *   - how a set is WRITTEN back, `serializeOutline` and `ordBetween` — the
- *     canonical bytes and the sibling order, held here for the same reason the
- *     rules are: a writer with its own copy of either is a second format;
+ *   - how a set is WRITTEN back, `serializeOutline`, `ordBetween` and
+ *     `stampOf` — the canonical bytes, the sibling order and the one way an
+ *     instant becomes a date value, held here for the same reason the rules
+ *     are: a writer with its own copy of any of them is a second format;
  *   - what went wrong, `OutlineError` and the two things a view does with it;
  *   - what a write says when it refuses, `OpFailure` and its four kinds.
  *
@@ -65,7 +66,8 @@ export type {
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
 export { datedDays, datedOn } from "./dates.ts"
-export type { DayGroup } from "./dates.ts"
+export type { DayEntry, DayGroup, Occasion } from "./dates.ts"
+export { stampOf } from "./stamp.ts"
 
 export { ordBetween } from "./ord.ts"
 export { nodesOf, serializeOutline } from "./write.ts"

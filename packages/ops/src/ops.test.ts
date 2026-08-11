@@ -22,12 +22,13 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
-import { type OutlineError, type OutlineSet, parseOutline } from "@olai/format"
+import { isMirror, type OutlineError, type OutlineSet, parseOutline } from "@olai/format"
 import * as Store from "@olai/store"
 import { describe, expect, test } from "bun:test"
 import { Effect, Result, SubscriptionRef } from "effect"
 
 import { codec } from "./codec.ts"
+import { STAMP, STAMP_SHAPE, steady } from "./fixtures.testlib.ts"
 import * as Ops from "./ops.ts"
 import type { Applied, Request } from "./request.ts"
 
@@ -56,7 +57,7 @@ interface Fixture {
 const withOps = <A>(
   files: Readonly<Record<string, string>>,
   use: (fixture: Fixture) => Effect.Effect<A, never>,
-  options: { readonly git?: boolean } = {},
+  options: { readonly git?: boolean; readonly realClock?: boolean } = {},
 ): Promise<A> => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-ops-")))
   const write = (file: string, contents: string) => {
@@ -77,13 +78,16 @@ const withOps = <A>(
 
   return Effect.gen(function*() {
     const store = yield* Store.make({ root, codec, watch: false, settle: "10 millis" })
-    let minted = 0
     const refusals: Array<string> = []
     const ops = Ops.make({
       store,
       root,
       commit: options.git === true,
-      context: { mint: () => `n${++minted}`, today: () => "2026-08-09" },
+      // The planner's own fixture context by default — ids from `n1`, one fixed
+      // instant — so an assertion can name what a mark stamps. `realClock`
+      // hands the layer back its OWN: the one test that is about what that
+      // context mints cannot be handed a fixture of it.
+      ...(options.realClock === true ? {} : { context: steady() }),
       onRefusal: (request, failure) =>
         Effect.sync(() => {
           refusals.push(`${request.op}: ${failure._tag}`)
@@ -147,8 +151,67 @@ test("a mark lands on disk as bytes the parser reads back", () =>
       // And the browser sees it: the snapshot moved, without anyone probing.
       const set = yield* fixture.set()
       const order = set.nodes.find((located) => located.node.id === "order")
-      expect(order?.node).toMatchObject({ done: "2026-08-09" })
+      expect(order?.node).toMatchObject({ done: STAMP })
     })))
+
+/**
+ * The round-trip promise, in the language it is made in.
+ *
+ * `docs/format.md` and `packages/ops/README.md` both say it about BYTES — a
+ * writer must reproduce what it read — and the planner's test compares
+ * records, which is a different sentence about the same thing. Here the file
+ * is read back as text, so a `true` that came back `"true"`, a day-only value
+ * widened into an instant, or a neighbour restamped by the op would all be
+ * caught where the claim is actually made.
+ */
+test("the marks on the other records come back as the bytes they were", () =>
+  withOps({
+    "house.jsonl": [
+      `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+      `{"id":"old","parent":"kitchen","ord":"a0","title":"an old habit","done":true}`,
+      `{"id":"quote","parent":"kitchen","ord":"a1","title":"get a quote","done":"2026-08-01"}`,
+      `{"id":"order","parent":"kitchen","ord":"a2","title":"order the cabinets"}`,
+      "",
+    ].join("\n"),
+  }, (fixture) =>
+    Effect.gen(function*() {
+      yield* run(fixture, { op: "done", id: "order" })
+
+      const text = fixture.read("house.jsonl") ?? ""
+      expect(text).toContain(`"done":true`)
+      expect(text).toContain(`"done":"2026-08-01"`)
+      expect(text).toContain(`"done":${JSON.stringify(STAMP)}`)
+    })))
+
+/**
+ * What the layer stamps when nobody hands it a clock — the whole of the
+ * `set_done`-stamps-itself promise, and the one test that has to use the real
+ * one.
+ *
+ * Asserted as a SHAPE and a window rather than a value: what a wall clock says
+ * is not something a test can name, but "an ISO datetime, with its zone, that
+ * names an instant this test was running in" is exactly the promise. It rules
+ * out every wrong answer the op could give — a bare `true`, a day with no
+ * time, a UTC `Z` on a machine that is not in UTC (the day would be tomorrow's
+ * for anyone east of the line, and the value would not parse back to now).
+ */
+test("marking done with no clock handed in stamps the current instant", () =>
+  withOps({ "house.jsonl": HOUSE }, (fixture) =>
+    Effect.gen(function*() {
+      // Whole seconds: the stamp has no fraction, so it can land a fraction of
+      // a second before this test started counting.
+      const before = Math.floor(Date.now() / 1000) * 1000
+      yield* run(fixture, { op: "done", id: "order" })
+
+      const set = yield* fixture.set()
+      const order = set.nodes.find((located) => located.node.id === "order")?.node
+      const done = order === undefined || isMirror(order) ? undefined : order.done
+      expect(done).toMatch(STAMP_SHAPE)
+
+      const at = new Date(String(done)).getTime()
+      expect(at).toBeGreaterThanOrEqual(before)
+      expect(at).toBeLessThanOrEqual(Date.now())
+    }), { realClock: true }))
 
 test("creating an outline lands a new file the set and the disk both see", () =>
   withOps({ "house.jsonl": HOUSE }, (fixture) =>
@@ -235,7 +298,7 @@ test("an edit that arrives mid-write is absorbed, not lost", () =>
       expect([...set.files].sort()).toEqual(["house.jsonl", "notes.jsonl"])
       expect(
         set.nodes.find((located) => located.node.id === "order")?.node,
-      ).toMatchObject({ done: "2026-08-09" })
+      ).toMatchObject({ done: STAMP })
       // The pulled file is still there: the write re-derived rather than
       // re-sending bytes computed from a set that no longer existed.
       expect(fixture.read("notes.jsonl")).toContain("an idea")
@@ -256,7 +319,7 @@ test("concurrent ops all land, each re-derived from the set the last one left", 
 
       const set = yield* fixture.set()
       const byId = new Map(set.nodes.map((located) => [located.node.id, located.node]))
-      expect(byId.get("order")).toMatchObject({ done: "2026-08-09" })
+      expect(byId.get("order")).toMatchObject({ done: STAMP })
       expect(byId.get("install")).toMatchObject({ title: "install the cabinets" })
       expect([...byId.values()].some((node) => "title" in node && node.title === "paint"))
         .toBe(true)

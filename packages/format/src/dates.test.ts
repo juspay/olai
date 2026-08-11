@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 
-import { datedDays, datedOn, dayOf, monthOf } from "./dates.ts"
-import { derive } from "./derive.ts"
+import { datedDays, datedOn, dayOf, type DayEntry, monthOf } from "./dates.ts"
+import { derive, type Derived } from "./derive.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"
 
 /** Two outlines with dates spread over three months, which is what makes the
@@ -26,8 +26,52 @@ const SET = derive(
   }),
 )
 
-const ids = (day: string): ReadonlyArray<string> =>
-  datedOn(SET, day).flatMap((group) => group.nodes.map((dated) => dated.shows.node.id))
+/**
+ * The same reading, of a set whose dates are on its MARKS.
+ *
+ * A second fixture rather than more lines in the first, so what the `date`
+ * field does keeps being asserted against a set that has not moved — the marks
+ * are what is new here, and a suite where both changed at once could not say
+ * which rule the answer came from.
+ */
+const MARKED = derive(
+  nodesOfFiles({
+    "ship.jsonl": [
+      // Finished at an instant, scheduled for nothing: the roadmap's own shape
+      // after the done-datetime migration, and the case that vanished from the
+      // calendar when only `date` counted.
+      `{"id":"header","ord":"a0","title":"the header bar","done":"2026-08-11T15:40:03-04:00"}`,
+      // Scheduled one day, finished another. Two dates, two days, one row each.
+      `{"id":"survey","ord":"a1","title":"the boundary survey","done":"2026-08-12T09:15:00-04:00","date":"2026-08-11"}`,
+      // Scheduled and finished on the SAME day, which is one thing that
+      // happened and one row.
+      `{"id":"quote","ord":"a2","title":"get a quote","done":"2026-08-11T17:02:00-04:00","date":"2026-08-11T08:00"}`,
+      // A mark that says only that the state was reached. Legal, and on no day.
+      `{"id":"demo","ord":"a3","title":"take out the counters","done":true}`,
+      // The other two marks may carry dates — the format allows it, and these
+      // are what the roadmap was full of — and no view here reads them.
+      `{"id":"cabinets","ord":"a4","title":"install the cabinets","doing":"2026-08-11T11:00:00-04:00"}`,
+      `{"id":"paint","ord":"a5","title":"paint the hall","todo":"2026-08-13"}`,
+      // A dated `todo` that is ALSO scheduled: the `date` places it, the
+      // `todo` adds nothing, and it is one row rather than two.
+      `{"id":"tiles","ord":"a6","title":"pick the tiles","todo":"2026-08-11","date":"2026-08-14"}`,
+    ].join("\n"),
+  }),
+)
+
+/** Every row of a day, across its groups — the order and the membership both,
+ *  which is what every assertion below is about. */
+const rowsOn = (derived: Derived, day: string): ReadonlyArray<DayEntry> =>
+  datedOn(derived, day).flatMap((group) => group.nodes)
+
+const idsOf = (derived: Derived, day: string): ReadonlyArray<string> =>
+  rowsOn(derived, day).map((dated) => dated.shows.node.id)
+
+const ids = (day: string): ReadonlyArray<string> => idsOf(SET, day)
+
+/** What one node's row on a day says it is there for. */
+const occasionOf = (day: string, id: string): string | undefined =>
+  rowsOn(MARKED, day).find((dated) => dated.shows.node.id === id)?.occasion
 
 // ── what a value's day and month are ───────────────────────────────────
 
@@ -86,7 +130,7 @@ test("a group's nodes are in time order, a bare date first", () => {
 })
 
 test("a node dated a day carries its status and its canonical ancestry", () => {
-  const [dated] = datedOn(SET, "2026-08-05")[0]!.nodes
+  const [dated] = rowsOn(SET, "2026-08-05")
   expect(dated!.shows.node.id).toBe("ferry")
   // Dated and unmarked: a day is a thing on the calendar, not a to-do list, so
   // `ferry` has no status at all until somebody marks it.
@@ -97,9 +141,9 @@ test("a node dated a day carries its status and its canonical ancestry", () => {
 // The status is the node's own mark, the same answer the tree draws: `rails`
 // says `doing` about itself and its parent says nothing at all.
 test("a dated node carries the mark it stores", () => {
-  const rails = datedOn(SET, "2026-08-05")
-    .flatMap((group) => group.nodes)
-    .find((dated) => dated.shows.node.id === "rails")
+  const rails = rowsOn(SET, "2026-08-05").find((dated) =>
+    dated.shows.node.id === "rails"
+  )
   expect(rails?.status).toBe("doing")
 })
 
@@ -111,6 +155,117 @@ test("a day with nothing on it is an empty answer, not a missing one", () => {
 // An undated node is not a day's business however close it sits to one.
 test("an undated node is on no day", () => {
   expect(ids("2026-08-05")).not.toContain("sweep")
+})
+
+// ── the dates on the marks ─────────────────────────────────────────────
+
+// The requirement, in one line: a node finished at an instant is on that day
+// exactly as a scheduled one is, and it lights that day in the calendar.
+test("a node is on the day its mark was dated", () => {
+  expect(idsOf(MARKED, "2026-08-11")).toContain("header")
+  expect(datedDays(MARKED, "2026-08").has("2026-08-11")).toBe(true)
+})
+
+test("a node carrying two dates is on both days, once each", () => {
+  expect(idsOf(MARKED, "2026-08-11")).toContain("survey")
+  expect(idsOf(MARKED, "2026-08-12")).toEqual(["survey"])
+  expect(occasionOf("2026-08-11", "survey")).toBe("date")
+  expect(occasionOf("2026-08-12", "survey")).toBe("done")
+})
+
+// Scheduled for a day and finished on it is ONE thing that happened. The row
+// says `date`, because a mark's kind is already in the checkbox beside it and
+// the day it was scheduled for is written nowhere else.
+test("two dates on one day are one row", () => {
+  expect(idsOf(MARKED, "2026-08-11").filter((id) => id === "quote")).toEqual(["quote"])
+  expect(occasionOf("2026-08-11", "quote")).toBe("date")
+})
+
+// `true` says the state was reached and declines to say when — the shape
+// everything written before `done` carried instants still has.
+test("a mark with no date is on no day", () => {
+  expect(idsOf(MARKED, "2026-08-11")).not.toContain("demo")
+})
+
+/**
+ * The rule the human resolved on 2026-08-11 after seeing a day page under it:
+ * `doing` and `todo` dates are NOT read, however legal they are on disk.
+ *
+ * Asserted negatively and from both ends, because the failure this pins is a
+ * row that should not be there: `cabinets` was picked up on the 11th and
+ * `paint` filed for the 13th, so under the old rule the 11th gained a row and
+ * the 13th gained a whole DAY — a dot on a calendar for a day nothing is
+ * actually on.
+ */
+test("a dated `doing` or `todo` puts a node nowhere", () => {
+  expect(idsOf(MARKED, "2026-08-11")).not.toContain("cabinets")
+  expect(datedOn(MARKED, "2026-08-13")).toEqual([])
+  expect(datedDays(MARKED, "2026-08").has("2026-08-13")).toBe(false)
+})
+
+// A node can carry both, and only the `date` half is read: one row, on the day
+// it is scheduled for, and nothing on the day it was filed.
+test("a node's `date` is read while its `todo` date is not", () => {
+  expect(idsOf(MARKED, "2026-08-14")).toEqual(["tiles"])
+  expect(occasionOf("2026-08-14", "tiles")).toBe("date")
+  expect(idsOf(MARKED, "2026-08-11")).not.toContain("tiles")
+})
+
+// The month's dots are that same rule, read the other way: three days have
+// something on them, and the two that only a `doing` or a `todo` named do not.
+test("only the read fields light a month's days", () => {
+  expect([...datedDays(MARKED, "2026-08")].sort()).toEqual([
+    "2026-08-11",
+    "2026-08-12",
+    "2026-08-14",
+  ])
+})
+
+// One order over both fields: a bare date is the day itself and comes first,
+// and the instants follow in the order they happened.
+test("a day's rows are in time order across the fields", () => {
+  expect(idsOf(MARKED, "2026-08-11")).toEqual(["survey", "quote", "header"])
+})
+
+// The row carries the date it is THERE for, not whatever else the node stores
+// — a completion instant on the day it was completed.
+test("a row shows the date that put it on the day", () => {
+  const [row] = rowsOn(MARKED, "2026-08-12")
+  expect(row!.date).toBe("2026-08-12T09:15:00-04:00")
+  expect(row!.status).toBe("done")
+})
+
+// One row per RECORD, which is not the same promise as one row per id: these
+// walks run over sets the validator has condemned as well as over legal ones,
+// and two files each claiming `dup` are two nodes a reader is still being
+// shown. Deduping on the id would quietly draw one of them.
+test("two records claiming one id are two rows, not one", () => {
+  const duplicated = derive(
+    nodesOfFiles({
+      "a.jsonl": `{"id":"dup","ord":"a0","title":"one","done":"2026-08-11T09:00:00-04:00"}`,
+      "b.jsonl": `{"id":"dup","ord":"a0","title":"the other","done":"2026-08-11T10:00:00-04:00"}`,
+    }),
+  )
+  expect(idsOf(duplicated, "2026-08-11")).toEqual(["dup", "dup"])
+})
+
+// Work that was put away is still work that happened. Blockedness exempts the
+// archive at both ends — nothing waits on what is over — and a journal asks the
+// other question, so the exemption does not carry across (resolved 2026-08-11,
+// human). The `Archive.jsonl` heading on the group is what tells the reader
+// where the row lives.
+test("an archived node keeps the day its mark was dated", () => {
+  const archived = derive(
+    nodesOfFiles({
+      "Archive.jsonl":
+        `{"id":"deck","ord":"a0","title":"the deck","done":"2026-08-11T09:00:00-04:00"}`,
+    }),
+  )
+  expect(idsOf(archived, "2026-08-11")).toEqual(["deck"])
+  expect(datedOn(archived, "2026-08-11").map((group) => group.file)).toEqual([
+    "Archive.jsonl",
+  ])
+  expect(datedDays(archived, "2026-08").has("2026-08-11")).toBe(true)
 })
 
 // A mirror is a second PLACEMENT of a node, and the format gives it no field
