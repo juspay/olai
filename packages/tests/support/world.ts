@@ -81,10 +81,23 @@ export const DOCUMENT_BODY = selector(TESTID.documentBody);
 export const DOC_REF = selector(TESTID.docRef);
 /** The link inside that reference, to the document's own page. */
 export const DOC_LINK = selector(TESTID.docLink);
+/** A node held up by an `after` edge: the mark column's waiting glyph on a row
+ *  or a day entry, the named blockers on the node's own page. Absent entirely
+ *  on a node with nothing in its way — WHETHER it is blocked, and by what, is
+ *  `data-blocked` on the node itself. */
+export const BLOCKED = selector(TESTID.blocked);
+/** What that mark column draws: U+29D6, an hourglass. Spelled here rather than
+ *  in a step because it is a contract with `Checkbox.tsx` like the three boxes
+ *  beside it, and a glyph nobody can see is a mark nobody can read. */
+export const WAITING_GLYPH = "⧖";
+/** This app's own hover tip. Its text is also the control's `aria-label`, so a
+ *  scenario asserting the label is asserting the sentence that matters. */
+export const TIP = selector(TESTID.tip);
 /** A node's free cross-references (`see`). */
 export const SEE_REFS = selector(TESTID.seeRefs);
-/** One link inside those references. The target id rides `data-see`. */
-export const SEE_LINK = selector(TESTID.seeLink);
+/** One link from a node to another node, in either of those rows. The target
+ *  id rides `data-ref`, which is what a scenario picks one by. */
+export const NODE_REF = selector(TESTID.nodeRef);
 /** The main pane. Present only when the loaded set is valid. */
 export const OUTLINE_TREE = selector(TESTID.outlineTree);
 export const NODE = selector(TESTID.node);

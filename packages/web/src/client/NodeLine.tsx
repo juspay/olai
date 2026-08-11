@@ -8,6 +8,10 @@
  * to move the testid, while both still compiled and only one browser test
  * noticed.
  *
+ * What a node cannot START yet is NOT on this line: it is answered in the mark
+ * column (./Checkbox.tsx), because it is the same kind of fact as whether the
+ * work has begun and a reader sorting rows is already looking there.
+ *
  * The note itself is NOT on this line. It hangs under the title as its own
  * clamped one-line gray row (./NodeBody.tsx), Workflowy-style.
  *

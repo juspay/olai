@@ -31,7 +31,8 @@ each thing the view has to draw:
 | nesting | `kitchen` → `install` → `handles` (house.jsonl) |
 | a done child | `demo` (house.jsonl:2) |
 | a doing child | `order` (house.jsonl:3) |
-| a todo child | `hinges` — an unstarted task, so an EMPTY box |
+| a todo child | `knobs` — an unstarted task nothing is waiting on, so an EMPTY box |
+| a todo child that is BLOCKED | `hinges` — the waiting glyph in the mark column instead, and the row dimmed |
 | a parent the done toggle must not hide | `frames` (garden.jsonl) — both its tasks done, and NOBODY marked it |
 | a note that must survive the done toggle | `slugs` under `frames` — nobody finished it, nobody called it work |
 | a bullet that is not a task | `handles` — no mark, so no status and no box at all |
@@ -40,7 +41,10 @@ each thing the view has to draw:
 | an inline `#tag` | `kitchen remodel #home`, `garden #outdoors` |
 | a `date` | `order` is dated `2026-08-10` |
 | a markdown `desc` | `order` — a paragraph, a two-item list, bold and italic |
-| an `after` edge | `order` after `demo`; `install` after `order` |
+| an `after` edge that BLOCKS | `hinges` after `order`, which is under way — so `hinges` cannot start |
+| two `todo` leaves, one blocked and one not | `hinges` and `knobs` under `install` — the whole difference the mark column draws |
+| an `after` edge that is clear | `order` after `demo`, which is done — nothing left to wait for |
+| an `after` edge that must NOT block | `hinges` after `handles`, a bullet nobody marked: not work, so nothing to wait for |
 | a `doc` | `install` attaches `finishes.md` |
 | a document nothing attaches | `notes/palette.md` — still a page, still in the sidebar |
 | a nested outline | `Daily/2026-08.jsonl` — the sidebar's file tree, not a path string |
@@ -65,6 +69,15 @@ replaced. Nobody marked it; both of its task children are done; a plain note
 toggle hid the branch and took the note with it — the view whose job is showing
 what is left hiding exactly what was left. Now the two done rows go and `frames`
 and `slugs` stay.
+
+The `after` edges are one rule read three ways, and `hinges` carries two of
+them at once: `b` blocks `a` while `b` is a task that is *not done*, so `order`
+(under way) holds `hinges` up while `handles` — which nobody marked — never
+blocked anything to begin with, and `demo` (done) has cleared the way for
+`order`. Reading the `handles` edge as an obstacle would be reading every plain
+bullet as work that can never be finished. Both ends of the blocking edge carry
+a mark somebody wrote, so what the scenarios assert is the rule rather than
+anything about the nodes' children.
 
 ## `chat/` — a set the agent writes to
 

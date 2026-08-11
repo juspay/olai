@@ -120,3 +120,19 @@ export type FileKind = "outline" | "document"
 
 export const fileKind = (path: string): FileKind | null =>
   path.endsWith(".jsonl") ? "outline" : path.endsWith(".md") ? "document" : null
+
+/** Where work that is over is put away: one `Archive.jsonl` per directory,
+ *  beside the outline it left.
+ *
+ *  Being archived is a fact about the FILE a node is written in — there is no
+ *  field for it, and there is not going to be one, for the reason no derived
+ *  state is stored. It lives here beside {@link fileKind} because it is the
+ *  same kind of statement (what a served file IS, by its name) and because two
+ *  rules in two packages read it: the op that moves a subtree there, and
+ *  blockedness, which exempts what has been put away at both ends of an arrow
+ *  (./derive.ts). Two spellings of the name would be two answers about the
+ *  same file. */
+export const ARCHIVE = "Archive.jsonl"
+
+export const isArchived = (file: string): boolean =>
+  file === ARCHIVE || file.endsWith(`/${ARCHIVE}`)

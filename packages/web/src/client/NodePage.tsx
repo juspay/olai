@@ -11,6 +11,8 @@
 import type { Row, Zoomed } from "@olai/format"
 import { Show } from "solid-js"
 
+import { blockedIds } from "./blocked.ts"
+import { Blocked } from "./Blocked.tsx"
 import { Breadcrumbs } from "./Breadcrumbs.tsx"
 import { DateBadge } from "./DateBadge.tsx"
 import { DoneToggle } from "./DoneToggle.tsx"
@@ -66,6 +68,7 @@ function Zoom(props: {
           data-testid={TESTID.node}
           data-node-id={props.zoomed.shows.node.id}
           data-status={props.zoomed.status}
+          data-blocked={blockedIds(props.zoomed.blocked)}
           data-kind="node"
         >
           <div class="flex items-baseline gap-3">
@@ -84,6 +87,12 @@ function Zoom(props: {
               {(date) => <DateBadge date={date()} />}
             </Show>
           </div>
+
+          {/* What the node is waiting on, named in full and above its note:
+              a page whose subject cannot start yet should say so before it
+              says anything else about it. This is where a row's glyph was
+              pointing. */}
+          <Blocked blocked={props.zoomed.blocked} />
 
           {/* Zoomed, a node's note and document ARE the page under it: the node
               said the rest was here, and the subject is never densified. */}

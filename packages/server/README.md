@@ -199,11 +199,13 @@ just serve docs              # build the client, serve this repo's own roadmap
 just run mcp docs            # the tool surface over stdio, from the working tree
 ```
 
-The first is the edit loop: two `bun --watch` processes, so a validator rule you
-change is live on the next reload. `just nix` is the other path — the packaged
-binary, built from tracked files only, which is what CI and `just e2e` prove.
+The first is the web edit loop: two `bun --watch` processes (client bundler and
+server), so a validator rule you change is live on the next reload. `just run`
+is the general entrypoint — any args the binary takes — with the server alone
+under `bun --watch`. `just nix` is the packaged path: the binary, built from
+tracked files only, which is what CI and `just e2e` prove.
 
-The second takes JSON-RPC on stdin, one message per line, which makes it
+`just run mcp` takes JSON-RPC on stdin, one message per line, which makes it
 pipeable — the fastest way to see what an agent is actually offered:
 
 ```sh
