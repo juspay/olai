@@ -36,7 +36,23 @@ export const renderTitle = (title: string, from: string): string =>
         // the `#` is the same character the format stores.
         return `<span class="${TAG_CLASS}" data-testid="${TESTID.tag}">#${part.tag}</span>`
       }
-      if (part.text.length === 0) return ""
-      return renderInlineMarkdown(part.text, from)
+      return renderText(part.text, from)
     })
     .join("")
+
+/**
+ * Markdown a text run of the title, keeping the spaces the parser would trim.
+ *
+ * `titleParts` leaves the space before a tag on the text run ("kitchen remodel
+ * " then `#home`). A paragraph of markdown drops trailing whitespace, and
+ * without it the tag butts against the word. The edges stay outside the
+ * pipeline; only the core is rendered.
+ */
+const renderText = (text: string, from: string): string => {
+  if (text.length === 0) return ""
+  const match = /^(?<lead>\s*)(?<core>[\s\S]*?)(?<trail>\s*)$/.exec(text)
+  if (match === null || match.groups === undefined) return text
+  const { lead, core, trail } = match.groups
+  if (core === undefined || core.length === 0) return text
+  return `${lead ?? ""}${renderInlineMarkdown(core, from)}${trail ?? ""}`
+}

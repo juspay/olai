@@ -151,3 +151,14 @@ test("a title keeps both markdown and its tags", () => {
   expect(html).toContain("#home")
   expect(html).not.toContain("**")
 })
+
+// titleParts leaves the space before a tag on the text run; a markdown
+// paragraph would trim it and the tag would butt the word. The edges stay
+// outside the pipeline so the stored spacing survives.
+test("a title keeps the space before a tag", () => {
+  const html = renderTitle("kitchen remodel #home", NOTE)
+  // Flatten the way a reader (and the e2e `readable` helper) sees it: no
+  // tags, collapsed whitespace, then the words including the gap before home.
+  const words = html.replace(/<[^>]+>/g, "").replace(/#/g, "").replace(/\s+/g, " ").trim()
+  expect(words).toBe("kitchen remodel home")
+})
