@@ -43,12 +43,13 @@ export interface Outlines {
   readonly manifest: Accessor<Manifest | undefined>
   /** Every outline file, in path order. */
   readonly files: Accessor<ReadonlyArray<string>>
-  /** Every `.md` the directory holds, text and all — the sidebar's second list,
-   *  the document pages, and every `doc` preview. */
+  /** Every `.md` the directory holds, text and all — the sidebar's file tree
+   *  mixes them with outlines under the folders they live in; the document
+   *  pages and every `doc` preview read the same list. */
   readonly documents: Accessor<ReadonlyArray<Document>>
   /** The same documents BY PATH — the one index everything that answers "which
-   *  document is this" reads. The list above stays the list, because order is
-   *  what a sidebar draws. */
+   *  document is this" reads. The list above stays the list, because the tree
+   *  is built from ordered paths. */
   readonly documentsByFile: Accessor<ReadonlyMap<string, Document>>
   /** The files that did not parse, by path — the sidebar marks them and the
    *  main pane draws one of them instead of a tree. */

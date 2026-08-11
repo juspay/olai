@@ -1,9 +1,10 @@
 Feature: Documents
   Some notes are not a line. A `.md` under the served directory is a document:
-  it gets a page of its own, it is listed in the sidebar whether or not any
-  outline names it, and a node that attaches one with `doc` shows it — the
-  whole document when you are zoomed on that node, one line of it anywhere
-  else.
+  it gets a page of its own, it is listed in the sidebar's file tree whether
+  or not any outline names it (under the folders it lives in, beside any
+  outlines in the same folder), and a node that attaches one with `doc` shows
+  it — the whole document when you are zoomed on that node, one line of it
+  anywhere else.
 
   The markdown is the same pipeline a note goes through, so what is proved here
   is proved for notes too: fenced code highlighted without a byte fetched from

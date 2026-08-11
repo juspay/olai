@@ -17,7 +17,6 @@ import {
   DOC_REF,
   DOCUMENT_BODY,
   DOCUMENT_LINK,
-  DOCUMENT_LIST,
   DOCUMENT_PAGE,
   HYDRATION_TIMEOUT,
   oneLine,
@@ -25,16 +24,17 @@ import {
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
-// ── the sidebar's second list ──────────────────────────────────────────
+// ── documents in the file tree ─────────────────────────────────────────
 
 Then(
   "the documents listed are {string}",
   async function (this: OlaiWorld, expected: string) {
     const wanted = expected.split(",").map((file) => file.trim());
-    const links = this.page.locator(`${DOCUMENT_LIST} ${DOCUMENT_LINK}`);
+    const links = this.page.locator(DOCUMENT_LINK);
     // Waited for by COUNT rather than read once: a document dropped into the
     // directory arrives on a later frame, and reading during the frame that
-    // adds it would see the list without it.
+    // adds it would see the tree without it. Order is document-link order in
+    // the tree (path order of the walk), not a separate section.
     await this.waitUntil(
       async () => (await links.count()) === wanted.length,
       `the sidebar to list ${wanted.length} document(s)`,
