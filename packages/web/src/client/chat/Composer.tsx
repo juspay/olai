@@ -12,6 +12,15 @@
  *     message queues, sending and stopping are two things a person can
  *     genuinely want at the same moment, and hiding the send button would
  *     leave the queue reachable only from the keyboard.
+ *   - **a picture can be pasted, dropped, or picked.** Three events, one
+ *     path: `attach` sends the bytes to the conversation's tmp directory and
+ *     answers with a path, which rides the next `send`. All three ship
+ *     together because they are the same function behind different listeners —
+ *     paste is the desktop gesture, drop is the one for a file already on
+ *     screen, and the picker is the only one a phone has, since a phone has no
+ *     Ctrl+V. Attaching does NOT send: the picture sits in a strip above the
+ *     box, where it can be removed or typed at, because "what is wrong here"
+ *     needs the picture and the question together.
  *   - **`/` opens the agent's own commands**, and so does the button beside
  *     the input, which shows the WHOLE list. Typing filters; the button is for
  *     when you do not know what to type, which is most of the time you want a
@@ -29,6 +38,8 @@
 import { createSignal, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
+import type { Attachment } from "./attach.ts"
+import { Attachments } from "./Attachments.tsx"
 import { SlashMenu } from "./SlashMenu.tsx"
 import type { Chat } from "./state.ts"
 
@@ -44,7 +55,15 @@ export function Composer(props: { readonly chat: Chat }) {
   /** Opened by the BUTTON rather than by typing a slash — the difference is
    *  only which prefix the list is filtered by. */
   const [asked, setAsked] = createSignal(false)
+  /** Pictures already on the server and waiting for a message to go with.
+   *  Local to this tab, exactly like the draft: an attachment nobody has sent
+   *  is part of what is being typed. */
+  const [pending, setPending] = createSignal<ReadonlyArray<Attachment>>([])
+  /** How many are in flight, so the box can say so. A count rather than a
+   *  flag: two pictures dropped at once are two uploads. */
+  const [sending, setSending] = createSignal(0)
   let input: HTMLTextAreaElement | undefined
+  let picker: HTMLInputElement | undefined
 
   const working = () => props.chat.state().status === "thinking"
 
@@ -73,11 +92,33 @@ export function Composer(props: { readonly chat: Chat }) {
 
   const open = () => showing() && matches().length > 0
 
+  /** Attach whatever was just pasted, dropped or picked.
+   *
+   *  Every file, not the first one: a drop of three screenshots is three
+   *  attachments, and taking one of them silently would be the panel deciding
+   *  which. What is NOT a picture is ignored here rather than refused — a
+   *  paste of text with an image in it is a paste of text — while a picture
+   *  the server will not take is refused by `attach`, out loud. */
+  const take = async (files: ReadonlyArray<File>) => {
+    const pictures = files.filter((file) => file.type.startsWith("image/"))
+    if (pictures.length === 0) return
+    setSending((count) => count + pictures.length)
+    for (const file of pictures) {
+      const attached = await props.chat.attach(file)
+      setSending((count) => count - 1)
+      if (attached === null) continue
+      setPending((already) => [...already, attached])
+    }
+    input?.focus()
+  }
+
   const send = () => {
     const text = draft()
-    if (text.trim() === "") return
-    props.chat.send(text)
+    const attachments = pending()
+    if (text.trim() === "" && attachments.length === 0) return
+    props.chat.send(text, attachments.map((attachment) => attachment.path))
     setDraft("")
+    setPending([])
     dismiss()
     // Where the caret already is, unless something took it — a person sending
     // two messages in a row should not have to aim at the box for the second.
@@ -122,10 +163,32 @@ export function Composer(props: { readonly chat: Chat }) {
   }
 
   return (
-    <div class="relative shrink-0 border-t border-rule p-2">
+    <div
+      class="relative shrink-0 border-t border-rule p-2"
+      // The whole composer is the drop target, not just the box: a picture
+      // dragged at a panel is aimed at the conversation, and a target you can
+      // miss by two pixels is a target that eats the file. `dragover` must
+      // preventDefault or the browser navigates to the dropped file instead.
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={(event) => {
+        if (event.dataTransfer === null) return
+        event.preventDefault()
+        void take([...event.dataTransfer.files])
+      }}
+    >
       <Show when={open()}>
         <SlashMenu commands={matches()} onAccept={accept} onDismiss={dismiss} />
       </Show>
+
+      {/* Above the box, where what is being typed is: an attachment is part of
+          the message until it is sent. */}
+      <Attachments
+        names={pending().map((attachment) => attachment.name)}
+        onRemove={(name) =>
+          setPending((already) =>
+            already.filter((attachment) => attachment.name !== name)
+          )}
+      />
 
       {/* The box takes the whole width and the controls sit UNDER it, rather
           than three things of three different shapes sharing a row. A textarea
@@ -154,9 +217,50 @@ export function Composer(props: { readonly chat: Chat }) {
           setShowing(event.currentTarget.value.startsWith("/"))
         }}
         onKeyDown={onKey}
+        // The clipboard's FILES, not its items: a screenshot pastes as one,
+        // and text pasted alongside goes on being pasted — nothing is
+        // prevented unless there is a picture to take.
+        onPaste={(event) => {
+          const pictures = [...(event.clipboardData?.files ?? [])]
+          if (pictures.length === 0) return
+          event.preventDefault()
+          void take(pictures)
+        }}
       />
 
       <div class="mt-2 flex items-center gap-2">
+        {/* The only way in on a phone, which has no Ctrl+V and nothing to drag
+            from. `capture` is deliberately absent: a picture is usually one
+            already in the roll, and naming a camera would make that the
+            second-class case. */}
+        <input
+          ref={picker}
+          type="file"
+          accept="image/*"
+          multiple
+          class="hidden"
+          onChange={(event) => {
+            void take([...(event.currentTarget.files ?? [])])
+            // Cleared so picking the SAME file twice fires `change` twice.
+            event.currentTarget.value = ""
+          }}
+        />
+        <button
+          type="button"
+          class={`${CONTROL} w-8 border-rule text-muted hover:text-ink`}
+          data-testid={TESTID.chatAttachButton}
+          aria-label="attach a picture"
+          onClick={() => picker?.click()}
+        >
+          +
+        </button>
+        {/* What is in flight. A picture big enough to notice is a picture
+            whose upload is worth saying is happening. */}
+        <Show when={sending() > 0}>
+          <span class="font-mono text-[0.6875rem] text-muted">
+            attaching{sending() > 1 ? ` ${sending()}` : ""}…
+          </span>
+        </Show>
         {/* Sent, and waiting for the turn in flight. The rows are already in
             the transcript — this says the agent has not reached them. */}
         <Show when={props.chat.state().queued > 0}>

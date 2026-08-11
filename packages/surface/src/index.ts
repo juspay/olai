@@ -37,7 +37,7 @@
  * {@link ./chat.ts} because they are a subject of their own: a `transcript`
  * COLLECTION (batched deltas, so a late-joining tab sees the conversation), a
  * `chat` CELL (session, model, commands, whether a turn is running) and the
- * `chat` PROCEDURES (send, cancel, new, load, list). The agent's WRITES do not
+ * `chat` PROCEDURES (send, cancel, new, load, list, attach). The agent's WRITES do not
  * appear here at all: they reach the ops layer through an internal MCP server
  * the session is handed, and what a reader sees of them is the outline stream
  * moving — server-authoritative, never an optimistic echo.
@@ -48,6 +48,8 @@ import { defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
 
 import {
+  AttachChunk,
+  Attached,
   CHAT_OFF,
   ChatEntry,
   ChatFailure,
@@ -201,7 +203,34 @@ export const surface = defineSurface({
        *  it ends: what the panel draws comes back on the transcript, so every
        *  open tab stays in step and a slow turn does not hold a call open. */
       send: {
-        input: Schema.Struct({ text: Schema.String }),
+        input: Schema.Struct({
+          text: Schema.String,
+          /** The pictures this message carries, as the PATHS `attach`
+           *  answered with. Absent is the same as empty — a prompt with no
+           *  picture is every prompt olai had until now, and a caller should
+           *  not have to spell an empty list to say so.
+           *
+           *  Paths and not bytes, because that is the whole design: the file
+           *  is already on disk by the time this is called, the agent is
+           *  handed the path in its prompt and reads it itself. They are
+           *  re-checked against the conversation's own directory here — a
+           *  path that arrived over the wire names nothing on its own. */
+          attachments: Schema.optionalKey(Schema.Array(Schema.String)),
+        }),
+        error: ChatFailure,
+      },
+      /** One chunk of a picture, into the conversation's tmp directory.
+       *
+       *  A PROCEDURE rather than an upload route, which is the decision worth
+       *  naming: a procedure inherits the origin gate and the session the
+       *  listener already enforces for the websocket, where a second HTTP
+       *  route would need its own copy of both. And a SIBLING of `send`
+       *  rather than a widening of it, because the two answer different
+       *  questions — `attach` says where the bytes landed, `send` says a turn
+       *  was accepted — and a file is N calls to one send. */
+      attach: {
+        input: AttachChunk,
+        output: Attached,
         error: ChatFailure,
       },
       /** Stop the turn in flight. Legal while the agent is still booting — the
@@ -228,6 +257,8 @@ export const surface = defineSurface({
 })
 
 export {
+  Attached,
+  AttachChunk,
   BusyFailure,
   CHAT_OFF,
   ChatEntry,
@@ -239,7 +270,21 @@ export {
   OpFailure,
   SessionInfo,
   Unfinished,
+  UsageFailure,
 } from "./chat.ts"
 
 /** The one HTTP address both ends spell — see {@link ./media.ts}. */
 export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
+
+/** What an attachment may be and how it is cut up — the policy the browser
+ *  gates on before encoding and the server gates on before writing. One
+ *  module, for the same reason the media URL is one: two copies of a threshold
+ *  are two thresholds. See {@link ./attach.ts}. */
+export {
+  attachmentRejection,
+  base64DecodedLength,
+  CHUNK_BASE64_CHARS,
+  CHUNK_BYTES,
+  chunkBase64,
+  MAX_ATTACHMENT_BYTES,
+} from "./attach.ts"

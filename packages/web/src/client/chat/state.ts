@@ -1,7 +1,7 @@
 /**
  * The conversation, as this tab sees it.
  *
- * Two subscriptions and five verbs, and every one of them is a surface member —
+ * Two subscriptions and six verbs, and every one of them is a surface member —
  * there is no chat state in the browser that the server does not own. What was
  * typed, what the agent said, which tool ran, which session this is: all of it
  * arrives as frames, so two tabs cannot disagree and a reload is a fresh read
@@ -48,6 +48,8 @@ import {
 import { type Accessor, createMemo, createSignal } from "solid-js"
 
 import { olai } from "../wire.ts"
+import { type Attachment, attaching } from "./attach.ts"
+import { remember } from "./previews.ts"
 import { type Call, run } from "./run.ts"
 
 export interface Chat {
@@ -64,7 +66,13 @@ export interface Chat {
    *  Separate from `state().trouble`, which is what went wrong where nobody was
    *  waiting: this one belongs to the click that caused it. */
   readonly refused: Accessor<OpFailure | null>
-  readonly send: (text: string) => void
+  /** What was typed, and the pictures already attached to it — by the paths
+   *  {@link Chat.attach} answered with. */
+  readonly send: (text: string, attachments: ReadonlyArray<string>) => void
+  /** Send a picture to the conversation's tmp directory, chunk by chunk, and
+   *  answer with where it landed — or `null` when it was refused, which the
+   *  panel is already showing through {@link Chat.refused}. */
+  readonly attach: (file: File) => Promise<Attachment | null>
   readonly cancel: () => void
   readonly newSession: () => void
   readonly loadSession: (id: string) => void
@@ -123,7 +131,26 @@ export const createChat = (): Chat => {
     rows,
     entry,
     refused,
-    send: (text) => verb(olai.procedures.chat.send({ text })),
+    send: (text, attachments) =>
+      verb(olai.procedures.chat.send({ text, attachments })),
+    // The chunk loop is a composed effect ({@link ./attach.ts}) rather than a
+    // verb of its own: what a caller waits for is the path, because it is what
+    // the next `send` carries.
+    attach: (file) =>
+      new Promise((resolve) => {
+        setRefused(null)
+        run(
+          attaching(file, (chunk) => olai.procedures.chat.attach(chunk)),
+          (failure) => {
+            setRefused(failure)
+            resolve(null)
+          },
+          (attachment) => {
+            remember(attachment.name, attachment.blob)
+            resolve(attachment)
+          },
+        )
+      }),
     cancel: () => verb(olai.procedures.chat.cancel()),
     newSession: () => verb(olai.procedures.chat.newSession()),
     loadSession: (id) => verb(olai.procedures.chat.loadSession({ id })),

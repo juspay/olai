@@ -311,6 +311,16 @@ non-deterministic about. Behaviour is keyed on the prompt text (`done <id>`,
 `add <title>`, `servers`, `slow`, `hold`, `model <id>`, `crash`), so a scenario
 asks for what it needs.
 
+One behaviour is keyed on the prompt's SHAPE rather than its first word: a
+prompt naming an attached image opens that file and says how many bytes it
+found. A scripted agent cannot look at a picture and does not have to — what an
+e2e can prove is that the bytes the browser pasted are the bytes at the path the
+agent was handed, and a size read off the disk is the only way to say so. The
+paste itself is DISPATCHED rather than performed (`chat_steps.ts`): Playwright
+cannot put an image on the system clipboard portably, so the step builds the
+`ClipboardEvent` the browser would have built, with a real `File` in a real
+`DataTransfer`, and everything after that line is the app.
+
 `hold` is the one worth knowing about: it starts a tool call, streams a chunk,
 and goes on streaming until the scenario touches `.agent-release` in the served
 directory. A turn that finishes in a millisecond can only be asserted about

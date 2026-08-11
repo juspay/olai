@@ -175,6 +175,11 @@ export const CHAT_QUEUED = selector(TESTID.chatQueued);
 export const CHAT_SEND = selector(TESTID.chatSend);
 export const CHAT_CANCEL = selector(TESTID.chatCancel);
 export const CHAT_SLASH_COMMAND = selector(TESTID.chatSlashCommand);
+/** A picture on a message — pending in the composer, or sent, on the row. Its
+ *  `data-name` is the file name, which is the only thing about it every tab
+ *  agrees on; the preview is drawn ONLY by the tab that has the Blob. */
+export const CHAT_ATTACHMENT = selector(TESTID.chatAttachment);
+export const CHAT_ATTACHMENT_PREVIEW = selector(TESTID.chatAttachmentPreview);
 
 /** The app has finished its first render when it has committed to one of its
  *  three shapes: a sidebar (the set loaded), the error view (it did not), or

@@ -175,7 +175,14 @@ export const bind = (
       },
       procedures: {
         chat: {
-          send: ({ input }) => withChat((open) => open.send(input.text)),
+          send: ({ input }) =>
+            withChat((open) => open.send(input.text, input.attachments ?? [])),
+          // The chunk goes straight through: what a chunk MEANS — which file
+          // it continues, whether that file is this conversation's — belongs
+          // to the chat, and re-deciding any of it here would be a second
+          // opinion about the same bytes.
+          attach: ({ input }) =>
+            withChat((open) => Effect.map(open.attach(input), (path) => ({ path }))),
           cancel: () => withChat((open) => open.cancel),
           newSession: () => withChat((open) => open.newSession),
           loadSession: ({ input }) => withChat((open) => open.loadSession(input.id)),

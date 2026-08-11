@@ -20,7 +20,7 @@
  * every turn it asserts on, and which exercises the subprocess and the wire
  * that an injected object would replace with an assumption.
  *
- * Two decisions worth naming:
+ * Three decisions worth naming:
  *
  *   - **a turn is accepted, not awaited.** `send` answers the moment the prompt
  *     is on the wire; what happens next arrives on the transcript, so every open
@@ -31,14 +31,21 @@
  *     is prose. So the MCP layer tells us about every refusal and it lands in
  *     the transcript as data — which is what makes "a refused write shows its
  *     unfinished children in chat" true regardless of how the agent phrases it.
+ *   - **a pasted picture is a PATH by the time it gets here.** The bytes were
+ *     written to the conversation's own tmp directory as they arrived
+ *     ({@link ./attachments.ts}), and what a prompt carries is where they
+ *     landed — so the whole path from browser to agent stays a string, and the
+ *     one place that knows otherwise is the module that owns that directory.
  */
 
 import { CHAT_OFF, type ChatEntry, type ChatState, type OpFailure, type SessionInfo } from "@olai/surface"
 import { BusyFailure, UsageFailure } from "@olai/format"
 import { Effect, Fiber, Semaphore } from "effect"
+import { basename } from "node:path"
 
 import type { Adapter } from "./adapter.ts"
 import * as AcpAgent from "./agent.ts"
+import * as Attachments from "./attachments.ts"
 import type { AgentEvent } from "./events.ts"
 import { type Change, Transcript } from "./transcript.ts"
 
@@ -69,7 +76,20 @@ export interface Chat {
   /** The transcript as it stands — what a fresh subscription is seeded with. */
   readonly entries: () => ReadonlyMap<string, ChatEntry>
   readonly state: () => ChatState
-  readonly send: (text: string) => Effect.Effect<void, OpFailure>
+  /** Prompt the agent with what was typed, and with the pictures already
+   *  attached to this conversation — by the paths {@link Chat.attach}
+   *  answered with, which are re-checked here before any of them reaches a
+   *  prompt. */
+  readonly send: (
+    text: string,
+    attachments: ReadonlyArray<string>,
+  ) => Effect.Effect<void, OpFailure>
+  /** One chunk of a picture into the conversation's own tmp directory,
+   *  answering with the path the whole file is at. See
+   *  {@link ./attachments.ts}. */
+  readonly attach: (
+    chunk: Attachments.Chunk,
+  ) => Effect.Effect<string, OpFailure>
   readonly cancel: Effect.Effect<void, OpFailure>
   readonly newSession: Effect.Effect<void, OpFailure>
   readonly loadSession: (id: string) => Effect.Effect<void, OpFailure>
@@ -101,6 +121,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       })
 
     const transcript = new Transcript()
+    /** The conversation's own tmp directory, for pictures pasted into it.
+     *  Emptied when a conversation is left and when the chat stops. */
+    const files = Attachments.make()
     // The cell's own default, with the one field that differs: an agent is
     // being started. Restating the other four here would be a second place to
     // remember when the state gains a fifth.
@@ -220,17 +243,42 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * state adds is only that the agent has not reached it yet, which is a fact
      * about the agent rather than about the message.
      */
-    const send = (text: string): Effect.Effect<void, OpFailure> =>
+    const send = (
+      text: string,
+      attachments: ReadonlyArray<string>,
+    ): Effect.Effect<void, OpFailure> =>
       Effect.gen(function*() {
-        const prompt = text.trim()
-        if (prompt === "") {
+        const said = text.trim()
+        // A picture on its own IS a message — "what is this" with a
+        // screenshot under it is the usual way of asking — so an empty box is
+        // only empty when nothing is attached to it either.
+        if (said === "" && attachments.length === 0) {
           return yield* new UsageFailure({ reason: "there is nothing to send" })
+        }
+        for (const path of attachments) {
+          if (files.holds(path)) continue
+          // A path is not authority: it arrived over the wire, and the only
+          // ones that mean anything are the ones this conversation wrote.
+          return yield* new UsageFailure({
+            reason: "that attachment is not part of this conversation",
+          })
         }
 
         // The user's own message goes in FIRST and from the server, so both
-        // tabs see it and a send that fails does not leave one behind.
-        publish(transcript.add("user", prompt))
+        // tabs see it and a send that fails does not leave one behind. What
+        // the ROW carries is the file NAMES: the tmp path is for the agent,
+        // and a reader wants to see which picture went with which message.
+        publish(
+          transcript.add(
+            "user",
+            said,
+            attachments.length === 0
+              ? {}
+              : { attachments: attachments.map((path) => basename(path)) },
+          ),
+        )
 
+        const prompt = Attachments.promptWith(said, attachments)
         if (turn !== null) {
           queue.push(prompt)
           move({ queued: queue.length, trouble: null })
@@ -319,6 +367,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             })
           }
           dropQueue("this conversation is being left")
+          // The pictures went with it. They exist so that a prompt in THIS
+          // conversation can name them, and no prompt in the next one will.
+          yield* files.discard
           move({ status: "booting" })
           const outcome = yield* Effect.result(what)
           if (outcome._tag === "Failure") {
@@ -333,6 +384,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       entries: () => transcript.entries(),
       state: () => state,
       send,
+      attach: files.receive,
       cancel: agent.cancel,
       newSession: changeSession(agent.newSession),
       loadSession: (id: string) => changeSession(agent.loadSession(id)),
@@ -374,6 +426,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         turn = null
         if (running !== null) yield* Fiber.interrupt(running)
         yield* agent.stop
+        // Registered as a finalizer of the serve scope, so this is also what
+        // takes the pasted pictures with the server when it shuts down.
+        yield* files.discard
       }),
     }
   })
