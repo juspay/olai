@@ -36,6 +36,7 @@ import {
   CHAT_SEND,
   CHAT_SESSION,
   CHAT_SESSIONS,
+  CHAT_SESSIONS_REFUSED,
   CHAT_SLASH_COMMAND,
   CHAT_TITLE,
   CHAT_TOGGLE,
@@ -574,6 +575,24 @@ Then("the chat is empty", async function (this: OlaiWorld) {
 
 When("I open the session picker", async function (this: OlaiWorld) {
   await this.page.locator(CHAT_SESSIONS).click();
+});
+
+Then(
+  "the picker refuses, saying {string}",
+  async function (this: OlaiWorld, reason: string) {
+    const refused = this.page.locator(CHAT_SESSIONS_REFUSED);
+    await refused.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.ok(
+      oneLine(await refused.innerText()).includes(reason),
+      `the picker to give the reason "${reason}"`,
+    );
+  },
+);
+
+/** The other half of the claim: a refusal draws no rows, so the two answers
+ *  cannot be confused by a reader who sees an empty list under an error. */
+Then("the picker lists nothing", async function (this: OlaiWorld) {
+  assert.strictEqual(await this.page.locator(CHAT_SESSION).count(), 0);
 });
 
 Then("the picker lists {string}", async function (this: OlaiWorld, title: string) {

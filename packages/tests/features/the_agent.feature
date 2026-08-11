@@ -137,6 +137,16 @@ Feature: Talking to the agent
     And the outline list is shown
 
   @agent-stored @scratch:chat
+  Scenario: A picker that could not ask says so, not "no conversations"
+    # "There are none" and "we could not find out" are different answers, and
+    # a refusal used to arrive as an empty list and be drawn as the first —
+    # a claim about the agent's disk standing in for never having read it.
+    When I ask the agent "lose"
+    And I open the session picker
+    Then the picker refuses, saying "the conversation store is unreadable"
+    And the picker lists nothing
+
+  @agent-stored @scratch:chat
   Scenario: The picker switches conversations
     When I open the session picker
     Then the picker lists "an older conversation"

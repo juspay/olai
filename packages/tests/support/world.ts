@@ -217,6 +217,7 @@ export const CHAT_TITLE = selector(TESTID.chatTitle);
 export const CHAT_WORKING = selector(TESTID.chatWorking);
 export const CHAT_MODEL = selector(TESTID.chatModel);
 export const CHAT_SESSIONS = selector(TESTID.chatSessions);
+export const CHAT_SESSIONS_REFUSED = selector(TESTID.chatSessionsRefused);
 export const CHAT_SESSION = selector(TESTID.chatSession);
 export const CHAT_TRANSCRIPT = selector(TESTID.chatTranscript);
 export const CHAT_NO_AGENT = selector(TESTID.chatNoAgent);

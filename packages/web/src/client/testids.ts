@@ -270,6 +270,11 @@ export const TESTID = {
   chatRefusal: "chat-refusal",
   /** What the last VERB refused — an empty send, a turn already running. */
   chatRefused: "chat-refused",
+  /** Why the picker has no conversations to offer. Its OWN answer rather than
+   *  the panel's `chatRefused`, because the click that asked was here — and
+   *  because a refusal that resolved to an empty list used to be drawn as "no
+   *  stored conversations", which is a claim about the agent's disk. */
+  chatSessionsRefused: "chat-sessions-refused",
   /** What went wrong where nobody was waiting: a boot, a dead agent. */
   chatTrouble: "chat-trouble",
   chatInput: "chat-input",

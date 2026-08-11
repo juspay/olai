@@ -24,6 +24,7 @@
  *   slow         dawdle, long enough to cancel
  *   deaf         dawdle, with our stdin closed, so nothing said back arrives
  *   picture      answer with an `image` block, which the panel cannot draw
+ *   lose         refuse every `session/list` from here on
  *   flood        say more than fits, so scrolling is a thing that can be tested
  *   hold         start a tool call and STOP there, until released
  *   model <id>   switch the model the way the wrapped CLI does
@@ -97,6 +98,11 @@ let cancelled = false
 /** Whether we shut our own stdin (`deaf`). Read where the end of that pipe
  *  would otherwise mean the client had gone. */
 let deaf = false
+/** Whether `session/list` refuses from here on (`lose the conversations`). A
+ *  prompt rather than an environment variable, because boot ASKS — a server
+ *  that refused from the start would fail its own boot instead of reaching the
+ *  picker, which is the thing under test. */
+let listRefused = false
 
 const STORED = process.env["OLAI_FAKE_ACP_STORED"] ?? ""
 const stored = () => STORED !== ""
@@ -310,6 +316,16 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
+  // From now on we cannot say what conversations we have. Not the same as
+  // having none — and until the picker grew a refused arm, both arrived there
+  // as an empty list and were drawn as "no stored conversations".
+  if (verb === "lose") {
+    listRefused = true
+    say("the conversation store is unreadable")
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
   if (verb === "servers") {
     // The list, as one definite line: `servers: [olai kolu]`. A scenario about
     // what a session was GIVEN can then assert the whole answer rather than
@@ -495,6 +511,18 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
 
     case "session/list":
       if (typeof params["cwd"] === "string") cwd = params["cwd"].replace(/\/+$/, "")
+      // An agent that CANNOT say what it has stored — asked, and refusing.
+      // Distinct from an agent with nothing stored, which answers an empty
+      // list, and the whole point of the scenario that arms it: the two used
+      // to reach the picker as the same thing.
+      if (listRefused) {
+        emit({
+          jsonrpc: "2.0",
+          id,
+          error: { code: -32000, message: "the conversation store is unreadable" },
+        })
+        return
+      }
       respond(id, { sessions: stored() ? storedSessions() : [] })
       return
 

@@ -13,23 +13,26 @@
 
 import { createSignal, For, Show } from "solid-js"
 
+import { Refusal } from "./Refusal.tsx"
 import { TESTID } from "../testids.ts"
-import type { Chat } from "./state.ts"
-import type { SessionInfo } from "@olai/surface"
+import type { Chat, Sessions as Answer } from "./state.ts"
+import type { OpFailure, SessionInfo } from "@olai/surface"
 
 /**
  * The picker is a small state machine, and it is ONE signal because it is one
- * fact: shut, asking, or showing what came back.
+ * fact: shut, asking, or whichever answer came back.
  *
  * Spread over an `open` boolean, an `asking` boolean and a list, three of the
  * eight combinations are unreachable and nothing says so — "asking while shut"
  * and "a list while asking" are states the type would admit and the code would
  * have to remember not to enter.
+ *
+ * The answer's own two arms ({@link Sessions}) are spliced in whole rather than
+ * flattened to a list, which is the fix this file carries: a refusal used to
+ * arrive as `[]` and be drawn as "no stored conversations" — a claim about the
+ * agent's disk, standing in for never having reached it.
  */
-type Picker = { readonly _tag: "shut" } | { readonly _tag: "asking" } | {
-  readonly _tag: "listed"
-  readonly sessions: ReadonlyArray<SessionInfo>
-}
+type Picker = { readonly _tag: "shut" } | { readonly _tag: "asking" } | Answer
 
 export function Sessions(props: { readonly chat: Chat }) {
   const [picker, setPicker] = createSignal<Picker>({ _tag: "shut" })
@@ -40,10 +43,10 @@ export function Sessions(props: { readonly chat: Chat }) {
       return
     }
     setPicker({ _tag: "asking" })
-    void props.chat.sessions().then((sessions) => {
+    void props.chat.sessions().then((answer) => {
       // Ignore an answer that arrived after the popover was shut: the reader
       // moved on, and re-opening it asks again.
-      if (picker()._tag === "asking") setPicker({ _tag: "listed", sessions })
+      if (picker()._tag === "asking") setPicker(answer)
     })
   }
 
@@ -66,9 +69,21 @@ export function Sessions(props: { readonly chat: Chat }) {
           class="absolute right-0 top-full z-50 mt-1 max-h-80 w-80 list-none overflow-y-auto rounded border border-rule bg-paper p-1 shadow-lg"
           data-testid={TESTID.chatSessionList}
         >
+          <Show when={refusedIn(picker())}>
+            {(failure) => (
+              <li class="px-2 py-1" data-testid={TESTID.chatSessionsRefused}>
+                <Refusal failure={failure()} />
+              </li>
+            )}
+          </Show>
+
           <Show
             when={listedIn(picker())}
-            fallback={<li class="px-2 py-1 text-xs text-muted">asking the agent…</li>}
+            fallback={
+              <Show when={picker()._tag === "asking"}>
+                <li class="px-2 py-1 text-xs text-muted">asking the agent…</li>
+              </Show>
+            }
           >
             {(sessions) => (
               <Show
@@ -115,7 +130,11 @@ export function Sessions(props: { readonly chat: Chat }) {
   )
 }
 
-/** The sessions, when there are some — `undefined` in the two states that have
+/** The sessions, when there are some — `undefined` in the states that have
  *  none, which is what `<Show>` takes. */
 const listedIn = (picker: Picker): ReadonlyArray<SessionInfo> | undefined =>
   picker._tag === "listed" ? picker.sessions : undefined
+
+/** Why there is no list, when that is the answer. */
+const refusedIn = (picker: Picker): OpFailure | undefined =>
+  picker._tag === "refused" ? picker.failure : undefined
