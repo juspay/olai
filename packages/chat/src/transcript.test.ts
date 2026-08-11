@@ -128,7 +128,7 @@ describe("refusals and replacement", () => {
       reason: "it has children",
       id: "kitchen",
       title: "Kitchen remodel",
-      children: [{ id: "order", title: "order the cabinets", status: "open" }],
+      children: [{ id: "order", title: "order the cabinets", status: "doing" }],
     })
     transcript.refuse("`set_done` was refused", failure)
 

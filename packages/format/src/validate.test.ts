@@ -296,11 +296,32 @@ test("done stored above unfinished children lists them", () => {
   )
   expect(error.code).toBe("stored-derived-state")
   expect(error.line).toBe(1)
-  expect(error.message).toContain("2 of 3 children that are not done")
+  // ONE of the three is in the way. `c2` carries no mark, so it is a bullet
+  // rather than a to-do nobody has started, and it is neither counted nor
+  // linked — the report and the ops layer's refusal read the same list.
+  // "1 of 3", not "2 of 3": `c2` carries no mark, so it is neither counted as
+  // unfinished nor called that — the number in the sentence is how many are
+  // still under way.
+  expect(error.message).toContain("1 of this node's 3 children that is still under way")
   expect(error.related).toEqual([
-    { file: "a.jsonl", line: 3, note: "`c2` is open" },
     { file: "a.jsonl", line: 4, note: "`c3` is doing" },
   ])
+})
+
+// The third sentence: a node with children can derive NOTHING, because none of
+// them is a task. Storing a mark there is still refused — the node's status is
+// its children's to say — but "it already reads done" would be a lie.
+test("done stored on a node whose children are all bullets says so", () => {
+  const error = only(
+    errorsOf({
+      "a.jsonl": `{"id":"p","ord":"a","title":"p","done":true}\n` +
+        `{"id":"c1","parent":"p","ord":"a","title":"c1"}\n` +
+        `{"id":"c2","parent":"p","ord":"b","title":"c2"}`,
+    }),
+  )
+  expect(error.code).toBe("stored-derived-state")
+  expect(error.message).toContain("2 children, none of which is marked")
+  expect(error.related).toBeUndefined()
 })
 
 // The other wording, and the subtler half of the rule: even when the stored

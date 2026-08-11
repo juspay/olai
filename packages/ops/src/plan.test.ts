@@ -215,16 +215,55 @@ describe("done and doing", () => {
    * time and the panel can draw them as rows.
    */
   test("a node with children is refused, and the refusal lists the unfinished ones", () => {
-    const failure = refused(house(), { op: "done", id: "kitchen" })
+    const set = setOf({
+      "house.jsonl": [
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+        `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":true}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true}`,
+        `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
+      ].join("\n"),
+    })
+    const failure = refused(set, { op: "done", id: "kitchen" })
     expect(failure._tag).toBe("DerivedFailure")
     if (failure._tag !== "DerivedFailure") return
     expect(failure.id).toBe("kitchen")
     expect(failure.children).toEqual([
-      { id: "order", title: "order the cabinets", status: "open" },
-      { id: "install", title: "install them", status: "open" },
+      { id: "order", title: "order the cabinets", status: "doing" },
     ])
     // The finished child is not in the list: it is not what is in the way.
+    // Neither is `install`, and that is the model — an unmarked child is a
+    // bullet, not a to-do nobody has started, so it is in nobody's way.
     expect(failure.children.map((child) => child.id)).not.toContain("demo")
+    expect(failure.children.map((child) => child.id)).not.toContain("install")
+  })
+
+  // The sharp edge of dropping `open`: `kitchen`'s only marked child is done,
+  // so `kitchen` READS done, unmarked siblings and all. Storing that is still
+  // refused — the tree already says it.
+  test("unmarked children do not hold a parent back from done", () => {
+    const failure = refused(house(), { op: "done", id: "kitchen" })
+    expect(failure._tag).toBe("DerivedFailure")
+    if (failure._tag !== "DerivedFailure") return
+    expect(failure.children).toEqual([])
+    expect(failure.message).toContain("already reads done")
+  })
+
+  // And the third thing the tree can be saying: nothing at all. A node whose
+  // children are all bullets is a bullet, and the refusal says so rather than
+  // claiming it already reads done.
+  test("a parent whose children are all bullets is refused as a bullet", () => {
+    const set = setOf({
+      "a.jsonl": [
+        `{"id":"p","ord":"a0","title":"the trip"}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"ferry times"}`,
+        `{"id":"c2","parent":"p","ord":"a1","title":"what to pack"}`,
+      ].join("\n"),
+    })
+    const failure = refused(set, { op: "done", id: "p" })
+    expect(failure._tag).toBe("DerivedFailure")
+    if (failure._tag !== "DerivedFailure") return
+    expect(failure.children).toEqual([])
+    expect(failure.message).toContain("none of its 2 is marked")
   })
 
   test("a parent that already derives done is the same refusal with nothing to do", () => {

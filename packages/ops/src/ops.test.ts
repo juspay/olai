@@ -31,7 +31,7 @@ const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
   `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":"2026-08-01"}`,
   `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
-  `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
+  `{"id":"install","parent":"kitchen","ord":"a2","title":"install them","doing":"2026-08-02"}`,
   "",
 ].join("\n")
 
@@ -426,13 +426,17 @@ describe("the internal MCP server", () => {
           }),
         )
         expect(hits["total"]).toBe(1)
-        expect((hits["hits"] as ReadonlyArray<unknown>)[0]).toMatchObject({
+        const hit = (hits["hits"] as ReadonlyArray<Record<string, unknown>>)[0]
+        expect(hit).toMatchObject({
           id: "order",
           file: "house.jsonl",
           line: 3,
-          status: "open",
           path: ["Kitchen remodel"],
         })
+        // `order` carries no mark, so it has no status — and the answer says
+        // that by leaving the field out rather than by inventing a word for
+        // it. An agent reading a corpus of notes gets nodes, not to-dos.
+        expect(hit).not.toHaveProperty("status")
 
         // The parent's status is DERIVED — it is not in the file, and this is
         // the only way an agent can learn it.
@@ -522,9 +526,10 @@ describe("the internal MCP server", () => {
         expect(reply["isError"]).toBe(true)
         const detail = reply["structuredContent"] as Record<string, unknown>
         expect(detail["kind"]).toBe("derived")
+        // Only `install` is in the way: `demo` is done, and `order` carries no
+        // mark at all, so it is a bullet rather than an unstarted task.
         expect(detail["children"]).toEqual([
-          { id: "order", title: "order the cabinets", status: "open" },
-          { id: "install", title: "install them", status: "open" },
+          { id: "install", title: "install them", status: "doing" },
         ])
         expect(fixture.refusals).toEqual(["done: DerivedFailure"])
         expect(fixture.read("house.jsonl")).toBe(HOUSE)

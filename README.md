@@ -65,6 +65,16 @@ The module fills `package` from the flake for the host platform. The packaged
 binary already bakes the browser bundle (`OLAI_DIST_DIR`), so the service
 needs no ambient environment.
 
+A bullet is a bullet. Mark one `done` or `doing` and a checkbox appears in
+front of it — checked, or half-filled — with the tone to match; leave it
+unmarked and it is text, with nothing claiming it is a to-do nobody has got to
+yet. A parent takes its status from the children that ARE marked: all of them
+done and it reads done, any still under way and it reads doing, none of them
+marked and it is a bullet like they are. None of that is stored — it is
+computed from the file every time it is drawn, which is why a node with
+children may not carry a mark of its own
+([docs/format.md](docs/format.md#status)).
+
 Every node is also a page of its own at `/n/<id>` — the node as the heading,
 its note, its children as the tree — with breadcrumbs up its ancestry. Ids are
 stable and unique across the whole directory, so that address survives renames
