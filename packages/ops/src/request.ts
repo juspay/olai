@@ -137,7 +137,7 @@ const childAt = (below: number): Schema.Codec<Capture> =>
       (below === 0
         ? Schema.Array(Schema.Unknown).annotate({
           description:
-            `Too deep: a capture nests ${NESTING} levels of children, and this is the last. Anything here refuses the whole call — hang it off a second \`add_node\` instead, under an id from \`captured\`.`,
+            `A capture nests ${NESTING} levels of children and this node is at the last of them, so anything here refuses the whole call. Hang it off a second \`add_node\` instead, under an id from \`captured\`.`,
         })
         : Schema.Array(childAt(below - 1)).annotate({
           description: "Nodes to capture under this one, in this order.",
