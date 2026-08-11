@@ -109,11 +109,13 @@ sanitise, highlight, rewrite, stringify:
 - **titles are inline-only** (`renderTitle` → `renderToTree` + `inline.ts`).
   Same pipeline, then every block is unwrapped to phrasing, then `#tags` are
   styled by walking text nodes (skipping `code` and `a` so constructs stay
-  whole), then stringify. An empty render of non-empty source falls back to
-  the escaped source. Breadcrumbs and see-refs pass `links: false` so a
-  markdown link in a title cannot nest `<a>` inside the surrounding `Link`.
-  Titles keep their own cache; they are short and numerous, and would thrash
-  the note/document map if they shared it.
+  whole; the alphabet is `titleTagRe` from `@olai/format`), then stringify.
+  When the pipeline loses text the source still accounts for — empty, or
+  shorter than the source with markdown marks removed — fall back to the
+  escaped source. Breadcrumbs and see-refs pass `links: false` so a markdown
+  link in a title cannot nest `<a>` inside the surrounding `Link`. Titles keep
+  their own cache; they are short and numerous, and would thrash the
+  note/document map if they shared it.
 
 `src/client/document/` is what a document looks like: its own page, the
 reference a `doc`-carrying node shows wherever it is drawn, and the context

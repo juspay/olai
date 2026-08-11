@@ -6,10 +6,11 @@
  * layer on disk, no pre-rendered field in a record, nothing that could go
  * stale. One pipeline serves every piece of markdown this app draws: a node's
  * note, a whole `.md` document, what the agent says in the chat panel, and a
- * node's title (inline only — see {@link renderInlineMarkdown}). They are the
- * same language — an agent writing a fenced diff into the panel and a person
- * writing one into a note are doing the same thing — and a second pipeline for
- * any of them would be a second dialect nobody asked for.
+ * node's title (inline only — see {@link renderToTree} and
+ * `./title.ts`). They are the same language — an agent writing a fenced diff
+ * into the panel and a person writing one into a note are doing the same thing
+ * — and a second pipeline for any of them would be a second dialect nobody
+ * asked for.
  *
  * The stages, and why each is where it is:
  *

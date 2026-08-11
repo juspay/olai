@@ -49,10 +49,12 @@ already built, and what happens when a title contains block-level source.
   `` `#home` `` stays code, and `[spec](…#home)` keeps its URL fragment. Peeling
   with `titleParts` *before* markdown destroyed those cases. Tags remain
   decorative until search/filter lands.
-- **Empty render falls back to escaped source.** `---`, a bare `<div>…</div>`, a
-  footnote definition — the pipeline can produce no text. A note that loses a
-  `<div>` still has the rest; a title that loses everything is an unlabelled
-  row. When the tree has no text but the source did, show the escaped source.
+- **Lost text falls back to escaped source.** The pipeline can drop words a
+  note would keep around (`---` → empty; `Use <Component> here` → `Use  here`).
+  A title that is blank, or that is shorter than the source with markdown marks
+  removed (raw HTML content kept in that estimate), falls back to the escaped
+  source. Looking correct while missing a word is worse than the marks. The
+  fallback is plain escaped text — no tag styling — "show what you wrote".
 - **No nested anchors.** Breadcrumbs and see-refs already wrap the title in a
   `Link`. Those surfaces pass `links: false` so markdown `[a](url)` unwraps to
   its children instead of nesting `<a>` inside `<a>`.

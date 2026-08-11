@@ -2,8 +2,9 @@
  * Markdown from a file, on the page — a note, a document, or the agent.
  *
  * Titles go through the same pipeline forced to phrasing content
- * (`renderInlineMarkdown` in ./render.ts), drawn by `NodeTitle` rather than
- * this component, because a title is not a block of prose.
+ * (`renderTitle` → `renderToTree` in ./title.ts / ./render.ts), drawn by
+ * `NodeTitle` rather than this component, because a title is not a block of
+ * prose.
  *
  * The one component that hands full rendered HTML to `innerHTML`, so the
  * reason that is safe is written down once, wherever markdown appears:

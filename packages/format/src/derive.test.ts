@@ -8,6 +8,7 @@ import {
   type Status,
   storedMarker,
   titleParts,
+  titleTagRe,
   withoutDone,
 } from "./derive.ts"
 import { FIXTURE_FILE, nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
@@ -450,6 +451,19 @@ test("a bare hash is text", () => {
 test("tags come out in reading order, over the tag alphabet", () => {
   expect(tags("#b then #a then #b again")).toEqual(["b", "a", "b"])
   expect(tags("#Tag-1 #tag_2")).toEqual(["Tag-1", "tag_2"])
+})
+
+// The web client styles tags with the same alphabet; it must not re-declare it.
+// A fresh regex each call so /g state cannot leak across walks.
+test("titleTagRe is the alphabet titleParts uses, fresh each call", () => {
+  const one = titleTagRe()
+  const other = titleTagRe()
+  expect(one).not.toBe(other)
+  expect(one.source).toBe(other.source)
+  expect([..."#work/olai mid #a-b".matchAll(one)].map((m) => m[0])).toEqual([
+    "#work/olai",
+    "#a-b",
+  ])
 })
 
 // ── loops ──────────────────────────────────────────────────────────────

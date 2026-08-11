@@ -222,12 +222,39 @@ test("a title that the pipeline empties falls back to the escaped source", () =>
   for (const source of ["---", "***", "___", "<div>plan the trip</div>", "<!-- note -->"]) {
     const html = renderTitle(source, NOTE)
     expect(html.length).toBeGreaterThan(0)
-    // No empty string; the marks (escaped if needed) are what the row shows.
     expect(html).not.toBe("")
   }
   // Raw HTML angle brackets must not open an element in the fallback.
   expect(renderTitle("<div>plan</div>", NOTE)).not.toContain("<div")
   expect(renderTitle("<div>plan</div>", NOTE)).toContain("plan")
+})
+
+// Partial loss: the pipeline kept some text but dropped a word inside raw
+// HTML. Falling back only on full emptiness left a title that looked correct
+// while being wrong — worse than the marks.
+test("a title that loses words to raw HTML falls back to the escaped source", () => {
+  const component = renderTitle("Use <Component> here", NOTE)
+  expect(component).toContain("Component")
+  expect(component).not.toContain("<Component")
+  // Escaped, not the truncated "Use  here".
+  expect(component).toContain("Use")
+  expect(component).toContain("here")
+  expect(component).toContain("&lt;")
+
+  const algo = renderTitle("C++ <algorithm>", NOTE)
+  expect(algo).toContain("algorithm")
+  expect(algo).toContain("&lt;")
+  // Must not be the truncated "C++ " with the word gone.
+  expect(algo.replace(/&lt;|&gt;|&amp;|&quot;/g, "")).toContain("algorithm")
+})
+
+// Ordinary markdown still renders — the loss check must not fire on every title.
+test("a normal markdown title does not fall back to escaped source", () => {
+  const html = renderTitle("**urgent** fix #home", NOTE)
+  expect(html).toContain("<strong>urgent</strong>")
+  expect(html).toContain(`data-testid="tag"`)
+  expect(html).not.toContain("**")
+  expect(html).not.toContain("&lt;")
 })
 
 // Inside a Link (breadcrumb, see-ref): no nested <a>.

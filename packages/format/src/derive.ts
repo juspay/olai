@@ -363,14 +363,20 @@ export type TitlePart =
   | { readonly kind: "text"; readonly text: string }
   | { readonly kind: "tag"; readonly tag: string }
 
-/** `#` followed by letters, digits, `_`, `-` or `/` — the last so `#work/olai`
- *  is one tag. A bare `#` is text. */
-const TAG = /#[A-Za-z0-9_/-]+/g
+/**
+ * A fresh `/g` regex for an inline `#tag` in a title.
+ *
+ * `#` followed by letters, digits, `_`, `-` or `/` — the last so `#work/olai`
+ * is one tag. A bare `#` is text. Returned new each call so `/g` state is never
+ * shared across walks (the client styles tags by walking HAST text nodes with
+ * the same alphabet, and must not re-declare it).
+ */
+export const titleTagRe = (): RegExp => /#[A-Za-z0-9_/-]+/g
 
 export const titleParts = (title: string): ReadonlyArray<TitlePart> => {
   const parts: Array<TitlePart> = []
   let at = 0
-  for (const match of title.matchAll(TAG)) {
+  for (const match of title.matchAll(titleTagRe())) {
     const start = match.index
     if (start > at) parts.push({ kind: "text", text: title.slice(at, start) })
     parts.push({ kind: "tag", tag: match[0].slice(1) })

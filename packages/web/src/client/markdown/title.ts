@@ -12,17 +12,23 @@
  *      phrasing content (`renderToTree` + `toInline`).
  *   2. **then `#tags`** — walk the finished HAST and style tags in text nodes,
  *      skipping `code` and `a` so a tag inside code stays code and a URL
- *      fragment is not mistaken for a tag.
+ *      fragment is not mistaken for a tag. The alphabet is
+ *      {@link titleTagRe} from `@olai/format` — the client does not re-declare
+ *      it.
  *
  * Peeling tags *before* markdown would split constructs across two parser runs
  * (`**urgent #home**` loses its bold; `[spec](…#home)` shreds the link). Tags
  * after markdown keeps every construct whole.
  *
- * When the pipeline produces no text but the source had some (`---`, a bare
- * `<div>…</div>`), fall back to the escaped source: an empty title is an
- * unlabelled row, which is worse than showing the marks.
+ * When the pipeline loses text the source still accounts for — empty render
+ * of non-empty source, or a shorter plain-text estimate after stripping
+ * markdown marks (`Use <Component> here` → `Use  here`) — fall back to the
+ * escaped source. A title that looks correct while missing a word is worse
+ * than the marks. The fallback is plain escaped text (no tag styling): it is
+ * "show what you wrote", not a second render path.
  */
 
+import { titleTagRe } from "@olai/format"
 import type { Element, ElementContent, Root, RootContent, Text } from "hast"
 
 import { TESTID } from "../testids.ts"
@@ -34,9 +40,6 @@ import { hastToHtml, renderToTree } from "./render.ts"
  * as a Solid element.
  */
 const TAG_CLASS = "font-semibold text-accent"
-
-/** Same alphabet as `@olai/format`'s `titleParts` — keep them in step. */
-const TAG = /#[A-Za-z0-9_/-]+/g
 
 /** Subtrees where a `#…` sequence is not a tag: code is code, a link's text
  *  and href are not re-parsed for tags (a URL fragment is the sharpest case). */
@@ -76,14 +79,53 @@ const build = (title: string, from: string, links: boolean): string => {
   styleTags(tree)
   if (!links) unwrapAnchors(tree)
 
-  // Empty render of non-empty source: the pipeline dropped everything (a
-  // thematic break, raw HTML that remark never promotes, a footnote def).
-  // An unlabelled row is worse than the marks; show the escaped source.
-  if (textOf(tree).trim() === "" && title.trim() !== "") {
+  // The pipeline dropped words the source still accounts for — fully empty,
+  // or shorter than the source with markdown marks removed (raw HTML content
+  // is kept in the estimate, so `Use <Component> here` fails the length check
+  // when the pipeline leaves only "Use  here").
+  if (title.trim() !== "" && lostText(title, tree)) {
     return escapeHtml(title)
   }
   return hastToHtml(tree)
 }
+
+/** True when the rendered plain text is missing content the source still has. */
+const lostText = (title: string, tree: Root): boolean => {
+  const rendered = collapse(textOf(tree))
+  const expected = collapse(plainTextEstimate(title))
+  if (rendered === "") return true
+  return rendered.length < expected.length
+}
+
+/**
+ * Rough plain text a title should still show after markdown is interpreted:
+ * link labels, code bodies, emphasis bodies kept; markers stripped. Angle
+ * brackets and their contents are KEPT — raw HTML is what the pipeline drops
+ * and what the length check is for. Autolinks `<http…>` are the one
+ * angle-bracket form that is markdown, and are unwrapped to the URL.
+ */
+const plainTextEstimate = (source: string): string => {
+  let s = source
+  s = s.replace(/```[^\n]*\n?([\s\S]*?)```/g, "$1")
+  s = s.replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+  s = s.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+  s = s.replace(/<(https?:\/\/[^>]+)>/g, "$1")
+  s = s.replace(/`([^`]+)`/g, "$1")
+  s = s.replace(/\*\*([^*]+)\*\*/g, "$1")
+  s = s.replace(/__([^_]+)__/g, "$1")
+  s = s.replace(/~~([^~]+)~~/g, "$1")
+  s = s.replace(/\*([^*]+)\*/g, "$1")
+  // Emphasis underscores only when not mid-tag (`#a_b` stays).
+  s = s.replace(/(^|[\s(])_([^_]+)_([\s).,!?:;]|$)/g, "$1$2$3")
+  s = s.replace(/^#{1,6}\s+/gm, "")
+  s = s.replace(/^[-*+]\s+/gm, "")
+  s = s.replace(/^([-*_])\1{2,}\s*$/gm, "")
+  s = s.replace(/\[\^[^\]]+\]/g, "")
+  s = s.replace(/^\[\^[^\]]+\]:\s*.*$/gm, "")
+  return s
+}
+
+const collapse = (value: string): string => value.replace(/\s+/g, " ").trim()
 
 /** Walk text nodes and turn `#tags` into styled spans. */
 const styleTags = (tree: Root): void => {
@@ -102,7 +144,6 @@ const walkTags = (parent: Root | Element): void => {
       next.push(child)
       continue
     }
-    // comments / doctype: drop for a title (nothing to show)
   }
   parent.children = next as typeof parent.children
 }
@@ -110,7 +151,8 @@ const walkTags = (parent: Root | Element): void => {
 const splitTags = (text: string): ElementContent[] => {
   const parts: ElementContent[] = []
   let at = 0
-  for (const match of text.matchAll(TAG)) {
+  // Fresh regex from @olai/format — the alphabet is one place, not two.
+  for (const match of text.matchAll(titleTagRe())) {
     const start = match.index
     if (start > at) parts.push({ type: "text", value: text.slice(at, start) })
     const name = match[0].slice(1)
@@ -160,8 +202,8 @@ const textOf = (tree: Root): string => {
   return out
 }
 
-/** Escape for the empty-render fallback. The alphabet of a real title can
- *  hold `<`, so this is the one place raw source may reach `innerHTML`. */
+/** Escape for the loss fallback. The alphabet of a real title can hold `<`,
+ *  so this is the one place raw source may reach `innerHTML`. */
 const escapeHtml = (value: string): string =>
   value
     .replace(/&/g, "&amp;")
