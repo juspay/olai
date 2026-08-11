@@ -96,6 +96,16 @@ write gate and a round trip — and a failure partway through that sequence left
 a half-captured subtree behind, with nothing to say which half. A tree that is
 planned at once cannot half-land: the gate already writes all files or none.
 
+**`create`'s `seed` is that same capture**, `children` and all, so a brand-new
+outline arrives holding everything it was born with. That is the same argument
+one level up: `create` then `add` was two plans, and a second one that refused
+left an EMPTY outline on disk nobody had asked for. Now the file and its
+contents are one plan — a seed refused anywhere in its tree leaves no file at
+all, which `src/ops.test.ts` asserts against a real directory. The two tools
+therefore take one shape (`ROOT` in `src/request.ts`): a seed that could say
+less than a capture would be a reason to make the second call this exists to
+delete.
+
 - **The mark rides along.** A captured node may be born `done`, `doing` or
   `todo`, written exactly as `set_done` / `set_doing` / `set_todo` write it —
   one `marker` function, read by both — so a `done` records the instant and
@@ -171,6 +181,7 @@ already knows how to read is worth more than a better one they do not:
 | op | subject |
 |---|---|
 | create (with seed) | `capture: TITLE` — the first node is a capture |
+| create (seed with children) | `capture: TITLE (+N)` |
 | create (empty) | `create: path.jsonl` |
 | add | `capture: TITLE` |
 | add (with children) | `capture: TITLE (+N)` — N is what came with it |
@@ -188,10 +199,11 @@ already knows how to read is worth more than a better one they do not:
 the set already holds. The path is a relative `.jsonl` under the served
 directory, judged segment by segment the way `/media/*` judges a picture name
 (no absolute path, no `..`), and an existing file is refused rather than
-overwritten. A seeded create mints the first node the way a capture does, and
-that is now one function rather than a promise: `seed` IS the capture fields,
-mark included, through the same builder `add` uses;
-an empty one leaves a zero-byte outline for later `add_node`s.
+overwritten. A seeded create mints its nodes the way a capture does, and that is
+now one walk rather than a promise: `seed` IS a capture — the same fields, the
+same `children`, the same depth — through the same `emit` `add` uses, so a new
+outline holding a dozen nodes is one call and a refused seed leaves no file. An
+empty one leaves a zero-byte outline for later `add_node`s.
 
 The last field edits (including `see`) are this format's own: the reference had
 no structural move, no separate note edit, and no agent-writable `see`. `move:`

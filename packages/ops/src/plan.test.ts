@@ -790,6 +790,80 @@ describe("create", () => {
     expect(result.id).toBe("n1")
   })
 
+  // The hole this closes: `create` then `add_node` was TWO plans, and a second
+  // one that refused left an empty outline on disk nobody had asked for. A seed
+  // is a whole capture now, so the file and everything in it are one plan.
+  test("a seed is a whole capture — the outline is born holding its tree", () => {
+    const result = planned(house(), {
+      op: "create",
+      file: "shed.jsonl",
+      seed: {
+        title: "The shed",
+        children: [
+          {
+            title: "clear it out",
+            mark: "todo",
+            children: [{ title: "the old paint tins", mark: "done" }],
+          },
+          { title: "new lock", date: "2026-09-04" },
+        ],
+      },
+    })
+
+    // ONE file plan: the outline and its contents are validated together and
+    // renamed together.
+    expect(result.files).toHaveLength(1)
+    const nodes = fileOf(result, "shed.jsonl")
+    expect(nodes.map((node) => node.id)).toEqual(["n1", "n2", "n3", "n4"])
+    expect(record(nodes, "n2")).toMatchObject({ parent: "n1", todo: true })
+    expect(record(nodes, "n3")).toMatchObject({ parent: "n2", done: STAMP })
+    expect(record(nodes, "n4")).toMatchObject({ parent: "n1", date: "2026-09-04" })
+    expect(childOrder(nodes, "n1")).toEqual(["n2", "n4"])
+
+    expect(result.summary).toBe("capture: The shed (+3)")
+    expect(result.captured?.map((node) => node.title)).toEqual([
+      "The shed",
+      "clear it out",
+      "the old paint tins",
+      "new lock",
+    ])
+  })
+
+  test("a seed refused anywhere in its tree writes no file at all", () => {
+    // A collision two levels down, and an empty title three levels down: the
+    // whole `create` refuses, so there is no outline — not an empty one.
+    for (
+      const seed of [
+        {
+          title: "The shed",
+          children: [{ title: "clear it out", children: [{ title: "x", id: "order" }] }],
+        },
+        { title: "The shed", children: [{ title: "clear it out" }, { title: " " }] },
+      ]
+    ) {
+      const failure = refused(house(), { op: "create", file: "shed.jsonl", seed })
+      expect(failure._tag).toBe("UsageFailure")
+    }
+
+    // And the seed nests exactly as far as a capture does, refused by the same
+    // rule rather than by a second one.
+    const failure = refused(house(), {
+      op: "create",
+      file: "shed.jsonl",
+      seed: {
+        title: "one",
+        children: [{
+          title: "two",
+          children: [{
+            title: "three",
+            children: [{ title: "four", children: [{ title: "five" }] }],
+          }],
+        }],
+      },
+    })
+    expect(failure.message).toContain("`four`")
+  })
+
   test("a chosen seed id is kept, and a taken one is refused", () => {
     const nodes = fileOf(
       planned(house(), {

@@ -465,33 +465,51 @@ test("one add_node lands a whole subtree, and says what it made", async () => {
  * whole tool down with it. Unrolled, the schema is a finite object, and this is
  * the fence that says so.
  */
-test("add_node advertises children as a finite nested schema, with no $ref", async () => {
+test("both capture tools advertise children as a finite nested schema, no $ref", async () => {
   await withTools({ "house.jsonl": HOUSE }, async ({ client }) => {
     const { tools } = await client.listTools()
-    const add = tools.find((tool) => tool.name === "add_node")
-    expect(JSON.stringify(add?.inputSchema)).not.toContain("$ref")
 
-    // Three levels of `children`, each a real object schema an agent can fill
-    // in — and the fields of a child are the fields of the node itself.
     const nested = (schema: unknown): Record<string, unknown> | undefined =>
       ((schema as { properties?: Record<string, { items?: unknown }> })
         ?.properties?.["children"]?.items) as Record<string, unknown> | undefined
 
-    let at: unknown = add?.inputSchema
-    for (let level = 0; level < 3; level++) {
-      at = nested(at)
-      expect(Object.keys((at as { properties: object })?.properties ?? {}).sort())
-        .toEqual(["children", "date", "desc", "id", "mark", "title"])
+    /** The `children` chain of one capture root, level by level. Both tools take
+     *  the same root, so both are walked the same way — a seed that nested less
+     *  deeply than a capture would be a reason to make a second call. */
+    const walk = (root: unknown): void => {
+      // Three levels of `children`, each a real object schema an agent can fill
+      // in, and the fields of a child are the fields of the node itself.
+      let at = root
+      for (let level = 0; level < 3; level++) {
+        at = nested(at)
+        expect(Object.keys((at as { properties: object })?.properties ?? {}).sort())
+          .toEqual(["children", "date", "desc", "id", "mark", "title"])
+      }
+      // The floor: the field is still there — an Effect struct drops a key it
+      // does not declare, and a capture that lost its deepest level quietly
+      // would be worse than one that is refused — but it offers no shape to fill
+      // in, and its description says a fourth level is a second call.
+      const floor = (at as { properties: Record<string, Record<string, unknown>> })
+        .properties["children"] as Record<string, unknown>
+      expect(floor["type"]).toBe("array")
+      expect(floor["items"]).toBeUndefined()
+      expect(String(floor["description"])).toContain("second `add_node`")
     }
-    // The floor: the field is still there — an Effect struct drops a key it
-    // does not declare, and a capture that lost its deepest level quietly would
-    // be worse than one that is refused — but it offers no shape to fill in,
-    // and its description says a fourth level is a second call.
-    const floor = (at as { properties: Record<string, Record<string, unknown>> })
-      .properties["children"] as Record<string, unknown>
-    expect(floor["type"]).toBe("array")
-    expect(floor["items"]).toBeUndefined()
-    expect(String(floor["description"])).toContain("second `add_node`")
+
+    const add = tools.find((tool) => tool.name === "add_node")
+    expect(JSON.stringify(add?.inputSchema)).not.toContain("$ref")
+    walk(add?.inputSchema)
+
+    // The seed of a brand-new outline is the same capture, unrolled the same
+    // way. Effect inlines it a second time rather than sharing a `$defs` entry
+    // — which is the cost of the pool being stripped, and is measured in the
+    // PR rather than hidden here.
+    const create = tools.find((tool) => tool.name === "create_outline")
+    expect(JSON.stringify(create?.inputSchema)).not.toContain("$ref")
+    walk(
+      (create?.inputSchema as { properties: Record<string, unknown> })
+        .properties["seed"],
+    )
   })
 })
 

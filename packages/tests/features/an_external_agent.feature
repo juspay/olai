@@ -71,6 +71,21 @@ Feature: An agent olai did not start
     Then the tree eventually shows a node titled "water the plants"
     And the page has not reloaded
 
+  Scenario: A terminal starts a new outline with its contents already in it
+    # The other half of "one call, or nothing". Creating an outline and filling
+    # it was two calls, so a second one that refused left an EMPTY outline
+    # behind — a file nobody asked for. `seed` is a whole capture now, so the
+    # file and everything in it arrive together, on a page that was already
+    # open.
+    When the terminal agent creates the outline "shed.jsonl" holding a whole tree
+    Then the outline list links to "shed.jsonl"
+    And the terminal agent was told it captured 3 nodes
+    When I open the outline "shed.jsonl"
+    Then the node "clear" is a child of "shed"
+    And the node "tins" is a child of "clear"
+    And the node "clear" shows an empty checkbox
+    And there should be no page errors
+
   Scenario: A terminal captures a whole subtree in one call
     # The item this was filed from: an agent capturing a house outline issued
     # one add_node per node — thirteen calls, each riding the full write gate,

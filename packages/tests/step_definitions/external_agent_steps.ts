@@ -174,6 +174,28 @@ When(
 );
 
 When(
+  "the terminal agent creates the outline {string} holding a whole tree",
+  async function (this: OlaiWorld, file: string) {
+    // The seed is a capture, `children` and all — so the file and everything in
+    // it are one plan, one validation, one rename. Two calls used to be the
+    // only way, and a refused second one left an empty outline behind.
+    this.toolAnswer = await callTool(agentOf(this), "create_outline", {
+      file,
+      seed: {
+        id: "shed",
+        title: "the shed",
+        children: [{
+          id: "clear",
+          title: "clear it out",
+          mark: "todo",
+          children: [{ id: "tins", title: "the old paint tins" }],
+        }],
+      },
+    });
+  },
+);
+
+When(
   "the terminal agent searches for {string}",
   async function (this: OlaiWorld, text: string) {
     this.toolAnswer = await callTool(agentOf(this), "search_nodes", { text });

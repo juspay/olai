@@ -862,6 +862,11 @@ const wouldContainItself = (scope: Scope, id: string, parent: string): boolean =
  * relative, segment by segment, never resolving a `..`. The write itself is the
  * ordinary gate: stage → validate → rename → commit, which already knows how to
  * make a directory a nested path needs ({@link ../../store/src/disk.ts}).
+ *
+ * The seed is a whole CAPTURE, so a new outline is born holding everything it
+ * is meant to hold. That is the same atomicity argument read one level up:
+ * `create` then `add` was two plans, and a refused second one left an empty
+ * outline on disk that nobody had asked for.
  */
 const planCreate = (
   scope: Scope,
@@ -899,27 +904,38 @@ const planCreate = (
     })
   }
 
-  // The seed is a CAPTURE — same fields, same record, same id rule — so it is
-  // minted the way a capture is rather than by a second copy of those lines.
+  // The seed is a CAPTURE — same fields, same records, same id rule, same walk
+  // — so a new outline arrives holding everything it was born with. And it is
+  // the same ONE plan: the file and its contents are validated together and
+  // renamed together, so a seed that is refused leaves no file behind rather
+  // than an empty outline nobody asked for.
   const seed = request.seed
-  if (seed.title.trim() === "") {
-    return Result.fail(new UsageFailure({ reason: "a node needs a title" }))
-  }
-  const chosen = idFor(scope, new Set(), seed)
+  const taken = new Set<string>()
+  const chosen = idFor(scope, taken, seed)
   if (Result.isFailure(chosen)) return Result.fail(chosen.failure)
   const id = chosen.success
 
-  // First (and only) row of an empty parent: the same key an `add` would mint
-  // when there are no siblings yet.
-  const node = capturedNode(scope, seed, { id, ord: nextOrd(null) })
+  const minted: Array<RegularNode> = []
+  const refused = emit(scope, taken, minted, seed, {
+    id,
+    // Top level of a file that does not exist yet, so there is nobody to place
+    // it among: the first key, the one an `add` mints with no siblings.
+    parent: undefined,
+    ord: nextOrd(null),
+    below: NESTING,
+  })
+  if (refused !== null) return Result.fail(refused)
 
+  const under = minted.length - 1
   return Result.succeed({
-    files: [{ file, nodes: [node] }],
+    files: [{ file, nodes: minted }],
     id,
     title: seed.title,
     file,
-    summary: `capture: ${seed.title}`,
-    captured: mintedOf([node]),
+    summary: under === 0
+      ? `capture: ${seed.title}`
+      : `capture: ${seed.title} (+${under})`,
+    captured: mintedOf(minted),
   })
 }
 

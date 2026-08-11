@@ -237,6 +237,58 @@ test("creating an outline lands a new file the set and the disk both see", () =>
       expect(set.nodes.some((located) => located.node.id === applied.id)).toBe(true)
     })))
 
+/**
+ * The last hole in the atomicity claim, closed on disk.
+ *
+ * A new outline used to be `create` then `add_node` — two plans, two gates, two
+ * commits — so a second call that refused left an EMPTY outline behind that
+ * nobody had asked for. The seed is a whole capture now: one plan, one
+ * validation, one rename, and a refusal costs nothing at all, which is only
+ * checkable where the file system is.
+ */
+test("a new outline arrives holding its whole tree, or does not arrive", () =>
+  withOps({ "house.jsonl": HOUSE }, (fixture) =>
+    Effect.gen(function*() {
+      // Refused: the seed names an id the set already holds, two levels down.
+      const failure = yield* Effect.orDie(
+        Effect.flip(fixture.ops.run({
+          op: "create",
+          file: "shed.jsonl",
+          seed: {
+            title: "The shed",
+            children: [{ title: "clear it out", children: [{ title: "x", id: "order" }] }],
+          },
+        })),
+      )
+      expect(failure._tag).toBe("UsageFailure")
+      // Not an empty outline, not a partial one: no file.
+      expect(fixture.read("shed.jsonl")).toBeNull()
+      expect((yield* fixture.set()).files).toEqual(["house.jsonl"])
+      expect(gitLog(fixture.root)).toEqual(["fixtures"])
+      // And the outline that WAS there is untouched, byte for byte.
+      expect(fixture.read("house.jsonl")).toBe(HOUSE)
+
+      // The same call with the collision fixed lands all of it at once.
+      const applied = yield* run(fixture, {
+        op: "create",
+        file: "shed.jsonl",
+        seed: {
+          title: "The shed",
+          children: [{ title: "clear it out", children: [{ title: "the paint tins" }] }],
+        },
+      })
+      expect(applied.summary).toBe("capture: The shed (+2)")
+      expect(applied.captured).toHaveLength(3)
+      const text = fixture.read("shed.jsonl") ?? ""
+      expect(text.split("\n").filter((line) => line !== "")).toHaveLength(3)
+      expect(Result.isSuccess(parseOutline("shed.jsonl", text))).toBe(true)
+      expect(fixture.read("house.jsonl")).toBe(HOUSE)
+
+      // One revision and one commit for a file and everything in it.
+      expect(applied.rev).toBe(2)
+      expect(gitLog(fixture.root)).toEqual(["capture: The shed (+2)", "fixtures"])
+    }), { git: true }))
+
 test("creating an empty outline is a zero-byte file the sidebar can list", () =>
   withOps({ "house.jsonl": HOUSE }, (fixture) =>
     Effect.gen(function*() {

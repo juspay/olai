@@ -180,6 +180,17 @@ const childAt = (below: number): Schema.Codec<Capture> =>
     children: childrenOf(below),
   }) as unknown as Schema.Codec<Capture>
 
+/**
+ * A capture as a CALL names it: the documented fields, and the subtree that may
+ * hang off them.
+ *
+ * Both ops that bring nodes into being take exactly this — the node `add_node`
+ * adds, and the first node a new outline is born with — so "what one call may
+ * capture" has one spelling and one depth. A tool that could capture less than
+ * the other would be a reason to make two calls where the point is to make one.
+ */
+const ROOT = { ...CAPTURE, children: childrenOf(NESTING) } as const
+
 export const AddRequest = Schema.Struct({
   op: Schema.Literal("add"),
   /** The outline to write into. Required only when there is no `parent`: with
@@ -196,10 +207,10 @@ export const AddRequest = Schema.Struct({
       description: "Id of the parent node. Absent puts the node at top level.",
     }),
   ),
-  ...CAPTURE,
-  /** The subtree. One call, one plan, one validation, one write, one commit —
-   *  which is what makes a half-captured outline impossible. */
-  children: childrenOf(NESTING),
+  /** The node, and the subtree under it. One call, one plan, one validation,
+   *  one write, one commit — which is what makes a half-captured outline
+   *  impossible. */
+  ...ROOT,
   ...Placement,
 })
 
@@ -249,14 +260,20 @@ export const ArchiveRequest = Schema.Struct({
   id: Id,
 })
 
-/** The optional first node of a brand-new outline: the capture fields exactly,
- *  read from the one place they are declared. No parent (it is top-level by
- *  definition), no placement (it is the only row) and no subtree — a file is
- *  born with a node in it, and `add_node` is what fills it. Naming four of the
- *  five here was a second field list, and the one it dropped — `mark` — was
- *  dropped for no reason anybody could give: the same record builder writes a
- *  seed and a capture, and it has always been able to write a mark. */
-const Seed = Schema.Struct(CAPTURE)
+/**
+ * What a brand-new outline is born holding: a capture, exactly as `add_node`
+ * takes one — the same fields, the same `children`, the same depth.
+ *
+ * No parent (it is top-level by definition) and no placement (it is the first
+ * row of an empty file); everything else is {@link ROOT}, because a seed that
+ * could say less would be a reason to make a second call, and the second call
+ * is what this whole feature exists to delete. It is also what closes the last
+ * hole in the atomicity claim: a `create` that lands followed by an `add` that
+ * refuses left an empty outline behind, and now the file and everything in it
+ * are one plan, one validation and one rename — a refused seed leaves no file
+ * at all.
+ */
+const Seed = Schema.Struct(ROOT)
 
 export const CreateRequest = Schema.Struct({
   op: Schema.Literal("create"),
@@ -269,9 +286,10 @@ export const CreateRequest = Schema.Struct({
   seed: Schema.optionalKey(
     Seed.annotate({
       description:
-        "Optional first node. The same fields a capture mints: a title, and optional " +
-        "note, date, mark and id. Absent leaves an empty outline to fill with " +
-        "`add_node` — which is also how a subtree gets in, since a seed is one node.",
+        "What the new outline is born holding — a capture, exactly as `add_node` takes " +
+        "one: a title, optional note/date/mark/id, and `children` nesting the same " +
+        "way. So a new outline and everything in it is ONE call, and a seed that is " +
+        "refused leaves no file behind. Absent creates the outline empty.",
     }),
   ),
 })
