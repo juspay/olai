@@ -4,7 +4,7 @@ Status: brainstorming ahead of the Viewing theme's next items. Reference model r
 
 ## Where we are (shipped in see-outline)
 
-Sidebar of found outlines, one tree per route, mirrors inline (marked), client-local collapse/expand, derived done/doing/open status, #tags styled in titles, all-errors view.
+Sidebar of found outlines, one tree per route, mirrors inline (marked), client-local collapse/expand, derived done/doing/open status, #tags styled in titles, inline-only markdown in titles (title-markdown), all-errors view.
 
 ## Workflowy's model (the distilled facts)
 
@@ -24,6 +24,28 @@ Sidebar of found outlines, one tree per route, mirrors inline (marked), client-l
 - **First navigation PR**: zoom + breadcrumbs + permalinks + done-visibility toggle. Independent of live-updates — it only needs the see-outline tree, so the two can proceed in parallel.
 - **Tag click lands with search**, not navigation — it is a canned filter, shipped when the filter machinery exists. Tags stay decorative until then.
 - **Done-visibility is per-view** (each zoomed view/outline its own Visible/Hidden switch), a client-local cell alongside collapse state.
+
+## Title markdown — resolved 2026-08-10 (title-markdown)
+
+Racket parity: titles are **inline-only** markdown (bold, links, code — no block
+elements). What had to be decided is how that sits on the pipeline `md-docs`
+already built, and what happens when a title contains block-level source.
+
+- **Same pipeline, one extra step.** `renderInlineMarkdown` runs the note/document
+  pipeline (parse → GFM → rehype → sanitise → highlight), then `toInline` unwraps
+  every block to its phrasing content before `rewrite` and stringify. A second
+  pipeline would be a second dialect; a CSS-only "make blocks look inline" would
+  leave `<h1>`/`<ul>`/`<pre>` in the DOM for a screen reader and for any layout
+  that measures block boxes.
+- **Block source is unwrapped, not refused.** A title of `# not a heading` draws
+  the words "not a heading" with no `<h1>`; a fence becomes its `<code>`; a list
+  item becomes its text. The words stay; the boxes do not. Refusing the whole
+  title (or escaping it back to source) would punish a paste more loudly than the
+  layout needs.
+- **`#tags` stay a split, not a markdown feature.** `titleParts` still peels
+  tags out before the markdown pass, so a tag is a styled span and a markdown
+  heading (which needs a space after `#`) cannot steal one. Tags remain
+  decorative until search/filter lands.
 
 ## Documents — resolved 2026-08-10 (md-docs)
 

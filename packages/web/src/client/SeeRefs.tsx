@@ -16,6 +16,7 @@ import { follow, isMirror, type RegularNode } from "@olai/format"
 import { createMemo, For, Show } from "solid-js"
 
 import { useDerived } from "./derived.tsx"
+import { NodeTitle } from "./NodeTitle.tsx"
 import { Link } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import { TARGET } from "./touch.ts"
@@ -38,15 +39,15 @@ export function SeeRefs(props: {
         // A set under the stale banner can hold a dangling id the validator
         // would refuse; still draw the link so the page says what the file
         // says, with the id as text rather than a blank.
-        return [{ id, title: id }]
+        return [{ id, title: id, from: "" }]
       }
       if (!isMirror(located.node)) {
-        return [{ id, title: located.node.title }]
+        return [{ id, title: located.node.title, from: located.file }]
       }
       const found = follow(indexes, located)
       return found.kind === "found"
-        ? [{ id, title: found.shows.node.title }]
-        : [{ id, title: id }]
+        ? [{ id, title: found.shows.node.title, from: found.shows.file }]
+        : [{ id, title: id, from: "" }]
     })
   })
 
@@ -67,7 +68,9 @@ export function SeeRefs(props: {
             >
               {/* data-see is the TARGET id: titles change under a live page,
                   ids do not, so a scenario picks the link by this. */}
-              <span data-see={ref.id}>{ref.title}</span>
+              <span data-see={ref.id}>
+                <NodeTitle title={ref.title} from={ref.from} />
+              </span>
             </Link>
           )}
         </For>

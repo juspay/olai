@@ -1,23 +1,34 @@
 /**
  * A title, printed.
  *
- * Tags live inline in the title verbatim — the format stores no tag list — so
- * the split into text and tags happens at view time, and it happens HERE: a
- * tree row and a zoomed page's heading are the same title in two type sizes,
- * and two copies of this loop would be two chances for one of them to eat the
- * `#` or to style a tag the other did not.
+ * Two view-time concerns, and both stay here so a tree row and a zoomed page's
+ * heading cannot disagree about either of them:
  *
- * Decorative for now. Clicking a tag becomes a filter when the filter
+ *   - **inline markdown** — bold, links, code — through the same sanitised
+ *     pipeline a note and a document use (`./markdown/`), forced to phrasing
+ *     content only so a heading or a fence cannot break the row's layout.
+ *   - **`#tags`** — still live in the title verbatim (the format stores no tag
+ *     list), split out before the markdown pass so a tag is a styled span and
+ *     not a markdown heading (a heading needs a space after `#`; a tag does
+ *     not, but the split keeps the two languages from arguing).
+ *
+ * Decorative for tags, for now. Clicking a tag becomes a filter when the filter
  * machinery exists (docs/brainstorming/viewing-web.md); until then styling one
  * as a link would promise something nothing answers.
  */
 
 import { titleParts } from "@olai/format"
-import { For } from "solid-js"
+import { For, Show } from "solid-js"
 
+import { renderInlineMarkdown } from "./markdown/render.ts"
 import { TESTID } from "./testids.ts"
 
-export function NodeTitle(props: { readonly title: string }) {
+export function NodeTitle(props: {
+  readonly title: string
+  /** The file the title is written in — an outline, for a node. Relative
+   *  pictures in a title (rare) resolve against it, same contract as a note. */
+  readonly from: string
+}) {
   return (
     <For each={titleParts(props.title)}>
       {(part) =>
@@ -27,7 +38,17 @@ export function NodeTitle(props: { readonly title: string }) {
               #{part.tag}
             </span>
           )
-          : <>{part.text}</>}
+          : (
+            <Show when={part.text.length > 0 ? part.text : undefined}>
+              {(text) => (
+                <span
+                  class="olai-md olai-md-inline"
+                  // Safe: same pipeline as notes/docs, forced inline.
+                  innerHTML={renderInlineMarkdown(text(), props.from)}
+                />
+              )}
+            </Show>
+          )}
     </For>
   )
 }

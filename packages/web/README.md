@@ -82,13 +82,13 @@ and says why at length.
 ## Markdown, and documents
 
 `src/client/markdown/` is one pipeline for every piece of markdown this app
-draws — a node's note, a whole `.md` document and what the agent says in the
-chat panel. They are the same language read out of the same directory (an agent
-writing a fenced diff into the panel and a person writing one into a note are
-doing the same thing), and a second pipeline for any of them would be a second
-dialect nobody asked for: footnotes in one place and not the other, a
-highlighter kept in step by hand. Parse with GFM, to HTML, sanitise,
-highlight, rewrite, stringify:
+draws — a node's note, a whole `.md` document, what the agent says in the chat
+panel, and a node's title. They are the same language read out of the same
+directory (an agent writing a fenced diff into the panel and a person writing
+one into a note are doing the same thing), and a second pipeline for any of
+them would be a second dialect nobody asked for: footnotes in one place and not
+the other, a highlighter kept in step by hand. Parse with GFM, to HTML,
+sanitise, highlight, rewrite, stringify:
 
 - **highlighting runs after the sanitiser**, deliberately. The `hljs-` spans
   are ours, produced from the code's own text, so they need no allowlist entry
@@ -106,6 +106,11 @@ highlight, rewrite, stringify:
   is not drawn at all, and every id (and every link into the same block) is
   re-minted under a prefix derived from the block itself, so the first footnote
   of one note cannot answer for the first footnote of the next.
+- **titles are inline-only** (`renderInlineMarkdown`, `inline.ts`). Same
+  pipeline, then every block is unwrapped to its phrasing content so a heading,
+  a list or a fence in a title cannot break a tree row's baseline layout —
+  racket parity. Tags (`#home`) stay a separate view-time split in
+  `NodeTitle.tsx`, as they always were.
 
 `src/client/document/` is what a document looks like: its own page, the
 reference a `doc`-carrying node shows wherever it is drawn, and the context

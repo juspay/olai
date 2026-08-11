@@ -26,6 +26,9 @@ import { TONE } from "./tone.ts"
 
 export function NodeLine(props: {
   readonly title: string
+  /** Outline the title is written in — handed to {@link NodeTitle} for the
+   *  markdown pipeline's relative-picture resolution. */
+  readonly from: string
   readonly status: Status
   readonly date?: string
   /** Drawn inside the title and before it — the tree's mirror mark. */
@@ -35,7 +38,7 @@ export function NodeLine(props: {
     <>
       <span class={`flex-1 ${TONE[props.status]}`} data-testid={TESTID.nodeTitle}>
         {props.children}
-        <NodeTitle title={props.title} />
+        <NodeTitle title={props.title} from={props.from} />
       </span>
       <Show when={props.date}>
         {(date) => <DateBadge date={date()} />}

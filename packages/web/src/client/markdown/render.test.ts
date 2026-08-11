@@ -5,11 +5,15 @@
  * relative picture — plus the one thing every markdown renderer has to be held
  * to, which is what it refuses. The e2e suite proves the same things reach a
  * browser; this is where the shape of the output is pinned down cheaply.
+ *
+ * Titles use the same pipeline forced to phrasing content only: those tests
+ * live at the bottom, because "inline-only" is a discipline of its own and a
+ * block that escaped into a title would break every row that drew it.
  */
 
 import { expect, test } from "bun:test"
 
-import { renderMarkdown } from "./render.ts"
+import { renderInlineMarkdown, renderMarkdown } from "./render.ts"
 
 const NOTE = "house.jsonl"
 
@@ -77,6 +81,60 @@ test("a picture this app will not fetch is not drawn", () => {
 test("a script is not markdown", () => {
   const html = renderMarkdown(
     `<script>alert(1)</script>\n\n[x](javascript:alert(1))\n`,
+    NOTE,
+  )
+  expect(html).not.toContain("<script")
+  expect(html).not.toContain("javascript:")
+})
+
+// ── inline (titles) ────────────────────────────────────────────────────
+
+// Racket parity: a title is phrasing — bold, links, code — never a block.
+test("inline markdown keeps bold, code and links", () => {
+  const html = renderInlineMarkdown(
+    "**bold** and `code` and [a](https://example.com)",
+    NOTE,
+  )
+  expect(html).toContain("<strong>bold</strong>")
+  expect(html).toContain("<code>code</code>")
+  expect(html).toContain(`<a href="https://example.com">a</a>`)
+  // No wrapping paragraph: a title is not a document.
+  expect(html).not.toContain("<p")
+})
+
+// The whole point of "inline-only": a title that contains block-level source
+// must not produce block output that would break a tree row's layout. Words
+// stay; boxes do not.
+test("inline markdown unwraps blocks rather than drawing them", () => {
+  // A heading: the `#` is markdown syntax, so the words remain without an h1.
+  const heading = renderInlineMarkdown("# not a heading", NOTE)
+  expect(heading).toContain("not a heading")
+  expect(heading).not.toMatch(/<h[1-6]/)
+
+  // A list: the item text stays, the list box does not.
+  const list = renderInlineMarkdown("- nor a list", NOTE)
+  expect(list).toContain("nor a list")
+  expect(list).not.toContain("<ul")
+  expect(list).not.toContain("<li")
+
+  // A fence: the code stays as phrasing `<code>`, never a `<pre>` block.
+  const fence = renderInlineMarkdown("```\nstill words\n```", NOTE)
+  expect(fence).toContain("still words")
+  expect(fence).not.toContain("<pre")
+  expect(fence).toContain("<code")
+
+  // Two paragraphs become one run of phrasing, with a space between.
+  const paras = renderInlineMarkdown("foo\n\nbar", NOTE)
+  expect(paras).toContain("foo")
+  expect(paras).toContain("bar")
+  expect(paras).not.toContain("<p")
+  expect(paras.replace(/\s+/g, " ")).toMatch(/foo bar/)
+})
+
+// Same sanitiser: a title is not a place a script may appear either.
+test("inline markdown is sanitised the same way", () => {
+  const html = renderInlineMarkdown(
+    `<script>alert(1)</script> and [x](javascript:alert(1))`,
     NOTE,
   )
   expect(html).not.toContain("<script")

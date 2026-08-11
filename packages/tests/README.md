@@ -238,7 +238,7 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="outline-link"][data-file]` | one sidebar entry per `.jsonl` |
 | `[data-testid="outline-tree"]` | the tree pane |
 | `[data-testid="node"][data-node-id]` | one node; also `data-status`, `data-collapsed`, `data-mirror` |
-| `[data-testid="node-title"]` | the title text |
+| `[data-testid="node-title"]` | the title text — inline-only markdown (bold/links/code), never block elements |
 | `[data-testid="tag"]` | a styled inline `#tag` |
 | `[data-testid="date"]` | the date badge |
 | `[data-testid="desc"]` | a node's note — one clamped plain line under the title when closed (`data-preview="true"`, `data-open="false"`), full markdown when open (`data-open="true"`); always full on a zoomed page |
