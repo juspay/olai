@@ -15,8 +15,10 @@ import {
  *  here is the things a type cannot say: that no two rows answer to the same
  *  name, that the values are colours, and that the default is one of them. */
 describe("the palette table", () => {
-  test("ships the fifteen the racket implementation did", () => {
-    expect(PALETTES.length).toBe(15)
+  test("ships every named palette, including those added after the port", () => {
+    // Fifteen from the racket / WorkFlowy port, plus any rows written after.
+    expect(PALETTES.length).toBe(16)
+    expect(THEME_NAMES).toContain("prismatic")
   })
 
   test("no two themes share a name", () => {
@@ -39,7 +41,7 @@ describe("the palette table", () => {
     }
   })
 
-  test("the default is one of the themes, and it is the one that promises AA", () => {
+  test("the default is one of the themes, and it promises AA", () => {
     expect(DEFAULT_PALETTE.name).toBe(DEFAULT_THEME)
     expect(DEFAULT_PALETTE.aa).toBe(true)
   })

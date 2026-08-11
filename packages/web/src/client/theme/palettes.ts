@@ -5,18 +5,19 @@
  * one is adding a row, deleting one is deleting a row, and neither touches a
  * line of CSS — `./css.ts` generates every block in the sheet from what is
  * here, and `./Picker.tsx` draws one chip per row. Hand-written CSS would be
- * the same eight lines copied fifteen times, and one place per theme for a new
+ * the same eight lines copied once per theme, and one place per theme for a new
  * token to be forgotten.
  *
- * The values are the racket implementation's, ported hex for hex from
- * `olai/web/theme.rkt` on the `master-racket` branch. Four of the fifteen are
- * that implementation's own (leaf, manuscript, chalk, pitch); the other eleven
- * are the WorkFlowy desktop themes' colour VALUES, and they were re-read off
- * those themes' own stylesheets rather than trusted second-hand — every row
- * below was checked against the `._theme-*` block it comes from, `var()` chains
- * resolved. Nothing else came across: their app draws a different app, and none
- * of its rules, names or markup are ours to keep. A hex is a fact about a
- * colour.
+ * Most values are the racket implementation's, ported hex for hex from
+ * `olai/web/theme.rkt` on the `master-racket` branch. Four of the original
+ * fifteen are that implementation's own (leaf, manuscript, chalk, pitch); the
+ * other eleven are the WorkFlowy desktop themes' colour VALUES, and they were
+ * re-read off those themes' own stylesheets rather than trusted second-hand —
+ * every ported row below was checked against the `._theme-*` block it comes
+ * from, `var()` chains resolved. Nothing else came across: their app draws a
+ * different app, and none of its rules, names or markup are ours to keep. A
+ * hex is a fact about a colour. Rows added after the port are written in the
+ * same eight-token vocabulary and called out where they sit.
  *
  * Four of their themes are not here, and it is the same reason for all four:
  * `wood`, `steel` and `glass` are a photograph or a pane of glass over the
@@ -343,6 +344,29 @@ const TABLE = [
       alarm: "#E8393F",
     },
   },
+
+  // ── after the port ───────────────────────────────────────────────────
+  //
+  // Prismatic: a whole spectrum in eight tokens, with purple as the anchor
+  // (lilac paper, violet accent) and every other slot a different hue family
+  // — teal ink, jade muted, peach rule, green done, orange doing, rose alarm.
+  // The ported rows are mostly muted; this one is saturated on purpose so a
+  // pick is unmistakable. Every pair this client paints clears AA.
+  {
+    name: "prismatic",
+    scheme: "light",
+    aa: true,
+    colors: {
+      paper: "#F2E8FF",
+      ink: "#0C2840",
+      muted: "#0A6A58",
+      rule: "#FFB898",
+      accent: "#7818B8",
+      done: "#007040",
+      doing: "#8A4000",
+      alarm: "#B81048",
+    },
+  },
 ] as const satisfies ReadonlyArray<Palette>
 
 /** The name of a theme that EXISTS — every row's name, and nothing else. What
@@ -366,8 +390,8 @@ export const THEME_NAMES: ReadonlyArray<ThemeName> = TABLE.map(
  *
  * The OS does not vote. `prefers-color-scheme` used to choose this, and it
  * meant two ways to be dark that could disagree; a theme is a PICK, and an
- * unpicked page reads in the default — which is the one palette that promises
- * AA, so the page nobody has chosen for is the legible one.
+ * unpicked page reads in the default — which is `chalk`, which promises AA, so
+ * the page nobody has chosen for is the legible one.
  */
 export const DEFAULT_THEME: ThemeName = "chalk"
 

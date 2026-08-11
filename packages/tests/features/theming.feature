@@ -1,6 +1,6 @@
 @corpus:good
 Feature: The theme is a pick, and it is yours
-  Fifteen named palettes behind a pill in the app header. Pressing one writes `data-theme` on
+  Sixteen named palettes behind a pill in the app header. Pressing one writes `data-theme` on
   `<html>`, this browser remembers it, and the sheet repaints — every colour on
   the page is a custom property, so one attribute re-answers all of them at
   once.
@@ -15,7 +15,7 @@ Feature: The theme is a pick, and it is yours
   There is no "system" chip. The OS's preference used to choose the palette,
   which meant two ways to be dark that could disagree, and a page that changed
   under a reader who had already said what they wanted. A page that has picked
-  nothing reads in the default — `chalk`, the one palette that promises AA — so
+  nothing reads in the default — `chalk`, which promises AA — so
   the page nobody chose for is the legible one.
 
   The scenario about parsing is the one that catches the regression that

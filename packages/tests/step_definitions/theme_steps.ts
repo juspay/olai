@@ -57,7 +57,7 @@ When("I pick the default theme", async function (this: OlaiWorld) {
 
 /** Open the header's theme popover if the chips are not already on screen.
  *  The picker is a compact pill in the app header; chips live behind it so
- *  fifteen names do not crowd the bar. */
+ *  sixteen names do not crowd the bar. */
 const showChips = async (
   world: OlaiWorld,
   page: Page = world.page,

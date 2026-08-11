@@ -140,17 +140,17 @@ server is actually answering. Restart the server under an open tab and the page
 does not pretend — it says the server it came from is gone and offers the one
 thing that recovers it, a reload.
 
-What it looks like while you read it is yours. Fifteen named palettes sit behind
+What it looks like while you read it is yours. Sixteen named palettes sit behind
 a pill in the app header — chalk, leaf, manuscript, pitch, a phosphor terminal,
-a bar of chocolate — and each chip is painted in the palette it offers, so
-picking one is a matter of looking rather than of reading fifteen names. The
-page repaints at once, this browser remembers it, and none of it goes anywhere:
-nothing about a theme is sent to the server, so two machines reading the same
-directory are entitled to look nothing alike. There is no "system" setting on
-purpose. Your operating system's idea of dark used to decide, which meant the
-page could change under you after you had already said what you wanted; a page
-nobody has picked for reads in chalk, which is the one palette that promises AA
-contrast on everything it paints.
+a bar of chocolate, prismatic — and each chip is painted in the palette it
+offers, so picking one is a matter of looking rather than of reading sixteen
+names. The page repaints at once, this browser remembers it, and none of it goes
+anywhere: nothing about a theme is sent to the server, so two machines reading
+the same directory are entitled to look nothing alike. There is no "system"
+setting on purpose. Your operating system's idea of dark used to decide, which
+meant the page could change under you after you had already said what you
+wanted; a page nobody has picked for reads in chalk, which is the default and
+promises AA contrast on everything it paints.
 
 It reads on a phone, and it installs as one. Add it to a home screen or a dock
 and it opens in its own window under the olai mark; the directory (calendar and

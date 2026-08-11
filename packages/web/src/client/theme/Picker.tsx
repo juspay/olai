@@ -4,7 +4,7 @@
  * Behaviour is unchanged from the sidebar form — every chip is a theme, pressing
  * one picks it, each chip wears the palette it offers, `aria-pressed` says which
  * is in force. The presentation is what moved: the header is a slim bar, so
- * fifteen chips cannot live in a row of it. A pill names the theme in force and
+ * sixteen chips cannot live in a row of it. A pill names the theme in force and
  * opens a popover of the same chips; picking one (or pressing the pill again,
  * Escape, or clicking away) shuts it and returns focus to the trigger.
  * Persistence, the storage event, the boot script and the contrast promise are
@@ -35,7 +35,7 @@ import { TARGET_BOX } from "../touch.ts"
 export function ThemePicker() {
   // `createSelector` rather than `currentTheme() === palette.name`, which is
   // what this was: that form subscribes every chip to the theme, so a pick
-  // re-runs fifteen effects to change two attributes — and the table is meant
+  // re-runs an effect per chip to change two attributes — and the table is meant
   // to grow. This notifies exactly the chip that lit and the one that went out.
   const isInForce = createSelector(currentTheme)
   const [open, setOpen] = createSignal(false)

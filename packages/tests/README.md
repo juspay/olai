@@ -178,7 +178,7 @@ the server, before the directory both were watching is removed.
 
 ## Colour, which is the one thing a step may not write down
 
-`features/theming.feature` is about fifteen palettes, and not one of its steps
+`features/theming.feature` is about sixteen palettes, and not one of its steps
 names a colour. The paper is compared against ITSELF (before a pick, after a
 pick), against the browser chrome and against what the manifest says — never
 against a hex, which would make the suite the place a design decision has to be
