@@ -177,11 +177,20 @@ Feature: Zoom and navigate
     And the address is "/n/order"
     And there should be no page errors
 
-  Scenario: The waiting mark's tip stays inside the window
+  Scenario: The waiting mark's tip stays inside the window, and there is one of it
     # Its own tip rather than the platform's `title`, because a long one ran
     # off the right edge with the end of the sentence outside the screen. What
     # it says is the label's sentence; where it goes is arithmetic (tip.ts).
+    #
+    # "A tip says" counts as well as reads: a doubled tip said the right thing
+    # twice, a few pixels apart and unreadable, and every assertion about the
+    # TEXT passed while the screen was wrong.
     Given I open the outline "house.jsonl"
     When I hover the waiting mark on "hinges"
     Then a tip says "blocked by order the new cabinets"
     And the tip is inside the window
+    # And it goes when the pointer does — a tip that outlives its pointer is
+    # the ghost that made two of them in the first place.
+    When I move the pointer away
+    Then no tip is shown
+    And there should be no page errors

@@ -9,18 +9,24 @@
  * makes this tip a convenience rather than the only copy.
  *
  * It shows on hover AND on focus, because a control you can tab to is one you
- * can ask about; it hides on leave, blur and Escape. `position: fixed`, so it
- * is placed against the WINDOW rather than against whatever the row happens to
- * be inside — a tree row is inside a scrolling pane inside a flex column, and
- * an absolutely positioned tip would inherit every one of those boxes. Where
- * it lands is `./tip.ts`, measured after it draws because a tip's width is a
- * fact about the text and the window rather than one we can be told.
+ * can ask about; it hides on leave, blur, Escape, a scroll, and — the one that
+ * matters most — the moment any OTHER tip opens (./tip.ts holds that, because
+ * "only one is on screen" is a fact about the page rather than about any tip
+ * in it). It also hides when whatever it belongs to is disposed, since a tip
+ * outliving its control is a sentence about nothing.
+ *
+ * `position: fixed`, so it is placed against the WINDOW rather than against
+ * whatever the row happens to be inside — a tree row is inside a scrolling pane
+ * inside a flex column, and an absolutely positioned tip would inherit every
+ * one of those boxes. Where it lands is `./tip.ts`, measured after it draws
+ * because a tip's width is a fact about the text and the window rather than one
+ * we can be told.
  */
 
-import { createSignal, type JSX, onMount, Show } from "solid-js"
+import { createSignal, type JSX, onCleanup, onMount, Show } from "solid-js"
 
 import { TESTID } from "./testids.ts"
-import { clampedLeft } from "./tip.ts"
+import { clampedLeft, hideTip, showTip, takeTip, tipShowing } from "./tip.ts"
 
 interface At {
   readonly left: number
@@ -34,6 +40,7 @@ export function Tip(props: {
   /** The control being explained. */
   readonly children: JSX.Element
 }) {
+  const me = takeTip()
   const [at, setAt] = createSignal<At | undefined>()
   let anchor: HTMLSpanElement | undefined
 
@@ -48,7 +55,13 @@ export function Tip(props: {
     // Under the anchor and starting at it; the effect below pulls it back if
     // that turned out to run past the window's right edge.
     setAt({ left: box.left, top: box.bottom + 4 })
+    showTip(me)
   }
+
+  const hide = (): void => hideTip(me)
+  // A control that goes away under the pointer takes its tip with it: a row
+  // that was folded away, a page that was left.
+  onCleanup(hide)
 
   const place = (tip: HTMLDivElement): void => {
     const box = tip.getBoundingClientRect()
@@ -61,15 +74,15 @@ export function Tip(props: {
       ref={anchor}
       class="contents"
       onMouseEnter={show}
-      onMouseLeave={() => setAt(undefined)}
+      onMouseLeave={hide}
       onFocusIn={show}
-      onFocusOut={() => setAt(undefined)}
+      onFocusOut={hide}
       onKeyDown={(event) => {
-        if (event.key === "Escape") setAt(undefined)
+        if (event.key === "Escape") hide()
       }}
     >
       {props.children}
-      <Show when={at()}>
+      <Show when={tipShowing(me) ? at() : undefined}>
         {(spot) => {
           let tip: HTMLDivElement | undefined
           // `onMount`, not the `ref` callback: a ref fires while the element is
@@ -78,6 +91,12 @@ export function Tip(props: {
           // one of them to the margin.
           onMount(() => {
             if (tip !== undefined) place(tip)
+            // A fixed tip does not scroll with what it is about, so the pane
+            // moving under it is the same news as the pointer leaving.
+            // Captured, because the pane scrolls rather than the window.
+            const away = (): void => hide()
+            window.addEventListener("scroll", away, { capture: true, passive: true })
+            onCleanup(() => window.removeEventListener("scroll", away, true))
           })
           return (
             <div

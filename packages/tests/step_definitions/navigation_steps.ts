@@ -226,7 +226,35 @@ When(
 );
 
 Then("a tip says {string}", async function (this: OlaiWorld, said: string) {
-  assert.strictEqual(oneLine(await this.page.locator(TIP).first().innerText()), said);
+  const tips = this.page.locator(TIP);
+  // EXACTLY one, in the whole document. The doubled tip the human caught said
+  // the right thing twice — two copies of one sentence, a few pixels apart and
+  // unreadable — so every assertion about its TEXT passed while the screen was
+  // wrong. Counting is the only part of this step that would have failed.
+  assert.strictEqual(
+    await tips.count(),
+    1,
+    "more than one tip is on screen; only one may ever be",
+  );
+  assert.strictEqual(oneLine(await tips.first().innerText()), said);
+});
+
+/** Nothing is hovered any more, so nothing may be saying anything. A tip that
+ *  outlived the pointer is the same defect one step earlier. */
+Then("no tip is shown", async function (this: OlaiWorld) {
+  const tips = this.page.locator(TIP);
+  await this.waitUntil(
+    async () => (await tips.count()) === 0,
+    "a tip is still on screen with nothing hovered",
+  ).catch(async () => {
+    assert.strictEqual(await tips.count(), 0);
+  });
+});
+
+/** Away from every control, so the pointer is over nothing in particular. */
+When("I move the pointer away", async function (this: OlaiWorld) {
+  await this.page.mouse.move(2, 2);
+  await this.waitForFrame();
 });
 
 /** The whole reason this app draws its own tip: the platform put a long one
