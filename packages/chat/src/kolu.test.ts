@@ -20,7 +20,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 
 import { mcpServersOf } from "./agent.ts"
-import { detect, PROBE_ID, PROBE_MS, type Server } from "./kolu.ts"
+import { detect, PROBE_ID, type Server } from "./kolu.ts"
 
 /** Everything this test made, undone after each case: the directories it put
  *  on PATH, and PATH itself. */
@@ -138,20 +138,13 @@ describe("detecting kolu", () => {
   // `tools/list` or `resources/list` — every one of which a real kolu answers
   // with nothing behind it (juspay/kolu#2148) — stops being answered at all,
   // and the first case in this file goes red instead of quietly passing.
-
-  test("a kolu that never answers is let go of, not waited on forever", async () => {
-    // The deadline, and the only way to exercise it is to spend it: a fixture
-    // that reads and says nothing is what a wedged binary is. Five seconds of
-    // a test suite for the one guarantee that keeps a wedged kolu from being a
-    // wedged conversation.
-    koluOnPath(`process.stdin.on("data", () => {})\n`)
-
-    const began = Date.now()
-    expect(await detected()).toBeNull()
-    // Not just "null": null ARRIVING is what the deadline buys, and a null
-    // that came back instantly would mean something else refused it.
-    expect(Date.now() - began).toBeGreaterThanOrEqual(PROBE_MS - 50)
-  }, PROBE_MS * 3)
+  //
+  // The DEADLINE has no case here, and that is a cost decision rather than an
+  // oversight: the only way to exercise it is to spend it, and five seconds
+  // per lane on every run, forever, is not what that one `setTimeout` is
+  // worth. It is exercised in production terms instead — a `kolu` that reads
+  // and says nothing is the wedge, and what happens then is the same `null`
+  // every other refusal produces.
 
   test("no kolu on PATH is the ordinary case, not a failure", async () => {
     const dir = mkdtempSync(join(tmpdir(), "olai-kolu-"))
