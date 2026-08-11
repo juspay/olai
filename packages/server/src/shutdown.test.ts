@@ -55,6 +55,9 @@ test("SIGINT stops a server that a browser is connected to", async () => {
         // No agent: the subject is the listener, and a real one would make
         // this test depend on a model and a network.
         OLAI_ACP_AGENT: "",
+        // addressOf reads logfmt for the serving line; do not inherit a
+        // developer's OLAI_LOG=pretty.
+        OLAI_LOG: "logfmt",
       },
       stdio: ["ignore", "pipe", "pipe"],
     },

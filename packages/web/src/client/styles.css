@@ -344,6 +344,38 @@
   text-decoration: underline;
 }
 
+/* A heading's own address (`markdown/anchors.ts`). Everything here is either a
+ * scale value or a statement that this is not type at all:
+ *
+ *   - DRAWN IN A READING PAGE and not in a compact block, which is the scale's
+ *     answer rather than a second selector — `anchor-display`, redefined by
+ *     the compact block exactly as every gap and pad is.
+ *   - ONE SIZE at every level, and it is the bottom of the scale. The mark is
+ *     furniture, not part of the hierarchy: at `h1`'s 2rem a `#` reads as a
+ *     heading that starts with a hash, and six sizes of it would say a level
+ *     the heading beside it has already said.
+ *   - QUIET UNTIL WANTED. `opacity` rather than `visibility`, so the anchor
+ *     takes its space at all times and a heading does not shift sideways under
+ *     the pointer. Revealed on hovering the heading and on FOCUS — a reader
+ *     tabbing through must be able to see where they are, which is the half of
+ *     the GitHub idiom that usually gets left out.
+ *   - `text-decoration: none`, because an underlined `#` beside a heading reads
+ *     as a typo. It is a link, and the reveal is what says so.
+ */
+.olai-md .olai-md-anchor {
+  display: var(--olai-md-anchor-display);
+  font-size: var(--olai-md-h6);
+  margin-left: var(--olai-md-space-item);
+  color: var(--color-muted);
+  text-decoration: none;
+  opacity: 0;
+}
+
+.olai-md :is(h1, h2, h3, h4, h5, h6):hover > .olai-md-anchor,
+.olai-md .olai-md-anchor:focus-visible {
+  opacity: 1;
+}
+
 /* A picture is a file in the served directory, whatever size somebody saved
  * it at. It stays inside the column it was written into. */
 .olai-md img {

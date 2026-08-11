@@ -248,6 +248,27 @@ export const HEAD_BORDER_PX = {
   compact: BORDER_PX.none,
 } as const satisfies Record<Density, number>
 
+/**
+ * Whether a heading carries its own link on screen (`./anchors.ts`).
+ *
+ * Not a size, and here anyway, because it is the same KIND of statement the
+ * two above are: a difference between the densities, which this table claims
+ * to be the one place any of them is written. A hand-written
+ * `.olai-md-compact …` rule in the sheet would be the second place — invisible
+ * to the sweep `packages/tests` runs per density, and the beginning of "what
+ * compact means" living half here and half in a grep.
+ *
+ * A reading page is a page a section can be linked to. A compact block is a
+ * note under a title the page owns, an attached document, an agent's reply —
+ * none of them a page anybody jumps around inside, and a control on a heading
+ * that is not a section of anything is furniture on furniture. The ids are
+ * still minted either way; it is the MARK that is dropped.
+ */
+export const ANCHOR_DISPLAY = {
+  reading: "inline",
+  compact: "none",
+} as const satisfies Record<Density, string>
+
 /** `rem` as a CSS length. */
 const rem = (value: number): string => `${value}rem`
 
@@ -263,8 +284,8 @@ export const BLOCK_CLASS = "olai-md"
  *  and `chat/Entry.tsx`. */
 export const COMPACT_CLASS = "olai-md-compact"
 
-/** Every declaration a density answers: its spacing, its padding, and the line
- *  under its major headings. */
+/** Every declaration a density answers: its spacing, its padding, the line
+ *  under its major headings, and whether a heading shows its own link. */
 const densityDeclarations = (density: Density): string[] => [
   ...Object.entries(SPACE[density]).map(
     ([name, size]) => `  ${property(`space-${name}`)}: ${rem(size)};`,
@@ -273,6 +294,7 @@ const densityDeclarations = (density: Density): string[] => [
     ([name, size]) => `  ${property(`pad-${name}`)}: ${rem(size)};`,
   ),
   `  ${property("border-head")}: ${HEAD_BORDER_PX[density]}px;`,
+  `  ${property("anchor-display")}: ${ANCHOR_DISPLAY[density]};`,
 ]
 
 /**
