@@ -27,6 +27,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { type OutlineError, type OutlineSet } from "@olai/format"
 import { codec, make as makeOps, TOOLS } from "@olai/ops"
+import { GIT_OFF } from "@olai/surface"
 import { STAMP, steady } from "@olai/ops/testlib"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
@@ -94,7 +95,7 @@ const withTools = <A>(
         }),
     })
 
-    const wired = yield* bind({ store, chat: null })
+    const wired = yield* bind({ store, chat: null, git: GIT_OFF })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 

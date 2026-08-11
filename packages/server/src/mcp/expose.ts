@@ -66,6 +66,14 @@ import type { ExposeMap } from "@kolu/surface-mcp"
  * corpus that somehow produced thousands of cross-file errors would want the
  * same treatment `manifest` got.
  *
+ * `git` is whether the writes an agent makes are reaching a history — a cell of
+ * one status and at most a sentence, so the cost rule is satisfied twice over,
+ * and it is the same news the app header draws. An agent gets the reason on its
+ * own write's reply (`Applied.why`), which is the channel that matters for the
+ * write it just made; this is what lets it ask BEFORE writing, and what lets an
+ * `olai mcp` client watching this directory notice that commits have started
+ * failing without making one.
+ *
  * Everything else is omitted, and two of them on purpose rather than by
  * oversight: `chat` and `transcript` are the human's session and the human's
  * conversation. An agent that is not ours has no business watching either, and
@@ -75,4 +83,5 @@ export const EXPOSE: ExposeMap<typeof surface.spec> = {
   outlines: "resource",
   documents: "resource",
   errors: "resource",
+  git: "resource",
 }

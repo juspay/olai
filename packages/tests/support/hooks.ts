@@ -21,7 +21,7 @@
  * where the per-scenario spawn is worth paying for.
  */
 
-import { spawn, type ChildProcess } from "node:child_process";
+import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import type { EventEmitter } from "node:events";
 import * as fs from "node:fs";
 import * as net from "node:net";
@@ -34,6 +34,7 @@ import { chromium } from "playwright";
 import type { Browser } from "playwright";
 
 import { SCENARIO_SETUP_TIMEOUT, SERVER_START_TIMEOUT } from "./world.ts";
+import type { GitMode } from "./world.ts";
 import type { OlaiWorld } from "./world.ts";
 
 /** Chromium under Nix, in a container, on a CI runner with no display and a
@@ -85,6 +86,14 @@ const FAKE_AGENT = path.resolve(
  */
 const FAKE_KOLU_DIR = path.resolve(import.meta.dirname, "..", "agent", "kolu");
 
+/**
+ * A `git` that is found and cannot work, put FIRST on the PATH of a server a
+ * `@git:broken` scenario spawns — same argument as the kolu above: whether git
+ * works is a property of the scenario rather than of the machine the run is on,
+ * and there is no way to break the real one for one server only.
+ */
+const BROKEN_GIT_DIR = path.resolve(import.meta.dirname, "..", "bin", "broken-git");
+
 /** `@kolu`: this scenario's host is running kolu, so its session should be
  *  handed kolu's terminals alongside olai's own tools. */
 const KOLU_TAG = "@kolu";
@@ -102,6 +111,18 @@ const STORED_TAG = "@agent-stored";
  *  same way a person would reach it deliberately: `OLAI_ACP_AGENT` set to the
  *  empty string, which survives the packaged binary's `${VAR-…}` wrapper. */
 const NO_AGENT_TAG = "@no-agent";
+
+/**
+ * `@git:<repo|none|broken>`: this scenario's server COMMITS, and its directory
+ * is one of the three things git can make of it — a work tree, no work tree, or
+ * a git that fails when it is asked. Everything else runs with `--no-commit`
+ * (below), which is a fourth state and the one that draws nothing.
+ *
+ * A tag rather than a step because it decides how the server is STARTED, and
+ * the whole point of the git readout is that a page knows before anyone writes
+ * anything.
+ */
+const GIT_TAG = /^@git:(repo|none|broken)$/;
 
 /** The corpus a scenario gets when it names none. */
 const DEFAULT_CORPUS = "good";
@@ -306,6 +327,10 @@ interface Spawn {
    *  "this host is running kolu". Otherwise the one on PATH reaches no daemon,
    *  which detection must refuse. */
   readonly kolu?: boolean;
+  /** Absent is `--no-commit`, which is what every scenario but the git ones
+   *  wants. Present drops the opt-out and says which of the three git
+   *  situations this server is being started into. */
+  readonly git?: GitMode;
 }
 
 const startServerChild = async (
@@ -321,9 +346,11 @@ const startServerChild = async (
   for (let attempt = 1; attempt <= attempts; attempt++) {
     if (stopped) throw new Error(shuttingDown(label));
     const port = fixedPort ?? (await freePort());
-    // `--no-commit`: a scratch directory is a temp copy, and committing to
-    // whatever repository happens to contain the temp dir is not the suite's
-    // business. The git path has its own unit tests, against its own repo.
+    // `--no-commit` unless the scenario is ABOUT git: a scratch directory is a
+    // temp copy, and committing to whatever repository happens to contain the
+    // temp dir is not the suite's business. A `@git:` scenario is the exception
+    // and owns its own directory, which `scratchServerFor` has already made
+    // into whichever of the three situations it asked for.
     const argv = [
       "web",
       dir,
@@ -331,7 +358,7 @@ const startServerChild = async (
       String(port),
       "--host",
       "127.0.0.1",
-      "--no-commit",
+      ...(spawnOptions.git === undefined ? ["--no-commit"] : []),
     ];
     const child = spawn(bin, argv, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -343,8 +370,13 @@ const startServerChild = async (
         OLAI_ACP_AGENT: spawnOptions.agent === false ? "" : FAKE_AGENT,
         ...(spawnOptions.stored === true ? { OLAI_FAKE_ACP_STORED: "yes" } : {}),
         // FIRST, so a real kolu on the developer's PATH does not decide a
-        // scenario. Which one this is, is the tag's business.
-        PATH: `${FAKE_KOLU_DIR}${path.delimiter}${process.env.PATH ?? ""}`,
+        // scenario. Which one this is, is the tag's business — and the broken
+        // git goes ahead of even that, for exactly the same reason.
+        PATH: [
+          ...(spawnOptions.git === "broken" ? [BROKEN_GIT_DIR] : []),
+          FAKE_KOLU_DIR,
+          process.env.PATH ?? "",
+        ].join(path.delimiter),
         OLAI_FAKE_KOLU: spawnOptions.kolu === true ? "live" : "stale",
         // The harness parses logfmt (`findLogfmt` for the serving line). A
         // developer's `OLAI_LOG=pretty` would make every boot hang on readiness.
@@ -490,7 +522,13 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
     // The SAME agent configuration as the first boot, because that is the whole
     // claim being tested: a restarted server comes up in the conversation it was
     // last in, which it can only do if its agent still keeps the same sessions.
-    { port, stored: world.storedSessions, agent: world.hasAgent, kolu: world.hasKolu },
+    {
+      port,
+      stored: world.storedSessions,
+      agent: world.hasAgent,
+      kolu: world.hasKolu,
+      ...(world.gitMode === undefined ? {} : { git: world.gitMode }),
+    },
   );
   if (started.baseUrl !== world.baseUrl) {
     killChild(started.child);
@@ -585,6 +623,7 @@ const scratchServerFor = async (
   const root = fs.mkdtempSync(path.join(os.tmpdir(), `olai-scratch-${corpus}-`));
   try {
     fs.cpSync(fixtureDir(corpus), root, { recursive: true });
+    if (spawnOptions.git === "repo") makeRepository(root);
     const server = await startServerChild(
       active.bin,
       root,
@@ -596,6 +635,26 @@ const scratchServerFor = async (
     fs.rmSync(root, { recursive: true, force: true });
     throw cause;
   }
+};
+
+/**
+ * Turn a scratch copy into a real git repository, the way somebody's notes
+ * directory is one: a work tree with an identity and a first commit in it.
+ *
+ * Real git, and a real repository, because what is being tested is what olai
+ * makes of one — a fake would only reproduce what we already believe. Its
+ * identity is LOCAL so the run does not depend on the developer's global config
+ * and does not touch it.
+ */
+const makeRepository = (root: string): void => {
+  const git = (...argv: ReadonlyArray<string>) => {
+    execFileSync("git", argv, { cwd: root, stdio: "ignore" });
+  };
+  git("init", "--quiet");
+  git("config", "user.email", "tests@olai.invalid");
+  git("config", "user.name", "olai e2e");
+  git("add", "-A");
+  git("commit", "--quiet", "--no-verify", "-m", "the corpus, as somebody's notes");
 };
 
 /** The synchronous half of the teardown: every child that has a process right
@@ -678,6 +737,20 @@ Before(
       (tag) => tag.name === NO_AGENT_TAG,
     );
     this.hasKolu = scenario.pickle.tags.some((tag) => tag.name === KOLU_TAG);
+    this.gitMode = scenario.pickle.tags.flatMap((tag) => {
+      const asked = GIT_TAG.exec(tag.name);
+      return asked === null ? [] : [asked[1] as GitMode];
+    })[0];
+    // A shared corpus server serves every other scenario too, so whether it
+    // commits — and into what — is not this one's to choose. Same rule as
+    // `@kolu`, and said here rather than left to an assertion that would fail
+    // about a readout instead of about the tag.
+    if (this.gitMode !== undefined && !asked.scratch) {
+      throw new Error(
+        `@git:${this.gitMode} decides what its server commits to, so the scenario must own ` +
+          `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
+      );
+    }
     // A shared corpus server is running for every other scenario too, so which
     // kolu it found is not this one's to choose. Said here rather than left to
     // the assertion, which would fail thirty seconds later about the transcript
@@ -694,6 +767,7 @@ Before(
         stored: this.storedSessions,
         agent: this.hasAgent,
         kolu: this.hasKolu,
+        ...(this.gitMode === undefined ? {} : { git: this.gitMode }),
       });
       this.baseUrl = own.baseUrl;
       this.served = own.root;

@@ -14,6 +14,7 @@
  */
 
 import { codec, make as makeOps, TOOLS } from "@olai/ops"
+import { GIT_OFF } from "@olai/surface"
 import { type OutlineError, type OutlineSet } from "@olai/format"
 import * as Store from "@olai/store"
 import { expect, test } from "bun:test"
@@ -55,7 +56,7 @@ const withRoute = <A>(use: (served: Served) => Promise<A>): Promise<A> => {
       settle: "10 millis",
     })
     const ops = makeOps({ store, root, commit: false })
-    const wired = yield* bind({ store, chat: null })
+    const wired = yield* bind({ store, chat: null, git: GIT_OFF })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 

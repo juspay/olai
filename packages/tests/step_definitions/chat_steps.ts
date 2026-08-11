@@ -424,6 +424,23 @@ Then("the tool call's detail is shown", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
+/** What the RESULT said, as the reader gets it. The detail block is the call's
+ *  arguments and its answer as the agent reported them, so this is the one
+ *  assertion that follows a field of an op's reply all the way from the ops
+ *  layer to a person's screen. */
+Then(
+  "the tool call's detail says {string}",
+  async function (this: OlaiWorld, said: string) {
+    const detail = heldTool(this).locator(CHAT_TOOL_DETAIL);
+    await detail.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const shown = oneLine(await detail.innerText());
+    assert.ok(
+      shown.includes(said),
+      `the tool call's detail does not mention "${said}"; it says: ${shown}`,
+    );
+  },
+);
+
 /**
  * An expando on the element itself, which is the only thing that can tell a
  * PATCHED row from a rebuilt one: every attribute a new row is drawn with is

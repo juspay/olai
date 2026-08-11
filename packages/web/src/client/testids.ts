@@ -175,6 +175,11 @@ export const TESTID = {
    *  carries the state itself — `live`, `lost`, `restarted`, `connecting` — so a
    *  scenario asserts on the state and never on the colour it is painted. */
   connection: "connection",
+  /** The git readout, beside the connection. `data-git` carries the state —
+   *  `repo`, `none`, `error` — and the element is ABSENT under `--no-commit`,
+   *  which is the fourth state (`off`) and the one with nothing to say. What
+   *  git actually said rides the tip and the `aria-label`, never a colour. */
+  git: "git",
   /** Over everything: the server that served this page has been replaced. */
   restarted: "restarted",
   /** The button in that surface — the whole of the recovery. Shared with the

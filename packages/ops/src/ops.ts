@@ -62,6 +62,20 @@ export interface Options {
    * front of the person watching.
    */
   readonly onRefusal?: (request: Request, failure: OpFailure) => Effect.Effect<void>
+  /**
+   * Told when what GIT is doing for this directory changes.
+   *
+   * Same argument as the observer above, one subject over: whether the
+   * directory is a repository, and whether the last commit worked, is a fact
+   * about this layer's writes rather than about whoever asked for one — so it
+   * is reported from here, once, and a transport publishes it. The server puts
+   * it in the app header; a terminal agent reads it as a resource of the same
+   * surface.
+   *
+   * Called only on a CHANGE, and never for the first reading: the first is
+   * whatever `git` below answers, which is what a caller seeds its cell from.
+   */
+  readonly onGit?: (state: Git.GitState) => void
 }
 
 export interface Ops {
@@ -80,6 +94,16 @@ export interface Ops {
    * has to reach into the store to find out.
    */
   readonly read: Effect.Effect<Reading, OpFailure>
+  /**
+   * What git is doing for this directory, as of now.
+   *
+   * Probes the directory the FIRST time it is asked and keeps the answer, so a
+   * caller that wants to say something about git before any write has happened
+   * — a server seeding the cell its header draws — asks for it, and the answer
+   * costs one `rev-parse` per serve rather than one per op. Every later change
+   * arrives on {@link Options.onGit}.
+   */
+  readonly git: Effect.Effect<Git.GitState>
 }
 
 /** How many times a write may be re-derived before it gives up. Each round is
@@ -97,11 +121,60 @@ export const make = (options: Options): Ops => {
     now: () => stampOf(new Date()),
   }
 
-  /** Whether the served directory is a git work tree. Asked once and kept: it
-   *  is a property of the root, and asking per write meant a third subprocess
-   *  inside the store's write gate every time. A repository created after the
-   *  server started is not noticed until it restarts, which is the trade. */
-  let workTree: boolean | null = null
+  /**
+   * TWO facts about git, and keeping them apart is the difference between a
+   * state that recovers and one that gets stuck.
+   *
+   * What git makes of the DIRECTORY — a work tree, not one, or a git that could
+   * not be run — is a property of the root, so it is probed once and kept:
+   * asking per write meant a third subprocess inside the store's write gate
+   * every time. A repository created after the server started is not noticed
+   * until it restarts, which is the trade. `--no-commit` seeds it, so the
+   * opt-out never spawns git at all — which is what keeps olai out of the
+   * history of a directory whose history is somebody else's job.
+   *
+   * What the last COMMIT did is the other, and it is the one that moves. It is
+   * kept as the refusal itself rather than as a second state, so what a reader
+   * is told can be DERIVED from the two ({@link reading}) instead of written a
+   * third time: the directory's own answer, unless a commit refused. That is
+   * also what keeps a refusal from wedging the writes — the probe's answer is
+   * still what decides whether a commit is attempted, so a directory that IS a
+   * repository keeps being written to a repository however loudly the last
+   * commit failed.
+   */
+  let probed: Git.GitState | null = options.commit === false ? Git.OFF : null
+  let refused: string | null = null
+
+  const asked: Effect.Effect<Git.GitState> = Effect.gen(function*() {
+    probed ??= yield* Git.probe(options.root)
+    return probed
+  })
+
+  const reading = (directory: Git.GitState): Git.GitState =>
+    refused === null ? directory : Git.errorState(refused)
+
+  /**
+   * Tell the transport, and never let it fail the write.
+   *
+   * This runs inside the store's `afterPublish`, which is inside the write
+   * gate and AFTER the bytes are on disk — so a publisher that threw would
+   * come back to the caller as a failed op about a write that had already
+   * happened, which is the exact lie this whole change exists to stop. The
+   * observer is a plain callback rather than an Effect (a transport setting a
+   * cell has nothing to fail with), so the guard belongs here rather than in
+   * every caller's handler. A publisher that does throw is not swallowed: it
+   * is the one thing left that a log is the right place for, because there is
+   * no longer any surface to say it on.
+   */
+  const published = (next: Git.GitState): Effect.Effect<void> =>
+    Effect.catch(
+      Effect.try(() => options.onGit?.(next)),
+      (thrown) =>
+        Effect.annotateLogs(
+          Effect.logWarning("olai git: the git state could not be published"),
+          { said: String(thrown), status: next.status },
+        ),
+    )
 
   const read: Effect.Effect<Reading, OpFailure> = Effect.gen(function*() {
     const snapshot = yield* SubscriptionRef.get(options.store.snapshot)
@@ -140,18 +213,40 @@ export const make = (options: Options): Ops => {
         const paths = changes.map((change) => options.store.resolve(change.path))
 
         let committed = false
+        /** Why not, when not — the sentence that used to go only to the log.
+         *  It rides the reply, so a `committed: false` says what happened
+         *  where the person who asked for the write is looking. */
+        let why: string | undefined
         const outcome = yield* Effect.result(
           options.store.commit({
             baseRev: snapshot.rev,
             changes,
-            afterPublish: options.commit === false ? Effect.void : Effect.gen(function*() {
-              workTree ??= yield* Git.isWorkTree(options.root)
-              if (!workTree) return
-              committed = yield* Git.commit({
+            afterPublish: Effect.gen(function*() {
+              // Every state but `repo` is a reason, and each of them is a
+              // different one — the opt-out, a directory that is not a work
+              // tree, a git that cannot be run. None of them attempts a commit,
+              // and all of them say so.
+              const directory = yield* asked
+              if (directory.status !== "repo") {
+                why = Git.why(directory)
+                return
+              }
+              const commitment = yield* Git.commit({
                 root: options.root,
                 paths,
                 message: about.summary,
               })
+              committed = commitment.kind === "committed"
+              why = Git.why(commitment)
+              // A refusal is the state of this directory until something
+              // works: the header should say so while it is true, and stop
+              // saying so when the next write lands. Published only when it
+              // MOVED — a write landing in a healthy repository is the
+              // ordinary case, and republishing it would wake every open tab
+              // on every op.
+              const before = refused
+              refused = commitment.kind === "refused" ? commitment.said : null
+              if (refused !== before) yield* published(reading(directory))
             }),
           }),
         )
@@ -176,7 +271,12 @@ export const make = (options: Options): Ops => {
           })
         }
 
-        return { ...about, rev: written.success, committed }
+        return {
+          ...about,
+          rev: written.success,
+          committed,
+          ...(why === undefined ? {} : { why }),
+        }
       }
 
       return yield* new BusyFailure({
@@ -191,5 +291,5 @@ export const make = (options: Options): Ops => {
       ? run(request)
       : Effect.tapError(run(request), (failure) => options.onRefusal!(request, failure))
 
-  return { run: reported, read }
+  return { run: reported, read, git: Effect.map(asked, reading) }
 }

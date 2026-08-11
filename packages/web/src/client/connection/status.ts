@@ -22,18 +22,15 @@
 
 import type { SurfaceConnectionStatus } from "@kolu/surface-app/solid"
 
+import type { Look } from "../readout.ts"
+
 export type { SurfaceConnectionStatus }
 
-/** How one state is drawn: the dot's colour, the words beside it, and the
- *  longer sentence a reader gets on hover. */
-export interface Look {
-  /** The dot. A background utility, because the dot IS the colour. */
-  readonly dot: string
-  /** Two or three words, always on screen next to the dot. */
-  readonly label: string
-  /** What that means, spelled out — the indicator's `title`. */
-  readonly detail: string
-}
+/** How one state is drawn — the readout's own shape (`../readout.ts`), shared
+ *  with the header's other one so a change to what a readout IS lands on both.
+ *  What each state says is still this file's: that is an argument about the
+ *  connection. */
+export type { Look }
 
 /** A `Record`, so every state must be given a look: an unlisted one would be a
  *  connection state with no appearance, which is the bug wearing a new hat. */

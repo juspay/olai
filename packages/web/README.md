@@ -1,6 +1,6 @@
 # @olai/web — the SolidJS client, and the build that produces it
 
-An app header (wordmark, connection, agent toggle, theme), a directory panel
+An app header (wordmark, connection, git, agent toggle, theme), a directory panel
 (month + file tree of every outline and document under the folders they live
 in — full column or a ~3rem icon rail on desktop; slide-over drawer with scrim
 on a phone), a resizable agent dock (or bottom sheet on a phone; minimized to a
@@ -362,12 +362,13 @@ component draws would be rejecting it over a page that does not exist.
 ## The app header
 
 `src/client/AppHeader.tsx` is a slim bar above every column: the `olai`
-wordmark on the left, and on the right the three pills that are about the APP
-rather than about the page — the connection indicator, the agent toggle
-(always on screen; pressed while the agent panel is open; busy pulse in either
-state while a turn runs), and the theme picker as a compact popover (a pill
-names the theme in force; chips open under it). On a phone the directory
-burger joins the left edge next to the wordmark.
+wordmark on the left, and on the right the pills that are about the APP
+rather than about the page — the connection indicator, the git readout (absent
+entirely on a `--no-commit` serve), the agent toggle (always on screen; pressed
+while the agent panel is open; busy pulse in either state while a turn runs),
+and the theme picker as a compact popover (a pill names the theme in force;
+chips open under it). On a phone the directory burger joins the left edge next
+to the wordmark.
 
 Principle: the header carries what is about the app; the sidebar
 (`Sidebar.tsx` / `layout/Rail.tsx`) carries what is about the DIRECTORY —
@@ -415,6 +416,26 @@ asking is not a recovery. Both the dot and the screen read the SAME
 `connectSurface` status (`wire.ts`), so they cannot disagree about what
 happened; the seam's required `retired` handler records the moment rather than
 driving a second path to the same fact.
+
+## Git, said out loud too
+
+`src/client/git/` is the same argument as the folder above, about the other half
+of the page's promise: not "is this still reading" but "is what gets written to
+it being kept". Both are facts a page can only get wrong SILENTLY, and this one
+did — a write came back `committed: false` on a directory its owner knew was a
+repository, and the reason lived in the server's log. So the readout sits beside
+the connection pill, reading the surface's `git` cell.
+
+`state.ts` is the whole policy and it is pure, for the same reason `status.ts`
+is: a table over the four states the server publishes, unit-tested with no
+socket and no browser. Three of them draw something and one deliberately draws
+NOTHING — `off`, the `--no-commit` serve, because that is a setting somebody
+chose rather than a condition, and chrome that reports settings is chrome a
+reader stops scanning. `repo` is quiet (three letters, a dim dot, and
+deliberately not the connection's green — one green claim per page). `none` says
+"Not a Git repo" calmly. `error` says "Git error" and carries git's own words,
+on the tip AND on the `aria-label`, so the reason is never hover-only; the
+readout takes focus so a keyboard can reach it at all.
 
 ## The agent panel
 
