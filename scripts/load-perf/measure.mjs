@@ -22,28 +22,46 @@
  * Writes JSON + a short text summary to scripts/load-perf/out/.
  */
 
-import { spawn, execSync } from "node:child_process"
+import { spawn, execFileSync } from "node:child_process"
 import {
   mkdirSync,
   writeFileSync,
   readFileSync,
-  existsSync,
   readdirSync,
   statSync,
 } from "node:fs"
 import { createServer } from "node:net"
-import { dirname, join, resolve } from "node:path"
+import { basename, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { performance } from "node:perf_hooks"
 import { Result } from "effect"
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(HERE, "../..")
+/** Every harness write lands under this directory — a constant, not env. */
 const OUT = join(HERE, "out")
+// mkdir -p semantics: recursive create, no exists-then-create race.
 mkdirSync(OUT, { recursive: true })
 
+/**
+ * Path under {@link OUT} from a basename we control. Rejects anything that is
+ * not a single path segment of safe characters so HTTP/env taint cannot walk
+ * out of the measurement directory (CodeQL js/http-to-file-access).
+ */
+const outFile = (name) => {
+  const base = basename(name)
+  if (base !== name || base === "" || base === "." || base === "..") {
+    throw new Error(`outFile: refuse non-basename ${JSON.stringify(name)}`)
+  }
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(base)) {
+    throw new Error(`outFile: refuse unsafe basename ${JSON.stringify(base)}`)
+  }
+  return join(OUT, base)
+}
+
 const LEDGER = resolve(process.env.LEDGER ?? join(ROOT, "docs"))
-const MODE = process.env.MODE ?? "nix"
+/** Allowlisted mode token — never interpolated raw from the environment. */
+const MODE = process.env.MODE === "dev" ? "dev" : "nix"
 const REPS = Number(process.env.REPS ?? "3")
 const WANT_TRACE = process.env.TRACE === "1"
 const NO_AGENT = process.env.NO_AGENT !== "0"
@@ -75,15 +93,23 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const binOf = () => {
   if (process.env.OLAI_BIN) return { kind: "nix", bin: process.env.OLAI_BIN }
   if (MODE === "nix") {
-    const out = execSync(
-      "nix build .#olai --no-link --print-out-paths --accept-flake-config",
+    // argv array, no shell — same rule as the curl probe below.
+    const out = execFileSync(
+      "nix",
+      ["build", ".#olai", "--no-link", "--print-out-paths", "--accept-flake-config"],
       { cwd: ROOT, encoding: "utf8" },
     ).trim()
     return { kind: "nix", bin: join(out, "bin/olai") }
   }
   const dist = join(ROOT, "packages/web/dist")
-  if (!existsSync(join(dist, "index.html"))) {
-    throw new Error("dev mode needs packages/web/dist — run `just build-client`")
+  // Open and handle miss — no exists-then-act race (CodeQL js/file-system-race).
+  try {
+    readFileSync(join(dist, "index.html"))
+  } catch (e) {
+    if (e && /** @type {NodeJS.ErrnoException} */ (e).code === "ENOENT") {
+      throw new Error("dev mode needs packages/web/dist — run `just build-client`")
+    }
+    throw e
   }
   return {
     kind: "dev",
@@ -203,13 +229,27 @@ const shellAndAssets = async (baseUrl) => {
   return { shell, assets, gzipProbe, htmlBytes: shell.bytes }
 }
 
-/** On-the-wire asset probe via curl (preserves Content-Encoding + body size). */
+/** Fixed body path for curl probes — under OUT, never /tmp or env-derived. */
+const PROBE_BODY = outFile("probe-body.bin")
+
+/**
+ * On-the-wire asset probe via curl (preserves Content-Encoding + body size).
+ * argv array only — never a shell string (CodeQL js/command-line-injection).
+ */
 const rawAssetProbe = (url, acceptEncoding) => {
   try {
-    const out = execSync(
-      `curl -sS -D - -o /tmp/olai-load-perf-body ` +
-        `-H ${JSON.stringify(`Accept-Encoding: ${acceptEncoding}`)} ` +
-        `${JSON.stringify(url)}`,
+    const out = execFileSync(
+      "curl",
+      [
+        "-sS",
+        "-D",
+        "-",
+        "-o",
+        PROBE_BODY,
+        "-H",
+        `Accept-Encoding: ${acceptEncoding}`,
+        url,
+      ],
       { encoding: "utf8", maxBuffer: 2 * 1024 * 1024 },
     )
     const headerEnd = out.indexOf("\r\n\r\n")
@@ -219,7 +259,7 @@ const rawAssetProbe = (url, acceptEncoding) => {
     const status = /HTTP\/[\d.]+\s+(\d+)/.exec(headers)?.[1] ?? null
     let bytes = null
     try {
-      bytes = statSync("/tmp/olai-load-perf-body").size
+      bytes = statSync(PROBE_BODY).size
     } catch {
       /* no body file */
     }
@@ -237,16 +277,28 @@ const rawAssetProbe = (url, acceptEncoding) => {
 
 /** Local dist sizes (source of truth for "what we ship"). */
 const distSizes = () => {
-  const dist = join(ROOT, "packages/web/dist")
-  if (!existsSync(dist)) return null
-  const assetsDir = join(dist, "assets")
+  const assetsDir = join(ROOT, "packages/web/dist", "assets")
+  let names
+  try {
+    names = readdirSync(assetsDir)
+  } catch (e) {
+    if (e && /** @type {NodeJS.ErrnoException} */ (e).code === "ENOENT") return null
+    throw e
+  }
   const files = []
-  for (const name of readdirSync(assetsDir)) {
+  for (const name of names) {
     if (name.endsWith(".map")) continue
     const p = join(assetsDir, name)
-    const st = statSync(p)
-    const raw = readFileSync(p)
-    // Bun.gzipSync if available
+    let raw
+    let st
+    try {
+      // Single open path — no exists-then-read race.
+      raw = readFileSync(p)
+      st = statSync(p)
+    } catch (e) {
+      if (e && /** @type {NodeJS.ErrnoException} */ (e).code === "ENOENT") continue
+      throw e
+    }
     let gzip = null
     try {
       gzip = Bun.gzipSync(raw).byteLength
@@ -520,7 +572,7 @@ const browserMeasure = async (baseUrl) => {
 
   let tracePath = null
   if (WANT_TRACE) {
-    tracePath = join(OUT, `trace-${Date.now()}.zip`)
+    tracePath = outFile(`trace-${Date.now()}.zip`)
     await context.tracing.stop({ path: tracePath })
   }
 
@@ -648,11 +700,14 @@ const main = async () => {
     browser: [browser, browser2],
   }
 
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-")
-  const jsonPath = join(OUT, `measure-${MODE}-${stamp}.json`)
+  // Basenames are built only from the allowlisted MODE token and a digits/T/-
+  // stamp — then forced through outFile() so the write path is OUT + safe name.
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").replace(/[^0-9T-]/g, "")
+  const jsonPath = outFile(`measure-${MODE}-${stamp}.json`)
+  const latestJson = outFile(`latest-${MODE}.json`)
+  const latestTxt = outFile(`latest-${MODE}.txt`)
   writeFileSync(jsonPath, JSON.stringify(report, null, 2))
-  // Also latest
-  writeFileSync(join(OUT, `latest-${MODE}.json`), JSON.stringify(report, null, 2))
+  writeFileSync(latestJson, JSON.stringify(report, null, 2))
 
   // Human summary
   const b0 = browser && !browser.error ? browser : null
@@ -695,7 +750,7 @@ connection:     ${b0?.ui?.connection}
 
 json: ${jsonPath}
 `.trim()
-  writeFileSync(join(OUT, `latest-${MODE}.txt`), summary + "\n")
+  writeFileSync(latestTxt, summary + "\n")
   console.log("\n" + summary)
   console.log(`\nwrote ${jsonPath}`)
 }
