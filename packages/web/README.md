@@ -368,6 +368,17 @@ business making about a server it has not heard from. "Not told yet" and "turned
 off" being two different things is the same distinction the manifest cell draws
 with its `null`.
 
+The PANEL is portalled out of the sidebar and positioned against the viewport
+(`commit/anchor.ts`), which is not a style choice: the sidebar scrolls, and an
+overflow container clips in both axes, so a popover laid out inside it was cut
+off at the 16rem column — the message, the writer and half the button gone. The
+placement is a pure function of the pill's box and the window, so "pushed back
+inside near the right edge" and "flipped downward when the pill is too high to
+open upward" are a unit test rather than something to find by resizing a
+browser. It re-measures on resize and on scroll (capture phase — the sidebar
+scrolls, and `scroll` does not bubble), because a popover that goes stale where
+it was is worse than one that never moved.
+
 The last two are SETTINGS rather than faults — dim, inert, no warning colour.
 `⚠` is reserved for the busy repository, which is the only one anybody can act
 on. `faceOf` in `said.ts` is the whole of that decision, as a pure function of

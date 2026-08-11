@@ -145,7 +145,7 @@ function Branch(props: {
           title on either. The note control root is what "click away" uses. */}
       <Show when={!collapsed() && shown()}>
         {(shows) => (
-          <div class={PAST_CONTROLS} ref={note.setRoot}>
+          <div class={PAST_CONTROLS} ref={note.inside}>
             <NodeBody
               shows={shows()}
               expanded={note.open()}

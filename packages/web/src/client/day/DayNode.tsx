@@ -58,7 +58,7 @@ export function DayNode(props: {
 
       {/* Past the bullet and the checkbox — ../touch.ts, so this indent and
           those two controls cannot drift apart. */}
-      <div class={PAST_BULLET} ref={note.setRoot}>
+      <div class={PAST_BULLET} ref={note.inside}>
         <NodeBody
           shows={props.dated.shows}
           expanded={note.open()}

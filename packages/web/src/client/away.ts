@@ -9,6 +9,12 @@
  * of its only consumer, which is what made the second one reach for
  * `document.querySelector` instead.
  *
+ * INSIDE is a set rather than one element, because a surface is not always one
+ * subtree: the Commit panel is rendered in a portal (its sidebar clips, see
+ * `commit/anchor.ts`), so the control that opens it and the surface it opens
+ * are siblings in different corners of the document. Both count as inside, or
+ * the first click into the message box would dismiss the thing being typed in.
+ *
  * Component-local state, dying with whatever holds it. No stored preference:
  * something you have open right now is not a way you like to read (the agent
  * drawer is the other kind, and it is in `localStorage` for exactly that
@@ -26,25 +32,27 @@ export interface ClickAway {
   readonly open: Accessor<boolean>
   /** Toggle it — the control's own click. */
   readonly toggle: () => void
-  /** Wire as `ref` on the root of everything that counts as INSIDE, the
-   *  control included: a click on the toggle must not both close this and
-   *  re-open it. */
-  readonly setRoot: (el: HTMLElement | undefined) => void
+  /**
+   * Wire as `ref` on every element that counts as INSIDE, the control that
+   * opens it included: a click on the toggle must not both close this and
+   * re-open it.
+   */
+  readonly inside: (el: HTMLElement | undefined) => void
 }
 
 export const createClickAway = (): ClickAway => {
   const [open, setOpen] = createSignal(false)
-  let root: HTMLElement | undefined
+  let roots: ReadonlyArray<HTMLElement> = []
 
-  // While open, a pointerdown outside the root closes it. CAPTURE phase, so a
-  // click that starts a navigation still closes this first, and so the root's
+  // While open, a pointerdown outside every root closes it. CAPTURE phase, so
+  // a click that starts a navigation still closes this first, and so a root's
   // own click can toggle without racing a bubble-phase listener.
   createEffect(() => {
     if (!open()) return
     const onDown = (event: PointerEvent) => {
       const target = event.target
       if (!(target instanceof Node)) return
-      if (root !== undefined && root.contains(target)) return
+      if (roots.some((root) => root.contains(target))) return
       setOpen(false)
     }
     document.addEventListener("pointerdown", onDown, true)
@@ -54,8 +62,14 @@ export const createClickAway = (): ClickAway => {
   return {
     open,
     toggle: () => setOpen((current) => !current),
-    setRoot: (el) => {
-      root = el
+    inside: (el) => {
+      // Solid does not call a `ref` back on unmount, so a surface that closed
+      // leaves its element behind. Dropping the ones no longer in the document
+      // is what keeps that from being a leak — and a detached node can never
+      // contain a live event target anyway, so it is tidiness rather than
+      // correctness.
+      roots = roots.filter((root) => root.isConnected)
+      if (el !== undefined) roots = [...roots, el]
     },
   }
 }

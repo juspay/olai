@@ -23,19 +23,28 @@
  * this PAGE rather than the directory: before the server has said anything, it
  * says so instead of claiming one of the settings.
  *
- * WHERE it goes is the layout's to say, like the connection dot beside it: the
- * sidebar's footer on the pages that draw a sidebar, a corner of the viewport
- * on the ones that do not (`../App.tsx`). The design has it in the bottom-right
- * chrome strip the `panels` item is building; that strip does not exist yet,
- * and this is the same row of pills it will be made of.
+ * WHERE the pill goes is the layout's to say, like the connection dot beside it:
+ * the sidebar's footer on the pages that draw a sidebar, a corner of the
+ * viewport on the ones that do not (`../App.tsx`). The design has it in the
+ * bottom-right chrome strip the `panels` item is building; that strip does not
+ * exist yet, and this is the same row of pills it will be made of.
  *
- * The panel opens UPWARD, because the pill is at the bottom of the screen in
+ * WHERE THE PANEL GOES is not the layout's, and cannot be. The sidebar SCROLLS,
+ * and an overflow container clips in both axes — so a popover laid out inside it
+ * was cut off at the 16rem column, taking the commit message, the writer and
+ * half the button with it. It is portalled out of the sidebar and positioned
+ * against the viewport instead (`./anchor.ts`), which is also what lets it stay
+ * put when the column under it scrolls.
+ *
+ * The panel opens UPWARD, because the pill is near the bottom of the screen in
  * both of its homes.
  */
 
-import { Show } from "solid-js"
+import { createEffect, createSignal, onCleanup, Show } from "solid-js"
+import { Portal } from "solid-js/web"
 
 import { agoOf, createNow } from "./ago.ts"
+import { type Anchor, anchoredTo } from "./anchor.ts"
 import { createClickAway } from "../away.ts"
 import { faceOf, isInert, SETTING } from "./said.ts"
 import { Panel } from "./Panel.tsx"
@@ -45,14 +54,42 @@ import { TESTID } from "../testids.ts"
 export function Commit() {
   const commit = createCommit()
   // The client's one answer to "open until you click somewhere else"
-  // (`../away.ts`), which the note under a row is the other consumer of. The
-  // root it is given is the wrapper below, so the pill counts as INSIDE: a
-  // click on it must not both close the panel and re-open it.
+  // (`../away.ts`), which the note under a row is the other consumer of. Both
+  // the pill and the portalled panel register as inside — they are siblings in
+  // different corners of the document, so the pill is not an ancestor that
+  // could speak for the panel.
   const panel = createClickAway()
   const now = createNow()
 
   const face = () => faceOf(commit.pending(), commit.heard())
   const inert = () => isInert(face())
+
+  let pill: HTMLButtonElement | undefined
+  const [anchor, setAnchor] = createSignal<Anchor | null>(null)
+
+  /** Re-read where the pill is. Cheap, and it has to happen again whenever the
+   *  window or the column under it moves: an anchored popover that goes stale
+   *  on a scroll is worse than one that never moved at all. */
+  const measure = () => {
+    if (pill === undefined) return
+    setAnchor(anchoredTo(pill.getBoundingClientRect(), {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }))
+  }
+
+  createEffect(() => {
+    if (!panel.open()) return
+    measure()
+    // CAPTURE phase for `scroll`: what moves under the panel is the sidebar
+    // rather than the document, and a scroll event does not bubble.
+    window.addEventListener("resize", measure)
+    document.addEventListener("scroll", measure, true)
+    onCleanup(() => {
+      window.removeEventListener("resize", measure)
+      document.removeEventListener("scroll", measure, true)
+    })
+  })
 
   /** What the pill says. One line per state, and the reason each is worth its
    *  own words rather than a count is in the header above. */
@@ -80,18 +117,19 @@ export function Commit() {
   }
 
   return (
-    // The anchor for the panel above it. `relative` here rather than on
-    // whatever the layout wrapped this in: where the popover lands is this
-    // component's business and should not depend on where it was put.
-    <div class="relative" ref={panel.setRoot}>
+    <>
       <button
         type="button"
+        ref={(el) => {
+          pill = el
+          panel.inside(el)
+        }}
         class={`flex items-center gap-2 rounded-full border border-rule bg-paper px-3 py-1.5 text-xs ${
           inert() ? "text-muted opacity-60" : "text-muted hover:text-ink"
         }`}
         data-testid={TESTID.commitPill}
-        // The STATE as an attribute, so a scenario asserts on which of the six
-        // this is rather than on the sentence it is rendered into.
+        // The STATE as an attribute, so a scenario asserts on which face this
+        // is rather than on the sentence it is rendered into.
         data-state={face()}
         data-uncommitted={commit.waiting()}
         data-repo={commit.pending().repo._tag}
@@ -113,9 +151,14 @@ export function Commit() {
           <span aria-hidden="true">{panel.open() ? "▾" : "▴"}</span>
         </Show>
       </button>
-      <Show when={panel.open() && !inert()}>
-        <Panel commit={commit} now={now()} />
+      {/* Out of the sidebar entirely — see the header. */}
+      <Show when={panel.open() && !inert() ? anchor() : null}>
+        {(at) => (
+          <Portal>
+            <Panel commit={commit} now={now()} at={at()} inside={panel.inside} />
+          </Portal>
+        )}
       </Show>
-    </div>
+    </>
   )
 }

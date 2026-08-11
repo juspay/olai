@@ -30,11 +30,21 @@ import { isReady, type NodeChange } from "@olai/format"
 import { createSignal, For, Show } from "solid-js"
 
 import { agoOf } from "./ago.ts"
+import type { Anchor } from "./anchor.ts"
 import { because, GLYPH, SAID, trouble, verbatim, WHO } from "./said.ts"
 import type { Commit } from "./state.ts"
 import { TESTID } from "../testids.ts"
 
-export function Panel(props: { readonly commit: Commit; readonly now: number }) {
+export function Panel(props: {
+  readonly commit: Commit
+  readonly now: number
+  /** Where to sit, in viewport pixels — see `./anchor.ts` for why this is not
+   *  a matter of CSS alone. */
+  readonly at: Anchor
+  /** Register this surface with the click-away, since it is portalled and so is
+   *  not a descendant of the control that opened it. */
+  readonly inside: (el: HTMLElement | undefined) => void
+}) {
   const pending = () => props.commit.pending()
   const ready = () => isReady(pending().repo)
 
@@ -53,7 +63,20 @@ export function Panel(props: { readonly commit: Commit; readonly now: number }) 
 
   return (
     <section
-      class="absolute bottom-full left-0 z-50 mb-2 flex max-h-[70vh] w-[min(24rem,calc(100vw-2rem))] flex-col gap-3 overflow-y-auto rounded-lg border border-rule bg-paper p-3 text-sm shadow-lg"
+      ref={props.inside}
+      class="fixed z-50 flex flex-col gap-3 overflow-y-auto overflow-x-hidden rounded-lg border border-rule bg-paper p-3 text-sm shadow-lg"
+      // Both edges are named explicitly, and exactly one of them has a value.
+      // A computed key here — `[props.at.side]` — compiles away silently: Solid
+      // reads this object literal at build time and emits one `setProperty` per
+      // STATIC key, so the panel came out with no vertical position at all and
+      // sat just below the fold.
+      style={{
+        left: `${props.at.left}px`,
+        width: `${props.at.width}px`,
+        "max-height": `${props.at.maxHeight}px`,
+        bottom: props.at.side === "bottom" ? `${props.at.offset}px` : undefined,
+        top: props.at.side === "top" ? `${props.at.offset}px` : undefined,
+      }}
       data-testid={TESTID.commitPanel}
       data-repo={pending().repo._tag}
       aria-label="uncommitted changes"
@@ -62,7 +85,7 @@ export function Panel(props: { readonly commit: Commit; readonly now: number }) 
           "is this directory being audited". `null` is not an absence to hide:
           it means olai has never committed here, which is the one thing a
           count of what is pending can never say. */}
-      <p class="text-xs text-muted" data-testid={TESTID.commitLast}>
+      <p class="wrap-anywhere text-xs text-muted" data-testid={TESTID.commitLast}>
         <Show
           when={pending().last}
           fallback={<>olai has not committed in this directory yet</>}
@@ -101,7 +124,7 @@ export function Panel(props: { readonly commit: Commit; readonly now: number }) 
                     <span class="w-3 shrink-0 text-muted" aria-hidden="true">
                       {GLYPH[change.sort]}
                     </span>
-                    <span class="truncate">{change.title}</span>
+                    <span class="min-w-0 truncate">{change.title}</span>
                     <span class="ml-auto shrink-0 text-xs text-muted">
                       {SAID[change.sort]}
                     </span>
@@ -117,7 +140,7 @@ export function Panel(props: { readonly commit: Commit; readonly now: number }) 
           bytes are the bytes — but nothing can be said about what changed in
           it, and saying nothing at all would be the panel lying by omission. */}
       <Show when={pending().unreadable.length > 0}>
-        <p class="text-xs text-muted" data-testid={TESTID.commitUnreadable}>
+        <p class="wrap-anywhere text-xs text-muted" data-testid={TESTID.commitUnreadable}>
           {pending().unreadable.join(", ")} changed, but does not parse — what
           is in it cannot be shown.
         </p>
@@ -154,7 +177,10 @@ export function Panel(props: { readonly commit: Commit; readonly now: number }) 
 
       <Show when={pending().changes.length + pending().unreadable.length > 0}>
         <textarea
-          class="min-h-16 w-full resize-y rounded border border-rule bg-paper p-2 font-mono text-xs"
+          // Tall enough for a composed message, which is a subject, a blank
+          // line and its first detail line: the shorter box cut the detail in
+          // half and looked like a rendering fault rather than a scroll.
+          class="min-h-24 w-full resize-y rounded border border-rule bg-paper p-2 font-mono text-xs"
           data-testid={TESTID.commitMessage}
           aria-label="commit message"
           value={draft()}
