@@ -263,6 +263,52 @@ test("archiving writes both files, and the set stays valid across them", () =>
       expect([...set.files].sort()).toEqual(["Archive.jsonl", "house.jsonl"])
     })))
 
+/**
+ * The whole claim of a batch capture, and it is only true end to end: thirteen
+ * nodes used to be thirteen calls, thirteen revalidations and thirteen commits,
+ * with a failure partway through leaving half an outline behind. One call is
+ * ONE revision and ONE commit, and the ids it hands back are the ids on disk.
+ */
+test("a subtree captured in one call is one revision and one commit", () =>
+  withOps({ "house.jsonl": HOUSE }, (fixture) =>
+    Effect.gen(function*() {
+      const applied = yield* run(fixture, {
+        op: "add",
+        parent: "kitchen",
+        title: "the pantry",
+        children: [
+          { title: "shelves", children: [{ title: "measure", mark: "todo" }] },
+          { title: "paint", mark: "done" },
+        ],
+      })
+
+      expect(applied.summary).toBe("capture: the pantry (+3)")
+      // One revision for four records: the gate renamed the file once.
+      expect(applied.rev).toBe(2)
+      expect(applied.captured?.map((node) => node.title)).toEqual([
+        "the pantry",
+        "shelves",
+        "measure",
+        "paint",
+      ])
+
+      const text = fixture.read("house.jsonl") ?? ""
+      expect(Result.isSuccess(parseOutline("house.jsonl", text))).toBe(true)
+      expect(text.split("\n").filter((line) => line !== "")).toHaveLength(8)
+
+      // The ids in the answer are the ids in the set, which is what makes a
+      // second call under one of them possible without a search.
+      const set = yield* fixture.set()
+      const byId = new Map(set.nodes.map((located) => [located.node.id, located.node]))
+      for (const node of applied.captured ?? []) expect(byId.has(node.id)).toBe(true)
+      expect(byId.get(applied.captured?.[3]?.id ?? "")).toMatchObject({ done: STAMP })
+
+      expect(gitLog(fixture.root)).toEqual([
+        "capture: the pantry (+3)",
+        "fixtures",
+      ])
+    }), { git: true }))
+
 test("a refusal writes nothing and comes back with its structured detail", () =>
   withOps({ "house.jsonl": HOUSE }, (fixture) =>
     Effect.gen(function*() {

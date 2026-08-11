@@ -71,6 +71,25 @@ Feature: An agent olai did not start
     Then the tree eventually shows a node titled "water the plants"
     And the page has not reloaded
 
+  Scenario: A terminal captures a whole subtree in one call
+    # The item this was filed from: an agent capturing a house outline issued
+    # one add_node per node — thirteen calls, each riding the full write gate,
+    # and a failure partway through leaving half a subtree behind. `children`
+    # makes it one call: one plan, one validation, one atomic rename, one
+    # commit. So the page does not watch a tree grow a row at a time; it gets
+    # the whole thing in the next snapshot.
+    When the terminal agent captures a pantry and everything in it, in one call
+    Then the tree shows the whole captured subtree at once
+    And the node "shelves" is a child of "pantry"
+    And the node "measure" is a child of "shelves"
+    # The marks arrive with the nodes, written as the mark tools write them:
+    # `todo` is an empty box, and `done` is stamped with the instant.
+    And the node "measure" shows an empty checkbox
+    And the node "paint" shows a checked checkbox
+    And the terminal agent was told it captured 4 nodes
+    And the page has not reloaded
+    And there should be no page errors
+
   Scenario: A refused write is an answer, not a protocol error
     # Nothing in the set declares `nowhere`. The refusal reaches the agent as a
     # tool RESULT carrying its kind as data — a JSON-RPC error would be the

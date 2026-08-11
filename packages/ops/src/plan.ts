@@ -49,7 +49,7 @@ import {
 } from "@olai/format"
 import { Result } from "effect"
 
-import type { Request } from "./request.ts"
+import { type Capture, type Minted, NESTING, type Request } from "./request.ts"
 
 /** One outline, as the records it will hold after the write. */
 export interface FilePlan {
@@ -63,6 +63,9 @@ export interface Plan {
   readonly id: string
   readonly title: string
   readonly file: string
+  /** Every node a capture created, parent before child. Absent unless the op
+   *  made a subtree — {@link Applied}'s own field says why. */
+  readonly captured?: ReadonlyArray<Minted>
   /** The git commit subject, in the convention `olai` has always used:
    *  `capture:` / `done:` / `doing:` / `todo:` / `move:` / `archive:` / `create:` /
    *  `see:` and a title (or a path, when an outline is born empty). */
@@ -330,14 +333,29 @@ const withOrds = (
 
 // ── add ────────────────────────────────────────────────────────────────
 
+/**
+ * Capture a node — and, when `children` are given, the whole tree under it.
+ *
+ * ONE plan, which is the entire point. An agent capturing an outline used to
+ * issue one call per node, each riding the full write gate and each a round
+ * trip; worse, a failure partway through left a half-captured subtree on disk
+ * with nothing to say which half it was. A tree that is planned at once is
+ * validated at once and renamed into place at once, so the outline either has
+ * the whole capture in it or has never heard of it.
+ *
+ * The refusals are the same shape for the same reason. A chosen id that
+ * collides — with the set, or with another node in this same call — refuses
+ * everything, because "nothing landed" is the only answer that keeps the
+ * promise. Ids are minted for the rest exactly as a single add mints one.
+ *
+ * `before` / `after` place the ROOT among its new siblings and nothing else:
+ * the children are being born, so there is nobody there to place them among,
+ * and they land in the order they were written.
+ */
 const planAdd = (
   scope: Scope,
   request: Extract<Request, { op: "add" }>,
 ): Planned => {
-  if (request.title.trim() === "") {
-    return Result.fail(new UsageFailure({ reason: "a node needs a title" }))
-  }
-
   let file: string
   let parent: string | undefined
   if (request.parent !== undefined) {
@@ -371,38 +389,160 @@ const planAdd = (
   const may = writable(scope, file)
   if (Result.isFailure(may)) return Result.fail(may.failure)
 
-  const id = request.id ?? freshId(scope, new Set())
-  if (request.id !== undefined && scope.derived.byId.has(request.id)) {
-    return Result.fail(
-      new UsageFailure({
-        reason: `\`${request.id}\` is already the id of a node in this set`,
-      }),
-    )
-  }
+  // Every id in the tree is decided before any record is built, and the set of
+  // ids this call has claimed is what makes the second collision — one child
+  // against another — a refusal rather than a duplicate the validator finds.
+  const taken = new Set<string>()
+  const root = idFor(scope, taken, request)
+  if (Result.isFailure(root)) return Result.fail(root.failure)
+  const id = root.success
 
   const ords = placed(siblingsOf(scope.derived, file, parent), id, request)
   if (Result.isFailure(ords)) return Result.fail(ords.failure)
   const ord = ords.success.find((entry) => entry.id === id)?.ord
   if (ord === undefined) throw new Error("the placement did not include the new node")
 
-  const node: RegularNode = {
+  const minted: Array<RegularNode> = []
+  const refused = emit(scope, taken, minted, request, {
     id,
-    ...(parent === undefined ? {} : { parent }),
+    parent,
     ord,
-    title: request.title,
-    ...(request.date === undefined ? {} : { date: request.date }),
-    ...(request.desc === undefined ? {} : { desc: request.desc }),
-  }
+    below: NESTING,
+  })
+  if (refused !== null) return Result.fail(refused)
 
+  const under = minted.length - 1
   return Result.succeed({
     files: [
-      { file, nodes: withOrds([...recordsOf(scope, file), node], ords.success) },
+      { file, nodes: withOrds([...recordsOf(scope, file), ...minted], ords.success) },
     ],
     id,
     title: request.title,
     file,
-    summary: `capture: ${request.title}`,
+    summary: under === 0
+      ? `capture: ${request.title}`
+      : `capture: ${request.title} (+${under})`,
+    // Only when there is more than one node to name: a single capture already
+    // answered with `id`, and a list of one would be that answer twice.
+    ...(under === 0 ? {} : {
+      captured: minted.map((node) => ({ id: node.id, title: node.title })),
+    }),
   })
+}
+
+/**
+ * The id one captured node will carry: the one it chose, or a minted one.
+ *
+ * "Free" has two halves and both refuse: an id the SET already holds, and one
+ * another node in this same call has claimed. The second only exists because a
+ * capture mints many ids at once — and it is also what a cycle attempt looks
+ * like from here, since a child naming its own ancestor's chosen id is naming
+ * an id that is already spoken for.
+ */
+const idFor = (
+  scope: Scope,
+  taken: Set<string>,
+  capture: Capture,
+): Result.Result<string, OpFailure> => {
+  const chosen = capture.id
+  if (chosen === undefined) {
+    const fresh = freshId(scope, taken)
+    taken.add(fresh)
+    return Result.succeed(fresh)
+  }
+  if (scope.derived.byId.has(chosen)) {
+    return Result.fail(
+      new UsageFailure({
+        reason: `\`${chosen}\` is already the id of a node in this set`,
+      }),
+    )
+  }
+  if (taken.has(chosen)) {
+    return Result.fail(
+      new UsageFailure({
+        reason:
+          `\`${chosen}\` is named twice in this capture — every node needs an id of ` +
+          `its own, and nothing was written`,
+      }),
+    )
+  }
+  taken.add(chosen)
+  return Result.succeed(chosen)
+}
+
+/**
+ * One captured node and everything under it, appended to `records` in the order
+ * they will be written: parent before child, siblings as they were given. That
+ * order is the outline's own reading order, which is what a file re-emitted
+ * from these records should look like to a person opening it.
+ *
+ * Answers with the refusal that stops the WHOLE capture, or `null`. A `Result`
+ * would be a value threaded through a walk whose real product is the array it
+ * is filling.
+ */
+const emit = (
+  scope: Scope,
+  taken: Set<string>,
+  records: Array<RegularNode>,
+  capture: Capture,
+  at: {
+    readonly id: string
+    readonly parent: string | undefined
+    readonly ord: string
+    /** How many further generations may hang off this node. */
+    readonly below: number
+  },
+): OpFailure | null => {
+  if (capture.title.trim() === "") {
+    return new UsageFailure({ reason: "a node needs a title" })
+  }
+
+  const node: Draft<RegularNode> = {
+    id: at.id,
+    ...(at.parent === undefined ? {} : { parent: at.parent }),
+    ord: at.ord,
+    title: capture.title,
+  }
+  // A mark a capture asks for is written exactly as the op that marks an
+  // existing node would write it — same instant for `done`, same `true` for the
+  // other two. Canonical field order is the writer's, not this object's.
+  if (capture.mark !== undefined) node[capture.mark] = marker(scope, capture.mark)
+  if (capture.date !== undefined) node.date = capture.date
+  if (capture.desc !== undefined) node.desc = capture.desc
+  records.push(node)
+
+  const children = capture.children ?? []
+  if (children.length === 0) return null
+
+  // The floor of the unrolled schema ({@link ./request.ts}'s `NESTING`). Only
+  // the LENGTH of what arrived here is read — it is whatever the host sent,
+  // and it is being refused rather than walked.
+  if (at.below === 0) {
+    return new UsageFailure({
+      reason:
+        `a capture nests at most ${NESTING} levels of \`children\`, and ` +
+        `\`${capture.title}\` is already that deep, so nothing was written. Capture ` +
+        `down to \`${capture.title}\`, then hang the rest off it with a second ` +
+        `\`add_node\` — the answer names every node it made, id and title.`,
+    })
+  }
+
+  let previous: string | null = null
+  for (const child of children) {
+    const ord = ordBetween(previous, null)
+    if (ord === null) throw new Error("the order encoding ran out of keys")
+    const id = idFor(scope, taken, child)
+    if (Result.isFailure(id)) return id.failure
+    const refused = emit(scope, taken, records, child, {
+      id: id.success,
+      parent: at.id,
+      ord,
+      below: at.below - 1,
+    })
+    if (refused !== null) return refused
+    previous = ord
+  }
+  return null
 }
 
 // ── the marks ──────────────────────────────────────────────────────────
@@ -415,6 +555,33 @@ const UNMARKED = {
   doing: "not-doing",
   todo: "not-todo",
 } as const satisfies Record<Status, string>
+
+/**
+ * What a mark is WORTH on disk.
+ *
+ * ONLY `done` IS STAMPED, and it is stamped with the INSTANT it was made rather
+ * than the day: finishing something happens AT a moment, "some time on Tuesday"
+ * is the answer to a question nobody asked, and the day view reads the day off
+ * the front of the value either way (`@olai/format`'s `dayOf`), so the time
+ * costs a reader nothing and orders a day's finished work.
+ *
+ * `doing` and `todo` store `true` (resolved 2026-08-11, human). The symmetry
+ * argument — three answers to one question, written by one op — loses to what a
+ * date on a mark now MEANS: it puts the node on that day (docs/format.md's
+ * Days). A stamped `todo` would file everything on the day it was captured, so
+ * a day page would fill up with work that was written down then rather than
+ * done then, and `/today` would drift into a capture log. Finishing is the
+ * event a journal is about; filing is not, and neither is starting. Nothing is
+ * lost for a person who wants one: `set_date` schedules, and a hand-written
+ * date on any mark still reads (the format takes all three).
+ *
+ * One function because two ops ask: marking a node that exists, and capturing
+ * one that arrives already marked. Two spellings would be two answers to "what
+ * does a mark store", and the second one would be the one nobody remembers to
+ * change.
+ */
+const marker = (scope: Scope, mark: Status): string | true =>
+  mark === "done" ? scope.context.now() : true
 
 const planMark = (
   scope: Scope,
@@ -452,28 +619,12 @@ const planMark = (
 
   // Setting one mark CLEARS the others: a node carrying two is a record the
   // format rejects, so this is not tidiness — it is what makes the write valid.
-  //
-  // ONLY `done` IS STAMPED, and it is stamped with the INSTANT it was made
-  // rather than the day: finishing something happens AT a moment, "some time on
-  // Tuesday" is the answer to a question nobody asked, and the day view reads
-  // the day off the front of the value either way (`@olai/format`'s `dayOf`),
-  // so the time costs a reader nothing and orders a day's finished work.
-  //
-  // `doing` and `todo` store `true` (resolved 2026-08-11, human). The symmetry
-  // argument — three answers to one question, written by one op — loses to what
-  // a date on a mark now MEANS: it puts the node on that day (docs/format.md's
-  // Days). A stamped `todo` would file everything on the day it was captured,
-  // so a day page would fill up with work that was written down then rather
-  // than done then, and `/today` would drift into a capture log. Finishing is
-  // the event a journal is about; filing is not, and neither is starting.
-  // Nothing is lost for a person who wants one: `set_date` schedules, and a
-  // hand-written date on any mark still reads (the format takes all three).
   const next: Draft<RegularNode> = { ...node }
   for (const other of MARKS) delete next[other]
   // Only the node being marked is touched — every other record in the file is
   // re-emitted exactly as it was read, so a `true` or a day-only value
   // elsewhere stays the text it was.
-  if (!undo) next[mark] = mark === "done" ? scope.context.now() : true
+  if (!undo) next[mark] = marker(scope, mark)
 
   const summary = undo
     ? `${UNMARKED[mark]}: ${node.title}`
