@@ -32,6 +32,7 @@ second copy of the transcript would be a second thing to be wrong.
 | `adapter.ts` | which executable speaks ACP: the pinned adapter by default, `OLAI_ACP_AGENT` to override, empty to turn chat off |
 | `agent.ts` | the ACP client: one subprocess, one protocol. Nothing else in olai spells `session/prompt` |
 | `kolu.ts` | whether this host is running kolu, and the stdio server to hand a session if it is |
+| `pipes.ts` | a subprocess's pipes as a stream of JSON-RPC messages — the one thing the two subprocesses above have in common |
 | `events.ts` | the closed vocabulary of what an agent tells us — a consumer that needs more needs a new member, not a look at the wire |
 | `transcript.ts` | the conversation as ROWS: chunks accumulate, tool calls update in place by id, a replay replaces rather than appends |
 | `chat.ts` | the join, and the only place that knows both halves |
@@ -85,6 +86,12 @@ AND a padi is behind it — and the absolute path that answered is what the
 session is given, so the agent cannot resolve the bare word against a different
 PATH and spawn something else. Anything short of an answer is a `null`,
 silently: a host without kolu is the ordinary case, not a fault.
+
+The probe is a JSON-RPC conversation on a subprocess's pipes, which is what the
+ACP session is too — so the framing lives in `pipes.ts` and neither of them owns
+it. What that file encapsulates is one axis: how a Node child's pipes become Web
+streams under Bun's node compatibility. `kolu.ts` writes three messages and
+reads until one of them is answered; it does not know what a newline is.
 
 **What is detected is the DAEMON, not kolu's web server**, which may be running
 on another machine reaching this host as a remote. `PADI_SOCKET` is forwarded

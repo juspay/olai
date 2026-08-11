@@ -37,11 +37,12 @@
  *     different build than the one that answered.
  */
 
-import { spawn } from "node:child_process"
-import { accessSync, constants, statSync } from "node:fs"
-import { delimiter, join } from "node:path"
+import { type ChildProcess, spawn } from "node:child_process"
 
+import type { AnyMessage } from "@agentclientprotocol/sdk"
 import { Effect } from "effect"
+
+import { streamOver } from "./pipes.ts"
 
 /** The executable, its verb, and the variable that says which padi. All three
  *  are kolu's own `.mcp.json` entry, unchanged. */
@@ -107,110 +108,85 @@ export const detect: Effect.Effect<Server | null> = Effect.gen(function*() {
   return { name: COMMAND, command, args: ARGS, env }
 })
 
-/** The first executable FILE by that name on PATH, or `null`. A directory is
- *  executable too, which is why the stat is not skipped. */
-const onPath = (name: string): string | null => {
-  for (const dir of (process.env["PATH"] ?? "").split(delimiter)) {
-    if (dir === "") continue
-    const candidate = join(dir, name)
-    try {
-      accessSync(candidate, constants.X_OK)
-      if (statSync(candidate).isFile()) return candidate
-    } catch {
-      // Not there, or not ours to run. The next directory is the answer.
-    }
-  }
-  return null
-}
+/** The executable by that name on PATH, or `null`. The PATH is passed rather
+ *  than left to the runtime's own copy, which is the one this process STARTED
+ *  with — the live one is what a spawn would resolve against, and the point of
+ *  this whole file is to probe the file that would actually run. */
+const onPath = (name: string): string | null => Bun.which(name, { PATH: process.env["PATH"] ?? "" })
 
-/**
- * Start it, handshake, read the daemon's identity, and say whether that
- * answered — then kill it either way. This process is a PROBE and never a
- * client: the session gets its own, spawned by the agent.
- *
- * The three messages go out together. A server that reads its input in order
- * answers in order, and one that cannot is one whose answer we would not want:
- * every way of failing here — a binary that is not kolu, a build that lost the
- * verb, a daemon that is not there, a wedge — arrives as the same `false`.
- */
-const answers = (command: string, env: Readonly<Record<string, string>>): Promise<boolean> =>
-  new Promise((resolve) => {
-    let child: ReturnType<typeof spawn>
-    try {
-      child = spawn(command, [...ARGS], {
-        stdio: ["pipe", "pipe", "ignore"],
-        env: { ...process.env, ...env },
-      })
-    } catch {
-      resolve(false)
-      return
-    }
-
-    let settled = false
-    const done = (answer: boolean) => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      child.kill("SIGKILL")
-      resolve(answer)
-    }
-    const timer = setTimeout(() => done(false), PROBE_MS)
-
-    // A spawn that fails and an exit before the answer are the same "no": both
-    // mean nothing read that resource.
-    child.on("error", () => done(false))
-    child.on("exit", () => done(false))
-
-    let pending = ""
-    child.stdout?.setEncoding("utf8")
-    child.stdout?.on("data", (chunk: string) => {
-      pending += chunk
-      const lines = pending.split("\n")
-      pending = lines.pop() ?? ""
-      for (const line of lines) {
-        const read = readIdentity(line)
-        if (read !== null) done(read)
-      }
-    })
-
-    child.stdin?.on("error", () => done(false))
-    child.stdin?.end(
-      [
-        {
-          jsonrpc: "2.0",
-          id: 1,
-          method: "initialize",
-          params: {
-            protocolVersion: "2024-11-05",
-            capabilities: {},
-            clientInfo: { name: "olai", version: "0" },
-          },
-        },
-        { jsonrpc: "2.0", method: "notifications/initialized" },
-        { jsonrpc: "2.0", id: PROBE_ID, method: "resources/read", params: { uri: IDENTITY } },
-      ]
-        .map((message) => `${JSON.stringify(message)}\n`)
-        .join(""),
-    )
-  })
-
-/** The id the read is sent under, so the answer to it is the only line that
+/** The id the read is sent under, so the answer to it is the only message that
  *  decides anything. */
 const PROBE_ID = 2
 
-/** What one line says about the read: `true` it answered, `false` it refused,
- *  `null` it was about something else. A refusal is what a kolu that reached no
- *  daemon sends, so it is a verdict rather than noise. */
-const readIdentity = (line: string): boolean | null => {
-  if (line.trim() === "") return null
-  let message: unknown
+/** The whole conversation, sent at once. A server that reads its input in order
+ *  answers in order, and one that cannot is one whose answer we would not
+ *  want. */
+const CONVERSATION: ReadonlyArray<AnyMessage> = [
+  {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "initialize",
+    params: {
+      protocolVersion: "2024-11-05",
+      capabilities: {},
+      clientInfo: { name: "olai", version: "0" },
+    },
+  },
+  { jsonrpc: "2.0", method: "notifications/initialized" },
+  { jsonrpc: "2.0", id: PROBE_ID, method: "resources/read", params: { uri: IDENTITY } },
+]
+
+/**
+ * Start it, say all that, and wait for the one answer that decides it — then
+ * kill it either way. This process is a PROBE and never a client: the session
+ * gets its own, spawned by the agent.
+ *
+ * Every way of failing arrives as the same `false`, and they arrive by one
+ * door: the pipes closing ends the read below, and the deadline is a KILL
+ * rather than a race, so a binary that is not kolu, a build that lost the verb,
+ * a daemon that is not there and a wedge are one path with one answer.
+ */
+const answers = async (
+  command: string,
+  env: Readonly<Record<string, string>>,
+): Promise<boolean> => {
+  let child: ChildProcess
   try {
-    message = JSON.parse(line)
+    child = spawn(command, [...ARGS], {
+      stdio: ["pipe", "pipe", "ignore"],
+      env: { ...process.env, ...env },
+    })
   } catch {
-    // A binary that is not kolu at all. Not an answer, and not a verdict
-    // either — the deadline is what ends that one.
-    return null
+    return false
   }
+
+  const deadline = setTimeout(() => child.kill("SIGKILL"), PROBE_MS)
+  try {
+    const stream = streamOver(child)
+    const writer = stream.writable.getWriter()
+    for (const message of CONVERSATION) await writer.write(message)
+    // stdin stays OPEN: a server told its client has gone is entitled to leave
+    // before it has finished answering, and the kill below is what ends this
+    // one.
+    const reader = stream.readable.getReader()
+    while (true) {
+      const next = await reader.read()
+      if (next.done) return false
+      const verdict = verdictOf(next.value)
+      if (verdict !== null) return verdict
+    }
+  } catch {
+    return false
+  } finally {
+    clearTimeout(deadline)
+    child.kill("SIGKILL")
+  }
+}
+
+/** What one message says about the read: `true` it answered, `false` it
+ *  refused, `null` it was about something else. A refusal is what a kolu that
+ *  reached no daemon sends, so it is a verdict rather than noise. */
+const verdictOf = (message: AnyMessage): boolean | null => {
   const shape = message as { readonly id?: unknown; readonly result?: unknown }
   if (shape.id !== PROBE_ID) return null
   return shape.result !== undefined && shape.result !== null

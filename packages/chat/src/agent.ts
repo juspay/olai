@@ -41,7 +41,6 @@ import {
   client as acpClient,
   type ClientConnection,
   methods,
-  ndJsonStream,
 } from "@agentclientprotocol/sdk"
 import type {
   ContentBlock,
@@ -62,6 +61,7 @@ import { Data, type Duration, Effect, Semaphore } from "effect"
 
 import type { AgentEvent, Command, Stored } from "./events.ts"
 import * as Kolu from "./kolu.ts"
+import { streamOver } from "./pipes.ts"
 
 /** An MCP server to hand a session, in olai's terms. {@link mcpServersOf}
  *  renders it into what the protocol wants. */
@@ -674,55 +674,6 @@ const notify = (
       }).notify(method, params),
     catch: (cause) => new AgentGone({ why: `\`${method}\` failed: ${reasonOf(cause)}` }),
   })
-
-/**
- * The subprocess's pipes, as the Web streams the SDK's ndjson framing takes.
- *
- * Built by hand rather than with `stream.Web` helpers: this runs under Bun's
- * Node compatibility, and the two adapters differ in when they close and how
- * they surface a broken pipe. Twenty lines with the lifecycle written out beats
- * a helper whose behaviour we would be assuming.
- */
-const streamOver = (child: ChildProcess) => {
-  const stdout = child.stdout
-  const stdin = child.stdin
-  if (stdout === null || stdin === null) {
-    throw new Error("the agent was spawned without pipes")
-  }
-
-  const readable = new ReadableStream<Uint8Array>({
-    start(controller) {
-      // Both ends of the pipe close the same way, and a process exiting can
-      // deliver `end` AND `error` — so closing twice has to be harmless.
-      const close = () => {
-        try {
-          controller.close()
-        } catch {
-          // already closed
-        }
-      }
-      stdout.on("data", (chunk: Buffer) => controller.enqueue(new Uint8Array(chunk)))
-      stdout.on("end", close)
-      stdout.on("error", close)
-    },
-  })
-
-  const writable = new WritableStream<Uint8Array>({
-    write(chunk) {
-      return new Promise<void>((resolve, reject) => {
-        stdin.write(chunk, (cause) => (cause == null ? resolve() : reject(cause)))
-      })
-    },
-    close() {
-      stdin.end()
-    },
-    abort() {
-      stdin.destroy()
-    },
-  })
-
-  return ndJsonStream(writable, readable)
-}
 
 // ── reading the payloads ───────────────────────────────────────────────
 
