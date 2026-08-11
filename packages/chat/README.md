@@ -64,9 +64,16 @@ injected object would replace with an assumption.
 A session is handed olai's own tool server, and a second one when this host is
 running [kolu](https://kolu.dev): `kolu mcp` over stdio, so the agent you are
 talking to about your outlines can also see the terminals your coding agents are
-running in. It is automatic and has no knob — the cost of being wrong is one MCP
-server an agent never uses — and the caller is not asked, because the answer can
-change between one conversation and the next.
+running in. It is automatic and has no knob, and the caller is not asked,
+because the answer can change between one conversation and the next.
+
+What a knob would be protecting against is worth naming, because the two ways of
+being wrong do not cost the same. Missing a kolu that is there costs a session
+some tools. Attaching one that is NOT there costs the agent a server whose every
+tool fails — it will try them, because it was told they were available, and what
+it gets back is a transport error rather than an answer. So the bar is not "a
+kolu started": it is an answered read of a cell the daemon owns, and anything
+short of that is refused.
 
 Which is the first of three decisions in `kolu.ts` worth knowing:
 

@@ -675,6 +675,16 @@ Before(
       (tag) => tag.name === NO_AGENT_TAG,
     );
     this.hasKolu = scenario.pickle.tags.some((tag) => tag.name === KOLU_TAG);
+    // A shared corpus server is running for every other scenario too, so which
+    // kolu it found is not this one's to choose. Said here rather than left to
+    // the assertion, which would fail thirty seconds later about the transcript
+    // instead of about the tag.
+    if (this.hasKolu && !asked.scratch) {
+      throw new Error(
+        `${KOLU_TAG} decides what its server finds on PATH, so the scenario must own that ` +
+          `server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
+      );
+    }
 
     if (asked.scratch) {
       const own = await scratchServerFor(asked.corpus, {

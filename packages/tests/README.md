@@ -358,6 +358,12 @@ most of the verbs). `@kolu` is the knob that makes a daemon answer. So a
 scenario that says nothing about kolu is one whose session gets olai's own tool
 server and nothing else, deterministically.
 
+`@kolu` needs `@scratch:<corpus>`, the same way `@agent-stored` does: what a
+server finds on PATH is decided when it is started, and a `@corpus:` server is
+running for every other scenario in the run — not this one's to repoint. The
+`Before` hook says so by name rather than letting the scenario fail later about
+a transcript.
+
 Nothing about a terminal is simulated. What a scenario can ask is which MCP
 servers the SESSION was given, and the scripted agent answers that when asked
 (`servers`).

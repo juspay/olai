@@ -20,7 +20,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 
 import { mcpServersOf } from "./agent.ts"
-import { detect, PROBE_ID, type Server } from "./kolu.ts"
+import { detect, PROBE_ID, PROBE_MS, type Server } from "./kolu.ts"
 
 /** Everything this test made, undone after each case: the directories it put
  *  on PATH, and PATH itself. */
@@ -55,19 +55,33 @@ const koluOnPath = (body: string): string => {
 }
 
 /**
- * A fixture that answers the read the way the flag says: with what a live padi
- * has, or with the error a kolu that reached no daemon sends.
+ * What the probe has to ask for, spelled HERE rather than imported.
  *
- * It answers the first thing the prober SAYS rather than reading what was
- * said. Parsing the conversation would put a fourth copy of ndjson framing in
- * this repo — the suite's fakes share one
- * (`packages/tests/support/ndjson.ts`), and this file cannot import it without
- * `@olai/chat` depending on `@olai/tests`, which is backwards. What it must
- * get right is the ID: an answer under a different one is not an answer, so it
- * comes from the prober's own constant rather than a number spelled here. That
- * a real `resources/read` is what gets sent is asserted where a real binary
- * can be asked — `features/kolu_terminals.feature`, whose fake kolu does read
- * the method.
+ * These two strings are the guarantee this whole file exists to hold. A real
+ * kolu completes `initialize`, lists all its tools and lists its resources with
+ * no daemon behind it at all (juspay/kolu#2148) — only READING a cell the
+ * daemon owns tells the two apart. So a probe quietly swapped to `tools/list`
+ * would be worthless, and the fixtures below refuse to answer anything else:
+ * taking these from `kolu.ts` would move with such a swap and go on passing,
+ * which is the opposite of a lock.
+ */
+const ASKS = "resources/read"
+const ABOUT = "surface://cells/identity"
+
+/**
+ * A fixture that answers the identity read the way the flag says: with what a
+ * live padi has, or with the error a kolu that reached no daemon sends. It
+ * answers NOTHING else, so a probe that stopped asking for the daemon's own
+ * cell fails these cases rather than passing them.
+ *
+ * It watches the bytes for those two strings instead of parsing frames, and
+ * that is deliberate: parsing would put a fourth copy of ndjson framing in this
+ * repo — the suite's fakes share one (`packages/tests/support/ndjson.ts`), and
+ * this file cannot import it without `@olai/chat` depending on `@olai/tests`,
+ * which is backwards. A substring watch is not a second framing implementation,
+ * and it is enough to say what was asked for. The ID is the one thing taken
+ * from the prober (an answer under a different id is not an answer, but WHICH
+ * id is bookkeeping rather than the claim).
  */
 const script = (reachable: boolean): string =>
   `
@@ -82,7 +96,13 @@ const ANSWER = ${
         },
     )
   }
-process.stdin.once("data", () => process.stdout.write(JSON.stringify(ANSWER) + "\\n"))
+let heard = ""
+process.stdin.on("data", (chunk) => {
+  heard += chunk
+  if (!heard.includes(${JSON.stringify(ASKS)}) || !heard.includes(${JSON.stringify(ABOUT)})) return
+  heard = ""
+  process.stdout.write(JSON.stringify(ANSWER) + "\\n")
+})
 `
 
 const detected = (): Promise<Server | null> => Effect.runPromise(detect)
@@ -112,6 +132,26 @@ describe("detecting kolu", () => {
 
     expect(await detected()).toBeNull()
   })
+
+  // The lock the fixtures above carry, stated where a reader will look for it:
+  // they answer only what a daemon owns, so a probe swapped to `initialize`,
+  // `tools/list` or `resources/list` — every one of which a real kolu answers
+  // with nothing behind it (juspay/kolu#2148) — stops being answered at all,
+  // and the first case in this file goes red instead of quietly passing.
+
+  test("a kolu that never answers is let go of, not waited on forever", async () => {
+    // The deadline, and the only way to exercise it is to spend it: a fixture
+    // that reads and says nothing is what a wedged binary is. Five seconds of
+    // a test suite for the one guarantee that keeps a wedged kolu from being a
+    // wedged conversation.
+    koluOnPath(`process.stdin.on("data", () => {})\n`)
+
+    const began = Date.now()
+    expect(await detected()).toBeNull()
+    // Not just "null": null ARRIVING is what the deadline buys, and a null
+    // that came back instantly would mean something else refused it.
+    expect(Date.now() - began).toBeGreaterThanOrEqual(PROBE_MS - 50)
+  }, PROBE_MS * 3)
 
   test("no kolu on PATH is the ordinary case, not a failure", async () => {
     const dir = mkdtempSync(join(tmpdir(), "olai-kolu-"))
