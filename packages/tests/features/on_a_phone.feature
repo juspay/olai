@@ -94,6 +94,14 @@ Feature: On a phone
     And the children of "kitchen" are shown
 
   @corpus:good @phone
+  Scenario: The collapse triangle is always on, the menu is not
+    # Touch has no hover: the triangle stays as the fold affordance; the
+    # ••• menu is desktop-only so a 390px title still has room.
+    Given I open the outline "house.jsonl"
+    Then the collapse control of "kitchen" is revealed
+    And the node menu of "kitchen" is not on the row
+
+  @corpus:good @phone
   Scenario: A tap on an outline entry opens that outline
     Given I open the outline "house.jsonl"
     When I tap the burger

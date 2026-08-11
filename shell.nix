@@ -18,6 +18,12 @@ pkgs.mkShell {
     # shell that runs `bun install`, rather than there, in the shell that runs
     # the tests.
     PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
+
+    # Workflowy's Open Sans — TTFs from nixpkgs, converted to woff2 by the
+    # client build (packages/web/src/build.ts). No CDN, no font binary in the
+    # repo. The packaged build (default.nix) sets the same two variables.
+    OLAI_FONTS_DIR = "${pkgs.open-sans}/share/fonts/truetype";
+    OLAI_WOFF2_COMPRESS = "${pkgs.woff2}/bin/woff2_compress";
   };
 
   packages = with pkgs; [
@@ -26,5 +32,7 @@ pkgs.mkShell {
     jq # scripts/check-kolu-deps.sh
     nixpkgs-fmt
     npins
+    open-sans
+    woff2
   ];
 }

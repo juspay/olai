@@ -16,6 +16,23 @@
  * reset is spelled at each site and only the target is spelled here. That is
  * the whole split: one number that is a policy, and per-control compactness
  * that is a design.
+ *
+ * ## The gutter (Workflowy arithmetic)
+ *
+ * A tree row's left side, left to right:
+ *
+ *   hover strip (triangle; + `•••` on pointer devices) · bullet · checkbox · title
+ *
+ * On a pointer device the menu and triangle appear only on row hover / focus;
+ * on a phone the triangle stays visible (there is no hover) and the `•••` is
+ * hidden — a phone has no room for two always-on cells before the title
+ * (see packages/web/README.md). The permanent widths are still reserved so a
+ * title never shifts under the pointer when the controls fade in.
+ *
+ * EVERY gap in the row is `GUTTER_GAP`. The note indents (`PAST_*`) are the
+ * arithmetic of those widths + gaps; change a control width or the gap and
+ * both the table and the constants below must move together. Literal class
+ * names rather than computed ones: Tailwind scans this file as text.
  */
 
 /** A control a finger aims at. Paired at each site with what it is above
@@ -27,54 +44,73 @@ export const TARGET = "min-h-11"
  *  a finger still misses sideways. */
 export const TARGET_BOX = "min-h-11 min-w-11"
 
-// ── the gutter, which is where the rule above cannot be obeyed ─────────────
+// ── the gutter ─────────────────────────────────────────────────────────────
 //
-// A row is a control or three, a gap after each, and then the title: a tree
-// row has a fold toggle, a bullet and a status checkbox; a day's row has the
-// bullet and the checkbox; and under either of them a note has to start where
-// the title starts rather than under the last control.
+//   GUTTER_GAP = 0.25rem (gap-1) between every flex sibling on the row.
 //
-// Those gutter controls are the exception to `TARGET`, and a deliberate one: a
-// 44px-WIDE toggle and a 44px-wide bullet at every level of indent leave a
-// 390px screen no room for the title they are in front of. So they take the
-// full 44px in height — the axis where a miss lands on the wrong node — and
-// the 1.75rem across that the racket original used for the same control on the
-// same screen.
+//   CONTROL / HOVER_CELL: phone 1.75rem (w-7), pointer 1rem (w-4)
 //
-// Which is why they and their indents live together here. One width, and
-// everything else arithmetic over it:
+//   Tree hover strip:
+//     phone  — triangle only                         → 1.75rem
+//     pointer — menu + gap + triangle                → 1 + 0.25 + 1 = 2.25rem
 //
-//              control    gap      control    gap      control    gap
-//   a phone     1.75rem   0.375rem  1.75rem   0.375rem  1.75rem   0.375rem
-//   a pointer   1rem      0.375rem  1rem      0.375rem  1rem      0.375rem
+//   Tree PAST_CONTROLS (hover + 3×gap + bullet + checkbox):
+//     phone   1.75 + 0.75 + 1.75 + 1.75 = 6rem
+//     pointer 2.25 + 0.75 + 1    + 1    = 5rem
 //
-//   past two (day: bullet + checkbox) → phone 4.25rem, pointer 2.75rem
-//   past three (tree: toggle + bullet + checkbox) → phone 6.375rem, pointer 4.125rem
+//   Day PAST_BULLET (bullet + 2×gap + checkbox):
+//     phone   1.75 + 0.5 + 1.75 = 4rem
+//     pointer 1    + 0.5 + 1    = 2.5rem
 //
-// When the width moves, five things move with it: the control, the blank where
-// a row has no toggle, and the two indents. Spread across the components that
-// draw them, that is a rule held in memory — and it had already been got wrong
-// once, with a day's notes left indented under the bullet on a phone while a
-// tree's were not.
-//
-// The values are literal class names rather than computed ones because
-// Tailwind scans this file as text: a name built at runtime is a name it never
-// emits a rule for. So the arithmetic is written above rather than run, and
-// the four strings below are the one place it lands.
+// When a width moves, the control, the spacer, HOVER_*, and the two PAST_*
+// constants move with it. They live together here.
 
-/** A row's control — the bullet, the fold toggle beside it in a tree, and the
- *  status checkbox beside the bullet. */
+/** Gap between gutter siblings — tree row, day row, and inside the hover
+ *  strip. One export so the JSX and the PAST arithmetic cannot disagree. */
+export const GUTTER_GAP = "gap-1"
+
+/** A row's permanent control — the bullet and the status checkbox. */
 export const CONTROL =
-  "inline-flex h-11 w-7 shrink-0 items-center justify-center md:h-auto md:w-4"
+  "inline-flex h-11 w-7 shrink-0 items-center justify-center md:h-5 md:w-4"
 
-/** The same width, holding a place: a row with nothing to fold still lines its
- *  bullet up with the rows that do, and a row with no MARK still lines its
- *  title up with the rows that carry one. */
+/** The same width, holding a place: a row with no MARK still lines its title
+ *  up with the rows that carry one. */
 export const CONTROL_SPACER = "w-7 shrink-0 md:w-4"
 
-/** Past the bullet AND the checkbox — where a day's row puts its note. */
-export const PAST_BULLET = "ml-[4.25rem] md:ml-11"
+/**
+ * The hover strip: collapse triangle always; `•••` menu on pointer devices
+ * only (the menu is `hidden md:…` at its site). Width matches content so a
+ * fixed `w-*` cannot drift from the cells it holds.
+ */
+export const HOVER_GUTTER =
+  `inline-flex h-11 shrink-0 items-center justify-end ${GUTTER_GAP} md:h-5`
 
-/** Past the toggle, the bullet AND the checkbox — where a tree's row puts its
- *  note, and its one aside about a mirror it would not expand. */
-export const PAST_CONTROLS = "ml-[6.375rem] md:ml-[4.125rem]"
+/** One cell inside the hover strip (menu trigger or triangle). */
+export const HOVER_CELL =
+  "inline-flex h-11 w-7 shrink-0 items-center justify-center md:h-5 md:w-4"
+
+/**
+ * Reveal policy for hover-only gutter controls (triangle; menu on md+).
+ *
+ * Below 48rem: always on (a finger has no hover). Above: invisible until the
+ * row line is hovered or something in the gutter is focused.
+ */
+export const HOVER_REVEAL =
+  "opacity-100 md:opacity-0 md:group-hover/row:opacity-100 md:group-focus-within/row:opacity-100"
+
+/**
+ * Reveal for the `•••` menu button — only reached when its parent is shown
+ * (the menu root is `hidden md:block`). Hover/focus-only; no phone branch.
+ */
+export const MENU_REVEAL =
+  "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100"
+
+/** Past the bullet AND the checkbox — where a day's row puts its note. */
+export const PAST_BULLET = "ml-16 md:ml-10"
+
+/** Past the hover strip, the bullet AND the checkbox — where a tree's row
+ *  puts its note, and its one aside about a mirror it would not expand. */
+export const PAST_CONTROLS = "ml-24 md:ml-20"
+
+/** How far a child list indents from its parent, and the vertical guide. */
+export const CHILD_INDENT = "ml-3 list-none border-l border-rule pl-3 md:ml-4 md:pl-4"

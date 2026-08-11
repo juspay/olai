@@ -224,7 +224,9 @@ export default function App() {
                         indicator — the inset is real because the shell asks for
                         `viewport-fit=cover`. Spelled once where that clearance
                         is measured (./connection/Indicator.tsx). */}
-                    <main class={`overflow-x-auto px-4 pt-4 ${CLEARANCE} md:px-8 md:py-6`}>
+                    {/* Generous left margin before the outline, Workflowy-style.
+                        The tree's own gutter then holds menu/triangle/bullet. */}
+                    <main class={`overflow-x-auto px-4 pt-4 ${CLEARANCE} md:px-12 md:py-8 lg:pl-16 lg:pr-12`}>
                       <Show when={problems().length > 0}>
                         <Banner errors={problems()} />
                       </Show>

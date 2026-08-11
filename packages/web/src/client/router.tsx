@@ -109,7 +109,9 @@ export function RouterProvider(
   )
 }
 
-const useRouter = (): Router => {
+/** The router for a component under `<RouterProvider>` — navigation without
+ *  throwing the document away (`go` is pushState, not `location.assign`). */
+export const useRouter = (): Router => {
   const router = useContext(RouterContext)
   if (router === undefined) {
     throw new Error("a <Link> outside the router — wrap the page in <RouterProvider>")
@@ -129,6 +131,9 @@ export interface LinkProps {
   /** This link's outline could not be read. A `data-` fact rather than a class,
    *  because it is what the browser tests find a marked entry by. */
   readonly broken?: boolean
+  /** Workflowy halo on a collapsed parent's bullet — a `data-` fact the
+   *  browser tests assert on, never a colour. */
+  readonly halo?: boolean
   readonly children?: JSX.Element
 }
 
@@ -155,6 +160,7 @@ export function Link(props: LinkProps) {
       // The file a link stands for, for the browser tests (./routes.ts).
       data-file={fileNamed(props.route)}
       data-broken={props.broken === true ? "true" : undefined}
+      data-halo={props.halo === true ? "true" : undefined}
       onClick={onClick}
     >
       {props.children}

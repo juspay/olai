@@ -66,14 +66,23 @@ summarising.
 The client computes nothing about the format on its own. `@olai/format` derives
 status, sibling order, mirror expansion, a node's ancestry and the guard that
 stops a mirror inside its own subtree, and hands back rows; `Tree.tsx` turns a
-row into markup and nothing else — including the MARK COLUMN beside each bullet
-(`Checkbox.tsx`: checked for done, half for doing, EMPTY for todo, and no box
-at all on a node carrying none of them, because a bullet is not a task;
-read-only until keyboard-editing) and a node's free cross-references
-(`SeeRefs.tsx`: each `see` target is a link to `/n/<id>` whose text is the
-target's title, resolved at view time through the same indexes).
+row into markup and nothing else. The gutter is Workflowy-shaped: a hover-reveal
+strip (`NodeMenu.tsx` `•••` + the collapse triangle, always visible on a phone —
+see `touch.ts`) left of a filled-circle bullet (`Bullet.tsx`, with a gray halo
+when children are hidden), then the MARK COLUMN (`Checkbox.tsx`: CSS squares —
+checked for done, half-filled for doing, EMPTY for todo, and no box at all on a
+node carrying none of them, because a bullet is not a task; read-only until
+keyboard-editing). Tags in a title are subtle pills (`NodeTitle.tsx`). A node's
+free cross-references (`SeeRefs.tsx`) each link to `/n/<id>` with the target's
+title, resolved at view time through the same indexes.
 
-What a node cannot start until is answered in that same column (resolved
+The typeface is Workflowy's own Open Sans: nixpkgs' `open-sans` package, converted
+to woff2 at build time (`build.ts` via `OLAI_FONTS_DIR` / `OLAI_WOFF2_COMPRESS`
+from the flake shell and `default.nix`) and served from `/fonts/` — no CDN, no
+font binary in the repo. The eight theme tokens still paint every surface
+(`theme/palettes.ts`); the look follows every palette, dark and light.
+
+What a node cannot start until is answered in that same mark column (resolved
 2026-08-11, human): an `after` target that is a task and not done is in the
 way, an unmarked one never is, and a row that is waiting draws an hourglass
 where its box would be — toned with the mark it stands in for, since either
@@ -511,12 +520,14 @@ and the link on a node's `doc` reference. `touch.ts` is that decision —
 the target size once, since it is one policy, with each control's *compact*
 size spelled where that control is drawn, since that is a design per control.
 The same file holds the one place the rule cannot be obeyed in both
-directions: the tree's gutter. A 44px-wide toggle *and* a 44px-wide bullet at
-every level of indent leave a 390px screen no room for the title they are in
-front of, so those two take the full 44px in HEIGHT — the axis where a miss
-lands on the wrong node — and the racket original's 1.75rem across. Their two
-note indents are arithmetic over that width and live beside it, because when
-it moves they all move.
+directions: the tree's gutter. A hover strip (collapse triangle; `•••` menu on
+pointer devices only), a filled bullet, and the mark-column checkbox at every
+level of indent leave a 390px screen no room for the title if each took 44px
+across, so they take the full 44px in HEIGHT — the axis where a miss lands on
+the wrong node — and a narrow permanent width (1.75rem on a phone, 1rem on a
+pointer). The note indents (`PAST_*`) are arithmetic over those widths and the
+one shared `GUTTER_GAP`, because when any of them moves the note has to stay
+under the title.
 
 The line is `md` (48rem) rather than `pointer: coarse` so the layout and the
 targets are one decision: the sidebar stops being a column at exactly that

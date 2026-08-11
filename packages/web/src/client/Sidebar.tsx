@@ -54,17 +54,21 @@ import { CONTROL, TARGET } from "./touch.ts"
 /** One file entry. A row a finger aims at (./touch.ts), back to a line of
  *  text where the pointer is a mouse — and one string, because an outline and
  *  a document are the same row for the same reason: a finger aims at both.
- *  `calendar/Day.tsx` spells its cell once for the same reason. */
+ *  `calendar/Day.tsx` spells its cell once for the same reason.
+ *
+ *  Workflowy-quiet: soft hover, soft current (rule wash rather than a solid
+ *  accent block), and body-weight type so the tree reads as navigation rather
+ *  than a second outline. */
 const ENTRY =
-  `flex ${TARGET} items-center break-all rounded px-2 py-1 text-sm ` +
-  "no-underline text-inherit hover:bg-rule aria-[current=page]:bg-accent " +
-  "aria-[current=page]:text-paper md:block md:min-h-0"
+  `flex ${TARGET} items-center break-all rounded-sm px-2 py-0.5 text-[0.8125rem] leading-snug ` +
+  "no-underline text-ink hover:bg-rule/60 aria-[current=page]:bg-rule " +
+  "aria-[current=page]:text-ink md:min-h-0"
 
 /** A directory row: the same height a finger aims at, but not a link — it
- *  folds, it does not navigate. */
+ *  folds, it does not navigate. Disclosure triangle + name, Workflowy-style. */
 const DIR =
-  `flex ${TARGET} items-center gap-0.5 rounded px-1 text-sm text-muted ` +
-  "hover:bg-rule hover:text-ink md:min-h-0"
+  `flex ${TARGET} items-center gap-0.5 rounded-sm px-1 py-0.5 text-[0.8125rem] ` +
+  "leading-snug text-muted hover:bg-rule/60 hover:text-ink md:min-h-0"
 
 /** What every row of the tree needs from the sidebar: which file is open,
  *  which outlines are broken, and how folders fold. One bag so a recursive
@@ -234,13 +238,21 @@ function Dir(props: {
           props.view.toggle(props.row.path)
         }}
       >
-        <span class={`${CONTROL} text-xs`} aria-hidden="true">
-          {folded() ? "▸" : "▾"}
+        <span
+          class={`${CONTROL} text-[0.55rem] leading-none text-muted`}
+          aria-hidden="true"
+        >
+          <span
+            class="inline-block transition-transform duration-100"
+            classList={{ "-rotate-90": folded() }}
+          >
+            ▼
+          </span>
         </span>
         <span class="break-all">{props.row.name}</span>
       </button>
       <Show when={!folded()}>
-        <ul class="m-0 ml-2 list-none border-l border-rule p-0 pl-2">
+        <ul class="m-0 ml-2 list-none border-l border-rule/70 p-0 pl-2">
           <Key each={props.row.children} by="key">
             {(child) => <Entry row={child()} view={props.view} />}
           </Key>

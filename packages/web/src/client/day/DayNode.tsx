@@ -32,7 +32,7 @@ import { createNoteExpand } from "../note/expand.ts"
 import { NodeBody } from "../NodeBody.tsx"
 import { NodeLine } from "../NodeLine.tsx"
 import { TESTID } from "../testids.ts"
-import { PAST_BULLET } from "../touch.ts"
+import { GUTTER_GAP, PAST_BULLET } from "../touch.ts"
 
 export function DayNode(props: {
   readonly dated: DayEntry
@@ -56,7 +56,7 @@ export function DayNode(props: {
       </Show>
 
       <div
-        class={`flex items-baseline gap-1.5 ${WAITING_DIM(props.dated.blocked)}`}
+        class={`flex items-baseline ${GUTTER_GAP} ${WAITING_DIM(props.dated.blocked)}`}
         data-testid={TESTID.nodeGutter}
       >
         <Bullet id={node().id} />

@@ -252,7 +252,10 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="date"]` | the date badge; `data-occasion` is which of the node's dates it is (`date`, or the mark carrying one) |
 | `[data-testid="desc"]` | a node's note — one clamped plain line under the title when closed (`data-preview="true"`, `data-open="false"`), full markdown when open (`data-open="true"`); always full on a zoomed page |
 | `[data-testid="node"][data-note-open]` | note expansion: `true` while click/tap-opened |
-| `[data-testid="toggle"]` | the collapse/expand control on an outline node |
+| `[data-testid="toggle"]` | the collapse/expand control on an outline node (hover-reveal on a pointer device; always drawn on a phone) |
+| `[data-testid="node-menu"]` | the `•••` menu trigger left of the triangle — pointer devices only (not laid out on a phone) |
+| `[data-testid="node-menu-panel"]` | the open menu panel (`absolute` under the trigger) |
+| `[data-testid="node-menu-item"][data-action]` | one verb in that panel — only read actions (zoom, expand/collapse, expand/collapse all, copy link) |
 | `[data-testid="file-dir"][data-path]` | one folder in the sidebar file tree; `data-collapsed` says whether its children are hidden |
 | `[data-testid="file-dir-toggle"]` | the fold control on that folder |
 | `[data-testid="document-link"][data-file]` | one document entry in the file tree |
@@ -263,10 +266,10 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="doc-ref"][data-doc]` | a node's `doc`, at its RESOLVED path; `data-inline` when the document is drawn whole |
 | `[data-testid="doc-link"]` | the link inside that reference |
 | `[data-testid="node-gutter"]` | one row's own line — its controls and title, and nothing from the rows nested under it |
-| `[data-testid="zoom"]` | a row's bullet: the link to that node's own page |
-| `[data-testid="checkbox"][data-status]` | the status box beside that bullet: checked for done, half for doing, empty for todo — and NOT PRESENT on a node carrying none of them, which is how a bullet is told from an unstarted task |
+| `[data-testid="zoom"]` | a row's bullet: the link to that node's own page; `data-halo="true"` when the row is collapsed with children |
+| `[data-testid="checkbox"][data-status][data-face]` | the status box beside that bullet: `data-face` is `checked` / `doing` / `empty` (CSS squares, not Unicode glyphs) — and NOT PRESENT on a node carrying none of them, which is how a bullet is told from an unstarted task |
 | `[data-testid="node"][data-blocked]` | the ids a node is waiting on, space-separated and in the promised order; ABSENT when nothing is in its way |
-| `[data-testid="blocked"]` | what draws that: the mark column's waiting glyph (⧖) on a row or a day entry, the named blockers on a zoomed page |
+| `[data-testid="blocked"]` | what draws that: the mark column's waiting face (`data-face="waiting"`) on a row or a day entry, the named blockers on a zoomed page |
 | `[data-testid="tip"]` | this app's own hover tip; what it says is also the control's `aria-label`, and where it goes is clamped to the window |
 | `[data-testid="see-refs"]` | a node's free cross-references (`see`) |
 | `[data-testid="node-ref"]` | one link from a node to another node inside either of those rows; the target id rides `data-ref` on a span inside it |
