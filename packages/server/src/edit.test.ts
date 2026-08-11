@@ -166,10 +166,10 @@ test("a mirror toggles what it shows, exactly as its checkbox draws it", () => {
 })
 
 test("a title and a note are what they say", () => {
-  expect(asked({ verb: "retitle", id: "order", title: "order the new cabinets" }))
+  expect(asked({ verb: "title", id: "order", title: "order the new cabinets" }))
     .toEqual({ op: "title", id: "order", title: "order the new cabinets" })
-  expect(asked({ verb: "note", id: "order", desc: "oak" }))
+  expect(asked({ verb: "desc", id: "order", desc: "oak" }))
     .toEqual({ op: "desc", id: "order", desc: "oak" })
-  expect(asked({ verb: "note", id: "order", desc: null }))
+  expect(asked({ verb: "desc", id: "order", desc: null }))
     .toEqual({ op: "desc", id: "order", desc: null })
 })

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { editKey, isApplePlatform, matchKey } from "./keys.ts"
+import { CHORDS, editKey, isApplePlatform, matchKey } from "./keys.ts"
 
 const key = (
   k: string,
@@ -76,17 +76,28 @@ test("a note keeps Enter and the arrows for itself", () => {
   expect(editKey(key("Escape"), "block")).toBe("cancel")
 })
 
-test("no editing key is one of the three reserved chords", () => {
+test("no editing key is one of the reserved chords", () => {
   // The collision this file exists to make impossible: every chord the global
-  // layer claims must be dead to the row layer, on both platforms.
+  // layer claims must be dead to the row layer, on both platforms. Over the
+  // TABLE rather than a list spelled here — a fourth chord is covered by being
+  // declared, which is the only way this check stays true.
   for (const platform of ["MacIntel", "Linux x86_64"]) {
-    for (const k of ["k", "j", "\\"]) {
+    for (const chord of CHORDS) {
       for (const mods of [{ meta: true }, { ctrl: true }]) {
-        const event = key(k, mods)
+        const event = key(chord.key, mods)
         if (matchKey(event, platform) === null) continue
         expect(editKey(event, "line")).toBeNull()
         expect(editKey(event, "block")).toBeNull()
       }
     }
+  }
+})
+
+test("every chord in the table is reachable", () => {
+  // The other half: a row in the table that `matchKey` cannot produce would
+  // make the check above pass by never running.
+  for (const chord of CHORDS) {
+    expect(matchKey(key(chord.key, { ctrl: true }), "Linux x86_64")?.action)
+      .toBe(chord.action)
   }
 })

@@ -21,6 +21,11 @@ import { Link } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import { CONTROL } from "./touch.ts"
 
+/** The dot itself, at the one size a bullet is. Exported because a row that
+ *  does not exist yet draws the same dot HOLLOW (`./edit/NewRow.tsx`), and two
+ *  spellings of a bullet's size would be two things to change when it moves. */
+export const DOT = "block h-[0.375rem] w-[0.375rem] rounded-full"
+
 export function Bullet(props: {
   readonly id: string
   /** True when this row has children that are currently hidden. Workflowy's
@@ -51,7 +56,7 @@ export function Bullet(props: {
       />
       {/* The filled round bullet — accents on hover like the old glyph did. */}
       <span
-        class="relative block h-[0.375rem] w-[0.375rem] rounded-full bg-ink group-hover/bullet:bg-accent"
+        class={`relative ${DOT} bg-ink group-hover/bullet:bg-accent`}
         aria-hidden="true"
       />
     </Link>

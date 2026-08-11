@@ -20,6 +20,7 @@ import { Then, When } from "@cucumber/cucumber";
 
 import {
   DESC_EDITOR,
+  EDIT_NUDGE,
   EDIT_REFUSAL,
   NEW_ROW,
   nodeSelector,
@@ -151,6 +152,25 @@ Then("the refusal says {string}", async function (this: OlaiWorld, said: string)
   assert.ok(
     text.includes(said),
     `the refusal reads ${JSON.stringify(text)}, which does not mention ${JSON.stringify(said)}`,
+  );
+});
+
+Then("the nudge says {string}", async function (this: OlaiWorld, said: string) {
+  const nudge = this.page.locator(EDIT_NUDGE).first();
+  await nudge.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const text = (await nudge.innerText()).trim();
+  assert.ok(
+    text.includes(said),
+    `the nudge reads ${JSON.stringify(text)}, which does not mention ${JSON.stringify(said)}`,
+  );
+});
+
+Then("nothing is being said about the row", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () =>
+      (await this.page.locator(EDIT_NUDGE).count()) === 0 &&
+      (await this.page.locator(EDIT_REFUSAL).count()) === 0,
+    "the row to have nothing said about it",
   );
 });
 

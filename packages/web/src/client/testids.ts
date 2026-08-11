@@ -155,6 +155,11 @@ export const TESTID = {
    *  refused write is visible; the draft beside it is the promise that nothing
    *  typed was lost. */
   editRefusal: "edit-refusal",
+  /** The opposite mood, in the same place: a write that LANDED, with something
+   *  the rollup noticed — the last task under a parent going done, a branch
+   *  ticked over unfinished ones. Advice, never a reason anything failed, and
+   *  the next keystroke takes it away. */
+  editNudge: "edit-nudge",
   /** The way in on a page with no rows: an outline that holds nothing, a
    *  zoomed node with nothing under it. */
   startLine: "start-line",

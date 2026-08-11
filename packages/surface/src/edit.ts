@@ -9,7 +9,7 @@
  * outlines collection. Nothing is echoed: a procedure answers that the write
  * landed, and what a reader sees is the file it produced.
  *
- * Two properties are worth stating because both are decisions:
+ * Three properties are worth stating because all three are decisions:
  *
  *   - **The verbs are INTENTS, and the placement is the server's.** `Tab` says
  *     "indent this", not "reparent it under the node above and put it last";
@@ -20,13 +20,20 @@
  *     drew some frames ago and posted back. A browser that computed them would
  *     be a second reading of the set, free to disagree with the one the write
  *     is judged against.
+ *   - **One union, one procedure** — the shape `@olai/ops` already uses for
+ *     the same kind of thing (`Request` + `run`). What that buys is that the
+ *     list of verbs is spelled ONCE: adding one is an arm here and an arm in
+ *     the resolver, and every other site is a compile error rather than a
+ *     silent hole. Five procedures were the first shape, and they were five
+ *     spellings of one list — the wire, a parallel type, a client-side
+ *     dispatch and a binding each.
  *   - **This is not the ops request vocabulary re-spelled.** It is smaller (no
- *     `create`, no `archive`, no `see`, no `date`, no chosen ids) and it is in
- *     different terms (`in` / `out` / `up` / `down`, `toggle`). The mapping onto
- *     ops requests is one function in the server, and it is total: a fourth
- *     intent that nothing answers is a type error there rather than a call that
- *     lands nowhere. Ops itself learns none of this — an op does not know it is
- *     being called over a wire, which is what its own manifest says.
+ *     `create`, no `archive`, no `see`, no `date`, no chosen ids) and, where it
+ *     differs, it differs because something is resolved behind it. Where
+ *     nothing is (`title`, `desc`), it uses the ops layer's own word, so a
+ *     name that differs from an op's is a name with arithmetic behind it. Ops
+ *     itself learns none of this — an op does not know it is being called over
+ *     a wire, which is what its own manifest says.
  *
  * What is deliberately ABSENT is a delete. It arrives with the undo item
  * (human, 2026-08-11): until an edit can be taken back inside the app, git is
@@ -66,90 +73,73 @@ export const Anchor = Schema.Union([
 ])
 export type Anchor = typeof Anchor.Type
 
-export const AddInput = Schema.Struct({
-  at: Anchor,
-  /** Verbatim, as typed. An empty one is refused by the ops layer — a node
-   *  needs a title — which is why the editor holds a new row as a DRAFT until
-   *  it has one rather than writing a blank and filling it in. */
-  title: Schema.String,
-})
-
-/** What a new row answers with: the id the set gave it. The row itself arrives
- *  on the outlines collection like every other change; this is what lets the
- *  editor follow it — the next `Enter` anchors after this id, and the caret
- *  stays in the row that was just written. */
-export const Added = Schema.Struct({ id: Id })
-export type Added = typeof Added.Type
-
 /**
- * The four ways a keyboard moves a row, and the whole of what the arrows and
- * `Tab` mean:
+ * One edit, as the wire carries it.
+ *
+ * Tagged by `verb`, and the four ways a row MOVES are one arm with an enum
+ * rather than four arms: a move is a move, and the difference between them is
+ * entirely a question about the snapshot.
  *
  *   - `in` — under the sibling above it, last among that node's children
  *     (`Tab`);
  *   - `out` — up a level, immediately after what used to be its parent
  *     (`Shift+Tab`);
  *   - `up` / `down` — swap with the sibling above or below (`Alt+Shift+↑/↓`).
- *
- * All four are one `move` op. Which is why they are one procedure with an enum
- * rather than four: a move is a move, and the difference between them is
- * entirely a question about the snapshot.
  */
-export const MoveInput = Schema.Struct({
-  id: Id,
-  how: Schema.Literals(["in", "out", "up", "down"]),
-})
-export type MoveInput = typeof MoveInput.Type
-
-/** Put the mark on, or take it off — whichever the node is not. The keyboard
- *  binds `done` (`Ctrl+Enter`); the field names a mark because the vocabulary
- *  is the format's own and a fourth mark should not arrive writable everywhere
- *  except here. */
-export const ToggleInput = Schema.Struct({
-  id: Id,
-  mark: Schema.Literals(MARKS),
-})
-
-export const TitleInput = Schema.Struct({
-  id: Id,
-  title: Schema.String,
-})
-
-export const NoteInput = Schema.Struct({
-  id: Id,
-  /** `null` removes the note, which is what an emptied textarea means. */
-  desc: Schema.NullOr(Schema.String),
-})
+export const Edit = Schema.Union([
+  Schema.Struct({
+    verb: Schema.Literal("add"),
+    at: Anchor,
+    /** Verbatim, as typed. An empty one is refused by the ops layer — a node
+     *  needs a title — which is why the editor holds a new row as a DRAFT
+     *  until it has one rather than writing a blank and filling it in. */
+    title: Schema.String,
+  }),
+  Schema.Struct({
+    verb: Schema.Literal("move"),
+    id: Id,
+    how: Schema.Literals(["in", "out", "up", "down"]),
+  }),
+  /** Put the mark on, or take it off — whichever the node is not. The keyboard
+   *  binds `done` (`Ctrl+Enter`); the field names a mark because the vocabulary
+   *  is the format's own and a fourth mark should not arrive writable
+   *  everywhere except here. */
+  Schema.Struct({ verb: Schema.Literal("toggle"), id: Id, mark: Schema.Literals(MARKS) }),
+  Schema.Struct({ verb: Schema.Literal("title"), id: Id, title: Schema.String }),
+  Schema.Struct({
+    verb: Schema.Literal("desc"),
+    id: Id,
+    /** `null` removes the note, which is what an emptied textarea means. */
+    desc: Schema.NullOr(Schema.String),
+  }),
+])
+export type Edit = typeof Edit.Type
 
 /**
- * The procedures, as the spec declares them.
+ * What a write that LANDED says.
  *
- * Every one declares {@link OpFailure} as its error channel, and that is the
- * half of this design the editor is built on: a refused write comes back as
- * the validator's own rows, so the draft it came from can be KEPT and the
- * reason shown beside it. A refusal that flattened into a transport error
- * would be a keystroke silently lost.
+ * The node it was about — which for `add` is the row that did not exist a
+ * moment ago, and is what lets the editor follow it onto the screen — and
+ * whatever the rollup noticed. The `nudge` is the ops layer's own
+ * ({@link ../../ops/src/request.ts}): the last task under a parent going done,
+ * a branch ticked over unfinished ones. It is advice ON A SUCCESS and never a
+ * reason a write did not happen, and it travels here for the reason it travels
+ * to an agent — the person who caused the write is exactly who it is for. A
+ * keyboard that dropped it would be the one writer whose nudges nobody sees.
+ */
+export const Applied = Schema.Struct({
+  id: Id,
+  nudge: Schema.optionalKey(Schema.String),
+})
+export type Applied = typeof Applied.Type
+
+/**
+ * The one procedure, and its failure channel is the half the editor is built
+ * on: a refused write comes back as {@link OpFailure} — the validator's own
+ * rows — so the draft it came from can be KEPT and the reason shown beside it.
+ * A refusal that flattened into a transport error would be a keystroke
+ * silently lost.
  */
 export const editProcedures = {
-  add: { input: AddInput, output: Added, error: OpFailure },
-  move: { input: MoveInput, error: OpFailure },
-  toggle: { input: ToggleInput, error: OpFailure },
-  retitle: { input: TitleInput, error: OpFailure },
-  note: { input: NoteInput, error: OpFailure },
+  apply: { input: Edit, output: Applied, error: OpFailure },
 } as const
-
-/**
- * One edit, as a value — the union of everything {@link editProcedures} can
- * carry, tagged by the verb that carried it.
- *
- * Declared here rather than in the server so the thing that maps an intent
- * onto an ops request is a total function of a type this file owns: adding a
- * verb above without answering it is then a compile error rather than a
- * procedure that decodes fine and does nothing.
- */
-export type Edit =
-  | ({ readonly verb: "add" } & typeof AddInput.Type)
-  | ({ readonly verb: "move" } & MoveInput)
-  | ({ readonly verb: "toggle" } & typeof ToggleInput.Type)
-  | ({ readonly verb: "retitle" } & typeof TitleInput.Type)
-  | ({ readonly verb: "note" } & typeof NoteInput.Type)

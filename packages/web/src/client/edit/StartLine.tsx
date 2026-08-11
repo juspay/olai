@@ -16,6 +16,7 @@ import type { Anchor } from "@olai/surface"
 import { Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
+import { anchorRow } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
 import { NewRow } from "./NewRow.tsx"
 import { keyHandler } from "./RowEditor.tsx"
@@ -27,11 +28,15 @@ export function StartLine(props: {
   readonly label: string
 }) {
   const editor = useEditor()
-  /** The pending draft, when it is THIS one: a draft with no place is drawn
-   *  here, because "no row to follow" is what a start line is for. */
+  /** The pending draft, when it is THIS one. A draft anchored `after` a row is
+   *  drawn by that row (`../Tree.tsx`); the two anchors a page with no rows can
+   *  offer are drawn here, which is what makes every anchor's editor appear
+   *  exactly once. */
   const pending = () => {
     const draft = editor.draft()
-    return draft !== null && draft.kind === "new" && draft.place === null ? draft : undefined
+    return draft !== null && draft.kind === "new" && draft.at.kind !== "after"
+      ? draft
+      : undefined
   }
 
   return (
@@ -50,11 +55,11 @@ export function StartLine(props: {
     >
       {(draft) => (
         <NewRow
-          text={draft().text}
+          draft={draft()}
           caret={editor.caret()}
           onInput={editor.type}
-          onKey={keyHandler("line", (action) => editor.press(action, null))}
-          onBlur={() => editor.blur({ place: null, field: "new" })}
+          onKey={keyHandler("line", editor.press)}
+          onBlur={() => editor.blur({ row: anchorRow(props.at), field: "new" })}
         />
       )}
     </Show>

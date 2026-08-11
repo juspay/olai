@@ -42,6 +42,28 @@ export const run = <A>(
   })
 }
 
+/**
+ * The same edge, awaited — for a caller that has to SEQUENCE calls rather than
+ * react to one.
+ *
+ * The row editor is that caller: `Tab` commits the title and then moves the
+ * row, in that order, because the second would otherwise be judged against a
+ * record whose text is still the old one. It needs something to wait on, and
+ * the answer it waits for is either outcome — so this hands back a `Result`
+ * rather than rejecting, which is the same promise {@link run} makes about
+ * declared failures being data.
+ *
+ * Here rather than at the caller because this file is the one edge, and a
+ * hand-rolled `new Promise` wrapping the callback above would be a second one
+ * that happens to live somewhere else.
+ */
+export const runAsync = <A>(effect: Call<A>): Promise<Result.Result<A, OpFailure>> =>
+  Effect.runPromise(Effect.result(effect)).then((outcome) =>
+    Result.isSuccess(outcome)
+      ? Result.succeed(outcome.success)
+      : Result.fail(asFailure(outcome.failure))
+  )
+
 /** A failure the panel can draw. The declared ones already are one — recognised
  *  against the format's own closed table, not by the shape of a tag — and a
  *  transport failure is re-said as `busy`, which is what it means to a reader:

@@ -39,17 +39,33 @@ export const isApplePlatform = (
 const wantsMeta = (): boolean => isApplePlatform()
 
 /**
- * Which reserved action a keydown is, or `null` if none.
+ * The reserved chords, as a table.
  *
  *   ⌘K / Ctrl+K  — command palette
  *   ⌘\ / Ctrl+\  — toggle sidebar
  *   ⌘J / Ctrl+J  — toggle chat
  *
+ * ⌘J / Ctrl+J and Ctrl+K shadow browser chrome defaults (downloads / search
+ * bar) — deliberate, so keyboard editing could not claim those combos later,
+ * and it has not.
+ *
+ * A table rather than a chain of `if`s because the collision test below reads
+ * it: the one invariant this file exists for is checked against THIS list, so
+ * a fourth chord is covered by being added rather than by somebody remembering
+ * to add it twice.
+ */
+export const CHORDS: ReadonlyArray<KeyMatch & { readonly key: string }> = [
+  { key: "k", action: "palette", whileEditing: true },
+  { key: "\\", action: "sidebar", whileEditing: false },
+  { key: "j", action: "chat", whileEditing: false },
+]
+
+/**
+ * Which reserved action a keydown is, or `null` if none.
+ *
  * Platform: Meta on Apple (where Ctrl+K is kill-to-end-of-line in text
  * fields), Control elsewhere. Accepting both on every platform was wrong for
- * the palette's whileEditing binding. ⌘J / Ctrl+J and Ctrl+K also shadow
- * browser chrome defaults (downloads / search bar) — deliberate, so keyboard
- * editing could not claim those combos later, and it has not.
+ * the palette's whileEditing binding.
  */
 export const matchKey = (
   event: KeyboardEvent,
@@ -61,10 +77,7 @@ export const matchKey = (
     : event.ctrlKey && !event.metaKey
   if (!mod || event.altKey || event.shiftKey) return null
   const key = event.key.length === 1 ? event.key.toLowerCase() : event.key
-  if (key === "k") return { action: "palette", whileEditing: true }
-  if (key === "\\") return { action: "sidebar", whileEditing: false }
-  if (key === "j") return { action: "chat", whileEditing: false }
-  return null
+  return CHORDS.find((chord) => chord.key === key) ?? null
 }
 
 /** Is the event target (or its composed path) an editable field? */

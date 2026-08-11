@@ -1,12 +1,15 @@
+import { UsageFailure } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import {
   after,
+  anchorRow,
   commitOf,
   type Draft,
   type Editing,
   landed,
   type Pending,
+  refused,
   sameSlot,
   slotOf,
   typed,
@@ -14,8 +17,9 @@ import {
 
 const editing = (over: Partial<Editing> = {}): Editing => ({
   kind: "row",
-  place: "/kitchen/order",
+  row: "order",
   id: "order",
+  place: "/kitchen/order",
   field: "title",
   text: "order the cabinets",
   saved: "order the cabinets",
@@ -25,7 +29,6 @@ const editing = (over: Partial<Editing> = {}): Editing => ({
 const pending = (over: Partial<Pending> = {}): Pending => ({
   kind: "new",
   at: { kind: "after", id: "order" },
-  place: "/kitchen/order",
   text: "",
   ...over,
 })
@@ -40,21 +43,28 @@ test("a row nobody changed asks for nothing", () => {
 
 test("a changed title is a retitle", () => {
   expect(commitOf(editing({ text: "order the new cabinets" })))
-    .toEqual({ verb: "retitle", id: "order", title: "order the new cabinets" })
+    .toEqual({ verb: "title", id: "order", title: "order the new cabinets" })
 })
 
 test("an emptied title is still asked for, so the refusal can be seen", () => {
   // Swallowing it here would leave a cleared row looking saved. The ops layer
   // is what says a node needs a title.
   expect(commitOf(editing({ text: "" })))
-    .toEqual({ verb: "retitle", id: "order", title: "" })
+    .toEqual({ verb: "title", id: "order", title: "" })
 })
 
 test("a note is written, and an emptied one is removed", () => {
   const note = editing({ field: "desc", text: "oak", saved: "" })
-  expect(commitOf(note)).toEqual({ verb: "note", id: "order", desc: "oak" })
+  expect(commitOf(note)).toEqual({ verb: "desc", id: "order", desc: "oak" })
   expect(commitOf({ ...note, text: "", saved: "oak" }))
-    .toEqual({ verb: "note", id: "order", desc: null })
+    .toEqual({ verb: "desc", id: "order", desc: null })
+})
+
+test("a text edit names the node the row SHOWS, not the row", () => {
+  // Typing in a mirror edits the node it stands for, which is what a mirror is
+  // for — the two ids are what makes that expressible.
+  expect(commitOf(editing({ row: "echo", id: "order", text: "changed" })))
+    .toEqual({ verb: "title", id: "order", title: "changed" })
 })
 
 test("an empty new row is not a node", () => {
@@ -72,8 +82,11 @@ test("an empty new row is not a node", () => {
 
 // ── what a draft becomes ───────────────────────────────────────────────
 
-test("typing changes only the text", () => {
-  expect(typed(editing(), "half a t")).toEqual(editing({ text: "half a t" }))
+test("typing changes the text, and drops what the last write said", () => {
+  const said = refused(editing(), new UsageFailure({ reason: "a node needs a title" }))
+  const next = typed(said, "half a t")
+  expect(next.text).toBe("half a t")
+  expect(next.refused).toBeUndefined()
 })
 
 test("a commit that landed is a draft with nothing left to say", () => {
@@ -82,38 +95,31 @@ test("a commit that landed is a draft with nothing left to say", () => {
   expect(commitOf(done)).toBeNull()
 })
 
+test("a landed commit carries the nudge the write came back with", () => {
+  expect(landed(editing({ text: "x" }), "order", "every task under it is done now").nudge)
+    .toBe("every task under it is done now")
+})
+
 test("a new row that landed becomes the row it created", () => {
   // The caret stays in the line that was typed: same text, now a row, with the
-  // id the set gave it.
-  const done = landed(pending({ text: "measure" }), "n7")
-  expect(done).toEqual({
+  // id the set gave it — and no place yet, because the row it names is a frame
+  // away from being drawn. The editor's `follow` is what fills that in.
+  expect(landed(pending({ text: "measure" }), "n7")).toEqual({
     kind: "row",
-    place: "/kitchen/n7",
+    row: "n7",
     id: "n7",
+    place: null,
     field: "title",
     text: "measure",
     saved: "measure",
   })
 })
 
-test("where a landed row is drawn is where its row will be", () => {
-  // A key is the chain of ids from the root of the page: a sibling shares
-  // everything but the last segment, a child appends one, and the first row of
-  // an outline has nothing above it.
-  expect(landed(pending({ text: "x" }), "n7").place).toBe("/kitchen/n7")
-  expect(
-    landed(pending({ text: "x", at: { kind: "under", id: "order" } }), "n7").place,
-  ).toBe("/kitchen/order/n7")
-  expect(
-    landed(
-      pending({ text: "x", at: { kind: "first", file: "a.jsonl" }, place: null }),
-      "n7",
-    ).place,
-  ).toBe("/n7")
-})
-
-test("the next row follows the one just committed", () => {
-  expect(after(editing())).toEqual({ kind: "after", id: "order" })
+test("the next row follows the ROW, not the node it shows", () => {
+  // `Enter` on a mirror makes a sibling of the mirror — the line appears where
+  // the reader is looking, rather than beside the node somewhere else.
+  expect(after(editing({ row: "echo", id: "order" })))
+    .toEqual({ kind: "after", id: "echo" })
 })
 
 // ── which editor a blur came from ──────────────────────────────────────
@@ -122,10 +128,17 @@ test("a slot names the box rather than the text in it", () => {
   // Two drafts one keystroke apart are the same slot, which is what lets a
   // blur that arrives late be told from one that is about another row.
   const before = editing()
-  const after = typed(before, "changed") as Editing
+  const after = typed(before, "changed")
   expect(sameSlot(slotOf(before), slotOf(after))).toBe(true)
   expect(sameSlot(slotOf(before), slotOf(editing({ field: "desc" })))).toBe(false)
-  expect(sameSlot(slotOf(before), slotOf(editing({ place: "/kitchen/demo" }))))
-    .toBe(false)
+  expect(sameSlot(slotOf(before), slotOf(editing({ row: "demo" })))).toBe(false)
   expect(sameSlot(slotOf(before), slotOf(pending() as Draft))).toBe(false)
+})
+
+test("a new row's slot is the row it is drawn after, and a page has one", () => {
+  expect(slotOf(pending())).toEqual({ row: "order", field: "new" })
+  expect(slotOf(pending({ at: { kind: "first", file: "a.jsonl" } })))
+    .toEqual({ row: null, field: "new" })
+  expect(anchorRow({ kind: "under", id: "order" })).toBe("order")
+  expect(anchorRow({ kind: "first", file: "a.jsonl" })).toBeNull()
 })

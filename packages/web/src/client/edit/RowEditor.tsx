@@ -1,6 +1,6 @@
 /**
- * The caret: a title being typed, a note being written, and the reason the
- * last one would not save.
+ * The caret: a title being typed, a note being written, and what the last
+ * write said back.
  *
  * **An `<input>`, not a `contenteditable`** — the one design choice in this
  * file, and it follows from what a title IS. A title is one verbatim line of
@@ -24,15 +24,18 @@
  * becomes editable, so the input's box is the title span's box — which is why
  * it is `w-full` inside the same flex cell rather than a control with padding
  * of its own.
+ *
+ * {@link Said} is drawn wherever an editor is, and that is why it lives here
+ * rather than in the tree: a refusal must be visible for EVERY draft, and two
+ * of the places a draft can be — a new row on an empty outline, a row whose
+ * parent is folded — are places the tree draws no body under.
  */
 
+import { createEffect, on, Show } from "solid-js"
 
-
-import { createEffect, on } from "solid-js"
-
+import type { Draft } from "./draft.ts"
 import { type EditAction, type EditField, editKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
-import type { OpFailure } from "@olai/surface"
 
 /** What the title span and the input that replaces it must agree about, so a
  *  row does not shift by a pixel when the caret arrives (../NodeLine.tsx uses
@@ -112,19 +115,47 @@ export function DescEditor(props: {
   )
 }
 
-/** What the write said no to, under the row it was typed in. The draft is
- *  still there and still holds the text — this is the other half of that
- *  promise, because a refusal nobody can see is a keystroke that vanished. */
-export function Refused(props: { readonly failure: OpFailure }) {
+/**
+ * What the last write said, under the editor it was typed in.
+ *
+ * Two moods, one line, because they are two halves of one question — did that
+ * land, and is there anything to know about it:
+ *
+ *   - a REFUSAL, which is why the text is still here. The draft holds it and
+ *     the reason is beside it, because a refusal nobody can see is a keystroke
+ *     that vanished.
+ *   - a NUDGE, which is the opposite: the write landed, and the rollup noticed
+ *     something a person usually wants noticed (the last task under a parent
+ *     going done, a branch ticked over unfinished ones). Advice, never a
+ *     reason anything failed — so it is toned like a note rather than an
+ *     alarm, and the next keystroke takes it away.
+ */
+export function Said(props: { readonly draft: Draft }) {
   return (
-    <p
-      class="mt-0.5 mb-1 text-[0.8125rem] leading-snug text-alarm"
-      data-testid={TESTID.editRefusal}
-      data-kind={props.failure._tag}
-      role="alert"
-    >
-      {props.failure.message}
-    </p>
+    <>
+      <Show when={props.draft.refused}>
+        {(failure) => (
+          <p
+            class="mt-0.5 mb-1 text-[0.8125rem] leading-snug text-alarm"
+            data-testid={TESTID.editRefusal}
+            data-kind={failure()._tag}
+            role="alert"
+          >
+            {failure().message}
+          </p>
+        )}
+      </Show>
+      <Show when={props.draft.kind === "row" ? props.draft.nudge : undefined}>
+        {(nudge) => (
+          <p
+            class="mt-0.5 mb-1 text-[0.8125rem] leading-snug text-muted"
+            data-testid={TESTID.editNudge}
+          >
+            {nudge()}
+          </p>
+        )}
+      </Show>
+    </>
   )
 }
 
@@ -169,4 +200,3 @@ const grow = (element: HTMLTextAreaElement): void => {
   element.style.height = "auto"
   element.style.height = `${element.scrollHeight}px`
 }
-

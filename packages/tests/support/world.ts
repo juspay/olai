@@ -144,6 +144,9 @@ export const DESC_EDITOR = selector(TESTID.descEditor);
 /** A row that does not exist yet — an editor standing where `Enter` will put
  *  one. Finding one is finding a DRAFT, never a write. */
 export const NEW_ROW = selector(TESTID.newRow);
+/** What a write that LANDED had to say — the rollup's nudge, in the same
+ *  place and the opposite mood. */
+export const EDIT_NUDGE = selector(TESTID.editNudge);
 /** What the last commit was refused with, under the row it was typed in. */
 export const EDIT_REFUSAL = selector(TESTID.editRefusal);
 /** The way in on a page with no rows at all. */

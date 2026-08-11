@@ -116,6 +116,21 @@ Feature: Keyboard editing
     When I click the note of "handles"
     Then the description of "handles" renders bold text "1830mm"
 
+  Scenario: A write that lands can have something to say
+    # The ops layer's nudge — advice on a SUCCESS, never a refusal. It reaches
+    # an agent in its tool result; the person who pressed the key is exactly
+    # who it is for, so it reaches them too.
+    # `mint` is the last unfinished task under `herbs` — which is the moment
+    # somebody might want to tick the parent too, and now can.
+    Given I open the outline "garden.jsonl"
+    When I click the title of "mint"
+    And I press "Control+Enter"
+    Then the node "mint" has status "done"
+    And the nudge says "every task under"
+    # And it is advice, not a state: the next keystroke takes it away.
+    When I type "!"
+    Then nothing is being said about the row
+
   Scenario: A refused write keeps the draft and says why
     When I click the title of "handles"
     And I select all and type ""

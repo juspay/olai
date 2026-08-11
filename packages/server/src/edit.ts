@@ -61,9 +61,11 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       const undo = at.derived.status.get(edit.id) === edit.mark
       return Result.succeed({ op: edit.mark, id: edit.id, ...(undo ? { undo } : {}) })
     }
-    case "retitle":
+    // The two that resolve nothing, and are spelled like the ops they are —
+    // which is what makes the three above legible as the ones that do.
+    case "title":
       return Result.succeed({ op: "title", id: edit.id, title: edit.title })
-    case "note":
+    case "desc":
       return Result.succeed({ op: "desc", id: edit.id, desc: edit.desc })
   }
 }

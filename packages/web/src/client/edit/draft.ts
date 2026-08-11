@@ -29,19 +29,32 @@
  * editor has text and is committed — one op, at the write gate, exactly like
  * every other edit. An abandoned empty draft writes nothing, which is the
  * correct amount of nothing for a key pressed by accident.
+ *
+ * TWO IDS, and the difference is the one rule the editor is built on. `row` is
+ * the record the row IS — a mirror's own id — and it answers "which line on
+ * screen is this"; `id` is the record the row SHOWS, and it answers "whose
+ * text am I typing". They are the same for every row that is not a placement.
+ * A draft carrying only one of them cannot be both followed across a move and
+ * committed to the node a mirror stands for.
  */
 
-import type { Anchor, Edit } from "@olai/surface"
+import type { Anchor, Edit, OpFailure } from "@olai/surface"
 
 /** The row a draft is editing, and which of its two texts. */
 export interface Editing {
   readonly kind: "row"
-  /** The PLACE (`Row.key`): where the editor is drawn. The same node reached
-   *  through two mirrors is two rows, and only one of them is being typed in. */
-  readonly place: string
+  /** The record occupying the row — `Row.at.node.id`. What the caret follows
+   *  when the tree moves under it, and what a new sibling is anchored on. */
+  readonly row: string
   /** The node whose text this is — what the row SHOWS, so editing a mirror
    *  edits the node it stands for, which is what a mirror is for. */
   readonly id: string
+  /** Where the editor is DRAWN (`Row.key`): the same node reached through two
+   *  mirrors is two rows, and only one of them is being typed in. `null` while
+   *  the row this draft is about has not been drawn yet — a row that has just
+   *  been added, or one whose place changed under a move — which is what the
+   *  editor's `follow` fills in from `row` on the next frame. */
+  readonly place: string | null
   readonly field: "title" | "desc"
   /** What is in the editor. */
   readonly text: string
@@ -49,17 +62,27 @@ export interface Editing {
    *  landed. The comparison that keeps an idle timer from writing a file that
    *  already says this. */
   readonly saved: string
+  /** What the last commit was refused with. It rides ON the draft rather than
+   *  beside it, so replacing the draft cannot leave a stale reason on screen
+   *  and nothing has to remember to clear it. */
+  readonly refused?: OpFailure
+  /** What the last write that LANDED had to say — the ops layer's nudge. Same
+   *  ride, opposite mood: advice on a success, never a reason a write did not
+   *  happen. */
+  readonly nudge?: string
 }
 
 /** A row that does not exist yet: an editor standing where it will go. */
 export interface Pending {
   readonly kind: "new"
-  /** Where the row goes, in the surface's own terms. */
+  /** Where the row goes, in the surface's own terms — and, for `after` and
+   *  `under`, what it is DRAWN after: the anchor names a row, and that row is
+   *  on screen. No second field, so the two cannot disagree (they did: the
+   *  anchor was the shown node and the drawing was the placement, which are
+   *  two different rows under a mirror). */
   readonly at: Anchor
-  /** The PLACE the editor is drawn after — `null` for the first row of an
-   *  outline that has none, which is drawn at the top of the tree. */
-  readonly place: string | null
   readonly text: string
+  readonly refused?: OpFailure
 }
 
 export type Draft = Editing | Pending
@@ -80,70 +103,76 @@ export const commitOf = (draft: Draft): Edit | null => {
   }
   if (draft.text === draft.saved) return null
   return draft.field === "title"
-    ? { verb: "retitle", id: draft.id, title: draft.text }
+    ? { verb: "title", id: draft.id, title: draft.text }
     : // An emptied note is a note removed, which is what `null` spells — not a
       // note whose text is the empty string.
-      { verb: "note", id: draft.id, desc: draft.text === "" ? null : draft.text }
+      { verb: "desc", id: draft.id, desc: draft.text === "" ? null : draft.text }
 }
 
-/** The same draft with what has just been typed in it. */
-export const typed = (draft: Draft, text: string): Draft => ({ ...draft, text })
+/** The same draft with what has just been typed in it — and with whatever the
+ *  last write said dropped, because it was about the text this replaces. */
+export const typed = (draft: Draft, text: string): Draft => ({
+  ...draft,
+  text,
+  refused: undefined,
+  ...(draft.kind === "row" ? { nudge: undefined } : {}),
+})
 
 /** The draft as it reads after a commit that LANDED: the text becomes what is
  *  saved, so the next idle tick has nothing to say. A pending row becomes the
- *  row it just created — `id` is the one the set gave it — which is what keeps
- *  the caret in the line that was typed. */
-export const landed = (draft: Draft, id: string): Editing =>
-  draft.kind === "new"
-    ? {
-      kind: "row",
-      // Where the new row will be drawn: a sibling takes the anchor's place,
-      // one segment along; a first child hangs under it. Keys are minted by
-      // the format's own walk (`Row.key`), and this is the one place the
-      // client spells one — it is how the editor follows a row it has just
-      // asked for onto the screen, a frame before the set arrives.
-      place: placeOf(draft, id),
-      id,
-      field: "title",
-      text: draft.text,
-      saved: draft.text,
-    }
-    : { ...draft, saved: draft.text }
+ *  row it just created — `id` is the one the set gave it, and it is its own
+ *  placement, a brand-new node being nobody's mirror — with no place yet,
+ *  because the row it names is a frame away from being drawn. */
+export const landed = (draft: Draft, id: string, nudge?: string): Editing => ({
+  kind: "row",
+  row: draft.kind === "new" ? id : draft.row,
+  id: draft.kind === "new" ? id : draft.id,
+  place: draft.kind === "new" ? null : draft.place,
+  field: draft.kind === "new" ? "title" : draft.field,
+  text: draft.text,
+  saved: draft.text,
+  ...(nudge === undefined ? {} : { nudge }),
+})
 
-/** The `Row.key` a row added by this draft will be drawn at. A key is the
- *  chain of ids from the root of the page, `/`-joined, so a sibling shares
- *  everything but the last segment and a child appends one. */
-const placeOf = (draft: Pending, id: string): string => {
-  if (draft.at.kind === "under") return `${draft.place ?? ""}/${id}`
-  if (draft.place === null) return `/${id}`
-  return `${draft.place.slice(0, draft.place.lastIndexOf("/"))}/${id}`
-}
+/** The same draft, holding what the write refused with. */
+export const refused = (draft: Draft, failure: OpFailure): Draft => ({
+  ...draft,
+  refused: failure,
+})
 
-/** Where the NEXT row goes when this draft is followed by `Enter`. A row that
- *  has just been added is what the next one follows; a row being edited is
- *  followed by a new sibling of its own. */
-export const after = (draft: Editing): Anchor => ({ kind: "after", id: draft.id })
+/** Where the NEXT row goes when this draft is followed by `Enter`: after the
+ *  ROW, not after the node it shows. `Enter` on a mirror makes a sibling of
+ *  the mirror — the line appears where the reader is looking — rather than a
+ *  sibling of the node it stands for, somewhere else entirely. */
+export const after = (draft: Editing): Anchor => ({ kind: "after", id: draft.row })
 
 /**
- * WHICH EDITOR a draft is drawn in: the place, and which of the three things
- * it is. Two draft values with the same slot are the same box on screen with
+ * WHICH EDITOR a draft is drawn in: the row, and which of the three things it
+ * is. Two draft values with the same slot are the same box on screen with
  * different text in it, which is exactly the question a blur has to ask.
  *
  * It exists because a blur arrives LATE. `Enter` unmounts the editor it was
  * pressed in and opens the next one, and the browser then delivers a `blur`
  * from the element that went away — so a blur that closed "the draft" would
  * close the row the same keystroke had just opened. Naming the slot it came
- * from makes that a comparison rather than a race.
+ * from makes that a comparison rather than a race, and the slot is minted at
+ * the DOM site rather than read from the signal for the same reason: what
+ * blurred is what that element was drawn for, not what is current now.
  */
 export interface Slot {
-  readonly place: string | null
+  readonly row: string | null
   readonly field: "title" | "desc" | "new"
 }
 
 export const slotOf = (draft: Draft): Slot =>
   draft.kind === "new"
-    ? { place: draft.place, field: "new" }
-    : { place: draft.place, field: draft.field }
+    ? { row: anchorRow(draft.at), field: "new" }
+    : { row: draft.row, field: draft.field }
 
 export const sameSlot = (a: Slot, b: Slot): boolean =>
-  a.place === b.place && a.field === b.field
+  a.row === b.row && a.field === b.field
+
+/** The row a pending draft is drawn after, and `null` for the one that is
+ *  drawn on a page's own start line — an outline with no rows to follow. */
+export const anchorRow = (at: Anchor): string | null =>
+  at.kind === "first" ? null : at.id

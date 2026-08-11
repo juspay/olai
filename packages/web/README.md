@@ -79,8 +79,8 @@ strip (`NodeMenu.tsx` `•••` + the collapse triangle, always visible on a p
 see `touch.ts`) left of a filled-circle bullet (`Bullet.tsx`, with a gray halo
 when children are hidden), then the MARK COLUMN (`Checkbox.tsx`: CSS squares —
 checked for done, half-filled for doing, EMPTY for todo, and no box at all on a
-node carrying none of them, because a bullet is not a task; read-only until
-keyboard-editing). Tags in a title are subtle pills (`NodeTitle.tsx`). A node's
+node carrying none of them, because a bullet is not a task; display-only —
+the mark is toggled from the row's editor). Tags in a title are subtle pills (`NodeTitle.tsx`). A node's
 free cross-references (`SeeRefs.tsx`) each link to `/n/<id>` with the target's
 title, resolved at view time through the same indexes.
 
@@ -103,8 +103,8 @@ glyph, so nothing is hover-only; a tip this app places itself (`Tip.tsx` +
 `tip.ts`, which is the clamp, unit-tested, because the platform's own tooltip
 ran a long one off the right edge of the window); and the full list on the
 node's own page (`Blocked.tsx` through the shared `NodeRefs.tsx`), which is
-where the glyph's click goes — the box promises no toggle yet, so the click was
-free to mean the obvious thing.
+where the glyph's click goes — the box is display-only wherever it is drawn, so
+the click was free to mean the obvious thing.
 The view and the validator agree about what a file means because they run the
 same code, not because two implementations were written to the same paragraph.
 The one thing this package does interpret is MARKDOWN, rendered and sanitised at
@@ -595,12 +595,14 @@ loop a person is in, and nothing about outlines:
   a key pressed by accident writes nothing.
 - **`editing.tsx` — the caret.** One draft at a time, because there is one
   caret. Structural keys commit the text first and then ask, in that order.
-  Which id an edit names is a rule and it is here: what a node SAYS (title,
-  note, mark) names the node the row shows, so typing in a mirror edits what it
-  stands for; where a row SITS names the row's own record, so moving a mirror
-  moves the placement. And because nothing is optimistic, a row is redrawn
-  somewhere else when the file says so — keeping the reader's place across that
-  is the module's real work.
+  Which id an edit names is a rule, and the draft carries both halves of it:
+  what a node SAYS (title, note, mark) names the node the row SHOWS, so typing
+  in a mirror edits what it stands for; where a row SITS names the row's own
+  record, so moving a mirror moves the placement and `Enter` on one makes a
+  sibling of the mirror. And because nothing is optimistic, a row is redrawn
+  somewhere else when the file says so — so the draft names a ROW and where it
+  is drawn is looked up rather than remembered. Keeping the reader's place
+  across that frame is the module's real work.
 - **`RowEditor.tsx` — an `<input>`, not a `contenteditable`.** A title is one
   verbatim line of text with no markup in it, so an input is one string in and
   one string out, with the platform's caret, selection, undo and IME for

@@ -267,10 +267,11 @@ export const surface = defineSurface({
         error: ChatFailure,
       },
     },
-    /** What a KEYBOARD may do — the browser's own closed list of edits, each
-     *  landing as one op through the same write gate the agent's tools go
-     *  through. Declared next door in {@link ./edit.ts}, which says why the
-     *  verbs are intents rather than the ops requests re-spelled. */
+    /** What a KEYBOARD may do — one procedure over the browser's own closed
+     *  union of edits, each landing as one op through the same write gate the
+     *  agent's tools go through. Declared next door in {@link ./edit.ts},
+     *  which says why the verbs are intents rather than the ops requests
+     *  re-spelled, and why they are one member rather than five. */
     edit: editProcedures,
   },
 })
@@ -288,10 +289,10 @@ export {
   SessionInfo,
 } from "./chat.ts"
 
-/** What a keyboard may do, and the value shape of one edit — see
- *  {@link ./edit.ts}. The type is what makes the server's mapping onto ops
- *  requests total. */
-export { Added, Anchor, type Edit } from "./edit.ts"
+/** What a keyboard may do — one tagged union, and what a write that landed
+ *  says. See {@link ./edit.ts}. The union is what makes the server's mapping
+ *  onto ops requests total. */
+export { type Applied, Anchor, Edit } from "./edit.ts"
 
 /** The one HTTP address both ends spell — see {@link ./media.ts}. */
 export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"

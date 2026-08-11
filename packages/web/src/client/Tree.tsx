@@ -61,7 +61,7 @@ import { Bullet } from "./Bullet.tsx"
 import { Checkbox } from "./Checkbox.tsx"
 import { useEditor } from "./edit/editing.tsx"
 import { NewRow } from "./edit/NewRow.tsx"
-import { DescEditor, keyHandler, Refused, TitleEditor } from "./edit/RowEditor.tsx"
+import { DescEditor, keyHandler, Said, TitleEditor } from "./edit/RowEditor.tsx"
 import { foldableKeys } from "./fold.ts"
 import { createNoteExpand } from "./note/expand.ts"
 import { NodeBody } from "./NodeBody.tsx"
@@ -124,27 +124,33 @@ function Branch(props: {
   // Click/tap expand — local to this place, not a reading cell. No hover.
   const note = createNoteExpand()
 
-  // The editor, which is one draft for the whole page: these three ask whether
-  // it happens to be in THIS place. By `Row.key` rather than by node id — the
-  // same node reached through two mirrors is two rows, and only the one that
-  // was clicked has the caret in it.
+  // The editor is one draft for the whole page, and this is the one question a
+  // row asks of it: is the caret HERE? A memo, because the answer is `undefined`
+  // for every row but one and a memo that answers the same `undefined` again
+  // propagates nothing — so a keystroke re-renders the row being typed in
+  // rather than the tree around it.
+  //
+  // A row being typed is matched by `Row.key`, its PLACE: the same node reached
+  // through two mirrors is two rows, and only the one that was clicked has the
+  // caret. A row being ADDED is matched by the anchor it named, which is a row
+  // on screen — the new line is drawn after the line it will follow.
   const editor = useEditor()
-  const typing = (field: "title" | "desc") => {
+  const here = createMemo(() => {
     const draft = editor.draft()
-    return draft !== null && draft.kind === "row" && draft.place === props.row.key &&
-        draft.field === field
+    if (draft === null) return undefined
+    if (draft.kind === "row") return draft.place === props.row.key ? draft : undefined
+    return draft.at.kind === "after" && draft.at.id === props.row.at.node.id
       ? draft
       : undefined
+  })
+  const typing = (field: "title" | "desc") => {
+    const draft = here()
+    return draft?.kind === "row" && draft.field === field ? draft : undefined
   }
   const pending = () => {
-    const draft = editor.draft()
-    return draft !== null && draft.kind === "new" && draft.place === props.row.key
-      ? draft
-      : undefined
+    const draft = here()
+    return draft?.kind === "new" ? draft : undefined
   }
-  /** The refusal, when the draft it belongs to is this row's. */
-  const refused = () =>
-    editor.draft()?.place === props.row.key ? editor.refusal() ?? undefined : undefined
 
   return (
     <li
@@ -236,8 +242,8 @@ function Branch(props: {
                 text={draft().text}
                 caret={editor.caret()}
                 onInput={editor.type}
-                onKey={keyHandler("line", (action) => editor.press(action, props.row))}
-                onBlur={() => editor.blur({ place: props.row.key, field: "title" })}
+                onKey={keyHandler("line", editor.press)}
+                onBlur={() => editor.blur({ row: props.row.at.node.id, field: "title" })}
               />
             )}
           </Match>
@@ -260,6 +266,18 @@ function Branch(props: {
           </Match>
         </Switch>
       </div>
+
+      {/* What the last write said about this row — the reason it was refused,
+          or the nudge from one that landed. Above the body rather than in it,
+          because a COLLAPSED row draws no body and a refusal must be visible
+          wherever the caret is. */}
+      <Show when={typing("title") ?? typing("desc")}>
+        {(draft) => (
+          <div class={PAST_CONTROLS}>
+            <Said draft={draft()} />
+          </div>
+        )}
+      </Show>
 
       {/* Indented past the gutter controls — which are wider where a finger is
           what taps them, so the note and the document under it line up with the
@@ -288,15 +306,10 @@ function Branch(props: {
                   text={draft().text}
                   caret={editor.caret()}
                   onInput={editor.type}
-                  onKey={keyHandler("block", (action) => editor.press(action, props.row))}
-                  onBlur={() => editor.blur({ place: props.row.key, field: "desc" })}
+                  onKey={keyHandler("block", editor.press)}
+                  onBlur={() => editor.blur({ row: props.row.at.node.id, field: "desc" })}
                 />
               )}
-            </Show>
-            {/* The reason the last commit did not land, under the row it was
-                typed in and beside the draft that still holds the text. */}
-            <Show when={refused()}>
-              {(failure) => <Refused failure={failure()} />}
             </Show>
           </div>
         )}
@@ -327,11 +340,11 @@ function Branch(props: {
       <Show when={pending()}>
         {(draft) => (
           <NewRow
-            text={draft().text}
+            draft={draft()}
             caret={editor.caret()}
             onInput={editor.type}
-            onKey={keyHandler("line", (action) => editor.press(action, null))}
-            onBlur={() => editor.blur({ place: props.row.key, field: "new" })}
+            onKey={keyHandler("line", editor.press)}
+            onBlur={() => editor.blur({ row: props.row.at.node.id, field: "new" })}
           />
         )}
       </Show>

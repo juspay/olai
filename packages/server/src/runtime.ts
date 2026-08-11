@@ -257,13 +257,17 @@ export const bind = (
           loadSession: ({ input }) => withChat((open) => open.loadSession(input.id)),
           sessions: () => withChat((open) => open.sessions),
         },
+        // One verb, over the union the wire declares — so a verb added there
+        // is answered by `requestFor` or it does not compile, and there is no
+        // binding here to forget. What it answers with is the ops layer's own
+        // `Applied`, narrowed to what a browser can use: the node the write
+        // was about, and the nudge if the rollup had something to say.
         edit: {
-          add: ({ input }) =>
-            Effect.map(applyEdit({ verb: "add", ...input }), (done) => ({ id: done.id })),
-          move: ({ input }) => Effect.asVoid(applyEdit({ verb: "move", ...input })),
-          toggle: ({ input }) => Effect.asVoid(applyEdit({ verb: "toggle", ...input })),
-          retitle: ({ input }) => Effect.asVoid(applyEdit({ verb: "retitle", ...input })),
-          note: ({ input }) => Effect.asVoid(applyEdit({ verb: "note", ...input })),
+          apply: ({ input }) =>
+            Effect.map(applyEdit(input), (done) => ({
+              id: done.id,
+              ...(done.nudge === undefined ? {} : { nudge: done.nudge }),
+            })),
         },
       },
     }
