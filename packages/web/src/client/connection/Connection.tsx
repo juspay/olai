@@ -7,8 +7,8 @@
  * spelled out at a call site.
  *
  * The DOT is the other half and it is not drawn here, because where it goes is
- * a layout question with two answers — the sidebar's footer, or a corner on the
- * screens that have no sidebar — and this file has no opinion on either. Both
+ * a layout question — the app header (`../AppHeader.tsx`) is the one home now,
+ * on every shape of the app — and this file has no opinion on placement. Both
  * read the SAME transport status, so the dot and the screen cannot disagree
  * about what happened; that is a property of the status, not of them sharing a
  * parent.

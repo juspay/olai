@@ -14,6 +14,18 @@ Feature: The error view
     And no outline list is shown
 
   @corpus:broken
+  Scenario: The error report still has the app chrome
+    # The whole justification for collapsing the corner-pills special case:
+    # a reader of a set that never loaded deserves the connection answer most
+    # of all, and the header is the one home for it. No burger — there is no
+    # directory column to put away.
+    When I open the app
+    Then the error view is shown
+    And the app header is on screen
+    And the app chrome is inside the header
+    And there is no burger
+
+  @corpus:broken
   Scenario: A line that is not JSON is named by file and line
     # pantry.jsonl:3 has an unquoted key. Syntax is checked before meaning, so
     # this is the error this corpus is guaranteed to show.

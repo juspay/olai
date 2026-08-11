@@ -1,5 +1,6 @@
 /**
- * The whole app: a sidebar of the outlines found, and one page open.
+ * The whole app: a header of the app's own chrome, a sidebar of the directory,
+ * and one page open.
  *
  * The page is decided by the MANIFEST, which carries three answers — no frame
  * yet, a `null`, a value — and they are exactly the three things a reader can
@@ -25,6 +26,12 @@
  * nodes are drawn, how dense the notes are, and which month the calendar is
  * showing are signals: they belong to this tab's reading and not to the file.
  *
+ * Layout principle: the header carries what is about the APP (wordmark,
+ * connection, agent, theme); the sidebar carries what is about the DIRECTORY
+ * (calendar + file tree). The header is on every screen — including the error
+ * report and the waiting page — so there is one home for chrome and no
+ * corner-pills special case to keep in step with the sidebar footer.
+ *
  * This file is the composition and nothing else — the subscription, the route,
  * the clock, the one derivation of the set, which page that adds up to, and the
  * rows that page draws. Every screen it can show is its own component, and each
@@ -32,14 +39,15 @@
  */
 
 import { datedDays } from "@olai/format"
-import { createMemo, Match, Show, Switch } from "solid-js"
+import { createMemo, createSignal, Match, Show, Switch } from "solid-js"
 
+import { AppHeader } from "./AppHeader.tsx"
 import { Calendar } from "./calendar/Calendar.tsx"
 import { chatOpen } from "./chat/open.ts"
-import { Panel as ChatPanel, Toggle as ChatToggle } from "./chat/Panel.tsx"
+import { Panel as ChatPanel } from "./chat/Panel.tsx"
 import { createToday } from "./clock.ts"
 import { Connection } from "./connection/Connection.tsx"
-import { CLEARANCE, CORNER, Indicator } from "./connection/Indicator.tsx"
+import { CLEARANCE } from "./connection/Indicator.tsx"
 import { DayPage } from "./day/DayPage.tsx"
 import { DocumentPage } from "./document/DocumentPage.tsx"
 import { DerivedProvider } from "./derived.tsx"
@@ -69,6 +77,11 @@ export default function App() {
   // can sit on overnight, and a page whose promise is that it follows the
   // files without a reload cannot have the day be the stale thing on it.
   const today = createToday()
+
+  // The phone sheet's open state lives here because the burger that toggles it
+  // is in the header and the body it reveals is in the sidebar — two components
+  // that otherwise share nothing.
+  const [menuOpen, setMenuOpen] = createSignal(false)
 
   /** What is wrong with the set as a WHOLE right now. Empty is the normal
    *  state, including when one file is unreadable — that one lands in the
@@ -126,20 +139,11 @@ export default function App() {
     return indexes === undefined ? [] : view.visible(rowsFor(indexes, page()))
   })
 
-  /** Is there a sidebar on screen to hold the app's own chrome? Only the page
-   *  that draws one does; the error report and the waiting page replace the
-   *  whole layout. */
+  /** Is there a sidebar on screen? Only the page that draws one does; the
+   *  error report and the waiting page replace the directory column. The
+   *  header is on every screen either way — chrome does not depend on a
+   *  directory being readable. */
   const docked = () => outlines.manifest() !== null && page() !== undefined
-
-  /** The two pills that are about the APP rather than about the page: whether
-   *  the server is still there, and the way into the agent. One expression,
-   *  rendered in whichever of the two places the layout has for it. */
-  const chrome = () => (
-    <>
-      <Indicator status={connectionStatus()} />
-      <ChatToggle />
-    </>
-  )
 
   return (
     <>
@@ -150,109 +154,122 @@ export default function App() {
       {/* Also outside the switch, and for a related reason: the agent is a
           property of the SERVED DIRECTORY, not of whichever page is open, so it
           stays put across a zoom, a broken file and the error report. Asking it
-          about a set that will not load is a reasonable thing to want to do. */}
+          about a set that will not load is a reasonable thing to want to do.
+          The drawer sits UNDER the header (see chat/Panel.tsx) — the header is
+          the app's chrome and the drawer is a panel of one page, so the design
+          preference is that the bar stays reachable while the agent is open. */}
       <ChatPanel />
-      {/* The same two pills, in the only other place there is to put them:
-          every screen below either draws a sidebar and gets `chrome` in its
-          footer, or draws none — the error report, the waiting page — and gets
-          this. */}
-      <Show when={!docked()}>
-        <div class={`${CORNER} flex items-center gap-2`}>{chrome()}</div>
-      </Show>
-      {/* The drawer is fixed, so the page has to be told about it: without this
-          it draws underneath, and the right-hand third of every line is behind
-          the panel. Reserved only from `lg` up, which is the width at which
-          giving 26rem away still leaves a column worth reading — below it the
-          drawer covers the page, which is the honest answer when there is no
-          room to share. */}
-      <div classList={{ "lg:pr-[var(--width-chat)]": chatOpen() }}>
-        <Switch fallback={<p class="p-8 text-muted">Reading…</p>}>
-        <Match when={outlines.manifest() === null}>
-          <ErrorPage errors={problems()} />
-        </Match>
-        <Match when={page()}>
-          {(open) => (
-            <RouterProvider router={router}>
-              <DerivedProvider derived={outlines.derived()}>
-              <DocumentsProvider documents={documents}>
-                {/* Two columns where there is room for two, one where there is
-                    not. `md` is 48rem, which is where the racket original put
-                    the same line: below it the sidebar stops being a column
-                    beside the outline and becomes a header above it (see
-                    ./Sidebar.tsx), and this is the whole of the layout half of
-                    that — one grid, one breakpoint. The rows are named on that
-                    side because a grid stretches auto rows to fill it: without
-                    `1fr` on the second, a short page would push the outline
-                    down the screen by half the space left over.
-                    `min-h-dvh`, not `min-h-screen`: on a phone `vh` is measured
-                    against the browser chrome at its SMALLEST, so a page sized
-                    by it is taller than the screen for as long as the address
-                    bar is showing. */}
-                <div class="grid min-h-dvh grid-cols-1 grid-rows-[auto_1fr] md:grid-cols-[16rem_1fr] md:grid-rows-none">
-                  <Sidebar
-                    files={outlines.files()}
-                    documents={documents.paths()}
-                    active={fileOf(open())}
-                    broken={outlines.broken()}
-                    footer={chrome()}
-                  >
-                    <Calendar
-                      today={today()}
-                      open={only(open(), "day")?.date}
-                      days={dated}
-                    />
-                  </Sidebar>
-                  {/* The room under the outline is for the phone's home
-                      indicator — the inset is real because the shell asks for
-                      `viewport-fit=cover` — and it is the same amount the pages
-                      WITHOUT a sidebar need for the pair in their corner, so it
-                      is spelled once where those pills are
-                      (./connection/Indicator.tsx). */}
-                  <main class={`overflow-x-auto px-4 pt-4 ${CLEARANCE} md:px-8 md:py-6`}>
-                    <Show when={problems().length > 0}>
-                      <Banner errors={problems()} />
-                    </Show>
-                    <Switch>
-                      <Match when={only(open(), "broken")}>
-                        {(file) => <Broken file={file().file} />}
-                      </Match>
-                      <Match when={only(open(), "node")}>
-                        {(node) => (
-                          <NodePage zoomed={node().zoomed} rows={rows()} view={view} />
-                        )}
-                      </Match>
-                      <Match when={only(open(), "outline")}>
-                        <OutlinePage rows={rows()} view={view} />
-                      </Match>
-                      <Match when={only(open(), "document")}>
-                        {(open) => <DocumentPage file={open().file} />}
-                      </Match>
-                      <Match when={only(open(), "day")}>
-                        {(open) => (
-                          <DayPage
-                            date={open().date}
-                            groups={open().groups}
-                            today={today()}
-                          />
-                        )}
-                      </Match>
-                      <Match when={only(open(), "nothing")}>
-                        {(nothing) => (
-                          <Nothing
-                            sought={nothing().sought}
-                            requested={nothing().requested}
-                          />
-                        )}
-                      </Match>
-                    </Switch>
-                  </main>
-                </div>
-              </DocumentsProvider>
-              </DerivedProvider>
-            </RouterProvider>
-          )}
+      <div class="flex min-h-dvh flex-col">
+        <AppHeader
+          docked={docked()}
+          menu={
+            docked()
+              ? {
+                  open: menuOpen(),
+                  onToggle: () => setMenuOpen(!menuOpen()),
+                }
+              : undefined
+          }
+        />
+        {/* The drawer is fixed, so the page has to be told about it: without this
+            it draws underneath, and the right-hand third of every line is behind
+            the panel. Reserved only from `lg` up, which is the width at which
+            giving 26rem away still leaves a column worth reading — below it the
+            drawer covers the page, which is the honest answer when there is no
+            room to share. */}
+        <div
+          class="flex-1"
+          classList={{ "lg:pr-[var(--width-chat)]": chatOpen() }}
+        >
+          <Switch fallback={<p class="p-8 text-muted">Reading…</p>}>
+          <Match when={outlines.manifest() === null}>
+            <ErrorPage errors={problems()} />
           </Match>
-        </Switch>
+          <Match when={page()}>
+            {(open) => (
+              <RouterProvider router={router}>
+                <DerivedProvider derived={outlines.derived()}>
+                <DocumentsProvider documents={documents}>
+                  {/* Two columns where there is room for two, one where there is
+                      not. `md` is 48rem, which is where the racket original put
+                      the same line: below it the sidebar stops being a column
+                      beside the outline and becomes a sheet behind the header's
+                      burger (see ./Sidebar.tsx), and this is the whole of the
+                      layout half of that — one grid, one breakpoint. The rows
+                      are named on that side because a grid stretches auto rows
+                      to fill it: without `1fr` on the second, a short page
+                      would push the outline down the screen by half the space
+                      left over.
+                      Floor the grid at the viewport minus the header strip:
+                      `min-h-full` against a flex item with auto height resolves
+                      to 0 and left the sidebar rule hanging mid-screen on short
+                      pages. `--height-header` is the same static token the
+                      drawer subtracts. */}
+                  <div class="grid min-h-[calc(100dvh-var(--height-header))] grid-cols-1 grid-rows-[auto_1fr] md:grid-cols-[16rem_1fr] md:grid-rows-none">
+                    <Sidebar
+                      files={outlines.files()}
+                      documents={documents.paths()}
+                      active={fileOf(open())}
+                      broken={outlines.broken()}
+                      open={menuOpen()}
+                      onClose={() => setMenuOpen(false)}
+                    >
+                      <Calendar
+                        today={today()}
+                        open={only(open(), "day")?.date}
+                        days={dated}
+                      />
+                    </Sidebar>
+                    {/* The room under the outline is for the phone's home
+                        indicator — the inset is real because the shell asks for
+                        `viewport-fit=cover`. Spelled once where that clearance
+                        is measured (./connection/Indicator.tsx). */}
+                    <main class={`overflow-x-auto px-4 pt-4 ${CLEARANCE} md:px-8 md:py-6`}>
+                      <Show when={problems().length > 0}>
+                        <Banner errors={problems()} />
+                      </Show>
+                      <Switch>
+                        <Match when={only(open(), "broken")}>
+                          {(file) => <Broken file={file().file} />}
+                        </Match>
+                        <Match when={only(open(), "node")}>
+                          {(node) => (
+                            <NodePage zoomed={node().zoomed} rows={rows()} view={view} />
+                          )}
+                        </Match>
+                        <Match when={only(open(), "outline")}>
+                          <OutlinePage rows={rows()} view={view} />
+                        </Match>
+                        <Match when={only(open(), "document")}>
+                          {(open) => <DocumentPage file={open().file} />}
+                        </Match>
+                        <Match when={only(open(), "day")}>
+                          {(open) => (
+                            <DayPage
+                              date={open().date}
+                              groups={open().groups}
+                              today={today()}
+                            />
+                          )}
+                        </Match>
+                        <Match when={only(open(), "nothing")}>
+                          {(nothing) => (
+                            <Nothing
+                              sought={nothing().sought}
+                              requested={nothing().requested}
+                            />
+                          )}
+                        </Match>
+                      </Switch>
+                    </main>
+                  </div>
+                </DocumentsProvider>
+                </DerivedProvider>
+              </RouterProvider>
+            )}
+            </Match>
+          </Switch>
+        </div>
       </div>
     </>
   )

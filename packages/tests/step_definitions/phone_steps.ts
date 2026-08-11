@@ -18,10 +18,12 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import {
+  APP_HEADER,
   CALENDAR_DAY,
   CHAT_INPUT,
   CHAT_PANEL,
   CHAT_TOGGLE,
+  CONNECTION,
   DOCUMENT_LINK,
   CALENDAR_NEXT,
   CALENDAR_PREV,
@@ -31,8 +33,10 @@ import {
   OUTLINE_LINK,
   OUTLINE_LIST,
   OUTLINE_TREE,
+  SIDEBAR,
   SIDEBAR_BODY,
   SIDEBAR_TOGGLE,
+  THEME_TRIGGER,
   TOGGLE,
   ZOOM,
 } from "../support/world.ts";
@@ -131,6 +135,90 @@ Then("there is no burger", async function (this: OlaiWorld) {
     "the burger is drawn on a laptop, where there is a column for the sidebar " +
       "to be and nothing to put away",
   );
+});
+
+/** Every chrome pill's border box lies inside the header's own.
+ *
+ *  A fixed-height bar with flex-wrap used to centre a wrapped pill group so
+ *  the first row sat above the viewport at 390pt. The assertion is geometry,
+ *  not a colour: the header's own box is the clip region. */
+Then("the app chrome is inside the header", async function (this: OlaiWorld) {
+  const header = await this.box(this.page.locator(APP_HEADER), "the app header");
+  const pills = [
+    { name: "connection", sel: CONNECTION },
+    { name: "agent toggle", sel: CHAT_TOGGLE },
+    { name: "theme trigger", sel: THEME_TRIGGER },
+  ];
+  for (const pill of pills) {
+    const box = await this.box(this.page.locator(pill.sel), pill.name);
+    assert.ok(
+      box.y >= header.y - 0.5 &&
+        box.y + box.height <= header.y + header.height + 0.5 &&
+        box.x >= header.x - 0.5 &&
+        box.x + box.width <= header.x + header.width + 0.5,
+      `${pill.name} is at (${Math.round(box.x)},${Math.round(box.y)}) ` +
+        `${Math.round(box.width)}×${Math.round(box.height)} outside the ` +
+        `header (${Math.round(header.x)},${Math.round(header.y)}) ` +
+        `${Math.round(header.width)}×${Math.round(header.height)}`,
+    );
+  }
+});
+
+/**
+ * Open the app with the wire stuck in `connecting`.
+ *
+ * A real dial races past `connecting` before a poll can sample it. Replacing
+ * `WebSocket` with a stub that never leaves CONNECTING is deterministic: the
+ * header paints, the indicator must say connecting or this step fails, and
+ * the geometry assertion that follows can fail for its stated reason. No soft
+ * fallback to live.
+ */
+When("I open the app held at connecting", async function (this: OlaiWorld) {
+  // A string, not a function: tsc would otherwise typecheck the stub as a
+  // real WebSocket constructor. Stays CONNECTING forever so the indicator
+  // cannot race past to live.
+  await this.page.addInitScript(`
+    (function () {
+      function HeldWebSocket(url) {
+        this.readyState = 0;
+        this.bufferedAmount = 0;
+        this.extensions = "";
+        this.protocol = "";
+        this.binaryType = "blob";
+        this.url = String(url);
+        this.onopen = null;
+        this.onclose = null;
+        this.onerror = null;
+        this.onmessage = null;
+      }
+      HeldWebSocket.CONNECTING = 0;
+      HeldWebSocket.OPEN = 1;
+      HeldWebSocket.CLOSING = 2;
+      HeldWebSocket.CLOSED = 3;
+      HeldWebSocket.prototype.CONNECTING = 0;
+      HeldWebSocket.prototype.OPEN = 1;
+      HeldWebSocket.prototype.CLOSING = 2;
+      HeldWebSocket.prototype.CLOSED = 3;
+      HeldWebSocket.prototype.close = function () { this.readyState = 3; };
+      HeldWebSocket.prototype.send = function () {};
+      HeldWebSocket.prototype.addEventListener = function () {};
+      HeldWebSocket.prototype.removeEventListener = function () {};
+      HeldWebSocket.prototype.dispatchEvent = function () { return true; };
+      window.WebSocket = HeldWebSocket;
+    })();
+  `);
+  await this.page.goto("/");
+  await this.page
+    .locator(APP_HEADER)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.expectAttribute(
+    CONNECTION,
+    "data-connection",
+    "connecting",
+    "the connection indicator",
+    HYDRATION_TIMEOUT,
+  );
+  await this.waitForFrame();
 });
 
 // ── the agent, from a thumb ────────────────────────────────────────────
@@ -250,6 +338,29 @@ Then(
           "laptop — the finger-sized rule is meant to apply below 48rem only",
       );
     }
+  },
+);
+
+// ── full-height column ─────────────────────────────────────────────────
+
+/** The directory column floors at the viewport bottom on a short page.
+ *
+ *  Mutant: `min-h-full` against a flex item with auto height resolves to 0 and
+ *  left the sidebar rule at y≈777 on a 900px desktop viewport. Content taller
+ *  than the viewport still passes (bottom past the fold). */
+Then(
+  "the sidebar reaches the bottom of the viewport",
+  async function (this: OlaiWorld) {
+    const viewport = this.page.viewportSize();
+    assert.ok(viewport !== null, "this scenario has no viewport size");
+    const nav = await this.box(this.page.locator(SIDEBAR), "the sidebar");
+    const bottom = nav.y + nav.height;
+    assert.ok(
+      bottom >= viewport.height - 1,
+      `the sidebar ends at y=${Math.round(bottom)} on a ${viewport.height}px ` +
+        "viewport — the directory column is meant to floor at the fold " +
+        "(broken form: ~777 on 900)",
+    );
   },
 );
 

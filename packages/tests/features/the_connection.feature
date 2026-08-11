@@ -2,7 +2,7 @@
 Feature: The connection is visible, and a replaced server is recoverable
   A page that is live and a page whose server died look identical when nothing
   says otherwise: both keep showing the last thing they were told. So the page
-  says. A dot in the corner reports the connection in every shape of the app,
+  says. A pill in the app header reports the connection in every shape of the app,
   and it is green only while a server is actually answering.
 
   The state that must never look healthy is the last one here, and it must not

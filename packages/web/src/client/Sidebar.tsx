@@ -1,21 +1,17 @@
 /**
- * The ways around the set: the month, and the directory as a TREE.
+ * The ways around the DIRECTORY: the month, and the directory as a TREE.
  *
  * One walk of the served directory mixes every `.jsonl` outline and every
  * `.md` document under the folders they live in — a folder shows everything
  * it holds, the way a reader of the same directory sees it, and the way the
- * racket original's sidebar did. The two flat sections that used to sit here
- * (outlines above, documents below, nested paths as wrapped strings) are what
- * this replaces; the pure shape of the tree is `./fileTree.ts`.
+ * racket original's sidebar did.
  *
- * Above the tree is the month of the whole set's dated nodes, and below it is
- * where the app's own chrome lives — the connection dot and the agent toggle
- * — because those two are about the APP rather than about the page, and a
- * pill fixed to the corner of the viewport is a pill on top of whatever is
- * being read. Last of all is the theme picker, which is about neither: it is
- * what this BROWSER looks like, and it is the one thing in the column that is
- * drawn here rather than handed in, because it needs nothing from the app to
- * draw itself.
+ * What is NOT here is the app's own chrome. The wordmark, the connection, the
+ * agent toggle and the theme live in the header (`./AppHeader.tsx`) — they are
+ * about the APP rather than about the directory, and a pill fixed to a corner
+ * of the viewport was a pill on top of whatever was being read. The principle,
+ * for the next reader: the header carries what is about the app; this column
+ * carries what is about the directory.
  *
  * Directory nodes collapse, and that collapse is client-local the way the
  * outline tree's folds are (./view.ts): nothing is written, two readers of
@@ -31,6 +27,11 @@
  * file could not be read: the rest of the directory is still live, and which
  * one is broken is something a reader should be able to see without opening
  * it.
+ *
+ * Below 48rem this is a sheet behind the header's burger rather than a column:
+ * shut it is not drawn, open it is capped so the outline under it still shows.
+ * The open state is owned by the layout (`App.tsx`) because the burger that
+ * toggles it lives in the header, not here.
  */
 
 import type { BrokenFile } from "@olai/format"
@@ -48,8 +49,7 @@ import {
 import { type FileRow, fileTree } from "./fileTree.ts"
 import { Link } from "./router.tsx"
 import { TESTID } from "./testids.ts"
-import { ThemePicker } from "./theme/Picker.tsx"
-import { CONTROL, TARGET, TARGET_BOX } from "./touch.ts"
+import { CONTROL, TARGET } from "./touch.ts"
 
 /** One file entry. A row a finger aims at (./touch.ts), back to a line of
  *  text where the pointer is a mouse — and one string, because an outline and
@@ -87,15 +87,14 @@ export function Sidebar(props: {
   readonly broken: ReadonlyMap<string, BrokenFile>
   /** What sits above the tree: the month. */
   readonly children?: JSX.Element
-  /** What sits BELOW the tree: the chrome that belongs to the app rather than
-   *  to the page — is the server still there, and open the agent. A slot for
-   *  the same reason the month is one, and because these two have a second
-   *  home: the screens with no sidebar draw them in a corner instead (see
-   *  `App.tsx`). */
-  readonly footer?: JSX.Element
+  /** Whether the phone sheet is open. Above 48rem the column is always drawn
+   *  and this is ignored. Owned by the layout because the burger lives in the
+   *  header (`AppHeader.tsx`). */
+  readonly open: boolean
+  /** Shut the phone sheet. Every control in here either goes somewhere or
+   *  opens something over it, so a tap inside asks to put the sheet away. */
+  readonly onClose: () => void
 }) {
-  const [open, setOpen] = createSignal(false)
-
   // Folded directories, keyed by their root-relative path. A Set rather than a
   // boolean per node so a directory that is not in it is simply expanded —
   // the default a reader of a new directory expects, and the one that keeps
@@ -115,10 +114,7 @@ export function Sidebar(props: {
   // directory to change two attributes. This notifies exactly the entry that
   // lit and the one that went out — the pattern theme/Picker.tsx already
   // established over fifteen chips, and this list is the one that grows
-  // without limit: it is the served directory. One selector for both kinds of
-  // file, because an outline and a document cannot both be the open page:
-  // what is active is a FILE, and which kind it is is a fact about the
-  // directory rather than about the reading.
+  // without limit: it is the served directory.
   //
   // Solid utilization (PR #72) established this pattern and named this item
   // as the reason the O(n) form would hurt once the tree landed on the
@@ -153,47 +149,28 @@ export function Sidebar(props: {
   }
 
   return (
-    // Below 48rem there is no second column to be, so it is a HEADER above the
-    // outline — and behind a BURGER, because everything in it has to fit on a
-    // screen 390 points wide and the reader is usually not looking for any of
-    // it. A capped, always-open header was the first answer and it was worse
-    // in both directions: it took a third of the screen from the outline to
-    // show a list nobody had asked for, and the one control that HAS to be
-    // reachable — the way into the agent — was somewhere down inside a strip
-    // that scrolled. Shut, this is one row and the outline has the rest;
-    // open, it is the whole sidebar, chrome and all.
+    // Below 48rem there is no second column to be, so this is a SHEET behind
+    // the header's burger — capped and scrolling so the outline under it is
+    // still on screen. Shut, the body is `hidden` and the nav carries no
+    // border or overflow of its own (a bare `border-b` around a zero-height
+    // body used to leave a ghost 1px rule under the header). Above 48rem none
+    // of that applies: there is a column and the burger is not drawn.
     //
-    // Above 48rem none of that applies: there is a column, everything is in
-    // it, and the burger is not drawn.
+    // The e2e "has the set loaded?" probe keys on the header's
+    // `data-layout="docked"`, not on this nav's box — so a shut phone sheet
+    // does not have to fake a 1px layout box to settle.
     <nav
-      class="overflow-y-auto border-b border-rule p-4 md:max-h-none md:border-b-0 md:border-r"
+      class={
+        props.open
+          ? "overflow-y-auto border-b border-rule md:max-h-none md:border-b-0 md:border-r md:p-4"
+          : "md:overflow-y-auto md:border-r md:p-4"
+      }
       data-testid={TESTID.sidebar}
     >
-      <div class="flex items-center gap-2">
-        <button
-          type="button"
-          class={`${TARGET_BOX} -ml-2 inline-flex items-center justify-center rounded text-muted hover:text-ink md:hidden`}
-          data-testid={TESTID.sidebarToggle}
-          data-open={open()}
-          aria-expanded={open()}
-          aria-label={open() ? "hide the sidebar" : "show the sidebar"}
-          onClick={() => setOpen(!open())}
-        >
-          <span aria-hidden="true" class="text-lg leading-none">☰</span>
-        </button>
-        <h1 class="m-0 text-base uppercase tracking-widest text-muted">olai</h1>
-      </div>
-
-      {/* Everything else. Hidden below 48rem until the burger is pressed, and
-          capped when it is so the outline it is a header FOR is still on
-          screen under it. Any tap inside SHUTS it: every control in here
-          either goes somewhere or opens something over it, and a panel left
-          standing on top of what you just asked for is a second tap the
-          reader did not ask to make. */}
       <div
-        class={`${open() ? "max-h-[42dvh] overflow-y-auto" : "hidden"} mt-4 md:mt-4 md:block md:max-h-none md:overflow-visible`}
+        class={`${props.open ? "max-h-[42dvh] overflow-y-auto p-4" : "hidden"} md:block md:max-h-none md:overflow-visible md:p-0`}
         data-testid={TESTID.sidebarBody}
-        onClick={() => setOpen(false)}
+        onClick={() => props.onClose()}
       >
         {props.children}
 
@@ -202,26 +179,6 @@ export function Sidebar(props: {
             {(row) => <Entry row={row()} view={view} />}
           </Key>
         </ul>
-
-        <Show when={props.footer}>
-          <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-rule pt-4">
-            {props.footer}
-          </div>
-        </Show>
-
-        {/* The last thing in the column, and the only one that is about the
-            READER rather than about the directory or the app: which palette
-            this browser reads in. Drawn here rather than handed in as a slot
-            like the month and the chrome, because it needs nothing from the
-            app — no data, and no second home to be placed in.
-
-            The one exception to "any tap in here shuts it": a pick repaints
-            the whole page, including this column, so the reader is looking at
-            the answer already — and shutting would make comparing two
-            palettes on a phone cost a trip through the burger each time. */}
-        <div onClick={(event) => event.stopPropagation()}>
-          <ThemePicker />
-        </div>
       </div>
     </nav>
   )
@@ -269,7 +226,7 @@ function Dir(props: {
         data-testid={TESTID.fileDirToggle}
         aria-expanded={!folded()}
         aria-label={folded() ? `expand ${props.row.name}` : `collapse ${props.row.name}`}
-        // A fold is not a navigation: keep the burger open so the reader can
+        // A fold is not a navigation: keep the sheet open so the reader can
         // fold several folders without reopening it each time. The file links
         // still shut it via the body's onClick.
         onClick={(event) => {

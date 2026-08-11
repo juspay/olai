@@ -1,5 +1,5 @@
 /**
- * The dot in the corner: is this page still talking to a server?
+ * The connection pill: is this page still talking to a server?
  *
  * It is small, it is always there, and it is the only thing on screen that
  * reports on the connection rather than on the outlines. Always THERE is the
@@ -7,37 +7,32 @@
  * trusted when it is absent, because "healthy" and "not rendered" look the
  * same. Green is a claim this page keeps making.
  *
- * WHERE it goes is the layout's to say, not this component's, and there are two
- * answers because there are two layouts: the sidebar's footer, beside the agent
- * toggle, on every page that draws a sidebar — and a corner of the viewport on
- * the ones that do not, which are the error report and the waiting page, and
- * are exactly the pages whose connection a reader wants to know about most of
- * all. Fixed is the fallback rather than the rule: a pill fixed to the corner
- * of a page with an outline on it sits on the last line of whatever scrolls
- * under it, and it used to.
+ * WHERE it goes is the layout's to say, not this component's. There is one
+ * answer now: the app header (`../AppHeader.tsx`), beside the agent toggle and
+ * the theme picker, on every shape of the app — including the error report and
+ * the waiting page, which are exactly the pages whose connection a reader wants
+ * to know about most of all. The two-home layout (sidebar footer, or a corner
+ * when there was no sidebar) collapsed with the header; a pill fixed to the
+ * corner of a page with an outline on it used to sit on the last line of
+ * whatever scrolled under it.
+ *
+ * The label truncates rather than forcing the header to wrap: on a 390pt phone
+ * `server restarted` / `reconnecting` / `connecting` are wider than the room
+ * left beside the wordmark, and a wrap inside a fixed-height bar clipped the
+ * first row off the top of the viewport. The full sentence still rides `title`.
  */
 
 import { LOOK, type SurfaceConnectionStatus } from "./status.ts"
 import { TESTID } from "../testids.ts"
 
 /** The room a page keeps at the bottom of its reading column: the phone's home
- *  indicator (the inset is real because the shell asks for `viewport-fit=cover`)
- *  plus the height of one of these pills, for the pages that draw the pair in
- *  the corner rather than in a sidebar.
+ *  indicator (the inset is real because the shell asks for `viewport-fit=cover`).
  *
  *  Exported because the room is reserved somewhere else — the main pane's
- *  padding (../App.tsx) — and the size being reserved for is a fact about this
- *  component: its type, its padding and its offset. A number chosen over there
- *  would go on being 4rem after this grew a second line. */
-export const CLEARANCE = "pb-[calc(4rem+env(safe-area-inset-bottom,0px))]"
-
-/** Where the corner pair sits when there is no sidebar to hold it, lifted by
- *  whatever is in the way down there. `--visible-bottom` is how much of the
- *  page a phone is covering with an on-screen keyboard (../viewport.ts) and the
- *  safe-area inset is the home bar; both are zero on a laptop, so the offset is
- *  the plain 0.75rem there. */
-export const CORNER =
-  "fixed left-3 bottom-[calc(0.75rem+var(--visible-bottom,0px)+env(safe-area-inset-bottom,0px))] z-40"
+ *  padding (../App.tsx) — and the size being reserved for is a fact about the
+ *  reading column rather than about any one control. It used to also clear the
+ *  corner pills; those live in the header now, so this is the home bar alone. */
+export const CLEARANCE = "pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"
 
 export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
   const look = () => LOOK[props.status]
@@ -45,8 +40,9 @@ export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
     <div
       // No position of its own: it is a READOUT and not a control — nothing
       // here is tappable — so all it needs is to be legible wherever the layout
-      // decides to put it.
-      class="flex items-center gap-2 rounded-full border border-rule bg-paper px-3 py-1.5 text-xs text-muted"
+      // decides to put it. `min-w-0` + truncate is what lets the header keep a
+      // single row when the label is long.
+      class="flex min-w-0 max-w-[9.5rem] items-center gap-1.5 truncate rounded-full border border-rule bg-paper px-2 py-1.5 text-xs text-muted sm:max-w-none sm:gap-2 sm:px-3"
       data-testid={TESTID.connection}
       // The state as an attribute, so a test asserts on the STATE rather than
       // on a colour: which utility paints "live" is a styling decision and this
@@ -57,8 +53,8 @@ export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
       // hear "disconnected" without losing its place in the outline.
       aria-live="polite"
     >
-      <span class={`inline-block size-2 rounded-full ${look().dot}`} aria-hidden="true" />
-      {look().label}
+      <span class={`inline-block size-2 shrink-0 rounded-full ${look().dot}`} aria-hidden="true" />
+      <span class="min-w-0 truncate">{look().label}</span>
     </div>
   )
 }

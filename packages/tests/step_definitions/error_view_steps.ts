@@ -16,7 +16,14 @@ import {
   rowsIn,
   showScope,
 } from "../support/errors.ts";
-import { CROSS_FILE_ERRORS, ERROR_FILE_GROUP, ERROR_ROW, ERROR_VIEW } from "../support/world.ts";
+import {
+  APP_HEADER,
+  CROSS_FILE_ERRORS,
+  ERROR_FILE_GROUP,
+  ERROR_ROW,
+  ERROR_VIEW,
+  HYDRATION_TIMEOUT,
+} from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 import type { Locator } from "playwright";
 
@@ -25,6 +32,12 @@ const groupFor = (world: OlaiWorld, file: string): Locator =>
 
 Then("the error view is shown", async function (this: OlaiWorld) {
   await showScope(this.page.locator(ERROR_VIEW));
+});
+
+Then("the app header is on screen", async function (this: OlaiWorld) {
+  await this.page
+    .locator(APP_HEADER)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
 Then(

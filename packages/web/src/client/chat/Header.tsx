@@ -1,6 +1,6 @@
 /**
- * The panel's header: which conversation, which model, and the two ways out of
- * it.
+ * The panel's header: which conversation, which model, and the ways to change
+ * session.
  *
  * The model is here because a turn's cost and character depend on it and
  * nothing else on screen says. The session title is here because the agent
@@ -14,6 +14,12 @@
  * question. They are two facts and they take two slots: what it runs on, and
  * whether it is running.
  *
+ * Closing the panel is not here. The app header's agent pill is the permanent
+ * toggle (./Panel.tsx); a × beside it would be a second way to close one
+ * thing, which is one too many — the rule this file used to enforce by only
+ * drawing the toggle while the drawer was shut, inverted for a header that
+ * never loses its chrome.
+ *
  * Everything drawn is a projection of the chat cell. Nothing is remembered
  * locally, so a second tab's header says the same thing as this one.
  */
@@ -26,7 +32,6 @@ import type { Chat } from "./state.ts"
 
 export function Header(props: {
   readonly chat: Chat
-  readonly onClose: () => void
 }) {
   const state = () => props.chat.state()
 
@@ -77,15 +82,6 @@ export function Header(props: {
           + new
         </button>
       </Show>
-      <button
-        type="button"
-        class="rounded border border-rule px-2 py-1 text-xs text-muted hover:text-ink"
-        data-testid={TESTID.chatClose}
-        aria-label="close the agent panel"
-        onClick={() => props.onClose()}
-      >
-        ×
-      </button>
     </header>
   )
 }

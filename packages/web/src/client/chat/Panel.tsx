@@ -14,12 +14,24 @@
  * narrow one it covers the page, because there is no width to give it and half
  * a column of outline is not reading either.
  *
- * Opening it is {@link Toggle}, which is NOT drawn here: it is chrome that
- * belongs to the app rather than to the page, so the layout places it — in the
- * sidebar's footer beside the connection dot, and only in a corner of the
- * viewport on the screens that have no sidebar to put it in (`App.tsx`). It
- * used to be fixed over the outline, which meant a pill sitting on top of
- * somebody's last paragraph on every page.
+ * Opening and closing it is {@link Toggle}, which is NOT drawn here: it is
+ * chrome that belongs to the app rather than to the page, so the layout places
+ * it — in the app header beside the connection pill and the theme picker
+ * (`AppHeader.tsx`). It is a permanent TOGGLE (always on screen, pressed while
+ * the drawer is open), not a pill that vanishes once the panel is up: the
+ * header is the home for app chrome whether or not the agent is open, and a
+ * control that disappears when you need it to reverse itself was the old
+ * drawer-era shape. There is no × in the panel header for the same reason the
+ * old comment gave — two ways to close one thing is one too many; the header
+ * toggle is the one that remains.
+ *
+ * **Under the header, not over it.** The drawer is fixed from the bottom of the
+ * header bar (`--height-header`) rather than from the top of the viewport: the
+ * header is the app's chrome and stays reachable while the agent is open — the
+ * connection answer, the agent toggle itself, the theme. Covering it would bury
+ * exactly the chrome a long turn makes you want. Height is `--visible-h` minus
+ * that strip, so an on-screen keyboard still keeps the composer above itself
+ * (../viewport.ts).
  *
  * **It always draws.** Whether an agent is CONFIGURED is the server's answer,
  * and when the answer is no the panel says so ({@link NoAgent}) rather than
@@ -54,44 +66,49 @@ export function Panel() {
   )
 }
 
-/** The way in, when the drawer is shut — and nothing when it is open, because
- *  the drawer has its own × and two ways to close one thing is one too many. */
-export function Toggle() {
-  return (
-    <Show when={!chatOpen()}>
-      <ShutToggle />
-    </Show>
-  )
-}
-
 /**
- * ... and it says whether a turn is running behind it.
+ * The agent control in the app header: always on screen, toggles the drawer.
  *
- * A shut drawer with a turn in it used to be an inert pill: you asked for
- * something, closed the panel to read the outline, and nothing on screen knew
- * the agent was still working — including when it stopped. The state is the
- * server's, like everything else here.
+ * Pressed while the drawer is open (`aria-pressed` + an accent border so a
+ * screen reader and a glance agree). Clicking while open shuts it — there is
+ * no second close affordance in the panel. And it says whether a turn is
+ * running in either state: a shut drawer with a turn used to be an inert pill
+ * that knew nothing, including when the turn stopped; the pulse is that cue,
+ * and it has to survive a panel being open just as much as shut.
  *
- * Its own component so the subscription is created and disposed with the shut
- * state, and {@link createChatState} rather than {@link createChat} so it is the
- * CELL that is subscribed and not the transcript: a shut drawer taking every
- * streaming frame is exactly what the drawer's own subscription is scoped to
- * avoid.
+ * {@link createChatState} rather than {@link createChat} so it is the CELL
+ * that is subscribed and not the transcript: taking every streaming frame for
+ * a busy bit on a pill is exactly what the drawer's own subscription is scoped
+ * to avoid.
  */
-function ShutToggle() {
+export function Toggle() {
   const state = createChatState()
   const working = () => state().status === "thinking"
+  const open = () => chatOpen()
 
   return (
     <button
       type="button"
-      class={`rounded-full border bg-paper px-3 py-1.5 font-mono text-xs hover:text-ink ${
-        working() ? "animate-pulse border-doing text-doing" : "border-rule text-muted"
+      class={`shrink-0 rounded-full border bg-paper px-2 py-1.5 font-mono text-xs hover:text-ink sm:px-3 ${
+        working()
+          ? "animate-pulse border-doing text-doing"
+          : open()
+          ? "border-accent text-ink"
+          : "border-rule text-muted"
       }`}
       data-testid={TESTID.chatToggle}
       data-busy={working()}
-      title={working() ? "the agent is working" : "open the agent panel"}
-      onClick={() => setChatOpen(true)}
+      aria-pressed={open() ? "true" : "false"}
+      title={
+        working()
+          ? open()
+            ? "the agent is working — close the panel"
+            : "the agent is working — open the panel"
+          : open()
+          ? "close the agent panel"
+          : "open the agent panel"
+      }
+      onClick={() => setChatOpen(!open())}
     >
       &gt;_ agent
     </button>
@@ -106,17 +123,21 @@ function Conversation() {
 
   return (
     <aside
-      // `--visible-h` rather than the viewport's own height: an on-screen
-      // keyboard covers the bottom of the page without shrinking it
-      // (../viewport.ts), so a panel sized by `100dvh` puts its composer
-      // underneath the keyboard being typed into. It falls back to `100dvh`
-      // where nothing publishes the variable, which is every desktop.
-      class="fixed right-0 top-0 z-30 flex h-[var(--visible-h,100dvh)] w-chat max-w-full flex-col border-l border-rule bg-paper"
+      // Under the header, not over it: `top` and height both subtract
+      // `--height-header` (set on the header bar). `--visible-h` rather than
+      // the viewport's own height: an on-screen keyboard covers the bottom of
+      // the page without shrinking it (../viewport.ts), so a panel sized by
+      // `100dvh` puts its composer underneath the keyboard being typed into.
+      // `--height-header` is a static `:root` token in styles.css (3rem, the
+      // bar's `h-12`); the `3rem` fallback only fires if the sheet failed to
+      // load. `--visible-h` falls back to `100dvh` on desktops that never
+      // publish the variable.
+      class="fixed right-0 top-[var(--height-header,3rem)] z-30 flex h-[calc(var(--visible-h,100dvh)-var(--height-header,3rem))] w-chat max-w-full flex-col border-l border-rule bg-paper"
       data-testid={TESTID.chatPanel}
       data-status={chat.state().status}
       aria-label="agent"
     >
-      <Header chat={chat} onClose={() => setChatOpen(false)} />
+      <Header chat={chat} />
       {/* No agent means no transcript to draw and nothing to send, so the two
           go together and the explanation takes their place. */}
       <Show when={!off()} fallback={<NoAgent />}>

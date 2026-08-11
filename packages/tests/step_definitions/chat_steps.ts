@@ -20,7 +20,6 @@ import type { Locator } from "playwright";
 
 import {
   CHAT_CANCEL,
-  CHAT_CLOSE,
   CHAT_ENTRY,
   CHAT_ENTRY_STREAMING,
   CHAT_INPUT,
@@ -53,12 +52,14 @@ import type { OlaiWorld } from "../support/world.ts";
 Given("the agent panel is open", async function (this: OlaiWorld) {
   const toggle = this.page.locator(CHAT_TOGGLE);
   const panel = this.page.locator(CHAT_PANEL);
-  // Whichever it is in — the toggle is remembered in localStorage, so a reload
-  // inside a scenario may come back already open.
-  if (await panel.isVisible()) return;
+  // The toggle is always in the header (pressed while open). Open-ness is
+  // remembered in localStorage, so a reload inside a scenario may come back
+  // already open.
   await toggle.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  await toggle.click();
-  await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  if (!(await panel.isVisible())) {
+    await toggle.click();
+    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  }
   // Settled means the agent has finished handshaking — or that there is no
   // agent to wait for. Both are states a reader can act on; `booting` and
   // `gone` are not, so a boot that failed still times out here rather than
@@ -70,6 +71,14 @@ Given("the agent panel is open", async function (this: OlaiWorld) {
     },
     "the agent panel to settle (idle, or off with no agent configured)",
     HYDRATION_TIMEOUT,
+  );
+  // Visibility semantics of the permanent toggle: still on screen, and pressed
+  // while the drawer is open — not the old pill that vanished once open.
+  await this.expectAttribute(
+    CHAT_TOGGLE,
+    "aria-pressed",
+    "true",
+    "the agent toggle",
   );
 });
 
@@ -220,10 +229,14 @@ Then(
 );
 
 When("I close the agent panel", async function (this: OlaiWorld) {
-  await this.page.locator(CHAT_CLOSE).click();
+  // The header toggle is the only close — the panel has no × of its own.
+  const toggle = this.page.locator(CHAT_TOGGLE);
+  await this.expectAttribute(CHAT_TOGGLE, "aria-pressed", "true", "the agent toggle");
+  await toggle.click();
   await this.page
     .locator(CHAT_PANEL)
     .waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+  await this.expectAttribute(CHAT_TOGGLE, "aria-pressed", "false", "the agent toggle");
 });
 
 /** Reopen WITHOUT waiting for the panel to settle — the `Given` in the
@@ -233,14 +246,17 @@ When("I open the agent panel again", async function (this: OlaiWorld) {
   await this.page
     .locator(CHAT_PANEL)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.expectAttribute(CHAT_TOGGLE, "aria-pressed", "true", "the agent toggle");
 });
 
 Then("the agent toggle says a turn is running", async function (this: OlaiWorld) {
+  // Still on screen while the drawer is shut (and while open): the pulse is
+  // the cue that a turn is running behind a closed panel.
   await this.expectAttribute(
     CHAT_TOGGLE,
     "data-busy",
     "true",
-    "the shut drawer's toggle",
+    "the agent toggle",
   );
 });
 
