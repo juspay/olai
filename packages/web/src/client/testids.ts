@@ -19,11 +19,27 @@ export const TESTID = {
    *  burger; the nav stays attached so a settle probe does not have to open it. */
   sidebar: "sidebar",
   /** The burger, below 48rem only: lives in the header, opens the directory
-   *  sheet (calendar + file tree). */
+   *  drawer (calendar + file tree). */
   sidebarToggle: "sidebar-toggle",
-  /** Everything the burger reveals — the month and the file tree. App chrome
-   *  is not in here; it lives in the header. */
+  /** Everything the burger / open column reveals — the month and the file
+   *  tree. App chrome is not in here; it lives in the header. */
   sidebarBody: "sidebar-body",
+  /** Mobile drawer scrim. Absent on desktop and when the drawer is shut. */
+  sidebarScrim: "sidebar-scrim",
+  /** Desktop: collapse the full sidebar to the icon rail. */
+  sidebarCollapse: "sidebar-collapse",
+  /** Desktop: expand the icon rail back to the full sidebar. */
+  sidebarExpand: "sidebar-expand",
+  /** Desktop icon rail — minimized-with-signal face of the sidebar. */
+  sidebarRail: "sidebar-rail",
+  /** Drag handle on the open sidebar's right edge. */
+  sidebarResize: "sidebar-resize",
+  /** Rail icon: jump to today. */
+  railCalendar: "rail-calendar",
+  /** Rail icon: open outlines / home. */
+  railOutlines: "rail-outlines",
+  /** Rail icon: open the directory (documents). */
+  railDocs: "rail-docs",
   /** The sidebar's file tree: every outline and document under the folders
    *  they live in. Still named `outline-list` because that is the contract the
    *  browser tests already assert on for "the directory is listed", and a
@@ -178,13 +194,33 @@ export const TESTID = {
 
   // ── the agent panel ──────────────────────────────────────────────────
   /** The header's permanent agent toggle. Always on screen; `aria-pressed`
-   *  says whether the drawer is open, `data-busy` whether a turn is running
-   *  (including while the drawer is open). */
+   *  says whether the panel is open, `data-busy` whether a turn is running
+   *  (including while open). */
   chatToggle: "chat-toggle",
-  /** The open panel. Its `data-status` carries the cell's own state —
-   *  `booting` / `idle` / `thinking` / `gone` — so a scenario waits on the
-   *  state rather than on a spinner's styling. */
+  /** The open panel (desktop dock or mobile sheet). Its `data-status` carries
+   *  the cell's own state — `booting` / `idle` / `thinking` / `gone` — so a
+   *  scenario waits on the state rather than on a spinner's styling.
+   *  `data-layout` is `dock` or `sheet`; `data-snap` is the mobile snap. */
   chatPanel: "chat-panel",
+  /** Desktop minimized chat: bottom-right pill with last agent message. */
+  chatPill: "chat-pill",
+  /** Mobile minimized chat: strip above the thumb. */
+  chatStrip: "chat-strip",
+  /** Truncated last-message text inside the pill or strip. */
+  chatPillText: "chat-pill-text",
+  /** Drag handle on the chat dock's left edge. */
+  chatResize: "chat-resize",
+  /** Mobile bottom-sheet host (scrim + sheet). */
+  chatSheet: "chat-sheet",
+  chatSheetScrim: "chat-sheet-scrim",
+  chatSheetHandle: "chat-sheet-handle",
+  // ── command palette (shell) ──────────────────────────────────────────
+  palette: "palette",
+  paletteScrim: "palette-scrim",
+  paletteInput: "palette-input",
+  paletteList: "palette-list",
+  paletteItem: "palette-item",
+  paletteAsk: "palette-ask",
   chatTitle: "chat-title",
   chatModel: "chat-model",
   chatNew: "chat-new",

@@ -1,37 +1,13 @@
 /**
  * The ways around the DIRECTORY: the month, and the directory as a TREE.
  *
- * One walk of the served directory mixes every `.jsonl` outline and every
- * `.md` document under the folders they live in — a folder shows everything
- * it holds, the way a reader of the same directory sees it, and the way the
- * racket original's sidebar did.
+ * Desktop: a resizable column when open, replaced by the icon rail when
+ * minimized (./layout/Rail.tsx). Mobile: a slide-over drawer with scrim —
+ * not the old capped close-on-any-tap sheet. App chrome (connection, agent,
+ * theme) lives in the header; this column is only the directory.
  *
- * What is NOT here is the app's own chrome. The wordmark, the connection, the
- * agent toggle and the theme live in the header (`./AppHeader.tsx`) — they are
- * about the APP rather than about the directory, and a pill fixed to a corner
- * of the viewport was a pill on top of whatever was being read. The principle,
- * for the next reader: the header carries what is about the app; this column
- * carries what is about the directory.
- *
- * Directory nodes collapse, and that collapse is client-local the way the
- * outline tree's folds are (./view.ts): nothing is written, two readers of
- * the same directory may fold it differently, and a fold survives navigation
- * because the tree is of the directory rather than of the open page. A SLOT
- * rather than the calendar's own inputs threaded through: what the month
- * needs is the month's business.
- *
- * The entry that lights up is the file the OPEN PAGE lives in — for a zoomed
- * node, the file of the canonical record, which is not something the URL says
- * (see ./page.ts). A day page lights none: a day crosses every outline, and
- * the calendar is where it says which day it is. An entry is marked when its
- * file could not be read: the rest of the directory is still live, and which
- * one is broken is something a reader should be able to see without opening
- * it.
- *
- * Below 48rem this is a sheet behind the header's burger rather than a column:
- * shut it is not drawn, open it is capped so the outline under it still shows.
- * The open state is owned by the layout (`App.tsx`) because the burger that
- * toggles it lives in the header, not here.
+ * Directory nodes collapse client-locally like the outline tree's folds
+ * (./view.ts). The entry that lights up is the file the open page lives in.
  */
 
 import type { BrokenFile } from "@olai/format"
@@ -47,32 +23,23 @@ import {
 } from "solid-js"
 
 import { type FileRow, fileTree } from "./fileTree.ts"
+import { SidebarHandle } from "./layout/Handle.tsx"
+import { setSidebarOpen } from "./layout/prefs.ts"
 import { Link } from "./router.tsx"
 import { TESTID } from "./testids.ts"
-import { CONTROL, TARGET } from "./touch.ts"
+import { CONTROL, TARGET, TARGET_BOX } from "./touch.ts"
 
-/** One file entry. A row a finger aims at (./touch.ts), back to a line of
- *  text where the pointer is a mouse — and one string, because an outline and
- *  a document are the same row for the same reason: a finger aims at both.
- *  `calendar/Day.tsx` spells its cell once for the same reason.
- *
- *  Workflowy-quiet: soft hover, soft current (rule wash rather than a solid
- *  accent block), and body-weight type so the tree reads as navigation rather
- *  than a second outline. */
+/** One file entry. Workflowy-quiet: soft hover, soft current. */
 const ENTRY =
   `flex ${TARGET} items-center break-all rounded-sm px-2 py-0.5 text-[0.8125rem] leading-snug ` +
   "no-underline text-ink hover:bg-rule/60 aria-[current=page]:bg-rule " +
   "aria-[current=page]:text-ink md:min-h-0"
 
-/** A directory row: the same height a finger aims at, but not a link — it
- *  folds, it does not navigate. Disclosure triangle + name, Workflowy-style. */
+/** A directory row: folds, does not navigate. */
 const DIR =
   `flex ${TARGET} items-center gap-0.5 rounded-sm px-1 py-0.5 text-[0.8125rem] ` +
   "leading-snug text-muted hover:bg-rule/60 hover:text-ink md:min-h-0"
 
-/** What every row of the tree needs from the sidebar: which file is open,
- *  which outlines are broken, and how folders fold. One bag so a recursive
- *  row is not a function of five separate props that always travel together. */
 interface TreeView {
   readonly isActive: (file: string) => boolean
   readonly broken: ReadonlyMap<string, BrokenFile>
@@ -82,27 +49,18 @@ interface TreeView {
 
 export function Sidebar(props: {
   readonly files: ReadonlyArray<string>
-  /** The documents' paths. A tree of a directory is a tree of PATHS, which is
-   *  all a `.md` contributes to it — and all this tab has of one until someone
-   *  opens it (./outlines.ts). */
   readonly documents: ReadonlyArray<string>
-  /** The file the open page is of, in whichever kind of file it is. */
   readonly active: string | undefined
   readonly broken: ReadonlyMap<string, BrokenFile>
-  /** What sits above the tree: the month. */
   readonly children?: JSX.Element
-  /** Whether the phone sheet is open. Above 48rem the column is always drawn
-   *  and this is ignored. Owned by the layout because the burger lives in the
-   *  header (`AppHeader.tsx`). */
+  /**
+   * Mobile drawer open. Desktop always draws the column when this component
+   * is mounted (the parent swaps in the rail when minimized).
+   */
   readonly open: boolean
-  /** Shut the phone sheet. Every control in here either goes somewhere or
-   *  opens something over it, so a tap inside asks to put the sheet away. */
+  /** Shut the mobile drawer (navigation, scrim). */
   readonly onClose: () => void
 }) {
-  // Folded directories, keyed by their root-relative path. A Set rather than a
-  // boolean per node so a directory that is not in it is simply expanded —
-  // the default a reader of a new directory expects, and the one that keeps
-  // every nested file a click away without a prior unfold.
   const [collapsed, setCollapsed] = createSignal(new Set<string>())
   const toggle = (path: string) => {
     setCollapsed((current) => {
@@ -112,37 +70,9 @@ export function Sidebar(props: {
     })
   }
 
-  // `createSelector` rather than `props.active === file` in each row, which is
-  // what this was: that form subscribes EVERY entry to the open page, so
-  // walking from one outline to another re-runs one effect per file in the
-  // directory to change two attributes. This notifies exactly the entry that
-  // lit and the one that went out — the pattern theme/Picker.tsx already
-  // established over fifteen chips, and this list is the one that grows
-  // without limit: it is the served directory.
-  //
-  // Solid utilization (PR #72) established this pattern and named this item
-  // as the reason the O(n) form would hurt once the tree landed on the
-  // ported Dropbox corpus.
   const isActive = createSelector(() => props.active)
-
-  // One tree, rebuilt only when the directory's paths move — not when a page
-  // changes or a folder folds. Document *text* is not an input, and now cannot
-  // be: what arrives here is the documents' key set, so a rewrite of a body is
-  // not something this memo can even see. (The outline collection keeps
-  // `order` by reference on a values-only tick, which is the same property on
-  // the other list.)
-  //
-  // The walk mints fresh row objects each time; `<Key by="key">` holds each
-  // place across that mint the way Tree.tsx holds outline rows — without it
-  // `<For>` would compare by reference and rebuild the whole sidebar DOM on
-  // one membership change, which is O(corpus) on the Dropbox-sized tree this
-  // item targets.
   const tree = createMemo(() => fileTree(props.files, props.documents))
 
-  // Getters, not a snapshot: the bag is built once, and a row that reads
-  // `view.broken` must still track the prop that moves when a file fails to
-  // parse. A plain object closed over `props.broken` at construction would
-  // freeze the map the first frame handed it.
   const view: TreeView = {
     isActive,
     get broken() {
@@ -153,45 +83,73 @@ export function Sidebar(props: {
   }
 
   return (
-    // Below 48rem there is no second column to be, so this is a SHEET behind
-    // the header's burger — capped and scrolling so the outline under it is
-    // still on screen. Shut, the body is `hidden` and the nav carries no
-    // border or overflow of its own (a bare `border-b` around a zero-height
-    // body used to leave a ghost 1px rule under the header). Above 48rem none
-    // of that applies: there is a column and the burger is not drawn.
-    //
-    // The e2e "has the set loaded?" probe keys on the header's
-    // `data-layout="docked"`, not on this nav's box — so a shut phone sheet
-    // does not have to fake a 1px layout box to settle.
-    <nav
-      class={
-        props.open
-          ? "overflow-y-auto border-b border-rule md:max-h-none md:border-b-0 md:border-r md:p-4"
-          : "md:overflow-y-auto md:border-r md:p-4"
-      }
-      data-testid={TESTID.sidebar}
-    >
-      <div
-        class={`${props.open ? "max-h-[42dvh] overflow-y-auto p-4" : "hidden"} md:block md:max-h-none md:overflow-visible md:p-0`}
-        data-testid={TESTID.sidebarBody}
-        onClick={() => props.onClose()}
-      >
-        {props.children}
+    <>
+      {/* Mobile scrim: only when the drawer is open. */}
+      <Show when={props.open}>
+        <button
+          type="button"
+          class="fixed inset-0 z-30 bg-ink/40 md:hidden"
+          data-testid={TESTID.sidebarScrim}
+          aria-label="close the directory"
+          onClick={() => props.onClose()}
+        />
+      </Show>
 
-        <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
-          <Key each={tree()} by="key">
-            {(row) => <Entry row={row()} view={view} />}
-          </Key>
-        </ul>
-      </div>
-    </nav>
+      <nav
+        class={
+          // Mobile closed: `hidden` so Playwright (and thumbs) agree it is put
+          // away — off-screen translate still counts as visible to the suite.
+          // Mobile open: fixed drawer under the header with a right rule.
+          // Desktop: in-flow column; width comes from the grid / CSS var.
+          (props.open ? "flex " : "hidden ") +
+          "relative z-40 flex-col border-r border-rule bg-paper " +
+          "fixed bottom-0 left-0 top-[var(--height-header,3rem)] w-[min(20rem,85vw)] " +
+          "md:static md:flex md:h-full md:w-full md:translate-x-0"
+        }
+        data-testid={TESTID.sidebar}
+        data-open={props.open ? "true" : "false"}
+      >
+        {/* Desktop: collapse to the rail. The resize handle is a full-height
+            edge of this nav (absolute), not a strip on this toolbar. */}
+        <div class="hidden shrink-0 items-center justify-end border-b border-rule px-2 py-1 md:flex">
+          <button
+            type="button"
+            class={`${TARGET_BOX} inline-flex items-center justify-center rounded text-muted hover:bg-rule/60 hover:text-ink md:min-h-8 md:min-w-8`}
+            data-testid={TESTID.sidebarCollapse}
+            aria-label="collapse the sidebar to the icon rail"
+            title="collapse sidebar"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
+              <path d="M9.78 3.22a.75.75 0 0 1 0 1.06L6.56 8l3.22 3.72a.75.75 0 1 1-1.06 1.06l-4-4a.75.75 0 0 1 0-1.06l4-4a.75.75 0 0 1 1.06 0z" />
+            </svg>
+          </button>
+        </div>
+        <div class="hidden md:contents">
+          <SidebarHandle />
+        </div>
+
+        <div
+          class="min-h-0 flex-1 overflow-y-auto p-4"
+          data-testid={TESTID.sidebarBody}
+          // Any navigation (day, outline, document) bubbles here and puts the
+          // mobile drawer away. Folder folds stop propagation so a reader can
+          // open several without reopening the drawer each time.
+          onClick={() => props.onClose()}
+        >
+          {props.children}
+
+          <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
+            <Key each={tree()} by="key">
+              {(row) => <Entry row={row()} view={view} />}
+            </Key>
+          </ul>
+        </div>
+      </nav>
+    </>
   )
 }
 
-/** One row of the file tree. Kind decides what is drawn — a folder folds, a
- *  file is a link — the same Switch shape Tree.tsx uses for outline rows, so
- *  a third kind of sidebar row is another Match rather than another branch
- *  through a Show-with-cast. */
 function Entry(props: {
   readonly row: FileRow
   readonly view: TreeView
@@ -212,9 +170,6 @@ function Dir(props: {
   readonly row: Extract<FileRow, { kind: "dir" }>
   readonly view: TreeView
 }) {
-  // A memo, not a plain accessor: folding one directory mints a new Set, and
-  // both the chevron and the children list read it. Without the memo every
-  // directory re-runs both on every click.
   const folded = createMemo(() => props.view.collapsed().has(props.row.path))
 
   return (
@@ -230,9 +185,6 @@ function Dir(props: {
         data-testid={TESTID.fileDirToggle}
         aria-expanded={!folded()}
         aria-label={folded() ? `expand ${props.row.name}` : `collapse ${props.row.name}`}
-        // A fold is not a navigation: keep the sheet open so the reader can
-        // fold several folders without reopening it each time. The file links
-        // still shut it via the body's onClick.
         onClick={(event) => {
           event.stopPropagation()
           props.view.toggle(props.row.path)
@@ -266,9 +218,6 @@ function File(props: {
   readonly row: Extract<FileRow, { kind: "file" }>
   readonly view: TreeView
 }) {
-  // Kind is fixed for the life of the row; broken and current are not —
-  // they are read in the JSX so a later frame that marks this file, or a
-  // walk that lights a different one, updates this row only.
   const outline = props.row.of === "outline"
 
   return (

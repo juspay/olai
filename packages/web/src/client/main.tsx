@@ -9,6 +9,7 @@ import { render } from "solid-js/web"
 import App from "./App.tsx"
 import { followChatOpen } from "./chat/open.ts"
 import { Fault } from "./errors/Fault.tsx"
+import { trackDesktop } from "./layout/media.ts"
 import { followStoredTheme } from "./theme/state.ts"
 import { trackVisibleViewport } from "./viewport.ts"
 
@@ -32,10 +33,10 @@ trackVisibleViewport()
 // it outlives every component.
 followStoredTheme()
 
-// The agent drawer, for the same reason and in the same breath: whether it is
-// open is this browser's preference, not this tab's, so a drawer opened in
-// another window opens here too.
+// Layout preferences (sidebar open/width, chat open/width/snap) and the
+// phone/desktop media query — document-lifetime, like the theme.
 followChatOpen()
+trackDesktop()
 
 const root = document.getElementById("root")
 if (root === null) throw new Error("no #root element")

@@ -89,17 +89,20 @@
   --color-doing: #8F5200;
   --color-alarm: #8E3348;
 
-  /* The agent drawer's width. A token rather than a literal in the two places
-   * that have to agree about it — the drawer itself, and the padding the
-   * layout reserves for it so the outline is not drawn underneath (App.tsx) —
-   * because "the outline is the page" rests on those two matching, and two
-   * literals match only until somebody edits one. */
+  /* Panel widths. Defaults match the pre-rework constants (16rem sidebar,
+   * 26rem chat). The reader owns the live values: layout/css.ts writes pixel
+   * lengths onto `:root` from localStorage preferences, and both the dock and
+   * the padding App reserves for it read the same custom property so they
+   * cannot drift. The rail is not a preference — it is the fixed collapsed
+   * face of the sidebar. */
   --width-chat: 26rem;
+  --width-sidebar: 16rem;
+  --width-rail: 3rem;
 
-  /* The app header's height. The drawer sits UNDER the bar (chat/Panel.tsx),
+  /* The app header's height. The chat dock sits UNDER the bar (chat/Panel.tsx),
    * so its `top` and its height both subtract this; the header itself is
    * `h-12` (3rem). Static on `:root` — the bar does not paint it; a `3rem`
-   * fallback on the drawer only fires if this sheet failed to load. */
+   * fallback on the dock only fires if this sheet failed to load. */
   --height-header: 3rem;
 }
 
