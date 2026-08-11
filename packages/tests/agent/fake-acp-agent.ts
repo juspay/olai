@@ -22,6 +22,7 @@
  *   add <title>  call `add_node` under the first outline's first root
  *   servers      name the MCP servers this session was handed
  *   slow         dawdle, long enough to cancel
+ *   deaf         dawdle, with our stdin closed, so nothing said back arrives
  *   flood        say more than fits, so scrolling is a thing that can be tested
  *   hold         start a tool call and STOP there, until released
  *   model <id>   switch the model the way the wrapped CLI does
@@ -90,6 +91,9 @@ let mcp: { url: string; headers: Record<string, string> } | null = null
 let servers: ReadonlyArray<string> = []
 /** Set by a `session/cancel` notification, cleared when a prompt is accepted. */
 let cancelled = false
+/** Whether we shut our own stdin (`deaf`). Read where the end of that pipe
+ *  would otherwise mean the client had gone. */
+let deaf = false
 
 const STORED = process.env["OLAI_FAKE_ACP_STORED"] ?? ""
 const stored = () => STORED !== ""
@@ -253,6 +257,22 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
 
   if (verb === "slow") {
     say("thinking")
+    for (let tick = 0; tick < 200 && !cancelled; tick++) await sleep(50)
+    respond(id, { stopReason: cancelled ? "cancelled" : "end_turn" })
+    return
+  }
+
+  // A turn nothing can be said INTO. The read end of our stdin is closed while
+  // the process goes on streaming, so every later frame the client writes gets
+  // EPIPE — which is exactly what a cancel aimed at an agent whose pipe has
+  // died looks like, and the one shape of failure that used to be swallowed
+  // whole (`Effect.ignore` on the notify): the button was pressed, nothing
+  // happened, and the turn went on. Alive and deaf rather than dead, because a
+  // process that EXITS is noticed by the exit handler and reported on its own.
+  if (verb === "deaf") {
+    say("thinking, and no longer listening")
+    deaf = true
+    process.stdin.destroy()
     for (let tick = 0; tick < 200 && !cancelled; tick++) await sleep(50)
     respond(id, { stopReason: cancelled ? "cancelled" : "end_turn" })
     return
@@ -512,4 +532,9 @@ readMessages(
   (line) => noise(`fake agent: not JSON: ${line}`),
 )
 
-process.stdin.on("end", () => process.exit(0))
+// Our client hung up, so there is nobody left to answer — except when WE shut
+// the pipe deliberately (`deaf`), where staying alive and streaming is the
+// whole point of the scenario.
+process.stdin.on("end", () => {
+  if (!deaf) process.exit(0)
+})

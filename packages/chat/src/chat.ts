@@ -333,7 +333,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       entries: () => transcript.entries(),
       state: () => state,
       send,
-      cancel: agent.cancel,
+      // A cancel the agent never took is a refusal like any other, and the
+      // click that asked for it is what hears about it — the same treatment
+      // `sessions` gets, and for the same reason: a verb that could not be
+      // done says so where it was asked.
+      cancel: Effect.catch(agent.cancel, (gone) => Effect.fail(asFailure(gone))),
       newSession: changeSession(agent.newSession),
       loadSession: (id: string) => changeSession(agent.loadSession(id)),
       sessions: Effect.catch(

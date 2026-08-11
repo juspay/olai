@@ -71,6 +71,20 @@ Feature: Talking to the agent
     And the chat says the turn was cancelled
 
   @scratch:chat
+  Scenario: A cancel the agent never received says so
+    # The regression this exists for: the cancel notification's failure was
+    # swallowed whole, so a cancel aimed at an agent whose pipe had died typed
+    # as a success — the button was pressed, the turn went on streaming, and
+    # nothing on screen said which of those two had happened. `deaf` is an
+    # agent that is alive and no longer reading, which is the shape of that
+    # failure a scenario can make happen on purpose.
+    When I ask the agent "deaf"
+    Then the agent is working
+    When I cancel the turn
+    Then the chat eventually shows "the turn could not be cancelled"
+    And the agent is working
+
+  @scratch:chat
   Scenario: The input completes the agent's own slash commands
     # The list is the AGENT'S — olai keeps none of its own — so what is offered
     # is whatever that agent reported over the session.

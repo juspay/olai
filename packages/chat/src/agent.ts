@@ -115,9 +115,15 @@ export interface Agent {
    *  …) — the turn's END is a return value rather than an event, because the
    *  caller that asked is the one waiting. */
   readonly prompt: (text: string) => Effect.Effect<string, AgentGone>
-  /** Stop the turn in flight. A notification, so there is nothing to wait for
-   *  and nothing that can fail. */
-  readonly cancel: Effect.Effect<void>
+  /** Stop the turn in flight.
+   *
+   *  A notification, so there is nothing to WAIT for — but there is very much
+   *  something that can fail: the pipe to a dead agent takes no notification
+   *  either. That failure used to be swallowed, and what a person saw was the
+   *  cancel button doing nothing while the turn went on streaming. It is on the
+   *  channel now, so a cancel that could not be delivered refuses like every
+   *  other verb. */
+  readonly cancel: Effect.Effect<void, AgentGone>
   readonly newSession: Effect.Effect<void, AgentGone>
   readonly loadSession: (id: string) => Effect.Effect<void, AgentGone>
   /** The stored conversations for this directory, newest first. */
@@ -547,12 +553,27 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         Effect.gen(function*() {
           // A cancel that arrived during the handshake is sent the moment the
           // prompt is on the wire, so every cancelled turn ends the same way.
+          //
+          // FORKED because it has to outlive this line and cannot be waited on
+          // — the prompt below is what holds the turn open — but a forked
+          // failure is one nobody is watching, and this one used to go
+          // nowhere at all: the deferred cancel never landed, the turn ran to
+          // the end, and the panel said nothing about either. `trouble` is
+          // where a failure with no caller belongs (the boot path uses it for
+          // the same reason), so it reaches the transcript rather than the
+          // fiber's dump.
           if (cancelPending) {
             cancelPending = false
             yield* Effect.forkDetach(
-              Effect.andThen(
-                Effect.sleep("10 millis"),
-                notify(at, methods.agent.session.cancel, { sessionId: id }),
+              Effect.onError(
+                Effect.andThen(
+                  Effect.sleep("10 millis"),
+                  notify(at, methods.agent.session.cancel, { sessionId: id }),
+                ),
+                (cause) =>
+                  Effect.sync(() => {
+                    trouble(`the turn could not be cancelled: ${reasonOf(cause)}`)
+                  }),
               ),
             )
           }
@@ -576,7 +597,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         cancelPending = true
         return Effect.void
       }
-      return Effect.ignore(notify(at, methods.agent.session.cancel, { sessionId: id }))
+      // Said in the words of the thing that was asked for, not of the method
+      // that carries it: what reaches a person is a refusal under the button
+      // they pressed, and "`session/cancel` failed" names our transport where
+      // their sentence is "the turn is still running".
+      return Effect.mapError(
+        notify(at, methods.agent.session.cancel, { sessionId: id }),
+        (gone) => new AgentGone({ why: `the turn could not be cancelled: ${gone.why}` }),
+      )
     })
 
     const stop = Effect.sync(() => {
