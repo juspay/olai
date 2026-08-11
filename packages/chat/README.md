@@ -1,8 +1,9 @@
 # @olai/chat — one conversation with one agent
 
 Talking to a coding agent over ACP: starting the subprocess, holding the
-session, turning what it says into rows a panel can draw, and answering the five
-verbs a person has (send, cancel, new conversation, load one, list them).
+session, turning what it says into rows a panel can draw, answering the five
+verbs a person has (send, cancel, new conversation, load one, list them) — and
+the two that answer a question the agent asked back.
 
 It sits BESIDE `@olai/ops` rather than above or below it. A conversation and an
 edit are two things a person does to the same directory and neither is built out
@@ -33,6 +34,7 @@ second copy of the transcript would be a second thing to be wrong.
 | `agent.ts` | the ACP client: one subprocess, one protocol. Nothing else in olai spells `session/prompt` |
 | `kolu.ts` | whether this host is running kolu, and the stdio server to hand a session if it is |
 | `pipes.ts` | a subprocess's pipes as a stream of JSON-RPC messages — the one thing the two subprocesses above have in common |
+| `asks.ts` | the two payloads that ask a PERSON something, projected into one form — and the answer projected back |
 | `events.ts` | the closed vocabulary of what an agent tells us — a consumer that needs more needs a new member, not a look at the wire |
 | `transcript.ts` | the conversation as ROWS: chunks accumulate, tool calls update in place by id, a replay replaces rather than appends |
 | `chat.ts` | the join, and the only place that knows both halves |
@@ -58,6 +60,58 @@ scripted agent is one level further out and more honest for it —
 `OLAI_ACP_AGENT` pointed at a script, which is how the e2e suite drives every
 turn it asserts on, and which exercises the subprocess and the wire that an
 injected object would replace with an assumption.
+
+## When the agent has a question
+
+`initialize` advertises `elicitation.form`, and that one line is what lets the
+agent ask anything at all: without it the Claude Code adapter puts
+`AskUserQuestion` in `disallowedTools`, so an agent that wanted to check which
+of two things you meant had to guess, or write the question into prose and hope
+somebody answered it in the next message.
+
+With it, two ACP methods reach a person and both are drawn as the same thing — a
+form in the transcript, which is a row rather than a modal, so it is still there
+afterwards saying what was asked and what was chosen:
+
+- **`elicitation/create`**, form mode: a JSON Schema of primitive-typed
+  properties. The adapter renders `AskUserQuestion` into one (a titled `oneOf`
+  per single-select, an array with a titled `anyOf` per multi-select, and beside
+  each question its own free-text "Other" box), and feeds the answers back as
+  that tool's own `updatedInput`. MCP servers on the session reach the same
+  method with schemas of their own.
+- **`session/request_permission`**: a list of named options for one tool call,
+  which is a single-select with the options already spelled out.
+
+`asks.ts` projects both and is pure, so what a form looks like for a question
+nobody has asked yet is a unit test. A property whose type this panel has no
+control for makes the whole request UNDRAWABLE: it is declined and said out
+loud, because half a form is one somebody submits believing they answered all of
+it. **A dismissal is a decline on the wire** — the agent is told a person would
+not say — and never a fabricated answer.
+
+Nothing times out. A pending question holds the ACP request open, which is
+exactly what a blocked turn is; what the panel owes in return is that the block
+is impossible to miss (`chat.asking` on the state cell, drawn in the composer,
+the header and the app's permanent agent toggle). Every question is withdrawn if
+the conversation it belongs to ends — a new session, a load, a dead subprocess —
+so a live form is never a control that does nothing.
+
+### Which permissions are answered without asking
+
+Bypass mode is the design (resolved 2026-08-09) and it is still the design: a
+permission request for one of the MCP servers *we handed this session* — olai's
+mediated ops, kolu's terminals — is allowed immediately, because those tools are
+already validated and a click per write is not a permission model.
+
+Everything else is a person's. That direction is the load-bearing one. The
+adapter maps plan mode's "Ready to code?" onto a permission request whose FIRST
+allow-flavoured option switches the session to `auto`, and this client used to
+answer every request with the first allow it found — so it was taking that
+decision on somebody's behalf, silently, every time. The rule is positive
+recognition: a tool we cannot name is a tool a person is asked about. The name
+comes from the `tool_call` the adapter always emits before it asks (the
+permission request itself carries a display title, not a name), which is the one
+agent-specific `_meta` this package reads and the reason it is read.
 
 ## Kolu's terminals, when the host has them
 

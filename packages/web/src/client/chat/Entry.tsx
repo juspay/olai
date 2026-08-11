@@ -1,10 +1,15 @@
 /**
- * One row of the conversation, and the five things it can be.
+ * One row of the conversation, and the six things it can be.
  *
- * A switch rather than five call sites, because "what kind of row is this" is
+ * A switch rather than six call sites, because "what kind of row is this" is
  * one question and the transcript should not have to know the answer. Each arm
  * is small enough to read at a glance and different enough from the others to
  * earn its own shape.
+ *
+ * One of the six is the only row a reader can talk BACK through — a question
+ * the agent asked ({@link ./AskForm.tsx}) — which is why the conversation's
+ * verbs are threaded down here rather than reached for globally: a row that can
+ * act is a row that was handed the thing to act on.
  *
  * Markdown at RENDER time, and only for the agent: what a person typed is
  * quoted verbatim, and a tool's title is the agent's own string. The rule is
@@ -39,7 +44,9 @@ import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { Markdown } from "../markdown/Markdown.tsx"
 import { TESTID } from "../testids.ts"
+import { AskForm } from "./AskForm.tsx"
 import { Refusal } from "./Refusal.tsx"
+import type { Chat } from "./state.ts"
 import { ToolFrame } from "./ToolFrame.tsx"
 
 /** How often a growing answer may be re-rendered. Fast enough that it reads as
@@ -52,7 +59,10 @@ const FRAME_MS = 120
  *  relative to. */
 const AGENT_WROTE_IT = ""
 
-export function Entry(props: { readonly entry: ChatEntry }) {
+export function Entry(props: {
+  readonly entry: ChatEntry
+  readonly chat: Chat
+}) {
   const due = createScheduled((run) => throttle(run, FRAME_MS))
   /** The text to draw: the current one whenever the throttle says so, and the
    *  last one it allowed otherwise. A settled entry passes straight through —
@@ -101,6 +111,10 @@ export function Entry(props: { readonly entry: ChatEntry }) {
 
         <Match when={props.entry.kind === "tool"}>
           <ToolFrame entry={props.entry} />
+        </Match>
+
+        <Match when={props.entry.kind === "ask"}>
+          <AskForm entry={props.entry} chat={props.chat} />
         </Match>
 
         <Match when={props.entry.kind === "refusal"}>

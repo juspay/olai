@@ -33,7 +33,14 @@
  *     detail in chat" true regardless of how the agent phrases it.
  */
 
-import { CHAT_OFF, type ChatEntry, type ChatState, type OpFailure, type SessionInfo } from "@olai/surface"
+import {
+  type AskAnswer,
+  CHAT_OFF,
+  type ChatEntry,
+  type ChatState,
+  type OpFailure,
+  type SessionInfo,
+} from "@olai/surface"
 import { BusyFailure, UsageFailure } from "@olai/format"
 import { Effect, Fiber, Semaphore } from "effect"
 
@@ -74,6 +81,13 @@ export interface Chat {
   readonly newSession: Effect.Effect<void, OpFailure>
   readonly loadSession: (id: string) => Effect.Effect<void, OpFailure>
   readonly sessions: Effect.Effect<ReadonlyArray<SessionInfo>, OpFailure>
+  /** Answer the question `id`, or — with `null` — decline it. Both refuse if
+   *  that question has stopped waiting, which is a thing two open tabs can
+   *  genuinely race and a person deserves to be told about. */
+  readonly answer: (
+    id: string,
+    answers: ReadonlyArray<AskAnswer> | null,
+  ) => Effect.Effect<void, OpFailure>
   /** Told by the MCP layer about a write it refused, so the panel can draw the
    *  refusal rather than the agent's account of it. */
   readonly recordRefusal: (
@@ -111,6 +125,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     /** Typed while a turn was running, in the order it was typed. Drained by
      *  the turn's own fiber as it ends — see {@link begin}. */
     const queue: Array<string> = []
+    /** The questions waiting on a person. A SET rather than a count, because
+     *  the events that move it are keyed by id and arrive from a protocol
+     *  callback: a `++`/`--` pair would drift the first time one arrived twice,
+     *  and the number on the state is what tells a person the turn is stopped
+     *  on them. */
+    const asking = new Set<string>()
     /** One session change at a time: a load and a new-session racing each other
      *  would leave the transcript holding half of each. */
     const switching = yield* Semaphore.make(1)
@@ -147,6 +167,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               locations: event.locations,
             }),
           )
+          return
+        case "asked":
+          asking.add(event.id)
+          publish(transcript.ask(event.id, event.message, event.fields))
+          move({ asking: asking.size })
+          return
+        case "askSettled":
+          asking.delete(event.id)
+          publish(transcript.settleAsk(event.id, event.outcome))
+          move({ asking: asking.size })
           return
         case "commands":
           move({ commands: event.commands })
@@ -345,6 +375,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           }))),
         (gone) => Effect.fail(asFailure(gone)),
       ),
+      answer: (id, answers) =>
+        Effect.flatMap(
+          agent.answer(id, answers),
+          (took) =>
+            took ? Effect.void : Effect.fail(
+              new UsageFailure({
+                reason: "that question is not waiting any more — it was answered or withdrawn",
+              }),
+            ),
+        ),
+
       recordRefusal: (tool: string, failure: OpFailure) =>
         Effect.sync(() => {
           publish(transcript.refuse(`\`${tool}\` was refused`, failure))

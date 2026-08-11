@@ -39,6 +39,7 @@
  */
 
 import {
+  type AskAnswer,
   CHAT_OFF,
   type ChatEntry,
   type ChatState,
@@ -71,6 +72,10 @@ export interface Chat {
   /** Asked of the server every time the picker opens: the agent's list is the
    *  only one that is right. */
   readonly sessions: () => Promise<ReadonlyArray<SessionInfo>>
+  /** Answer a question the agent asked — `id` is the ask row's own id. */
+  readonly answer: (id: string, answers: ReadonlyArray<AskAnswer>) => void
+  /** ... or decline it, which the agent is told about as such. */
+  readonly decline: (id: string) => void
 }
 
 /**
@@ -126,6 +131,8 @@ export const createChat = (): Chat => {
     cancel: () => verb(olai.procedures.chat.cancel()),
     newSession: () => verb(olai.procedures.chat.newSession()),
     loadSession: (id) => verb(olai.procedures.chat.loadSession({ id })),
+    answer: (id, answers) => verb(olai.procedures.chat.answer({ id, answers })),
+    decline: (id) => verb(olai.procedures.chat.decline({ id })),
     sessions: () =>
       new Promise((resolve) => {
         run(

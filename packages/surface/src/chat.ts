@@ -27,10 +27,10 @@
  *     turn is in flight. One value the server owns, read-only on the wire, and
  *     the panel header is a view of it.
  *
- *   - **the procedures are the verbs**: send, cancel, new, load, and the list
- *     the picker draws. Each declares its failure channel, so "a turn is
- *     already running" arrives as a `busy` a caller can branch on rather than
- *     as an opaque transport error.
+ *   - **the procedures are the verbs**: send, cancel, new, load, the list the
+ *     picker draws, and the two that answer a question the agent asked. Each
+ *     declares its failure channel, so "a turn is already running" arrives as a
+ *     `busy` a caller can branch on rather than as an opaque transport error.
  *
  * Nothing in the transcript is an optimistic echo. What a person typed appears
  * because the server put it there, exactly like everything else — so two tabs
@@ -42,15 +42,105 @@ import { BusyFailure, isOpFailure, kindOf, OpFailure } from "@olai/format"
 import { Schema } from "effect"
 
 /**
+ * One option of a question the agent asked.
+ *
+ * `value` is what travels BACK — an enum's `const`, a permission option's id —
+ * and `label` is what a person reads. They are usually the same string and are
+ * two fields anyway, because the one case where they part company (a permission
+ * option named "Yes, and use \"auto\" mode" whose id is `auto`) is the case this
+ * whole member exists for.
+ */
+export const AskChoice = Schema.Struct({
+  value: Schema.String,
+  label: Schema.String,
+  /** The option's own second line, when it has one. */
+  hint: Schema.NullOr(Schema.String),
+})
+export type AskChoice = typeof AskChoice.Type
+
+/**
+ * One field of the form the agent asked to be filled.
+ *
+ * `kind` is what a renderer switches on, and it is the whole of what this layer
+ * knows about the JSON Schema it came from — the projection happens server-side
+ * ({@link ../../chat/src/asks.ts}), so no browser ever reads a `oneOf`.
+ */
+export const AskField = Schema.Struct({
+  /** The schema property this field answers. The answer travels back under it. */
+  key: Schema.String,
+  /** What to call it. `null` when the payload named nothing — a single question
+   *  carries its text as the ask's own message, and a label invented from the
+   *  field key would be `question_0`. */
+  label: Schema.NullOr(Schema.String),
+  hint: Schema.NullOr(Schema.String),
+  kind: Schema.Literals(["choice", "choices", "text", "number", "integer", "boolean"]),
+  /** `choice` / `choices` only. */
+  choices: Schema.Array(AskChoice),
+  required: Schema.Boolean,
+  /** The field this one is the free-text "other" for, by key, when the agent
+   *  paired them — the CLI's per-question "Other" box. Drawn inside that
+   *  field's block rather than as a field of its own. */
+  attachedTo: Schema.NullOr(Schema.String),
+})
+export type AskField = typeof AskField.Type
+
+/**
+ * What was picked or typed for one field.
+ *
+ * Always TEXT, however the field is typed: a number field's answer is the
+ * characters somebody entered, and turning those into a number belongs where
+ * the schema that asked for one is understood. One entry for a select or a box,
+ * several for a multi-select, and a field left alone has no entry at all.
+ */
+export const AskAnswer = Schema.Struct({
+  key: Schema.String,
+  values: Schema.Array(Schema.String),
+})
+export type AskAnswer = typeof AskAnswer.Type
+
+/** How a question stopped waiting.
+ *
+ *   - `answered` — a person filled it in and submitted.
+ *   - `declined` — a person dismissed it. The agent is TOLD that, which is the
+ *     point: a dismissal is a refusal to answer, never a fabricated answer.
+ *   - `withdrawn` — the agent took the question back (the turn was cancelled,
+ *     the session was replaced, the subprocess died). Nobody answered, and the
+ *     row says so rather than sitting on screen waiting forever. */
+export const AskOutcome = Schema.Struct({
+  how: Schema.Literals(["answered", "declined", "withdrawn"]),
+  answers: Schema.Array(AskAnswer),
+})
+export type AskOutcome = typeof AskOutcome.Type
+
+/**
+ * A question the agent asked, and what became of it.
+ *
+ * `outcome` is `null` exactly while the turn is BLOCKED on a person: the form is
+ * live, the composer says so, and nothing else in the conversation is going to
+ * happen until it is answered or dismissed. Afterwards the same row stays in
+ * the transcript with what was chosen written into it — the record of what was
+ * asked and what was said back, which is the reason this is an entry rather
+ * than a modal.
+ */
+export const Ask = Schema.Struct({
+  fields: Schema.Array(AskField),
+  outcome: Schema.NullOr(AskOutcome),
+})
+export type Ask = typeof Ask.Type
+
+/**
  * What a row of the conversation is.
  *
- * A union of five kinds rather than a struct with everything optional, because
- * the five are drawn differently and a reader has to switch on something:
+ * A union of six kinds rather than a struct with everything optional, because
+ * they are drawn differently and a reader has to switch on something:
  *
  *   - `user` — what was typed. Never markdown: it is quoted, not rendered.
  *   - `agent` — the agent's prose, accumulated as it streams. Rendered as
  *     markdown once the turn is done, which is a view-time decision.
  *   - `tool` — a tool call, foldable, updated in place by its own id.
+ *   - `ask` — a question the agent asked, as a form to answer: the options it
+ *     offered, the boxes it left, and — once it has been answered — what was
+ *     chosen. The turn is blocked on it while `ask.outcome` is `null`.
  *   - `refusal` — a write the ops layer said no to, with the structured detail
  *     the refusal carried. This is the one entry olai mints on its own behalf:
  *     the agent gets the same detail in its tool result, and a person watching
@@ -71,8 +161,9 @@ export const ChatEntry = Schema.Struct({
    *  arrival order, which is the same thing until a session is reloaded; an
    *  explicit sequence means the panel never has to depend on that. */
   seq: Schema.Int,
-  kind: Schema.Literals(["user", "agent", "tool", "refusal", "notice"]),
-  /** The prose. For a tool entry this is its title. */
+  kind: Schema.Literals(["user", "agent", "tool", "ask", "refusal", "notice"]),
+  /** The prose. For a tool entry this is its title, and for an `ask` it is what
+   *  the agent said it needs — the elicitation's own message. */
   text: Schema.String,
   /** `tool` only: what the agent says the call is doing right now. */
   status: Schema.optionalKey(
@@ -94,6 +185,8 @@ export const ChatEntry = Schema.Struct({
    *  a validation report's rows, each at its own `file:line` — rather than
    *  printing a sentence about them. */
   refusal: Schema.optionalKey(OpFailure),
+  /** `ask` only: the form to draw, and what became of it — see {@link Ask}. */
+  ask: Schema.optionalKey(Ask),
   /** True while the agent is still adding to this entry. The panel shows a
    *  cursor; nothing else depends on it. */
   streaming: Schema.optionalKey(Schema.Boolean),
@@ -154,6 +247,17 @@ export const ChatState = Schema.Struct({
    *  it, in the order you meant it, and this is only the panel's way of saying
    *  the agent has not reached them yet. */
   queued: Schema.Int,
+  /**
+   * How many questions the agent is waiting on a person to answer.
+   *
+   * Its own fact rather than a sixth `status`, because it is TRUE AT THE SAME
+   * TIME as `thinking`: the turn is in flight and blocked, and a panel that
+   * said only one of those would have to pick which half to lie about. Nonzero
+   * is what turns the composer's "working…" into "waiting on you" — the whole
+   * point being that a question nobody has noticed hangs the turn silently
+   * forever.
+   */
+  asking: Schema.Int,
   /** The last thing that went wrong where no caller was waiting — a boot that
    *  failed, an agent that died mid-turn. `null` once a turn succeeds. */
   trouble: Schema.NullOr(Schema.String),
@@ -170,6 +274,7 @@ export const CHAT_OFF: ChatState = {
   model: null,
   commands: [],
   queued: 0,
+  asking: 0,
   trouble: null,
 }
 

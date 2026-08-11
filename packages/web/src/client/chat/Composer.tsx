@@ -12,6 +12,11 @@
  *     message queues, sending and stopping are two things a person can
  *     genuinely want at the same moment, and hiding the send button would
  *     leave the queue reachable only from the keyboard.
+ *   - **a question the agent asked is said HERE too**, not only where the form
+ *     is. Nothing times out a blocked turn, so a form that has scrolled out of
+ *     sight looks exactly like an agent that is thinking — and this row is
+ *     where a person's attention already is, because it is where they were
+ *     about to type.
  *   - **`/` opens the agent's own commands**, and so does the button beside
  *     the input, which shows the WHOLE list. Typing filters; the button is for
  *     when you do not know what to type, which is most of the time you want a
@@ -157,6 +162,22 @@ export function Composer(props: { readonly chat: Chat }) {
       />
 
       <div class="mt-2 flex items-center gap-2">
+        {/* The turn is stopped on a PERSON, and this is where they find out.
+            A blocked question has no clock behind it: nothing times out, the
+            agent will wait as long as it takes, and a form scrolled off the top
+            of a long transcript is otherwise indistinguishable from an agent
+            that is thinking. So the composer — which is where somebody's
+            attention is, because it is where they were about to type — says
+            it, in the row that already carries "queued". */}
+        <Show when={props.chat.state().asking > 0}>
+          <span
+            class="font-mono text-[0.6875rem] text-doing"
+            data-testid={TESTID.chatWaiting}
+            aria-live="polite"
+          >
+            waiting on your answer
+          </span>
+        </Show>
         {/* Sent, and waiting for the turn in flight. The rows are already in
             the transcript — this says the agent has not reached them. */}
         <Show when={props.chat.state().queued > 0}>
