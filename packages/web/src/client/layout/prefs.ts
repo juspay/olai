@@ -4,12 +4,11 @@
  *
  * Every panel has exactly two states — open, or minimized-with-signal. Nothing
  * closes to nowhere. Widths and the chat snap point are the reader's, stored
- * here and never sent over the wire (the same contract as the theme and the
- * agent drawer that used to live alone in `chat/open.ts`).
+ * here and never sent over the wire.
  *
- * Defaults match what shipped before this rework: a 16rem directory column, a
- * 26rem chat drawer, both open. The rail width is not a preference — it is the
- * fixed collapsed face of the sidebar (~3rem).
+ * Stored widths can outlive the screen they were chosen on, so every *read*
+ * clamps them against the current viewport so the outline cannot vanish under
+ * the dock (e.g. 480 + 720 on a 1024px laptop).
  */
 
 import { type Accessor, createSignal } from "solid-js"
@@ -41,16 +40,19 @@ export const CHAT_DEFAULT_PX = 416
 export const CHAT_MIN_PX = 280
 export const CHAT_MAX_PX = 720
 
+/** Minimum main-pane width so the outline stays the page. */
+export const MIN_MAIN_PX = 280
+
 export type ChatSnap = "half" | "full"
 
-// ── parse helpers ─────────────────────────────────────────────────────────
+// ── parse helpers (exported for unit tests) ───────────────────────────────
 
-const parseBool = (raw: string | null, fallback: boolean): boolean => {
+export const parseBool = (raw: string | null, fallback: boolean): boolean => {
   if (raw === null) return fallback
   return raw === "true"
 }
 
-const parsePx = (
+export const parsePx = (
   raw: string | null,
   fallback: number,
   min: number,
@@ -62,11 +64,67 @@ const parsePx = (
   return clamp(Math.round(n), min, max)
 }
 
-const parseSnap = (raw: string | null): ChatSnap =>
+export const parseSnap = (raw: string | null): ChatSnap =>
   raw === "full" ? "full" : "half"
 
 export const clamp = (n: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, n))
+
+/**
+ * Fit a sidebar + chat pair into a viewport, leaving room for the main pane.
+ * Pure so unit tests hold the 1024px laptop case without a window.
+ */
+export const fitWidths = (
+  sideRaw: number,
+  chatRaw: number,
+  sideOpen: boolean,
+  chatOpen: boolean,
+  viewport: number,
+): { readonly side: number; readonly chat: number } => {
+  const sideTaken = sideOpen ? 0 : RAIL_WIDTH_PX
+  // When the full sidebar is open it takes `side`; when closed, the rail.
+  let side = clamp(sideRaw, SIDEBAR_MIN_PX, SIDEBAR_MAX_PX)
+  let chat = clamp(chatRaw, CHAT_MIN_PX, CHAT_MAX_PX)
+
+  if (sideOpen && chatOpen) {
+    const budget = Math.max(0, viewport - MIN_MAIN_PX)
+    if (side + chat > budget) {
+      // Shrink chat first (the overlay), then the sidebar. Keep both at their
+      // design mins when the viewport allows; only go below on a phone-width
+      // desktop scale that cannot hold them.
+      if (SIDEBAR_MIN_PX + CHAT_MIN_PX <= budget) {
+        chat = clamp(chat, CHAT_MIN_PX, budget - SIDEBAR_MIN_PX)
+        side = clamp(side, SIDEBAR_MIN_PX, budget - chat)
+        chat = clamp(chat, CHAT_MIN_PX, budget - side)
+      } else {
+        chat = clamp(chat, 0, budget)
+        side = clamp(side, 0, budget - chat)
+      }
+    }
+    return { side, chat }
+  }
+
+  if (sideOpen) {
+    const budget = Math.max(0, viewport - MIN_MAIN_PX)
+    return {
+      side: clamp(side, Math.min(SIDEBAR_MIN_PX, budget), Math.min(SIDEBAR_MAX_PX, budget)),
+      chat,
+    }
+  }
+
+  if (chatOpen) {
+    const budget = Math.max(0, viewport - MIN_MAIN_PX - sideTaken)
+    return {
+      side,
+      chat: clamp(chat, Math.min(CHAT_MIN_PX, budget), Math.min(CHAT_MAX_PX, budget)),
+    }
+  }
+
+  return { side, chat }
+}
+
+const viewportWidth = (): number =>
+  typeof window !== "undefined" ? window.innerWidth : 10_000
 
 // ── sidebar open (desktop: full column vs icon rail) ──────────────────────
 
@@ -94,12 +152,28 @@ const [sidebarWidthPx, setSidebarWidthSignal] = createSignal(
   ),
 )
 
-export const sidebarWidth: Accessor<number> = sidebarWidthPx
+/** Live width, clamped to the current viewport. */
+export const sidebarWidth: Accessor<number> = () =>
+  fitWidths(
+    sidebarWidthPx(),
+    chatWidthPx(),
+    sidebarOpen(),
+    chatOpen(),
+    viewportWidth(),
+  ).side
 
-export const setSidebarWidth = (px: number): void => {
+/**
+ * Set the sidebar width. During a drag pass `{ persist: false }` so every
+ * pointermove does not write localStorage (and fire cross-tab storage events);
+ * the handle's `onEnd` persists once.
+ */
+export const setSidebarWidth = (
+  px: number,
+  opts?: { readonly persist?: boolean },
+): void => {
   const next = clamp(Math.round(px), SIDEBAR_MIN_PX, SIDEBAR_MAX_PX)
   setSidebarWidthSignal(next)
-  writePreference(SIDEBAR_WIDTH_KEY, String(next))
+  if (opts?.persist !== false) writePreference(SIDEBAR_WIDTH_KEY, String(next))
 }
 
 // ── chat open (open dock/sheet vs minimized pill/strip) ───────────────────
@@ -129,12 +203,29 @@ const [chatWidthPx, setChatWidthSignal] = createSignal(
   ),
 )
 
-export const chatWidth: Accessor<number> = chatWidthPx
+/** Live width, clamped to the current viewport. */
+export const chatWidth: Accessor<number> = () =>
+  fitWidths(
+    sidebarWidthPx(),
+    chatWidthPx(),
+    sidebarOpen(),
+    chatOpen(),
+    viewportWidth(),
+  ).chat
 
-export const setChatWidth = (px: number): void => {
+export const setChatWidth = (
+  px: number,
+  opts?: { readonly persist?: boolean },
+): void => {
   const next = clamp(Math.round(px), CHAT_MIN_PX, CHAT_MAX_PX)
   setChatWidthSignal(next)
-  writePreference(CHAT_WIDTH_KEY, String(next))
+  if (opts?.persist !== false) writePreference(CHAT_WIDTH_KEY, String(next))
+}
+
+/** Reset both panels to their defaults (palette command for keyboard users). */
+export const resetPanelWidths = (): void => {
+  setSidebarWidth(SIDEBAR_DEFAULT_PX)
+  setChatWidth(CHAT_DEFAULT_PX)
 }
 
 // ── mobile chat snap ──────────────────────────────────────────────────────
@@ -155,9 +246,9 @@ export const setChatSnap = (snap: ChatSnap): void => {
 /**
  * Follow every layout preference for as long as this document lives.
  *
- * Same shape as `followChatOpen` / `followStoredTheme`: started from `main.tsx`
- * once, beside the other document-lifetime listeners. The writing tab has
- * already applied its own pick; these only apply what another tab left.
+ * Same shape as `followStoredTheme`: started from `main.tsx` once. Also
+ * re-fits widths when the viewport resizes so a laptop undock cannot leave
+ * the outline under the dock.
  */
 export const followLayout = (): void => {
   watchPreference(SIDEBAR_OPEN_KEY, (value) => {
@@ -177,4 +268,13 @@ export const followLayout = (): void => {
   watchPreference(CHAT_SNAP_KEY, (value) => {
     setChatSnapSignal(parseSnap(value))
   })
+
+  // Re-read fit on resize: accessors re-run when signals change, but a bare
+  // window resize does not touch a signal. Nudge a signal with its own value
+  // so Solid re-renders consumers of sidebarWidth/chatWidth.
+  const onResize = () => {
+    setSidebarWidthSignal((w) => w)
+    setChatWidthSignal((w) => w)
+  }
+  window.addEventListener("resize", onResize)
 }

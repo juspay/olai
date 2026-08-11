@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { matchKey } from "./keys.ts"
+import { isApplePlatform, matchKey } from "./keys.ts"
 
 const key = (
   k: string,
@@ -14,23 +14,28 @@ const key = (
     shiftKey: mods.shift === true,
   }) as KeyboardEvent
 
-test("⌘K and Ctrl+K open the palette", () => {
-  expect(matchKey(key("k", { meta: true }))?.action).toBe("palette")
-  expect(matchKey(key("K", { ctrl: true }))?.action).toBe("palette")
+test("on Apple, Meta bindings fire and bare Ctrl does not", () => {
+  expect(matchKey(key("k", { meta: true }), "MacIntel")?.action).toBe("palette")
+  expect(matchKey(key("k", { ctrl: true }), "MacIntel")).toBeNull()
+  expect(matchKey(key("j", { meta: true }), "MacIntel")?.action).toBe("chat")
+  expect(matchKey(key("\\", { meta: true }), "MacIntel")?.action).toBe("sidebar")
 })
 
-test("⌘\\ toggles the sidebar", () => {
-  expect(matchKey(key("\\", { meta: true }))?.action).toBe("sidebar")
-  expect(matchKey(key("\\", { ctrl: true }))?.action).toBe("sidebar")
+test("elsewhere, Ctrl bindings fire and bare Meta does not", () => {
+  expect(matchKey(key("k", { ctrl: true }), "Linux x86_64")?.action).toBe(
+    "palette",
+  )
+  expect(matchKey(key("k", { meta: true }), "Linux x86_64")).toBeNull()
+  expect(matchKey(key("j", { ctrl: true }), "Linux x86_64")?.action).toBe("chat")
 })
 
-test("⌘J toggles chat", () => {
-  expect(matchKey(key("j", { meta: true }))?.action).toBe("chat")
-  expect(matchKey(key("j", { ctrl: true }))?.action).toBe("chat")
+test("shifted and bare keys are ignored", () => {
+  expect(matchKey(key("k"), "Linux x86_64")).toBeNull()
+  expect(matchKey(key("k", { ctrl: true, shift: true }), "Linux x86_64")).toBeNull()
 })
 
-test("bare keys and shifted combos are ignored", () => {
-  expect(matchKey(key("k"))).toBeNull()
-  expect(matchKey(key("k", { meta: true, shift: true }))).toBeNull()
-  expect(matchKey(key("k", { meta: true, alt: true }))).toBeNull()
+test("isApplePlatform recognises Mac and iOS", () => {
+  expect(isApplePlatform("MacIntel")).toBe(true)
+  expect(isApplePlatform("iPhone")).toBe(true)
+  expect(isApplePlatform("Linux x86_64")).toBe(false)
 })

@@ -17,7 +17,6 @@ import { createEffect, createMemo, createSignal, Match, Show, Switch } from "sol
 
 import { AppHeader } from "./AppHeader.tsx"
 import { Calendar } from "./calendar/Calendar.tsx"
-import { chatOpen } from "./chat/open.ts"
 import { Panel as ChatPanel } from "./chat/Panel.tsx"
 import { createToday } from "./clock.ts"
 import { Connection } from "./connection/Connection.tsx"
@@ -31,7 +30,7 @@ import { Broken } from "./errors/Broken.tsx"
 import { Page as ErrorPage } from "./errors/Page.tsx"
 import { publishLayoutCss } from "./layout/css.ts"
 import { desktop } from "./layout/media.ts"
-import { sidebarOpen } from "./layout/prefs.ts"
+import { chatOpen, sidebarOpen, toggleSidebar } from "./layout/prefs.ts"
 import { Rail } from "./layout/Rail.tsx"
 import { only } from "./narrow.ts"
 import { NodePage } from "./NodePage.tsx"
@@ -99,7 +98,15 @@ export default function App() {
     <>
       <Connection status={connectionStatus()} />
       <ChatPanel />
-      <Palette go={(route) => router.go(route)} />
+      <Palette
+        go={(route) => router.go(route)}
+        toggleDirectory={() => {
+          // Desktop: open/rail preference. Phone: ephemeral drawer — do not
+          // flip the desktop preference a phone cannot show.
+          if (desktop()) toggleSidebar()
+          else setMenuOpen(!menuOpen())
+        }}
+      />
       <div class="flex min-h-dvh flex-col">
         <AppHeader
           docked={docked()}
@@ -152,7 +159,13 @@ export default function App() {
                         />
                       </Sidebar>
                     </Show>
-                    <main class={`overflow-x-auto px-4 pt-4 ${CLEARANCE} md:px-12 md:py-8 lg:pl-16 lg:pr-12`}>
+                    {/* Extra bottom pad on phone when the chat strip is up so
+                        the last lines of a long page are not trapped under it. */}
+                    <main
+                      class={`overflow-x-auto px-4 pt-4 ${CLEARANCE} md:px-12 md:py-8 lg:pl-16 lg:pr-12 ${
+                        !desktop() && !chatOpen() ? "pb-16" : ""
+                      }`}
+                    >
                       <Show when={problems().length > 0}>
                         <Banner errors={problems()} />
                       </Show>

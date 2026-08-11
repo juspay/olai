@@ -5,10 +5,11 @@
  *   ⌘\\ / Ctrl+\\ — toggle sidebar
  *   ⌘J / Ctrl+J  — toggle chat
  *
- * Meta on Apple, Ctrl elsewhere — both accepted so a Linux laptop and a Mac
- * share the same map. When the event target is an editable field, only ⌘K
- * still fires (summon from anywhere); panel toggles stay out of the way of
- * typing.
+ * Platform: Meta on Apple (where Ctrl+K is kill-to-end-of-line in text
+ * fields), Control elsewhere. Accepting both on every platform was wrong for
+ * the palette's whileEditing binding. ⌘J / Ctrl+J and Ctrl+K also shadow
+ * browser chrome defaults (downloads / search bar) — deliberate, so keyboard-
+ * editing cannot claim those combos later.
  */
 
 export type KeyAction = "palette" | "sidebar" | "chat"
@@ -19,15 +20,33 @@ export interface KeyMatch {
   readonly whileEditing: boolean
 }
 
-const isMod = (event: KeyboardEvent): boolean => event.metaKey || event.ctrlKey
+/** Apple platforms where Meta is the primary modifier and Ctrl+K is readline. */
+export const isApplePlatform = (
+  platform: string = typeof navigator !== "undefined" ? navigator.platform : "",
+): boolean => /Mac|iPhone|iPad|iPod/i.test(platform)
+
+const wantsMeta = (): boolean => isApplePlatform()
+
+const isMod = (event: KeyboardEvent): boolean => {
+  if (wantsMeta()) return event.metaKey && !event.ctrlKey
+  return event.ctrlKey && !event.metaKey
+}
 
 /**
  * Which reserved action a keydown is, or `null` if none.
  *
  * Pure of the DOM beyond the event itself so unit tests need no window.
+ * Pass `platform` in tests to pin Apple vs not.
  */
-export const matchKey = (event: KeyboardEvent): KeyMatch | null => {
-  if (!isMod(event) || event.altKey || event.shiftKey) return null
+export const matchKey = (
+  event: KeyboardEvent,
+  platform?: string,
+): KeyMatch | null => {
+  const apple = platform !== undefined ? isApplePlatform(platform) : wantsMeta()
+  const mod = apple
+    ? event.metaKey && !event.ctrlKey
+    : event.ctrlKey && !event.metaKey
+  if (!mod || event.altKey || event.shiftKey) return null
   const key = event.key.length === 1 ? event.key.toLowerCase() : event.key
   if (key === "k") return { action: "palette", whileEditing: true }
   if (key === "\\") return { action: "sidebar", whileEditing: false }

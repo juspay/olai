@@ -84,11 +84,11 @@ export function Sidebar(props: {
 
   return (
     <>
-      {/* Mobile scrim: only when the drawer is open. */}
+      {/* Mobile scrim: under the header so app chrome stays tappable (#101). */}
       <Show when={props.open}>
         <button
           type="button"
-          class="fixed inset-0 z-30 bg-ink/40 md:hidden"
+          class="fixed inset-x-0 bottom-0 top-[var(--height-header,3rem)] z-30 bg-ink/40 md:hidden"
           data-testid={TESTID.sidebarScrim}
           aria-label="close the directory"
           onClick={() => props.onClose()}
@@ -97,36 +97,33 @@ export function Sidebar(props: {
 
       <nav
         class={
-          // Mobile closed: `hidden` so Playwright (and thumbs) agree it is put
-          // away — off-screen translate still counts as visible to the suite.
-          // Mobile open: fixed drawer under the header with a right rule.
-          // Desktop: in-flow column; width comes from the grid / CSS var.
+          // Mobile closed: `hidden` (off-screen translate still counts as
+          // visible to Playwright). Mobile open: FIXED under the header —
+          // never also `relative` (that utility wins the cascade and demotes
+          // the drawer into flow offsets). Desktop: in-flow column.
           (props.open ? "flex " : "hidden ") +
-          "relative z-40 flex-col border-r border-rule bg-paper " +
-          // Wide enough that the month's 7 day cells still hit 44×44 under
-          // the phone target rule (7×2.75rem + pad ≈ 90vw on a 390pt screen).
+          "z-40 flex-col border-r border-rule bg-paper " +
+          // Wide enough that the month's 7 day cells still hit 44×44.
           "fixed bottom-0 left-0 top-[var(--height-header,3rem)] w-[min(22rem,92vw)] " +
-          "md:static md:flex md:h-full md:w-full md:translate-x-0"
+          "md:static md:relative md:flex md:h-full md:w-full md:translate-x-0"
         }
         data-testid={TESTID.sidebar}
         data-open={props.open ? "true" : "false"}
       >
-        {/* Desktop: collapse to the rail. The resize handle is a full-height
-            edge of this nav (absolute), not a strip on this toolbar. */}
-        <div class="hidden shrink-0 items-center justify-end border-b border-rule px-2 py-1 md:flex">
-          <button
-            type="button"
-            class={`${TARGET_BOX} inline-flex items-center justify-center rounded text-muted hover:bg-rule/60 hover:text-ink md:min-h-8 md:min-w-8`}
-            data-testid={TESTID.sidebarCollapse}
-            aria-label="collapse the sidebar to the icon rail"
-            title="collapse sidebar"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
-              <path d="M9.78 3.22a.75.75 0 0 1 0 1.06L6.56 8l3.22 3.72a.75.75 0 1 1-1.06 1.06l-4-4a.75.75 0 0 1 0-1.06l4-4a.75.75 0 0 1 1.06 0z" />
-            </svg>
-          </button>
-        </div>
+        {/* Desktop: collapse control floats at the top-right of the column
+            rather than owning a full toolbar band. */}
+        <button
+          type="button"
+          class={`absolute right-1 top-1 z-10 hidden ${TARGET_BOX} items-center justify-center rounded text-muted hover:bg-rule/60 hover:text-ink md:inline-flex md:min-h-8 md:min-w-8`}
+          data-testid={TESTID.sidebarCollapse}
+          aria-label="collapse the sidebar to the icon rail"
+          title="collapse sidebar"
+          onClick={() => setSidebarOpen(false)}
+        >
+          <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
+            <path d="M9.78 3.22a.75.75 0 0 1 0 1.06L6.56 8l3.22 3.72a.75.75 0 1 1-1.06 1.06l-4-4a.75.75 0 0 1 0-1.06l4-4a.75.75 0 0 1 1.06 0z" />
+          </svg>
+        </button>
         <div class="hidden md:contents">
           <SidebarHandle />
         </div>

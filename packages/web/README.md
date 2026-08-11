@@ -417,8 +417,8 @@ driving a second path to the same fact.
 `src/client/chat/` is a dock on the right (desktop) or a bottom sheet (phone).
 Every panel has exactly two states — open, or minimized-with-signal — nothing
 closes to nowhere. Minimized desktop is a bottom-right **pill** carrying the
-last agent message and pulsing while a turn runs (`Pill.tsx`); minimized phone
-is a **strip** above the thumb (`Strip.tsx`). The header keeps the connection
+last agent message and pulsing while a turn runs (`Minimized.tsx`); minimized
+phone is a **strip** above the thumb (same component). The header keeps the connection
 dot and the agent toggle (app chrome); the pill does not carry the connection.
 
 Open on desktop, it drag-resizes and takes its width out of the layout on a

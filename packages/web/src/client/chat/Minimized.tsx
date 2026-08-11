@@ -2,13 +2,9 @@
  * Minimized chat — the other of the two states (open dock/sheet vs this).
  *
  * One component, two geometries: a bottom-right pill on desktop, a thumb
- * strip on a phone. Same content contract — last agent message + pulse while
- * running — and the same click opens the panel. Header keeps the connection
- * and the agent toggle; this face does not carry either.
- *
- * Pill and strip used to be sibling files that re-derived the same busy /
- * last-text / click story with different class strings. That is one concept
- * (the minimized signal) with two faces, not two concepts.
+ * strip on a phone. Last-message text comes from `last.ts` (a snapshot the
+ * open panel writes) — not a transcript subscription. Busy pulse comes from
+ * the cheap `chat` cell via createChatState.
  */
 
 import { Show } from "solid-js"
@@ -16,14 +12,12 @@ import { Show } from "solid-js"
 import { chatOpen, setChatOpen } from "../layout/prefs.ts"
 import { desktop } from "../layout/media.ts"
 import { TESTID } from "../testids.ts"
-import { createLastAgentText, previewText } from "./last.ts"
+import { lastAgentPreview, previewText } from "./last.ts"
 import { createChatState } from "./state.ts"
 
 export function Minimized() {
   const state = createChatState()
-  const last = createLastAgentText()
   const working = () => state().status === "thinking"
-  // Minimized only: when open, the dock/sheet is the face.
   const show = () => !chatOpen()
   const onDesktop = () => desktop()
 
@@ -58,7 +52,7 @@ export function Minimized() {
             onClick={() => setChatOpen(true)}
           >
             <Glyph />
-            <Text last={last()} fallback={label()} />
+            <Text last={lastAgentPreview()} fallback={label()} />
           </button>
         }
       >
@@ -79,7 +73,7 @@ export function Minimized() {
           onClick={() => setChatOpen(true)}
         >
           <Glyph accent />
-          <Text last={last()} fallback={label()} />
+          <Text last={lastAgentPreview()} fallback={label()} />
         </button>
       </Show>
     </Show>
@@ -102,10 +96,7 @@ function Text(props: {
   readonly fallback: string
 }) {
   return (
-    <span
-      class="min-w-0 flex-1 truncate"
-      data-testid={TESTID.chatPillText}
-    >
+    <span class="min-w-0 flex-1 truncate" data-testid={TESTID.chatPillText}>
       <Show when={props.last} fallback={<span>{props.fallback}</span>}>
         {(text) => previewText(text())}
       </Show>

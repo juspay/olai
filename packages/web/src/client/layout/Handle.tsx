@@ -1,21 +1,26 @@
 /**
  * The drag handle between a panel and the page.
  *
- * A 4px hit strip, wider than it looks so a pointer can find it, with a rule
- * that lights on hover. Keyboard users resize through the palette / defaults;
- * this control is pointer-only by design (a second number field would be a
- * second way to set one width).
+ * A 4px hit strip, wider than it looks so a pointer can find it. Widths are
+ * live on the signal during the drag and written to localStorage only on
+ * pointerup (see layout/prefs.ts), so a short drag is one storage write and
+ * not twenty cross-tab re-renders.
+ *
+ * Keyboard users reset widths from the palette ("Reset panel widths"); this
+ * control is pointer-only.
  */
+
+import { onCleanup } from "solid-js"
 
 import { TESTID, type TestId } from "../testids.ts"
 import {
   CHAT_MAX_PX,
   CHAT_MIN_PX,
+  chatWidth,
   setChatWidth,
   setSidebarWidth,
   SIDEBAR_MAX_PX,
   SIDEBAR_MIN_PX,
-  chatWidth,
   sidebarWidth,
 } from "./prefs.ts"
 import { startResize, type ResizeEdge } from "./resize.ts"
@@ -29,7 +34,8 @@ export function SidebarHandle() {
       width={sidebarWidth}
       min={SIDEBAR_MIN_PX}
       max={SIDEBAR_MAX_PX}
-      onWidth={setSidebarWidth}
+      onLive={(px) => setSidebarWidth(px, { persist: false })}
+      onCommit={(px) => setSidebarWidth(px, { persist: true })}
     />
   )
 }
@@ -43,7 +49,8 @@ export function ChatHandle() {
       width={chatWidth}
       min={CHAT_MIN_PX}
       max={CHAT_MAX_PX}
-      onWidth={setChatWidth}
+      onLive={(px) => setChatWidth(px, { persist: false })}
+      onCommit={(px) => setChatWidth(px, { persist: true })}
     />
   )
 }
@@ -55,8 +62,12 @@ function ResizeHandle(props: {
   readonly width: () => number
   readonly min: number
   readonly max: number
-  readonly onWidth: (px: number) => void
+  readonly onLive: (px: number) => void
+  readonly onCommit: (px: number) => void
 }) {
+  let stop: (() => void) | undefined
+  onCleanup(() => stop?.())
+
   return (
     <div
       role="separator"
@@ -73,13 +84,18 @@ function ResizeHandle(props: {
       }
       onPointerDown={(event) => {
         if (event.button !== 0) return
-        startResize({
+        stop?.()
+        stop = startResize({
           event,
           edge: props.edge,
           startWidth: props.width(),
           min: props.min,
           max: props.max,
-          onMove: props.onWidth,
+          onMove: props.onLive,
+          onEnd: (px) => {
+            props.onCommit(px)
+            stop = undefined
+          },
         })
       }}
     >

@@ -221,6 +221,8 @@ export const TESTID = {
   paletteList: "palette-list",
   paletteItem: "palette-item",
   paletteAsk: "palette-ask",
+  /** Refusal from a `>` ask that the palette surfaces instead of swallowing. */
+  paletteAskError: "palette-ask-error",
   chatTitle: "chat-title",
   chatModel: "chat-model",
   chatNew: "chat-new",

@@ -12,6 +12,7 @@ export type PaletteAction =
   | { readonly kind: "route"; readonly route: Route }
   | { readonly kind: "toggle-sidebar" }
   | { readonly kind: "toggle-chat" }
+  | { readonly kind: "reset-widths" }
   | { readonly kind: "ask"; readonly text: string }
 
 export interface PaletteItem {
@@ -51,6 +52,13 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     hint: "⌘J",
     action: { kind: "toggle-chat" },
     search: "toggle agent panel chat",
+  },
+  {
+    id: "reset-widths",
+    label: "Reset panel widths",
+    hint: "defaults",
+    action: { kind: "reset-widths" },
+    search: "reset panel widths sidebar chat default size",
   },
 ]
 

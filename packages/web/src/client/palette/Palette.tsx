@@ -1,9 +1,12 @@
 /**
  * ⌘K command palette — the SHELL only.
  *
- * Navigation, panel toggles, and a `>` prefix that sends the rest to the
- * agent. Jump-to-node type-ahead and op actions are the separate `palette`
- * roadmap item.
+ * Navigation, panel toggles, reset widths, and a `>` prefix that sends the
+ * rest to the agent. Jump-to-node type-ahead and op actions are the separate
+ * `palette` roadmap item.
+ *
+ * `>` ask uses `run` with a real failure handler: a refusal is shown in the
+ * palette rather than dropped (run.ts forbids a silent handler).
  */
 
 import {
@@ -16,7 +19,13 @@ import {
   Show,
 } from "solid-js"
 
-import { setChatOpen, toggleChat, toggleSidebar } from "../layout/prefs.ts"
+import type { OpFailure } from "@olai/surface"
+
+import {
+  resetPanelWidths,
+  setChatOpen,
+  toggleChat,
+} from "../layout/prefs.ts"
 import type { Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
@@ -26,11 +35,18 @@ import { isEditingTarget, matchKey } from "./keys.ts"
 
 export function Palette(props: {
   readonly go: (route: Route) => void
+  /**
+   * Toggle the directory panel in a mode-aware way: desktop sidebar open/rail,
+   * or the mobile drawer. Owned by App because the mobile state is ephemeral.
+   */
+  readonly toggleDirectory: () => void
 }) {
   const [open, setOpen] = createSignal(false)
   const [query, setQuery] = createSignal("")
   const [active, setActive] = createSignal(0)
+  const [askError, setAskError] = createSignal<string | null>(null)
   let input: HTMLInputElement | undefined
+  let previousFocus: HTMLElement | null = null
 
   const ask = createMemo(() => askQuery(query()))
   const items = createMemo(() => {
@@ -42,23 +58,49 @@ export function Palette(props: {
     setOpen(false)
     setQuery("")
     setActive(0)
+    setAskError(null)
+    const back = previousFocus
+    previousFocus = null
+    queueMicrotask(() => back?.focus())
+  }
+
+  const openPalette = () => {
+    previousFocus =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null
+    setOpen(true)
+    setQuery("")
+    setActive(0)
+    setAskError(null)
+    queueMicrotask(() => input?.focus())
   }
 
   const runItem = (item: PaletteItem) => {
     const action = item.action
     if (action.kind === "route") props.go(action.route)
-    else if (action.kind === "toggle-sidebar") toggleSidebar()
+    else if (action.kind === "toggle-sidebar") props.toggleDirectory()
     else if (action.kind === "toggle-chat") toggleChat()
+    else if (action.kind === "reset-widths") resetPanelWidths()
     close()
   }
 
   const sendAsk = (text: string) => {
     if (text.trim() === "") return
-    setChatOpen(true)
-    run(olai.procedures.chat.send({ text }), () => {
-      /* refusal surfaces in the panel */
-    })
-    close()
+    setAskError(null)
+    run(
+      olai.procedures.chat.send({ text }),
+      (failure: OpFailure) => {
+        setAskError(failure.message)
+        // Leave the palette open so the refusal is visible; open the panel
+        // so the reader can also recover there.
+        setChatOpen(true)
+      },
+      () => {
+        setChatOpen(true)
+        close()
+      },
+    )
   }
 
   const confirm = () => {
@@ -80,21 +122,21 @@ export function Palette(props: {
           event.preventDefault()
           close()
         }
+        // Simple focus trap: keep Tab inside the dialog while open.
+        if (open() && event.key === "Tab" && input) {
+          event.preventDefault()
+          input.focus()
+        }
         return
       }
       if (!match.whileEditing && isEditingTarget(event.target)) return
       event.preventDefault()
       if (match.action === "palette") {
         if (open()) close()
-        else {
-          setOpen(true)
-          setQuery("")
-          setActive(0)
-          queueMicrotask(() => input?.focus())
-        }
+        else openPalette()
         return
       }
-      if (match.action === "sidebar") toggleSidebar()
+      if (match.action === "sidebar") props.toggleDirectory()
       if (match.action === "chat") toggleChat()
     }
     window.addEventListener("keydown", onKey)
@@ -102,7 +144,6 @@ export function Palette(props: {
   })
 
   createEffect(() => {
-    // Keep the highlight inside the filtered list.
     const n = items().length
     if (active() >= n) setActive(n === 0 ? 0 : n - 1)
   })
@@ -134,6 +175,7 @@ export function Palette(props: {
             onInput={(e) => {
               setQuery(e.currentTarget.value)
               setActive(0)
+              setAskError(null)
             }}
             onKeyDown={(e) => {
               if (e.key === "ArrowDown") {
@@ -153,6 +195,17 @@ export function Palette(props: {
               }
             }}
           />
+          <Show when={askError()}>
+            {(err) => (
+              <div
+                class="border-b border-alarm/40 bg-alarm/5 px-4 py-2 font-mono text-xs text-alarm"
+                data-testid={TESTID.paletteAskError}
+                role="alert"
+              >
+                {err()}
+              </div>
+            )}
+          </Show>
           <Show
             when={ask() !== null}
             fallback={
@@ -160,9 +213,14 @@ export function Palette(props: {
                 class="m-0 max-h-72 list-none overflow-y-auto p-1"
                 data-testid={TESTID.paletteList}
               >
-                <For each={[...items()]} fallback={
-                  <li class="px-3 py-2 font-mono text-xs text-muted">no matches</li>
-                }>
+                <For
+                  each={[...items()]}
+                  fallback={
+                    <li class="px-3 py-2 font-mono text-xs text-muted">
+                      no matches
+                    </li>
+                  }
+                >
                   {(item, index) => (
                     <li>
                       <button
@@ -199,7 +257,9 @@ export function Palette(props: {
             >
               <Show
                 when={(ask() ?? "").trim() !== ""}
-                fallback={<span>type a message after &gt; to send to the agent</span>}
+                fallback={
+                  <span>type a message after &gt; to send to the agent</span>
+                }
               >
                 <span>
                   send to agent: <span class="text-ink">{ask()}</span>

@@ -201,6 +201,7 @@ export const CHAT_SHEET_SCRIM = selector(TESTID.chatSheetScrim);
 export const CHAT_SHEET_HANDLE = selector(TESTID.chatSheetHandle);
 export const PALETTE = selector(TESTID.palette);
 export const PALETTE_ITEM = selector(TESTID.paletteItem);
+export const PALETTE_ASK_ERROR = selector(TESTID.paletteAskError);
 export const CHAT_TITLE = selector(TESTID.chatTitle);
 export const CHAT_WORKING = selector(TESTID.chatWorking);
 export const CHAT_MODEL = selector(TESTID.chatModel);

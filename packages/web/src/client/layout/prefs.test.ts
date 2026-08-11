@@ -1,11 +1,78 @@
 import { expect, test } from "bun:test"
 
-import { clamp } from "./prefs.ts"
+import {
+  CHAT_DEFAULT_PX,
+  CHAT_MAX_PX,
+  CHAT_MIN_PX,
+  clamp,
+  fitWidths,
+  MIN_MAIN_PX,
+  parseBool,
+  parsePx,
+  parseSnap,
+  RAIL_WIDTH_PX,
+  SIDEBAR_DEFAULT_PX,
+  SIDEBAR_MAX_PX,
+  SIDEBAR_MIN_PX,
+} from "./prefs.ts"
 
 test("clamp holds a value inside its bounds", () => {
   expect(clamp(10, 0, 20)).toBe(10)
   expect(clamp(-5, 0, 20)).toBe(0)
   expect(clamp(99, 0, 20)).toBe(20)
-  expect(clamp(0, 0, 20)).toBe(0)
-  expect(clamp(20, 0, 20)).toBe(20)
+})
+
+test("parseBool treats only the string true as open", () => {
+  expect(parseBool(null, true)).toBe(true)
+  expect(parseBool(null, false)).toBe(false)
+  expect(parseBool("true", false)).toBe(true)
+  expect(parseBool("false", true)).toBe(false)
+  expect(parseBool("1", false)).toBe(false)
+})
+
+test("parsePx clamps and rejects non-numbers", () => {
+  expect(parsePx(null, 256, 180, 480)).toBe(256)
+  expect(parsePx("300", 256, 180, 480)).toBe(300)
+  expect(parsePx("99", 256, 180, 480)).toBe(180)
+  expect(parsePx("9999", 256, 180, 480)).toBe(480)
+  expect(parsePx("nope", 256, 180, 480)).toBe(256)
+  // 12.7 rounds to 13, then clamps up to the min.
+  expect(parsePx("12.7", 256, 180, 480)).toBe(180)
+})
+
+test("parseSnap only accepts full; everything else is half", () => {
+  expect(parseSnap("full")).toBe("full")
+  expect(parseSnap(null)).toBe("half")
+  expect(parseSnap("half")).toBe("half")
+  expect(parseSnap("whatever")).toBe("half")
+})
+
+test("fitWidths keeps a main pane on a 1024px laptop at max stored widths", () => {
+  const { side, chat } = fitWidths(
+    SIDEBAR_MAX_PX,
+    CHAT_MAX_PX,
+    true,
+    true,
+    1024,
+  )
+  expect(side + chat + MIN_MAIN_PX).toBeLessThanOrEqual(1024)
+  expect(side).toBeGreaterThanOrEqual(SIDEBAR_MIN_PX)
+  expect(chat).toBeGreaterThanOrEqual(CHAT_MIN_PX)
+})
+
+test("fitWidths leaves defaults alone on a wide screen", () => {
+  const { side, chat } = fitWidths(
+    SIDEBAR_DEFAULT_PX,
+    CHAT_DEFAULT_PX,
+    true,
+    true,
+    1440,
+  )
+  expect(side).toBe(SIDEBAR_DEFAULT_PX)
+  expect(chat).toBe(CHAT_DEFAULT_PX)
+})
+
+test("fitWidths with chat only leaves room for the rail", () => {
+  const { chat } = fitWidths(SIDEBAR_DEFAULT_PX, CHAT_MAX_PX, false, true, 600)
+  expect(chat + RAIL_WIDTH_PX + MIN_MAIN_PX).toBeLessThanOrEqual(600)
 })
