@@ -1,13 +1,20 @@
 /**
- * The served directory, as this tab sees it.
+ * The outlines of the served directory, as this tab sees it.
  *
- * TWO subscriptions, and between them they are the whole read side of the app:
- * a COLLECTION of outlines keyed by root-relative path, and a `manifest` CELL
- * for what belongs to no one file. The collection is served with batched
- * `deltas`, so a probe tick that touched one file sends that file's entry and
- * not the corpus — and the key is the protocol's (`keySchema`) rather than a
- * client library's default, which is the whole point of the re-modelling
- * (`docs/brainstorming/outlines-as-collection.md`).
+ * TWO subscriptions: a COLLECTION of outlines keyed by root-relative path, and
+ * a `manifest` CELL for whether there is a set at all. The collection is served
+ * with batched `deltas`, so a probe tick that touched one file sends that
+ * file's entry and not the corpus — and the key is the protocol's (`keySchema`)
+ * rather than a client library's default, which is the whole point of the
+ * re-modelling (`docs/brainstorming/outlines-as-collection.md`).
+ *
+ * The DOCUMENTS are not here, and their being elsewhere is a decision rather
+ * than a filing accident: they are served the opposite way — a key set for
+ * everyone and a body for whoever opens one — and the module that owns that
+ * member is the module that can hold the rule
+ * (`./document/documents.tsx`). What that replaced was the manifest carrying
+ * every document's full text in the first frame: ~124 KB of a ~212 KB snapshot
+ * for this project's own `docs/`, and O(corpus) for a directory of thousands.
  *
  * THREE states a reader must tell apart, and the manifest is what says which:
  * `undefined` is "no frame yet" (the page is still reading), `null` is "there
@@ -18,18 +25,18 @@
  *
  * Two frames of one revision may arrive a beat apart, and nothing here pretends
  * otherwise: entries are upserted per changed file, so an unchanged neighbour
- * keeps the `rev` it was last published at, and the manifest is a member of its
- * own. What that costs a reader is spelled out in the design doc's cross-file
- * consistency paragraph; what it costs THIS module is nothing, because
- * everything below is derived from whatever the entries currently say rather
- * than from a claim about which revision they are all at.
+ * keeps the `rev` it was last published at. What that costs a reader is spelled
+ * out in the design doc's cross-file consistency paragraph; what it costs THIS
+ * module is nothing, because everything below is derived from whatever the
+ * entries currently say rather than from a claim about which revision they are
+ * all at.
  *
  * Nothing here writes to what the wire hands it — see App.tsx's note on
  * `reconcile` — and nothing here interprets it either: the nodes of every entry
  * go into `@olai/format`'s own derivation, the same call the validator makes.
  */
 
-import type { BrokenFile, Derived, Document } from "@olai/format"
+import type { BrokenFile, Derived } from "@olai/format"
 import { derive } from "@olai/format"
 import type { Manifest } from "@olai/surface"
 import { type Accessor, createMemo } from "solid-js"
@@ -43,14 +50,6 @@ export interface Outlines {
   readonly manifest: Accessor<Manifest | undefined>
   /** Every outline file, in path order. */
   readonly files: Accessor<ReadonlyArray<string>>
-  /** Every `.md` the directory holds, text and all — the sidebar's file tree
-   *  mixes them with outlines under the folders they live in; the document
-   *  pages and every `doc` preview read the same list. */
-  readonly documents: Accessor<ReadonlyArray<Document>>
-  /** The same documents BY PATH — the one index everything that answers "which
-   *  document is this" reads. The list above stays the list, because the tree
-   *  is built from ordered paths. */
-  readonly documentsByFile: Accessor<ReadonlyMap<string, Document>>
   /** The files that did not parse, by path — the sidebar marks them and the
    *  main pane draws one of them instead of a tree. */
   readonly broken: Accessor<ReadonlyMap<string, BrokenFile>>
@@ -72,18 +71,9 @@ export const createOutlines = (): Outlines => {
     files().flatMap((file) => entries.byKey(file)?.()?.nodes ?? [])
   )
 
-  const documents = () => manifest.value()?.documents ?? []
-
   return {
     manifest: manifest.value,
     files,
-    documents,
-    documentsByFile: createMemo(
-      () =>
-        new Map<string, Document>(
-          documents().map((document) => [document.file, document] as const),
-        ),
-    ),
     broken: createMemo(() => {
       const found = new Map<string, BrokenFile>()
       for (const file of files()) {

@@ -3,15 +3,16 @@
  *
  * Two subjects, and the bindings say which is which:
  *
- *   - the OUTLINE is the store's. One fiber follows `SubscriptionRef.changes`
+ *   - the DIRECTORY is the store's. One fiber follows `SubscriptionRef.changes`
  *     of the snapshot — current value first, then every later one — and each
- *     revision it sees becomes three writes: the entries whose file moved, the
- *     keys whose file is gone, and the manifest. It is an OWNED source (the
- *     `manifest` cell's `connect`), like the error cell's, so it lives on the
- *     runtime's own scope and a failure in it settles `done`.
+ *     revision it sees becomes the writes of that revision: for each of the two
+ *     collections the entries whose file moved and the keys whose file is gone,
+ *     then the manifest. It is an OWNED source (the `manifest` cell's
+ *     `connect`), like the error cell's, so it lives on the runtime's own scope
+ *     and a failure in it settles `done`.
  *
- *     What makes that ONE fiber rather than two is that the collection and the
- *     cell are two halves of one revision: publishing them from two
+ *     What makes that ONE fiber rather than three is that the collections and
+ *     the cell are halves of one revision: publishing them from separate
  *     subscriptions to the same ref would let a reader see a manifest naming a
  *     revision whose entries had not been written yet, from a server that knew
  *     both.
@@ -30,9 +31,9 @@ import type { Store } from "@olai/store"
 import {
   CHAT_OFF,
   type ChatState,
+  LOADED,
   type Manifest,
   type OpFailure,
-  type OutlineEntry,
   surface,
 } from "@olai/surface"
 import { UsageFailure } from "@olai/format"
@@ -45,11 +46,31 @@ import {
 import { Effect, Stream, SubscriptionRef } from "effect"
 
 import type { Change, Chat } from "@olai/chat"
-import { publishedOf } from "./outlines.ts"
+import {
+  type Change as CollectionChange,
+  type Published,
+  publishedOf,
+} from "./published.ts"
 
 /** What a transport needs, and nothing else. `ctx` is the write face, which
  *  belongs to the bindings below rather than to whoever serves them. */
 export type Bound = Omit<SurfaceRuntime<typeof surface.spec>, "ctx">
+
+/** One collection's revision, written to the collection. The two directory
+ *  collections are published by the same two statements in the same order, and
+ *  one spelling of them is one place for that order to be decided — a third
+ *  collection is a line rather than a loop nobody re-reads. Structural in what
+ *  it writes to, so it is the CHANGE it knows about and not the surface. */
+const apply = <T>(
+  collection: {
+    upsert: (key: string, value: T) => void
+    remove: (key: string) => void
+  } | undefined,
+  change: CollectionChange<T>,
+): void => {
+  for (const [key, entry] of change.upserts) collection?.upsert(key, entry)
+  for (const key of change.removes) collection?.remove(key)
+}
 
 export interface Wiring {
   readonly store: Store<OutlineSet, ReadonlyArray<OutlineError>>
@@ -78,17 +99,23 @@ export const bind = (
     const errors = inMemoryStore<ReadonlyArray<OutlineError>>([])
     const chat = wiring.chat
 
-    /** The served directory as entries — the collection's own value, replaced
+    /** The revision the wire is holding — `null` until the store has published
+     *  one. Each collection's entries are that revision's own map, replaced
      *  whole by the connector below and never mutated after, which is what lets
-     *  `readAll` hand it over as it is. A fresh subscription's snapshot and the
+     *  `readAll` hand one over as it is: a fresh subscription's snapshot and the
      *  deltas an open one is watching are two readings of one map rather than
-     *  two copies to keep in step. */
-    let entries = new Map<string, OutlineEntry>()
+     *  two copies to keep in step. Kept WHOLE rather than as its pieces, so the
+     *  next revision is derived from one thing (see {@link publishedOf}). */
+    let held: Published | null = null
+    /** What a collection reads before the store has published anything. One
+     *  value rather than a fresh map per call: `readAll` is asked on every
+     *  subscribe, and nothing may write to what it hands back. */
+    const NOTHING_YET = new Map<string, never>()
     /** The surface's own write face, once there is one to publish through —
      *  filled the moment `implementSurface` returns. The connector installs
      *  synchronously, so the FIRST revision is written before this exists; that
-     *  is exactly the moment there is nobody subscribed to hear it, and
-     *  `entries` above has it. */
+     *  is exactly the moment there is nobody subscribed to hear it, and `held`
+     *  above has it. */
     let published: SurfaceRuntime<typeof surface.spec>["ctx"] | null = null
 
     /** A chat verb, when there may be no chat. The cell already reads `off`, so
@@ -119,11 +146,11 @@ export const bind = (
         chat: {
           store: inMemoryStore<ChatState>(chat === null ? CHAT_OFF : chat.state()),
         },
-        /** The whole outline binding, because one revision is one write of all
-         *  three things: the entries that moved, the keys that went, and the
-         *  facts that belong to no file. `null` reaches the wire verbatim — a
-         *  store with no snapshot has never loaded, and an empty collection on
-         *  its own cannot say that. */
+        /** The whole directory binding, because one revision is one write of
+         *  everything it moved: for each collection the entries that changed
+         *  and the keys that went, and then the facts that belong to no file.
+         *  `null` reaches the wire verbatim — a store with no snapshot has
+         *  never loaded, and empty collections on their own cannot say that. */
         manifest: {
           store: inMemoryStore<Manifest>(null),
           connect: (cell) =>
@@ -132,18 +159,24 @@ export const bind = (
               (snapshot) =>
                 Effect.sync(() => {
                   if (snapshot === null) return cell.set(null)
-                  const revision = publishedOf(snapshot, entries)
-                  entries = revision.entries
-                  const outlines = published?.collections.outlines
-                  for (const [key, entry] of revision.upserts) outlines?.upsert(key, entry)
-                  for (const key of revision.removes) outlines?.remove(key)
+                  const revision = publishedOf(snapshot, held)
+                  held = revision
+                  const collections = published?.collections
+                  apply(collections?.outlines, revision.outlines)
+                  // A document's upsert reaches only the sockets that asked for
+                  // THAT key (there is no `deltas` verb here) — which is a
+                  // reader with the document open, and nobody else.
+                  apply(collections?.documents, revision.documents)
                   // Written last, which is NOT the order they arrive in: a cell
                   // publishes on this stack while the collection's frame is
                   // coalesced into one delta on a microtask, so the manifest
                   // reaches a socket first. Nothing here may promise otherwise
                   // — a reader tolerates the skew either way, and that is the
-                  // cross-file consistency paragraph in the design doc.
-                  cell.set(revision.manifest)
+                  // cross-file consistency paragraph in the design doc. It is
+                  // also the only write here that is usually a no-op: the cell
+                  // says whether there is a set, and its `equals` keeps every
+                  // revision after the first one quiet.
+                  cell.set(LOADED)
                 }),
             ),
         },
@@ -157,7 +190,16 @@ export const bind = (
         // write needs somewhere to persist — and by the time one runs, the
         // projection it would persist has already been replaced whole.
         outlines: {
-          readAll: () => entries,
+          readAll: () => held?.outlines.entries ?? NOTHING_YET,
+          upsert: () => {},
+          remove: () => {},
+        },
+        // The same arrangement, one collection over: server-authored, read-only
+        // on the wire, and `readAll` is the projection rather than a copy — so
+        // the body a fresh per-key subscription is snapshotted from is the one
+        // the upserts above have been moving.
+        documents: {
+          readAll: () => held?.documents.entries ?? NOTHING_YET,
           upsert: () => {},
           remove: () => {},
         },

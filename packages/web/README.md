@@ -7,6 +7,16 @@ underneath: an edit on disk arrives as the next frame of a subscription, so
 the page changes without reloading. SolidJS over a WebSocket, styled with
 Tailwind v4, bundled by `Bun.build`.
 
+The build (`src/build.ts`) also writes `.br` / `.gz` siblings next to the
+hashed `/assets/*` files (`src/precompress.ts`). The static layer in
+`@kolu/surface-app` negotiates them on `Accept-Encoding` (brotli preferred,
+gzip fallback, identity honoured); the shell is never compressed. Matching is
+a **bare token set** (no q-value parsing, ported from the `serve-static` it
+replaced): `br, gzip` gets brotli, but `br;q=0.8, gzip;q=1.0` falls through to
+identity. Real browsers send bare tokens, so the shipped path is unaffected.
+Already-compressed media types (e.g. `.png`) stay identity even if a stray
+sibling sits on disk.
+
 ## What the client reads, and how it is put back together
 
 `src/client/outlines.ts` is the whole read side, and it is two subscriptions:

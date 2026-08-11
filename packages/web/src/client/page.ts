@@ -18,17 +18,19 @@
  * a file's tree is and what is dated a given day; this picks the arm.
  */
 
-import type { BrokenFile, DayGroup, Derived, Document, Row, Zoomed } from "@olai/format"
+import type { BrokenFile, DayGroup, Derived, Row, Zoomed } from "@olai/format"
 import { datedOn, rowsOf, rowsUnder, zoom } from "@olai/format"
 
 import type { Route } from "./routes.ts"
 
 export type Page =
   | { readonly kind: "outline"; readonly file: string }
-  /** One document, drawn whole. It carries the TEXT rather than the path,
-   *  because the set already holds it: a page that carried the name and left
-   *  the reading to the component would be a second lookup that could miss. */
-  | { readonly kind: "document"; readonly document: Document }
+  /** One document, drawn whole. It carries the PATH, because that is what this
+   *  model knows: the directory's documents are known to every tab as paths,
+   *  and a body travels to whoever opens one — so what is decided here is that
+   *  the address names a document the directory HAS, and the reading of it
+   *  belongs to the page that draws it. */
+  | { readonly kind: "document"; readonly file: string }
   | { readonly kind: "node"; readonly zoomed: Zoomed }
   /** One day, whatever it holds: every node dated it, grouped by the outline
    *  it lives in. An empty `groups` is a day with nothing on it, which is a
@@ -57,9 +59,10 @@ export type Page =
  *  caller cannot hand over half of it. */
 export interface Found {
   readonly files: ReadonlyArray<string>
-  /** By path, like `broken` — an address names one, and the app holds the one
-   *  index everything that answers "which document is this" reads. */
-  readonly documents: ReadonlyMap<string, Document>
+  /** The documents' PATHS, in the order the sidebar draws them — the same
+   *  shape `files` has, and asked the same question: does the directory hold
+   *  the file this address names. */
+  readonly documents: ReadonlyArray<string>
   readonly broken: ReadonlyMap<string, BrokenFile>
 }
 
@@ -75,10 +78,9 @@ export const pageOf = (
   if (route.kind === "node") return { kind: "node", zoomed: zoom(derived, route.id) }
 
   if (route.kind === "document") {
-    const document = found.documents.get(route.file)
-    return document === undefined
-      ? { kind: "nothing", sought: "document", requested: route.file }
-      : { kind: "document", document }
+    return found.documents.includes(route.file)
+      ? { kind: "document", file: route.file }
+      : { kind: "nothing", sought: "document", requested: route.file }
   }
 
   if (route.kind === "day" || route.kind === "today") {
@@ -111,7 +113,7 @@ export const pageOf = (
  *  document belongs to itself. */
 export const fileOf = (page: Page): string | undefined => {
   if (page.kind === "outline") return page.file
-  if (page.kind === "document") return page.document.file
+  if (page.kind === "document") return page.file
   if (page.kind === "broken") return page.file.file
   if (page.kind === "node" && page.zoomed.kind === "node") return page.zoomed.shows.file
   return undefined
