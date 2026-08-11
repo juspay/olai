@@ -23,24 +23,18 @@
  * bridged are the same values by construction rather than by two
  * implementations agreeing.
  *
- * **What is NOT here yet, and why the tools argument exists.** olai's tool
- * surface (`@olai/ops`' table) rides alongside the resources as bespoke tools,
- * and cannot until `@kolu/surface-mcp` can carry `structuredContent` on a tool
- * result. Olai's refusal contract is that a refused write arrives as `isError`
- * WITH its structured detail — "these three children are not done" as data the
- * agent can act on, not a sentence it has to parse (`@olai/ops`' `mcp.ts`) —
- * and the adapter's `ok`/`fail` emit `content` only, with a rejecting handler
- * squashed to its message. That is a live upstream change, not a thing this
- * package can patch: `ok`/`fail` are internal, and a handler's return value is
- * passed through them. Until it lands, `olai mcp` keeps serving tools from the
- * hand-rolled dispatch and this face is exercised by its own test.
+ * **The tools ride here too**, as bespoke tools projected from `@olai/ops`'
+ * table ({@link ./tools.ts}). That waited on juspay/kolu#2155, because olai's
+ * refusal contract is that a refused write arrives as `isError` WITH its
+ * structured detail — "these three children are not done" as data the agent can
+ * act on, not a sentence it has to parse — and the adapter's result shape
+ * carried prose only. `ToolFailure` is that gap closed; `instructions` below is
+ * the other half of the same PR.
  *
- * A second, smaller gap travels with it: the adapter builds its `Server` with
- * `capabilities` and no `instructions`, so the paragraph olai answers
- * `initialize` with — "everything here is about NODES, not files … there is no
- * file access" — has nowhere to go. `initialize` is served inside the SDK's own
- * protocol layer, so unlike the tool framing it cannot be worked around from
- * out here either.
+ * So this is now the WHOLE of olai's MCP face, resources and tools together, and
+ * both transports are one call apart: stdio for `olai mcp <dir>`
+ * ({@link ./serve.ts}), Streamable HTTP for the session the server spawns
+ * ({@link ./route.ts}). The hand-rolled JSON-RPC dispatch this replaced is gone.
  */
 
 import { surface } from "@olai/surface"
@@ -117,6 +111,20 @@ const clientOver = (handlers: SurfaceHandlers): OlaiSurfaceClient =>
  *  because the adapter has no other way to learn it. */
 const SERVER_INFO = { name: "olai", version: "0.1.0" } as const
 
+/**
+ * What a host is told olai IS, at `initialize`.
+ *
+ * Load-bearing prose, not a greeting: an agent that has met a hundred MCP
+ * servers arrives assuming files, and the one thing it has to unlearn here is
+ * that there are any. Reachable only because the adapter passes it through to
+ * the SDK, which serves `initialize` inside its own protocol layer — there is no
+ * request handler a consumer could register to say this instead.
+ */
+const INSTRUCTIONS =
+  "olai serves a directory of outlines. Everything here is about NODES, not files: " +
+  "search and read to find one, then use the write tools to change it. There is no " +
+  "file access — a node is the smallest thing you can name, and that is deliberate."
+
 export interface FaceOptions {
   /** The surface, bound to this process's store. `handlers` is all the
    *  in-process dispatch needs — `ctx` is the WRITE face and stays with
@@ -128,11 +136,9 @@ export interface FaceOptions {
    *  is the whole reason a test can read this face without a pipe. */
   readonly transport?: Transport
   /**
-   * The call-shaped half of the surface, if there is one yet.
-   *
-   * Empty today — see the module header. When the upstream result shape can
-   * carry `structuredContent`, this is where `@olai/ops`' table arrives,
-   * projected once rather than declared twice.
+   * The call-shaped half of the surface: `@olai/ops`' table, projected by
+   * {@link ./tools.ts}. Optional so a test can read the resources without
+   * standing an ops layer up behind them.
    */
   readonly tools?: Record<string, BespokeTool>
 }
@@ -158,6 +164,7 @@ export const serveFace = (
         client: () => client,
         expose: EXPOSE,
         serverInfo: SERVER_INFO,
+        instructions: INSTRUCTIONS,
         ...(options.tools === undefined ? {} : { tools: options.tools }),
         ...(options.transport === undefined ? {} : { transport: options.transport }),
       })

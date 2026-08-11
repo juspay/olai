@@ -204,7 +204,7 @@ test("the notice a person reads is not on the protocol's stream", async () => {
   const root = served()
   const said = await converse(root, [ask(1, "initialize", HANDSHAKE)])
 
-  expect(said.err).toInclude("serving the outline tools over stdio")
+  expect(said.err).toInclude("serving the outline surface over stdio")
   expect(said.err).toInclude(`root=${path.resolve(root)}`)
 })
 

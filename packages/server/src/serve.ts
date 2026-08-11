@@ -24,7 +24,7 @@
  */
 
 import { adapterFrom, AGENT_ENV, whyNoAgent } from "@olai/chat"
-import { Mcp, make as makeOps } from "@olai/ops"
+import { make as makeOps, TOOLS } from "@olai/ops"
 import { Effect } from "effect"
 import { randomBytes } from "node:crypto"
 
@@ -32,7 +32,9 @@ import * as Chat from "@olai/chat"
 import { openDirectory } from "./directory.ts"
 import { watchFault } from "./fault.ts"
 import { listen } from "./listener.ts"
-import { MCP_PATH } from "./mcp/route.ts"
+import { serveFace } from "./mcp/face.ts"
+import { MCP_PATH, mcpTransport } from "./mcp/route.ts"
+import { bespokeFrom } from "./mcp/tools.ts"
 import { bind, type Publishers } from "./runtime.ts"
 
 export interface ServeOptions {
@@ -103,8 +105,6 @@ export const serve = (options: ServeOptions) =>
       onTranscript: (change) => publish?.transcript(change),
     })
 
-    const mcp = Mcp.make({ ops })
-
     const wired = yield* bind({ store, chat })
     publish = wired.publish
 
@@ -120,8 +120,20 @@ export const serve = (options: ServeOptions) =>
     // drains is answered by this runtime while it drains.
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
+    // The agent's face onto this process: the same surface the browser reads,
+    // plus the ops layer's tools, over the Streamable HTTP transport the route
+    // below drives. ONE face rather than two projections of the ops layer —
+    // which is the whole point of the surface-mcp adoption, and the reason the
+    // hand-rolled dispatch this replaced is gone.
+    const transport = mcpTransport()
+    yield* serveFace({
+      bound: wired.bound,
+      tools: bespokeFrom(TOOLS, ops),
+      transport,
+    })
+
     const url = yield* Effect.onError(
-      listen({ ...options, bound: wired.bound, mcp: { server: mcp, token } }),
+      listen({ ...options, bound: wired.bound, mcp: { transport, token } }),
       () => runtime.stopped,
     )
     // Registered AFTER the listener's own, so it runs BEFORE it: finalizers
