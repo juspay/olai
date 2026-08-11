@@ -19,7 +19,7 @@
  * `Bun.build` takes a plugin array directly, so the build is driven from here.
  */
 
-import { mkdtempSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, mkdtempSync, statSync } from "node:fs"
 import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
@@ -114,6 +114,79 @@ const buildStylesheet = async (): Promise<ArrayBuffer> =>
     `${await tailwindUtilities()}\n${scaleCss()}\n${paletteCss()}`,
   ).arrayBuffer()
 
+/**
+ * Workflowy's Open Sans, served from /fonts/*.woff2.
+ *
+ * Source TTFs come from nixpkgs' `open-sans` via `OLAI_FONTS_DIR` (shell.nix
+ * and default.nix). They are converted to woff2 at build time — never committed
+ * — so a CDN is never asked and the repo stays free of font binaries. Missing
+ * the env is a loud failure in the packaged build; the dev loop gets the same
+ * env from the flake shell.
+ */
+const FONT_FACES = [
+  "OpenSans-Regular.ttf",
+  "OpenSans-Italic.ttf",
+  "OpenSans-Semibold.ttf",
+  "OpenSans-Bold.ttf",
+] as const
+
+const installFonts = async (distDir: string): Promise<void> => {
+  const fontsDir = process.env.OLAI_FONTS_DIR
+  if (fontsDir === undefined || fontsDir === "") {
+    throw new Error(
+      "OLAI_FONTS_DIR is unset — the flake shell and default.nix both set it " +
+        "to nixpkgs' open-sans truetype directory; run via `just serve` / `nix build`.",
+    )
+  }
+  const out = resolve(distDir, "fonts")
+  mkdirSync(out, { recursive: true })
+
+  // Loud failure if the converter is missing: the sheet names .woff2 only, so
+  // there is no TTF fallback path. Both shells set OLAI_WOFF2_COMPRESS.
+  const compress = process.env.OLAI_WOFF2_COMPRESS ?? "woff2_compress"
+  const work = mkdtempSync(join(tmpdir(), "olai-fonts-"))
+
+  for (const face of FONT_FACES) {
+    const src = join(fontsDir, face)
+    if (!existsSync(src)) {
+      throw new Error(`font face missing at ${src} (OLAI_FONTS_DIR=${fontsDir})`)
+    }
+    const woff2Name = face.replace(/\.ttf$/i, ".woff2")
+    const dest = join(out, woff2Name)
+    // Skip reconvert when the woff2 is already newer than the TTF — `just serve`
+    // re-runs the whole client build on every keystroke, and three compresses
+    // cost ~300ms for nothing when the faces have not moved.
+    if (existsSync(dest)) {
+      const srcM = statSync(src).mtimeMs
+      const destM = statSync(dest).mtimeMs
+      if (destM >= srcM) {
+        console.log(`font: ${woff2Name} (cached)`)
+        continue
+      }
+    }
+    const tmp = join(work, face)
+    cpSync(src, tmp)
+    const result = Bun.spawn([compress, tmp], {
+      stdout: "inherit",
+      stderr: "inherit",
+    })
+    const code = await result.exited
+    if (code !== 0) {
+      throw new Error(
+        `${compress} exited ${code} for ${face} — is pkgs.woff2 on PATH ` +
+          `(OLAI_WOFF2_COMPRESS)?`,
+      )
+    }
+    const produced = tmp.replace(/\.ttf$/i, ".woff2")
+    if (!existsSync(produced)) {
+      throw new Error(`${compress} produced no ${produced}`)
+    }
+    cpSync(produced, dest)
+    console.log(`font: ${woff2Name}`)
+  }
+  await Bun.$`rm -rf ${work}`
+}
+
 const buildClient = async (distDir: string): Promise<void> => {
   await buildSurfaceClient({
     entrypoint: resolve(CLIENT, "main.tsx"),
@@ -138,6 +211,9 @@ const buildClient = async (distDir: string): Promise<void> => {
     publicDir: resolve(CLIENT, "public"),
     plugins: [solidJsx],
   })
+  // Fonts after the surface client so a wipe of dist does not strand them,
+  // and so /fonts/* is a sibling of the icons at the dist root.
+  await installFonts(distDir)
   // Precompressed siblings for `/assets/*` — see ./precompress.ts. The static
   // layer in @kolu/surface-app negotiates them; without this step the build
   // ships identity-only and the negotiation has nothing to serve.

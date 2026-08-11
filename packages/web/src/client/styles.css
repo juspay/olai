@@ -23,8 +23,44 @@
  * the same tree. */
 @source "./";
 
+/* Workflowy's UI font — Open Sans — fetched and converted by the Nix build
+ * (see packages/web/src/build.ts and shell.nix's OLAI_FONTS_DIR). Absolute
+ * /fonts/ paths so a content-hashed /assets/styles-*.css still resolves them.
+ * No CDN, no font binary in the repo. */
+@font-face {
+  font-family: "Open Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/OpenSans-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Open Sans";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/OpenSans-Italic.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Open Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/OpenSans-Semibold.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Open Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/OpenSans-Bold.woff2") format("woff2");
+}
+
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "Open Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Named for their job, not their hue, so a palette is the same eight names

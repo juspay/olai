@@ -40,6 +40,13 @@ export const TESTID = {
   progress: "progress",
   desc: "desc",
   toggle: "toggle",
+  /** The `•••` trigger left of the collapse triangle. Hover-reveal on a
+   *  pointer device; always drawn on a phone. */
+  nodeMenu: "node-menu",
+  /** The open menu panel (portaled). */
+  nodeMenuPanel: "node-menu-panel",
+  /** One item inside that panel. `data-action` names the verb. */
+  nodeMenuItem: "node-menu-item",
   /** One folder in the sidebar's file tree. `data-path` is the root-relative
    *  path, `data-collapsed` says whether its children are hidden. */
   fileDir: "file-dir",

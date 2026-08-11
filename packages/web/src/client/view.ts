@@ -34,6 +34,10 @@ export interface View {
    *  the other. */
   readonly collapsed: Accessor<ReadonlySet<string>>
   readonly toggle: (key: string) => void
+  /** Fold every named place. Used by the row menu's "Collapse all". */
+  readonly collapseKeys: (keys: ReadonlyArray<string>) => void
+  /** Unfold every named place. Used by the row menu's "Expand all". */
+  readonly expandKeys: (keys: ReadonlyArray<string>) => void
   readonly doneHidden: Accessor<boolean>
   readonly toggleDone: () => void
   /** The rows this reading actually draws. The switch and what it does to a
@@ -50,7 +54,7 @@ interface Reading {
 }
 
 const fresh = (): Reading => ({
-  collapsed: new Set<string>(),
+  collapsed: new Set(),
   doneHidden: false,
 })
 
@@ -68,9 +72,21 @@ export const createView = (route: Accessor<Route>): View => {
     collapsed,
     toggle: (key) =>
       reading.edit((current) => {
-        const collapsed = new Set(current.collapsed)
-        if (!collapsed.delete(key)) collapsed.add(key)
-        return { ...current, collapsed }
+        const next = new Set(current.collapsed)
+        if (!next.delete(key)) next.add(key)
+        return { ...current, collapsed: next }
+      }),
+    collapseKeys: (keys) =>
+      reading.edit((current) => {
+        const next = new Set(current.collapsed)
+        for (const key of keys) next.add(key)
+        return { ...current, collapsed: next }
+      }),
+    expandKeys: (keys) =>
+      reading.edit((current) => {
+        const next = new Set(current.collapsed)
+        for (const key of keys) next.delete(key)
+        return { ...current, collapsed: next }
       }),
     doneHidden,
     toggleDone: () =>
