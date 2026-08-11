@@ -59,6 +59,12 @@
    * because "the outline is the page" rests on those two matching, and two
    * literals match only until somebody edits one. */
   --width-chat: 26rem;
+
+  /* The app header's height. The drawer sits UNDER the bar (chat/Panel.tsx),
+   * so its `top` and its height both subtract this; the header itself is
+   * `h-12` (3rem). A fallback of 3rem rides the drawer for the frame before
+   * the bar paints the custom property. */
+  --height-header: 3rem;
 }
 
 /* A palette is a redefinition of the same eight custom properties, not a

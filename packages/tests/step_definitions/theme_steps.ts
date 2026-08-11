@@ -18,6 +18,7 @@
 
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
+import type { Page } from "playwright";
 
 import { customProperty } from "@olai/web/src/client/theme/css.ts";
 import {
@@ -31,7 +32,7 @@ import {
   HYDRATION_TIMEOUT,
   POLL_TIMEOUT,
   THEME_CHIP,
-  THEME_PICKER,
+  THEME_TRIGGER,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -54,6 +55,21 @@ When("I pick the default theme", async function (this: OlaiWorld) {
   await pick(this, DEFAULT_THEME);
 });
 
+/** Open the header's theme popover if the chips are not already on screen.
+ *  The picker is a compact pill in the app header; chips live behind it so
+ *  fifteen names do not crowd the bar. */
+const showChips = async (
+  world: OlaiWorld,
+  page: Page = world.page,
+): Promise<void> => {
+  const chip = page.locator(THEME_CHIP).first();
+  if (await chip.isVisible().catch(() => false)) return;
+  const trigger = page.locator(THEME_TRIGGER);
+  await trigger.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await trigger.click();
+  await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+};
+
 /** Press a chip, and wait for the PAGE to say it is in that theme.
  *
  *  Waiting on the page rather than on the click is what keeps everything after
@@ -61,7 +77,7 @@ When("I pick the default theme", async function (this: OlaiWorld) {
  *  is what makes the failure say which theme the page is in instead of timing
  *  out with nothing to show. */
 const pick = async (world: OlaiWorld, theme: string): Promise<void> => {
-  await world.showSidebar();
+  await showChips(world);
   await world.press(world.page.locator(`${THEME_CHIP}[data-value="${theme}"]`));
   await world.expectAttribute("html", THEME_ATTRIBUTE, theme, "the page");
 };
@@ -110,13 +126,15 @@ Then("the lit theme chip is the default", async function (this: OlaiWorld) {
 
 /** Wait for the chip that offers `theme` to say it is the one in force.
  *  One locator: Playwright retries it, and the attribute IS the claim. */
-const litChipIs = (world: OlaiWorld, theme: string): Promise<void> =>
-  world.expectAttribute(
+const litChipIs = async (world: OlaiWorld, theme: string): Promise<void> => {
+  await showChips(world);
+  await world.expectAttribute(
     `${THEME_CHIP}[data-value="${theme}"]`,
     "aria-pressed",
     "true",
     `the ${theme} chip`,
   );
+};
 
 Then(
   "every theme chip agrees with what it announces",
@@ -128,6 +146,7 @@ Then(
     //
     // ONE snapshot of every chip, so "exactly one is in force" and "the rest
     // say so" are read off the same instant rather than two milliseconds apart.
+    await showChips(this);
     const chips = await this.page.locator(THEME_CHIP).evaluateAll((elements) =>
       elements.map((element) => ({
         value: (element as HTMLElement).dataset.value ?? null,
@@ -168,12 +187,11 @@ When(
   async function (this: OlaiWorld, theme: string) {
     const other = await this.context.newPage();
     await other.goto("/");
-    // The same three things `pick` does in this tab, against that one: reach
-    // the chips (below 48rem they are behind the burger — the second tab is at
-    // the context's width like any other), press, and wait for THAT tab to be
-    // in the theme, so everything after this step is about the pick CROSSING
-    // rather than about the click landing.
-    await this.showSidebar(other);
+    // The same three things `pick` does in this tab, against that one: open
+    // the header's theme popover (chips are behind the pill), press, and wait
+    // for THAT tab to be in the theme, so everything after this step is about
+    // the pick CROSSING rather than about the click landing.
+    await showChips(this, other);
     const chip = other.locator(`${THEME_CHIP}[data-value="${theme}"]`);
     await chip.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await chip.click();

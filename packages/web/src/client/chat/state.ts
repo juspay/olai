@@ -77,7 +77,7 @@ export interface Chat {
  * Where the conversation stands, and NOTHING else.
  *
  * For a reader that has to know whether a turn is running without drawing the
- * conversation — the toggle in the sidebar, which is only on screen while the
+ * conversation — the toggle in the app header, which is only on screen while the
  * drawer is shut. It subscribes the cell (small, and it changes when the state
  * changes) and deliberately not the transcript, which is the expensive one: a
  * shut drawer taking every streaming frame is the thing {@link ./Panel.tsx}

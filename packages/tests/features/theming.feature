@@ -1,6 +1,6 @@
 @corpus:good
 Feature: The theme is a pick, and it is yours
-  Fifteen named palettes in the sidebar. Pressing one writes `data-theme` on
+  Fifteen named palettes behind a pill in the app header. Pressing one writes `data-theme` on
   `<html>`, this browser remembers it, and the sheet repaints — every colour on
   the page is a custom property, so one attribute re-answers all of them at
   once.

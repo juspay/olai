@@ -9,13 +9,20 @@
  */
 
 export const TESTID = {
+  /** The app header: wordmark, connection, agent, theme. Always drawn — it is
+   *  chrome about the APP, and every shape of the app (including the error
+   *  report) gets it. */
+  appHeader: "app-header",
   /** The sidebar itself. Always drawn when the set loaded — which is what
    *  makes it, rather than anything inside it, the sign that the app has
-   *  committed to a shape. */
+   *  committed to a shape. On a phone the BODY starts collapsed behind the
+   *  burger; the nav stays attached so a settle probe does not have to open it. */
   sidebar: "sidebar",
-  /** The burger, below 48rem only: the whole sidebar is behind it. */
+  /** The burger, below 48rem only: lives in the header, opens the directory
+   *  sheet (calendar + file tree). */
   sidebarToggle: "sidebar-toggle",
-  /** Everything the burger reveals — the month, the file tree, and the chrome. */
+  /** Everything the burger reveals — the month and the file tree. App chrome
+   *  is not in here; it lives in the header. */
   sidebarBody: "sidebar-body",
   /** The sidebar's file tree: every outline and document under the folders
    *  they live in. Still named `outline-list` because that is the contract the
@@ -74,12 +81,15 @@ export const TESTID = {
   /** The document itself, rendered — on its own page, or inline under the node
    *  that attaches it. */
   documentBody: "document-body",
-  /** The theme picker in the sidebar. What the DEFAULT theme is and where a
-   *  pick is stored are not attributes on it: the browser tests import those
-   *  from `theme/palettes.ts` the same way they import these names, which is
-   *  a type error rather than a timeout when one is renamed — and markup that
-   *  exists only to be read back by a test is markup every reader ships. */
+  /** The theme picker in the header: a compact pill that opens the chip strip.
+   *  What the DEFAULT theme is and where a pick is stored are not attributes on
+   *  it: the browser tests import those from `theme/palettes.ts` the same way
+   *  they import these names, which is a type error rather than a timeout when
+   *  one is renamed — and markup that exists only to be read back by a test is
+   *  markup every reader ships. */
   themePicker: "theme-picker",
+  /** The pill that opens the chip strip. Names the theme in force. */
+  themeTrigger: "theme-trigger",
   /** One chip of it. `data-value` is the theme it offers, `aria-pressed` says
    *  whether it is the one in force — never the colour it is painted, which is
    *  the whole subject here and so the last thing to assert on. */

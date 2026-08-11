@@ -60,7 +60,9 @@ export const SCENARIO_SETUP_TIMEOUT = SERVER_START_TIMEOUT + STEP_GUARD;
 /** The mount point — `index.html`'s, not the client's, so it is the one
  *  selector here the client does not own and the one spelled out locally. */
 export const ROOT = "#root";
-/** The sidebar: the month, the file tree, and the app chrome. */
+/** The app header: wordmark + connection + agent + theme. Always on screen. */
+export const APP_HEADER = selector(TESTID.appHeader);
+/** The sidebar: the month and the file tree (directory chrome only). */
 export const SIDEBAR = selector(TESTID.sidebar);
 export const SIDEBAR_TOGGLE = selector(TESTID.sidebarToggle);
 export const SIDEBAR_BODY = selector(TESTID.sidebarBody);
@@ -161,14 +163,14 @@ export const FAULT_DETAIL = selector(TESTID.faultDetail);
 /** The card's second way out, off the page that faulted. */
 export const FAULT_HOME = selector(TESTID.faultHome);
 
-/** The theme picker in the sidebar, and one chip of it. The picker carries
- *  `data-default` (the theme a page with no pick reads in) and
- *  `data-store-key` (where this browser keeps one), so the steps ask the page
- *  for both rather than re-spelling what the client already owns. A chip's
- *  `data-value` is the theme it offers and `aria-pressed` says whether it is
- *  the one in force — never the colour it is painted, which is the subject
- *  here and so the last thing to assert on. */
+/** The theme picker in the header: a pill that opens the chip strip. The
+ *  browser tests import DEFAULT_THEME / storage key from `theme/palettes.ts`
+ *  rather than reading attributes. A chip's `data-value` is the theme it
+ *  offers and `aria-pressed` says whether it is the one in force — never the
+ *  colour it is painted, which is the subject here and so the last thing to
+ *  assert on. */
 export const THEME_PICKER = selector(TESTID.themePicker);
+export const THEME_TRIGGER = selector(TESTID.themeTrigger);
 export const THEME_CHIP = selector(TESTID.themeChip);
 
 /** The agent panel. Absent entirely when no ACP agent is configured, which is
@@ -213,11 +215,12 @@ export const CHAT_SLASH_COMMAND = selector(TESTID.chatSlashCommand);
  *  quotes the card instead.
  *
  *  The SIDEBAR, not the outline list inside it. Below 48rem that list is behind
- *  a burger and starts collapsed, so waiting on it meant waiting for something
- *  the reader had not asked to see — every phone scenario timed out at its
- *  first step, and a 40-second suite took twenty-five minutes to say so. What
- *  this is asking is whether the app has decided what to draw, and the nav
- *  answers that whether or not anybody has opened it. */
+ *  a burger and starts collapsed, so waiting on the BODY meant waiting for
+ *  something the reader had not asked to see — every phone scenario timed out
+ *  at its first step, and a 40-second suite took twenty-five minutes to say so.
+ *  The nav stays attached whether or not anybody has opened it; settle waits
+ *  for `attached` rather than `visible` because a shut phone sheet is
+ *  display:none and would otherwise look like the app never loaded. */
 export const SETTLED_SELECTOR = `${SIDEBAR}, ${ERROR_VIEW}, ${FAULT}`;
 
 /** A sentinel planted on `window` to prove a later assertion ran against the
@@ -381,10 +384,14 @@ export class OlaiWorld extends World {
    *  regression that `SETTLED_SELECTOR` documents would be re-learnt. */
   async settle(path = "/"): Promise<void> {
     await this.page.goto(path);
+    // `attached`, not `visible`: on a phone the directory sheet starts shut
+    // (display:none) and the sidebar nav is still the sign the set loaded —
+    // see SETTLED_SELECTOR. Error and fault cards are attached the moment
+    // they draw, so the same state works for every shape.
     await this.page
       .locator(SETTLED_SELECTOR)
       .first()
-      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+      .waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     await this.waitForFrame();
   }
 

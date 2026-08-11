@@ -2,17 +2,19 @@ Feature: On a phone
   The same app, on a screen 390 points wide and read with a thumb.
 
   Two things change and nothing else does. There is no second column to put
-  the sidebar in, so it goes behind a BURGER: one row while it is shut, and
-  the whole sidebar — the month, the file tree, and the app's own chrome —
-  when it is not. And what a finger aims at gets bigger: 44px, the number both
-  mobile platforms print in their guidelines.
+  the sidebar in, so the DIRECTORY (calendar + file tree) goes behind a
+  BURGER in the app header: shut, the outline has the whole screen under the
+  header; open, the sheet is capped and scrolling so the outline is still
+  under it. App chrome — connection, agent, theme — lives in the header and
+  is never behind the burger. And what a finger aims at gets bigger: 44px,
+  the number both mobile platforms print in their guidelines.
 
-  An always-open capped header was the first answer here and it was worse in
-  both directions: it took a third of the screen from the outline to show a
-  list nobody had asked for, and the one control that HAS to be reachable —
-  the way into the agent — ended up somewhere down inside a strip that
-  scrolled. Two taps is the budget for anything in the sidebar: one to open
-  it, one to press what you came for.
+  An always-open capped header of the whole sidebar was the first answer here
+  and it was worse in both directions: it took a third of the screen from the
+  outline to show a list nobody had asked for, and the one control that HAS
+  to be reachable — the way into the agent — ended up somewhere down inside a
+  strip that scrolled. With the agent in the app header it is one tap; two
+  taps is still the budget for anything in the directory sheet.
 
   The tree's gutter is the one exception, and it is a deliberate one: a
   44px-wide toggle AND a 44px-wide bullet at every level of indent leave a
@@ -32,21 +34,19 @@ Feature: On a phone
     And the sidebar is put away
     When I tap the burger
     Then the outline list is above the tree, not beside it
-    # Capped, and scrolling inside itself: whatever is in the header, the
+    # Capped, and scrolling inside itself: whatever is in the sheet, the
     # outline it is a header FOR has to still be on screen under it.
     And the outline is on screen under it
     And there should be no page errors
 
   @scratch:chat @phone
-  Scenario: The agent is two taps away on a phone
-    # The one control that has to be reachable. It lives with the connection
-    # dot in the sidebar's footer, which on a phone is behind the burger — so
-    # this is the scenario that says the burger is not just a place to put
-    # things out of the way.
+  Scenario: The agent is one tap away on a phone
+    # The one control that has to be reachable. It lives in the app header
+    # with the connection pill — never behind the burger — so a thumb can
+    # open the panel without opening the directory sheet first.
     Given I open the app
     Then the burger is on screen
-    When I tap the burger
-    And I tap the agent toggle
+    When I tap the agent toggle
     Then the agent panel is showing
     And I can type into the chat
 

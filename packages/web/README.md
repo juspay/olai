@@ -1,11 +1,12 @@
 # @olai/web — the SolidJS client, and the build that produces it
 
-A sidebar with a month and a file tree of every outline and document under the
-folders they live in, and one page open in the main pane — a whole outline,
-one node zoomed, a document, or one day — kept current by the live store
-underneath: an edit on disk arrives as the next frame of a subscription, so
-the page changes without reloading. SolidJS over a WebSocket, styled with
-Tailwind v4, bundled by `Bun.build`.
+An app header (wordmark, connection, agent, theme), a sidebar of the directory
+(month + file tree of every outline and document under the folders they live
+in), and one page open in the main pane — a whole outline, one node zoomed, a
+document, or one day — kept current by the live store underneath: an edit on
+disk arrives as the next frame of a subscription, so the page changes without
+reloading. SolidJS over a WebSocket, styled with Tailwind v4, bundled by
+`Bun.build`.
 
 The build (`src/build.ts`) also writes `.br` / `.gz` siblings next to the
 hashed `/assets/*` files (`src/precompress.ts`). The static layer in
@@ -267,9 +268,11 @@ off the original WorkFlowy theme stylesheets — each a value for the same eight
 tokens `styles.css` declares. Everything else follows from it: `css.ts`
 generates one unlayered `:root[data-theme="…"]` block per row, which `src/build.ts`
 appends to the Tailwind output, and `Picker.tsx` draws one chip per row, each
-chip wearing the palette it offers. Adding a theme is adding a row; the row
-type is what makes a forgotten token a type error rather than a `var()` that
-resolves to nothing in one theme only.
+chip wearing the palette it offers — behind a compact header pill that opens the
+strip as a popover (fifteen chips cannot live in the bar itself; behaviour is
+unchanged). Adding a theme is adding a row; the row type is what makes a
+forgotten token a type error rather than a `var()` that resolves to nothing in
+one theme only.
 
 Eight tokens and not the racket skin's fourteen: the six that did not come have
 no home in a client that paints one paper and gets its accent grounds from an
@@ -300,21 +303,39 @@ That promise is arithmetic, so `contrast.ts` is arithmetic and
 client actually paints, since rejecting a colour over a combination no
 component draws would be rejecting it over a page that does not exist.
 
+## The app header
+
+`src/client/AppHeader.tsx` is a slim bar above every column: the `olai`
+wordmark on the left, and on the right the three pills that are about the APP
+rather than about the page — the connection indicator, the agent toggle (with
+its busy pulse while a turn runs behind a shut panel), and the theme picker as
+a compact popover (a pill names the theme in force; chips open under it). On a
+phone the directory burger joins the left edge next to the wordmark.
+
+Principle: the header carries what is about the app; the sidebar
+(`Sidebar.tsx`) carries what is about the DIRECTORY — calendar + file tree
+only. The header is on every screen, including the error report and the
+waiting page, so there is one home for chrome and no corner-pills special case
+those screens used to need.
+
+The chat drawer sits **under** the header, not over it (`chat/Panel.tsx`
+subtracts `--height-header`): the bar stays reachable while the agent is open.
+
 ## The connection, said out loud
 
 `src/client/connection/` is the chrome for the one thing the outlines cannot
 report on: whether this page is still talking to a server. A page that is live
 and a page whose server died look identical when nothing says otherwise — both
-keep showing the last thing they were told — so a dot reports it always, in
+keep showing the last thing they were told — so a pill reports it always, in
 every shape of the app, and is green only while a server is answering.
 
-WHERE it sits is the layout's, not the indicator's: the sidebar's footer beside
-the agent toggle, and a corner of the viewport only on the screens that have no
-sidebar — the error report, the waiting page. Always fixed to the corner is what
-it used to be, and it meant a pill sitting on top of the last line of whatever
-scrolled under it on every page. `App.tsx` picks between the two homes;
-`Connection.tsx` keeps the one rule that is not about placement — when the
-reload surface takes the screen.
+WHERE it sits is the layout's, not the indicator's: the app header, beside the
+agent toggle and the theme picker. It used to have two homes (sidebar footer,
+or a corner when there was no sidebar); the header collapsed that. Always fixed
+to the corner is what it used to be before even that, and it meant a pill
+sitting on top of the last line of whatever scrolled under it. `Connection.tsx`
+keeps the one rule that is not about placement — when the reload surface takes
+the screen.
 
 `status.ts` is the whole policy and it is pure: a table over the wire's own four
 states (`connecting`, `live`, `reconnecting`, `retired`) saying what each looks
@@ -341,10 +362,10 @@ the outline is the page, and the agent is something you open beside it.
 
 Open, it takes its width out of the layout on a screen wide enough to spare it
 rather than lying over the outline — a drawer you have to shut to finish reading
-a sentence costs more than it is worth. On a narrow one it covers the page,
-because there is no width to give it. Shut, the way back in is a button in the
-sidebar's footer (`Toggle`), placed by the layout for the same reason the
-connection dot is.
+a sentence costs more than it is worth. On a narrow one it covers the page
+(under the header), because there is no width to give it. Shut, the way back in
+is a button in the app header (`Toggle`), placed by the layout for the same
+reason the connection pill is.
 
 It ALWAYS draws. Whether an agent is configured is the server's answer, and when
 the answer is no the panel says so (`NoAgent.tsx`, naming `OLAI_ACP_AGENT`)
@@ -421,19 +442,17 @@ service worker and no offline shell: this app is live or nothing, and a cached
 shell would show outlines that had stopped being true.
 
 Below **48rem** — the racket original's own breakpoint, and Tailwind's `md` —
-two things change. There is no second column to put the sidebar in, so it goes
-behind a BURGER: one row while it is shut, and the whole sidebar — the month,
-the file tree, and the app's own chrome — when it is not, capped at 42dvh and
-scrolling inside itself so the outline is still on screen under it. Any tap
+two things change. There is no second column to put the directory in, so the
+sidebar (calendar + file tree only) goes behind a BURGER in the app header:
+shut, the outline has the screen under the header; open, the sheet is capped at
+42dvh and scrolling inside itself so the outline is still under it. Any tap
 inside shuts it, because every control in there either goes somewhere or opens
-something over it.
+something over it. App chrome stays in the header, so the agent is one tap away.
 
-An always-open capped header was the first answer, and it was worse in both
-directions: it took a third of the screen from the outline to show a list
-nobody had asked for, and the one control that HAS to be reachable — the way
-into the agent, which lives in that footer — ended up somewhere down inside a
-strip that scrolled. Two taps is the budget for anything in the sidebar: one to
-open it, one to press what you came for.
+An always-open capped strip of the whole sidebar was the first answer, and it
+was worse in both directions: it took a third of the screen from the outline to
+show a list nobody had asked for, and the agent ended up inside a strip that
+scrolled. Two taps is still the budget for anything in the directory sheet.
 
 And what a finger aims at grows to 44px, the number both mobile platforms
 print in their guidelines: sidebar entries — outlines and documents alike —
@@ -456,12 +475,12 @@ width, which is where the racket original put both.
 `viewport.ts` is the last piece: an on-screen keyboard covers the bottom of the
 viewport without shrinking it, so the page measures `visualViewport` and
 publishes `--visible-h` and `--visible-bottom`. The arithmetic is a plain
-function of two numbers and unit-tested as one. The corner pills are lifted by
-`--visible-bottom` (with the home-bar inset, which is real because the shell
-asks for `viewport-fit=cover`), and the agent drawer is sized by `--visible-h`,
-which is what keeps its composer on screen while the keyboard that is being
-typed into is up. The rest of the panel on a small screen — where it should
-open from, what it should cover — is roadmapped separately.
+function of two numbers and unit-tested as one. The agent drawer is sized by
+`--visible-h` minus the header strip, which is what keeps its composer on
+screen while the keyboard that is being typed into is up. The main column still
+clears the home-bar inset (`CLEARANCE`). The rest of the panel on a small
+screen — where it should open from, what it should cover — is roadmapped
+separately.
 
 
 ## What belongs to a reading, not to the file

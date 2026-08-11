@@ -114,29 +114,29 @@ tree, re-reads only what actually changed, revalidates, and pushes the next
 snapshot down the subscription the first one arrived on.
 
 Which raises the question the page had better be able to answer: is it still
-reading? A dot in the corner says so, always, and it is green only while a
+reading? A pill in the app header says so, always, and it is green only while a
 server is actually answering. Restart the server under an open tab and the page
 does not pretend — it says the server it came from is gone and offers the one
 thing that recovers it, a reload.
 
-What it looks like while you read it is yours. Fifteen named palettes sit at
-the bottom of the sidebar — chalk, leaf, manuscript, pitch, a phosphor
-terminal, a bar of chocolate — and each chip is painted in the palette it
-offers, so picking one is a matter of looking rather than of reading fifteen
-names. The page repaints at once, this browser remembers it, and none of it
-goes anywhere: nothing about a theme is sent to the server, so two machines
-reading the same directory are entitled to look nothing alike. There is no
-"system" setting on purpose. Your operating system's idea of dark used to
-decide, which meant the page could change under you after you had already said
-what you wanted; a page nobody has picked for reads in chalk, which is the one
-palette that promises AA contrast on everything it paints.
+What it looks like while you read it is yours. Fifteen named palettes sit behind
+a pill in the app header — chalk, leaf, manuscript, pitch, a phosphor terminal,
+a bar of chocolate — and each chip is painted in the palette it offers, so
+picking one is a matter of looking rather than of reading fifteen names. The
+page repaints at once, this browser remembers it, and none of it goes anywhere:
+nothing about a theme is sent to the server, so two machines reading the same
+directory are entitled to look nothing alike. There is no "system" setting on
+purpose. Your operating system's idea of dark used to decide, which meant the
+page could change under you after you had already said what you wanted; a page
+nobody has picked for reads in chalk, which is the one palette that promises AA
+contrast on everything it paints.
 
 It reads on a phone, and it installs as one. Add it to a home screen or a dock
-and it opens in its own window under the olai mark; the sidebar becomes a
-capped header above the outline on a narrow screen, and everything a thumb aims
-at is sized for one. There is no offline mode, on purpose — a cached copy of an
-outline is a copy that has stopped being true, and this page's whole promise is
-that it has not.
+and it opens in its own window under the olai mark; the directory (calendar and
+file tree) goes behind a burger in the app header on a narrow screen, app chrome
+stays in that header, and everything a thumb aims at is sized for one. There is
+no offline mode, on purpose — a cached copy of an outline is a copy that has
+stopped being true, and this page's whole promise is that it has not.
 
 When something stops validating, what you see depends on what can still be
 shown. A file whose lines will not parse costs that one outline: it is marked

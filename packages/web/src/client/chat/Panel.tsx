@@ -16,10 +16,18 @@
  *
  * Opening it is {@link Toggle}, which is NOT drawn here: it is chrome that
  * belongs to the app rather than to the page, so the layout places it — in the
- * sidebar's footer beside the connection dot, and only in a corner of the
- * viewport on the screens that have no sidebar to put it in (`App.tsx`). It
- * used to be fixed over the outline, which meant a pill sitting on top of
- * somebody's last paragraph on every page.
+ * app header beside the connection pill and the theme picker (`AppHeader.tsx`).
+ * It used to live in the sidebar's footer (or a corner when there was no
+ * sidebar), which meant two homes to keep in step and a control that, on a
+ * phone, sat behind the burger.
+ *
+ * **Under the header, not over it.** The drawer is fixed from the bottom of the
+ * header bar (`--height-header`) rather than from the top of the viewport: the
+ * header is the app's chrome and stays reachable while the agent is open — the
+ * connection answer, the way to shut the panel by opening something else, the
+ * theme. Covering it would bury exactly the chrome a long turn makes you want.
+ * Height is `--visible-h` minus that strip, so an on-screen keyboard still
+ * keeps the composer above itself (../viewport.ts).
  *
  * **It always draws.** Whether an agent is CONFIGURED is the server's answer,
  * and when the answer is no the panel says so ({@link NoAgent}) rather than
@@ -106,12 +114,15 @@ function Conversation() {
 
   return (
     <aside
-      // `--visible-h` rather than the viewport's own height: an on-screen
-      // keyboard covers the bottom of the page without shrinking it
-      // (../viewport.ts), so a panel sized by `100dvh` puts its composer
-      // underneath the keyboard being typed into. It falls back to `100dvh`
-      // where nothing publishes the variable, which is every desktop.
-      class="fixed right-0 top-0 z-30 flex h-[var(--visible-h,100dvh)] w-chat max-w-full flex-col border-l border-rule bg-paper"
+      // Under the header, not over it: `top` and height both subtract
+      // `--height-header` (set on the header bar). `--visible-h` rather than
+      // the viewport's own height: an on-screen keyboard covers the bottom of
+      // the page without shrinking it (../viewport.ts), so a panel sized by
+      // `100dvh` puts its composer underneath the keyboard being typed into.
+      // Falls back to `100dvh` where nothing publishes the variable, which is
+      // every desktop; falls back to `3rem` for the header where the bar has
+      // not painted yet (a single frame, if any).
+      class="fixed right-0 top-[var(--height-header,3rem)] z-30 flex h-[calc(var(--visible-h,100dvh)-var(--height-header,3rem))] w-chat max-w-full flex-col border-l border-rule bg-paper"
       data-testid={TESTID.chatPanel}
       data-status={chat.state().status}
       aria-label="agent"
