@@ -44,19 +44,74 @@
  */
 
 import { surface } from "@olai/surface"
-import { buildSurfaceFace } from "@kolu/surface/client"
+import { buildSurfaceFace, type StreamingProcedure } from "@kolu/surface/client"
+import type { SurfaceSpec } from "@kolu/surface/define"
 import { directDispatch } from "@kolu/surface/links/direct"
-import {
-  type BespokeTool,
-  serveSurfaceAsMcp,
-  type SurfaceClientCallable,
-} from "@kolu/surface-mcp"
+import type { SurfaceReadFace } from "@kolu/surface/project"
+import type { SurfaceHandlers } from "@kolu/surface/server"
+import { type BespokeTool, serveSurfaceAsMcp } from "@kolu/surface-mcp"
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 import { Effect, type Scope } from "effect"
 
 import { EXPOSE } from "./expose.ts"
 import type { Bound } from "../runtime.ts"
+
+// ── The client, typed ────────────────────────────────────────────────────
+
+/**
+ * The collection READ verbs, typed off a spec.
+ *
+ * The framework's {@link SurfaceReadFace} deliberately declines collections: it
+ * exists for a PROJECTION's `deps`, which consumes cells and streams and never
+ * walks a collection. This face does — the adapter reads `outlines.keys` for the
+ * key set and `outlines.get({ key })` for one file — so the two read verbs are
+ * spelled here, in the shape and on the sides `buildSurfaceFace` actually mints
+ * them. Keys and values are DECODED on both legs: a collection key is an
+ * identity in our own key set, not a pure forwarded argument.
+ *
+ * Lifted from the same declaration in kolu's `@kolu/padi`, which is the
+ * sanctioned pattern rather than a coincidence — see {@link OlaiSurfaceClient}.
+ */
+type SurfaceCollectionsReadFace<S extends SurfaceSpec> = {
+  [K in keyof S["collections"] & string]: {
+    keys: StreamingProcedure<
+      undefined,
+      readonly NonNullable<S["collections"]>[K]["keySchema"]["Type"][]
+    >
+    get: StreamingProcedure<
+      { key: NonNullable<S["collections"]>[K]["keySchema"]["Type"] },
+      NonNullable<S["collections"]>[K]["schema"]["Type"]
+    >
+  }
+}
+
+/**
+ * olai's surface as a CLIENT sees it — spec-derived, so a schema edit is a
+ * compile error here rather than a runtime surprise.
+ *
+ * This exists because `buildSurfaceFace` types its member leaves `unknown`: the
+ * face is structural by design, and re-materializing the precise client type
+ * inside the framework overflows TypeScript's union budget (kolu's documented
+ * TS2590 dodge). Asking upstream to widen its own client type was the wrong fix
+ * and was declined for exactly that reason. The right one is this: each consumer
+ * declares the narrow face it actually calls, the way `@kolu/padi` declares
+ * `PadiSurfaceClient`, and the framework-forced structural cast lives in ONE
+ * named place — {@link clientOver} — instead of at every call site.
+ */
+export type OlaiSurfaceClient = {
+  readonly surface:
+    & SurfaceReadFace<typeof surface.spec>
+    & SurfaceCollectionsReadFace<typeof surface.spec>
+}
+
+/** Build the typed face over an in-process dispatch. THE one place the
+ *  structural cast lives, so nothing downstream re-derives it. */
+const clientOver = (handlers: SurfaceHandlers): OlaiSurfaceClient =>
+  buildSurfaceFace(
+    surface,
+    directDispatch({ handlers }),
+  ) as unknown as OlaiSurfaceClient
 
 /** What this server calls itself. The version is the binary's, spelled here
  *  because the adapter has no other way to learn it. */
@@ -93,15 +148,9 @@ export const serveFace = (
   options: FaceOptions,
 ): Effect.Effect<Server, never, Scope.Scope> =>
   Effect.gen(function*() {
-    // The member face over the in-process dispatch. The cast is the adapter's
-    // own idiom, carried by its published example: `SurfaceClientCallable`
-    // types the member leaves as callable, `buildSurfaceFace` types them
-    // `unknown` because the face is structural by design. The two describe one
-    // runtime value; reconciling the spellings is an upstream follow-up.
-    const client = buildSurfaceFace(
-      surface,
-      directDispatch({ handlers: options.bound.handlers }),
-    ) as unknown as SurfaceClientCallable
+    // The member face over the in-process dispatch — typed, and typed HERE
+    // rather than cast at the adapter's door. See {@link OlaiSurfaceClient}.
+    const client = clientOver(options.bound.handlers)
 
     const served = yield* Effect.promise(() =>
       serveSurfaceAsMcp({
