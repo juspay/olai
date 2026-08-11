@@ -225,9 +225,9 @@ test("without OLAI_LOG, a TTY is pretty and a pipe is logfmt", () => {
   }
 })
 
-// The load-bearing colour lock: prettyFor is what both sinks use, and the
-// *rendered bytes* carry ANSI only when that stream is a TTY. Mutation that
-// wires prettyStderr off process.stdout fails this — colorsFor alone would not.
+// Factory lock: stub streams, not the real process fds. Necessary but not
+// sufficient — under bun test both real streams have isTTY undefined, so
+// wiring prettyStderr off process.stdout still passes this alone.
 test("prettyFor emits ANSI only for a TTY stream", async () => {
   await withNoColor(undefined, async () => {
     const onTty = await renderedPretty({ isTTY: true })
@@ -248,6 +248,52 @@ test("prettyFor honours NO_COLOR even on a TTY stream", async () => {
     const line = await renderedPretty({ isTTY: true })
     expect(line).toContain("serving")
     expect(line).not.toContain("\u001b[")
+  })
+})
+
+/**
+ * Stub isTTY on a real WriteStream for the duration of `body`. Colour is
+ * re-read at emit, so this is what lets a test present the mixed case
+ * (stdout pipe + stderr TTY) to the actual sink wiring.
+ */
+const withIsTTY = async <A>(
+  stream: NodeJS.WriteStream,
+  value: boolean,
+  body: () => Promise<A>,
+): Promise<A> => {
+  const prev = Object.getOwnPropertyDescriptor(stream, "isTTY")
+  Object.defineProperty(stream, "isTTY", { value, configurable: true, writable: true })
+  try {
+    return await body()
+  } finally {
+    if (prev !== undefined) Object.defineProperty(stream, "isTTY", prev)
+    else delete (stream as unknown as { isTTY?: boolean }).isTTY
+  }
+}
+
+// The WIRING lock (reviewer-written, M1). prettyFor's factory tests cannot see
+// which real stream the sink is bound to — under bun test both process fds
+// have isTTY undefined. Stub the real streams and drive toStderr: stderr TTY
+// + stdout pipe must colour; the converse must not. Without the converse,
+// wiring *both* sinks off process.stderr would still slip through.
+test("toStderr's pretty colour comes from stderr, not stdout", async () => {
+  await withNoColor(undefined, async () => {
+    await withOlaiLog("pretty", async () => {
+      await withIsTTY(process.stdout, false, () =>
+        withIsTTY(process.stderr, true, async () => {
+          const { err, out } = await written(toStderr)
+          expect(out).toEqual([])
+          expect(err.map(String).join("\n")).toContain("\u001b[")
+        }),
+      )
+      // Converse: stderr is the pipe, so no ANSI even though stdout is a TTY.
+      await withIsTTY(process.stdout, true, () =>
+        withIsTTY(process.stderr, false, async () => {
+          const { err } = await written(toStderr)
+          expect(err.map(String).join("\n")).not.toContain("\u001b[")
+        }),
+      )
+    })
   })
 })
 
