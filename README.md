@@ -9,8 +9,8 @@ subtree move is a one-field write, so plain line-based git merges are safe and
 a diff shows what actually changed.
 
 Status: you can serve a directory, read your outlines, watch the page follow the
-files as you edit them or pull them, and ASK AN AGENT to change them — the chat
-panel writes through the same ops layer the keyboard editor will
+files as you edit them or pull them, TYPE into them, and ask an agent to change
+them — the keyboard and the chat panel write through the same ops layer
 ([roadmap](docs/roadmap.jsonl)).
 
 ## Run it
@@ -30,7 +30,8 @@ every `.jsonl` outline and every `.md` document, and serves them to a browser.
 It does not descend into dot-directories or `node_modules` — a directory of
 outlines is usually a git repository, and nothing anyone wrote is inside
 `.git`. It binds to loopback by default: the surface is unauthenticated, so
-anyone who can reach the port can read every outline under the directory. Put
+anyone who can reach the port can read every outline under the directory — and,
+since the keyboard editor arrived, change one. Put
 it behind a reverse proxy or `tailscale serve` and the browser's origin will
 not be the `Host` it forwards, so name the origins you are serving from in
 `OLAI_ALLOWED_ORIGINS` (comma-separated); the websocket refuses the rest.
@@ -173,6 +174,33 @@ because "which file is broken" has no single answer for those. Error quality is
 the product here, not a consolation prize: the format exists so that a bad edit
 is a caught edit.
 
+## Type it yourself
+
+Click a title and the caret is in it. From there it is the outliner's loop, on
+the keys you already know: **Enter** for the next line, **Tab** and
+**Shift+Tab** for the shape, **Alt+Shift+↑/↓** to move a row among its
+siblings, **Ctrl+Enter** to tick it off, **Shift+Enter** for the note under it,
+**↑/↓** to walk the rows, **Escape** to drop what you were typing. Nothing has
+a mode: the title span becomes an input in the same place, and the styled
+`#tags` come back when you leave it.
+
+What happens underneath is the thing worth knowing. A key is not a change to
+the page — every one of them is one op through the same gate the agent writes
+through, so a row moves when the file says it moved, each edit is a git commit
+you can read, and two tabs on the same outline cannot disagree. What you type
+buffers locally until you stop (blur, Enter, or a pause), so typing is never a
+round trip; that buffer is an editor and not a claim about the file, and if a
+write comes back refused — a title cannot be empty — the reason appears under
+the row and the text stays exactly where you left it.
+
+A new row is that same idea: **Enter** opens a line where the row will go, and
+the node is written the moment it has a title. So an outline never fills up
+with blank bullets, and a key pressed by accident writes nothing at all.
+
+There is no delete key, on purpose. It arrives with undo — until an edit can be
+taken back inside the app, git is the whole of the recovery net, and removing a
+subtree is the one edit nobody can re-type from memory.
+
 ## Ask it to change something
 
 Open the panel in the corner and tell the agent what you want. Ask it to check
@@ -244,9 +272,10 @@ that would happily `sed` your notes cannot, and every write is a git commit you
 can read. `--no-commit` turns that off for a directory whose history is
 somebody else's job.
 
-There is still no write CLI, and there never will be — nothing you can type
-adds a node or marks one. `olai web` and `olai mcp` are the two ways of putting
-a write surface in front of a directory: a page, or a pipe.
+There is still no write CLI, and there never will be — no shell command adds a
+node or marks one. `olai web` and `olai mcp` are the two ways of putting a write
+surface in front of a directory: a page, or a pipe. The page has two writers on
+it now, a keyboard and an agent, and they are the same ops layer seen twice.
 
 ## Develop
 

@@ -46,6 +46,12 @@ coexist: only the files that moved are upserted, so an unchanged neighbour keeps
 an older `rev`. Nothing here reads `rev` to decide anything, which is what makes
 that safe — every view is derived from what the entries currently say.
 
+**The write side is not a second model of any of that.** The keyboard's edits
+are surface PROCEDURES (`edit/`), the collections stay read-only on the wire,
+and what a reader sees of an edit is the file arriving on the same
+subscription every other change does. So there is nothing to reconcile, no
+optimistic row, and two tabs cannot disagree about what landed.
+
 ## Three ways to say what is wrong about the FILES, because there are three situations
 
 They live in `src/client/errors/`, and which one a reader gets is decided by
@@ -552,9 +558,63 @@ clears the home-bar inset (`CLEARANCE`).
 
 `src/client/palette/` is the ⌘K shell: navigation (home, today), panel toggles,
 and a `>` prefix that sends the rest to the agent. Jump-to-node type-ahead and
-op actions belong to the separate `palette` roadmap item. Keyboard map reserved
-so keyboard-editing cannot collide later: **⌘K** palette, **⌘\\** sidebar,
-**⌘J** chat (`palette/keys.ts`).
+op actions belong to the separate `palette` roadmap item.
+
+## The keyboard, in one file
+
+`src/client/keys.ts` is every key this app answers, and it is one file because
+a chord and an editing key that both claim one combination disagree silently,
+in a browser, while somebody is typing. Two layers, and they never overlap:
+
+- **global chords**, with a modifier, listened for on the window (one
+  listener, in `palette/Palette.tsx`): **⌘K** palette, **⌘\\** sidebar, **⌘J**
+  chat. Each says whether it may fire while focus is in a text field.
+- **the row editor's keys**, which are bare (`Enter`, `Tab`, the arrows) and
+  are matched on the editor's own element and nowhere else. A window listener
+  claiming those would eat every keystroke in the chat composer and in the
+  palette's own input.
+
+A unit test holds the two apart: every chord the global layer claims must be
+dead to the row layer, on both platforms.
+
+## Editing a row
+
+`src/client/edit/` is the Workflowy loop, and every write it makes is a surface
+procedure — one op, at the same write gate the agent's tools go through
+(`packages/server/src/edit.ts` turns the key into the op). What is here is the
+loop a person is in, and nothing about outlines:
+
+- **`draft.ts` — the draft cell.** The one piece of state in this client that
+  is not the server's, and it is allowed because a draft is not a claim about
+  the outlines: it is the text in an editor, like the chat composer's. It is
+  committed on **blur**, on **Enter** and on going **idle**; a commit that
+  would change nothing sends nothing (so sitting in a row is not a git commit);
+  and a commit that is REFUSED keeps the draft, with the reason beside it.
+  A NEW row is a draft too — `Enter` opens an editor where the row will go and
+  the `add` lands when it has a title, so a blank record is never written and
+  a key pressed by accident writes nothing.
+- **`editing.tsx` — the caret.** One draft at a time, because there is one
+  caret. Structural keys commit the text first and then ask, in that order.
+  Which id an edit names is a rule and it is here: what a node SAYS (title,
+  note, mark) names the node the row shows, so typing in a mirror edits what it
+  stands for; where a row SITS names the row's own record, so moving a mirror
+  moves the placement. And because nothing is optimistic, a row is redrawn
+  somewhere else when the file says so — keeping the reader's place across that
+  is the module's real work.
+- **`RowEditor.tsx` — an `<input>`, not a `contenteditable`.** A title is one
+  verbatim line of text with no markup in it, so an input is one string in and
+  one string out, with the platform's caret, selection, undo and IME for
+  nothing. The trade is deliberate and visible: while you type, a title reads
+  as the text on disk, `#tags` unstyled, and the styling comes back when you
+  leave — which is the same trade the note takes, where a textarea shows
+  markdown until it closes.
+- **`order.ts`** flattens the drawn tree so `↑`/`↓` step through what is on
+  screen, folds and all.
+
+There is deliberately no delete, no split/merge, no multi-select and no
+drag-drop: each is its own roadmap item, and a delete arrives with undo,
+because until an edit can be taken back inside the app, git is the whole of the
+recovery net.
 
 
 ## What belongs to a reading, not to the file

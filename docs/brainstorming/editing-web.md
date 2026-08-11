@@ -1,6 +1,16 @@
 # Human editing in the web UI
 
-Status: brainstorming ahead of the Editor theme (keyboard editing, then editor growth). Reference model researched 2026-08-09: Workflowy, from its official help/blog docs (a few details are community-sourced; flagged).
+Status: SHIPPED as `self-edit` (keyboard editing) — what is below is the research and the decisions it was built from, kept because the editor-growth items are built from the same page. Reference model researched 2026-08-09: Workflowy, from its official help/blog docs (a few details are community-sourced; flagged).
+
+## What shipped, and the three things the build decided
+
+The resolved plan below landed as written — same ops layer, no optimistic UI, structural keys as immediate ops, text buffered in a draft cell. Three questions it did not answer came up while building, and the answers are worth keeping:
+
+- **A new row is a draft, not a blank node.** The ops layer refuses a node without a title and is right to, so `Enter` opens an editor where the row will go and the `add` lands the moment it has text (`Enter`, blur, or idle). An abandoned empty row writes nothing — which is also what stops `Enter Enter Enter` from filling an outline with blank bullets and a git log with `capture: `.
+- **The wire verbs are INTENTS, not ops requests.** `Tab` sends "indent this", not "reparent under the node above, placed last": the neighbours a placement is computed from are facts about the snapshot, so they are read on the server, against the revision the write is judged against, rather than computed in a tab from a tree some frames old. Same for `Ctrl+Enter`, which sends "toggle" and lets the server read the stored mark. That also keeps the browser's closed list narrower than the agent's (no `create`, `archive`, `see`, `date`, no chosen ids).
+- **No optimistic UI costs the CARET, and that is the real work.** A row that indents is redrawn at a new place by a new branch, and a row that reorders has its element moved — both take focus off the input in a browser. So a draft is about a NODE and follows it across the frame, and the editor asks for the caret back once the frame that redrew the row has been rendered. The alternative — echoing the move locally so the row never appears to leave — is exactly the optimistic UI this design is written against.
+
+An `<input>` rather than `contenteditable` for the title (a title is one verbatim line with no markup, so the trade is `#tags` reading unstyled while the caret is in the row) and a textarea for the note, per the plan. Delete stayed out entirely, per the human's 2026-08-11 decision: it arrives with undo.
 
 ## Settled (carried from the ratified rewrite plan)
 
@@ -29,5 +39,6 @@ Status: brainstorming ahead of the Editor theme (keyboard editing, then editor g
 
 ## Open
 
-- ~~**Derived status in the edit UI**: unlike Workflowy, completing a parent isn't just unpropagated — it's *refused* (derived state).~~ **Closed 2026-08-11** (`hide-done-scope`): status derivation is gone, so olai IS the Workflowy model here — `Ctrl+Enter` on a parent stores a mark like it would on a leaf. What the edit UI still owes it is the rollup badge in an editable row, and somewhere to show a write's `nudge` (the last task under a parent going done) that is not a refusal, because nothing about this is refused any more.
-- **Delete without undo**: until the undo item lands, a keyboard delete is unrecoverable inside the app — whether it needs a confirm step (or a brief in-app grace) is a first-PR design detail.
+- ~~**Derived status in the edit UI**: unlike Workflowy, completing a parent isn't just unpropagated — it's *refused* (derived state).~~ **Closed 2026-08-11** (`hide-done-scope`): status derivation is gone, so olai IS the Workflowy model here — `Ctrl+Enter` on a parent stores a mark like it would on a leaf. The rollup badge is drawn beside an editable row like any other, since the editor replaces only the title span.
+- ~~**Delete without undo**~~ **Closed 2026-08-11 (human): deferred entirely.** No delete key and no delete affordance until the undo item lands; git is the recovery net until then.
+- **A write's `nudge` has nowhere to go on the keyboard path.** The last task under a parent going done, or a branch ticked over unfinished ones, is advice the ops layer returns on a write that LANDED — the chat panel draws it, and a keystroke currently drops it. It is not a refusal and must not read as one, so it wants a quiet place of its own (a line under the row, dismissed by the next keystroke, is the obvious candidate). Left for the editor-growth item that has somewhere to put it rather than invented here.

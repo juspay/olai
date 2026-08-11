@@ -32,8 +32,18 @@
  * row, and what is waiting is this node rather than everything filed beneath
  * it. The status checkbox beside it (./Checkbox.tsx)
  * reads the same stored done/doing the title tones with, and a row with no
- * mark shows no box at all — a bullet is not a task. Read-only until
- * keyboard-editing.
+ * mark shows no box at all — a bullet is not a task. The box stays
+ * display-only: what ticks it is `Ctrl+Enter` in the row's own editor, which
+ * is where every other edit is made too (./edit/editing.tsx).
+ *
+ * A row is EDITABLE in place. Click its title and the title span is replaced
+ * by an input in the same cell — no second layout and no mode — and the keys
+ * of the Workflowy loop are that input's (../keys.ts says which, and why they
+ * are the editor's rather than the window's). Two more things belong to the
+ * same editor and are drawn only while it is here: a note being written as
+ * TEXT rather than rendered, and the reason a commit was refused. A row being
+ * typed is still not a row that has changed — nothing is echoed, and what the
+ * tree draws is the file.
  *
  * A note on a row is Workflowy-style: one dim line under the title, clamped
  * with an ellipsis; click (or tap) expands in place to the full note and see
@@ -49,6 +59,9 @@ import { createMemo, Match, Show, Switch } from "solid-js"
 import { blockedIds, WAITING_DIM } from "./blocked.ts"
 import { Bullet } from "./Bullet.tsx"
 import { Checkbox } from "./Checkbox.tsx"
+import { useEditor } from "./edit/editing.tsx"
+import { NewRow } from "./edit/NewRow.tsx"
+import { DescEditor, keyHandler, Refused, TitleEditor } from "./edit/RowEditor.tsx"
 import { foldableKeys } from "./fold.ts"
 import { createNoteExpand } from "./note/expand.ts"
 import { NodeBody } from "./NodeBody.tsx"
@@ -110,6 +123,28 @@ function Branch(props: {
 
   // Click/tap expand — local to this place, not a reading cell. No hover.
   const note = createNoteExpand()
+
+  // The editor, which is one draft for the whole page: these three ask whether
+  // it happens to be in THIS place. By `Row.key` rather than by node id — the
+  // same node reached through two mirrors is two rows, and only the one that
+  // was clicked has the caret in it.
+  const editor = useEditor()
+  const typing = (field: "title" | "desc") => {
+    const draft = editor.draft()
+    return draft !== null && draft.kind === "row" && draft.place === props.row.key &&
+        draft.field === field
+      ? draft
+      : undefined
+  }
+  const pending = () => {
+    const draft = editor.draft()
+    return draft !== null && draft.kind === "new" && draft.place === props.row.key
+      ? draft
+      : undefined
+  }
+  /** The refusal, when the draft it belongs to is this row's. */
+  const refused = () =>
+    editor.draft()?.place === props.row.key ? editor.refusal() ?? undefined : undefined
 
   return (
     <li
@@ -191,6 +226,21 @@ function Branch(props: {
               </span>
             )}
           </Match>
+          {/* The caret, where the title was. One `<Show>` rather than a
+              second row: the editor takes the title's own cell, so nothing
+              in the gutter moves and the line does not jump under the
+              pointer that opened it. */}
+          <Match when={typing("title")}>
+            {(draft) => (
+              <TitleEditor
+                text={draft().text}
+                caret={editor.caret()}
+                onInput={editor.type}
+                onKey={keyHandler("line", (action) => editor.press(action, props.row))}
+                onBlur={() => editor.blur({ place: props.row.key, field: "title" })}
+              />
+            )}
+          </Match>
           <Match when={shown()}>
             {(shows) => (
               <NodeLine
@@ -198,6 +248,7 @@ function Branch(props: {
                 status={props.row.status}
                 progress={props.row.progress}
                 date={shows().node.date}
+                onEdit={() => editor.open(props.row, "title")}
               >
                 <Show when={props.row.kind !== "node"}>
                   <span class="mr-1 text-muted" title="a mirror of another node">
@@ -219,11 +270,34 @@ function Branch(props: {
             class={`${PAST_CONTROLS} ${WAITING_DIM(props.row.blocked)}`}
             ref={note.setRoot}
           >
-            <NodeBody
-              shows={shows()}
-              expanded={note.expanded()}
-              onToggle={note.toggle}
-            />
+            {/* The note as TEXT while it is being written, rendered markdown
+                the rest of the time — the same swap the title makes, one
+                level down. */}
+            <Show
+              when={typing("desc")}
+              fallback={
+                <NodeBody
+                  shows={shows()}
+                  expanded={note.expanded()}
+                  onToggle={note.toggle}
+                />
+              }
+            >
+              {(draft) => (
+                <DescEditor
+                  text={draft().text}
+                  caret={editor.caret()}
+                  onInput={editor.type}
+                  onKey={keyHandler("block", (action) => editor.press(action, props.row))}
+                  onBlur={() => editor.blur({ place: props.row.key, field: "desc" })}
+                />
+              )}
+            </Show>
+            {/* The reason the last commit did not land, under the row it was
+                typed in and beside the draft that still holds the text. */}
+            <Show when={refused()}>
+              {(failure) => <Refused failure={failure()} />}
+            </Show>
           </div>
         )}
       </Show>
@@ -243,6 +317,23 @@ function Branch(props: {
             {(child) => <Branch row={child()} view={props.view} />}
           </Key>
         </ul>
+      </Show>
+
+      {/* A row being typed that is not a node yet, drawn where it will land:
+          INSIDE this item and after its children, which is exactly where the
+          next sibling appears in an outline. It is not a row of the tree — no
+          `<li>`, no testid a scenario counts nodes with — because nothing has
+          been written. */}
+      <Show when={pending()}>
+        {(draft) => (
+          <NewRow
+            text={draft().text}
+            caret={editor.caret()}
+            onInput={editor.type}
+            onKey={keyHandler("line", (action) => editor.press(action, null))}
+            onBlur={() => editor.blur({ place: props.row.key, field: "new" })}
+          />
+        )}
       </Show>
     </li>
   )

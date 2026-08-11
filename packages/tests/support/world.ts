@@ -135,6 +135,19 @@ export const ZOOM = selector(TESTID.zoom);
 /** The status box beside that bullet: checked for done, half for doing, empty
  *  for todo — and absent entirely on a node with no mark. */
 export const CHECKBOX = selector(TESTID.checkbox);
+/** The caret in a row: an input where the title span was, present only while
+ *  that row is being typed in. A page with none of these has no editor open,
+ *  which is how "nothing is being edited" is asked. */
+export const TITLE_EDITOR = selector(TESTID.titleEditor);
+/** The note as text, under the row, while it is being written. */
+export const DESC_EDITOR = selector(TESTID.descEditor);
+/** A row that does not exist yet — an editor standing where `Enter` will put
+ *  one. Finding one is finding a DRAFT, never a write. */
+export const NEW_ROW = selector(TESTID.newRow);
+/** What the last commit was refused with, under the row it was typed in. */
+export const EDIT_REFUSAL = selector(TESTID.editRefusal);
+/** The way in on a page with no rows at all. */
+export const START_LINE = selector(TESTID.startLine);
 /** The heading of a zoomed page. Carries the CANONICAL node's id, which is
  *  what lets a scenario say "zooming a mirror lands on the node itself". */
 export const ZOOM_TITLE = selector(TESTID.zoomTitle);

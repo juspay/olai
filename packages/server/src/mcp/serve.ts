@@ -161,7 +161,11 @@ export const serveTools = (options: McpServeOptions) =>
     // The surface, bound to this store. No chat: there is no browser here and
     // nothing to prompt, and `bind` already answers a chat verb as a refusal
     // when there is no agent — so the cell reads `off` and nothing is exposed.
-    const wired = yield* bind({ store, chat: null })
+    // The ops layer is the same one the tools below get: the edit procedures
+    // it backs are unexposed on this face (`./expose.ts` is default-deny, and
+    // an agent has the tools), so what they cost here is a binding nobody can
+    // reach.
+    const wired = yield* bind({ store, chat: null, ops })
     // The runtime's `done` rejects when it is closed, so something must hold
     // that catch or a clean shutdown surfaces as an unhandled rejection. Same
     // reason as `../serve.ts`, and registered in the same order: `stopped`

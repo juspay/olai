@@ -138,6 +138,27 @@ export const TESTID = {
    *  which is how a bullet is told from an unstarted task. Read-only for now;
    *  the glyph is the assertion. */
   checkbox: "checkbox",
+  // ── the row editor ───────────────────────────────────────────────────
+  /** The caret in a row's title: an `<input>` standing exactly where the title
+   *  span was. Present only while that row is being typed in — a page with no
+   *  editor open carries none of these at all. */
+  titleEditor: "title-editor",
+  /** The same for a note: a plain textarea under the row, opened with
+   *  `Shift+Enter`, whose rendering comes back when it closes. */
+  descEditor: "desc-editor",
+  /** A row that does not exist yet — the editor standing where `Enter` will
+   *  put one. It becomes a node when it has a title and is committed, so a
+   *  scenario that finds one has found a DRAFT and not a write. */
+  newRow: "new-row",
+  /** What the last commit was refused with, under the row it was typed in.
+   *  `data-kind` is the refusal's own tag. Its presence is the promise that a
+   *  refused write is visible; the draft beside it is the promise that nothing
+   *  typed was lost. */
+  editRefusal: "edit-refusal",
+  /** The way in on a page with no rows: an outline that holds nothing, a
+   *  zoomed node with nothing under it. */
+  startLine: "start-line",
+
   /** The heading of a zoomed page — carries the CANONICAL node's id, which is
    *  what makes "a mirror lands on the node itself" an assertion. */
   zoomTitle: "zoom-title",

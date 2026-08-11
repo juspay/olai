@@ -94,7 +94,7 @@ const withTools = <A>(
         }),
     })
 
-    const wired = yield* bind({ store, chat: null })
+    const wired = yield* bind({ store, chat: null, ops })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 

@@ -21,16 +21,27 @@
  *     server-authored — `readAll` is the transcript itself and the writes come
  *     from `ctx`, never from the wire — because a transcript is something that
  *     HAPPENED and the only way to add to it is to prompt.
+ *   - the KEYBOARD is the ops layer's: five procedures, no member of its own,
+ *     and nothing published from here when one lands. That absence IS the
+ *     design — an edit changes a FILE, and a file reaches every open tab
+ *     through the store binding above, the same way a `git pull` does. A
+ *     procedure that also echoed its result would be a second answer to what
+ *     the directory says, arriving first and occasionally disagreeing.
  *
  * Nothing here interprets an outline or an agent. It moves what the store and
- * the chat decided onto the wire, and that is all.
+ * the chat decided onto the wire, and that is all — with one exception, and it
+ * is one indirection deep: an edit's INTENT is resolved into an op by
+ * `./edit.ts`, because that is a question about the snapshot rather than about
+ * the wire.
  */
 
 import type { OutlineError, OutlineSet } from "@olai/format"
+import type { Applied, Ops } from "@olai/ops"
 import type { Store } from "@olai/store"
 import {
   CHAT_OFF,
   type ChatState,
+  type Edit,
   LOADED,
   type Manifest,
   type OpFailure,
@@ -43,9 +54,10 @@ import {
   inMemoryStore,
   type SurfaceRuntime,
 } from "@kolu/surface/server"
-import { Effect, Stream, SubscriptionRef } from "effect"
+import { Effect, Result, Stream, SubscriptionRef } from "effect"
 
 import type { Change, Chat } from "@olai/chat"
+import { requestFor } from "./edit.ts"
 import {
   type Change as CollectionChange,
   type Published,
@@ -78,6 +90,10 @@ export interface Wiring {
    *  procedures answer that they are. A directory is readable whether or not
    *  an agent is installed. */
   readonly chat: Chat | null
+  /** The one writer. The edit procedures are the browser's door to it, and
+   *  they hold nothing of their own: what a keystroke MEANT is resolved
+   *  against this layer's own reading (`./edit.ts`) and run as one op. */
+  readonly ops: Ops
 }
 
 /** The chat, plus the two publishers the surface hands back once it exists.
@@ -132,6 +148,24 @@ export const bind = (
           }),
         )
         : use(chat)
+
+    /**
+     * One keystroke, all the way through: read the set, work out which op the
+     * intent names ({@link ./edit.ts}), run it.
+     *
+     * The read is the ops layer's own — one answer to "there is nothing loaded
+     * yet", shared with the tools — and the failure channel is the one every
+     * writer already speaks, so a refusal reaches the browser as the
+     * validator's rows rather than as a transport error the editor could only
+     * shrug at.
+     */
+    const applyEdit = (edit: Edit): Effect.Effect<Applied, OpFailure> =>
+      Effect.flatMap(wiring.ops.read, (at) => {
+        const request = requestFor(at, edit)
+        return Result.isFailure(request)
+          ? Effect.fail(request.failure)
+          : wiring.ops.run(request.success)
+      })
 
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {
       cells: {
@@ -222,6 +256,14 @@ export const bind = (
           newSession: () => withChat((open) => open.newSession),
           loadSession: ({ input }) => withChat((open) => open.loadSession(input.id)),
           sessions: () => withChat((open) => open.sessions),
+        },
+        edit: {
+          add: ({ input }) =>
+            Effect.map(applyEdit({ verb: "add", ...input }), (done) => ({ id: done.id })),
+          move: ({ input }) => Effect.asVoid(applyEdit({ verb: "move", ...input })),
+          toggle: ({ input }) => Effect.asVoid(applyEdit({ verb: "toggle", ...input })),
+          retitle: ({ input }) => Effect.asVoid(applyEdit({ verb: "retitle", ...input })),
+          note: ({ input }) => Effect.asVoid(applyEdit({ verb: "note", ...input })),
         },
       },
     }

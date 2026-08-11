@@ -55,7 +55,7 @@ const withRoute = <A>(use: (served: Served) => Promise<A>): Promise<A> => {
       settle: "10 millis",
     })
     const ops = makeOps({ store, root, commit: false })
-    const wired = yield* bind({ store, chat: null })
+    const wired = yield* bind({ store, chat: null, ops })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 

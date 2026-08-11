@@ -47,6 +47,13 @@
  * appear here at all: they reach the ops layer through an internal MCP server
  * the session is handed, and what a reader sees of them is the outline stream
  * moving — server-authoritative, never an optimistic echo.
+ *
+ * The last group is the KEYBOARD's ({@link ./edit.ts}), and it is the one
+ * place a browser may cause a write. It changes nothing about the paragraph
+ * above: an edit is a PROCEDURE, the collections stay read-only on the wire,
+ * and what a reader sees is still the file that was produced arriving on the
+ * outlines stream. So a person typing and an agent writing are the same
+ * mechanism seen twice, and two tabs cannot disagree about what landed.
  */
 
 import { BrokenFile, Located, OutlineError } from "@olai/format"
@@ -60,6 +67,7 @@ import {
   ChatState,
   SessionInfo,
 } from "./chat.ts"
+import { editProcedures } from "./edit.ts"
 
 /**
  * One outline file's slice of the set, as published at set revision `rev`.
@@ -259,6 +267,11 @@ export const surface = defineSurface({
         error: ChatFailure,
       },
     },
+    /** What a KEYBOARD may do — the browser's own closed list of edits, each
+     *  landing as one op through the same write gate the agent's tools go
+     *  through. Declared next door in {@link ./edit.ts}, which says why the
+     *  verbs are intents rather than the ops requests re-spelled. */
+    edit: editProcedures,
   },
 })
 
@@ -274,6 +287,11 @@ export {
   OpFailure,
   SessionInfo,
 } from "./chat.ts"
+
+/** What a keyboard may do, and the value shape of one edit — see
+ *  {@link ./edit.ts}. The type is what makes the server's mapping onto ops
+ *  requests total. */
+export { Added, Anchor, type Edit } from "./edit.ts"
 
 /** The one HTTP address both ends spell — see {@link ./media.ts}. */
 export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"

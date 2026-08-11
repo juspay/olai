@@ -29,9 +29,9 @@ import {
 import type { Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
-import { run } from "../chat/run.ts"
+import { run } from "../run.ts"
 import { askQuery, filterItems, type PaletteItem } from "./items.ts"
-import { isEditingTarget, matchKey } from "./keys.ts"
+import { isEditingTarget, matchKey } from "../keys.ts"
 
 export function Palette(props: {
   readonly go: (route: Route) => void

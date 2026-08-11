@@ -13,6 +13,11 @@
  * succeeding `StaleWrite` retry is invisible; every genuine failure renders).
  * A DEFECT is different and is deliberately not caught: it is a bug, and it
  * belongs in the console loudly.
+ *
+ * It lived in `chat/` while the conversation was the only thing with verbs.
+ * The palette's `>` ask was the second caller and the row editor is the third,
+ * so it sits at the client's root now — one edge, named once, wherever a
+ * procedure is called from.
  */
 
 import { BusyFailure, isOpFailure, type OpFailure } from "@olai/surface"

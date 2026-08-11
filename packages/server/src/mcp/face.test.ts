@@ -35,6 +35,8 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
+import { make as makeOps } from "@olai/ops"
+
 import { openDirectory } from "../directory.ts"
 import { watchFault } from "../fault.ts"
 import { bind } from "../runtime.ts"
@@ -83,7 +85,10 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
   Effect.gen(function*() {
     const root = served()
     const { store } = yield* openDirectory(root)
-    const wired = yield* bind({ store, chat: null })
+    // The ops layer the edit procedures are bound to. This face exposes none
+    // of them — it is the READ face — so it is here to satisfy the binding.
+    const ops = makeOps({ store, root, commit: false })
+    const wired = yield* bind({ store, chat: null, ops })
     // Not optional, and not ceremony copied from `serve.ts`: the runtime's
     // `done` REJECTS when it is closed, so something has to be holding the
     // catch or every teardown here is an unhandled rejection the test runner

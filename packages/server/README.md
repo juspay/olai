@@ -1,9 +1,13 @@
 # @olai/server — the composition root, and the binary
 
-One directory, read and served — and, since the agent arrived, written. Plus
-the two entry points that start it: `olai web <dir> [--port] [--host]
-[--no-commit]`, which puts a browser in front of the ops layer, and `olai mcp
-<dir> [--no-commit]`, which puts an agent's pipes in front of the same one.
+One directory, read and served — and written, by an agent and now by a person
+at a keyboard. Plus the two entry points that start it: `olai web <dir>
+[--port] [--host] [--no-commit]`, which puts a browser in front of the ops
+layer, and `olai mcp <dir> [--no-commit]`, which puts an agent's pipes in front
+of the same one. Both writers go through that one layer: the browser's edits
+are surface procedures resolved into ops requests here (`edit.ts`), the
+agent's are the ops table projected onto MCP (`mcp/tools.ts`), and neither has
+a path to a file of its own.
 
 This is the only package allowed to know about all the others, which is what a
 composition root is for. The ORDER is the whole of what it decides: a store
@@ -36,7 +40,8 @@ register `stop` as a finalizer.
 | `mcp/tools.ts` | `@olai/ops`' table projected onto that face — the fixed field subtracted, a refusal carried as data |
 | `mcp/route.ts` | that face for the agent olai STARTED: mounted on this listener, behind a per-process bearer token, over a half-duplex transport of its own |
 | `mcp/serve.ts` | that face for an agent that started US: `olai mcp`'s own, much smaller, composition root, over stdio |
-| `runtime.ts` | the surface bindings: one owned fiber turns each store revision into the entries that moved and the manifest that names it, the errors cell is a second owned source, the transcript is server-authored |
+| `runtime.ts` | the surface bindings: one owned fiber turns each store revision into the entries that moved and the manifest that names it, the errors cell is a second owned source, the transcript is server-authored, and the edit procedures are the browser's door to the ops layer |
+| `edit.ts` | what a KEYSTROKE meant, in terms of ops: the browser sends an intent (`indent`, `toggle`, `a new sibling after this`) and this resolves the placement against the snapshot and hands back one request. Pure over a reading, like the planner it feeds |
 | `outlines.ts` | the projection that fiber publishes: one published revision cut into per-file entries, and the store's own `changed`/`removed` mapped onto the collection's upserts and removes |
 | `listener.ts` | one `serveSurfaceApp` call, and the one decision it leaves that is a policy: whose port this is |
 | `report.ts` | the other one: what a listener event — a stale tab, a refused origin, a faulted connection — sounds like in olai's log |

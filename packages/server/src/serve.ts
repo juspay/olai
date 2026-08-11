@@ -105,7 +105,10 @@ export const serve = (options: ServeOptions) =>
       onTranscript: (change) => publish?.transcript(change),
     })
 
-    const wired = yield* bind({ store, chat })
+    // The surface is bound to all three: the store it reads from, the chat it
+    // draws, and the ops layer its edit procedures write through — the same
+    // one the MCP face below hands the agent, because there is one writer.
+    const wired = yield* bind({ store, chat, ops })
     publish = wired.publish
 
     // A faulted runtime is unrecoverable structural damage, and telling that
@@ -145,7 +148,7 @@ export const serve = (options: ServeOptions) =>
     if (!LOOPBACK.has(options.host)) {
       yield* Effect.annotateLogs(
         Effect.logWarning(
-          "bound off loopback — the surface is unauthenticated, so anyone who can reach this port can read every outline here",
+          "bound off loopback — the surface is unauthenticated, so anyone who can reach this port can read every outline here, and edit them",
         ),
         { host: options.host },
       )

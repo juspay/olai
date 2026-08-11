@@ -24,6 +24,7 @@ import { CLEARANCE } from "./connection/Indicator.tsx"
 import { DayPage } from "./day/DayPage.tsx"
 import { DocumentPage } from "./document/DocumentPage.tsx"
 import { DerivedProvider } from "./derived.tsx"
+import { createEditor, EditorProvider } from "./edit/editing.tsx"
 import { createDocuments, DocumentsProvider } from "./document/documents.tsx"
 import { Banner } from "./errors/Banner.tsx"
 import { Broken } from "./errors/Broken.tsx"
@@ -92,6 +93,13 @@ export default function App() {
     return indexes === undefined ? [] : view.visible(rowsFor(indexes, page()))
   })
 
+  /** The caret, for whichever page is open. It is created here because it
+   *  needs what is DRAWN — the same rows and the same folds — to answer where
+   *  `↑`/`↓` go, and this is the one place both are in hand. Everything else
+   *  about it is the editor's own (./edit/editing.tsx); nothing about a write
+   *  passes through this file. */
+  const editor = createEditor({ rows, collapsed: view.collapsed })
+
   const docked = () => outlines.manifest() !== null && page() !== undefined
 
   return (
@@ -133,6 +141,7 @@ export default function App() {
             {(open) => (
               <RouterProvider router={router}>
                 <DerivedProvider derived={outlines.derived()}>
+                <EditorProvider editor={editor}>
                 <DocumentsProvider documents={documents}>
                   {/*
                     Desktop: two columns (rail or full sidebar + main), widths
@@ -179,7 +188,13 @@ export default function App() {
                           )}
                         </Match>
                         <Match when={only(open(), "outline")}>
-                          <OutlinePage rows={rows()} view={view} />
+                          {(outline) => (
+                            <OutlinePage
+                              file={outline().file}
+                              rows={rows()}
+                              view={view}
+                            />
+                          )}
                         </Match>
                         <Match when={only(open(), "document")}>
                           {(open) => <DocumentPage file={open().file} />}
@@ -205,6 +220,7 @@ export default function App() {
                     </main>
                   </div>
                 </DocumentsProvider>
+                </EditorProvider>
                 </DerivedProvider>
               </RouterProvider>
             )}
