@@ -64,9 +64,12 @@ appears: a node nobody marked has no status, and `derive`'s status index is
 partial over the set rather than total — a node missing from it is a bullet,
 not a task nobody has started (docs/format.md's Status section). A parent is
 the sum of the children that ARE tasks, and one whose children include none is
-a bullet like they are. `unfinishedChildren` is the other half of that rule and
-exists once for the same reason as everything else here: the validator's load
-error and the ops layer's refused write have to name the same children.
+a bullet like they are. `fromChildren` is the other half of that rule: what a
+node's children say about it, as ONE union of three answers — nothing, done, or
+these particular children are still under way — because the validator's load
+error and the ops layer's refused write both switch on it and must name the
+same children. The list lives on the one answer that has one, so the two sites
+cannot disagree about whether there are any.
 
 `zoom` is the same claim
 about one node as a page — which record an id resolves to (following a mirror

@@ -124,29 +124,53 @@ export const countedChildren = (
 ): ReadonlyArray<Located> => counted(derived.children, id)
 
 /**
- * The counted children standing between a node and `done`: the ones that are
- * TASKS and are not finished.
+ * What a node's CHILDREN say about it — and the whole of what a refusal needs
+ * in order to say why it refuses.
  *
- * Not `status !== "done"`. That test reads an unmarked child as an unfinished
- * one, which is the whole defect this model drops: a plain bullet has nothing
- * to finish, so it stands between nobody and anything. Under the two marks
- * there are, this is exactly the `doing` children.
+ * Two places have to turn down a stored mark and explain it: the validator, on
+ * load, and the ops layer, on a write. Both answer the same three-way
+ * question, and the third answer is the only one that has children to name, so
+ * a status beside a list would be two values with a rule between them — which
+ * is what each of the two sites was holding in a comment. It is one union, and
+ * the list exists exactly where it means something.
  *
- * One function, because the validator's load error and the ops layer's refused
- * write both list them, and a set that disagreed about which children are in
- * the way would refuse a write for children the error report did not name.
+ * `null` when the node has no counted children: then it speaks for itself, and
+ * neither refusal is about it.
  */
-export const unfinishedChildren = (
-  derived: Derived,
-  id: string,
-): ReadonlyArray<LocatedRegular> =>
-  countedChildren(derived, id).flatMap((child) => {
-    const status = derived.status.get(child.node.id)
-    // `counted` has already dropped the mirrors; what is left is regular.
-    return status === undefined || status === "done"
-      ? []
-      : [child as LocatedRegular]
-  })
+export type FromChildren =
+  /** None of them is a task, so neither is the node. */
+  | { readonly kind: "nothing"; readonly counted: number }
+  /** Every task among them is finished. */
+  | { readonly kind: "done"; readonly counted: number }
+  /** Some are not, and they are what to mark instead. Non-empty. */
+  | {
+    readonly kind: "unfinished"
+    readonly counted: number
+    readonly children: ReadonlyArray<LocatedRegular>
+  }
+
+export const fromChildren = (derived: Derived, id: string): FromChildren | null => {
+  const own = counted(derived.children, id)
+  if (own.length === 0) return null
+
+  // The walk's OWN answer, read back rather than worked out a second time:
+  // a node with counted children derives exactly these three cases.
+  const says = derived.status.get(id)
+  if (says === undefined) return { kind: "nothing", counted: own.length }
+  if (says === "done") return { kind: "done", counted: own.length }
+
+  return {
+    kind: "unfinished",
+    counted: own.length,
+    // A child is in the way if it is a TASK that is not done — never merely
+    // `!== "done"`, which reads a plain bullet as an obstacle that can never
+    // be cleared. `counted` has already dropped the mirrors.
+    children: own.flatMap((child) => {
+      const status = derived.status.get(child.node.id)
+      return status === undefined || status === "done" ? [] : [child as LocatedRegular]
+    }),
+  }
+}
 
 /**
  * A leaf says what it is, and says nothing at all when it carries no mark.
@@ -165,18 +189,18 @@ const statuses = (
   byId: ReadonlyMap<string, Located>,
   children: ReadonlyMap<string, ReadonlyArray<Located>>,
 ): ReadonlyMap<string, Status> => {
-  // `null` is a settled answer here, not a missing one, which is why the memo
-  // holds it and the map handed back does not: a key whose value said "no
-  // status" would be a second spelling of the absence callers already read.
-  const settled = new Map<string, Status | null>()
+  // "No status" is a settled ANSWER here, not a missing one — so the memo is
+  // keyed on `has` and the map handed back simply omits it. One spelling of
+  // absence, the same one every caller reads off `status.get`.
+  const settled = new Map<string, Status | undefined>()
   const walking = new Set<string>()
 
-  const of = (located: Located): Status | null => {
+  const of = (located: Located): Status | undefined => {
     const id = located.node.id
-    if (settled.has(id)) return settled.get(id) ?? null
+    if (settled.has(id)) return settled.get(id)
     // A loop the validator will report; treat the re-entry as carrying nothing
     // rather than recursing into it.
-    if (walking.has(id)) return null
+    if (walking.has(id)) return undefined
     walking.add(id)
 
     const computed = compute(located)
@@ -185,32 +209,34 @@ const statuses = (
     return computed
   }
 
-  const compute = (located: Located): Status | null => {
+  const compute = (located: Located): Status | undefined => {
     if (isMirror(located.node)) {
       const target = byId.get(located.node.mirror)
-      return target === undefined ? null : of(target)
+      return target === undefined ? undefined : of(target)
     }
 
     const own = counted(children, located.node.id)
     if (own.length === 0) return storedMarker(located.node)
 
     const tasks = own.flatMap((child) => of(child) ?? [])
-    if (tasks.length === 0) return null
+    if (tasks.length === 0) return undefined
     return tasks.every((task) => task === "done") ? "done" : "doing"
   }
 
   for (const located of nodes) of(located)
 
   const status = new Map<string, Status>()
-  for (const [id, mark] of settled) if (mark !== null) status.set(id, mark)
+  for (const [id, mark] of settled) if (mark !== undefined) status.set(id, mark)
   return status
 }
 
-/** What a leaf claims about itself, which for a leaf IS its status. `done`
- *  wins over `doing` — they are mutually exclusive on disk, so the order only
- *  decides what a set the validator has already condemned looks like. */
-export const storedMarker = (node: LocatedRegular["node"]): Status | null =>
-  node.done !== undefined ? "done" : node.doing !== undefined ? "doing" : null
+/** What a leaf claims about itself, which for a leaf IS its status — and
+ *  `undefined` for a leaf claiming nothing, the one spelling of absence this
+ *  module has. `done` wins over `doing`: they are mutually exclusive on disk,
+ *  so the order only decides what a set the validator has already condemned
+ *  looks like. */
+export const storedMarker = (node: LocatedRegular["node"]): Status | undefined =>
+  node.done !== undefined ? "done" : node.doing !== undefined ? "doing" : undefined
 
 // ── the drawable tree ──────────────────────────────────────────────────
 

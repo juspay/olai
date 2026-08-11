@@ -3,12 +3,12 @@ import { expect, test } from "bun:test"
 import {
   countedChildren,
   derive,
+  fromChildren,
   type Row,
   rowsOf,
   type Status,
   storedMarker,
   titleParts,
-  unfinishedChildren,
   withoutDone,
 } from "./derive.ts"
 import { FIXTURE_FILE, nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
@@ -83,7 +83,7 @@ test("the stored marker is the field a record actually carries, or nothing", () 
         `{"id":"b","ord":"b","title":"b","doing":"2026-08-10"}\n` +
         `{"id":"c","ord":"c","title":"c"}`,
     ).map(storedMarker),
-  ).toEqual(["done", "doing", null])
+  ).toEqual(["done", "doing", undefined])
 
   // Written by hand because the parser refuses this line: the two markers are
   // exclusive on disk, so this only decides what a set the validator has
@@ -132,26 +132,55 @@ test("a parent is the sum of the children that are tasks", () => {
   expect(bullets.get("p")).toBeUndefined()
 })
 
-// The children in the way of `done` are the tasks that are not finished — one
-// list, read by the validator's load error and by the ops layer's refused
-// write. A bullet is never in it, however unfinished it looks.
-test("the unfinished children are the tasks, never the bullets", () => {
-  const derived = derive(nodesOf(
+// What the children say is one answer with three shapes, and it is what both
+// refusals — the validator's load error and the ops layer's refused write —
+// are built from. The children to name exist only in the third, so the two
+// sites cannot disagree about whether there are any.
+test("what the children say is one of three answers", () => {
+  const said = (contents: string, id: string) => fromChildren(derive(nodesOf(contents)), id)
+
+  // Nothing: a node whose children are all bullets is a bullet.
+  expect(said(
+    `{"id":"p","ord":"a","title":"p"}\n` +
+      `{"id":"c1","parent":"p","ord":"a","title":"c1"}\n` +
+      `{"id":"c2","parent":"p","ord":"b","title":"c2"}`,
+    "p",
+  )).toEqual({ kind: "nothing", counted: 2 })
+
+  // Done: every task under it is finished. The unmarked sibling is counted as
+  // a child — the sentence says how many there are — and is not in the way.
+  expect(said(
+    `{"id":"p","ord":"a","title":"p"}\n` +
+      `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
+      `{"id":"c2","parent":"p","ord":"b","title":"c2"}`,
+    "p",
+  )).toEqual({ kind: "done", counted: 2 })
+
+  // Unfinished: the tasks that are not done, and nothing else — not the
+  // bullet, not the mirror, not the child that is already finished.
+  const unfinished = said(
     `{"id":"p","ord":"a","title":"p"}\n` +
       `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
       `{"id":"c2","parent":"p","ord":"b","title":"c2","doing":true}\n` +
       `{"id":"c3","parent":"p","ord":"c","title":"c3"}\n` +
       `{"id":"c4","parent":"p","ord":"d","mirror":"c1"}`,
-  ))
-  expect(ids(unfinishedChildren(derived, "p"))).toEqual(["c2"])
+    "p",
+  )
+  expect(unfinished?.kind).toBe("unfinished")
+  expect(unfinished?.counted).toBe(3)
+  expect(ids(unfinished?.kind === "unfinished" ? unfinished.children : [])).toEqual(["c2"])
 
   // A child that is a task because of ITS children counts the same way.
-  const nested = derive(nodesOf(
+  const nested = said(
     `{"id":"p","ord":"a","title":"p"}\n` +
       `{"id":"mid","parent":"p","ord":"a","title":"mid"}\n` +
       `{"id":"leaf","parent":"mid","ord":"a","title":"leaf","doing":true}`,
-  ))
-  expect(ids(unfinishedChildren(nested, "p"))).toEqual(["mid"])
+    "p",
+  )
+  expect(ids(nested?.kind === "unfinished" ? nested.children : [])).toEqual(["mid"])
+
+  // And a node with no counted children is not what either refusal is about.
+  expect(said(`{"id":"p","ord":"a","title":"p","done":true}`, "p")).toBeNull()
 })
 
 // The rule has to hold through a whole branch, not one level: a grandparent's
