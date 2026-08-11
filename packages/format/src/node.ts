@@ -39,10 +39,6 @@ const Marker = Schema.Union([Schema.Literal(true), Schema.String])
  */
 export const MARKS = ["done", "doing", "todo"] as const
 
-/** What one of them says. A node carrying none is not a task at all, which is
- *  why this type never has a member for "unmarked" — absence says that. */
-export type Mark = (typeof MARKS)[number]
-
 /** The fields both shapes share: identity and placement. */
 const Placement = {
   id: Schema.String,

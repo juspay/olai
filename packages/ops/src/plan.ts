@@ -33,9 +33,9 @@ import {
   isMirror,
   type Located,
   type LocatedRegular,
-  type Mark,
   MARKS,
   type Node,
+  type Status,
   NotFoundFailure,
   nodesOf,
   type OpFailure,
@@ -415,11 +415,11 @@ const UNMARKED = {
   done: "undone",
   doing: "not-doing",
   todo: "not-todo",
-} as const satisfies Record<Mark, string>
+} as const satisfies Record<Status, string>
 
 const planMark = (
   scope: Scope,
-  request: Extract<Request, { op: Mark }>,
+  request: Extract<Request, { op: Status }>,
 ): Planned => {
   const target = editable(scope, request.id)
   if (Result.isFailure(target)) return Result.fail(target.failure)

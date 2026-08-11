@@ -164,16 +164,9 @@ test("a parent whose tasks are all unstarted is todo, not doing", () => {
       `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
       `{"id":"c2","parent":"p","ord":"b","title":"c2","todo":true}`,
   )
+  // …which is also what makes a `todo` child hold `done` back, where the plain
+  // bullet in the test above does not.
   expect(halfway.get("p")).toBe("doing")
-
-  // And a `todo` child holds `done` back, which the bullet beside it does not.
-  const held = statusesOf(
-    `{"id":"p","ord":"a","title":"p"}\n` +
-      `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
-      `{"id":"c2","parent":"p","ord":"b","title":"c2","todo":true}\n` +
-      `{"id":"c3","parent":"p","ord":"c","title":"c3"}`,
-  )
-  expect(held.get("p")).not.toBe("done")
 })
 
 // What the children say is one answer with three shapes, and it is what both
@@ -557,20 +550,11 @@ test("an unstarted child keeps its parent out of the done hiding", () => {
     "/beds/aside node",
   ])
 
-  // And the distinction the format documents: the plain bullet above survives
-  // because its PARENT survives. Under a parent that really is done it does
-  // not, and that is intended — a note on finished work is not outstanding.
-  const finished = rowsOf(
-    derive(
-      nodesOf(
-        `{"id":"beds","ord":"a0","title":"beds"}\n` +
-          `{"id":"soil","parent":"beds","ord":"a0","title":"soil","done":true}\n` +
-          `{"id":"aside","parent":"beds","ord":"a1","title":"which varieties"}`,
-      ),
-    ),
-    FIXTURE_FILE,
-  )
-  expect(withoutDone(finished)).toEqual([])
+  // The bullet survives because its PARENT does. Under a parent that really is
+  // done it still goes, and that is intended — a note on finished work is not
+  // outstanding; "a done parent hides its whole subtree, bullets included"
+  // above is that half, and the two together are the distinction `todo` exists
+  // to draw.
 })
 
 // Hidden, never touched: the rows handed in are the same rows afterwards, so

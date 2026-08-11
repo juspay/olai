@@ -20,18 +20,18 @@ import {
   isMirror,
   type Located,
   type LocatedRegular,
-  type Mark,
   MARKS,
 } from "./node.ts"
 
 /**
- * What a node's checkbox shows: one of the three {@link Mark}s. Derived for a
+ * What a node's checkbox shows: one of the {@link MARKS}. Derived for a
  * parent, stored for a leaf, and OPTIONAL everywhere — a node with no status
  * is a bullet and not a task at all.
  *
- * The same three by design, not by coincidence, which is why this is that type
- * rather than a copy of it: a leaf shows the mark it carries, and a parent
- * shows the mark its children add up to. Neither can produce a fourth thing.
+ * Read off that list rather than spelled again, because it is the same set by
+ * design and not by coincidence: a leaf shows the mark it carries, a parent
+ * shows the mark its children add up to, and neither can produce a fourth
+ * thing. One name for it, so nobody has to learn that two are the same.
  *
  * What there is deliberately no member for is UNMARKED. `open` used to be one,
  * and it was what a node got for carrying nothing, which made every node a
@@ -39,7 +39,7 @@ import {
  * started" and "not a task at all". Absence answers the second; `todo` is how
  * a node says the first, and someone has to put it there.
  */
-export type Status = Mark
+export type Status = (typeof MARKS)[number]
 
 /**
  * A set of nodes and everything computed from it.
@@ -138,20 +138,6 @@ export const countedChildren = (
   id: string,
 ): ReadonlyArray<LocatedRegular> => counted(derived.children, id)
 
-/**
- * What a node's CHILDREN say about it — and the whole of what a refusal needs
- * in order to say why it refuses.
- *
- * Two places have to turn down a stored mark and explain it: the validator, on
- * load, and the ops layer, on a write. Both answer the same three-way
- * question, and the third answer is the only one that has children to name, so
- * a status beside a list would be two values with a rule between them — which
- * is what each of the two sites was holding in a comment. It is one union, and
- * the list exists exactly where it means something.
- *
- * `null` when the node has no counted children: then it speaks for itself, and
- * neither refusal is about it.
- */
 /** How many children answered, on every one of the three. Factored the way
  *  {@link Row} factors {@link Place}: one field, one place to describe it. */
 interface Asked {
@@ -167,6 +153,20 @@ export interface InTheWay {
   readonly status: Exclude<Status, "done">
 }
 
+/**
+ * What a node's CHILDREN say about it — and the whole of what a refusal needs
+ * in order to say why it refuses.
+ *
+ * Two places have to turn down a stored mark and explain it: the validator, on
+ * load, and the ops layer, on a write. Both answer the same three-way
+ * question, and the third answer is the only one that has children to name, so
+ * a status beside a list would be two values with a rule between them — which
+ * is what each of the two sites was holding in a comment. It is one union, and
+ * the list exists exactly where it means something.
+ *
+ * `null` when the node has no counted children: then it speaks for itself, and
+ * neither refusal is about it.
+ */
 export type FromChildren =
   /** None of them is a task, so neither is the node. */
   | (Asked & { readonly kind: "nothing" })

@@ -75,10 +75,10 @@ export const TESTID = {
   nodeGutter: "node-gutter",
   /** The bullet on every row: the link to that node's own page. */
   zoom: "zoom",
-  /** The status box beside that bullet: checked for done, half for doing —
-   *  and NOTHING carrying this testid on a node with no mark, which is how a
-   *  bullet is told from a task. Read-only for now; the glyph is the
-   *  assertion. */
+  /** The status box beside that bullet: checked for done, half for doing,
+   *  EMPTY for todo — and NOTHING carrying this testid on a node with no mark,
+   *  which is how a bullet is told from an unstarted task. Read-only for now;
+   *  the glyph is the assertion. */
   checkbox: "checkbox",
   /** The heading of a zoomed page — carries the CANONICAL node's id, which is
    *  what makes "a mirror lands on the node itself" an assertion. */

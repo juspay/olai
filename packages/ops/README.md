@@ -2,9 +2,8 @@
 
 Semantic edits over a served directory: create an outline, add, mark done,
 doing or todo, retitle, note, schedule, move, archive, set see references.
-Everything
-that changes an outline goes through here, and everything an agent may READ of
-one comes out of here too.
+Everything that changes an outline goes through here, and everything an agent
+may READ of one comes out of here too.
 
 It sits between `@olai/format` (what a record is, and what is legal) and
 `@olai/store` (how bytes become durable). Neither of those knows what an EDIT

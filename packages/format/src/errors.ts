@@ -90,8 +90,8 @@ const CATALOGUE = {
   "mirror-cycle": "set",
   /** `doc` does not name an `.md` file under the served directory. */
   "missing-doc": "set",
-  /** A node with children stores `done` or `doing`. A parent's status is
-   *  computed from its children and is never stored. */
+  /** A node with children stores a mark. A parent's status is computed from
+   *  its children and is never stored. */
   "stored-derived-state": "set",
 } as const satisfies Record<string, Reach>
 

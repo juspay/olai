@@ -34,7 +34,7 @@ export { assemble, BrokenFile, fileKind, OutlineSet } from "./set.ts"
 export type { DecodedFile, Outline } from "./set.ts"
 export { docOf, Document, isPicture, pictureOf } from "./documents.ts"
 export { isMirror, Located, MARKS } from "./node.ts"
-export type { FileKind, LocatedRegular, Mark, MirrorNode, Node, RegularNode } from "./node.ts"
+export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
 
 export {
   ancestorsOf,

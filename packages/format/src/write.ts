@@ -18,43 +18,30 @@
  * embedded newlines are escaped by JSON itself, which is the whole reason the
  * format is JSONL).
  *
- * Field order comes from docs/format.md's own table, and WHICH fields exist
- * comes from the record schema itself — because a writer keeping its own copy
- * of either is a copy that drifts, and the way it drifts here is by quietly
- * not writing a field somebody added.
+ * Field order comes from docs/format.md's own table, and that list is also
+ * what may be written at all — one list, walked once, so a field can be
+ * forgotten in one place rather than two. Forgetting it there is what
+ * write.test.ts fences, by asking the record SCHEMA which fields exist: a
+ * field with no place in the order is dropped on the next write, which is a
+ * writer losing data that parsed.
  *
  * The other half of "one spelling" is {@link nothing}: an optional field that
  * holds nothing is not written at all, so no writer can put `null`, `[]` or `""`
  * into a file where the format says the field is simply absent.
  */
 
-import {
-  isMirror,
-  type Located,
-  MirrorNode,
-  type Node,
-  RegularNode,
-} from "./node.ts"
+import { isMirror, type Located, type Node } from "./node.ts"
 
 /**
- * WHICH fields a record may carry, from the schema that defines them.
- *
- * Not a list beside the schema, and that is the whole point: this function
- * writes only the fields it knows, so a field the record gained and a list
- * here did not would be **silently dropped on the next write** — a format's
- * writer losing data that parsed. `todo` arriving as a third mark is exactly
- * that edit, and it should not have depended on anybody remembering.
- */
-const KNOWN = {
-  regular: new Set<string>(Object.keys(RegularNode.fields)),
-  mirror: new Set<string>(Object.keys(MirrorNode.fields)),
-}
-
-/**
- * Which of them a record must carry WHATEVER it holds — docs/format.md's
+ * Which fields a record must carry WHATEVER it holds — docs/format.md's
  * table, split by its "required" column. That split is a rule about meaning
- * rather than about the shape (see {@link serializeNode}'s asymmetry), so it
- * is spelled here; everything not named is optional and omitted when empty.
+ * rather than about shape (see {@link serializeNode}'s asymmetry), so it is
+ * spelled here; everything else is optional and omitted when it holds nothing.
+ *
+ * There is deliberately no second list of which fields a record MAY carry.
+ * {@link ORDER} is that list — the loop walks it — so one list decides both
+ * what is written and in what order, and a field can be forgotten in exactly
+ * one place instead of two.
  */
 const REQUIRED = {
   regular: new Set<string>(["id", "ord", "title"]),
@@ -63,12 +50,14 @@ const REQUIRED = {
 
 /** The canonical ORDER, which is not the required/optional split: a reader
  *  looks for `parent` between `id` and `ord`, wherever it sits in the table
- *  above. Spelled from docs/format.md's row order, and NOT taken from the
- *  schema's declaration order like {@link KNOWN} — the order of fields in a
- *  file is a contract, so it is written where the contract is rather than
- *  falling out of the order somebody happened to declare a struct in. A field
- *  the schema has and this list does not is a test failure (`write.test.ts`),
- *  because it would otherwise be a field that never reaches disk. */
+ *  above. Spelled from docs/format.md's row order rather than taken from the
+ *  schema's declaration order — the order of fields in a file is a contract,
+ *  so it is written where the contract is rather than falling out of the order
+ *  somebody happened to declare a struct in. Both record shapes share this one
+ *  list: a field belonging to the other shape is absent on this record, so it
+ *  is omitted for holding nothing, and only its own required fields survive
+ *  that. A field the SCHEMA has and this list does not is a test failure
+ *  (`write.test.ts`), because it would otherwise never reach disk at all. */
 const ORDER = [
   "id",
   "parent",
@@ -119,13 +108,10 @@ const nothing = (value: unknown): boolean =>
  * SAYS what it is.
  */
 export const serializeNode = (node: Node): string => {
-  const shape = isMirror(node) ? "mirror" : "regular"
-  const known = KNOWN[shape]
-  const required = REQUIRED[shape]
+  const required = REQUIRED[isMirror(node) ? "mirror" : "regular"]
 
   const record: Record<string, unknown> = {}
   for (const field of ORDER) {
-    if (!known.has(field)) continue
     const value = (node as Record<string, unknown>)[field]
     if (required.has(field) || !nothing(value)) record[field] = value
   }

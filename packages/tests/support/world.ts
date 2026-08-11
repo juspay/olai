@@ -99,8 +99,8 @@ export const TOGGLE = selector(TESTID.toggle);
 export const NODE_GUTTER = selector(TESTID.nodeGutter);
 /** The bullet on every row: the link to that node's own page. */
 export const ZOOM = selector(TESTID.zoom);
-/** The status box beside that bullet: checked for done, half for doing —
- *  absent on a node with no mark. */
+/** The status box beside that bullet: checked for done, half for doing, empty
+ *  for todo — and absent entirely on a node with no mark. */
 export const CHECKBOX = selector(TESTID.checkbox);
 /** The heading of a zoomed page. Carries the CANONICAL node's id, which is
  *  what lets a scenario say "zooming a mirror lands on the node itself". */

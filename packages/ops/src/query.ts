@@ -27,6 +27,7 @@ import {
   errorLine,
   isMirror,
   type LocatedRegular,
+  MARKS,
   type OutlineSet,
   type Status,
   titleParts,
@@ -67,14 +68,19 @@ export interface Search {
 }
 
 /** What one node's page would say, plus the record itself. */
-export interface Detail extends Found {
+export interface Detail extends Found, Stamps {
   readonly date?: string | undefined
   readonly desc?: string | undefined
-  readonly done?: string | true | undefined
-  readonly doing?: string | true | undefined
   readonly tags: ReadonlyArray<string>
   readonly children: ReadonlyArray<Found>
 }
+
+/** The mark a node STORES, with what it was stamped — `status` above is what
+ *  the tree makes of the node, and for a leaf the two agree, but only this
+ *  says when. Keyed by the format's own list rather than a field per mark: an
+ *  agent that can `set_todo` should be able to read back the day it did, and
+ *  a mark readable everywhere except here is how that drifts. */
+type Stamps = Partial<Record<Status, string | true>>
 
 /** A node and everything under it, nested — the shape a reader draws. */
 export interface Subtree extends Found {
@@ -249,6 +255,14 @@ export const search = (
 
 // ── one node, and what is under it ─────────────────────────────────────
 
+/** Whichever marks the record carries, from the format's list — at most one
+ *  by the format's own rule, but read as a set so this cannot be the place a
+ *  new mark is missing from. */
+const stampsOf = (node: LocatedRegular["node"]): Stamps =>
+  Object.fromEntries(
+    MARKS.flatMap((mark) => node[mark] === undefined ? [] : [[mark, node[mark]]]),
+  )
+
 export const detail = (derived: Derived, id: string): Detail | null => {
   const located = derived.byId.get(id)
   if (located === undefined || isMirror(located.node)) return null
@@ -258,8 +272,7 @@ export const detail = (derived: Derived, id: string): Detail | null => {
     ...foundOf(derived, regular),
     ...(node.date === undefined ? {} : { date: node.date }),
     ...(node.desc === undefined ? {} : { desc: node.desc }),
-    ...(node.done === undefined ? {} : { done: node.done }),
-    ...(node.doing === undefined ? {} : { doing: node.doing }),
+    ...stampsOf(node),
     tags: titleParts(node.title).flatMap((part) =>
       part.kind === "tag" ? [part.tag] : []
     ),
