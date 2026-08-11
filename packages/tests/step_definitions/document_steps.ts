@@ -133,6 +133,62 @@ Then(
   },
 );
 
+/**
+ * Two things a rendered document does that are invisible in its HTML: the tags
+ * are right in both cases and the damage is in how they are SET, so each is
+ * read off the browser's own geometry — the only witness that a rule in
+ * `styles.css` is doing what its comment says. Both filter IN THE PAGE and
+ * bring back the offenders, so a failure names the lines that are wrong rather
+ * than every line that was looked at.
+ *
+ * The third of the set — that no part of this widens the pane — is a whole-app
+ * invariant rather than a document's (a note and an agent's reply go through
+ * the same pipeline), and lives in `app_steps.ts`.
+ */
+
+Then(
+  "the task list is drawn with checkboxes and no bullets",
+  async function (this: OlaiWorld) {
+    const items = body(this).locator("li.task-list-item");
+    await items.first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    // The checkbox IS the marker. A list-style left in place draws both, which
+    // reads as two marks about one line — and it is invisible in the HTML,
+    // because the item is a correct `<li>` either way.
+    const wrong = await items.evaluateAll((nodes) =>
+      nodes
+        .filter(
+          (node) =>
+            getComputedStyle(node).listStyleType !== "none" ||
+            node.querySelectorAll(":scope > input[type=checkbox]").length !== 1,
+        )
+        .map((node) => node.textContent ?? ""),
+    );
+    assert.deepStrictEqual(
+      wrong,
+      [],
+      "these task list items do not draw exactly one checkbox and no bullet",
+    );
+  },
+);
+
+Then(
+  "no code span in a table is broken across lines",
+  async function (this: OlaiWorld) {
+    const spans = body(this).locator("td code, th code");
+    await spans.first().waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    // A path or an identifier wrapped mid-token inside a column reads as two
+    // values. `getClientRects` is the question asked directly: one rect is one
+    // line. A cell too wide for the column is the table's own scrollbar's
+    // problem, which is a recoverable thing to be — a mis-read value is not.
+    const broken = await spans.evaluateAll((nodes) =>
+      nodes
+        .filter((node) => node.getClientRects().length > 1)
+        .map((node) => node.textContent ?? ""),
+    );
+    assert.deepStrictEqual(broken, [], "these code spans in a table wrapped mid-token");
+  },
+);
+
 Then("the page requested nothing off this server", function (this: OlaiWorld) {
   const elsewhere = this.offSite();
   assert.deepStrictEqual(

@@ -19,12 +19,35 @@ test("a fenced block is highlighted, in classes rather than colours", () => {
   expect(html).toContain(`<span class="hljs-keyword">const</span>`)
 })
 
+// Nix is registered ON TOP of lowlight's common set rather than instead of it
+// (render.ts says why). Only the addition needs its own test: the test above
+// is a `ts` fence, which is IN that common set, so a `languages` option that
+// stopped spreading it fails there first.
+test("a nix fence is highlighted", () => {
+  const html = renderMarkdown("```nix\npkgs.mkShell { name = \"olai\"; }\n```\n", NOTE)
+  expect(html).toContain(`<code class="hljs language-nix">`)
+  expect(html).toContain(`<span class="hljs-string">"olai"</span>`)
+})
+
 // An unknown language is not an error and not a reason to lose the block: it
 // is drawn as what it is, plain text.
 test("a fence in a language nobody registered is left alone", () => {
   const html = renderMarkdown("```klingon\nnuqneH\n```\n", NOTE)
   expect(html).toContain("nuqneH")
   expect(html).not.toContain("hljs-")
+})
+
+// The sanitiser decides which of the parser's classes survive, and a task
+// list's are the ones `styles.css` hangs a rule on: the checkbox replaces the
+// bullet, so a dropped class is a list drawn with two markers and nothing in
+// the markup to say why. Pinned here rather than left to the browser test,
+// which can only see the result.
+test("a task list keeps the classes the stylesheet draws it by", () => {
+  const html = renderMarkdown("- [x] done\n- [ ] not\n- plain\n", NOTE)
+  expect(html).toContain(`<ul class="contains-task-list">`)
+  expect(html).toContain(`<li class="task-list-item"><input type="checkbox" checked disabled>`)
+  // The plain item is untouched: it keeps the bullet the other two give up.
+  expect(html).toContain("<li>plain</li>")
 })
 
 test("a footnote is a link to a note at the end", () => {

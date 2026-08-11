@@ -14,7 +14,7 @@ Feature: Documents
   @corpus:good
   Scenario: Every document found has a page, and the sidebar says so
     When I open the app
-    Then the documents listed are "finishes.md, notes/palette.md"
+    Then the documents listed are "finishes.md, kitchen-sink.md, notes/palette.md"
     Given I mark the page
     When I click the document "notes/palette.md"
     Then the document open is "notes/palette.md"
@@ -37,6 +37,40 @@ Feature: Documents
     # Vendored, never a CDN: a page that fetched its highlighter from the
     # internet would tell a third party that someone is reading their outline.
     And the page requested nothing off this server
+
+  # `kitchen-sink.md` is the page a person changing how markdown is SET opens in
+  # both themes — every mark the pipeline claims, once each. Most of what it is
+  # for cannot be asserted (whether an `h4` reads as a heading is a question for
+  # an eye), so what is pinned here is the handful that can go silently wrong
+  # and stay wrong: the page pushed sideways by one unbreakable word, a task
+  # list drawn with two markers, and a value in a table split into two words.
+  @corpus:good
+  Scenario: The whole markdown surface is drawn without breaking the page
+    When I open the document "kitchen-sink.md"
+    Then nothing overflows the pane
+    And the task list is drawn with checkboxes and no bullets
+    And no code span in a table is broken across lines
+    # Nix, because this repository is built with it and its own docs are full of
+    # `nix` fences: an unregistered language is grey text, not an error.
+    And the document highlights a code block as "nix"
+    And the document highlights a code block as "ts"
+    And there should be no page errors
+
+  # The RHYTHM, as an invariant rather than a look somebody once approved. The
+  # scale is declared in `@olai/web`'s markdown/scale.ts, the stylesheet is
+  # generated from it, and these two walk every element the fixture draws —
+  # once as a document, once as a note, because a note re-answers three of the
+  # sizes and the sweep has to see both sets.
+  @corpus:good
+  Scenario: A document is set on the declared scale, and nothing else
+    When I open the document "kitchen-sink.md"
+    Then every rendered element is on the markdown scale
+
+  @corpus:good
+  Scenario: A note is set on the same scale, clamped under its title
+    When I open the node "catch-up"
+    Then every rendered element is on the markdown scale
+    And nothing overflows the pane
 
   @corpus:good
   Scenario: A footnote links to its own note
@@ -128,5 +162,5 @@ Feature: Documents
 
       Two circuits.
       """
-    Then the documents listed are "finishes.md, notes/palette.md, notes/wiring.md"
+    Then the documents listed are "finishes.md, kitchen-sink.md, notes/palette.md, notes/wiring.md"
     And the page has not reloaded
