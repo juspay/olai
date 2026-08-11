@@ -327,6 +327,17 @@ Approved 2026-08-11 as designed. The branch is built so the upstream-gated part 
 - **A finding the design did not anticipate**: the surface runtime's `done` promise REJECTS when it is closed, so any test standing a runtime up without `watchFault` holding that catch produces an unhandled rejection attributed to whichever test was running. `fault.ts` is not optional ceremony for `serve.ts` — it is what makes the runtime testable at all. The harness mirrors `serve.ts`'s finalizer ordering (`stopped` registered last so it runs first) for the same reason.
 - **`resources/read` narrowing**: MCP types a resource content as text-or-blob. The adapter only ever emits text, so the test narrows by throwing on a blob rather than handling one. Caught by `tsc`, not by a passing test.
 
-### What is still owed, unchanged
+### The upstream ruling, 2026-08-11
 
-The four upstream asks in the section above are the spec for the kolu-side work. The two that gate this branch are (1) `structuredContent` on `ToolResult`/`ok`/`fail` and (2) `instructions` passthrough. Nothing found during implementation changes either ask or adds a fifth.
+kolu approved the design with **ask (3) declined**, the other two accepted, and one addition offered. Net effect on this branch:
+
+| ask | outcome | what it means here |
+| --- | --- | --- |
+| (1) `structuredContent` | accepted, arriving as **`ToolFailure`** (`isError` + `structuredContent`) | The gate. Still the last commit slot. |
+| (2) `instructions` passthrough | accepted | `initialize` keeps olai's "everything here is about NODES, not files" paragraph. |
+| (3) `SurfaceClientCallable` widening | **declined** | Fixed on olai's side instead, and better — see the struck-through entry above. **Already landed** (`9d9658f`), so this branch no longer waits on it. |
+| — | **`title` on `BespokeTool`** (new, offered) | Unanticipated and welcome. `@olai/ops`' `TOOLS` table carries a `title` per tool that today's `describe()` emits, and without this it would have been silently dropped in migration. `bespokeFrom` can now project name, title AND description, so the table stays the single declaration it claims to be. |
+
+### What is still owed
+
+Two things, both upstream, both in the last commit slot: `ToolFailure` and `instructions`. Nothing found during implementation adds a fifth ask, and (3) is closed.
