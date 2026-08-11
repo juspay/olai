@@ -135,8 +135,8 @@ export const TESTID = {
   zoom: "zoom",
   /** The status box beside that bullet: checked for done, half for doing,
    *  EMPTY for todo — and NOTHING carrying this testid on a node with no mark,
-   *  which is how a bullet is told from an unstarted task. Read-only for now;
-   *  the glyph is the assertion. */
+   *  which is how a bullet is told from an unstarted task. Display-only — the
+   *  mark is toggled from the row's editor — so the glyph is the assertion. */
   checkbox: "checkbox",
   // ── the row editor ───────────────────────────────────────────────────
   /** The caret in a row's title: an `<input>` standing exactly where the title

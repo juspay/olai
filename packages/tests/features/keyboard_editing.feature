@@ -76,6 +76,11 @@ Feature: Keyboard editing
     And I press "Tab"
     Then the refusal says "no row above it"
     And the node "handles" is a child of "install"
+    # And the row goes on working: a refused key writes nothing and changes
+    # nothing about the editor it was pressed in.
+    When I select all and type "choose the brass handles"
+    And I click away from the editor
+    Then "house.jsonl" holds a node titled "choose the brass handles"
 
   Scenario: Alt+Shift+Up moves a row among its siblings
     When I click the title of "knobs"
@@ -136,6 +141,17 @@ Feature: Keyboard editing
     # placement was typed in.
     Then "garden.jsonl" holds a node titled "the herb bed by the back door"
     And "house.jsonl" holds no node titled "the herb bed by the back door"
+
+  Scenario: A zoomed node with nothing under it offers the first child
+    # The other page that has no row to press a key in. The anchor is the node
+    # itself rather than a sibling, which is the third of the three places a
+    # new row can go.
+    When I open the node "knobs"
+    And I start the first line
+    And I type "brushed steel, maybe"
+    And I click away from the editor
+    Then "house.jsonl" holds a node titled "brushed steel, maybe"
+    And the tree is shown
 
   Scenario: An outline that holds nothing offers its first line
     When I rewrite "empty.jsonl" as:

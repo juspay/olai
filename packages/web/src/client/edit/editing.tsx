@@ -265,13 +265,21 @@ export const createEditor = (
     // Noted BEFORE the write: the frame that redraws the row can arrive while
     // this is still in flight.
     takeCaret()
-    await send(name(id ?? done.id))
+    const moved = await send(name(id ?? done.id))
     // The caret stays in the row that just moved, and both halves of that have
     // to be said. The DRAFT is restored in case the row's editor was destroyed
     // and blurred on its way out; the caret is taken again because a row that
     // merely moved among its siblings keeps its editor and loses the focus
     // anyway — the document moved the element.
     setDraft((held) => held ?? done)
+    if (moved === null) {
+      // REFUSED: no write, so no frame, so nothing is owed — and a debt left
+      // standing would go on suppressing blurs (see `owed`), which would mean
+      // the next thing typed into this row never got committed at all.
+      // `Tab` on the first of its siblings is the ordinary way to reach this.
+      owed = false
+      return
+    }
     setCaret((n) => n + 1)
   }
 
@@ -355,6 +363,12 @@ export const createEditor = (
     open: (row, field) => {
       if (row.kind !== "node" && row.kind !== "mirror") return
       const text = (field === "title" ? row.shows.node.title : row.shows.node.desc) ?? ""
+      // Whatever was being typed is committed on the way out. The blur of the
+      // editor being left normally does this first and there is then nothing
+      // to say (the text is already saved) — this is the promise rather than
+      // the usual path: a draft is never replaced by another one without what
+      // it held being written.
+      if (draft() !== null) void commit()
       idle.clear()
       setRefusal(null)
       setDraft({ kind: "row", place: row.key, id: row.shows.node.id, field, text, saved: text })
