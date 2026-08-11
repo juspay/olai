@@ -14,6 +14,7 @@
 import { expect, test } from "bun:test"
 
 import { renderInlineMarkdown, renderMarkdown } from "./render.ts"
+import { renderTitle } from "./title.ts"
 
 const NOTE = "house.jsonl"
 
@@ -139,4 +140,14 @@ test("inline markdown is sanitised the same way", () => {
   )
   expect(html).not.toContain("<script")
   expect(html).not.toContain("javascript:")
+})
+
+// The title is one string with two view-time concerns: markdown and tags.
+// They share a function so a row and a heading cannot disagree about either.
+test("a title keeps both markdown and its tags", () => {
+  const html = renderTitle("**urgent** fix #home", NOTE)
+  expect(html).toContain("<strong>urgent</strong>")
+  expect(html).toContain(`data-testid="tag"`)
+  expect(html).toContain("#home")
+  expect(html).not.toContain("**")
 })

@@ -106,11 +106,12 @@ sanitise, highlight, rewrite, stringify:
   is not drawn at all, and every id (and every link into the same block) is
   re-minted under a prefix derived from the block itself, so the first footnote
   of one note cannot answer for the first footnote of the next.
-- **titles are inline-only** (`renderInlineMarkdown`, `inline.ts`). Same
-  pipeline, then every block is unwrapped to its phrasing content so a heading,
-  a list or a fence in a title cannot break a tree row's baseline layout —
-  racket parity. Tags (`#home`) stay a separate view-time split in
-  `NodeTitle.tsx`, as they always were.
+- **titles are inline-only** (`renderTitle` → `renderInlineMarkdown` +
+  `inline.ts`). Same pipeline, then every block is unwrapped to its phrasing
+  content so a heading, a list or a fence in a title cannot break a tree row's
+  baseline layout — racket parity. Tags (`#home`) stay a separate view-time
+  split inside `renderTitle`, as they always were; `NodeTitle` only draws the
+  HTML.
 
 `src/client/document/` is what a document looks like: its own page, the
 reference a `doc`-carrying node shows wherever it is drawn, and the context
