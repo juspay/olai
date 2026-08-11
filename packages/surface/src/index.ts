@@ -17,6 +17,12 @@
  *     (`keySchema`) rather than inherited from a client library's default.
  *     Every subscription opens with a full snapshot and a reconnect is a fresh
  *     one — the framework's own contract — so there is nothing to resume.
+ *   - `documents` is a COLLECTION keyed the same way, one entry per `.md`, and
+ *     it is subscribed KEYS-FIRST: the sidebar draws paths, so the key set is
+ *     the whole of what a first paint needs, and a body travels when a document
+ *     is opened (the per-key `get`). No `deltas` — the batched verb is a push
+ *     of every entry, which for documents is every body, which is the thing
+ *     this collection exists to stop sending.
  *   - `manifest` is a CELL: the set-wide facts that belong to no one file, and
  *     the answer to "is there a set at all". Its `null` is the state a
  *     collection cannot express — an empty snapshot means "this directory has
@@ -43,7 +49,7 @@
  * moving — server-authoritative, never an optimistic echo.
  */
 
-import { BrokenFile, Document, Located, OutlineError } from "@olai/format"
+import { BrokenFile, Located, OutlineError } from "@olai/format"
 import { defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
 
@@ -84,57 +90,62 @@ export const OutlineEntry = Schema.Struct({
 export type OutlineEntry = typeof OutlineEntry.Type
 
 /**
- * The set-wide facts, or `null` for a set that has never loaded.
+ * One `.md` document's slice of the set, as published at set revision `rev`.
  *
- * `null` is a state, not an absence, and it is the one thing the collection
+ * The entry carries the BODY, and it is the only thing on the wire that does:
+ * one collection, keyed by path, read one key at a time. What it replaced was
+ * a `documents` array on {@link Manifest} — every served document's full text
+ * in the FIRST frame of every subscription, ~124 KB of a ~212 KB snapshot for
+ * this project's own `docs/`, and O(corpus) for a directory of thousands.
+ * Nothing about the SET changed: the server still reads and validates every
+ * document, because `doc` references have to be checkable (`docs/format.md`).
+ * What changed is when a body travels — when someone opens it.
+ *
+ * `rev` is the set's revision at the moment this entry was published, for the
+ * reason {@link OutlineEntry}'s is: a body now arrives on its own frame, so
+ * "which moment of the directory am I reading" is a question a reader can
+ * actually ask, and the answer is a number rather than an assumption. An
+ * unchanged document keeps the entry it was published with, so the number does
+ * not move under a reader who is not looking at a changed file.
+ *
+ * There is no `file` field: the KEY is the path. A second copy of it here is a
+ * second spelling of one fact, and the two could disagree.
+ */
+export const DocumentEntry = Schema.Struct({
+  rev: Schema.Int,
+  /** Verbatim, exactly as on disk — markdown is interpreted at view time. */
+  text: Schema.String,
+})
+export type DocumentEntry = typeof DocumentEntry.Type
+
+/**
+ * Whether there is a set at all, and nothing else.
+ *
+ * `null` is a state, not an absence, and it is the one thing the collections
  * cannot say. Three things a reader must tell apart — "the server has not
  * answered yet" (no frame at all), "the server has never had a valid set to
  * show" (`null`), "here is your directory" (a value) — and an empty collection
  * snapshot is the SECOND and THIRD at once unless something else carries the
- * bit. This is that something.
+ * bit. This is that something, and being that is its whole job.
  *
- * `documents` is here rather than in the collection because a document is not
- * an outline: nothing keys off it, no entry of the collection is one, and that
- * they exist at all is a fact about the SET (the sidebar's file tree mixes
- * them with outlines under the folders they live in). They carry their text,
- * as they always have — markdown is interpreted at view time and a `doc`
- * reference is drawn wherever its node is, so a paths-only list would need a
- * second read path the app does not have. Making them a collection of their
- * own, so that one edited document is one document on the wire, is the
- * obvious next step and is deliberately not this change.
- *
- * There is NO set revision here, and that is what keeps the text off the wire
- * in the meantime. A revision belongs to a file — every entry carries the one
- * it was published at, which is the number a write names as its base — and a
- * second copy of it beside the documents would have made this value differ on
- * every probe tick, which is every document's text to every open tab because
- * one line of one outline moved. Without it, {@link sameManifest} holds, and a
- * directory whose `.md` files did not change publishes nothing at all.
+ * So the value carries NOTHING. It used to carry the documents, which is what
+ * {@link DocumentEntry} was cut out of it to stop; what is left is a fact with
+ * no fields, because every fact about this directory now belongs to a file and
+ * travels on that file's entry. A set revision here would be the obvious thing
+ * to reach for and is deliberately absent twice over: nothing reads it, and it
+ * moves on every revision, so it would wake every open tab's derivation — the
+ * cell that is quiet is the point of {@link sameSet}.
  */
-export const Manifest = Schema.NullOr(
-  Schema.Struct({
-    documents: Schema.Array(Document),
-  }),
-)
+export const Manifest = Schema.NullOr(Schema.Struct({}))
 export type Manifest = typeof Manifest.Type
 
-/** When two manifests are the same one, so the cell can stay quiet.
- *
- *  Text is compared by `===`, which is a POINTER compare for the case that
- *  matters: an unchanged file keeps its cached decode, so its text is the same
- *  string the last revision published, not an equal copy of it. */
-const sameManifest = (a: Manifest, b: Manifest): boolean => {
-  if (a === null || b === null) return a === b
-  return (
-    a.documents.length === b.documents.length &&
-    a.documents.every((document, at) => {
-      const other = b.documents[at]
-      return other !== undefined &&
-        document.file === other.file &&
-        document.text === other.text
-    })
-  )
-}
+/** A directory that has loaded, as the one value there is of it. */
+export const LOADED: Manifest = {}
+
+/** When two answers are the same answer, so the cell can stay quiet. There is
+ *  exactly one thing this value can say, so there is exactly one thing that can
+ *  change about it: whether there is a set. */
+const sameSet = (a: Manifest, b: Manifest): boolean => (a === null) === (b === null)
 
 export const surface = defineSurface({
   cells: {
@@ -145,18 +156,17 @@ export const surface = defineSurface({
       default: [],
       verbs: ["get"],
     },
-    /** What is true of the SET rather than of any one file — see
-     *  {@link Manifest}. Wire-read-only for the same reason the entries are:
-     *  the directory is the disk's.
+    /** Whether there is a set — see {@link Manifest}. Wire-read-only for the
+     *  same reason the entries are: the directory is the disk's.
      *
-     *  `equals` is what keeps the documents off the wire: the server writes
-     *  this cell on every revision, because that is when it learns anything,
-     *  and most revisions have nothing to say about a `.md`. */
+     *  `equals` is what keeps it quiet: the server writes this cell on every
+     *  revision, because that is when it learns anything, and almost every
+     *  revision has nothing new to say about whether a directory loaded. */
     manifest: {
       schema: Manifest,
       default: null,
       verbs: ["get"],
-      equals: sameManifest,
+      equals: sameSet,
     },
     chat: {
       schema: ChatState,
@@ -185,6 +195,30 @@ export const surface = defineSurface({
       keySchema: Schema.String,
       schema: OutlineEntry,
       verbs: ["keys", "get", "deltas"],
+    },
+    /**
+     * Every `.md` the directory holds, one entry per document — see
+     * {@link DocumentEntry}.
+     *
+     * `keys` and `get`, and NO `deltas`, and the omission is the whole point.
+     * `deltas` opens with a snapshot of every entry, which for this collection
+     * is every body: the batched verb that makes `outlines` cheap is the exact
+     * shape that made documents expensive. So a reader takes the KEY SET —
+     * which is what the sidebar's file tree draws (paths, no titles, no text)
+     * — and opens a per-key `get` for the one document it is showing. A
+     * directory of a thousand `.md` files costs a thousand PATHS on first
+     * paint, and one body per document actually read.
+     *
+     * Read-only on the wire, like the outlines and for the same reason: a
+     * document is a file on the disk, and the ops layer is the only writer.
+     */
+    documents: {
+      /** Root-relative, `/`-spelled — the same spelling `outlines` uses, and
+       *  the same spelling `doc` resolves to (`docOf`) and every `file:line`
+       *  names. */
+      keySchema: Schema.String,
+      schema: DocumentEntry,
+      verbs: ["keys", "get"],
     },
     /** The conversation. `deltas` is the whole point — see {@link ./chat.ts}:
      *  one subscription carries both the history a late joiner needs and the

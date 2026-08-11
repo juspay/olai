@@ -99,76 +99,222 @@
   }
 }
 
-/* Rendered markdown — a note's, and a whole document's. Its `<p>`, `<ul>`,
- * `<code>` and `<pre>` are produced by the sanitiser at view time and carry no
- * classes, so they are the one place a descendant rule is the only tool there
- * is. Kept to spacing, overflow and the few things a document needs that a
- * one-paragraph note did not — anything more opinionated would be styling
- * someone else's prose. */
-.olai-md > :first-child {
-  margin-top: 0;
+/* Rendered markdown — a whole document, a node's note, an agent's reply. Its
+ * `<p>`, `<ul>`, `<code>` and `<pre>` are produced by the sanitiser at view
+ * time and carry no classes, so they are the one place a descendant rule is
+ * the only tool there is.
+ *
+ * NO NUMBER IN THIS BLOCK IS A LITERAL. Every size, gap, pad, weight and rule
+ * reads a custom property generated from `src/client/markdown/scale.ts` — the
+ * declared scales, which `packages/tests` then holds the rendered page to,
+ * element by element, against the set for the context it is in. A rule that
+ * wanted a value the scale does not have is a rule that has to change the
+ * scale, in front of everyone.
+ *
+ * TWO CONTEXTS, one design. A document is a reading page and is set like one.
+ * `.olai-md-compact` is markdown inside the app's furniture — a note under a
+ * node's title, an attached document, an agent's reply in the drawer — and
+ * re-answers the same properties one notch tighter, with a ceiling on the
+ * heading sizes. Every rule below is written once and serves both. */
+
+/* Where an unbreakable word may be broken, and where it may not — one rule,
+ * because the two halves only make sense against each other.
+ *
+ * PROSE breaks anywhere. A pasted URL, a hash, a base62 key must not widen the
+ * column past the viewport: the column is the measure, and a reader panning
+ * the whole page to finish a sentence has lost the outline beside it.
+ * `anywhere` rather than `break-word` because only `anywhere` counts in the
+ * MIN-CONTENT width, which is what stops such a word pushing a container
+ * wider than the page in the first place.
+ *
+ * A FENCE and a TABLE CELL do not, and it is the same rule read the other way:
+ * neither holds prose. A break invented inside code is a lie about the line,
+ * and a path broken mid-token inside a column reads as two values. Both have
+ * somewhere else to put the width — each scrolls within itself — and scrolling
+ * is a recoverable thing to be doing, where mis-reading a value is not. */
+.olai-md {
+  overflow-wrap: anywhere;
+
+  /* Declared rather than inherited. A block of markdown is drawn inside
+   * whatever the page hands it — a page body, a tree row, a `text-sm` chat
+   * drawer — and leading that came from the container would be a different
+   * rhythm per context, none of them chosen. The SIZE still comes from the
+   * container; the ratio is the scale's. */
+  line-height: var(--olai-md-leading-body);
+
+  /* The tint a rendered block lifts a surface with: an inline code chip, a
+   * table head. Derived from the rule colour rather than named in the palette,
+   * so it follows all fifteen without a sixteenth token to keep in step — and
+   * named here rather than spelled at each surface, because the two are one
+   * decision and would have to be changed together. */
+  --olai-md-tint: color-mix(in srgb, var(--color-rule) 45%, transparent);
 }
 
-.olai-md > :last-child {
-  margin-bottom: 0;
+.olai-md :is(pre, th, td) {
+  overflow-wrap: normal;
 }
 
-.olai-md p,
-.olai-md ul,
-.olai-md ol,
-.olai-md pre,
-.olai-md blockquote,
-.olai-md table {
-  margin: 0.25rem 0;
+/* THE GAP GOES UNDER. Every block reserves space below itself and none above,
+ * which is what makes the space between any two of them exactly one value
+ * instead of the larger of two that happened to meet — and what lets a
+ * heading's own top margin be the section break without fighting the
+ * paragraph above it. It is also what the reference does, and the reason is
+ * the same. */
+.olai-md :is(p, ul, ol, pre, blockquote, table) {
+  margin: 0 0 var(--olai-md-space-block);
 }
 
-.olai-md h1,
-.olai-md h2,
-.olai-md h3,
-.olai-md h4,
-.olai-md h5,
-.olai-md h6 {
-  margin: 1rem 0 0.375rem;
-  font-weight: 600;
-  line-height: 1.25;
+/* An edge has no gap. A container that PADS or RULES its contents has already
+ * separated them; a trailing margin inside it is space counted twice, and at a
+ * full line of it that is a visible hole at the bottom of every quote and
+ * every cell. */
+.olai-md > :last-child,
+.olai-md :is(blockquote, td, th, li) > :last-child {
+  margin-bottom: var(--olai-md-space-none);
 }
 
+/* A heading belongs to what is UNDER it: the space above separates it from the
+ * section that ended, the space below is only the gap to its own first line.
+ * The two are deliberately far apart — a heading floating midway between two
+ * bodies of text belongs to neither. `h1` and `h2` take more of both, and the
+ * rule under them is the third thing telling a level apart, after size and
+ * weight. */
+.olai-md :is(h1, h2, h3, h4, h5, h6) {
+  margin: var(--olai-md-space-headTopMinor) 0 var(--olai-md-space-headBottomMinor);
+  font-weight: var(--olai-md-weight-heading);
+  line-height: var(--olai-md-leading-heading);
+}
+
+.olai-md :is(h1, h2) {
+  margin-top: var(--olai-md-space-headTopMajor);
+  margin-bottom: var(--olai-md-space-headBottomMajor);
+  padding-bottom: var(--olai-md-pad-headRule);
+  border-bottom: var(--olai-md-border-head) solid var(--color-rule);
+  font-weight: var(--olai-md-weight-major);
+}
+
+/* Two headings in a row have nothing between them to be separated FROM, so the
+ * section gap would be a hole in the middle of one label. They close up to the
+ * gap a heading leaves above its own text. */
+.olai-md :is(h1, h2, h3, h4, h5, h6) + :is(h1, h2, h3, h4, h5, h6) {
+  margin-top: var(--olai-md-space-headBottomMajor);
+}
+
+/* Six levels, six sizes, and three axes telling them apart: size, weight, and
+ * — for the two that introduce a section — a rule. The last two share a size
+ * because there is nothing left below the body text, so `h6` is told apart by
+ * colour and letterspacing instead: small caps in the muted ink, which is a
+ * label rather than a heading, and that is what a sixth level is.
+ *
+ * The values are the scale's, and `.olai-md-compact` re-answers the top three
+ * for markdown drawn under a title the page owns. */
 .olai-md h1 {
-  font-size: 1.375rem;
+  font-size: var(--olai-md-h1);
 }
 
 .olai-md h2 {
-  font-size: 1.1875rem;
+  font-size: var(--olai-md-h2);
 }
 
 .olai-md h3 {
-  font-size: 1.0625rem;
+  font-size: var(--olai-md-h3);
 }
 
-.olai-md ul,
-.olai-md ol {
-  padding-left: 1.25rem;
+.olai-md h4 {
+  font-size: var(--olai-md-h4);
+}
+
+.olai-md h5 {
+  font-size: var(--olai-md-h5);
+}
+
+.olai-md h6 {
+  font-size: var(--olai-md-h6);
+  letter-spacing: 0.06em;
+  color: var(--color-muted);
+  text-transform: uppercase;
+}
+
+.olai-md :is(ul, ol) {
+  padding-left: var(--olai-md-pad-listX);
   list-style: revert;
 }
 
+/* Items need a gap even when the author wrote none. A "tight" list — no blank
+ * lines between the items — draws each item as bare text, and on items that
+ * wrap to four or five lines that is a paragraph-shaped block with no seams in
+ * it. Small, so a tight list still reads as tighter than a loose one, whose
+ * items are paragraphs and keep the full block gap on top of this. */
+.olai-md li + li {
+  margin-top: var(--olai-md-space-item);
+}
+
+.olai-md li > p {
+  margin-top: var(--olai-md-space-block);
+}
+
+/* A task list item has a box, so it does not also get a bullet: the checkbox
+ * IS the marker, which is what GFM draws everywhere else and what keeps a
+ * checked line from reading as two marks about the same thing. The box is
+ * pulled back into the space the marker vacated, so the text keeps the
+ * indent of the plain items beside it — a mixed list stays one column of
+ * prose whichever items happen to be tasks.
+ *
+ * The classes are `remark-gfm`'s own, through the sanitiser's allowlist. */
+.olai-md .task-list-item {
+  list-style: none;
+}
+
+.olai-md .task-list-item > input[type="checkbox"] {
+  width: 0.8125rem;
+  height: 0.8125rem;
+  margin: 0 0.375rem 0 calc(-1 * var(--olai-md-pad-listX));
+  vertical-align: baseline;
+  accent-color: var(--color-accent);
+}
+
 .olai-md blockquote {
-  border-left: 3px solid var(--color-rule);
-  padding-left: 0.75rem;
+  border-left: var(--olai-md-border-quote) solid var(--color-rule);
+  padding-left: var(--olai-md-pad-quoteX);
   color: var(--color-muted);
 }
 
+/* The fence carries the CODE's size and leading itself, rather than leaving
+ * them on the `<code>` inside it. That is not tidiness: a `<pre>` at the
+ * body's 16px sets a 24px strut, the code lines inside it are 21px, and the
+ * first line box is dragged to the taller of the two — so the gap above the
+ * first line came out visibly bigger than the gap under the last, on every
+ * fence in the app. One font-size here and the block is symmetrical. */
 .olai-md pre {
   overflow-x: auto;
-  border: 1px solid var(--color-rule);
+  border: var(--olai-md-border-rule) solid var(--color-rule);
   border-radius: 0.25rem;
-  padding: 0.5rem 0.75rem;
+  padding: var(--olai-md-pad-fenceY) var(--olai-md-pad-fenceX);
+  font-size: calc(var(--olai-md-of-code) * 1em);
+  line-height: var(--olai-md-leading-body);
 }
 
 .olai-md code {
   font-family: var(--font-mono);
-  font-size: 0.875em;
+  font-size: calc(var(--olai-md-of-code) * 1em);
+  line-height: var(--olai-md-leading-body);
 }
 
+/* …and inside the fence it is already at that size, so it does not take the
+ * fraction a second time. */
+.olai-md pre > code {
+  font-size: 1em;
+}
+
+/* Inline code is a chip; a fence is not. `code` inside a `<pre>` is already
+ * inside a bordered block, and a second background there would be a box drawn
+ * around every line of it. Faint in the light palettes, a slight lift in the
+ * dark ones, and legible in both because the ink over it never changes. */
+.olai-md :not(pre) > code {
+  border-radius: 0.25rem;
+  padding: var(--olai-md-pad-chipY) var(--olai-md-pad-chipX);
+  background: var(--olai-md-tint);
+}
 /* The caret at the end of an answer that is still arriving. On the LAST BLOCK
  * of the rendered markdown rather than after it: an element of its own would
  * sit on a line below the paragraph it belongs to, because what the last block
@@ -206,20 +352,46 @@
   border-radius: 0.25rem;
 }
 
+/* A table is rows of prose, not a spreadsheet: horizontal rules separate the
+ * rows and nothing separates the columns, because the alignment already does
+ * and a full grid draws four borders around every cell to say what one line
+ * says.
+ *
+ * `display: block` makes the table its own scroll container. It is the whole
+ * point: a table wide enough to overflow scrolls WITHIN the column instead of
+ * widening the page under everything else, and it is the one place a sideways
+ * scrollbar is the right answer, for the same reason a fence has one — a
+ * column of a table cannot be broken mid-word without lying about the value in
+ * it. */
 .olai-md table {
-  border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
 }
 
-.olai-md th,
-.olai-md td {
-  border: 1px solid var(--color-rule);
-  padding: 0.125rem 0.5rem;
+/* Read down a column rather than along a sentence, which is why a cell keeps
+ * its tokens whole (the wrap rule at the top of this block), why it is given
+ * room to be read in, and why it is set from the TOP: a two-line cell centred
+ * against a one-line neighbour puts two values on three baselines. */
+.olai-md :is(th, td) {
+  border-bottom: var(--olai-md-border-rule) solid var(--color-rule);
+  padding: var(--olai-md-pad-cellY) var(--olai-md-pad-cellX);
   text-align: left;
+  vertical-align: top;
 }
 
+.olai-md th {
+  background: var(--olai-md-tint);
+  border-bottom-color: var(--color-muted);
+}
+
+/* A rule is a BREAK — the one block whose whole job is the space around it,
+ * which is why it takes the same gap the footnotes take rather than the gap
+ * between two paragraphs. It had none at all: a line with prose tight against
+ * both sides reads as a border on the paragraph under it. */
 .olai-md hr {
+  margin: var(--olai-md-space-rule) 0;
   border: 0;
-  border-top: 1px solid var(--color-rule);
+  border-top: var(--olai-md-border-rule) solid var(--color-rule);
 }
 
 /* Footnotes, as GFM renders them: a rule, then the notes, then a back-link per
@@ -227,10 +399,10 @@
  * sanitiser's own allowed class, so the rule for it lives here rather than
  * coming from a utility nothing in this repo's source could have scanned. */
 .olai-md .footnotes {
-  margin-top: 1rem;
-  border-top: 1px solid var(--color-rule);
-  padding-top: 0.5rem;
-  font-size: 0.875em;
+  margin-top: var(--olai-md-space-rule);
+  border-top: var(--olai-md-border-rule) solid var(--color-rule);
+  padding-top: var(--olai-md-pad-fenceY);
+  font-size: calc(var(--olai-md-of-footnotes) * 1em);
   color: var(--color-muted);
 }
 
@@ -287,7 +459,7 @@
 .olai-md .hljs-title,
 .olai-md .hljs-selector-id,
 .olai-md .hljs-selector-class {
-  font-weight: 600;
+  font-weight: var(--olai-md-weight-heading);
 }
 
 .olai-md .hljs-deletion {
@@ -299,5 +471,5 @@
 }
 
 .olai-md .hljs-strong {
-  font-weight: 700;
+  font-weight: var(--olai-md-weight-major);
 }

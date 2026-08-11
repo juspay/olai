@@ -31,6 +31,31 @@ Given("I mark the page", async function (this: OlaiWorld) {
   await this.markPage();
 });
 
+/**
+ * Nothing on the page may make it pan sideways — a whole-app invariant, and
+ * here because everything that can break it is shared: one markdown pipeline
+ * draws a note, a document and an agent's reply, so any of the three can
+ * regress it and a rule that lived under one of them would only be asked about
+ * that one.
+ *
+ * It is asked of the SCROLL CONTAINERS, not of `documentElement`. The main
+ * pane is `overflow-x-auto` (App.tsx) precisely so a runaway block cannot
+ * reach the window — which means the window's own `scrollWidth` says nothing,
+ * and a step that read it would pass over a page the reader has to pan. What
+ * over-wide content is allowed to do is scroll WITHIN itself: a fence, a
+ * table. What it may not do is make the pane it is written in scroll, and the
+ * pane is what is measured.
+ */
+Then("nothing overflows the pane", async function (this: OlaiWorld) {
+  await this.page.locator(ROOT).waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+  const panned = await this.page.evaluate(() =>
+    [...document.querySelectorAll("main, aside")]
+      .filter((pane) => pane.scrollWidth > pane.clientWidth)
+      .map((pane) => `${pane.tagName.toLowerCase()}: ${pane.scrollWidth}>${pane.clientWidth}`)
+  );
+  assert.deepStrictEqual(panned, [], "these panes have to be panned sideways to be read");
+});
+
 /** A genuine reload of whatever is open — the page comes back cold, from the
  *  server, with only what this browser stored to carry anything across. Here
  *  rather than in a feature's own steps because nothing about it is any one

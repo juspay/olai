@@ -7,6 +7,16 @@ underneath: an edit on disk arrives as the next frame of a subscription, so
 the page changes without reloading. SolidJS over a WebSocket, styled with
 Tailwind v4, bundled by `Bun.build`.
 
+The build (`src/build.ts`) also writes `.br` / `.gz` siblings next to the
+hashed `/assets/*` files (`src/precompress.ts`). The static layer in
+`@kolu/surface-app` negotiates them on `Accept-Encoding` (brotli preferred,
+gzip fallback, identity honoured); the shell is never compressed. Matching is
+a **bare token set** (no q-value parsing, ported from the `serve-static` it
+replaced): `br, gzip` gets brotli, but `br;q=0.8, gzip;q=1.0` falls through to
+identity. Real browsers send bare tokens, so the shipped path is unaffected.
+Already-compressed media types (e.g. `.png`) stay identity even if a stray
+sibling sits on disk.
+
 ## What the client reads, and how it is put back together
 
 `src/client/outlines.ts` is the whole read side, and it is two subscriptions:
@@ -116,7 +126,12 @@ highlight, rewrite, stringify:
   client (about 180 kB of it): it is in `bun.lock`, so the Nix build fetches it
   like everything else, and no page asks a CDN for the code that renders
   someone's private outline. The colours are this theme's tokens, so a fence
-  follows the light/dark palette the rest of the page does.
+  follows the light/dark palette the rest of the page does. Which grammars it
+  knows is spelled out (`render.ts`), because the option REPLACES the default
+  set rather than adding to it: lowlight's common set, plus Nix — this
+  repository is built with it and `just serve` with no arguments serves its own
+  `docs/`, where a ```nix fence would otherwise be grey text. A language nobody
+  registered is not an error; the block is drawn as what it is.
 - **`rewrite.ts`** is a walk over the finished tree rather than a plugin, which
   is what lets the pipeline be built once — the highlighter registers three
   dozen languages when it is attached, and a pipeline rebuilt per note would
@@ -125,6 +140,35 @@ highlight, rewrite, stringify:
   is not drawn at all, and every id (and every link into the same block) is
   re-minted under a prefix derived from the block itself, so the first footnote
   of one note cannot answer for the first footnote of the next.
+
+How that markdown is SET is the other half. The numbers are **not** in the
+stylesheet: `src/client/markdown/scale.ts` declares the type scale and the two
+spacing scales, `src/build.ts` generates the CSS from it (the same arrangement
+the palettes use), and every rule in `styles.css` reads a custom property. That
+is what makes the rhythm testable — `packages/tests` walks a rendered document
+and a rendered note and asserts every computed size, gap, pad, weight and
+border is a value from those sets, so a drive-by `margin: 6px` is red rather
+than invisible.
+
+Two densities, because there are two kinds of place. A **document** is a
+reading page — the whole main pane, opened to be read — and is set like one. A
+**compact** block is markdown inside the app's furniture: a note under a node's
+title, the document an open node attaches, an agent's reply in the drawer. Same
+proportions one notch tighter, plus a ceiling on the heading sizes, since all
+three hang under a title the page owns (`olai-md-compact`, added by the three
+components that know which they are).
+
+The rules with a reason behind them: prose wraps anywhere rather than pushing
+the page sideways for one pasted URL, while a fence and a table — where a break
+invented mid-token would be a lie about a line or a value — scroll within
+themselves instead; the gap always goes UNDER a block, so the space between any
+two is one value rather than the larger of two that met; a task list drops its
+bullet, since the checkbox is the marker; and a fence carries the code's own
+font-size, because a `<pre>` at the body's size sets a taller strut than the
+lines inside it and drags the first line down.
+`packages/tests/fixtures/good/kitchen-sink.md` is the page to open in a light
+theme and a dark one after changing any of it; `just serve docs` is the other
+one, and the more honest, since those are real documents somebody wrote.
 
 `src/client/document/` is what a document looks like: its own page, the
 reference a `doc`-carrying node shows wherever it is drawn, and the context

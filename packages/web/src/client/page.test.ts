@@ -1,4 +1,4 @@
-import type { BrokenFile, Document } from "@olai/format"
+import type { BrokenFile } from "@olai/format"
 import { derive, type Located } from "@olai/format"
 import { expect, test } from "bun:test"
 
@@ -37,10 +37,9 @@ const SET = derive([
   }),
 ])
 const FILES = ["garden.jsonl", "house.jsonl"]
-/** By path, the way the app holds them. */
-const DOCUMENTS: ReadonlyMap<string, Document> = new Map([
-  ["notes/finishes.md", { file: "notes/finishes.md", text: "# Finishes\n\nBrushed brass.\n" }],
-])
+/** The paths, the way the app holds them: a document's TEXT travels to the tab
+ *  that opens one, so it is no business of the page model. */
+const DOCUMENTS: ReadonlyArray<string> = ["notes/finishes.md"]
 
 /** What day it is, for the arm that has to be told. Fixed, because a page
  *  model that read a clock would be a page model whose tests expire. */
@@ -97,12 +96,13 @@ test("a directory with no outlines at all is the other nothing", () => {
 
 // ── documents ──────────────────────────────────────────────────────────
 
-// A document is a page of the set like any other, and it carries its TEXT: the
-// set already holds it, so a page that carried only the name would be a second
-// lookup that could miss.
-test("a document route opens that document, text and all", () => {
+// A document is a page of the set like any other, and what this model settles
+// is that the address names one the directory HAS. The body is read by the
+// page that draws it, one per-key subscription, so a corpus of thousands is
+// thousands of paths here and one body on screen.
+test("a document route opens that document, by path", () => {
   const page = pageAt({ kind: "document", file: "notes/finishes.md" })
-  expect(only(page, "document")?.document.text).toContain("Brushed brass")
+  expect(only(page, "document")?.file).toBe("notes/finishes.md")
 })
 
 // The same two-nothings rule as an outline's, and it says which kind was being
