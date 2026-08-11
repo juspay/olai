@@ -315,8 +315,9 @@ Approved 2026-08-11 as designed. The branch is built so the upstream-gated part 
 | --- | --- | --- |
 | `9163310` | `@kolu/surface-mcp` hydrated; `@modelcontextprotocol/sdk` + `ts-pattern` at kolu's versions; `bun.lock`/`bun.nix` regenerated | no |
 | `6cd0532` | `packages/server/src/mcp/expose.ts` — the two-member allowlist — and `expose.test.ts` | no |
-| `c992c04` | `packages/server/src/mcp/face.ts` — serve-fresh — and `face.test.ts`, including the wire-cost fence | no |
-| *(open)* | `bespokeFrom(TOOLS, ops)`; `olai mcp` and the `/mcp` route flipped onto the face; `ops/src/mcp.ts` and `mcp/stdio.ts` deleted | **yes — `structuredContent`** |
+| `28f659e` | `packages/server/src/mcp/face.ts` — serve-fresh — and `face.test.ts`, including the wire-cost fence | no |
+| `9d9658f` | `OlaiSurfaceClient` + `clientOver`: the client typed off the spec instead of cast at the adapter's door (upstream ask 3, closed here) | no |
+| *(open)* | `bespokeFrom(TOOLS, ops)` carrying name/title/description; `olai mcp` and the `/mcp` route flipped onto the face; `ops/src/mcp.ts` and `mcp/stdio.ts` deleted | **yes — `ToolFailure` + `instructions`** |
 
 ### Corrections and findings from building it
 
