@@ -26,6 +26,7 @@
 
 import {
   ancestorsOf,
+  ARCHIVE,
   derive,
   type Derived,
   isMirror,
@@ -87,11 +88,6 @@ type Planned = Result.Result<Plan, OpFailure>
  *  copying one and changing a field, which is the one place that readonly is
  *  in the way rather than in the right. */
 type Draft<N> = { -readonly [K in keyof N]: N[K] }
-
-/** Where an archived subtree goes: beside the outline it left, always by this
- *  name — the same rule as the racket reference, so a directory that has been
- *  archived from before goes on reading the way it did. */
-const ARCHIVE = "Archive.jsonl"
 
 export const plan = (
   set: OutlineSet,

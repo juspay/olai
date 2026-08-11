@@ -25,6 +25,7 @@
  */
 
 import {
+  isArchived,
   isMirror,
   type Located,
   type LocatedRegular,
@@ -69,6 +70,29 @@ export interface Derived {
    *  `nodes`, and that is the answer rather than a gap in it: a node missing
    *  from this map is a plain bullet, because nobody marked it. */
   readonly status: ReadonlyMap<string, Status>
+  /** The node an edge holds up → the ids it must come after: the ORDERING
+   *  graph, with `blocks` normalised into it. One graph, because two rules ask
+   *  about the same edges — the validator's acyclicity check and the
+   *  blockedness below — and a second normalisation of `blocks` would be a
+   *  second graph free to disagree with the first.
+   *
+   *  IN TERMS OF NODES at both ends, mirrors resolved, so `x after b` and
+   *  `a blocks m` are one edge when `m` is a mirror of `x` — and a loop that
+   *  closes through a placement is a loop. An id nothing declares stays as
+   *  written, because an unknown target is the validator's to name. */
+  readonly after: ReadonlyMap<string, ReadonlyArray<string>>
+  /** id → what is standing in its way. PARTIAL like `status`, and non-empty
+   *  wherever it is present: absence is the answer for everything that can
+   *  start, which is nearly every node. Keyed by the node itself, so a mirror
+   *  asks this of what it SHOWS exactly as it asks for its status.
+   *
+   *  ORDERED, and promised so rather than left to fall out: a node's own
+   *  `after` in the order it writes them, then whatever `blocks` it from
+   *  elsewhere in file order. Every reader says them in that order — the label
+   *  a row's mark carries, the tip beside it, the list on the node's page —
+   *  and a promise is what keeps that from shuffling when an unrelated file
+   *  gains an edge. */
+  readonly blocked: ReadonlyMap<string, ReadonlyArray<InTheWay>>
 }
 
 export const derive = (nodes: ReadonlyArray<Located>): Derived => {
@@ -89,7 +113,9 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
   // sort; file order breaks ties rather than leaving them to the engine.
   for (const siblings of children.values()) siblings.sort(byOrd)
 
-  return { nodes, byId, children, status: statuses(nodes, byId) }
+  const status = statuses(nodes, byId)
+  const after = orderings(byId, nodes)
+  return { nodes, byId, children, status, after, blocked: blockage(byId, status, after) }
 }
 
 /**
@@ -236,6 +262,151 @@ export const unfinishedUnder = (
 ): ReadonlyArray<LocatedRegular> =>
   tasksUnder(derived, id).flatMap((task) => task.status === "done" ? [] : [task.at])
 
+// ── what cannot start yet ──────────────────────────────────────────────
+
+/**
+ * A node standing in another's way, and WHY it is — a task that is not done.
+ *
+ * The reason travels with the node rather than being restated by each reader,
+ * because every one of them wants it: a mark column tones the glyph with it, a
+ * page names the node, and a caller left to look the mark up again is a caller
+ * free to look it up differently.
+ *
+ * `Exclude<Status, "done">` says the whole rule in the type: what is in the way
+ * is unfinished WORK. A node with no status is absent from this shape entirely
+ * — it is not a task, so there is nothing under it to finish — which is the
+ * same sentence {@link unfinishedUnder} says about children, about the other
+ * kind of edge.
+ */
+export interface InTheWay {
+  readonly at: LocatedRegular
+  readonly status: Exclude<Status, "done">
+}
+
+/**
+ * The ordering graph of the set: the node an edge holds up → the ids it must
+ * come after.
+ *
+ * `blocks` is sugar — `a blocks b` means `b after a` — and this is the only
+ * place it is normalised, so the acyclicity rule and blockedness read one
+ * graph rather than two that could disagree.
+ *
+ * TWO PASSES, and that is the order {@link Derived.blocked} promises: every
+ * node's own `after` first, as it writes them, and only then the `blocks`
+ * pointing back at it from elsewhere. One interleaved pass filed a reverse edge
+ * from a record written earlier in the file AHEAD of the node's own targets,
+ * so what a row with room for one blocker showed depended on where in the
+ * directory somebody had written an unrelated `blocks`.
+ *
+ * IN TERMS OF NODES, at both ends: an edge naming a mirror is an edge to the
+ * node standing at it, because a placement is addressable like any other
+ * record and that is what naming one means. So `a blocks m` and `x after b`
+ * land on one list when `m` mirrors `x`, and — this is the half that bites —
+ * a deadlock that closes THROUGH a placement is one loop rather than two dead
+ * ends. Canonicalising here rather than at each reader is what stops the
+ * acyclicity rule and blockedness from disagreeing about whether two records
+ * mean one edge: they would have to resolve identically, and one of them did
+ * not. An id nothing declares is left as written — an unknown target is the
+ * validator's to report, and dropping the edge here would decide that quietly.
+ *
+ * A mirror is never a source of its own: it carries no edges.
+ */
+const orderings = (
+  byId: ReadonlyMap<string, Located>,
+  nodes: ReadonlyArray<Located>,
+): ReadonlyMap<string, ReadonlyArray<string>> => {
+  const index = { byId }
+  const named = (id: string): string => nodeNamed(index, id)?.node.id ?? id
+  const after = new Map<string, Array<string>>()
+  const edge = (from: string, to: string): void => {
+    const existing = after.get(from)
+    if (existing === undefined) after.set(from, [to])
+    else existing.push(to)
+  }
+
+  for (const { node } of nodes) {
+    if (isMirror(node)) continue
+    for (const target of node.after ?? []) edge(node.id, named(target))
+  }
+  for (const { node } of nodes) {
+    if (isMirror(node)) continue
+    for (const target of node.blocks ?? []) edge(named(target), node.id)
+  }
+  return after
+}
+
+/**
+ * What is standing in each node's way — the whole of blockedness, derived like
+ * everything else here and stored nowhere.
+ *
+ * `a after b` means b blocks a WHILE b is a task that is not done — with the
+ * three marks there are, while b is `doing` or `todo`. A target with NO status
+ * never blocks: it is not a task, there is nothing under it to finish, so
+ * there is nothing to wait for. The trap this rule is written against is
+ * spelling it `status !== "done"`, which reads every plain bullet as an
+ * obstacle that can never be cleared — and adding `todo` did not narrow that
+ * trap by one case, since the unmarked node is still the one that must not
+ * block (docs/format.md).
+ *
+ * ONE predicate, read at BOTH ENDS of the arrow, which is the racket
+ * reference's own shape (`olai/query.rkt`'s `live?`): "a node this can be said
+ * about" and "a node that still stands in the way" are the same question asked
+ * from either side, and two spellings of it would be two chances to disagree
+ * about what unfinished work is. So a done node is waiting on nothing — it has
+ * happened, and the order it happened in is no longer a question — and a
+ * bullet is neither blocked nor blocking, because a bullet is not work.
+ *
+ * ARCHIVED is that same answer arrived at from the other side, and it also
+ * goes both ways. Work that was put away is not blocking anything: archiving
+ * is what you do to work that is over, and a live node waiting on one would be
+ * waiting forever. Nor is it blocked: the archive is read as history, and a
+ * node in it is not being told it cannot start. Note where the exemption
+ * stops — the validator's `after` cycle check exempts nothing, because a loop
+ * is a loop whether or not part of it has been put away, and it is a claim
+ * about the file rather than about what is on anyone's plate.
+ */
+const blockage = (
+  byId: ReadonlyMap<string, Located>,
+  status: ReadonlyMap<string, Status>,
+  after: ReadonlyMap<string, ReadonlyArray<string>>,
+): ReadonlyMap<string, ReadonlyArray<InTheWay>> => {
+  const index = { byId }
+
+  /** The node an end of an arrow names, WHILE it is still in play: it exists,
+   *  it is a task that is not done, and it has not been put away. */
+  const inPlay = (id: string): InTheWay | undefined => {
+    const at = nodeNamed(index, id)
+    if (at === undefined || isArchived(at.file)) return undefined
+    const mark = status.get(at.node.id)
+    return mark === undefined || mark === "done" ? undefined : { at, status: mark }
+  }
+
+  const blocked = new Map<string, ReadonlyArray<InTheWay>>()
+  for (const [id, targets] of after) {
+    const source = inPlay(id)
+    if (source === undefined) continue
+
+    const waiting = targets
+      .map((target) => inPlay(target))
+      .filter((blocker) => blocker !== undefined)
+    if (waiting.length === 0) continue
+
+    // Keyed by the NODE. Both spellings of an edge were resolved to one before
+    // they became keys above, so a node has one list here however many records
+    // pointed at it and however they addressed it.
+    blocked.set(source.at.node.id, waiting)
+  }
+  return blocked
+}
+
+/** What one node is waiting on: empty when nothing is in its way, which is the
+ *  answer for nearly every node. The reading side of {@link Derived.blocked},
+ *  so no caller has to know that absence is how the index spells "nothing". */
+export const blockersOf = (
+  derived: Derived,
+  id: string,
+): ReadonlyArray<InTheWay> => derived.blocked.get(id) ?? []
+
 // ── the drawable tree ──────────────────────────────────────────────────
 
 /** Fields every row has, whatever it turned out to be. */
@@ -245,6 +416,11 @@ interface Place {
   /** Absent when this place draws a plain bullet — there is no mark, and no
    *  box to draw one in. */
   readonly status: Status | undefined
+  /** What this place is waiting on, and empty when nothing is. Asked of the
+   *  node the place SHOWS, so a mirror says what its target says — the rule
+   *  its status already follows — and a place drawing no node at all is
+   *  waiting on nothing. */
+  readonly blocked: ReadonlyArray<InTheWay>
   /** The rollup, for a row that has tasks under it: an annotation beside the
    *  title, never a second answer to what the checkbox shows. */
   readonly progress: Progress | undefined
@@ -303,17 +479,19 @@ const expand = (
   parentKey: string,
 ): Row => {
   const key = `${parentKey}/${at.node.id}`
+  const found = follow(derived, at)
   // The fields every branch shares, including the rollup a stub has none of —
   // the drawn branch below overrides it, and no branch has to remember to say
-  // it has nothing.
+  // it has nothing. What a place is WAITING ON is asked of the node it shows,
+  // which a stub has none of either.
   const place = {
     at,
     status: derived.status.get(at.node.id),
+    blocked: found.kind === "found" ? blockersOf(derived, found.shows.node.id) : [],
     progress: undefined,
     key,
   }
 
-  const found = follow(derived, at)
   if (found.kind !== "found") {
     return { ...place, children: [], ...found }
   }
@@ -405,6 +583,8 @@ export interface Situated {
   readonly shows: LocatedRegular
   /** Absent when the node carries no mark. */
   readonly status: Status | undefined
+  /** What it is waiting on, and empty when nothing is. */
+  readonly blocked: ReadonlyArray<InTheWay>
   /** The rollup of its task children, for the same reason a row carries one. */
   readonly progress: Progress | undefined
   /** The canonical parent chain, root first, `shows` excluded. */
@@ -414,6 +594,7 @@ export interface Situated {
 export const situate = (derived: Derived, shows: LocatedRegular): Situated => ({
   shows,
   status: derived.status.get(shows.node.id),
+  blocked: blockersOf(derived, shows.node.id),
   progress: progressOf(derived, shows.node.id),
   trail: ancestorsOf(derived, shows.node.id),
 })
@@ -435,15 +616,16 @@ type Found =
   | { readonly kind: "cycle"; readonly through: string }
 
 export const follow = (
-  // Only the id index, so the status pass can call it while the rest of the
-  // derivation is still being built — and so a caller with a whole `Derived`
-  // passes it unchanged.
+  // Only the id index, so the status pass and the blockedness pass can call it
+  // while the rest of the derivation is still being built — and so a caller
+  // with a whole `Derived` passes it unchanged.
   derived: Pick<Derived, "byId">,
   from: Located,
 ): Found => {
-  // The common case, said first because this runs for every node of the set on
-  // every derive: a record that is not a mirror shows itself, and there is no
-  // chain to remember.
+  // The common case, said first because this runs for every node of the set,
+  // for every edge endpoint and for every `see` target on every derive: a
+  // record that is not a mirror shows itself, and there is no chain to
+  // remember.
   if (!isMirror(from.node)) return { kind: "found", shows: from as LocatedRegular }
 
   const seen = new Set<string>()
@@ -456,6 +638,33 @@ export const follow = (
     at = next
   }
   return { kind: "found", shows: at as LocatedRegular }
+}
+
+/**
+ * The node an ID NAMES: the regular record at the end of whatever mirror chain
+ * it addresses, and `undefined` when nothing declares it or the chain does not
+ * end at a node.
+ *
+ * An edge target is an id like any other and a mirror is addressable like any
+ * other record, so "what does this id mean" is one question with one answer —
+ * the node standing at that placement. Every reader of a target field asks it:
+ * blockedness, to find what is in the way, and the view, to put a `see`
+ * target's title on a link. Two spellings of it would be two answers about the
+ * same id, and the one that got it wrong would be a link with no text.
+ *
+ * The distinction from {@link follow} is which question is being asked: follow
+ * tells a ROW apart from the two ways its chain can fail, because a row has to
+ * draw the failure. A reference has nothing to draw and nowhere to say it, so
+ * both failures answer the same thing here.
+ */
+export const nodeNamed = (
+  derived: Pick<Derived, "byId">,
+  id: string,
+): LocatedRegular | undefined => {
+  const named = derived.byId.get(id)
+  if (named === undefined) return undefined
+  const found = follow(derived, named)
+  return found.kind === "found" ? found.shows : undefined
 }
 
 // ── titles ─────────────────────────────────────────────────────────────

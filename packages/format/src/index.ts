@@ -13,8 +13,9 @@
  *   - what a set MEANS, `derive` with `rowsOf`, `zoom`, `withoutDone`, the
  *     date derivations (`datedDays`, `datedOn`) and the document rules
  *     (`docOf`, `isPicture`) — so a reader and the validator agree on sibling
- *     order, mirror expansion, one node's ancestry, what is on a day and where
- *     a `doc` lands, computing all of it with the same code;
+ *     order, mirror expansion, one node's ancestry, what is standing in its
+ *     way, what is on a day and where a `doc` lands, computing all of it with
+ *     the same code;
  *   - how a set is WRITTEN back, `serializeOutline` and `ordBetween` — the
  *     canonical bytes and the sibling order, held here for the same reason the
  *     rules are: a writer with its own copy of either is a second format;
@@ -33,7 +34,7 @@ export { validate } from "./validate.ts"
 export { assemble, BrokenFile, fileKind, OutlineSet } from "./set.ts"
 export type { DecodedFile, Outline } from "./set.ts"
 export { docOf, Document, isPicture, pictureOf } from "./documents.ts"
-export { isMirror, Located, MARKS } from "./node.ts"
+export { ARCHIVE, isArchived, isMirror, Located, MARKS } from "./node.ts"
 export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
 
 export {
@@ -42,6 +43,7 @@ export {
   countedChildren,
   derive,
   follow,
+  nodeNamed,
   progressOf,
   rowsOf,
   rowsUnder,
@@ -53,6 +55,7 @@ export {
 } from "./derive.ts"
 export type {
   Derived,
+  InTheWay,
   Progress,
   Row,
   Situated,

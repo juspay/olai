@@ -76,6 +76,26 @@ one. What survives is `progressOf`: how many of a node's child tasks are done,
 beside a title. It feeds nothing — not `withoutDone`, which reads the stored
 mark, and not blocking.
 
+**Blocked** is the other thing the marks are read for, and it is derived beside
+them: `after` (with `blocks` normalised into it in the one place that happens,
+so the acyclicity rule and this see one graph) says `a` comes after `b`, and
+`b` is in the way while it is a TASK that is not done. A target with no status
+never blocks — it is not work, so there is nothing under it to finish — and
+spelling the test `status !== "done"` is the trap docs/format.md writes the
+rule against. One predicate at both ends of the arrow, racket's own shape: a
+done node is waiting on nothing, a bullet is neither blocked nor blocking, and
+archived work is out of it in both directions because it is over. What a
+blocker IS is `InTheWay`: a node and the mark that makes it unfinished, which
+is the same sentence `unfinishedUnder` says about children and about the other
+kind of edge. The ordering graph is built in two passes — every node's own
+`after` first, then the `blocks` pointing back at it — so the order a reader
+with room for ONE blocker sees is a promise rather than an accident of where in
+the directory somebody wrote an unrelated edge; and both halves are filed under
+the node their target NAMES, mirrors resolved, so the acyclicity rule and this
+cannot disagree about whether two records mean one edge. Nothing outside this
+package asks for the index: what is in a node's way rides on the `Row` and the
+`Situated` it belongs to, the way its mark does.
+
 `zoom` is the same claim
 about one node as a page — which record an id resolves to (following a mirror
 chain to the regular node at its end, so a node has one page and not one per
@@ -94,7 +114,8 @@ ten-character prefix, a month a seven-character one, and a datetime counts for
 its own day.
 
 A day's nodes and a zoomed page are built from the same `Situated` — a node,
-its mark, its rollup and its canonical ancestry — because that is one concept
+its mark, its rollup, what is standing in its way and its canonical ancestry —
+because that is one concept
 with several readers, not a shape two surfaces happened to agree on. A title
 torn out of its outline says nothing, wherever it is being drawn.
 

@@ -107,14 +107,17 @@ serve dir="docs" *args: build-client
     OLAI_DIST_DIR={{ dist }} \
       {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} {{ args }}
 
-# Anything else the binary takes, without the watchers. Defaults to the same
-# pinned agent `just serve` and the packaged binary do: no documented way of
-# starting olai may land in the no-agent state by accident.
+# Anything else the binary takes, with the server under `bun --watch` so a
+# source change restarts it. Distinct from `serve`: that one is the web edit
+# loop (client bundler watch + server watch, default docs/); this one is the
+# general entrypoint (`web`, `mcp`, …) with only the server watched. Defaults
+# to the same pinned agent `just serve` and the packaged binary do: no
+# documented way of starting olai may land in the no-agent state by accident.
 run *args: build-client
     #!/usr/bin/env bash
     set -euo pipefail
     export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
-    OLAI_DIST_DIR={{ dist }} {{ nix_shell }} bun packages/server/src/main.ts {{ args }}
+    OLAI_DIST_DIR={{ dist }} {{ nix_shell }} bun --watch packages/server/src/main.ts {{ args }}
 
 # Build the binary with nix, then run it. Both halves earn their place: the
 # build is where the hydrated @kolu/* sources and the bun.nix-derived
