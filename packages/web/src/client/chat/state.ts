@@ -48,7 +48,7 @@ import {
 import { type Accessor, createMemo, createSignal } from "solid-js"
 
 import { olai } from "../wire.ts"
-import { type Call, run } from "../run.ts"
+import { type Call, run } from "./run.ts"
 
 export interface Chat {
   /** Where the conversation stands: session, model, commands, whether a turn

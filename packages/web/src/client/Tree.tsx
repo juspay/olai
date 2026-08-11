@@ -34,7 +34,7 @@ import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { Bullet } from "./Bullet.tsx"
 import { Checkbox } from "./Checkbox.tsx"
-import { createClickAway } from "./away.ts"
+import { createNoteExpand } from "./note/expand.ts"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
 import { TESTID } from "./testids.ts"
@@ -77,7 +77,7 @@ function Branch(props: {
     : undefined
 
   // Click/tap expand — local to this place, not a reading cell. No hover.
-  const note = createClickAway()
+  const note = createNoteExpand()
 
   return (
     <li
@@ -89,7 +89,7 @@ function Branch(props: {
       data-kind={props.row.kind}
       data-file={props.row.at.file}
       data-line={props.row.at.line}
-      data-note-open={note.open() ? "true" : "false"}
+      data-note-open={note.expanded() ? "true" : "false"}
     >
       <div class="flex items-baseline gap-1.5" data-testid={TESTID.nodeGutter}>
         <Show
@@ -145,10 +145,10 @@ function Branch(props: {
           title on either. The note control root is what "click away" uses. */}
       <Show when={!collapsed() && shown()}>
         {(shows) => (
-          <div class={PAST_CONTROLS} ref={note.inside}>
+          <div class={PAST_CONTROLS} ref={note.setRoot}>
             <NodeBody
               shows={shows()}
-              expanded={note.open()}
+              expanded={note.expanded()}
               onToggle={note.toggle}
             />
           </div>

@@ -52,7 +52,7 @@ const withServer = (
       allowedOrigins: [],
       // A real server against a temp directory; committing to whatever
       // repository happens to contain it is not this test's to do.
-      commits: "off",
+      commit: false,
     })
     const url = findSaid(said, "serving")?.annotations.url
     expect(typeof url).toBe("string")

@@ -38,7 +38,6 @@ import { Calendar } from "./calendar/Calendar.tsx"
 import { chatOpen } from "./chat/open.ts"
 import { Panel as ChatPanel, Toggle as ChatToggle } from "./chat/Panel.tsx"
 import { createToday } from "./clock.ts"
-import { Commit } from "./commit/Commit.tsx"
 import { Connection } from "./connection/Connection.tsx"
 import { CLEARANCE, CORNER, Indicator } from "./connection/Indicator.tsx"
 import { DayPage } from "./day/DayPage.tsx"
@@ -131,16 +130,11 @@ export default function App() {
    *  whole layout. */
   const docked = () => outlines.manifest() !== null && page() !== undefined
 
-  /** The pills that are about the APP rather than about the page: what olai
-   *  has written and last recorded, whether the server is still there, and the
-   *  way into the agent. One expression, rendered in whichever of the two
-   *  places the layout has for it.
-   *
-   *  All three are always drawn, and for the same reason: an indicator that is
-   *  only there when something is wrong cannot be trusted when it is absent. */
+  /** The two pills that are about the APP rather than about the page: whether
+   *  the server is still there, and the way into the agent. One expression,
+   *  rendered in whichever of the two places the layout has for it. */
   const chrome = () => (
     <>
-      <Commit />
       <Indicator status={connectionStatus()} />
       <ChatToggle />
     </>

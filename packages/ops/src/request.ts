@@ -211,13 +211,8 @@ export interface Applied {
   readonly summary: string
   /** The store revision this write produced. */
   readonly rev: number
-  /**
-   * Whether THIS WRITE was committed to git on its own.
-   *
-   * Only `--commit=auto` ever makes this true, and that mode exists for a
-   * headless server with no browser to press anything. Under the default,
-   * `manual`, a write lands on disk and waits: `false` here means "not yet",
-   * and what is waiting is `pending` ({@link ./pending.ts}).
-   */
+  /** Whether the write was committed to git. `false` when the directory is not
+   *  a work tree, when the server was started with the opt-out, or when git
+   *  itself refused — the write landed either way. */
   readonly committed: boolean
 }

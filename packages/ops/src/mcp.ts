@@ -25,7 +25,7 @@
  * parse.
  */
 
-import { kindOf, type OpFailure, type Writer } from "@olai/format"
+import { kindOf, type OpFailure } from "@olai/format"
 import { Effect, Result, Schema, SchemaRepresentation } from "effect"
 
 import type { Ops } from "./ops.ts"
@@ -42,17 +42,6 @@ export interface Options {
    *  writes through `ops.run`, so nothing here reaches into a store — which is
    *  what lets this file be, as its header claims, dispatch and nothing else. */
   readonly ops: Ops
-  /**
-   * Who the client on the other end IS, for the writer trailer every commit
-   * carries.
-   *
-   * Two callers, two answers, and the difference is real: `chat-agent` is the
-   * session olai spawned and hands this server to over an internal route,
-   * `mcp` is somebody's coding agent that launched `olai mcp` in a terminal.
-   * Without it a commit says only that git's configured user made it, which
-   * every commit in the repository already says.
-   */
-  readonly writer: Writer
 }
 
 /** A JSON-RPC reply, or `null` for a notification — which has no id and must
@@ -134,20 +123,19 @@ const call = (
       return result(id, refusal(`\`${name}\`: ${decoded.failure.message}`))
     }
 
-    // Every answer is the TOOL's own, carried in the table beside it — so a
-    // tool the table declares and nothing answers is a type error rather than
-    // something a caller discovers here. A write is the one arm with nothing to
-    // carry: every write is the same call.
-    const answered = yield* Effect.result(
-      tool.kind === "write"
-        ? Effect.map(
-          options.ops.run(decoded.success as Request, options.writer),
-          (applied) => ({ ...applied, did: tool.name }),
-        )
-        : tool.kind === "act"
-        ? tool.act(options.ops, decoded.success as never, options.writer)
-        : Effect.map(options.ops.read, (at) => tool.read(at, decoded.success as never)),
-    )
+    const answered = tool.kind === "write"
+      ? yield* Effect.result(
+        Effect.map(options.ops.run(decoded.success as Request), (applied) => ({
+          ...applied,
+          did: tool.name,
+        })),
+      )
+      // The reader is the tool's OWN, carried in the table beside it — so a
+      // tool the table declares and nothing answers is a type error rather
+      // than something a caller discovers.
+      : yield* Effect.result(
+        Effect.map(options.ops.read, (at) => tool.read(at, decoded.success as never)),
+      )
 
     if (Result.isFailure(answered)) {
       const failure = answered.failure

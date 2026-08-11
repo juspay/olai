@@ -13,11 +13,9 @@
  *   - `codec` — the joint between the format and the store. It is here because
  *     this is the layer that holds both, and because the write gate validates
  *     through it on every commit;
- *   - `make` — the ops service: one `run` that plans, writes and retries, plus
- *     `pending` and `commit`, which are what a write WAITS for now that a
- *     commit is something somebody asks for. The planner behind `run`, and the
- *     git plumbing behind the other two, are deliberately NOT exported: they
- *     are the inside of this one, and their own tests reach them directly;
+ *   - `make` — the ops service: one `run` that plans, commits and retries. The
+ *     planner behind it is deliberately NOT exported: it is the inside of this
+ *     one, and its own tests reach it directly;
  *   - `Query` — how a reader that is not a browser sees the set, over parsed
  *     nodes and never over bytes;
  *   - `Mcp` — those two spoken as tools, with no transport in it. The tool
@@ -28,7 +26,6 @@
 export { codec } from "./codec.ts"
 export type { Store } from "./deps.ts"
 export { make, type Ops, type Options } from "./ops.ts"
-export { COMMIT_MODES, type CommitMode } from "./pending.ts"
 export { type Applied, Request } from "./request.ts"
 
 export * as Mcp from "./mcp.ts"

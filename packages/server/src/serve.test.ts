@@ -61,7 +61,7 @@ const run = (
       allowedOrigins: [],
       // These start and stop a real server against a temp directory; committing
       // to whatever repository happens to contain it is not theirs to do.
-      commits: "off",
+      commit: false,
     })
   }).pipe(
     Effect.scoped,

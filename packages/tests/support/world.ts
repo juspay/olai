@@ -14,7 +14,7 @@
  * rename is a type error before the browser ever starts.
  */
 
-import { execFileSync, type ChildProcess } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -154,21 +154,6 @@ export const FAULT_HOME = selector(TESTID.faultHome);
  *  here and so the last thing to assert on. */
 export const THEME_PICKER = selector(TESTID.themePicker);
 export const THEME_CHIP = selector(TESTID.themeChip);
-
-/** The Commit pill in the chrome, and the panel it opens. The pill is ALWAYS
- *  drawn — `data-state` is which of its six faces it is wearing, and that is
- *  what a scenario asserts on. */
-export const COMMIT_PILL = selector(TESTID.commitPill);
-export const COMMIT_PANEL = selector(TESTID.commitPanel);
-/** What olai last recorded here, in the panel — or the words that say it never
- *  has, which is a fact no count of what is pending can express. */
-export const COMMIT_LAST = selector(TESTID.commitLast);
-/** One node that changed. `data-sort` is WHAT changed about it — never the
- *  words it is rendered as, which the view is entitled to reword. */
-export const COMMIT_CHANGE = selector(TESTID.commitChange);
-export const COMMIT_MESSAGE = selector(TESTID.commitMessage);
-export const COMMIT_NOW = selector(TESTID.commitNow);
-export const COMMIT_BLOCKED = selector(TESTID.commitBlocked);
 
 /** The agent panel. Absent entirely when no ACP agent is configured, which is
  *  a state the suite never runs in: every server it spawns is pointed at the
@@ -631,16 +616,6 @@ export class OlaiWorld extends World {
 
   removeServed(file: string): void {
     fs.rmSync(path.join(this.scratch(), file));
-  }
-
-  /** Ask git about the served directory — for the `@git` scenarios, whose
-   *  subject is what ends up in the log. Read-only by convention: what puts a
-   *  commit there is the app, which is the whole thing under test. */
-  git(...argv: ReadonlyArray<string>): string {
-    return execFileSync("git", [...argv], {
-      cwd: this.scratch(),
-      encoding: "utf8",
-    });
   }
 
   /** Plant the no-reload sentinel. */
