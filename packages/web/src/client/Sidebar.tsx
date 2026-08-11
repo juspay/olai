@@ -33,7 +33,7 @@
  * it.
  */
 
-import type { BrokenFile, Document } from "@olai/format"
+import type { BrokenFile } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import {
   createMemo,
@@ -78,7 +78,10 @@ interface TreeView {
 
 export function Sidebar(props: {
   readonly files: ReadonlyArray<string>
-  readonly documents: ReadonlyArray<Document>
+  /** The documents' paths. A tree of a directory is a tree of PATHS, which is
+   *  all a `.md` contributes to it — and all this tab has of one until someone
+   *  opens it (./outlines.ts). */
+  readonly documents: ReadonlyArray<string>
   /** The file the open page is of, in whichever kind of file it is. */
   readonly active: string | undefined
   readonly broken: ReadonlyMap<string, BrokenFile>
@@ -123,24 +126,18 @@ export function Sidebar(props: {
   const isActive = createSelector(() => props.active)
 
   // One tree, rebuilt only when the directory's paths move — not when a page
-  // changes or a folder folds. Document *text* is not an input: the tree is
-  // of paths, and a rewrite of a document's body is not a reshape of the
-  // directory. (manifest's equals gates on file+text and patches text in
-  // place; the outline collection keeps `order` by reference on a values-only
-  // tick — so this memo stays quiet when a body moves and only re-runs when a
-  // path arrives or leaves.)
+  // changes or a folder folds. Document *text* is not an input, and now cannot
+  // be: what arrives here is the documents' key set, so a rewrite of a body is
+  // not something this memo can even see. (The outline collection keeps
+  // `order` by reference on a values-only tick, which is the same property on
+  // the other list.)
   //
   // The walk mints fresh row objects each time; `<Key by="key">` holds each
   // place across that mint the way Tree.tsx holds outline rows — without it
   // `<For>` would compare by reference and rebuild the whole sidebar DOM on
   // one membership change, which is O(corpus) on the Dropbox-sized tree this
   // item targets.
-  const tree = createMemo(() =>
-    fileTree(
-      props.files,
-      props.documents.map((document) => document.file),
-    )
-  )
+  const tree = createMemo(() => fileTree(props.files, props.documents))
 
   // Getters, not a snapshot: the bag is built once, and a row that reads
   // `view.broken` must still track the prop that moves when a file fails to

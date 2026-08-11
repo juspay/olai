@@ -27,12 +27,15 @@ export function DocRef(props: {
   /** Draw the whole document, not a line of it. */
   readonly inline?: boolean
 }) {
+  // The body is asked for HERE, by the row that is showing it — one narrowed
+  // per-key subscription, shared with every other place drawing the same
+  // document (../document/documents.tsx). A row that names no document costs
+  // nothing, which is what makes a directory of thousands affordable.
   const document = useDocument(() => props.file)
   // Two memos, and the first is why the second is cheap. Every frame the store
-  // publishes mints a new `Document` record, so a preview read off the record
-  // would re-scan the file on every save anywhere in the directory; read off
-  // the TEXT, which is a string and compares by value, it re-scans only when
-  // the document itself changed.
+  // publishes mints a new entry, so a preview read off the record would
+  // re-scan the file on every save to it; read off the TEXT, which is a string
+  // and compares by value, it re-scans only when the body actually changed.
   const text = createMemo(() => document()?.text ?? "")
   const preview = createMemo(() => firstLine(text()))
 
@@ -65,7 +68,7 @@ export function DocRef(props: {
         {(served) => (
           <Markdown
             source={served().text}
-            from={served().file}
+            from={props.file}
             class="mt-2"
             testid={TESTID.documentBody}
           />

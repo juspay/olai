@@ -43,3 +43,17 @@ test("outlines is served as batched deltas, and read-only", () => {
 test("the manifest is read-only on the wire", () => {
   expect(surface.group.requests.has("surface/manifest/set")).toBe(false)
 })
+
+// snapshot-scale, as a test of the DECLARATION. `deltas` opens with a snapshot
+// of every entry, and a documents entry is a `.md` body — so declaring it here
+// would put the whole corpus back on the first frame of every subscription,
+// which is the defect this collection was cut out of the manifest to fix.
+// `keys` + `get` is the shape: paths for the sidebar, a body for whoever opens
+// one.
+test("documents are served keys-first, one body at a time, and read-only", () => {
+  expect(tags).toContain("surface/documents/keys")
+  expect(tags).toContain("surface/documents/get")
+  expect(surface.group.requests.has("surface/documents/deltas")).toBe(false)
+  expect(surface.group.requests.has("surface/documents/upsert")).toBe(false)
+  expect(surface.group.requests.has("surface/documents/delete")).toBe(false)
+})

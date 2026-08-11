@@ -3,15 +3,16 @@
  *
  * Two subjects, and the bindings say which is which:
  *
- *   - the OUTLINE is the store's. One fiber follows `SubscriptionRef.changes`
+ *   - the DIRECTORY is the store's. One fiber follows `SubscriptionRef.changes`
  *     of the snapshot — current value first, then every later one — and each
- *     revision it sees becomes three writes: the entries whose file moved, the
- *     keys whose file is gone, and the manifest. It is an OWNED source (the
- *     `manifest` cell's `connect`), like the error cell's, so it lives on the
- *     runtime's own scope and a failure in it settles `done`.
+ *     revision it sees becomes the writes of that revision: for each of the two
+ *     collections the entries whose file moved and the keys whose file is gone,
+ *     then the manifest. It is an OWNED source (the `manifest` cell's
+ *     `connect`), like the error cell's, so it lives on the runtime's own scope
+ *     and a failure in it settles `done`.
  *
- *     What makes that ONE fiber rather than two is that the collection and the
- *     cell are two halves of one revision: publishing them from two
+ *     What makes that ONE fiber rather than three is that the collections and
+ *     the cell are halves of one revision: publishing them from separate
  *     subscriptions to the same ref would let a reader see a manifest naming a
  *     revision whose entries had not been written yet, from a server that knew
  *     both.
@@ -30,6 +31,7 @@ import type { Store } from "@olai/store"
 import {
   CHAT_OFF,
   type ChatState,
+  type DocumentEntry,
   type Manifest,
   type OpFailure,
   type OutlineEntry,
@@ -78,12 +80,15 @@ export const bind = (
     const errors = inMemoryStore<ReadonlyArray<OutlineError>>([])
     const chat = wiring.chat
 
-    /** The served directory as entries — the collection's own value, replaced
-     *  whole by the connector below and never mutated after, which is what lets
-     *  `readAll` hand it over as it is. A fresh subscription's snapshot and the
-     *  deltas an open one is watching are two readings of one map rather than
-     *  two copies to keep in step. */
-    let entries = new Map<string, OutlineEntry>()
+    /** The served directory as entries, one map per collection — each
+     *  collection's own value, replaced whole by the connector below and never
+     *  mutated after, which is what lets `readAll` hand it over as it is. A
+     *  fresh subscription's snapshot and the deltas an open one is watching are
+     *  two readings of one map rather than two copies to keep in step. */
+    let held: {
+      outlines: Map<string, OutlineEntry>
+      documents: Map<string, DocumentEntry>
+    } = { outlines: new Map(), documents: new Map() }
     /** The surface's own write face, once there is one to publish through —
      *  filled the moment `implementSurface` returns. The connector installs
      *  synchronously, so the FIRST revision is written before this exists; that
@@ -119,11 +124,11 @@ export const bind = (
         chat: {
           store: inMemoryStore<ChatState>(chat === null ? CHAT_OFF : chat.state()),
         },
-        /** The whole outline binding, because one revision is one write of all
-         *  three things: the entries that moved, the keys that went, and the
-         *  facts that belong to no file. `null` reaches the wire verbatim — a
-         *  store with no snapshot has never loaded, and an empty collection on
-         *  its own cannot say that. */
+        /** The whole directory binding, because one revision is one write of
+         *  everything it moved: for each collection the entries that changed
+         *  and the keys that went, and then the facts that belong to no file.
+         *  `null` reaches the wire verbatim — a store with no snapshot has
+         *  never loaded, and empty collections on their own cannot say that. */
         manifest: {
           store: inMemoryStore<Manifest>(null),
           connect: (cell) =>
@@ -132,11 +137,27 @@ export const bind = (
               (snapshot) =>
                 Effect.sync(() => {
                   if (snapshot === null) return cell.set(null)
-                  const revision = publishedOf(snapshot, entries)
-                  entries = revision.entries
-                  const outlines = published?.collections.outlines
-                  for (const [key, entry] of revision.upserts) outlines?.upsert(key, entry)
-                  for (const key of revision.removes) outlines?.remove(key)
+                  const revision = publishedOf(snapshot, held)
+                  held = {
+                    outlines: revision.outlines.entries,
+                    documents: revision.documents.entries,
+                  }
+                  const collections = published?.collections
+                  for (const [key, entry] of revision.outlines.upserts) {
+                    collections?.outlines.upsert(key, entry)
+                  }
+                  for (const key of revision.outlines.removes) {
+                    collections?.outlines.remove(key)
+                  }
+                  // A document's upsert reaches only the sockets that asked for
+                  // THAT key (there is no `deltas` verb here) — which is a
+                  // reader with the document open, and nobody else.
+                  for (const [key, entry] of revision.documents.upserts) {
+                    collections?.documents.upsert(key, entry)
+                  }
+                  for (const key of revision.documents.removes) {
+                    collections?.documents.remove(key)
+                  }
                   // Written last, which is NOT the order they arrive in: a cell
                   // publishes on this stack while the collection's frame is
                   // coalesced into one delta on a microtask, so the manifest
@@ -157,7 +178,16 @@ export const bind = (
         // write needs somewhere to persist — and by the time one runs, the
         // projection it would persist has already been replaced whole.
         outlines: {
-          readAll: () => entries,
+          readAll: () => held.outlines,
+          upsert: () => {},
+          remove: () => {},
+        },
+        // The same arrangement, one collection over: server-authored, read-only
+        // on the wire, and `readAll` is the projection rather than a copy — so
+        // the body a fresh per-key subscription is snapshotted from is the one
+        // the upserts above have been moving.
+        documents: {
+          readAll: () => held.documents,
           upsert: () => {},
           remove: () => {},
         },

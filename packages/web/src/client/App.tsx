@@ -80,7 +80,7 @@ export default function App() {
       indexes,
       {
         files: outlines.files(),
-        documents: outlines.documentsByFile(),
+        documents: outlines.documents(),
         broken: outlines.broken(),
       },
       router.route(),
@@ -173,7 +173,7 @@ export default function App() {
           {(open) => (
             <RouterProvider router={router}>
               <DerivedProvider derived={outlines.derived()}>
-              <DocumentsProvider documents={outlines.documentsByFile()}>
+              <DocumentsProvider>
                 {/* Two columns where there is room for two, one where there is
                     not. `md` is 48rem, which is where the racket original put
                     the same line: below it the sidebar stops being a column
@@ -224,7 +224,7 @@ export default function App() {
                         <OutlinePage rows={rows()} view={view} />
                       </Match>
                       <Match when={only(open(), "document")}>
-                        {(open) => <DocumentPage document={open().document} />}
+                        {(open) => <DocumentPage file={open().file} />}
                       </Match>
                       <Match when={only(open(), "day")}>
                         {(open) => (

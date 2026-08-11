@@ -1,13 +1,23 @@
 /**
  * The served directory, as this tab sees it.
  *
- * TWO subscriptions, and between them they are the whole read side of the app:
- * a COLLECTION of outlines keyed by root-relative path, and a `manifest` CELL
- * for what belongs to no one file. The collection is served with batched
- * `deltas`, so a probe tick that touched one file sends that file's entry and
- * not the corpus — and the key is the protocol's (`keySchema`) rather than a
- * client library's default, which is the whole point of the re-modelling
+ * THREE subscriptions, and between them they are the whole read side of the
+ * app: a COLLECTION of outlines keyed by root-relative path, the KEY SET of the
+ * documents collection beside it, and a `manifest` CELL for what belongs to no
+ * one file. The outlines are served with batched `deltas`, so a probe tick that
+ * touched one file sends that file's entry and not the corpus — and the key is
+ * the protocol's (`keySchema`) rather than a client library's default, which is
+ * the whole point of the re-modelling
  * (`docs/brainstorming/outlines-as-collection.md`).
+ *
+ * The documents are the OPPOSITE case, and this module takes only half of them:
+ * their key set. A `.md` is drawn in exactly two places — as a path in the
+ * sidebar's file tree, and as a body on the one document a reader has open —
+ * and the first of those is every document in the directory while the second is
+ * one. So the paths arrive here, and a body is asked for by whoever is showing
+ * it (`./document/documents.tsx`). What that replaced was the manifest carrying
+ * every document's full text in the first frame: ~124 KB of a ~212 KB snapshot
+ * for this project's own `docs/`, and O(corpus) for a directory of thousands.
  *
  * THREE states a reader must tell apart, and the manifest is what says which:
  * `undefined` is "no frame yet" (the page is still reading), `null` is "there
@@ -29,10 +39,10 @@
  * go into `@olai/format`'s own derivation, the same call the validator makes.
  */
 
-import type { BrokenFile, Derived, Document } from "@olai/format"
+import type { BrokenFile, Derived } from "@olai/format"
 import { derive } from "@olai/format"
 import type { Manifest } from "@olai/surface"
-import { type Accessor, createMemo } from "solid-js"
+import { type Accessor, createMemo, createSignal } from "solid-js"
 
 import { sortByPath } from "./paths.ts"
 import { olai } from "./wire.ts"
@@ -43,14 +53,11 @@ export interface Outlines {
   readonly manifest: Accessor<Manifest | undefined>
   /** Every outline file, in path order. */
   readonly files: Accessor<ReadonlyArray<string>>
-  /** Every `.md` the directory holds, text and all — the sidebar's file tree
-   *  mixes them with outlines under the folders they live in; the document
-   *  pages and every `doc` preview read the same list. */
-  readonly documents: Accessor<ReadonlyArray<Document>>
-  /** The same documents BY PATH — the one index everything that answers "which
-   *  document is this" reads. The list above stays the list, because the tree
-   *  is built from ordered paths. */
-  readonly documentsByFile: Accessor<ReadonlyMap<string, Document>>
+  /** Every `.md` the directory holds, by path and in path order — the sidebar's
+   *  file tree mixes them with the outlines under the folders they live in, and
+   *  an address that names one is answered against this list. The TEXT is not
+   *  here: it travels per document, to whoever opens one. */
+  readonly documents: Accessor<ReadonlyArray<string>>
   /** The files that did not parse, by path — the sidebar marks them and the
    *  main pane draws one of them instead of a tree. */
   readonly broken: Accessor<ReadonlyMap<string, BrokenFile>>
@@ -63,6 +70,32 @@ export const createOutlines = (): Outlines => {
   const entries = olai.collections.outlines.use()
   const manifest = olai.cells.manifest.use()
 
+  /**
+   * The documents' KEY SET, and only it.
+   *
+   * `.use()` on this collection would open the keys stream AND a value stream
+   * per key — every body in the directory, which is the thing the collection
+   * exists to stop sending. So the keys ref is driven on its own, through
+   * `rawStream`: the framework's own composition for exactly this (its
+   * `unenrolledKeys` docs describe feeding the raw list back as a narrowed
+   * `.use({ keys })`, which is what `./document/documents.tsx` then does with
+   * the one document a reader has open), and `rawStream` rather than a bare
+   * `unenrolledStreamCall` so the stream is still IN `client.health()` — a
+   * keys stream that dies would otherwise read as a directory with no
+   * documents in it.
+   *
+   * No `onRetry`: every frame is the whole key set, so a reconnect replaces
+   * this list wholesale, and clearing it in the gap would empty the sidebar's
+   * documents for as long as the socket takes to come back.
+   */
+  const [documents, setDocuments] = createSignal<ReadonlyArray<string>>([])
+  olai.rawStream(
+    "documents.keys",
+    olai.collections.documents.unenrolledKeys,
+    undefined,
+    { onItem: (keys) => setDocuments(sortByPath(keys)) },
+  )
+
   const files = createMemo(() => sortByPath(entries.keys()))
 
   /** Every node of the set: file by file, each file's nodes in file order —
@@ -72,18 +105,10 @@ export const createOutlines = (): Outlines => {
     files().flatMap((file) => entries.byKey(file)?.()?.nodes ?? [])
   )
 
-  const documents = () => manifest.value()?.documents ?? []
-
   return {
     manifest: manifest.value,
     files,
     documents,
-    documentsByFile: createMemo(
-      () =>
-        new Map<string, Document>(
-          documents().map((document) => [document.file, document] as const),
-        ),
-    ),
     broken: createMemo(() => {
       const found = new Map<string, BrokenFile>()
       for (const file of files()) {
