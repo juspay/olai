@@ -125,17 +125,38 @@ export function Composer(props: { readonly chat: Chat }) {
     on(() => props.chat.state().session?.id, () => setPending([]), { defer: true }),
   )
 
-  const send = () => {
+  /**
+   * Send, and PUT IT BACK if the server would not take it.
+   *
+   * The box is cleared immediately, because it has to be: a send that waited
+   * for a round trip before emptying the box would send twice for two quick
+   * presses of Enter. But the clear was also the end of the story, and a
+   * refusal — a picture whose conversation was left while it uploaded, most of
+   * all — left the message and the chips gone and only a red line to say why.
+   * Chips are worse than words that way: they stand for round trips somebody
+   * already waited through.
+   *
+   * Only put back into a box that is still empty. If the answer comes back
+   * while a person is already typing the next thing, what they are typing wins.
+   */
+  const send = async () => {
     const text = draft()
     const attachments = pending()
     if (text.trim() === "" && attachments.length === 0) return
-    props.chat.send(text, attachments.map((attachment) => attachment.path))
     setDraft("")
     setPending([])
     dismiss()
     // Where the caret already is, unless something took it — a person sending
     // two messages in a row should not have to aim at the box for the second.
     input?.focus()
+
+    const taken = await props.chat.send(
+      text,
+      attachments.map((attachment) => attachment.path),
+    )
+    if (taken) return
+    setDraft((typing) => (typing === "" ? text : typing))
+    setPending((now) => (now.length === 0 ? attachments : now))
   }
 
   const accept = (name: string) => {
@@ -171,7 +192,7 @@ export function Composer(props: { readonly chat: Chat }) {
     // for one rule — a second one here would be a guard nobody could test.
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault()
-      send()
+      void send()
     }
   }
 
@@ -311,7 +332,7 @@ export function Composer(props: { readonly chat: Chat }) {
           type="button"
           class={`${CONTROL} border-rule px-3 hover:border-accent hover:text-accent`}
           data-testid={TESTID.chatSend}
-          onClick={send}
+          onClick={() => void send()}
         >
           {working() ? "queue" : "send"}
         </button>

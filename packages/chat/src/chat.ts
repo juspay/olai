@@ -387,7 +387,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       entries: () => transcript.entries(),
       state: () => state,
       send,
-      attach: files.receive,
+      // Under the SAME permit as a session change, because the two touch one
+      // directory: a chunk that found the conversation's directory a moment
+      // before `discard` removed it would be writing into a directory being
+      // deleted underneath it. Serialized, the two orders are both whole — an
+      // upload finishes into the conversation it began in, or it starts in the
+      // one that replaced it — and neither is half of each. One chunk is a
+      // three-megabyte write, so the permit is held for milliseconds, not for
+      // an upload. It also makes the collision suffix sound within a process:
+      // two tabs pasting `shot.png` at the same moment cannot both pick it.
+      attach: (chunk) => switching.withPermit(files.receive(chunk)),
       cancel: agent.cancel,
       newSession: changeSession(agent.newSession),
       loadSession: (id: string) => changeSession(agent.loadSession(id)),
@@ -430,8 +439,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         if (running !== null) yield* Fiber.interrupt(running)
         yield* agent.stop
         // Registered as a finalizer of the serve scope, so this is also what
-        // takes the pasted pictures with the server when it shuts down.
-        yield* files.discard
+        // takes the pasted pictures with the server when it shuts down. Behind
+        // the same permit as everything else that touches the directory: a
+        // chunk still being written is a write into a directory this line is
+        // about to remove.
+        yield* switching.withPermit(files.discard)
       }),
     }
   })

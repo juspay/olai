@@ -218,7 +218,44 @@ export const safeName = (raw: string): string => {
     .normalize("NFC")
     .replace(/[^\p{L}\p{N}\p{M}._-]/gu, "_")
     .replace(/^\.+/, "")
-  return trimmed === "" ? "attachment" : trimmed
+  return trimmed === "" ? "attachment" : shortened(trimmed)
+}
+
+/** What a file name may weigh. Every filesystem this runs on stops somewhere
+ *  near 255 BYTES for one component; 200 leaves room for the collision suffix
+ *  and for the difference between a byte and a character. */
+const MAX_NAME_BYTES = 200
+
+/**
+ * ... and short enough to be one.
+ *
+ * A three-hundred-character name is still a name — it passes the picture
+ * allowlist, and the size gate has nothing to say about it — and then the
+ * write fails with `ENAMETOOLONG`, which reaches a person as a transport
+ * failure rather than as a sentence about their file. So the label is cut
+ * rather than refused, which is what this whole function does to a name.
+ *
+ * The EXTENSION is what survives the cut: the agent reads the picture's kind
+ * from it, and a name truncated through it would be a different kind or none.
+ * Cut by BYTES and never mid-character, because the limit is bytes and a
+ * name may be entirely three-byte ones.
+ */
+const shortened = (name: string): string => {
+  if (weight(name) <= MAX_NAME_BYTES) return name
+  const { name: stem, ext } = parse(name)
+  const room = MAX_NAME_BYTES - weight(ext)
+  // An extension that will not fit is not one — cut the whole thing, and let
+  // the gate say what it now is (a name with no picture extension left).
+  return room <= 0 ? cut(name, MAX_NAME_BYTES) : `${cut(stem, room)}${ext}`
+}
+
+const weight = (text: string): number => Buffer.byteLength(text, "utf8")
+
+const cut = (text: string, room: number): string => {
+  let kept = text
+  // By CHARACTER, so a multi-byte one is dropped whole rather than halved.
+  while (weight(kept) > room) kept = kept.slice(0, -1)
+  return kept
 }
 
 /** A path in `dir` that no file has yet, suffixing `-1`, `-2`, … before the

@@ -68,8 +68,16 @@ export interface Chat {
    *  waiting: this one belongs to the click that caused it. */
   readonly refused: Accessor<OpFailure | null>
   /** What was typed, and the pictures already attached to it — by the paths
-   *  {@link Chat.attach} answered with. */
-  readonly send: (text: string, attachments: ReadonlyArray<string>) => void
+   *  {@link Chat.attach} answered with.
+   *
+   *  Answers whether the server TOOK it. A composer clears the box the moment
+   *  it sends, which is right — but a send that was refused has to be able to
+   *  put back what it threw away, and the refusal alone does not say what the
+   *  message was. */
+  readonly send: (
+    text: string,
+    attachments: ReadonlyArray<string>,
+  ) => Promise<boolean>
   /** Send a picture to the conversation's tmp directory, chunk by chunk, and
    *  answer with where it landed — or `null` when it was refused, which the
    *  panel is already showing through {@link Chat.refused}. */
@@ -142,12 +150,31 @@ export const createChat = (): Chat => {
     entry,
     refused,
     send: (text, attachments) =>
-      verb(olai.procedures.chat.send({ text, attachments })),
+      new Promise((resolve) => {
+        setRefused(null)
+        run(
+          olai.procedures.chat.send({ text, attachments }),
+          (failure) => {
+            setRefused(failure)
+            resolve(false)
+          },
+          () => resolve(true),
+        )
+      }),
     // The chunk loop is a composed effect ({@link ./attach.ts}) rather than a
     // verb of its own: what a caller waits for is the path, because it is what
     // the next `send` carries.
     attach: (file) =>
       new Promise((resolve) => {
+        // WHICH conversation this is being attached to, read before the first
+        // chunk goes out. An upload takes as many round trips as the picture
+        // has chunks, and leaving a conversation is allowed throughout — only
+        // a running TURN blocks that. So the answer can arrive after the
+        // server has thrown the directory it names away, and after the effect
+        // below has cleared what belonged to it. Answering `null` then is the
+        // honest thing: the file is gone, and a chip for it would offer a send
+        // the server would refuse.
+        const asked = state().session?.id
         setRefused(null)
         run(
           attaching(file, (chunk) => olai.procedures.chat.attach(chunk)),
@@ -156,6 +183,7 @@ export const createChat = (): Chat => {
             resolve(null)
           },
           (stored) => {
+            if (state().session?.id !== asked) return resolve(null)
             // The Blob is the one already in hand — this tab is the only
             // reader that will ever have it, and the name it is filed under is
             // the SERVER's, which is what the transcript row will carry.

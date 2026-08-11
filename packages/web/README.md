@@ -339,6 +339,14 @@ Three components earn their own file:
   does not send — the picture waits in a strip above the box, where it can be
   removed or typed at, because "what is wrong here" needs the picture and the
   question together.
+
+  The box empties the moment it sends and PUTS BACK what the server would not
+  take. Emptying immediately is not optional — waiting for the round trip would
+  send twice for two quick presses of Enter — but a refusal used to leave the
+  message and the chips gone with only a red line to say why, and a chip stands
+  for round trips somebody already waited through. It is put back only into a
+  box that is still empty: an answer that arrives while the next thing is being
+  typed loses to what is being typed.
 - **`attach.ts`** is that call: read the Blob, base64 it once, and send it as a
   SEQUENCE of bounded `chat.attach` calls, the first creating the file and each
   later one appending to the path it was answered with. Sequential by

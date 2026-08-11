@@ -154,6 +154,43 @@ test("the cap is on the FILE, so a chunk is judged against the total", async () 
   await Effect.runPromise(files.discard)
 })
 
+// The server end of the in-flight-attach race: a conversation can be left
+// while an upload is still running, and the chunk that arrives afterwards
+// names a file in a directory that no longer exists. It is REFUSED rather
+// than recreated — a continuation is only ever a continuation — and the path
+// stops being claimable, which is what keeps it out of a prompt.
+test("a chunk continuing a conversation that has been left is refused", async () => {
+  const files = make()
+  const started = await receive(files, {
+    name: "shot.png",
+    data: bytes(8).toString("base64"),
+  })
+  expect(Result.isSuccess(started)).toBe(true)
+  if (!Result.isSuccess(started)) return
+
+  await Effect.runPromise(files.discard)
+
+  const refused = await receive(files, {
+    name: "shot.png",
+    data: bytes(8).toString("base64"),
+    appendTo: started.success.path,
+  })
+  expect(Result.isFailure(refused)).toBe(true)
+  // ... and a prompt cannot name it either, which is the same check.
+  expect(Result.isFailure(await outcome(files.claim(started.success.path)))).toBe(true)
+
+  // A FIRST chunk after the same discard is fine: it belongs to whatever
+  // conversation is current now, and gets a directory of its own.
+  const next = await receive(files, {
+    name: "shot.png",
+    data: bytes(8).toString("base64"),
+  })
+  expect(Result.isSuccess(next)).toBe(true)
+  if (!Result.isSuccess(next)) return
+  expect(dirname(next.success.path)).not.toBe(dirname(started.success.path))
+  await Effect.runPromise(files.discard)
+})
+
 test("a name is a label, never a path", async () => {
   expect(safeName("../../etc/passwd.png")).toBe("passwd.png")
   expect(safeName("/tmp/shot.png")).toBe("shot.png")
@@ -163,6 +200,32 @@ test("a name is a label, never a path", async () => {
   // Never empty, and never hidden.
   expect(safeName("...")).toBe("attachment")
   expect(safeName("")).toBe("attachment")
+})
+
+// A name no filesystem will take is still a NAME — cutting it is what this
+// function does to every other kind of unusable one. Left whole, the write
+// fails with ENAMETOOLONG, and a person reads that as the connection breaking
+// rather than as something about their file.
+test("a name too long for a filesystem is cut, not carried to the write", async () => {
+  const long = safeName(`${"a".repeat(300)}.png`)
+  expect(Buffer.byteLength(long)).toBeLessThanOrEqual(200)
+  // The extension survives the cut: the agent reads the picture's kind from it.
+  expect(long.endsWith(".png")).toBe(true)
+
+  // Cut by BYTES and never through a character — a name can be entirely
+  // three-byte ones, and half of one is not a character at all.
+  const wide = safeName(`${"ä".repeat(300)}.png`)
+  expect(Buffer.byteLength(wide)).toBeLessThanOrEqual(200)
+  expect(wide.normalize("NFC")).toBe(wide)
+
+  // ... and it is a name the disk actually takes, which is the whole point.
+  const files = make()
+  const stored = await receive(files, {
+    name: `${"a".repeat(300)}.png`,
+    data: bytes(8).toString("base64"),
+  })
+  expect(Result.isSuccess(stored)).toBe(true)
+  await Effect.runPromise(files.discard)
 })
 
 test("what the agent is asked is the path, as text", async () => {

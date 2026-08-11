@@ -193,3 +193,13 @@ A path that arrives over the wire is checked, never believed. A chunk's
 directory, through symlinks, on both sides of the comparison — so a continuation
 token is exactly that, and not a capability to append to any file this process
 can write.
+
+`attach` takes the SAME permit as a session change, because the two touch one
+directory. Leaving a conversation is allowed while an upload is running — only
+a running turn blocks it — so without that, a chunk could be writing into a
+directory `discard` was removing. Serialized, both orders are whole: an upload
+finishes into the conversation it began in, or it starts in the one that
+replaced it. One chunk is a three-megabyte write, so the permit is held for
+milliseconds rather than for an upload. A continuation whose conversation was
+left in between is refused like any other path that is not ours, and the browser
+drops an answer that arrives for a conversation it is no longer in.
