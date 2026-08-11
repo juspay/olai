@@ -174,40 +174,39 @@ Then("the app chrome is inside the header", async function (this: OlaiWorld) {
  * fallback to live.
  */
 When("I open the app held at connecting", async function (this: OlaiWorld) {
-  // Serialized into the page — no TypeScript syntax inside (Playwright
-  // stringifies the function body as-is).
-  await this.page.addInitScript(() => {
-    function HeldWebSocket(url) {
-      this.readyState = 0;
-      this.bufferedAmount = 0;
-      this.extensions = "";
-      this.protocol = "";
-      this.binaryType = "blob";
-      this.url = String(url);
-      this.onopen = null;
-      this.onclose = null;
-      this.onerror = null;
-      this.onmessage = null;
-    }
-    HeldWebSocket.CONNECTING = 0;
-    HeldWebSocket.OPEN = 1;
-    HeldWebSocket.CLOSING = 2;
-    HeldWebSocket.CLOSED = 3;
-    HeldWebSocket.prototype.CONNECTING = 0;
-    HeldWebSocket.prototype.OPEN = 1;
-    HeldWebSocket.prototype.CLOSING = 2;
-    HeldWebSocket.prototype.CLOSED = 3;
-    HeldWebSocket.prototype.close = function () {
-      this.readyState = 3;
-    };
-    HeldWebSocket.prototype.send = function () {};
-    HeldWebSocket.prototype.addEventListener = function () {};
-    HeldWebSocket.prototype.removeEventListener = function () {};
-    HeldWebSocket.prototype.dispatchEvent = function () {
-      return true;
-    };
-    window.WebSocket = HeldWebSocket;
-  });
+  // A string, not a function: tsc would otherwise typecheck the stub as a
+  // real WebSocket constructor. Stays CONNECTING forever so the indicator
+  // cannot race past to live.
+  await this.page.addInitScript(`
+    (function () {
+      function HeldWebSocket(url) {
+        this.readyState = 0;
+        this.bufferedAmount = 0;
+        this.extensions = "";
+        this.protocol = "";
+        this.binaryType = "blob";
+        this.url = String(url);
+        this.onopen = null;
+        this.onclose = null;
+        this.onerror = null;
+        this.onmessage = null;
+      }
+      HeldWebSocket.CONNECTING = 0;
+      HeldWebSocket.OPEN = 1;
+      HeldWebSocket.CLOSING = 2;
+      HeldWebSocket.CLOSED = 3;
+      HeldWebSocket.prototype.CONNECTING = 0;
+      HeldWebSocket.prototype.OPEN = 1;
+      HeldWebSocket.prototype.CLOSING = 2;
+      HeldWebSocket.prototype.CLOSED = 3;
+      HeldWebSocket.prototype.close = function () { this.readyState = 3; };
+      HeldWebSocket.prototype.send = function () {};
+      HeldWebSocket.prototype.addEventListener = function () {};
+      HeldWebSocket.prototype.removeEventListener = function () {};
+      HeldWebSocket.prototype.dispatchEvent = function () { return true; };
+      window.WebSocket = HeldWebSocket;
+    })();
+  `);
   await this.page.goto("/");
   await this.page
     .locator(APP_HEADER)
