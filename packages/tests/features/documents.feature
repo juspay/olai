@@ -47,7 +47,7 @@ Feature: Documents
   @corpus:good
   Scenario: The whole markdown surface is drawn without breaking the page
     When I open the document "kitchen-sink.md"
-    Then the page does not scroll sideways
+    Then nothing overflows the pane
     And the task list is drawn with checkboxes and no bullets
     And no code span in a table is broken across lines
     # Nix, because this repository is built with it and its own docs are full of

@@ -143,10 +143,14 @@ without one. And they **measure**: "big enough for a finger" is a size, and no
 attribute can carry it — it is the sum of a font, a padding and a breakpoint —
 so `world.box()` / `world.boxes()` read what the browser laid out (the plural
 takes every match in one pass, because a rule that held for the first row and
-not the tenth is not in force). That is the one exception to
-the rule below, and it is confined to `step_definitions/phone_steps.ts`, where
-a map turns a reader's name for a control ("collapse toggle") into the
-`data-testid` it is found by. `features/on_a_phone.feature` ends with a laptop
+not the tenth is not in force). That is the one exception to the rule below,
+and it is an exception about WHEN rather than about where: a step may measure
+when the promise is a property no attribute can carry, and only then. Two
+places qualify so far — the finger-sized controls here, and the rendered
+markdown a document draws (`document_steps.ts`, `app_steps.ts`), where the
+tags are correct however badly they are set and the damage is only in the
+layout. In `step_definitions/phone_steps.ts`, a map turns a reader's name for
+a control ("collapse toggle") into the `data-testid` it is found by. `features/on_a_phone.feature` ends with a laptop
 scenario on purpose: the finger-sized rule is about the pointer, and a control
 that grew everywhere would be a regression in the other direction.
 

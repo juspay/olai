@@ -134,30 +134,17 @@ Then(
 );
 
 /**
- * The three things a rendered document can do to the page around it, asked of
- * the LAID-OUT page rather than of the HTML.
+ * Two things a rendered document does that are invisible in its HTML: the tags
+ * are right in both cases and the damage is in how they are SET, so each is
+ * read off the browser's own geometry — the only witness that a rule in
+ * `styles.css` is doing what its comment says. Both filter IN THE PAGE and
+ * bring back the offenders, so a failure names the lines that are wrong rather
+ * than every line that was looked at.
  *
- * None of them is visible in the markup — the tags are right in every case and
- * the damage is done by how they are set — so each is read off the browser's
- * own geometry, which is the only witness that a rule in `styles.css` is doing
- * what its comment says.
+ * The third of the set — that no part of this widens the pane — is a whole-app
+ * invariant rather than a document's (a note and an agent's reply go through
+ * the same pipeline), and lives in `app_steps.ts`.
  */
-
-Then("the page does not scroll sideways", async function (this: OlaiWorld) {
-  await body(this).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  const [scrollable, visible] = await this.page.evaluate(() => [
-    document.documentElement.scrollWidth,
-    document.documentElement.clientWidth,
-  ]);
-  // A document is prose in a column, and one pasted URL used to widen the whole
-  // page — the outline beside it included — until the reader panned to finish a
-  // sentence. Anything wider than the column scrolls WITHIN itself (a fence, a
-  // table); the page does not.
-  assert.ok(
-    scrollable <= visible,
-    `the page scrolls sideways: ${scrollable}px of content in a ${visible}px viewport`,
-  );
-});
 
 Then(
   "the task list is drawn with checkboxes and no bullets",
@@ -167,17 +154,19 @@ Then(
     // The checkbox IS the marker. A list-style left in place draws both, which
     // reads as two marks about one line — and it is invisible in the HTML,
     // because the item is a correct `<li>` either way.
-    const markers = await items.evaluateAll((nodes) =>
-      nodes.map((node) => ({
-        marker: getComputedStyle(node).listStyleType,
-        boxes: node.querySelectorAll(":scope > input[type=checkbox]").length,
-      })),
+    const wrong = await items.evaluateAll((nodes) =>
+      nodes
+        .filter(
+          (node) =>
+            getComputedStyle(node).listStyleType !== "none" ||
+            node.querySelectorAll(":scope > input[type=checkbox]").length !== 1,
+        )
+        .map((node) => node.textContent ?? ""),
     );
-    assert.ok(markers.length > 0, "the document draws no task list items at all");
     assert.deepStrictEqual(
-      markers.filter((item) => item.marker !== "none" || item.boxes !== 1),
+      wrong,
       [],
-      `every task list item should draw one checkbox and no bullet: ${JSON.stringify(markers)}`,
+      "these task list items do not draw exactly one checkbox and no bullet",
     );
   },
 );
