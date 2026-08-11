@@ -13,7 +13,7 @@ per caller.
 
 | file | what it owns |
 |---|---|
-| `sinks.ts` | one format (logfmt) and two streams — stdout for `olai web`, stderr for `olai mcp`, where stdout is the protocol |
+| `sinks.ts` | two streams and which face each line wears — stdout for `olai web`, stderr for `olai mcp` (where stdout is the protocol); pretty on a TTY, logfmt everywhere a machine reads |
 | `cause.ts` | what a failure says, in the two lengths anything wants it: `prettyCause` for a log, `reasonOf` for a sentence somebody reads |
 | `emit.ts` | `emitter`: how a plain Node callback emits a line without losing the fiber's level, annotations and spans |
 | `lines.testlib.ts` | how a TEST hears a line, on the `./testlib` subpath: the collecting logger inside the process, the logfmt decoder outside it |
@@ -44,6 +44,23 @@ one question, so there isn't one.
 
 ## The format
 
+**Two faces, one decision point.** The sink picks the face from the destination
+stream (and an optional override) — call sites still say only `toStdout` or
+`toStderr`.
+
+| when | face |
+|---|---|
+| destination is a TTY | **pretty** — Effect's `Logger.consolePretty`: local time, coloured level, message first, key=values after |
+| piped / systemd / tests | **logfmt** — byte-identical to Effect's `formatLogFmt`, what it always was |
+| `OLAI_LOG=pretty` or `OLAI_LOG=logfmt` | that face, regardless of the TTY |
+
+Pretty is for a human watching a terminal. Logfmt is for everything that parses
+a line — the `@olai/log` testlib decoder, the e2e suite reading the bound
+address off stdout, any agent grepping `url=`. Pretty may only exist where no
+machine reads; colour and multi-line pretty layout would break those readers.
+
+### logfmt (machines)
+
 One line per event, `key=value`, quoted only where it has to be:
 
 ```
@@ -63,8 +80,23 @@ emitted during it says how far in it was. Annotations set with
 that scope, which is how the store's own probe warning ends up saying which
 directory it was probing.
 
-No colour, deliberately: the e2e suite reads the bound address off stdout, and
-an ANSI escape inside the value it is matching is a bug nobody would look for.
+### pretty (humans)
+
+Same event on a TTY looks more like:
+
+```
+[13:45:36.770] INFO (#5) serve=12ms: serving
+  root: /home/you/outlines
+  url: http://127.0.0.1:7714
+```
+
+Force either face when the auto pick is wrong (a TTY you want to pipe from, or
+a non-TTY you still want to read):
+
+```sh
+OLAI_LOG=logfmt olai web ~/outlines | …   # keep logfmt on a TTY
+OLAI_LOG=pretty olai web ~/outlines       # pretty even when redirected
+```
 
 ## Two lengths for a failure
 
