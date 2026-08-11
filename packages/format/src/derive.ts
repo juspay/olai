@@ -365,19 +365,13 @@ const blockage = (
   status: ReadonlyMap<string, Status>,
   after: ReadonlyMap<string, ReadonlyArray<string>>,
 ): ReadonlyMap<string, ReadonlyArray<InTheWay>> => {
-  /** The node an end of an arrow actually names, WHILE it is still in play:
-   *  it exists, it is a task that is not done, and it has not been put away.
-   *  A mirror is followed to the node it shows, because an edge that names a
-   *  placement means the node standing there. */
+  /** The node an end of an arrow names, WHILE it is still in play: it exists,
+   *  it is a task that is not done, and it has not been put away. */
   const inPlay = (id: string): InTheWay | undefined => {
-    const named = byId.get(id)
-    if (named === undefined) return undefined
-    const found = follow({ byId }, named)
-    if (found.kind !== "found" || isArchived(found.shows.file)) return undefined
-    const mark = status.get(found.shows.node.id)
-    return mark === undefined || mark === "done"
-      ? undefined
-      : { at: found.shows, status: mark }
+    const at = nodeNamed({ byId }, id)
+    if (at === undefined || isArchived(at.file)) return undefined
+    const mark = status.get(at.node.id)
+    return mark === undefined || mark === "done" ? undefined : { at, status: mark }
   }
 
   const blocked = new Map<string, ReadonlyArray<InTheWay>>()
@@ -612,6 +606,33 @@ export const follow = (derived: Pick<Derived, "byId">, from: Located): Found => 
     at = next
   }
   return { kind: "found", shows: at as LocatedRegular }
+}
+
+/**
+ * The node an ID NAMES: the regular record at the end of whatever mirror chain
+ * it addresses, and `undefined` when nothing declares it or the chain does not
+ * end at a node.
+ *
+ * An edge target is an id like any other and a mirror is addressable like any
+ * other record, so "what does this id mean" is one question with one answer —
+ * the node standing at that placement. Every reader of a target field asks it:
+ * blockedness, to find what is in the way, and the view, to put a `see`
+ * target's title on a link. Two spellings of it would be two answers about the
+ * same id, and the one that got it wrong would be a link with no text.
+ *
+ * The distinction from {@link follow} is which question is being asked: follow
+ * tells a ROW apart from the two ways its chain can fail, because a row has to
+ * draw the failure. A reference has nothing to draw and nowhere to say it, so
+ * both failures answer the same thing here.
+ */
+export const nodeNamed = (
+  derived: Pick<Derived, "byId">,
+  id: string,
+): LocatedRegular | undefined => {
+  const named = derived.byId.get(id)
+  if (named === undefined) return undefined
+  const found = follow(derived, named)
+  return found.kind === "found" ? found.shows : undefined
 }
 
 // ── titles ─────────────────────────────────────────────────────────────

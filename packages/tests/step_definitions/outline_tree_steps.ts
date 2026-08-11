@@ -533,12 +533,12 @@ const blockedOn = (world: OlaiWorld, id: string) => ({
 Then(
   "the node {string} is blocked by {string}",
   async function (this: OlaiWorld, id: string, blocker: string) {
-    // Picked by `data-blocked` — the id the marker OPENS — never by its text:
+    // Picked by `data-ref` — the id the marker OPENS — never by its text:
     // a row says the word "blocked" and a page says the blocker's title, and
     // an assertion pinned to either would be about the shape rather than the
     // fact.
     const marker = this.node(id)
-      .locator(`${BLOCKED}:has([data-blocked="${blocker}"])`)
+      .locator(`${BLOCKED}:has([data-ref="${blocker}"])`)
       .first();
     await marker.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },

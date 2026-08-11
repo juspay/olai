@@ -81,14 +81,14 @@ export const DOCUMENT_BODY = selector(TESTID.documentBody);
 export const DOC_REF = selector(TESTID.docRef);
 /** The link inside that reference, to the document's own page. */
 export const DOC_LINK = selector(TESTID.docLink);
-/** A node held up by an `after` edge: the pill on a row, the named list on the
- *  node's own page. Absent entirely on a node with nothing in its way, and the
- *  blocker it opens rides `data-blocked` on a span inside it. */
+/** A node held up by an `after` edge: the pill on a row, the named blockers on
+ *  the node's own page. Absent entirely on a node with nothing in its way. */
 export const BLOCKED = selector(TESTID.blocked);
 /** A node's free cross-references (`see`). */
 export const SEE_REFS = selector(TESTID.seeRefs);
-/** One link inside those references. The target id rides `data-see`. */
-export const SEE_LINK = selector(TESTID.seeLink);
+/** One link from a node to another node, in either of those rows. The target
+ *  id rides `data-ref`, which is what a scenario picks one by. */
+export const NODE_REF = selector(TESTID.nodeRef);
 /** The main pane. Present only when the loaded set is valid. */
 export const OUTLINE_TREE = selector(TESTID.outlineTree);
 export const NODE = selector(TESTID.node);

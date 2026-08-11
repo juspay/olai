@@ -15,10 +15,10 @@ import { DESKTOP } from "../support/hooks.ts";
 import {
   BLOCKED,
   DONE_TOGGLE,
+  NODE_REF,
   NOT_FOUND,
   oneLine,
   POLL_TIMEOUT,
-  SEE_LINK,
   SEE_REFS,
   ZOOM,
   ZOOM_TITLE,
@@ -136,13 +136,14 @@ Then("a not-found is shown", async function (this: OlaiWorld) {
 // ── free cross-references (`see`) ──────────────────────────────────────
 
 /** The see-link on a node that points at a particular target. Selected by
- *  `data-see` (the target id), never by link text — titles change under a live
+ *  `data-ref` (the target id), never by link text — titles change under a live
  *  page, and a scenario that pinned one would flake the moment the target was
- *  retitled. */
+ *  retitled. Scoped to the see row, because a node's blockers are links to
+ *  nodes in exactly the same shape and this step is about `see`. */
 const seeLinkTo = (world: OlaiWorld, source: string, target: string) =>
   world
     .node(source)
-    .locator(`${SEE_LINK}:has([data-see="${target}"])`)
+    .locator(`${SEE_REFS} ${NODE_REF}:has([data-ref="${target}"])`)
     .first();
 
 Then(
@@ -188,9 +189,9 @@ When(
   async function (this: OlaiWorld, blocker: string, id: string) {
     // One step for both shapes of the marker: a row's pill is a link to the
     // first blocker and a page names every one of them, and either way the
-    // element carrying `data-blocked` is inside the anchor that opens it.
+    // element carrying `data-ref` is inside the anchor that opens it.
     const link = this.node(id)
-      .locator(`${BLOCKED} [data-blocked="${blocker}"]`)
+      .locator(`${BLOCKED} [data-ref="${blocker}"]`)
       .first();
     await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await link.click();

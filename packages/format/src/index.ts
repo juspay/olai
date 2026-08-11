@@ -45,6 +45,7 @@ export {
   derive,
   follow,
   fromChildren,
+  nodeNamed,
   rowsOf,
   rowsUnder,
   siblingsOf,

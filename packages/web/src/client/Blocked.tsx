@@ -16,18 +16,18 @@
  *     tooltip, and LINKS to the first blocker, because the next thing a reader
  *     wants is that node. It is dim and unhurried on purpose — a thing you
  *     cannot start is the last row that should be asking for attention;
- *   - on the node's own PAGE, every blocker as a link, because the page is
- *     where the node is read and "waiting on what?" is a question it should
- *     answer rather than hint at. Titles as link text, in the accent a link to
- *     a node wears anywhere else (./SeeRefs.tsx): the pill's quiet is about a
- *     row full of titles, not about pointing somewhere.
+ *   - on the node's own PAGE, every blocker named, because the page is where
+ *     the node is read and "waiting on what?" is a question it should answer
+ *     rather than hint at. That shape is not this file's: a labelled row of
+ *     links to nodes is what `see` draws too, and it is ./NodeRefs.tsx.
  *
  * Drawn nowhere at all when nothing is in the way, which is nearly every node.
  */
 
 import type { InTheWay } from "@olai/format"
-import { For, Show } from "solid-js"
+import { Show } from "solid-js"
 
+import { NodeRefs } from "./NodeRefs.tsx"
 import { Link } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import { TARGET } from "./touch.ts"
@@ -39,8 +39,7 @@ export function Blocked(props: {
   /** This is the node's own page: name every blocker rather than the pill. */
   readonly zoomed?: boolean
 }) {
-  const waiting = () => props.blocked
-  const first = () => waiting()[0]
+  const first = () => props.blocked[0]
 
   return (
     <Show when={first()}>
@@ -52,32 +51,22 @@ export function Blocked(props: {
               route={{ kind: "node", id: head().at.node.id }}
               class={`inline-flex ${TARGET} shrink-0 items-center rounded-sm border border-rule px-1.5 text-[0.6875rem] tracking-wide text-muted uppercase no-underline hover:text-ink md:min-h-0`}
               testid={TESTID.blocked}
-              title={`after ${waiting().map((one) => one.at.node.title).join(", ")}`}
+              title={`after ${props.blocked.map((one) => one.at.node.title).join(", ")}`}
             >
-              {/* data-blocked is the id this pill OPENS — titles change under
-                  a live page, ids do not, so a scenario picks it by that. */}
-              <span data-blocked={head().at.node.id}>blocked</span>
+              {/* `data-ref` is the id this pill OPENS, the same attribute every
+                  other link to a node from a node's edges carries. */}
+              <span data-ref={head().at.node.id}>blocked</span>
             </Link>
           }
         >
-          <div
-            class="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm"
-            data-testid={TESTID.blocked}
-          >
-            <span class="text-muted">blocked by</span>
-            <For each={waiting()}>
-              {(one) => (
-                <Link
-                  route={{ kind: "node", id: one.at.node.id }}
-                  class={`inline-flex ${TARGET} items-center text-accent no-underline hover:underline md:min-h-0`}
-                  testid={TESTID.blockedLink}
-                  title={`open ${one.at.node.title}`}
-                >
-                  <span data-blocked={one.at.node.id}>{one.at.node.title}</span>
-                </Link>
-              )}
-            </For>
-          </div>
+          <NodeRefs
+            label="blocked by"
+            refs={props.blocked.map((one) => ({
+              id: one.at.node.id,
+              title: one.at.node.title,
+            }))}
+            testid={TESTID.blocked}
+          />
         </Show>
       )}
     </Show>
