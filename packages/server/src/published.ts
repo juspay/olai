@@ -30,11 +30,9 @@ import type { OutlineSet } from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import type { DocumentEntry, Manifest, OutlineEntry } from "@olai/surface"
 
-/** What one collection holds, keyed by root-relative path, in the set's own
- *  order (which is the listing's, which is what a sidebar shows). */
-export type Entries<T> = ReadonlyMap<string, T>
-
-/** One collection's revision: what it holds now, and what moved to get there. */
+/** One collection's revision: what it holds now, and what moved to get there.
+ *  Keyed by root-relative path, in the set's own order (which is the listing's,
+ *  which is what a sidebar shows). */
 export interface Change<T> {
   /** What the collection holds now — the value a fresh subscription is
    *  snapshotted from. Built whole each revision and never mutated after. */
@@ -43,13 +41,6 @@ export interface Change<T> {
    *  revision's deltas, for the subscriptions already open. */
   readonly upserts: ReadonlyArray<readonly [string, T]>
   readonly removes: ReadonlyArray<string>
-}
-
-/** What the wire held before this revision — one map per collection, which is
- *  what the "an unchanged file keeps its entry" rule below is read against. */
-export interface Held {
-  readonly outlines: Entries<OutlineEntry>
-  readonly documents: Entries<DocumentEntry>
 }
 
 export interface Published {
@@ -78,13 +69,14 @@ const changeOf = <S, T>(
   keyOf: (source: S) => string,
   build: (source: S) => T,
   snapshot: Snapshot<OutlineSet>,
-  previous: Entries<T>,
+  previous: Change<T> | undefined,
 ): Change<T> => {
+  const held = previous?.entries
   const changed = new Set(snapshot.changed)
   const entries = new Map<string, T>()
   for (const source of sources) {
     const key = keyOf(source)
-    const published = changed.has(key) ? undefined : previous.get(key)
+    const published = changed.has(key) ? undefined : held?.get(key)
     entries.set(key, published ?? build(source))
   }
   return {
@@ -94,12 +86,17 @@ const changeOf = <S, T>(
       return entry === undefined ? [] : [[path, entry] as const]
     }),
     // A collection may not be told to drop a key it never had.
-    removes: snapshot.removed.filter((path) => previous.has(path)),
+    removes: snapshot.removed.filter((path) => held?.has(path) === true),
   }
 }
 
 /**
- * A revision, and what the wire held before it.
+ * A revision, and the revision the wire is holding — the WHOLE of the previous
+ * one, not the two maps out of it that the rule below reads. A caller that
+ * assembled those by hand would be a caller who could pair one collection's
+ * entries with another's, which is the same "in the wrong order or with a
+ * piece left out" this file exists as one function to prevent. `null` is the
+ * first revision, when the wire holds nothing.
  *
  * Every file the set lists gets an entry, including the outlines that hold no
  * nodes and the ones that did not parse: a key that went missing would be an
@@ -107,7 +104,7 @@ const changeOf = <S, T>(
  */
 export const publishedOf = (
   snapshot: Snapshot<OutlineSet>,
-  held: Held,
+  published: Published | null,
 ): Published => {
   const set = snapshot.value
   // The set is FLAT and every record names its own file, so a file's slice is
@@ -127,14 +124,14 @@ export const publishedOf = (
         broken: broken.get(file) ?? null,
       }),
       snapshot,
-      held.outlines,
+      published?.outlines,
     ),
     documents: changeOf(
       set.documents,
       (document) => document.file,
       (document) => ({ rev: snapshot.rev, text: document.text }),
       snapshot,
-      held.documents,
+      published?.documents,
     ),
     manifest: { rev: snapshot.rev },
   }

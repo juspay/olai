@@ -14,7 +14,7 @@ import { setOf } from "@olai/format/testlib"
 import type { Snapshot } from "@olai/store"
 import { expect, test } from "bun:test"
 
-import { type Held, publishedOf } from "./outlines.ts"
+import { publishedOf } from "./published.ts"
 
 const HOUSE = '{"id":"kitchen","ord":"a0","title":"kitchen"}\n'
 const GARDEN = '{"id":"garden","ord":"a0","title":"garden"}\n'
@@ -33,7 +33,8 @@ const revision = (
   removed: moved.removed ?? [],
 })
 
-const NOTHING_HELD: Held = { outlines: new Map(), documents: new Map() }
+/** The first revision: the wire is holding nothing yet. */
+const NOTHING_HELD = null
 
 test("every file the set lists gets an entry, at the set's revision", () => {
   const { outlines } = publishedOf(
@@ -85,7 +86,7 @@ test("only the files the probe re-decoded are upserted", () => {
       { changed: ["house.jsonl", "notes.md"], removed: ["garden.jsonl"] },
       2,
     ),
-    { outlines: before.outlines.entries, documents: before.documents.entries },
+    before,
   )
 
   expect(published.outlines.upserts.map(([path]) => path)).toEqual(["house.jsonl"])
@@ -102,7 +103,7 @@ test("a removed path that was never an entry is not a remove", () => {
   const held = publishedOf(revision(setOf({ "house.jsonl": HOUSE })), NOTHING_HELD)
   const published = publishedOf(
     revision(setOf({ "house.jsonl": HOUSE }), { changed: [], removed: ["notes.md"] }, 2),
-    { outlines: held.outlines.entries, documents: held.documents.entries },
+    held,
   )
 
   expect(published.outlines.removes).toEqual([])
@@ -131,7 +132,7 @@ test("a document that left the directory is a remove of its key", () => {
   )
   const published = publishedOf(
     revision(setOf({ "house.jsonl": HOUSE }), { changed: [], removed: ["notes.md"] }, 2),
-    { outlines: held.outlines.entries, documents: held.documents.entries },
+    held,
   )
 
   expect(published.documents.removes).toEqual(["notes.md"])
@@ -158,7 +159,7 @@ test("a file that did not move keeps the entry it was published with", () => {
       { changed: ["house.jsonl"] },
       2,
     ),
-    { outlines: first.outlines.entries, documents: first.documents.entries },
+    first,
   )
 
   expect(second.outlines.entries.get("garden.jsonl")).toBe(

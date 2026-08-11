@@ -31,10 +31,8 @@ import type { Store } from "@olai/store"
 import {
   CHAT_OFF,
   type ChatState,
-  type DocumentEntry,
   type Manifest,
   type OpFailure,
-  type OutlineEntry,
   surface,
 } from "@olai/surface"
 import { UsageFailure } from "@olai/format"
@@ -47,7 +45,7 @@ import {
 import { Effect, Stream, SubscriptionRef } from "effect"
 
 import type { Change, Chat } from "@olai/chat"
-import { publishedOf } from "./outlines.ts"
+import { type Published, publishedOf } from "./published.ts"
 
 /** What a transport needs, and nothing else. `ctx` is the write face, which
  *  belongs to the bindings below rather than to whoever serves them. */
@@ -80,20 +78,23 @@ export const bind = (
     const errors = inMemoryStore<ReadonlyArray<OutlineError>>([])
     const chat = wiring.chat
 
-    /** The served directory as entries, one map per collection — each
-     *  collection's own value, replaced whole by the connector below and never
-     *  mutated after, which is what lets `readAll` hand it over as it is. A
-     *  fresh subscription's snapshot and the deltas an open one is watching are
-     *  two readings of one map rather than two copies to keep in step. */
-    let held: {
-      outlines: Map<string, OutlineEntry>
-      documents: Map<string, DocumentEntry>
-    } = { outlines: new Map(), documents: new Map() }
+    /** The revision the wire is holding — `null` until the store has published
+     *  one. Each collection's entries are that revision's own map, replaced
+     *  whole by the connector below and never mutated after, which is what lets
+     *  `readAll` hand one over as it is: a fresh subscription's snapshot and the
+     *  deltas an open one is watching are two readings of one map rather than
+     *  two copies to keep in step. Kept WHOLE rather than as its pieces, so the
+     *  next revision is derived from one thing (see {@link publishedOf}). */
+    let held: Published | null = null
+    /** What a collection reads before the store has published anything. One
+     *  value rather than a fresh map per call: `readAll` is asked on every
+     *  subscribe, and nothing may write to what it hands back. */
+    const NOTHING_YET = new Map<string, never>()
     /** The surface's own write face, once there is one to publish through —
      *  filled the moment `implementSurface` returns. The connector installs
      *  synchronously, so the FIRST revision is written before this exists; that
-     *  is exactly the moment there is nobody subscribed to hear it, and
-     *  `entries` above has it. */
+     *  is exactly the moment there is nobody subscribed to hear it, and `held`
+     *  above has it. */
     let published: SurfaceRuntime<typeof surface.spec>["ctx"] | null = null
 
     /** A chat verb, when there may be no chat. The cell already reads `off`, so
@@ -138,10 +139,7 @@ export const bind = (
                 Effect.sync(() => {
                   if (snapshot === null) return cell.set(null)
                   const revision = publishedOf(snapshot, held)
-                  held = {
-                    outlines: revision.outlines.entries,
-                    documents: revision.documents.entries,
-                  }
+                  held = revision
                   const collections = published?.collections
                   for (const [key, entry] of revision.outlines.upserts) {
                     collections?.outlines.upsert(key, entry)
@@ -178,7 +176,7 @@ export const bind = (
         // write needs somewhere to persist — and by the time one runs, the
         // projection it would persist has already been replaced whole.
         outlines: {
-          readAll: () => held.outlines,
+          readAll: () => held?.outlines.entries ?? NOTHING_YET,
           upsert: () => {},
           remove: () => {},
         },
@@ -187,7 +185,7 @@ export const bind = (
         // the body a fresh per-key subscription is snapshotted from is the one
         // the upserts above have been moving.
         documents: {
-          readAll: () => held.documents,
+          readAll: () => held?.documents.entries ?? NOTHING_YET,
           upsert: () => {},
           remove: () => {},
         },
