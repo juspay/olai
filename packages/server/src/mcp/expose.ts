@@ -23,18 +23,18 @@
  * one. The collection projection is inherently lazy; the cell projection is
  * inherently eager.
  *
- * **Which is why `manifest` is absent, and stays absent.** It is
+ * **Which is why `manifest` is absent, and stays absent.** It used to be
  * `NullOr({ documents: Array({ file, text }) })` — nothing but the corpus of
- * `.md` bodies — so `surface://cells/manifest` would hand an agent every
+ * `.md` bodies — so `surface://cells/manifest` would have handed an agent every
  * document in the served directory as one blob, re-read in full whenever any
- * one of them changed. That is the `snapshot-scale` defect reproduced on the
- * agent wire with none of the browser's mitigations. When that roadmap item
- * lands, documents become a collection of their own and arrive here as one more
- * line; the cell is left holding the never-loaded bit, which an agent does not
- * need — `resources/read` blocks on the first frame either way, so "the store
- * has not loaded yet" is absorbed by the read waiting rather than needing a
- * tri-state. A request-shaped consumer does not need the bit a render-shaped one
- * does.
+ * one of them changed. `snapshot-scale` has since cut the documents out of it
+ * into a collection of their own, which is the line above; what is left is
+ * `NullOr(Struct({}))`, a fact with no fields whose whole job is the
+ * never-loaded bit. An agent does not need that bit — `resources/read` blocks
+ * on the first frame either way, so "the store has not loaded yet" is absorbed
+ * by the read waiting rather than needing a tri-state. A request-shaped consumer
+ * does not need what a render-shaped one does. So the cell was never exposed and
+ * now has nothing to expose: no URI was published and withdrawn.
  *
  * The full argument, including the two deployment shapes and what is still owed
  * upstream, is docs/brainstorming/surface-mcp-viewing.md.
@@ -52,6 +52,12 @@ import type { ExposeMap } from "@kolu/surface-mcp"
  * outline is told when that outline moves instead of polling for it. The `rev`
  * rides along, which is the base a write will one day name.
  *
+ * `documents` is the `.md` half of the same directory, and it is exposable for
+ * exactly the reason the rule above gives: it is a COLLECTION, so its key-set
+ * resource costs the paths and a body travels only when an agent asks for that
+ * one document. It is also declared `keys` + `get` with no `deltas`, so there
+ * is not even a batched verb here to reach for by mistake.
+ *
  * `errors` is what is wrong across the set right now, so an agent can tell a
  * stale-but-valid tree from a current one. It is a cell and it is eligible
  * because per-file breakage does NOT come through it — that rides
@@ -67,5 +73,6 @@ import type { ExposeMap } from "@kolu/surface-mcp"
  */
 export const EXPOSE: ExposeMap<typeof surface.spec> = {
   outlines: "resource",
+  documents: "resource",
   errors: "resource",
 }

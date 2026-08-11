@@ -134,16 +134,18 @@ const textOf = async (client: Client, uri: string): Promise<string> => {
 const readJson = async (client: Client, uri: string): Promise<unknown> =>
   JSON.parse(await textOf(client, uri))
 
-test("the served resources are exactly the two the allowlist names", async () => {
+test("the served resources are exactly the three the allowlist names", async () => {
   await withFace(async ({ client }) => {
     const listed = await client.listResources()
     expect(listed.resources.map((r) => r.uri).sort()).toEqual([
       "surface://cells/errors",
+      "surface://collections/documents",
       "surface://collections/outlines",
     ])
 
     const templates = await client.listResourceTemplates()
-    expect(templates.resourceTemplates.map((t) => t.uriTemplate)).toEqual([
+    expect(templates.resourceTemplates.map((t) => t.uriTemplate).sort()).toEqual([
+      "surface://collections/documents/{id}",
       "surface://collections/outlines/{id}",
     ])
   })
@@ -230,5 +232,33 @@ test("a member the allowlist omits has no URI at all", async () => {
     await expect(
       client.readResource({ uri: "surface://collections/transcript" }),
     ).rejects.toThrow(/unknown resource/)
+  })
+})
+
+test("reading the documents collection costs the PATHS, not the bodies", async () => {
+  await withFace(async ({ client }) => {
+    const text = await textOf(client, "surface://collections/documents")
+
+    expect(JSON.parse(text)).toEqual(["manual.md"])
+    // The same fence as the outlines one, on the member that motivated the rule.
+    // `manifest` used to carry these bodies whole; the collection is what
+    // `snapshot-scale` cut them into, and this is the assertion that says the
+    // MCP projection inherited the cheap shape rather than only the browser.
+    expect(text).not.toContain(BODY_MARKER)
+    expect(text.length).toBeLessThan(1024)
+  })
+})
+
+test("one document item is that document's body, fetched only when asked", async () => {
+  await withFace(async ({ client }) => {
+    const entry = await readJson(
+      client,
+      "surface://collections/documents/manual.md",
+    ) as { text: string }
+
+    // The body IS reachable — laziness is about when it travels, not whether an
+    // agent can read it. One `resources/read` of one key, and nothing else.
+    expect(entry.text).toContain(BODY_MARKER)
+    expect(entry.text.length).toBeGreaterThan(10_000)
   })
 })

@@ -50,6 +50,28 @@ test("the outlines collection is a key-set resource plus an item template", () =
   )
 })
 
+test("the documents collection is addressed the same way", () => {
+  const { resources, resourceTemplates } = resolved()
+
+  // The `.md` half of the directory, and the reason it is exposable at all: a
+  // COLLECTION, so the key set costs the paths and a body travels only when an
+  // agent asks for that one document. This is the member `manifest` used to
+  // carry whole, which is why that cell is not here.
+  expect(resources).toContainEqual(
+    expect.objectContaining({
+      uri: "surface://collections/documents",
+      kind: "collection",
+      key: "documents",
+    }),
+  )
+  expect(resourceTemplates).toContainEqual(
+    expect.objectContaining({
+      uriTemplate: "surface://collections/documents/{id}",
+      key: "documents",
+    }),
+  )
+})
+
 test("errors is a cell resource", () => {
   expect(resolved().resources).toContainEqual(
     expect.objectContaining({ uri: "surface://cells/errors", kind: "cell", key: "errors" }),
@@ -61,9 +83,11 @@ test("nothing else is exposed, and the set is exact", () => {
 
   expect(resources.map((r) => r.uri).sort()).toEqual([
     "surface://cells/errors",
+    "surface://collections/documents",
     "surface://collections/outlines",
   ])
-  expect(resourceTemplates.map((t) => t.uriTemplate)).toEqual([
+  expect(resourceTemplates.map((t) => t.uriTemplate).sort()).toEqual([
+    "surface://collections/documents/{id}",
     "surface://collections/outlines/{id}",
   ])
   // No procedure is exposed at all: the only ones declared are the chat's, and
@@ -72,12 +96,13 @@ test("nothing else is exposed, and the set is exact", () => {
   expect(tools).toEqual([])
 })
 
-test("the manifest cell is not exposed, because it IS the .md corpus", () => {
+test("the manifest cell is not exposed, and never was", () => {
   // Not a restatement of the test above. This one names the member and the
   // reason, so re-adding it trips a failure that explains itself rather than a
-  // diff on a URI list. `Manifest` is `NullOr({ documents: Array({ file, text }) })`
-  // — exposing it as a cell would ship every document body on every read.
-  // Documents arrive as a COLLECTION when `snapshot-scale` lands.
+  // diff on a URI list. It used to be `NullOr({ documents: Array({file, text}) })`
+  // — exposing it would have shipped every document body on every read — and
+  // `snapshot-scale` has since cut those out into the collection above, leaving
+  // a fact with no fields. It was never exposed and now has nothing to expose.
   expect(Object.keys(EXPOSE)).not.toContain("manifest")
   expect(resolved().resources.map((r) => r.key)).not.toContain("manifest")
 })

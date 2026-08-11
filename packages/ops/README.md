@@ -46,7 +46,6 @@ in the system had to arrange:
 | `git.ts` | the auto-commit, as the store's post-publish hook |
 | `query.ts` | reading the set as NODES: search, one node, a subtree, the outlines |
 | `tools.ts` | the closed list of what an agent may do, and what it may not |
-| `mcp.ts` | those tools spoken as MCP, with no transport in it |
 | `codec.ts` | the seam where the generic store meets the outline format |
 
 `plan.ts` being pure is the design rather than a preference: everything hard
@@ -55,9 +54,15 @@ and re-decidable against a newer snapshot. The two impure things an op needs —
 a fresh id and today's date — arrive as arguments.
 
 **The package exports four things, and the rest of that table is inside.**
-`codec`, `make`, `Query`, `Mcp` — one socket per concept, not the wires behind
-it. The planner, the tool table and the git hook are what those are made of; a
-consumer wants the writer, not the plan, and its own tests reach it directly.
+`codec`, `make`, `Query`, `TOOLS` — one socket per concept, not the wires behind
+it. The planner and the git hook are what those are made of; a consumer wants
+the writer, not the plan, and its own tests reach it directly.
+
+The TABLE is exported and used to be private, and the reason it changed is that
+this package used to own an MCP server too. What a consumer wanted then was the
+server, and the list was what the server was made of. `@kolu/surface-mcp` is the
+server now — so the list is what a consumer wants, and the projection onto MCP
+lives in `@olai/server`, which keeps the MCP SDK out of this layer entirely.
 
 ## Archiving, in racket's terms
 
@@ -137,23 +142,16 @@ something, and its `see` targets (when it has any), so a free cross-reference
 is traversable without a second read. `set_see` is the write half: add and/or remove target ids on an
 existing node; an unknown add is refused with the ids the set does hold.
 
-`mcp.ts` has no transport in it: it is one `handle` over JSON-RPC messages, and
-that is what makes it serve every client at once. The olai server mounts it as
-an HTTP route for the agent it spawns, pumps it over stdin and stdout for the
-agent in somebody's terminal (`olai mcp`), and a test calls it directly. Three
-methods and one notification is the whole of MCP's tool half, which is why the
-official SDK would be a dependency for dispatch we would still have to route.
+How those tools reach an agent is NOT this package's any more. `@olai/server`
+projects the table onto `@kolu/surface-mcp` bespoke tools, so the browser and
+an agent read one surface rather than two projections of the same ops layer.
+What stayed here is what an op MEANS, which is the half that was always ours.
 
-One frame is exported beside the server, and it is the only one a transport
-ever builds: `parseError`, for bytes that never became a message. Detecting
-that is genuinely the transport's — an HTTP body and a line fail in different
-places — but what it IS is this dispatch's, so the two cannot drift into
-answering the same non-message differently.
-
-A refused write comes back as a successful JSON-RPC result carrying
-`isError: true` — a protocol error is for a call the server could not process,
-and a refusal is an answer that has to reach the model, with its structured
-detail in `structuredContent`.
+A refused write still comes back as an `isError` result carrying its structured
+detail — a protocol error is for a call the server could not process, and a
+refusal is an answer that has to reach the model as data it can act on. That
+contract is why the migration waited on juspay/kolu#2155: it is carried now by
+that package's `ToolFailure`.
 
 ## Layering
 
