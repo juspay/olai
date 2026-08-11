@@ -215,17 +215,32 @@ test("each tool carries its title and its description", async () => {
   })
 })
 
-test("a read is advertised read-only and a write is not", async () => {
+/**
+ * BOTH hints, on both kinds — and `destructiveHint` is the one that matters
+ * here, because it CHANGED.
+ *
+ * The hand-rolled `describe()` emitted `destructiveHint: false` for every tool,
+ * read or write. The adapter derives both hints from one `mutates` flag, so a
+ * write is now advertised destructive and that is no longer separately
+ * expressible. It is arguably the honest answer — `set_title` replacing a title
+ * is not an additive update — but it is a wire change hosts key off: a host that
+ * groups tools, or asks before running a destructive one, will treat every olai
+ * write differently than it did.
+ *
+ * So it is pinned. Someone "simplifying" this back to a blanket `false` fails
+ * here rather than shipping a quieter confirmation prompt nobody asked for.
+ */
+test("both annotation hints are pinned, for a read and for a write", async () => {
   await withTools({ "house.jsonl": HOUSE }, async ({ client }) => {
     const { tools } = await client.listTools()
     const of = (name: string) => tools.find((tool) => tool.name === name)?.annotations
 
     // `readOnlyHint` can let a host run a call without asking, so it is a
     // conscious opt-in and only the query tools get it.
-    expect(of("search_nodes")).toMatchObject({ readOnlyHint: true })
-    expect(of("read_subtree")).toMatchObject({ readOnlyHint: true })
-    expect(of("set_done")).toMatchObject({ readOnlyHint: false })
-    expect(of("archive_node")).toMatchObject({ readOnlyHint: false })
+    expect(of("search_nodes")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
+    expect(of("read_subtree")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
+    expect(of("set_done")).toMatchObject({ readOnlyHint: false, destructiveHint: true })
+    expect(of("archive_node")).toMatchObject({ readOnlyHint: false, destructiveHint: true })
   })
 })
 

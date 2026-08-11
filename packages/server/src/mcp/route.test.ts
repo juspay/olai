@@ -173,3 +173,70 @@ test("the SSE half is refused, because this face pushes nothing", async () => {
     expect(response.status).toBe(405)
   })
 })
+
+/**
+ * Garbage in, an ANSWER out — not silence.
+ *
+ * A body that parses as JSON but is not a message (`null`, `42`, `[]`) reaches
+ * the SDK's `Protocol` as something it reports to `onerror` and never replies
+ * to. Through a half-duplex transport that is indistinguishable from a
+ * notification: 202, no frame, and a client that expected one waits forever.
+ * The hand-rolled dispatch this replaced judged the shape itself and answered
+ * `-32600`, so the judgement stays at the edge where it always was.
+ *
+ * Not the chat path — no real client sends these — which is exactly why it is
+ * worth a test: nothing else would ever notice it break.
+ */
+test("a body that is not a JSON-RPC message is refused, not silently accepted", async () => {
+  await withRoute(async ({ post }) => {
+    for (const garbage of [null, 42, [], "a string"]) {
+      const response = await post(garbage)
+      expect(response.status).toBe(400)
+      const body = await response.json() as { error?: { code?: number } }
+      expect(body.error?.code).toBe(-32600)
+    }
+  })
+})
+
+
+/**
+ * The waiter table, driven directly.
+ *
+ * Through HTTP this would be a race: `search_nodes` answers in microseconds, so
+ * two POSTs sharing an id would almost never actually overlap and the test
+ * would pass without exercising anything. Driving the transport with an
+ * `onmessage` that never answers makes the collision certain.
+ *
+ * What it guards: the second `ask` used to `set` over the first's resolver,
+ * which dropped it on the floor — that POST then hung until the process died.
+ * A client reusing an id is a client bug; a request that never comes back was
+ * ours.
+ */
+test("an id already in flight is answered rather than overwriting its waiter", async () => {
+  const transport = mcpTransport()
+  // Nothing answers, so the first request stays in flight for the whole test.
+  transport.onmessage = () => {}
+
+  const first = transport.ask({ jsonrpc: "2.0", id: 7, method: "tools/list" })
+  const second = await transport.ask({ jsonrpc: "2.0", id: 7, method: "tools/list" }) as {
+    id?: number
+    error?: { code?: number }
+  }
+
+  expect(second.id).toBe(7)
+  expect(second.error?.code).toBe(-32600)
+
+  // And the FIRST is still waiting for its real answer rather than having been
+  // resolved or forgotten — which is the half that used to break.
+  let settled = false
+  void first.then(() => {
+    settled = true
+  })
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  expect(settled).toBe(false)
+
+  // Closed rather than left pending: `close` answers its waiters so a shutdown
+  // cannot strand one.
+  await transport.close()
+  expect(await first).toBeNull()
+})

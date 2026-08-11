@@ -183,8 +183,10 @@ export const serveTools = (options: McpServeOptions) =>
 
     // Closing the client's end of the pipe is what stops this process, and that
     // is a claim `serve.test.ts` makes from outside — so it has to be wired,
-    // not assumed. The SDK's stdio transport ends when stdin does, and the
-    // `Server` reports it here.
+    // not assumed. The SDK's stdio transport does NOT end when stdin does; that
+    // is precisely the gap {@link stdio} exists to close, and it is what puts a
+    // `close()` on this `Server` for the hook below to hear. Nothing here is
+    // redundant with the transport: delete the wrapper and this waits forever.
     //
     // CHAINED rather than assigned: `serveSurfaceAsMcp` installs its own
     // `onclose` to stop the resource pusher and dispose the connection, and

@@ -401,3 +401,54 @@ kolu approved the design with **ask (3) declined**, the other two accepted, and 
 Nothing. All four asks are closed: (1) `ToolFailure` and (2) `instructions` landed in juspay/kolu#2155 and are consumed here; (3) was declined and fixed on olai's side; (4) `title` arrived unasked and is carried. The bridge shape and writes-as-procedures remain the PARENT item's, as designed.
 
 One observation worth passing upstream, not a blocker: `failFrom` brands every failure `surface-mcp: …`, including a `ToolFailure`, whose message the CONSUMER wrote deliberately. The module's own rule is that the adapter brands what it raised; a consumer's refusal is not that. So olai's refusals currently reach an agent as "surface-mcp: `set_done` was refused (not-found): …". Cosmetic, and no test depends on the prose.
+
+---
+
+## Review round, 2026-08-11
+
+An opposite-model review on PR #94 raised no architectural objection and set a
+merge gate of two required and two recommended items. All four are taken.
+
+**Required.**
+
+1. **`destructiveHint` is pinned.** The annotations test now asserts BOTH hints
+   for a read and a write (`search_nodes` true/false, `set_done` false/true).
+   This was the review's sharpest catch: the design log named the change and the
+   suite did not fence it, so a future "simplification" back to the old blanket
+   `destructiveHint: false` would have shipped silently — and hosts key off that
+   field for confirm-before-run and tool grouping.
+2. **Two false comments fixed.** `serve.ts` said "The SDK's stdio transport ends
+   when stdin does" directly above the wrapper that exists *because it does not*
+   — an invitation to delete the wrapper as redundant. And `serve.test.ts`'s
+   header still cited the deleted `stdio.test.ts` for framing, and claimed "the
+   pump answers in order", which the SDK's transport does not promise.
+
+**Recommended, both taken rather than accepted as risk.**
+
+3. **`list_outlines` over the real child pipe** (`serve.test.ts`). The
+   `Schema.Struct({})` wrapping bug was a property of the schema bridge and so
+   transport-independent — but that was a claim, and this is the cheap way to
+   hold it. Asserts both the advertisement (empty object, no `value`) and the
+   call.
+4. **Non-object bodies are refused, not 202-silenced.** `null`, `42`, `[]` and a
+   bare string parse as JSON but are not messages; the SDK's `Protocol` reports
+   them to `onerror` and never replies, which through a half-duplex transport is
+   a 202 and a client waiting for a frame that is not coming. The old dispatch
+   answered `-32600`, so that judgement is back at the edge where it always was.
+   Chosen over the review's alternative of documenting garbage-in as
+   out-of-contract: silence is the worse failure mode.
+
+**One thing taken beyond the gate**, because it was a hang in code this PR now
+owns: a second `ask` under an id already in flight used to `set` over the first
+waiter's resolver, leaving that POST unanswered until the process died. It is
+now refused, and the guard has a deterministic transport-level test (through
+HTTP the two requests would almost never actually overlap).
+
+**Recorded, not acted on.** The review noted a silent wire change the design log
+had missed: the hand-rolled `describe()` emitted `additionalProperties: false`
+and kolu's bridge deliberately reopens objects, because several hosts break on
+the closed form. That is the bridge doing its job — but it IS a change to what
+olai advertises, and it belongs in the record beside the other two.
+
+Also corrected: the PR description said `route.ts` gained "one test". It gained
+four, and now six.

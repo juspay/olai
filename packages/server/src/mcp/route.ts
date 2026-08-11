@@ -107,6 +107,12 @@ class RouteTransport implements Transport {
    * `null` for a notification, which is answered with silence rather than with
    * a frame — a client matching replies to ids must not be handed one where
    * there is none.
+   *
+   * An id ALREADY in flight is refused rather than allowed to overwrite the
+   * waiter that holds it. Two live requests under one id is a client bug, but
+   * the failure it used to cause was ours: the second `set` dropped the first
+   * resolver on the floor and left that POST hanging until the process died.
+   * Answering the newcomer keeps the damage to the request that caused it.
    */
   ask(message: unknown): Promise<unknown> {
     const id = (message as Message).id
@@ -114,12 +120,28 @@ class RouteTransport implements Transport {
       this.onmessage?.(message as JSONRPCMessage)
       return Promise.resolve(null)
     }
+    if (this.#waiting.has(id)) {
+      return Promise.resolve({
+        jsonrpc: "2.0",
+        id,
+        error: { code: -32600, message: `id ${JSON.stringify(id)} is already in flight` },
+      })
+    }
     return new Promise<unknown>((resolve) => {
       this.#waiting.set(id, resolve)
       this.onmessage?.(message as JSONRPCMessage)
     })
   }
 }
+
+/** A JSON-RPC message is an OBJECT — not `null`, not an array, not a number.
+ *  The old hand-rolled dispatch judged this and answered `-32600`; the SDK's
+ *  `Protocol` reports a non-object to `onerror` and sends nothing, which
+ *  through a half-duplex transport means the POST is answered 202 and the
+ *  client waits for a frame that is never coming. So the judgement stays at
+ *  this edge, where it always was. */
+const isMessage = (body: unknown): boolean =>
+  typeof body === "object" && body !== null && !Array.isArray(body)
 
 export interface Options {
   /** The transport the face is connected to, built by {@link mcpTransport} and
@@ -161,6 +183,15 @@ export const mcpRoute = (options: Options): Layer.Layer<never, never, HttpRouter
               jsonrpc: "2.0",
               id: null,
               error: { code: -32700, message: "the body is not JSON" },
+            }, { status: 400 }))
+          }
+          if (!isMessage(body.success)) {
+            // Parsed, but not a message — see {@link isMessage}. Answered here
+            // rather than passed on, because passing it on is silence.
+            return yield* Effect.orDie(HttpServerResponse.json({
+              jsonrpc: "2.0",
+              id: null,
+              error: { code: -32600, message: "a JSON-RPC message is an object" },
             }, { status: 400 }))
           }
 
