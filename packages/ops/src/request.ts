@@ -14,7 +14,7 @@
  * field names kept in step by hand.
  */
 
-import { MARKS, type Status } from "@olai/format"
+import { MARKS } from "@olai/format"
 import { Schema } from "effect"
 
 /** An id the request names. Spelled once so every op's `id` field carries the
@@ -87,16 +87,15 @@ const CAPTURE = {
 /**
  * One node of a capture, and the tree hanging off it.
  *
- * Written by hand because the schema below cannot say it: `children` is
- * genuinely recursive, and {@link NESTING} bounds the SCHEMA rather than the
- * idea. The interface is what the planner reads, and it is the honest shape.
+ * The fields come from {@link CAPTURE} rather than from a second list of names
+ * beside it — a hand-written copy would be a field this type has and the schema
+ * does not, silently, the day somebody adds one. What is written by hand is the
+ * one thing the schema cannot say: `children` is genuinely recursive, and
+ * {@link NESTING} bounds the SCHEMA rather than the idea.
  */
-export interface Capture {
-  readonly title: string
-  readonly desc?: string
-  readonly date?: string
-  readonly mark?: Status
-  readonly id?: string
+type CaptureFields = Schema.Struct<typeof CAPTURE>["Type"]
+
+export interface Capture extends CaptureFields {
   readonly children?: ReadonlyArray<Capture>
 }
 
@@ -105,10 +104,10 @@ export interface Capture {
  *
  * A CAP, and one this file would rather not have had: the format has no depth
  * limit and neither does the planner's walk. What has one is the JSON Schema an
- * MCP host reads. A recursive schema compiles to a `$ref` at
- * `#/$defs/…` — and the adapter that projects these schemas onto MCP INLINES
- * every local ref and strips the pool, because `$ref` is rejected across the
- * host matrix it is byte-compatible with. A ref that cannot be inlined finitely
+ * MCP host reads. A recursive Effect schema compiles to a `$ref` into a `$defs`
+ * pool — and the adapter that projects these schemas onto MCP INLINES every
+ * local ref and STRIPS the pool, because `$ref` is rejected across the host
+ * matrix it is byte-compatible with. A ref that cannot be inlined finitely
  * survives as a pointer into a pool that is no longer there, so `add_node`
  * would advertise a dangling reference and a whole tool would be unusable.
  *
@@ -116,13 +115,19 @@ export interface Capture {
  * object an agent can actually read. Three is what the capture this was filed
  * for needs — an outline, its rooms, the things in them — and each further
  * level is another whole copy of the child schema in every `tools/list`. Deeper
- * than that is a second call under an id the first one hands back, which is
- * why the answer names every node it created.
+ * than that is a second call under an id the first one hands back, which is why
+ * the answer names every node it created.
+ *
+ * It is read TWICE and spelled once: here, where the schema unrolls it, and in
+ * {@link ./plan.ts}, which refuses what the floor below let through. Two
+ * numbers would be two answers to how deep a capture goes.
  */
 export const NESTING = 3
 
 /**
- * The child schema, unrolled `below` further generations deep.
+ * The `children` field of a node that may nest `below` further generations —
+ * the ONE declaration of it, read by the request's own root and by every level
+ * under it, so "how deep may this go" is counted one way everywhere.
  *
  * At the floor the field stays PRESENT and accepts anything, which is the whole
  * point of spelling it: an Effect struct silently DROPS a key it does not
@@ -130,22 +135,26 @@ export const NESTING = 3
  * level of a capture and report success. The planner refuses it instead, by
  * name, with nothing written ({@link ./plan.ts}).
  */
+const childrenOf = (below: number) =>
+  Schema.optionalKey(
+    // The unrolled schema stands in for the recursive interface, and the two
+    // agree everywhere except at the floor, which exists to be refused.
+    (below === 0
+      ? Schema.Array(Schema.Unknown).annotate({
+        description:
+          `A capture nests ${NESTING} levels of children and this node is at the last of them, so anything here refuses the whole call. Hang it off a second \`add_node\` instead, under an id from \`captured\`.`,
+      })
+      : Schema.Array(childAt(below - 1)).annotate({
+        description:
+          "Nodes to capture under this one, in this order. Each takes the same fields as this one, and may carry `children` of its own.",
+      })) as unknown as Schema.Codec<ReadonlyArray<Capture>>,
+  )
+
+/** The child schema, unrolled `below` further generations deep. */
 const childAt = (below: number): Schema.Codec<Capture> =>
   Schema.Struct({
     ...CAPTURE,
-    children: Schema.optionalKey(
-      (below === 0
-        ? Schema.Array(Schema.Unknown).annotate({
-          description:
-            `A capture nests ${NESTING} levels of children and this node is at the last of them, so anything here refuses the whole call. Hang it off a second \`add_node\` instead, under an id from \`captured\`.`,
-        })
-        : Schema.Array(childAt(below - 1)).annotate({
-          description: "Nodes to capture under this one, in this order.",
-        })) as unknown as Schema.Codec<ReadonlyArray<Capture>>,
-    ),
-    // The struct is the unrolled schema; the TYPE is the recursive interface it
-    // stands in for, and the two agree everywhere except at the floor, which
-    // exists to be refused.
+    children: childrenOf(below),
   }) as unknown as Schema.Codec<Capture>
 
 export const AddRequest = Schema.Struct({
@@ -167,12 +176,7 @@ export const AddRequest = Schema.Struct({
   ...CAPTURE,
   /** The subtree. One call, one plan, one validation, one write, one commit —
    *  which is what makes a half-captured outline impossible. */
-  children: Schema.optionalKey(
-    Schema.Array(childAt(NESTING - 1)).annotate({
-      description:
-        "Nodes to capture under this one, in this order. Each takes the same fields as the node itself (`title`, and optional `desc` / `date` / `mark` / `id`) and may carry `children` of its own.",
-    }),
-  ),
+  children: childrenOf(NESTING),
   ...Placement,
 })
 
@@ -290,7 +294,11 @@ export type Request = typeof Request.Type
 
 /** One node a capture brought into being. The id matters most when nobody
  *  chose it: a minted id is unguessable, and a caller that just wrote thirteen
- *  nodes should not have to search for them. */
+ *  nodes should not have to search for them.
+ *
+ *  Not `Query.Found`, which is what a READ answers with: that one carries
+ *  `file:line` and an ancestor path, and a plan has neither — the file it
+ *  describes has not been written, so a line number here would be invented. */
 export interface Minted {
   readonly id: string
   readonly title: string

@@ -411,7 +411,13 @@ const planAdd = (
   })
   if (refused !== null) return Result.fail(refused)
 
-  const under = minted.length - 1
+  // ONE decision, read twice: a capture of a single node is already answered by
+  // `id` above, so a list of one would be that answer again and `(+0)` would be
+  // a commit line counting nothing.
+  const captured: ReadonlyArray<Minted> | undefined = minted.length === 1
+    ? undefined
+    : minted.map((node) => ({ id: node.id, title: node.title }))
+
   return Result.succeed({
     files: [
       { file, nodes: withOrds([...recordsOf(scope, file), ...minted], ords.success) },
@@ -419,14 +425,10 @@ const planAdd = (
     id,
     title: request.title,
     file,
-    summary: under === 0
+    summary: captured === undefined
       ? `capture: ${request.title}`
-      : `capture: ${request.title} (+${under})`,
-    // Only when there is more than one node to name: a single capture already
-    // answered with `id`, and a list of one would be that answer twice.
-    ...(under === 0 ? {} : {
-      captured: minted.map((node) => ({ id: node.id, title: node.title })),
-    }),
+      : `capture: ${request.title} (+${captured.length - 1})`,
+    ...(captured === undefined ? {} : { captured }),
   })
 }
 
@@ -471,6 +473,35 @@ const idFor = (
 }
 
 /**
+ * One captured node, as the record it will be written as.
+ *
+ * BOTH ops that mint a node read it — `add`'s walk, and the seed of a brand-new
+ * outline — because "what a capture puts on disk" must not have two answers.
+ * `create`'s seed has always been documented as minting exactly what a capture
+ * mints, and that was a sentence holding two copies of the same lines together.
+ *
+ * A mark the capture asks for is written exactly as the op that marks an
+ * existing node writes it ({@link marker}). Canonical field order is the
+ * writer's business, not this object's.
+ */
+const capturedNode = (
+  scope: Scope,
+  capture: Capture,
+  at: { readonly id: string; readonly parent?: string | undefined; readonly ord: string },
+): RegularNode => {
+  const node: Draft<RegularNode> = {
+    id: at.id,
+    ...(at.parent === undefined ? {} : { parent: at.parent }),
+    ord: at.ord,
+    title: capture.title,
+  }
+  if (capture.mark !== undefined) node[capture.mark] = marker(scope, capture.mark)
+  if (capture.date !== undefined) node.date = capture.date
+  if (capture.desc !== undefined) node.desc = capture.desc
+  return node
+}
+
+/**
  * One captured node and everything under it, appended to `records` in the order
  * they will be written: parent before child, siblings as they were given. That
  * order is the outline's own reading order, which is what a file re-emitted
@@ -496,20 +527,7 @@ const emit = (
   if (capture.title.trim() === "") {
     return new UsageFailure({ reason: "a node needs a title" })
   }
-
-  const node: Draft<RegularNode> = {
-    id: at.id,
-    ...(at.parent === undefined ? {} : { parent: at.parent }),
-    ord: at.ord,
-    title: capture.title,
-  }
-  // A mark a capture asks for is written exactly as the op that marks an
-  // existing node would write it — same instant for `done`, same `true` for the
-  // other two. Canonical field order is the writer's, not this object's.
-  if (capture.mark !== undefined) node[capture.mark] = marker(scope, capture.mark)
-  if (capture.date !== undefined) node.date = capture.date
-  if (capture.desc !== undefined) node.desc = capture.desc
-  records.push(node)
+  records.push(capturedNode(scope, capture, at))
 
   const children = capture.children ?? []
   if (children.length === 0) return null
@@ -884,16 +902,8 @@ const planCreate = (
   const ord = ordBetween(null, null)
   if (ord === null) throw new Error("the order encoding ran out of keys")
 
-  const node: RegularNode = {
-    id,
-    ord,
-    title: seed.title,
-    ...(seed.date === undefined ? {} : { date: seed.date }),
-    ...(seed.desc === undefined ? {} : { desc: seed.desc }),
-  }
-
   return Result.succeed({
-    files: [{ file, nodes: [node] }],
+    files: [{ file, nodes: [capturedNode(scope, seed, { id, ord })] }],
     id,
     title: seed.title,
     file,
