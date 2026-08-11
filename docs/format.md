@@ -22,7 +22,7 @@ In canonical order (writes always re-serialize the whole record in this order; a
 | `parent` | no | Parent id, same file. Absent at top level. |
 | `ord` | both shapes | Sibling order: a fractional-index string over base62 (`0-9A-Za-z`). Plain string comparison is the sort; never a float. |
 | `title` | regular nodes | Verbatim text. Inline `#tags` live here and are extracted at view time. Rendered as **inline-only** markdown (bold, links, code — no block elements) through the same sanitised pipeline a note uses. |
-| `done` / `doing` | no | `true` or an ISO date/datetime string. At most one of the two. Never stored on a node with children (see below). |
+| `done` / `doing` | no | The two MARKS: `true` or an ISO date/datetime string. At most one of the two. Never stored on a node with children (see below). A node carrying neither is not a task at all — see [Status](#status). |
 | `date` | no | ISO date/datetime. A node with a `date` is a day/scheduled node; the journal, calendar and today views are derived from dates at view time — there is no stored year/month hierarchy. |
 | `desc` | no | The note: one string, embedded newlines. Markdown, rendered only at view time; stored verbatim. |
 | `doc` | no | Relative path to an attached `.md` document, resolved against the directory of the outline that names it. |
@@ -30,6 +30,23 @@ In canonical order (writes always re-serialize the whole record in this order; a
 | `mirror` | mirrors | Makes this record a mirror: it shows the node with that id at a second location. The target may live in any file of the set, and may itself be a mirror — the chain is followed to the regular node at its end. |
 
 There are no include records; the served directory is the only composition mechanism.
+
+## Status
+
+A node is either **marked** or it is not, and one that is not has **no status at all**. `done` and `doing` are the two marks; there is no third value for "unmarked", and in particular no `open`.
+
+That is a change from the first rendering of the tree, where status derived as done → doing → *otherwise open*, so `open` was simply what a node got for carrying nothing. It made every node a task, and it left one value answering two different questions: "a task nobody has started" and "not a task at all". Nothing had ever argued for it — the only outline olai served was its own roadmap, which really is all tasks, so "everything is open" never looked wrong. A corpus of notes is where it shows: every paragraph in it renders as an unfinished to-do, and a search for what is unfinished matches the whole file. So: a bullet is a bullet, and completion is a flag you put on some of them.
+
+What follows, and all of it is computed at view time from the marks on disk:
+
+- **A leaf is what it stores** — `done`, `doing`, or nothing.
+- **A parent counts only the children that are tasks**: the ones with a status of their own. All of them done → done; any of them still under way → doing. An unmarked child is not an unfinished one, so it neither holds a parent back nor makes one a task. Mirrors do not count as children at all, for the reason they never did — a mirror is a second view of a node, not a second obligation.
+- **A parent whose counted children include no task has no status either**, exactly like an unmarked leaf. A subtree of bullets adds up to a bullet. It is not open, and it is not done-because-nothing-is-outstanding: there is nothing under it to finish.
+- **A node with children still may not store a mark** (the rule below), so a bullet with children becomes a task by having a task under it and in no other way. That is a real limitation — you cannot tick `read this book` while three notes hang off it — and it is the price of the no-stored-derived-state rule rather than a statement about tasks: the moment one of those children were marked, a mark on the parent would be a second copy of a computed value, and a git merge is all it takes to make two copies disagree. Loosening it is a separate decision and it has not been taken.
+- **Hiding what is done hides the bullets under it too.** A done node takes its whole subtree with it: every task below it is done — that is what made it done — and a bullet under finished work is a note about it rather than something outstanding.
+- **A checkbox is drawn for a mark, not for a node.** Done is a checked box, doing a half-filled one, and an unmarked node gets no box — only the blank that keeps the titles in a column. The absence of a box is the answer, not a missing one.
+
+**Blocked** has not shipped (the `edges-ui` item), and this is written here so that it inherits the rule rather than deciding it again: `a after b` means `b` blocks `a` while `b` is a task that is not done — with the two marks there are, while `b` is `doing`. A target with no status **never blocks**: it is not a task, there is nothing to finish, so there is nothing to wait for. The trap the rule is written against is spelling it `status !== "done"`, which reads every plain bullet as an obstacle that can never be cleared.
 
 ## Documents
 
@@ -59,7 +76,7 @@ The rules:
 - `after` is acyclic (counting normalized `blocks`); mirror placement may not create a containment cycle — a mirror inside the subtree it shows would expand forever.
 - Dates (`done`, `doing`, `date`) are valid ISO; `done` and `doing` are mutually exclusive. Validated as text, because a writer must reproduce what it read: a date-only `2026-08-10` round-tripped through an instant would come back a datetime.
 - `doc` resolves, against the naming outline's own directory, to an `.md` file that is actually served.
-- **No stored derived state.** A parent's status is computed from its children — all done → done; anything under way, or some-but-not-all finished → doing; otherwise open; mirrors do not count as children. So a node with counted children may not store `done` or `doing` **at all**, not merely when a child is unfinished: a stored value that currently agrees with the computed one is still a second copy, and a git merge is all it takes to make the two disagree with nothing to notice. The load error names the children; marking such a node through the ops layer is a refused write that lists the unfinished ones.
+- **No stored derived state.** A parent's status is computed from the children that are tasks ([Status](#status)); mirrors do not count as children. So a node with counted children may not store `done` or `doing` **at all** — not merely when a child is unfinished, and not merely when a child is marked: a stored value that currently agrees with the computed one is still a second copy, and a git merge is all it takes to make the two disagree with nothing to notice. The load error says which of the three the tree is already saying — a mark that is computed, a mark that stands above children still under way, or a node whose children are all bullets and which therefore derives nothing — and names the children in the way. Those are the unfinished TASKS, never the bullets. Marking such a node through the ops layer is a refused write carrying the same list.
 
 ## Errors
 

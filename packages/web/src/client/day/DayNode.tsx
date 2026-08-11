@@ -46,7 +46,7 @@ export function DayNode(props: {
         <Breadcrumbs trail={props.dated.trail} />
       </Show>
 
-      <div class="flex items-baseline gap-1.5">
+      <div class="flex items-baseline gap-1.5" data-testid={TESTID.nodeGutter}>
         <Bullet id={node().id} />
         <Checkbox status={props.dated.status} />
         <NodeLine

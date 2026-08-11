@@ -34,11 +34,11 @@ Feature: Talking to the agent
   Scenario: A refused write shows its unfinished children in chat
     # `kitchen` takes its status from its children, so it cannot store one.
     # The refusal is data: the panel draws the children that are in the way,
-    # which are what to mark instead.
+    # which are what to mark instead. `order` is NOT one of them — it carries
+    # no mark, so it is a bullet rather than a task nobody has started.
     When I ask the agent "done kitchen"
     Then the chat shows a refusal
     And the refusal lists the unfinished children:
-      | order   |
       | install |
     And node "kitchen" is not done
 

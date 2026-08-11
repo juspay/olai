@@ -57,10 +57,17 @@ export const TESTID = {
    *  whether it is the one in force — never the colour it is painted, which is
    *  the whole subject here and so the last thing to assert on. */
   themeChip: "theme-chip",
+  /** A row's own LINE: the controls in its gutter and the title beside them,
+   *  and nothing belonging to a row nested under it. Rows nest, so "this
+   *  node's checkbox" needs a handle on the line rather than on the subtree —
+   *  without one, the absence of a box has to be asked of markup shape. */
+  nodeGutter: "node-gutter",
   /** The bullet on every row: the link to that node's own page. */
   zoom: "zoom",
-  /** The status box beside that bullet: checked / half / empty for
-   *  done / doing / open. Read-only for now; the glyph is the assertion. */
+  /** The status box beside that bullet: checked for done, half for doing —
+   *  and NOTHING carrying this testid on a node with no mark, which is how a
+   *  bullet is told from a task. Read-only for now; the glyph is the
+   *  assertion. */
   checkbox: "checkbox",
   /** The heading of a zoomed page — carries the CANONICAL node's id, which is
    *  what makes "a mirror lands on the node itself" an assertion. */

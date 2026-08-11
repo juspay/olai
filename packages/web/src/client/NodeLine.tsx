@@ -22,21 +22,22 @@ import { type JSX, Show } from "solid-js"
 import { DateBadge } from "./DateBadge.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
 import { TESTID } from "./testids.ts"
-import { TONE } from "./tone.ts"
+import { toneOf } from "./tone.ts"
 
 export function NodeLine(props: {
   readonly title: string
   /** Outline the title is written in — handed to {@link NodeTitle} for the
    *  markdown pipeline's relative-picture resolution. */
   readonly from: string
-  readonly status: Status
+  /** Absent for a plain bullet, which is toned like the text it is. */
+  readonly status: Status | undefined
   readonly date?: string
   /** Drawn inside the title and before it — the tree's mirror mark. */
   readonly children?: JSX.Element
 }) {
   return (
     <>
-      <span class={`flex-1 ${TONE[props.status]}`} data-testid={TESTID.nodeTitle}>
+      <span class={`flex-1 ${toneOf(props.status)}`} data-testid={TESTID.nodeTitle}>
         {props.children}
         <NodeTitle title={props.title} from={props.from} />
       </span>

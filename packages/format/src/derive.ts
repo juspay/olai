@@ -18,8 +18,18 @@
 
 import { isMirror, type Located, type LocatedRegular } from "./node.ts"
 
-/** What a node's checkbox shows. Derived for a parent, stored for a leaf. */
-export type Status = "done" | "doing" | "open"
+/**
+ * A MARK — what a node's checkbox shows. Derived for a parent, stored for a
+ * leaf, and OPTIONAL everywhere: a node with no status is a bullet and not a
+ * task at all.
+ *
+ * There is deliberately no third member for "unmarked". `open` used to be one,
+ * and it was what a node got for carrying nothing, which made every node a
+ * task and left one value answering two questions — "a task nobody has
+ * started" and "not a task at all". Absence answers the second, and only a
+ * node someone marked has a `Status`.
+ */
+export type Status = "done" | "doing"
 
 /**
  * A set of nodes and everything computed from it.
@@ -37,7 +47,10 @@ export interface Derived {
   readonly byId: ReadonlyMap<string, Located>
   /** parent id → its children, in sibling order. */
   readonly children: ReadonlyMap<string, ReadonlyArray<Located>>
-  /** id → derived status. Total over `nodes`. */
+  /** id → derived status, for the nodes that HAVE one. PARTIAL over `nodes`,
+   *  and that is the answer rather than a gap in it: a node missing from this
+   *  map is a plain bullet — nobody marked it, nothing under it is marked, so
+   *  there is nothing to finish. */
   readonly status: ReadonlyMap<string, Status>
 }
 
@@ -102,70 +115,150 @@ export const siblingsOf = (
 const counted = (
   children: ReadonlyMap<string, ReadonlyArray<Located>>,
   id: string,
-): ReadonlyArray<Located> =>
-  (children.get(id) ?? []).filter((child) => !isMirror(child.node))
+): ReadonlyArray<LocatedRegular> =>
+  // A type guard, so what comes back IS the regular records rather than a
+  // list every caller has to assert about: dropping the mirrors is exactly
+  // what makes that true, and saying so here is what deletes the casts.
+  (children.get(id) ?? []).filter((child): child is LocatedRegular =>
+    !isMirror(child.node)
+  )
 
 export const countedChildren = (
   derived: Derived,
   id: string,
-): ReadonlyArray<Located> => counted(derived.children, id)
+): ReadonlyArray<LocatedRegular> => counted(derived.children, id)
 
 /**
- * A leaf says what it is. A parent is the sum of its children: all done →
- * done; anything under way, or some-but-not-all finished → doing; otherwise
- * open. A mirror reports its target's status, because that is what it shows.
+ * What a node's CHILDREN say about it — and the whole of what a refusal needs
+ * in order to say why it refuses.
+ *
+ * Two places have to turn down a stored mark and explain it: the validator, on
+ * load, and the ops layer, on a write. Both answer the same three-way
+ * question, and the third answer is the only one that has children to name, so
+ * a status beside a list would be two values with a rule between them — which
+ * is what each of the two sites was holding in a comment. It is one union, and
+ * the list exists exactly where it means something.
+ *
+ * `null` when the node has no counted children: then it speaks for itself, and
+ * neither refusal is about it.
+ */
+/** How many children answered, on every one of the three. Factored the way
+ *  {@link Row} factors {@link Place}: one field, one place to describe it. */
+interface Asked {
+  readonly counted: number
+}
+
+/** One of the children in the way, and WHY it is — a task that is not done.
+ *  The reason travels with the child rather than being restated by each
+ *  reader: that restatement is what the union exists to stop, and blockedness
+ *  will give a second reason for a child to be here. */
+export interface InTheWay {
+  readonly at: LocatedRegular
+  readonly status: Exclude<Status, "done">
+}
+
+export type FromChildren =
+  /** None of them is a task, so neither is the node. */
+  | (Asked & { readonly kind: "nothing" })
+  /** Every task among them is finished. */
+  | (Asked & { readonly kind: "done" })
+  /** Some are not, and they are what to mark instead. Non-empty. */
+  | (Asked & {
+    readonly kind: "unfinished"
+    readonly children: ReadonlyArray<InTheWay>
+  })
+
+export const fromChildren = (derived: Derived, id: string): FromChildren | null => {
+  const own = counted(derived.children, id)
+  if (own.length === 0) return null
+
+  // The walk's OWN answer, read back rather than worked out a second time:
+  // a node with counted children derives exactly these three cases.
+  const says = derived.status.get(id)
+  if (says === undefined) return { kind: "nothing", counted: own.length }
+  if (says === "done") return { kind: "done", counted: own.length }
+
+  return {
+    kind: "unfinished",
+    counted: own.length,
+    // A child is in the way if it is a TASK that is not done — never merely
+    // `!== "done"`, which reads a plain bullet as an obstacle that can never
+    // be cleared.
+    children: own.flatMap((at) => {
+      const status = derived.status.get(at.node.id)
+      return status === undefined || status === "done" ? [] : [{ at, status }]
+    }),
+  }
+}
+
+/**
+ * A leaf says what it is, and says nothing at all when it carries no mark.
+ *
+ * A parent counts only the children that are TASKS — the ones with a status of
+ * their own: all of them done → done, any of them still under way → doing. A
+ * parent whose counted children include no task is no more a task than they
+ * are, so it has no status either: an unmarked child is not an unfinished
+ * obligation, it is a bullet, and a subtree of bullets adds up to a bullet.
+ *
+ * A mirror reports its target's status, because that is what it shows — which
+ * for a plain bullet is nothing.
  */
 const statuses = (
   nodes: ReadonlyArray<Located>,
   byId: ReadonlyMap<string, Located>,
   children: ReadonlyMap<string, ReadonlyArray<Located>>,
 ): ReadonlyMap<string, Status> => {
+  // The map handed back IS the one the walk fills, and "no status" is a
+  // settled ANSWER rather than a missing one — so `settled` records that the
+  // question was asked and `status` holds only the nodes with an answer. One
+  // spelling of absence, the same one every caller reads off `status.get`,
+  // and no second table to copy out of at the end.
   const status = new Map<string, Status>()
+  const settled = new Set<string>()
   const walking = new Set<string>()
 
-  const of = (located: Located): Status => {
+  const of = (located: Located): Status | undefined => {
     const id = located.node.id
-    const known = status.get(id)
-    if (known !== undefined) return known
-    // A loop the validator will report; treat the re-entry as unfinished
+    if (settled.has(id)) return status.get(id)
+    // A loop the validator will report; treat the re-entry as carrying nothing
     // rather than recursing into it.
-    if (walking.has(id)) return "open"
+    if (walking.has(id)) return undefined
     walking.add(id)
 
     const computed = compute(located)
     walking.delete(id)
-    status.set(id, computed)
+    settled.add(id)
+    if (computed !== undefined) status.set(id, computed)
     return computed
   }
 
-  const compute = (located: Located): Status => {
+  const compute = (located: Located): Status | undefined => {
     if (isMirror(located.node)) {
       const target = byId.get(located.node.mirror)
-      return target === undefined ? "open" : of(target)
+      return target === undefined ? undefined : of(target)
     }
 
     const own = counted(children, located.node.id)
-    if (own.length === 0) return storedStatus(located.node)
+    if (own.length === 0) return storedMarker(located.node)
 
-    const seen = own.map(of)
-    if (seen.every((child) => child === "done")) return "done"
-    return seen.some((child) => child !== "open") ? "doing" : "open"
+    // One array, not one per unmarked child: most nodes carry no mark, so
+    // this runs over every parent-child edge in the set on every derive.
+    const tasks = own.map(of).filter((mark) => mark !== undefined)
+    if (tasks.length === 0) return undefined
+    return tasks.every((task) => task === "done") ? "done" : "doing"
   }
 
   for (const located of nodes) of(located)
   return status
 }
 
-/** What a leaf claims about itself. `done` wins over `doing` — they are
- *  mutually exclusive on disk, so the order only decides what a set the
- *  validator has already condemned looks like. */
-export const storedMarker = (
-  node: LocatedRegular["node"],
-): "done" | "doing" | null =>
-  node.done !== undefined ? "done" : node.doing !== undefined ? "doing" : null
-
-const storedStatus = (node: LocatedRegular["node"]): Status =>
-  storedMarker(node) ?? "open"
+/** What a leaf claims about itself, which for a leaf IS its status — and
+ *  `undefined` for a leaf claiming nothing, the one spelling of absence this
+ *  module has. `done` wins over `doing`: they are mutually exclusive on disk,
+ *  so the order only decides what a set the validator has already condemned
+ *  looks like. */
+export const storedMarker = (node: LocatedRegular["node"]): Status | undefined =>
+  node.done !== undefined ? "done" : node.doing !== undefined ? "doing" : undefined
 
 // ── the drawable tree ──────────────────────────────────────────────────
 
@@ -173,7 +266,9 @@ const storedStatus = (node: LocatedRegular["node"]): Status =>
 interface Place {
   /** The record occupying this place — the mirror itself, for a mirror. */
   readonly at: Located
-  readonly status: Status
+  /** Absent when this place draws a plain bullet — there is no mark, and no
+   *  box to draw one in. */
+  readonly status: Status | undefined
   /** Stable identity of this PLACE, not of the node. The same node reached
    *  through two mirrors is two rows on screen, and folding one must not fold
    *  the other. */
@@ -229,8 +324,7 @@ const expand = (
   parentKey: string,
 ): Row => {
   const key = `${parentKey}/${at.node.id}`
-  const status = derived.status.get(at.node.id) ?? "open"
-  const place = { at, status, key }
+  const place = { at, status: derived.status.get(at.node.id), key }
 
   const found = follow(derived, at)
   if (found.kind !== "found") {
@@ -256,10 +350,11 @@ const expand = (
  * which is a property of a reading and not of the file. Nothing is touched on
  * disk and nothing is marked: a hidden row is a row not drawn.
  *
- * A done node takes its whole subtree with it. That is not a shortcut: a node
- * with counted children IS done exactly when all of them are, so every row
- * underneath one would be hidden on its own account anyway — and a row kept
- * under a hidden parent would have nowhere to hang.
+ * A done node takes its whole subtree with it, INCLUDING the plain bullets
+ * under it. Every task below a done node is done — that is what made the node
+ * done — and a bullet that is not a task is a note on finished work rather
+ * than something outstanding; a row kept under a hidden parent would have
+ * nowhere to hang anyway.
  */
 export const withoutDone = (rows: ReadonlyArray<Row>): ReadonlyArray<Row> =>
   rows.flatMap((row) =>
@@ -314,14 +409,15 @@ export interface Situated {
   /** The regular node at the end of the chain, whatever record was addressed
    *  to reach it. */
   readonly shows: LocatedRegular
-  readonly status: Status
+  /** Absent when the node carries no mark and derives none. */
+  readonly status: Status | undefined
   /** The canonical parent chain, root first, `shows` excluded. */
   readonly trail: ReadonlyArray<LocatedRegular>
 }
 
 export const situate = (derived: Derived, shows: LocatedRegular): Situated => ({
   shows,
-  status: derived.status.get(shows.node.id) ?? "open",
+  status: derived.status.get(shows.node.id),
   trail: ancestorsOf(derived, shows.node.id),
 })
 
