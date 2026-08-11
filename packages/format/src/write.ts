@@ -39,7 +39,18 @@ import { isMirror, type Located, type Node } from "./node.ts"
  */
 const REGULAR_FIELDS = {
   required: ["id", "ord", "title"],
-  optional: ["parent", "done", "doing", "date", "desc", "doc", "after", "blocks", "see"],
+  optional: [
+    "parent",
+    "done",
+    "doing",
+    "todo",
+    "date",
+    "desc",
+    "doc",
+    "after",
+    "blocks",
+    "see",
+  ],
 } as const
 
 const MIRROR_FIELDS = {
@@ -58,6 +69,7 @@ const ORDER = [
   "mirror",
   "done",
   "doing",
+  "todo",
   "date",
   "desc",
   "doc",

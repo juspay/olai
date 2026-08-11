@@ -33,6 +33,8 @@ import {
   isMirror,
   type Located,
   type LocatedRegular,
+  type Mark,
+  MARKS,
   type Node,
   NotFoundFailure,
   nodesOf,
@@ -63,7 +65,7 @@ export interface Plan {
   readonly title: string
   readonly file: string
   /** The git commit subject, in the convention `olai` has always used:
-   *  `capture:` / `done:` / `doing:` / `move:` / `archive:` / `create:` /
+   *  `capture:` / `done:` / `doing:` / `todo:` / `move:` / `archive:` / `create:` /
    *  `see:` and a title (or a path, when an outline is born empty). */
   readonly summary: string
 }
@@ -73,7 +75,7 @@ export interface Plan {
 export interface Context {
   /** A candidate id. Called again if the set already holds the one it gave. */
   readonly mint: () => string
-  /** Today, as the ISO date a `done` / `doing` mark is stamped with. */
+  /** Today, as the ISO date a mark is stamped with. */
   readonly today: () => string
 }
 
@@ -103,6 +105,7 @@ export const plan = (
       return planAdd(scope, request)
     case "done":
     case "doing":
+    case "todo":
       return planMark(scope, request)
     case "title":
       return planEdit(
@@ -403,11 +406,20 @@ const planAdd = (
   })
 }
 
-// ── done / doing ───────────────────────────────────────────────────────
+// ── the marks ──────────────────────────────────────────────────────────
+
+/** The commit subject for taking a mark OFF, one per mark — racket's wording
+ *  for the two it had, and the same shape for the third. A table rather than a
+ *  conditional, so a fourth mark is a missing key and not a silent default. */
+const UNMARKED = {
+  done: "undone",
+  doing: "not-doing",
+  todo: "not-todo",
+} as const satisfies Record<Mark, string>
 
 const planMark = (
   scope: Scope,
-  request: Extract<Request, { op: "done" | "doing" }>,
+  request: Extract<Request, { op: Mark }>,
 ): Planned => {
   const target = editable(scope, request.id)
   if (Result.isFailure(target)) return Result.fail(target.failure)
@@ -447,7 +459,7 @@ const planMark = (
           // unfinished, they are not tasks, and counting them would say the
           // opposite of what this whole model is for.
           : `\`${node.title}\` takes its status from its children, ` +
-            `${unfinished.length} of ${said.counted} still under way: ` +
+            `${unfinished.length} unfinished among ${said.counted}: ` +
             `${unfinished.map((child) => `\`${child.title}\``).join(", ")}. ` +
             `Mark those instead.`,
         id: node.id,
@@ -468,7 +480,9 @@ const planMark = (
       new UsageFailure({ reason: `\`${node.title}\` is already ${mark}` }),
     )
   }
-  if (!undo && mark === "doing" && stored === "done") {
+  // Any mark that is not `done`, over a node that IS done, walks finished work
+  // backwards. `doing` and `todo` both do it, and neither may do it quietly.
+  if (!undo && mark !== "done" && stored === "done") {
     return Result.fail(
       new UsageFailure({
         reason:
@@ -478,15 +492,14 @@ const planMark = (
     )
   }
 
-  // Setting one mark CLEARS the other: a node carrying both is a record the
+  // Setting one mark CLEARS the others: a node carrying two is a record the
   // format rejects, so this is not tidiness — it is what makes the write valid.
   const next: Draft<RegularNode> = { ...node }
-  delete next.done
-  delete next.doing
+  for (const other of MARKS) delete next[other]
   if (!undo) next[mark] = scope.context.today()
 
   const summary = undo
-    ? `${mark === "done" ? "undone" : "not-doing"}: ${node.title}`
+    ? `${UNMARKED[mark]}: ${node.title}`
     : `${mark}: ${node.title}`
 
   return Result.succeed({

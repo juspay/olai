@@ -34,14 +34,14 @@ export type FailureKind = "usage" | "not-found" | "validation" | "derived" | "bu
  *  is the DERIVED one ({@link ./derive.ts}), because that is what makes it
  *  unfinished; `id` is what the next write names.
  *
- *  One literal, and it is the model rather than an oversight: a child is in
- *  the way only if it is a TASK that is not finished, and `doing` is the only
- *  mark that means that. An unmarked child is a bullet — nothing to finish, so
- *  never in the way — and it is never listed here. */
+ *  Two of the three marks, and the omission is the model rather than an
+ *  oversight: a child is in the way exactly when it is a TASK that is not
+ *  finished — under way, or not started. An unmarked child is a bullet —
+ *  nothing to finish, so never in the way — and it is never listed here. */
 export const Unfinished = Schema.Struct({
   id: Schema.String,
   title: Schema.String,
-  status: Schema.Literals(["doing"]),
+  status: Schema.Literals(["doing", "todo"]),
 })
 export type Unfinished = typeof Unfinished.Type
 

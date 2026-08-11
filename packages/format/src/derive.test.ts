@@ -82,15 +82,18 @@ test("the stored marker is the field a record actually carries, or nothing", () 
     regulars(
       `{"id":"a","ord":"a","title":"a","done":true}\n` +
         `{"id":"b","ord":"b","title":"b","doing":"2026-08-10"}\n` +
-        `{"id":"c","ord":"c","title":"c"}`,
+        `{"id":"t","ord":"c","title":"t","todo":true}\n` +
+        `{"id":"c","ord":"d","title":"c"}`,
     ).map(storedMarker),
-  ).toEqual(["done", "doing", undefined])
+  ).toEqual(["done", "doing", "todo", undefined])
 
-  // Written by hand because the parser refuses this line: the two markers are
+  // Written by hand because the parser refuses these lines: the marks are
   // exclusive on disk, so this only decides what a set the validator has
-  // already condemned looks like — and it looks done.
+  // already condemned looks like — and it looks as far along as it claims.
   expect(storedMarker({ id: "x", ord: "a", title: "x", done: true, doing: true }))
     .toBe("done")
+  expect(storedMarker({ id: "x", ord: "a", title: "x", doing: true, todo: true }))
+    .toBe("doing")
 })
 
 // A parent's status is the sum of the children that are TASKS — the one rule
@@ -131,6 +134,46 @@ test("a parent is the sum of the children that are tasks", () => {
       `{"id":"c2","parent":"p","ord":"b","title":"c2"}`,
   )
   expect(bullets.get("p")).toBeUndefined()
+})
+
+// The third mark, and the case the two-mark rule had no answer for: a parent
+// whose task children have all been declared and none of them started. It is
+// `todo`, not `doing` — a parent that read `doing` would be claiming progress
+// nobody has made — and it is not nothing, because those children ARE tasks.
+test("a parent whose tasks are all unstarted is todo, not doing", () => {
+  const unstarted = statusesOf(
+    `{"id":"p","ord":"a","title":"p"}\n` +
+      `{"id":"c1","parent":"p","ord":"a","title":"c1","todo":true}\n` +
+      `{"id":"c2","parent":"p","ord":"b","title":"c2","todo":true}\n` +
+      `{"id":"c3","parent":"p","ord":"c","title":"c3"}`,
+  )
+  expect(unstarted.get("p")).toBe("todo")
+
+  // One of them started, and the parent is under way.
+  const started = statusesOf(
+    `{"id":"p","ord":"a","title":"p"}\n` +
+      `{"id":"c1","parent":"p","ord":"a","title":"c1","todo":true}\n` +
+      `{"id":"c2","parent":"p","ord":"b","title":"c2","doing":true}`,
+  )
+  expect(started.get("p")).toBe("doing")
+
+  // MIXED done and todo is the case worth naming: nothing is under way, and
+  // the parent is still not unstarted — work has been finished under it.
+  const halfway = statusesOf(
+    `{"id":"p","ord":"a","title":"p"}\n` +
+      `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
+      `{"id":"c2","parent":"p","ord":"b","title":"c2","todo":true}`,
+  )
+  expect(halfway.get("p")).toBe("doing")
+
+  // And a `todo` child holds `done` back, which the bullet beside it does not.
+  const held = statusesOf(
+    `{"id":"p","ord":"a","title":"p"}\n` +
+      `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
+      `{"id":"c2","parent":"p","ord":"b","title":"c2","todo":true}\n` +
+      `{"id":"c3","parent":"p","ord":"c","title":"c3"}`,
+  )
+  expect(held.get("p")).not.toBe("done")
 })
 
 // What the children say is one answer with three shapes, and it is what both
@@ -488,6 +531,46 @@ test("a done parent hides its whole subtree, bullets included", () => {
     FIXTURE_FILE,
   )
   expect(withoutDone(rows)).toEqual([])
+})
+
+// The other half of that, and the reason the third mark exists: a parent whose
+// finished children would otherwise make it done is NOT done while one of its
+// children has not started. Before `todo`, unstarted work could only be an
+// unmarked node — which counts for nothing — so the parent derived `done` and
+// hiding what is done took the unstarted work away with it. That is the view
+// whose job is showing what is left hiding exactly what was left.
+test("an unstarted child keeps its parent out of the done hiding", () => {
+  const rows = rowsOf(
+    derive(
+      nodesOf(
+        `{"id":"beds","ord":"a0","title":"beds"}\n` +
+          `{"id":"soil","parent":"beds","ord":"a0","title":"soil","done":true}\n` +
+          `{"id":"seeds","parent":"beds","ord":"a1","title":"seeds","todo":true}\n` +
+          `{"id":"aside","parent":"beds","ord":"a2","title":"which varieties"}`,
+      ),
+    ),
+    FIXTURE_FILE,
+  )
+  expect(shape(withoutDone(rows))).toEqual([
+    "/beds node",
+    "/beds/seeds node",
+    "/beds/aside node",
+  ])
+
+  // And the distinction the format documents: the plain bullet above survives
+  // because its PARENT survives. Under a parent that really is done it does
+  // not, and that is intended — a note on finished work is not outstanding.
+  const finished = rowsOf(
+    derive(
+      nodesOf(
+        `{"id":"beds","ord":"a0","title":"beds"}\n` +
+          `{"id":"soil","parent":"beds","ord":"a0","title":"soil","done":true}\n` +
+          `{"id":"aside","parent":"beds","ord":"a1","title":"which varieties"}`,
+      ),
+    ),
+    FIXTURE_FILE,
+  )
+  expect(withoutDone(finished)).toEqual([])
 })
 
 // Hidden, never touched: the rows handed in are the same rows afterwards, so

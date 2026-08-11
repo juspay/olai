@@ -67,6 +67,22 @@ Feature: Zoom and navigate
     When I show the done nodes
     Then the node "demo" is shown
 
+  Scenario: An unstarted task keeps its parent on screen when done is hidden
+    # The symptom `todo` exists to fix, in one outline. `frames` has two task
+    # children: `glazing`, finished, and `sowing`, which has not started.
+    # Before the third mark, `sowing` could only carry no mark at all — so
+    # `frames` counted one task, found it done, derived DONE, and the done
+    # toggle took the whole branch away, unstarted work included. The view
+    # whose job is showing what is left hid exactly what was left.
+    #
+    # A `todo` child is an unfinished task, so `frames` is `doing` and stays.
+    Given I open the outline "garden.jsonl"
+    Then the node "glazing" is shown
+    When I hide the done nodes
+    Then the node "glazing" is not shown
+    And the node "frames" is shown
+    And the node "sowing" is shown
+
   Scenario: Hiding done nodes works on a zoomed page too
     Given I open the node "herbs"
     Then the node "basil" is shown

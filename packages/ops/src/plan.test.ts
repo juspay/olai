@@ -202,6 +202,53 @@ describe("done and doing", () => {
     expect(refused(house(), { op: "done", id: "demo" }).message).toContain("already done")
   })
 
+  // The third mark is the same op with a third word, and that is the claim:
+  // it stamps, it clears whatever was there, it undoes, and it refuses to walk
+  // finished work backwards without being told to.
+  test("`todo` is a mark like the other two", () => {
+    const result = planned(house(), { op: "todo", id: "order" })
+    expect(record(fileOf(result, "house.jsonl"), "order").todo).toBe("2026-08-09")
+    expect(result.summary).toBe("todo: order the cabinets")
+
+    // Started, then put back on the pile: `doing` goes, `todo` arrives.
+    const under = setOf({
+      "a.jsonl": `{"id":"x","ord":"a0","title":"x","doing":"2026-08-01"}`,
+    })
+    const node = record(fileOf(planned(under, { op: "todo", id: "x" }), "a.jsonl"), "x")
+    expect(node.todo).toBe("2026-08-09")
+    expect(node.doing).toBeUndefined()
+
+    // A done node is not quietly un-finished, whichever mark is asked for.
+    const finished = setOf({
+      "a.jsonl": `{"id":"x","ord":"a0","title":"x","done":"2026-08-01"}`,
+    })
+    expect(refused(finished, { op: "todo", id: "x" }).message).toContain("Undo that first")
+
+    // And taking it off says so in the commit line, like its two siblings.
+    const marked = setOf({ "a.jsonl": `{"id":"x","ord":"a0","title":"x","todo":true}` })
+    const cleared = planned(marked, { op: "todo", id: "x", undo: true })
+    expect(record(fileOf(cleared, "a.jsonl"), "x").todo).toBeUndefined()
+    expect(cleared.summary).toBe("not-todo: x")
+  })
+
+  // A `todo` child is an unfinished TASK, so it stands between its parent and
+  // `done` exactly as a `doing` one does — and it says which of the two it is,
+  // because the refusal carries the reason with the child.
+  test("an unstarted child is in the way, and says it is unstarted", () => {
+    const set = setOf({
+      "a.jsonl": [
+        `{"id":"p","ord":"a0","title":"the trip"}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","done":true}`,
+        `{"id":"c2","parent":"p","ord":"a1","title":"pack","todo":true}`,
+        `{"id":"c3","parent":"p","ord":"a2","title":"ferry times"}`,
+      ].join("\n"),
+    })
+    const failure = refused(set, { op: "done", id: "p" })
+    expect(failure._tag).toBe("DerivedFailure")
+    if (failure._tag !== "DerivedFailure") return
+    expect(failure.children).toEqual([{ id: "c2", title: "pack", status: "todo" }])
+  })
+
   test("undoing a mark that is not there is refused", () => {
     expect(refused(house(), { op: "done", id: "order", undo: true }).message).toContain(
       "not marked done",

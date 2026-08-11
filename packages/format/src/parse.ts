@@ -5,7 +5,7 @@
  * record schema; what comes back is either a node or an error naming the line
  * it came from. The seam is "parse per line, validate the set": everything
  * checkable from a SINGLE line is checked here — shape, id spelling, ISO
- * dates, the two exclusivity rules — and everything that needs to know what
+ * dates, at most one mark — and everything that needs to know what
  * else exists is {@link ./validate.ts}. That is what lets the store re-decode
  * one changed file and keep its neighbours' results, and it is why
  * only two functions in this package can reject anything.
@@ -28,6 +28,7 @@ import {
   ID_SHAPE,
   isMirror,
   type Located,
+  MARKS,
   MirrorNode,
   type Node,
   RegularNode,
@@ -154,14 +155,20 @@ const checkRecord = ({ file, line, node }: Located): ReadonlyArray<OutlineError>
   // ask it. The schema already refused any it should not have.
   if (isMirror(node)) return errors
 
-  if (node.done !== undefined && node.doing !== undefined) {
+  // At most ONE of the three marks. They are the states of one thing — how
+  // far along a task is — so a record carrying two says two things about the
+  // same question, and there is no rule for which of them wins.
+  const marks = MARKS.filter((field) => node[field] !== undefined)
+  if (marks.length > 1) {
     at(
-      "done-and-doing",
-      "a node is `done` or `doing`, never both; drop whichever is stale",
+      "several-marks",
+      `a node carries one mark or none — this one has ${
+        marks.map((field) => `\`${field}\``).join(" and ")
+      }; drop whichever is stale`,
     )
   }
 
-  for (const field of ["done", "doing", "date"] as const) {
+  for (const field of [...MARKS, "date"] as const) {
     const value = node[field]
     if (typeof value === "string" && !isIsoInstant(value)) {
       at(

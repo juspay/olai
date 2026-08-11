@@ -16,20 +16,30 @@
  * learn about a bug than a marked stub.
  */
 
-import { isMirror, type Located, type LocatedRegular } from "./node.ts"
+import {
+  isMirror,
+  type Located,
+  type LocatedRegular,
+  type Mark,
+  MARKS,
+} from "./node.ts"
 
 /**
- * A MARK — what a node's checkbox shows. Derived for a parent, stored for a
- * leaf, and OPTIONAL everywhere: a node with no status is a bullet and not a
- * task at all.
+ * What a node's checkbox shows: one of the three {@link Mark}s. Derived for a
+ * parent, stored for a leaf, and OPTIONAL everywhere — a node with no status
+ * is a bullet and not a task at all.
  *
- * There is deliberately no third member for "unmarked". `open` used to be one,
+ * The same three by design, not by coincidence, which is why this is that type
+ * rather than a copy of it: a leaf shows the mark it carries, and a parent
+ * shows the mark its children add up to. Neither can produce a fourth thing.
+ *
+ * What there is deliberately no member for is UNMARKED. `open` used to be one,
  * and it was what a node got for carrying nothing, which made every node a
  * task and left one value answering two questions — "a task nobody has
- * started" and "not a task at all". Absence answers the second, and only a
- * node someone marked has a `Status`.
+ * started" and "not a task at all". Absence answers the second; `todo` is how
+ * a node says the first, and someone has to put it there.
  */
-export type Status = "done" | "doing"
+export type Status = Mark
 
 /**
  * A set of nodes and everything computed from it.
@@ -195,8 +205,15 @@ export const fromChildren = (derived: Derived, id: string): FromChildren | null 
  * A leaf says what it is, and says nothing at all when it carries no mark.
  *
  * A parent counts only the children that are TASKS — the ones with a status of
- * their own: all of them done → done, any of them still under way → doing. A
- * parent whose counted children include no task is no more a task than they
+ * their own — and reports how far along they have got as a whole:
+ *
+ * - every one of them done → **done**;
+ * - every one of them `todo` → **todo**, because nothing under it has started
+ *   and a parent that claimed otherwise would be inventing progress;
+ * - anything else → **doing**: something has started, or some are finished
+ *   while others are not, and both of those are a thing under way.
+ *
+ * A parent whose counted children include no task is no more a task than they
  * are, so it has no status either: an unmarked child is not an unfinished
  * obligation, it is a bullet, and a subtree of bullets adds up to a bullet.
  *
@@ -245,7 +262,12 @@ const statuses = (
     // this runs over every parent-child edge in the set on every derive.
     const tasks = own.map(of).filter((mark) => mark !== undefined)
     if (tasks.length === 0) return undefined
-    return tasks.every((task) => task === "done") ? "done" : "doing"
+    // The two unanimous answers first, and `doing` for everything else —
+    // including the mixed case, where some are finished and some have not
+    // started, which is exactly what a thing under way looks like.
+    if (tasks.every((task) => task === "done")) return "done"
+    if (tasks.every((task) => task === "todo")) return "todo"
+    return "doing"
   }
 
   for (const located of nodes) of(located)
@@ -254,11 +276,11 @@ const statuses = (
 
 /** What a leaf claims about itself, which for a leaf IS its status — and
  *  `undefined` for a leaf claiming nothing, the one spelling of absence this
- *  module has. `done` wins over `doing`: they are mutually exclusive on disk,
- *  so the order only decides what a set the validator has already condemned
- *  looks like. */
+ *  module has. Read in {@link MARKS} order, which is precedence: the three are
+ *  mutually exclusive on disk, so it only decides what a set the validator has
+ *  already condemned looks like. */
 export const storedMarker = (node: LocatedRegular["node"]): Status | undefined =>
-  node.done !== undefined ? "done" : node.doing !== undefined ? "doing" : undefined
+  MARKS.find((mark) => node[mark] !== undefined)
 
 // ── the drawable tree ──────────────────────────────────────────────────
 

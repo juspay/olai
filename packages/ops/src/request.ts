@@ -81,10 +81,10 @@ export const AddRequest = Schema.Struct({
   ...Placement,
 })
 
-/** `done` and `doing` are one op with two marks: same resolver, same refusals,
- *  and the format's own exclusion rule means setting either clears the other. */
+/** The three marks are one op: same resolver, same refusals, and the format's
+ *  own exclusion rule means setting any of them clears the other two. */
 export const MarkRequest = Schema.Struct({
-  op: Schema.Literals(["done", "doing"]),
+  op: Schema.Literals(["done", "doing", "todo"]),
   id: Id,
   /** Take the mark off instead of putting it on. */
   undo: Schema.optionalKey(Schema.Boolean),

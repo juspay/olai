@@ -194,6 +194,13 @@ export const TOOLS: ReadonlyArray<Tool> = [
     { op: "doing" },
   ),
   write(
+    "set_todo",
+    "Mark todo",
+    "Mark a node as work that has not started, or undo that with `undo: true`. This is what makes a bullet a TASK: a node with no mark is not an unstarted task, it is not a task at all, so there is nothing to derive and nothing to search for until someone says otherwise. Same refusals as `set_doing`.",
+    MarkRequest,
+    { op: "todo" },
+  ),
+  write(
     "set_title",
     "Retitle a node",
     "Replace a node's title. Inline `#tags` live in the title, so this is also how a tag is added or removed.",

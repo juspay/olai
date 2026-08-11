@@ -59,16 +59,19 @@ consumer reaching for one would be re-implementing a rule that lives here.
 The derivations are exported for exactly this reason: the browser draws the
 tree with the same code the validator judged it with.
 
-`Status` is two values, `done` and `doing`, and it is OPTIONAL wherever it
-appears: a node nobody marked has no status, and `derive`'s status index is
-partial over the set rather than total — a node missing from it is a bullet,
-not a task nobody has started (docs/format.md's Status section). A parent is
-the sum of the children that ARE tasks, and one whose children include none is
-a bullet like they are. `fromChildren` is the other half of that rule: what a
-node's children say about it, as ONE union of three answers — nothing, done, or
-these particular children are still under way — because the validator's load
-error and the ops layer's refused write both switch on it and must name the
-same children. The list lives on the one answer that has one, so the two sites
+`Status` is the three `MARKS` — `done`, `doing`, `todo`, declared once in
+`node.ts` because the per-line rule, the ISO check and the status walk all read
+that one list — and it is OPTIONAL wherever it appears: a node nobody marked
+has no status, and `derive`'s status index is partial over the set rather than
+total. A node missing from it is a bullet, and `todo` is how a node says the
+other thing, which someone has to put there (docs/format.md's Status section).
+A parent is the sum of the children that ARE tasks — all done, all unstarted,
+or under way — and one whose children include none is a bullet like they are.
+`fromChildren` is the other half of that rule: what a node's children say about
+it, as ONE union of three answers — nothing, done, or these particular children
+are unfinished — because the validator's load error and the ops layer's refused
+write both switch on it and must name the same children, with the same reason
+per child. The list lives on the one answer that has one, so the two sites
 cannot disagree about whether there are any.
 
 `zoom` is the same claim

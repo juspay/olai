@@ -144,11 +144,25 @@ test("an id that is not a slug is a bad-id", () => {
   expect(outlineOf(`{"id":"A_z-09","ord":"a","title":"t"}`).nodes.length).toBe(1)
 })
 
-// The two states are exclusive. A merge that kept both sides of an edit is
-// exactly how a record ends up claiming both, and it must not load.
-test("done and doing together is refused", () => {
+// The three marks are exclusive. A merge that kept both sides of an edit is
+// exactly how a record ends up claiming two, and it must not load — whichever
+// two they are, since they are three answers to one question.
+test("two marks on one record are refused", () => {
   const errors = errorsOf(`{"id":"a","ord":"a","title":"t","done":true,"doing":"2026-08-10"}`)
-  expect(codes(errors)).toEqual(["done-and-doing"])
+  expect(codes(errors)).toEqual(["several-marks"])
+  expect(errors[0]?.message).toContain("`done` and `doing`")
+
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","doing":true,"todo":true}`)))
+    .toEqual(["several-marks"])
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","done":true,"todo":true}`)))
+    .toEqual(["several-marks"])
+
+  // One mark is the ordinary case, and `todo` is as ordinary as the others —
+  // stored verbatim, like the two that came before it.
+  expect(outlineOf(`{"id":"a","ord":"a","title":"t","todo":true}`).nodes[0]?.node)
+    .toEqual({ id: "a", ord: "a", title: "t", todo: true })
+  expect(outlineOf(`{"id":"a","ord":"a","title":"t","todo":"2026-08-11"}`).nodes.length)
+    .toBe(1)
 })
 
 // Shape is not enough: `2026-02-30` matches the pattern and is still not a
@@ -215,7 +229,7 @@ test("several record-level rules can fail on one line", () => {
   const errors = errorsOf(
     `{"id":"a b","ord":"a","title":"t","done":"2026-02-30","doing":true}`,
   )
-  expect(codes(errors).slice().sort()).toEqual(["bad-date", "bad-id", "done-and-doing"])
+  expect(codes(errors).slice().sort()).toEqual(["bad-date", "bad-id", "several-marks"])
   expect(errors.every((error) => error.line === 1)).toBe(true)
   expect(errors.every((error) => error.file === "a.jsonl")).toBe(true)
 })

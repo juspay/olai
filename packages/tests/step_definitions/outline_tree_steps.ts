@@ -109,12 +109,14 @@ Then(
   },
 );
 
-/** The two faces of the status box beside the bullet. The MARK is the
+/** The three faces of the status box beside the bullet. The MARK is the
  *  assertion, so a regression that only tones the title and drops the checkbox
- *  fails here on both. */
+ *  fails here on all three — and `empty` is `todo`, never the absence of a
+ *  mark, which is a box that is not drawn at all (see "shows no checkbox"). */
 const CHECKBOX_FACE: Record<string, { readonly status: string; readonly mark: string }> = {
   checked: { status: "done", mark: "☑" },
   doing: { status: "doing", mark: "◧" },
+  empty: { status: "todo", mark: "☐" },
 };
 
 Then(
@@ -123,7 +125,7 @@ Then(
     const expected = CHECKBOX_FACE[face];
     assert.ok(
       expected !== undefined,
-      `unknown checkbox face ${JSON.stringify(face)}; want checked or doing`,
+      `unknown checkbox face ${JSON.stringify(face)}; want checked, doing or empty`,
     );
     const box = this.node(id).locator(CHECKBOX).first();
     await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });

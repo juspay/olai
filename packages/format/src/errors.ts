@@ -60,9 +60,9 @@ const CATALOGUE = {
   "bad-record": "line",
   /** `id` is not a slug: `[A-Za-z0-9_-]+`. */
   "bad-id": "line",
-  /** `done` and `doing` are both set; at most one may be. */
-  "done-and-doing": "line",
-  /** `done`, `doing` or `date` is not a valid ISO date or datetime. */
+  /** Two of `done`, `doing` and `todo` are set; at most one may be. */
+  "several-marks": "line",
+  /** A mark or `date` is not a valid ISO date or datetime. */
   "bad-date": "line",
 
   // ── the whole set ───────────────────────────────────────────────────

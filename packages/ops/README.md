@@ -1,7 +1,8 @@
 # @olai/ops — the only writer
 
-Semantic edits over a served directory: create an outline, add, mark done or
-doing, retitle, note, schedule, move, archive, set see references. Everything
+Semantic edits over a served directory: create an outline, add, mark done,
+doing or todo, retitle, note, schedule, move, archive, set see references.
+Everything
 that changes an outline goes through here, and everything an agent may READ of
 one comes out of here too.
 
@@ -89,6 +90,7 @@ already knows how to read is worth more than a better one they do not:
 | add | `capture: TITLE` |
 | done / undo | `done: TITLE` / `undone: TITLE` |
 | doing / undo | `doing: TITLE` / `not-doing: TITLE` |
+| todo / undo | `todo: TITLE` / `not-todo: TITLE` |
 | date | `move: TITLE -> 2026-08-10` (or `-> (cleared)`) |
 | archive | `archive: TITLE` |
 | move | `move: TITLE` |

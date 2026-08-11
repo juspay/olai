@@ -291,20 +291,20 @@ test("done stored above unfinished children lists them", () => {
       "a.jsonl": `{"id":"p","ord":"a","title":"p","done":true}\n` +
         `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
         `{"id":"c2","parent":"p","ord":"b","title":"c2"}\n` +
-        `{"id":"c3","parent":"p","ord":"c","title":"c3","doing":true}`,
+        `{"id":"c3","parent":"p","ord":"c","title":"c3","doing":true}\n` +
+        `{"id":"c4","parent":"p","ord":"d","title":"c4","todo":true}`,
     }),
   )
   expect(error.code).toBe("stored-derived-state")
   expect(error.line).toBe(1)
-  // ONE of the three is in the way. `c2` carries no mark, so it is a bullet
-  // rather than a to-do nobody has started, and it is neither counted nor
-  // linked — the report and the ops layer's refusal read the same list.
-  // "1 of 3", not "2 of 3": `c2` carries no mark, so it is neither counted as
-  // unfinished nor called that — the number in the sentence is how many are
-  // still under way.
-  expect(error.message).toContain("1 of this node's 3 children that is still under way")
+  // TWO of the four are in the way, and they are the two that are TASKS and
+  // not done — under way, and not started. `c2` carries no mark, so it is a
+  // bullet rather than an unstarted task: neither counted nor linked, and the
+  // report and the ops layer's refusal read the same list.
+  expect(error.message).toContain("2 unfinished tasks among this node's 4 children")
   expect(error.related).toEqual([
     { file: "a.jsonl", line: 4, note: "`c3` is doing" },
+    { file: "a.jsonl", line: 5, note: "`c4` is todo" },
   ])
 })
 
