@@ -140,14 +140,14 @@ export const TOOLS: ReadonlyArray<Tool> = [
   read(
     "search_nodes",
     "Search nodes",
-    "Find nodes by title, id, `#tag` or note. Results carry `file:line`, the node's derived status and its ancestor titles, so a hit can be acted on without reading the file.",
+    "Find nodes by title, id, `#tag` or note. Results carry `file:line`, its ancestor titles and — for a node that is MARKED — its derived status, so a hit can be acted on without reading the file. A node with no `status` is a bullet rather than an unstarted task.",
     SearchArgs,
     (at, args: typeof SearchArgs.Type) => Query.search(at.derived, args),
   ),
   read(
     "read_node",
     "Read a node",
-    "One node in full: its record, its `#tags`, its derived status, its ancestors and its immediate children.",
+    "One node in full: its record, its `#tags`, its ancestors, its immediate children, and its derived status when it has one — a node with no `status` carries no mark and is not a task.",
     NodeArgs,
     (at, args: typeof NodeArgs.Type) =>
       Query.detail(at.derived, args.id) ?? { missing: args.id },
@@ -189,7 +189,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
   write(
     "set_doing",
     "Mark doing",
-    "Put a node in the state between open and done, or undo that with `undo: true`. A node that is already done must be un-done first.",
+    "Mark a node as under way, or undo that with `undo: true`. A node that is already done must be un-done first, and one whose status is DERIVED from its children is refused the same way `set_done` is.",
     MarkRequest,
     { op: "doing" },
   ),

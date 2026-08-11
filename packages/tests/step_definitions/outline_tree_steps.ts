@@ -11,6 +11,8 @@ import {
   DATE,
   DESC,
   NODE,
+  NODE_GUTTER,
+  nodeSelector,
   readable,
   OUTLINE_TREE,
   POLL_TIMEOUT,
@@ -97,13 +99,22 @@ Then(
   },
 );
 
-/** The three faces of the status box beside the bullet. The MARK is the
- *  assertion: open is an empty box, not the absence of one, so a regression
- *  that only tones the title and drops the checkbox fails here on all three. */
+Then(
+  "the node {string} has no status",
+  async function (this: OlaiWorld, id: string) {
+    // ABSENT, not a word for "none": the row of a bullet says nothing about
+    // status at all, which is what "not a task" is spelled as everywhere else.
+    // The same waiting machinery `has status` uses, from the other side.
+    await this.expectAttributeAbsent(nodeSelector(id), "data-status", `node "${id}"`);
+  },
+);
+
+/** The two faces of the status box beside the bullet. The MARK is the
+ *  assertion, so a regression that only tones the title and drops the checkbox
+ *  fails here on both. */
 const CHECKBOX_FACE: Record<string, { readonly status: string; readonly mark: string }> = {
   checked: { status: "done", mark: "☑" },
   doing: { status: "doing", mark: "◧" },
-  empty: { status: "open", mark: "☐" },
 };
 
 Then(
@@ -112,13 +123,12 @@ Then(
     const expected = CHECKBOX_FACE[face];
     assert.ok(
       expected !== undefined,
-      `unknown checkbox face ${JSON.stringify(face)}; want checked, doing or empty`,
+      `unknown checkbox face ${JSON.stringify(face)}; want checked or doing`,
     );
     const box = this.node(id).locator(CHECKBOX).first();
     await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // VISIBLE, not merely present: an open box that is opacity-0 on desktop
-    // until hover would still be in the DOM, and the whole point of the empty
-    // face is that open is a drawn box, not the absence of one.
+    // VISIBLE, not merely present: a box that is opacity-0 on desktop until
+    // hover would still be in the DOM, and a mark nobody can see is not a mark.
     await this.waitUntil(
       async () => {
         const status = await box.getAttribute("data-status");
@@ -129,6 +139,25 @@ Then(
     ).catch(async () => {
       assert.strictEqual(await box.getAttribute("data-status"), expected.status);
       assert.strictEqual(readable(await box.innerText()), expected.mark);
+    });
+  },
+);
+
+Then(
+  "the node {string} shows no checkbox",
+  async function (this: OlaiWorld, id: string) {
+    // A bullet draws no box — not an empty one. The blank holding the column
+    // open carries no testid, so counting the boxes is the whole assertion,
+    // and the count is asked of this row's own LINE: rows nest, and a
+    // descendant's checkbox is that node's business rather than this one's.
+    const line = this.node(id).locator(NODE_GUTTER).first();
+    await line.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+    const own = line.locator(CHECKBOX);
+    await this.waitUntil(
+      async () => (await own.count()) === 0,
+      `the node "${id}" shows no checkbox`,
+    ).catch(async () => {
+      assert.strictEqual(await own.count(), 0);
     });
   },
 );

@@ -65,7 +65,8 @@ because they are what the archive is for:
   no dates, no marks, no notes. A chain the archive already has is merged into,
   matched by exact title at that level, and new arrivals append at the end;
 - **nothing is stamped.** Archiving is not finishing: a done node keeps its
-  date, an open node stays open. What changes is where the node lives;
+  date, and an unmarked one is archived unmarked rather than being called
+  finished on its way out. What changes is where the node lives;
 - **ids move with the nodes**, so a `mirror`, `after`, `blocks` or `see` target
   goes on resolving — the served directory is one set and the archive is in it.
   That is exactly why the scaffold nodes get MINTED ids rather than copies of

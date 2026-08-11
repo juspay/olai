@@ -63,7 +63,6 @@ Feature: An agent olai did not start
     # not process the call, which is not what happened.
     When the terminal agent tries to mark "kitchen" done
     Then the terminal agent was refused, and told the children to mark instead:
-      | order   |
       | install |
     And node "kitchen" is not done
 

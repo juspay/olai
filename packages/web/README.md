@@ -56,8 +56,9 @@ The client computes nothing about the format on its own. `@olai/format` derives
 status, sibling order, mirror expansion, a node's ancestry and the guard that
 stops a mirror inside its own subtree, and hands back rows; `Tree.tsx` turns a
 row into markup and nothing else — including the status checkbox beside each
-bullet (`Checkbox.tsx`: checked / half / empty for done / doing / open, drawn
-for every state, read-only until keyboard-editing) and a node's free
+bullet (`Checkbox.tsx`: checked for done, half for doing, and NO box on a node
+carrying neither, because a bullet is not a task; read-only until
+keyboard-editing) and a node's free
 cross-references (`SeeRefs.tsx`: each `see` target is a link to `/n/<id>` whose
 text is the target's title, resolved at view time through the same indexes).
 The view and the validator agree about what a file means because they run the

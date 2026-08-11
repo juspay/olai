@@ -13,8 +13,11 @@ packages/tests/
 ├── support/
 │   ├── world.ts             # OlaiWorld: page, locators, the UI contract
 │   ├── hooks.ts             # browser + a server per corpus (and per scratch copy)
-│   └── mcp.ts               # an MCP client, for the agent olai did not start
-├── agent/                   # the scripted ACP agent the chat scenarios drive
+│   ├── mcp.ts               # an MCP client, for the agent olai did not start
+│   └── ndjson.ts            # line-delimited JSON off a pipe — one copy, shared
+│                           #   by that client and both fakes below
+├── agent/                   # the scripted ACP agent the chat scenarios drive,
+│                           #   and the fake `kolu` every server finds on PATH
 └── fixtures/                # the served directories (see fixtures/README.md)
 ```
 
@@ -251,8 +254,9 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="document-body"]` | a document's rendered markdown, on its page or inline under a node |
 | `[data-testid="doc-ref"][data-doc]` | a node's `doc`, at its RESOLVED path; `data-inline` when the document is drawn whole |
 | `[data-testid="doc-link"]` | the link inside that reference |
+| `[data-testid="node-gutter"]` | one row's own line — its controls and title, and nothing from the rows nested under it |
 | `[data-testid="zoom"]` | a row's bullet: the link to that node's own page |
-| `[data-testid="checkbox"][data-status]` | the status box beside that bullet: checked / half / empty for done / doing / open |
+| `[data-testid="checkbox"][data-status]` | the status box beside that bullet: checked for done, half for doing — and NOT PRESENT on a node carrying neither, which is how a bullet is told from a task |
 | `[data-testid="zoom-title"][data-node-id]` | the heading of a zoomed page — the CANONICAL node's id |
 | `[data-testid="breadcrumbs"]` / `[data-testid="crumb"]` | the ancestry above a zoomed node, and one link in it |
 | `[data-testid="done-toggle"][data-hidden]` | the per-view Visible/Hidden switch for done nodes |
@@ -306,8 +310,8 @@ internal MCP server, over the real HTTP route, with the token the real
 layer and the real store — everything except the part that would need a
 language model, which is the one thing a CI lane cannot afford to be
 non-deterministic about. Behaviour is keyed on the prompt text (`done <id>`,
-`add <title>`, `slow`, `hold`, `model <id>`, `crash`), so a scenario asks for
-what it needs.
+`add <title>`, `servers`, `slow`, `hold`, `model <id>`, `crash`), so a scenario
+asks for what it needs.
 
 `hold` is the one worth knowing about: it starts a tool call, streams a chunk,
 and goes on streaming until the scenario touches `.agent-release` in the served
@@ -321,6 +325,8 @@ for one is not itself an edit.
 It lives in `agent/` rather than `support/` because Cucumber imports everything
 under `support/` as part of the world, and importing this reads stdin — which,
 in the runner's own process, ends immediately and takes the run down with it.
+It imports the other way round freely: `support/ndjson.ts` is a function and
+nothing else, so there is nothing for Cucumber's import of it to start.
 
 `@no-agent` is the other knob, and it starts the server with `OLAI_ACP_AGENT`
 set to the EMPTY string — the same way a person turns chat off, rather than
@@ -336,3 +342,46 @@ rather than by anything the client says.
 
 The real Claude adapter is for driving the panel by hand: `just serve` resolves
 the pinned one on demand.
+
+## The fake kolu
+
+`agent/kolu/kolu` is an executable named exactly that, and its directory goes
+FIRST on the PATH of every server this suite spawns. Olai looks for a `kolu`
+when it opens a conversation and hands the session kolu's terminals if a padi
+daemon answers it, so without this the suite would ask the laptop it is running
+on — and a developer working inside a kolu terminal would get a different run
+than a CI lane does.
+
+It answers the probe two ways, and the DEFAULT is the unhelpful one: it speaks
+the protocol and reaches no daemon, which is both "no kolu here" and what a
+wrong build looks like (a padi-spawned terminal prepends its own bundled copy,
+and one of those was an older build reporting the same version while missing
+most of the verbs). `@kolu` is the knob that makes a daemon answer. So a
+scenario that says nothing about kolu is one whose session gets olai's own tool
+server and nothing else, deterministically.
+
+`@kolu` needs `@scratch:<corpus>`, the same way `@agent-stored` does: what a
+server finds on PATH is decided when it is started, and a `@corpus:` server is
+running for every other scenario in the run — not this one's to repoint. The
+`Before` hook says so by name rather than letting the scenario fail later about
+a transcript.
+
+Nothing about a terminal is simulated. What a scenario can ask is which MCP
+servers the SESSION was given, and the scripted agent answers that when asked
+(`servers`).
+
+## Reading a pipe, once
+
+Three things here speak newline-framed JSON-RPC down or up a pipe — the MCP
+client, the scripted agent, the fake kolu — and each used to carry its own copy
+of the same six lines: keep what has not ended in a buffer, cut on newlines,
+parse each whole line. That is `support/ndjson.ts` now, and the copies were the
+bug: a chunk boundary is not a message boundary, which is the one thing this is
+easy to get wrong about, and getting it right in three places means fixing it in
+three places.
+
+It is framing and nothing more. Who a message is for and what to do about it is
+each caller's own, which is why it takes a callback and knows no method names. A
+line that will not parse goes to a caller's handler — and the MCP client passes
+none on purpose, so a frame that is not one throws rather than being skipped:
+that client is reading a protocol *we* serve.
