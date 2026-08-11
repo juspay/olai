@@ -48,7 +48,11 @@ import { TESTID } from "./testids.ts"
 import { Tip } from "./Tip.tsx"
 import { CONTROL, CONTROL_SPACER } from "./touch.ts"
 
-const FACE: Record<Status, { readonly face: string; readonly hint: string; readonly tone: string }> = {
+/** The four faces the mark column can draw — a closed set so a typo is a
+ *  compile error rather than a Switch that matches nothing and draws no box. */
+export type MarkFace = "checked" | "doing" | "empty" | "waiting"
+
+const FACE: Record<Status, { readonly face: Exclude<MarkFace, "waiting">; readonly hint: string; readonly tone: string }> = {
   done: { face: "checked", hint: "done", tone: "text-done" },
   doing: { face: "doing", hint: "doing", tone: "text-doing" },
   todo: { face: "empty", hint: "not started", tone: "text-muted" },
@@ -120,7 +124,7 @@ export function Checkbox(props: {
   )
 }
 
-function Face(props: { readonly face: string }) {
+function Face(props: { readonly face: MarkFace }) {
   return (
     <Switch>
       <Match when={props.face === "empty"}>

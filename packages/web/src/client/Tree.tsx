@@ -54,9 +54,11 @@ import { createNoteExpand } from "./note/expand.ts"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
 import { nodeMenuActions, NodeMenu } from "./NodeMenu.tsx"
+import { useRouter } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import {
   CHILD_INDENT,
+  GUTTER_GAP,
   HOVER_CELL,
   HOVER_GUTTER,
   HOVER_REVEAL,
@@ -102,6 +104,9 @@ function Branch(props: {
   const hasChildren = () => props.row.children.length > 0
   // Keys for expand/collapse all — recomputed only when the row object moves.
   const foldable = createMemo(() => foldableKeys(props.row))
+  // SPA navigate for the menu's "Zoom in" — same path as the bullet, never
+  // location.assign (which reloads the document and kills the reading).
+  const router = useRouter()
 
   // Click/tap expand — local to this place, not a reading cell. No hover.
   const note = createNoteExpand()
@@ -124,16 +129,14 @@ function Branch(props: {
     >
       {/* group/row is on the LINE, not the <li>: a parent li also contains
           every nested child, and a named group-hover on the li would reveal
-          every descendant's menu and triangle at once. */}
+          every descendant's menu and triangle at once. Gap is GUTTER_GAP —
+          the same number PAST_CONTROLS is arithmetic over (./touch.ts). */}
       <div
-        class={`group/row flex items-center gap-1 ${WAITING_DIM(props.row.blocked)}`}
+        class={`group/row flex items-center ${GUTTER_GAP} ${WAITING_DIM(props.row.blocked)}`}
         data-testid={TESTID.nodeGutter}
       >
-        {/* Hover gutter: ••• menu + collapse triangle, left of the bullet.
-            Always shown on a phone; hover/focus-only on a pointer device.
-            Reveal class is on each control (not the strip) so a computed
-            opacity a test reads is the control's own, not a parent's that
-            children do not inherit. */}
+        {/* Hover strip: triangle always (phone) / hover-reveal (pointer);
+            ••• menu only on pointer devices (hidden below md). */}
         <div class={HOVER_GUTTER}>
           <NodeMenu
             actions={nodeMenuActions({
@@ -143,6 +146,7 @@ function Branch(props: {
               collapsed: collapsed(),
               foldable: foldable(),
               view: props.view,
+              go: router.go,
             })}
           />
           <Show

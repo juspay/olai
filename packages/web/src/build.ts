@@ -19,7 +19,7 @@
  * `Bun.build` takes a plugin array directly, so the build is driven from here.
  */
 
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, mkdtempSync, statSync } from "node:fs"
 import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
@@ -125,6 +125,7 @@ const buildStylesheet = async (): Promise<ArrayBuffer> =>
  */
 const FONT_FACES = [
   "OpenSans-Regular.ttf",
+  "OpenSans-Italic.ttf",
   "OpenSans-Semibold.ttf",
   "OpenSans-Bold.ttf",
 ] as const
@@ -140,11 +141,10 @@ const installFonts = async (distDir: string): Promise<void> => {
   const out = resolve(distDir, "fonts")
   mkdirSync(out, { recursive: true })
 
-  // Prefer woff2_compress when the shell put it on PATH (pkgs.woff2); fall
-  // back to copying the TTF and letting @font-face still work if someone is
-  // iterating outside the shell — the CSS names .woff2, so the preferred path
-  // is the conversion.
+  // Loud failure if the converter is missing: the sheet names .woff2 only, so
+  // there is no TTF fallback path. Both shells set OLAI_WOFF2_COMPRESS.
   const compress = process.env.OLAI_WOFF2_COMPRESS ?? "woff2_compress"
+  const work = mkdtempSync(join(tmpdir(), "olai-fonts-"))
 
   for (const face of FONT_FACES) {
     const src = join(fontsDir, face)
@@ -153,7 +153,18 @@ const installFonts = async (distDir: string): Promise<void> => {
     }
     const woff2Name = face.replace(/\.ttf$/i, ".woff2")
     const dest = join(out, woff2Name)
-    const tmp = join(mkdtempSync(join(tmpdir(), "olai-font-")), face)
+    // Skip reconvert when the woff2 is already newer than the TTF — `just serve`
+    // re-runs the whole client build on every keystroke, and three compresses
+    // cost ~300ms for nothing when the faces have not moved.
+    if (existsSync(dest)) {
+      const srcM = statSync(src).mtimeMs
+      const destM = statSync(dest).mtimeMs
+      if (destM >= srcM) {
+        console.log(`font: ${woff2Name} (cached)`)
+        continue
+      }
+    }
+    const tmp = join(work, face)
     cpSync(src, tmp)
     const result = Bun.spawn([compress, tmp], {
       stdout: "inherit",
@@ -173,8 +184,7 @@ const installFonts = async (distDir: string): Promise<void> => {
     cpSync(produced, dest)
     console.log(`font: ${woff2Name}`)
   }
-  // Keep the directory listing honest for anyone grepping the dist.
-  void readdirSync(out)
+  await Bun.$`rm -rf ${work}`
 }
 
 const buildClient = async (distDir: string): Promise<void> => {

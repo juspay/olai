@@ -19,17 +19,20 @@
  *
  * ## The gutter (Workflowy arithmetic)
  *
- * A tree row's left side is four places, left to right:
+ * A tree row's left side, left to right:
  *
- *   hover gutter (menu + triangle) · bullet · checkbox · title
+ *   hover strip (triangle; + `•••` on pointer devices) · bullet · checkbox · title
  *
  * On a pointer device the menu and triangle appear only on row hover / focus;
- * on a phone they stay visible (there is no hover). The permanent widths are
- * still reserved so a title never shifts under the pointer when the controls
- * fade in.
+ * on a phone the triangle stays visible (there is no hover) and the `•••` is
+ * hidden — a phone has no room for two always-on cells before the title
+ * (see packages/web/README.md). The permanent widths are still reserved so a
+ * title never shifts under the pointer when the controls fade in.
  *
- * Literal class names rather than computed ones: Tailwind scans this file as
- * text, and a name built at runtime is a name it never emits a rule for.
+ * EVERY gap in the row is `GUTTER_GAP`. The note indents (`PAST_*`) are the
+ * arithmetic of those widths + gaps; change a control width or the gap and
+ * both the table and the constants below must move together. Literal class
+ * names rather than computed ones: Tailwind scans this file as text.
  */
 
 /** A control a finger aims at. Paired at each site with what it is above
@@ -43,15 +46,28 @@ export const TARGET_BOX = "min-h-11 min-w-11"
 
 // ── the gutter ─────────────────────────────────────────────────────────────
 //
-//              hover     gap   bullet   gap   checkbox  gap
-//   a phone     3.5rem   0     1.75rem  0.25  1.75rem   0.375
-//   a pointer   2.25rem  0     1rem     0.25  1rem      0.375
+//   GUTTER_GAP = 0.25rem (gap-1) between every flex sibling on the row.
 //
-//   past two (day: bullet + checkbox) → phone 4rem, pointer 2.625rem
-//   past three (tree: hover + bullet + checkbox) → phone 7.5rem, pointer 4.875rem
+//   CONTROL / HOVER_CELL: phone 1.75rem (w-7), pointer 1rem (w-4)
 //
-// When a width moves, five things move with it: each control, the blank that
-// holds a missing one, and the two indents. They live together here.
+//   Tree hover strip:
+//     phone  — triangle only                         → 1.75rem
+//     pointer — menu + gap + triangle                → 1 + 0.25 + 1 = 2.25rem
+//
+//   Tree PAST_CONTROLS (hover + 3×gap + bullet + checkbox):
+//     phone   1.75 + 0.75 + 1.75 + 1.75 = 6rem
+//     pointer 2.25 + 0.75 + 1    + 1    = 5rem
+//
+//   Day PAST_BULLET (bullet + 2×gap + checkbox):
+//     phone   1.75 + 0.5 + 1.75 = 4rem
+//     pointer 1    + 0.5 + 1    = 2.5rem
+//
+// When a width moves, the control, the spacer, HOVER_*, and the two PAST_*
+// constants move with it. They live together here.
+
+/** Gap between gutter siblings — tree row, day row, and inside the hover
+ *  strip. One export so the JSX and the PAST arithmetic cannot disagree. */
+export const GUTTER_GAP = "gap-1"
 
 /** A row's permanent control — the bullet and the status checkbox. */
 export const CONTROL =
@@ -62,39 +78,39 @@ export const CONTROL =
 export const CONTROL_SPACER = "w-7 shrink-0 md:w-4"
 
 /**
- * The hover gutter: `•••` menu and the collapse triangle.
- *
- * Two control-widths on a phone (always visible); on a pointer device a
- * tighter strip that the controls fade into on row hover. The triangle lives
- * here so a Workflowy reader finds it left of the bullet, not where a legacy
- * outliner put a always-on chevron.
+ * The hover strip: collapse triangle always; `•••` menu on pointer devices
+ * only (the menu is `hidden md:…` at its site). Width matches content so a
+ * fixed `w-*` cannot drift from the cells it holds.
  */
 export const HOVER_GUTTER =
-  "inline-flex h-11 w-14 shrink-0 items-center justify-end gap-0.5 md:h-5 md:w-9"
+  `inline-flex h-11 shrink-0 items-center justify-end ${GUTTER_GAP} md:h-5`
 
-/** One cell inside the hover gutter (menu trigger or triangle). */
+/** One cell inside the hover strip (menu trigger or triangle). */
 export const HOVER_CELL =
   "inline-flex h-11 w-7 shrink-0 items-center justify-center md:h-5 md:w-4"
 
 /**
- * Reveal policy for hover-only gutter controls.
+ * Reveal policy for hover-only gutter controls (triangle; menu on md+).
  *
  * Below 48rem: always on (a finger has no hover). Above: invisible until the
- * row is hovered or something in the gutter is focused — keyboard users tab
- * into the triangle and the menu the same way.
- *
- * Applied on the row (`group/row`) and read here so every control that hides
- * shares one answer.
+ * row line is hovered or something in the gutter is focused.
  */
 export const HOVER_REVEAL =
   "opacity-100 md:opacity-0 md:group-hover/row:opacity-100 md:group-focus-within/row:opacity-100"
 
-/** Past the bullet AND the checkbox — where a day's row puts its note. */
-export const PAST_BULLET = "ml-16 md:ml-[2.625rem]"
+/**
+ * Reveal for the `•••` menu button — only reached when its parent is shown
+ * (the menu root is `hidden md:block`). Hover/focus-only; no phone branch.
+ */
+export const MENU_REVEAL =
+  "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100"
 
-/** Past the hover gutter, the bullet AND the checkbox — where a tree's row
+/** Past the bullet AND the checkbox — where a day's row puts its note. */
+export const PAST_BULLET = "ml-16 md:ml-10"
+
+/** Past the hover strip, the bullet AND the checkbox — where a tree's row
  *  puts its note, and its one aside about a mirror it would not expand. */
-export const PAST_CONTROLS = "ml-[7.5rem] md:ml-[4.875rem]"
+export const PAST_CONTROLS = "ml-24 md:ml-20"
 
 /** How far a child list indents from its parent, and the vertical guide. */
 export const CHILD_INDENT = "ml-3 list-none border-l border-rule pl-3 md:ml-4 md:pl-4"

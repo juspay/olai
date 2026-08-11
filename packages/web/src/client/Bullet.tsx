@@ -34,7 +34,7 @@ export function Bullet(props: {
       route={{ kind: "node", id: props.id }}
       // Sized from ./touch.ts, which is where the gutter's one exception to
       // the 44px rule is argued and where everything that moves with it lives.
-      class={`${CONTROL} relative text-center no-underline`}
+      class={`${CONTROL} group/bullet relative text-center no-underline`}
       testid={TESTID.zoom}
       title="zoom into this node"
       label={`zoom into ${props.id}`}
@@ -42,17 +42,16 @@ export function Bullet(props: {
       // for it the same way it asks for data-collapsed on the row.
       halo={halo()}
     >
-      {/* Halo behind the dot — a soft ring of muted ink, only for collapsed.
-          Drawn as a ring (border) rather than a filled disc so the bullet
-          stays crisp in the centre the way Workflowy's does. */}
+      {/* Halo behind the dot — always for collapsed; also on hover so the
+          one control that navigates has a Workflowy-style affordance. */}
       <span
-        class="pointer-events-none absolute left-1/2 top-1/2 h-[0.95rem] w-[0.95rem] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-muted/55 bg-muted/15"
+        class="pointer-events-none absolute left-1/2 top-1/2 h-[0.95rem] w-[0.95rem] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-muted/55 bg-muted/15 group-hover/bullet:visible"
         classList={{ invisible: !halo() }}
         aria-hidden="true"
       />
-      {/* The filled round bullet. */}
+      {/* The filled round bullet — accents on hover like the old glyph did. */}
       <span
-        class="relative block h-[0.375rem] w-[0.375rem] rounded-full bg-ink"
+        class="relative block h-[0.375rem] w-[0.375rem] rounded-full bg-ink group-hover/bullet:bg-accent"
         aria-hidden="true"
       />
     </Link>

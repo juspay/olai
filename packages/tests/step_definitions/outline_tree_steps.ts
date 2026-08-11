@@ -669,31 +669,91 @@ When(
   },
 );
 
+/** Opacity of a control — the reveal contract is opacity, not presence. */
+const controlOpacity = async (
+  world: OlaiWorld,
+  id: string,
+  control: string,
+): Promise<number> => {
+  const el = world.within(id, control);
+  await el.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+  return el.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity));
+};
+
+/** Move the pointer off every outline row so group-hover is clear. */
+const clearHover = async (world: OlaiWorld): Promise<void> => {
+  await world.page.locator("body").hover({ position: { x: 2, y: 2 } });
+  await world.waitForFrame();
+};
+
 Then(
   "the node menu of {string} is revealed",
   async function (this: OlaiWorld, id: string) {
-    await revealGutter(this, id);
+    // Does NOT hover for you: a scenario that only checks the post-hover
+    // state without first asserting hidden would survive deleting HOVER_REVEAL.
+    await this.waitUntil(
+      async () => (await controlOpacity(this, id, NODE_MENU)) > 0.5,
+      `the node menu of "${id}" is visible (opacity > 0.5)`,
+    );
+  },
+);
+
+Then(
+  "the node menu of {string} is hidden",
+  async function (this: OlaiWorld, id: string) {
+    await clearHover(this);
+    await this.waitUntil(
+      async () => (await controlOpacity(this, id, NODE_MENU)) < 0.1,
+      `the node menu of "${id}" is hidden (opacity < 0.1)`,
+    );
+  },
+);
+
+Then(
+  "the node menu of {string} is not on the row",
+  async function (this: OlaiWorld, id: string) {
+    // Phone: the menu is display:none (or detached from layout), not merely
+    // opacity-0 — a 390px title has no room for an always-on •••.
     const menu = this.within(id, NODE_MENU);
-    await menu.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // Opacity, not presence: the trigger is always in the DOM so the title
-    // does not shift, and "revealed" means a reader can see it.
     await this.waitUntil(async () => {
-      const opacity = await menu.evaluate((el) => getComputedStyle(el).opacity);
-      return Number.parseFloat(opacity) > 0.5;
-    }, `the node menu of "${id}" is visible (opacity > 0.5)`);
+      const count = await menu.count();
+      if (count === 0) return true;
+      const box = await menu.boundingBox();
+      return box === null || box.width === 0;
+    }, `the node menu of "${id}" is not laid out on a phone row`);
   },
 );
 
 Then(
   "the collapse control of {string} is revealed",
   async function (this: OlaiWorld, id: string) {
-    await revealGutter(this, id);
+    await this.waitUntil(
+      async () => (await controlOpacity(this, id, TOGGLE)) > 0.5,
+      `the collapse control of "${id}" is visible (opacity > 0.5)`,
+    );
+  },
+);
+
+Then(
+  "the collapse control of {string} is hidden",
+  async function (this: OlaiWorld, id: string) {
+    await clearHover(this);
+    await this.waitUntil(
+      async () => (await controlOpacity(this, id, TOGGLE)) < 0.1,
+      `the collapse control of "${id}" is hidden (opacity < 0.1)`,
+    );
+  },
+);
+
+When(
+  "I focus the collapse control of {string}",
+  async function (this: OlaiWorld, id: string) {
+    // Opacity-0 still receives programmatic focus; that is what fires
+    // group-focus-within without a pointer hover.
     const toggle = this.within(id, TOGGLE);
-    await toggle.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await this.waitUntil(async () => {
-      const opacity = await toggle.evaluate((el) => getComputedStyle(el).opacity);
-      return Number.parseFloat(opacity) > 0.5;
-    }, `the collapse control of "${id}" is visible (opacity > 0.5)`);
+    await toggle.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+    await toggle.evaluate((el) => (el as HTMLElement).focus());
+    await this.waitForFrame();
   },
 );
 
@@ -702,8 +762,7 @@ When(
   async function (this: OlaiWorld, id: string) {
     await revealGutter(this, id);
     const menu = this.within(id, NODE_MENU);
-    await menu.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await menu.click();
+    await menu.click({ force: true });
     await this.page
       .locator(NODE_MENU_PANEL)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -720,6 +779,23 @@ Then(
     assert.ok(
       labels.includes(label),
       `node menu offers ${JSON.stringify(labels)}, expected ${JSON.stringify(label)}`,
+    );
+  },
+);
+
+Then(
+  "the node menu offers exactly:",
+  async function (this: OlaiWorld, table: { rawTable: string[][] }) {
+    const expected = table.rawTable.map((row) => row[0]!.trim());
+    const panel = this.page.locator(NODE_MENU_PANEL);
+    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const labels = (await panel.locator(NODE_MENU_ITEM).allInnerTexts()).map((t) =>
+      t.trim(),
+    );
+    assert.deepStrictEqual(
+      labels,
+      expected,
+      `node menu offers ${JSON.stringify(labels)}, expected exactly ${JSON.stringify(expected)}`,
     );
   },
 );

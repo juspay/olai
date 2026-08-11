@@ -516,12 +516,14 @@ and the link on a node's `doc` reference. `touch.ts` is that decision —
 the target size once, since it is one policy, with each control's *compact*
 size spelled where that control is drawn, since that is a design per control.
 The same file holds the one place the rule cannot be obeyed in both
-directions: the tree's gutter. A 44px-wide toggle *and* a 44px-wide bullet at
-every level of indent leave a 390px screen no room for the title they are in
-front of, so those two take the full 44px in HEIGHT — the axis where a miss
-lands on the wrong node — and the racket original's 1.75rem across. Their two
-note indents are arithmetic over that width and live beside it, because when
-it moves they all move.
+directions: the tree's gutter. A hover strip (collapse triangle; `•••` menu on
+pointer devices only), a filled bullet, and the mark-column checkbox at every
+level of indent leave a 390px screen no room for the title if each took 44px
+across, so they take the full 44px in HEIGHT — the axis where a miss lands on
+the wrong node — and a narrow permanent width (1.75rem on a phone, 1rem on a
+pointer). The note indents (`PAST_*`) are arithmetic over those widths and the
+one shared `GUTTER_GAP`, because when any of them moves the note has to stay
+under the title.
 
 The line is `md` (48rem) rather than `pointer: coarse` so the layout and the
 targets are one decision: the sidebar stops being a column at exactly that

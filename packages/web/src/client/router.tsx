@@ -109,7 +109,9 @@ export function RouterProvider(
   )
 }
 
-const useRouter = (): Router => {
+/** The router for a component under `<RouterProvider>` — navigation without
+ *  throwing the document away (`go` is pushState, not `location.assign`). */
+export const useRouter = (): Router => {
   const router = useContext(RouterContext)
   if (router === undefined) {
     throw new Error("a <Link> outside the router — wrap the page in <RouterProvider>")

@@ -24,19 +24,37 @@ Feature: Workflowy gutter
     Then the node "handles" shows no collapsed halo
     And the node "handles" has no toggle
 
-  Scenario: Hovering a row reveals the menu and the collapse control
+  Scenario: On a pointer device the menu and triangle are hidden until hover
+    # The negative half of hover-reveal: without this, permanently-visible
+    # controls would still pass every "is revealed" scenario.
     Given the node "kitchen" is expanded
+    Then the node menu of "kitchen" is hidden
+    And the collapse control of "kitchen" is hidden
     When I hover the node "kitchen"
     Then the node menu of "kitchen" is revealed
     And the collapse control of "kitchen" is revealed
 
-  Scenario: The node menu offers only read actions
+  Scenario: Focusing the collapse control reveals the hover strip
+    Given the node "kitchen" is expanded
+    When I focus the collapse control of "kitchen"
+    Then the collapse control of "kitchen" is revealed
+    And the node menu of "kitchen" is revealed
+
+  Scenario: The node menu offers only the five read actions
     When I open the node menu of "kitchen"
-    Then the node menu offers "Zoom in"
-    And the node menu offers "Collapse"
-    And the node menu offers "Expand all"
-    And the node menu offers "Collapse all"
-    And the node menu offers "Copy link to node"
+    Then the node menu offers exactly:
+      | Zoom in            |
+      | Collapse           |
+      | Expand all         |
+      | Collapse all       |
+      | Copy link to node  |
+
+  Scenario: Zoom in from the menu stays in the same document
+    Given I mark the page
+    When I open the node menu of "kitchen"
+    And I choose "Zoom in" from the node menu
+    Then the zoomed node is "kitchen"
+    And the page has not reloaded
 
   Scenario: Collapse from the menu hides children
     Given the node "kitchen" is expanded

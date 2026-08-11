@@ -1,23 +1,22 @@
 /**
  * The `•••` hover menu to the left of a row's collapse triangle.
  *
- * Workflowy's gutter control: on row hover it appears left of the triangle.
- * This file is the MENU — open, close, portal, list of verbs. What those
- * verbs ARE is the caller's catalog (`nodeMenuActions` below for the outline
- * tree): presentation and the list of things a client can do are two concerns,
- * and a third write-path action later should not reshape the panel.
+ * Presentation only: open, close, list of verbs. What those verbs ARE is the
+ * caller's catalog (`nodeMenuActions`) — a third write-path action later is
+ * another entry there, not a branch here.
  *
- * Opens on click (and Enter/Space when focused). Closes on Escape, outside
- * click, or picking an item. The menu body is portaled so a row's overflow or
- * opacity cannot clip or dim it.
+ * The panel is `absolute top-full` inside a positioned root — the same idiom
+ * as `theme/Picker.tsx` and `chat/SlashMenu.tsx` — so it scrolls with its
+ * anchor and never lands below the fold as a detached `fixed` box would.
+ * Drawn only on pointer devices (`MENU_REVEAL`); a phone keeps the triangle
+ * and spends the width on the title.
  */
 
-import { createSignal, For, onCleanup, Show } from "solid-js"
-import { Portal } from "solid-js/web"
+import { createSignal, For, onCleanup, onMount, Show } from "solid-js"
 
-import { hrefOf } from "./routes.ts"
+import { hrefOf, type Route } from "./routes.ts"
 import { TESTID } from "./testids.ts"
-import { HOVER_CELL, HOVER_REVEAL } from "./touch.ts"
+import { HOVER_CELL, MENU_REVEAL } from "./touch.ts"
 import type { View } from "./view.ts"
 
 export interface MenuAction {
@@ -28,8 +27,9 @@ export interface MenuAction {
 
 /**
  * The read-only verbs a tree row's menu currently offers. One table, so the
- * panel never has to know about zoom routes or fold keys, and a future write
- * action is another entry here rather than a branch inside the component.
+ * panel never has to know about zoom routes or fold keys. `go` is the SPA
+ * navigator — never `location.assign`, which tears down the wire and the
+ * reading.
  */
 export const nodeMenuActions = (args: {
   readonly id: string
@@ -38,14 +38,14 @@ export const nodeMenuActions = (args: {
   readonly collapsed: boolean
   readonly foldable: ReadonlyArray<string>
   readonly view: View
+  /** Same-document navigation — the bullet's verb, not a full reload. */
+  readonly go: (route: Route) => void
 }): ReadonlyArray<MenuAction> => {
   const items: MenuAction[] = [
     {
       id: "zoom",
       label: "Zoom in",
-      run: () => {
-        location.assign(hrefOf({ kind: "node", id: args.id }))
-      },
+      run: () => args.go({ kind: "node", id: args.id }),
     },
   ]
   if (args.hasChildren) {
@@ -75,8 +75,7 @@ export const nodeMenuActions = (args: {
       try {
         await navigator.clipboard.writeText(url)
       } catch {
-        // Clipboard can refuse (insecure context, denied permission). No toast
-        // surface yet; the action still ran.
+        // Clipboard can refuse (insecure context, denied permission).
       }
     },
   })
@@ -87,7 +86,7 @@ export function NodeMenu(props: {
   readonly actions: ReadonlyArray<MenuAction>
 }) {
   const [open, setOpen] = createSignal(false)
-  let trigger: HTMLButtonElement | undefined
+  let root: HTMLDivElement | undefined
 
   const close = (): void => {
     setOpen(false)
@@ -99,13 +98,14 @@ export function NodeMenu(props: {
   }
 
   return (
-    <>
+    // Positioned root for the absolute panel. Hidden entirely below md so a
+    // phone spends no gutter width on the menu (triangle stays).
+    <div class="relative hidden shrink-0 md:block" ref={root}>
       <button
-        ref={trigger}
         type="button"
-        class={`${HOVER_CELL} ${HOVER_REVEAL} cursor-pointer border-0 bg-transparent p-0 text-[0.65rem] leading-none tracking-[0.05em] text-muted hover:text-ink`}
+        class={`${HOVER_CELL} ${MENU_REVEAL} cursor-pointer border-0 bg-transparent p-0 text-[0.65rem] leading-none tracking-[0.05em] text-muted hover:text-ink`}
         data-testid={TESTID.nodeMenu}
-        aria-haspopup="menu"
+        aria-haspopup="true"
         aria-expanded={open()}
         aria-label="node menu"
         title="node menu"
@@ -113,82 +113,69 @@ export function NodeMenu(props: {
           event.stopPropagation()
           setOpen((was) => !was)
         }}
-        onKeyDown={(event) => {
-          if (event.key === "Escape" && open()) {
-            event.stopPropagation()
-            close()
-          }
-        }}
       >
         •••
       </button>
       <Show when={open()}>
         <MenuPanel
-          anchor={trigger}
+          root={() => root}
           actions={props.actions}
           onPick={pick}
           onClose={close}
         />
       </Show>
-    </>
+    </div>
   )
 }
 
 function MenuPanel(props: {
-  readonly anchor: HTMLButtonElement | undefined
+  readonly root: () => HTMLDivElement | undefined
   readonly actions: ReadonlyArray<MenuAction>
   readonly onPick: (action: MenuAction) => void | Promise<void>
   readonly onClose: () => void
 }) {
-  const box = props.anchor?.getBoundingClientRect()
-  const left = box?.left ?? 0
-  const top = (box?.bottom ?? 0) + 2
-
-  const onDoc = (event: MouseEvent): void => {
-    const target = event.target
-    if (!(target instanceof Node)) return
-    if (props.anchor?.contains(target)) return
-    const menu = document.querySelector(`[data-testid="${TESTID.nodeMenuPanel}"]`)
-    if (menu?.contains(target)) return
-    props.onClose()
-  }
-
-  const onKey = (event: KeyboardEvent): void => {
-    if (event.key === "Escape") props.onClose()
-  }
-
-  document.addEventListener("mousedown", onDoc, true)
-  document.addEventListener("keydown", onKey, true)
-  onCleanup(() => {
-    document.removeEventListener("mousedown", onDoc, true)
-    document.removeEventListener("keydown", onKey, true)
+  onMount(() => {
+    const onPointer = (event: PointerEvent): void => {
+      const target = event.target
+      if (!(target instanceof Node)) return
+      if (props.root()?.contains(target)) return
+      props.onClose()
+    }
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") props.onClose()
+    }
+    // pointerdown, capture — same as theme/Picker and note/expand.
+    document.addEventListener("pointerdown", onPointer, true)
+    document.addEventListener("keydown", onKey)
+    onCleanup(() => {
+      document.removeEventListener("pointerdown", onPointer, true)
+      document.removeEventListener("keydown", onKey)
+    })
   })
 
+  // Plain list, not role=menu: we do not implement roving focus / arrow keys.
+  // A labelled group of buttons matches what is actually here.
   return (
-    <Portal>
-      <ul
-        role="menu"
-        data-testid={TESTID.nodeMenuPanel}
-        class="fixed z-40 m-0 min-w-[10.5rem] list-none rounded border border-rule bg-paper py-1 text-sm text-ink shadow-md"
-        style={{ left: `${left}px`, top: `${top}px` }}
-      >
-        <For each={props.actions}>
-          {(action) => (
-            <li role="none">
-              <button
-                type="button"
-                role="menuitem"
-                class="block w-full cursor-pointer border-0 bg-transparent px-3 py-1.5 text-left text-ink hover:bg-rule"
-                data-testid={TESTID.nodeMenuItem}
-                data-action={action.id}
-                onClick={() => void props.onPick(action)}
-              >
-                {action.label}
-              </button>
-            </li>
-          )}
-        </For>
-      </ul>
-    </Portal>
+    <ul
+      data-testid={TESTID.nodeMenuPanel}
+      aria-label="node actions"
+      class="absolute left-0 top-full z-20 m-0 mt-0.5 min-w-[10.5rem] list-none rounded border border-rule bg-paper py-1 text-sm text-ink shadow-md"
+    >
+      <For each={props.actions}>
+        {(action) => (
+          <li>
+            <button
+              type="button"
+              class="block w-full cursor-pointer border-0 bg-transparent px-3 py-1.5 text-left text-ink hover:bg-rule"
+              data-testid={TESTID.nodeMenuItem}
+              data-action={action.id}
+              onClick={() => void props.onPick(action)}
+            >
+              {action.label}
+            </button>
+          </li>
+        )}
+      </For>
+    </ul>
   )
 }
