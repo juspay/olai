@@ -43,7 +43,7 @@ import { CLEARANCE, CORNER, Indicator } from "./connection/Indicator.tsx"
 import { DayPage } from "./day/DayPage.tsx"
 import { DocumentPage } from "./document/DocumentPage.tsx"
 import { DerivedProvider } from "./derived.tsx"
-import { DocumentsProvider } from "./document/documents.tsx"
+import { createDocuments, DocumentsProvider } from "./document/documents.tsx"
 import { Banner } from "./errors/Banner.tsx"
 import { Broken } from "./errors/Broken.tsx"
 import { Page as ErrorPage } from "./errors/Page.tsx"
@@ -60,6 +60,7 @@ import { connectionStatus, olai } from "./wire.ts"
 
 export default function App() {
   const outlines = createOutlines()
+  const documents = createDocuments()
   const errors = olai.cells.errors.use()
 
   const router = createRouter()
@@ -80,7 +81,7 @@ export default function App() {
       indexes,
       {
         files: outlines.files(),
-        documents: outlines.documentsByFile(),
+        documents: documents.paths(),
         broken: outlines.broken(),
       },
       router.route(),
@@ -173,7 +174,7 @@ export default function App() {
           {(open) => (
             <RouterProvider router={router}>
               <DerivedProvider derived={outlines.derived()}>
-              <DocumentsProvider documents={outlines.documentsByFile()}>
+              <DocumentsProvider documents={documents}>
                 {/* Two columns where there is room for two, one where there is
                     not. `md` is 48rem, which is where the racket original put
                     the same line: below it the sidebar stops being a column
@@ -190,7 +191,7 @@ export default function App() {
                 <div class="grid min-h-dvh grid-cols-1 grid-rows-[auto_1fr] md:grid-cols-[16rem_1fr] md:grid-rows-none">
                   <Sidebar
                     files={outlines.files()}
-                    documents={outlines.documents()}
+                    documents={documents.paths()}
                     active={fileOf(open())}
                     broken={outlines.broken()}
                     footer={chrome()}
@@ -224,7 +225,7 @@ export default function App() {
                         <OutlinePage rows={rows()} view={view} />
                       </Match>
                       <Match when={only(open(), "document")}>
-                        {(open) => <DocumentPage document={open().document} />}
+                        {(open) => <DocumentPage file={open().file} />}
                       </Match>
                       <Match when={only(open(), "day")}>
                         {(open) => (

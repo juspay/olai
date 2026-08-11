@@ -32,14 +32,19 @@ import { isMirror, type Located } from "./node.ts"
 /**
  * One `.md` of the set: its path, and its text.
  *
- * The TEXT travels, and that is the decision this field records. A document is
- * read by the same probe, cached against the same stamp and published in the
- * same revision as every outline, so an edit reaches an open page through the
- * machinery that was already there — no second read path, no fetch to
- * invalidate, and a `doc`-carrying node can show a line of its document
- * wherever it is drawn without asking for it. What it costs is the text of
- * every served document in every snapshot; what it buys is that there is
- * exactly one answer to "what does this directory say right now".
+ * The TEXT is part of the SET, and that is the decision this field records. A
+ * document is read by the same probe, cached against the same stamp and
+ * published in the same revision as every outline, so an edit reaches an open
+ * page through the machinery that was already there — no second read path and
+ * no fetch to invalidate — and there is exactly one answer to "what does this
+ * directory say right now".
+ *
+ * What that does NOT decide is when a body crosses a wire. A transport serving
+ * a directory of thousands of `.md` files cannot put every one of them in a
+ * first frame, and olai's does not: `@olai/surface` publishes the documents as
+ * a collection read one key at a time. This type is what the validator and the
+ * view are handed, which is the whole loaded set, because a `doc` reference has
+ * to be checkable against what is actually served.
  */
 export const Document = Schema.Struct({
   file: Schema.String,

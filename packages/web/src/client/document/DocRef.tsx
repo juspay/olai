@@ -27,12 +27,20 @@ export function DocRef(props: {
   /** Draw the whole document, not a line of it. */
   readonly inline?: boolean
 }) {
+  // The body is asked for HERE, by the row that is showing it — one narrowed
+  // per-key subscription, shared with every other place drawing the same
+  // document (./documents.tsx). What that costs is the documents DRAWN, never
+  // the directory: a corpus of thousands is thousands of paths in the sidebar
+  // and the bodies of what is on screen. The honest edge is that the preview
+  // below is one line read out of a whole body, so an outline attaching
+  // hundreds of documents at once pays for hundreds of them — the answer to
+  // that is a preview on the wire, once something measures it needing one
+  // (docs/brainstorming/surface-mcp-viewing.md).
   const document = useDocument(() => props.file)
   // Two memos, and the first is why the second is cheap. Every frame the store
-  // publishes mints a new `Document` record, so a preview read off the record
-  // would re-scan the file on every save anywhere in the directory; read off
-  // the TEXT, which is a string and compares by value, it re-scans only when
-  // the document itself changed.
+  // publishes mints a new entry, so a preview read off the record would
+  // re-scan the file on every save to it; read off the TEXT, which is a string
+  // and compares by value, it re-scans only when the body actually changed.
   const text = createMemo(() => document()?.text ?? "")
   const preview = createMemo(() => firstLine(text()))
 
@@ -65,7 +73,7 @@ export function DocRef(props: {
         {(served) => (
           <Markdown
             source={served().text}
-            from={served().file}
+            from={props.file}
             class="mt-2"
             testid={TESTID.documentBody}
           />

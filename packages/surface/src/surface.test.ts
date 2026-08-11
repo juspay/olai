@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test"
 
-import { surface } from "./index.ts"
+import { Schema } from "effect"
+
+import { LOADED, Manifest, surface } from "./index.ts"
 
 const tags = [...surface.group.requests.keys()].sort()
 
@@ -42,4 +44,30 @@ test("outlines is served as batched deltas, and read-only", () => {
 // A directory belongs to the disk, and so do the facts about it as a whole.
 test("the manifest is read-only on the wire", () => {
   expect(surface.group.requests.has("surface/manifest/set")).toBe(false)
+})
+
+// The cell every subscription reads on its first frame says ONE thing: whether
+// there is a set. It is the value that carried every `.md` body, so a field
+// arriving on it is how the corpus would come back — and one that moves per
+// revision would also wake every open tab's derivation for nothing.
+test("the manifest carries nothing, and knows when it has not changed", () => {
+  expect(LOADED).toEqual({})
+  expect(Schema.is(Manifest)(LOADED)).toBe(true)
+  expect(Schema.is(Manifest)(null)).toBe(true)
+  expect(surface.spec.cells.manifest.equals?.(LOADED, {})).toBe(true)
+  expect(surface.spec.cells.manifest.equals?.(LOADED, null)).toBe(false)
+})
+
+// snapshot-scale, as a test of the DECLARATION. `deltas` opens with a snapshot
+// of every entry, and a documents entry is a `.md` body — so declaring it here
+// would put the whole corpus back on the first frame of every subscription,
+// which is the defect this collection was cut out of the manifest to fix.
+// `keys` + `get` is the shape: paths for the sidebar, a body for whoever opens
+// one.
+test("documents are served keys-first, one body at a time, and read-only", () => {
+  expect(tags).toContain("surface/documents/keys")
+  expect(tags).toContain("surface/documents/get")
+  expect(surface.group.requests.has("surface/documents/deltas")).toBe(false)
+  expect(surface.group.requests.has("surface/documents/upsert")).toBe(false)
+  expect(surface.group.requests.has("surface/documents/delete")).toBe(false)
 })
