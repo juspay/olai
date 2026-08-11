@@ -40,7 +40,9 @@ import {
   createSignal,
   For,
   type JSX,
+  Match,
   Show,
+  Switch,
 } from "solid-js"
 
 import { type FileRow, fileTree } from "./fileTree.ts"
@@ -63,6 +65,16 @@ const ENTRY =
 const DIR =
   `flex ${TARGET} items-center gap-0.5 rounded px-1 text-sm text-muted ` +
   "hover:bg-rule hover:text-ink md:min-h-0"
+
+/** What every row of the tree needs from the sidebar: which file is open,
+ *  which outlines are broken, and how folders fold. One bag so a recursive
+ *  row is not a function of five separate props that always travel together. */
+interface TreeView {
+  readonly isActive: (file: string) => boolean
+  readonly broken: ReadonlyMap<string, BrokenFile>
+  readonly collapsed: () => ReadonlySet<string>
+  readonly toggle: (path: string) => void
+}
 
 export function Sidebar(props: {
   readonly files: ReadonlyArray<string>
@@ -121,6 +133,19 @@ export function Sidebar(props: {
     )
   )
 
+  // Getters, not a snapshot: the bag is built once, and a row that reads
+  // `view.broken` must still track the prop that moves when a file fails to
+  // parse. A plain object closed over `props.broken` at construction would
+  // freeze the map the first frame handed it.
+  const view: TreeView = {
+    isActive,
+    get broken() {
+      return props.broken
+    },
+    collapsed,
+    toggle,
+  }
+
   return (
     // Below 48rem there is no second column to be, so it is a HEADER above the
     // outline — and behind a BURGER, because everything in it has to fit on a
@@ -168,20 +193,12 @@ export function Sidebar(props: {
 
         <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
           <For each={tree()}>
-            {(row) => (
-              <TreeRow
-                row={row}
-                isActive={isActive}
-                broken={props.broken}
-                collapsed={collapsed}
-                toggle={toggle}
-              />
-            )}
+            {(row) => <Entry row={row} view={view} />}
           </For>
         </ul>
 
         <Show when={props.footer}>
-          <div class="mt-4 flex items-center gap-2 flex-wrap border-t border-rule pt-4">
+          <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-rule pt-4">
             {props.footer}
           </div>
         </Show>
@@ -204,51 +221,42 @@ export function Sidebar(props: {
   )
 }
 
-function TreeRow(props: {
+/** One row of the file tree. Kind decides what is drawn — a folder folds, a
+ *  file is a link — the same Switch shape Tree.tsx uses for outline rows, so
+ *  a third kind of sidebar row is another Match rather than another branch
+ *  through a Show-with-cast. */
+function Entry(props: {
   readonly row: FileRow
-  readonly isActive: (file: string) => boolean
-  readonly broken: ReadonlyMap<string, BrokenFile>
-  readonly collapsed: () => ReadonlySet<string>
-  readonly toggle: (path: string) => void
+  readonly view: TreeView
 }) {
   return (
-    <Show
-      when={props.row.kind === "dir" ? props.row : undefined}
-      fallback={
-        <FileRow
-          row={props.row as Extract<FileRow, { kind: "file" }>}
-          isActive={props.isActive}
-          broken={props.broken}
-        />
-      }
-    >
-      {(dir) => (
-        <DirRow
-          row={dir()}
-          isActive={props.isActive}
-          broken={props.broken}
-          collapsed={props.collapsed}
-          toggle={props.toggle}
-        />
-      )}
-    </Show>
+    <Switch>
+      <Match when={props.row.kind === "dir" ? props.row : undefined}>
+        {(dir) => <Dir row={dir()} view={props.view} />}
+      </Match>
+      <Match when={props.row.kind === "file" ? props.row : undefined}>
+        {(file) => <File row={file()} view={props.view} />}
+      </Match>
+    </Switch>
   )
 }
 
-function DirRow(props: {
+function Dir(props: {
   readonly row: Extract<FileRow, { kind: "dir" }>
-  readonly isActive: (file: string) => boolean
-  readonly broken: ReadonlyMap<string, BrokenFile>
-  readonly collapsed: () => ReadonlySet<string>
-  readonly toggle: (path: string) => void
+  readonly view: TreeView
 }) {
   // A memo, not a plain accessor: folding one directory mints a new Set, and
   // both the chevron and the children list read it. Without the memo every
   // directory re-runs both on every click.
-  const folded = createMemo(() => props.collapsed().has(props.row.path))
+  const folded = createMemo(() => props.view.collapsed().has(props.row.path))
 
   return (
-    <li class="mb-0.5" data-testid={TESTID.fileDir} data-path={props.row.path} data-collapsed={String(folded())}>
+    <li
+      class="mb-0.5"
+      data-testid={TESTID.fileDir}
+      data-path={props.row.path}
+      data-collapsed={String(folded())}
+    >
       <button
         type="button"
         class={DIR}
@@ -260,7 +268,7 @@ function DirRow(props: {
         // still shut it via the body's onClick.
         onClick={(event) => {
           event.stopPropagation()
-          props.toggle(props.row.path)
+          props.view.toggle(props.row.path)
         }}
       >
         <span class={`${CONTROL} text-xs`} aria-hidden="true">
@@ -269,17 +277,9 @@ function DirRow(props: {
         <span class="break-all">{props.row.name}</span>
       </button>
       <Show when={!folded()}>
-        <ul class="m-0 list-none border-l border-rule p-0 pl-2 ml-2">
+        <ul class="m-0 ml-2 list-none border-l border-rule p-0 pl-2">
           <For each={props.row.children}>
-            {(child) => (
-              <TreeRow
-                row={child}
-                isActive={props.isActive}
-                broken={props.broken}
-                collapsed={props.collapsed}
-                toggle={props.toggle}
-              />
-            )}
+            {(child) => <Entry row={child} view={props.view} />}
           </For>
         </ul>
       </Show>
@@ -287,29 +287,30 @@ function DirRow(props: {
   )
 }
 
-function FileRow(props: {
+function File(props: {
   readonly row: Extract<FileRow, { kind: "file" }>
-  readonly isActive: (file: string) => boolean
-  readonly broken: ReadonlyMap<string, BrokenFile>
+  readonly view: TreeView
 }) {
-  const ofOutline = () => props.row.of === "outline"
-  const isBroken = () => ofOutline() && props.broken.has(props.row.file)
+  // Kind is fixed for the life of the row; broken and current are not —
+  // they are read in the JSX so a later frame that marks this file, or a
+  // walk that lights a different one, updates this row only.
+  const outline = props.row.of === "outline"
 
   return (
     <li class="mb-1">
       <Link
         route={
-          ofOutline()
+          outline
             ? { kind: "outline", file: props.row.file }
             : { kind: "document", file: props.row.file }
         }
         class={ENTRY}
-        testid={ofOutline() ? TESTID.outlineLink : TESTID.documentLink}
-        current={props.isActive(props.row.file)}
-        broken={isBroken()}
+        testid={outline ? TESTID.outlineLink : TESTID.documentLink}
+        current={props.view.isActive(props.row.file)}
+        broken={outline && props.view.broken.has(props.row.file)}
       >
         {props.row.name}
-        <Show when={isBroken()}>
+        <Show when={outline && props.view.broken.has(props.row.file)}>
           <span class="ml-1 text-alarm" title="this file could not be read">
             ⚠
           </span>

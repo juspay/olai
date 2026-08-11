@@ -9,9 +9,9 @@
  * string wraps and the folder is nowhere to click.
  *
  * Pure: paths in, rows out. Collapse, active marking and the link each file
- * is are the drawer's business, not this one's. Order matches `sortByPath`
- * (./paths.ts) segment by segment, so a directory's children land where
- * descending into it would put them.
+ * is are the drawer's business, not this one's. Order is by name at each
+ * level, which is what segment-by-segment path order (`./paths.ts`) produces
+ * for the flat lists this replaces.
  */
 
 /** What a leaf of the tree is: the two kinds of file the sidebar draws. */
@@ -60,27 +60,20 @@ const put = (root: Building, file: string, of: FileOf): void => {
   at.files.set(name, { file, of })
 }
 
-/** Children of one directory, sorted the way path order would list them:
- *  names only, because every child is already one segment deep from here. */
+/** Children of one directory, sorted by name — dirs and files together, so
+ *  `a/` sits where `a` sorts among the files beside it. */
 const freeze = (node: Building, prefix: string): ReadonlyArray<FileRow> => {
   const rows: FileRow[] = []
-  for (const name of [...node.dirs.keys()].sort()) {
+  for (const [name, child] of node.dirs) {
     const path = prefix === "" ? name : `${prefix}/${name}`
-    rows.push({
-      kind: "dir",
-      name,
-      path,
-      children: freeze(node.dirs.get(name) as Building, path),
-    })
+    rows.push({ kind: "dir", name, path, children: freeze(child, path) })
   }
-  for (const name of [...node.files.keys()].sort()) {
-    const entry = node.files.get(name) as { readonly file: string; readonly of: FileOf }
+  for (const [name, entry] of node.files) {
     rows.push({ kind: "file", name, file: entry.file, of: entry.of })
   }
-  // One list, dirs and files mixed by name: `a/` before `b.jsonl` before `c/`,
-  // which is what a reader of the directory sees and what segment-by-segment
-  // path order already produces for the flat lists this replaces.
-  rows.sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0))
+  rows.sort((left, right) =>
+    left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
+  )
   return rows
 }
 
