@@ -3,8 +3,8 @@ Feature: On a phone
 
   Two things change and nothing else does. There is no second column to put
   the sidebar in, so it goes behind a BURGER: one row while it is shut, and
-  the whole sidebar — the month, both lists, and the app's own chrome — when
-  it is not. And what a finger aims at gets bigger: 44px, the number both
+  the whole sidebar — the month, the file tree, and the app's own chrome —
+  when it is not. And what a finger aims at gets bigger: 44px, the number both
   mobile platforms print in their guidelines.
 
   An always-open capped header was the first answer here and it was worse in

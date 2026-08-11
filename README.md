@@ -81,7 +81,8 @@ journal file, no year→month scaffolding and no filename that means anything, s
 a `date` on a node in any outline is all there is to it.
 
 Some notes are not a line. Every `.md` under the directory is a **document**:
-it has a page of its own at `/doc/<path>`, it is listed in the sidebar whether
+it has a page of its own at `/doc/<path>`, it sits in the sidebar's file tree
+under the folders it lives in (beside any outlines in the same folder) whether
 or not any outline names it, and a node whose `doc` field attaches one shows
 it — the whole document when you are zoomed on that node, one line of it
 anywhere else. Documents are markdown, rendered at view time like a note's

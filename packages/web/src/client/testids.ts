@@ -15,8 +15,12 @@ export const TESTID = {
   sidebar: "sidebar",
   /** The burger, below 48rem only: the whole sidebar is behind it. */
   sidebarToggle: "sidebar-toggle",
-  /** Everything the burger reveals — the month, both lists, and the chrome. */
+  /** Everything the burger reveals — the month, the file tree, and the chrome. */
   sidebarBody: "sidebar-body",
+  /** The sidebar's file tree: every outline and document under the folders
+   *  they live in. Still named `outline-list` because that is the contract the
+   *  browser tests already assert on for "the directory is listed", and a
+   *  rename for its own sake would be a second spelling of the same fact. */
   outlineList: "outline-list",
   outlineLink: "outline-link",
   outlineTree: "outline-tree",
@@ -26,8 +30,15 @@ export const TESTID = {
   date: "date",
   desc: "desc",
   toggle: "toggle",
-  /** The sidebar's second list: one entry per `.md` found. */
-  documentList: "document-list",
+  /** One folder in the sidebar's file tree. `data-path` is the root-relative
+   *  path, `data-collapsed` says whether its children are hidden. */
+  fileDir: "file-dir",
+  /** The fold control on a folder. Its own name rather than the outline
+   *  tree's `toggle`, so a scenario that folds a folder never has to say
+   *  which of the two trees it meant. */
+  fileDirToggle: "file-dir-toggle",
+  /** One document entry in the file tree. There is no second list: documents
+   *  sit under the same folders as outlines. */
   documentLink: "document-link",
   /** One document, as a page. `data-file` is which. */
   documentPage: "document-page",

@@ -1,11 +1,14 @@
 /**
- * The sidebar: what the served directory turned out to contain.
+ * The sidebar's file tree: what the served directory turned out to contain.
  */
 
 import * as assert from "node:assert";
-import { Given, Then } from "@cucumber/cucumber";
+import { Given, Then, When } from "@cucumber/cucumber";
 
 import {
+  DOCUMENT_LINK,
+  FILE_DIR,
+  FILE_DIR_TOGGLE,
   HYDRATION_TIMEOUT,
   OUTLINE_LINK,
   OUTLINE_LIST,
@@ -13,6 +16,10 @@ import {
   POLL_TIMEOUT,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
+
+/** One folder in the file tree, as a selector string `expectAttribute` takes. */
+const folderSelector = (path: string): string =>
+  `${FILE_DIR}[data-path="${path}"]`;
 
 Then("the outline list is shown", async function (this: OlaiWorld) {
   await this.page
@@ -87,5 +94,102 @@ Given(
       .locator(OUTLINE_TREE)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitForFrame();
+  },
+);
+
+// ── folders in the file tree ───────────────────────────────────────────
+
+Then(
+  "the file tree shows the folder {string}",
+  async function (this: OlaiWorld, path: string) {
+    await this.showSidebar();
+    await this.fileDir(path).waitFor({
+      state: "visible",
+      timeout: HYDRATION_TIMEOUT,
+    });
+  },
+);
+
+Then(
+  "the folder {string} is expanded",
+  async function (this: OlaiWorld, path: string) {
+    await this.expectAttribute(
+      folderSelector(path),
+      "data-collapsed",
+      "false",
+      `the folder "${path}"`,
+    );
+  },
+);
+
+Then(
+  "the folder {string} is collapsed",
+  async function (this: OlaiWorld, path: string) {
+    await this.expectAttribute(
+      folderSelector(path),
+      "data-collapsed",
+      "true",
+      `the folder "${path}"`,
+    );
+  },
+);
+
+When(
+  "I collapse the folder {string}",
+  async function (this: OlaiWorld, path: string) {
+    await this.showSidebar();
+    const folder = this.fileDir(path);
+    await folder.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    if ((await folder.getAttribute("data-collapsed")) === "true") return;
+    await folder.locator(FILE_DIR_TOGGLE).click();
+    await this.expectAttribute(
+      folderSelector(path),
+      "data-collapsed",
+      "true",
+      `the folder "${path}"`,
+    );
+  },
+);
+
+When(
+  "I expand the folder {string}",
+  async function (this: OlaiWorld, path: string) {
+    await this.showSidebar();
+    const folder = this.fileDir(path);
+    await folder.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    if ((await folder.getAttribute("data-collapsed")) === "false") return;
+    await folder.locator(FILE_DIR_TOGGLE).click();
+    await this.expectAttribute(
+      folderSelector(path),
+      "data-collapsed",
+      "false",
+      `the folder "${path}"`,
+    );
+  },
+);
+
+Then(
+  "the document link {string} is shown",
+  async function (this: OlaiWorld, file: string) {
+    await this.showSidebar();
+    await this.documentLink(file).waitFor({
+      state: "visible",
+      timeout: HYDRATION_TIMEOUT,
+    });
+  },
+);
+
+Then(
+  "the document link {string} is hidden",
+  async function (this: OlaiWorld, file: string) {
+    await this.showSidebar();
+    // Collapsed children are not drawn, so the link is gone rather than
+    // merely display:none — the same contract a collapsed outline node has
+    // for its children.
+    assert.strictEqual(
+      await this.page.locator(`${DOCUMENT_LINK}[data-file="${file}"]`).count(),
+      0,
+      `the document "${file}" is still in the tree after its folder collapsed`,
+    );
   },
 );
