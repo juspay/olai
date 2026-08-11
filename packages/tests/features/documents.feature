@@ -88,6 +88,36 @@ Feature: Documents
     Then the contents is shut
     And there should be no page errors
 
+  # `open` is an attribute the BROWSER owns once a reader has touched it, so
+  # "open by default" is only true of a document that gets its own `<details>`.
+  # This pins the PROMISE rather than either mechanism that keeps it (the
+  # keyed block in `Toc.tsx`, and the frame a new body has not arrived in yet)
+  # — it stays green while at least one of them holds, and says so when
+  # neither does. Asked in both directions, because coming BACK to the document
+  # you shut is the sharp half.
+  @scratch:good
+  Scenario: A contents shut on one document does not follow you to the next
+    Given I open the document "kitchen-sink.md"
+    And I shut the contents
+    And I rewrite "notes/wiring.md" as:
+      """
+      # Wiring
+
+      ## Upstairs
+
+      Two circuits.
+
+      ## Downstairs
+
+      One more, on its own breaker.
+      """
+    When I click the document "notes/wiring.md"
+    Then the document open is "notes/wiring.md"
+    And the contents is open
+    When I click the document "kitchen-sink.md"
+    Then the document open is "kitchen-sink.md"
+    And the contents is open
+
   @corpus:good
   Scenario: A line of the contents lands on its heading
     When I open the document "kitchen-sink.md"

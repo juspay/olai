@@ -141,6 +141,29 @@ test("the anchor is not part of the heading's text", () => {
   expect(outlineOf("## Shape\n", NOTE).map((heading) => heading.text)).toEqual(["Shape"])
 })
 
+// ONE RUN between the two entry points, which is the whole reason a contents
+// costs nothing: the page asks for the outline and the component asks for the
+// HTML, and neither is a second pass over the same text.
+//
+// Read off IDENTITY, because a second run is invisible in the output — it
+// would produce an equal outline, one `Heading` object at a time. So: take the
+// outline, render the body exactly as the page then does, and ask for the
+// outline again. Same array means the body's render found the memo and did not
+// replace it. Split `outlineOf` onto a parse of its own and this is red.
+test("the outline and the body are one run, not two", () => {
+  const source = "# Top\n\n## Shape\n\n### Deeper\n"
+  const from = "one-run.md"
+
+  const first = outlineOf(source, from)
+  renderMarkdown(source, from)
+  expect(outlineOf(source, from)).toBe(first)
+
+  // …and the other way round, since the page may ask in either order.
+  const other = "other.md"
+  renderMarkdown(source, other)
+  expect(outlineOf(source, other)).toBe(outlineOf(source, other))
+})
+
 // Nothing to choose between, and nothing to point at: neither is a contents.
 test("a document with no headings has no outline", () => {
   expect(outlineOf("Just a paragraph.\n", NOTE)).toEqual([])

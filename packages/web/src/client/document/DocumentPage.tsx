@@ -51,7 +51,7 @@ export function DocumentPage(props: { readonly file: string }) {
           const headings = createMemo(() => outlineOf(served().text, props.file))
           return (
             <>
-              <Toc headings={headings()} />
+              <Toc file={props.file} headings={headings()} />
               <Markdown
                 source={served().text}
                 from={props.file}

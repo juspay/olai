@@ -168,6 +168,20 @@ way in answers that where furniture beside the text does not — and there is no
 column for a rail below 48rem. Documents only. A note gets the ids and the
 links; it does not get a contents, because a note is a tree row and not a page.
 
+**A fragment is good for as long as the body is unedited, and no longer.** The
+`md-…` namespace is an FNV-1a hash of the WHOLE rendered block — the file path
+and the entire source, not the heading — so editing a typo in the last
+paragraph remints every heading id in the document at once, and every anchor
+URL anyone copied out of it stops resolving. It is not "the heading text
+changed"; it is any change at all, to any part of the text. That is the price
+of the mint rule (`rewrite.ts`): every id on a page belongs to the block it is
+in, and a heading exempted from it is a heading that can collide with the one
+in the note above. Surveying and jumping inside an open page are unaffected —
+the contents is derived from the same render as the ids it points at, so the
+two cannot disagree. A fragment that outlives an edit would need a per-block
+name that is not the block's text, which is a different change and not this
+one.
+
 How that markdown is SET is the other half. The numbers are **not** in the
 stylesheet: `src/client/markdown/scale.ts` declares the type scale and the two
 spacing scales, `src/build.ts` generates the CSS from it (the same arrangement
