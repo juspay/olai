@@ -42,6 +42,7 @@ export {
   countedChildren,
   derive,
   follow,
+  fromChildren,
   rowsOf,
   rowsUnder,
   siblingsOf,
@@ -49,7 +50,7 @@ export {
   titleParts,
   withoutDone,
 } from "./derive.ts"
-export type { Derived, Row, Situated, Status, TitlePart } from "./derive.ts"
+export type { Derived, FromChildren, Row, Situated, Status, TitlePart } from "./derive.ts"
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
 export { datedDays, datedOn } from "./dates.ts"

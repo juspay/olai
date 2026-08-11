@@ -90,9 +90,14 @@ export const TAG = selector(TESTID.tag);
 export const DATE = selector(TESTID.date);
 export const DESC = selector(TESTID.desc);
 export const TOGGLE = selector(TESTID.toggle);
+/** A row's own line — its gutter controls and title, and nothing from the
+ *  rows nested under it. What makes "this node has no checkbox" askable
+ *  without reaching into markup shape. */
+export const NODE_GUTTER = selector(TESTID.nodeGutter);
 /** The bullet on every row: the link to that node's own page. */
 export const ZOOM = selector(TESTID.zoom);
-/** The status box beside that bullet: checked / half / empty. */
+/** The status box beside that bullet: checked for done, half for doing —
+ *  absent on a node with no mark. */
 export const CHECKBOX = selector(TESTID.checkbox);
 /** The heading of a zoomed page. Carries the CANONICAL node's id, which is
  *  what lets a scenario say "zooming a mirror lands on the node itself". */
@@ -524,6 +529,35 @@ export class OlaiWorld extends World {
       throw new Error(
         `expected ${what} to have ${attribute}="${expected}", ` +
           `but it is ${actual === null ? "absent" : `"${actual}"`}`,
+      );
+    }
+  }
+
+  /** The other half of {@link expectAttribute}: wait for something to carry
+   *  that attribute NOT AT ALL. Absence is an answer a page gives — a node
+   *  with no status is a bullet rather than an unfinished task — and it is
+   *  waited for the same way, by a selector that only matches once the
+   *  attribute is gone, so it retries across the render that removes it. */
+  async expectAttributeAbsent(
+    selector: string,
+    attribute: string,
+    what: string,
+    timeout = POLL_TIMEOUT,
+  ): Promise<void> {
+    try {
+      await this.page
+        .locator(`${selector}:not([${attribute}])`)
+        .first()
+        .waitFor({ state: "attached", timeout });
+    } catch {
+      const actual = await this.page
+        .locator(selector)
+        .first()
+        .getAttribute(attribute)
+        .catch(() => null);
+      throw new Error(
+        `expected ${what} to carry no ${attribute}, but it is ` +
+          `${actual === null ? "absent from the page" : `"${actual}"`}`,
       );
     }
   }

@@ -26,10 +26,10 @@
 
 import {
   ancestorsOf,
-  countedChildren,
   derive,
   type Derived,
   DerivedFailure,
+  fromChildren,
   isMirror,
   type Located,
   type LocatedRegular,
@@ -419,23 +419,35 @@ const planMark = (
   // The refusal that teaches. A node with counted children has no stored
   // status at all — the tree answers — so a mark on one is refused with the
   // children that are not finished, as data, and an undo is refused because
-  // there is no mark to take off.
-  const children = countedChildren(scope.derived, node.id)
-  if (children.length > 0) {
-    const unfinished: ReadonlyArray<Unfinished> = children.flatMap((child) => {
-      const status = scope.derived.status.get(child.node.id) ?? "open"
-      // `countedChildren` has already dropped the mirrors; what is left is a
-      // regular node, and its title is what the next write names.
-      if (status === "done" || isMirror(child.node)) return []
-      return [{ id: child.node.id, title: child.node.title, status }]
-    })
+  // there is no mark to take off. Which of the three things the children are
+  // already saying is what picks the sentence, and it is the SAME answer the
+  // validator's load error is built from.
+  const said = fromChildren(scope.derived, node.id)
+  if (said !== null) {
+    const unfinished: ReadonlyArray<Unfinished> = said.kind !== "unfinished"
+      ? []
+      // The status travels with the child from the derivation — the planner
+      // does not get to type in why a child is in the way.
+      : said.children.map((child) => ({
+        id: child.at.node.id,
+        title: child.at.node.title,
+        status: child.status,
+      }))
     return Result.fail(
       new DerivedFailure({
-        reason: unfinished.length === 0
-          ? `\`${node.title}\` takes its status from its children, and all of them are ` +
-            `done — so it already reads done and there is nothing to store.`
+        reason: said.kind === "nothing"
+          ? `\`${node.title}\` takes its status from its children, and none of its ` +
+            `${said.counted} is marked — it is a bullet, not a task. Mark one of ` +
+            `those instead.`
+          : said.kind === "done"
+          ? `\`${node.title}\` takes its status from its children, and all of the ` +
+            `marked ones are done — so it already reads done and there is nothing ` +
+            `to store.`
+          // Not "N of M unfinished": the bullets among those M are not
+          // unfinished, they are not tasks, and counting them would say the
+          // opposite of what this whole model is for.
           : `\`${node.title}\` takes its status from its children, ` +
-            `${unfinished.length} of ${children.length} unfinished: ` +
+            `${unfinished.length} of ${said.counted} still under way: ` +
             `${unfinished.map((child) => `\`${child.title}\``).join(", ")}. ` +
             `Mark those instead.`,
         id: node.id,
