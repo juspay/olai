@@ -33,7 +33,9 @@ const PHRASING = new Set([
   "dfn",
   "em",
   "i",
-  "img",
+  // img is NOT phrasing for titles: a local picture would grow the row to
+  // image height, undoing the whole point of this walk. Dropped by lifting
+  // its (empty) children. Notes still draw images — they use the block path.
   "ins",
   "kbd",
   "mark",

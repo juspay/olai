@@ -110,7 +110,38 @@ export const renderInlineMarkdown = (source: string, from: string): string =>
  * about the panel rather than about markdown.
  */
 export const renderStreaming = (source: string, from: string): string =>
-  render(source, from, `${from}\n${source}`, "block")
+  // Same key shape as {@link cached} for "block": footnote ids are minted
+  // from the key, so a streamed answer and its final render must agree or
+  // every `href="#md-…-fn-1"` breaks the instant streaming ends.
+  render(source, from, keyFor("block", from, source), "block")
+
+/**
+ * The sanitised HAST for a source, before stringify.
+ *
+ * Titles need a further walk (style `#tags`, optionally unwrap anchors) that
+ * cannot run on the finished string, so they build the tree once and finish
+ * it themselves. Notes and documents stay on {@link renderMarkdown}.
+ */
+export const renderToTree = (
+  source: string,
+  from: string,
+  shape: "block" | "inline",
+): Root => {
+  const key = keyFor(shape, from, source)
+  const tree = pipeline.runSync(pipeline.parse(source)) as Root
+  if (shape === "inline") toInline(tree)
+  rewrite(tree, { from, ids: idsFor(key) })
+  return tree
+}
+
+/** Stringify a tree the pipeline already ran — titles finish their own walk. */
+export const hastToHtml = (tree: Root): string => pipeline.stringify(tree)
+
+const keyFor = (
+  shape: "block" | "inline",
+  from: string,
+  source: string,
+): string => `${shape}\n${from}\n${source}`
 
 const cached = (
   source: string,
@@ -119,7 +150,7 @@ const cached = (
 ): string => {
   // Shape rides the key: the same source is two renderings, and a title that
   // cached a full document would poison every later note of that text.
-  const key = `${shape}\n${from}\n${source}`
+  const key = keyFor(shape, from, source)
   const hit = rendered.get(key)
   if (hit !== undefined) return hit
 

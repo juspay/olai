@@ -31,21 +31,31 @@ Racket parity: titles are **inline-only** markdown (bold, links, code — no blo
 elements). What had to be decided is how that sits on the pipeline `md-docs`
 already built, and what happens when a title contains block-level source.
 
-- **Same pipeline, one extra step.** `renderInlineMarkdown` runs the note/document
-  pipeline (parse → GFM → rehype → sanitise → highlight), then `toInline` unwraps
-  every block to its phrasing content before `rewrite` and stringify. A second
-  pipeline would be a second dialect; a CSS-only "make blocks look inline" would
-  leave `<h1>`/`<ul>`/`<pre>` in the DOM for a screen reader and for any layout
-  that measures block boxes.
+- **Same pipeline, one extra step.** Titles build the note/document tree
+  (`renderToTree`: parse → GFM → rehype → sanitise → highlight), then `toInline`
+  unwraps every block to its phrasing content, then `rewrite`, then title-only
+  walks (tags, optional link unwrap), then stringify. A second pipeline would be
+  a second dialect; a CSS-only "make blocks look inline" would leave
+  `<h1>`/`<ul>`/`<pre>` in the DOM for a screen reader and for any layout that
+  measures block boxes.
 - **Block source is unwrapped, not refused.** A title of `# not a heading` draws
   the words "not a heading" with no `<h1>`; a fence becomes its `<code>`; a list
   item becomes its text. The words stay; the boxes do not. Refusing the whole
   title (or escaping it back to source) would punish a paste more loudly than the
   layout needs.
-- **`#tags` stay a split, not a markdown feature.** `titleParts` still peels
-  tags out before the markdown pass, so a tag is a styled span and a markdown
-  heading (which needs a space after `#`) cannot steal one. Tags remain
+- **`#tags` after markdown, not before.** Walking text nodes of the finished
+  HAST (skipping `code` and `a`) styles tags without splitting markdown
+  constructs across two parser runs — so `**urgent #home**` stays bold,
+  `` `#home` `` stays code, and `[spec](…#home)` keeps its URL fragment. Peeling
+  with `titleParts` *before* markdown destroyed those cases. Tags remain
   decorative until search/filter lands.
+- **Empty render falls back to escaped source.** `---`, a bare `<div>…</div>`, a
+  footnote definition — the pipeline can produce no text. A note that loses a
+  `<div>` still has the rest; a title that loses everything is an unlabelled
+  row. When the tree has no text but the source did, show the escaped source.
+- **No nested anchors.** Breadcrumbs and see-refs already wrap the title in a
+  `Link`. Those surfaces pass `links: false` so markdown `[a](url)` unwraps to
+  its children instead of nesting `<a>` inside `<a>`.
 
 ## Documents — resolved 2026-08-10 (md-docs)
 

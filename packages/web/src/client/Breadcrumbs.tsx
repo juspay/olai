@@ -71,7 +71,9 @@ export function Breadcrumbs(props: {
               class={CRUMB}
               testid={TESTID.crumb}
             >
-              <NodeTitle title={crumb.node.title} from={crumb.file} />
+              {/* links=false: already inside Link — a markdown [a](url) in the
+                  title must not nest a second <a>. */}
+              <NodeTitle title={crumb.node.title} from={crumb.file} links={false} />
             </Link>
           </>
         )}

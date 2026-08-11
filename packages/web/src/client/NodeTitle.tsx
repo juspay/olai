@@ -20,13 +20,19 @@ export function NodeTitle(props: {
   /** The file the title is written in — an outline, for a node. Relative
    *  pictures in a title (rare) resolve against it, same contract as a note. */
   readonly from: string
+  /** When false, markdown links are unwrapped so this title can sit inside an
+   *  existing `<a>` (breadcrumb, see-ref) without nesting anchors. Default
+   *  true — tree rows and zoomed headings keep their links. */
+  readonly links?: boolean
 }) {
-  const html = createMemo(() => renderTitle(props.title, props.from))
+  const html = createMemo(() =>
+    renderTitle(props.title, props.from, { links: props.links }),
+  )
   return (
     <span
       class="olai-md olai-md-inline"
-      // Safe: markdown is sanitised; tags are alphabet-restricted. See
-      // ./markdown/title.ts and ./markdown/render.ts.
+      // Safe: markdown is sanitised; tags are alphabet-restricted; the empty
+      // fallback is escaped. See ./markdown/title.ts and ./markdown/render.ts.
       innerHTML={html()}
     />
   )

@@ -6,19 +6,27 @@
  * are decided only when it is drawn. One function answers both, so a tree row
  * and a zoomed heading cannot disagree about either.
  *
- *   - **inline markdown** through {@link renderInlineMarkdown} — same pipeline
- *     a note uses, forced to phrasing content so a block cannot break a row.
- *   - **`#tags`**, peeled by `titleParts` before that pass, so a tag is a
- *     styled span and not something markdown gets to re-interpret.
+ * Ordering matters, and it is the reverse of what it used to be:
  *
- * The result is handed to `innerHTML` by {@link ../NodeTitle.tsx}; everything
- * that is not a tag has already been through the sanitiser.
+ *   1. **inline markdown first** — same pipeline a note uses, forced to
+ *      phrasing content (`renderToTree` + `toInline`).
+ *   2. **then `#tags`** — walk the finished HAST and style tags in text nodes,
+ *      skipping `code` and `a` so a tag inside code stays code and a URL
+ *      fragment is not mistaken for a tag.
+ *
+ * Peeling tags *before* markdown would split constructs across two parser runs
+ * (`**urgent #home**` loses its bold; `[spec](…#home)` shreds the link). Tags
+ * after markdown keeps every construct whole.
+ *
+ * When the pipeline produces no text but the source had some (`---`, a bare
+ * `<div>…</div>`), fall back to the escaped source: an empty title is an
+ * unlabelled row, which is worse than showing the marks.
  */
 
-import { titleParts } from "@olai/format"
+import type { Element, ElementContent, Root, RootContent, Text } from "hast"
 
 import { TESTID } from "../testids.ts"
-import { renderInlineMarkdown } from "./render.ts"
+import { hastToHtml, renderToTree } from "./render.ts"
 
 /**
  * The class a styled tag wears. A complete string literal so Tailwind's content
@@ -27,32 +35,136 @@ import { renderInlineMarkdown } from "./render.ts"
  */
 const TAG_CLASS = "font-semibold text-accent"
 
-/** One title → one HTML string, safe for `innerHTML`. */
-export const renderTitle = (title: string, from: string): string =>
-  titleParts(title)
-    .map((part) => {
-      if (part.kind === "tag") {
-        // The tag alphabet is `[A-Za-z0-9_/-]+`, so the body needs no escape;
-        // the `#` is the same character the format stores.
-        return `<span class="${TAG_CLASS}" data-testid="${TESTID.tag}">#${part.tag}</span>`
-      }
-      return renderText(part.text, from)
-    })
-    .join("")
+/** Same alphabet as `@olai/format`'s `titleParts` — keep them in step. */
+const TAG = /#[A-Za-z0-9_/-]+/g
 
-/**
- * Markdown a text run of the title, keeping the spaces the parser would trim.
- *
- * `titleParts` leaves the space before a tag on the text run ("kitchen remodel
- * " then `#home`). A paragraph of markdown drops trailing whitespace, and
- * without it the tag butts against the word. The edges stay outside the
- * pipeline; only the core is rendered.
- */
-const renderText = (text: string, from: string): string => {
-  if (text.length === 0) return ""
-  const match = /^(?<lead>\s*)(?<core>[\s\S]*?)(?<trail>\s*)$/.exec(text)
-  if (match === null || match.groups === undefined) return text
-  const { lead, core, trail } = match.groups
-  if (core === undefined || core.length === 0) return text
-  return `${lead ?? ""}${renderInlineMarkdown(core, from)}${trail ?? ""}`
+/** Subtrees where a `#…` sequence is not a tag: code is code, a link's text
+ *  and href are not re-parsed for tags (a URL fragment is the sharpest case). */
+const SKIP_TAGS = new Set(["code", "a"])
+
+export interface TitleRender {
+  /** When false, markdown links are unwrapped to their children so the title
+   *  can sit inside an existing `<a>` (breadcrumb, see-ref) without nesting. */
+  readonly links?: boolean
 }
+
+/** Titles have their own cache: short, numerous, long-lived — a different
+ *  population from notes, and one that would thrash the note cache at ~500
+ *  rows if they shared the 512-slot map. */
+const titles = new Map<string, string>()
+const TITLE_CACHE_LIMIT = 1024
+
+/** One title → one HTML string, safe for `innerHTML`. */
+export const renderTitle = (
+  title: string,
+  from: string,
+  options: TitleRender = {},
+): string => {
+  const links = options.links !== false
+  const key = `${links ? "a" : "n"}\n${from}\n${title}`
+  const hit = titles.get(key)
+  if (hit !== undefined) return hit
+
+  const html = build(title, from, links)
+  if (titles.size >= TITLE_CACHE_LIMIT) titles.clear()
+  titles.set(key, html)
+  return html
+}
+
+const build = (title: string, from: string, links: boolean): string => {
+  const tree = renderToTree(title, from, "inline")
+  styleTags(tree)
+  if (!links) unwrapAnchors(tree)
+
+  // Empty render of non-empty source: the pipeline dropped everything (a
+  // thematic break, raw HTML that remark never promotes, a footnote def).
+  // An unlabelled row is worse than the marks; show the escaped source.
+  if (textOf(tree).trim() === "" && title.trim() !== "") {
+    return escapeHtml(title)
+  }
+  return hastToHtml(tree)
+}
+
+/** Walk text nodes and turn `#tags` into styled spans. */
+const styleTags = (tree: Root): void => {
+  walkTags(tree)
+}
+
+const walkTags = (parent: Root | Element): void => {
+  const next: ElementContent[] = []
+  for (const child of parent.children) {
+    if (child.type === "text") {
+      next.push(...splitTags(child.value))
+      continue
+    }
+    if (child.type === "element") {
+      if (!SKIP_TAGS.has(child.tagName)) walkTags(child)
+      next.push(child)
+      continue
+    }
+    // comments / doctype: drop for a title (nothing to show)
+  }
+  parent.children = next as typeof parent.children
+}
+
+const splitTags = (text: string): ElementContent[] => {
+  const parts: ElementContent[] = []
+  let at = 0
+  for (const match of text.matchAll(TAG)) {
+    const start = match.index
+    if (start > at) parts.push({ type: "text", value: text.slice(at, start) })
+    const name = match[0].slice(1)
+    parts.push({
+      type: "element",
+      tagName: "span",
+      properties: {
+        className: TAG_CLASS.split(" "),
+        dataTestid: TESTID.tag,
+      },
+      children: [{ type: "text", value: `#${name}` }],
+    })
+    at = start + match[0].length
+  }
+  if (at < text.length) parts.push({ type: "text", value: text.slice(at) })
+  return parts.length > 0 ? parts : text.length > 0 ? [{ type: "text", value: text }] : []
+}
+
+/** Lift every `<a>` to its children so a title inside a Link has no nested
+ *  anchors. Recurses first so nested structure is flattened cleanly. */
+const unwrapAnchors = (parent: Root | Element): void => {
+  const next: ElementContent[] = []
+  for (const child of parent.children) {
+    if (child.type !== "element") {
+      if (child.type === "text") next.push(child)
+      continue
+    }
+    unwrapAnchors(child)
+    if (child.tagName === "a") {
+      next.push(...(child.children as ElementContent[]))
+    } else {
+      next.push(child)
+    }
+  }
+  parent.children = next as typeof parent.children
+}
+
+const textOf = (tree: Root): string => {
+  let out = ""
+  const walk = (nodes: ReadonlyArray<RootContent | ElementContent>): void => {
+    for (const node of nodes) {
+      if (node.type === "text") out += (node as Text).value
+      else if (node.type === "element") walk(node.children)
+    }
+  }
+  walk(tree.children)
+  return out
+}
+
+/** Escape for the empty-render fallback. The alphabet of a real title can
+ *  hold `<`, so this is the one place raw source may reach `innerHTML`. */
+const escapeHtml = (value: string): string =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
