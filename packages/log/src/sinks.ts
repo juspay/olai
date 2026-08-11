@@ -96,6 +96,12 @@ export const colorsFor = (stream: Stream): boolean => {
   return stream.isTTY === true
 }
 
+// The only two colour states consolePretty can take. Built once; picked at
+// emit by {@link prettyFor} so colour stays emit-time without a fresh logger
+// per line (agent-stderr debug can be chatty).
+const prettyColored = Logger.consolePretty({ colors: true })
+const prettyPlain = Logger.consolePretty({ colors: false })
+
 /**
  * Pretty logger for `stream`, with colour re-read at **emit** time from that
  * stream (and `NO_COLOR`) — same discipline as {@link formatFor}. Binding
@@ -104,7 +110,7 @@ export const colorsFor = (stream: Stream): boolean => {
  */
 export const prettyFor = (stream: Stream): Logger.Logger<unknown, void> =>
   Logger.make((options) => {
-    Logger.consolePretty({ colors: colorsFor(stream) }).log(options)
+    ;(colorsFor(stream) ? prettyColored : prettyPlain).log(options)
   })
 
 /**
