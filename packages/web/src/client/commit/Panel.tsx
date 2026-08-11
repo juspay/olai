@@ -15,29 +15,20 @@
  * changed, and the moment somebody types in the box it is theirs. A composed
  * message can only ever describe the edits; a person — or an agent, through its
  * own tool — can say why they were made.
+ *
+ * Every word on screen comes from `./said.ts`. Nothing here decides what a
+ * change is called, which is what keeps the panel's vocabulary and the commit
+ * log's from being kept in step by hand.
  */
 
-import type { NodeChange, Pending } from "@olai/format"
-import { createSignal, For, onCleanup, Show } from "solid-js"
+import type { NodeChange } from "@olai/format"
+import { createSignal, For, Show } from "solid-js"
 
-import { GLYPH, SAID, WHO } from "./said.ts"
+import { because, GLYPH, SAID, trouble, verbatim, WHO } from "./said.ts"
 import type { Commit } from "./state.ts"
 import { TESTID } from "../testids.ts"
 
-/** Why the repository cannot take a commit, said the way a person would say
- *  it. Git's own words ride the pending value as `said` and are the title
- *  attribute; this is the sentence. */
-const BECAUSE: Readonly<Record<string, string>> = {
-  merge: "a merge is in progress — finish it first",
-  rebase: "a rebase is in progress — finish it first",
-  "cherry-pick": "a cherry-pick is in progress — finish it first",
-  detached: "HEAD is detached — check out a branch first",
-}
-
-export function Panel(props: {
-  readonly commit: Commit
-  readonly onClose: () => void
-}) {
+export function Panel(props: { readonly commit: Commit }) {
   const pending = () => props.commit.pending()
   const ready = () => pending().repo._tag === "Ready"
 
@@ -49,29 +40,6 @@ export function Panel(props: {
    *  every time the server recomputed what is waiting, which it does on a
    *  timer of its own. */
   const [draft, setDraft] = createSignal(pending().message)
-
-  /** Light dismiss. A popover that could only be closed by the control that
-   *  opened it is a popover people leave open by accident, and this one covers
-   *  the outline. */
-  const dismiss = (event: MouseEvent) => {
-    const panel = document.querySelector(`[data-testid="${TESTID.commitPanel}"]`)
-    const target = event.target
-    if (panel !== null && target instanceof Node && !panel.contains(target)) {
-      // The pill itself toggles, so a click on it must not both close this and
-      // re-open it; it is outside the panel, so it is excluded by name.
-      const pill = document.querySelector(`[data-testid="${TESTID.commitPill}"]`)
-      if (pill === null || !pill.contains(target)) props.onClose()
-    }
-  }
-  const escape = (event: KeyboardEvent) => {
-    if (event.key === "Escape") props.onClose()
-  }
-  document.addEventListener("mousedown", dismiss)
-  document.addEventListener("keydown", escape)
-  onCleanup(() => {
-    document.removeEventListener("mousedown", dismiss)
-    document.removeEventListener("keydown", escape)
-  })
 
   /** The changes, in file order, as one group per file. */
   const groups = (): ReadonlyArray<
@@ -105,6 +73,10 @@ export function Panel(props: {
                     data-testid={TESTID.commitChange}
                     data-node-id={change.id}
                     data-sort={change.sort}
+                    // The fields behind the word: "moved" is `parent, ord`,
+                    // and a row that changed three things says which three
+                    // without spending a line on it.
+                    title={change.fields.join(", ")}
                   >
                     <span class="w-3 shrink-0 text-muted" aria-hidden="true">
                       {GLYPH[change.sort]}
@@ -147,8 +119,17 @@ export function Panel(props: {
         </p>
       </Show>
 
+      {/* Why the button is disabled — said, rather than left for somebody to
+          work out from a control that does nothing. Git's own words are the
+          title, because they are what you would paste into a search. */}
       <Show when={!ready()}>
-        <Blocked repo={pending().repo} />
+        <p
+          class="text-xs text-doing"
+          data-testid={TESTID.commitBlocked}
+          title={verbatim(pending().repo)}
+        >
+          ⚠ {because(pending().repo)}
+        </p>
       </Show>
 
       <textarea
@@ -159,19 +140,10 @@ export function Panel(props: {
         onInput={(event) => setDraft(event.currentTarget.value)}
       />
 
-      <Show when={props.commit.refused()}>
-        {(failure) => (
+      <Show when={trouble(props.commit.attempt())}>
+        {(said) => (
           <p class="text-xs text-alarm" data-testid={TESTID.commitRefused}>
-            {failure().message}
-          </p>
-        )}
-      </Show>
-      {/* Only the answers that LEAVE something on screen. A commit that worked
-          republishes what is pending, and this whole panel goes with it. */}
-      <Show when={said(props.commit.answered())}>
-        {(trouble) => (
-          <p class="text-xs text-alarm" data-testid={TESTID.commitRefused}>
-            {trouble()}
+            {said()}
           </p>
         )}
       </Show>
@@ -189,42 +161,9 @@ export function Panel(props: {
   )
 }
 
-/** Why the button is disabled — said, rather than left for somebody to work
- *  out from a control that does nothing. Git's own words are the title, because
- *  they are what you would paste into a search. */
-function Blocked(props: { readonly repo: Pending["repo"] }) {
-  return (
-    <p
-      class="text-xs text-doing"
-      data-testid={TESTID.commitBlocked}
-      title={props.repo._tag === "Blocked" ? props.repo.said : undefined}
-    >
-      ⚠ {props.repo._tag === "Blocked"
-        ? BECAUSE[props.repo.reason] ?? props.repo.reason
-        : "there is nowhere to commit to"}
-    </p>
-  )
-}
-
 /** The button says how much it is about to record. Bare "Commit" when the only
  *  thing waiting is a file nothing could be counted in. */
 const label = (changes: number): string =>
-  changes === 0 ? "Commit" : `Commit ${changes} ${changes === 1 ? "change" : "changes"}`
-
-/** What an answer leaves on screen. `Committed` leaves nothing — the panel it
- *  was drawn in is gone by the time it could be read. */
-const said = (
-  answered: ReturnType<Commit["answered"]>,
-): string | null => {
-  if (answered === null) return null
-  switch (answered._tag) {
-    case "Committed":
-      return null
-    case "NothingToCommit":
-      return "nothing was waiting"
-    case "Blocked":
-      return "the repository is busy — nothing was committed"
-    case "Failed":
-      return answered.said
-  }
-}
+  changes === 0
+    ? "Commit"
+    : `Commit ${changes} ${changes === 1 ? "change" : "changes"}`

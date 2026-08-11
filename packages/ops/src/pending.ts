@@ -59,15 +59,33 @@ export interface Options {
   readonly mode: CommitMode
 }
 
+/**
+ * Everything git is asked to do, in one place — which is what makes the MODE
+ * one module's business rather than two. `off` has nothing to say, `manual`
+ * answers only when asked, and `auto` also takes the {@link Committing.automatic}
+ * door; every one of those is decided here, and `ops.ts` calls the same two
+ * verbs whichever mode it is in.
+ */
 export interface Committing {
   /** What is waiting, right now. UNFAILING: every way this can go wrong — no
    *  repository, a busy one, a set that has never loaded — is a value a reader
    *  is entitled to see rather than an error that would blank the panel. */
   readonly pending: Effect.Effect<Pending>
+  /** A commit somebody asked for: everything waiting, with a message. */
   readonly commit: (
     request: CommitRequest,
     writer: Writer,
   ) => Effect.Effect<CommitResult>
+  /**
+   * A commit NOBODY asked for: exactly the files one write produced, with that
+   * write's own summary — which is what `--commit=auto` is, and nothing in any
+   * other mode. Answers whether it committed, which is what an op reports.
+   */
+  readonly automatic: (
+    paths: ReadonlyArray<string>,
+    summary: string,
+    writer: Writer,
+  ) => Effect.Effect<boolean>
   /** Told that one write landed. The only thing in here that is remembered,
    *  and the only thing that is allowed to be wrong. */
   readonly wrote: (writer: Writer) => void
@@ -75,9 +93,10 @@ export interface Committing {
 
 /** Everything one round of questions asked of git. */
 interface Survey {
-  readonly placed: Git.Placement | null
+  /** The repository, when there is one to ask anything else of. */
+  readonly git: Git.Repo | null
   readonly repo: RepoState
-  /** The dirty outlines, root-relative. Empty whenever `placed` is `null`. */
+  /** The dirty outlines, root-relative. Empty whenever `git` is `null`. */
   readonly files: ReadonlyArray<string>
 }
 
@@ -103,19 +122,15 @@ export const make = (options: Options): Committing => {
    *  directory is not a repository. */
   const survey: Effect.Effect<Survey> = Effect.gen(function*() {
     if (options.mode === "off") {
-      return { placed: null, repo: { _tag: "Off" }, files: [] } as const
+      return { git: null, repo: { _tag: "Off" }, files: [] } as const
     }
-    const placed = yield* Git.place(options.root)
-    if (placed === null) {
-      return { placed: null, repo: { _tag: "NoRepo" }, files: [] } as const
+    const git = yield* Git.open(options.root)
+    if (git === null) {
+      return { git: null, repo: { _tag: "NoRepo" }, files: [] } as const
     }
-    const repo = yield* Git.state(options.root, placed)
-    const files = yield* Git.dirty(
-      options.root,
-      placed,
-      (file) => fileKind(file) === "outline",
-    )
-    return { placed, repo, files }
+    const repo = yield* git.state
+    const files = yield* git.dirty((file) => fileKind(file) === "outline")
+    return { git, repo, files }
   })
 
   /**
@@ -129,8 +144,8 @@ export const make = (options: Options): Committing => {
    */
   const detail = (survey: Survey): Effect.Effect<Detail> =>
     Effect.gen(function*() {
-      const placed = survey.placed
-      if (placed === null || survey.files.length === 0) {
+      const git = survey.git
+      if (git === null || survey.files.length === 0) {
         return { changes: [], unreadable: [] }
       }
 
@@ -153,7 +168,7 @@ export const make = (options: Options): Committing => {
           continue
         }
 
-        const head = yield* Git.show(options.root, placed, file)
+        const head = yield* git.show(file)
         if (head !== null) {
           const parsed = parseOutline(file, head)
           if (Result.isFailure(parsed)) {
@@ -194,14 +209,13 @@ export const make = (options: Options): Committing => {
   ): Effect.Effect<CommitResult> =>
     Effect.gen(function*() {
       const looked = yield* survey
-      if (looked.repo._tag !== "Ready" || looked.placed === null) {
+      if (looked.repo._tag !== "Ready" || looked.git === null) {
         return { _tag: "Blocked", repo: looked.repo } as const
       }
       if (looked.files.length === 0) return { _tag: "NothingToCommit" } as const
 
       const { changes } = yield* detail(looked)
-      const done = yield* Git.commit({
-        root: options.root,
+      const done = yield* looked.git.commit({
         // Named explicitly, exactly as the per-write commit always did: a
         // served directory is a working tree with other work in it.
         paths: looked.files.map((file) => options.store.resolve(file)),
@@ -215,5 +229,40 @@ export const make = (options: Options): Committing => {
       return { _tag: "Committed", sha: done.sha, changes: changes.length } as const
     })
 
-  return { pending, commit, wrote }
+  /**
+   * The per-write commit, which is the whole of `--commit=auto`.
+   *
+   * It is here rather than in the write loop for one reason: the repository
+   * check, the `olai` prefix, the writer trailer and the subprocess are the
+   * same four things a commit somebody asked for does, and having them in two
+   * modules would mean a change to how olai commits rippling into both.
+   *
+   * The repository check is also the part that is NEW. An agent marking a node
+   * done in the middle of a rebase could swallow the resolution, and a mode with
+   * nobody watching is exactly where that would happen unseen.
+   */
+  const automatic = (
+    paths: ReadonlyArray<string>,
+    summary: string,
+    writer: Writer,
+  ): Effect.Effect<boolean> =>
+    Effect.gen(function*() {
+      if (options.mode !== "auto" || paths.length === 0) return false
+      const git = yield* Git.open(options.root)
+      if (git === null) return false
+      const repo = yield* git.state
+      if (repo._tag !== "Ready") {
+        yield* Effect.annotateLogs(
+          Effect.logWarning(
+            "olai git: the repository is busy, so the write was not committed",
+          ),
+          { reason: repo._tag === "Blocked" ? repo.reason : repo._tag, summary },
+        )
+        return false
+      }
+      const done = yield* git.commit({ paths, message: signed(summary, writer) })
+      return done._tag === "Committed"
+    })
+
+  return { pending, commit, automatic, wrote }
 }

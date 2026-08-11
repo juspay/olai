@@ -14,7 +14,9 @@
  * them would mean the panel saying `capture:` at somebody.
  */
 
-import type { Sort } from "@olai/format"
+import type { Reason, RepoState, Sort } from "@olai/format"
+
+import type { Attempt } from "./state.ts"
 
 /** The phrase, in the past tense, because every one of these has happened
  *  already: the write is on disk and this is what is waiting to be recorded. */
@@ -67,4 +69,54 @@ export const WHO: Readonly<Record<string, string>> = {
   "chat-agent": "chat agent",
   mcp: "an agent in a terminal",
   web: "you",
+}
+
+/** Why the repository cannot take a commit right now. Git's own words ride the
+ *  pending value as `said` and are what the panel hangs on the line as a title;
+ *  this is the sentence. */
+export const because = (repo: RepoState): string => {
+  switch (repo._tag) {
+    case "Blocked":
+      return BLOCKED[repo.reason]
+    // Neither of these is ever drawn — the pill is absent for both — but a
+    // total function is what makes that true by construction rather than by
+    // the caller remembering.
+    default:
+      return "there is nowhere to commit to"
+  }
+}
+
+/** Git's own words, when there are any — what you would paste into a search,
+ *  which is why they are kept verbatim rather than folded into the sentence
+ *  above. */
+export const verbatim = (repo: RepoState): string | undefined =>
+  repo._tag === "Blocked" ? repo.said : undefined
+
+const BLOCKED: Readonly<Record<Reason, string>> = {
+  merge: "a merge is in progress — finish it first",
+  rebase: "a rebase is in progress — finish it first",
+  "cherry-pick": "a cherry-pick is in progress — finish it first",
+  detached: "HEAD is detached — check out a branch first",
+}
+
+/**
+ * What an attempt leaves on screen, or `null` for one that leaves nothing.
+ *
+ * A commit that WORKED is the `null`: it republishes what is pending, and the
+ * panel it would have been read in is gone with it.
+ */
+export const trouble = (attempt: Attempt | null): string | null => {
+  if (attempt === null) return null
+  switch (attempt._tag) {
+    case "Committed":
+      return null
+    case "NothingToCommit":
+      return "nothing was waiting"
+    case "Blocked":
+      return `${because(attempt.repo)} — nothing was committed`
+    case "Failed":
+      return attempt.said
+    case "Refused":
+      return attempt.failure.message
+  }
 }

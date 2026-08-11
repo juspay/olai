@@ -36,8 +36,6 @@ import {
 import { Effect, Result, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
-import * as Git from "./git.ts"
-import { signed } from "./message.ts"
 import * as Committing from "./pending.ts"
 import { type Context, plan } from "./plan.ts"
 import { index } from "./query.ts"
@@ -49,14 +47,17 @@ export interface Options {
   /** Absolute path of the served directory — where git runs. */
   readonly root: string
   /**
-   * How writes reach git. `manual` is the default and the whole point: a write
+   * How writes reach git. `manual` is the point of the whole thing: a write
    * lands on disk and WAITS, and something asks for a commit — the button, or
    * the agent's `commit` tool. `auto` is for a headless server with no browser
    * to press anything, and commits each write on its own the way olai used to.
-   * `off` is `olai web --no-commit`, for a directory whose history is somebody
-   * else's job (a sync folder that happens to be a checkout).
+   * `off` is `--no-commit`, for a directory whose history is somebody else's
+   * job (a sync folder that happens to be a checkout).
+   *
+   * Required, with no default here: `main.ts` already carries one for the flag,
+   * and a second would be a second answer to what happens when nobody says.
    */
-  readonly commits?: CommitMode
+  readonly commits: CommitMode
   /** Overridable so tests are deterministic: the id a new node gets and the
    *  date a mark is stamped with are the only two things about an op that are
    *  not a function of the snapshot. */
@@ -122,8 +123,11 @@ export const make = (options: Options): Ops => {
     today: () => new Date().toISOString().slice(0, 10),
   }
 
-  const mode: CommitMode = options.commits ?? "manual"
-  const committing = Committing.make({ store: options.store, root: options.root, mode })
+  const committing = Committing.make({
+    store: options.store,
+    root: options.root,
+    mode: options.commits,
+  })
 
   const read: Effect.Effect<Reading, OpFailure> = Effect.gen(function*() {
     const snapshot = yield* SubscriptionRef.get(options.store.snapshot)
@@ -137,41 +141,6 @@ export const make = (options: Options): Ops => {
     const set = snapshot.value as OutlineSet
     return { set, derived: index(set) }
   })
-
-  /**
-   * The one thing `auto` still does inside the write gate: commit exactly the
-   * files this op produced, with its own summary, the way olai committed before
-   * a person could ask for one. It runs after the bytes are published and
-   * cannot fail the write.
-   *
-   * The repository check is the part that is NEW, and it is why this is not
-   * simply what it used to be: an agent marking a node done in the middle of a
-   * rebase could swallow the resolution, and a mode with nobody watching is
-   * exactly where that would happen unseen.
-   */
-  const autoCommit = (
-    paths: ReadonlyArray<string>,
-    summary: string,
-    writer: Writer,
-  ): Effect.Effect<boolean> =>
-    Effect.gen(function*() {
-      const placed = yield* Git.place(options.root)
-      if (placed === null) return false
-      const repo = yield* Git.state(options.root, placed)
-      if (repo._tag !== "Ready") {
-        yield* Effect.annotateLogs(
-          Effect.logWarning("olai git: the repository is busy, so the write was not committed"),
-          { reason: repo._tag === "Blocked" ? repo.reason : repo._tag, summary },
-        )
-        return false
-      }
-      const done = yield* Git.commit({
-        root: options.root,
-        paths,
-        message: signed(summary, writer),
-      })
-      return done._tag === "Committed"
-    })
 
   const run = (
     request: Request,
@@ -199,13 +168,18 @@ export const make = (options: Options): Ops => {
         }))
         const paths = changes.map((change) => options.store.resolve(change.path))
 
+        // The post-publish hook, which is the whole of what `--commit=auto`
+        // still does inside the write gate: the bytes are on disk and the
+        // browser has seen them, and this cannot fail the write. In every
+        // other mode it answers `false` without spawning anything, so what
+        // decides is one module and not two.
         let committed = false
         const outcome = yield* Effect.result(
           options.store.commit({
             baseRev: snapshot.rev,
             changes,
-            afterPublish: mode !== "auto" ? Effect.void : Effect.map(
-              autoCommit(paths, about.summary, writer),
+            afterPublish: Effect.map(
+              committing.automatic(paths, about.summary, writer),
               (did) => {
                 committed = did
               },

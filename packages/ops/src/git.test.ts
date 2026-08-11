@@ -20,7 +20,7 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import { commit, dirty, place, type Placement, show, state } from "./git.ts"
+import { open, type Repo } from "./git.ts"
 
 /** A directory with a file in it and no repository anywhere it can reach —
  *  `/tmp` is not itself a work tree, and nothing here walks upwards past it. */
@@ -46,43 +46,42 @@ const repo = (): { readonly root: string; readonly file: string } => {
   return made
 }
 
-/** Every git question below is asked of a placement, so this is the prologue
- *  they share: place the directory, or fail the test saying it is not one. */
+/** Every question below is asked of a repository, so this is the prologue they
+ *  share: open the directory, or fail the test saying it is not one. */
+const asEffect = <A>(
+  root: string,
+  use: (git: Repo) => Effect.Effect<A>,
+): Effect.Effect<A> =>
+  Effect.flatMap(open(root), (git) =>
+    git === null
+      ? Effect.die(new Error(`${root} is not a work tree`))
+      : use(git))
+
 const asked = <A>(
   root: string,
-  use: (placed: Placement) => Effect.Effect<A>,
-): Promise<A> =>
-  Effect.runPromise(
-    Effect.flatMap(place(root), (placed) =>
-      placed === null
-        ? Effect.die(new Error(`${root} is not a work tree`))
-        : use(placed)),
-  )
+  use: (git: Repo) => Effect.Effect<A>,
+): Promise<A> => Effect.runPromise(asEffect(root, use))
 
-const placedOf = (root: string): Promise<Placement | null> =>
-  Effect.runPromise(place(root))
-
-test("a directory that is not a work tree has no placement", async () => {
+test("a directory that is not a work tree opens as nothing", async () => {
   const { root } = loose()
-  expect(await placedOf(root)).toBe(null)
+  expect(await Effect.runPromise(open(root))).toBe(null)
 })
 
-test("a served subdirectory knows what it is called from the repository root", async () => {
+test("a served subdirectory answers in ITS own path spelling", async () => {
   const { root } = repo()
   fs.mkdirSync(path.join(root, "notes"))
   fs.writeFileSync(path.join(root, "notes", "b.jsonl"), `{"id":"b","ord":"a0","title":"b"}\n`)
 
-  const placed = await placedOf(path.join(root, "notes"))
-  expect(placed?.prefix).toBe("notes/")
-  // And the served-root-relative name is what comes back out, not the
-  // repo-relative one git printed.
-  expect(await asked(path.join(root, "notes"), (at) => dirty(path.join(root, "notes"), at, () => true)))
+  // git prints `notes/b.jsonl`, because git speaks repo-relative paths. What
+  // comes back is what the SERVED root calls it — which is the whole reason
+  // the placement belongs to the handle rather than to a caller.
+  expect(await asked(path.join(root, "notes"), (git) => git.dirty(() => true)))
     .toEqual(["b.jsonl"])
 })
 
 test("a clean repository on a branch is ready", async () => {
   const { root } = repo()
-  expect(await asked(root, (at) => state(root, at))).toEqual({ _tag: "Ready", branch: "main" })
+  expect(await asked(root, (git) => git.state)).toEqual({ _tag: "Ready", branch: "main" })
 })
 
 test("a repository mid-merge says so rather than committing", async () => {
@@ -101,7 +100,7 @@ test("a repository mid-merge says so rather than committing", async () => {
     // Expected: the merge conflicts, and that is the state under test.
   }
 
-  const repoState = await asked(root, (at) => state(root, at))
+  const repoState = await asked(root, (git) => git.state)
   expect(repoState._tag).toBe("Blocked")
   expect(repoState._tag === "Blocked" ? repoState.reason : null).toBe("merge")
 })
@@ -111,7 +110,7 @@ test("a detached HEAD is blocked, in git's own words", async () => {
   const run = git(root)
   run("checkout", "--quiet", "--detach", "HEAD")
 
-  const repoState = await asked(root, (at) => state(root, at))
+  const repoState = await asked(root, (git) => git.state)
   expect(repoState._tag).toBe("Blocked")
   expect(repoState._tag === "Blocked" ? repoState.reason : null).toBe("detached")
   expect(repoState._tag === "Blocked" ? repoState.said : "").not.toBe("")
@@ -123,8 +122,8 @@ test("dirty names the served files that moved, filtered by the caller", async ()
   fs.writeFileSync(path.join(root, "new.jsonl"), `{"id":"n","ord":"a0","title":"n"}\n`)
   fs.writeFileSync(path.join(root, "notes.md"), "not an outline\n")
 
-  const found = await asked(root, (at) =>
-    dirty(root, at, (name) => name.endsWith(".jsonl")))
+  const found = await asked(root, (git) =>
+    git.dirty((name) => name.endsWith(".jsonl")))
   expect([...found].sort()).toEqual(["a.jsonl", "new.jsonl"])
 })
 
@@ -132,17 +131,23 @@ test("show is HEAD's copy, and null for a file HEAD has never had", async () => 
   const { root, file } = repo()
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
 
-  expect(await asked(root, (at) => show(root, at, "a.jsonl")))
+  expect(await asked(root, (git) => git.show("a.jsonl")))
     .toBe(`{"id":"a","ord":"a0","title":"a"}\n`)
-  expect(await asked(root, (at) => show(root, at, "never.jsonl"))).toBe(null)
+  expect(await asked(root, (git) => git.show("never.jsonl"))).toBe(null)
 })
 
 test("git refusing is a warning with git's own words in a field, and a Failed", async () => {
-  const { file, root } = loose()
+  const { root } = repo()
+  // A path git will not stage, because it is not in this repository at all.
+  // What is under test is the SHAPE of the refusal rather than this particular
+  // way of provoking one — a commit runs after the bytes are already on disk
+  // and on screen, so every way git can say no has to come back as an answer.
+  const outside = loose().file
   const { layer, said } = collector()
 
   const done = await Effect.runPromise(
-    commit({ root, paths: [file], message: "olai: a" }).pipe(Effect.provide(layer)),
+    asEffect(root, (git) => git.commit({ paths: [outside], message: "olai: a" }))
+      .pipe(Effect.provide(layer)),
   )
 
   // Never fails the write, and never claims to have committed.
@@ -162,9 +167,8 @@ test("a commit is the named paths, the message, and the sha it made", async () =
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
   fs.writeFileSync(path.join(root, "untouched.jsonl"), `{"id":"u","ord":"a0","title":"u"}\n`)
 
-  const done = await Effect.runPromise(
-    commit({ root, paths: [file], message: "olai: one edit\n\nX-Olai-Writer: web\n" }),
-  )
+  const done = await asked(root, (git) =>
+    git.commit({ paths: [file], message: "olai: one edit\n\nX-Olai-Writer: web\n" }))
   expect(done._tag).toBe("Committed")
   expect(done._tag === "Committed" ? done.sha : "").toMatch(/^[0-9a-f]{40}$/)
 

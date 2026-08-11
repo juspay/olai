@@ -40,7 +40,7 @@ in the system had to arrange:
 | `ops.ts` | the loop — read, plan, commit, re-plan on a stale base — and nothing else |
 | `pending.ts` | what is waiting to be committed, derived from git, and the one verb that commits it |
 | `message.ts` | what a commit nobody wrote a message for says |
-| `git.ts` | the plumbing: where the directory sits in a repository, whether it can take a commit, what is dirty, what HEAD had — and `commit` |
+| `git.ts` | the plumbing, behind one socket: `open(root)` answers with a repository — its state, what is dirty, what HEAD had, and `commit` — or `null` for a directory that is not a work tree |
 | `query.ts` | reading the set as NODES: search, one node, a subtree, the outlines |
 | `tools.ts` | the closed list of what an agent may do, and what it may not |
 | `mcp.ts` | those tools spoken as MCP, with no transport in it |

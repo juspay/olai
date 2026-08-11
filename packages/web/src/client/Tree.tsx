@@ -33,7 +33,7 @@ import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { Bullet } from "./Bullet.tsx"
 import { Checkbox } from "./Checkbox.tsx"
-import { createNoteExpand } from "./note/expand.ts"
+import { createClickAway } from "./away.ts"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
 import { TESTID } from "./testids.ts"
@@ -76,7 +76,7 @@ function Branch(props: {
     : undefined
 
   // Click/tap expand — local to this place, not a reading cell. No hover.
-  const note = createNoteExpand()
+  const note = createClickAway()
 
   return (
     <li
@@ -88,7 +88,7 @@ function Branch(props: {
       data-kind={props.row.kind}
       data-file={props.row.at.file}
       data-line={props.row.at.line}
-      data-note-open={note.expanded() ? "true" : "false"}
+      data-note-open={note.open() ? "true" : "false"}
     >
       <div class="flex items-baseline gap-1.5">
         <Show
@@ -147,7 +147,7 @@ function Branch(props: {
           <div class={PAST_CONTROLS} ref={note.setRoot}>
             <NodeBody
               shows={shows()}
-              expanded={note.expanded()}
+              expanded={note.open()}
               onToggle={note.toggle}
             />
           </div>

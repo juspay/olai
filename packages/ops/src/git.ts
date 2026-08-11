@@ -1,11 +1,19 @@
 /**
  * Git, as plumbing. Nothing here decides anything.
  *
- * Four questions and one verb, each a subprocess and each total: where the
- * served directory sits in a repository, whether that repository can take a
- * commit right now, which of the served files are dirty, what HEAD had in one
- * of them — and, the verb, commit exactly these paths with exactly this
- * message. What those answers MEAN is {@link ./pending.ts}'s.
+ * {@link open} is the socket: it answers with a {@link Repo} or with `null` for
+ * a directory that is not a work tree, and everything else is a method on it.
+ * Three questions and one verb, each a subprocess and each total — whether the
+ * repository can take a commit right now, which of the served files are dirty,
+ * what HEAD had in one of them, and commit exactly these paths with exactly
+ * this message. What those answers MEAN is {@link ./pending.ts}'s.
+ *
+ * WHERE the directory sits — the git directory, and what the served root is
+ * called from the repository root — is asked once, when the handle is opened,
+ * and then belongs to the handle. It is git's own business: git speaks
+ * repo-relative paths and everything above this file speaks served-root-relative
+ * ones, and a consumer that had to carry that around would be a consumer this
+ * volatility had leaked into.
  *
  * Two properties are decisions rather than accidents, and both are older than
  * this file's current shape:
@@ -25,9 +33,10 @@
  * conflict could swallow the resolution. That hole is what decided manual over
  * automatic, and this is where it is closed.
  *
- * {@link place} is asked ONCE per round and handed to the rest, because every
- * one of these is a process: a directory with twelve dirty outlines should cost
- * one `rev-parse`, not thirteen.
+ * A handle is opened once per round rather than kept, because a directory can
+ * become a repository while the server is running — and once per round is what
+ * makes a directory with twelve dirty outlines cost one `rev-parse` rather
+ * than thirteen.
  */
 
 import type { Reason, RepoState } from "@olai/format"
@@ -70,18 +79,11 @@ const git = (root: string, argv: ReadonlyArray<string>): Effect.Effect<Said> =>
   })
 
 /**
- * Where the served directory sits in a repository.
- *
- * Two answers out of one subprocess, because both are wanted together and each
- * would otherwise be a spawn of its own: where the git directory is — which is
- * what says a merge or a rebase is in flight — and what the served root is
- * called FROM the repository root, because git speaks repo-relative paths and
- * everything above this file speaks served-root-relative ones.
- *
- * `null` is "not a work tree", which includes a bare repository: there is
- * nowhere for the files to be.
+ * Where the served directory sits in a repository — two answers out of one
+ * subprocess, because both are wanted together and each would otherwise be a
+ * spawn of its own.
  */
-export interface Placement {
+interface Placement {
   readonly gitDir: string
   /** `""` when the served directory IS the repository root, `"docs/"` when it
    *  is a directory inside one. Git's own `--show-prefix` spelling: always
@@ -89,7 +91,7 @@ export interface Placement {
   readonly prefix: string
 }
 
-export const place = (root: string): Effect.Effect<Placement | null> =>
+const place = (root: string): Effect.Effect<Placement | null> =>
   Effect.map(
     git(root, [
       "rev-parse",
@@ -122,10 +124,39 @@ const IN_PROGRESS: ReadonlyArray<readonly [string, Reason]> = [
 ]
 
 /**
- * Whether this repository can take a commit right now, and why not when it
- * cannot.
+ * One repository, as everything above this file needs it.
+ *
+ * The whole surface, and it is four business verbs rather than the shape of the
+ * commands behind them: nothing here says `rev-parse`, and nothing above says
+ * it either.
  */
-export const state = (
+export interface Repo {
+  /** Whether it can take a commit right now, and why not when it cannot. */
+  readonly state: Effect.Effect<RepoState>
+  /** Which served files git thinks have moved, root-relative and in git's own
+   *  order. */
+  readonly dirty: (keep: (file: string) => boolean) => Effect.Effect<ReadonlyArray<string>>
+  /** One served file as HEAD has it, or `null` when HEAD does not. */
+  readonly show: (file: string) => Effect.Effect<string | null>
+  /** Commit exactly these ABSOLUTE paths with exactly this message. */
+  readonly commit: (what: Committing) => Effect.Effect<Done>
+}
+
+/** Open the directory as a repository, or answer `null` for one that is not a
+ *  work tree — which includes a bare repository: there is nowhere for the files
+ *  to be. `null` is not a failure. A served directory is often somebody's
+ *  notes under a sync folder, and `git init`-ing it behind their back is not
+ *  this program's business. */
+export const open = (root: string): Effect.Effect<Repo | null> =>
+  Effect.map(place(root), (placed) =>
+    placed === null ? null : {
+      state: state(root, placed),
+      dirty: (keep) => dirty(root, placed, keep),
+      show: (file) => show(root, placed, file),
+      commit: (what) => commit(root, what),
+    })
+
+const state = (
   root: string,
   placed: Placement,
 ): Effect.Effect<RepoState> =>
@@ -150,8 +181,6 @@ export const state = (
   })
 
 /**
- * Which served files git thinks have moved, root-relative and in git's order.
- *
  * `--porcelain -z` because the plain form quotes anything unusual and `-z` does
  * not; `-uall` because a brand-new outline is untracked and is exactly what a
  * first commit is for; `-- .` because the served directory may be one directory
@@ -160,7 +189,7 @@ export const state = (
  * A rename arrives as one entry naming both sides, and both are kept: the ids
  * on the old side are what say what left.
  */
-export const dirty = (
+const dirty = (
   root: string,
   placed: Placement,
   keep: (file: string) => boolean,
@@ -194,10 +223,9 @@ export const dirty = (
     return found
   })
 
-/** One served file as HEAD has it, or `null` when HEAD does not — which covers
- *  every file of a repository with no commits yet, and every file that is
- *  new. */
-export const show = (
+/** HEAD's copy covers every file of a repository with no commits yet, and every
+ *  file that is new, with the same `null`. */
+const show = (
   root: string,
   placed: Placement,
   file: string,
@@ -215,8 +243,6 @@ export type Done =
   | { readonly _tag: "Failed"; readonly said: string }
 
 export interface Committing {
-  /** Absolute path of the directory being served — where git runs. */
-  readonly root: string
   /** Absolute paths of the files to commit. */
   readonly paths: ReadonlyArray<string>
   /** Subject, body and trailer, whole. The `olai` prefix and the writer
@@ -235,9 +261,9 @@ export interface Committing {
  * it is part of: a linter refusing an outline write would leave the bytes on
  * disk and the reason somewhere nobody is looking.
  */
-export const commit = (what: Committing): Effect.Effect<Done> =>
+const commit = (root: string, what: Committing): Effect.Effect<Done> =>
   Effect.gen(function*() {
-    const staged = yield* git(what.root, ["add", "--", ...what.paths])
+    const staged = yield* git(root, ["add", "--", ...what.paths])
     if (!staged.ok) {
       yield* Effect.annotateLogs(
         Effect.logWarning("olai git: could not stage the write"),
@@ -246,7 +272,7 @@ export const commit = (what: Committing): Effect.Effect<Done> =>
       return { _tag: "Failed", said: staged.said } as const
     }
 
-    const committed = yield* git(what.root, [
+    const committed = yield* git(root, [
       "commit",
       "--no-verify",
       "-m",
@@ -264,6 +290,6 @@ export const commit = (what: Committing): Effect.Effect<Done> =>
       return { _tag: "Failed", said: committed.said } as const
     }
 
-    const head = yield* git(what.root, ["rev-parse", "HEAD"])
+    const head = yield* git(root, ["rev-parse", "HEAD"])
     return { _tag: "Committed", sha: head.ok ? head.said : "" } as const
   })

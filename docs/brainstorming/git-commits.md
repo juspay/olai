@@ -257,9 +257,15 @@ nothing new sends nothing.
 A commit is the third trigger and is explicit: the procedure republishes the cell
 the moment it is done, for the same reason.
 
-The git plumbing (`place`, `state`, `dirty`, `show`, `commit`) is in `ops/git.ts`
-and decides nothing. Comparing two parsed sets is pure and lives beside the
-format, with no git in it.
+The git plumbing is in `ops/git.ts` and decides nothing. Its socket is
+`open(root)`, answering with a `Repo` handle — `state`, `dirty`, `show`,
+`commit` — or `null` for a directory that is not a work tree. WHERE the served
+directory sits in the repository (the git directory, and what the root is called
+from the repository root) is asked once when the handle is opened and belongs to
+the handle: git speaks repo-relative paths, everything above speaks
+served-root-relative ones, and a consumer that had to carry that around would be
+a consumer the volatility had leaked into. Comparing two parsed sets is pure and
+lives beside the format, with no git in it.
 
 ### The same function serves history
 
@@ -320,6 +326,11 @@ body and the per-op summary an `auto` commit uses.
 `auto` is the old behaviour — one commit per op, the same per-op summary, now
 prefixed and signed — plus the one thing it was missing: it checks the repository
 state first and declines, out loud, into a merge or a rebase.
+
+The mode is one module's business. `pending.ts` owns all three arms — `off` has
+nothing to say, `manual` answers only when asked, `auto` also takes a per-write
+door — so the write loop calls the same verb whichever mode it is in, and a
+change to how olai commits cannot ripple into two places.
 
 ## Open questions
 
