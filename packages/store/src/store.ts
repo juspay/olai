@@ -280,9 +280,22 @@ export const make = <F, S, E>(
     const gate = yield* Semaphore.make(1)
     /** One probe-and-publish cycle, with no permit of its own — every caller
      *  below already holds it. */
-    const cycle = Effect.flatMap(
-      probe.run,
-      (found) => found === null ? Effect.void : Effect.asVoid(publish(found)),
+    const cycle = Effect.tapError(
+      Effect.flatMap(
+        probe.run,
+        (found) => found === null ? Effect.void : Effect.asVoid(publish(found)),
+      ),
+      // The store's OTHER kind of error, published on the channel the codec's
+      // own refusals travel — one channel, two kinds ({@link Codec.unreadable},
+      // which owns the argument). HERE rather than in the sync loop below,
+      // because it is a fact about a PROBE and not about who asked for one: a
+      // directory that cannot be read is the same news whether the backstop
+      // found it, a caller's `refresh` did, or the write gate did on its way in.
+      //
+      // It still FAILS afterwards. Publishing is telling everybody; the typed
+      // failure is answering the caller, and a `commit` that could not probe
+      // must not go on to judge a write against a tree it never saw.
+      (failure) => SubscriptionRef.set(errors, options.codec.unreadable(failure)),
     )
     const refresh = gate.withPermit(cycle)
 
@@ -380,31 +393,24 @@ export const make = <F, S, E>(
         yield* dirty.await
         yield* Effect.sleep(options.settle ?? DEFAULT_SETTLE)
         yield* dirty.close
-        // A probe that failed keeps the last good snapshot and PUBLISHES why.
+        // A probe that failed keeps the last good snapshot, and this fiber
+        // goes on: killing it would leave every reader on a page that is live,
+        // permanently stale and saying neither, which is the one failure mode
+        // a live store must not have. The next trigger, or the backstop, tries
+        // again.
         //
-        // Both halves matter and only the first used to be here. Killing this
-        // fiber would leave a page live and permanently stale, which is the
-        // one failure mode a live store must not have — so the failure is
-        // still caught, and the next trigger or the backstop tries again. But
-        // catching it was the whole of it: the reason went to the log, the
-        // outline froze at the last good revision, and every reader went on
-        // looking at a page that had stopped being true under a pill still
-        // claiming to be live.
+        // Catching it used to be the WHOLE of it, and that was the bug — the
+        // reason went to the log, the outline froze at the last good revision,
+        // and nothing on screen said so. It is published now, by `cycle`
+        // itself: this catch is what keeps the loop alive, not what decides
+        // whether anybody is told.
         //
-        // So it goes on the errors ref, in the caller's own words
-        // ({@link Codec.unreadable}), where a validation failure already
-        // goes — one channel, two kinds — and clears itself the moment a
-        // probe publishes again.
-        //
-        // `tapError` and then `catchCause`, in that order and not one
-        // `catchCause`: what is publishable is the TYPED failure, and a defect
-        // is a bug in this package rather than something a reader can act on,
-        // so it is logged and not dressed up as news about their directory.
-        yield* refresh.pipe(
-          Effect.tapError((failure) =>
-            SubscriptionRef.set(errors, options.codec.unreadable(failure))
-          ),
-          Effect.catchCause((cause) => Effect.logWarning("olai store: probe failed", cause)),
+        // `catchCause` rather than `catch`, because a defect here is a bug in
+        // this package rather than news about somebody's directory: it belongs
+        // in the log and nowhere else.
+        yield* Effect.catchCause(
+          refresh,
+          (cause) => Effect.logWarning("olai store: probe failed", cause),
         )
       }),
     ).pipe(Effect.forkScoped)

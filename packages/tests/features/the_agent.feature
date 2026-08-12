@@ -71,17 +71,18 @@ Feature: Talking to the agent
     And the chat says the turn was cancelled
 
   @scratch:chat
-  Scenario: A cancel the agent never received says so
-    # The regression this exists for: the cancel notification's failure was
-    # swallowed whole, so a cancel aimed at an agent whose pipe had died typed
-    # as a success — the button was pressed, the turn went on streaming, and
-    # nothing on screen said which of those two had happened. `deaf` is an
-    # agent that is alive and no longer reading, which is the shape of that
-    # failure a scenario can make happen on purpose.
+  Scenario: A cancel that did not stop the turn says so
+    # The regression this exists for: the button was pressed, the turn went on
+    # streaming, and nothing on screen said so. A cancel is a NOTIFICATION —
+    # written, never answered — and a pipe reports nothing back to the writer
+    # even when the reader has gone, so the write succeeding was evidence of
+    # nothing and every way of failing looked like success. The only honest
+    # evidence is the turn itself. `deaf` is an agent that has stopped reading
+    # and goes on streaming, which is that shape of failure on purpose.
     When I ask the agent "deaf"
     Then the agent is working
     When I cancel the turn
-    Then the chat eventually shows "the turn could not be cancelled"
+    Then the chat eventually shows "the agent was asked to stop and has not"
     And the agent is working
 
   @scratch:chat

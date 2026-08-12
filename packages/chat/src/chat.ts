@@ -113,6 +113,18 @@ export interface Chat {
   readonly stop: Effect.Effect<void>
 }
 
+/**
+ * How long the agent gets to act on a cancel before the panel says it has not.
+ *
+ * Long enough that an agent finishing a tool call and stopping cleanly is not
+ * accused of ignoring the request — a cancel arrives between two of a turn's
+ * own steps, not inside one — and short enough that somebody who pressed a
+ * button is not left wondering for the length of a turn, which is the whole
+ * complaint. It is a floor on being TOLD, never a deadline on the agent: this
+ * kills nothing and cancels nothing a second time.
+ */
+const CANCEL_GRACE = "5 seconds"
+
 export const make = (options: Options): Effect.Effect<Chat, never, never> =>
   Effect.gen(function*() {
     // A FACTORY over the handler, because the two are mutually referential:
@@ -341,6 +353,49 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         turn = running
       })
 
+    /**
+     * Stop the turn — and say so when it DOES NOT STOP.
+     *
+     * The refusal channel is the easy half and it was missing: `agent.cancel`
+     * used to swallow the notification's own failure, so a cancel that could
+     * not be put on the wire typed as a success. That is fixed at the source
+     * ({@link ./agent.ts}) and mapped here like every other verb's refusal.
+     *
+     * It is not the half a person sees. A cancel is a NOTIFICATION: it is
+     * written and never answered, and under Bun a pipe reports nothing back to
+     * the writer even when the reader has gone (checked, both for a closed
+     * stdin and for a process that has exited). So the write succeeding is not
+     * evidence of anything, and every way this actually fails — an agent that
+     * stopped reading, one that read it and carried on, one whose adapter
+     * dropped it — looks identical from here: the button was pressed, and the
+     * turn goes on streaming.
+     *
+     * The only honest evidence is the TURN. So the cancel is followed, on its
+     * own fiber, by a look at whether the thing it aimed at is still running,
+     * and a turn that outlived its own cancel says so where the panel already
+     * says what went wrong with no caller waiting. It is a `trouble` rather
+     * than a refusal because by then nobody is waiting on the click, and
+     * `begin` clears it on the next turn — a state the panel can see it is not
+     * in is a state it must not report.
+     */
+    const cancel: Effect.Effect<void, OpFailure> = Effect.gen(function*() {
+      const asked = turn
+      yield* Effect.catch(agent.cancel, (gone) => Effect.fail(asFailure(gone)))
+      if (asked === null) return
+      yield* Effect.forkDetach(Effect.gen(function*() {
+        yield* Effect.sleep(CANCEL_GRACE)
+        // A DIFFERENT turn is a turn that ended and was replaced, which is the
+        // cancel having worked; `null` is the same. Comparing the fiber rather
+        // than the status is what makes the second press of the button about
+        // the turn it was pressed for.
+        if (turn !== asked) return
+        move({
+          trouble:
+            "the agent was asked to stop and has not — the turn below is still running",
+        })
+      }))
+    })
+
     /** Forget what is waiting, and say so. Called wherever the thing they were
      *  queued behind has stopped meaning what it meant. */
     const dropQueue = (why: string): void => {
@@ -401,7 +456,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       // click that asked for it is what hears about it — the same treatment
       // `sessions` gets, and for the same reason: a verb that could not be
       // done says so where it was asked.
-      cancel: Effect.catch(agent.cancel, (gone) => Effect.fail(asFailure(gone))),
+      cancel,
       newSession: changeSession(agent.newSession),
       loadSession: (id: string) => changeSession(agent.loadSession(id)),
       sessions: Effect.catch(

@@ -66,6 +66,17 @@ import type { ExposeMap } from "@kolu/surface-mcp"
  * corpus that somehow produced thousands of cross-file errors would want the
  * same treatment `manifest` got.
  *
+ * It also carries the store's OTHER kind of failure now — a directory that
+ * could not be READ, as an `unreadable-directory` error (`@olai/store`'s
+ * `Codec.unreadable`) — and that lands here rather than needing a second
+ * channel precisely because this is one surface member with two faces on it.
+ * The browser draws it as the banner over its last-good tree and an agent
+ * reads the identical rows off this resource: the same fact, in the same
+ * vocabulary, at the same instant. "MCP and Web ops must be consistent"
+ * (HACKING.md) is a property of the wiring here rather than something two
+ * renderers have to be kept in step about — which is the argument for putting
+ * it on this cell rather than on the reply of whichever verb noticed.
+ *
  * `git` is whether the writes an agent makes are reaching a history — a cell of
  * one status and at most a sentence, so the cost rule is satisfied twice over,
  * and it is the same news the app header draws. An agent gets the reason on its

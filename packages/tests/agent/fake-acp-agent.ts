@@ -301,8 +301,15 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     say("thinking, and no longer listening")
     deaf = true
     process.stdin.destroy()
-    for (let tick = 0; tick < 200 && !cancelled; tick++) await sleep(50)
-    respond(id, { stopReason: cancelled ? "cancelled" : "end_turn" })
+    // ...and NEVER ANSWERS. The turn stays open for the length of the
+    // scenario, which is the whole of what is being reproduced: a cancel is
+    // written into a pipe nobody is reading, the write reports nothing back
+    // (under Bun a pipe never tells its writer the reader has gone — checked,
+    // both for a closed stdin and for a process that has exited), and the turn
+    // goes on. Everything about that used to look like success from olai's
+    // side, which is exactly why the panel has to watch the TURN rather than
+    // the write.
+    for (let tick = 0; tick < 600; tick++) await sleep(50)
     return
   }
 
