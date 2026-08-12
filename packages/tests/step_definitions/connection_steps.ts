@@ -8,7 +8,6 @@
  * and `support/hooks.ts` enforces that rather than trusting the tag.
  */
 
-import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 import { findLogfmt } from "@olai/log/testlib";
 
@@ -44,11 +43,13 @@ Then(
 /** The pill's other half: every subscription this page opened is delivering.
  *  `data-stopped` is absent when nothing has stopped and names what has when
  *  something did — so this asserts the fold is WIRED and quiet, which is what
- *  a page that is fine must look like. */
+ *  a page that is fine must look like. Through the world's own absence helper,
+ *  which retries across the render rather than reading the attribute once. */
 Then("no subscription has stopped", async function (this: OlaiWorld) {
-  assert.strictEqual(
-    await this.page.locator(CONNECTION).getAttribute("data-stopped"),
-    null,
+  await this.expectAttributeAbsent(
+    CONNECTION,
+    "data-stopped",
+    "the connection indicator",
   );
 });
 

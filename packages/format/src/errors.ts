@@ -172,6 +172,14 @@ export type OutlineError = typeof OutlineError.Type
 export const isCrossFile = (error: OutlineError): boolean =>
   (error.related ?? []).some((related) => related.file !== error.file)
 
+/** A `line` of 0 means there is no record to point at — the site is the path
+ *  itself. One code has that (`unreadable-directory`, which is about a
+ *  DIRECTORY), and the rule lives here rather than in whichever renderer
+ *  noticed first, which is the same argument {@link errorLine} makes: the
+ *  browser's rows and an agent's one-liner must not disagree about whether
+ *  `plan.jsonl:0` is a line number somebody could go and look for. */
+export const hasLine = (error: Pick<OutlineError, "line">): boolean => error.line > 0
+
 /** One error as one line of plain text.
  *
  *  "Every validation error names `file:line`" is a statement about the format,
@@ -180,7 +188,7 @@ export const isCrossFile = (error: OutlineError): boolean =>
  *  invents the same spelling, and they drift. The browser has its own, richer
  *  answer; this is for everything that has to fit on a line. */
 export const errorLine = (error: OutlineError): string =>
-  `${error.file}:${error.line} ${error.message}`
+  `${error.file}${hasLine(error) ? `:${error.line}` : ""} ${error.message}`
 
 /** Stable presentation order: by file, then by line, then by code.
  *

@@ -33,6 +33,8 @@
  * scanned.
  */
 
+import { createMemo } from "solid-js"
+
 import { lookOf, readoutOf, type SurfaceConnectionStatus, unhealthy } from "./status.ts"
 import { DOT, PILL } from "../readout.ts"
 import { TESTID } from "../testids.ts"
@@ -48,12 +50,31 @@ import { olai } from "../wire.ts"
 export const CLEARANCE = "pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"
 
 export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
-  /** Which subscriptions have stopped delivering. Read inside the component
-   *  because `client.health()` is a reactive accessor and this is the tracking
-   *  scope that draws from it — the framework's own rule for reading the fact. */
-  const stopped = () => unhealthy(olai.health())
-  const readout = () => readoutOf(props.status, stopped())
-  const look = () => lookOf(readout(), stopped())
+  /**
+   * Which subscriptions have stopped delivering.
+   *
+   * Read inside the component because `client.health()` is a reactive accessor
+   * and this is the tracking scope that draws from it — the framework's own
+   * rule for reading the fact. MEMOIZED because it is not a cheap read and
+   * this is not a cheap place to make it: `health()` walks every enrolled
+   * subscription and allocates one record per sub, enrolment is per KEY (one
+   * per open document, one per transcript row), and it re-folds on every
+   * membership change — so a streaming turn re-runs it on every row appended.
+   * Six JSX expressions below each compile to their own effect, which without
+   * a memo is that walk six times over per update. The framework's own
+   * consumers of this fact (`HostStatusPip`, `SurfaceGate`) memoize for the
+   * same reason.
+   *
+   * The `equals` is what makes the healthy case free: nothing erroring is the
+   * same empty list every time, so the memo stops there instead of handing
+   * five effects a fresh array to re-run on.
+   */
+  const stopped = createMemo(() => unhealthy(olai.health()), [], {
+    equals: (was, now) =>
+      was.length === now.length && was.every((name, at) => name === now[at]),
+  })
+  const readout = createMemo(() => readoutOf(props.status, stopped()))
+  const look = createMemo(() => lookOf(props.status, stopped()))
   return (
     <div
       // No position of its own: it is a READOUT and not a control — nothing

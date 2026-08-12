@@ -92,21 +92,29 @@ const walk = (parent: Root | Element, options: Rewrite, headings: Heading[]): vo
  * pass over one array: an `<img>` is void, so there is no subtree to carry.
  */
 const resolvePicture = (element: Element, from: string): void => {
-  const src = element.properties?.["src"]
-  const picture = typeof src === "string" ? pictureOf(from, src) : null
-  if (picture !== null && element.properties !== undefined) {
-    element.properties["src"] = mediaHref(picture)
+  const written = element.properties?.["src"]
+  const src = typeof written === "string" ? written : ""
+  const picture = src === "" ? null : pictureOf(from, src)
+  if (picture !== null) {
+    element.properties = { ...element.properties, src: mediaHref(picture) }
     return
   }
 
-  const named = typeof src === "string" && src !== "" ? src : "no file named"
   element.tagName = "span"
   element.properties = {
     className: [UNDRAWN],
     "data-testid": TESTID.undrawnPicture,
-    "data-src": named,
+    // Only when there IS one. An `![](…)` with nothing in it has no name to
+    // carry, and an attribute holding the words "no file named" would be prose
+    // in a slot every reader of the DOM takes for a src.
+    ...(src === "" ? {} : { "data-src": src }),
   }
-  element.children = [{ type: "text", value: `this picture could not be drawn: ${named}` }]
+  element.children = [{
+    type: "text",
+    value: src === ""
+      ? "this picture names no file"
+      : `this picture could not be drawn: ${src}`,
+  }]
 }
 
 /** What an undrawn picture looks like: a quiet inline box, in the same family

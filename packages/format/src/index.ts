@@ -88,6 +88,7 @@ export type { FailureKind } from "./failure.ts"
 export {
   compareErrors,
   errorLine,
+  hasLine,
   isCrossFile,
   OutlineError,
   reportStage,

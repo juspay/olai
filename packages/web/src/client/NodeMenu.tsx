@@ -123,11 +123,17 @@ export function NodeMenu(props: {
     setSaid(null)
     try {
       await action.run()
-    } catch {
+    } catch (cause) {
       // The verb's own words, lower-cased into a sentence — so a sixth action
       // needs no entry here, and none of them can be forgotten.
       setSaid(`couldn't ${action.label.toLowerCase()}`)
       clearing = setTimeout(() => setSaid(null), SAID_MS)
+      // ...and the CAUSE is kept, because a four-second sentence that fits in
+      // a gutter cannot carry it and a reader who wants to know why has
+      // nowhere else to look. A clipboard the browser refused and a bug in
+      // this app's own href-building produce the same message on screen; they
+      // must not produce the same thing in a console.
+      console.warn(`olai: "${action.label}" did not happen`, cause)
     }
   }
 

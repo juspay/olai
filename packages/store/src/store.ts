@@ -59,7 +59,7 @@ import type { FileSystem, Path, Scope } from "effect"
 
 import type { Codec } from "./codec.ts"
 import * as Disk from "./disk.ts"
-import { type PlatformFailure, StaleWrite } from "./errors.ts"
+import { PlatformFailure, StaleWrite } from "./errors.ts"
 import * as Probe from "./probe.ts"
 
 /** Monotonic per store. A snapshot's revision is what a later write will name
@@ -230,13 +230,41 @@ export const make = <F, S, E>(
     const snapshot = yield* SubscriptionRef.make<Snapshot<S> | null>(null)
     const errors = yield* SubscriptionRef.make<E | null>(null)
 
-    // A `SubscriptionRef` emits on every write, equal or not — and every
-    // emission here is a frame the server sends to every open browser. A valid
-    // probe clearing errors that were already clear is the common case, so it
-    // is the one that must not broadcast.
-    const clearErrors = Effect.flatMap(
-      SubscriptionRef.get(errors),
-      (current) => current === null ? Effect.void : SubscriptionRef.set(errors, null),
+    /**
+     * WHAT IS ON THE ERRORS REF, when what is on it is an unreadable
+     * directory — the failure's own words, or `null` for anything else.
+     *
+     * A `SubscriptionRef` emits on every write, equal or not, and every
+     * emission here is a frame the server sends to every open browser. So both
+     * writers below owe the same thing: say it when it changes, and say
+     * nothing when it has not. A directory that stays unreadable is re-probed
+     * by the backstop every sixty seconds and by every `commit` on its way in,
+     * and without this each one would push a byte-identical frame to every
+     * open tab, forever.
+     *
+     * Keyed on the failure's words rather than on `E`, which the store cannot
+     * compare — it never looks inside one.
+     */
+    const said = yield* Ref.make<string | null>(null)
+
+    const sayUnreadable = (failure: PlatformFailure) =>
+      Effect.flatMap(Ref.get(said), (before) =>
+        before === failure.message ? Effect.void : Effect.andThen(
+          Ref.set(said, failure.message),
+          SubscriptionRef.set(errors, options.codec.unreadable(failure)),
+        ))
+
+    // A valid probe clearing errors that were already clear is the common
+    // case, so it is the one that must not broadcast. It forgets `said` either
+    // way: that ref is about what is PUBLISHED, and a directory that broke,
+    // came back and broke again the same way would otherwise be reported once
+    // in its life.
+    const clearErrors = Effect.andThen(
+      Ref.set(said, null),
+      Effect.flatMap(
+        SubscriptionRef.get(errors),
+        (current) => current === null ? Effect.void : SubscriptionRef.set(errors, null),
+      ),
     )
 
     // What has moved since the last PUBLISHED revision. It is a ref rather than
@@ -257,6 +285,9 @@ export const make = <F, S, E>(
         if (Result.isFailure(outcome)) {
           // The snapshot stays where it is, so what moved is still owed to
           // whoever reads the next one: `since` is kept rather than cleared.
+          // What IS cleared is `said` — this write replaces whatever the
+          // unreadable path last published, so it must not go on claiming to.
+          yield* Ref.set(said, null)
           yield* SubscriptionRef.set(errors, outcome.failure)
           return Result.fail(outcome.failure)
         }
@@ -295,7 +326,7 @@ export const make = <F, S, E>(
       // It still FAILS afterwards. Publishing is telling everybody; the typed
       // failure is answering the caller, and a `commit` that could not probe
       // must not go on to judge a write against a tree it never saw.
-      (failure) => SubscriptionRef.set(errors, options.codec.unreadable(failure)),
+      sayUnreadable,
     )
     const refresh = gate.withPermit(cycle)
 

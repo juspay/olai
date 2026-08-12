@@ -175,6 +175,12 @@ export interface Agent {
 /** The ACP major version this client speaks. */
 const PROTOCOL = 1
 
+/** A cancel that could not be delivered, said the same way on both of its
+ *  paths — the refusal a caller gets, and the `trouble` the deferred one
+ *  reports through. Two literals that have to match for the panel to read
+ *  consistently is one literal. */
+const notCancelled = (why: string): string => `the turn could not be cancelled: ${why}`
+
 /** What `session/new` asks the Claude Code adapter to forward, and why: the
  *  adapter handles a `/model` slash command inside the wrapped CLI, so it never
  *  sees a config change and its `configOptions` keep naming the model the
@@ -777,10 +783,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
                   Effect.sleep("10 millis"),
                   notify(at, methods.agent.session.cancel, { sessionId: id }),
                 ),
-                (cause) =>
-                  Effect.sync(() => {
-                    trouble(`the turn could not be cancelled: ${reasonOf(cause)}`)
-                  }),
+                (cause) => Effect.sync(() => trouble(notCancelled(reasonOf(cause)))),
               ),
             )
           }
@@ -810,7 +813,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // their sentence is "the turn is still running".
       return Effect.mapError(
         notify(at, methods.agent.session.cancel, { sessionId: id }),
-        (gone) => new AgentGone({ why: `the turn could not be cancelled: ${gone.why}` }),
+        (gone) => new AgentGone({ why: notCancelled(gone.why) }),
       )
     })
 

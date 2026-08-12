@@ -78,14 +78,14 @@ test("a live wire under a dead subscription is not drawn as live", () => {
   const stopped = unhealthy(fact([sub("outlines"), sub("documents.keys", "gone")]))
   expect(stopped).toEqual(["documents.keys"])
   expect(readoutOf("live", stopped)).toBe("degraded")
-  expect(lookOf("degraded", stopped).dot).not.toBe(LOOK.live.dot)
-  expect(lookOf("degraded", stopped).label).not.toBe(LOOK.live.label)
+  expect(lookOf("live", stopped).dot).not.toBe(LOOK.live.dot)
+  expect(lookOf("live", stopped).label).not.toBe(LOOK.live.label)
 })
 
 // What stopped is NAMED. "Something is not arriving" is the least useful true
 // thing available, and a reader cannot act on it.
 test("the degraded detail names what stopped", () => {
-  expect(lookOf("degraded", ["documents.keys", "transcript"]).detail)
+  expect(lookOf("live", ["documents.keys", "transcript"]).detail)
     .toContain("documents.keys, transcript")
 })
 

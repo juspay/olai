@@ -108,22 +108,29 @@ export const readoutOf = (
 ): Readout => (status === "live" && stopped.length > 0 ? "degraded" : status)
 
 /**
- * How the readout looks — ALL five states, through one door.
+ * How the readout looks — ALL five states, through one door, from the SAME
+ * two facts `readoutOf` reads.
+ *
+ * It derives the readout rather than taking one, and that is the point: given
+ * the state separately, `lookOf("degraded", [])` would be spellable and would
+ * draw "nothing is arriving on " — a sentence with a hole in it, for a state
+ * the domain does not have. A caller that wants the state's NAME asks
+ * `readoutOf`; nothing has to keep two answers in step.
  *
  * `LOOK` stays a `Record` because a missing transport state must be a type
  * error, and the fifth cannot join it: its detail NAMES what stopped, and a
  * reader told only that "something is not arriving" has been told the least
- * useful true thing available. So the table answers four and this answers
- * five, and what a caller asks is "how does this look" rather than "which of
- * the two shapes is this one in".
+ * useful true thing available.
  */
 export const lookOf = (
-  readout: Readout,
+  status: SurfaceConnectionStatus,
   stopped: ReadonlyArray<string>,
-): Look =>
-  readout !== "degraded" ? LOOK[readout] : {
+): Look => {
+  const readout = readoutOf(status, stopped)
+  return readout !== "degraded" ? LOOK[readout] : {
     dot: "bg-doing",
     label: "partly live",
     detail:
       `connected, but nothing is arriving on ${stopped.join(", ")} — what is on screen is missing whatever those carry, and may be missing it silently`,
   }
+}

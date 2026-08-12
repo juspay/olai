@@ -7,7 +7,7 @@
  */
 
 export type { Codec } from "./codec.ts"
-export { PlatformFailure, StaleWrite } from "./errors.ts"
+export { PlatformFailure, ROOT_ITSELF, StaleWrite } from "./errors.ts"
 export {
   type Change,
   make,

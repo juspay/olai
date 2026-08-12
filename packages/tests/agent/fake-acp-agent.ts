@@ -82,6 +82,13 @@ const respond = (id: unknown, result: unknown): void => {
   emit({ jsonrpc: "2.0", id, result })
 }
 
+/** The other half of {@link respond}: a request we will not answer. Named for
+ *  the same reason its sibling is — the envelope is the protocol's, not this
+ *  file's, and two hand-built copies is how one of them drifts. */
+const refuse = (id: unknown, code: number, message: string): void => {
+  emit({ jsonrpc: "2.0", id, error: { code, message } })
+}
+
 const notify = (method: string, params: unknown): void => {
   emit({ jsonrpc: "2.0", method, params })
 }
@@ -375,7 +382,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     // goes on. Everything about that used to look like success from olai's
     // side, which is exactly why the panel has to watch the TURN rather than
     // the write.
-    for (let tick = 0; tick < 600; tick++) await sleep(50)
+    await sleep(30_000)
     return
   }
 
@@ -732,11 +739,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       // list, and the whole point of the scenario that arms it: the two used
       // to reach the picker as the same thing.
       if (listRefused) {
-        emit({
-          jsonrpc: "2.0",
-          id,
-          error: { code: -32000, message: "the conversation store is unreadable" },
-        })
+        refuse(id, -32000, "the conversation store is unreadable")
         return
       }
       respond(id, { sessions: stored() ? storedSessions() : [] })
@@ -795,11 +798,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
 
     default:
       if (id !== undefined && id !== null) {
-        emit({
-          jsonrpc: "2.0",
-          id,
-          error: { code: -32601, message: `no such method: ${String(method)}` },
-        })
+        refuse(id, -32601, `no such method: ${String(method)}`)
       }
   }
 }

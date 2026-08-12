@@ -208,8 +208,11 @@ test("a directory that cannot be read reaches the agent, not just the browser", 
     await refresh().catch(() => {})
 
     const errors = await readJson(client, "surface://cells/errors")
+    // `.` and not the absolute root: every site in this vocabulary is
+    // root-relative, and the server's filesystem layout is not something a
+    // reader of an outline is owed.
     expect(errors).toEqual([
-      expect.objectContaining({ code: "unreadable-directory", file: root, line: 0 }),
+      expect.objectContaining({ code: "unreadable-directory", file: ".", line: 0 }),
     ])
   })
 })

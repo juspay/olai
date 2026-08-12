@@ -17,7 +17,7 @@
  * that file's outline would have been.
  */
 
-import { isCrossFile, type OutlineError } from "@olai/format"
+import { hasLine, isCrossFile, type OutlineError } from "@olai/format"
 import { createMemo, For, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
@@ -110,15 +110,15 @@ function Row(props: { readonly error: OutlineError }) {
   )
 }
 
-/** `file:line`, or just the file when there is no line to name — which is the
- *  case for exactly one code: a directory that could not be read has a path and
- *  no record, and `plan.jsonl:0` reads as a line number somebody could look
- *  for. */
+/** `file:line`, or just the file when there is no line to name. WHICH of those
+ *  it is comes from the format (`hasLine`) rather than from a comparison
+ *  written here: an agent's one-liner and these rows must not disagree about
+ *  whether `plan.jsonl:0` is a line number somebody could go and look for. */
 function Site(props: { readonly file: string; readonly line: number }) {
   return (
     <code class="mr-2 font-mono text-[0.8125rem] text-muted">
       {props.file}
-      {props.line > 0 ? `:${props.line}` : ""}
+      {hasLine(props) ? `:${props.line}` : ""}
     </code>
   )
 }

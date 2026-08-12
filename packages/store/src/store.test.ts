@@ -146,18 +146,7 @@ const withStore = <A>(
               .join("/")
           )
           .sort(),
-      settled: (holds) =>
-        Effect.gen(function*() {
-          for (let attempt = 0; attempt < 200; attempt++) {
-            const snapshot = yield* SubscriptionRef.get(store.snapshot)
-            if (holds(snapshot)) return snapshot
-            yield* Effect.sleep("25 millis")
-          }
-          const stuck = yield* SubscriptionRef.get(store.snapshot)
-          return yield* Effect.die(
-            new Error(`the snapshot never settled; it is ${JSON.stringify(stuck)}`),
-          )
-        }),
+      settled: (holds) => until(store.snapshot, holds, "the snapshot never settled"),
     })
   }).pipe(
     Effect.scoped,
@@ -168,6 +157,30 @@ const withStore = <A>(
   })
 }
 
+/**
+ * Poll one ref until it says what a test is waiting for, or die saying what it
+ * said instead.
+ *
+ * ONE poller for both channels. Nothing in here waits on a duration: a test
+ * that sleeps for as long as it guesses an update takes is flaky on a loaded
+ * runner and slow everywhere else — and a second copy of that budget is one
+ * place to tune it and another to leave stale.
+ */
+const until = <A>(
+  ref: SubscriptionRef.SubscriptionRef<A>,
+  holds: (value: A) => boolean,
+  never: string,
+): Effect.Effect<A> =>
+  Effect.gen(function*() {
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const value = yield* SubscriptionRef.get(ref)
+      if (holds(value)) return value
+      yield* Effect.sleep("25 millis")
+    }
+    const stuck = yield* SubscriptionRef.get(ref)
+    return yield* Effect.die(new Error(`${never}; it is ${JSON.stringify(stuck)}`))
+  })
+
 const snapshotOf = (store: Store.Store<Loaded, ReadonlyArray<string>>) =>
   SubscriptionRef.get(store.snapshot)
 
@@ -175,18 +188,9 @@ const errorsOf = (store: Store.Store<Loaded, ReadonlyArray<string>>) =>
   SubscriptionRef.get(store.errors)
 
 /** Poll until something is on the errors channel — for the failures nobody
- *  asked for, which arrive on the backstop's own fiber. Same shape and same
- *  reason as `settled`: a test that sleeps for as long as it guesses is flaky
- *  on a loaded runner and slow everywhere else. */
+ *  asked for, which arrive on the backstop's own fiber. */
 const settledErrors = (store: Store.Store<Loaded, ReadonlyArray<string>>) =>
-  Effect.gen(function*() {
-    for (let attempt = 0; attempt < 200; attempt++) {
-      const errors = yield* errorsOf(store)
-      if (errors !== null) return errors
-      yield* Effect.sleep("25 millis")
-    }
-    return yield* Effect.die(new Error("nothing ever reached the errors channel"))
-  })
+  until(store.errors, (errors) => errors !== null, "nothing reached the errors channel")
 
 // ── boot ───────────────────────────────────────────────────────────────
 

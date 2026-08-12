@@ -421,7 +421,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      */
     const cancel: Effect.Effect<void, OpFailure> = Effect.gen(function*() {
       const asked = turn
-      yield* Effect.catch(agent.cancel, (gone) => Effect.fail(asFailure(gone)))
+      yield* Effect.mapError(agent.cancel, asFailure)
       if (asked === null) return
       yield* Effect.forkDetach(Effect.gen(function*() {
         yield* Effect.sleep(CANCEL_GRACE)

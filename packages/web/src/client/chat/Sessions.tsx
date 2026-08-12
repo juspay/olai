@@ -74,8 +74,12 @@ export function Sessions(props: { readonly chat: Chat }) {
               above, and drawing them as siblings that each test the tag would
               be the exclusivity spelled again in a second place. "Refused" was
               the arm that did not exist, and an empty list was standing in for
-              it. */}
-          <Switch>
+              it. `asking` is the FALLBACK rather than a third `<Match>`: it is
+              the state the popover opens in and the one nothing has answered
+              yet, so it is what is left rather than something to test for. */}
+          <Switch
+            fallback={<li class="px-2 py-1 text-xs text-muted">asking the agent…</li>}
+          >
             <Match when={refusedIn(picker())}>
               {(failure) => (
                 <li class="px-2 py-1" data-testid={TESTID.chatSessionsRefused}>
@@ -122,9 +126,6 @@ export function Sessions(props: { readonly chat: Chat }) {
                   </For>
                 </Show>
               )}
-            </Match>
-            <Match when={picker()._tag === "asking"}>
-              <li class="px-2 py-1 text-xs text-muted">asking the agent…</li>
             </Match>
           </Switch>
         </ul>

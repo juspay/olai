@@ -17,14 +17,23 @@
 
 import { Data } from "effect"
 
+/** The served directory itself, in the same root-relative spelling every other
+ *  path in this package uses. A failure about the ROOT used to carry the
+ *  absolute path instead, which was two vocabularies on one field — and, once
+ *  this became something a browser renders, the server's filesystem layout on
+ *  somebody's screen. */
+export const ROOT_ITSELF = "."
+
 export class PlatformFailure extends Data.TaggedError("PlatformFailure")<{
+  /** Root-relative and `/`-spelled, like every path this package publishes —
+   *  {@link ROOT_ITSELF} when it is the directory itself. */
   readonly path: string
   readonly cause: unknown
 }> {
   override get message(): string {
-    return `cannot read ${this.path}: ${
-      this.cause instanceof Error ? this.cause.message : String(this.cause)
-    }`
+    return `cannot read ${
+      this.path === ROOT_ITSELF ? "the served directory" : this.path
+    }: ${this.cause instanceof Error ? this.cause.message : String(this.cause)}`
   }
 }
 
