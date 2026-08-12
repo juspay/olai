@@ -2,7 +2,7 @@
  * The fast path is only allowed to be fast if it is also RIGHT.
  *
  * ./plain.ts answers a title without the markdown pipeline, which is what lets
- * an outline paint before ~390 KB of parser has been fetched. The claim it
+ * an outline paint before ~391 KB of parser has been fetched. The claim it
  * makes is narrow and total: for every title it accepts, what it writes is
  * byte for byte what the pipeline would have written. So that is what is
  * tested — both ways round, because the two failures are not the same failure:

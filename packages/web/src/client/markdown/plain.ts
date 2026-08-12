@@ -2,7 +2,7 @@
  * A title with no markdown in it — which is nearly every title there is.
  *
  * The tree an outline paints first is rows of titles, and ./pipeline.ts is
- * ~390 KB the page would otherwise have to fetch and evaluate before it could
+ * ~391 KB the page would otherwise have to fetch and evaluate before it could
  * draw one. Almost none of them need it: `sow the basil`, `kitchen remodel
  * #home`, `Roadmap initial load feels very slow` are words and tags, and what
  * the pipeline does to words is hand them back.
@@ -76,8 +76,8 @@ const isPlain = (title: string): boolean => {
   if (/#(?![A-Za-z0-9_/-])/.test(title)) return false
 
   // A line that opens with a list marker or an ordered number is a list item,
-  // and the marker would be eaten. (`*` and `+`'s cousins are already gone
-  // above; `-` and digits are not.)
+  // and the marker would be eaten. (`*` is already gone with the emphasis
+  // characters above; `-`, `+` and a digit are not.)
   if (/^(?:[-+]|\d{1,9}[.)])(?:\s|$)/.test(title)) return false
 
   // A line of dashes or equals is a rule, not words.

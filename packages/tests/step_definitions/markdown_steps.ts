@@ -19,11 +19,11 @@ import type { OlaiWorld } from "../support/world.ts";
 
 /**
  * The chunk's URL, as the build names it (`packages/web/src/markdown.ts`:
- * `markdown-[hash].js`, under the hashed asset prefix). A glob for the route
- * and a regexp for reading the recording back — the same shape said the two
- * ways the two APIs want it.
+ * `markdown-[hash].js`, under the hashed asset prefix). ONE spelling, used
+ * both to intercept the request and to read the recording back — so what a
+ * scenario holds up and what it then claims was never asked for cannot drift
+ * apart.
  */
-const CHUNK_GLOB = "**/assets/markdown-*.js";
 const CHUNK_URL = /\/assets\/markdown-[^/]+\.js$/;
 
 const asked = (world: OlaiWorld): ReadonlyArray<string> =>
@@ -34,13 +34,13 @@ Given("the markdown pipeline is held up", async function (this: OlaiWorld) {
   this.heldMarkdown = held;
   // Registered before the page is opened, so it catches the fetch whenever the
   // app makes it — the point of the scenario is that it has not arrived YET.
-  await this.page.route(CHUNK_GLOB, (route) => {
+  await this.page.route(CHUNK_URL, (route) => {
     held.push(route);
   });
 });
 
 Given("the markdown pipeline never arrives", async function (this: OlaiWorld) {
-  await this.page.route(CHUNK_GLOB, (route) => route.abort("failed"));
+  await this.page.route(CHUNK_URL, (route) => route.abort("failed"));
 });
 
 When("the markdown pipeline arrives", async function (this: OlaiWorld) {
@@ -76,7 +76,7 @@ Then("the markdown pipeline was fetched once", function (this: OlaiWorld) {
 });
 
 Then("the document shows its own markdown source", async function (this: OlaiWorld) {
-  const body = this.page.locator(DOCUMENT_BODY);
+  const body = this.documentBody();
   await body.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   // The marks themselves: a rendering would have turned these into elements,
   // so seeing them is seeing the file rather than a page of it.

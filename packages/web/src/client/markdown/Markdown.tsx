@@ -58,6 +58,7 @@ export function Markdown(props: {
         : renderMarkdown(props.source, props.from)
       : undefined
   )
+  const waiting = (): boolean => html() === undefined
   const classes = (): string => `olai-md ${props.class ?? ""}`
 
   return (
@@ -65,9 +66,13 @@ export function Markdown(props: {
       when={markdownFailure()}
       fallback={
         <div
-          class={html() === undefined ? `${classes()} whitespace-pre-wrap` : classes()}
+          class={classes()}
+          // The SAME element either way, dressed differently — nothing
+          // remounts when the rendering replaces the source, so nothing on the
+          // page moves but the words themselves.
+          classList={{ "whitespace-pre-wrap": waiting() }}
           data-testid={props.testid}
-          data-markdown={html() === undefined ? "waiting" : undefined}
+          data-markdown={waiting() ? "waiting" : undefined}
           // Safe because the pipeline sanitises (see ./render.ts), and because
           // the text of the file it came from is escaped when there is no
           // pipeline yet.

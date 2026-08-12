@@ -50,11 +50,26 @@ export interface TitleRender {
   readonly links?: boolean
 }
 
-/** Titles have their own cache: short, numerous, long-lived — a different
- *  population from notes, and one that would thrash the note cache at ~500
- *  rows if they shared the 512-slot map. */
-const titles = new Map<string, string>()
-const TITLE_CACHE_LIMIT = 1024
+/**
+ * Titles have their own caches: short, numerous, long-lived — a different
+ * population from notes, and one that would thrash the note cache at ~500 rows
+ * if they shared the 512-slot map. TWO of them, because a plain title and a
+ * rendered one are different populations again:
+ *
+ *   - a PLAIN title (./plain.ts) depends on nothing but the title, so it is
+ *     keyed on the title alone and the same words in a row, a breadcrumb and a
+ *     see-ref are one entry rather than three;
+ *   - a RENDERED one depends on the file it is in (relative pictures) and on
+ *     whether its links survive, so it is keyed on all three.
+ *
+ * Separate maps rather than one, because the caps are what they are for: plain
+ * titles are ~99% of them and cost a few regexes, and letting them fill a
+ * shared map would drop the handful of pipeline renders — the expensive
+ * ones — on every clear.
+ */
+const plainTitles = new Map<string, string>()
+const rendered = new Map<string, string>()
+const CACHE_LIMIT = 1024
 
 /** One title → one HTML string, safe for `innerHTML`. */
 export const renderTitle = (
@@ -62,25 +77,31 @@ export const renderTitle = (
   from: string,
   options: TitleRender = {},
 ): string => {
+  const wasPlain = plainTitles.get(title)
+  if (wasPlain !== undefined) return wasPlain
+  const plain = plainTitle(title)
+  if (plain !== null) return remember(plainTitles, title, plain)
+
   const links = options.links !== false
   const key = `${links ? "a" : "n"}\n${from}\n${title}`
-  const hit = titles.get(key)
+  const hit = rendered.get(key)
   if (hit !== undefined) return hit
-
-  const plain = plainTitle(title)
-  if (plain !== null) return remember(key, plain)
 
   // Not cached: this is what the title looks like WHILE the chunk is coming,
   // and a cache is exactly the thing that would still be handing it out
   // afterwards. The read is what re-runs the caller's memo when it lands.
   if (!markdownReady()) return escapeHtml(title)
 
-  return remember(key, build(title, from, links))
+  return remember(rendered, key, build(title, from, links))
 }
 
-const remember = (key: string, html: string): string => {
-  if (titles.size >= TITLE_CACHE_LIMIT) titles.clear()
-  titles.set(key, html)
+const remember = (
+  cache: Map<string, string>,
+  key: string,
+  html: string,
+): string => {
+  if (cache.size >= CACHE_LIMIT) cache.clear()
+  cache.set(key, html)
   return html
 }
 

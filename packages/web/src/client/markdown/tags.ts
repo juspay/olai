@@ -2,10 +2,10 @@
  * `#tags` in a title, styled.
  *
  * A view-time split, like the markdown around it: the title is stored verbatim
- * and what is a tag is decided only when it is drawn. The alphabet is
- * {@link titleTagRe} from `@olai/format` — the client does not re-declare it —
- * and the boundary decision (where a tag starts and stops) is made once, in
- * {@link splitTags}, so nothing that draws a title can disagree about it.
+ * and what is a tag is decided only when it is drawn. WHERE a tag starts and
+ * stops is `titleParts` from `@olai/format` — the same walk the search index
+ * asks for its tag facet — so the client neither re-declares the alphabet nor
+ * re-derives the boundaries. What is here is only what a tag LOOKS like.
  *
  * Two renderings of the same pill live here, and they must agree:
  *
@@ -20,19 +20,18 @@
  * holds them to each other by rendering the same titles both ways.
  */
 
-import { titleTagRe } from "@olai/format"
+import { titleParts } from "@olai/format"
 import type { Element, ElementContent, Root } from "hast"
 
 import { TESTID } from "../testids.ts"
 
 /**
- * The class a styled tag wears. A complete string literal so Tailwind's content
- * scan still finds both utilities when the markup is built as HTML rather than
- * as a Solid element.
+ * The class a styled tag wears — the Workflowy-exact pill (#102): a subtle
+ * rounded chip, not bold accent text.
+ *
+ * A complete string literal so Tailwind's content scan still finds every
+ * utility when the markup is built as HTML rather than as a Solid element.
  */
-// Workflowy-exact tag pill (#102): subtle rounded chip, not bold accent text.
-// Complete string literal so Tailwind's content scan still finds every utility
-// when the markup is built as HTML rather than as a Solid element.
 export const TAG_CLASS =
   "mx-0.5 inline-block max-w-full rounded-sm bg-accent/15 px-1 py-px text-[0.8125rem] font-normal leading-snug text-accent"
 
@@ -58,32 +57,27 @@ export const styleTags = (parent: Root | Element): void => {
 }
 
 /** One run of text, as the text and pills it turns out to be. */
-export const splitTags = (text: string): ElementContent[] => {
-  const parts: ElementContent[] = []
-  let at = 0
-  // Fresh regex from @olai/format — the alphabet is one place, not two.
-  for (const match of text.matchAll(titleTagRe())) {
-    const start = match.index
-    if (start > at) parts.push({ type: "text", value: text.slice(at, start) })
-    parts.push(pill(match[0].slice(1)))
-    at = start + match[0].length
-  }
-  if (at < text.length) parts.push({ type: "text", value: text.slice(at) })
-  return parts.length > 0 ? parts : text.length > 0 ? [{ type: "text", value: text }] : []
-}
+const splitTags = (text: string): ElementContent[] =>
+  titleParts(text).map((part) =>
+    part.kind === "tag"
+      ? pill(part.tag)
+      : ({ type: "text", value: part.text } as ElementContent),
+  )
 
 /** The same text and the same pills, written straight to HTML — no tree, and
  *  so no stringifier to wait for. */
 export const taggedHtml = (text: string): string => {
-  let html = ""
-  let at = 0
-  for (const match of text.matchAll(titleTagRe())) {
-    const start = match.index
-    if (start > at) html += escapeText(text.slice(at, start))
-    html += `<span class="${TAG_CLASS}" data-testid="${TESTID.tag}">${escapeText(match[0])}</span>`
-    at = start + match[0].length
-  }
-  return html + escapeText(text.slice(at))
+  // Guarded by a plain `indexOf`, as `@olai/ops`'s search index guards the
+  // same call: `titleParts` runs a global regex and allocates a part per
+  // segment, and most titles hold no tag at all.
+  if (!text.includes("#")) return escapeText(text)
+  return titleParts(text)
+    .map((part) =>
+      part.kind === "tag"
+        ? `<span class="${TAG_CLASS}" data-testid="${TESTID.tag}">${escapeText(`#${part.tag}`)}</span>`
+        : escapeText(part.text),
+    )
+    .join("")
 }
 
 const pill = (name: string): Element => ({

@@ -1,7 +1,7 @@
 /**
  * The markdown chunk: built beside the entry, named on the shell.
  *
- * `src/client/markdown/pipeline.ts` is ~390 KB of `unified` + remark + rehype
+ * `src/client/markdown/pipeline.ts` is ~391 KB of `unified` + remark + rehype
  * + `highlight.js` grammars, and an outline's first paint does not use one byte
  * of it (`src/client/markdown/plain.ts` says why). So it is bundled ON ITS OWN
  * and fetched when something asks for markdown — a note opened, a document, the
@@ -30,7 +30,7 @@ import { basename, resolve } from "node:path"
 import { ASSET_DIR } from "@kolu/surface-app"
 import type { BunPlugin } from "bun"
 
-import { MARKDOWN_META } from "./client/markdown/chunk.ts"
+import { MARKDOWN_META } from "./client/markdown/meta.ts"
 
 /** What the template says before the build; the exact string rewritten in
  *  `<distDir>/index.html`. Assembled from the same constant the page reads the
@@ -87,7 +87,9 @@ export const buildMarkdownChunk = async (
 
   const href = `/${ASSET_DIR}/${basename(entry.path)}`
   await nameOnShell(distDir, href)
-  return { href, bytes: (await Bun.file(entry.path).arrayBuffer()).byteLength }
+  // `entry` is a Blob over what was just written — its size is already known,
+  // so nothing reads the chunk back off disk to count it.
+  return { href, bytes: entry.size }
 }
 
 /** Rewrite the one `<meta>` in the shell. A placeholder that is not there is a

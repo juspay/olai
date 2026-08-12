@@ -37,17 +37,16 @@
 
 import { createSignal } from "solid-js"
 
+import { MARKDOWN_META } from "./meta.ts"
 import type { Pipeline } from "./pipeline.ts"
 
 /**
- * The `<meta>` on the shell that names the built chunk. ONE spelling, imported
- * by `packages/web/src/build.ts` for the rewrite it does to `index.html`, so
- * the page and the build cannot disagree about it.
+ * Where the pipeline has got to: not here, here, or not coming. ONE signal
+ * holding all three, because they are one fact — two signals would be two
+ * writes to keep in step, and a state that said both "failed" and "here" is a
+ * state nothing should be able to spell.
  */
-export const MARKDOWN_META = "olai-markdown"
-
-const [pipeline, setPipeline] = createSignal<Pipeline | undefined>(undefined)
-const [failure, setFailure] = createSignal<Error | undefined>(undefined)
+const [arrival, setArrival] = createSignal<Pipeline | Error | undefined>(undefined)
 
 /** Has the fetch been started? Not a signal: nothing draws from it, and it is
  *  the one piece of this that must not re-run anything when it changes. */
@@ -61,17 +60,20 @@ let asked = false
  * asked.
  */
 export const markdownReady = (): boolean => {
-  const here = pipeline() !== undefined
-  if (!here && !asked) {
+  const here = arrival()
+  if (here === undefined && !asked) {
     asked = true
     void fetchPipeline()
   }
-  return here
+  return here !== undefined && !(here instanceof Error)
 }
 
 /** Why it is not coming, once that is known. Reactive, for the one component
  *  that says so on the page (./Markdown.tsx). */
-export const markdownFailure = (): Error | undefined => failure()
+export const markdownFailure = (): Error | undefined => {
+  const here = arrival()
+  return here instanceof Error ? here : undefined
+}
 
 /**
  * The pipeline, for code that has already established it is here.
@@ -82,8 +84,8 @@ export const markdownFailure = (): Error | undefined => failure()
  * hide it behind a page that merely looked blank.
  */
 export const pipelineNow = (): Pipeline => {
-  const here = pipeline()
-  if (here === undefined) {
+  const here = arrival()
+  if (here === undefined || here instanceof Error) {
     throw new Error(
       "the markdown pipeline was used before it arrived — read markdownReady() first",
     )
@@ -100,9 +102,7 @@ export const pipelineNow = (): Pipeline => {
  * makes those tests tests of the thing that ships.
  */
 export const installPipeline = (module: Pipeline): void => {
-  asked = true
-  setFailure(undefined)
-  setPipeline(() => module)
+  setArrival(() => module)
 }
 
 const fetchPipeline = async (): Promise<void> => {
@@ -120,7 +120,7 @@ const fetchPipeline = async (): Promise<void> => {
       { cause },
     )
     console.error(error)
-    setFailure(error)
+    setArrival(error)
   }
 }
 
