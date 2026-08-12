@@ -394,6 +394,23 @@ used to need. The sole exception is the fault card: `main.tsx`'s
 `<ErrorBoundary>` sits above `App`, so a thrown render never reaches the header
 (a broken client has no chrome to trust).
 
+The bar **sticks** (`sticky top-0`, layer `z-[45]`): this app scrolls the
+document, so a bar in normal flow took the connection dot, the commit pill and
+the agent toggle off the screen the moment anyone read past the fold — and
+those are permanent answers about the app, which is the argument for the bar
+existing at all. It is also what keeps the seam below it true: the mobile
+drawer, its scrim and both faces of the chat panel are `fixed` at
+`top: var(--height-header)`, a viewport coordinate that only means "under the
+header" while the header is at the top of the viewport. The layer sits above
+the panels (30–40) so a page scrolling under the bar cannot paint over it, and
+below the full-screen modals (50) — the command palette, the restarted card —
+which must cover it. `sticky` and not `fixed`, so the bar keeps its own 3rem in
+flow and nothing below has to pad for it; no ancestor may take an `overflow`
+other than `visible` or it silently stops sticking. Because the top
+`--height-header` of the viewport is no longer free space, `styles.css` gives
+the document `scroll-padding-top: var(--height-header)`, which is where a
+`#heading` jump (a document's contents, a pasted anchor) now stops.
+
 The chat dock sits **under** the header, not over it (`chat/Panel.tsx`
 subtracts `--height-header`): the bar stays reachable while the agent is open.
 Layout widths, open/minimized state and the mobile chat snap live in
