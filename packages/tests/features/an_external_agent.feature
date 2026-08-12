@@ -28,6 +28,13 @@ Feature: An agent olai did not start
     Then the terminal agent is offered the tool "set_done"
     And the terminal agent is offered the tool "add_node"
     And the terminal agent is offered the tool "create_outline"
+    # The ledger ops. Everything the format can hold, an op can write: a
+    # placement is `add_mirror`/`remove_mirror`, a dependency is `set_after`.
+    # Anything missing from this list is a record only a hand edit can produce,
+    # which is the practice these three exist to end.
+    And the terminal agent is offered the tool "add_mirror"
+    And the terminal agent is offered the tool "remove_mirror"
+    And the terminal agent is offered the tool "set_after"
     And the terminal agent is offered no file tools
 
   Scenario: A terminal marks something done and the open page follows
@@ -102,6 +109,45 @@ Feature: An agent olai did not start
     And the node "measure" shows an empty checkbox
     And the node "paint" shows a checked checkbox
     And the terminal agent was told it captured 4 nodes
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: A terminal places a mirror and the open page draws what it shows
+    # A mirror is a second PLACEMENT of a node that already exists, and the
+    # claim is that the page expands it in place: the row the agent wrote
+    # carries no title of its own, and everything under `kitchen` is drawn
+    # beneath it. Nothing was copied — there is one `order` on disk and two on
+    # screen.
+    When the terminal agent mirrors "kitchen" at the top of "house.jsonl" as "now-kitchen"
+    Then the node "now-kitchen" is shown
+    And the node "order" is a child of "now-kitchen"
+    And the node "install" is a child of "now-kitchen"
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: A terminal retires a mirror and only the placement goes
+    # The other half, and the semantic worth pinning end to end: retiring a
+    # placement deletes ONE LINE. The row goes, and the node it was showing is
+    # still there in the outline that defines it, with its subtree.
+    When the terminal agent mirrors "kitchen" at the top of "house.jsonl" as "now-kitchen"
+    Then the node "now-kitchen" is shown
+    When the terminal agent retires the mirror "now-kitchen"
+    Then the node "now-kitchen" is not shown
+    And the node "order" is a child of "kitchen"
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: A terminal wires a dependency and the page draws what is waiting
+    # `set_after` writes the ordering edge, and blockedness is DERIVED from it
+    # together with the MARKS — which is why the agent marks first: an unmarked
+    # node is a bullet rather than unstarted work, so an edge onto one holds
+    # nothing up. Once `order` is a task, `install` (under way) is waiting on
+    # it. The arrow is written from the node that waits, which is the one
+    # spelling the ops layer has.
+    Given the node "install" is not blocked
+    When the terminal agent marks "order" todo
+    And the terminal agent makes "install" wait on "order"
+    Then the node "install" is blocked by "order"
     And the page has not reloaded
     And there should be no page errors
 

@@ -106,6 +106,22 @@
   --height-header: 3rem;
 }
 
+/* Where a jump has to STOP, now that the bar it would land under is sticky
+ * (`src/client/AppHeader.tsx`). The top `--height-header` of the viewport is no
+ * longer free space, and the browser's own answer to a `#heading` is to put the
+ * target hard against the top edge — which is behind the header. Reserving it
+ * on the scroll container is the platform's own word for that, and the
+ * container is the DOCUMENT: this app scrolls the page, not a pane. One
+ * rule therefore covers every jump there is — a line of a document's contents
+ * (`src/client/document/Toc.tsx`), a `#` anchor somebody pasted, and whatever
+ * later becomes jumpable — rather than a `scroll-margin` per thing that can be
+ * jumped to, which is a list that would go stale silently.
+ *
+ * Not inside `@theme`: that block declares TOKENS, and this is a rule. */
+:root {
+  scroll-padding-top: var(--height-header);
+}
+
 /* A palette is a redefinition of the same eight custom properties, not a
  * `dark:` variant on every utility: every one of them already reads
  * `var(--color-…)`, so one block re-answers all of them at once. Those blocks
