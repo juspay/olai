@@ -385,6 +385,18 @@ and the theme picker as a compact popover (a pill names the theme in force;
 chips open under it). On a phone the directory burger joins the left edge next
 to the wordmark.
 
+**Six things do not fit in a 390pt bar, so the ORDER they give way in is a
+decision** rather than whatever the flexbox happens to squeeze — that is written
+out in the component's own header and implemented across four files. The last
+commit's age goes first (`· 3m ago`, `sm` and up), then the agent's word (kept
+`sr-only`, so the button's accessible name never shrinks), then the Commit
+pill's label truncates — its `✓` / `⚠` is most of what it says — and the
+connection's label is last and in practice never, because it has a floor. The
+wordmark and the theme name never give way at all. `features/on_a_phone.feature`
+holds the end of that order shut in every connection state (`the connection's
+label is whole`), which is the fence for the version of this bar that shipped
+`live` squeezed to `l…`.
+
 Principle: the header carries what is about the app; the sidebar
 (`Sidebar.tsx` / `layout/Rail.tsx`) carries what is about the DIRECTORY —
 calendar + file tree only, collapsing on desktop to an icon rail. The header
