@@ -167,6 +167,14 @@ export default function App() {
                     Desktop: two columns (rail or full sidebar + main), widths
                     from --width-sidebar. Mobile: main alone; the directory is
                     a fixed drawer and must not claim a grid track.
+
+                    The directory column is `sticky` (Sidebar.tsx, layout/
+                    Rail.tsx), so this row is its containing block and NO box
+                    from here up to the document may take an `overflow` other
+                    than `visible` — the same condition the header's own
+                    stickiness rests on, and the reason the two boxes above
+                    this one are plain flex containers. `main`'s
+                    `overflow-x-auto` is a SIBLING and is not on that path.
                   */}
                   <div class="relative min-h-[calc(100dvh-var(--height-header))] md:grid md:grid-cols-[var(--width-sidebar)_1fr]">
                     <Show when={desktop() && !sidebarOpen()}>

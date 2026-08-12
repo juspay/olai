@@ -477,6 +477,43 @@ subtracts `--height-header`): the bar stays reachable while the agent is open.
 Layout widths, open/minimized state and the mobile chat snap live in
 `layout/prefs.ts` (client-local, never sent).
 
+## The directory column is pinned too
+
+The other half of the chrome is the sidebar, and the argument is the header's
+argument: a column in normal flow is as tall as the page, so past the fold the
+reader had a bare rule down the left and no way back to the directory but
+scrolling up. With the bar sticking, that was the last piece of chrome still
+going — visible in #115's own evidence as an empty directory column beside a
+scrolled page, flagged there as out of scope and filed as its own bug.
+
+So on desktop both faces of the directory — the open column (`Sidebar.tsx`) and
+the icon rail (`layout/Rail.tsx`) — are `sticky` at `top: var(--height-header)`
+and exactly `calc(100dvh - var(--height-header))` tall. **The height is what
+makes the pin mean anything**: a sticky box taller than the strip it is pinned
+in scrolls its own bottom off the screen and pins nothing. Being exactly the
+strip is also what gives the column its own scroll region, because the body
+below the resize handle was already `min-h-0 flex-1 overflow-y-auto` — so a
+directory taller than the screen now scrolls WITHIN the column instead of
+lengthening the page. That is the half that makes the pin worth having: one
+scroll region per thing that scrolls, and the page's scrollbar goes on being the
+page's.
+
+`sticky` and not `fixed`, for the two reasons the bar gives: the column keeps
+its own grid track (`--width-sidebar`, so the resize handle goes on meaning what
+it says and nothing pads for it), and no box between it and the document may
+take an `overflow` other than `visible`. `100dvh` and not the chat dock's
+`--visible-h`: that reading is the VISUAL viewport, which is right for a `fixed`
+box on a phone with a keyboard up and wrong for a sticky threshold, which is a
+layout-viewport coordinate.
+
+Nothing else moves. Folders still start collapsed (#105), ⌘\ still toggles, the
+collapse button is the same control in the same corner — the bottom-right of the
+column, which is now the bottom-right of the STRIP and therefore on screen at
+every scroll position rather than parked at the foot of the document. The phone
+is untouched: the directory there is a fixed drawer with a scrim and this is a
+`md:` change. `features/the_sidebar_sticks.feature` holds all of it, with the
+phone scenario as the fence against the pin leaking below 48rem.
+
 ## The connection, said out loud
 
 `src/client/connection/` is the chrome for the one thing the outlines cannot
