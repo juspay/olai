@@ -71,7 +71,7 @@ describe("a composed message", () => {
  * than that. The subject counts them and the body names them.
  */
 describe("a message that also carries other files", () => {
-  const other = (file: string, how: Other["how"] = "modified"): Other => ({ file, how })
+  const other = (path: string, how: Other["how"] = "modified"): Other => ({ path, how })
 
   test("the subject counts them beside the biggest node change", () => {
     const message = composed(

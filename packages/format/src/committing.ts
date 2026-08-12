@@ -129,11 +129,14 @@ export type DirtyOutline = typeof DirtyOutline.Type
  * else somebody's working tree holds. `.gitignore` is respected for free, since
  * this comes from `git status`.
  *
- * `file` is repo-root-relative, which is both what a reader is shown and the
- * name a commit request ticks.
+ * `path` is repo-root-relative — what a reader is shown, and the name a commit
+ * request ticks. It is spelled the same as {@link DirtyOutline}'s `path` and
+ * means the same thing, deliberately: the two lists are two kinds of ROW and one
+ * namespace of keys, so a consumer collecting a selection out of both writes
+ * `one.path` either way rather than remembering which list calls it what.
  */
 export const Other = Schema.Struct({
-  file: Schema.String,
+  path: Schema.String,
   how: How,
 })
 export type Other = typeof Other.Type
@@ -193,6 +196,14 @@ export const Pending = Schema.Struct({
    * tell you), and it holds an outline whose bytes moved without any node
    * changing — a reformat, a reordered line — which would otherwise be dirty,
    * committable, and invisible.
+   *
+   * The invariant between the three lists, stated so it can be checked: every
+   * `changes[].file` and every `unreadable[]` is one of these `file`s. It is not
+   * the other way round, which is the reason `changes` is not simply NESTED in
+   * here — a node that was archived is ONE change that left one file and arrived
+   * in another (`./changes.ts` compares by id across files, deliberately), so a
+   * change is not owned by a single file and a nested list would have to
+   * duplicate it or drop half of it.
    */
   outlines: Schema.Array(DirtyOutline),
   /** Every OTHER dirty file in the repository — see {@link Other}. */

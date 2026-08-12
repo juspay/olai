@@ -308,10 +308,10 @@ describe("what is committed, and what is not", () => {
           { file: "house.jsonl", path: "house.jsonl", how: "modified" },
         ])
         // ... and the other two are rows, with what happened to each.
-        expect([...pending.others].sort((a, b) => a.file.localeCompare(b.file)))
+        expect([...pending.others].sort((a, b) => a.path.localeCompare(b.path)))
           .toEqual([
-            { file: "notes.md", how: "untracked" },
-            { file: "script.sh", how: "untracked" },
+            { path: "notes.md", how: "untracked" },
+            { path: "script.sh", how: "untracked" },
           ])
         // Which the composed message names, so the log says what the commit did.
         expect(pending.message).toContain("· 2 other files")
@@ -361,7 +361,7 @@ describe("what is committed, and what is not", () => {
 
         const after = yield* fixture.ops.pending
         expect(after.changes).toEqual([])
-        expect([...after.others].map((one) => one.file).sort())
+        expect([...after.others].map((one) => one.path).sort())
           .toEqual(["later.md", "mine.md"])
       })))
 
@@ -424,7 +424,7 @@ describe("a served subdirectory reports on the whole repository", () => {
           expect(pending.outlines).toEqual([
             { file: "house.jsonl", path: "docs/house.jsonl", how: "modified" },
           ])
-          expect([...pending.others].map((one) => one.file).sort())
+          expect([...pending.others].map((one) => one.path).sort())
             .toEqual(["README.md", "elsewhere.jsonl"])
 
           expect((yield* fixture.ops.commit({}, "web"))._tag).toBe("Committed")

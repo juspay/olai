@@ -32,19 +32,19 @@ export function Others(props: {
         {(other) => (
           <li
             class={`flex items-baseline gap-2 py-0.5 ${
-              props.selection.ticked(other.file) ? "" : "opacity-40"
+              props.selection.ticked(other.path) ? "" : "opacity-40"
             }`}
             data-testid={TESTID.commitOther}
-            data-path={other.file}
+            data-path={other.path}
             data-how={other.how}
           >
             <Tick
-              path={other.file}
-              ticked={props.selection.ticked(other.file)}
-              toggle={() => props.selection.toggle(other.file)}
-              label={`commit ${other.file}`}
+              path={other.path}
+              ticked={props.selection.ticked(other.path)}
+              toggle={() => props.selection.toggle(other.path)}
+              label={`commit ${other.path}`}
             />
-            <span class="min-w-0 truncate font-mono text-xs">{other.file}</span>
+            <span class="min-w-0 truncate font-mono text-xs">{other.path}</span>
             <span class={`ml-auto shrink-0 text-xs ${HOW_TONE[other.how]}`}>
               {HOW[other.how]}
             </span>

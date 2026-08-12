@@ -35,8 +35,8 @@ const WAITING: Pending = {
     sort: "done",
   }],
   others: [
-    { file: "README.md", how: "modified" },
-    { file: "notes/todo.md", how: "untracked" },
+    { path: "README.md", how: "modified" },
+    { path: "notes/todo.md", how: "untracked" },
   ],
   served: "docs/",
 }
@@ -113,7 +113,7 @@ test("a file that arrives while the panel is open is ticked", () => {
     selection.toggle("README.md")
     set({
       ...WAITING,
-      others: [...WAITING.others, { file: "later.md", how: "untracked" }],
+      others: [...WAITING.others, { path: "later.md", how: "untracked" }],
     })
 
     expect(selection.ticked("later.md")).toBe(true)

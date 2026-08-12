@@ -49,6 +49,7 @@ import {
   type CommitRequest,
   type CommitResult,
   changesOf,
+  composed,
   fileKind,
   type How,
   type LastCommit,
@@ -70,7 +71,7 @@ import * as Git from "@olai/git"
 import { Effect, Result, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
-import { AUDIT, composed, signed } from "./message.ts"
+import { AUDIT, signed } from "./message.ts"
 
 /**
  * How writes reach git.
@@ -823,7 +824,7 @@ export const make = (options: Options): Committing => {
 /** One dirty file that is not a served outline, as the wire carries it. The
  *  REPO-relative path is its name, because that is the one name it has that
  *  cannot collide with a served one. */
-const otherOf = (entry: Git.Dirty): Other => ({ file: entry.path, how: entry.how })
+const otherOf = (entry: Git.Dirty): Other => ({ path: entry.path, how: entry.how })
 
 /** What a commit is going to name, out of what is waiting. */
 interface Picked {

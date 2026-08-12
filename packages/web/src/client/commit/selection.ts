@@ -87,12 +87,12 @@ export const createSelection = (pending: Accessor<Pending>): Selection => {
   }
 
   const changes = () => pending().changes.filter((change) => files().has(change.file))
-  const others = () => pending().others.filter((other) => ticked(other.file))
+  const others = () => pending().others.filter((other) => ticked(other.path))
 
   const paths = (): ReadonlyArray<string> | undefined => {
     const every = [
       ...pending().outlines.map((outline) => outline.path),
-      ...pending().others.map((other) => other.file),
+      ...pending().others.map((other) => other.path),
     ]
     const kept = every.filter(ticked)
     return kept.length === every.length ? undefined : kept

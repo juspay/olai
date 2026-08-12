@@ -79,10 +79,18 @@ export function Panel(props: {
   const [typed, setTyped] = createSignal<string | null>(null)
   const draft = () => typed() ?? selection.message()
 
-  /** Whether there is anything at all to record — the two kinds of row, plus
-   *  the outlines nothing could be read in. */
-  const waiting = () =>
-    pending().outlines.length + pending().others.length + pending().unreadable.length
+  /**
+   * Whether there is anything at all to record.
+   *
+   * A BOOLEAN, and not the pill's count (`waitingIn`, in `./said.ts`): the two
+   * ask different questions and would answer differently — the pill counts node
+   * changes, this counts the FILES a commit would name, and a reformat that
+   * moved no node is one file and no changes. Two numbers that look like the
+   * same tally is how they end up compared; one of them is a number and the
+   * other is a fence.
+   */
+  const anything = () =>
+    pending().outlines.length + pending().others.length + pending().unreadable.length > 0
 
   /** Nothing ticked is a button with nothing to do, and it says so by being
    *  disabled rather than by refusing afterwards: the server would answer
@@ -160,7 +168,7 @@ export function Panel(props: {
       {/* What all of that is a list OF. It is drawn whenever there is a list,
           because "why is my README in here" is a question the rows themselves
           cannot answer. */}
-      <Show when={waiting() > 0}>
+      <Show when={anything()}>
         <p class="text-xs text-muted" data-testid={TESTID.commitScope}>
           {scopeOf(pending().served)}
         </p>
@@ -198,7 +206,7 @@ export function Panel(props: {
         </p>
       </Show>
 
-      <Show when={waiting() > 0}>
+      <Show when={anything()}>
         <textarea
           // Tall enough for a composed message, which is a subject, a blank
           // line and its first detail line: the shorter box cut the detail in
@@ -225,7 +233,7 @@ export function Panel(props: {
           person goes looking for this. */}
       <Unpushed commit={props.commit} />
 
-      <Show when={waiting() > 0}>
+      <Show when={anything()}>
         <button
           type="button"
           class="self-end rounded border border-rule px-3 py-1.5 text-xs hover:text-ink disabled:opacity-50"

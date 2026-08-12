@@ -228,7 +228,7 @@ type Pending = {
 
   // commit-whole-repo:
   readonly outlines: ReadonlyArray<DirtyOutline> // {file, path, how} — the groups
-  readonly others: ReadonlyArray<Other>          // {file, how} — every other dirty file
+  readonly others: ReadonlyArray<Other>          // {path, how} — every other dirty file
   readonly served: string                        // '' at the root, 'docs/' inside one
   readonly unpushed: Unpushed | null             // {upstream, commits}; null = no upstream
 }

@@ -95,7 +95,7 @@ export const composed = (
     // not read as another node change.
     if (lines.length > 0) lines.push("")
     for (const other of others.slice(0, BODY_LINES)) {
-      lines.push(`${other.how}: ${other.file}`)
+      lines.push(`${other.how}: ${other.path}`)
     }
     const left = others.length - Math.min(others.length, BODY_LINES)
     if (left > 0) lines.push(`… and ${left} more`)
@@ -126,7 +126,7 @@ const subjectOf = (
     // Files only, which is the whole of what this feature added: the subject
     // names the first one, because a subject that said "3 files" would be the
     // list of numbers the convention exists to prevent.
-    const first = others[0]?.file ?? ""
+    const first = others[0]?.path ?? ""
     const more = others.length > 1 ? ` and ${others.length - 1} more` : ""
     return `${MESSAGE_PREFIX}: ${files} — ${first}${more}`
   }

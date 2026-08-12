@@ -12,8 +12,6 @@
 
 import { MESSAGE_PREFIX, type Writer } from "@olai/format"
 
-export { composed, MESSAGE_PREFIX } from "@olai/format"
-
 /** The trailer that puts the writer in the commit permanently. */
 const WRITER_TRAILER = "X-Olai-Writer"
 
