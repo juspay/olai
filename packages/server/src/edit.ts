@@ -20,6 +20,22 @@
  * snapshot: every case here is a question about siblings and marks, so it is
  * answerable with a value and testable without a server.
  *
+ * WHAT IT MAY NOT DO is produce a request an agent could not have sent for the
+ * same intent — "MCP and Web ops must be consistent; never deviate"
+ * (HACKING.md). The two faces share one `ops.run`, so anything that reaches it
+ * is judged identically; the risk is entirely HERE, in what this hands over.
+ * The rule that falls out has two halves, and the difference between them is
+ * who named the node:
+ *
+ *   - an id the CALLER named travels as it is. `toggle` on a mirror is refused
+ *     by the ops layer, naming the node to use instead — and `set_done` on that
+ *     same mirror is refused the same way. Resolving it here would make the
+ *     keyboard succeed where the tool refuses, which is the deviation read
+ *     backwards.
+ *   - an id THIS FILE derives from the tree must be the one an agent would
+ *     have named. "The row above" is such an id, and when that row is a mirror
+ *     the node an agent would name as the new parent is the one it shows.
+ *
  * The one thing it does NOT close over is the gap between reading and writing.
  * The snapshot can move between the read this resolves against and the commit
  * the ops layer makes, exactly as it can for an agent — and it ends the same
@@ -30,6 +46,7 @@
 
 import {
   type Derived,
+  nodeNamed,
   type OpFailure,
   siblingsOf,
   UsageFailure,
@@ -152,9 +169,28 @@ const moveRequest = (
           refusal("this is the first of its siblings, so there is no row above it to go under"),
         )
       }
+      // The row above may be a MIRROR, and then the new parent is the node it
+      // SHOWS. That is the one place this resolver names a node the caller
+      // never did, so it is the one place it must name the same node an agent
+      // would: a parent is a regular record (`packages/ops`'s `planMove`
+      // refuses a placement, naming its target instead), and what hangs under a
+      // mirror on screen belongs to that target. Emitting the placement's own
+      // id would be a request the ops layer always refuses — a keyboard that
+      // could not do what the equivalent `move_node` does, which is exactly the
+      // deviation HACKING.md forbids.
+      const parent = nodeNamed(derived, above.node.id)
+      if (parent === undefined) {
+        return Result.fail(
+          refusal(
+            "the row above is a mirror of a node that is not in the loaded set, so there is nothing to go under",
+          ),
+        )
+      }
       // Last among its new siblings — no `before`/`after` — which is where an
       // indent visually lands: directly under the row it just went beneath.
-      return Result.succeed({ op: "move", id: edit.id, parent: above.node.id })
+      // Whether that parent is REACHABLE — same file, no loop — is the ops
+      // layer's to judge, and it judges it identically for both faces.
+      return Result.succeed({ op: "move", id: edit.id, parent: parent.node.id })
     }
     case "out": {
       const parent = node.parent

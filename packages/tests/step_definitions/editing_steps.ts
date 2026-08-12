@@ -95,6 +95,17 @@ When("I press {string}", async function (this: OlaiWorld, key: string) {
   await this.waitForFrame();
 });
 
+/** The same key, with nothing waited for afterwards — which is how a person
+ *  types: faster than a round trip. What the scenario then asserts is that the
+ *  writes still landed in the order the keys were pressed, which is the write
+ *  queue's whole job. */
+When(
+  "I press {string} without waiting",
+  async function (this: OlaiWorld, key: string) {
+    await this.page.keyboard.press(key);
+  },
+);
+
 When("I click away from the editor", async function (this: OlaiWorld) {
   // Somewhere in the pane that is not a row: a blur, and nothing else.
   await this.page.locator("main").click({ position: { x: 4, y: 4 } });
@@ -224,6 +235,19 @@ Then(
  *  fraction of the idle commit's, because idling is one of the three moments
  *  that DOES write (see the step below it). */
 const HELD = Math.floor(IDLE_COMMIT / 3);
+
+Then(
+  "{string} holds a node marked done titled {string}",
+  async function (this: OlaiWorld, file: string, title: string) {
+    await this.waitUntil(
+      async () =>
+        this.servedNodes(file).some(
+          (node) => node["title"] === title && node["done"] !== undefined,
+        ),
+      `${file} to hold a node titled ${JSON.stringify(title)} that is marked done`,
+    );
+  },
+);
 
 Then(
   "{string} holds no node titled {string}",

@@ -206,14 +206,19 @@ const takeCaret = (
   }))
 }
 
-/** A textarea that is as tall as what is in it.
+/**
+ * A textarea that is as tall as what is in it.
  *
- *  The write is skipped when the height has not changed, which is nearly every
- *  keystroke: setting `height` invalidates layout for the WHOLE document and
- *  reading `scrollHeight` back forces it to be recomputed, so a tree of a
- *  thousand rows is laid out again per character typed into a note. */
+ * Measuring costs a synchronous layout — `height: auto` invalidates, reading
+ * `scrollHeight` forces the recompute — and that is per keystroke in an open
+ * NOTE. It is paid rather than optimised away: a guard comparing the height
+ * after setting `auto` never skips anything (the value it compares against is
+ * `auto`), which is what the last attempt did, and the honest alternatives are
+ * to remember the last height across calls or to let CSS do it
+ * (`field-sizing: content`, not yet everywhere olai runs). One note at a time
+ * is open, so the cost is bounded by that.
+ */
 const grow = (element: HTMLTextAreaElement): void => {
   element.style.height = "auto"
-  const height = `${element.scrollHeight}px`
-  if (element.style.height !== height) element.style.height = height
+  element.style.height = `${element.scrollHeight}px`
 }

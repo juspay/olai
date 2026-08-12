@@ -136,6 +136,34 @@ test("there is nothing to move past at either end of a row", () => {
   expect(refused({ verb: "move", id: "install", how: "down" })._tag).toBe("UsageFailure")
 })
 
+test("indenting under a MIRROR names the node it shows", () => {
+  // The one id this layer derives rather than receives, so it is the one that
+  // has to be the id an agent would have named: a parent is a regular record,
+  // and what hangs under a mirror on screen belongs to its target. Naming the
+  // placement would be a request the ops layer always refuses — a keyboard
+  // that cannot do what the equivalent `move_node` does.
+  //
+  // `later` is the row under `echo`, which mirrors `order`, so `Tab` on it is
+  // "go under what that row shows".
+  const set = setOf({
+    "house.jsonl": `${HOUSE}\n{"id":"later","ord":"a3","title":"and one after it"}`,
+  })
+  expect(asked({ verb: "move", id: "later", how: "in" }, reading(set)))
+    .toEqual({ op: "move", id: "later", parent: "order" })
+})
+
+test("indenting under a mirror of nothing is refused rather than doomed", () => {
+  const set = setOf({
+    "a.jsonl": [
+      `{"id":"one","ord":"a0","title":"one"}`,
+      `{"id":"ghost","ord":"a1","mirror":"nowhere"}`,
+      `{"id":"two","ord":"a2","title":"two"}`,
+    ].join("\n"),
+  })
+  expect(refused({ verb: "move", id: "two", how: "in" }, reading(set)).message)
+    .toContain("not in the loaded set")
+})
+
 test("a MIRROR moves as itself — a placement is a row a reader can reorder", () => {
   // The opposite of a text edit, which the ops layer refuses on a mirror: the
   // mirror has no title of its own, but it does have a place among siblings.
@@ -159,11 +187,15 @@ test("toggling reads the stored mark rather than being told it", () => {
     .toEqual({ op: "done", id: "demo", undo: true })
 })
 
-test("a mirror toggles what it shows, exactly as its checkbox draws it", () => {
-  // `order` is `doing`, so the mirror is too — and the toggle is therefore a
-  // set rather than an undo. The ops layer is what refuses the write itself,
-  // naming the node to use instead; this layer must not answer a different
-  // question on the way there.
+test("an id the CALLER named travels as it is, mirror or not", () => {
+  // The other half of the consistency rule. `set_done` on a mirror is refused
+  // by the ops layer, naming the node to use instead — so `toggle` on one is
+  // refused the same way, by the same layer, with the same sentence. Resolving
+  // it HERE would make the keyboard succeed where the tool refuses, which is
+  // the deviation read backwards. What keeps a person from meeting that
+  // refusal is the client, which sends the id of the node a row SHOWS
+  // (`web/src/client/edit/editing.tsx`, and the browser test that ticks a
+  // mirror off).
   expect(asked({ verb: "toggle", id: "echo", mark: "done" }))
     .toEqual({ op: "done", id: "echo" })
 })

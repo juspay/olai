@@ -148,6 +148,43 @@ Feature: Keyboard editing
     And the row being typed holds ""
     And "house.jsonl" holds a node titled "choose the handles"
 
+  Scenario: A refusal belongs to the row that caused it
+    # Two rows and one refusal: clicking away to another title commits the
+    # first, and a commit that is REFUSED stops there — the reason is on the
+    # row whose text is still unsaved, and the row that was clicked is not
+    # opened over the top of it. Before the write queue, the click opened the
+    # second row and the refusal landed on it.
+    When I click the title of "handles"
+    And I select all and type ""
+    And I click the title of "knobs"
+    Then the refusal says "a node needs a title"
+    And the row being typed holds ""
+    And "house.jsonl" holds a node titled "pick the knobs"
+
+  Scenario: Two refusals in a row leave the editor working
+    # The blur guard is cleared by a refused key as well as by a frame, so a
+    # second refusal cannot latch it — after which the row still commits.
+    When I click the title of "handles"
+    And I press "Tab"
+    Then the refusal says "no row above it"
+    When I press "Tab"
+    Then the refusal says "no row above it"
+    When I select all and type "choose the brass handles"
+    And I click away from the editor
+    Then "house.jsonl" holds a node titled "choose the brass handles"
+
+  Scenario: The keys keep up with a person typing faster than the wire
+    # Every write goes through one queue, so keys pressed without waiting land
+    # in the order they were pressed — and each is judged against what the one
+    # before it did, rather than against the row as it was two writes ago.
+    When I click the title of "knobs"
+    And I press "Tab" without waiting
+    And I press "Alt+Shift+ArrowUp" without waiting
+    And I press "Control+Enter" without waiting
+    Then the node "knobs" is a child of "hinges"
+    And the node "knobs" has status "done"
+    And there should be no page errors
+
   Scenario: The arrows move the caret between rows
     When I click the title of "handles"
     And I press "ArrowDown"
@@ -165,6 +202,27 @@ Feature: Keyboard editing
     # placement was typed in.
     Then "garden.jsonl" holds a node titled "the herb bed by the back door"
     And "house.jsonl" holds no node titled "the herb bed by the back door"
+
+  Scenario: Enter on a mirror makes a sibling of the PLACEMENT
+    # The other half of the mirror rule: what a row SAYS belongs to the node it
+    # shows, and where a row SITS belongs to the row. So the new line appears
+    # where the reader is looking — in this file, beside the placement — rather
+    # than beside the node it stands for, in another one.
+    When I click the title of "kitchen-herbs"
+    And I press "Enter"
+    And I type "and one after the mirror"
+    And I click away from the editor
+    Then "house.jsonl" holds a node titled "and one after the mirror"
+    And "garden.jsonl" holds no node titled "and one after the mirror"
+
+  Scenario: Ctrl+Enter on a mirror ticks off the node it shows
+    # And the mark is the other way round: it is a fact about the node, so the
+    # write lands in the file that node lives in — the same one `set_done` on
+    # that node would write.
+    When I click the title of "kitchen-herbs"
+    And I press "Control+Enter"
+    Then the node "kitchen-herbs" has status "done"
+    And "garden.jsonl" holds a node marked done titled "the herb bed by the door"
 
   Scenario: A zoomed node with nothing under it offers the first child
     # The other page that has no row to press a key in. The anchor is the node

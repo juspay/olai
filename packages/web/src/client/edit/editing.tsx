@@ -19,8 +19,10 @@
  * **A structural key does not race the draft it interrupted.** `Tab` on a
  * half-typed row commits the text first and then moves the row, in that order,
  * because the two are one thought and the second would otherwise be judged
- * against a record whose title is still the old one. Everything is sequenced
- * through one promise chain for the same reason.
+ * against a record whose title is still the old one. Every write goes through
+ * one QUEUE (`enqueue`) for the same reason — a person types faster than a
+ * round trip, and two writes in flight over one draft are two writes derived
+ * from a state neither of them can see.
  *
  * **Which id an edit names is a rule, and the draft carries both halves of
  * it.** An edit to what a node SAYS — its title, its note, its mark — names
@@ -168,6 +170,31 @@ export const createEditor = (
   const [draft, setDraft] = createSignal<Draft | null>(null)
   const [caret, setCaret] = createSignal(0)
 
+  /**
+   * Every write this editor makes, in the order the keys were pressed.
+   *
+   * A person types faster than a round trip. `Tab` twice, an idle commit
+   * overtaken by a blur, a click on another row while the first is still
+   * saving — each of those is two writes in flight over ONE draft, and they
+   * are not independent: the second is derived from what the first did (the
+   * id an `add` answers with, the place a move produced, whether the text
+   * saved at all). Run concurrently they interleave, and the failure is
+   * invisible in a way this whole design is written against: nobody would see
+   * the second one land against the row the first one moved.
+   *
+   * So it is a queue of one. Each step waits for the last to settle —
+   * `then(step, step)`, so a step that throws does not wedge every later key —
+   * and the sequencing the header promises is this line rather than a habit of
+   * awaiting in the right places.
+   *
+   * What is NOT queued is what a person must never wait for: typing
+   * ({@link Editor.type} is a signal write) and `Escape`, which abandons.
+   */
+  let gate: Promise<unknown> = Promise.resolve()
+  const enqueue = (step: () => Promise<unknown>): void => {
+    gate = gate.then(step, step)
+  }
+
   /** The caret's own three facts, memoised so typing does not move them. */
   const where = createMemo<Caret>(() => {
     const held = draft()
@@ -241,13 +268,26 @@ export const createEditor = (
   }
   createEffect(follow)
 
-  /** The write. Answers what the edit turned out to be about — the node, and
-   *  whatever the rollup had to say about it — or `null` when it was refused,
-   *  in which case the reason is already on the draft. */
-  const send = async (edit: Edit): Promise<{ id: string; nudge?: string } | null> => {
+  /**
+   * The write. Answers what the edit turned out to be about — the node, and
+   * whatever the rollup had to say about it — or `null` when it was refused,
+   * in which case the reason is on the draft that CAUSED it.
+   *
+   * `from` is which editor that is, and it is not ceremony: a refusal arrives
+   * after the write, and by then the caret may be somewhere else. Pinned, a
+   * reason lands on the row whose text is still unsaved; unpinned, the next
+   * row inherits an alarm about a write it had nothing to do with. The queue
+   * above makes that rare and this makes it impossible.
+   */
+  const send = async (
+    edit: Edit,
+    from: Slot,
+  ): Promise<{ id: string; nudge?: string } | null> => {
     const outcome = await runAsync(olai.procedures.edit.apply(edit))
     if (Result.isSuccess(outcome)) return outcome.success
-    setDraft((held) => (held === null ? held : refused(held, outcome.failure)))
+    setDraft((held) =>
+      held !== null && sameSlot(slotOf(held), from) ? refused(held, outcome.failure) : held
+    )
     return null
   }
 
@@ -266,7 +306,7 @@ export const createEditor = (
     // not a node.
     if (edit === null) return true
     idle.clear()
-    const done = await send(edit)
+    const done = await send(edit, slotOf(current))
     if (done === null) return false
     // Only when the editor is still on the same draft: a commit that landed
     // while the reader had already moved on must not drag them back.
@@ -277,7 +317,7 @@ export const createEditor = (
   /** The idle commit. Scheduled by every keystroke and cancelled by every
    *  commit, so a person who keeps typing causes one write rather than one per
    *  pause. */
-  const idle = debounce(() => void commit(), IDLE_COMMIT)
+  const idle = debounce(() => enqueue(commit), IDLE_COMMIT)
 
   /** The row the caret is in, as the page is drawing it now. */
   const row = (): Row | undefined => {
@@ -307,7 +347,7 @@ export const createEditor = (
     // Noted BEFORE the write: the frame that redraws the row can arrive while
     // it is still in flight.
     settling = true
-    const moved = await send(name(held))
+    const moved = await send(name(held), slotOf(held))
     // REFUSED: no write, so no frame, so nothing is owed — and a debt left
     // standing would go on suppressing blurs, which would mean the next thing
     // typed into this row never got committed at all. `Tab` on the first of
@@ -375,31 +415,35 @@ export const createEditor = (
    * action added to {@link EditAction} and not answered here does not compile.
    */
   const ACTIONS: Record<EditAction, () => void> = {
+    // NOT queued: abandoning is the one key that must not wait for a write it
+    // is abandoning. A commit already in flight still answers — to the slot it
+    // was sent for, which is no longer open, so nothing lands anywhere.
     cancel: () => {
       idle.clear()
       setDraft(null)
     },
-    add: () => void continued(),
-    note: () => void note(),
-    prev: () => void step(-1),
-    next: () => void step(1),
+    add: () => enqueue(continued),
+    note: () => enqueue(note),
+    prev: () => enqueue(() => step(-1)),
+    next: () => enqueue(() => step(1)),
     // The MARK is a fact about the node a row SHOWS — which is what the
     // checkbox beside it draws — so a mirror ticks off its target.
     toggle: () =>
-      void structural((held) => ({ verb: "toggle", id: held.id, mark: "done" })),
+      enqueue(() => structural((held) => ({ verb: "toggle", id: held.id, mark: "done" }))),
     // A MOVE is about the row itself, so a mirror moves as the placement it is
     // and the node it stands for stays where it lives.
-    in: () => void structural((held) => ({ verb: "move", id: held.row, how: "in" })),
-    out: () => void structural((held) => ({ verb: "move", id: held.row, how: "out" })),
-    up: () => void structural((held) => ({ verb: "move", id: held.row, how: "up" })),
-    down: () => void structural((held) => ({ verb: "move", id: held.row, how: "down" })),
+    in: () => enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "in" }))),
+    out: () => enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "out" }))),
+    up: () => enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "up" }))),
+    down: () =>
+      enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "down" }))),
   }
 
   /** The arrows: the next row the eye would reach, folds and all. */
-  const step = (by: 1 | -1) => {
+  const step = async (by: 1 | -1): Promise<void> => {
     const held = draft()
     if (held === null || held.kind !== "row" || held.place === null) return
-    void move(neighbour(page.rows(), page.collapsed(), held.place, by))
+    await move(neighbour(page.rows(), page.collapsed(), held.place, by))
   }
 
   return {
@@ -409,14 +453,17 @@ export const createEditor = (
     open: (at, field) => {
       const next = opened(at, field)
       if (next === null) return
-      // Whatever was being typed is committed on the way out. The blur of the
-      // editor being left normally does this first and there is then nothing
-      // to say (the text is already saved) — this is the promise rather than
-      // the usual path: a draft is never replaced by another one without what
-      // it held being written.
-      if (draft() !== null) void commit()
-      idle.clear()
-      setDraft(next)
+      enqueue(async () => {
+        // Whatever was being typed is committed on the way out, and a REFUSAL
+        // stops the move: the row that would not save is the row to stay in,
+        // which is the rule the arrows already followed. Without the wait,
+        // clicking another title started a write of the first row and opened
+        // the second, and a refusal then landed on a row that had nothing to
+        // do with it — with the first row's text gone from the screen.
+        if (!(await commit())) return
+        idle.clear()
+        setDraft(next)
+      })
     },
     type: (text) => {
       setDraft((held) => (held === null ? held : typed(held, text)))
@@ -432,17 +479,17 @@ export const createEditor = (
       // anywhere — the row they are in is being redrawn around them, by an
       // agent's write or another tab's, at a moment nothing here chose.
       if (!left) {
-        void commit()
+        enqueue(commit)
         return
       }
       const before = draft()
       // The editor this blur came from is not the one that is open any more —
       // `Enter` moved on, and the row it opened is not this one's to close.
       if (before === null || !sameSlot(slotOf(before), from)) return
-      void commit().then((ok) => {
+      enqueue(async () => {
         // Refused: the draft stays, with its text and its reason, so nothing
         // typed is lost to a click somewhere else.
-        if (!ok) return
+        if (!(await commit())) return
         // Closed only if this is still the same editor. A click on another
         // row's title fires this blur first, and closing then would shut the
         // row the reader was aiming at.

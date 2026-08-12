@@ -669,6 +669,18 @@ drag-drop: each is its own roadmap item, and a delete arrives with undo,
 because until an edit can be taken back inside the app, git is the whole of the
 recovery net.
 
+Two more shapes this leaves, named because a reader will look for them:
+
+- **a zoomed page's heading is not editable.** A row's title is, and the
+  heading is the same node — but it is the page's SUBJECT rather than a row of
+  it, drawn by `NodePage` outside the tree the editor's places are keyed by.
+  Editing it wants the caret model to mean something on a page with one
+  heading and N rows, which is a decision rather than a line of code.
+- **the mark is keyboard-only.** `Ctrl+Enter` in a row's editor ticks a node
+  off; the checkbox stays display-only (`Checkbox.tsx` says why), so a phone
+  can open a title by tapping it and cannot tick it. Desktop-first for this
+  item; a touch affordance belongs with the widgets that follow it.
+
 
 ## What belongs to a reading, not to the file
 
