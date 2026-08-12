@@ -1,8 +1,8 @@
 Feature: The directory column sticks too
-  The sidebar is the DIRECTORY — the month and the file tree — and it is the
-  other half of the chrome the header carries. Both are permanent answers rather
-  than parts of the page: where you are in the corpus, and what else there is to
-  open.
+  The sidebar is the DIRECTORY — the agenda, the month and the file tree — and
+  it is the other half of the chrome the header carries. Both are permanent
+  answers rather than parts of the page: where you are in the corpus, what is
+  owed, and what else there is to open.
 
   This app scrolls the DOCUMENT, so a column in normal flow is as tall as the
   page and leaves the screen with it. Once the header started sticking (#115)

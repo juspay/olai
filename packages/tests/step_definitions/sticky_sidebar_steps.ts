@@ -198,6 +198,16 @@ Then(
     });
 
     const start = await reading();
+    // The reset is a PRECONDITION of what follows, so it is asserted here
+    // rather than left to fail later as a wheel that could not move: a column
+    // this step could not put at its top would otherwise report itself as a
+    // pin that does not work.
+    assert.strictEqual(
+      start.top,
+      0,
+      `the column is at ${Math.round(start.top)}px rather than its top, so the ` +
+        "wheel below is not being turned from where this step says it is",
+    );
     assert.ok(
       start.content > start.strip + EDGE,
       `the column holds ${Math.round(start.content)}px of directory in a ` +

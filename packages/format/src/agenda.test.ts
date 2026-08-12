@@ -115,6 +115,20 @@ test("a datetime counts for its day, at either end of it", () => {
   expect(due("2026-08-11T22:00:00-04:00")).toBe(true)
 })
 
+test("an instant for TODAY still names a day, on the caller's side too", () => {
+  // The predicate is total in both its arguments: `today` goes through the same
+  // ten-character reading the node's date does, so a caller holding an instant
+  // gets the same answer as one holding a day. Without it the comparison says
+  // yes to work due today — `"2026-08-12" < "2026-08-12T09:00"` is true, a
+  // prefix being less than what extends it — which is the one wrong answer it
+  // can give, and the one a reader would notice first.
+  const due = (date: string, now: string): boolean =>
+    isOverdue(node(`{"id":"a","ord":"a0","title":"a","todo":true,"date":"${date}"}`), now)
+  expect(due(TODAY, `${TODAY}T09:00`)).toBe(false)
+  expect(due(`${TODAY}T08:00`, `${TODAY}T09:00`)).toBe(false)
+  expect(due("2026-08-11", `${TODAY}T00:00:00-04:00`)).toBe(true)
+})
+
 test("a task with no date is not late — it has no WHEN to be late against", () => {
   expect(isOverdue(node(`{"id":"a","ord":"a0","title":"a","todo":true}`), TODAY)).toBe(false)
   // Nor is a date on the mark itself one: filing a task on Tuesday says nothing

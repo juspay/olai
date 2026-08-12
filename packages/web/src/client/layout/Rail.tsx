@@ -9,9 +9,9 @@
  * Which is why it is PINNED on the same terms the open column is
  * (`../Sidebar.tsx`): `sticky` under the header, as tall as what is left of the
  * viewport. "Never disappears" is a claim about the screen, not about the
- * document — four icons at the top of a page-tall column are gone as soon as
+ * document — five icons at the top of a page-tall column are gone as soon as
  * anybody reads past the fold, and the first of them is the way to get the
- * directory back. It scrolls within itself in a window too short for four
+ * directory back. It scrolls within itself in a window too short for five
  * buttons rather than clipping the last of them.
  */
 

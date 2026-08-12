@@ -66,8 +66,13 @@ import type { RegularNode } from "./node.ts"
  *
  * The DAY half is plain string comparison over the first ten characters, here
  * as everywhere — dates are text, and a `2026-08-10` put through an instant
- * comes back a datetime. So `today` is a DAY, and a caller holding a datetime
- * owes it {@link dayOf} first.
+ * comes back a datetime. BOTH SIDES go through {@link dayOf}, including the one
+ * the caller supplies: this is the predicate the whole feature reads, so it
+ * answers about a day whatever shape of ISO value it is handed rather than
+ * relying on every caller to have trimmed one first. An instant for `today`
+ * used to make work due TODAY read as late — `"2026-08-12" < "2026-08-12T09:00"`
+ * is true, a prefix being less than what extends it — which is the one wrong
+ * answer this comparison can give.
  *
  * Asked of the node's OWN record, which is what makes a mirror's row answer
  * with its target's date and its target's mark: a placement carries neither.
@@ -75,7 +80,7 @@ import type { RegularNode } from "./node.ts"
 export const isOverdue = (node: RegularNode, today: string): boolean => {
   if (node.date === undefined) return false
   const mark = storedMarker(node)
-  return (mark === "todo" || mark === "doing") && dayOf(node.date) < today
+  return (mark === "todo" || mark === "doing") && dayOf(node.date) < dayOf(today)
 }
 
 /** One day ahead, and what is on it. The date is a HEADING here rather than a

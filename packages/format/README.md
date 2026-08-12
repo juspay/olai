@@ -160,12 +160,15 @@ on. It adds no field and no rule — `date` says when, the mark says whether it 
 work, and the two together are the whole reading, so `date` with no mark is an
 occurrence that can never be late and `date` with `todo` or `doing` is due work.
 `isOverdue(node, today)` is that predicate spelled ONCE (`todo ∨ doing`, and
-`day(date) < today` by plain string order, because dates are text here too), and
-it is read by the page's first section and by the tone a date badge takes, the
-way `blocked` is one predicate read at both ends of its arrow. `agendaOf`
-assembles the three sections a reader wants — overdue, today, the next days that
-have anything — out of `datedOn` and the same `byOutline` grouping a day page
-uses, so the agenda and the day it links to cannot be two readings. `done` is
+`day(date) < day(today)` by plain string order, because dates are text here too
+— both sides through `dayOf`, so it answers about a day whichever shape of ISO
+value it is handed), and it is read by the page's first section and by the tone
+a date badge takes, the way `blocked` is one predicate read at both ends of its
+arrow. `agendaOf` assembles the three sections a reader wants — overdue, today,
+the next days that have anything — out of ONE bucketed walk (`datedByDay`), read
+back through the same `groupedOn` and `byOutline` a day page is built from, so
+the agenda and the day it links to cannot be two readings and nine days cost one
+pass rather than nine. `done` is
 filtered from all three: this question is what is OWED, and what happened is the
 day view's. TODAY IS AN ARGUMENT, never a clock: a derivation that read one
 would answer differently on the machine it ran on, and what day it is belongs to
