@@ -36,7 +36,7 @@
  *     nothing else.
  */
 
-import { kindOf, type OpFailure } from "@olai/format"
+import { kindOf, type OpFailure, type Writer } from "@olai/format"
 import { type Ops, type Reading, type Tool } from "@olai/ops"
 import { type BespokeTool, ToolFailure, type ToolInputSchema } from "@kolu/surface-mcp"
 import { Effect, Schema } from "effect"
@@ -49,14 +49,22 @@ import type { Request } from "@olai/ops"
  * Takes the table rather than reaching for it so the one place it is imported
  * from is the composition root, and so a test can project a subset without a
  * module mock.
+ *
+ * `writer` is which FACE this projection is: `chat-agent` for the panel's agent
+ * reaching the web server's route, `mcp` for somebody's own agent talking to
+ * `olai mcp` down a pipe. It is decided by the composition root and passed in,
+ * never claimed by a tool about itself — and it is the only thing that can tell
+ * one agent's edits from another's, since git records the repository's own name
+ * and email whoever asked. It rides every commit as `X-Olai-Writer`.
  */
 export const bespokeFrom = (
   tools: ReadonlyArray<Tool>,
   ops: Ops,
+  writer: Writer,
 ): Record<string, BespokeTool> =>
-  Object.fromEntries(tools.map((tool) => [tool.name, bespoke(tool, ops)]))
+  Object.fromEntries(tools.map((tool) => [tool.name, bespoke(tool, ops, writer)]))
 
-const bespoke = (tool: Tool, ops: Ops): BespokeTool => ({
+const bespoke = (tool: Tool, ops: Ops, writer: Writer): BespokeTool => ({
   // Omitted rather than passed as `undefined` when the tool takes nothing —
   // see {@link argsOf}. An absent `input` is what the adapter reads as "no
   // arguments"; a present-but-empty schema is a different claim.
@@ -66,8 +74,8 @@ const bespoke = (tool: Tool, ops: Ops): BespokeTool => ({
   // Conservative where it matters and honest where it does not: only the four
   // query tools are read-only, and `readOnlyHint` is what can let a host run a
   // call unconfirmed. Everything else is left mutating.
-  mutates: tool.kind === "write",
-  handler: (args) => answer(tool, ops, args),
+  mutates: tool.kind !== "read",
+  handler: (args) => answer(tool, ops, args, writer),
 })
 
 /**
@@ -104,19 +112,24 @@ const argsOf = (tool: Tool): ToolInputSchema<unknown> | undefined => {
 /**
  * Run one call.
  *
- * The two arms differ in what they carry rather than in a flag, exactly as the
+ * The three arms differ in what they carry rather than in a flag, exactly as the
  * table does: a READ answers from a snapshot through the reader the table holds
- * beside it — so a tool the table declares and nothing answers is a type error
- * — and a WRITE goes through `ops.run`, which plans, commits and retries.
+ * beside it — so a tool the table declares and nothing answers is a type error;
+ * a WRITE goes through `ops.run`, which plans, writes and retries; and an ACT
+ * carries its own verb, which is how `commit` reaches the same `Ops.commit` the
+ * button does without this file knowing what committing is.
  *
- * Both map an `OpFailure` onto {@link refusal}. Nothing else is caught: a defect
- * is a defect, and dressing one up as a refusal would tell an agent to try
- * something else about a condition that is not its fault.
+ * All three map an `OpFailure` onto {@link refusal}. Nothing else is caught: a
+ * defect is a defect, and dressing one up as a refusal would tell an agent to
+ * try something else about a condition that is not its fault. The act arm has no
+ * error channel at all — every way `commit` can go wrong is a value a caller is
+ * entitled to see — so its mapping is vacuous and says so by type.
  */
 const answer = (
   tool: Tool,
   ops: Ops,
   args: unknown,
+  writer: Writer,
 ): Effect.Effect<unknown, ToolFailure> =>
   Effect.mapError(
     tool.kind === "write"
@@ -124,8 +137,13 @@ const answer = (
       // decoded by the adapter against the schema this tool advertised, so
       // there is nothing left to validate.
       ? Effect.map(
-        ops.run({ ...(args as object), ...tool.fixed } as Request),
+        ops.run({ ...(args as object), ...tool.fixed } as Request, writer),
         (applied) => ({ ...applied, did: tool.name }),
+      )
+      : tool.kind === "act"
+      ? Effect.map(
+        tool.act(ops, args as never, writer),
+        (result) => ({ ...(result as object), did: tool.name }),
       )
       : Effect.map(ops.read, (at: Reading) => tool.read(at, args as never)),
     (failure: OpFailure) => refusal(tool.name, failure),

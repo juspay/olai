@@ -34,6 +34,7 @@
 import { Show } from "solid-js"
 
 import { Toggle as ChatToggle } from "./chat/Panel.tsx"
+import { Commit } from "./commit/Commit.tsx"
 import { Indicator } from "./connection/Indicator.tsx"
 import { GitIndicator } from "./git/Indicator.tsx"
 import { connectionStatus } from "./wire.ts"
@@ -86,10 +87,18 @@ export function AppHeader(props: {
           Git sits BESIDE the connection because they are the same kind of
           promise about two halves of the same page: that it is still reading,
           and that what is written to it is being kept. It draws nothing at all
-          on a `--no-commit` serve. */}
+          on a `--no-commit` serve.
+
+          And the Commit pill sits beside GIT, because the two split one subject
+          cleanly: the readout says whether writes here have a history to go
+          into at all, the pill says what is WAITING to go into it and is the
+          door to putting it there. They are two renderings of one survey (the
+          server recomputes both together), never two probes — so they cannot
+          contradict each other, which is what a reader would notice first. */}
       <div class="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1.5 sm:gap-2">
         <Indicator status={connectionStatus()} />
         <GitIndicator />
+        <Commit />
         <ChatToggle />
         <ThemePicker />
       </div>
