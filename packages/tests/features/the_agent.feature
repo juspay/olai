@@ -300,6 +300,145 @@ Feature: Talking to the agent
     And the transcript has stayed where I left it
 
   @scratch:chat
+  Scenario: The agent's question is a form in the conversation, and the answer goes back
+    # The panel advertises `elicitation.form`, so the agent may ask a
+    # structured question at all — without it the adapter puts AskUserQuestion
+    # in `disallowedTools` and the agent has to guess instead. The scripted
+    # agent refuses to ask unless the capability arrived, so this scenario
+    # fails if the client ever stops sending it.
+    When I ask the agent "ask"
+    Then the chat shows a question
+    And the question offers "oak"
+    # The turn is STOPPED on a person and nothing times out, so every place a
+    # reader might be looking has to say so.
+    And the composer says the agent is waiting on me
+    And the header says the agent is working
+    When I choose "birch"
+    And I answer the question
+    Then the agent is idle
+    And the agent's answer mentions "\"question_0\":\"birch\""
+    # The form stays where it was asked, disabled, with what was chosen on it.
+    And the question has been answered
+    And the question can no longer be answered
+
+  @scratch:chat
+  Scenario: The free-text box beside a question is what travels
+    # The agent sends its "Other" box as a field of its own, marked with the
+    # question it belongs to; drawn as a second question it would read as one.
+    # A typed answer takes precedence over the chip, which is the agent's own
+    # rule — so what has to arrive is the words, not the option underneath.
+    When I ask the agent "ask"
+    Then the chat shows a question
+    When I choose "oak"
+    And I type "walnut, actually" into the question's other box
+    And I answer the question
+    Then the agent's answer mentions "\"question_0_custom\":\"walnut, actually\""
+
+  @scratch:chat
+  Scenario: Dismissing a question tells the agent, rather than answering for me
+    # The one thing this must never be is a fabricated answer. A dismissal is a
+    # decline on the wire — the agent is told a person would not say — and the
+    # row afterwards says which of the two happened.
+    When I ask the agent "ask"
+    Then the chat shows a question
+    When I dismiss the question
+    Then the agent is idle
+    And the agent's answer mentions "\"action\":\"decline\""
+    And the question says I dismissed it
+
+  @scratch:chat
+  Scenario: A cancelled turn takes its question back
+    # A question holds the ACP request open, and cancelling the turn aborts it —
+    # so the form has to stop being a live control the moment the agent stops
+    # waiting for it. A form left answerable on a turn that is over is a button
+    # that does nothing, and pressing it is how a person would find out.
+    When I ask the agent "ask"
+    Then the chat shows a question
+    When I cancel the turn
+    Then the agent is idle
+    And the question says the agent took it back
+    And the composer has stopped saying the agent is waiting on me
+
+  @scratch:chat
+  Scenario: Leaving plan mode is asked, not assumed
+    # The hole this item closed. The adapter maps ExitPlanMode onto a permission
+    # request whose FIRST allow-flavoured option switches the session to "auto"
+    # — and the panel used to answer every permission request with the first
+    # allow it found, so it was quietly taking that decision on somebody's
+    # behalf, every time, invisibly.
+    When I ask the agent "plan"
+    Then the chat shows a question
+    And the question offers "auto"
+    When I choose "No, keep planning"
+    And I answer the question
+    Then the agent's answer mentions "permission: plan"
+
+  @scratch:chat
+  Scenario: An answer the question refuses keeps what I typed
+    # The server refuses an answer that does not fit the schema that asked for
+    # it and DELIBERATELY leaves the question waiting, so nothing is recorded
+    # that the agent was never sent. The panel used to throw the draft away on
+    # the click regardless — so the refusal arrived under a form that had gone
+    # blank, and the only way to act on it was to type the whole thing again.
+    # `howMany` is required and left empty, which is the refusal a person can
+    # actually reach: a number box will not take letters in the first place, so
+    # the browser is the earlier gate and the server is this one.
+    When I ask the agent "askstrict"
+    Then the chat shows a question
+    When I type "the oak ones" into the question's "note" box
+    And I answer the question
+    Then the chat shows a refusal
+    And the chat shows a question
+    And the question's "note" box still reads "the oak ones"
+    # ... and it is still answerable, which is what "still waiting" has to mean
+    # for the person looking at it.
+    When I type "40" into the question's "howMany" box
+    And I answer the question
+    Then the question has been answered
+    And the agent's answer mentions "\"howMany\":40"
+    And the agent's answer mentions "the oak ones"
+
+  @scratch:chat
+  Scenario: A tool nothing has named is asked about, not approved
+    # The other half of recognising our own tools POSITIVELY. Nothing announced
+    # this call and its title is not an MCP tool id, so the panel cannot tell
+    # what it is — and the rule is that what it cannot name, a person answers.
+    # Approving by failing to recognise something is the failure this direction
+    # of the rule exists to make impossible.
+    When I ask the agent "nameless"
+    Then the chat shows a question
+    And the question offers "reject"
+    When I choose "Deny"
+    And I answer the question
+    Then the agent's answer mentions "permission: reject"
+
+  @scratch:chat
+  Scenario: An answered question is still there after a reload
+    # The form is a ROW, and a row is transcript — so it comes back the way
+    # every other row does, on the first frame of a fresh subscription, with no
+    # replay protocol. That is the whole reason a question is an entry rather
+    # than a modal: what you were asked and what you said is a thing about the
+    # conversation, not about the tab that happened to be open.
+    When I ask the agent "ask"
+    Then the chat shows a question
+    When I choose "birch"
+    And I answer the question
+    Then the question has been answered
+    When I reload the page
+    And the agent panel is open
+    Then the question has been answered
+    And the question shows "birch" as what I chose
+
+  @scratch:chat
+  Scenario: Permission for an ops tool needs nobody
+    # Bypass mode is the design and these are the tools it is for: mediated,
+    # validated, and olai's own. A form here would be a click on every write.
+    When I ask the agent "permit"
+    Then the agent is idle
+    And the agent's answer mentions "permission: allow"
+    And the chat shows no question
+
+  @scratch:chat
   Scenario: A new conversation empties the panel
     # The panel shows ONE conversation. A break line under the old rows was
     # tried and is not what "new conversation" means to the person who pressed

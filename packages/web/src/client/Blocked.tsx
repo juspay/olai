@@ -36,6 +36,7 @@ export function Blocked(props: {
       refs={props.blocked.map((one) => ({
         id: one.at.node.id,
         title: one.at.node.title,
+        from: one.at.file,
       }))}
       testid={TESTID.blocked}
     />

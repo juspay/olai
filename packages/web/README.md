@@ -74,7 +74,8 @@ see `touch.ts`) left of a filled-circle bullet (`Bullet.tsx`, with a gray halo
 when children are hidden), then the MARK COLUMN (`Checkbox.tsx`: CSS squares —
 checked for done, half-filled for doing, EMPTY for todo, and no box at all on a
 node carrying none of them, because a bullet is not a task; read-only until
-keyboard-editing). Tags in a title are subtle pills (`NodeTitle.tsx`). A node's
+keyboard-editing). Titles render inline-only markdown and `#tags` as subtle
+pills (`NodeTitle.tsx` / `markdown/title.ts`). A node's
 free cross-references (`SeeRefs.tsx`) each link to `/n/<id>` with the target's
 title, resolved at view time through the same indexes.
 
@@ -123,12 +124,13 @@ and says why at length.
 ## Markdown, and documents
 
 `src/client/markdown/` is one pipeline for every piece of markdown this app
-draws — a node's note, a whole `.md` document and what the agent says in the
-chat panel. They are the same language read out of the same directory (an agent
-writing a fenced diff into the panel and a person writing one into a note are
-doing the same thing), and a second pipeline for any of them would be a second
-dialect nobody asked for: footnotes in one place and not the other, a
-highlighter kept in step by hand. Parse with GFM, to HTML, anchor the headings,
+draws — a node's note, a whole `.md` document, what the agent says in the
+chat panel, and a node's title. They are the same language read out of the same
+directory (an agent writing a fenced diff into the panel and a person writing
+one into a note are doing the same thing), and a second pipeline for any of
+them would be a second dialect nobody asked for: footnotes in one place and not
+the other, a highlighter kept in step by hand. Parse with GFM, to HTML, anchor the headings,
+
 sanitise, highlight, rewrite, stringify:
 
 - **the heading anchors run BEFORE the sanitiser**, which is the other half of
@@ -169,6 +171,17 @@ sanitise, highlight, rewrite, stringify:
   that two notes both opening `## Shape` cannot answer for each other either.
   On its way through it REPORTS the heading tree (`outline.ts`), because the
   ids a contents has to name do not exist until this pass has run.
+
+- **titles are inline-only** (`renderTitle` → `renderToTree` + `inline.ts`).
+  Same pipeline, then every block is unwrapped to phrasing, then `#tags` are
+  styled by walking text nodes (skipping `code` and `a` so constructs stay
+  whole; the alphabet is `titleTagRe` from `@olai/format`), then stringify.
+  When the pipeline loses text the source still accounts for — empty, or
+  shorter than the source with markdown marks removed — fall back to the
+  escaped source. Breadcrumbs and see-refs pass `links: false` so a markdown
+  link in a title cannot nest `<a>` inside the surrounding `Link`. Titles keep
+  their own cache; they are short and numerous, and would thrash the
+  note/document map if they shared it.
 
 A document is surveyed and jumped around through those anchors:
 `document/Toc.tsx` draws a collapsible contents above the body, derived from

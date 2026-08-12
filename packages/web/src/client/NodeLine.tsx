@@ -32,6 +32,9 @@ import { toneOf } from "./tone.ts"
 
 export function NodeLine(props: {
   readonly title: string
+  /** Outline the title is written in — handed to {@link NodeTitle} for the
+   *  markdown pipeline's relative-picture resolution. */
+  readonly from: string
   /** Absent for a plain bullet, which is toned like the text it is. */
   readonly status: Status | undefined
   /** Absent when nothing under the node is a task. Beside the title rather
@@ -52,7 +55,7 @@ export function NodeLine(props: {
         data-testid={TESTID.nodeTitle}
       >
         {props.children}
-        <NodeTitle title={props.title} />
+        <NodeTitle title={props.title} from={props.from} />
       </span>
       <Show when={props.progress}>
         {(progress) => <ProgressBadge progress={progress()} />}

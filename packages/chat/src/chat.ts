@@ -39,6 +39,7 @@
  */
 
 import {
+  type AskAnswer,
   type Attached,
   type AttachChunk,
   CHAT_OFF,
@@ -101,6 +102,13 @@ export interface Chat {
   readonly newSession: Effect.Effect<void, OpFailure>
   readonly loadSession: (id: string) => Effect.Effect<void, OpFailure>
   readonly sessions: Effect.Effect<ReadonlyArray<SessionInfo>, OpFailure>
+  /** Answer the question `id`, or — with `null` — decline it. Both refuse if
+   *  that question has stopped waiting, which is a thing two open tabs can
+   *  genuinely race and a person deserves to be told about. */
+  readonly answer: (
+    id: string,
+    answers: ReadonlyArray<AskAnswer> | null,
+  ) => Effect.Effect<void, OpFailure>
   /** Told by the MCP layer about a write it refused, so the panel can draw the
    *  refusal rather than the agent's account of it. */
   readonly recordRefusal: (
@@ -167,6 +175,24 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       options.onState(state)
     }
 
+    /**
+     * How many questions are still waiting on a person, COUNTED off the rows
+     * rather than tallied beside them.
+     *
+     * A question being open is already written down — it is the row whose
+     * outcome is `null`, which is the thing the panel draws and the thing the
+     * transcript's own tests are about. A counter kept alongside would be that
+     * same fact in a second place, staying right only for as long as every
+     * future writer remembered both.
+     */
+    const asking = (): number => {
+      let waiting = 0
+      for (const entry of transcript.entries().values()) {
+        if (entry.kind === "ask" && entry.ask?.outcome === null) waiting++
+      }
+      return waiting
+    }
+
     /** The agent's events, as rows and as state. The one place the vocabulary
      *  of {@link ./events.ts} is consumed. */
     const receive = (event: AgentEvent): void => {
@@ -189,6 +215,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               locations: event.locations,
             }),
           )
+          return
+        case "asked":
+          publish(transcript.ask(event.id, event.message, event.fields))
+          move({ asking: asking() })
+          return
+        case "askSettled":
+          publish(transcript.settleAsk(event.id, event.outcome))
+          move({ asking: asking() })
           return
         case "commands":
           move({ commands: event.commands })
@@ -217,10 +251,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           // DEAD agent leaves the rows where they are — nobody asked for that,
           // and the `gone` notice explains them.
           if (event.why === "new") publish(transcript.clear())
-          move({ session: null, commands: [] })
+          move({ session: null, commands: [], asking: asking() })
           return
         case "replayStarted":
           publish(transcript.clear())
+          // Emptying the rows is one of the three things that can change how
+          // many questions are open, so it is one of the three that recounts.
+          // Every clear is preceded by the agent withdrawing what was waiting,
+          // so this is belt to that brace rather than the only strap — but the
+          // count is a function of the rows, and that should be true at every
+          // point the rows move rather than at the two it usually moves at.
+          move({ asking: asking() })
           return
         case "replayEnded":
           publish(transcript.settle())
@@ -468,6 +509,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           }))),
         (gone) => Effect.fail(asFailure(gone)),
       ),
+      answer: (id, answers) =>
+        Effect.flatMap(
+          agent.answer(id, answers),
+          (took) =>
+            took ? Effect.void : Effect.fail(
+              new UsageFailure({
+                reason: "that question is not waiting any more — it was answered or withdrawn",
+              }),
+            ),
+        ),
+
       recordRefusal: (tool: string, failure: OpFailure) =>
         Effect.sync(() => {
           publish(transcript.refuse(`\`${tool}\` was refused`, failure))

@@ -51,7 +51,9 @@ export {
   siblingsOf,
   storedMarker,
   titleParts,
+  titleTagRe,
   unfinishedUnder,
+
   withoutDone,
 } from "./derive.ts"
 export type {

@@ -17,12 +17,21 @@
  *     model is read off whichever result made the session. Adopting the
  *     most-recently-updated one is what makes "the conversation you were last
  *     in" survive a restart (racket's mechanism, kept).
- *   - **the answer to `session/request_permission`.** An unanswered one hangs
- *     the turn forever, so it is answered immediately with the first
- *     allow-flavoured option. That is about not wedging the wire, which is why
- *     it is protocol rather than policy — the tools it is approving are the
- *     mediated ops, already validated (resolved 2026-08-09: auto-approve, a
- *     permission UI is its own item).
+ *   - **the questions the agent asks a person**, both kinds. An
+ *     `elicitation/create` is a form; a `session/request_permission` that is not
+ *     one of ours is a single-select. What is HERE is that both are the same
+ *     question and which methods carry them; the payload shapes are
+ *     {@link ./asks.ts} and the promise-per-question state machine is
+ *     {@link ./questions.ts}, so neither is one more thing this file's closure
+ *     has to get right at the same time as a subprocess.
+ *   - **which permission requests are answered without asking.** Bypass mode is
+ *     the design (resolved 2026-08-09), so a call to one of the MCP servers WE
+ *     handed this session — olai's mediated ops, kolu's terminals — is allowed
+ *     immediately. Everything else is a person's to answer, and that direction
+ *     of the rule is the load-bearing one: the adapter maps plan mode's "ready
+ *     to code?" onto a permission request whose first allow-flavoured option
+ *     switches the session to `auto`, so a client that answered every request
+ *     with the first allow it found was silently taking a decision nobody made.
  *   - **reading the payloads**: which update kind this is, which `configOptions`
  *     entry is the model, how a session list sorts. An event carries what was
  *     READ, never the raw protocol value.
@@ -32,7 +41,11 @@
  * this host is running kolu, kolu's terminals ({@link ./kolu.ts}), detected per
  * session rather than at boot. `fs` capabilities are FALSE in both directions
  * on purpose: this is not an editor, and an agent that could write a file whole
- * would be routing around the format.
+ * would be routing around the format. `elicitation.form` is TRUE, and it is
+ * what makes any of the above happen at all: without it the Claude Code adapter
+ * puts `AskUserQuestion` in `disallowedTools`, so the agent cannot ask a
+ * structured question — it has to guess, or write the question into prose and
+ * hope.
  */
 
 import { type ChildProcess, spawn } from "node:child_process"
@@ -44,24 +57,32 @@ import {
 } from "@agentclientprotocol/sdk"
 import type {
   ContentBlock,
+  CreateElicitationRequest,
+  CreateElicitationResponse,
   InitializeResponse,
   ListSessionsResponse,
   LoadSessionResponse,
   McpServer,
   NewSessionResponse,
   PromptResponse,
+  RequestPermissionRequest,
+  RequestPermissionResponse,
   SessionConfigOption,
   SessionNotification,
   ToolCallContent,
   ToolCallLocation,
   ToolCallStatus,
 } from "@agentclientprotocol/sdk"
+import { UsageFailure } from "@olai/format"
 import { emitter, reasonOf } from "@olai/log"
+import type { AskAnswer } from "@olai/surface"
 import { Data, type Duration, Effect, Semaphore } from "effect"
 
+import { type Form, formOf, PERMISSION_FIELD, permissionFormOf } from "./asks.ts"
 import type { AgentEvent, Command, Stored } from "./events.ts"
 import * as Kolu from "./kolu.ts"
 import { streamOver } from "./pipes.ts"
+import * as Questions from "./questions.ts"
 
 /** An MCP server to hand a session, in olai's terms. {@link mcpServersOf}
  *  renders it into what the protocol wants. */
@@ -128,6 +149,26 @@ export interface Agent {
   readonly loadSession: (id: string) => Effect.Effect<void, AgentGone>
   /** The stored conversations for this directory, newest first. */
   readonly sessions: Effect.Effect<ReadonlyArray<Stored>, AgentGone>
+  /**
+   * Answer a question the agent asked, or — with `null` — decline it.
+   *
+   * Answers `false` when that question is no longer waiting: it was withdrawn,
+   * or a second tab got there first. Two tabs watching one conversation is the
+   * ordinary case here, so "somebody else already answered" is a state to
+   * report rather than a fault, and the caller turns it into a refusal a person
+   * reads.
+   *
+   * FAILS when the answers do not fit the question — a number field given a
+   * word, a required field left empty, a key nothing asked for. The question
+   * stays waiting in that case, which is the whole reason the check is here
+   * rather than at the point the answer goes on the wire: settling the row and
+   * then sending something else would leave a transcript claiming an answer the
+   * agent never got.
+   */
+  readonly answer: (
+    id: string,
+    answers: ReadonlyArray<AskAnswer> | null,
+  ) => Effect.Effect<boolean, UsageFailure>
   readonly stop: Effect.Effect<void>
 }
 
@@ -203,6 +244,134 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  said, not something being said. */
     let replaying = false
 
+    /** The questions on the wire right now ({@link ./questions.ts}), told to
+     *  report every ending down the same channel everything else uses. */
+    const questions = Questions.make((id, outcome) => {
+      emit({ _tag: "askSettled", id, outcome })
+    })
+
+    /**
+     * The MCP servers this conversation was handed, by name.
+     *
+     * Read by the permission handler and by nothing else: a call to one of
+     * these is a call to a tool olai chose to expose — the mediated ops, kolu's
+     * terminals — and those are the ones bypass mode is for. Refilled whenever
+     * a session is opened, because the set is decided per conversation (a padi
+     * started after olai shows up in the next one).
+     */
+    let given: ReadonlyArray<string> = []
+
+    /**
+     * What tool each call id is, out of the `tool_call` frames.
+     *
+     * The permission request carries a DISPLAY title, not a name — for a plan
+     * exit it reads "Ready to code?" — but the adapter guarantees the tool call
+     * it references has already been announced, and that announcement carries
+     * the programmatic name in its `_meta`. So the name is remembered as the
+     * frames go past, and the permission handler looks it up. A miss is a name
+     * we do not know, which is answered by ASKING; nothing here guesses.
+     *
+     * Emptied with the conversation ({@link leaving}), because a call id is only
+     * ever looked up inside the session that minted it — otherwise this would be
+     * every tool call the process had ever seen, kept for the life of a server
+     * that is meant to run for weeks.
+     */
+    const toolNames = new Map<string, string>()
+
+    /** The conversation is over — replaced, reloaded, or dead. Everything keyed
+     *  to it goes: the questions nobody is going to answer now, and the tool
+     *  names they were keyed alongside. One function, because "this session is
+     *  finished" is one fact and four call sites remembering two things each is
+     *  how one of them ends up remembering one. */
+    const leaving = (): void => {
+      questions.withdrawAll()
+      toolNames.clear()
+    }
+
+    /** Put a form in front of a person and wait for it — the registry holds the
+     *  promise, and this is the one place the row it draws is announced. */
+    const put = (form: Form, signal: AbortSignal): Promise<Questions.Settled> =>
+      questions.ask(form, signal, (id) => {
+        emit({ _tag: "asked", id, message: form.message, fields: form.fields })
+      })
+
+    /** A question we cannot draw. Declined on the wire and SAID out loud: an
+     *  agent that got an empty answer and a person who never saw the question
+     *  is the one shape of this failure nobody could debug. */
+    const undrawable = (why: string): void => {
+      trouble(`the agent asked something this panel cannot draw — ${why}`)
+    }
+
+    const onElicitation = async (
+      params: CreateElicitationRequest,
+      signal: AbortSignal,
+    ): Promise<CreateElicitationResponse> => {
+      const form = formOf(params)
+      if (form instanceof UsageFailure) {
+        undrawable(form.reason)
+        return { action: "decline" }
+      }
+      const settled = await put(form, signal)
+      // A dismissal is a DECLINE and a withdrawal is a CANCEL, and the adapter
+      // reads them differently: decline tells the model the person skipped and
+      // lets the turn go on, cancel aborts the tool use. Saying "cancel" for a
+      // dismissal would end a turn somebody meant to continue.
+      if (settled.outcome.how === "declined") return { action: "decline" }
+      if (settled.outcome.how === "withdrawn") return { action: "cancel" }
+      // Already typed against the schema that asked for it — `answer` refuses
+      // anything that does not fit rather than settling the row and quietly
+      // sending something else.
+      return { action: "accept", content: settled.content }
+    }
+
+    /** Which tool a permission request is about, or `null` when nothing said.
+     *  The request's own `_meta` carries the name for a subagent's call; every
+     *  other call was announced first, and the announcement did. */
+    const toolOf = (request: RequestPermissionRequest): string | null =>
+      toolNameIn(request.toolCall._meta) ??
+        toolNames.get(request.toolCall.toolCallId) ??
+        null
+
+    const onPermission = async (
+      params: RequestPermissionRequest,
+      signal: AbortSignal,
+    ): Promise<RequestPermissionResponse> => {
+      const tool = toolOf(params)
+      // `mcp__<server>__<tool>` is the Claude Code CLI's own naming for the
+      // tools an MCP server contributes, and reading it is a bet on that
+      // adapter exactly as `toolNameIn` is. The bet is safe to lose in one
+      // direction only, which is the direction it loses in: an agent that names
+      // its MCP tools some other way matches nothing here and every request
+      // goes to a person. Nothing is ever approved by failing to recognise it.
+      const ours = tool !== null &&
+        given.some((server) => tool.startsWith(`mcp__${server}__`))
+      if (ours) {
+        // Bypass mode is the design and these are the tools it is for: already
+        // mediated, already validated. The adapter usually never asks at all —
+        // this is the path for a session whose bypass request was refused.
+        const allowed = params.options.find((option) => option.kind.startsWith("allow"))
+        if (allowed !== undefined) {
+          return { outcome: { outcome: "selected", optionId: allowed.optionId } }
+        }
+      }
+      const settled = await put(permissionFormOf(params), signal)
+      const picked = settled.content[PERMISSION_FIELD]
+      // Dismissed, withdrawn, or — impossible, since the field is required, but
+      // said in one place rather than assumed in two — nothing chosen. All
+      // three are `cancelled`, which is the protocol's "nobody decided".
+      return typeof picked !== "string"
+        ? { outcome: { outcome: "cancelled" } }
+        : { outcome: { outcome: "selected", optionId: picked } }
+    }
+
+    const remember = (
+      toolCallId: string,
+      meta: { readonly [key: string]: unknown } | null | undefined,
+    ): void => {
+      const name = toolNameIn(meta)
+      if (name !== null) toolNames.set(toolCallId, name)
+    }
+
     const onUpdate = (notification: SessionNotification): void => {
       const update = notification.update
       switch (update.sessionUpdate) {
@@ -222,6 +391,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // the same thing with either.
         case "tool_call":
         case "tool_call_update":
+          // Not drawn, and not an event: the NAME of the tool is what the
+          // permission handler needs and the permission request does not
+          // carry — see `toolNames`.
+          remember(update.toolCallId, update._meta)
           emit({
             _tag: "tool",
             id: update.toolCallId,
@@ -358,6 +531,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           if (live?.child !== child) return
           live = null
           session = null
+          // Before anything else it emits: a form left live on a dead wire is a
+          // control that does nothing, and pressing it is how a person finds
+          // out.
+          leaving()
           if (stopped) return
           emit({ _tag: "sessionOver", why: "gone" })
           emit({
@@ -383,20 +560,18 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
               readLiveModel(context.params)
             },
           )
-          // Answered immediately, with the first allow-flavoured option: an
-          // unanswered permission request hangs the turn forever. The session
-          // asks for bypass mode at boot; this is the backstop for when that
-          // was refused.
-          .onRequest(methods.client.session.requestPermission, (context) => {
-            const allowed = context.params.options.find((option) =>
-              option.kind.startsWith("allow")
-            ) ?? context.params.options[0]
-            return allowed === undefined
-              ? { outcome: { outcome: "cancelled" as const } }
-              : {
-                outcome: { outcome: "selected" as const, optionId: allowed.optionId },
-              }
-          })
+          // Allowed without asking when it is one of the tools we handed this
+          // session, and PUT IN FRONT OF A PERSON otherwise. It used to take
+          // the first allow-flavoured option whatever the request was, and the
+          // adapter's plan-mode exit is a permission request whose first allow
+          // switches the session to `auto` — so the panel was quietly answering
+          // "yes, and stop asking me" on somebody's behalf.
+          .onRequest(methods.client.session.requestPermission, (context) =>
+            onPermission(context.params, context.signal))
+          // The agent's own structured question, which is a thing it can only
+          // ask because `initialize` said we can draw one.
+          .onRequest(methods.client.elicitation.create, (context) =>
+            onElicitation(context.params, context.signal))
           .connect(streamOver(child))
 
         const initialized = (yield* ask(
@@ -404,9 +579,16 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           methods.agent.initialize,
           {
             protocolVersion: PROTOCOL,
-            // Not an editor: the agent reaches the outlines through the ops
-            // tools or not at all.
-            clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } },
+            clientCapabilities: {
+              // Not an editor: the agent reaches the outlines through the ops
+              // tools or not at all.
+              fs: { readTextFile: false, writeTextFile: false },
+              // A form we can draw, and deliberately not a URL: `elicitation.url`
+              // sends a person out of the panel to a page olai knows nothing
+              // about, which is a different bargain and its own decision. An
+              // empty object is how the protocol spells "yes" here.
+              elicitation: { form: {} },
+            },
             clientInfo: { name: "olai", version: "0.1.0" },
           },
         )) as InitializeResponse
@@ -462,7 +644,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  is picked up by the next conversation instead of the next restart. */
     const servers = Effect.map(
       Kolu.detect,
-      (found) => mcpServersOf(options.tools(), Kolu.serverOf(found)),
+      (found) => {
+        const handing = mcpServersOf(options.tools(), Kolu.serverOf(found))
+        // Remembered as they are handed over, because "the tools we gave this
+        // conversation" is exactly the set the permission handler allows
+        // without asking — and it is decided per conversation.
+        given = handing.map((server) => server.name)
+        return handing
+      },
     )
 
     const fresh = (at: Live): Effect.Effect<void, AgentGone> =>
@@ -630,6 +819,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       const at = live
       live = null
       session = null
+      leaving()
       if (at === null) return
       at.connection.close()
       if (at.child.exitCode === null) at.child.kill()
@@ -642,6 +832,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       newSession: withLive((at) =>
         Effect.gen(function*() {
           session = null
+          // BEFORE the break, so the question is settled on the row it is
+          // drawn on rather than after that row has been cleared away.
+          leaving()
           emit({ _tag: "sessionOver", why: "new" })
           yield* fresh(at)
         })
@@ -657,11 +850,18 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             const stored = yield* storedFor(at)
             const wanted = stored.find((entry) => entry.id === id)
             session = null
+            leaving()
             emit({ _tag: "sessionOver", why: "load" })
             yield* load(at, id, wanted?.title ?? null)
           })
         ),
       sessions: withLive(storedFor),
+      answer: (id, answers) =>
+        Effect.suspend(() => {
+          const took = questions.answer(id, answers)
+          if (took instanceof UsageFailure) return Effect.fail(took)
+          return Effect.succeed(took === "settled")
+        }),
       stop,
     }
   })
@@ -857,6 +1057,29 @@ const liveModelIn = (params: unknown): string | null => {
   }
   if (shape.type !== "system" || shape.subtype !== "init") return null
   return typeof shape.model === "string" && shape.model !== "" ? shape.model : null
+}
+
+/**
+ * The programmatic name of a tool, out of a `_meta` the Claude Code adapter
+ * puts it in.
+ *
+ * The one thing read out of an agent-specific `_meta` extension, and it is read
+ * because the protocol proper does not carry it where it is needed: a
+ * `session/request_permission` describes the call it is about with a DISPLAY
+ * title, and "which tool is this" is the question the answer turns on. Every
+ * `tool_call` the adapter emits carries the name here, and the adapter emits
+ * one before it asks — so the pair is enough.
+ *
+ * An agent that is not that adapter says nothing here, and nothing here guesses
+ * on its behalf: an unknown tool is one a person is asked about.
+ */
+const toolNameIn = (
+  meta: { readonly [key: string]: unknown } | null | undefined,
+): string | null => {
+  const claude = meta?.["claudeCode"] as { readonly toolName?: unknown } | undefined
+  return typeof claude?.toolName === "string" && claude.toolName !== ""
+    ? claude.toolName
+    : null
 }
 
 /** Two paths naming the same directory. An agent stores the spelling it was

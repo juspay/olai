@@ -21,6 +21,12 @@ import type { Locator } from "playwright";
 import { TESTID } from "@olai/web/src/client/testids.ts";
 
 import {
+  CHAT_ASK,
+  CHAT_ASK_CHOICE,
+  CHAT_ASK_DISMISS,
+  CHAT_ASK_OUTCOME,
+  CHAT_ASK_SUBMIT,
+  CHAT_ASK_TEXT,
   CHAT_ATTACHMENT,
   CHAT_ATTACHMENT_PREVIEW,
   CHAT_CANCEL,
@@ -45,6 +51,7 @@ import {
   CHAT_TOOL_LOCATIONS,
   CHAT_TOOL_PROGRESS,
   CHAT_TRANSCRIPT,
+  CHAT_WAITING,
   CHAT_WORKING,
   HYDRATION_TIMEOUT,
   NODE_TITLE,
@@ -342,6 +349,192 @@ Then("the chat shows no refusal", async function (this: OlaiWorld) {
     "the panel drew a refusal for a write that was supposed to land",
   );
 });
+
+// ── questions the agent asked ──────────────────────────────────────────
+//
+// Every step here drives the FIRST question on screen: a scenario that asks one
+// is watching the one it just asked, and a later turn's would arrive below it.
+
+const question = (world: OlaiWorld) => world.page.locator(CHAT_ASK).first();
+
+Then("the chat shows a question", async function (this: OlaiWorld) {
+  await question(this).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.waitUntil(
+    async () => (await question(this).getAttribute("data-asking")) === "true",
+    "the question to be waiting for an answer",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then("the chat shows no question", async function (this: OlaiWorld) {
+  // The turn has already been asserted to have landed by the step before this
+  // one, so a form — if there were one — would be on screen by now.
+  assert.strictEqual(
+    await this.page.locator(CHAT_ASK).count(),
+    0,
+    "the panel asked a person about something it is supposed to answer itself",
+  );
+});
+
+Then(
+  "the question offers {string}",
+  async function (this: OlaiWorld, value: string) {
+    await question(this)
+      .locator(`${CHAT_ASK_CHOICE}[data-value="${value}"]`)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+/** By its LABEL, which is what a person reads and presses. `data-value` is the
+ *  string that travels back, and the two part company exactly where it
+ *  matters — `auto` is spelled `Yes, and use "auto" mode` on screen. */
+When("I choose {string}", async function (this: OlaiWorld, label: string) {
+  await question(this)
+    .locator(CHAT_ASK_CHOICE, { hasText: label })
+    .first()
+    .click();
+});
+
+When(
+  "I type {string} into the question's other box",
+  async function (this: OlaiWorld, text: string) {
+    await question(this)
+      .locator(`${CHAT_ASK_TEXT}[data-field$="_custom"]`)
+      .fill(text);
+  },
+);
+
+When(
+  "I type {string} into the question's {string} box",
+  async function (this: OlaiWorld, text: string, field: string) {
+    await question(this)
+      .locator(`${CHAT_ASK_TEXT}[data-field="${field}"]`)
+      .fill(text);
+  },
+);
+
+Then(
+  "the question's {string} box still reads {string}",
+  async function (this: OlaiWorld, field: string, text: string) {
+    const box = question(this).locator(`${CHAT_ASK_TEXT}[data-field="${field}"]`);
+    assert.strictEqual(
+      await box.inputValue(),
+      text,
+      "the panel threw away what was typed on a submit the server refused. The " +
+        "refusal deliberately leaves the question waiting so nothing is " +
+        "recorded that the agent was never sent — a blank form under it makes " +
+        "typing the whole answer again the only way to act on it.",
+    );
+  },
+);
+
+When("I answer the question", async function (this: OlaiWorld) {
+  await question(this).locator(CHAT_ASK_SUBMIT).click();
+});
+
+When("I dismiss the question", async function (this: OlaiWorld) {
+  await question(this).locator(CHAT_ASK_DISMISS).click();
+});
+
+Then("the question has been answered", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await question(this).getAttribute("data-how")) === "answered",
+    "the question to record that it was answered",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then("the question says I dismissed it", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await question(this).getAttribute("data-how")) === "declined",
+    "the question to record that it was dismissed",
+    HYDRATION_TIMEOUT,
+  );
+  assert.match(
+    oneLine(await question(this).locator(CHAT_ASK_OUTCOME).innerText()),
+    /dismissed/,
+    "the row does not say what became of the question, so a reader scrolling " +
+      "back cannot tell a dismissal from an answer nobody remembers giving",
+  );
+});
+
+Then(
+  "the question shows {string} as what I chose",
+  async function (this: OlaiWorld, value: string) {
+    // Off the ROW rather than off this tab's memory of the click: a reloaded
+    // page has no memory of the click, which is the point of asking.
+    await this.expectAttribute(
+      `${CHAT_ASK} ${CHAT_ASK_CHOICE}[data-value="${value}"]`,
+      "aria-pressed",
+      "true",
+      `the chosen option "${value}"`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+Then(
+  "the question can no longer be answered",
+  async function (this: OlaiWorld) {
+    // The form STAYS — it is the record of what was asked and chosen — so what
+    // has to be true is that it cannot be answered twice.
+    assert.strictEqual(
+      await question(this).locator(CHAT_ASK_SUBMIT).count(),
+      0,
+      "an answered question still offers a submit, so it can be answered again",
+    );
+    const live = await question(this)
+      .locator(CHAT_ASK_CHOICE)
+      .evaluateAll((chips) =>
+        chips.filter((chip) => !(chip as HTMLButtonElement).disabled).length
+      );
+    assert.strictEqual(
+      live,
+      0,
+      "an answered question still has live options, so what it records could " +
+        "be changed under the answer that was already sent",
+    );
+  },
+);
+
+Then(
+  "the question says the agent took it back",
+  async function (this: OlaiWorld) {
+    await this.waitUntil(
+      async () => (await question(this).getAttribute("data-how")) === "withdrawn",
+      "the question to record that it was withdrawn",
+      HYDRATION_TIMEOUT,
+    );
+    assert.strictEqual(
+      await question(this).locator(CHAT_ASK_SUBMIT).count(),
+      0,
+      "a question nobody is waiting on any more can still be answered, so the " +
+        "button does nothing and pressing it is how you find out",
+    );
+  },
+);
+
+Then(
+  "the composer says the agent is waiting on me",
+  async function (this: OlaiWorld) {
+    // Nothing times out a blocked turn: a form scrolled off the top of a long
+    // transcript is otherwise indistinguishable from an agent that is thinking.
+    await this.page
+      .locator(CHAT_WAITING)
+      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  },
+);
+
+Then(
+  "the composer has stopped saying the agent is waiting on me",
+  async function (this: OlaiWorld) {
+    await this.waitUntil(
+      async () => (await this.page.locator(CHAT_WAITING).count()) === 0,
+      "the composer to stop saying the agent is waiting",
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
 
 // ── tool frames ────────────────────────────────────────────────────────
 

@@ -39,6 +39,7 @@
  */
 
 import {
+  type AskAnswer,
   type Attached,
   CHAT_OFF,
   type ChatEntry,
@@ -114,6 +115,22 @@ export interface Chat {
    *  is none — because the two are different answers and used to be the same
    *  one. */
   readonly sessions: () => Promise<Sessions>
+  /**
+   * Answer a question the agent asked — `id` is the ask row's own id.
+   *
+   * `done` is called when the verb came BACK, whichever way it went: the server
+   * took the answer, or refused it. It is not "it worked" — what worked shows
+   * up as the row settling, like every other consequence in this panel — it is
+   * only "the call is no longer in flight", which is what a form needs to know
+   * to stop being pressable twice.
+   */
+  readonly answer: (
+    id: string,
+    answers: ReadonlyArray<AskAnswer>,
+    done?: () => void,
+  ) => void
+  /** ... or decline it, which the agent is told about as such. */
+  readonly decline: (id: string, done?: () => void) => void
 }
 
 /**
@@ -154,10 +171,21 @@ export const createChat = (): Chat => {
 
   /** Every verb the same way: clear the last refusal, run, and keep whatever
    *  this one refuses with. A verb that SUCCEEDS says nothing — the transcript
-   *  is where its consequences show up. */
-  const verb = (effect: Call<unknown>) => {
+   *  is where its consequences show up.
+   *
+   *  `done` is told the call came back, either way. Only a caller that has to
+   *  stop being clickable while it waits passes one; the rest fire and forget,
+   *  which is what "the consequences arrive on the transcript" means. */
+  const verb = (effect: Call<unknown>, done?: () => void) => {
     setRefused(null)
-    run(effect, (failure) => setRefused(failure))
+    run(
+      effect,
+      (failure) => {
+        setRefused(failure)
+        done?.()
+      },
+      () => done?.(),
+    )
   }
 
   // A conversation ended, so what belonged to it did too: the server threw its
@@ -220,6 +248,9 @@ export const createChat = (): Chat => {
     cancel: () => verb(olai.procedures.chat.cancel()),
     newSession: () => verb(olai.procedures.chat.newSession()),
     loadSession: (id) => verb(olai.procedures.chat.loadSession({ id })),
+    answer: (id, answers, done) =>
+      verb(olai.procedures.chat.answer({ id, answers }), done),
+    decline: (id, done) => verb(olai.procedures.chat.decline({ id }), done),
     sessions: () =>
       new Promise((resolve) => {
         run(

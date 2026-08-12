@@ -28,9 +28,21 @@
  *   flood        say more than fits, so scrolling is a thing that can be tested
  *   hold         start a tool call and STOP there, until released
  *   model <id>   switch the model the way the wrapped CLI does
+ *   ask          ask a structured question and report the answer
+ *   askstrict    ask one with a REQUIRED, typed field, the way an MCP server does
+ *   plan         ask to leave plan mode, the way the adapter does
+ *   permit       ask permission for an ops tool, which needs no person
+ *   nameless     ask permission for a tool nothing has named
  *   crash        exit mid-turn
  *   a prompt naming an attached image  read the file and say how big it is
  *   anything     one chunk of prose and an `end_turn`
+ *
+ * The last three are REQUESTS to the client rather than notifications, which is
+ * the shape those parts of the protocol have: the agent stops until an answer
+ * comes back. `ask` refuses to ask at all unless the client advertised
+ * `elicitation.form` at `initialize` — which is what makes the capability
+ * itself something a scenario can assert, rather than a line in a file that
+ * could be deleted with every test still passing.
  *
  * `hold` is how a scenario gets to look at a turn WHILE it is happening. A
  * turn that finishes in a millisecond can only be asserted about afterwards,
@@ -74,6 +86,38 @@ const notify = (method: string, params: unknown): void => {
   emit({ jsonrpc: "2.0", method, params })
 }
 
+/** The client's answers to requests WE sent, by the id we sent them under.
+ *  Ids are prefixed so they cannot be mistaken for the client's own. */
+const answering = new Map<string, (result: unknown) => void>()
+let nextRequestId = 0
+
+/** Ask the client something and wait. Half the protocol runs this way — a
+ *  permission, an elicitation — and a scripted agent that could only notify
+ *  could not exercise any of it. */
+const request = (method: string, params: unknown): Promise<unknown> =>
+  new Promise((resolve) => {
+    const id = `agent-${++nextRequestId}`
+    answering.set(id, resolve)
+    emit({ jsonrpc: "2.0", id, method, params })
+  })
+
+/**
+ * Take back every question still on the wire, the way a real agent does when
+ * its turn is cancelled: `$/cancel_request` per outstanding id, which aborts
+ * the client's handler.
+ *
+ * The promises are resolved HERE rather than waited on, because a cancelled
+ * request gets no response — that is the point of cancelling it — so an agent
+ * that went on awaiting them would hang on a turn it had just abandoned.
+ */
+const withdrawRequests = (): void => {
+  for (const [id, resolve] of [...answering]) {
+    answering.delete(id)
+    notify("$/cancel_request", { requestId: id })
+    resolve(null)
+  }
+}
+
 const noise = (line: string): void => {
   process.stderr.write(`${line}\n`)
 }
@@ -103,6 +147,10 @@ let deaf = false
  *  that refused from the start would fail its own boot instead of reaching the
  *  picker, which is the thing under test. */
 let listRefused = false
+/** What the client said it can do, out of `initialize`. Read for one thing: a
+ *  client that did not advertise `elicitation.form` is one a real adapter would
+ *  never ask a structured question of, and this one does not either. */
+let capabilities: Record<string, unknown> = {}
 
 const STORED = process.env["OLAI_FAKE_ACP_STORED"] ?? ""
 const stored = () => STORED !== ""
@@ -270,6 +318,24 @@ const sdkInit = (model: string): void => {
   })
 }
 
+/** A turn that was cancelled while it was waiting on the client ends as a
+ *  cancelled turn. Answers whether it did, so the caller stops there. */
+const endedCancelled = (id: unknown): boolean => {
+  if (!cancelled) return false
+  respond(id, { stopReason: "cancelled" })
+  return true
+}
+
+/** Whether the client said it can draw a form. `{}` is how the protocol spells
+ *  "yes" — the presence of the key is the whole of the claim. */
+const canElicit = (): boolean => {
+  const elicitation = capabilities["elicitation"] as
+    | { form?: unknown }
+    | null
+    | undefined
+  return elicitation?.form != null
+}
+
 const runTurn = async (id: unknown, text: string): Promise<void> => {
   cancelled = false
   noise(`fake agent: ${text}`)
@@ -406,6 +472,148 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
+  if (verb === "ask") {
+    // Byte for byte the shape `askUserQuestionsToCreateRequest` builds for one
+    // single-select question: the question as the message, a titled `oneOf`,
+    // and the per-question "Other" box marked with the shared `_meta` key.
+    if (!canElicit()) {
+      say("the client cannot draw a form, so there is nothing to ask")
+      respond(id, { stopReason: "end_turn" })
+      return
+    }
+    const answer = await request("elicitation/create", {
+      mode: "form",
+      sessionId,
+      toolCallId: `call-${++nextMcpId}`,
+      message: "Which cabinets should I order?",
+      requestedSchema: {
+        type: "object",
+        properties: {
+          question_0: {
+            type: "string",
+            title: "Cabinets",
+            oneOf: [
+              { const: "oak", title: "oak", description: "the ones in the drawing" },
+              { const: "birch", title: "birch" },
+            ],
+          },
+          question_0_custom: {
+            type: "string",
+            title: "Other",
+            description: "Type your own answer instead of choosing an option above (optional).",
+            _meta: {
+              _askUserQuestionCustomAnswer: {
+                questionId: "question_0",
+                isCustomAnswer: true,
+              },
+            },
+          },
+        },
+      },
+    })
+    if (endedCancelled(id)) return
+    say(`you answered: ${JSON.stringify(answer)}`)
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  if (verb === "askstrict") {
+    // The shape an MCP server asks in, rather than the one the CLI's own
+    // AskUserQuestion produces: a REQUIRED field, and a typed one. Claude's
+    // questions are all optional chips, so this is the only way to reach the
+    // path where the panel's answer can be refused by the schema it was for.
+    if (!canElicit()) {
+      say("the client cannot draw a form, so there is nothing to ask")
+      respond(id, { stopReason: "end_turn" })
+      return
+    }
+    const answer = await request("elicitation/create", {
+      mode: "form",
+      sessionId,
+      message: "How many cabinets?",
+      requestedSchema: {
+        type: "object",
+        required: ["howMany"],
+        properties: {
+          howMany: { type: "integer", title: "How many" },
+          note: { type: "string", title: "Note" },
+        },
+      },
+    })
+    if (endedCancelled(id)) return
+    say(`you answered: ${JSON.stringify(answer)}`)
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  if (verb === "nameless") {
+    // A permission request for a tool nothing has named: no `_meta`, no
+    // announcement to have learned the name from, and a title that is not an
+    // MCP tool id. The client cannot tell what this is, and the whole point of
+    // recognising OURS positively is that this asks rather than approves.
+    const answer = await request("session/request_permission", {
+      sessionId,
+      toolCall: { toolCallId: `call-${++nextMcpId}`, title: "do something unnamed" },
+      options: [
+        { kind: "allow_once", name: "Allow Once", optionId: "allow" },
+        { kind: "reject_once", name: "Deny", optionId: "reject" },
+      ],
+    })
+    if (endedCancelled(id)) return
+    const outcome = (answer as { outcome?: { outcome?: string; optionId?: string } })
+      ?.outcome
+    say(`permission: ${outcome?.optionId ?? outcome?.outcome ?? "nothing"}`)
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  if (verb === "plan" || verb === "permit") {
+    // The two permission requests that matter, told apart ONLY by the tool
+    // name the announcement carries: a plan exit is a person's to answer, and
+    // an ops call is not. `permit` must never draw a form; `plan` must always
+    // draw one, and must never come back `auto` unless somebody pressed it.
+    const plan = verb === "plan"
+    const toolCallId = `call-${++nextMcpId}`
+    const toolName = plan ? "ExitPlanMode" : "mcp__olai__set_done"
+    notify("session/update", {
+      sessionId,
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId,
+        title: plan ? "Ready to code?" : toolName,
+        status: "pending",
+        rawInput: {},
+        _meta: { claudeCode: { toolName } },
+      },
+    })
+    const answer = await request("session/request_permission", {
+      sessionId,
+      toolCall: { toolCallId, title: plan ? "Ready to code?" : toolName },
+      options: plan
+        // The adapter's own list for a plan exit, with `auto` FIRST and
+        // allow-flavoured: that is the option a client answering by machine
+        // used to pick, silently. (The real one is filtered against the
+        // session's available modes and can lead with `bypassPermissions`;
+        // what matters here is that the first entry is an allow.)
+        ? [
+          { kind: "allow_always", name: 'Yes, and use "auto" mode', optionId: "auto" },
+          { kind: "allow_always", name: "Yes, and auto-accept edits", optionId: "acceptEdits" },
+          { kind: "allow_once", name: "Yes, and manually approve edits", optionId: "default" },
+          { kind: "reject_once", name: "No, keep planning", optionId: "plan" },
+        ]
+        : [
+          { kind: "reject_once", name: "Deny", optionId: "reject" },
+          { kind: "allow_once", name: "Allow Once", optionId: "allow" },
+        ],
+    })
+    if (endedCancelled(id)) return
+    const outcome = (answer as { outcome?: { outcome?: string; optionId?: string } })
+      ?.outcome
+    say(`permission: ${outcome?.optionId ?? outcome?.outcome ?? "nothing"}`)
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
   if (verb === "model") {
     sdkInit(argument)
     say(`switched to ${argument}.`)
@@ -505,6 +713,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
 
   switch (method) {
     case "initialize":
+      capabilities = (params["clientCapabilities"] ?? {}) as Record<string, unknown>
       respond(id, {
         protocolVersion: 1,
         agentCapabilities: {
@@ -581,6 +790,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
 
     case "session/cancel":
       cancelled = true
+      withdrawRequests()
       return
 
     default:
@@ -606,6 +816,20 @@ readMessages(
     // A cancel must be seen NOW, not behind the turn it is cancelling.
     if (message["method"] === "session/cancel") {
       cancelled = true
+      withdrawRequests()
+      return
+    }
+    // An answer to something WE asked. It cannot go through the queue: the turn
+    // that asked is sitting in it, waiting for exactly this.
+    if (message["method"] === undefined) {
+      const id = String(message["id"])
+      const answering_ = answering.get(id)
+      if (answering_ === undefined) {
+        noise(`fake agent: an answer to nothing: ${id}`)
+        return
+      }
+      answering.delete(id)
+      answering_(message["error"] ?? message["result"])
       return
     }
     queue = queue.then(() => handle(message)).catch((cause: unknown) => {
