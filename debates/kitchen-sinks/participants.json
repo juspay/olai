@@ -1,0 +1,5 @@
+{
+  "fable": { "terminal": null, "label": "Claude Fable — orchestrator-debater; authored docs/brainstorming/kitchen-sinks.md; defends it" },
+  "opencode": { "terminal": "5ea0b74c-28ac-4dea-a002-2dd6b506b7c2", "label": "opencode — prosecutes the proposal on Lowy's volatility bar" },
+  "grok": { "terminal": "3bd67e5f-1033-4346-b6d3-f0c4450aa726", "label": "Grok CLI — re-frames: re-derive boundaries from olai's actual volatility axes" }
+}

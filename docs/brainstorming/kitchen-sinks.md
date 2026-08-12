@@ -2,6 +2,8 @@
 
 Surveyed 2026-08-12, on the human's ask: *identify kitchen sink modules/packages, and propose how we can lift them to separate packages.* Method: three full-tree sweeps (the ops package; the web package; chat/server/format/surface/tests), each reading the fat files whole and tracing what imports what. Everything below is proposal, not decision — nothing here is ratified, and nothing has a roadmap item yet.
 
+> **Superseded in part — see the appendix.** This survey was put through a three-way adversarial debate the same day (`debates/kitchen-sinks/`, three rounds, converged). Several claims below were falsified by citation and **none of the four package lifts survived**; the ratified replacement list is in the appendix at the end and, in full, in `debates/kitchen-sinks/conclusion.md`. The survey body is kept as written — it is the record of what the file-size lens sees, and of why that lens was not enough.
+
 ## The verdict in one paragraph
 
 The *package* layering is not the problem. The workspace's dependency direction is machine-checked by `bun install`, every edge is argued in a `//dependencies` comment, and the one recent extraction (`@olai/git`, out of `ops/src/git.ts` under `commit-whole-repo`) set a precedent this survey kept testing candidates against: a leaf on `effect` alone, knowing nothing above it. Very few candidates pass that test, and the ones that do are named below. The actual kitchen sinks are **files** — a 987-line `pending.ts` carrying ~170 lines of pure vocabulary beside its git orchestration, a 657-line closure in `chat/agent.ts` holding nine mutable variables for four separable concerns, a 1060-line test World a third of which touches no instance state. So this document proposes in two registers: package lifts (few, specific), and module splits inside packages (many, mostly free). It also records what looked like a sink and is not, so nobody splits those later.
@@ -93,3 +95,25 @@ Recorded so the next survey doesn't re-litigate: `plan.ts`'s thirteen `planX` fu
 - **Wave 2 — the package lifts:** the markdown pipeline; the theme/design tokens; `precompress` (paired with `precompress-dev-tax`); the fake-agent skeleton into `chat/testlib`.
 - **Recorded, not scheduled:** `@olai/committing` (blocked on `changes.ts`), `@olai/store` to its own repo, `inverseOf` down to ops on its second consumer.
 - **Regardless of everything above:** fix the two stale manifest claims (web's `//exports`, tests' `//dependencies`) — those are honesty bugs today, not refactors.
+
+## Appendix: the debate verdict — 2026-08-12
+
+This proposal was debated the same day by three agents with assigned stances — fable (this doc's author, defending), opencode (prosecuting on Lowy's volatility bar), grok (re-deriving boundaries from demonstrated change) — in `debates/kitchen-sinks/`. The debate converged; the full ledger with every correction and the one registered objection is `debates/kitchen-sinks/conclusion.md`. What a reader of *this* document needs:
+
+**Errata — claims above falsified by citation during the debate:**
+- `precompress.test.ts` does **not** import the util; it hand-rolls its `node:zlib` calls. The "server already reaches across to test it" evidence is false — and the survey missed the filed `precompress-upstream` item, under which `precompress.ts` is scheduled for **deletion** on the kolu pin bump.
+- The fake agent's "node builtins alone" is too strong: `fake-acp-agent.ts:74` imports `../support/ndjson.ts` (shared protocol framing, not olai leakage — but the clean split as described does not exist).
+- The `GitState` "one owner after the vocabulary extraction" bonus is layering-impossible as written: surface can never import ops. The move that works is `GitState` (+ `gitOf`) onto `format/src/committing.ts` beside `RepoState` — one Schema, both ends import the floor, the mirror dies.
+- "`commitDoors` — which nothing in the file even calls" is file-scoped-true but tree-misleading: `server/commits.ts:56` interpolates it into `--help`.
+
+**The verdict on the proposal's shape:** zero of the four package lifts survives as a package. The isolation lens ("imports nothing outside itself") selects for *stability*, which is the inverse of volatility decomposition — confirmed empirically: `@olai/git`'s socket has never been edited since extraction while `pending.ts` above it was touched by every git PR in the window. The length-ranked module table is a Hickey/legibility index, not a Lowy argument, and its "waves" are dead: the ratified rule is *mechanical = free, do opportunistically when a PR is already in the file; axis-bearing = needs a named axis; nothing is scheduled as a program.*
+
+**The ratified list (replaces "Sequencing, if ratified" above):**
+1. Fix both stale manifests against the **six** real imports (the count above was right; the debate verified it twice).
+2. `scale.ts` → `theme/` — directory, not `@olai/theme`.
+3. `GitState` + `gitOf` → `format/src/committing.ts`; mirror deleted. `COMMIT_MODES`/`whyOf`/`commitDoor`/`commitDoors` stay in ops.
+4. Adapter interpretation as one module in `chat` (`shouldBypass`, `toolNameIn`, `liveModelIn`/`labelsOf`, the `mcp__` prefix) — pure, unit-tested, no subprocess; session lifecycle stays in `agent.ts`; fake-agent skeleton stays in `tests/agent/`, no testlib.
+5. Grow the Edit union (`menu-verbs`/`editor-op-parity` are the work); no surface sibling-file project meanwhile.
+6. On the next verb-list growth: tool and panel prose each read from the planner's typed policy structures — never bound to each other (opencode's registered objection, adopted).
+7. `precompress-dev-tax` fixed in place; the file dies on the upstream pin.
+8. `said.ts`, `keys.ts`, `pending.ts`'s closure, and everything in "checked, and explicitly not sinks" stay whole. `format/paths.ts` is struck. `@olai/committing`/`@olai/store`/`inverseOf` stay properly deferred.
