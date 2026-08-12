@@ -149,14 +149,25 @@ export const whyOf = (
     case "Ready":
       return mode === "manual"
         ? "waiting to be committed: writes accumulate under --commit=manual (the " +
-          `default) until ${asks(writer)} asks for one`
+          `default) until ${commitDoor(writer)} asks for one`
         : undefined
   }
 }
 
-/** The door a given writer has. `web` presses a button; `mcp` calls the tool;
- *  the panel's agent has the tool with a person and a button beside it. */
-const asks = (writer?: Writer): string => {
+/**
+ * What a given writer presses or calls to make a commit happen.
+ *
+ * ONE table, and it is exported because two things say this sentence and they
+ * must not drift: the reason a waiting write carries back ({@link whyOf}), and
+ * the `--commit` help text each subcommand advertises (`@olai/server`'s
+ * `commits.ts`). Written out in both places, renaming the button would fix one
+ * of them and leave the other pointing at a control that no longer exists —
+ * the kind of thing nothing fails on and everybody trips over.
+ *
+ * `web` presses a button; `mcp` calls the tool; the panel's agent has the tool
+ * AND a person with the button watching, so it is told both.
+ */
+export const commitDoor = (writer?: Writer): string => {
   switch (writer) {
     case "web":
       return "the Commit button"

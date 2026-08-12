@@ -28,6 +28,8 @@
  * looked at, is the e2e suite's (`packages/tests/support/mcp.ts`).
  */
 
+import { Client } from "@modelcontextprotocol/sdk/client/index.js"
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { expect, test } from "bun:test"
 import { execFileSync, spawn } from "node:child_process"
 import * as fs from "node:fs"
@@ -157,112 +159,49 @@ const converse = async (
 }
 
 /**
- * The same server, spoken to the way a client actually speaks to one: each
- * request goes down the pipe only once the previous one has been ANSWERED.
+ * The same server, spoken to by a REAL MCP client that launched it.
  *
  * {@link converse} writes everything at once and closes stdin, which is the
- * right shape for the claims it is used for — drain, framing, shutdown — and
- * the wrong shape for anything ORDERED. The SDK's transport hands each message
- * to the handler without waiting for the last one to finish (the same fact
+ * right shape for the claims it is used for — drain, framing, shutdown — and the
+ * wrong shape for anything ORDERED. The SDK's transport hands each message to
+ * the handler without waiting for the last one to finish (the same fact
  * `stdio()` exists to drain around), so a batched `set_done` and `commit` race:
  * the commit can survey the repository before the write it was meant to record
  * has reached the disk. That is not a bug in the server — no agent emits its
- * next tool call before reading the last result — but it is a trap for a test,
- * and it cost an afternoon once.
+ * next tool call before reading the last result — but it is a trap for a test.
  *
- * So this one is a turn-taker, and it is what every ordering claim below uses.
+ * So the ordered claims use the SDK's OWN client over its own
+ * `StdioClientTransport`, which spawns the command and takes turns. That is not
+ * merely convenient: it is the exact arrangement `claude mcp add olai -- olai
+ * mcp ~/outlines` produces, so these tests exercise the path a person actually
+ * gets rather than a hand-rolled approximation of it — and the framing, the id
+ * correlation and the timeouts are the SDK's problem rather than ours.
  */
-const talk = async (
+const launched = async (
   root: string,
-  argv: ReadonlyArray<string>,
-): Promise<
-  {
-    readonly send: (
-      id: number,
-      method: string,
-      params?: unknown,
-    ) => Promise<Frame>
-    readonly notify: (method: string) => void
-    readonly end: () => Promise<Said>
-  }
-> => {
-  const child = spawn(process.execPath, [MAIN, "mcp", root, ...argv], {
-    stdio: ["pipe", "pipe", "pipe"],
-    env: { ...process.env, OLAI_LOG: "logfmt" },
+  argv: ReadonlyArray<string> = [],
+): Promise<{ readonly client: Client; readonly close: () => Promise<void> }> => {
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [MAIN, "mcp", root, ...argv],
+    // The server's own stderr, inherited, so a failure to start is visible in
+    // the test's output rather than swallowed by the transport.
+    stderr: "inherit",
+    env: { ...process.env, OLAI_LOG: "logfmt" } as Record<string, string>,
   })
-
-  let out = ""
-  let err = ""
-  const waiting = new Map<number, (frame: Frame) => void>()
-  child.stdout?.setEncoding("utf8")
-  child.stderr?.setEncoding("utf8")
-  child.stderr?.on("data", (chunk: string) => {
-    err += chunk
-  })
-  child.stdout?.on("data", (chunk: string) => {
-    out += chunk
-    // Whole lines only: a chunk boundary can land mid-frame.
-    const lines = out.split("\n")
-    out = lines.pop() ?? ""
-    for (const line of lines) {
-      if (line.trim() === "") continue
-      const frame = JSON.parse(line) as Frame
-      if (frame.id !== undefined) waiting.get(frame.id)?.(frame)
-    }
-  })
-
-  const send = (id: number, method: string, params?: unknown): Promise<Frame> =>
-    new Promise<Frame>((resolve, reject) => {
-      const timer = setTimeout(
-        () => reject(new Error(`nothing answered id ${id} in time. stderr: ${err}`)),
-        BOUND_MS,
-      )
-      waiting.set(id, (frame) => {
-        clearTimeout(timer)
-        resolve(frame)
-      })
-      child.stdin?.write(`${JSON.stringify(ask(id, method, params))}\n`)
-    })
-
-  return {
-    send,
-    notify: (method) => {
-      child.stdin?.write(`${JSON.stringify(ask(null, method))}\n`)
-    },
-    end: async () => {
-      child.stdin?.end()
-      const stopped = await stoppedWithin(child, BOUND_MS)
-      if (!stopped) child.kill("SIGKILL")
-      return { frames: [], err, stopped }
-    },
-  }
+  const client = new Client({ name: "somebody's agent", version: "0" })
+  await client.connect(transport)
+  return { client, close: () => client.close() }
 }
 
-/** The handshake every conversation opens with, done once. */
-const opened = async (root: string, argv: ReadonlyArray<string>) => {
-  const client = await talk(root, argv)
-  await client.send(1, "initialize", {
-    ...HANDSHAKE,
-    clientInfo: { name: "somebody's agent", version: "0" },
-  })
-  client.notify("notifications/initialized")
-  return client
-}
-
-/** One tool call, answered. Fails the test with the refusal rather than
- *  letting a `structuredContent` read come back undefined three lines later. */
+/** One tool call, answered — with the refusal raised here rather than three
+ *  lines later as an undefined read. */
 const called = async (
-  client: { send: (id: number, method: string, params?: unknown) => Promise<Frame> },
-  id: number,
+  client: Client,
   name: string,
   args: Readonly<Record<string, unknown>> = {},
-): Promise<Record<string, unknown>> => {
-  const frame = await client.send(id, "tools/call", { name, arguments: args })
-  if (frame.error !== undefined) {
-    throw new Error(`\`${name}\` was a protocol error: ${JSON.stringify(frame.error)}`)
-  }
-  return (frame.result ?? {}) as Record<string, unknown>
-}
+): Promise<Record<string, unknown>> =>
+  (await client.callTool({ name, arguments: args })) as Record<string, unknown>
 
 /** stdout, as the only thing it is allowed to be. A line that will not parse
  *  is a client's parser looking at prose, so it fails here with the line —
@@ -427,18 +366,18 @@ test("ops accumulate and one commit records them, with the agent's message and t
   const root = servedRepo()
   // No `--commit` flag at all: `manual` is the DEFAULT on this face, and a test
   // that passed the flag would not be asserting that.
-  const client = await opened(root, [])
+  const { client, close } = await launched(root)
 
-  await called(client, 2, "set_done", { id: "order" })
-  await called(client, 3, "set_doing", { id: "install" })
-  await called(client, 4, "add_node", { parent: "kitchen", title: "measure the alcove" })
-  await called(client, 5, "set_desc", { id: "install", desc: "the fitter comes Tuesday" })
+  await called(client, "set_done", { id: "order" })
+  await called(client, "set_doing", { id: "install" })
+  await called(client, "add_node", { parent: "kitchen", title: "measure the alcove" })
+  await called(client, "set_desc", { id: "install", desc: "the fitter comes Tuesday" })
 
   // Four ops in, and the log has not moved. Under the old behaviour it had
   // grown four commits by this line.
   expect(subjects(root)).toEqual(["the outlines, as somebody's notes"])
 
-  const answer = await called(client, 6, "commit", { message: "plan the cabinet fitting" })
+  const answer = await called(client, "commit", { message: "plan the cabinet fitting" })
   expect(answer["isError"]).toBeUndefined()
   // THREE, for four ops, and the difference is the point: `changes` counts
   // NODES as they differ from HEAD, not calls that were made. `install` was
@@ -447,7 +386,7 @@ test("ops accumulate and one commit records them, with the agent's message and t
   // count of ops would be a tally of our own beside a truth git already holds.
   expect(answer["structuredContent"]).toMatchObject({ _tag: "Committed", changes: 3 })
 
-  await client.end()
+  await close()
 
   // ONE commit for the four ops, on top of the one the fixture made.
   const log = subjects(root)
@@ -492,13 +431,13 @@ test("ops accumulate and one commit records them, with the agent's message and t
  */
 test("a commit with no message composes one from what changed, per node", async () => {
   const root = servedRepo()
-  const client = await opened(root, [])
+  const { client, close } = await launched(root)
 
-  await called(client, 2, "set_done", { id: "order" })
-  await called(client, 3, "add_node", { parent: "kitchen", title: "measure the alcove" })
-  const answer = await called(client, 4, "commit")
+  await called(client, "set_done", { id: "order" })
+  await called(client, "add_node", { parent: "kitchen", title: "measure the alcove" })
+  const answer = await called(client, "commit")
   expect(answer["structuredContent"]).toMatchObject({ _tag: "Committed" })
-  await client.end()
+  await close()
 
   // Prefixed and composed: `created` outranks `done` in the fixed order, so the
   // subject names the capture and the body carries both.
@@ -530,10 +469,10 @@ test("a busy repository refuses the commit and says which state it is in", async
   // Detached, the way an agent finds it when somebody is mid-bisect.
   execFileSync("git", ["checkout", "--quiet", "--detach", "HEAD"], { cwd: root })
 
-  const client = await opened(root, [])
-  const wrote = await called(client, 2, "set_done", { id: "order" })
-  const refused = await called(client, 3, "commit", { message: "will not land" })
-  await client.end()
+  const { client, close } = await launched(root)
+  const wrote = await called(client, "set_done", { id: "order" })
+  const refused = await called(client, "commit", { message: "will not land" })
+  await close()
 
   // The WRITE happened. That is the guarantee, and it is not negotiable: git
   // never fails a write.
@@ -568,13 +507,11 @@ test("a busy repository refuses the commit and says which state it is in", async
  */
 test("what is waiting, and what was last recorded, are readable over the pipe", async () => {
   const root = servedRepo()
-  const client = await opened(root, [])
+  const { client, close } = await launched(root)
 
-  const readOnce = async (id: number): Promise<Pending> => {
-    const frame = await client.send(id, "resources/read", {
-      uri: "surface://cells/pending",
-    })
-    const contents = (frame.result?.["contents"] ?? []) as ReadonlyArray<{ text: string }>
+  const readOnce = async (): Promise<Pending> => {
+    const answer = await client.readResource({ uri: "surface://cells/pending" })
+    const contents = answer.contents as ReadonlyArray<{ text: string }>
     return JSON.parse(contents[0]?.text ?? "null") as Pending
   }
 
@@ -592,9 +529,9 @@ test("what is waiting, and what was last recorded, are readable over the pipe", 
    * re-surveys git itself and never reads this cache, so a stale read can make
    * an agent look again — never make a commit wrong.
    */
-  const read = async (base: number, until: (pending: Pending) => boolean): Promise<Pending> => {
+  const read = async (until: (pending: Pending) => boolean): Promise<Pending> => {
     for (let attempt = 0; attempt < 50; attempt++) {
-      const pending = await readOnce(base * 100 + attempt)
+      const pending = await readOnce()
       if (until(pending)) return pending
       await new Promise((resume) => setTimeout(resume, 20))
     }
@@ -603,16 +540,16 @@ test("what is waiting, and what was last recorded, are readable over the pipe", 
 
   // Nothing written yet: a work tree, on a branch, with nothing waiting — and
   // `last` is null, which says olai has never recorded anything here.
-  const before = await read(2, () => true)
+  const before = await read(() => true)
   expect(before.repo).toEqual({ _tag: "Ready", branch: "main" })
   expect(before.changes).toEqual([])
   expect(before.last).toBeNull()
 
-  await called(client, 3, "set_done", { id: "order" })
+  await called(client, "set_done", { id: "order" })
 
   // Now it is waiting, and it says WHAT is waiting — per node, classified, with
   // the message a commit would get if the agent has nothing better to say.
-  const waiting = await read(4, (pending) => pending.changes.length > 0)
+  const waiting = await read((pending) => pending.changes.length > 0)
   expect(waiting.changes).toHaveLength(1)
   expect(waiting.changes[0]).toMatchObject({
     file: "house.jsonl",
@@ -626,11 +563,11 @@ test("what is waiting, and what was last recorded, are readable over the pipe", 
   expect(waiting.wrote).toEqual([{ writer: "mcp", ops: 1 }])
   expect(waiting.last).toBeNull()
 
-  await called(client, 5, "commit", { message: "the cabinets are ordered" })
+  await called(client, "commit", { message: "the cabinets are ordered" })
 
   // Committed: nothing waiting, the writer tally cleared, and `last` is now
   // olai's own commit rather than the repository's HEAD.
-  const after = await read(6, (pending) => pending.last !== null)
+  const after = await read((pending) => pending.last !== null)
   expect(after.changes).toEqual([])
   expect(after.wrote).toEqual([])
   expect(after.last).toMatchObject({
@@ -639,5 +576,5 @@ test("what is waiting, and what was last recorded, are readable over the pipe", 
   })
   expect(after.last?.sha).toMatch(/^[0-9a-f]{40}$/)
 
-  await client.end()
+  await close()
 }, BOUND_MS * 3)

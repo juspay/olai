@@ -12,30 +12,22 @@
  * means "a write waits until something asks", and WHAT ASKS is a Commit button
  * in the browser and a `commit` tool in a terminal. A person running
  * `olai mcp --help` has no button; telling them about one is telling them to go
- * looking for a control their face does not have. So the mode table is shared
- * and the door is named per face — which is why {@link ASKS} is a map with the
- * face as its key: adding a third face is a line here, and forgetting to is a
- * type error rather than a sentence that quietly describes the wrong thing.
+ * looking for a control their face does not have.
  *
- * The parsing itself — including which flag wins when both are given — is
- * {@link commitMode}, and it is a pure function so the truth table can be
- * asserted without a process.
+ * That clause is NOT spelled here. `@olai/ops`' `commitDoor` is the one table of
+ * it, because the same sentence is owed in a second place — the reason a waiting
+ * write carries back on its reply (`Applied.why`) — and a face's help text and
+ * its writes must not name different doors. One table, two readers.
+ *
+ * The face is spelled as a {@link Writer}, which is the vocabulary the ops layer
+ * and the commit trailer already use, rather than a `"web" | "mcp"` of this
+ * file's own: a second name for who is asking would be a second thing to keep in
+ * step, and it is the same question both times.
  */
 
-import { COMMIT_MODES, type CommitMode } from "@olai/ops"
+import { COMMIT_MODES, commitDoor, type CommitMode } from "@olai/ops"
+import type { Writer } from "@olai/format"
 import { Flag } from "effect/unstable/cli"
-
-/** The two ways olai is put in front of a directory. Not a general-purpose
- *  vocabulary: it is exactly the set of subcommands, and it exists so the
- *  sentence below can name the right door. */
-export type Face = "web" | "mcp"
-
-/** What asks for a commit, on each face. The whole of the difference between
- *  the two help texts, kept as data so it reads as the one clause it is. */
-const ASKS: Record<Face, string> = {
-  web: "the Commit button in the header",
-  mcp: "the `commit` tool",
-}
 
 /**
  * What `--commit` says for itself on one face.
@@ -52,29 +44,32 @@ const ASKS: Record<Face, string> = {
  * behaviour, one commit per op, for a headless serve with nobody there to ask.
  * `off` is a directory whose history is somebody else's job.
  */
-export const commitsSaid = (face: Face): string =>
+export const commitsSaid = (face: Writer): string =>
   `when to git-commit writes: manual — a write lands on disk and waits for ${
-    ASKS[face]
+    commitDoor(face)
   } to ask for one, so a finished piece of work is ONE commit (the default); ` +
   `auto — every write commits itself, for a headless serve with nobody to ask; ` +
   `off — olai never touches git in this directory`
 
-/** The flag itself, for the face declaring it. */
-export const commitsFor = (face: Face) =>
-  Flag.choice("commit", COMMIT_MODES).pipe(
+/**
+ * The flag PAIR a subcommand takes, as one thing.
+ *
+ * Both or neither: `--no-commit` is only meaningful beside `--commit`, and
+ * `--commit` without it would silently drop an opt-out that is in scripts and in
+ * this repo's own test harness. Handing a caller two exports to spread into its
+ * own options object would make "which flags does a face take" a question
+ * answered at each call site — which is one call site away from the two faces
+ * taking different ones, the exact thing this module exists to prevent.
+ */
+export const commitFlags = (face: Writer) => ({
+  commits: Flag.choice("commit", COMMIT_MODES).pipe(
     Flag.withDescription(commitsSaid(face)),
     Flag.withDefault("manual" as CommitMode),
-  )
-
-/**
- * `--no-commit`, which stays and means `--commit=off`.
- *
- * It is in scripts and in this repo's own test harness, and a flag that quietly
- * changed meaning would be worse than one that is spelled twice.
- */
-export const noCommitFlag = Flag.boolean("no-commit").pipe(
-  Flag.withDescription("the same as --commit=off"),
-)
+  ),
+  noCommit: Flag.boolean("no-commit").pipe(
+    Flag.withDescription("the same as --commit=off"),
+  ),
+})
 
 /**
  * The two flags above, as the one answer they are between them.

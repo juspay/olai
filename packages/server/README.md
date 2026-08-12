@@ -19,6 +19,13 @@ terminal about a button would send somebody looking for a control they have not
 got. `src/commits.test.ts` holds both halves: the truth table, and that nothing
 BUT that clause differs.
 
+That clause is not spelled here, though. `@olai/ops`' `commitDoor` is the one
+table of it, because the same sentence is owed in a second place — the reason a
+waiting write carries back on its reply — and a face's help text and its writes
+must not name different doors. The face is spelled as a `Writer`, the vocabulary
+the commit trailer already uses, rather than a `"web" | "mcp"` of this package's
+own: one name for who is asking, not two to keep in step.
+
 This package decides one more thing about committing, and it is not the mode —
 it is WHO each transport is: the internal MCP route is handed to the session
 olai spawns, so it says `chat-agent`; `olai mcp` is somebody's own coding agent,
@@ -60,7 +67,7 @@ register `stop` as a finalizer.
 | `mcp/tools.ts` | `@olai/ops`' table projected onto that face — the fixed field subtracted, a refusal carried as data |
 | `mcp/route.ts` | that face for the agent olai STARTED: mounted on this listener, behind a per-process bearer token, over a half-duplex transport of its own |
 | `mcp/serve.ts` | that face for an agent that started US: `olai mcp`'s own, much smaller, composition root, over stdio |
-| `commits.ts` | `--commit`, for whichever face is asking: one mode table, one default, one override — and one clause of the help text naming the door that face actually has |
+| `commits.ts` | `--commit`, for whichever face is asking: one mode table, one default, one override, and the flag PAIR as one thing — the per-face clause it interpolates is `@olai/ops`' `commitDoor`, shared with the sentence a waiting write carries back |
 | `runtime.ts` | the surface bindings: one owned fiber turns each store revision into the entries that moved and the manifest that names it, the errors cell is a second owned source, the transcript is server-authored, and the two GIT cells — the header readout and what is waiting — are recomputed together by one connector on three clocks (every revision, every landed commit, a slow sweep, because nothing watches `.git`), so the two controls that draw them cannot disagree |
 | `outlines.ts` | the projection that fiber publishes: one published revision cut into per-file entries, and the store's own `changed`/`removed` mapped onto the collection's upserts and removes |
 | `listener.ts` | one `serveSurfaceApp` call, and the one decision it leaves that is a policy: whose port this is |

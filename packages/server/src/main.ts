@@ -19,13 +19,12 @@
 
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
 import { toStdout } from "@olai/log"
-
 import { Effect, Layer } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
 
 import { allowedOrigins } from "./allowedOrigins.ts"
 import { clientDist } from "./clientDist.ts"
-import { commitMode, commitsFor, noCommitFlag } from "./commits.ts"
+import { commitFlags, commitMode } from "./commits.ts"
 import { serveTools } from "./mcp/serve.ts"
 import { serve } from "./serve.ts"
 
@@ -36,11 +35,11 @@ const directory = Argument.directory("directory", { mustExist: true }).pipe(
   Argument.withDescription("the directory of outlines, read recursively"),
 )
 
-/** The flag both subcommands take, and the one function that reads it —
- *  `./commits.ts`, which owns why the sentence differs per face and why
- *  `--no-commit` wins. */
-const commits = { web: commitsFor("web"), mcp: commitsFor("mcp") }
-const noCommit = noCommitFlag
+/** The flag pair each subcommand takes — `./commits.ts`, which owns the mode
+ *  table, the default, why `--no-commit` wins, and why the sentence names a
+ *  different door on each face. */
+const webCommits = commitFlags("web")
+const mcpCommits = commitFlags("mcp")
 
 /** No registered port, and memorable: 7714 is "olai" on a phone keypad. */
 const DEFAULT_PORT = 7714
@@ -57,8 +56,7 @@ const web = Command.make("web", {
     ),
     Flag.withDefault("127.0.0.1"),
   ),
-  commits: commits.web,
-  noCommit,
+  ...webCommits,
 }, ({ commits, directory, host, noCommit, port }) =>
   Effect.gen(function*() {
     const faulted = yield* serve({
@@ -103,7 +101,7 @@ const web = Command.make("web", {
  */
 const mcp = Command.make(
   "mcp",
-  { directory, commits: commits.mcp, noCommit },
+  { directory, ...mcpCommits },
   ({ commits, directory, noCommit }) =>
     serveTools({
       root: directory,

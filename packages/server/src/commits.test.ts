@@ -20,7 +20,7 @@
 
 import { expect, test } from "bun:test"
 
-import { COMMIT_MODES } from "@olai/ops"
+import { COMMIT_MODES, commitDoor } from "@olai/ops"
 import { commitMode, commitsSaid } from "./commits.ts"
 
 // ── what the two flags come to between them ────────────────────────────
@@ -84,7 +84,10 @@ test("each face names the door it actually has, and only that differs", () => {
   expect(mcp).toContain("`commit` tool")
   expect(mcp).not.toContain("Commit button")
 
-  const withoutDoor = (said: string) =>
-    said.replace("the Commit button in the header", "…").replace("the `commit` tool", "…")
-  expect(withoutDoor(web)).toBe(withoutDoor(mcp))
+  // The phrases come from the one table rather than being spelled a third time
+  // here — a test carrying its own copy of the thing under test is the same
+  // drift it exists to catch, one layer up.
+  const withoutDoor = (said: string, face: "web" | "mcp") =>
+    said.replace(commitDoor(face), "…")
+  expect(withoutDoor(web, "web")).toBe(withoutDoor(mcp, "mcp"))
 })
