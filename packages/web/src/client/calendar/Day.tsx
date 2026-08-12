@@ -47,14 +47,18 @@ import { dayNumber } from "./month.ts"
  *  48rem (../touch.ts), the compact 1.75rem row above it. A day is the
  *  smallest target in this app and the one a finger is likeliest to miss into
  *  the day beside it. */
-const BOX = `flex ${TARGET} items-center justify-center rounded border text-xs ` +
-  "tabular-nums no-underline md:min-h-7"
+const BOX = `flex ${TARGET} relative items-center justify-center rounded border ` +
+  "text-xs tabular-nums no-underline md:min-h-7"
 
 /** The dot, as the pseudo-element it has to be — it sits UNDER the number
  *  rather than beside it, and `currentColor` is what makes it follow the cell
- *  into the fill rather than carrying a colour of its own to keep in step. */
+ *  into the fill rather than carrying a colour of its own to keep in step.
+ *
+ *  What it does NOT set is `position` on the cell: this mark and the fold below
+ *  are both absolute, so the containing block is the BOX's to declare — two of
+ *  them setting one property is the thing the note above forbids. */
 const DOT =
-  "relative after:absolute after:bottom-0.5 after:h-1 after:w-1 " +
+  "after:absolute after:bottom-0.5 after:h-1 after:w-1 " +
   "after:rounded-full after:bg-current after:opacity-70 after:content-['']"
 
 /** The corner fold, the other pseudo-element — a triangle drawn out of two
@@ -69,7 +73,7 @@ const DOT =
  *  it, and `border-current` for the reason the dot is `bg-current` — it
  *  follows the cell into the fill. */
 const FOLD =
-  "relative before:absolute before:right-px before:top-px before:border-[0.22rem] " +
+  "before:absolute before:right-px before:top-px before:border-[0.22rem] " +
   "before:border-b-transparent before:border-l-transparent before:border-current " +
   "before:opacity-60 before:content-['']"
 

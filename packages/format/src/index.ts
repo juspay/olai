@@ -12,12 +12,11 @@
  *   - what they produce, `OutlineSet` and the records inside it;
  *   - what a set MEANS, `derive` with `rowsOf`, `zoom`, `withoutDone`, the
  *     date derivations (`datedDays`, `datedOn`, and the daily-note pair
- *     `dailyNoteDays` / `dailyNotesOn` reading the same convention as
- *     `noteDateOf`) and the document rules (`docOf`, `isPicture`,
- *     `documentOf`) — so a reader and the validator agree on sibling order,
- *     mirror expansion, one node's ancestry, what is standing in its way, what
- *     is on a day, which document that day's note is, and where a `doc` or a
- *     relative link lands, computing all of it with the same code;
+ *     `dailyNoteDays` / `dailyNotesOn`) and the document rules (`docOf`,
+ *     `isPicture`, `documentOf`) — so a reader and the validator agree on
+ *     sibling order, mirror expansion, one node's ancestry, what is standing in
+ *     its way, what is on a day, which document that day's note is, and where a
+ *     `doc` or a relative link lands, computing all of it with the same code;
  *   - how a set is WRITTEN back, `serializeOutline`, `ordBetween` and
  *     `stampOf` — the canonical bytes, the sibling order and the one way an
  *     instant becomes a date value, held here for the same reason the rules
@@ -88,7 +87,7 @@ export type {
 } from "./derive.ts"
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
-export { dailyNoteDays, dailyNotesOn, datedDays, datedOn, noteDateOf } from "./dates.ts"
+export { dailyNoteDays, dailyNotesOn, datedDays, datedOn } from "./dates.ts"
 export type { DayEntry, DayGroup, Occasion } from "./dates.ts"
 export { stampOf } from "./stamp.ts"
 

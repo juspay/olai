@@ -32,7 +32,6 @@ import { Banner } from "./errors/Banner.tsx"
 import { Broken } from "./errors/Broken.tsx"
 import { Page as ErrorPage } from "./errors/Page.tsx"
 import { publishLayoutCss } from "./layout/css.ts"
-import { followed } from "./markdown/follow.ts"
 import { desktop } from "./layout/media.ts"
 import { chatOpen, sidebarOpen, toggleSidebar } from "./layout/prefs.ts"
 import { Rail } from "./layout/Rail.tsx"
@@ -43,7 +42,7 @@ import { createOutlines } from "./outlines.ts"
 import { fileOf, pageOf, rowsFor } from "./page.ts"
 import { OutlinePage } from "./OutlinePage.tsx"
 import { Palette } from "./palette/Palette.tsx"
-import { createRouter, RouterProvider } from "./router.tsx"
+import { createRouter, followed, RouterProvider } from "./router.tsx"
 import { Sidebar } from "./Sidebar.tsx"
 import { createView } from "./view.ts"
 import { connectionStatus, olai } from "./wire.ts"
@@ -214,9 +213,9 @@ export default function App() {
                       // owns — it arrives through `innerHTML` — so the one
                       // that names a document of this directory is answered
                       // here, in place, rather than by throwing the document
-                      // away (`markdown/follow.ts`). One listener for the pane
-                      // rather than one per rendered block, and everything it
-                      // does not claim behaves exactly as the browser's.
+                      // away (`router.tsx`'s `followed`). One listener for the
+                      // pane rather than one per rendered block, and everything
+                      // it does not claim behaves exactly as the browser's.
                       onClick={(event) => {
                         const route = followed(event)
                         if (route === null) return

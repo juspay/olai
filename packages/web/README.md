@@ -187,15 +187,17 @@ sanitise, highlight, rewrite, stringify:
   that two notes both opening `## Shape` cannot answer for each other either.
   On its way through it REPORTS the heading tree (`outline.ts`), because the
   ids a contents has to name do not exist until this pass has run.
-- **`follow.ts`** is the other end of that link. Rendered markdown reaches the
-  page as HTML through `innerHTML`, so its anchors belong to no component and
-  cannot be the app's own `<Link>` — without this, moving between two files of
-  one directory would be a full document load. One delegated listener on the
-  main pane rather than one per rendered block, and it is on the pane rather
+  The other end of that link is `router.tsx`'s `followed`, beside `<Link>`
+  because this module is the one allowed to change the address: rendered
+  markdown reaches the page as HTML through `innerHTML`, so its anchors belong
+  to no component and cannot be a `<Link>` — without it, moving between two
+  files of one directory would be a full document load. One delegated listener
+  on the main pane rather than one per rendered block, and on the pane rather
   than inside `<Markdown>` because the chat panel draws the same markdown
-  outside the router. It declines a modified click (that is a reader asking for
-  the browser's behaviour), a click a `<Link>` deeper in the tree has already
-  answered, and every address that is not a document's own page.
+  outside the router. What counts as a click this app may answer is one
+  predicate both it and `<Link>` read, so a modified click (a reader asking for
+  the browser's behaviour) and a click something deeper already answered mean
+  the same thing whichever wrote the markup.
 
 - **titles are inline-only** (`renderTitle` → `renderToTree` + `inline.ts`).
   Same pipeline, then every block is unwrapped to phrasing, then `#tags` are

@@ -281,8 +281,6 @@ const byTime = (left: Dated, right: Dated): number =>
  *  cannot reach a screen. */
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
 
-const EXTENSION = ".md"
-
 /**
  * The day a document is THE note for, or `null` for a document that is not one.
  *
@@ -298,11 +296,17 @@ const EXTENSION = ".md"
  * Read of a PATH, so the directories above the file are cut off first — a
  * folder named `2026-08-12` holding a `notes.md` is not a daily note, and the
  * folder is not consulted because the file is what carries the name.
+ *
+ * WHICH files are documents is {@link fileKind}'s and stays there — the
+ * extension is cut off by finding it rather than by spelling it a second time,
+ * so a package that ever admitted another one does not leave this reading a
+ * name it has taken the wrong number of characters off.
  */
 export const noteDateOf = (file: string): string | null => {
   if (fileKind(file) !== "document") return null
-  const name = file.slice(file.lastIndexOf("/") + 1, -EXTENSION.length)
-  return ISO_DAY.test(name) ? name : null
+  const name = file.slice(file.lastIndexOf("/") + 1)
+  const stem = name.slice(0, name.lastIndexOf("."))
+  return ISO_DAY.test(stem) ? stem : null
 }
 
 /**

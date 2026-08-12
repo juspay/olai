@@ -17,11 +17,17 @@
  * router is where that is decided (./scroll.ts): every entry the reader visits
  * is keyed, and the key is what a position is remembered against. The keys are
  * the only thing this app puts in `history.state`.
+ *
+ * A link this app DRAWS is a `<Link>`; a link a reader WROTE — in a note, in a
+ * document — is an anchor no component owns, and {@link followed} is the same
+ * decision for those. Two shapes, one rule about what a click means ({@link
+ * ours}), because the difference between them is who wrote the markup and not
+ * what the reader meant by pressing it.
  */
 
 import { createContext, createSignal, type JSX, onCleanup, useContext } from "solid-js"
 
-import { fileNamed, hrefOf, type Route, routeOf } from "./routes.ts"
+import { fileNamed, hrefOf, type Route, routeIn, routeOf } from "./routes.ts"
 import { createScrollMemory } from "./scroll.ts"
 
 export interface Router {
@@ -137,14 +143,70 @@ export interface LinkProps {
   readonly children?: JSX.Element
 }
 
+/**
+ * Is this click one this app may answer in place?
+ *
+ * A plain left click nobody has answered yet. A MODIFIED click is a reader
+ * asking for the browser's behaviour — a new tab, a download — and is never
+ * ours; a click something deeper already answered has been answered, which is
+ * how a `<Link>` inside a pane with its own listener keeps its own route.
+ *
+ * One spelling, because there are two places a click becomes a route ({@link
+ * Link} and {@link followed}) and a rule about what a reader meant by a
+ * keypress is not a rule to keep in two heads.
+ */
+const ours = (event: MouseEvent): boolean =>
+  !event.defaultPrevented &&
+  event.button === 0 &&
+  !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+
+/**
+ * The page a click on a link inside RENDERED MARKDOWN is asking for, or `null`
+ * for one to leave alone.
+ *
+ * The other way a click becomes a route, and it is here beside {@link Link}
+ * because this module is the one allowed to change the address. It cannot BE a
+ * `<Link>`: rendered markdown reaches the page as HTML through `innerHTML`
+ * (`markdown/rewrite.ts` is what points its `.md` links at `/doc/…`), so its
+ * anchors belong to no component. Without this, moving between two files of one
+ * directory would be a full document load — a fresh bundle, a fresh socket, a
+ * fresh snapshot — which is what a vault of Markdown does all day.
+ *
+ * Used as ONE delegated listener on the main pane rather than a handler per
+ * rendering: a page can hold a document, a note per row and a day's own notes.
+ * On the pane rather than inside `<Markdown>` because the chat panel draws the
+ * same markdown outside the router, and a component that needed one could not
+ * be drawn there — and on the PANE rather than on `document`, which is the
+ * placement that looks deeper and is not: Solid dispatches a handler on a
+ * descendant before one on an ancestor, so a `<Link>` inside the pane is
+ * guaranteed to have run (and to have prevented the default) before this is
+ * asked. Two listeners on `document` would be ordered by which registered
+ * first, and losing that race means one click pushing two history entries.
+ *
+ * What that placement costs is honest and small: the chat drawer is outside
+ * the pane, so a `.md` link an agent writes is a plain navigation there. That
+ * is the drawer's own standing — it draws no `<Link>` at all and has no router
+ * to reach — rather than something this introduced, and the link still lands on
+ * the right page.
+ *
+ * What it declines is the point: everything that is not a document's own page
+ * (./routes.ts's `routeIn`) goes where it says.
+ */
+export const followed = (event: MouseEvent): Route | null => {
+  if (!ours(event)) return null
+  const target = event.target
+  if (!(target instanceof Element)) return null
+  // `closest`, because what is clicked is usually the TEXT of the link — or a
+  // `<code>` or an `<em>` the markdown put inside it.
+  const href = target.closest("a")?.getAttribute("href")
+  return href === undefined || href === null ? null : routeIn(href)
+}
+
 export function Link(props: LinkProps) {
   const router = useRouter()
 
   const onClick = (event: MouseEvent) => {
-    // Let a modified click do what the browser does with any link: a new tab
-    // is a reader saying they want the browser's behaviour, not ours.
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-    if (event.button !== 0) return
+    if (!ours(event)) return
     event.preventDefault()
     router.go(props.route)
   }
