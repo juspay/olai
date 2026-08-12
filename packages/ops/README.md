@@ -193,10 +193,32 @@ when it knows its work is finished, and both are callers of one `Ops.commit`.
 server with no browser to press anything, and `--commit=off` (`--no-commit`) is
 for a directory whose history is somebody else's job.
 
-What is waiting is DERIVED (`pending.ts`): `git status --porcelain` names the
-dirty outlines, `git show HEAD:<file>` is the committed side, the store's own
-last-good parse is the working side, and `@olai/format`'s `changesOf` compares
-them into node-level changes. Beside it rides the LAST COMMIT olai made —
+What is waiting is DERIVED (`pending.ts`), and it is the WHOLE REPOSITORY in two
+kinds of row. `git status --porcelain` names every dirty file in it — the survey
+used to be pathspec'd to the served directory, so a person who edited a
+`README.md` one level up was told nothing was waiting, which is the bug
+`commit-whole-repo` was filed for. For an outline olai serves, `git show
+HEAD:<file>` is the committed side, the store's own last-good parse is the
+working side, and `@olai/format`'s `changesOf` compares them into node-level
+changes. For everything else — a document, a source file, an outline outside the
+served root — the row is a path and the porcelain's own status letter, because
+the only richer thing available is a text diff and this is an audit-trail
+recorder rather than a git client.
+
+A commit names exactly the paths it was asked for (`CommitRequest.paths`,
+repository-root-relative; omitted is everything) and nothing else, on both `add`
+and `commit`. It is a SELECTION and never git's index, so work somebody staged
+by hand is undisturbed and what is left out stays waiting for its own commit and
+its own message. A path nothing is waiting on is refused by name rather than
+quietly dropped.
+
+`Ops.push` is the verb beside it: the current branch to the upstream it already
+tracks, no arguments, and a refusal carrying git's own words. What is ahead of
+that upstream comes off the `--branch` header the status call is already
+printing, so "what is not recorded" and "what is not shared" cost one
+subprocess between them.
+
+Beside all of it rides the LAST COMMIT olai made —
 `git log -1` through the audit filter, so a person's own commits are not
 reported — because what is waiting says nothing about whether anything was ever
 recorded, and `null` there means "never" rather than "nothing right now".
@@ -205,9 +227,7 @@ A clean directory costs one `rev-parse` and three concurrent asks (state, what
 is dirty, what was last recorded), with no parsing at all. The repository handle
 is kept once it is one — a directory does not stop being a work tree — while a
 negative answer is re-asked, so a `git init` under a running server is picked up
-on the next sweep. Only `.jsonl` outlines are ever named on
-`add` or `commit`: they are the only files this package writes, and a served
-directory is a working tree with other work in it.
+on the next sweep.
 
 Committing checks that the repository is FREE first — no merge, rebase or
 cherry-pick in flight, and not a detached HEAD. Nothing used to, which is how an

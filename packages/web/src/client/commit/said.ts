@@ -71,6 +71,19 @@ export type Face =
   | "never"
 
 /**
+ * How much is waiting, in one place.
+ *
+ * THREE terms, and the third is `commit-whole-repo`'s: the node-level changes,
+ * the outlines nothing could be read in, and every other dirty file in the
+ * repository. It is one function because three readers count it — which face
+ * the pill wears, the number on the pill, and the sentence beside it — and a
+ * `.md` edited by hand that reached one of them and not the others would be the
+ * pill saying `committed` over a panel offering to commit two files.
+ */
+export const waitingIn = (pending: Pending): number =>
+  pending.changes.length + pending.unreadable.length + pending.others.length
+
+/**
  * The one face, from the two readings the server publishes together.
  *
  * `git` is the second argument rather than something derived from `pending`
@@ -96,7 +109,7 @@ export const faceOf = (pending: Pending, heard: boolean, git: GitState): Face =>
   // memory, which no probe can see).
   if (git.status === "error" || pending.repo._tag === "Unusable") return "error"
   if (pending.repo._tag === "NoRepo") return "no-repo"
-  const waiting = pending.changes.length + pending.unreadable.length
+  const waiting = waitingIn(pending)
   // A busy repository with nothing waiting is not a problem anybody has: there
   // is nothing the block is stopping.
   if (waiting > 0) return pending.repo._tag === "Blocked" ? "blocked" : "waiting"
@@ -230,7 +243,7 @@ const alsoUnpushed = (said: string, pending: Pending): string => {
 /** How much is waiting, in words — the same tally the pill draws as a number,
  *  so the sentence and the label cannot disagree. */
 const counted = (pending: Pending): string => {
-  const waiting = pending.changes.length + pending.unreadable.length
+  const waiting = waitingIn(pending)
   return `${waiting} ${waiting === 1 ? "change is" : "changes are"}`
 }
 

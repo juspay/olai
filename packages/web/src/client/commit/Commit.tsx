@@ -5,8 +5,9 @@
  * It exists because every write olai makes is a write nobody typed — the chat
  * agent auto-approves its ops, and an agent in a terminal is working on its
  * own — so git is how you see what the tool did to your files. That is the ONE
- * job: an audit trail. Not history (the notes carry their own dates), not sync
- * (olai never pushes), not undo.
+ * job: an audit trail. Not history (the notes carry their own dates), not undo
+ * — and not sync either, though it does now PUSH what it recorded: sharing an
+ * audit trail is not merging one, and nothing here pulls, fetches or resolves.
  *
  * **It is the only git indicator in the header.** There were two: this pill and
  * #108's `● git` readout beside it, which answered "is what gets written here

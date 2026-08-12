@@ -24,6 +24,7 @@ import {
 import { GIT_OFF, type GitState } from "@olai/surface"
 import { type Accessor, createSignal } from "solid-js"
 
+import { waitingIn } from "./said.ts"
 import { run } from "../run.ts"
 import { olai } from "../wire.ts"
 
@@ -119,11 +120,10 @@ export const createCommit = (): Commit => {
     pending,
     heard: () => cell.value() !== undefined,
     git: () => git.value() ?? GIT_OFF,
-    // Every FILE that is waiting, plus the node changes inside the outlines —
-    // which is what the pill counts, and what it has always counted, now that
-    // the documents and the source files somebody edited are in the answer.
-    waiting: () =>
-      pending().changes.length + pending().unreadable.length + pending().others.length,
+    // ONE count, shared with the face the pill wears and the sentence beside it
+    // (`./said.ts`): the node changes, plus every other dirty file in the
+    // repository now that a `.md` edited by hand is one of them.
+    waiting: () => waitingIn(pending()),
     working,
     attempt,
     commit: (message, paths) => {
