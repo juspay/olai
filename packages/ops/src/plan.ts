@@ -130,13 +130,15 @@ export const plan = (
         (node) => `note: ${node.title}`,
       )
     case "date":
-      // `move:` is the racket convention for a node's date, and a date IS what
-      // it named there.
+      // `date:`, not the reference implementation's `move:`. That word was
+      // right there — a date WAS what `move` named — and it is wrong here:
+      // beside this format's real reparenting op it reads as a structural
+      // change that never happened.
       return planEdit(
         scope,
         request.id,
         (node) => withField(node, "date", request.date),
-        (node) => `move: ${node.title} -> ${node.date ?? "(cleared)"}`,
+        (node) => `date: ${node.title} -> ${node.date ?? "(cleared)"}`,
       )
     case "move":
       return planMove(scope, request)

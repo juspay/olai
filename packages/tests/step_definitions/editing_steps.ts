@@ -25,11 +25,14 @@ import { Then, When } from "@cucumber/cucumber";
 
 import { IDLE_COMMIT } from "@olai/web/src/client/edit/draft.ts";
 
+import type { Locator } from "playwright";
+
 import {
   DESC_EDITOR,
   EDIT_NUDGE,
   EDIT_REFUSAL,
   NEW_ROW,
+  NODE,
   nodeSelector,
   POLL_TIMEOUT,
   START_LINE,
@@ -122,6 +125,58 @@ Then(
     await this.waitUntil(
       async () => (await editor.inputValue()) === text,
       `the row being typed to hold ${JSON.stringify(text)}`,
+    );
+  },
+);
+
+/** Where a line's text starts, on screen. What "the same depth" means to a
+ *  person reading the outline: two lines whose text begins at the same x. */
+const textLeftOf = async (world: OlaiWorld, locator: Locator): Promise<number> => {
+  const box = await world.box(locator, "the line");
+  return box.x;
+};
+
+Then(
+  "the row being typed lines up with the title of {string}",
+  async function (this: OlaiWorld, id: string) {
+    const draft = await textLeftOf(
+      this,
+      this.page.locator(`${NEW_ROW} ${TITLE_EDITOR}`).first(),
+    );
+    const row = await textLeftOf(this, this.nodeTitle(id));
+    assert.ok(
+      Math.abs(draft - row) < 1,
+      `the line being typed starts at x=${draft} and the row it will join at x=${row} — a line typed at one depth and committed at another`,
+    );
+  },
+);
+
+Then(
+  "the row {string} holds the caret",
+  async function (this: OlaiWorld, id: string) {
+    await this.expectNodeAttribute(id, "data-editing", "true");
+  },
+);
+
+Then("no other row holds the caret", async function (this: OlaiWorld) {
+  assert.strictEqual(
+    await this.page.locator(`${NODE}[data-editing="true"]`).count(),
+    1,
+    "more than one row says it holds the caret",
+  );
+});
+
+Then(
+  "the note being typed holds the source of {string}",
+  async function (this: OlaiWorld, id: string) {
+    // The SOURCE, not the rendering: a note is markdown, and what an editor
+    // holds is what the record holds.
+    const editor = this.within(id, DESC_EDITOR);
+    await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const text = await editor.inputValue();
+    assert.ok(
+      text.includes("**walnut**"),
+      `the note editor holds ${JSON.stringify(text)}, which is not the markdown the file holds`,
     );
   },
 );
@@ -245,6 +300,19 @@ Then(
           (node) => node["title"] === title && node["done"] !== undefined,
         ),
       `${file} to hold a node titled ${JSON.stringify(title)} that is marked done`,
+    );
+  },
+);
+
+Then(
+  "{string} holds a node whose note ends {string}",
+  async function (this: OlaiWorld, file: string, ending: string) {
+    await this.waitUntil(
+      async () =>
+        this.servedNodes(file).some((node) =>
+          String(node["desc"] ?? "").trimEnd().endsWith(ending)
+        ),
+      `${file} to hold a node whose note ends ${JSON.stringify(ending)}`,
     );
   },
 );

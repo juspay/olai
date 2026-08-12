@@ -36,14 +36,14 @@
  */
 
 import { toStderr } from "@olai/log"
-import { make as makeOps, TOOLS } from "@olai/ops"
+import { type CommitMode, make as makeOps, TOOLS } from "@olai/ops"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
-import { Effect } from "effect"
+import { Effect, SubscriptionRef } from "effect"
 
 import { openDirectory } from "../directory.ts"
 import { watchFault } from "../fault.ts"
-import { bind, type Publishers } from "../runtime.ts"
+import { bind, gitWiring } from "../runtime.ts"
 import { serveFace } from "./face.ts"
 import { bespokeFrom } from "./tools.ts"
 
@@ -138,9 +138,9 @@ const isReply = (message: unknown): boolean =>
 export interface McpServeOptions {
   /** The directory of outlines the tools operate on, read recursively. */
   readonly root: string
-  /** Commit every write to git when the directory is a work tree.
-   *  `olai mcp --no-commit` is the opt-out. */
-  readonly commit: boolean
+  /** How writes reach git — `--commit=off | manual | auto`, `manual` by
+   *  default, which is what puts the `commit` tool in the agent's hands. */
+  readonly commits: CommitMode
   /** The transport to speak over — stdio in the binary, an `InMemoryTransport`
    *  half in a test. Injectable so the face can be driven without a pipe. */
   readonly transport?: Transport
@@ -156,28 +156,40 @@ export interface McpServeOptions {
 export const serveTools = (options: McpServeOptions) =>
   Effect.gen(function*() {
     const { root, store } = yield* openDirectory(options.root)
-    // Filled the moment the surface exists — the same slot `../serve.ts` uses,
-    // and safe for the same reason: nothing writes before `bind` returns.
-    let publish: Publishers | null = null
+
+    // The same slot `../serve.ts` keeps, for the same reason and with the same
+    // meaning: a commit lands without moving a served file, so nothing else in
+    // this process can say that what is waiting has changed.
+    const committed = yield* SubscriptionRef.make(0)
     const ops = makeOps({
       store,
       root,
-      commit: options.commit,
-      // A terminal agent reads the git cell as a resource of this surface, so
-      // a commit that starts refusing reaches it the same way it reaches a
-      // browser. Its own writes get the reason on the reply as well.
-      onGit: (state) => publish?.git(state),
+      commits: options.commits,
+      onCommitted: () => {
+        Effect.runSync(SubscriptionRef.update(committed, (count) => count + 1))
+      },
     })
 
     // The surface, bound to this store. No chat: there is no browser here and
     // nothing to prompt, and `bind` already answers a chat verb as a refusal
     // when there is no agent — so the cell reads `off` and nothing is exposed.
-    // The ops layer is the same one the tools below get: the edit procedures
-    // it backs are unexposed on this face (`./expose.ts` is default-deny, and
-    // an agent has the tools), so what they cost here is a binding nobody can
-    // reach.
-    const wired = yield* bind({ store, chat: null, ops, git: yield* ops.git })
-    publish = wired.publish
+    //
+    // The git half is bound EXACTLY as the web face binds it — same cells, same
+    // clocks, same derivation — so a terminal agent reads what is waiting and
+    // what git is doing from the same place a browser does. `mcp` is the writer
+    // for the procedure's door, because here there is no button and no panel:
+    // the only caller is the agent this process was launched by.
+    //
+    // The ops layer is the same one the tools get: the edit procedures it backs
+    // are unexposed on this face (`./expose.ts` is default-deny, and an agent
+    // has the tools), so what they cost here is a binding nobody can reach.
+    const wired = yield* bind({
+      store,
+      chat: null,
+      ops,
+      writer: "mcp",
+      git: gitWiring(ops, "mcp", committed),
+    })
     // The runtime's `done` rejects when it is closed, so something must hold
     // that catch or a clean shutdown surfaces as an unhandled rejection. Same
     // reason as `../serve.ts`, and registered in the same order: `stopped`
@@ -187,7 +199,10 @@ export const serveTools = (options: McpServeOptions) =>
 
     const server = yield* serveFace({
       bound: wired.bound,
-      tools: bespokeFrom(TOOLS, ops),
+      // `mcp`, not `chat-agent`: the client here is somebody's own coding agent,
+      // launched from their terminal, and the commit trailer is the only place
+      // that difference is ever recorded.
+      tools: bespokeFrom(TOOLS, ops, "mcp"),
       transport: options.transport ?? stdio(),
     })
     yield* Effect.addFinalizer(() => runtime.stopped)

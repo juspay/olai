@@ -42,6 +42,47 @@ Two more things the build settled, both of which started as the obvious shape an
 - **Desc editing**: `Shift+Enter` opens a plain textarea under the node; rendered markdown returns on blur. Desc is one verbatim string — a textarea is honest, and the draft-cell model applies unchanged.
 - **First-PR keybinding set**: Enter (add sibling), Tab/Shift+Tab (indent/outdent), Alt+Shift+↑↓ (move), Ctrl+Enter (toggle done), Shift+Enter (desc), delete. Multi-select, drag-drop, `((` mirror creation, `!` date picker, `#` autocomplete: editor growth.
 
+## Revised after the human drove it (2026-08-11)
+
+Three bugs and one design change, from the first session with a person's hands
+on it. The design change SUPERSEDES the note decision resolved 2026-08-09
+below, which is left standing as written because the reason it lost is the
+useful part.
+
+- **The note edits in place, and a click starts it.** `Shift+Enter` opening a
+  plain monospace textarea was rejected on sight — it is ugly, and it is also a
+  lie: a form control appears where the page says "the note". The note now
+  edits AS the note (same size, same muted tone, same place, no border), and
+  clicking one puts the caret in it.
+
+  WHICH click is the reconciliation this needed, and the answer moved once
+  under evidence. In Workflowy a note is always shown in full and is always one
+  click from the caret — there is no clamped state to reconcile, because the
+  clamp is olai's own compression of it (notes-single). So the faithful mapping
+  is onto the EXPANDED note: the clamped line expands, as it has since that
+  item, and a click in the note you are now reading takes the caret — one click
+  from what Workflowy would have been showing you all along. One click doing
+  both was built first and is worse for a reason the tests found rather than an
+  argument: the expanded note is the only place a row draws its rendered
+  markdown and its `see` links, so a click that went straight to source deleted
+  a reading surface to save a click. Clicking away still folds it; `Shift+Enter`
+  is still one key from the title for a keyboard, and it is the path that never
+  expands.
+
+  What DID change for notes-single: clicking an open note no longer folds it
+  (that click is the caret's now), so folding is clicking away — which is a
+  gesture that item already had. Its scenarios say so.
+- **A new row's line sat 1.25rem out of the depth it would commit at.** The
+  draft reserved one gutter cell where a row reserves two (the `•••` and the
+  collapse triangle), so the line a person typed was not the line they got.
+  The widths were already shared; the number of CELLS was not.
+- **Walking with `↑`/`↓` showed nothing.** The caret was really there —
+  focused, at the end of the text — but a 1px blink in a dense tree is not an
+  affordance. The row holding it is toned now, and its bullet takes the accent.
+- **The keys were documented only in a package README.** They are a table in
+  the client now (`keys.ts`), drawn by a panel the ⌘K palette opens, mirrored
+  in the top-level README, and held to covering every action by a unit test.
+
 ## Open
 
 - ~~**Derived status in the edit UI**: unlike Workflowy, completing a parent isn't just unpropagated — it's *refused* (derived state).~~ **Closed 2026-08-11** (`hide-done-scope`): status derivation is gone, so olai IS the Workflowy model here — `Ctrl+Enter` on a parent stores a mark like it would on a leaf. The rollup badge is drawn beside an editable row like any other, since the editor replaces only the title span.

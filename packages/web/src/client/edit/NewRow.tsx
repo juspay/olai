@@ -31,7 +31,15 @@ export function NewRow(props: {
   return (
     <div>
       <div class={`flex items-center ${GUTTER_GAP}`} data-testid={TESTID.newRow}>
+        {/* The hover strip's PLACE, cell for cell: a row reserves the `•••`
+            (pointer devices only, `hidden md:` exactly as the menu hides
+            itself) and the collapse triangle, and a draft that reserved one
+            cell for the two sat 1.25rem to the left of the siblings it was
+            about to join — a line typed at one depth and committed at
+            another. The widths are `../touch.ts`'s; what has to match is how
+            many cells there are. */}
         <span class={HOVER_GUTTER}>
+          <span class={`${HOVER_CELL} hidden md:inline-flex`} aria-hidden="true" />
           <span class={HOVER_CELL} aria-hidden="true" />
         </span>
         <span class={CONTROL} aria-hidden="true">

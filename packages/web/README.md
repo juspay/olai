@@ -558,10 +558,71 @@ Three components earn their own file:
   only when the agent offers commands: one that opens nothing would be a button
   that lies.
 
-`run.ts` is the one place the client runs an Effect, and its signature is the
-enforcement: there is no overload without `onFailure`. A caller that could
-ignore a procedure's declared failures would be a caller whose refusals
-vanish, which is exactly what chat is not allowed to do.
+`src/client/run.ts` is the one place the client runs an Effect, and its
+signature is the enforcement: there is no overload without `onFailure`. A caller
+that could ignore a procedure's declared failures would be a caller whose
+refusals vanish, which is exactly what chat is not allowed to do. It sits at the
+client's root rather than inside the panel, because the sentence above is about
+this app rather than about chat — the Commit button is its second caller.
+
+## The Commit button
+
+`src/client/commit/` is the third pill of the chrome, and like the connection
+dot it is NEVER ABSENT. Every state is drawn: a clean tree that has committed
+(`✓ committed · 12m ago`), one olai has never committed in (`no commits yet`),
+edits waiting (`4 uncommitted`), a busy repository (`⚠` and the reason), a
+directory that is not a work tree, and a server with commits off. The rule
+comes straight from what the feature is FOR: if the job is an audit trail, then
+"there is no audit trail here" is the most important thing the pill can say, and
+a control that disappeared is exactly how a person would never find that out.
+
+One more face is about THIS PAGE rather than the directory: until the server has
+said anything, the pill says so. It used to draw the default value's `commits
+off`, which is a setting somebody could go and change — a claim a page has no
+business making about a server it has not heard from. "Not told yet" and "turned
+off" being two different things is the same distinction the manifest cell draws
+with its `null`.
+
+The PANEL is portalled out of the sidebar and positioned against the viewport
+(`commit/anchor.ts`), which is not a style choice: the sidebar scrolls, and an
+overflow container clips in both axes, so a popover laid out inside it was cut
+off at the 16rem column — the message, the writer and half the button gone. The
+placement is a pure function of the pill's box and the window, so "pushed back
+inside near the right edge" and "flipped downward when the pill is too high to
+open upward" are a unit test rather than something to find by resizing a
+browser. It re-measures on resize and on scroll (capture phase — the sidebar
+scrolls, and `scroll` does not bubble), because a popover that goes stale where
+it was is worse than one that never moved.
+
+The last two are SETTINGS rather than faults — dim, inert, no warning colour.
+`⚠` is reserved for the busy repository, which is the only one anybody can act
+on. `faceOf` in `said.ts` is the whole of that decision, as a pure function of
+the pending value, and `data-state` on the pill is what a scenario asserts on.
+
+It exists because every write olai makes is a write nobody typed: the agent
+auto-approves its ops, so git is how you see what the tool did to your files.
+Writes land on disk and WAIT; this is what asks for the commit, and the agent's
+`commit` tool is the same action through the other door.
+
+The panel never shows a text diff — a `.jsonl` diff is one enormous line per
+node — so every row is a NODE and what changed about it. The classification is
+the server's (one `Sort` per change, from `@olai/format`), and `said.ts` is
+this client's own table of words for it: the log says `done:`, the panel says
+"marked done". `data-sort` is what a test asserts on, never the phrase, which
+the view is entitled to reword.
+
+Nothing here is state this browser keeps. What is waiting arrives on the
+`pending` cell, derived from git on the server, so a tab open all day is
+looking at the repository as it is rather than at a tally it kept — an outline
+edited in vim is in the list, and a commit made in a terminal takes itself out.
+The panel carries the LAST COMMIT above it, because "what is waiting" and "was
+anything ever recorded" are two questions and only the second one distinguishes
+a directory olai has never touched. The one clock is `ago.ts`: the phrase moves
+on its own, since the value it is drawn beside can sit unchanged all afternoon.
+The one thing that IS local is the draft message: it is seeded from the composed
+suggestion when the panel opens and never overwritten under the person typing
+it, because a box that re-synced would rewrite what they were writing every time
+the server swept.
 
 ## On a phone, and on a home screen
 
@@ -670,12 +731,27 @@ loop a person is in, and nothing about outlines:
   is drawn is looked up rather than remembered. Keeping the reader's place
   across that frame is the module's real work.
 - **`RowEditor.tsx` — an `<input>`, not a `contenteditable`.** A title is one
-  verbatim line of text with no markup in it, so an input is one string in and
-  one string out, with the platform's caret, selection, undo and IME for
-  nothing. The trade is deliberate and visible: while you type, a title reads
-  as the text on disk, `#tags` unstyled, and the styling comes back when you
-  leave — which is the same trade the note takes, where a textarea shows
-  markdown until it closes.
+  verbatim line of text; what the page DRAWS is a rendering of it (inline
+  markdown and `#tags`), which is the argument for an input rather than against
+  it — a contenteditable would be that rendered HTML made editable, with every
+  keystroke turned back into the one string the record holds. The trade is
+  deliberate and visible: while you type, a title reads as its source, and the
+  rendering comes back when you leave. The NOTE takes the same trade in the
+  same shape: it edits IN PLACE, styled as the note rather than as a control
+  (`ROW_NOTE` in `touch.ts` is the one spelling of what a note looks like, so
+  the clamped line, the rendered note and the editor cannot disagree about size
+  or tone), and clicking one puts the caret in it — expanding and editing are
+  one gesture, because a clamped line is not something anybody can type into.
+  Click away and it folds back, exactly as it did before; the full RENDERED
+  note is the node's own page, where a note has always been the body.
+- **Where the caret is, said twice.** The row holding it is toned and its
+  bullet takes the accent (`data-editing` on the row is what a scenario asks).
+  A blinking cursor at the end of a title is the whole affordance a walk with
+  `↑`/`↓` had, and in a tree of a hundred rows that is a pixel nobody finds.
+- **The keys are written down for a person** (`SHORTCUTS` in `keys.ts`, drawn
+  by `palette/Shortcuts.tsx`, opened from ⌘K). Beside the matchers rather than
+  in a document, so what a key does and what it is said to do are one fact; a
+  unit test holds the list to covering every editing action.
 - **`order.ts`** flattens the drawn tree so `↑`/`↓` step through what is on
   screen, folds and all.
 

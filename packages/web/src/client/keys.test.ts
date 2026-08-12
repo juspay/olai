@@ -1,6 +1,13 @@
 import { expect, test } from "bun:test"
 
-import { CHORDS, editKey, isApplePlatform, matchKey } from "./keys.ts"
+import {
+  CHORDS,
+  type EditAction,
+  editKey,
+  isApplePlatform,
+  matchKey,
+  SHORTCUTS,
+} from "./keys.ts"
 
 const key = (
   k: string,
@@ -100,4 +107,38 @@ test("every chord in the table is reachable", () => {
     expect(matchKey(key(chord.key, { ctrl: true }), "Linux x86_64")?.action)
       .toBe(chord.action)
   }
+})
+
+// ── what a person is told ──────────────────────────────────────────────
+
+test("every editing key is written down for a person", () => {
+  // The reference the palette draws is beside the matcher it describes, and
+  // this is what keeps it that way: a key added to the map without a sentence
+  // fails here rather than shipping undocumented.
+  const said = new Set(
+    SHORTCUTS.flatMap((group) => group.keys.flatMap((key) => key.action ?? [])),
+  )
+  const actions: ReadonlyArray<EditAction> = [
+    "add",
+    "in",
+    "out",
+    "up",
+    "down",
+    "toggle",
+    "note",
+    "prev",
+    "next",
+    "cancel",
+  ]
+  // `next` shares its line with `prev` (one row about the arrows), so it is
+  // the pair that has to be covered rather than each name.
+  const covered = actions.filter((action) =>
+    said.has(action) || (action === "next" && said.has("prev"))
+  )
+  expect(covered).toEqual([...actions])
+})
+
+test("the reference names the same chords the matcher answers", () => {
+  const anywhere = SHORTCUTS.find((group) => group.group === "Anywhere")
+  expect(anywhere?.keys.length).toBe(CHORDS.length)
 })

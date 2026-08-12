@@ -31,6 +31,11 @@ export function Bullet(props: {
   /** True when this row has children that are currently hidden. Workflowy's
    *  gray circular halo around the dot. */
   readonly collapsed?: boolean
+  /** True when this row is the one holding the caret. The dot takes the accent
+   *  — the second half of saying WHERE the caret is, beside the row's own tone
+   *  (./Tree.tsx), because a blinking cursor at the end of a title is not
+   *  something a reader finds in a dense tree. */
+  readonly holding?: boolean
 }) {
   const halo = () => props.collapsed === true
 
@@ -54,9 +59,14 @@ export function Bullet(props: {
         classList={{ invisible: !halo() }}
         aria-hidden="true"
       />
-      {/* The filled round bullet — accents on hover like the old glyph did. */}
+      {/* The filled round bullet — accents on hover like the old glyph did,
+          and while this row holds the caret. */}
       <span
-        class={`relative ${DOT} bg-ink group-hover/bullet:bg-accent`}
+        class={`relative ${DOT} group-hover/bullet:bg-accent`}
+        classList={{
+          "bg-accent": props.holding === true,
+          "bg-ink": props.holding !== true,
+        }}
         aria-hidden="true"
       />
     </Link>

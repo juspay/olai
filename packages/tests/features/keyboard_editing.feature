@@ -65,6 +65,25 @@ Feature: Keyboard editing
     Then "house.jsonl" holds a node titled "measure the alcove"
     And the page has not reloaded
 
+  Scenario: The line being typed sits where the row will sit
+    # A new sibling is drawn at the depth it will HAVE, not one step out of it:
+    # the draft reserves the same gutter a row does (the `•••` cell and the
+    # collapse triangle), so the line a person types is the line they get.
+    When I click the title of "hinges"
+    And I press "Enter"
+    Then a new row is being typed
+    And the row being typed lines up with the title of "hinges"
+
+  Scenario: The row holding the caret says so
+    # Walking with the arrows moved a blinking cursor and nothing else, which
+    # in a tree of a hundred rows is a pixel nobody finds.
+    When I click the title of "handles"
+    Then the row "handles" holds the caret
+    And no other row holds the caret
+    When I press "ArrowDown"
+    Then the row "hinges" holds the caret
+    And no other row holds the caret
+
   Scenario: An abandoned empty row writes nothing
     When I click the title of "handles"
     And I press "Enter"
@@ -115,6 +134,27 @@ Feature: Keyboard editing
     Then the node "knobs" has status "done"
     And the row being typed holds "pick the knobs"
 
+  Scenario: Clicking the note you are reading puts the caret in it
+    # The human's call over the textarea this shipped with, mapped onto olai's
+    # clamp: the clamped line expands (as it has since notes-single, and that
+    # expanded note is where a row draws its rendering and its see links), and
+    # a click in the note you are now reading puts the caret in it — one click
+    # from what Workflowy would have been showing all along. What you see while
+    # you are in it is the markdown SOURCE, the same trade the title takes.
+    When I click the note of "order"
+    Then the description of "order" renders bold text "walnut"
+    When I click the note of "order"
+    Then the note of "order" is being typed
+    And the note being typed holds the source of "order"
+    When I type " — measured twice"
+    And I click away from the editor
+    Then "house.jsonl" holds a node whose note ends "— measured twice"
+    # And clicking away is what it always was: the note folds back to its one
+    # clamped line, now with what was typed in it. Editing and expanding are
+    # ONE state — you leave both at once — and the full rendered note is the
+    # node's own page, which is where a note has always been the body.
+    And the description of "order" is a preview of "Two ways to go:"
+
   Scenario: Shift+Enter writes the note, and the rendering comes back
     When I click the title of "handles"
     And I press "Shift+Enter"
@@ -122,8 +162,11 @@ Feature: Keyboard editing
     When I type "the alcove is **1830mm** wide"
     And I press "Shift+Enter"
     Then the note of "handles" is no longer being typed
-    When I click the note of "handles"
-    Then the description of "handles" renders bold text "1830mm"
+    # `Shift+Enter` writes a note without expanding the row's reading of it, so
+    # what comes back is the clamped line — the shape it had before the caret
+    # arrived, now with something in it.
+    And the description of "handles" is a preview of "the alcove is 1830mm wide"
+    And "house.jsonl" holds a node whose note ends "wide"
 
   Scenario: A write that lands can have something to say
     # The ops layer's nudge — advice on a SUCCESS, never a refusal. It reaches

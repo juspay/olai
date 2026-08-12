@@ -32,6 +32,7 @@ import { olai } from "../wire.ts"
 import { run } from "../run.ts"
 import { askQuery, filterItems, type PaletteItem } from "./items.ts"
 import { isEditingTarget, matchKey } from "../keys.ts"
+import { Shortcuts } from "./Shortcuts.tsx"
 
 export function Palette(props: {
   readonly go: (route: Route) => void
@@ -42,6 +43,7 @@ export function Palette(props: {
   readonly toggleDirectory: () => void
 }) {
   const [open, setOpen] = createSignal(false)
+  const [keys, setKeys] = createSignal(false)
   const [query, setQuery] = createSignal("")
   const [active, setActive] = createSignal(0)
   const [askError, setAskError] = createSignal<string | null>(null)
@@ -79,6 +81,7 @@ export function Palette(props: {
   const runItem = (item: PaletteItem) => {
     const action = item.action
     if (action.kind === "route") props.go(action.route)
+    else if (action.kind === "shortcuts") setKeys(true)
     else if (action.kind === "toggle-sidebar") props.toggleDirectory()
     else if (action.kind === "toggle-chat") toggleChat()
     else if (action.kind === "reset-widths") resetPanelWidths()
@@ -149,6 +152,8 @@ export function Palette(props: {
   })
 
   return (
+    <>
+    <Shortcuts open={keys()} onClose={() => setKeys(false)} />
     <Show when={open()}>
       <div
         class="fixed inset-0 z-50 flex items-start justify-center bg-ink/40 px-4 pt-[min(20vh,8rem)]"
@@ -270,5 +275,6 @@ export function Palette(props: {
         </div>
       </div>
     </Show>
+    </>
   )
 }

@@ -148,6 +148,12 @@ function Branch(props: {
     const draft = editor.draft()
     return draft?.kind === "new" ? draft : undefined
   }
+  /** Is the caret in THIS row? What the row draws to say so, and what a
+   *  scenario asks. A blinking text cursor at the end of a title was the whole
+   *  affordance a walk with `↑`/`↓` had, and in a tree of a hundred rows that
+   *  is a pixel nobody finds — so the row is toned while it holds the caret,
+   *  and the bullet beside it takes the accent. */
+  const editing = () => editor.where().place === props.row.key
 
   return (
     <li
@@ -160,6 +166,7 @@ function Branch(props: {
       data-file={props.row.at.file}
       data-line={props.row.at.line}
       data-note-open={note.expanded() ? "true" : "false"}
+      data-editing={editing() ? "true" : undefined}
       // The ids this row is waiting on, in the promised order — absent when
       // nothing is in its way. The dim beside it is a styling decision a
       // refactor may change; this is the fact a scenario asks about.
@@ -171,6 +178,7 @@ function Branch(props: {
           the same number PAST_CONTROLS is arithmetic over (./touch.ts). */}
       <div
         class={`group/row flex items-center ${GUTTER_GAP} ${WAITING_DIM(props.row.blocked)}`}
+        classList={{ "rounded-sm bg-accent/10": editing() }}
         data-testid={TESTID.nodeGutter}
       >
         {/* Hover strip: triangle always (phone) / hover-reveal (pointer);
@@ -214,6 +222,7 @@ function Branch(props: {
         <Bullet
           id={props.row.at.node.id}
           collapsed={hasChildren() && collapsed()}
+          holding={editing()}
         />
         <Checkbox
           status={props.row.status}
@@ -295,6 +304,7 @@ function Branch(props: {
                   shows={shows()}
                   expanded={note.expanded()}
                   onToggle={note.toggle}
+                  onEdit={() => editor.open(props.row, "desc")}
                 />
               }
             >

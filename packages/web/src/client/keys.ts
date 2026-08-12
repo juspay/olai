@@ -165,3 +165,63 @@ export const editKey = (
   }
   return null
 }
+
+/**
+ * The keys, written down for a PERSON.
+ *
+ * Beside the two matchers rather than in a document somewhere, for the reason
+ * the matchers are beside each other: what a key does and what it is said to
+ * do are one fact, and a second home for the sentence is a sentence that goes
+ * stale. What draws this is `palette/Shortcuts.tsx`; `keys.test.ts` holds it
+ * to covering every {@link EditAction}, so a key added without a sentence
+ * fails rather than shipping undocumented.
+ *
+ * The chords say ⌘ and Ctrl the way {@link matchKey} reads them: Meta on
+ * Apple, Control elsewhere. One string with both, because a reference a person
+ * reads on one machine is often about the other.
+ */
+export interface Shortcut {
+  readonly keys: string
+  readonly what: string
+  /** The editing action it is, when it is one — what the test checks the list
+   *  against. Absent for the global chords, which are not row actions. */
+  readonly action?: EditAction
+}
+
+export const SHORTCUTS: ReadonlyArray<{
+  readonly group: string
+  readonly keys: ReadonlyArray<Shortcut>
+}> = [
+  {
+    group: "Anywhere",
+    keys: [
+      { keys: "⌘K / Ctrl+K", what: "the command palette" },
+      { keys: "⌘\\ / Ctrl+\\", what: "show or hide the directory" },
+      { keys: "⌘J / Ctrl+J", what: "show or hide the agent" },
+    ],
+  },
+  {
+    group: "In a row",
+    keys: [
+      { keys: "Click a title", what: "put the caret in it" },
+      { keys: "Enter", what: "commit, and open the next line", action: "add" },
+      { keys: "Tab", what: "indent under the row above", action: "in" },
+      { keys: "Shift+Tab", what: "outdent, after the old parent", action: "out" },
+      { keys: "Alt+Shift+↑", what: "move up among its siblings", action: "up" },
+      { keys: "Alt+Shift+↓", what: "move down among its siblings", action: "down" },
+      { keys: "⌘Enter / Ctrl+Enter", what: "tick it off, or take that back", action: "toggle" },
+      { keys: "Shift+Enter", what: "write the note under it", action: "note" },
+      { keys: "↑ / ↓", what: "walk to the row above or below", action: "prev" },
+      { keys: "Escape", what: "drop what you were typing", action: "cancel" },
+    ],
+  },
+  {
+    group: "In a note",
+    keys: [
+      { keys: "Click a note", what: "put the caret in it" },
+      { keys: "Enter", what: "a new line — a note is prose" },
+      { keys: "Shift+Enter", what: "close it, and render it again" },
+      { keys: "Escape", what: "drop what you were typing" },
+    ],
+  },
+]

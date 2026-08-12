@@ -390,26 +390,32 @@ const setNoteOpen = async (
   );
 };
 
+/** Press the note, and let the render settle. What the press DOES depends on
+ *  the state it is in — a clamped line expands, an expanded note takes the
+ *  caret (`packages/web/src/client/NodeBody.tsx`) — so this does not wait for
+ *  one particular outcome; the scenario says which it expected. */
+const pressNote = async (
+  world: OlaiWorld,
+  id: string,
+  gesture: "click" | "tap",
+): Promise<void> => {
+  const control = noteControl(world, id);
+  await control.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await control.scrollIntoViewIfNeeded();
+  await world.press(control, gesture);
+};
+
 When(
   "I click the note of {string}",
   async function (this: OlaiWorld, id: string) {
-    // Toggle: if closed, open; if open, close. The feature says which.
-    const row = this.node(id).first();
-    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const wasOpen =
-      (await row.getAttribute("data-note-open")) === "true";
-    await setNoteOpen(this, id, !wasOpen, "click");
+    await pressNote(this, id, "click");
   },
 );
 
 When(
   "I tap the note of {string}",
   async function (this: OlaiWorld, id: string) {
-    const row = this.node(id).first();
-    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const wasOpen =
-      (await row.getAttribute("data-note-open")) === "true";
-    await setNoteOpen(this, id, !wasOpen, "tap");
+    await pressNote(this, id, "tap");
   },
 );
 

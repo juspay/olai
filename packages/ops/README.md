@@ -44,7 +44,9 @@ in the system had to arrange:
 | `request.ts` | the things a writer may ask for, as schemas — one declaration serving the planner's switch, the tool schemas and the decoder |
 | `plan.ts` | the whole decision, PURE: a snapshot and a request into the files that write would produce |
 | `ops.ts` | the loop — read, plan, commit, re-plan on a stale base — and nothing else |
-| `git.ts` | the auto-commit, as the store's post-publish hook — and what it has to say for itself: which of the four states this directory is in, and why a write was not committed |
+| `pending.ts` | what is waiting to be committed, derived from git, the one verb that commits it, and what git is doing for the directory at all — one survey, both answers |
+| `message.ts` | what a commit nobody wrote a message for says |
+| `git.ts` | the plumbing, behind one socket: `open(root)` answers with a repository — its state, what is dirty, what HEAD had, what olai last committed, and `commit` — or with `NoRepo` for a directory that is not a work tree, or `Unusable` for a git that could not be asked |
 | `query.ts` | reading the set as NODES: search, one node, a subtree, the outlines |
 | `tools.ts` | the closed list of what an agent may do, and what it may not |
 | `codec.ts` | the seam where the generic store meets the outline format |
@@ -71,6 +73,12 @@ scheduled for one.
 Only the record being marked is rewritten; a `true` or a day-only value on any
 other node comes back exactly as it was read, which is what the format means by
 validating dates as text.
+
+`pending.ts` derives and stores nothing, which is the same design in the other
+direction: what is waiting is a question git already answers, and a tally of our
+own would be a second answer that goes wrong the moment somebody edits a file in
+vim. The comparison it runs is not here either — it is pure, and it lives beside
+the format.
 
 **The package exports four things, and the rest of that table is inside.**
 `codec`, `make`, `Query`, `TOOLS` — one socket per concept, not the wires behind
@@ -175,12 +183,45 @@ because they are what the archive is for:
 
 ## The git commit
 
-Each write commits the files it produced, gated on the served directory
-actually being a git work tree, with `olai web --no-commit` as the opt-out. The
-message convention is the reference implementation's, because a log a person
-already knows how to read is worth more than a better one they do not:
+A commit is something somebody ASKS for. Writes land on disk and wait; the two
+doors are a Commit button in the browser and the `commit` tool an agent calls
+when it knows its work is finished, and both are callers of one `Ops.commit`.
+`--commit=auto` is the old behaviour — one commit per write — for a headless
+server with no browser to press anything, and `--commit=off` (`--no-commit`) is
+for a directory whose history is somebody else's job.
 
-| op | subject |
+What is waiting is DERIVED (`pending.ts`): `git status --porcelain` names the
+dirty outlines, `git show HEAD:<file>` is the committed side, the store's own
+last-good parse is the working side, and `@olai/format`'s `changesOf` compares
+them into node-level changes. Beside it rides the LAST COMMIT olai made —
+`git log -1` through the audit filter, so a person's own commits are not
+reported — because what is waiting says nothing about whether anything was ever
+recorded, and `null` there means "never" rather than "nothing right now".
+
+A clean directory costs one `rev-parse` and three concurrent asks (state, what
+is dirty, what was last recorded), with no parsing at all. The repository handle
+is kept once it is one — a directory does not stop being a work tree — while a
+negative answer is re-asked, so a `git init` under a running server is picked up
+on the next sweep. Only `.jsonl` outlines are ever named on
+`add` or `commit`: they are the only files this package writes, and a served
+directory is a working tree with other work in it.
+
+Committing checks that the repository is FREE first — no merge, rebase or
+cherry-pick in flight, and not a detached HEAD. Nothing used to, which is how an
+agent marking a node done mid-conflict could swallow a resolution, and that hole
+is what decided manual over automatic.
+
+Messages are prefixed `olai`, so `git log --grep '^olai'` is the audit view and
+`--invert-grep` gives back a person's own history, and every commit carries an
+`X-Olai-Writer: chat-agent | mcp | web` trailer — git records only the
+repository's own user, which every commit in it already has. A composed message
+names the biggest change by a fixed order and lists the rest.
+
+The per-op summary — which is what `auto` commits with, and what a tool result
+reports — keeps the reference implementation's convention, because a log a
+person already knows how to read is worth more than a better one they do not:
+
+| op | summary |
 |---|---|
 | create (with seed) | `capture: TITLE` — the first node is a capture |
 | create (seed with children) | `capture: TITLE (+N)` |
@@ -190,7 +231,7 @@ already knows how to read is worth more than a better one they do not:
 | done / undo | `done: TITLE` / `undone: TITLE` |
 | doing / undo | `doing: TITLE` / `not-doing: TITLE` |
 | todo / undo | `todo: TITLE` / `not-todo: TITLE` |
-| date | `move: TITLE -> 2026-08-10` (or `-> (cleared)`) |
+| date | `date: TITLE -> 2026-08-10` (or `-> (cleared)`) |
 | archive | `archive: TITLE` |
 | move | `move: TITLE` |
 | title | `rename: TITLE` |
@@ -208,42 +249,49 @@ outline holding a dozen nodes is one call and a refused seed leaves no file. An
 empty one leaves a zero-byte outline for later `add_node`s.
 
 The last field edits (including `see`) are this format's own: the reference had
-no structural move, no separate note edit, and no agent-writable `see`. `move:`
-keeps its meaning for a date, which is what it named there.
+no structural move, no separate note edit, and no agent-writable `see`. `date`
+is the one word that CHANGED — it printed as `move:` there, where a date was
+what `move` named, and beside this format's real reparenting op that read as a
+structural change that never happened.
 
-It cannot fail a write. The bytes are on disk and the browser has already seen
-them by the time git runs; a refusal is reported rather than raised, and only
-the files this op wrote are ever named — a served directory is a working tree
-with other work in it. What git actually said rides the log line as a field
-(`said=…`) rather than inside the sentence, so the message stays greppable and
-the reason stays readable.
+Git can never fail a write. The bytes are on disk and the browser has already
+seen them by the time git runs, so a refusal is a `Failed` carrying git's own
+words and a warning in the log — with those words as a FIELD (`said=…`) rather
+than inside the sentence, so the message stays greppable and the reason stays
+readable. Only the files this layer wrote are ever named, on both `add` and
+`commit`: a served directory is a working tree with other work in it.
+`src/git.test.ts` holds that shape, along with the repository states that are
+only testable by putting a repository in them.
 
 **And it says WHY, because `committed: false` on its own is four different
-pieces of news.** That was the bug (`git-invisible`): a person writing to a
-directory they knew was a repository got the boolean and nothing else, while the
-cause — not a work tree, no git on the service's PATH, a staging refusal, an
-identity nobody set — went only to a log they were not reading. So this layer
-answers with two values a caller can render, and neither of them is a boolean:
+pieces of news.** That was `git-invisible`: a person writing to a directory they
+knew was a repository got the boolean and nothing else, while the cause went
+only to a log they were not reading. So this layer answers with two values a
+caller can render, and neither of them is a boolean:
 
 - **`Applied.why`** — one sentence on the reply of any write that was not
   committed, absent when it was. Additive, so nothing that read the reply had to
   change. The agent reads it in its tool result; the panel draws it beside the
-  call.
-- **`Ops.git`** — what git is doing for this directory: `off` (`--no-commit`),
-  `repo`, `none`, or `error` with git's own words. Probed once per serve and
-  kept, so a page can say so before anybody writes anything, and republished
-  through `onGit` when a commit refuses (and again when one lands). The server
-  puts it on the `git` cell and the app header draws it.
+  call. Under the DEFAULT mode that sentence says the write is *waiting*, which
+  is the feature working and must not read as a fault — `manual` is not an error
+  state, and a reader told otherwise would go looking for a broken repository
+  that is not broken.
+- **`Ops.git`** — what git is doing for this directory: `off` (`--commit=off`),
+  `repo`, `none`, or `error` with git's own words. A PROJECTION of the same
+  survey `Ops.pending` runs (`gitOf`), never a probe of its own: the readout and
+  the Commit pill share a header, and two probes would be two answers to one
+  question. The server recomputes both together and publishes them onto the
+  `git` and `pending` cells.
 
-Two classifications make that honest, and both are exit codes rather than
-guesses where they can be. A commit that failed is asked whether anything was
-even STAGED (`diff --cached --quiet`, on the failure path only), because a write
-that produced the bytes already there is ordinary and must not be drawn as a
-fault. And a directory git will not answer about is an `error` unless git said
-its own "not a git repository" — collapsing a broken git into "you have no
-repository" is precisely what this package used to do. git runs under `LC_ALL=C`
-so that one sentence is stable. `src/git.test.ts` holds all of it against real
-repositories, the unset identity included.
+Two classifications make that honest, and both are git's own answers rather than
+guesses. A directory git will not answer about is `Unusable` — and so `error` —
+unless git said its own "not a git repository", because collapsing a broken git
+into "you have no repository" is precisely what this package used to do; git runs
+under `LC_ALL=C` so that one sentence is stable. And a commit that REFUSED is the
+one thing `pending.ts` remembers rather than derives, because it is the one
+failure a probe cannot see: `rev-parse` answers perfectly happily in a repository
+with no `user.email`, so a state read from the directory alone would look healthy
+while every commit failed. It is cleared by the next commit that works.
 
 ## The tool surface, and what is missing from it
 
@@ -295,7 +343,9 @@ just test                                        # the whole workspace
 bun test packages/ops                            # this package, in the dev shell
 ```
 
-`src/plan.test.ts` is values in and values out — no disk, no store, no
-protocol. `src/ops.test.ts` is the other half: a real temp directory, a real
-store, a real git repository and the MCP surface in front of them, asserting
-the things that are only true end to end.
+`src/plan.test.ts` and `src/message.test.ts` are values in and values out — no
+disk, no store, no protocol. `src/ops.test.ts` and `src/pending.test.ts` are
+the other half: a real temp directory, a real store, a real git repository and
+the MCP surface in front of them, asserting the things that are only true end to
+end — that a write WAITS, that what is waiting comes from git rather than from a
+tally, and that a busy repository refuses.

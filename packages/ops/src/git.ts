@@ -1,168 +1,73 @@
 /**
- * The auto-commit, as the store's post-publish hook — and what it has to say
- * for itself.
+ * Git, as plumbing. Nothing here decides anything.
  *
- * "Git is the only history" (docs/architecture.md), so a write that is not
- * committed is a write with no undo. Every op commits the files it wrote, with
- * the message convention the racket reference used — `capture:` / `done:` /
- * `doing:` / `move:` / `archive:` / `create:` / `see:` and the node's title (or
- * a path, when an outline is born empty) — because a log a person already knows
- * how to read is worth more than a better one they do not.
+ * {@link open} is the socket: it answers with an {@link Opening} — a
+ * {@link Repo}, a directory that is not a work tree, or a git that could not be
+ * asked — and everything else is a method on the handle. Three questions and one
+ * verb, each a subprocess and each total: whether the repository can take a
+ * commit right now, which of the served files are dirty, what HEAD had in one of
+ * them, and commit exactly these paths with exactly this message. What those
+ * answers MEAN is {@link ./pending.ts}'s.
  *
- * Three properties, and each is a decision rather than an accident:
+ * The THIRD arm is what `git-invisible` (#108) bought and what this file must
+ * not give back. "Your notes are not a repository" and "this service has no git
+ * on its PATH" are two different pieces of news, and a socket answering `null`
+ * for both is exactly the collapse that left a person staring at a
+ * `committed: false` with nowhere to read why.
  *
- *   - **Gated on the directory actually being a work tree.** A served directory
- *     is often somebody's notes under Dropbox, and `git init`-ing it behind
- *     their back is not this program's business. Not a work tree, no commit,
- *     and the op says so in its reply rather than failing.
- *   - **It cannot fail the write.** The bytes are on disk and the browser has
- *     already seen them by the time this runs; turning a git failure into a
- *     failed op would be a lie about what happened. A refusal is reported, not
- *     raised.
- *   - **Only the files this op wrote**, named explicitly on both `add` and
- *     `commit`. A served directory is a working tree with other work in it, and
- *     an op that swept up a half-finished edit somebody had staged would be a
- *     far worse failure than not committing at all.
+ * WHERE the directory sits — the git directory, and what the served root is
+ * called from the repository root — is asked once, when the handle is opened,
+ * and then belongs to the handle. It is git's own business: git speaks
+ * repo-relative paths and everything above this file speaks served-root-relative
+ * ones, and a consumer that had to carry that around would be a consumer this
+ * volatility had leaked into.
  *
- * **And it answers with WHY, not just with no.** That is what this module was
- * missing and what the bug was: every cause — not a work tree, no git on the
- * service's PATH, a refused stage, an unset identity — collapsed into one quiet
- * `false`, and git's own words went to the server log, where a person reading a
- * browser will never see them (HACKING.md: never silently ignore errors — most
- * errors should surface to the user at some level in the UX). So the two
- * answers here are VALUES a caller can render: {@link GitState}, what git is
- * doing for this directory at all, and {@link Commitment}, what happened to one
- * write's files. {@link why} is the one sentence either of them owes a reader.
+ * Two properties are decisions rather than accidents, and both are older than
+ * this file's current shape:
  *
- * Classifying honestly costs two things, and both are deliberate:
+ *   - **it cannot fail a write.** A commit runs after the bytes are already on
+ *     disk and already on screen, so turning git's refusal into a failed op
+ *     would be a lie about what happened. Every outcome — a missing binary, a
+ *     non-zero exit, a timeout — comes back as an answer.
+ *   - **only the files named**, on both `add` and `commit`. A served directory
+ *     is a working tree with other work in it, and a commit that swept up a
+ *     half-finished edit somebody had staged would be a far worse failure than
+ *     not committing at all.
  *
- *   - git runs under `LC_ALL=C`, so the one sentence read below is the one git
- *     prints. Nothing else about a commit depends on the locale.
- *   - a commit that failed is asked whether anything was even STAGED before it
- *     is called a failure, because "nothing to commit" — a write that produced
- *     the bytes already there — is an ordinary outcome and not an error. That
- *     is `diff --cached --quiet`'s exit code rather than a second message to
- *     match: git prints several sentences for that condition and exactly one
- *     exit status. It costs a third subprocess, and only where the commit
- *     already failed — a write that changed bytes in a working repository, the
- *     case every op is, still spawns the two it always did.
+ * What is NEW here is {@link state}: until a commit was something a person
+ * asked for, nothing checked whether the repository was mid-merge, mid-rebase
+ * or on a detached HEAD — so an agent marking a node done in the middle of a
+ * conflict could swallow the resolution. That hole is what decided manual over
+ * automatic, and this is where it is closed.
+ *
+ * A handle is opened once per round rather than kept, because a directory can
+ * become a repository while the server is running — and once per round is what
+ * makes a directory with twelve dirty outlines cost one `rev-parse` rather
+ * than thirteen.
  */
 
-import { execFile } from "node:child_process"
-
+import type { LastCommit, Reason, RepoState, Writer } from "@olai/format"
 import { Effect } from "effect"
-
-export interface Committing {
-  /** Absolute path of the directory being served — where git runs. */
-  readonly root: string
-  /** Absolute paths of the files this write produced. */
-  readonly paths: ReadonlyArray<string>
-  /** The commit subject. */
-  readonly message: string
-}
-
-/**
- * What git is doing for the served directory, as a reader is told it.
- *
- * FLAT — a status and the words that go with it — rather than a discriminated
- * union with `said` on one arm, because this value is published: it is the
- * server's git cell, and the cell's schema (`@olai/surface`) is this shape. The
- * two declarations are kept in step by the compiler rather than by hand (the
- * server hands one to the other), which is the whole reason this layer, which
- * knows nothing about a wire, may still declare a value that travels on one.
- *
- *   - `off` — this serve was started with `--no-commit`. An owner's choice, not
- *     an error, and nothing about it is worth showing anyone.
- *   - `repo` — a work tree, and writes are being committed. The healthy default.
- *   - `none` — not a work tree (or a bare repository, where the files have
- *     nowhere to be). Informational: plenty of directories are not repositories.
- *   - `error` — git tried and could not, and `said` is its own words. This is
- *     the state that used to be indistinguishable from `none`.
- */
-export interface GitState {
-  readonly status: "off" | "repo" | "none" | "error"
-  /** What git said, for the state that has something to quote. `null`
-   *  otherwise — a healthy repository is not quoting anything. */
-  readonly said: string | null
-}
-
-/** The opt-out, which is the one state git is never asked about — so it is the
- *  caller's to raise, and the only constant here that leaves this file. */
-export const OFF: GitState = { status: "off", said: null }
-export const errorState = (said: string): GitState => ({ status: "error", said })
-
-const REPO: GitState = { status: "repo", said: null }
-const NONE: GitState = { status: "none", said: null }
-
-/**
- * What happened to one write's files.
- *
- *   - `committed` — it is in the history.
- *   - `nothing` — git had nothing to record: the write produced the bytes that
- *     were already there. Not a failure, and it must not be drawn as one.
- *   - `refused` — git tried and would not, with its own words.
- */
-export type Commitment =
-  | { readonly kind: "committed" }
-  | { readonly kind: "nothing" }
-  | { readonly kind: "refused"; readonly said: string }
-
-const COMMITTED: Commitment = { kind: "committed" }
-const NOTHING: Commitment = { kind: "nothing" }
-
-/**
- * Why a write was not committed, in one sentence, or `undefined` when it was.
- *
- * ONE table for both answers above, because a reader looking at
- * `committed: false` asks one question and does not care which half of this
- * module knows the answer. It is prose on purpose: this rides the op's reply to
- * an agent and to the panel that draws it, where the structured half is the
- * `committed` boolean that is already there.
- */
-export const why = (outcome: GitState | Commitment): string | undefined => {
-  if ("status" in outcome) {
-    switch (outcome.status) {
-      case "off":
-        return "this directory is served with --no-commit, so writes are not committed"
-      case "none":
-        return "the served directory is not a git work tree, so there is nothing to commit to"
-      case "error":
-        return `git could not be asked about this directory: ${outcome.said ?? ""}`.trim()
-      case "repo":
-        return undefined
-    }
-  }
-  switch (outcome.kind) {
-    case "committed":
-      return undefined
-    case "nothing":
-      return "git had nothing to commit — the write produced the bytes that were already there"
-    case "refused":
-      return `git refused the commit: ${outcome.said}`
-  }
-}
+import { execFile } from "node:child_process"
+import * as fs from "node:fs"
 
 /** How long git gets. A commit in a notes directory is milliseconds; the
  *  budget is here so a wedged hook or a lock held by another process cannot
- *  hold the write gate open forever. */
+ *  hold a caller open forever. */
 const BUDGET = 10_000
 
-/** One run of git: whether it worked, and what it said. Nothing about the exit
- *  code — every classification below is either `ok` or git's own words, which
- *  is what makes them the same decision a person reading a terminal makes. */
-interface Ran {
+interface Said {
   readonly ok: boolean
+  /** stdout and stderr together, trimmed — what a log line quotes. */
   readonly said: string
+  /** stdout, verbatim. Trailing newlines are data when the answer is a list. */
+  readonly out: string
 }
 
 /** Run git, and answer with whether it worked and what it said. Never fails:
- *  every outcome — a missing binary, a non-zero exit, a timeout — is an answer
- *  the caller decides what to do with. */
-const git = (
-  root: string,
-  argv: ReadonlyArray<string>,
-): Effect.Effect<Ran> =>
-  Effect.callback<Ran>((resume) => {
+ *  every outcome is an answer the caller decides what to do with. */
+const git = (root: string, argv: ReadonlyArray<string>): Effect.Effect<Said> =>
+  Effect.callback<Said>((resume) => {
     execFile(
       "git",
       [...argv],
@@ -170,74 +75,320 @@ const git = (
         cwd: root,
         timeout: BUDGET,
         encoding: "utf8",
+        maxBuffer: 32 * 1024 * 1024,
         // `LC_ALL=C` so git's own sentences are the ones {@link NOT_A_REPO}
-        // reads. `GIT_TERMINAL_PROMPT=0` so a repository that wants a
-        // credential fails instead of sitting on a prompt nobody can answer —
-        // this runs inside the store's write gate.
+        // reads — the classification below is a string match, and a translated
+        // git would be reported as unusable rather than as no repository.
+        // `GIT_TERMINAL_PROMPT=0` so a repository that wants a credential fails
+        // instead of sitting on a prompt nobody can answer.
         env: { ...process.env, LC_ALL: "C", GIT_TERMINAL_PROMPT: "0" },
       },
       (error, stdout, stderr) => {
         resume(
-          Effect.succeed<Ran>({
+          Effect.succeed({
             ok: error === null,
-            said: `${stdout}${stderr}`.trim() ||
-              (error === null ? "" : error.message),
+            said: `${stdout}${stderr}`.trim() || (error === null ? "" : error.message),
+            out: stdout,
           }),
         )
       },
     )
   })
 
+/**
+ * Where the served directory sits in a repository — two answers out of one
+ * subprocess, because both are wanted together and each would otherwise be a
+ * spawn of its own.
+ */
+interface Placement {
+  readonly gitDir: string
+  /** `""` when the served directory IS the repository root, `"docs/"` when it
+   *  is a directory inside one. Git's own `--show-prefix` spelling: always
+   *  `/`-separated, always with a trailing slash when it is not empty. */
+  readonly prefix: string
+}
+
 /** git's own answer for "there is no repository here", pinned to English by the
- *  `LC_ALL=C` above. Matched rather than inferred from the exit code because
- *  128 is also what a repository git REFUSES to use answers with — dubious
- *  ownership is the one people actually hit — and calling that "not a git
- *  repo" is exactly the collapse this module exists to stop. Anything
- *  unrecognised is reported as an error, which is the safe direction. */
+ *  `LC_ALL=C` the runner sets. Matched rather than inferred from the exit code
+ *  because 128 is also what a repository git REFUSES to use answers with —
+ *  dubious ownership is the one people actually hit — and calling that "not a
+ *  git repo" is exactly the collapse #108 exists to stop. Anything unrecognised
+ *  is reported as unusable, which is the safe direction. */
 const NOT_A_REPO = /not a git repository/i
 
+/** Where {@link place} got to. The public {@link Opening} is this with the
+ *  placement swapped for the handle built from it. */
+type Placing =
+  | { readonly _tag: "Placed"; readonly placement: Placement }
+  | { readonly _tag: "NoRepo" }
+  | { readonly _tag: "Unusable"; readonly said: string }
+
+const NO_REPO = { _tag: "NoRepo" } as const
+
+const place = (root: string): Effect.Effect<Placing> =>
+  Effect.map(
+    git(root, [
+      "rev-parse",
+      "--is-inside-work-tree",
+      "--absolute-git-dir",
+      "--show-prefix",
+    ]),
+    ({ ok, out, said }) => {
+      if (!ok) {
+        return NOT_A_REPO.test(said)
+          ? NO_REPO
+          : ({ _tag: "Unusable", said } as const)
+      }
+      // Three lines, in the order they were asked for. `--show-prefix` prints
+      // an EMPTY line at the repository root, which is why the raw stdout is
+      // split rather than the trimmed message.
+      const lines = out.split("\n")
+      // A bare repository answers `false`: there is nowhere for the files to be.
+      if (lines[0]?.trim() !== "true") return NO_REPO
+      const gitDir = lines[1]?.trim()
+      if (gitDir === undefined || gitDir === "") return NO_REPO
+      return {
+        _tag: "Placed",
+        placement: { gitDir, prefix: lines[2]?.trim() ?? "" },
+      } as const
+    },
+  )
+
+/** The files git writes while an operation is half-finished, and what each of
+ *  them means. A rebase leaves a detached HEAD behind, so this list is checked
+ *  BEFORE the branch is asked for — otherwise every rebase would report as
+ *  "detached", which is true and not the useful half. */
+const IN_PROGRESS: ReadonlyArray<readonly [string, Reason]> = [
+  ["rebase-merge", "rebase"],
+  ["rebase-apply", "rebase"],
+  ["MERGE_HEAD", "merge"],
+  ["CHERRY_PICK_HEAD", "cherry-pick"],
+]
+
 /**
- * What git makes of this directory: a work tree, no work tree, or trouble.
+ * One repository, as everything above this file needs it.
  *
- * A bare repository answers `false` and is `none`: there is nowhere for the
- * files to be. This replaced an `isWorkTree` returning a boolean, which had to
- * answer `false` for a git that could not be run at all — the same word for
- * "your notes are not a repository" and "this service has no git on its PATH".
+ * The whole surface, and it is four business verbs rather than the shape of the
+ * commands behind them: nothing here says `rev-parse`, and nothing above says
+ * it either.
  */
-export const probe = (root: string): Effect.Effect<GitState> =>
-  Effect.map(git(root, ["rev-parse", "--is-inside-work-tree"]), (ran) => {
-    if (ran.ok) return ran.said === "true" ? REPO : NONE
-    return NOT_A_REPO.test(ran.said) ? NONE : errorState(ran.said)
+export interface Repo {
+  /** Whether it can take a commit right now, and why not when it cannot. */
+  readonly state: Effect.Effect<RepoState>
+  /** Every served file git thinks has moved, root-relative and in git's own
+   *  order. Every one of them: WHICH of those matter is a statement about the
+   *  format, and this file has none of that in it. */
+  readonly dirty: Effect.Effect<ReadonlyArray<string>>
+  /** One served file as HEAD has it, or `null` when HEAD does not. */
+  readonly show: (file: string) => Effect.Effect<string | null>
+  /** The last commit olai made here, or `null` for a repository it has never
+   *  committed in. */
+  readonly last: (prefix: string) => Effect.Effect<LastCommit | null>
+  /** Commit exactly these ABSOLUTE paths with exactly this message. */
+  readonly commit: (what: CommitInput) => Effect.Effect<Done>
+}
+
+/**
+ * What opening a directory found.
+ *
+ * THREE arms, not two, and the third is the whole of #108: `NoRepo` is a
+ * statement about the directory — a served directory is often somebody's notes
+ * under a sync folder, and `git init`-ing it behind their back is not this
+ * program's business — while `Unusable` is a statement about git, which ran and
+ * could not answer. Neither is a failure of this effect; both are answers.
+ */
+export type Opening =
+  | { readonly _tag: "Opened"; readonly repo: Repo }
+  | { readonly _tag: "NoRepo" }
+  | { readonly _tag: "Unusable"; readonly said: string }
+
+export const open = (root: string): Effect.Effect<Opening> =>
+  Effect.map(place(root), (placing) =>
+    placing._tag !== "Placed" ? placing : {
+      _tag: "Opened",
+      repo: {
+        state: state(root, placing.placement),
+        dirty: dirty(root, placing.placement),
+        show: (file) => show(root, placing.placement, file),
+        last: (prefix) => last(root, placing.placement, prefix),
+        commit: (what) => commit(root, what),
+      },
+    })
+
+const state = (
+  root: string,
+  placed: Placement,
+): Effect.Effect<RepoState> =>
+  Effect.gen(function*() {
+    // ONE directory read rather than a stat per marker: they all live at the
+    // top of the git directory, and this runs on every revision and every
+    // sweep.
+    const inGitDir = new Set(
+      fs.existsSync(placed.gitDir) ? fs.readdirSync(placed.gitDir) : [],
+    )
+    for (const [file, reason] of IN_PROGRESS) {
+      if (inGitDir.has(file)) {
+        return {
+          _tag: "Blocked",
+          reason,
+          said: `${file} is present in ${placed.gitDir}`,
+        } as const
+      }
+    }
+
+    // A detached HEAD has no symbolic ref, and git's own refusal is the
+    // sentence worth quoting. An UNBORN branch does have one, which is right:
+    // a repository with no commits yet is ready to take its first.
+    const branch = yield* git(root, ["symbolic-ref", "--short", "HEAD"])
+    return branch.ok
+      ? ({ _tag: "Ready", branch: branch.said } as const)
+      : ({ _tag: "Blocked", reason: "detached", said: branch.said } as const)
   })
 
 /**
- * Commit the files a write produced.
+ * `--porcelain -z` because the plain form quotes anything unusual and `-z` does
+ * not; `-uall` because a brand-new outline is untracked and is exactly what a
+ * first commit is for; `-- .` because the served directory may be one directory
+ * of a large repository and nothing outside it is olai's to report.
  *
- * The caller has already established that there IS a repository — that answer
- * is a property of the root, so it is asked once rather than spawning a
- * `rev-parse` inside the store's write gate on every op.
- *
- * Answers with WHICH of the three things happened, because they are three
- * different pieces of news: a commit, a write that had nothing to record, and a
- * git that refused. The last used to be the second, and a person watching an
- * agent write to a repository could not tell which they were looking at.
+ * A rename arrives as one entry naming both sides, and both are kept: the ids
+ * on the old side are what say what left.
  */
-export const commit = (
-  what: Committing,
-): Effect.Effect<Commitment> =>
+const dirty = (
+  root: string,
+  placed: Placement,
+): Effect.Effect<ReadonlyArray<string>> =>
   Effect.gen(function*() {
-    if (what.paths.length === 0) return NOTHING
+    const status = yield* git(root, ["status", "--porcelain", "-z", "-uall", "--", "."])
+    if (!status.ok) return []
 
-    const staged = yield* git(what.root, ["add", "--", ...what.paths])
+    const found: Array<string> = []
+    const seen = new Set<string>()
+    const take = (repoPath: string): void => {
+      if (!repoPath.startsWith(placed.prefix)) return
+      const file = repoPath.slice(placed.prefix.length)
+      if (file === "" || seen.has(file)) return
+      seen.add(file)
+      found.push(file)
+    }
+
+    // `XY <path>\0`, with a second `<path>\0` after a rename or a copy naming
+    // where it came from. Read as a stream of NUL-terminated tokens rather
+    // than split into lines: a path may contain a newline, which is the whole
+    // reason `-z` is asked for.
+    const tokens = status.out.split("\0")
+    for (let at = 0; at < tokens.length; at++) {
+      const entry = tokens[at]
+      if (entry === undefined || entry.length < 4) continue
+      take(entry.slice(3))
+      if (entry[0] === "R" || entry[0] === "C") {
+        at += 1
+        const from = tokens[at]
+        if (from !== undefined && from !== "") take(from)
+      }
+    }
+    return found
+  })
+
+/** HEAD's copy covers every file of a repository with no commits yet, and every
+ *  file that is new, with the same `null`. */
+const show = (
+  root: string,
+  placed: Placement,
+  file: string,
+): Effect.Effect<string | null> =>
+  Effect.map(
+    git(root, ["show", `HEAD:${placed.prefix}${file}`]),
+    (shown) => (shown.ok ? shown.out : null),
+  )
+
+/**
+ * The last commit olai made, as HEAD seen through the audit filter.
+ *
+ * `--grep` does the filtering in git rather than here, so a repository with a
+ * hundred thousand of somebody else's commits still costs one walk that stops
+ * at the first match. The four fields come back NUL-separated because a subject
+ * may contain anything a person can type, a newline included.
+ *
+ * The prefix is the caller's, not this file's: what olai's commits look like is
+ * a statement about how olai writes them, and it lives beside the composer.
+ */
+const last = (
+  root: string,
+  placed: Placement,
+  prefix: string,
+): Effect.Effect<LastCommit | null> =>
+  Effect.map(
+    git(root, [
+      "log",
+      "-1",
+      `--grep=^${prefix}`,
+      "--format=%H%x00%s%x00%aI%x00%(trailers:key=X-Olai-Writer,valueonly)",
+      // Only commits that touched the served directory: one olai serving
+      // `docs/` should not report a commit another made elsewhere in the same
+      // repository.
+      "--",
+      ".",
+    ]),
+    ({ ok, out }) => {
+      if (!ok) return null
+      const [sha, message, at, writer] = out.split("\0")
+      if (sha === undefined || sha.trim() === "") return null
+      return {
+        sha: sha.trim(),
+        message: message ?? "",
+        at: at ?? "",
+        // A commit carrying the prefix but no trailer is not a lie to correct
+        // — it is a commit whose writer nothing recorded, which is exactly
+        // what `null` says.
+        writer: asWriter(writer?.trim() ?? ""),
+      }
+    },
+  )
+
+const WRITERS: ReadonlySet<string> = new Set(["chat-agent", "mcp", "web"])
+
+const asWriter = (said: string): Writer | null =>
+  WRITERS.has(said) ? (said as Writer) : null
+
+/** What committing did. Deliberately not `CommitResult`: that one carries a
+ *  change count and a repository state, and neither is a thing this file
+ *  knows. */
+export type Done =
+  | { readonly _tag: "Committed"; readonly sha: string }
+  | { readonly _tag: "Failed"; readonly said: string }
+
+export interface CommitInput {
+  /** Absolute paths of the files to commit. */
+  readonly paths: ReadonlyArray<string>
+  /** Subject, body and trailer, whole. The `olai` prefix and the writer
+   *  trailer are the caller's to have put on: this file composes nothing. */
+  readonly message: string
+}
+
+/**
+ * Commit exactly these paths, and say what happened.
+ *
+ * Never `--amend`. Amending rewrites history, which is a trap the moment a
+ * commit has been pushed — and an audit trail that can be edited after the
+ * fact is not one.
+ *
+ * `--no-verify` because a served directory's hooks belong to whatever project
+ * it is part of: a linter refusing an outline write would leave the bytes on
+ * disk and the reason somewhere nobody is looking.
+ */
+const commit = (root: string, what: CommitInput): Effect.Effect<Done> =>
+  Effect.gen(function*() {
+    const staged = yield* git(root, ["add", "--", ...what.paths])
     if (!staged.ok) {
       yield* Effect.annotateLogs(
         Effect.logWarning("olai git: could not stage the write"),
         { said: staged.said },
       )
-      return { kind: "refused", said: staged.said }
+      return { _tag: "Failed", said: staged.said } as const
     }
 
-    const committed = yield* git(what.root, [
+    const committed = yield* git(root, [
       "commit",
       "--no-verify",
       "-m",
@@ -245,31 +396,16 @@ export const commit = (
       "--",
       ...what.paths,
     ])
-    if (committed.ok) return COMMITTED
-
-    // Was there anything to commit? The index is still staged after a failed
-    // commit, so git's own exit code answers it: `--quiet` exits 0 when the
-    // staged tree matches HEAD, 1 when it does not. Nothing staged is the
-    // ordinary "the write produced the bytes already there"; anything else is
-    // a refusal, and the identity nobody set is the one people hit.
-    const pending = yield* git(what.root, [
-      "diff",
-      "--cached",
-      "--quiet",
-      "--",
-      ...what.paths,
-    ])
-    if (pending.ok) {
+    if (!committed.ok) {
+      // The ordinary case is "nothing to commit" — a write that produced the
+      // bytes already there. Worth a line in the log, never worth failing.
       yield* Effect.annotateLogs(
-        Effect.logDebug("olai git: nothing to commit"),
-        { commitMessage: what.message, said: committed.said },
+        Effect.logWarning("olai git: the write was not committed"),
+        { commitMessage: what.message.split("\n")[0] ?? "", said: committed.said },
       )
-      return NOTHING
+      return { _tag: "Failed", said: committed.said } as const
     }
 
-    yield* Effect.annotateLogs(
-      Effect.logWarning("olai git: the write was not committed"),
-      { commitMessage: what.message, said: committed.said },
-    )
-    return { kind: "refused", said: committed.said }
+    const head = yield* git(root, ["rev-parse", "HEAD"])
+    return { _tag: "Committed", sha: head.ok ? head.said : "" } as const
   })

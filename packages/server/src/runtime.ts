@@ -28,11 +28,13 @@
  *     procedure that also echoed its result would be a second answer to what
  *     the directory says, arriving first and occasionally disagreeing.
  *
- * And one fact belongs to neither: what GIT is doing for the directory. It is
- * the ops layer's — the only thing here that commits — so it arrives seeded and
- * is written by that layer's observer, with no `connect` of its own: there is
- * no stream behind it, only a probe once per serve and whatever a refused
- * commit has to say afterwards.
+ * And two facts belong to neither: what GIT is doing for the directory, and
+ * what is WAITING to be committed to it. Both are the ops layer's — the only
+ * thing here that commits — and both are recomputed by one connector, from one
+ * survey, on the same three clocks: every published revision, every landed
+ * commit, and a slow sweep because nothing watches `.git`. They are two cells
+ * because two controls draw them, and one derivation because they are two
+ * readings of one question (HACKING.md: MCP and Web ops must be consistent).
  *
  * Nothing here interprets an outline or an agent. It moves what the store and
  * the chat decided onto the wire, and that is all — with one exception, and it
@@ -41,13 +43,22 @@
  * the wire.
  */
 
-import type { OutlineError, OutlineSet } from "@olai/format"
+import { NOTHING_PENDING } from "@olai/format"
 import type { Applied, Ops } from "@olai/ops"
+import type {
+  CommitRequest,
+  CommitResult,
+  OutlineError,
+  OutlineSet,
+  Pending,
+  Writer,
+} from "@olai/format"
 import type { Store } from "@olai/store"
 import {
   CHAT_OFF,
   type ChatState,
   type Edit,
+  GIT_OFF,
   type GitState,
   LOADED,
   type Manifest,
@@ -61,7 +72,7 @@ import {
   inMemoryStore,
   type SurfaceRuntime,
 } from "@kolu/surface/server"
-import { Effect, Result, Stream, SubscriptionRef } from "effect"
+import { Duration, Effect, Result, Stream, SubscriptionRef } from "effect"
 
 import type { Change, Chat } from "@olai/chat"
 import { requestFor } from "./edit.ts"
@@ -74,6 +85,13 @@ import {
 /** What a transport needs, and nothing else. `ctx` is the write face, which
  *  belongs to the bindings below rather than to whoever serves them. */
 export type Bound = Omit<SurfaceRuntime<typeof surface.spec>, "ctx">
+
+/** How often the two git cells are recomputed with nothing having asked. Same
+ *  argument as the store's backstop: a watcher is a latency optimisation and
+ *  never a guarantee, and here there is no watcher at all — `.git` is
+ *  deliberately not watched (it is the busiest thing under a served directory).
+ *  A person committing in a terminal is the case this covers. */
+const SWEEP = Duration.seconds(30)
 
 /** One collection's revision, written to the collection. The two directory
  *  collections are published by the same two statements in the same order, and
@@ -101,15 +119,58 @@ export interface Wiring {
    *  they hold nothing of their own: what a keystroke MEANT is resolved
    *  against this layer's own reading (`./edit.ts`) and run as one op. */
   readonly ops: Ops
-  /** What git is doing for this directory, as the ops layer found it — the
-   *  value the cell OPENS on, so a page that never sees a write still knows
-   *  whether the directory it is reading has a history. Later changes arrive
-   *  through {@link Publishers.git}.
+  /** WHO a keystroke is, for the commit trailer — decided by whoever composed
+   *  this, exactly as the git half's writer is, and for the same reason: a
+   *  transport that named itself could name another. `web` on the browser's
+   *  face; on `olai mcp` these procedures are unexposed, so it is the one
+   *  nobody can reach. */
+  readonly writer: Writer
+  /**
+   * The git half, taken from the ops layer rather than the layer itself: this
+   * file publishes what somebody else decided, and "what is waiting to be
+   * committed" is the whole of what it needs to know about writing.
    *
-   *  Typed as the surface's own shape, which `@olai/ops` declares structurally:
-   *  the two drifting is a type error here rather than a mapping to maintain. */
-  readonly git: GitState
+   * The two cells it feeds — the header's readout and the Commit pill — are
+   * recomputed TOGETHER, on the same clocks, from the same survey. That is the
+   * consistency rule made structural: two probes would be two answers, and a
+   * page reading "Not a Git repo" beside a panel offering to commit four
+   * changes is precisely the incoherence this arrangement forecloses.
+   *
+   * `state` is typed as the surface's own shape, which `@olai/ops` declares
+   * structurally: the two drifting is a type error here rather than a mapping
+   * to maintain.
+   */
+  readonly git: {
+    readonly pending: Effect.Effect<Pending>
+    readonly state: Effect.Effect<GitState>
+    readonly commit: (request: CommitRequest) => Effect.Effect<CommitResult>
+    /** Bumped by the ops layer whenever a commit lands, by whichever door. A
+     *  commit changes what is waiting without changing a served file, so this
+     *  is the only thing that can say so. */
+    readonly committed: SubscriptionRef.SubscriptionRef<number>
+  }
 }
+
+/**
+ * The git half of {@link Wiring}, from the ops layer and the face asking.
+ *
+ * ONE spelling, because there are two composition roots — `./serve.ts` for the
+ * browser and `./mcp/serve.ts` for the agent in a terminal — and HACKING.md's
+ * rule is that they must not diverge. Written out twice, the day one of them
+ * grew a cell or changed a writer would be the day the two faces quietly stopped
+ * being the same product. `writer` is the only thing that differs between them,
+ * so it is the only thing this takes.
+ */
+export const gitWiring = (
+  ops: Pick<Ops, "pending" | "commit" | "git">,
+  writer: Writer,
+  committed: SubscriptionRef.SubscriptionRef<number>,
+): Wiring["git"] => ({
+  pending: ops.pending,
+  state: ops.git,
+  commit: (request) => ops.commit(request, writer),
+  committed,
+})
 
 /** The chat, plus the two publishers the surface hands back once it exists.
  *  {@link bind} fills them in — the chat is built before the surface, because
@@ -118,10 +179,6 @@ export interface Wiring {
 export interface Publishers {
   readonly state: (state: ChatState) => void
   readonly transcript: (change: Change) => void
-  /** What git is doing now. Called by the ops layer's observer, and only when
-   *  it CHANGED — a healthy write says nothing, so an open tab is not woken on
-   *  every op. */
-  readonly git: (state: GitState) => void
 }
 
 export const bind = (
@@ -153,6 +210,30 @@ export const bind = (
      *  above has it. */
     let published: SurfaceRuntime<typeof surface.spec>["ctx"] | null = null
 
+    /** The two git cells, once their connectors have been handed them. Held
+     *  rather than reached for through `ctx` because the commit procedure has to
+     *  republish the moment it is done — a commit changes what is waiting
+     *  without changing one byte on disk, so no revision will ever say so. */
+    let pendingCell: { set: (value: Pending) => void } | null = null
+    let gitCell: { set: (value: GitState) => void } | null = null
+
+    /**
+     * Both git cells, from one round of questions.
+     *
+     * ONE statement, so they cannot be recomputed on different clocks or from
+     * different surveys — which is the whole of the coherence between the
+     * readout and the pill. `Effect.all` because they are independent asks of a
+     * layer that memoises the expensive half between them.
+     */
+    const republishGit = Effect.flatMap(
+      Effect.all([wiring.git.pending, wiring.git.state], { concurrency: 2 }),
+      ([pending, state]) =>
+        Effect.sync(() => {
+          pendingCell?.set(pending)
+          gitCell?.set(state)
+        }),
+    )
+
     /** A chat verb, when there may be no chat. The cell already reads `off`, so
      *  a browser has been told; a stray call is answered as a REFUSAL rather
      *  than as a runtime defect, because "chat is off" is a thing a caller can
@@ -183,7 +264,7 @@ export const bind = (
         const request = requestFor(at, edit)
         return Result.isFailure(request)
           ? Effect.fail(request.failure)
-          : wiring.ops.run(request.success)
+          : wiring.ops.run(request.success, wiring.writer)
       })
 
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {
@@ -199,11 +280,50 @@ export const bind = (
         chat: {
           store: inMemoryStore<ChatState>(chat === null ? CHAT_OFF : chat.state()),
         },
-        /** Seeded from what the ops layer already found, and written by its
-         *  observer afterwards — no `connect`, because there is no stream to
-         *  follow: git is asked once per serve and only speaks again when a
-         *  commit refuses. */
-        git: { store: inMemoryStore<GitState>(wiring.git) },
+        /**
+         * What git is doing for this directory at all — the header's readout.
+         *
+         * It has no `connect` of its own: it is republished by the PENDING
+         * cell's connector below, from the same survey, so the two chrome
+         * controls can never disagree about the directory they are both
+         * describing. The seed is `off`, which draws nothing, so a page cannot
+         * flash "Not a Git repo" at a repository on its way to the truth.
+         */
+        git: {
+          store: inMemoryStore<GitState>(GIT_OFF),
+          connect: (cell) => Effect.sync(() => gitCell = cell),
+        },
+        /**
+         * What is waiting to be committed, on THREE clocks.
+         *
+         * Every published revision is one — a write changes what is waiting, and
+         * that is the ordinary case. A landed commit is the second, because a
+         * commit moves no served file and so no revision would ever mention it.
+         *
+         * The slow sweep is the third, and it exists because NOTHING WATCHES
+         * `.git`: a person who commits in a terminal changes what is pending
+         * without touching an outline, and without this the panel would go on
+         * offering to commit what is already committed until the next write. It
+         * costs one `git status` on a clean directory.
+         */
+        pending: {
+          store: inMemoryStore<Pending>(NOTHING_PENDING),
+          connect: (cell) =>
+            Effect.gen(function*() {
+              pendingCell = cell
+              yield* Effect.all([
+                Stream.runForEach(
+                  SubscriptionRef.changes(wiring.store.snapshot),
+                  () => republishGit,
+                ),
+                Stream.runForEach(
+                  SubscriptionRef.changes(wiring.git.committed),
+                  () => republishGit,
+                ),
+                Effect.forever(Effect.andThen(Effect.sleep(SWEEP), republishGit)),
+              ], { concurrency: 3 })
+            }),
+        },
         /** The whole directory binding, because one revision is one write of
          *  everything it moved: for each collection the entries that changed
          *  and the keys that went, and then the facts that belong to no file.
@@ -302,6 +422,15 @@ export const bind = (
               ...(done.nudge === undefined ? {} : { nudge: done.nudge }),
             })),
         },
+        git: {
+          // The button's door. `writer: "web"` is decided in `serve.ts`, where
+          // the ops layer is built — a procedure is a transport, and which
+          // transport this one is is not a thing it should be able to claim
+          // about itself. What republishes afterwards is NOT here: it is the
+          // `committed` subscription above, so the agent's tool and
+          // `--commit=auto` get it too.
+          commit: ({ input }) => wiring.git.commit(input),
+        },
       },
     }
 
@@ -321,7 +450,6 @@ export const bind = (
       bound: runtime,
       publish: {
         state: (state) => runtime.ctx.cells.chat.set(state),
-        git: (state) => runtime.ctx.cells.git.set(state),
         transcript: (change) => {
           for (const key of change.removes) runtime.ctx.collections.transcript.remove(key)
           for (const [key, entry] of change.upserts) {

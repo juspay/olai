@@ -39,7 +39,7 @@ import type { Draft } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
 import { type EditAction, type EditField, editKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
-import { ROW_TITLE } from "../touch.ts"
+import { ROW_NOTE as AS_NOTE, ROW_TITLE } from "../touch.ts"
 
 export function TitleEditor(props: {
   readonly text: string
@@ -79,6 +79,13 @@ export function TitleEditor(props: {
  * editor: what is typed is what is stored, and the rendering comes back when
  * it closes. It grows with its content because a note is usually two lines and
  * occasionally twenty, and a fixed box would be wrong for both.
+ *
+ * INLINE, and styled as the note rather than as a control (human, on sight of
+ * the first shape: a monospace box under the row is ugly, and it is also a
+ * lie — it says "form field" where the page says "the note"). Same size, same
+ * muted tone, same place, no border and no background: what changes when the
+ * caret arrives is that the markdown stops being rendered and starts being
+ * text, which is exactly the trade the title takes one line up.
  */
 export function DescEditor(props: {
   readonly text: string
@@ -92,7 +99,7 @@ export function DescEditor(props: {
   return (
     <textarea
       ref={element}
-      class="mt-0.5 mb-1 block w-full resize-none rounded border border-rule bg-paper px-1.5 py-1 font-mono text-[0.8125rem] leading-snug text-ink outline-none focus:border-accent"
+      class={`mt-0.5 mb-1 block w-full resize-none overflow-hidden border-0 bg-transparent p-0 outline-none ${AS_NOTE}`}
       data-testid={TESTID.descEditor}
       rows={2}
       value={props.text}
