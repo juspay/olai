@@ -121,7 +121,12 @@ Feature: The ••• menu writes
       {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","see":["kitchen-herbs"]}
       {"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}
       """
-    And I open the node menu of "kitchen-herbs"
+    # The other hand's write has to have ARRIVED before the menu is opened on
+    # a row it redrew: `install` is gone from the file above, so its row going
+    # is the frame this scenario is waiting for. Without it the pointer opens a
+    # menu on an element the next frame replaces, and the panel never appears.
+    Then the node "install" is not shown
+    When I open the node menu of "kitchen-herbs"
     And I choose "Remove this placement" from the node menu
     Then the node menu of "kitchen-herbs" says "`kitchen-herbs` is still named by `order` (`see`, house.jsonl:2) — retiring it would leave that pointing at nothing. Re-point it at `herbs` (the node this placement shows), or retire it first."
     And "house.jsonl" holds the node "kitchen-herbs"
