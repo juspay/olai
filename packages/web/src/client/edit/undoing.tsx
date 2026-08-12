@@ -86,14 +86,54 @@ export const createUndo = (): Undo => {
   /**
    * One replay at a time, in the order the keys were pressed.
    *
-   * The editor's queue and this one are separate for the reason they are
-   * separate keys: ⌘Z is dead while a draft is open, so the two are never
-   * racing over one row. What this queue is for is a person leaning on ⌘Z —
-   * each entry's inverse is judged against what the one before it did, and run
-   * concurrently they would be judged against the same snapshot and both
-   * refused (or worse, both applied to a row that has since moved).
+   * A person leaning on ⌘Z is what it is for: each entry's inverse is judged
+   * against what the one before it did, and run concurrently they would be
+   * judged against the same snapshot — both refused, or both applied to a row
+   * that has since moved.
+   *
+   * The editor has a queue of its own and these two are deliberately not one.
+   * The editor's exists because its writes are derived FROM EACH OTHER over a
+   * draft (`./editing.tsx` says so): the id an `add` answers with, the place a
+   * move produced. Nothing here is derived from a draft — an inverse is judged
+   * at the gate against the set as it is — so the two never have to be ordered
+   * against each other. Where they can genuinely meet is a title commit still
+   * in flight when the caret leaves and ⌘Z takes back the row it was on, and
+   * that meeting ends the way every other collision at this gate does: the
+   * loser is refused, and the reason is shown.
    */
   let gate: Promise<unknown> = Promise.resolve()
+
+  /**
+   * Replay one entry's edits, in order, stopping at the first refusal.
+   *
+   * A VALUE out rather than four writes to signals as it goes: what to say is
+   * one decision — refused, or a nudge, or a row that cannot come back, or
+   * nothing at all — and a function that made it in pieces would be reading
+   * back what it had just written to find out which case it was in.
+   */
+  const sent = async (
+    step: Step,
+    side: Side,
+  ): Promise<{ readonly back: ReadonlyArray<Edit>; readonly said: Said | null }> => {
+    /** What would replay THIS replay — each answer's own inverse, in reverse,
+     *  because undoing [a, b] is undone by [b⁻¹, a⁻¹]. */
+    const back: Array<Edit> = []
+    let note: string | undefined
+    for (const edit of step) {
+      const outcome = await runAsync(olai.procedures.edit.apply(edit))
+      if (Result.isFailure(outcome)) {
+        // The entry is already off the stack. What is on screen is what the
+        // set says, and the sentence is the ops layer's own — the row moved,
+        // the node is gone, somebody else's write got there first. Whatever
+        // landed BEFORE the refusal still answers with its inverse, so half an
+        // undo is still redoable.
+        return { back, said: { tone: "alarm", text: `${REFUSED[side]} ${outcome.failure.message}` } }
+      }
+      back.unshift(...(outcome.success.undo ?? []))
+      note = outcome.success.nudge ?? note
+    }
+    return { back, said: note === undefined ? null : { tone: "aside", text: note } }
+  }
 
   /**
    * Take the top of one side, replay it, and file what comes back on the
@@ -114,36 +154,18 @@ export const createUndo = (): Undo => {
     setStack(held.rest)
     setSaid(null)
 
-    /** What would replay THIS replay — each answer's own inverse, in reverse,
-     *  because undoing [a, b] is undone by [b⁻¹, a⁻¹]. */
-    const back: Array<Edit> = []
-    let note: string | undefined
-    for (const edit of held.step) {
-      const outcome = await runAsync(olai.procedures.edit.apply(edit))
-      if (Result.isFailure(outcome)) {
-        // The stack has already dropped it. What is on screen is what the set
-        // says, and the sentence is the ops layer's own — the row moved, the
-        // node is gone, somebody else's write got there first.
-        setSaid({ tone: "alarm", text: `${REFUSED[side]} ${outcome.failure.message}` })
-        break
-      }
-      back.unshift(...(outcome.success.undo ?? []))
-      note = outcome.success.nudge ?? note
-    }
-
+    const { back, said } = await sent(held.step, side)
     if (back.length > 0) setStack((current) => kept(current, side, back))
-    else if (said() === null) {
-      // It landed, and nothing would replay it: the only write that answers
-      // that way is a row taken back into the archive, which no move brings
-      // out (a parent is same-file by the format). Said rather than left as a
-      // ⌘⇧Z that does nothing.
-      setSaid({ tone: "aside", text: GONE })
-    }
-    if (note !== undefined && said() === null) setSaid({ tone: "aside", text: note })
+    // Nothing to file and nothing refused: it landed, and no edit would replay
+    // it — the only write that answers that way is a row taken back into the
+    // archive, which no move brings out (a parent is same-file by the format).
+    // Said rather than left as a ⌘⇧Z that does nothing.
+    setSaid(said ?? (back.length === 0 ? { tone: "aside", text: GONE } : null))
   }
 
   const press = (side: Side) => () => {
-    gate = gate.then(() => replay(side), () => replay(side))
+    const again = () => replay(side)
+    gate = gate.then(again, again)
   }
 
   return {

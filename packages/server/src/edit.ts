@@ -390,7 +390,9 @@ export const inverseOf = (
   }
 }
 
-/** Where a row sits, as the one edit that would put it back there. */
+/** Where a row sits, as the one edit that would put it back there — and
+ *  nothing at all for an id this reading does not hold, which the write about
+ *  to be judged against it will refuse in its own words a moment later. */
 const placementOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
   const located = derived.byId.get(id)
   if (located === undefined) return []
