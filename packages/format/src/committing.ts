@@ -83,8 +83,9 @@ export const isReady = (repo: RepoState): boolean => repo._tag === "Ready"
 
 /** Whether committing is a thing that could ever happen here. `false` is the
  *  two SETTINGS — no repository, or commits turned off — plus the git that could
- *  not be asked at all, which is a fault the git readout owns and not something
- *  a Commit button can offer to do anything about. */
+ *  not be asked at all, which is a FAULT and is drawn as one (the header's git
+ *  indicator wears it as `git error`, with git's own words), rather than
+ *  something a Commit button can offer to do anything about. */
 export const isPossible = (repo: RepoState): boolean =>
   repo._tag === "Ready" || repo._tag === "Blocked"
 

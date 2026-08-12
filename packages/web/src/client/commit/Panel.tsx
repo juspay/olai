@@ -164,10 +164,18 @@ export function Panel(props: {
 
       {/* Why the button is disabled — said, rather than left for somebody to
           work out from a control that does nothing. Git's own words are the
-          title, because they are what you would paste into a search. */}
+          title, because they are what you would paste into a search.
+
+          Two tones, the same two the pill wears and for the same reason: a
+          repository mid-rebase is amber, because it will take a commit once
+          that is finished, and a git that FAILED is alarm, because it will not.
+          One line painting both the same would be telling a reader that a
+          broken git is a thing they are in the middle of. */}
       <Show when={!ready()}>
         <p
-          class="text-xs text-doing"
+          class={`text-xs ${
+            pending().repo._tag === "Unusable" ? "text-alarm" : "text-doing"
+          }`}
           data-testid={TESTID.commitBlocked}
           title={verbatim(pending().repo)}
         >

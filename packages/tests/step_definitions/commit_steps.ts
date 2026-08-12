@@ -1,20 +1,31 @@
 /**
- * The Commit button, driven the way a person drives it.
+ * The Commit pill, driven the way a person drives it — and it is the header's
+ * ONE indicator for git, so the steps that used to drive the `● git` readout
+ * beside it are here too (`one-git-indicator` retired that chip and this file
+ * inherited its three assertions).
  *
- * These are the only scenarios in the suite whose served directory is a git
- * repository (`@git`, `support/hooks.ts`), and that is the point: what is
- * waiting to be committed is DERIVED from git rather than counted, so the only
- * honest way to test it is to have one and then to look in its log afterwards.
+ * The scenarios that WRITE are the only ones in the suite whose served
+ * directory is a git repository (`@git`, `support/hooks.ts`), and that is the
+ * point: what is waiting to be committed is DERIVED from git rather than
+ * counted, so the only honest way to test it is to have one and then to look in
+ * its log afterwards. WHICH situation a server was started into — a repository,
+ * a directory that is not one, a git that fails when it is asked — is the
+ * scenario's tag rather than a step, because the claim being made is that the
+ * page knows before anybody writes anything.
  *
- * Everything asserted here is either a `data-` fact on the chrome or a line out
- * of `git log`. Nothing reads the words in the panel: which phrase stands for
- * "marked done" is the view's to reword, and `data-sort` is the contract.
+ * Everything asserted here is either a `data-` fact on the chrome, the words on
+ * it, the sentence a reader with no pointer gets, or a line out of `git log`.
+ * Nothing reads the words in the panel: which phrase stands for "marked done"
+ * is the view's to reword, and `data-sort` is the contract.
  */
 
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import {
+  APP_CHROME,
+  APP_CHROME_CONTROLS,
+  APP_HEADER,
   COMMIT_BLOCKED,
   COMMIT_CHANGE,
   COMMIT_LAST,
@@ -22,7 +33,11 @@ import {
   COMMIT_NOW,
   COMMIT_PANEL,
   COMMIT_PILL,
+  HYDRATION_TIMEOUT,
+  oneLine,
   POLL_TIMEOUT,
+  RETIRED_GIT_READOUT,
+  TIP,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -40,10 +55,13 @@ Then(
   },
 );
 
-/** WHICH of the six faces the pill is wearing. It is never absent — this
+/** WHICH of the eight faces the pill is wearing. It is never absent — this
  *  feature is an audit trail, so "there is no audit trail here" is the most
  *  important thing it can say — which is why every assertion here is about the
- *  state it reports rather than about whether it is on screen. */
+ *  state it reports rather than about whether it is on screen.
+ *
+ *  The HYDRATION budget: the faces that come from the server's first survey
+ *  arrive with the first frames of the subscription rather than after a click. */
 Then(
   "the commit pill says {string}",
   async function (this: OlaiWorld, state: string) {
@@ -52,15 +70,131 @@ Then(
       "data-state",
       state,
       "the commit pill",
+      HYDRATION_TIMEOUT,
     );
   },
 );
 
-Then("the commit pill cannot be pressed", async function (this: OlaiWorld) {
-  const disabled = await this.page.locator(COMMIT_PILL).isDisabled();
+/** The WORDS on it, which are not the same claim as the state behind them: a
+ *  face renamed in the table and left saying the old thing is a page that reads
+ *  wrong while every attribute passes. Contains rather than equals, because the
+ *  mark and the caret beside the words are `aria-hidden` decoration. */
+Then(
+  "the commit pill reads {string}",
+  async function (this: OlaiWorld, words: string) {
+    const pill = this.page.locator(COMMIT_PILL);
+    await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const shown = oneLine(await pill.innerText());
+    assert.ok(
+      shown.includes(words),
+      `the commit pill says "${shown}", which does not read "${words}"`,
+    );
+  },
+);
+
+/** The REASON, off the `aria-label` — because it has to be readable without a
+ *  pointer. The tip a pointer does open is checked by the step that already
+ *  owns tips; this asserts the copy everybody else gets. */
+Then(
+  "the commit pill explains {string}",
+  async function (this: OlaiWorld, reason: string) {
+    const pill = this.page.locator(COMMIT_PILL);
+    await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const said = (await pill.getAttribute("aria-label")) ?? "";
+    assert.ok(
+      said.includes(reason),
+      `the commit pill's own sentence is "${said}", which does not mention ` +
+        `"${reason}" — and it is the copy a reader with no pointer gets`,
+    );
+  },
+);
+
+/** Quiet: no warning mark at all. The healthy directory is the ordinary case,
+ *  and chrome that cries in the ordinary case is chrome nobody reads in the
+ *  rare one. */
+Then("the commit pill is not alarming", async function (this: OlaiWorld) {
+  const shown = oneLine(await this.page.locator(COMMIT_PILL).innerText());
   assert.ok(
-    disabled,
-    "expected the commit pill to be inert — no repository, or commits off",
+    !shown.includes("⚠"),
+    `the commit pill says "${shown}", which wears a warning it has no cause for`,
+  );
+});
+
+/** And the other direction, which is the half that matters on a fault: the
+ *  mark is what a reader SCANS for, and a face that lost its glyph would still
+ *  pass every attribute and word assertion beside this one. */
+Then("the commit pill is alarming", async function (this: OlaiWorld) {
+  const pill = this.page.locator(COMMIT_PILL);
+  await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const shown = oneLine(await pill.innerText());
+  assert.ok(
+    shown.includes("⚠"),
+    `the commit pill says "${shown}", with no warning mark on a state that is one`,
+  );
+});
+
+/** Open the tip, and leave the assertion to the step that already owns tips
+ *  (`navigation_steps.ts`'s `a tip says …`, which also holds the rule this app
+ *  learnt the hard way: exactly one tip on screen, ever). */
+When("I hover the commit pill", async function (this: OlaiWorld) {
+  const pill = this.page.locator(COMMIT_PILL);
+  await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await pill.hover();
+  await this.page
+    .locator(TIP)
+    .first()
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+/**
+ * The human's bug, as an assertion: ONE control in the header answers for git.
+ *
+ * There were two — this pill and the `● git` readout beside it — and the claim
+ * is about the ROW rather than about the chip that went. "The old one is
+ * absent" would pass for a twin under a new name, so the row's whole inventory
+ * is named (`support/world.ts`'s `APP_CHROME_CONTROLS`) and anything else in it
+ * fails here. The attribute the readout carried is checked too, which is the
+ * case the inventory cannot see: a chip that arrives with no test id.
+ *
+ * Settle first: an absent element and a frame that has not arrived look
+ * identical, and only one of them is the claim.
+ */
+Then("the header shows one git indicator", async function (this: OlaiWorld) {
+  await this.waitForFrame();
+  const header = this.page.locator(APP_HEADER);
+  const chrome = header.locator(APP_CHROME);
+  await chrome.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+
+  const inside = await chrome.evaluate((row) =>
+    [...row.querySelectorAll("[data-testid]")].map((el) =>
+      el.getAttribute("data-testid") ?? ""
+    )
+  );
+  assert.deepEqual(
+    inside,
+    [...APP_CHROME_CONTROLS],
+    `the app's chrome row holds ${JSON.stringify(inside)}, and it is supposed to ` +
+      `hold ${JSON.stringify(APP_CHROME_CONTROLS)} — one of those answers for git ` +
+      "(the Commit pill) and a second one is the redundancy `one-git-indicator` closed",
+  );
+  assert.equal(
+    await header.locator(RETIRED_GIT_READOUT).count(),
+    0,
+    "something in the header is reporting a git state of its own, beside the pill " +
+      "that already does",
+  );
+});
+
+Then("the commit pill cannot be pressed", async function (this: OlaiWorld) {
+  // `aria-disabled`, not the `disabled` property: the pill stays focusable in
+  // its inert faces on purpose, because the sentence explaining why nothing is
+  // being recorded is the whole of the control in exactly those states, and a
+  // disabled button takes no focus and so cannot be asked.
+  await this.expectAttribute(
+    COMMIT_PILL,
+    "aria-disabled",
+    "true",
+    "the commit pill",
   );
 });
 
