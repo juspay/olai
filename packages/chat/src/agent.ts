@@ -27,14 +27,16 @@
  *   - **which permission requests are answered without asking.** Bypass mode is
  *     the design (resolved 2026-08-09), so a call to one of the MCP servers WE
  *     handed this session — olai's mediated ops, kolu's terminals — is allowed
- *     immediately. Everything else is a person's to answer, and that direction
- *     of the rule is the load-bearing one: the adapter maps plan mode's "ready
- *     to code?" onto a permission request whose first allow-flavoured option
- *     switches the session to `auto`, so a client that answered every request
- *     with the first allow it found was silently taking a decision nobody made.
+ *     immediately, and everything else is a person's to answer. What is HERE is
+ *     that the two paths exist and which one a request took; the rule that
+ *     tells them apart is {@link ./interpret.ts}, where it is a pure function
+ *     with unit tests rather than a branch inside a subprocess's callback.
  *   - **reading the payloads**: which update kind this is, which `configOptions`
  *     entry is the model, how a session list sorts. An event carries what was
- *     READ, never the raw protocol value.
+ *     READ, never the raw protocol value. What any of it means to the CLAUDE
+ *     CODE adapter in particular — its `_meta`, its tool naming, the CLI
+ *     message it forwards — is {@link ./interpret.ts}, so an agent that is not
+ *     that adapter is one file to read rather than a search.
  *
  * The MCP servers a session is given are olai's own internal one — the standard
  * ACP shape, and the only channel the agent has to the ops layer — plus, when
@@ -80,6 +82,14 @@ import { Data, type Duration, Effect, Semaphore } from "effect"
 
 import { type Form, formOf, PERMISSION_FIELD, permissionFormOf } from "./asks.ts"
 import type { AgentEvent, Command, Stored } from "./events.ts"
+import {
+  allowedWithoutAsking,
+  labelsOf,
+  liveModelIn,
+  NEW_SESSION_META,
+  SDK_MESSAGE,
+  toolNameIn,
+} from "./interpret.ts"
 import * as Kolu from "./kolu.ts"
 import { streamOver } from "./pipes.ts"
 import * as Questions from "./questions.ts"
@@ -180,22 +190,6 @@ const PROTOCOL = 1
  *  reports through. Two literals that have to match for the panel to read
  *  consistently is one literal. */
 const notCancelled = (why: string): string => `the turn could not be cancelled: ${why}`
-
-/** What `session/new` asks the Claude Code adapter to forward, and why: the
- *  adapter handles a `/model` slash command inside the wrapped CLI, so it never
- *  sees a config change and its `configOptions` keep naming the model the
- *  session started on. The CLI's own `system`/`init` message carries the live
- *  one. An agent that is not that adapter ignores `_meta` and nothing here
- *  changes — the config option is still read, and still enough. */
-const META = {
-  claudeCode: {
-    emitRawSDKMessages: [{ type: "system", subtype: "init" }],
-  },
-}
-
-/** The notification the Claude Code adapter forwards its wrapped CLI's own
- *  messages under, having been asked to by {@link META}. */
-const SDK_MESSAGE = "_claude/sdkMessage"
 
 /** Permissions are a session MODE, asked for once. A refusal is not fatal:
  *  `session/request_permission` is answered anyway. */
@@ -342,23 +336,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       params: RequestPermissionRequest,
       signal: AbortSignal,
     ): Promise<RequestPermissionResponse> => {
-      const tool = toolOf(params)
-      // `mcp__<server>__<tool>` is the Claude Code CLI's own naming for the
-      // tools an MCP server contributes, and reading it is a bet on that
-      // adapter exactly as `toolNameIn` is. The bet is safe to lose in one
-      // direction only, which is the direction it loses in: an agent that names
-      // its MCP tools some other way matches nothing here and every request
-      // goes to a person. Nothing is ever approved by failing to recognise it.
-      const ours = tool !== null &&
-        given.some((server) => tool.startsWith(`mcp__${server}__`))
-      if (ours) {
-        // Bypass mode is the design and these are the tools it is for: already
-        // mediated, already validated. The adapter usually never asks at all —
-        // this is the path for a session whose bypass request was refused.
-        const allowed = params.options.find((option) => option.kind.startsWith("allow"))
-        if (allowed !== undefined) {
-          return { outcome: { outcome: "selected", optionId: allowed.optionId } }
-        }
+      // The tools olai handed this conversation are answered here and now —
+      // already mediated, already validated — and everything else is put in
+      // front of a person. Which is which is `allowedWithoutAsking`, and it is
+      // there rather than here because it is the rule that stops this panel
+      // approving its own permissions.
+      const allowed = allowedWithoutAsking(toolOf(params), given, params.options)
+      if (allowed !== null) {
+        return { outcome: { outcome: "selected", optionId: allowed } }
       }
       const settled = await put(permissionFormOf(params), signal)
       const picked = settled.content[PERMISSION_FIELD]
@@ -554,9 +539,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             onUpdate(context.params)
           })
           // The CLI's own message, forwarded verbatim because `session/new`
-          // asked for it (see META). Asking and then not listening is what
-          // this used to do, which is why the header could name a model the
-          // session had stopped running. Custom method, so the SDK wants a
+          // asked for it (`NEW_SESSION_META`). Asking and then not listening is
+          // what this used to do, which is why the header could name a model
+          // the session had stopped running. Custom method, so the SDK wants a
           // parser: there is nothing to validate beyond "it is an object", and
           // `readLiveModel` reads one field out of it.
           .onNotification(
@@ -567,11 +552,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             },
           )
           // Allowed without asking when it is one of the tools we handed this
-          // session, and PUT IN FRONT OF A PERSON otherwise. It used to take
-          // the first allow-flavoured option whatever the request was, and the
-          // adapter's plan-mode exit is a permission request whose first allow
-          // switches the session to `auto` — so the panel was quietly answering
-          // "yes, and stop asking me" on somebody's behalf.
+          // session, and PUT IN FRONT OF A PERSON otherwise — the rule, and
+          // what it used to cost to get it wrong, in `interpret.ts`.
           .onRequest(methods.client.session.requestPermission, (context) =>
             onPermission(context.params, context.signal))
           // The agent's own structured question, which is a thing it can only
@@ -670,7 +652,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         const made = (yield* ask(at.connection, methods.agent.session.new, {
           cwd: options.cwd,
           mcpServers: [...(yield* servers)],
-          _meta: META,
+          _meta: NEW_SESSION_META,
         })) as NewSessionResponse
         session = made.sessionId
         emit({ _tag: "session", id: made.sessionId, title: null })
@@ -1023,71 +1005,6 @@ const detailOf = (input: unknown, output: unknown): string | undefined => {
   if (input !== undefined && input !== null) parts.push(JSON.stringify(input, null, 2))
   if (output !== undefined && output !== null) parts.push(JSON.stringify(output, null, 2))
   return parts.length === 0 ? undefined : parts.join("\n\n")
-}
-
-/** The picker as value → label ("claude-fable" → "Fable"), which is what the
- *  agent calls its own models. A value it does not offer is absent here, and
- *  the caller keeps the raw id: truthful, where a nearest match is invented.
- *
- *  The picker is a flat list of options or a list of GROUPS of them, and the
- *  protocol tells the two apart by shape rather than by a tag. */
-const labelsOf = (
-  entry: Extract<SessionConfigOption, { type: "select" }>,
-): ReadonlyMap<string, string> => {
-  const labels = new Map<string, string>()
-  for (const item of entry.options) {
-    if ("value" in item) {
-      labels.set(item.value, item.name)
-      continue
-    }
-    for (const option of item.options) labels.set(option.value, option.name)
-  }
-  return labels
-}
-
-/**
- * The model a turn is actually running on, out of the CLI message the adapter
- * forwarded.
- *
- * ONE field of one message kind is read. Everything else `init` carries — the
- * tool list, the MCP servers, the permission mode, the slash commands, the CLI
- * version — is learned from the protocol proper or not at all, because a panel
- * that believed a wrapped CLI's private message about any of it would be
- * reading around the protocol it speaks.
- */
-const liveModelIn = (params: unknown): string | null => {
-  const message = (params as { readonly message?: unknown } | null)?.message
-  if (typeof message !== "object" || message === null) return null
-  const shape = message as {
-    readonly type?: unknown
-    readonly subtype?: unknown
-    readonly model?: unknown
-  }
-  if (shape.type !== "system" || shape.subtype !== "init") return null
-  return typeof shape.model === "string" && shape.model !== "" ? shape.model : null
-}
-
-/**
- * The programmatic name of a tool, out of a `_meta` the Claude Code adapter
- * puts it in.
- *
- * The one thing read out of an agent-specific `_meta` extension, and it is read
- * because the protocol proper does not carry it where it is needed: a
- * `session/request_permission` describes the call it is about with a DISPLAY
- * title, and "which tool is this" is the question the answer turns on. Every
- * `tool_call` the adapter emits carries the name here, and the adapter emits
- * one before it asks — so the pair is enough.
- *
- * An agent that is not that adapter says nothing here, and nothing here guesses
- * on its behalf: an unknown tool is one a person is asked about.
- */
-const toolNameIn = (
-  meta: { readonly [key: string]: unknown } | null | undefined,
-): string | null => {
-  const claude = meta?.["claudeCode"] as { readonly toolName?: unknown } | undefined
-  return typeof claude?.toolName === "string" && claude.toolName !== ""
-    ? claude.toolName
-    : null
 }
 
 /** Two paths naming the same directory. An agent stores the spelling it was
