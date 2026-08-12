@@ -20,11 +20,29 @@
  * `server restarted` / `reconnecting` / `connecting` are wider than the room
  * left beside the wordmark, and a wrap inside a fixed-height bar clipped the
  * first row off the top of the viewport. The full sentence still rides `title`.
+ *
+ * **Green is about the PAGE, not about the socket.** It reads the framework's
+ * `client.health()` alongside the transport status, because a socket that is
+ * open and answering under a dead subscription is exactly the shape of lie this
+ * component exists to prevent: a `documents.keys` stream that died renders as a
+ * directory with no documents in it, and nothing anywhere said otherwise
+ * (`document/documents.tsx` chose `rawStream` precisely so that stream would be
+ * IN the health fact — and then nothing in olai read the fact). Folded in here
+ * rather than drawn as a third readout beside it, for the reason the git
+ * readout is quiet when it is happy: one green claim per page, or neither is
+ * scanned.
  */
 
-import { LOOK, type SurfaceConnectionStatus } from "./status.ts"
+import {
+  degradedLook,
+  LOOK,
+  readoutOf,
+  type SurfaceConnectionStatus,
+  unhealthy,
+} from "./status.ts"
 import { DOT, PILL } from "../readout.ts"
 import { TESTID } from "../testids.ts"
+import { olai } from "../wire.ts"
 
 /** The room a page keeps at the bottom of its reading column: the phone's home
  *  indicator (the inset is real because the shell asks for `viewport-fit=cover`).
@@ -36,7 +54,12 @@ import { TESTID } from "../testids.ts"
 export const CLEARANCE = "pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"
 
 export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
-  const look = () => LOOK[props.status]
+  /** Which subscriptions have stopped delivering. Read inside the component
+   *  because `client.health()` is a reactive accessor and this is the tracking
+   *  scope that draws from it — the framework's own rule for reading the fact. */
+  const stopped = () => unhealthy(olai.health())
+  const readout = () => readoutOf(props.status, stopped())
+  const look = () => readout() === "degraded" ? degradedLook(stopped()) : LOOK[props.status]
   return (
     <div
       // No position of its own: it is a READOUT and not a control — nothing
@@ -49,8 +72,13 @@ export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
       data-testid={TESTID.connection}
       // The state as an attribute, so a test asserts on the STATE rather than
       // on a colour: which utility paints "live" is a styling decision and this
-      // is a contract (see ../testids.ts).
-      data-connection={props.status}
+      // is a contract (see ../testids.ts). It is the READOUT's state and not
+      // the transport's: `live` here has always meant "the files on disk reach
+      // this page", and a socket that is up under a dead subscription does not.
+      data-connection={readout()}
+      // What stopped, for a test and for anybody reading the DOM. Absent when
+      // nothing has.
+      data-stopped={stopped().length > 0 ? stopped().join(" ") : undefined}
       title={look().detail}
       // Announced when it changes, never focus-stealing: a screen reader should
       // hear "disconnected" without losing its place in the outline.

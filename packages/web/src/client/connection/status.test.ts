@@ -5,9 +5,17 @@
  * neither half needs a socket or a browser.
  */
 
+import type { SurfaceHealth } from "@kolu/surface/solid"
 import { expect, test } from "bun:test"
 
-import { LOOK, needsReload, type SurfaceConnectionStatus } from "./status.ts"
+import {
+  degradedLook,
+  LOOK,
+  needsReload,
+  readoutOf,
+  type SurfaceConnectionStatus,
+  unhealthy,
+} from "./status.ts"
 
 /** Every state the transport can report. Spelled out rather than derived from
  *  `LOOK`'s own keys — a table checked against itself checks nothing, and the
@@ -49,4 +57,51 @@ test("every state says something, and says it differently", () => {
   const details = new Set(STATES.map((state) => LOOK[state].detail))
   expect(labels.size).toBe(STATES.length)
   expect(details.size).toBe(STATES.length)
+})
+
+// ── the state the transport cannot see ─────────────────────────────────
+//
+// A socket that is open and answering while a subscription over it is dead.
+// The framework knows (`client.health()`); nothing in olai read it, and what
+// that cost is a dead `documents.keys` rendering as a directory with no
+// documents in it, under a green light claiming the files on disk reach this
+// page as they change.
+
+const fact = (subs: SurfaceHealth["subs"]): SurfaceHealth => ({ live: true, subs })
+const sub = (name: string, error?: string) => ({
+  name,
+  pending: false,
+  error: error === undefined ? undefined : new Error(error),
+})
+
+test("a live wire under a dead subscription is not drawn as live", () => {
+  const stopped = unhealthy(fact([sub("outlines"), sub("documents.keys", "gone")]))
+  expect(stopped).toEqual(["documents.keys"])
+  expect(readoutOf("live", stopped)).toBe("degraded")
+  expect(degradedLook(stopped).dot).not.toBe(LOOK.live.dot)
+  expect(degradedLook(stopped).label).not.toBe(LOOK.live.label)
+})
+
+// What stopped is NAMED. "Something is not arriving" is the least useful true
+// thing available, and a reader cannot act on it.
+test("the degraded detail names what stopped", () => {
+  expect(degradedLook(["documents.keys", "transcript"]).detail)
+    .toContain("documents.keys, transcript")
+})
+
+// PENDING is not degraded, and that is a policy decision rather than an
+// oversight: a first frame that has not arrived is what every page load looks
+// like, and a pill that went amber for those would be amber most of the time.
+test("a subscription still waiting for its first frame is not a fault", () => {
+  const stopped = unhealthy(fact([{ name: "documents[a.md]", pending: true, error: undefined }]))
+  expect(stopped).toEqual([])
+  expect(readoutOf("live", stopped)).toBe("live")
+})
+
+// The other three already say something about the WIRE, and a subscription's
+// error while the socket is down is a consequence rather than news.
+test("only a live wire degrades; the other states speak for themselves", () => {
+  for (const state of STATES.filter((s) => s !== "live")) {
+    expect(readoutOf(state, ["documents.keys"])).toBe(state)
+  }
 })
