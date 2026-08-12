@@ -32,6 +32,7 @@ import {
   scopeOf,
   unpushedOf,
   verbatim,
+  waitingIn,
 } from "./said.ts"
 
 /** A survey of a directory in one repository state, with nothing waiting unless
@@ -268,4 +269,45 @@ test("every status a file can be in has a word and a tone", () => {
   // that wears the alarm tone.
   expect(HOW_TONE.deleted).toBe("text-alarm")
   expect(HOW_TONE.modified).not.toBe(HOW_TONE.deleted)
+})
+
+/**
+ * A dirty outline whose bytes moved with NO node moving still counts.
+ *
+ * The reviewer's reproduction: add a blank line to a `.jsonl` and the file is
+ * dirty, listed, and committable, while `changes` is empty — so a tally of node
+ * changes read zero and the pill said `committed` over a panel offering to
+ * commit it. `outlines` exists precisely so that reformat is not invisible, and
+ * the count has to agree with the list it is a count of.
+ */
+test("an outline that changed no node is still something waiting", () => {
+  const reformatted: Pending = {
+    ...NOTHING_PENDING,
+    repo: READY,
+    outlines: [{ file: "garden.jsonl", path: "garden.jsonl", how: "modified" }],
+    last: { sha: "abc", message: "olai: earlier", writer: "web", at: "" },
+  }
+  expect(waitingIn(reformatted)).toBe(1)
+  expect(faceOf(reformatted, true, GIT_OFF)).toBe("waiting")
+
+  // ... and it is counted ONCE when its nodes did move, rather than twice.
+  const changed: Pending = {
+    ...reformatted,
+    changes: [{
+      file: "garden.jsonl",
+      id: "mint",
+      title: "split the mint",
+      fields: ["done"],
+      sort: "done",
+    }],
+  }
+  expect(waitingIn(changed)).toBe(1)
+
+  // An outline that does not parse is its own row and is not double-counted
+  // with the file it names either.
+  const broken: Pending = { ...reformatted, unreadable: ["garden.jsonl"] }
+  expect(waitingIn(broken)).toBe(1)
+
+  // A clean tree is still clean, which is the other half of the fence.
+  expect(waitingIn(NOTHING_PENDING)).toBe(0)
 })

@@ -535,7 +535,61 @@ describe("push", () => {
         const sent = yield* fixture.ops.push
         expect(sent).toEqual({ _tag: "Blocked", repo: { _tag: "Off" } })
       }), { commits: "off" }))
+
+  /**
+   * A BUSY repository refuses the push by naming what to finish, exactly as a
+   * commit does.
+   *
+   * Mid-rebase there is no branch to push, so git's own answer is "you are not
+   * currently on a branch" — true, and the less useful half of it. The panel
+   * never offers the button in that state (a detached HEAD tracks nothing), so
+   * this is what the agent's tool gets, and one rule serves both verbs.
+   */
+  test("a busy repository is refused with its reason rather than git's detached HEAD", () =>
+    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        fixture.remote()
+        yield* conflicted(fixture)
+
+        const sent = yield* fixture.ops.push
+        expect(sent._tag).toBe("Blocked")
+        expect(sent._tag === "Blocked" ? sent.repo._tag : "").toBe("Blocked")
+        expect(sent._tag === "Blocked" && sent.repo._tag === "Blocked" ? sent.repo.reason : "")
+          .toBe("merge")
+      })))
 })
+
+/**
+ * A git that cannot survey the working tree says so, rather than reading as a
+ * clean one.
+ *
+ * The pill would otherwise draw `✓ committed` over a repository nothing can be
+ * read from, and the unpushed line would vanish — #108's silence, reached
+ * through a different call. It arrives as the state that already exists for it,
+ * carrying git's own words, so the header says `git error` and the panel
+ * refuses to offer a commit.
+ */
+test("a working tree git cannot survey is an error, not an empty one", () =>
+  withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    Effect.gen(function*() {
+      yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
+      expect((yield* fixture.ops.pending).changes).toHaveLength(1)
+
+      // The repository taken out from under the handle olai already opened.
+      fs.rmSync(path.join(fixture.root, ".git"), { recursive: true, force: true })
+
+      // BOTH readings the publisher takes, from the one survey — the panel's
+      // repository state and the header's own cell, which is what would have
+      // drawn `✓ committed` over this.
+      const both = yield* fixture.ops.status
+      expect(both.pending.repo._tag).toBe("Unusable")
+      expect(both.pending.repo._tag === "Unusable" ? both.pending.repo.said : "")
+        .not.toBe("")
+      expect(both.git).toMatchObject({ status: "error" })
+      expect(both.pending.changes).toEqual([])
+      // And nothing is offered into it.
+      expect((yield* fixture.ops.commit({}, "web"))._tag).toBe("Blocked")
+    })))
 
 describe("a repository that cannot take a commit", () => {
   test("says so instead of committing into a conflict", () =>

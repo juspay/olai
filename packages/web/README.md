@@ -782,6 +782,13 @@ the text diff this feature has never shown. A scope line under the two lists
 says what they are a list of (`whole repository · olai serves docs/`), because
 "why is my README in here" is a question the rows cannot answer.
 
+The chips are **git's** words rather than the person's, and one of them reads
+oddly on purpose: an unstaged `mv a.md b.md` is `deleted` on one row and
+`untracked` on another, because that is what `git status` sees until both halves
+are staged — `renamed` appears once they are. Saying "renamed" over git's own
+two rows would be the panel guessing at an intention, and what a person is about
+to commit is what git thinks is there.
+
 Every row carries a TICK (`Tick.tsx`, `selection.ts`) and all of them start
 ticked, so the ordinary sweep is one click. What is stored is the EXCEPTION —
 the paths somebody unticked — so a file that arrives while the panel is open

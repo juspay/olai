@@ -444,6 +444,24 @@ export const make = (options: Options): Committing => {
       { concurrency: 3 },
     )
 
+    // A status git REFUSED is not a clean tree, and answering with one would be
+    // #108 in miniature: the pill would read `✓ committed`, the unpushed line
+    // would vanish, and the reason would be nowhere. It reaches a reader as the
+    // state that already exists for it — `Unusable`, with git's own words — so
+    // the header says `git error` and the panel refuses to offer a commit into
+    // a repository nothing can read.
+    if (dirt._tag === "Unusable") {
+      yield* Effect.annotateLogs(
+        Effect.logWarning("olai git: the working tree could not be surveyed"),
+        { said: dirt.said },
+      )
+      return {
+        ...NOTHING_ASKED,
+        repo: { _tag: "Unusable", said: dirt.said },
+        last: last === null ? null : recorded(last),
+      } as const
+    }
+
     // WHICH dirty files are which is a statement about the format, so it is
     // made here rather than handed to the plumbing as a callback. An outline
     // olai SERVES has a working-side parse to compare against; an outline
@@ -664,6 +682,14 @@ export const make = (options: Options): Committing => {
    * send and a person pressing the button is entitled to be told it was already
    * there. A branch with no upstream falls through to git, whose refusal names
    * the thing to do about it better than this file could.
+   *
+   * A BUSY REPOSITORY is refused with its reason, exactly as a commit is, and
+   * for the same reason one rule serves both: mid-rebase there is no branch to
+   * push, so git answers "you are not currently on a branch" — true, and the
+   * less useful half of it. `Blocked` names the rebase, which is the thing to
+   * finish. The panel already hides the button in those states (a detached HEAD
+   * tracks nothing, so there is no unpushed count to draw); this is what the
+   * agent's tool gets, and the two faces answer the same way.
    */
   const push: Effect.Effect<PushResult> = Effect.gen(function*() {
     if (options.mode === "off") return { _tag: "Blocked", repo: OFF } as const
@@ -671,7 +697,16 @@ export const make = (options: Options): Committing => {
     if (opening._tag !== "Opened") {
       return { _tag: "Blocked", repo: opening } as const
     }
-    const { upstream } = yield* opening.repo.dirty
+    const repo = yield* opening.repo.state
+    if (repo._tag !== "Ready") return { _tag: "Blocked", repo } as const
+
+    const dirt = yield* opening.repo.dirty
+    if (dirt._tag === "Unusable") {
+      // A survey git refused: the count this verb reports on cannot be read, so
+      // it is the same news the panel gets rather than a push into the dark.
+      return { _tag: "Blocked", repo: { _tag: "Unusable", said: dirt.said } } as const
+    }
+    const upstream = dirt.upstream
     if (upstream !== null && upstream.ahead === 0) {
       return { _tag: "NothingToPush" } as const
     }

@@ -20,7 +20,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { gitIn as git, repoAt } from "./fixtures.testlib.ts"
-import { type Audit, open, type Repo } from "./git.ts"
+import { type Audit, type Dirt, open, type Repo } from "./git.ts"
 
 /** The audit convention the packages above this one actually use, so what the
  *  tests read back is what olai writes — handed in, because which prefix and
@@ -59,6 +59,15 @@ const asked = <A>(
   root: string,
   use: (git: Repo) => Effect.Effect<A>,
 ): Promise<A> => Effect.runPromise(asEffect(root, use))
+
+/** The survey, for the tests that are about what it FOUND rather than about a
+ *  git that could not answer — which has its own test, and which every one of
+ *  these would otherwise have to narrow past. */
+const surveyed = async (root: string): Promise<Extract<Dirt, { _tag: "Surveyed" }>> => {
+  const dirt = await asked(root, (git) => git.dirty)
+  if (dirt._tag !== "Surveyed") throw new Error(`git would not survey ${root}: ${dirt.said}`)
+  return dirt
+}
 
 test("a directory that is not a work tree opens as NoRepo, which is not an error", async () => {
   const { root } = loose()
@@ -107,7 +116,7 @@ test("a dirty file answers in all three spellings, from a served subdirectory", 
   fs.writeFileSync(path.join(root, "notes", "b.jsonl"), `{"id":"b","ord":"a0","title":"b"}\n`)
 
   const served = path.join(root, "notes")
-  expect((await asked(served, (git) => git.dirty)).files).toEqual([
+  expect((await surveyed(served)).files).toEqual([
     {
       path: "notes/b.jsonl",
       served: "b.jsonl",
@@ -132,7 +141,7 @@ test("a served subdirectory still sees the dirt above it, marked as outside", as
   fs.writeFileSync(path.join(root, "notes", "b.jsonl"), `{"id":"b","ord":"a0","title":"b"}\n`)
   fs.writeFileSync(path.join(root, "README.md"), "edited by hand\n")
 
-  const found = (await asked(path.join(root, "notes"), (git) => git.dirty)).files
+  const found = (await surveyed(path.join(root, "notes"))).files
   expect(found.map((one) => [one.path, one.served]).sort()).toEqual([
     ["README.md", null],
     ["notes/b.jsonl", "b.jsonl"],
@@ -160,7 +169,7 @@ test("dirty keeps how each file moved", async () => {
   run("add", "-A", "moved.md", "landed.md")
 
   const how = new Map(
-    (await asked(root, (git) => git.dirty)).files.map((one) => [one.path, one.how]),
+    (await surveyed(root)).files.map((one) => [one.path, one.how]),
   )
   expect(how.get("a.jsonl")).toBe("modified")
   expect(how.get("gone.jsonl")).toBe("deleted")
@@ -264,12 +273,34 @@ test("dirty names every file that moved, tracked or not", async () => {
   fs.writeFileSync(path.join(root, "new.jsonl"), `{"id":"n","ord":"a0","title":"n"}\n`)
   fs.writeFileSync(path.join(root, "notes.md"), "not an outline\n")
 
-  const found = await asked(root, (git) => git.dirty)
+  const found = await surveyed(root)
   expect(found.files.map((one) => one.path).sort())
     .toEqual(["a.jsonl", "new.jsonl", "notes.md"])
   // Nothing to push to, which is not the same as nothing to push — a
   // repository nobody has given a remote has nowhere for a branch to go.
   expect(found.upstream).toBe(null)
+})
+
+/**
+ * A status git REFUSES is not a clean tree.
+ *
+ * It used to answer with no files and no upstream, which every reader above
+ * draws as "nothing waiting, nothing to push" — so a repository that became
+ * unreadable under a running server would have shown `✓ committed` with the
+ * reason nowhere. That is #108's own mistake one call over, and HACKING's rule
+ * is the same one: git's words come back, and the caller publishes them.
+ */
+test("a status git refuses is Unusable with its words, not an empty tree", async () => {
+  const { root } = repo()
+  // The git directory taken out from under a handle that is already open —
+  // which is what a survey meeting a repository it cannot read looks like.
+  const opening = await Effect.runPromise(open(root))
+  if (opening._tag !== "Opened") throw new Error("the fixture is not a work tree")
+  fs.rmSync(path.join(root, ".git"), { recursive: true, force: true })
+
+  const dirt = await Effect.runPromise(opening.repo.dirty)
+  expect(dirt._tag).toBe("Unusable")
+  expect(dirt._tag === "Unusable" ? dirt.said : "").not.toBe("")
 })
 
 /**
@@ -285,19 +316,19 @@ test("dirty says where the branch stands against its upstream", async () => {
   run("remote", "add", "origin", bare)
   run("push", "--quiet", "--set-upstream", "origin", "main")
 
-  const level = await asked(root, (git) => git.dirty)
+  const level = await surveyed(root)
   expect(level.upstream).toEqual({ name: "origin/main", ahead: 0 })
 
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
   run("commit", "--quiet", "-am", "one of mine")
-  expect((await asked(root, (git) => git.dirty)).upstream)
+  expect((await surveyed(root)).upstream)
     .toEqual({ name: "origin/main", ahead: 1 })
 
   // And pushing it is one verb with nothing to decide: the current branch, to
   // the upstream it already has.
   const sent = await asked(root, (git) => git.push)
   expect(sent._tag).toBe("Pushed")
-  expect((await asked(root, (git) => git.dirty)).upstream)
+  expect((await surveyed(root)).upstream)
     .toEqual({ name: "origin/main", ahead: 0 })
   expect(git(bare)("log", "--format=%s", "-1", "main").trim()).toBe("one of mine")
 })
@@ -429,4 +460,94 @@ test("a commit is the named paths, the message, and the sha it made", async () =
   // The file nobody named is still untracked: only the paths given are ever
   // staged, because a served directory is a working tree with other work in it.
   expect(run("status", "--porcelain").trim()).toBe("?? untouched.jsonl")
+})
+
+/**
+ * A commit that REFUSES leaves the index exactly as it found it.
+ *
+ * This is the contract every layer above advertises — the MCP tool's text, the
+ * wire schema, the panel's own prose all say olai never touches the index — and
+ * until now it was true only on the success path. A commit is `add` then
+ * `commit`, and when the commit refused, the `add` stayed: the next `git commit`
+ * a person typed in a terminal would have recorded the very files olai had just
+ * told them it could not.
+ *
+ * SIGNING is how it was found, and it is the case that makes it a bug rather
+ * than a curiosity: `--no-verify` skips hooks and nothing else, so a repository
+ * with `commit.gpgsign` and no usable key refuses EVERY olai commit — and
+ * staged the selection every time. That configuration is what this test makes,
+ * with a `gpg.program` that does not exist so the refusal does not depend on
+ * what is installed on the machine running it.
+ */
+test("a refused commit puts the index back exactly as it was", async () => {
+  const { root, file } = repo()
+  const run = git(root)
+  const index = path.join(root, ".git", "index")
+
+  // Something staged BY HAND, and edited again afterwards, so the index holds a
+  // blob that is neither HEAD's nor the working tree's — the state a careless
+  // restore would flatten.
+  fs.writeFileSync(path.join(root, "mine.md"), "half-finished, staged by hand\n")
+  run("add", "mine.md")
+  fs.writeFileSync(path.join(root, "mine.md"), "…and typed into since\n")
+  // And what olai is about to be asked to commit.
+  fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
+
+  // A signature nothing can produce, which is a real repository's real setting.
+  run("config", "commit.gpgsign", "true")
+  run("config", "gpg.program", path.join(root, "no-such-gpg"))
+
+  const before = {
+    bytes: fs.readFileSync(index),
+    entries: run("ls-files", "-s"),
+    status: run("status", "--porcelain"),
+  }
+
+  const { layer } = collector()
+  const done = await Effect.runPromise(
+    asEffect(root, (git) => git.commit({ paths: [file], message: "olai: one edit" }))
+      .pipe(Effect.provide(layer)),
+  )
+  expect(done._tag).toBe("Failed")
+  // Git's own words about the signature, not a sentence of ours.
+  expect(done._tag === "Failed" ? done.said : "").not.toBe("")
+  expect(run("log", "--format=%s").trim()).toBe("fixtures")
+
+  // BIT-IDENTICAL, which is the strongest way to say "untouched" — and the
+  // logical reading beside it, because that is the claim a person cares about:
+  // their staged blob is still staged, and the outline olai could not commit is
+  // not sitting in their index waiting to be swept into a commit of their own.
+  expect(fs.readFileSync(index).equals(before.bytes)).toBe(true)
+  expect(run("ls-files", "-s")).toBe(before.entries)
+  expect(run("status", "--porcelain")).toBe(before.status)
+  // `AM`: staged by hand, typed into since — both halves of what was there.
+  expect(before.status).toContain("AM mine.md")
+  // And the outline is MODIFIED rather than staged: the `add` this call made
+  // has been taken back out.
+  expect(before.status).toContain(" M a.jsonl")
+})
+
+/**
+ * And the SUCCESS path still updates the index for what it committed, which is
+ * the half a "never touch the index at all" fix would have broken.
+ *
+ * Doing the whole thing under a temporary `GIT_INDEX_FILE` leaves the real
+ * index never having heard of a newly committed file — and a file that is in
+ * HEAD and absent from the index reads as a staged DELETION, so a person's
+ * `git status` would show `D` against the file olai had just recorded. Git's
+ * own `git commit -- <paths>` writes those paths back into the real index for
+ * exactly this reason.
+ */
+test("a commit that lands leaves the index agreeing with it", async () => {
+  const { root } = repo()
+  const run = git(root)
+  const fresh = path.join(root, "new.jsonl")
+  fs.writeFileSync(fresh, `{"id":"n","ord":"a0","title":"n"}\n`)
+
+  expect((await asked(root, (git) => git.commit({ paths: [fresh], message: "olai: new" })))._tag)
+    .toBe("Committed")
+
+  // Clean, rather than a staged deletion of the file that was just committed.
+  expect(run("status", "--porcelain").trim()).toBe("")
+  expect(run("ls-files", "-s")).toContain("new.jsonl")
 })

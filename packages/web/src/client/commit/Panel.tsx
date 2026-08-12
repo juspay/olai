@@ -43,7 +43,7 @@ import { createSignal, Show } from "solid-js"
 
 import { agoOf } from "./ago.ts"
 import type { Anchor } from "./anchor.ts"
-import { because, scopeOf, trouble, verbatim, WHO } from "./said.ts"
+import { because, scopeOf, trouble, verbatim, waitingIn, WHO } from "./said.ts"
 import { Others } from "./Others.tsx"
 import { Outlines } from "./Outlines.tsx"
 import { createSelection } from "./selection.ts"
@@ -82,15 +82,14 @@ export function Panel(props: {
   /**
    * Whether there is anything at all to record.
    *
-   * A BOOLEAN, and not the pill's count (`waitingIn`, in `./said.ts`): the two
-   * ask different questions and would answer differently — the pill counts node
-   * changes, this counts the FILES a commit would name, and a reformat that
-   * moved no node is one file and no changes. Two numbers that look like the
-   * same tally is how they end up compared; one of them is a number and the
-   * other is a fence.
+   * The pill's own count, read as a fence (`waitingIn`, in `./said.ts`), rather
+   * than a second sum of its own. They were two sums for a while and they
+   * disagreed: a served outline whose bytes moved with no NODE moving was drawn
+   * here and counted nowhere, so the pill said `committed` over a panel offering
+   * to commit it. `waitingIn` counts the rows this panel draws, so its
+   * positivity is this question.
    */
-  const anything = () =>
-    pending().outlines.length + pending().others.length + pending().unreadable.length > 0
+  const anything = () => waitingIn(pending()) > 0
 
   /** Nothing ticked is a button with nothing to do, and it says so by being
    *  disabled rather than by refusing afterwards: the server would answer

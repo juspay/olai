@@ -234,7 +234,21 @@ type Pending = {
 }
 
 type How = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked'
+```
 
+`How` is GIT's word, not the person's: an unstaged `mv a b` is a `deleted` and
+an `untracked`, because that is what `git status` reports until both halves are
+staged. `renamed` shows up once they are.
+
+**The wire GREW required fields** with `commit-whole-repo` — `Pending` gained
+`outlines`, `others`, `served` and `unpushed`, `CommitResult.Committed` gained
+`others`, and `PushResult` is new — and none of it is optional. That is allowed
+here and would not be elsewhere: olai ships as ONE binary, so the client and the
+server that answers it are the same build. An old page against a new server is
+not a supported pair, and the framework's own handshake is what a mismatched tab
+meets first.
+
+```ts
 type LastCommit = {
   readonly sha: string
   readonly message: string
@@ -246,9 +260,12 @@ type Writer = "chat-agent" | "mcp" | "web"
 ```
 
 `last` is `git log -1` through the same filter the audit view uses — the `olai`
-message prefix, restricted to the served directory — so it is the last commit
-OLAI made, never the repository's HEAD: a person's own commits are not what this
-feature reports on. The trailer is what says who; a commit carrying the prefix
+message prefix — so it is the last commit OLAI made, never the repository's
+HEAD: a person's own commits are not what this feature reports on. It was also
+restricted to the served directory, and `commit-whole-repo` lifted that with the
+survey: a commit that recorded a dirty root `README.md` and nothing under
+`docs/` is olai's own work, and hiding it would leave the panel saying nothing
+was ever recorded here a second after it recorded something. The trailer is what says who; a commit carrying the prefix
 without one (typed by hand, or stripped by a rebase) reports `writer: null`
 rather than a guess.
 

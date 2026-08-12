@@ -71,17 +71,28 @@ export type Face =
   | "never"
 
 /**
- * How much is waiting, in one place.
+ * How much is waiting, in one place — and the fence every reader uses.
  *
- * THREE terms, and the third is `commit-whole-repo`'s: the node-level changes,
- * the outlines nothing could be read in, and every other dirty file in the
- * repository. It is one function because three readers count it — which face
- * the pill wears, the number on the pill, and the sentence beside it — and a
- * `.md` edited by hand that reached one of them and not the others would be the
- * pill saying `committed` over a panel offering to commit two files.
+ * It counts what the panel would DRAW: one per node-level change, one per other
+ * dirty file, one per outline nothing could be read in, and one per outline
+ * whose bytes moved with no node moving — a reformat, a reordered line. That
+ * last term is why this is not simply `changes + others + unreadable`: such an
+ * outline is dirty, committable and listed, and left out of the tally the pill
+ * read `committed` while the panel underneath offered to commit it.
+ *
+ * Because it counts rows, `waitingIn(p) > 0` is exactly "the panel has
+ * something in it" — so the count and the fence cannot disagree, which is the
+ * shape the split into two numbers was reaching for and did not have.
  */
-export const waitingIn = (pending: Pending): number =>
-  pending.changes.length + pending.unreadable.length + pending.others.length
+export const waitingIn = (pending: Pending): number => {
+  const changed = new Set(pending.changes.map((change) => change.file))
+  const unreadable = new Set(pending.unreadable)
+  const silent = pending.outlines.filter((outline) =>
+    !changed.has(outline.file) && !unreadable.has(outline.file)
+  )
+  return pending.changes.length + pending.others.length + pending.unreadable.length +
+    silent.length
+}
 
 /**
  * The one face, from the two readings the server publishes together.

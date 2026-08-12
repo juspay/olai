@@ -295,15 +295,16 @@ export const CommitRequest = Schema.Struct({
   /**
    * WHICH files to commit, if not all of them.
    *
-   * Repo-root-relative paths, exactly as `pending` publishes them (an outline's
-   * `path`, another file's `file`). Omitted means everything waiting, which is
-   * what it always did and what the Commit button sends when nothing is
-   * unticked.
+   * Repo-root-relative paths, exactly as `pending` publishes them — `path` on
+   * both kinds of row, which is why the two are spelled alike. Omitted means
+   * everything waiting, which is what it always did and what the Commit button
+   * sends when nothing is unticked.
    *
-   * A SELECTION, and never git's index: olai does not stage, so a path named
-   * here is added and committed in one breath and anything a person had staged
-   * by hand is left exactly as it was. What is not named stays pending, for its
-   * own commit and its own message.
+   * A SELECTION, and never git's index: a path named here is added and
+   * committed in one breath, anything a person had staged by hand is left
+   * exactly as it was, and a commit that REFUSES puts the index back
+   * bit-identical rather than leaving its own staging behind. What is not named
+   * stays pending, for its own commit and its own message.
    */
   paths: Schema.optionalKey(
     Schema.Array(Schema.String).annotate({

@@ -258,7 +258,7 @@ export const open = (root: string): Effect.Effect<Opening> =>
         dirty: dirty(root, placing.placement),
         show: (file) => show(root, placing.placement, file),
         last: (audit) => last(root, audit),
-        commit: (what) => commit(root, what),
+        commit: (what) => commit(root, placing.placement, what),
         push: push(root),
       },
     })
@@ -333,13 +333,21 @@ export interface Upstream {
  * wanted together by the one caller that asks, and asking separately would be a
  * second spawn per sweep for a question `--branch` answers on the line it is
  * already printing.
+ *
+ * TWO ARMS, and the second is the same rule the socket itself follows: a status
+ * git REFUSED is not an empty one. It used to answer with no files and no
+ * upstream, which reads as a clean tree — so a repository that had become
+ * unreadable under a running server drew `✓ committed` and hid the unpushed
+ * line, which is precisely the silence #108 was filed for, one call over. Git's
+ * own words come back instead, for the caller to publish.
  */
-export interface Dirt {
-  readonly files: ReadonlyArray<Dirty>
-  readonly upstream: Upstream | null
-}
-
-const NOTHING: Dirt = { files: [], upstream: null }
+export type Dirt =
+  | {
+    readonly _tag: "Surveyed"
+    readonly files: ReadonlyArray<Dirty>
+    readonly upstream: Upstream | null
+  }
+  | { readonly _tag: "Unusable"; readonly said: string }
 
 /**
  * `--porcelain -z` because the plain form quotes anything unusual and `-z` does
@@ -375,7 +383,7 @@ const dirty = (
       "-uall",
       "--branch",
     ])
-    if (!status.ok) return NOTHING
+    if (!status.ok) return { _tag: "Unusable", said: status.said } as const
 
     const files: Array<Dirty> = []
     const seen = new Set<string>()
@@ -416,7 +424,7 @@ const dirty = (
         if (from !== undefined) take(from, entry[0] === "R" ? "deleted" : "modified")
       }
     }
-    return { files, upstream }
+    return { _tag: "Surveyed", files, upstream } as const
   })
 
 /**
@@ -561,6 +569,58 @@ export interface CommitInput {
 }
 
 /**
+ * The index, put back exactly as it was — the failure path's whole story.
+ *
+ * A commit here is `add` then `commit -- <paths>`, and the `add` writes the
+ * REAL index. When the commit then refuses, what it leaves behind is a
+ * selection somebody staged without asking for it, which a later `git commit`
+ * in a terminal would sweep into a commit of their own. That is not a small
+ * leak: `--no-verify` skips hooks and skips nothing else, so a repository
+ * configured to SIGN its commits with no key to sign them refuses every single
+ * olai commit — and staged the selection every single time.
+ *
+ * So the index file is COPIED before the staging and put back if anything goes
+ * wrong. A copy and a rename rather than bytes through this process: the rename
+ * is atomic, so an interrupted restore cannot leave a half-written index, which
+ * would be far worse than the leak it is fixing.
+ *
+ * The obvious alternative — do the whole thing under a temporary
+ * `GIT_INDEX_FILE` so the real index is never touched at all — is WRONG, and
+ * measurably so. Commit an untracked `b.txt` that way and the real index, which
+ * never learnt about it, reads `D  b.txt`: a file present in HEAD and absent
+ * from the index is a staged DELETION. Git's own `git commit -- <paths>` writes
+ * the committed paths back into the real index for exactly that reason, and
+ * that write is the one this file must keep making.
+ */
+interface Index {
+  /** Where the real index is, and where its copy went. */
+  readonly restore: () => void
+  readonly forget: () => void
+}
+
+let backups = 0
+
+const keptIndex = (placed: Placement): Index => {
+  const index = join(placed.gitDir, "index")
+  // Unique per call: two commits in flight in one process would otherwise
+  // restore each other's copy.
+  const backup = join(placed.gitDir, `olai-index-${process.pid}-${++backups}`)
+  // A repository nobody has staged anything in has no index file yet, and
+  // "there was none" is a state to put back rather than a reason to skip.
+  const had = fs.existsSync(index)
+  if (had) fs.copyFileSync(index, backup)
+  return {
+    restore: () => {
+      if (had) fs.renameSync(backup, index)
+      else fs.rmSync(index, { force: true })
+    },
+    forget: () => {
+      if (had) fs.rmSync(backup, { force: true })
+    },
+  }
+}
+
+/**
  * Commit exactly these paths, and say what happened.
  *
  * Never `--amend`. Amending rewrites history, which is a trap the moment a
@@ -570,11 +630,30 @@ export interface CommitInput {
  * `--no-verify` because a served directory's hooks belong to whatever project
  * it is part of: a linter refusing an outline write would leave the bytes on
  * disk and the reason somewhere nobody is looking.
+ *
+ * SIGNING IS NOT SKIPPED, and that is the other half of the same decision
+ * rather than an oversight — there is no `--no-gpg-sign` here. A hook is the
+ * project's rule about the commits people type, and it can refuse this write
+ * for reasons that have nothing to do with it. Signing is the repository
+ * owner's statement about their OWN history, and an olai commit is a commit in
+ * it: where a key exists it is signed like every other one, and where none
+ * does, every commit in that repository fails the same way in a terminal too.
+ * Forcing the signature off would quietly write unsigned commits into a history
+ * whose owner asked for signed ones, which is the same class of mistake as
+ * swallowing an error. What the refusal must not do is leave the index dirty —
+ * see {@link keptIndex}.
  */
-const commit = (root: string, what: CommitInput): Effect.Effect<Done> =>
+const commit = (
+  root: string,
+  placed: Placement,
+  what: CommitInput,
+): Effect.Effect<Done> =>
   Effect.gen(function*() {
+    const index = keptIndex(placed)
+
     const staged = yield* git(root, ["add", "--", ...what.paths])
     if (!staged.ok) {
+      index.restore()
       yield* Effect.annotateLogs(
         Effect.logWarning("olai git: could not stage the write"),
         { said: staged.said },
@@ -592,7 +671,10 @@ const commit = (root: string, what: CommitInput): Effect.Effect<Done> =>
     ])
     if (!committed.ok) {
       // The ordinary case is "nothing to commit" — a write that produced the
-      // bytes already there. Worth a line in the log, never worth failing.
+      // bytes already there. Worth a line in the log, never worth failing. The
+      // index goes back to what it was either way: what this call staged was
+      // staged in order to commit it, and it did not.
+      index.restore()
       yield* Effect.annotateLogs(
         Effect.logWarning("olai git: the write was not committed"),
         { commitMessage: what.message.split("\n")[0] ?? "", said: committed.said },
@@ -600,6 +682,7 @@ const commit = (root: string, what: CommitInput): Effect.Effect<Done> =>
       return { _tag: "Failed", said: committed.said } as const
     }
 
+    index.forget()
     const head = yield* git(root, ["rev-parse", "HEAD"])
     return { _tag: "Committed", sha: head.ok ? head.said : "" } as const
   })
