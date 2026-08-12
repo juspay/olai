@@ -180,7 +180,7 @@ Status keys: **shipped** (item, PR) · **filed** (roadmap id) · **MISSING**
 | Multi-select + bulk complete/move/indent/delete | five gestures | filed `dragdrop-multiselect` |
 | **Duplicate** (subtree; result auto-tagged `#copy`; also `Alt+Drag` clone) | `Alt/⌘+Shift+D`, menu | **MISSING** |
 | **Move to** (search dialog; moves subtree anywhere, across lists) | slash command, menu | **MISSING** — olai's version is the harder cross-OUTLINE move: `parent` is same-file by the format, so this is an op design (move vs re-create vs mirror), not just a dialog |
-| **Delete** (recoverable from Trash) + **Trash restore** | `Ctrl/⌘+Shift+Backspace`, menu | ruled 2026-08-11: no delete affordance. olai's trash is `Archive.jsonl` — but there is **no archive affordance in the web UI at all** (MCP-only `archive_node` — a standing HACKING.md consistency violation, not a growth item), and **no unarchive/restore op on ANY face** (equal absence, so not a deviation — a missing op to build once in the ops layer and expose on both faces together) |
+| **Delete** (recoverable from Trash) + **Trash restore** | `Ctrl/⌘+Shift+Backspace`, menu | ruled 2026-08-11: still no delete affordance. olai's trash is `Archive.jsonl`, and ARCHIVE now has one — the `•••` menu's `Archive`, subtree with a confirm naming the blast radius (human, 2026-08-12), closing `parity-archive`. **Unarchive/restore still exists on NO face** (equal absence rather than a deviation — one op to build in the ops layer and expose on both faces together, `parity-unarchive`), which is why the confirm says the archive file is the way back |
 | **Expand / collapse, persisted** (double-click triangle = all; `Ctrl+Space`, `Ctrl+↓/↑` variants) | per-node, saved | olai collapse is session view-state; whether stored collapse is a modification olai wants is **undecided** (it is a WRITE in Workflowy) |
 
 ### Marks
@@ -188,7 +188,7 @@ Status keys: **shipped** (item, PR) · **filed** (roadmap id) · **MISSING**
 | Op | Workflowy trigger | olai |
 |---|---|---|
 | Complete | `Ctrl/⌘+Enter`, menu | shipped (#109) |
-| Convert to/from to-do | `/to-do`, menu; a new sibling under a to-do inherits to-do-ness | **MISSING** — olai's `todo`/`doing` marks have NO web affordance (MCP-only `set_doing`/`set_todo`); inheritance nuance undecided |
+| Convert to/from to-do | `/to-do`, menu; a new sibling under a to-do inherits to-do-ness | shipped for the MOUSE (`menu-verbs`): the `•••` menu writes all three marks and clears one, the entry for the mark a row already carries left out, and the ops layer's refusals quoted verbatim — including the two clicks it takes to walk `done` back, which is what an agent does too. No KEY for `todo`/`doing` (Workflowy has none either), and the inheritance nuance stays undecided |
 | Show/hide completed | `Ctrl+O` | shipped (`hide-done-scope`) |
 
 ### Text and formatting
@@ -206,26 +206,38 @@ Status keys: **shipped** (item, PR) · **filed** (roadmap id) · **MISSING**
 | Op | Workflowy trigger | olai |
 |---|---|---|
 | Mirror creation | `((` search, `Alt/⌘+Shift+M`, menu | filed `input-widgets` |
-| **Mirror detach (back to copy) / remove placement** | menu | **MISSING** on the web face (MCP has `remove_mirror` since #117) |
+| **Mirror detach (back to copy) / remove placement** | menu | remove placement shipped (`menu-verbs`): `Remove this placement`, drawn on any row whose RECORD is a placement (asked of the record, so the degenerate rows need no case — though a set holding a mirror of nothing is refused by the validator, so such a row is not on screen anyway) — and refused in the op's own words when something still names the placement. DETACH (turn a mirror back into a copy) is not olai's gesture and is not filed: it would mint a new node, which is a duplicate rather than a removal |
 | **Copy link to node** (internal link others can paste) | `Alt/⌘+Shift+L`, menu | partial — the `•••` menu HAS "Copy link to node" (corrected 2026-08-12; the first pass of this table missed it); no keybinding, and nothing autocompletes an internal link in a title |
 | Tag autocomplete | `#` / `@` | filed `input-widgets` |
-| Date insert | `!` natural-language picker | filed `input-widgets`; **editing/clearing a stored date** must be named in that item's scope |
+| Date insert | `!` natural-language picker | filed `input-widgets`; CLEARING a stored date shipped (`menu-verbs`) — `Clear date`, drawn only on a dated row — so what is left for that item is putting one ON, which is a thing you type rather than a thing you choose from a list |
 
 ### Clipboard and interchange
 
 | Op | Workflowy trigger | olai |
 |---|---|---|
 | **Paste nested text as a subtree** | paste multi-level bullets | **MISSING** — the capture path Workflowy is loved for; nothing filed |
-| **Copy/export subtree** (Plain text, Formatted, OPML, JSON) | menu → Export | **MISSING** |
+| **Copy/export subtree** (Plain text, Formatted, OPML, JSON) | menu → Export | PLAIN TEXT shipped (`menu-verbs`): `Copy as text` puts the subtree on the clipboard tab-indented, titles verbatim, notes one level under their node, nothing encoding a mark or a date (human, 2026-08-12). The other three formats are unfiled, and a paste-IN parser for the same shape is the row above |
 | **Import** (paste is the main door; files export/import for whole accounts) | paste / settings | **MISSING** (whole-account import is likely out of scope — olai's corpus IS files — but paste-in and copy-out are not) |
 
 ### The bullet/context menu itself
 
 Workflowy's per-node menu carries: Complete · Add note · Duplicate · Mirror ·
 Copy link · Move to · Format conversions · Export · Share · Expand all /
-Collapse all · Delete. olai's `•••` menu exists (#102 styling) but carries
-almost none of these; as verbs land from the tables above, the menu is where
-the mouse finds them — worth keeping as the checklist for menu growth.
+Collapse all · Delete. olai's `•••` menu started as #102's styling with five
+READING verbs, and `menu-verbs` gave it the write half: Zoom in · Expand /
+Collapse · Expand all · Collapse all · Copy link — then a rule, and below it
+Mark todo / Mark doing / Complete / Clear mark · Clear date · Remove this
+placement · Archive (subtree, behind a confirm naming how many rows go) · Copy
+as text. Each is drawn only where it applies, so the panel is short on a leaf
+and long on a marked, dated branch.
+
+What is still Workflowy's and not olai's, from that list: **Add note** (olai's
+note is one click on the row, so a menu entry would be a second door to the
+same place — deliberately not built), **Duplicate** and **Move to** (both
+MISSING above, and both genuine op design), **Mirror** (creation is
+`input-widgets`' `((`), **Format conversions** (olai nodes have no kind),
+**Export** beyond plain text, **Share** (out of scope), and **Delete**, which
+is nobody's op: `Archive` is the put-away, ids kept.
 
 ### Deliberately out of olai's scope (decided by inspection, revisit on demand)
 
@@ -236,11 +248,31 @@ boards/kanban bullet type, file/image upload into nodes (adjacent to
 
 ### The consistency-rule reading (the sharpest framing)
 
-HACKING.md: "MCP and Web ops must be consistent; never deviate." Today the
-web editor can express `add / move / toggle / title / desc` (+ `remove` as
-undo's inverse) while MCP can also express `archive`, `set_date`,
-`set_doing`/`set_todo`, `set_see`, `set_after`, `add_mirror`/`remove_mirror`,
-`create_outline` — and NEITHER face can unarchive. Closing that asymmetry is
-one "editor op parity" item (archive + marks + date + edges + mirror-remove);
-duplicate, move-to, paste/export, formatting and bullet types are genuinely
+HACKING.md: "MCP and Web ops must be consistent; never deviate." The reading
+that filed `editor-op-parity`: the web editor could express
+`add / move / toggle / title / desc` (+ `remove` as undo's inverse) while MCP
+could also express `archive`, `set_date`, `set_doing`/`set_todo`, `set_see`,
+`set_after`, `add_mirror`/`remove_mirror`, `create_outline` — and NEITHER face
+could unarchive.
+
+`menu-verbs` closed four of those from the `•••` menu — `mark` (all three,
+and clearing one), `date`, `unmirror`, `archive` — each as an arm on the same
+intent union and a resolver arm beside it, sending the request the equivalent
+tool sends. What that left, in order of what it would take:
+
+- `set_see` / `set_after` (`parity-see`, `parity-after`): both want a node
+  SEARCH to name the other end, which is the same widget `input-widgets` is
+  building for `((`. A menu entry cannot ask "which node?".
+- `create_outline` (`parity-create-outline`): the sidebar's, not a row's.
+- setting a date: the `!` picker, `input-widgets`.
+- UNARCHIVE (`parity-unarchive`): still no op on either face, and the one
+  entry here that is an equal absence rather than a deviation.
+
+Duplicate, move-to, paste/export, formatting and bullet types remain genuinely
 new design work, each its own item.
+
+One shape worth keeping from the build: **a fence a UI wants does not belong on
+the wire.** Archive takes a subtree because `archive_node` does, and the
+confirm that names the blast radius is the panel's own second step — put in the
+schema, it would have been a rule the agent's own op does not have, which is
+the deviation read backwards.

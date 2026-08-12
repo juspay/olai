@@ -129,9 +129,10 @@ The agent has this one too, as a `push` tool that takes nothing at all.
 Every commit message starts with `olai`, so `git log --grep '^olai'` is the
 audit view and `--invert-grep` gives you back your own history. Each commit
 carries an `X-Olai-Writer` trailer saying which of you — the chat agent, an
-MCP client, or the keyboard — wrote it. A commit that swept up files beside the
-outlines names them in its body, with what happened to each, so the log says
-what the commit did rather than only what it was about.
+MCP client, or the browser (`web`: the keyboard editor and the row's `•••`
+menu, which write through the same door) — wrote it. A commit that swept up
+files beside the outlines names them in its body, with what happened to each,
+so the log says what the commit did rather than only what it was about.
 
 Signing is not skipped. A hook is your project's rule about the commits people
 type, so olai passes `--no-verify`; a signature is your statement about your own

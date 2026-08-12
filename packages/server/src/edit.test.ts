@@ -30,7 +30,7 @@ import { inverseOf, requestFor } from "./edit.ts"
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
   `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":"2026-08-01"}`,
-  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"desc":"oak, or birch"}`,
+  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"date":"2026-08-10","desc":"oak, or birch"}`,
   `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
   `{"id":"handles","parent":"install","ord":"a0","title":"pick the handles"}`,
   `{"id":"loose","ord":"a1","title":"a node with no children"}`,
@@ -243,7 +243,82 @@ test("no condition is what a person typing sends, and it stays absent", () => {
   expect("was" in asked({ verb: "title", id: "order", title: "anything" })).toBe(false)
 })
 
-// ── the three an undo speaks ───────────────────────────────────────────
+// ── the mark, named outright — the menu's and an undo's ────────────────
+
+test("a mark named outright is that mark's own op", () => {
+  // The menu's half of the mark: it was chosen from a list drawn beside what
+  // the node carries, so it says what it wants rather than asking to toggle.
+  expect(asked({ verb: "mark", id: "install", mark: "todo" }))
+    .toEqual({ op: "todo", id: "install" })
+  expect(asked({ verb: "mark", id: "demo", mark: "doing" }))
+    .toEqual({ op: "doing", id: "demo" })
+})
+
+test("clearing a mark is the STORED one's op, undone", () => {
+  // Which mark to take off is a fact about the set, so it is read here rather
+  // than sent: `Clear mark` is one entry whatever the row carries.
+  expect(asked({ verb: "mark", id: "demo", mark: null }))
+    .toEqual({ op: "done", id: "demo", undo: true })
+  expect(asked({ verb: "mark", id: "order", mark: null }))
+    .toEqual({ op: "doing", id: "order", undo: true })
+})
+
+test("clearing a mark from a node that carries none says so", () => {
+  // Either caller can reach it and both mean the same thing: `Clear mark` is
+  // drawn only on a marked row, and an undo only restores what it displaced —
+  // so somebody else got there first. A person is owed the sentence rather
+  // than a click that writes nothing.
+  const failure = refused({ verb: "mark", id: "install", mark: null })
+  expect(failure._tag).toBe("UsageFailure")
+  expect(failure.message).toContain("carries no mark")
+})
+
+test("a mark on a mirror travels as the caller named it", () => {
+  // The consistency rule again, from the menu's side: the client sends the id
+  // of the node a row SHOWS, and an id that arrives here is not second-guessed
+  // — `set_doing` on a placement is refused by the ops layer in its own words,
+  // so this must be too.
+  expect(asked({ verb: "mark", id: "echo", mark: "doing" }))
+    .toEqual({ op: "doing", id: "echo" })
+})
+
+test("a mark on a node nothing declares is not found", () => {
+  expect(refused({ verb: "mark", id: "ghost", mark: null })._tag).toBe("NotFoundFailure")
+})
+
+// ── the three the ••• menu speaks ──────────────────────────────────────
+test("a date is the op's own field, clear and set alike", () => {
+  // The menu sends only the first of these today — setting one is the `!`
+  // picker's — and the verb spells both because the op does.
+  expect(asked({ verb: "date", id: "order", date: null }))
+    .toEqual({ op: "date", id: "order", date: null })
+  expect(asked({ verb: "date", id: "order", date: "2026-09-01" }))
+    .toEqual({ op: "date", id: "order", date: "2026-09-01" })
+})
+
+test("retiring a placement names the row's own record", () => {
+  expect(asked({ verb: "unmirror", id: "echo" }))
+    .toEqual({ op: "unmirror", id: "echo" })
+})
+
+test("retiring something that is not a placement is the OPS layer's to refuse", () => {
+  // Not caught here, deliberately: `remove_mirror` on a node answers with a
+  // paragraph explaining what a placement is and which op puts a node away,
+  // and a shorter refusal invented here would be a worse answer to the same
+  // mistake — told to a person and not to an agent.
+  expect(asked({ verb: "unmirror", id: "kitchen" }))
+    .toEqual({ op: "unmirror", id: "kitchen" })
+})
+
+test("archive is the op, subtree and all — the fence is the menu's question", () => {
+  // `kitchen` has three children and a placement under it. Nothing here counts
+  // them: the reader was asked, in the panel, before this was ever sent, and a
+  // fence in this layer would be a rule `archive_node` does not have.
+  expect(asked({ verb: "archive", id: "kitchen" }))
+    .toEqual({ op: "archive", id: "kitchen" })
+})
+
+// ── the two an undo speaks ─────────────────────────────────────────────
 
 test("putting a row back names the parent it was given and the sibling above", () => {
   expect(asked({ verb: "place", id: "handles", parent: "kitchen", after: "demo" }))
@@ -272,21 +347,6 @@ test("back to the top level is `parent: null`, like an outdent", () => {
 test("putting back a row nothing declares is not found", () => {
   expect(refused({ verb: "place", id: "ghost", parent: null, after: null })._tag)
     .toBe("NotFoundFailure")
-})
-
-test("a mark put back is that mark's own op, and none is the stored one undone", () => {
-  expect(asked({ verb: "mark", id: "install", mark: "todo" }))
-    .toEqual({ op: "todo", id: "install" })
-  expect(asked({ verb: "mark", id: "demo", mark: null }))
-    .toEqual({ op: "done", id: "demo", undo: true })
-})
-
-test("taking a mark off a node that carries none says so", () => {
-  // Somebody else got there first — an undo that would write nothing at all,
-  // and a person is owed the sentence rather than a key that does nothing.
-  const failure = refused({ verb: "mark", id: "install", mark: null })
-  expect(failure._tag).toBe("UsageFailure")
-  expect(failure.message).toContain("carries no mark")
 })
 
 test("a row taken back is archived, which is the only removal the set has", () => {
@@ -415,8 +475,32 @@ test("a MIRROR has no text of its own, so there is nothing to take back", () => 
   expect(inverse({ verb: "title", id: "echo", title: "x" })).toEqual([])
 })
 
+test("a cleared date is put back as the date it cleared", () => {
+  // The `•••` menu's one undoable write, and the reason its wire field is the
+  // op's full `string | null` rather than the `null` the menu is the only
+  // sender of: a clear-only verb could not spell its own inverse.
+  expect(inverse({ verb: "date", id: "order", date: null }))
+    .toEqual([{ verb: "date", id: "order", date: "2026-08-10" }])
+})
+
+test("a date set over nothing is put back as nothing", () => {
+  expect(inverse({ verb: "date", id: "install", date: "2026-09-01" }))
+    .toEqual([{ verb: "date", id: "install", date: null }])
+})
+
+test("a MIRROR has no date of its own either", () => {
+  expect(inverse({ verb: "date", id: "echo", date: null })).toEqual([])
+})
+
 test("what nothing would take back says so with an empty list", () => {
-  // One write answers that way now: an archived row, which no move brings back
-  // out (a parent is same-file by the format, and the archive is another file).
+  // THREE writes answer that way, and they mean three different things. A
+  // `remove` and an `archive` have put records in `Archive.jsonl`, which no
+  // move brings back out (a parent is same-file by the format, and the archive
+  // is another file) and which no face can unarchive yet. An `unmirror` could
+  // be undone in principle — put the placement back — and this surface has no
+  // verb that creates one, so inventing a browser-only mirror-create to serve
+  // an undo would be the deviation the menu's verbs exist to close.
   expect(inverse({ verb: "remove", id: "handles" })).toEqual([])
+  expect(inverse({ verb: "archive", id: "install" })).toEqual([])
+  expect(inverse({ verb: "unmirror", id: "echo" })).toEqual([])
 })

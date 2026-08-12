@@ -1,12 +1,12 @@
 /**
- * What a keyboard MEANT, in terms of ops.
+ * What a keyboard — or a menu entry — MEANT, in terms of ops.
  *
  * The browser sends intents — "indent this", "toggle done", "a new sibling
- * after that" ({@link ../../surface/src/edit.ts}) — and every one of them
- * becomes exactly ONE {@link Request} for the ops layer to plan. This file is
- * that mapping and nothing else: it reads the snapshot, works out the
- * placement the intent implies, and hands back a request. It writes nothing,
- * touches no disk, and knows about no socket.
+ * after that", "this node is doing now" ({@link ../../surface/src/edit.ts}) —
+ * and every one of them becomes exactly ONE {@link Request} for the ops layer
+ * to plan. This file is that mapping and nothing else: it reads the snapshot,
+ * works out the placement the intent implies, and hands back a request. It
+ * writes nothing, touches no disk, and knows about no socket.
  *
  * WHY THE PLACEMENT IS DECIDED HERE and not in the tab that pressed the key:
  * "the node above this one" is a fact about the SET, and the set the write is
@@ -85,13 +85,16 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       const undo = at.derived.status.get(edit.id) === edit.mark
       return Result.succeed({ op: edit.mark, id: edit.id, ...(undo ? { undo } : {}) })
     }
-    // The two that resolve nothing, and are spelled like the ops they are —
-    // which is what makes the three above legible as the ones that do. `was`
-    // travels WITH the request rather than being checked here, and that is not
-    // tidiness: the write gate re-plans a request when the store moves under
-    // it, so a condition tested at this seam is a condition the retry does not
-    // test — which is a concurrent retitle overwritten by an undo that was
-    // told not to (found by review, 2026-08-12). The ops layer checks it on
+    // The five that resolve nothing, and are spelled like the ops they are —
+    // which is what makes the ones above legible as the ones that do. Three
+    // are the menu's: a date is a date, a placement is named by the row it is,
+    // and a subtree is what `archive` has always taken.
+    //
+    // `was` travels WITH the request rather than being checked here, and that
+    // is not tidiness: the write gate re-plans a request when the store moves
+    // under it, so a condition tested at this seam is a condition the retry
+    // does not test — which is a concurrent retitle overwritten by an undo that
+    // was told not to (found by review, 2026-08-12). The ops layer checks it on
     // every attempt, against the snapshot that attempt is judged on.
     case "title":
       return Result.succeed({
@@ -107,6 +110,12 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
         desc: edit.desc,
         ...(edit.was === undefined ? {} : { was: edit.was }),
       })
+    case "date":
+      return Result.succeed({ op: "date", id: edit.id, date: edit.date })
+    case "unmirror":
+      return Result.succeed({ op: "unmirror", id: edit.id })
+    case "archive":
+      return Result.succeed({ op: "archive", id: edit.id })
     case "place":
       return placeRequest(at.derived, edit)
     case "mark":
@@ -243,7 +252,7 @@ const moveRequest = (
   }
 }
 
-// ── the three an undo speaks ───────────────────────────────────────────
+// ── the three that resolve something for a menu or an undo ─────────────
 
 /**
  * A row, put back where it sat.
@@ -285,18 +294,30 @@ const placeRequest = (
 }
 
 /**
- * A mark, put back.
+ * A mark, named outright — put ON, or taken OFF.
  *
- * Which op that is depends on what is being restored rather than on what is
- * there: putting one ON is that mark's own op, and putting NONE back is the
- * stored mark's op with `undo` — the same two calls an agent makes, so the
- * refusals are the ops layer's own (`already done`, `is not marked done`) and
- * this file invents none of them.
+ * ONE function for two callers, because they ask the same question: the `•••`
+ * menu says "this node is doing now" and an undo says "it carried `todo`
+ * before I ticked it off", and neither is a toggle.
  *
- * The one it does invent is for a node that carries nothing when an undo asks
- * for nothing: there is no write in that, and the ops layer would have to be
- * told which mark to take off a node that has none. It means somebody else got
- * there first, which is a thing a person is owed a sentence about.
+ * Which op that becomes depends on what is being ASKED FOR rather than on what
+ * is there: a mark named outright is that mark's own op, and NONE is the stored
+ * mark's op with `undo`, because that is the only way the ops layer spells
+ * taking one off. Those are the same two calls an agent makes, so every refusal
+ * met here is the ops layer's own — `already done`, `is not marked done`, and
+ * the one that matters most, `done. Undo that first — nothing should decide on
+ * your behalf that finished work is not finished`. A menu that quietly sent two
+ * ops to walk `done` back to `todo` would be the web doing in one gesture what
+ * MCP needs two for, which is the deviation HACKING.md forbids: the second
+ * click is the person's, and an undo makes the two calls explicitly
+ * ({@link markOf}).
+ *
+ * The one refusal this file invents is for a node that carries nothing when a
+ * caller asks for nothing: there is no write in that, and the ops layer would
+ * have to be told which mark to take off a node that has none. `Clear mark` is
+ * drawn only on a marked row and an undo only restores what it displaced, so
+ * either way it means somebody else got there first — which is a thing a person
+ * is owed a sentence about rather than a silence.
  */
 const markRequest = (
   derived: Derived,
@@ -418,7 +439,24 @@ export const inverseOf = (
     case "title":
     case "desc":
       return textOf(at.derived, edit)
+    // The DATE this write is about to replace, which is the same shape as the
+    // text pair one line up minus the guard: a date is one field with no
+    // half-typed state behind it, so there is no draft for a stale undo to
+    // overwrite — the ops layer's own `set_date` is what judges it either way.
+    case "date":
+      return dateOf(at.derived, edit.id)
+    // The three with nothing to answer, and each means it differently. A
+    // `remove` and an `archive` have put records in `Archive.jsonl`, which no
+    // move brings out (a parent is same-file by the format) — and there is no
+    // unarchive on any face to spell it with (`parity-unarchive`). An
+    // `unmirror` COULD be undone in principle, by placing the mirror back where
+    // it was; this surface has no verb for creating one (mirror creation is
+    // `input-widgets`' `((`), and inventing a browser-only placement verb to
+    // serve an undo would be exactly the deviation the menu's verbs exist to
+    // close. When that verb arrives, this arm is where it is answered.
     case "remove":
+    case "archive":
+    case "unmirror":
       return []
   }
 }
@@ -472,6 +510,23 @@ const textOf = (
  * two calls an agent would make. Anything else would be the web doing in one
  * op what MCP needs two for, which is the deviation HACKING.md forbids.
  */
+/**
+ * The date a node carries, as the edit that would put it back — and nothing at
+ * all for an id this reading does not hold, or a MIRROR, which has no date of
+ * its own to restore (the menu names the node a row shows, so it does not send
+ * one; an id that arrives anyway is the ops layer's to refuse).
+ *
+ * This is why the wire's `date` field is the op's full `string | null` rather
+ * than the `null` the menu is the only sender of today: a clear-only verb could
+ * not spell its own inverse, and `Clear date` is precisely the menu write a
+ * person is most likely to want back.
+ */
+const dateOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
+  const located = derived.byId.get(id)
+  if (located === undefined || isMirror(located.node)) return []
+  return [{ verb: "date", id, date: located.node.date ?? null }]
+}
+
 const markOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
   const stored = derived.status.get(id) ?? null
   return stored === null || stored === "done"

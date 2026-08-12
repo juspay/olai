@@ -278,15 +278,19 @@ Then(
  *  that DOES write (see the step below it). */
 const HELD = Math.floor(IDLE_COMMIT / 3);
 
+/** The mark is a WORD in the step rather than three steps, because the format
+ *  has three of them and a menu that can write all three should be asked about
+ *  all three the same way. The field IS the mark's name on disk, which is why
+ *  no table translates it. */
 Then(
-  "{string} holds a node marked done titled {string}",
-  async function (this: OlaiWorld, file: string, title: string) {
+  "{string} holds a node marked {word} titled {string}",
+  async function (this: OlaiWorld, file: string, mark: string, title: string) {
     await this.waitUntil(
       async () =>
         this.servedNodes(file).some(
-          (node) => node["title"] === title && node["done"] !== undefined,
+          (node) => node["title"] === title && node[mark] !== undefined,
         ),
-      `${file} to hold a node titled ${JSON.stringify(title)} that is marked done`,
+      `${file} to hold a node titled ${JSON.stringify(title)} that is marked ${mark}`,
     );
   },
 );
@@ -300,6 +304,64 @@ Then(
           String(node["desc"] ?? "").trimEnd().endsWith(ending)
         ),
       `${file} to hold a node whose note ends ${JSON.stringify(ending)}`,
+    );
+  },
+);
+
+/**
+ * The records of a file that may not exist yet.
+ *
+ * `Archive.jsonl` is written by the write that archives the first thing, so a
+ * scenario polling for a node to arrive in it is polling for the FILE too. A
+ * missing file is "nothing there yet" for exactly that reason, and it is safe
+ * to read it that way here: every step below waits, so a file that never
+ * arrives fails as the assertion that was actually being made rather than as
+ * an ENOENT from a helper.
+ */
+const recordsIn = (
+  world: OlaiWorld,
+  file: string,
+): ReadonlyArray<Record<string, unknown>> => {
+  try {
+    return world.servedNodes(file);
+  } catch {
+    return [];
+  }
+};
+
+/** BY ID, which is the half a title cannot answer. Archiving keeps a node's
+ *  id — that is what makes it a trash rather than a shredder, since a mirror
+ *  or an `after` naming it goes on resolving — and a placement has no title to
+ *  be found by at all. */
+Then(
+  "{string} holds the node {string}",
+  async function (this: OlaiWorld, file: string, id: string) {
+    await this.waitUntil(
+      async () => recordsIn(this, file).some((node) => node["id"] === id),
+      `${file} to hold the node ${JSON.stringify(id)}`,
+    );
+  },
+);
+
+Then(
+  "{string} no longer holds the node {string}",
+  async function (this: OlaiWorld, file: string, id: string) {
+    await this.waitUntil(
+      async () => !recordsIn(this, file).some((node) => node["id"] === id),
+      `${file} to have let go of the node ${JSON.stringify(id)}`,
+    );
+  },
+);
+
+Then(
+  "{string} holds the node {string} with no date",
+  async function (this: OlaiWorld, file: string, id: string) {
+    await this.waitUntil(
+      async () =>
+        recordsIn(this, file).some(
+          (node) => node["id"] === id && node["date"] === undefined,
+        ),
+      `${file} to hold ${JSON.stringify(id)} with no \`date\` field`,
     );
   },
 );

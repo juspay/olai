@@ -67,12 +67,18 @@ export const TESTID = {
   nodeMenu: "node-menu",
   /** The open menu panel (portaled). */
   nodeMenuPanel: "node-menu-panel",
-  /** One item inside that panel. `data-action` names the verb. */
+  /** One item inside that panel — including the two buttons the confirm below
+   *  offers, which are menu items in the same box. `data-action` names the
+   *  verb (`cancel`, for the way out of a confirm). */
   nodeMenuItem: "node-menu-item",
-  /** What the last-chosen action could NOT do, beside the `•••` for a few
-   *  seconds. It exists for the clipboard: a write is refused whenever the
-   *  page is not a secure context, which is every LAN reader on plain http,
-   *  and a copy that never happened used to look exactly like one that did. */
+  /** The question the panel puts where its list was, before the one verb that
+   *  takes a branch away. Its text names the row and how much goes with it. */
+  nodeMenuConfirm: "node-menu-confirm",
+  /** What the last-chosen action had to say, beside the `•••` for a few
+   *  seconds. Two moods, and `data-tone` says which: `alarm` for a refusal —
+   *  the ops layer's own words, or a clipboard the browser would not give (any
+   *  LAN reader on plain http) — and `aside` for a nudge from a write that
+   *  landed. */
   nodeMenuSaid: "node-menu-said",
   /** One folder in the sidebar's file tree. `data-path` is the root-relative
    *  path, `data-collapsed` says whether its children are hidden. */
