@@ -24,6 +24,7 @@ import { Then, When } from "@cucumber/cucumber";
 
 import { expectCodeIn, expectSiteIn } from "../support/errors.ts";
 import {
+  BACKSTOP_STEP_TIMEOUT,
   BACKSTOP_TIMEOUT,
   NODE,
   OUTLINE_FAILURE,
@@ -203,11 +204,18 @@ Then("the stale banner is shown", async function (this: OlaiWorld) {
  * probe that notices is the unconditional sweep — prompt on Linux, a backstop
  * away on macOS, and the same product on each.
  */
-Then("the stale banner eventually appears", async function (this: OlaiWorld) {
-  await this.page
-    .locator(STALE_BANNER)
-    .waitFor({ state: "visible", timeout: BACKSTOP_TIMEOUT });
-});
+Then(
+  "the stale banner eventually appears",
+  // Cucumber's own kill-timeout, widened for this step ALONE: the default
+  // envelope is 40s, so without this the wait below is killed at 40 by
+  // something that knows nothing about what it was waiting for.
+  { timeout: BACKSTOP_STEP_TIMEOUT },
+  async function (this: OlaiWorld) {
+    await this.page
+      .locator(STALE_BANNER)
+      .waitFor({ state: "visible", timeout: BACKSTOP_TIMEOUT });
+  },
+);
 
 Then(
   "the stale banner says {string}",

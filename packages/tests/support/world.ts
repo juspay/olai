@@ -70,6 +70,20 @@ export const SERVER_START_TIMEOUT = HYDRATION_TIMEOUT;
 const STEP_GUARD = 10_000;
 setDefaultTimeout(Math.max(POLL_TIMEOUT, HYDRATION_TIMEOUT) + STEP_GUARD);
 
+/**
+ * The same envelope for the one step that waits on {@link BACKSTOP_TIMEOUT},
+ * passed to that step's own definition rather than raised globally.
+ *
+ * The rule above is why this exists in this shape. A `setDefaultTimeout` wide
+ * enough for a backstop would give EVERY step a kill budget of a minute and a
+ * half, so a step that genuinely hung would take that long to say so instead
+ * of failing on its own far more specific timeout. And the outer envelope has
+ * to be the wider of the two: raising the inner one without this is a step
+ * whose own budget can never be reached, which is exactly how CI found it —
+ * a 90s wait killed at 40s by an envelope nobody had told.
+ */
+export const BACKSTOP_STEP_TIMEOUT = BACKSTOP_TIMEOUT + STEP_GUARD;
+
 /** The `Before` hook may have to boot a server before it can open a page. */
 export const SCENARIO_SETUP_TIMEOUT = SERVER_START_TIMEOUT + STEP_GUARD;
 
