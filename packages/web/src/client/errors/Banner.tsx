@@ -12,10 +12,28 @@
  */
 
 import type { OutlineError } from "@olai/format"
+import { Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { Lede } from "./Lede.tsx"
 import { Report } from "./Report.tsx"
+
+/**
+ * WHY the tree below is old — which is not always the same reason.
+ *
+ * "The files on disk no longer validate" is the ordinary case and was the only
+ * case, so it was written as a fact rather than read off the errors. It became
+ * a lie the moment the store learned to publish the other kind: a directory
+ * that could not be READ has nothing wrong with its files, and telling
+ * somebody whose mount went away to go and fix their outlines is worse than
+ * the silence this banner replaced.
+ *
+ * Read off the errors, so the two cannot drift: one `unreadable-directory` is
+ * enough, because a set nothing could read is a set nothing could validate
+ * either — anything else in the list is downstream of it.
+ */
+const unreadable = (errors: ReadonlyArray<OutlineError>): boolean =>
+  errors.some((error) => error.code === "unreadable-directory")
 
 export function Banner(props: { readonly errors: ReadonlyArray<OutlineError> }) {
   return (
@@ -26,11 +44,23 @@ export function Banner(props: { readonly errors: ReadonlyArray<OutlineError> }) 
       <h2 class="m-0 mb-1 text-base font-bold text-alarm">
         Showing the last good version
       </h2>
-      <Lede>
-        The files on disk no longer validate, so the outline below is the one
-        from before they stopped. Fix these and it catches up on its own —
-        nothing needs reloading.
-      </Lede>
+      <Show
+        when={unreadable(props.errors)}
+        fallback={
+          <Lede>
+            The files on disk no longer validate, so the outline below is the one
+            from before they stopped. Fix these and it catches up on its own —
+            nothing needs reloading.
+          </Lede>
+        }
+      >
+        <Lede>
+          The served directory cannot be read right now, so the outline below is
+          the one from before it went away. Nothing here is wrong with your
+          files, and nothing needs reloading — it catches up on its own once the
+          directory can be read again.
+        </Lede>
+      </Show>
       <Report errors={props.errors} />
     </aside>
   )

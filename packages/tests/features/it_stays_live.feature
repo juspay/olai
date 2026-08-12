@@ -105,6 +105,11 @@ Feature: It stays live
     When the served directory is taken away
     Then the stale banner is shown
     And the stale banner shows an error with code "unreadable-directory"
+    # ...and it says the RIGHT thing. The banner's lede was written when the
+    # only way to be stale was a set that would not validate, so it told
+    # everybody to go and fix their files — which for a mount that went away
+    # is a lie of exactly the kind this whole item is about.
+    And the stale banner says "The served directory cannot be read right now"
     And the node "herbs" is shown
     And the page has not reloaded
 

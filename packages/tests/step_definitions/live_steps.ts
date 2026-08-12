@@ -193,6 +193,18 @@ Then("the stale banner is shown", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
+Then(
+  "the stale banner says {string}",
+  async function (this: OlaiWorld, text: string) {
+    const banner = this.page.locator(STALE_BANNER);
+    await banner.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.ok(
+      (await banner.innerText()).includes(text),
+      `the banner to say "${text}"`,
+    );
+  },
+);
+
 Then("the stale banner is gone", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await this.page.locator(STALE_BANNER).count()) === 0,
