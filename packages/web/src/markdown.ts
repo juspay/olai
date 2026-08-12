@@ -66,7 +66,7 @@ export const buildMarkdownChunk = async (
     outdir: assetsDir,
     // Named for what it is rather than for the module it starts at: this URL
     // shows up in a network panel, in a CSP report and in the e2e scenario
-    // that proves an outline never asks for it.
+    // that proves an outline of plain titles never asks for it.
     naming: "markdown-[hash].[ext]",
     target: "browser",
     format: "esm",

@@ -1,17 +1,23 @@
 Feature: The markdown pipeline arrives when it is needed
   Interpreting markdown takes a parser, a sanitiser and a syntax highlighter —
-  ~390 KB of the client, and an outline draws none of it: a tree is titles,
-  checkboxes and badges, and a title with no markdown in it is words this app
-  can write out itself.
+  ~391 KB of the client, and an outline of plain titles draws none of it: a
+  tree is titles, checkboxes and badges, and a title with no markdown in it is
+  words this app can write out itself.
 
   So the pipeline is a chunk of its own, fetched the first time something on
   the page has markdown to interpret. What is proved here is both halves of
-  that: a page of rows never asks for it, and a page that does still shows the
-  reader the file's own text while it is on its way — and says so if it never
-  comes.
+  that: a page whose titles are all plain never asks for it, and a page that
+  does ask still shows the reader the file's own text while it is on its way —
+  and says so if it never comes.
+
+  "All plain" is the qualifier and not a technicality: a title with a code span
+  or a bold run in it DOES need the pipeline, so an outline holding one asks
+  for the chunk like any other page (this repository's own roadmap has five).
+  What never happens is a paint that WAITS for it — the rows draw either way,
+  and those titles show their own source until it lands.
 
   @corpus:good
-  Scenario: An outline paints without fetching the markdown pipeline
+  Scenario: An outline of plain titles paints without fetching the pipeline
     When I open the outline "house.jsonl"
     Then nothing has asked for the markdown pipeline
     # Not "nothing was drawn": the tags and the marks are on the page, drawn

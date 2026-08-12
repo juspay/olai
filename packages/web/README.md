@@ -222,7 +222,8 @@ markdown to interpret. The entry bundle went from 1 054 kB to 663 kB raw
   not. If the fetch FAILS, `Markdown.tsx` says so above that text and the
   console gets the error: the page stays readable and does not pretend.
   `features/markdown_arrives.feature` holds all of it — including that an
-  outline never asks — by holding the chunk up in the network layer.
+  outline of plain titles never asks at all — by holding the chunk up in the
+  network layer.
 
 A document is surveyed and jumped around through those anchors:
 `document/Toc.tsx` draws a collapsible contents above the body, derived from
