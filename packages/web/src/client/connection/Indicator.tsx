@@ -21,6 +21,15 @@
  * left beside the wordmark, and a wrap inside a fixed-height bar clipped the
  * first row off the top of the viewport. The full sentence still rides `title`.
  *
+ * It truncates against its OWN cap and never against the bar, which is the
+ * difference `shrink-0` makes and the reason it is there. The header's rule is
+ * that this label is the LAST thing in it to give way (`../AppHeader.tsx`):
+ * `live` is four letters, it is the claim a reader scans hardest, and a bar
+ * that squeezed it to `l…` while a theme name beside it stayed whole is a bar
+ * that spent its pixels in the wrong order. Anything longer than the cap is
+ * still this pill's own problem — a state at `9.5rem` is a state that has
+ * already told the reader what it is.
+ *
  * **Green is about the PAGE, not about the socket.** It reads the framework's
  * `client.health()` alongside the transport status, because a socket that is
  * open and answering under a dead subscription is exactly the shape of lie this
@@ -28,8 +37,8 @@
  * directory with no documents in it, and nothing anywhere said otherwise
  * (`document/documents.tsx` chose `rawStream` precisely so that stream would be
  * IN the health fact — and then nothing in olai read the fact). Folded in here
- * rather than drawn as a third readout beside it, for the reason the git
- * readout is quiet when it is happy: one green claim per page, or neither is
+ * rather than drawn as a third readout beside it, for the reason the git pill
+ * beside it is quiet when it is happy: one green claim per page, or neither is
  * scanned.
  */
 
@@ -80,10 +89,10 @@ export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
       // No position of its own: it is a READOUT and not a control — nothing
       // here is tappable — so all it needs is to be legible wherever the layout
       // decides to put it. The pill itself is `../readout.ts`'s, shared with
-      // the git readout beside it: `min-w-0` + truncate is what lets the header
+      // the Commit pill beside it: `min-w-0` + truncate is what lets the header
       // keep a single row when a label is long, and one copy of that geometry
       // is one place for it to be got right.
-      class={`${PILL} max-w-[9.5rem] sm:max-w-none`}
+      class={`${PILL} max-w-[9.5rem] shrink-0 sm:max-w-none`}
       data-testid={TESTID.connection}
       // The state as an attribute, so a test asserts on the STATE rather than
       // on a colour: which utility paints "live" is a styling decision and this

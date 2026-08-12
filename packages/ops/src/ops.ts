@@ -114,14 +114,15 @@ export interface Ops {
    */
   readonly read: Effect.Effect<Reading, OpFailure>
   /**
-   * What git is doing for this directory, as of now — the app header's readout
-   * (`git-invisible`, #108).
+   * What git is doing for this directory, as of now (`git-invisible`, #108) —
+   * read by the header's git indicator beside what is waiting, and by an agent
+   * in a terminal as a resource.
    *
    * A PROJECTION of the same survey {@link pending} runs rather than a probe of
-   * its own ({@link ./pending.ts}'s `gitOf`), because the readout and the Commit
-   * pill sit side by side in one header and two probes would be two answers: a
-   * page reading "Not a Git repo" beside a panel offering to commit four
-   * changes. HACKING.md's consistency rule, one control over.
+   * its own ({@link ./pending.ts}'s `gitOf`), because the two values are drawn
+   * together and two probes would be two answers: a page reading "no git here"
+   * beside a panel offering to commit four changes. HACKING.md's consistency
+   * rule, one control over.
    */
   readonly git: Effect.Effect<GitState>
 }

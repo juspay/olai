@@ -141,8 +141,8 @@ port stolen in between reads as itself instead of as a mysteriously dead page.
 
 Every server this harness spawns runs with `--no-commit`: a scratch corpus is a
 temp copy, and committing into whatever repository happens to contain the temp
-directory is not the suite's business. That is also a STATE — the one where the
-page says nothing about git at all — so it is asserted rather than assumed.
+directory is not the suite's business. That is also a STATE — the one the header
+calls `commits off` — so it is asserted rather than assumed.
 
 **`@git:<repo|none|broken>`** starts a scenario's server without the opt-out and
 says which of the three things git is for its directory: a real repository (the
@@ -150,8 +150,10 @@ scratch copy is `git init`ed with a local identity and a first commit), a
 directory that is not one, or a git that is FOUND and fails —
 `bin/broken-git/git`, put first on that server's PATH, answering every call with
 git's own `fatal: detected dubious ownership`. The last one is the case the
-readout exists for: it is not "there is no repository here", and reporting it as
-if it were is the bug `features/git_state.feature` holds shut.
+indicator exists for: it is not "there is no repository here", and reporting it
+as if it were is the bug `features/git_state.feature` holds shut — together with
+the newer one it is named for, which is that ONE control in the header answers
+for git. That feature counts them.
 
 Like `@kolu` and `@agent-stored`, it needs `@scratch:<corpus>` — what a server
 commits to is decided when it is started, and a `@corpus:` server is running for
@@ -323,10 +325,9 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="outline-failure"][data-file]` | shown in ONE outline's place: that file will not parse |
 | `[data-testid="outline-link"][data-broken]` | the sidebar entry of a file that will not parse |
 | `[data-testid="connection"][data-connection]` | the connection dot, in every shape of the app: `connecting`, `live`, `reconnecting`, `retired` |
-| `[data-testid="git"][data-git]` | the git readout beside it: `repo`, `none`, `error` — and ABSENT under `--no-commit`, which is the fourth state. What git said is its `aria-label` and its tip, never a colour |
 | `[data-testid="restarted"]` | over everything: the server that served this page has been replaced |
 | `[data-testid="reload"]` | the button in that surface — the whole of the recovery |
-| `[data-testid="commit-pill"][data-state][data-uncommitted][data-repo]` | the Commit pill, ALWAYS drawn; `data-state` is the face — `off`, `no-repo`, `never`, `committed`, `waiting`, `blocked`, or `unknown` before the first frame |
+| `[data-testid="commit-pill"][data-state][data-uncommitted][data-repo]` | the Commit pill, ALWAYS drawn, and the header's ONE indicator for git; `data-state` is the face — `off`, `no-repo`, `error`, `never`, `committed`, `waiting`, `blocked`, or `unknown` before the first frame. What git SAID is its `aria-label` and its tip, never a colour; the inert faces carry `aria-disabled` and stay focusable |
 | `[data-testid="commit-last"]` | what olai last recorded here, or the words saying it never has |
 | `[data-testid="commit-panel"]` | the panel it opens |
 | `[data-testid="commit-change"][data-node-id][data-sort]` | one node that changed, and WHAT changed about it — never the phrase it is rendered as |

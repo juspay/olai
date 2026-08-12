@@ -18,11 +18,13 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import {
+  APP_CHROME,
   APP_HEADER,
   CALENDAR_DAY,
   CHAT_INPUT,
   CHAT_PANEL,
   CHAT_TOGGLE,
+  COMMIT_PILL,
   CONNECTION,
   DOCUMENT_LINK,
   CALENDAR_NEXT,
@@ -38,6 +40,7 @@ import {
   SIDEBAR_TOGGLE,
   THEME_TRIGGER,
   TOGGLE,
+  WORDMARK,
   ZOOM,
 } from "../support/world.ts";
 import { HYDRATION_TIMEOUT, POLL_TIMEOUT } from "../support/world.ts";
@@ -146,6 +149,7 @@ Then("the app chrome is inside the header", async function (this: OlaiWorld) {
   const header = await this.box(this.page.locator(APP_HEADER), "the app header");
   const pills = [
     { name: "connection", sel: CONNECTION },
+    { name: "commit pill", sel: COMMIT_PILL },
     { name: "agent toggle", sel: CHAT_TOGGLE },
     { name: "theme trigger", sel: THEME_TRIGGER },
   ];
@@ -162,6 +166,53 @@ Then("the app chrome is inside the header", async function (this: OlaiWorld) {
         `${Math.round(header.width)}×${Math.round(header.height)}`,
     );
   }
+
+  // And the wordmark is not underneath them. Inside-the-bar is not the whole
+  // claim: a row of pills wider than the room left beside `OLAI` overlaps it
+  // instead of overflowing the header, which is what a 390pt bar carrying a
+  // second row of text did — legible nowhere, and failing no assertion.
+  const chrome = await this.box(this.page.locator(APP_CHROME), "the app chrome");
+  const wordmark = await this.box(this.page.locator(WORDMARK), "the wordmark");
+  assert.ok(
+    chrome.x >= wordmark.x + wordmark.width - 0.5,
+    `the app's chrome starts at x=${Math.round(chrome.x)}, over the wordmark, ` +
+      `which ends at x=${Math.round(wordmark.x + wordmark.width)}`,
+  );
+});
+
+/**
+ * The connection still says a word, at whatever width this is.
+ *
+ * The header's stated order (`web/src/client/AppHeader.tsx`) ends with this
+ * label: it is the last thing in the bar to give way, and in practice never
+ * does, because the alternative is what `one-git-indicator` first shipped — a
+ * bar squeezing `live` down to `l…` while a theme name beside it stayed whole.
+ *
+ * Truncation is asked of the LAYOUT rather than of the pixels: a `truncate`d
+ * element whose content is wider than its box has a `scrollWidth` past its
+ * `clientWidth`, and that is true whether or not the ellipsis happens to land
+ * on a glyph a screenshot would show.
+ */
+Then("the connection's label is whole", async function (this: OlaiWorld) {
+  const pill = this.page.locator(CONNECTION);
+  await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const cut = await pill.evaluate((el) => {
+    const label = el.querySelector("span:last-child") as HTMLElement | null
+    if (label === null) return { over: -1, said: "" }
+    return {
+      over: label.scrollWidth - label.clientWidth,
+      said: (label.textContent ?? "").trim(),
+    }
+  });
+  assert.ok(
+    cut.over >= 0,
+    "the connection pill has no label span, so there is nothing to be legible",
+  );
+  assert.ok(
+    cut.over <= 0.5,
+    `the connection says "${cut.said}" cut off by ${Math.round(cut.over)}px — ` +
+      "and it is the last label in the bar that may give way",
+  );
 });
 
 /**

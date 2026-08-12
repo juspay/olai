@@ -1,6 +1,7 @@
 # @olai/web — the SolidJS client, and the build that produces it
 
-An app header (wordmark, connection, git, agent toggle, theme), a directory panel
+An app header (wordmark, connection, the one git pill, agent toggle, theme), a
+directory panel
 (month + file tree of every outline and document under the folders they live
 in — full column or a ~3rem icon rail on desktop; slide-over drawer with scrim
 on a phone), a resizable agent dock (or bottom sheet on a phone; minimized to a
@@ -376,12 +377,25 @@ component draws would be rejecting it over a page that does not exist.
 
 `src/client/AppHeader.tsx` is a slim bar above every column: the `olai`
 wordmark on the left, and on the right the pills that are about the APP
-rather than about the page — the connection indicator, the git readout (absent
-entirely on a `--no-commit` serve), the agent toggle (always on screen; pressed
+rather than about the page — the connection indicator, the Commit pill (the ONE
+git indicator, drawn in every state including `commits off`), the agent toggle
+(always on screen; pressed
 while the agent panel is open; busy pulse in either state while a turn runs),
 and the theme picker as a compact popover (a pill names the theme in force;
 chips open under it). On a phone the directory burger joins the left edge next
 to the wordmark.
+
+**Six things do not fit in a 390pt bar, so the ORDER they give way in is a
+decision** rather than whatever the flexbox happens to squeeze — that is written
+out in the component's own header and implemented across four files. The last
+commit's age goes first (`· 3m ago`, `sm` and up), then the agent's word (kept
+`sr-only`, so the button's accessible name never shrinks), then the Commit
+pill's label truncates — its `✓` / `⚠` is most of what it says — and the
+connection's label is last and in practice never, because it has a floor. The
+wordmark and the theme name never give way at all. `features/on_a_phone.feature`
+holds the end of that order shut in every connection state (`the connection's
+label is whole`), which is the fence for the version of this bar that shipped
+`live` squeezed to `l…`.
 
 Principle: the header carries what is about the app; the sidebar
 (`Sidebar.tsx` / `layout/Rail.tsx`) carries what is about the DIRECTORY —
@@ -472,25 +486,29 @@ asking is not a recovery. Both the dot and the screen read the SAME
 happened; the seam's required `retired` handler records the moment rather than
 driving a second path to the same fact.
 
-## Git, said out loud too
+## Git, said out loud too — and in ONE place
 
-`src/client/git/` is the same argument as the folder above, about the other half
-of the page's promise: not "is this still reading" but "is what gets written to
-it being kept". Both are facts a page can only get wrong SILENTLY, and this one
-did — a write came back `committed: false` on a directory its owner knew was a
-repository, and the reason lived in the server's log. So the readout sits beside
-the connection pill, reading the surface's `git` cell.
+Git is the same argument as the folder above, about the other half of the page's
+promise: not "is this still reading" but "is what gets written to it being
+kept". Both are facts a page can only get wrong SILENTLY, and this one did — a
+write came back `committed: false` on a directory its owner knew was a
+repository, and the reason lived in the server's log.
 
-`state.ts` is the whole policy and it is pure, for the same reason `status.ts`
-is: a table over the four states the server publishes, unit-tested with no
-socket and no browser. Three of them draw something and one deliberately draws
-NOTHING — `off`, the `--no-commit` serve, because that is a setting somebody
-chose rather than a condition, and chrome that reports settings is chrome a
-reader stops scanning. `repo` is quiet (three letters, a dim dot, and
-deliberately not the connection's green — one green claim per page). `none` says
-"Not a Git repo" calmly. `error` says "Git error" and carries git's own words,
-on the tip AND on the `aria-label`, so the reason is never hover-only; the
-readout takes focus so a keyboard can reach it at all.
+There is no `src/client/git/` any more, and its absence is the point.
+`git-invisible` put a `● git` readout in the header; `#83`/`#114` put the Commit
+pill beside it; and the human's screenshot of `● git` next to `✓ committed · 3m
+ago` said what two chips answering one question look like
+(`one-git-indicator`). The readout retired INTO the pill — see [the Commit
+button](#the-commit-button) — so the states it drew are faces rather than a
+second control, and the `git` cell it read is now read there.
+
+Nothing that readout won was given back. A git that FAILED still reads
+differently from a directory that is no work tree (`git error` vs `no git
+here`), git's own words are still on the tip AND on the `aria-label` so the
+reason is never hover-only, the pill is focusable in every face — the inert ones
+are `aria-disabled` rather than `disabled`, because a disabled button takes no
+focus and a reason a keyboard cannot reach is a reason half the readers do not
+get — and none of it blocks a write.
 
 ## The agent panel
 
@@ -601,14 +619,34 @@ this app rather than about chat — the Commit button is its second caller.
 
 ## The Commit button
 
-`src/client/commit/` is the third pill of the chrome, and like the connection
-dot it is NEVER ABSENT. Every state is drawn: a clean tree that has committed
-(`✓ committed · 12m ago`), one olai has never committed in (`no commits yet`),
-edits waiting (`4 uncommitted`), a busy repository (`⚠` and the reason), a
-directory that is not a work tree, and a server with commits off. The rule
-comes straight from what the feature is FOR: if the job is an audit trail, then
-"there is no audit trail here" is the most important thing the pill can say, and
-a control that disappeared is exactly how a person would never find that out.
+`src/client/commit/` is the second pill of the chrome and the header's ONE
+answer about git, and like the connection dot it is NEVER ABSENT. Every state is
+drawn: a clean tree that has committed (`✓ committed · 12m ago`), one olai has
+never committed in (`no commits yet`), edits waiting (`4 uncommitted`), a busy
+repository (`⚠` and the reason), a git that failed (`⚠ git error`, with git's
+own words), a directory that is not a work tree, and a server with commits off.
+The rule comes straight from what the feature is FOR: if the job is an audit
+trail, then "there is no audit trail here" is the most important thing the pill
+can say, and a control that disappeared is exactly how a person would never find
+that out.
+
+The fault face is the one that came from somewhere else. It is the `● git`
+readout of `git-invisible`, which used to be a second chip beside this one
+answering the same question — the redundancy `one-git-indicator` closed. So the
+pill reads two cells rather than one: `pending` for what is waiting, and `git`
+for whether git is in any state to take it. Two READINGS, never two probes — the
+server derives both from a single survey in a single statement — and the second
+is not optional, because exactly one thing lives in it that no reading of the
+directory can produce: a commit git REFUSED. A repository with no `user.email`
+answers every probe happily and fails every commit, which is the silence
+`git-invisible` was filed for.
+
+The sentence for whichever face is worn rides this app's own tip rather than a
+`title` (git's words are a paragraph, and the platform's tooltip ran one off the
+right edge of the window) and is the `aria-label` too, so nothing is hover-only.
+Healthy stays QUIET: the tick is not green, because the connection dot beside it
+is the page's one green claim and a second one lit permanently in the ordinary
+case is how a reader learns to stop scanning the place the news appears.
 
 One more face is about THIS PAGE rather than the directory: until the server has
 said anything, the pill says so. It used to draw the default value's `commits
@@ -628,10 +666,14 @@ browser. It re-measures on resize and on scroll (capture phase — the sidebar
 scrolls, and `scroll` does not bubble), because a popover that goes stale where
 it was is worse than one that never moved.
 
-The last two are SETTINGS rather than faults — dim, inert, no warning colour.
-`⚠` is reserved for the busy repository, which is the only one anybody can act
-on. `faceOf` in `said.ts` is the whole of that decision, as a pure function of
-the pending value, and `data-state` on the pill is what a scenario asserts on.
+Commits-off and no-work-tree are SETTINGS rather than faults — dim, inert, no
+warning colour. `⚠` is for the two anybody can act on, in the two tones that
+tell them apart: amber for a busy repository, which will take a commit once the
+rebase is finished, and alarm for a git that failed, which will not. `faceOf`
+and `MARK` in `said.ts` are the whole of that decision — a pure function of the
+two published values, and a table over the faces, so both are unit-tested with
+no socket and no browser — and `data-state` on the pill is what a scenario
+asserts on.
 
 It exists because every write olai makes is a write nobody typed: the agent
 auto-approves its ops, so git is how you see what the tool did to your files.

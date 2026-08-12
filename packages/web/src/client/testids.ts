@@ -13,6 +13,12 @@ export const TESTID = {
    *  chrome about the APP, and every shape of the app (including the error
    *  report) gets it. */
   appHeader: "app-header",
+  /** The row of pills inside it that are about the APP — the connection, the
+   *  Commit pill, the agent toggle, the theme picker. Its own name because the
+   *  CONTENTS of that row are a claim: `one-git-indicator` was two chips
+   *  answering one question, and the only way to hold that shut is to count
+   *  what is in the row rather than to look for the chip that was removed. */
+  appChrome: "app-chrome",
   /** The sidebar itself. Always drawn when the set loaded — which is what
    *  makes it, rather than anything inside it, the sign that the app has
    *  committed to a shape. On a phone the BODY starts collapsed behind the
@@ -187,11 +193,6 @@ export const TESTID = {
    *  carries the state itself — `live`, `lost`, `restarted`, `connecting` — so a
    *  scenario asserts on the state and never on the colour it is painted. */
   connection: "connection",
-  /** The git readout, beside the connection. `data-git` carries the state —
-   *  `repo`, `none`, `error` — and the element is ABSENT under `--no-commit`,
-   *  which is the fourth state (`off`) and the one with nothing to say. What
-   *  git actually said rides the tip and the `aria-label`, never a colour. */
-  git: "git",
   /** Over everything: the server that served this page has been replaced. */
   restarted: "restarted",
   /** The button in that surface — the whole of the recovery. Shared with the
@@ -210,13 +211,16 @@ export const TESTID = {
   faultHome: "fault-home",
 
   // ── the Commit button ────────────────────────────────────────────────
-  /** The pill in the chrome. ALWAYS drawn — the feature is an audit trail, so
-   *  "there is no audit trail here" is the most important thing it can say, and
-   *  a control that disappeared is how nobody would ever find that out.
-   *  `data-state` carries which face this is — `off`, `no-repo`, `never`,
-   *  `committed`, `waiting`, `blocked`, and `unknown` for a page that has not
-   *  heard from the server yet — `data-uncommitted` the count, and `data-repo`
-   *  the repository's own state. */
+  /** The pill in the chrome, and the header's ONE answer to "what is git doing
+   *  here" (`one-git-indicator` retired the `● git` readout that used to sit
+   *  beside it). ALWAYS drawn — the feature is an audit trail, so "there is no
+   *  audit trail here" is the most important thing it can say, and a control
+   *  that disappeared is how nobody would ever find that out.
+   *  `data-state` carries which face this is — `off`, `no-repo`, `error`,
+   *  `never`, `committed`, `waiting`, `blocked`, and `unknown` for a page that
+   *  has not heard from the server yet — `data-uncommitted` the count, and
+   *  `data-repo` the repository's own state. What git SAID rides the tip and
+   *  the `aria-label`, never a colour. */
   commitPill: "commit-pill",
   /** The panel it opens. One row per node, never a text diff. */
   commitPanel: "commit-panel",

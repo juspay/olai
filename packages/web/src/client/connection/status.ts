@@ -33,7 +33,8 @@ import type { Look } from "../readout.ts"
 export type { SurfaceConnectionStatus }
 
 /** How one state is drawn — the readout's own shape (`../readout.ts`), shared
- *  with the header's other one so a change to what a readout IS lands on both.
+ *  with the Commit pill beside it so a change to what a readout IS lands on
+ *  both.
  *  What each state says is still this file's: that is an argument about the
  *  connection. */
 export type { Look }

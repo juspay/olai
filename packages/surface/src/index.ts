@@ -177,14 +177,17 @@ export const LOADED: Manifest = {}
  * cause looked the same from out here — no work tree, no git on the service's
  * PATH, a refused commit, an identity nobody set — so the page could not have
  * told the truth even if it had wanted to. Now the server says which, and the
- * four states are four different things to draw (`web/src/client/git/`):
+ * four states are four different things to draw — on the ONE control the header
+ * has for git, which reads this beside `pending` (`web/src/client/commit/`):
  *
- *   - `off` — `--no-commit`. An owner's choice; the page shows nothing.
+ *   - `off` — `--no-commit`. An owner's choice, so it is drawn as a setting:
+ *     dim, inert, and never a warning.
  *   - `repo` — a work tree, and writes are committing. Quiet: this is the
  *     healthy default and a page that shouted it would teach a reader to
  *     ignore the thing that matters.
- *   - `none` — not a work tree. Calm and informational: "Not a Git repo".
- *   - `error` — git tried and could not, and `said` is its own words.
+ *   - `none` — not a work tree. Calm and informational: "no git here".
+ *   - `error` — git tried and could not, and `said` is its own words. The one
+ *     face that warns, and the words ride its tip and its `aria-label`.
  *
  * A CELL, and read-only on the wire, for the reason the manifest is: one value
  * the server owns, about the directory rather than about any file in it. It
@@ -205,8 +208,11 @@ export const GitState = Schema.Struct({
 export type GitState = typeof GitState.Type
 
 /** What a page reads before the first frame arrives, and what a `--no-commit`
- *  serve stays in. `off` is the right default twice over: it draws nothing, so
- *  a page cannot flash "Not a Git repo" at a repository on its way to the truth. */
+ *  serve stays in. `off` is the right default twice over: it is the calmest of
+ *  the four, so a page cannot flash "git error" at a healthy repository on its
+ *  way to the truth. (What the page says before it has heard ANYTHING is not
+ *  this value — the pill has a face of its own for that, because "we have not
+ *  been told" and "commits are off" are two different claims.) */
 export const GIT_OFF: GitState = { status: "off", said: null }
 
 /** When two answers are the same answer, so the cell can stay quiet. There is
@@ -243,7 +249,7 @@ export const surface = defineSurface({
     /** What git is doing for this directory — see {@link GitState}. Wire-read-only:
      *  it is the server's reading of somebody's working tree, and nothing a
      *  browser could set. Derived from the same survey {@link pending} is, so
-     *  the readout and the pill cannot contradict each other. */
+     *  the one control that reads both cannot contradict itself. */
     git: {
       schema: GitState,
       default: GIT_OFF,
