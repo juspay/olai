@@ -1,6 +1,15 @@
 import { expect, test } from "bun:test"
 
-import { datedDays, datedOn, dayOf, type DayEntry, monthOf } from "./dates.ts"
+import {
+  dailyNoteDays,
+  dailyNotesOn,
+  datedDays,
+  datedOn,
+  dayOf,
+  type DayEntry,
+  monthOf,
+  noteDateOf,
+} from "./dates.ts"
 import { derive, type Derived } from "./derive.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"
 
@@ -282,4 +291,102 @@ test("a mirror of a dated node does not put it on the day twice", () => {
     "work.jsonl",
   ])
   expect(datedDays(mirrored, "2026-08").size).toBe(1)
+})
+
+// ── the day's own note ─────────────────────────────────────────────────
+
+/** A vault's documents, as the paths a browser holds: a daily note filed the
+ *  way the human's is, one in the root, a document ABOUT a day, and two
+ *  ordinary files. Deliberately not in path order — the order that comes back
+ *  is a promise, and a fixture already sorted could not say so. */
+const VAULT: ReadonlyArray<string> = [
+  "notes/palette.md",
+  "Daily/2026/08/2026-08-12.md",
+  "2026-08-10-recap.md",
+  "2026-08-11.md",
+  "journal/2026-08-12.md",
+  "finishes.md",
+]
+
+// The whole of the detection rule: the basename, minus `.md`, is exactly an
+// ISO date. Wherever the file sits, and whatever is inside it.
+test("a document named for a date is that day's note, wherever it lives", () => {
+  expect(noteDateOf("Daily/2026/08/2026-08-12.md")).toBe("2026-08-12")
+  expect(noteDateOf("2026-08-11.md")).toBe("2026-08-11")
+  expect(noteDateOf("a/deep/tree/1999-01-01.md")).toBe("1999-01-01")
+})
+
+// The other half, and the reason the rule is worth having: a document about a
+// day is not the day. `2026-08-10-recap.md` is the case the design named, and
+// it must not match on a prefix.
+test("a document merely NAMING a date is not that day's note", () => {
+  for (
+    const file of [
+      "2026-08-10-recap.md",
+      "recap-2026-08-10.md",
+      "2026-08.md",
+      "2026-08-1.md",
+      // The two the design spelled out beside `-recap`: an ISO date is
+      // zero-padded and hyphenated, so neither a date a person typed short nor
+      // one with the hyphens taken out is the name this convention reads.
+      "2026-8-12.md",
+      "20260812.md",
+      "2026-08-10.txt",
+      "2026-08-10.jsonl",
+      // The date is the FOLDER here; the file is `notes.md`.
+      "2026-08-10/notes.md",
+      "notes.md",
+      "",
+    ]
+  ) {
+    expect(noteDateOf(file)).toBeNull()
+  }
+})
+
+test("a day's note is the document named for it, and no other", () => {
+  expect(dailyNotesOn(VAULT, "2026-08-11")).toEqual(["2026-08-11.md"])
+  expect(dailyNotesOn(VAULT, "2026-08-10")).toEqual([])
+  expect(dailyNotesOn([], "2026-08-11")).toEqual([])
+})
+
+// Two files may both claim a date — a vault mid-migration has exactly this —
+// and both are listed rather than one being picked by a rule nobody asked for.
+// Path order, which is the only order they have.
+test("two documents claiming one date are both the day's, in path order", () => {
+  expect(dailyNotesOn(VAULT, "2026-08-12")).toEqual([
+    "Daily/2026/08/2026-08-12.md",
+    "journal/2026-08-12.md",
+  ])
+})
+
+// The calendar's second mark, asked of the same convention: the days of ONE
+// month that have a note, so a caller drawing August is not handed September.
+test("a month's noted days are the days of that month a note is written for", () => {
+  expect([...dailyNoteDays(VAULT, "2026-08")].sort()).toEqual([
+    "2026-08-11",
+    "2026-08-12",
+  ])
+  expect(dailyNoteDays(VAULT, "2026-07").size).toBe(0)
+  expect(dailyNoteDays([], "2026-08").size).toBe(0)
+})
+
+// A day is lit once however many documents claim it — the mark is drawn for
+// the DAY, exactly as the node dot is.
+test("a day with two notes is one noted day", () => {
+  expect([...dailyNoteDays(["a/2026-08-12.md", "b/2026-08-12.md"], "2026-08")])
+    .toEqual(["2026-08-12"])
+})
+
+// The two readings are INDEPENDENT, which is the whole of the amendment: a
+// note joins the query's answer rather than replacing it, so a day may have
+// nodes, a note, both, or neither — and nothing here consults the other.
+test("a note and a dated node are two separate answers about one day", () => {
+  const notes = ["2026-08-05.md", "2026-08-06.md"]
+  // The 5th has both; the 6th has only a note; the 31st has only nodes.
+  expect(dailyNoteDays(notes, "2026-08").has("2026-08-05")).toBe(true)
+  expect(datedDays(SET, "2026-08").has("2026-08-05")).toBe(true)
+  expect(dailyNoteDays(notes, "2026-08").has("2026-08-06")).toBe(true)
+  expect(datedDays(SET, "2026-08").has("2026-08-06")).toBe(false)
+  expect(dailyNoteDays(notes, "2026-08").has("2026-08-31")).toBe(false)
+  expect(datedDays(SET, "2026-08").has("2026-08-31")).toBe(true)
 })

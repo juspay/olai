@@ -152,6 +152,60 @@ test("a picture whose address never reached us still says so", () => {
   }
 })
 
+// ── links between documents ──────────────────────────────────────────────
+//
+// A vault of Markdown points at itself with plain relative paths, and the
+// browser would resolve one against whatever ROUTE the page is at — the
+// document's own directory on `/doc/…` by luck, and the wrong place on
+// `/d/<date>`, where a day's note is drawn under an address that is not a file.
+// So the link is resolved beside the file it was WRITTEN in, and spelled as
+// this app's document route.
+
+test("a relative link to a document points at that document's page", () => {
+  expect(renderMarkdown("[the deck](../projects/deck.md)", "Daily/2026-08-12.md"))
+    .toContain(`href="/doc/projects/deck.md"`)
+  expect(renderMarkdown("[palette](notes/palette.md)", "finishes.md"))
+    .toContain(`href="/doc/notes/palette.md"`)
+})
+
+// The base is the FILE, never the route. This is the same source rendered from
+// two places, and the day page — where the note lives under `/d/2026-08-12` —
+// is the one that used to be wrong.
+test("a link in a note resolves beside the note, not beside the page", () => {
+  const source = "[palette](palette.md)"
+  expect(renderMarkdown(source, "notes/2026-08-12.md"))
+    .toContain(`href="/doc/notes/palette.md"`)
+  // The same link written in an OUTLINE resolves beside the outline.
+  expect(renderMarkdown(source, "house.jsonl")).toContain(`href="/doc/palette.md"`)
+})
+
+// A fragment is two questions — which file, and where in it — so the path is
+// resolved and the anchor is carried through exactly as written.
+test("a document link keeps the fragment it was written with", () => {
+  expect(renderMarkdown("[beds](garden.md#beds)", NOTE))
+    .toContain(`href="/doc/garden.md#beds"`)
+})
+
+// Everything else goes where it says. There is no allowlist widened here and
+// nothing refused: this pass narrows one shape of link and leaves the rest of
+// the reader's markdown alone.
+test("a link that is not a relative document is left exactly as written", () => {
+  expect(renderMarkdown("[a](https://example.com/x.md)", NOTE))
+    .toContain(`href="https://example.com/x.md"`)
+  expect(renderMarkdown("[a](/finishes.md)", NOTE)).toContain(`href="/finishes.md"`)
+  expect(renderMarkdown("[a](art/handle.png)", NOTE)).toContain(`href="art/handle.png"`)
+  expect(renderMarkdown("[a](house.jsonl)", NOTE)).toContain(`href="house.jsonl"`)
+})
+
+// The two passes over one anchor stay in their lanes: a fragment-only link is
+// the BLOCK's own business and is minted into this block's namespace, which is
+// what keeps a footnote pointing at its own note.
+test("a fragment-only link is still minted, not routed", () => {
+  const html = renderMarkdown("[up](#top)\n\n# top\n", NOTE)
+  expect(html).toMatch(/href="#md-[a-z0-9]+-top"/)
+  expect(html).not.toContain("/doc/")
+})
+
 // ── heading anchors, and the contents derived from them ──────────────────
 //
 // The anchor is minted INSIDE the boundary (./anchors.ts), so what is pinned

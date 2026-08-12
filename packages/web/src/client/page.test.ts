@@ -38,8 +38,16 @@ const SET = derive([
 ])
 const FILES = ["garden.jsonl", "house.jsonl"]
 /** The paths, the way the app holds them: a document's TEXT travels to the tab
- *  that opens one, so it is no business of the page model. */
-const DOCUMENTS: ReadonlyArray<string> = ["notes/finishes.md"]
+ *  that opens one, so it is no business of the page model.
+ *
+ *  Two of them are about the day arm below: one named for a date, which IS that
+ *  day's note, and one merely naming a date, which is a document about a day
+ *  and nobody's note. */
+const DOCUMENTS: ReadonlyArray<string> = [
+  "notes/finishes.md",
+  "Daily/2026-08-10.md",
+  "notes/2026-08-10-recap.md",
+]
 
 /** What day it is, for the arm that has to be told. Fixed, because a page
  *  model that read a clock would be a page model whose tests expire. */
@@ -189,6 +197,16 @@ test("a day with nothing dated it is an empty day, not a nothing", () => {
   const page = pageAt({ kind: "day", date: "2026-08-11" })
   expect(only(page, "day")?.date).toBe("2026-08-11")
   expect(only(page, "day")?.groups).toEqual([])
+  expect(only(page, "day")?.notes).toEqual([])
+})
+
+// The day's other half: a document named for the date is that day's note, and
+// it JOINS the query's answer rather than replacing it — the groups above are
+// unchanged by its being there. A document merely NAMING the date is not one.
+test("a day carries the documents named for it, beside its dated nodes", () => {
+  const page = pageAt({ kind: "day", date: "2026-08-10" })
+  expect(only(page, "day")?.notes).toEqual(["Daily/2026-08-10.md"])
+  expect(only(page, "day")?.groups.length).toBe(2)
 })
 
 // `/today` names no date, so the page model is told which day it is. That is

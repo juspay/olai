@@ -14,6 +14,7 @@
  * rename is a type error before the browser ever starts.
  */
 
+import * as assert from "node:assert";
 import { execFileSync, type ChildProcess } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -220,6 +221,11 @@ export const CALENDAR_NEXT = selector(TESTID.calendarNext);
 export const DAY_PAGE = selector(TESTID.dayPage);
 export const DAY_GROUP = selector(TESTID.dayGroup);
 export const DAY_EMPTY = selector(TESTID.dayEmpty);
+/** THE day's note, above those groups: a document named for the date itself.
+ *  `data-file` is which. */
+export const DAY_NOTE = selector(TESTID.dayNote);
+/** Its heading — the way from the day to the document's own page. */
+export const DAY_NOTE_LINK = selector(TESTID.dayNoteLink);
 /** The per-view Visible/Hidden switch for nodes that are done. */
 export const DONE_TOGGLE = selector(TESTID.doneToggle);
 /** Shown in the main pane when `/n/<id>` names no node. The sidebar stays. */
@@ -423,6 +429,44 @@ export const nodeSelector = (id: string): string =>
 /** One day of the month, by the date it stands for. Same reason as above. */
 export const daySelector = (date: string): string =>
   `${CALENDAR_DAY}[data-date="${date}"]`;
+
+/** Wait for a list to be drawn before reading it. Reading a locator's elements
+ *  the instant a page renders races the frame that adds the second one, and an
+ *  empty list compares as a perfectly plausible wrong answer. */
+export const drawn = async (found: Locator): Promise<Locator> => {
+  await found
+    .first()
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+    .catch(() => undefined);
+  return found;
+};
+
+/**
+ * One `data-` fact off every element of a drawn list, in DOM order, against a
+ * comma-separated expectation.
+ *
+ * The WHOLE list, not "contains X": the order and the membership are both the
+ * promise — a group that should not be there, a node above the one it is dated
+ * after, or a second document claiming a date silently dropped, is exactly the
+ * bug.
+ *
+ * Here rather than in whichever step file first wanted it, because "assert an
+ * ordered list of `data-` facts" is what every list on a day page is asked
+ * with, and two features ask it now.
+ */
+export const expectDrawn = async (
+  found: Locator,
+  attribute: string,
+  expected: string,
+): Promise<void> => {
+  assert.deepStrictEqual(
+    await (await drawn(found)).evaluateAll(
+      (all, name) => all.map((element) => element.getAttribute(name)),
+      attribute,
+    ),
+    expected.split(",").map((one) => one.trim()),
+  );
+};
 /** One line, with the `#` that marks a tag dropped.
  *
  *  The `#` is dropped on BOTH sides of every title comparison because the
@@ -804,6 +848,41 @@ export class OlaiWorld extends World {
       expected,
       `node "${id}"`,
     );
+  }
+
+  /**
+   * What a day cell in the month says about ITSELF.
+   *
+   * Four facts and one helper, because they are one widget: something is dated
+   * the day, a document is named for it, it is today, it is the day being read.
+   * Each is a `data-` attribute rather than the colour it is painted — the
+   * marks are a promise and the palette is a styling decision a refactor may
+   * change — and asking them through one method is what keeps a failure saying
+   * which day and which fact rather than which selector.
+   *
+   * Here beside {@link daySelector} and {@link calendarDay} rather than in a
+   * step file, because two features ask it now (the journal's three marks and
+   * the daily notes' fourth) and the union of facts is the contract: a copy per
+   * feature is a union widened twice every time the cell learns to say one more
+   * thing.
+   */
+  async expectDayMark(
+    date: string,
+    fact: "data-dated" | "data-noted" | "data-today" | "data-open",
+    expected: boolean,
+  ): Promise<void> {
+    await this.expectAttribute(
+      daySelector(date),
+      fact,
+      String(expected),
+      `the day ${date}`,
+    );
+  }
+
+  /** The link a day cell is when it has something to show — and the empty
+   *  locator it is when it has not, which is the assertion an inert day is. */
+  dayLink(date: string): Locator {
+    return this.calendarDay(date).locator("a");
   }
 
   /** Read a `data-` attribute off a node, waiting for the node first so the

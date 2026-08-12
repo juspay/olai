@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { hrefOf, type Route, routeOf } from "./routes.ts"
+import { hrefOf, type Route, routeIn, routeOf } from "./routes.ts"
 
 /** Every route the app can be at, as its own case. A link the app WRITES that
  *  it cannot READ BACK is a page that loads as something else on a reload, and
@@ -64,6 +64,36 @@ test("a document is not a day", () => {
 test("an unrecognised path is the default outline", () => {
   expect(routeOf("/")).toEqual({ kind: "outline", file: null })
   expect(routeOf("/somewhere/else")).toEqual({ kind: "outline", file: null })
+})
+
+// A link inside rendered markdown gets the STRICT reading, and the difference
+// is the fallback: `routeOf` answers an unknown path with the front page, which
+// as an answer to a link somebody wrote in a file would mean every address this
+// app has no page for silently opening the default outline.
+test("a link on the page is a route only when it names a document's page", () => {
+  expect(routeIn("/doc/notes/plan.md")).toEqual({
+    kind: "document",
+    file: "notes/plan.md",
+  })
+  for (
+    const href of [
+      "https://example.com",
+      "/o/house.jsonl",
+      "/d/2026-08-10",
+      "/somewhere/else",
+      "#md-1a2b-beds",
+      "",
+    ]
+  ) {
+    expect(routeIn(href)).toBeNull()
+  }
+})
+
+// A fragment is left to the browser on purpose: what it names on a rendered
+// page is an id minted per BLOCK, so claiming the click would be this app
+// promising an anchor it does not land on.
+test("a document link carrying a fragment is left to the browser", () => {
+  expect(routeIn("/doc/garden.md#beds")).toBeNull()
 })
 
 // `/n/` with nothing after it is a node route for an id nothing declares —

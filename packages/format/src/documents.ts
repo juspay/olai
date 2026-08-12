@@ -23,11 +23,14 @@
  *     a URL, and the route that answers that URL), they are in packages that
  *     cannot import each other, and two allowlists that drifted apart would
  *     mean either a broken image or a served file nobody meant to serve.
+ *   - {@link documentOf} — where a relative `[…](…)` lands. The same arithmetic
+ *     as a `doc` and as a picture, asked about the third thing markdown can
+ *     point at: another document of this directory.
  */
 
 import { Schema } from "effect"
 
-import { isMirror, type Located } from "./node.ts"
+import { fileKind, isMirror, type Located } from "./node.ts"
 
 /**
  * One `.md` of the set: its path, and its text.
@@ -84,20 +87,64 @@ export const resolveRelative = (from: string, to: string): string => {
  * document itself, for a document. So a picture is resolved beside the text
  * that names it, exactly as `doc` is.
  *
- * Only a RELATIVE path to a picture survives. No scheme (so no `http:`, no
- * `data:`, no `javascript:`), no `//host`, no absolute path, and no extension
- * off the allowlist — a page that fetched a remote image would be a page that
- * told a third party what someone is reading, and everything else on that list
- * is a way of drawing something that is not a file in this directory. A `..`
- * is not refused but CLAMPED by {@link resolveRelative}: a shared picture
- * folder beside the documents is a real arrangement, and the result is under
- * the served root by construction.
+ * Only a RELATIVE path to a picture survives: the address rule is
+ * {@link relativeTo}'s, and the extension allowlist is this one's. A page that
+ * fetched a remote image would be a page that told a third party what someone
+ * is reading, and an address off the allowlist is a way of drawing something
+ * that is not a file in this directory.
  */
 export const pictureOf = (from: string, src: string): string | null => {
-  if (src === "" || src.startsWith("/") || src.startsWith("#")) return null
-  if (SCHEME.test(src)) return null
-  const resolved = resolveRelative(from, src)
-  return isPicture(resolved) ? resolved : null
+  const resolved = relativeTo(from, src)
+  return resolved !== null && isPicture(resolved) ? resolved : null
+}
+
+/**
+ * The file under the served directory a markdown address names, before anyone
+ * asks WHAT KIND of file it has to be — or `null` for an address this app does
+ * not resolve at all.
+ *
+ * The refusals live here, once, because there are two sinks and they are two
+ * different things: a picture becomes a `/media/…` URL the server answers, a
+ * link becomes a `/doc/…` route the client opens. A refusal added to one of
+ * them and not the other would be a widening nobody meant — and the two lists
+ * were character-for-character identical the moment there were two.
+ *
+ * No scheme (so no `http:`, no `data:`, no `javascript:`), no `//host`, no
+ * absolute path, no bare fragment: everything on that list is either somewhere
+ * else's business or a way of naming something that is not a file in this
+ * directory. A `..` is not refused but CLAMPED by {@link resolveRelative}.
+ */
+const relativeTo = (from: string, to: string): string | null => {
+  if (to === "" || to.startsWith("/") || to.startsWith("#")) return null
+  if (SCHEME.test(to)) return null
+  return resolveRelative(from, to)
+}
+
+/**
+ * The document a markdown `[…](…)` names, as a path relative to the served
+ * directory — or `null` for a link that is not one.
+ *
+ * The vault case, and the reason it exists: a directory of `.md` files links
+ * between them with plain relative paths (`../projects/deck.md`), and a
+ * renderer that left those alone would hand the browser an address relative to
+ * whatever ROUTE the page happens to be at — which is the document's own
+ * directory on `/doc/…` by luck, and the wrong place everywhere else. Resolved
+ * here instead, beside the file the link was WRITTEN in, exactly as a `doc`
+ * field and a relative picture already are.
+ *
+ * The same address rule as {@link pictureOf} — one {@link relativeTo} between
+ * them — and a different question at the end of it: a document rather than a
+ * picture ({@link fileKind}), so `README` and `art/handle.png` are not
+ * documents and a `.md` anywhere under the root is.
+ *
+ * Whether the directory actually HOLDS the answer is not asked here, and that
+ * is deliberate: this package knows the arithmetic, the page model knows what
+ * was found, and a link to a `.md` that is not there is answered by the screen
+ * that says so rather than by a link that silently was not one.
+ */
+export const documentOf = (from: string, href: string): string | null => {
+  const resolved = relativeTo(from, href)
+  return resolved !== null && fileKind(resolved) === "document" ? resolved : null
 }
 
 /** A URL scheme, or the `//host` that borrows the page's own. Tested before

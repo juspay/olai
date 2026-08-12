@@ -19,7 +19,7 @@
  */
 
 import type { BrokenFile, DayGroup, Derived, Row, Zoomed } from "@olai/format"
-import { datedOn, rowsOf, rowsUnder, zoom } from "@olai/format"
+import { dailyNotesOn, datedOn, rowsOf, rowsUnder, zoom } from "@olai/format"
 
 import type { Route } from "./routes.ts"
 
@@ -40,6 +40,13 @@ export type Page =
     readonly kind: "day"
     readonly date: string
     readonly groups: ReadonlyArray<DayGroup>
+    /** The documents that ARE this day's note, by path — a `.md` named for
+     *  the date itself, wherever it lives (`@olai/format`'s `noteDateOf`).
+     *  Usually none or one; more than one is two files both claiming the day,
+     *  and the page lists both rather than choosing. They JOIN the groups
+     *  above and never replace them: a day is still a query, and this is what
+     *  the reader wrote on it. */
+    readonly notes: ReadonlyArray<string>
   }
   /** An outline whose file did not parse: it has no tree to draw, so its own
    *  pane carries its errors instead. Every other outline is unaffected. */
@@ -86,7 +93,16 @@ export const pageOf = (
 
   if (route.kind === "day" || route.kind === "today") {
     const date = route.kind === "today" ? today : route.date
-    return { kind: "day", date, groups: datedOn(derived, date) }
+    return {
+      kind: "day",
+      date,
+      groups: datedOn(derived, date),
+      // The PATHS the directory has, which is the same list this function
+      // already asks "is that a document" of below. A day's note is found by
+      // the name of a file rather than by anything in the set, so it is the
+      // one arm that reads `found` for something other than existence.
+      notes: dailyNotesOn(found.documents, date),
+    }
   }
 
   // `/` is whichever outline was found first; a named one has to be served.

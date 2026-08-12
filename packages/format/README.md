@@ -141,6 +141,20 @@ exempts archived work at both ends because nothing waits on what is over, and a
 journal asks the other question — what happened — so a day keeps the work that
 was put away after it was finished.
 
+The same module answers the one question about a day that is not about nodes at
+all: which DOCUMENT is that day's note. `noteDateOf` is the whole convention —
+a `.md` whose basename is exactly an ISO date is that day's note, wherever in
+the tree it sits, and `2026-08-10-recap.md` deliberately is not — with
+`dailyNotesOn` (the notes of one day, in path order, both of them when two files
+claim one date) and `dailyNoteDays` (the days of a month that have one) reading
+it for the day page and the calendar's second mark. It is here rather than
+beside whatever draws a calendar for the reason the two questions above are one
+module: a mark and the page it opens must be one reading. Those two take the
+document PATHS rather than a derived set, which is the shape of the wire — a
+browser holds every path and only the bodies of what is on screen. Nothing about
+this is a rule the validator enforces: a daily note is a view convention over
+filenames, and no record mentions it.
+
 `stamp.ts` is the other direction, and every date value olai WRITES is minted
 there: `stampOf` produces a local ISO datetime carrying its offset, which is
 what the ops layer marks a node with. It lives beside the rule that ACCEPTS one
@@ -165,7 +179,15 @@ the view links with), and what a relative `![](…)` may name (`pictureOf`,
 `isPicture`). That last one is asked by two packages that cannot import each
 other — the renderer that rewrites a picture into a URL, and the route that
 answers it — and two allowlists that drifted apart would mean either a broken
-image or a served file nobody meant to serve.
+image or a served file nobody meant to serve. `documentOf` is the third thing
+markdown can point at, and the third reading of the same arithmetic: where a
+relative `[…](…)` to another `.md` lands. A vault linking between its own files
+writes those by the dozen, and resolving one beside the file it was WRITTEN in
+is what keeps it from being resolved against whatever page it is being drawn on
+— which is the same reason `doc` is resolved against the outline that named it.
+Whether the directory actually holds the answer is nobody's business here: this
+package knows the arithmetic, and the page that opens the address already has a
+screen for a document that is not there.
 
 ## Two readings of a set, and what they differ by
 

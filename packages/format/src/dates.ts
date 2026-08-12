@@ -32,6 +32,16 @@
  * They are one module because they are one reading of the set, and a calendar
  * whose dots disagreed with the day you opened would be worse than no calendar.
  *
+ * A THIRD reading joined them, and it is the one exception to the sentence
+ * above about filenames: a document whose basename is exactly an ISO date IS
+ * that day's note ({@link noteDateOf}). It is here, beside the other two, for
+ * precisely the reason they are beside each other — the calendar's second
+ * marker and the day page's note are one answer, and two spellings of "which
+ * documents are this day's" would be two chances to disagree about a day
+ * somebody is looking at. The doctrine is amended rather than abandoned: the
+ * note JOINS the query's answer and never replaces it, so a day is still a
+ * question asked of every node, and a day with neither is still inert.
+ *
  * Dates are TEXT here, as they are everywhere else in this package: the format
  * validates them as ISO and stores them verbatim, so a day is a prefix and a
  * month is a shorter one. Nothing is parsed into an instant — a date-only
@@ -48,7 +58,7 @@ import {
   type Status,
   storedMarker,
 } from "./derive.ts"
-import { isMirror, type LocatedRegular, type RegularNode } from "./node.ts"
+import { fileKind, isMirror, type LocatedRegular, type RegularNode } from "./node.ts"
 
 /** How many characters of an ISO value name the day, and the month. A
  *  datetime is a day plus a time, so the day is the prefix they share. */
@@ -260,3 +270,83 @@ const byTime = (left: Dated, right: Dated): number =>
   left.date === right.date
     ? left.at.line - right.at.line
     : Order.String(left.date, right.date)
+
+// ── the day's own note ─────────────────────────────────────────────────
+
+/** A day, spelled out: four digits, two, two. The shape and nothing more —
+ *  `2026-13-45.md` passes and names a day no month has, which is a day nothing
+ *  can ever ask about (a calendar grid mints only real ones) and therefore a
+ *  document that is quietly nobody's note. Checking the range here would be
+ *  this package's first piece of calendar arithmetic, bought for a case that
+ *  cannot reach a screen. */
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * The day a document is THE note for, or `null` for a document that is not one.
+ *
+ * CONVENTION OVER CONFIGURATION, and the convention is the whole rule: the
+ * basename, with `.md` taken off, is exactly an ISO date. Nothing else is
+ * consulted — not where the file sits, not what is inside it, not a setting.
+ * So a vault keeping `Daily/2026/08/2026-08-12.md` matches by arithmetic
+ * nobody had to be told, one keeping every note in the root matches the same
+ * way, and `2026-08-10-recap.md` deliberately does not: it is a document ABOUT
+ * a day rather than the day's own page, and the difference has to be
+ * something a person can see in the filename.
+ *
+ * Read of a PATH, so the directories above the file are cut off first — a
+ * folder named `2026-08-12` holding a `notes.md` is not a daily note, and the
+ * folder is not consulted because the file is what carries the name.
+ *
+ * WHICH files are documents is {@link fileKind}'s and stays there — the
+ * extension is cut off by finding it rather than by spelling it a second time,
+ * so a package that ever admitted another one does not leave this reading a
+ * name it has taken the wrong number of characters off.
+ */
+export const noteDateOf = (file: string): string | null => {
+  if (fileKind(file) !== "document") return null
+  const name = file.slice(file.lastIndexOf("/") + 1)
+  const stem = name.slice(0, name.lastIndexOf("."))
+  return ISO_DAY.test(stem) ? stem : null
+}
+
+/**
+ * The daily notes of `day`, in path order.
+ *
+ * TWO documents may claim one date — a vault mid-migration has
+ * `Daily/2026-08-12.md` and `journal/2026-08-12.md` — and both are listed
+ * rather than one being picked. There is no conflict rule to invent here: the
+ * files are the reader's, both of them say they are the 12th, and a view that
+ * chose between them would be hiding a file somebody wrote on the strength of
+ * a tiebreak nobody asked for. Path order, because it is the only order these
+ * have and it is the one the sidebar already lists them in.
+ *
+ * The DOCUMENTS are passed in rather than read off a {@link Derived}, and that
+ * is what the shape of the wire decides: a browser holds every document's PATH
+ * and only the bodies of what is on screen (`snapshot-scale`), so the paths are
+ * what both surfaces have in hand at the moment this question is asked.
+ */
+export const dailyNotesOn = (
+  documents: ReadonlyArray<string>,
+  day: string,
+): ReadonlyArray<string> =>
+  documents.filter((file) => noteDateOf(file) === day).sort(Order.String)
+
+/**
+ * The days of `month` (`YYYY-MM`) that a note is written for — the calendar's
+ * second marker, and the same shape {@link datedDays} answers in for the first.
+ *
+ * Two sets rather than one union, because the two marks say different things
+ * and a reader has to tell a day that HOLDS WRITING from a day that has work
+ * on it at a glance. A day in both is in both.
+ */
+export const dailyNoteDays = (
+  documents: ReadonlyArray<string>,
+  month: string,
+): ReadonlySet<string> => {
+  const days = new Set<string>()
+  for (const file of documents) {
+    const day = noteDateOf(file)
+    if (day !== null && monthOf(day) === month) days.add(day)
+  }
+  return days
+}

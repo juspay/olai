@@ -206,10 +206,11 @@ export const TESTID = {
   /** The month in the sidebar. Its `data-month` is the month on screen, which
    *  paging moves and nothing else does. */
   calendar: "calendar",
-  /** One day of it. Everything the three marks say is a `data-` fact:
-   *  `data-date`, `data-dated` (something is on it), `data-today`,
-   *  `data-open` (this is the day being read) — never the colour it is
-   *  painted, which is a styling decision a refactor may change. */
+  /** One day of it. Everything the four marks say is a `data-` fact:
+   *  `data-date`, `data-dated` (a node of the set is on it), `data-noted` (a
+   *  document is named for it — the day's own note), `data-today`, `data-open`
+   *  (this is the day being read) — never the colour it is painted, which is a
+   *  styling decision a refactor may change. */
   calendarDay: "calendar-day",
   calendarPrev: "calendar-prev",
   calendarNext: "calendar-next",
@@ -218,6 +219,14 @@ export const TESTID = {
   dayPage: "day-page",
   /** The nodes of one outline dated that day; `data-file` is which. */
   dayGroup: "day-group",
+  /** THE day's note, drawn above those groups: a document named for the date
+   *  itself. `data-file` is its path; its body carries `documentBody`, being
+   *  the same pipeline drawn a third place. */
+  dayNote: "day-note",
+  /** The heading of that note — the way from the day to the document's own
+   *  page. Its own name rather than the sidebar's or a node reference's, so a
+   *  selector never has to say which of the three it meant. */
+  dayNoteLink: "day-note-link",
   /** Said in place of the list when nothing is dated that day. */
   dayEmpty: "day-empty",
   doneToggle: "done-toggle",

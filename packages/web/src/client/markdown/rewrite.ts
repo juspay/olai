@@ -15,6 +15,16 @@
  *     `@olai/surface` spells the URL; this SAYS SO where the picture would have
  *     been when the answer is nothing, rather than deleting the element, which
  *     is how a typo'd filename used to render as a page with a hole in it.
+ *   - **a link to a `.md` is a link to that document's page.** `[the deck](
+ *     ../projects/deck.md)` is how a vault of Markdown files points at itself,
+ *     and the browser would resolve it against whatever ROUTE the page is at —
+ *     which is the document's own directory on `/doc/…` by luck, and the wrong
+ *     place on `/d/<date>`, where a note is drawn under an address that is not
+ *     a file at all. So it is resolved beside the file the link was WRITTEN in
+ *     (`@olai/format`'s `documentOf`) and spelled as this app's own document
+ *     route. Nothing else is touched: a `http:` link goes where it says, a
+ *     fragment stays a fragment, and a relative path to anything that is not a
+ *     document is left exactly as written.
  *   - **ids belong to the page, not to the parser.** Every rendered block on a
  *     page — a note per row, a document, and every note under it — is a
  *     separate run of the pipeline, and each would otherwise mint `fn-1` for
@@ -34,11 +44,12 @@
  * asking a question this one already has the answer to.
  */
 
-import { pictureOf } from "@olai/format"
+import { documentOf, pictureOf } from "@olai/format"
 import { mediaHref } from "@olai/surface"
 import type { Element, Root } from "hast"
 
 import { type Heading, headingOf } from "./outline.ts"
+import { hrefOf } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 
 export interface Rewrite {
@@ -62,6 +73,7 @@ const walk = (parent: Root | Element, options: Rewrite, headings: Heading[]): vo
   for (const child of parent.children) {
     if (child.type !== "element") continue
     if (child.tagName === "img") resolvePicture(child, options.from)
+    if (child.tagName === "a") resolveDocument(child, options.from)
     mint(child, options.ids)
     walk(child, options, headings)
     // AFTER the subtree, so what a heading reads as is what is left of it.
@@ -121,6 +133,42 @@ const resolvePicture = (element: Element, from: string): void => {
       ? "this picture could not be drawn: its address was empty, or not one this page may fetch"
       : `this picture could not be drawn: ${src}`,
   }]
+}
+
+/**
+ * Point an `<a>` at a served document's own page, when that is what it names.
+ *
+ * The one thing this decides that `documentOf` does not is the FRAGMENT. A
+ * vault writes `[the bed](garden.md#beds)`, and the path and the anchor are two
+ * different questions: the path is a file to resolve, the anchor is what to do
+ * once the page is there. So it is cut off before the arithmetic and put back
+ * afterwards, verbatim — this pass mints ids per rendered BLOCK ({@link mint}),
+ * so an anchor into another page is a thing that page will have to answer for,
+ * and dropping it here would be this pass deciding it never existed.
+ *
+ * A link this leaves alone is a link that goes exactly where it says. There is
+ * no allowlist to widen and no refusal to draw: the sanitiser has already run
+ * (it is the security boundary, and it runs first), an `http:` link is somebody
+ * pointing at the internet on purpose, and a relative path to something that is
+ * not a document is not this app's to reinterpret.
+ *
+ * Whether the directory HOLDS the document is not asked, for the same reason
+ * `/doc/<anything>` is an address a person may type: the page model already has
+ * a screen that names a document it does not have, and a link quietly left
+ * relative would send the reader somewhere with nothing to say at all.
+ */
+const resolveDocument = (element: Element, from: string): void => {
+  const written = element.properties?.["href"]
+  if (typeof written !== "string") return
+  // ONE index, so the two halves cannot be cut at two places: an href with no
+  // `#` ends at its own end, which makes the fragment the empty tail.
+  const cut = written.includes("#") ? written.indexOf("#") : written.length
+  const document = documentOf(from, written.slice(0, cut))
+  if (document === null) return
+  element.properties = {
+    ...element.properties,
+    href: hrefOf({ kind: "document", file: document }) + written.slice(cut),
+  }
 }
 
 /** What an undrawn picture looks like: a quiet inline box, in the same family

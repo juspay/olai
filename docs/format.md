@@ -68,8 +68,19 @@ Being blocked is a SECOND fact about a node, never a replacement for the first: 
 
 The journal, the calendar and the today view are derived from dates AT VIEW
 TIME, over the whole served directory: there is no journal file, no stored
-year→month hierarchy and no filename that means anything. A day is a question
-asked of every node in every outline.
+year→month hierarchy and no OUTLINE whose filename means anything. A day is a
+question asked of every node in every outline.
+
+**One filename does mean something, and it is a document's.** A `.md` whose
+basename is exactly an ISO date — `2026-08-12.md`, wherever in the tree it sits
+— is that day's NOTE, and the day page draws it above the query's answer
+(`2026-08-10-recap.md` is a document about a day and deliberately not one; two
+files claiming one date are both shown, in path order). It is a view
+convention over the directory rather than a rule about records: nothing here
+validates it, no field records it, and olai does not write these files. What it
+changes about the sentence above is only that a day now has two halves — what
+somebody wrote about it, and what the set says was on it — and never that a
+node's dates are read differently.
 
 **Two fields put a node on a day**: `date`, which is what it is scheduled for,
 and a dated `done` — `{"done":"2026-08-11T15:40:03-04:00"}` is work someone
