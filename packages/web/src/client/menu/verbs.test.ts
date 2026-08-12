@@ -122,9 +122,12 @@ test("a mirror row retires ITS OWN record, never the node it shows", () => {
   })
 })
 
-test("a placement whose target is gone can still be retired", () => {
-  // The one row nothing else in this app can do anything about — and the row
-  // most likely to be somebody's mistake.
+test("a placement drawing no node offers the placement verb and nothing else", () => {
+  // The question is asked of the RECORD, so a row that drew nothing needs no
+  // case of its own — and the verbs that are about a node are correctly absent
+  // rather than absent by accident. A served set holding this mirror is one
+  // the validator refuses, so it is not a row a reader meets today; what the
+  // test pins is that the catalog does not depend on the row having drawn.
   expect(labels("lost")).toEqual(["Remove this placement"])
 })
 

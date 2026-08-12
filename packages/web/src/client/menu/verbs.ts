@@ -103,10 +103,15 @@ export const writeVerbs = (
     }
   }
 
-  // A PLACEMENT can be retired, and it is offered on every kind of one —
-  // including the two that draw no node. A mirror whose target has gone is
-  // exactly the row somebody wants to be rid of, and before this the only way
-  // to be rid of it was to edit the file.
+  // A PLACEMENT can be retired, and the question is asked of the RECORD rather
+  // than of what the row managed to draw — so the two degenerate kinds (a
+  // chain that died, one that closed a loop) are covered by construction. That
+  // is a fence this file does not have rather than a rescue it can promise: a
+  // set holding a mirror of nothing is a set the validator refuses, so the
+  // page shows the error view and there is no row to open a menu on. What this
+  // does guarantee is that the day such a row IS drawable, the verb for it is
+  // already the right one — and that nothing here has to ask a placement what
+  // it shows in order to offer to remove it.
   if (isMirror(row.at.node)) {
     verbs.push({
       id: "remove-placement",

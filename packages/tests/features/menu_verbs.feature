@@ -141,6 +141,20 @@ Feature: The ••• menu writes
     Then the node menu asks "Archive “install the cabinets” and the 3 rows under it? They go to Archive.jsonl with their ids kept — there is no unarchive yet, so bringing them back means editing that file."
     And "house.jsonl" holds a node titled "install the cabinets"
 
+  Scenario: The confirm counts what the write moves, not what is on screen
+    # The rows a page draws are a READING: hiding what is done drops finished
+    # branches from them (`withoutDone`), and `demo` is one. The count is asked
+    # of the SET instead, because what a person is agreeing to is how much
+    # `archive` moves — so this says seven while six rows are drawn. A count
+    # taken from the children would say six and archive seven, which is the one
+    # verb whose reach exceeds its row mis-stating its reach.
+    Given the node "kitchen" is expanded
+    When I hide the done nodes
+    Then the node "demo" is not shown
+    When I open the node menu of "kitchen"
+    And I choose "Archive" from the node menu
+    Then the node menu asks "Archive “kitchen remodel #home” and the 7 rows under it? They go to Archive.jsonl with their ids kept — there is no unarchive yet, so bringing them back means editing that file."
+
   Scenario: Cancelling the confirm writes nothing
     When I open the node menu of "install"
     And I choose "Archive" from the node menu

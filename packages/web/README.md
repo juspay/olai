@@ -961,10 +961,12 @@ would have sent, judged by the same planner and refused in the same words.
   hitting `Archive` is a mistake the ORDER can prevent.
 - **Every entry is a verb that would do something.** The mark a node already
   carries is not offered back to it, `Clear mark` appears only on a marked row,
-  `Clear date` only on a dated one, `Remove this placement` only on a mirror
-  (including one whose target has gone — the row nothing else in this app could
-  do anything about), and `Archive` only on a node's own row, because on a
-  placement the verb IS retiring the placement.
+  `Clear date` only on a dated one, `Remove this placement` on any row whose
+  RECORD is a placement — asked of the record rather than of what the row drew,
+  so the degenerate kinds need no case of their own (a set holding a mirror of
+  nothing is one the validator refuses, so that row is not on screen to begin
+  with) — and `Archive` only on a node's own row, because on a placement the
+  verb IS retiring the placement.
 - **What ops refuses is quoted, not summarised.** A `done` node still offers
   `Mark todo`, and choosing it answers with the ops layer's own sentence —
   *nothing should decide on your behalf that finished work is not finished* —
@@ -981,7 +983,13 @@ would have sent, judged by the same planner and refused in the same words.
   something back means editing `Archive.jsonl`.
 - **Copy as text** is the one pure read among them: the subtree as tab-indented
   plain text, titles verbatim, notes one level under their node, nothing
-  encoding a mark or a date. A mirror copies what it draws.
+  encoding a mark or a date. A mirror copies what it draws. It follows the
+  READING, deliberately — folds are ignored (a triangle is one tab's business,
+  so the whole subtree goes) but done-hidden branches are already gone from the
+  rows, so they are not copied. Copy what you can see, and everything under it.
+  The archive confirm's count is the opposite and asks the SET, because that
+  one is about the write rather than about the picture (`subtree.ts` holds both
+  answers and says which is which).
 
 Not here: `see` / `after` edge editing and mirror creation (they want a node
 search — `parity-see`, `parity-after`, `input-widgets`), setting a date (the
