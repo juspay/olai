@@ -402,6 +402,7 @@ Everything runs inside the flake dev shell; the recipes re-enter it for you.
 | [`packages/format`](packages/format) | the format, and the only place it is enforced: parse per line, validate the set |
 | [`packages/store`](packages/store) | a directory of files as a validated, revision-tagged snapshot, and the one write gate — generic, with no outline types in it |
 | [`packages/log`](packages/log) | how olai says what it is doing: one format, two streams, and the levels `--log-level` turns on |
+| [`packages/git`](packages/git) | git, as plumbing: one socket, a handful of verbs, and nothing that decides anything |
 | [`packages/ops`](packages/ops) | the only writer: the semantic edits, and the MCP server both agents reach them through |
 | [`packages/surface`](packages/surface) | the typed reactive layer both ends speak, declared once |
 | [`packages/chat`](packages/chat) | one conversation with one ACP agent: the subprocess, the session, and the transcript a panel draws |

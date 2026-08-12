@@ -36,6 +36,7 @@ import {
   type CommitResult,
   changesOf,
   fileKind,
+  type LastCommit,
   type Node,
   NOTHING_PENDING,
   parseOutline,
@@ -47,11 +48,11 @@ import {
   type Writer,
   type Wrote,
 } from "@olai/format"
+import * as Git from "@olai/git"
 import { Effect, Result, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
-import * as Git from "./git.ts"
-import { composed, MESSAGE_PREFIX, signed } from "./message.ts"
+import { AUDIT, composed, signed } from "./message.ts"
 
 /**
  * How writes reach git.
@@ -370,7 +371,7 @@ export const make = (options: Options): Committing => {
     // Independent questions, asked together: what state the repository is in,
     // what has moved in it, and what olai last recorded there.
     const [repo, dirty, last] = yield* Effect.all(
-      [git.state, git.dirty, git.last(MESSAGE_PREFIX)],
+      [git.state, git.dirty, git.last(AUDIT)],
       { concurrency: 3 },
     )
     return {
@@ -379,7 +380,7 @@ export const make = (options: Options): Committing => {
       // WHICH dirty files matter is a statement about the format, so it is made
       // here rather than handed to the plumbing as a callback.
       files: dirty.filter((file) => fileKind(file) === "outline"),
-      last,
+      last: last === null ? null : recorded(last),
     }
   })
 
@@ -639,6 +640,26 @@ export const make = (options: Options): Committing => {
       refusal === null ? gitOf(repo) : { status: "error", said: refusal }),
   }
 }
+
+/**
+ * One commit git read back, as the wire carries it.
+ *
+ * The whole of what the `@olai/git` extraction left behind here, and it is one
+ * function: the plumbing hands over the trailer VERBATIM, because which strings
+ * are writers is a statement about olai and not about git. A trailer nothing
+ * recognises — a commit typed by hand, one whose trailer a rebase mangled, one
+ * written by some other tool that borrowed the key — reads as `null`, which is
+ * more honest than a guess and is exactly what the panel draws as "writer not
+ * recorded".
+ */
+const recorded = (last: Git.Recorded): LastCommit => ({
+  sha: last.sha,
+  message: last.message,
+  at: last.at,
+  writer: WRITERS.has(last.trailer) ? (last.trailer as Writer) : null,
+})
+
+const WRITERS: ReadonlySet<string> = new Set<Writer>(["chat-agent", "mcp", "web"])
 
 /** An optional field, present only when there is something to say — so an op
  *  that committed carries no `why` key at all. */

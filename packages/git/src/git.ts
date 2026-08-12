@@ -7,7 +7,7 @@
  * verb, each a subprocess and each total: whether the repository can take a
  * commit right now, which of the served files are dirty, what HEAD had in one of
  * them, and commit exactly these paths with exactly this message. What those
- * answers MEAN is {@link ./pending.ts}'s.
+ * answers MEAN is `@olai/ops`' `pending.ts`'s.
  *
  * The THIRD arm is what `git-invisible` (#108) bought and what this file must
  * not give back. "Your notes are not a repository" and "this service has no git
@@ -46,10 +46,11 @@
  * than thirteen.
  */
 
-import type { LastCommit, Reason, RepoState, Writer } from "@olai/format"
 import { Effect } from "effect"
 import { execFile } from "node:child_process"
 import * as fs from "node:fs"
+
+import type { Reason, RepoState } from "./state.ts"
 
 /** How long git gets. A commit in a notes directory is milliseconds; the
  *  budget is here so a wedged hook or a lock held by another process cannot
@@ -181,9 +182,9 @@ export interface Repo {
   readonly dirty: Effect.Effect<ReadonlyArray<string>>
   /** One served file as HEAD has it, or `null` when HEAD does not. */
   readonly show: (file: string) => Effect.Effect<string | null>
-  /** The last commit olai made here, or `null` for a repository it has never
-   *  committed in. */
-  readonly last: (prefix: string) => Effect.Effect<LastCommit | null>
+  /** The last commit the caller's own audit filter claims, or `null` for a
+   *  repository that has none. */
+  readonly last: (audit: Audit) => Effect.Effect<Recorded | null>
   /** Commit exactly these ABSOLUTE paths with exactly this message. */
   readonly commit: (what: CommitInput) => Effect.Effect<Done>
 }
@@ -210,7 +211,7 @@ export const open = (root: string): Effect.Effect<Opening> =>
         state: state(root, placing.placement),
         dirty: dirty(root, placing.placement),
         show: (file) => show(root, placing.placement, file),
-        last: (prefix) => last(root, placing.placement, prefix),
+        last: (audit) => last(root, placing.placement, audit),
         commit: (what) => commit(root, what),
       },
     })
@@ -303,7 +304,40 @@ const show = (
   )
 
 /**
- * The last commit olai made, as HEAD seen through the audit filter.
+ * How a caller recognises its OWN commits in somebody's repository.
+ *
+ * Both halves are the caller's vocabulary rather than this file's: that olai
+ * prefixes every subject with `olai` and signs it `X-Olai-Writer` is a
+ * statement about how olai writes commits, and it lives beside the composer
+ * that writes them (`@olai/ops`' `message.ts`). Handed in, this package stays
+ * a git that can be pointed at any convention.
+ */
+export interface Audit {
+  /** What the subject starts with. Filtered by git itself, so a repository
+   *  full of somebody else's commits still costs one walk. */
+  readonly prefix: string
+  /** The trailer key that names who asked. */
+  readonly trailer: string
+}
+
+/** One commit, as this file can read one back.
+ *
+ *  The trailer arrives RAW — the string `git log` printed, `""` for a commit
+ *  carrying none — because what the values of that trailer are is a statement
+ *  about who writes commits here, and this file has none of that in it. The
+ *  caller classifies (`@olai/ops`' `pending.ts`). */
+export interface Recorded {
+  readonly sha: string
+  /** The subject line. */
+  readonly message: string
+  /** ISO 8601, author date. */
+  readonly at: string
+  /** The `X-Olai-Writer` trailer's value, verbatim, or `""`. */
+  readonly trailer: string
+}
+
+/**
+ * The last commit somebody's prefix claims, as HEAD seen through that filter.
  *
  * `--grep` does the filtering in git rather than here, so a repository with a
  * hundred thousand of somebody else's commits still costs one walk that stops
@@ -316,14 +350,14 @@ const show = (
 const last = (
   root: string,
   placed: Placement,
-  prefix: string,
-): Effect.Effect<LastCommit | null> =>
+  audit: Audit,
+): Effect.Effect<Recorded | null> =>
   Effect.map(
     git(root, [
       "log",
       "-1",
-      `--grep=^${prefix}`,
-      "--format=%H%x00%s%x00%aI%x00%(trailers:key=X-Olai-Writer,valueonly)",
+      `--grep=^${audit.prefix}`,
+      `--format=%H%x00%s%x00%aI%x00%(trailers:key=${audit.trailer},valueonly)`,
       // Only commits that touched the served directory: one olai serving
       // `docs/` should not report a commit another made elsewhere in the same
       // repository.
@@ -338,18 +372,14 @@ const last = (
         sha: sha.trim(),
         message: message ?? "",
         at: at ?? "",
-        // A commit carrying the prefix but no trailer is not a lie to correct
-        // — it is a commit whose writer nothing recorded, which is exactly
-        // what `null` says.
-        writer: asWriter(writer?.trim() ?? ""),
+        // Whatever the trailer said, including nothing. A commit carrying the
+        // prefix but no trailer is not a lie to correct — it is a commit whose
+        // writer nothing recorded — and WHICH strings are writers is the
+        // caller's vocabulary, not this file's.
+        trailer: writer?.trim() ?? "",
       }
     },
   )
-
-const WRITERS: ReadonlySet<string> = new Set(["chat-agent", "mcp", "web"])
-
-const asWriter = (said: string): Writer | null =>
-  WRITERS.has(said) ? (said as Writer) : null
 
 /** What committing did. Deliberately not `CommitResult`: that one carries a
  *  change count and a repository state, and neither is a thing this file

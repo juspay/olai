@@ -40,8 +40,20 @@
       "name": "@olai/format",
       "version": "0.1.0",
       "dependencies": {
+        "@olai/git": "workspace:*",
         "effect": "4.0.0-beta.106",
         "fastest-levenshtein": "^1.0.16",
+      },
+    },
+    "packages/git": {
+      "name": "@olai/git",
+      "version": "0.1.0",
+      "dependencies": {
+        "effect": "4.0.0-beta.106",
+      },
+      "devDependencies": {
+        "@olai/log": "workspace:*",
+        "@types/node": "^22.0.0",
       },
     },
     "packages/log": {
@@ -56,6 +68,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@olai/format": "workspace:*",
+        "@olai/git": "workspace:*",
         "@olai/store": "workspace:*",
         "effect": "4.0.0-beta.106",
       },
@@ -274,6 +287,8 @@
     "@olai/chat": ["@olai/chat@workspace:packages/chat"],
 
     "@olai/format": ["@olai/format@workspace:packages/format"],
+
+    "@olai/git": ["@olai/git@workspace:packages/git"],
 
     "@olai/log": ["@olai/log@workspace:packages/log"],
 

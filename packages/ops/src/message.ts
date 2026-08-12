@@ -34,6 +34,17 @@ export const MESSAGE_PREFIX = "olai"
 /** The trailer that puts the writer in the commit permanently. */
 const WRITER_TRAILER = "X-Olai-Writer"
 
+/**
+ * How olai recognises its own commits in somebody's repository, as the one
+ * value `@olai/git` is handed.
+ *
+ * Both halves are written HERE, beside the composer that puts them on: the
+ * plumbing that reads a log back knows how to filter and how to read a trailer,
+ * and knows nothing about which prefix or which key — which is the whole reason
+ * it could be extracted at all.
+ */
+export const AUDIT = { prefix: MESSAGE_PREFIX, trailer: WRITER_TRAILER } as const
+
 /** What each kind of change is called in a commit line. The reference
  *  implementation's vocabulary; the panel keeps its own, in its own words
  *  (`packages/web/src/client/commit/said.ts`), because one of them is a log

@@ -10,7 +10,9 @@ may READ of one comes out of here too.
 It sits between `@olai/format` (what a record is, and what is legal) and
 `@olai/store` (how bytes become durable). Neither of those knows what an EDIT
 is; this package is where "mark `order` done" lives, and it is what the web UI's
-procedures and the agent's MCP tools both call.
+procedures and the agent's MCP tools both call. [`@olai/git`](../git/README.md)
+is the third thing under it — the subprocesses a commit is made of, which decide
+nothing; the deciding is here.
 
 ## Why the edits are semantic
 
@@ -46,8 +48,7 @@ in the system had to arrange:
 | `plan.ts` | the whole decision, PURE: a snapshot and a request into the files that write would produce |
 | `ops.ts` | the loop — read, plan, commit, re-plan on a stale base — and nothing else |
 | `pending.ts` | what is waiting to be committed, derived from git, the one verb that commits it, and what git is doing for the directory at all — one survey, both answers |
-| `message.ts` | what a commit nobody wrote a message for says |
-| `git.ts` | the plumbing, behind one socket: `open(root)` answers with a repository — its state, what is dirty, what HEAD had, what olai last committed, and `commit` — or with `NoRepo` for a directory that is not a work tree, or `Unusable` for a git that could not be asked |
+| `message.ts` | what a commit nobody wrote a message for says, and how olai recognises its own commits — the `olai` prefix and the `X-Olai-Writer` trailer, handed down to the plumbing rather than known by it |
 | `query.ts` | reading the set as NODES: search, one node, a subtree, the outlines |
 | `tools.ts` | the closed list of what an agent may do, and what it may not |
 | `codec.ts` | the seam where the generic store meets the outline format |
@@ -83,10 +84,11 @@ the format.
 
 **The package exports four things, and the rest of that table is inside.**
 `codec`, `make`, `Query`, `TOOLS` — one socket per concept, not the wires behind
-it. The planner and the git hook are what those are made of; a consumer wants
+it. The planner and the commit hook are what those are made of; a consumer wants
 the writer, not the plan, and its own tests reach it directly. The one type that
-travels with them is `GitState`, because a consumer PUBLISHES that value; the
-two subprocesses that produce it stay in here.
+travels with them is `GitState`, because a consumer PUBLISHES that value; what
+produces it — this layer's survey, over `@olai/git`'s subprocesses — stays in
+here.
 
 The TABLE is exported and used to be private, and the reason it changed is that
 this package used to own an MCP server too. What a consumer wanted then was the
@@ -345,10 +347,11 @@ Git can never fail a write. The bytes are on disk and the browser has already
 seen them by the time git runs, so a refusal is a `Failed` carrying git's own
 words and a warning in the log — with those words as a FIELD (`said=…`) rather
 than inside the sentence, so the message stays greppable and the reason stays
-readable. Only the files this layer wrote are ever named, on both `add` and
-`commit`: a served directory is a working tree with other work in it.
-`src/git.test.ts` holds that shape, along with the repository states that are
-only testable by putting a repository in them.
+readable. Only the files this layer names are ever staged, on both `add` and
+`commit`: a served directory is a working tree with other work in it. The
+subprocesses themselves are [`@olai/git`](../git/README.md), which decides
+nothing and holds that shape in its own tests, along with the repository states
+that are only testable by putting a repository in them.
 
 **And it says WHY, because `committed: false` on its own is four different
 pieces of news.** That was `git-invisible`: a person writing to a directory they

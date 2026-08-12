@@ -20,7 +20,13 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { gitIn as git, repoAt } from "./fixtures.testlib.ts"
-import { open, type Repo } from "./git.ts"
+import { type Audit, open, type Repo } from "./git.ts"
+
+/** The audit convention the packages above this one actually use, so what the
+ *  tests read back is what olai writes — handed in, because which prefix and
+ *  which trailer a caller signs with is exactly what this package does not
+ *  know. */
+const OLAI: Audit = { prefix: "olai", trailer: "X-Olai-Writer" }
 
 /** A directory with a file in it and no repository anywhere it can reach —
  *  `/tmp` is not itself a work tree, and nothing here walks upwards past it. */
@@ -198,7 +204,7 @@ test("the last commit is olai's own, never the repository's HEAD", async () => {
   const run = git(root)
 
   // Nothing of olai's yet, however many commits the person has made.
-  expect(await asked(root, (git) => git.last("olai"))).toBe(null)
+  expect(await asked(root, (git) => git.last(OLAI))).toBe(null)
 
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
   await asked(root, (git) =>
@@ -211,21 +217,38 @@ test("the last commit is olai's own, never the repository's HEAD", async () => {
   run("add", "-A")
   run("commit", "--quiet", "-m", "mine, by hand")
 
-  const last = await asked(root, (git) => git.last("olai"))
+  const last = await asked(root, (git) => git.last(OLAI))
   expect(last?.message).toBe("olai: one edit")
-  expect(last?.writer).toBe("chat-agent")
+  expect(last?.trailer).toBe("chat-agent")
   expect(last?.sha).toMatch(/^[0-9a-f]{40}$/)
   expect(last?.at).not.toBe("")
 })
 
-test("a commit carrying the prefix but no trailer has no writer, rather than a guessed one", async () => {
+/** A commit carrying the prefix and no trailer comes back with an EMPTY one,
+ *  rather than a guess — and rather than a `null` this file would have had to
+ *  invent a vocabulary to justify. What "no writer recorded" means is decided
+ *  one package up, which is the whole of the classification that moved out. */
+test("a commit carrying the prefix but no trailer has an empty one", async () => {
   const { root, file } = repo()
   const run = git(root)
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
   run("add", "-A")
   run("commit", "--quiet", "-m", "olai: typed by a person")
 
-  expect((await asked(root, (git) => git.last("olai")))?.writer).toBe(null)
+  expect((await asked(root, (git) => git.last(OLAI)))?.trailer).toBe("")
+})
+
+/** And a trailer nothing here recognises is NOT filtered out: an unknown
+ *  writer is news, and the classification that turns it into `null` is the
+ *  caller's — this file hands over what git printed. */
+test("an unrecognised trailer arrives verbatim rather than swallowed", async () => {
+  const { root, file } = repo()
+  const run = git(root)
+  fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
+  run("add", "-A")
+  run("commit", "--quiet", "-m", "olai: from elsewhere\n\nX-Olai-Writer: some-other-tool\n")
+
+  expect((await asked(root, (git) => git.last(OLAI)))?.trailer).toBe("some-other-tool")
 })
 
 test("show is HEAD's copy, and null for a file HEAD has never had", async () => {

@@ -19,64 +19,37 @@
  * the git-derived truth, allowed to be empty and never to be relied on.
  */
 
+import { Reason, RepoState } from "@olai/git/state"
 import { Schema } from "effect"
 
 import { NodeChange } from "./changes.ts"
 
+/**
+ * What a repository IS, re-exported rather than declared.
+ *
+ * These two belong to `@olai/git` now — they are that package's own answer to
+ * "can this be committed to", and it is the package that produces them. They
+ * are re-exported HERE because they TRAVEL: the pending value below carries a
+ * `RepoState`, the surface declares that schema, and the browser draws it. One
+ * declaration, one wire shape, and consumers above go on importing them from
+ * the package they already import everything else from.
+ *
+ * They come off the `@olai/git/state` subpath, which is the half of that
+ * package with no subprocess in it — the main entry reaches
+ * `node:child_process`, and this module is imported by a browser.
+ */
+export { Reason, RepoState }
+
 /** Who asked for a write. Intent rather than identity — git only ever records
  *  the repository's own name and email, so without this an agent's edits are
- *  indistinguishable from the ones a person typed. */
+ *  indistinguishable from the ones a person typed.
+ *
+ *  It stays HERE rather than travelling down to `@olai/git` with the repository
+ *  state, and the difference is the point of that extraction: which writers
+ *  olai has is a statement about olai. The git package hands back the trailer
+ *  it read, verbatim, and the ops layer classifies it against this list. */
 export const Writer = Schema.Literals(["chat-agent", "mcp", "web"])
 export type Writer = typeof Writer.Type
-
-/** Why the repository cannot take a commit right now. Nothing used to check
- *  for any of them, which is how an agent marking a node done mid-conflict
- *  could swallow a resolution — the hole that decided manual over automatic,
- *  and the reason this type exists. Every commit path now refuses when the
- *  answer is one of these. */
-export const Reason = Schema.Literals(["merge", "rebase", "cherry-pick", "detached"])
-export type Reason = typeof Reason.Type
-
-/**
- * Whether the served directory can be committed to.
- *
- * Five arms, and EVERY ONE OF THEM IS DRAWN. That is the decision the whole
- * control turns on: this feature exists to be an audit trail of what the tool
- * wrote, so "there is no audit trail here" is the single most important thing
- * it can say, and a pill that disappeared is exactly how a person would never
- * find that out. Same argument as the connection dot, which stays green when it
- * is healthy rather than vanishing.
- *
- * `Off` and `NoRepo` are SETTINGS, not faults — a directory of notes under
- * Dropbox is not this program's business, and neither is a server started with
- * `--commit=off`. They are drawn dim and inert, with no warning colour.
- * `Blocked` and `Unusable` are the two a reader is owed an explanation for, and
- * `Blocked` is the one a person can act on.
- *
- * `Unusable` is #108's, and it is why this is five arms rather than the four the
- * design drew: git RAN and could not answer — no binary on the PATH, dubious
- * ownership, a repository it refuses to use. Folding that into `NoRepo` would
- * say "your notes are not a repository" to somebody whose notes are, which is
- * the exact bug `git-invisible` was filed for. One state, one sentence, and git
- * keeps its own words.
- */
-export const RepoState = Schema.Union([
-  Schema.Struct({ _tag: Schema.Literal("Off") }),
-  Schema.Struct({ _tag: Schema.Literal("NoRepo") }),
-  Schema.Struct({ _tag: Schema.Literal("Ready"), branch: Schema.String }),
-  Schema.Struct({
-    _tag: Schema.Literal("Blocked"),
-    reason: Reason,
-    /** Git's own words, kept as a field rather than folded into a sentence. */
-    said: Schema.String,
-  }),
-  Schema.Struct({
-    _tag: Schema.Literal("Unusable"),
-    /** Git's own words, for the same reason `Blocked` keeps them. */
-    said: Schema.String,
-  }),
-])
-export type RepoState = typeof RepoState.Type
 
 /** Whether a commit could be asked for at all. */
 export const isReady = (repo: RepoState): boolean => repo._tag === "Ready"
