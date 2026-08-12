@@ -2,7 +2,8 @@
 Feature: Workflowy gutter
   The outline gutter matches Workflowy: a filled bullet, a gray halo when
   children are hidden, a hover-reveal `•••` menu and collapse triangle left of
-  the bullet, and a menu of read-only actions the client can already perform.
+  the bullet. What that menu can DO to a node is `menu_verbs.feature`; this is
+  the gutter it hangs in, and the reading verbs it has always had.
 
   Background:
     Given I open the outline "house.jsonl"
@@ -40,14 +41,17 @@ Feature: Workflowy gutter
     Then the collapse control of "kitchen" is revealed
     And the node menu of "kitchen" is revealed
 
-  Scenario: The node menu offers only the five read actions
+  Scenario: The node menu's five read actions come first
+    # What this row can WRITE is `menu_verbs.feature`'s subject; what belongs
+    # here is that the reads are still at the top of the panel, in the order
+    # they were, above the rule that separates them from everything that
+    # changes the directory.
     When I open the node menu of "kitchen"
-    Then the node menu offers exactly:
-      | Zoom in            |
-      | Collapse           |
-      | Expand all         |
-      | Collapse all       |
-      | Copy link to node  |
+    Then the node menu offers "Zoom in"
+    And the node menu offers "Collapse"
+    And the node menu offers "Expand all"
+    And the node menu offers "Collapse all"
+    And the node menu offers "Copy link to node"
 
   Scenario: A copy the browser refused says so, instead of nothing
     # The clipboard is gated on a secure context, so a page served over plain

@@ -28,25 +28,41 @@
  *     spellings of one list — the wire, a parallel type, a client-side
  *     dispatch and a binding each.
  *   - **This is not the ops request vocabulary re-spelled.** It is smaller (no
- *     `create`, no `archive`, no `see`, no `date`, no chosen ids) and, where it
+ *     `create`, no `see`, no `after`, no `mirror`, no chosen ids) and, where it
  *     differs, it differs because something is resolved behind it. Where
- *     nothing is (`title`, `desc`), it uses the ops layer's own word, so a
- *     name that differs from an op's is a name with arithmetic behind it. Ops
- *     itself learns none of this — an op does not know it is being called over
- *     a wire, which is what its own manifest says.
+ *     nothing is (`title`, `desc`, `date`, `archive`, `unmirror`), it uses the
+ *     ops layer's own word, so a name that differs from an op's is a name with
+ *     arithmetic behind it. Ops itself learns none of this — an op does not
+ *     know it is being called over a wire, which is what its own manifest says.
  *
- * THREE OF THE VERBS ARE AN UNDO'S, and they are the one place this list is
- * not shaped like a key. `place`, `mark` and `remove` say where a row SAT,
- * which mark it CARRIED and that a row this session created should go — the
- * facts a structural op destroyed, recorded at apply time
- * ({@link Applied.undo}) and replayed through this same procedure when
- * somebody presses ⌘Z. They name absolute things because that is what "put it
- * back" means; what keeps that honest is WHO NAMED THE IDS — the server
+ * NOT EVERY VERB IS A KEY, and the ones that are not arrived from two
+ * directions that meet in the middle of this list.
+ *
+ * THREE ARE THE `•••` MENU'S, and they are here for a rule rather than for a
+ * feature: "MCP and Web ops must be consistent; never deviate" (HACKING.md).
+ * An agent could clear a date, retire a placement and archive a subtree, and a
+ * person at the same directory could do none of them — a standing deviation
+ * (`editor-op-parity`), not editor growth. `date`, `unmirror` and `archive`
+ * close it for ops that already exist on the other face: each resolves to the
+ * request `set_date` / `remove_mirror` / `archive_node` would have sent, judged
+ * by the same planner, refused in the same words.
+ *
+ * TWO ARE AN UNDO'S, and they are the one place this list is not shaped like a
+ * key at all. `place` and `remove` say where a row SAT and that a row this
+ * session created should go — facts a structural op destroyed, recorded at
+ * apply time ({@link Applied.undo}) and replayed through this same procedure
+ * when somebody presses ⌘Z. They name absolute things because that is what "put
+ * it back" means; what keeps that honest is WHO NAMED THE IDS — the server
  * derived every one of them from the snapshot the original write was judged
  * against, so they are ids an agent would have named, and the replay is judged
  * against the snapshot as it is NOW. Nothing here restores a snapshot: an undo
  * is one more op at the write gate, refused like any other when the set has
  * moved somewhere the inverse cannot go.
+ *
+ * AND ONE IS BOTH THEIRS. `mark` names the mark a node should carry, which is
+ * what a menu entry means ("this is doing now") and what an undo means ("it
+ * carried `todo` before I ticked it off"). Two callers, one arm — a second
+ * would have been the same request under two names, free to drift.
  *
  * THE TWO TEXT VERBS NEED NO UNDO TWIN, and that is the difference worth
  * seeing: the inverse of setting a title is setting the title it replaced, so
@@ -56,15 +72,17 @@
  * only overwrite what IT wrote, so somebody else's words are refused rather
  * than replaced.
  *
- * `remove` IS THE UN-CREATE, and it is worth being exact about what it is not:
- * it is the inverse of an `add`, bound to no key, and this list still has no
- * delete — the deferral #109 recorded (human, 2026-08-11) is still the human's
- * to close, and a delete key would be its own item with its own policy
- * (subtree? confirm?). What this verb resolves to is the ops layer's own
- * `archive` — the only removal the set has — narrowed to a node with nothing
- * under it, which is a rule about what an UNDO is entitled to rather than a
- * delete policy this surface invented. Split/merge, multi-select and drag-drop
- * are their own items, so none of them is expressible here.
+ * WHAT IS STILL DELIBERATELY ABSENT IS A DELETE, and neither removal here is
+ * one. `remove` is the un-create — the inverse of an `add`, bound to no key,
+ * narrowed by the resolver to a node with nothing under it, which is a rule
+ * about what an UNDO is entitled to. `archive` is the ops layer's own put-away,
+ * which the human ruled may take a subtree WITH a confirm naming what goes
+ * (2026-08-12); the ids come along, so a mirror or an `after` that named any of
+ * it goes on resolving. Both are `archive_node` underneath and neither erases
+ * anything. A key that erases a branch is still not spellable here, and the
+ * deferral #109 recorded (human, 2026-08-11) is still the human's to close.
+ * Split/merge, multi-select and drag-drop are their own items, so none of them
+ * is expressible here either.
  */
 
 import { MARKS, OpFailure } from "@olai/format"
@@ -171,7 +189,87 @@ export const Edit = Schema.Union([
     was: Was(Schema.NullOr(Schema.String)),
   }),
 
-  // ── the three an undo speaks ─────────────────────────────────────────
+  // ── the one BOTH the menu and an undo name ───────────────────────────
+
+  /**
+   * The mark this node should CARRY — named outright, where `toggle` names one
+   * and lets the server read which way it goes.
+   *
+   * TWO CALLERS ARRIVED AT THE SAME VERB, from opposite directions, and that is
+   * the argument for it being one arm rather than two. A menu entry means "this
+   * node is doing now", whatever it was a moment ago — it was chosen from a
+   * list drawn beside the mark it is replacing. An undo means "it carried
+   * `todo` before I ticked it off" — a fact only the write that displaced it
+   * knew. Both name the mark absolutely; neither can be spelled as a toggle,
+   * which cannot say WHICH way it goes without reading the stored mark, and
+   * would make a menu ask for `done` to reach `todo` and hope nobody else wrote
+   * in between.
+   *
+   * `null` is "carrying none", which a toggle cannot say either: the format
+   * allows AT MOST ONE mark, so taking a mark off is not the absence of putting
+   * one on. Which op that becomes is the resolver's
+   * ({@link ../../server/src/edit.ts}) — the mark's own op, or the stored
+   * mark's with `undo` — because "what is on it now" is a fact about the set.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("mark"),
+    id: Id,
+    mark: Schema.NullOr(Schema.Literals(MARKS)),
+  }),
+
+  // ── the three the ••• menu speaks ────────────────────────────────────
+
+  /**
+   * The scheduling date, set or cleared — `set_date`'s own reach, spelled the
+   * way {@link Applied} spells `desc`, because nothing is resolved behind it.
+   *
+   * The menu sends only `null` today: CLEARING is the half of this that has
+   * nowhere else to live, and putting a date ON one belongs to the `!` picker
+   * (`input-widgets`), which is a typing affordance rather than a menu entry.
+   * The field is nonetheless the op's full one, and that is the point of this
+   * verb existing at all — the deviation being closed is "MCP can change a
+   * node's date and a person cannot", so the wire says what the op says and
+   * the UI arrives at its own pace. It is also what lets an undo put a cleared
+   * date back, which a clear-only verb could not spell.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("date"),
+    id: Id,
+    /** `null` clears it, which is the only value a menu sends. */
+    date: Schema.NullOr(Schema.String),
+  }),
+  /**
+   * Retire ONE placement: the row goes, the node it shows and every other
+   * placement of it stay.
+   *
+   * `id` is the MIRROR record's — the row's own id, never the id of what it
+   * draws — which is the same distinction a `move` makes and the opposite of
+   * every text edit here. The menu can only offer it on a mirror row, so the
+   * caller has one id and it is the right one; what happens when something
+   * else still names that placement is the ops layer's to refuse, in its own
+   * words, exactly as it refuses `remove_mirror`.
+   */
+  Schema.Struct({ verb: Schema.Literal("unmirror"), id: Id }),
+  /**
+   * Put a node and everything under it away — `archive_node`, from the menu.
+   *
+   * A TRASH, not a shredder: the subtree moves to `Archive.jsonl` under a
+   * scaffold of its ancestors' titles, keeping every id, so a mirror, an
+   * `after` or a `see` that named any of it goes on resolving. It is one op —
+   * the subtree is the op's unit, not this verb's arithmetic — and the fence
+   * around it is not on the wire at all: it is the CONFIRM the menu asks
+   * first, naming how many rows go with it (human, 2026-08-12). A fence in
+   * this schema would be a rule an agent's `archive_node` does not have, which
+   * is the deviation read backwards.
+   *
+   * IT DOES NOT COME BACK YET, and that is not this face's gap: there is no
+   * unarchive on ANY face (`parity-unarchive`), so the archive file is the
+   * restore path for now and the confirm says so rather than implying a bin
+   * somebody can open.
+   */
+  Schema.Struct({ verb: Schema.Literal("archive"), id: Id }),
+
+  // ── the two an undo speaks ───────────────────────────────────────────
 
   /**
    * Put a row back where it sat — the inverse of a `move`, and the only verb
@@ -208,19 +306,6 @@ export const Edit = Schema.Union([
      *  quietly following the neighbour into a branch this row was never in.
      *  That refusal is the feature. */
     after: Schema.NullOr(Id),
-  }),
-  /**
-   * Put a mark back — the inverse of a `toggle`.
-   *
-   * `null` is "it carried none", which a toggle cannot say either: the format
-   * allows at most one mark, so ticking a `todo` node off does not add `done`
-   * beside it, it REPLACES it. What was there is therefore something only the
-   * write that displaced it knew.
-   */
-  Schema.Struct({
-    verb: Schema.Literal("mark"),
-    id: Id,
-    mark: Schema.NullOr(Schema.Literals(MARKS)),
   }),
   /**
    * The UN-CREATE: take back a row that was just made, which is the inverse of

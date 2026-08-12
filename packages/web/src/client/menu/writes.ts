@@ -1,0 +1,68 @@
+/**
+ * A menu verb, at the write gate.
+ *
+ * One function, and the whole of what it adds to `runAsync` is TURNING BOTH
+ * ANSWERS INTO A SENTENCE — because the menu has exactly one place to put one
+ * (the line beside the `•••`) and both moods belong in it:
+ *
+ *   - a REFUSAL is quoted VERBATIM. Not "couldn't mark todo": the ops layer's
+ *     own words are the only ones that say WHY — that this node is done and
+ *     nothing should decide on somebody's behalf that finished work is not
+ *     finished, that a placement is still named by three other rows and by
+ *     which — and a menu that summarised them would be a menu that threw the
+ *     answer away and kept the failure. HACKING.md's rule, at the surface it
+ *     applies to.
+ *   - a NUDGE rides back on a write that LANDED, and it reaches the person who
+ *     caused the write for the same reason it reaches an agent that did
+ *     (`@olai/ops`' `Applied.nudge`, #109): completing the last task under a
+ *     parent is the moment somebody might want to tick the parent too. The
+ *     keyboard already draws its nudges under the row; a menu that dropped
+ *     them would be the one writer whose remarks nobody sees.
+ *
+ * The two are told apart by TONE rather than by which line they are on, which
+ * is the same shape the row editor uses one level down.
+ */
+
+import type { Edit } from "@olai/surface"
+import { Result } from "effect"
+
+import { runAsync } from "../run.ts"
+import { olai } from "../wire.ts"
+import type { Undo } from "../edit/undoing.ts"
+
+/** What a verb has to say afterwards, in the two moods a write has: `alarm`
+ *  for a refusal, which is why nothing happened, and `aside` for a remark
+ *  about something that did.
+ *
+ *  ONE declaration, and it is the undo line's ({@link ../edit/undoing.ts}):
+ *  three surfaces in this client say a thing about a write in these two moods,
+ *  and a second spelling of the same pair would be a second answer to which
+ *  moods there are. Re-exported so the panel reads it from the module it is
+ *  answered by. */
+export type { Said } from "../edit/undoing.ts"
+import type { Said } from "../edit/undoing.ts"
+
+/**
+ * Send it, and answer with whatever there is to say — `undefined` when a write
+ * landed with nothing to add, which is the ordinary case and the one a quiet
+ * gutter is right for.
+ *
+ * `record` is the undo stack's, and a menu write files onto it exactly as a
+ * keystroke does ({@link ../edit/editing.tsx}): the server says what would take
+ * a write back, `undefined` and all, and which of these verbs HAS an inverse is
+ * its answer rather than this file's opinion. So ⌘Z takes back a mark chosen
+ * from the menu and a date cleared from it, and says "nothing to undo" after an
+ * archive — because there is no unarchive on any face to say it with.
+ */
+export const applying = async (
+  edit: Edit,
+  record: Undo["record"],
+): Promise<Said | undefined> => {
+  const outcome = await runAsync(olai.procedures.edit.apply(edit))
+  if (Result.isFailure(outcome)) {
+    return { tone: "alarm", text: outcome.failure.message }
+  }
+  record(outcome.success.undo)
+  const nudge = outcome.success.nudge
+  return nudge === undefined ? undefined : { tone: "aside", text: nudge }
+}

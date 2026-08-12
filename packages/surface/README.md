@@ -162,8 +162,9 @@ never sent. The agent's WRITES are not members at all: they reach the ops layer
 through the internal MCP server, and what a reader sees of them is the outline
 entries moving.
 
-The last member is the **keyboard's** (`src/edit.ts`) — one procedure over one
-tagged union, and the only place a browser may cause a write:
+The last member is the **keyboard's and the row menu's** (`src/edit.ts`) — one
+procedure over one tagged union, and the only place a browser may cause a
+write:
 
 - **the verbs are INTENTS.** `Tab` says "indent this", not "reparent it under
   the node above and put it last"; `Ctrl+Enter` says "toggle done", not "set"
@@ -177,33 +178,46 @@ tagged union, and the only place a browser may cause a write:
   site is a compile error rather than a silent hole. Five procedures was the
   first shape, and it was five spellings of one list.
 - **it is not the ops request vocabulary re-spelled.** It is smaller (no
-  `create`, no `archive`, no `see`, no `date`, no chosen ids) and, where it
-  differs, it differs because something is resolved behind it — so the two
-  verbs that resolve nothing use the ops layer's own words (`title`, `desc`),
-  and a name that differs from an op's is a name with arithmetic behind it.
-  Ops itself learns none of it: an op does not know it is being called over a
-  wire.
-- **three of the verbs are an UNDO's**, and they are the one place the list is
-  not shaped like a key: `place` says where a row SAT, `mark` which mark it
-  CARRIED, `remove` that a row this session created should go. They name
-  absolute things because "put it back" means one, and what keeps that honest
-  is who named the ids — the server derived every one of them from the
-  snapshot the original write was judged against, and rides them back on the
-  answer (`Applied.undo`) for the browser to replay. Nothing restores a
-  snapshot: an undo is one more op at the write gate, judged against the set as
-  it is now.
+  `create`, no `see`, no `after`, no `mirror`, no chosen ids) and, where it
+  differs, it differs because something is resolved behind it — so the verbs
+  that resolve nothing use the ops layer's own words (`title`, `desc`, `date`,
+  `unmirror`, `archive`), and a name that differs from an op's is a name with
+  arithmetic behind it. Ops itself learns none of it: an op does not know it is
+  being called over a wire.
+- **three of the verbs are the `•••` menu's**, and they are here to close a
+  DEVIATION rather than to grow the editor: an agent could clear a date, retire
+  a placement and archive a subtree, and a person could do none of them
+  (HACKING.md — "MCP and Web ops must be consistent; never deviate"). `date`,
+  `unmirror` and `archive` each resolve to the request the equivalent tool
+  sends. A fence the UI wants stays in the UI: `archive` takes a subtree because
+  `archive_node` does, and the confirm naming how many rows go is the menu's own
+  second step — put here, it would be a rule the agent's op does not have.
+- **two of the verbs are an UNDO's**, and they are the one place the list is
+  not shaped like a key: `place` says where a row SAT, `remove` that a row this
+  session created should go. They name absolute things because "put it back"
+  means one, and what keeps that honest is who named the ids — the server
+  derived every one of them from the snapshot the original write was judged
+  against, and rides them back on the answer (`Applied.undo`) for the browser to
+  replay. Nothing restores a snapshot: an undo is one more op at the write gate,
+  judged against the set as it is now.
+- **and one verb is BOTH theirs.** `mark` names the mark a node should carry —
+  what a menu entry means ("this is doing now") and what an undo means ("it
+  carried `todo` before I ticked it off"). Two callers, one arm; a second would
+  have been the same request under two names, free to drift.
 - **the two TEXT verbs need no undo twin.** The inverse of setting a title is
   setting the title it replaced, so an undo sends `title` — same verb, same op,
   the other text. What it adds is `was`: the text it expects to find. A person
   typing overwrites whatever is there (which is what `set_title` does for an
   agent); an undo may only overwrite what IT wrote, so a row somebody else has
   retyped is refused rather than written over.
-- **the UN-CREATE is one of them, and it is not a delete.** `remove` is the
-  inverse of an `add`: no key sends it, the only row it can take back is a row
-  that was just made, and what it resolves to is `archive` — the only removal
-  the set has, narrowed to a node with nothing under it. Whether this face ever
-  gets a delete KEY is still the deferral #109 recorded, and still the human's
-  to close.
+- **neither removal here is a delete.** `remove` is the inverse of an `add`: no
+  key sends it, the only row it can take back is a row that was just made, and
+  what it resolves to is `archive` — narrowed to a node with nothing under it.
+  `archive` is that same op unnarrowed, the human's subtree ruling with a
+  confirm in front of it; the ids come along, so mirrors and `after` edges that
+  name the subtree go on resolving. A key that ERASES one is the one edit a
+  person cannot re-type from memory, nothing on any face does it, and whether
+  this face ever gets a delete KEY is still the deferral #109 recorded.
 
 It declares `OpFailure` as its error channel, which is what the editor is built
 on: a refused write comes back as the validator's own rows, so the draft it
