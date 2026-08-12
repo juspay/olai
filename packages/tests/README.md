@@ -18,6 +18,7 @@ packages/tests/
 │                           #   by that client and both fakes below
 ├── agent/                   # the scripted ACP agent the chat scenarios drive,
 │                           #   and the fake `kolu` every server finds on PATH
+├── bin/broken-git/git       # a `git` that is found and fails, for @git:broken
 └── fixtures/                # the served directories (see fixtures/README.md)
 ```
 
@@ -124,6 +125,32 @@ do when the process behind it is replaced? The restart comes back on the SAME
 port, because the page is already pointed at it — `startOwnServer` binds the
 exact port and fails loudly if the address it got back is a different one, so a
 port stolen in between reads as itself instead of as a mysteriously dead page.
+
+## Git, which every other scenario is served without
+
+Every server this harness spawns runs with `--no-commit`: a scratch corpus is a
+temp copy, and committing into whatever repository happens to contain the temp
+directory is not the suite's business. That is also a STATE — the one where the
+page says nothing about git at all — so it is asserted rather than assumed.
+
+**`@git:<repo|none|broken>`** starts a scenario's server without the opt-out and
+says which of the three things git is for its directory: a real repository (the
+scratch copy is `git init`ed with a local identity and a first commit), a
+directory that is not one, or a git that is FOUND and fails —
+`bin/broken-git/git`, put first on that server's PATH, answering every call with
+git's own `fatal: detected dubious ownership`. The last one is the case the
+readout exists for: it is not "there is no repository here", and reporting it as
+if it were is the bug `features/git_state.feature` holds shut.
+
+Like `@kolu` and `@agent-stored`, it needs `@scratch:<corpus>` — what a server
+commits to is decided when it is started, and a `@corpus:` server is running for
+every other scenario in the run. The `Before` hook says so by name.
+
+One of those scenarios goes the whole way rather than reading chrome: it asks
+the agent for a write under a broken git and opens the tool call's detail, which
+is the op's own reply as the reader gets it. That is the only assertion in the
+suite that follows one field (`Applied.why`) from the ops layer, through the
+internal MCP server and the transcript, onto a screen.
 
 ## A phone, and the two things it changes
 
@@ -285,6 +312,7 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="outline-failure"][data-file]` | shown in ONE outline's place: that file will not parse |
 | `[data-testid="outline-link"][data-broken]` | the sidebar entry of a file that will not parse |
 | `[data-testid="connection"][data-connection]` | the connection dot, in every shape of the app: `connecting`, `live`, `reconnecting`, `retired` |
+| `[data-testid="git"][data-git]` | the git readout beside it: `repo`, `none`, `error` — and ABSENT under `--no-commit`, which is the fourth state. What git said is its `aria-label` and its tip, never a colour |
 | `[data-testid="restarted"]` | over everything: the server that served this page has been replaced |
 | `[data-testid="reload"]` | the button in that surface — the whole of the recovery |
 | `[data-testid="theme-picker"]` | the theme picker in the sidebar |
@@ -328,6 +356,16 @@ language model, which is the one thing a CI lane cannot afford to be
 non-deterministic about. Behaviour is keyed on the prompt text (`done <id>`,
 `add <title>`, `servers`, `slow`, `hold`, `model <id>`, `crash`), so a scenario
 asks for what it needs.
+
+One behaviour is keyed on the prompt's SHAPE rather than its first word: a
+prompt naming an attached image opens that file and says how many bytes it
+found. A scripted agent cannot look at a picture and does not have to — what an
+e2e can prove is that the bytes the browser pasted are the bytes at the path the
+agent was handed, and a size read off the disk is the only way to say so. The
+paste itself is DISPATCHED rather than performed (`chat_steps.ts`): Playwright
+cannot put an image on the system clipboard portably, so the step builds the
+`ClipboardEvent` the browser would have built, with a real `File` in a real
+`DataTransfer`, and everything after that line is the app.
 
 `hold` is the one worth knowing about: it starts a tool call, streams a chunk,
 and goes on streaming until the scenario touches `.agent-release` in the served

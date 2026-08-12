@@ -37,6 +37,7 @@ import { createScheduled, throttle } from "@solid-primitives/scheduled"
 import { createMemo, Match, Show, Switch } from "solid-js"
 
 
+import { Attachments } from "./Attachments.tsx"
 import { Markdown } from "../markdown/Markdown.tsx"
 import { TESTID } from "../testids.ts"
 import { Refusal } from "./Refusal.tsx"
@@ -73,9 +74,15 @@ export function Entry(props: { readonly entry: ChatEntry }) {
     >
       <Switch>
         <Match when={props.entry.kind === "user"}>
-          <p class="whitespace-pre-wrap rounded bg-rule/60 px-2 py-1 text-sm">
-            {props.entry.text}
-          </p>
+          {/* The pictures first, then the words — which is the order they were
+              put in, and it keeps a message whose whole content is a
+              screenshot from being an empty grey box with a chip under it. */}
+          <Attachments names={props.entry.attachments ?? []} />
+          <Show when={props.entry.text !== ""}>
+            <p class="whitespace-pre-wrap rounded bg-rule/60 px-2 py-1 text-sm">
+              {props.entry.text}
+            </p>
+          </Show>
         </Match>
 
         <Match when={props.entry.kind === "agent"}>

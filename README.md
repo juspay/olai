@@ -210,12 +210,28 @@ a load runs, and came back on the same subscription every other change does.
 Each one is a git commit, with a subject you can read (`done: order the new
 cabinets`).
 
+Which raises the second question the page had better answer, beside "is it
+still reading": is any of this being kept? A git failure never fails a write —
+the bytes are on disk and you have already seen them — but it is never silent
+either. A second pill in the header says what git is doing with this directory,
+and it is quiet when the answer is "committing every write". A directory that is
+not a repository says so calmly; a git that tried and could not says `Git error`
+and hands you its own words. Nothing is shown at all when you served the
+directory with `--no-commit`, because that is a choice you made rather than
+something that went wrong. And a write that did not reach the history comes back
+saying why, where the agent and the panel both read it.
+
 The agent cannot free-write a file. It has no filesystem access at all: the
 only things it can name are NODES, through a closed list of tools — search,
 read a subtree, create an outline, add, mark, retitle, note, schedule, move,
-archive. Creating an outline is the one place a path is named, and it is a
-relative `.jsonl` under the served directory, refused if it already exists and
-written only as whole records. So the edits it can express are the edits the
+archive. Adding takes a whole subtree, nested, so capturing an outline is one
+call rather than one per bullet — and one call is one validation and one
+commit, which is what makes a half-captured outline impossible rather than
+unlikely. A new outline is born the same way, holding whatever it was created
+with: the file and its contents land together or not at all, so nothing is left
+behind by a capture that was refused. Creating one is the one place a path is
+named, and it is a relative `.jsonl` under the served directory, refused if it
+already exists and written only as whole records. So the edits it can express are the edits the
 format can be, and a malformed outline is not something it can produce. Whether
 that is a restriction or the point depends on how you feel about a coding agent
 with `sed` and your notes.
@@ -226,6 +242,16 @@ each pinned to the line it is about. And when a write lands but is worth a
 second look — a branch ticked done over tasks nobody finished, or the last
 open task under a parent going done — the answer says so. Advice about
 something that happened, never a refusal.
+
+You can paste a picture into the box — a screenshot, a photo of a whiteboard —
+and ask about it. Drag one onto the panel, or pick one from a phone's roll,
+which is the same thing without a Ctrl+V. The bytes go into a temporary
+directory belonging to that conversation, never under the directory being
+served, and what the agent is handed is the PATH: it reads the file itself, so
+no image rides the prompt into the stored session, and nothing pasted here can
+end up committed with your outlines. The pictures go away when you start a new
+conversation or stop the server. The transcript names each one; the tab you
+pasted from also shows it.
 
 The conversation is Claude Code's own session for that directory: close olai,
 reopen it, and you are back in it — and `claude --resume` in a terminal reaches

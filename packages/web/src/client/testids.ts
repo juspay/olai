@@ -201,6 +201,11 @@ export const TESTID = {
    *  carries the state itself — `live`, `lost`, `restarted`, `connecting` — so a
    *  scenario asserts on the state and never on the colour it is painted. */
   connection: "connection",
+  /** The git readout, beside the connection. `data-git` carries the state —
+   *  `repo`, `none`, `error` — and the element is ABSENT under `--no-commit`,
+   *  which is the fourth state (`off`) and the one with nothing to say. What
+   *  git actually said rides the tip and the `aria-label`, never a colour. */
+  git: "git",
   /** Over everything: the server that served this page has been replaced. */
   restarted: "restarted",
   /** The button in that surface — the whole of the recovery. Shared with the
@@ -286,6 +291,16 @@ export const TESTID = {
   chatQueued: "chat-queued",
   chatSend: "chat-send",
   chatCancel: "chat-cancel",
+  /** The pictures on a message — pending in the composer, or sent, on the row.
+   *  Each one is a `chatAttachment` carrying its file name in `data-name`. */
+  chatAttachments: "chat-attachments",
+  chatAttachment: "chat-attachment",
+  /** Drawn only in the tab that sent the picture, out of the Blob it still
+   *  has. Every other tab has the name and nothing to draw. */
+  chatAttachmentPreview: "chat-attachment-preview",
+  chatAttachmentRemove: "chat-attachment-remove",
+  /** The file picker beside the input — a phone has no Ctrl+V. */
+  chatAttachButton: "chat-attach",
   /** The button that opens the WHOLE command list. Drawn only when the agent
    *  offers commands. */
   chatCommands: "chat-commands",

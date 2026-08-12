@@ -19,7 +19,7 @@ import { Given, Then, When } from "@cucumber/cucumber";
 
 import { olaiBin } from "../support/hooks.ts";
 import { callTool, connectTerminalAgent } from "../support/mcp.ts";
-import type { OlaiWorld } from "../support/world.ts";
+import { HYDRATION_TIMEOUT, type OlaiWorld } from "../support/world.ts";
 
 /** The half of a tool result a CALLER acts on. The prose beside it is what a
  *  model reads, and a test that parsed prose would be asserting on wording. */
@@ -96,12 +96,101 @@ When(
   },
 );
 
+/** The subtree the batch-capture scenario writes: four nodes, three levels,
+ *  ONE call. The ids are chosen so the assertions can name the rows; a real
+ *  agent would let them be minted and read them back out of `captured`. */
+const PANTRY = {
+  parent: "kitchen",
+  id: "pantry",
+  title: "the pantry",
+  children: [
+    {
+      id: "shelves",
+      title: "shelves",
+      children: [{ id: "measure", title: "measure the alcove", mark: "todo" }],
+    },
+    { id: "paint", title: "paint it", mark: "done" },
+  ],
+};
+
+When(
+  "the terminal agent captures a pantry and everything in it, in one call",
+  async function (this: OlaiWorld) {
+    this.toolAnswer = await callTool(agentOf(this), "add_node", PANTRY);
+  },
+);
+
+/**
+ * The claim the batch op exists for, asserted the only way that distinguishes
+ * it from the sequence it replaced: the tree is read ONCE, after the root
+ * arrives. One call was one validation, one rename and one snapshot, so a tab
+ * that has the root of the capture already has all of it — where a step that
+ * waited for each row would pass just as happily on four separate writes
+ * trickling in.
+ */
+Then(
+  "the tree shows the whole captured subtree at once",
+  async function (this: OlaiWorld) {
+    await this.visibleNode("pantry")
+      .first()
+      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+
+    for (const id of ["shelves", "measure", "paint"]) {
+      assert.ok(
+        (await this.visibleNode(id).count()) > 0,
+        `the root of the capture is on screen and "${id}" is not — the whole ` +
+          "subtree went to disk in one atomic write, so the page that has one " +
+          "of them has all of them",
+      );
+    }
+  },
+);
+
+Then(
+  "the terminal agent was told it captured {int} nodes",
+  function (this: OlaiWorld, many: number) {
+    const captured = structuredOf(this)["captured"] as
+      | ReadonlyArray<{ readonly id: string }>
+      | undefined;
+    assert.strictEqual(
+      captured?.length,
+      many,
+      "a capture answers with every node it made — id and title — so the next " +
+        `call can name one without searching for an id nobody chose. It said: ${
+          JSON.stringify(captured)
+        }`,
+    );
+  },
+);
+
 When(
   "the terminal agent creates the outline {string} seeded with {string}",
   async function (this: OlaiWorld, file: string, title: string) {
     await callTool(agentOf(this), "create_outline", {
       file,
       seed: { title },
+    });
+  },
+);
+
+When(
+  "the terminal agent creates the outline {string} holding a whole tree",
+  async function (this: OlaiWorld, file: string) {
+    // The seed is a capture, `children` and all — so the file and everything in
+    // it are one plan, one validation, one rename. Two calls used to be the
+    // only way, and a refused second one left an empty outline behind.
+    this.toolAnswer = await callTool(agentOf(this), "create_outline", {
+      file,
+      seed: {
+        id: "shed",
+        title: "the shed",
+        children: [{
+          id: "clear",
+          title: "clear it out",
+          mark: "todo",
+          children: [{ id: "tins", title: "the old paint tins" }],
+        }],
+      },
     });
   },
 );

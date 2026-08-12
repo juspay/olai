@@ -28,6 +28,12 @@
  *     procedure that also echoed its result would be a second answer to what
  *     the directory says, arriving first and occasionally disagreeing.
  *
+ * And one fact belongs to neither: what GIT is doing for the directory. It is
+ * the ops layer's — the only thing here that commits — so it arrives seeded and
+ * is written by that layer's observer, with no `connect` of its own: there is
+ * no stream behind it, only a probe once per serve and whatever a refused
+ * commit has to say afterwards.
+ *
  * Nothing here interprets an outline or an agent. It moves what the store and
  * the chat decided onto the wire, and that is all — with one exception, and it
  * is one indirection deep: an edit's INTENT is resolved into an op by
@@ -42,6 +48,7 @@ import {
   CHAT_OFF,
   type ChatState,
   type Edit,
+  type GitState,
   LOADED,
   type Manifest,
   type OpFailure,
@@ -94,6 +101,14 @@ export interface Wiring {
    *  they hold nothing of their own: what a keystroke MEANT is resolved
    *  against this layer's own reading (`./edit.ts`) and run as one op. */
   readonly ops: Ops
+  /** What git is doing for this directory, as the ops layer found it — the
+   *  value the cell OPENS on, so a page that never sees a write still knows
+   *  whether the directory it is reading has a history. Later changes arrive
+   *  through {@link Publishers.git}.
+   *
+   *  Typed as the surface's own shape, which `@olai/ops` declares structurally:
+   *  the two drifting is a type error here rather than a mapping to maintain. */
+  readonly git: GitState
 }
 
 /** The chat, plus the two publishers the surface hands back once it exists.
@@ -103,6 +118,10 @@ export interface Wiring {
 export interface Publishers {
   readonly state: (state: ChatState) => void
   readonly transcript: (change: Change) => void
+  /** What git is doing now. Called by the ops layer's observer, and only when
+   *  it CHANGED — a healthy write says nothing, so an open tab is not woken on
+   *  every op. */
+  readonly git: (state: GitState) => void
 }
 
 export const bind = (
@@ -180,6 +199,11 @@ export const bind = (
         chat: {
           store: inMemoryStore<ChatState>(chat === null ? CHAT_OFF : chat.state()),
         },
+        /** Seeded from what the ops layer already found, and written by its
+         *  observer afterwards — no `connect`, because there is no stream to
+         *  follow: git is asked once per serve and only speaks again when a
+         *  commit refuses. */
+        git: { store: inMemoryStore<GitState>(wiring.git) },
         /** The whole directory binding, because one revision is one write of
          *  everything it moved: for each collection the entries that changed
          *  and the keys that went, and then the facts that belong to no file.
@@ -251,7 +275,14 @@ export const bind = (
       },
       procedures: {
         chat: {
-          send: ({ input }) => withChat((open) => open.send(input.text)),
+          send: ({ input }) =>
+            withChat((open) => open.send(input.text, input.attachments ?? [])),
+          // The chunk goes straight through, and so does the answer: what a
+          // chunk MEANS — which file it continues, whether that file is this
+          // conversation's, what the file ends up being called — belongs to
+          // the chat, and re-deciding any of it here would be a second opinion
+          // about the same bytes.
+          attach: ({ input }) => withChat((open) => open.attach(input)),
           cancel: () => withChat((open) => open.cancel),
           newSession: () => withChat((open) => open.newSession),
           loadSession: ({ input }) => withChat((open) => open.loadSession(input.id)),
@@ -288,6 +319,7 @@ export const bind = (
       bound: runtime,
       publish: {
         state: (state) => runtime.ctx.cells.chat.set(state),
+        git: (state) => runtime.ctx.cells.git.set(state),
         transcript: (change) => {
           for (const key of change.removes) runtime.ctx.collections.transcript.remove(key)
           for (const [key, entry] of change.upserts) {

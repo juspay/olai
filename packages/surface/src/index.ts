@@ -32,6 +32,11 @@
  *     the entries: a set that stops validating leaves the last good tree on
  *     screen underneath a banner, which is only expressible if the two arrive
  *     separately.
+ *   - `git` is a CELL, for the same reason and about the other half of what a
+ *     write costs: whether this directory is a repository, and whether the last
+ *     commit worked. A directory that is not one, or a git that cannot be run,
+ *     is news a reader is owed rather than a line in a server log
+ *     ({@link GitState}).
  *
  * Who is on the other end is NOT a member here, and it was for one commit. The
  * question is real — a page bound to a replaced server must know — but the
@@ -43,7 +48,7 @@
  * {@link ./chat.ts} because they are a subject of their own: a `transcript`
  * COLLECTION (batched deltas, so a late-joining tab sees the conversation), a
  * `chat` CELL (session, model, commands, whether a turn is running) and the
- * `chat` PROCEDURES (send, cancel, new, load, list). The agent's WRITES do not
+ * `chat` PROCEDURES (send, cancel, new, load, list, attach). The agent's WRITES do not
  * appear here at all: they reach the ops layer through an internal MCP server
  * the session is handed, and what a reader sees of them is the outline stream
  * moving — server-authoritative, never an optimistic echo.
@@ -61,6 +66,8 @@ import { defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
 
 import {
+  AttachChunk,
+  Attached,
   CHAT_OFF,
   ChatEntry,
   ChatFailure,
@@ -150,6 +157,47 @@ export type Manifest = typeof Manifest.Type
 /** A directory that has loaded, as the one value there is of it. */
 export const LOADED: Manifest = {}
 
+/**
+ * What git is doing for the served directory.
+ *
+ * A member because of a bug: writes came back `committed: false` with nothing
+ * on screen saying so, on a directory its owner knew was a repository, and the
+ * reason went to the server log where a browser reader never sees it. Every
+ * cause looked the same from out here — no work tree, no git on the service's
+ * PATH, a refused commit, an identity nobody set — so the page could not have
+ * told the truth even if it had wanted to. Now the server says which, and the
+ * four states are four different things to draw (`web/src/client/git/`):
+ *
+ *   - `off` — `--no-commit`. An owner's choice; the page shows nothing.
+ *   - `repo` — a work tree, and writes are committing. Quiet: this is the
+ *     healthy default and a page that shouted it would teach a reader to
+ *     ignore the thing that matters.
+ *   - `none` — not a work tree. Calm and informational: "Not a Git repo".
+ *   - `error` — git tried and could not, and `said` is its own words.
+ *
+ * A CELL, and read-only on the wire, for the reason the manifest is: one value
+ * the server owns, about the directory rather than about any file in it. It
+ * moves twice at most in an ordinary serve — once when the directory is probed,
+ * and again if a commit ever refuses — so nothing here is a stream of anything.
+ *
+ * The shape is deliberately the same as `@olai/ops`' own `GitState`, which is
+ * where the value comes from: the server hands one straight to the other, so
+ * the two declarations drifting is a type error at the seam rather than a
+ * mapping nobody re-reads.
+ */
+export const GitState = Schema.Struct({
+  status: Schema.Literals(["off", "repo", "none", "error"]),
+  /** What git said, for the state that has something to quote — the reason a
+   *  reader gets rather than "something went wrong". `null` otherwise. */
+  said: Schema.NullOr(Schema.String),
+})
+export type GitState = typeof GitState.Type
+
+/** What a page reads before the first frame arrives, and what a `--no-commit`
+ *  serve stays in. `off` is the right default twice over: it draws nothing, so
+ *  a page cannot flash "Not a Git repo" at a repository on its way to the truth. */
+export const GIT_OFF: GitState = { status: "off", said: null }
+
 /** When two answers are the same answer, so the cell can stay quiet. There is
  *  exactly one thing this value can say, so there is exactly one thing that can
  *  change about it: whether there is a set. */
@@ -179,6 +227,14 @@ export const surface = defineSurface({
     chat: {
       schema: ChatState,
       default: CHAT_OFF,
+      verbs: ["get"],
+    },
+    /** What git is doing for this directory — see {@link GitState}. Wire-read-only:
+     *  it is the server's reading of somebody's working tree, and nothing a
+     *  browser could set. */
+    git: {
+      schema: GitState,
+      default: GIT_OFF,
       verbs: ["get"],
     },
   },
@@ -244,7 +300,34 @@ export const surface = defineSurface({
        *  it ends: what the panel draws comes back on the transcript, so every
        *  open tab stays in step and a slow turn does not hold a call open. */
       send: {
-        input: Schema.Struct({ text: Schema.String }),
+        input: Schema.Struct({
+          text: Schema.String,
+          /** The pictures this message carries, as the PATHS `attach`
+           *  answered with. Absent is the same as empty — a prompt with no
+           *  picture is every prompt olai had until now, and a caller should
+           *  not have to spell an empty list to say so.
+           *
+           *  Paths and not bytes, because that is the whole design: the file
+           *  is already on disk by the time this is called, the agent is
+           *  handed the path in its prompt and reads it itself. They are
+           *  re-checked against the conversation's own directory here — a
+           *  path that arrived over the wire names nothing on its own. */
+          attachments: Schema.optionalKey(Schema.Array(Schema.String)),
+        }),
+        error: ChatFailure,
+      },
+      /** One chunk of a picture, into the conversation's tmp directory.
+       *
+       *  A PROCEDURE rather than an upload route, which is the decision worth
+       *  naming: a procedure inherits the origin gate and the session the
+       *  listener already enforces for the websocket, where a second HTTP
+       *  route would need its own copy of both. And a SIBLING of `send`
+       *  rather than a widening of it, because the two answer different
+       *  questions — `attach` says where the bytes landed, `send` says a turn
+       *  was accepted — and a file is N calls to one send. */
+      attach: {
+        input: AttachChunk,
+        output: Attached,
         error: ChatFailure,
       },
       /** Stop the turn in flight. Legal while the agent is still booting — the
@@ -277,6 +360,8 @@ export const surface = defineSurface({
 })
 
 export {
+  Attached,
+  AttachChunk,
   BusyFailure,
   CHAT_OFF,
   ChatEntry,
@@ -287,6 +372,7 @@ export {
   kindOf,
   OpFailure,
   SessionInfo,
+  UsageFailure,
 } from "./chat.ts"
 
 /** What a keyboard may do — one tagged union, and what a write that landed
@@ -296,3 +382,14 @@ export { type Applied, Anchor, Edit } from "./edit.ts"
 
 /** The one HTTP address both ends spell — see {@link ./media.ts}. */
 export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
+
+/** What an attachment may be and how it is cut up — the policy the browser
+ *  gates on before encoding and the server gates on before writing. One
+ *  module, for the same reason the media URL is one: two copies of a threshold
+ *  are two thresholds. See {@link ./attach.ts}. */
+export {
+  attachmentRejection,
+  base64DecodedLength,
+  chunkBase64,
+  MAX_ATTACHMENT_BYTES,
+} from "./attach.ts"

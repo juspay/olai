@@ -43,7 +43,7 @@ import { Effect } from "effect"
 
 import { openDirectory } from "../directory.ts"
 import { watchFault } from "../fault.ts"
-import { bind } from "../runtime.ts"
+import { bind, type Publishers } from "../runtime.ts"
 import { serveFace } from "./face.ts"
 import { bespokeFrom } from "./tools.ts"
 
@@ -156,7 +156,18 @@ export interface McpServeOptions {
 export const serveTools = (options: McpServeOptions) =>
   Effect.gen(function*() {
     const { root, store } = yield* openDirectory(options.root)
-    const ops = makeOps({ store, root, commit: options.commit })
+    // Filled the moment the surface exists — the same slot `../serve.ts` uses,
+    // and safe for the same reason: nothing writes before `bind` returns.
+    let publish: Publishers | null = null
+    const ops = makeOps({
+      store,
+      root,
+      commit: options.commit,
+      // A terminal agent reads the git cell as a resource of this surface, so
+      // a commit that starts refusing reaches it the same way it reaches a
+      // browser. Its own writes get the reason on the reply as well.
+      onGit: (state) => publish?.git(state),
+    })
 
     // The surface, bound to this store. No chat: there is no browser here and
     // nothing to prompt, and `bind` already answers a chat verb as a refusal
@@ -165,7 +176,8 @@ export const serveTools = (options: McpServeOptions) =>
     // it backs are unexposed on this face (`./expose.ts` is default-deny, and
     // an agent has the tools), so what they cost here is a binding nobody can
     // reach.
-    const wired = yield* bind({ store, chat: null, ops })
+    const wired = yield* bind({ store, chat: null, ops, git: yield* ops.git })
+    publish = wired.publish
     // The runtime's `done` rejects when it is closed, so something must hold
     // that catch or a clean shutdown surfaces as an unhandled rejection. Same
     // reason as `../serve.ts`, and registered in the same order: `stopped`

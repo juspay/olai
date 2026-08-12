@@ -60,6 +60,12 @@ export const SCENARIO_SETUP_TIMEOUT = SERVER_START_TIMEOUT + STEP_GUARD;
 /** The mount point — `index.html`'s, not the client's, so it is the one
  *  selector here the client does not own and the one spelled out locally. */
 export const ROOT = "#root";
+
+/** Which of the three git situations a scenario's server was started into
+ *  (`@git:…`) — spelled here, where the world's field is, because `hooks.ts`
+ *  already reads this module and a second copy of the three words is a second
+ *  place for the tag pattern and the field to disagree. */
+export type GitMode = "repo" | "none" | "broken";
 /** The app header: wordmark + connection + agent + theme. Always on screen. */
 export const APP_HEADER = selector(TESTID.appHeader);
 /** The sidebar: the month and the file tree (directory chrome only). */
@@ -183,6 +189,10 @@ export const OUTLINE_FAILURE = selector(TESTID.outlineFailure);
 /** The connection dot, on screen in every shape of the app. The state it is
  *  reporting is its `data-connection`, never its colour. */
 export const CONNECTION = selector(TESTID.connection);
+/** The git readout beside it: `data-git` is the state, its `aria-label` is the
+ *  sentence (git's own words included), and it is ABSENT on a `--no-commit`
+ *  serve — which is a claim a scenario makes rather than an accident. */
+export const GIT = selector(TESTID.git);
 /** Over everything: the server that served this page has been replaced. */
 export const RESTARTED = selector(TESTID.restarted);
 /** The button in that surface, and in the fault card — one control, one name. */
@@ -239,6 +249,11 @@ export const CHAT_QUEUED = selector(TESTID.chatQueued);
 export const CHAT_SEND = selector(TESTID.chatSend);
 export const CHAT_CANCEL = selector(TESTID.chatCancel);
 export const CHAT_SLASH_COMMAND = selector(TESTID.chatSlashCommand);
+/** A picture on a message — pending in the composer, or sent, on the row. Its
+ *  `data-name` is the file name, which is the only thing about it every tab
+ *  agrees on; the preview is drawn ONLY by the tab that has the Blob. */
+export const CHAT_ATTACHMENT = selector(TESTID.chatAttachment);
+export const CHAT_ATTACHMENT_PREVIEW = selector(TESTID.chatAttachmentPreview);
 
 /** The app has finished its first render when it has committed to one of its
  *  three shapes: a docked header (the set loaded and the directory column is
@@ -351,6 +366,12 @@ export class OlaiWorld extends World {
    *  are handed kolu's terminals as well as olai's own tools. Carried for the
    *  same reason again: a restart has to reproduce the first boot. */
   hasKolu = false;
+  /** Which git situation this scenario's server was started into (`@git:…`),
+   *  or `undefined` for the `--no-commit` every other scenario runs with.
+   *  Carried for the same reason as the three above: a restart mid-scenario has
+   *  to reproduce the first boot, and this one decides both the argv and what
+   *  the served directory IS. */
+  gitMode?: GitMode;
   /** The URL that corpus's server answers on; also the context's `baseURL`. */
   baseUrl!: string;
 

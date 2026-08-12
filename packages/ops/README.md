@@ -1,7 +1,8 @@
 # @olai/ops — the only writer
 
-Semantic edits over a served directory: create an outline, add, mark done,
-doing or todo, retitle, note, schedule, move, archive, set see references.
+Semantic edits over a served directory: create an outline, add a node or a
+whole subtree, mark done, doing or todo, retitle, note, schedule, move,
+archive, set see references.
 Everything that changes an outline goes through here, and everything an agent
 may READ of one comes out of here too.
 
@@ -43,7 +44,7 @@ in the system had to arrange:
 | `request.ts` | the things a writer may ask for, as schemas — one declaration serving the planner's switch, the tool schemas and the decoder |
 | `plan.ts` | the whole decision, PURE: a snapshot and a request into the files that write would produce |
 | `ops.ts` | the loop — read, plan, commit, re-plan on a stale base — and nothing else |
-| `git.ts` | the auto-commit, as the store's post-publish hook |
+| `git.ts` | the auto-commit, as the store's post-publish hook — and what it has to say for itself: which of the four states this directory is in, and why a write was not committed |
 | `query.ts` | reading the set as NODES: search, one node, a subtree, the outlines |
 | `tools.ts` | the closed list of what an agent may do, and what it may not |
 | `codec.ts` | the seam where the generic store meets the outline format |
@@ -74,13 +75,78 @@ validating dates as text.
 **The package exports four things, and the rest of that table is inside.**
 `codec`, `make`, `Query`, `TOOLS` — one socket per concept, not the wires behind
 it. The planner and the git hook are what those are made of; a consumer wants
-the writer, not the plan, and its own tests reach it directly.
+the writer, not the plan, and its own tests reach it directly. The one type that
+travels with them is `GitState`, because a consumer PUBLISHES that value; the
+two subprocesses that produce it stay in here.
 
 The TABLE is exported and used to be private, and the reason it changed is that
 this package used to own an MCP server too. What a consumer wanted then was the
 server, and the list was what the server was made of. `@kolu/surface-mcp` is the
 server now — so the list is what a consumer wants, and the projection onto MCP
 lives in `@olai/server`, which keeps the MCP SDK out of this layer entirely.
+
+## A subtree in one call
+
+`add` takes an optional `children`, and each child takes the same fields the
+node itself does — `title`, and optional `desc` / `date` / `mark` / `id` — with
+`children` of its own. So capturing an outline is ONE call: one plan, one
+validation of the whole set, one atomic rename, one commit.
+
+It is a fix for two things that were the same thing. An agent capturing a house
+outline issued one `add_node` per node — thirteen calls, each paying the full
+write gate and a round trip — and a failure partway through that sequence left
+a half-captured subtree behind, with nothing to say which half. A tree that is
+planned at once cannot half-land: the gate already writes all files or none.
+
+**`create`'s `seed` is that same capture**, `children` and all, so a brand-new
+outline arrives holding everything it was born with. That is the same argument
+one level up: `create` then `add` was two plans, and a second one that refused
+left an EMPTY outline on disk nobody had asked for. Now the file and its
+contents are one plan — a seed refused anywhere in its tree leaves no file at
+all, which `src/ops.test.ts` asserts against a real directory. The two tools
+therefore take one shape (`ROOT` in `src/request.ts`): a seed that could say
+less than a capture would be a reason to make the second call this exists to
+delete.
+
+- **The mark rides along.** A captured node may be born `done`, `doing` or
+  `todo`, written exactly as `set_done` / `set_doing` / `set_todo` write it —
+  one `marker` function, read by both — so a `done` records the instant and
+  lands on today's page, and the other two store `true` and place the node on
+  no day. One field rather than three flags, because the format allows at most
+  one mark and a shape that can spell two is a shape a caller can get wrong.
+- **Placement is the root's.** `before` / `after` place the node being added
+  among its new siblings; the children are being born, so there is nobody to
+  place them among and they land in the order they were written. File order is
+  the outline's reading order: a parent, then its subtree, then the next
+  sibling.
+- **A collision refuses everything.** A chosen `id` that the set already holds,
+  or that another node in the same call also chose, refuses the whole capture —
+  which is also what a cycle attempt looks like when every node is being born
+  at once, since a child naming an ancestor's chosen id is naming a taken one.
+  Nothing lands, because "nothing landed" is the only answer that makes the
+  call atomic.
+- **The answer names what it made.** `captured` carries every node's id and
+  title, parent before child. A minted id is unguessable, and an agent that
+  just wrote thirteen nodes should not have to search for them to mark one. It
+  has ONE shape: a plain capture is a list of one, a seeded `create` is too,
+  and it is absent only from the ops that create nothing — which is how the
+  format spells an empty list everywhere else. Only the commit subject asks
+  whether anything came along, since `(+0)` would count nothing.
+- **It nests three levels deep, and that cap is the JSON Schema's.** Neither
+  the format nor planning a tree wants a depth limit; what has one is the
+  schema an MCP host reads, and the planner enforces THAT rather than one of
+  its own. A recursive Effect schema compiles to a `$ref` into a
+  `$defs` pool, and the adapter that projects these schemas inlines every local
+  ref and strips the pool, because `$ref` is rejected across the host matrix it
+  is byte-compatible with — so a ref it cannot inline finitely would survive as
+  a pointer into nothing and take the whole tool down. The nesting is therefore
+  unrolled, and three levels is what the capture this was filed for needs while
+  each further level is another whole copy of the child schema in every
+  `tools/list`. The floor of the unrolled schema still declares `children`, on
+  purpose: an Effect struct silently DROPS a key it does not declare, so a
+  schema that simply stopped would swallow the deepest level of a capture and
+  report success. It is refused by name instead, pointing at the id in
+  `captured` a second call should hang the rest off.
 
 ## Archiving, in racket's terms
 
@@ -117,8 +183,10 @@ already knows how to read is worth more than a better one they do not:
 | op | subject |
 |---|---|
 | create (with seed) | `capture: TITLE` — the first node is a capture |
+| create (seed with children) | `capture: TITLE (+N)` |
 | create (empty) | `create: path.jsonl` |
 | add | `capture: TITLE` |
+| add (with children) | `capture: TITLE (+N)` — N is what came with it |
 | done / undo | `done: TITLE` / `undone: TITLE` |
 | doing / undo | `doing: TITLE` / `not-doing: TITLE` |
 | todo / undo | `todo: TITLE` / `not-todo: TITLE` |
@@ -133,20 +201,49 @@ already knows how to read is worth more than a better one they do not:
 the set already holds. The path is a relative `.jsonl` under the served
 directory, judged segment by segment the way `/media/*` judges a picture name
 (no absolute path, no `..`), and an existing file is refused rather than
-overwritten. A seeded create mints the first node the same way a capture does;
-an empty one leaves a zero-byte outline for later `add_node`s.
+overwritten. A seeded create mints its nodes the way a capture does, and that is
+now one walk rather than a promise: `seed` IS a capture — the same fields, the
+same `children`, the same depth — through the same `emit` `add` uses, so a new
+outline holding a dozen nodes is one call and a refused seed leaves no file. An
+empty one leaves a zero-byte outline for later `add_node`s.
 
 The last field edits (including `see`) are this format's own: the reference had
 no structural move, no separate note edit, and no agent-writable `see`. `move:`
 keeps its meaning for a date, which is what it named there.
 
 It cannot fail a write. The bytes are on disk and the browser has already seen
-them by the time git runs; a refusal is logged and reported as
-`committed: false`, and only the files this op wrote are ever named — a served
-directory is a working tree with other work in it. What git actually said rides
-that line as a field (`said=…`) rather than inside the sentence, so the message
-stays greppable and the reason stays readable — `src/git.test.ts` holds both,
-against a real directory with no repository in it.
+them by the time git runs; a refusal is reported rather than raised, and only
+the files this op wrote are ever named — a served directory is a working tree
+with other work in it. What git actually said rides the log line as a field
+(`said=…`) rather than inside the sentence, so the message stays greppable and
+the reason stays readable.
+
+**And it says WHY, because `committed: false` on its own is four different
+pieces of news.** That was the bug (`git-invisible`): a person writing to a
+directory they knew was a repository got the boolean and nothing else, while the
+cause — not a work tree, no git on the service's PATH, a staging refusal, an
+identity nobody set — went only to a log they were not reading. So this layer
+answers with two values a caller can render, and neither of them is a boolean:
+
+- **`Applied.why`** — one sentence on the reply of any write that was not
+  committed, absent when it was. Additive, so nothing that read the reply had to
+  change. The agent reads it in its tool result; the panel draws it beside the
+  call.
+- **`Ops.git`** — what git is doing for this directory: `off` (`--no-commit`),
+  `repo`, `none`, or `error` with git's own words. Probed once per serve and
+  kept, so a page can say so before anybody writes anything, and republished
+  through `onGit` when a commit refuses (and again when one lands). The server
+  puts it on the `git` cell and the app header draws it.
+
+Two classifications make that honest, and both are exit codes rather than
+guesses where they can be. A commit that failed is asked whether anything was
+even STAGED (`diff --cached --quiet`, on the failure path only), because a write
+that produced the bytes already there is ordinary and must not be drawn as a
+fault. And a directory git will not answer about is an `error` unless git said
+its own "not a git repository" — collapsing a broken git into "you have no
+repository" is precisely what this package used to do. git runs under `LC_ALL=C`
+so that one sentence is stable. `src/git.test.ts` holds all of it against real
+repositories, the unset identity included.
 
 ## The tool surface, and what is missing from it
 
@@ -159,6 +256,8 @@ the node is — its ancestor titles, which is what makes a bare title mean
 something, and its `see` targets (when it has any), so a free cross-reference
 is traversable without a second read. `set_see` is the write half: add and/or remove target ids on an
 existing node; an unknown add is refused with the ids the set does hold.
+`add_node`'s description teaches the one gesture the surface is shaped around:
+when you already know more than one node, they go in one call.
 
 How those tools reach an agent is NOT this package's any more. `@olai/server`
 projects the table onto `@kolu/surface-mcp` bespoke tools, so an agent reads

@@ -1,0 +1,19 @@
+#!/bin/sh
+# A `git` that is found and cannot work — the third thing git can be.
+#
+# Put FIRST on a spawned server's PATH by the `@git:broken` tag, so "git is
+# broken here" is a property of the scenario rather than of the machine the run
+# is on. What it imitates is the failure people actually hit rather than an
+# invented one: git refusing a repository whose files somebody else owns, which
+# exits 128 with a `fatal:` of its own and is NOT "not a git repository".
+#
+# That distinction is the whole bug. Every way of failing used to read as "this
+# directory is not a repository", so a service with no git on its PATH and a
+# repository git declines to touch both told the reader their notes were not
+# under version control. Anything git says that is not its own no-repository
+# sentence has to reach the page as an ERROR, with these words on it.
+# The message carries no path on purpose: a scenario asserts the sentence a
+# reader gets, in full, and the served directory is a temp copy with a different
+# name every run.
+echo "fatal: detected dubious ownership in repository" >&2
+exit 128

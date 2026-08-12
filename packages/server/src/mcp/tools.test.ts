@@ -27,6 +27,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { type OutlineError, type OutlineSet } from "@olai/format"
 import { codec, make as makeOps, TOOLS } from "@olai/ops"
+import { GIT_OFF } from "@olai/surface"
 import { STAMP, steady } from "@olai/ops/testlib"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
@@ -94,7 +95,7 @@ const withTools = <A>(
         }),
     })
 
-    const wired = yield* bind({ store, chat: null, ops })
+    const wired = yield* bind({ store, chat: null, ops, git: GIT_OFF })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
@@ -400,6 +401,116 @@ test("a tool that does not exist is an error result, not a protocol error", asyn
     // client.
     const answer = await call(client, "read_file", {})
     expect(answer.isError).toBe(true)
+  })
+})
+
+/**
+ * The batch capture, through the wire it exists for.
+ *
+ * One call, a tree three levels deep, and the answer names every node it made —
+ * which is what lets the next call reach one of them without a search for an id
+ * nobody chose.
+ */
+test("one add_node lands a whole subtree, and says what it made", async () => {
+  await withTools({ "house.jsonl": HOUSE }, async ({ client, read, set }) => {
+    const answer = await call(client, "add_node", {
+      parent: "kitchen",
+      title: "the pantry",
+      children: [
+        { title: "shelves", children: [{ title: "measure", mark: "todo" }] },
+        { title: "paint", desc: "the same white", mark: "done" },
+      ],
+    })
+
+    expect(answer.isError).toBe(false)
+    expect(answer.structured).toMatchObject({
+      did: "add_node",
+      title: "the pantry",
+      summary: "capture: the pantry (+3)",
+    })
+    const captured = answer.structured["captured"] as ReadonlyArray<
+      { id: string; title: string }
+    >
+    expect(captured.map((node) => node.title)).toEqual([
+      "the pantry",
+      "shelves",
+      "measure",
+      "paint",
+    ])
+
+    const text = read("house.jsonl") ?? ""
+    expect(text.split("\n").filter((line) => line !== "")).toHaveLength(8)
+    expect(text).toContain(`"todo":true`)
+    expect(text).toContain(`"done":${JSON.stringify(STAMP)}`)
+
+    // The tree is a tree: `measure` hangs off `shelves`, which hangs off the
+    // node the call named.
+    const nodes = new Map(
+      (await set()).nodes.map((located) => [located.node.id, located.node]),
+    )
+    const [pantry, shelves, measure] = captured
+    expect(nodes.get(shelves?.id ?? "")).toMatchObject({ parent: pantry?.id })
+    expect(nodes.get(measure?.id ?? "")).toMatchObject({ parent: shelves?.id })
+  })
+})
+
+/**
+ * What an agent is SHOWN of that, and the reason the nesting is unrolled rather
+ * than recursive.
+ *
+ * Effect compiles a recursive schema to a `$ref` into a `$defs` pool, and the
+ * adapter inlines every local ref and strips the pool — because `$ref` is
+ * rejected across the host matrix it is byte-compatible with. A ref it cannot
+ * inline finitely survives as a pointer into a pool that is no longer there, so
+ * a recursive `children` would advertise a DANGLING reference and take the
+ * whole tool down with it. Unrolled, the schema is a finite object, and this is
+ * the fence that says so.
+ */
+test("both capture tools advertise children as a finite nested schema, no $ref", async () => {
+  await withTools({ "house.jsonl": HOUSE }, async ({ client }) => {
+    const { tools } = await client.listTools()
+
+    const nested = (schema: unknown): Record<string, unknown> | undefined =>
+      ((schema as { properties?: Record<string, { items?: unknown }> })
+        ?.properties?.["children"]?.items) as Record<string, unknown> | undefined
+
+    /** The `children` chain of one capture root, level by level. Both tools take
+     *  the same root, so both are walked the same way — a seed that nested less
+     *  deeply than a capture would be a reason to make a second call. */
+    const walk = (root: unknown): void => {
+      // Three levels of `children`, each a real object schema an agent can fill
+      // in, and the fields of a child are the fields of the node itself.
+      let at = root
+      for (let level = 0; level < 3; level++) {
+        at = nested(at)
+        expect(Object.keys((at as { properties: object })?.properties ?? {}).sort())
+          .toEqual(["children", "date", "desc", "id", "mark", "title"])
+      }
+      // The floor: the field is still there — an Effect struct drops a key it
+      // does not declare, and a capture that lost its deepest level quietly
+      // would be worse than one that is refused — but it offers no shape to fill
+      // in, and its description says a fourth level is a second call.
+      const floor = (at as { properties: Record<string, Record<string, unknown>> })
+        .properties["children"] as Record<string, unknown>
+      expect(floor["type"]).toBe("array")
+      expect(floor["items"]).toBeUndefined()
+      expect(String(floor["description"])).toContain("second `add_node`")
+    }
+
+    const add = tools.find((tool) => tool.name === "add_node")
+    expect(JSON.stringify(add?.inputSchema)).not.toContain("$ref")
+    walk(add?.inputSchema)
+
+    // The seed of a brand-new outline is the same capture, unrolled the same
+    // way. Effect inlines it a second time rather than sharing a `$defs` entry
+    // — which is the cost of the pool being stripped, and is measured in the
+    // PR rather than hidden here.
+    const create = tools.find((tool) => tool.name === "create_outline")
+    expect(JSON.stringify(create?.inputSchema)).not.toContain("$ref")
+    walk(
+      (create?.inputSchema as { properties: Record<string, unknown> })
+        .properties["seed"],
+    )
   })
 })
 
