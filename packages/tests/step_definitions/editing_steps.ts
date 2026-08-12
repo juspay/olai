@@ -304,6 +304,22 @@ Then(
   },
 );
 
+/** A node with no `desc` KEY at all — which is what an emptied note is on
+ *  disk, and a different fact from one holding an empty string. The format
+ *  spells absent by omitting the field, so this asks the records. */
+Then(
+  "{string} holds a node with no note titled {string}",
+  async function (this: OlaiWorld, file: string, title: string) {
+    await this.waitUntil(
+      async () =>
+        this.servedNodes(file).some(
+          (node) => node["title"] === title && node["desc"] === undefined,
+        ),
+      `${file} to hold a node titled ${JSON.stringify(title)} carrying no note`,
+    );
+  },
+);
+
 Then(
   "{string} holds no node titled {string}",
   async function (this: OlaiWorld, file: string, title: string) {

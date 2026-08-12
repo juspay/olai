@@ -85,19 +85,28 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       const undo = at.derived.status.get(edit.id) === edit.mark
       return Result.succeed({ op: edit.mark, id: edit.id, ...(undo ? { undo } : {}) })
     }
-    // The two that resolve nothing about PLACEMENT, and are spelled like the
-    // ops they are — which is what makes the three above legible as the ones
-    // that do. What they can resolve is whether to write at all: `was` is the
-    // text the caller expects to find, and an undo is the only caller that
-    // sends one.
-    case "title": {
-      const stale = changedSince(at.derived, edit.id, "title", edit.was)
-      return stale ?? Result.succeed({ op: "title", id: edit.id, title: edit.title })
-    }
-    case "desc": {
-      const stale = changedSince(at.derived, edit.id, "desc", edit.was)
-      return stale ?? Result.succeed({ op: "desc", id: edit.id, desc: edit.desc })
-    }
+    // The two that resolve nothing, and are spelled like the ops they are —
+    // which is what makes the three above legible as the ones that do. `was`
+    // travels WITH the request rather than being checked here, and that is not
+    // tidiness: the write gate re-plans a request when the store moves under
+    // it, so a condition tested at this seam is a condition the retry does not
+    // test — which is a concurrent retitle overwritten by an undo that was
+    // told not to (found by review, 2026-08-12). The ops layer checks it on
+    // every attempt, against the snapshot that attempt is judged on.
+    case "title":
+      return Result.succeed({
+        op: "title",
+        id: edit.id,
+        title: edit.title,
+        ...(edit.was === undefined ? {} : { was: edit.was }),
+      })
+    case "desc":
+      return Result.succeed({
+        op: "desc",
+        id: edit.id,
+        desc: edit.desc,
+        ...(edit.was === undefined ? {} : { was: edit.was }),
+      })
     case "place":
       return placeRequest(at.derived, edit)
     case "mark":
@@ -339,47 +348,6 @@ const removeRequest = (
   return Result.succeed({ op: "archive", id: edit.id })
 }
 
-/**
- * Whether the text somebody is putting back is still theirs to put back.
- *
- * `was` is what the caller expects to find, and only an undo sends one: a
- * person typing overwrites whatever is there, exactly as `set_title` does for
- * an agent. An undo is a narrower claim — "put back what I replaced" — and it
- * is only entitled to overwrite what IT wrote. So when the row says something
- * else, this refuses instead of landing on top of it, and the sentence names
- * what is there now, because the reader's next question is what they lost.
- *
- * A refusal from HERE rather than from the ops layer, for the reason the four
- * moves refuse here: it is a fact about what this caller asked for, not about
- * what the set will allow. An agent doing the same thing would read, compare,
- * and decide the same way.
- *
- * `null` (no note) is a value it can be asked to check for, so the check is on
- * PRESENCE of the field rather than on its content.
- */
-const changedSince = (
-  derived: Derived,
-  id: string,
-  field: "title" | "desc",
-  was: string | null | undefined,
-): Resolved | null => {
-  if (was === undefined) return null
-  const located = derived.byId.get(id)
-  if (located === undefined) return Result.fail(notFound(derived, id))
-  // A MIRROR has no text of its own; the ops layer refuses it in its own
-  // words, and there is nothing here to compare.
-  if (isMirror(located.node)) return null
-  const now = field === "title" ? located.node.title : located.node.desc ?? null
-  if (now === was) return null
-  return Result.fail(
-    refusal(
-      field === "title"
-        ? `\`${nameOf(located)}\` has been retitled since — it says \`${now}\` now, so taking that edit back would write over it`
-        : `the note on \`${nameOf(located)}\` has changed since, so taking that edit back would write over it`,
-    ),
-  )
-}
-
 // ── what would take a write back ───────────────────────────────────────
 
 /**
@@ -477,7 +445,8 @@ const placementOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
  * It is the SAME verb read backwards — the inverse of setting a title is
  * setting the title it replaced — with `was` carrying what this write is about
  * to make true, so the undo is refused if anybody else has typed there since
- * ({@link changedSince}). A mirror has no text of its own and the ops layer
+ * (`@olai/ops`' planner checks it, on every attempt it makes — see the two
+ * text arms of `requestFor`). A mirror has no text of its own and the ops layer
  * refuses the write, so there is nothing to take back.
  */
 const textOf = (

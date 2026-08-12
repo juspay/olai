@@ -214,43 +214,33 @@ test("a title and a note are what they say", () => {
     .toEqual({ op: "desc", id: "order", desc: null })
 })
 
-// ── the text a caller expects to find ──────────────────────────────────
+// ── the condition a text edit may carry ────────────────────────────────
 
-test("a text edit that names what it expects writes when it still says that", () => {
+test("what a text edit expects to find travels WITH the request", () => {
+  // And is not checked here, which is the point: the write gate re-plans a
+  // request every time the store moves under it, so a condition tested at this
+  // seam is a condition the retry does not test — an undo overwriting a
+  // concurrent retitle (review, 2026-08-12). `@olai/ops`' planner owns it now,
+  // and tests it on every attempt; this layer's job is to carry it.
   expect(
-    asked({ verb: "title", id: "order", title: "order the cabinets", was: "order the cabinets" }),
-  ).toEqual({ op: "title", id: "order", title: "order the cabinets" })
+    asked({ verb: "title", id: "order", title: "put it back", was: "order the cabinets" }),
+  ).toEqual({ op: "title", id: "order", title: "put it back", was: "order the cabinets" })
 })
 
-test("and is refused when somebody else has typed there since", () => {
-  // The guard an undo needs and a person typing does not: putting back what I
-  // replaced may only overwrite what I wrote. The sentence names what the row
-  // says NOW, because that is the reader's next question.
-  const failure = refused({
-    verb: "title",
-    id: "order",
-    title: "order the cabinets",
-    was: "something I typed",
-  })
-  expect(failure._tag).toBe("UsageFailure")
-  expect(failure.message).toContain("has been retitled since")
-  expect(failure.message).toContain("order the cabinets")
-})
-
-test("a note that is expected to be absent is checked as absent", () => {
-  // `null` is a real answer for a note, so the check is on the FIELD being
-  // there rather than on what is in it. `install` carries no note.
+test("a note's condition travels too, `null` and all", () => {
+  // `null` is a real expectation — "there was no note" — so it must reach the
+  // planner as a value rather than collapsing into "not checking".
   expect(asked({ verb: "desc", id: "install", desc: "measure first", was: null }))
-    .toEqual({ op: "desc", id: "install", desc: "measure first" })
-  expect(refused({ verb: "desc", id: "order", desc: "oak", was: null }).message)
-    .toContain("has changed since")
+    .toEqual({ op: "desc", id: "install", desc: "measure first", was: null })
 })
 
-test("expecting nothing at all is what a person typing sends", () => {
-  // No `was`: overwrite whatever is there, which is exactly what `set_title`
-  // does for an agent. The draft's commit path sends this and nothing else.
+test("no condition is what a person typing sends, and it stays absent", () => {
+  // Absent, not `undefined` in the payload: the ops layer reads presence, and
+  // last-one-wins is what `set_title` has always meant. The draft's commit path
+  // sends this and nothing else.
   expect(asked({ verb: "title", id: "order", title: "anything" }))
     .toEqual({ op: "title", id: "order", title: "anything" })
+  expect("was" in asked({ verb: "title", id: "order", title: "anything" })).toBe(false)
 })
 
 // ── the three an undo speaks ───────────────────────────────────────────

@@ -129,6 +129,13 @@ export const plan = (
         request.id,
         (node) => ({ ...node, title: request.title }),
         (node) => `rename: ${node.title}`,
+        (node) =>
+          stale(
+            request.was,
+            node.title,
+            `\`${node.title}\` is not the title this write expected to replace ` +
+              `(\`${request.was}\`) — it has been retitled since, so nothing was written`,
+          ),
       )
     case "desc":
       return planEdit(
@@ -136,6 +143,13 @@ export const plan = (
         request.id,
         (node) => withField(node, "desc", request.desc),
         (node) => `note: ${node.title}`,
+        (node) =>
+          stale(
+            request.was,
+            node.desc ?? null,
+            `the note on \`${node.title}\` is not the one this write expected to ` +
+              `replace — it has changed since, so nothing was written`,
+          ),
       )
     case "date":
       // `date:`, not the reference implementation's `move:`. That word was
@@ -873,16 +887,26 @@ const nudged = (
 /** The three field edits, which differ only in what they change and what the
  *  commit line says. Both arrive as functions rather than as a tag this
  *  function would switch on: a switch here would be the caller's decision,
- *  made twice. */
+ *  made twice — and so does the third, which is the CONDITION two of them may
+ *  carry ({@link stale}). */
 const planEdit = (
   scope: Scope,
   id: string,
   edit: (node: RegularNode) => RegularNode,
   summarize: (node: RegularNode) => string,
+  /** What this write expects to find, when it is conditional. Checked HERE,
+   *  inside the plan, so it is re-checked on every attempt the write gate
+   *  makes: a `StaleWrite` re-plans this same request against the newer
+   *  snapshot, and a condition tested anywhere else would be a condition the
+   *  retry does not test. */
+  holds?: (node: RegularNode) => OpFailure | null,
 ): Planned => {
   const target = editable(scope, id)
   if (Result.isFailure(target)) return Result.fail(target.failure)
   const { file, node } = target.success
+
+  const broken = holds?.(node)
+  if (broken != null) return Result.fail(broken)
 
   const next = edit(node)
   if (next.title.trim() === "") {
@@ -898,6 +922,23 @@ const planEdit = (
     summary,
   })
 }
+
+/**
+ * A conditional write's condition: `undefined` is not conditional at all, and
+ * anything else must match what the record holds now.
+ *
+ * `null` is a value it can be asked to check FOR — a note that is not there —
+ * so the question is whether the field was given, never whether it is empty.
+ * One function for the two fields that take one, so "did this still say what
+ * the caller thought" is decided once and the callers differ only in the
+ * sentence a reader gets.
+ */
+const stale = (
+  was: string | null | undefined,
+  now: string | null,
+  reason: string,
+): OpFailure | null =>
+  was === undefined || was === now ? null : new UsageFailure({ reason })
 
 // ── move ───────────────────────────────────────────────────────────────
 
