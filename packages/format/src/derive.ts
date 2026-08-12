@@ -30,6 +30,7 @@ import {
   type Located,
   type LocatedRegular,
   MARKS,
+  type Node,
 } from "./node.ts"
 
 /**
@@ -398,6 +399,31 @@ const blockage = (
   }
   return blocked
 }
+
+/**
+ * What drawing this record leads to drawing: its children, and — for a mirror
+ * — the record it shows.
+ *
+ * The CONTAINMENT graph, in the one place it is spelled. It runs downward, and
+ * the direction is the point: a pure parent loop is found either way, but a
+ * mirror's edge to its target is downward by nature, so only this direction
+ * finds the placement that expands forever.
+ *
+ * Two rules read it and they must not disagree. The validator refuses a set
+ * whose placements close a loop ({@link ./validate.ts}); the ops layer refuses
+ * the PLACEMENT that would close one, before the write, so an agent is told
+ * which loop it is about to make rather than handed a report about a file that
+ * was never written. Two spellings would be a mirror the planner allowed and
+ * the validator then rejected — a write refused for a reason the tool that
+ * planned it did not know about.
+ */
+export const drawnFrom = (
+  derived: Pick<Derived, "children">,
+  node: Node,
+): ReadonlyArray<string> => [
+  ...(derived.children.get(node.id) ?? []).map((child) => child.node.id),
+  ...(isMirror(node) ? [node.mirror] : []),
+]
 
 /** What one node is waiting on: empty when nothing is in its way, which is the
  *  answer for nearly every node. The reading side of {@link Derived.blocked},

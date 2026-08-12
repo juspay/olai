@@ -41,14 +41,17 @@ import type { Effect } from "effect"
 import * as Query from "./query.ts"
 import {
   AddRequest,
+  AfterRequest,
   ArchiveRequest,
   CreateRequest,
   DateRequest,
   DescRequest,
   MarkRequest,
+  MirrorRequest,
   MoveRequest,
   SeeRequest,
   TitleRequest,
+  UnmirrorRequest,
 } from "./request.ts"
 
 /** The set as a reader sees it: the files that were found, and the derivations
@@ -226,14 +229,14 @@ export const TOOLS: ReadonlyArray<Tool> = [
   read(
     "search_nodes",
     "Search nodes",
-    "Find nodes by title, id, `#tag` or note. Results carry `file:line`, its ancestor titles and — for a node that is MARKED — that mark, so a hit can be acted on without reading the file. A node with no `status` is a bullet rather than an unstarted task.",
+    "Find nodes by title, id, `#tag` or note. Results carry `file:line`, its ancestor titles and — for a node that is MARKED — that mark, so a hit can be acted on without reading the file. A node with no `status` is a bullet rather than an unstarted task. A hit also carries the edges the node itself writes, when it has any: `see` (free cross-references) and `after` (what it must come after), which are the ids `set_see` and `set_after` remove by.",
     SearchArgs,
     (at, args: typeof SearchArgs.Type) => Query.search(at.derived, args),
   ),
   read(
     "read_node",
     "Read a node",
-    "One node in full: its record, its `#tags`, its ancestors, its immediate children, and its mark when it carries one — a node with no `status` is not a task. `progress` counts how many of its child tasks are done, which is an annotation and nothing more.",
+    "One node in full: its record, its `#tags`, its ancestors, its immediate children, and its mark when it carries one — a node with no `status` is not a task. `progress` counts how many of its child tasks are done, which is an annotation and nothing more. Its edges come too when it has them — `see` and `after`, the ids `set_see` / `set_after` take.\n\nTHIS IS ALSO WHERE MIRRORS ARE FOUND, and it is the only place: a placement is not a node, so a search never returns one and `children` never lists one. Ask the node instead. `mirrors` is every placement OF this node — where else it is drawn, chains followed — and each entry's `id` is what `remove_mirror` takes, so a Now entry is retired by reading the ITEM that finished. `placed` is the other half: the placements UNDER this node, each with the node it shows — which is how you read a curated list (\"what is on Now?\") without knowing in advance what is on it.",
     NodeArgs,
     (at, args: typeof NodeArgs.Type) =>
       Query.detail(at.derived, args.id) ?? { missing: args.id },
@@ -241,7 +244,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
   read(
     "read_subtree",
     "Read a subtree",
-    "A node and everything under it, nested. Says when it stopped at the depth it was given rather than at a leaf.",
+    "A node and everything under it, nested. Says when it stopped at the depth it was given rather than at a leaf. Mirrors are not walked — a placement is a second view of a node rather than something hanging off this one — so read a list of them with `read_node`'s `placed`.",
     SubtreeArgs,
     (at, args: typeof SubtreeArgs.Type) =>
       Query.subtree(
@@ -304,9 +307,30 @@ export const TOOLS: ReadonlyArray<Tool> = [
   write(
     "set_see",
     "Set see references",
-    "Add and/or remove free cross-references (`see`) on an existing node. `see` is a link and nothing more — no ordering, no blocking, cycles fine. Give `add` and/or `remove` (ids of targets in the loaded set); an unknown add is refused with the ids that do exist, so the next call can name one. Search and subtree reads carry a node's `see` so you can traverse what is already there.",
+    "Add and/or remove free cross-references (`see`) on an existing node. `see` is a link and nothing more — no ordering, no blocking, cycles fine. Give `add` and/or `remove` (ids of targets in the loaded set); an unknown add is refused with the closest id that exists. Search and node reads carry a node's `see` so you can traverse what is already there. For \"this cannot start until that is done\", use `set_after` instead — that one is the ordering graph.",
     SeeRequest,
     { op: "see" },
+  ),
+  write(
+    "set_after",
+    "Set what a node waits on",
+    "Add and/or remove `after` edges on an existing node: the ids it must come AFTER. This is how a DEPENDENCY is written — `set_after(id: \"install\", add: [\"order\"])` says installing waits on ordering, and olai then draws `install` as blocked while `order` is an unfinished task. Say it from the waiting node: `a blocks b` is spelled as `b after a`, and the ops layer writes the arrow one way. A target with no mark blocks nothing (a bullet is not work — mark the node, or its branch, with `set_todo`/`set_doing`). Unknown adds are refused with the closest id that exists, and an add that would close a loop is refused NAMING the loop, because nothing in a cycle could ever start first. Node reads carry a node's `after` so you can see what is already there before changing it.",
+    AfterRequest,
+    { op: "after" },
+  ),
+  write(
+    "add_mirror",
+    "Place a mirror",
+    "Show a node that already exists in a SECOND place, without moving or copying it. The record written is a placement — `{id, parent, ord, mirror}` and nothing else — so the mirror has no title, no mark and no note of its own: it draws its target's, wherever the target lives, and edits go on landing at the target. It may cross outlines (a `parent` is same-file, a mirror is how a node appears in another file at all), and its target may itself be a mirror.\n\nTHIS IS HOW A CURATED LIST IS BUILT — a Now/Focus section is mirrors of the items that are live, so the entry and the item can never drift apart the way a re-typed copy does. Place it with `parent` (under a node) or `file` (top level of an outline), `before`/`after` among the siblings there; give `id` to keep a naming convention (`now-<item>`), or let it be minted — the answer's `id` names the placement either way, and that is what retires it. Refused if the placement would sit inside the subtree it shows, which would expand forever.",
+    MirrorRequest,
+    { op: "mirror" },
+  ),
+  write(
+    "remove_mirror",
+    "Retire a mirror",
+    "Take one placement out. `id` is the MIRROR's own id — the placement — never the id of the node it shows: what goes is that one line, and the node keeps its title, its mark, its children, its own place in the outline that defines it, and every other placement of it. So this is what retires a finished item from a Now list without touching the work: nothing is archived, nothing is deleted, nothing is unsaid. Find the id with `read_node`: `mirrors` on the finished ITEM says where it is placed, and `placed` on the LIST says what is on it. Refused on the id of a regular node (`archive_node` is what puts a node and its subtree away), and refused while anything still names the placement — another mirror chained onto it, or an edge written at it — naming what to re-point first.",
+    UnmirrorRequest,
+    { op: "unmirror" },
   ),
 
   act(
