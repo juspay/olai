@@ -24,7 +24,7 @@ import {
   setWorldConstructor,
   World,
 } from "@cucumber/cucumber";
-import type { Browser, BrowserContext, Locator, Page } from "playwright";
+import type { Browser, BrowserContext, Locator, Page, Route } from "playwright";
 
 import type { TerminalAgent } from "./mcp.ts";
 
@@ -359,6 +359,12 @@ export class OlaiWorld extends World {
   /** Which fixture corpus this scenario's server is serving, from its
    *  `@corpus:<name>` or `@scratch:<name>` tag. See `support/hooks.ts`. */
   corpus!: string;
+
+  /** Requests for the markdown chunk a scenario is deliberately sitting on, so
+   *  it can stand in the moment before the pipeline has arrived rather than
+   *  race it (`step_definitions/markdown_steps.ts`). Undefined unless a
+   *  scenario asked to hold it. */
+  heldMarkdown?: Route[];
   /** Whether this scenario's agent has stored conversations (`@agent-stored`),
    *  so a restart adopts one rather than opening a fresh session. Carried on
    *  the world because a restart mid-scenario has to spawn the SAME shape of

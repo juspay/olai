@@ -9,11 +9,20 @@
  * Titles use the same pipeline forced to phrasing content only: those tests
  * live at the bottom, because "inline-only" is a discipline of its own and a
  * block that escaped into a title would break every row that drew it.
+ *
+ * The pipeline is a chunk the browser fetches (./chunk.ts), and there is no
+ * shell here to read its URL from — so this file imports the same module the
+ * browser ends up with and installs it, which is what keeps these tests tests
+ * of the thing that ships. What the page does BEFORE it arrives is a question
+ * about a page, and is answered in the browser suite
+ * (`packages/tests/features/markdown_arrives.feature`).
  */
 
 import { expect, test } from "bun:test"
 
 import { ANCHOR_CLASS } from "./anchors.ts"
+import { installPipeline } from "./chunk.ts"
+import * as pipeline from "./pipeline.ts"
 import {
   outlineOf,
   renderInlineMarkdown,
@@ -21,6 +30,8 @@ import {
   renderStreaming,
 } from "./render.ts"
 import { renderTitle } from "./title.ts"
+
+installPipeline(pipeline)
 
 const NOTE = "house.jsonl"
 

@@ -6,15 +6,24 @@
  * are decided only when it is drawn. One function answers both, so a tree row
  * and a zoomed heading cannot disagree about either.
  *
- * Ordering matters, and it is the reverse of what it used to be:
+ * There are three ways it can answer, and which one a title gets is the whole
+ * of how an outline paints before the markdown machinery has arrived:
+ *
+ *   1. **plain** — the title has no markdown in it at all (./plain.ts), so it
+ *      is words and tags and the answer is immediate. Nearly every title.
+ *   2. **rendered** — it does have markdown, and ./pipeline.ts is here.
+ *   3. **the source, escaped** — it has markdown and the pipeline is still on
+ *      its way. What is drawn is what the person wrote, marks and all, and the
+ *      memo that asked is re-run when the chunk lands (./chunk.ts). One line
+ *      of text either way: nothing moves on the page but the marks.
+ *
+ * Ordering matters within (2), and it is the reverse of what it used to be:
  *
  *   1. **inline markdown first** — same pipeline a note uses, forced to
  *      phrasing content (`renderToTree` + `toInline`).
  *   2. **then `#tags`** — walk the finished HAST and style tags in text nodes,
  *      skipping `code` and `a` so a tag inside code stays code and a URL
- *      fragment is not mistaken for a tag. The alphabet is
- *      {@link titleTagRe} from `@olai/format` — the client does not re-declare
- *      it.
+ *      fragment is not mistaken for a tag (./tags.ts).
  *
  * Peeling tags *before* markdown would split constructs across two parser runs
  * (`**urgent #home**` loses its bold; `[spec](…#home)` shreds the link). Tags
@@ -28,26 +37,12 @@
  * "show what you wrote", not a second render path.
  */
 
-import { titleTagRe } from "@olai/format"
 import type { Element, ElementContent, Root, RootContent, Text } from "hast"
 
-import { TESTID } from "../testids.ts"
+import { markdownReady } from "./chunk.ts"
+import { plainTitle } from "./plain.ts"
 import { hastToHtml, renderToTree } from "./render.ts"
-
-/**
- * The class a styled tag wears. A complete string literal so Tailwind's content
- * scan still finds both utilities when the markup is built as HTML rather than
- * as a Solid element.
- */
-// Workflowy-exact tag pill (#102): subtle rounded chip, not bold accent text.
-// Complete string literal so Tailwind's content scan still finds every utility
-// when the markup is built as HTML rather than as a Solid element.
-const TAG_CLASS =
-  "mx-0.5 inline-block max-w-full rounded-sm bg-accent/15 px-1 py-px text-[0.8125rem] font-normal leading-snug text-accent"
-
-/** Subtrees where a `#…` sequence is not a tag: code is code, a link's text
- *  and href are not re-parsed for tags (a URL fragment is the sharpest case). */
-const SKIP_TAGS = new Set(["code", "a"])
+import { escapeHtml, styleTags } from "./tags.ts"
 
 export interface TitleRender {
   /** When false, markdown links are unwrapped to their children so the title
@@ -72,7 +67,18 @@ export const renderTitle = (
   const hit = titles.get(key)
   if (hit !== undefined) return hit
 
-  const html = build(title, from, links)
+  const plain = plainTitle(title)
+  if (plain !== null) return remember(key, plain)
+
+  // Not cached: this is what the title looks like WHILE the chunk is coming,
+  // and a cache is exactly the thing that would still be handing it out
+  // afterwards. The read is what re-runs the caller's memo when it lands.
+  if (!markdownReady()) return escapeHtml(title)
+
+  return remember(key, build(title, from, links))
+}
+
+const remember = (key: string, html: string): string => {
   if (titles.size >= TITLE_CACHE_LIMIT) titles.clear()
   titles.set(key, html)
   return html
@@ -131,50 +137,6 @@ const plainTextEstimate = (source: string): string => {
 
 const collapse = (value: string): string => value.replace(/\s+/g, " ").trim()
 
-/** Walk text nodes and turn `#tags` into styled spans. */
-const styleTags = (tree: Root): void => {
-  walkTags(tree)
-}
-
-const walkTags = (parent: Root | Element): void => {
-  const next: ElementContent[] = []
-  for (const child of parent.children) {
-    if (child.type === "text") {
-      next.push(...splitTags(child.value))
-      continue
-    }
-    if (child.type === "element") {
-      if (!SKIP_TAGS.has(child.tagName)) walkTags(child)
-      next.push(child)
-      continue
-    }
-  }
-  parent.children = next as typeof parent.children
-}
-
-const splitTags = (text: string): ElementContent[] => {
-  const parts: ElementContent[] = []
-  let at = 0
-  // Fresh regex from @olai/format — the alphabet is one place, not two.
-  for (const match of text.matchAll(titleTagRe())) {
-    const start = match.index
-    if (start > at) parts.push({ type: "text", value: text.slice(at, start) })
-    const name = match[0].slice(1)
-    parts.push({
-      type: "element",
-      tagName: "span",
-      properties: {
-        className: TAG_CLASS.split(" "),
-        dataTestid: TESTID.tag,
-      },
-      children: [{ type: "text", value: `#${name}` }],
-    })
-    at = start + match[0].length
-  }
-  if (at < text.length) parts.push({ type: "text", value: text.slice(at) })
-  return parts.length > 0 ? parts : text.length > 0 ? [{ type: "text", value: text }] : []
-}
-
 /** Lift every `<a>` to its children so a title inside a Link has no nested
  *  anchors. Recurses first so nested structure is flattened cleanly. */
 const unwrapAnchors = (parent: Root | Element): void => {
@@ -205,12 +167,3 @@ const textOf = (tree: Root): string => {
   walk(tree.children)
   return out
 }
-
-/** Escape for the loss fallback. The alphabet of a real title can hold `<`,
- *  so this is the one place raw source may reach `innerHTML`. */
-const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
