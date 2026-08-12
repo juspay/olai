@@ -1,11 +1,16 @@
 /**
  * The conversation, as this tab sees it.
  *
- * Two subscriptions and six verbs, and every one of them is a surface member —
+ * Two subscriptions, and every verb that CHANGES anything is a surface member —
  * there is no chat state in the browser that the server does not own. What was
  * typed, what the agent said, which tool ran, which session this is: all of it
  * arrives as frames, so two tabs cannot disagree and a reload is a fresh read
  * rather than a replay protocol.
+ *
+ * The one exception proves the rule: {@link Chat.refused} is this tab's, and
+ * always was — it is what the last thing a person did came back with, which is
+ * about a click rather than about the conversation. {@link Chat.refuse} writes
+ * that line for a caller with something to say that no round trip produced.
  *
  * The transcript is a COLLECTION served with batched deltas, which is why a tab
  * opened halfway through a turn shows the whole conversation: its first frame is
@@ -46,6 +51,7 @@ import {
   type ChatState,
   type OpFailure,
   type SessionInfo,
+  UsageFailure,
 } from "@olai/surface"
 import { type Accessor, createEffect, createMemo, createSignal, on } from "solid-js"
 
@@ -78,6 +84,22 @@ export type Sessions =
     readonly failure: OpFailure
   }
 
+/**
+ * What became of one upload — THREE arms, because there are three answers and
+ * two of them used to be `null`.
+ *
+ * `gone` is not a refusal: the conversation this file was being attached to
+ * was left while it uploaded, and the server has already thrown the directory
+ * it landed in away. Nothing was refused and nobody needs telling; there is
+ * simply no chip to draw. A refusal, on the other hand, is something a person
+ * has to be able to read, and it travels back WITH the answer so that the
+ * caller can say it beside the rest of the gesture's.
+ */
+export type Uploaded =
+  | { readonly _tag: "stored"; readonly stored: Attached }
+  | { readonly _tag: "refused"; readonly failure: OpFailure }
+  | { readonly _tag: "gone" }
+
 export interface Chat {
   /** Where the conversation stands: session, model, commands, whether a turn
    *  is running. */
@@ -92,7 +114,20 @@ export interface Chat {
    *  Separate from `state().trouble`, which is what went wrong where nobody was
    *  waiting: this one belongs to the click that caused it. */
   readonly refused: Accessor<OpFailure | null>
-  /** What was typed, and the pictures already attached to it — by the paths
+  /** Say what a whole GESTURE refused, on the same line every other refusal is
+   *  said on — or clear that line, when it refused nothing.
+   *
+   *  One drop is one answer. Attaching is the only verb a person can aim at
+   *  several things at once, and the reasons come from two places: files the
+   *  shared gate turns down before there is a call to make ({@link
+   *  ./holding.ts}), and uploads the server refuses. Said one at a time, each
+   *  is wiped by the next file's answer — which is a file dropped into the
+   *  panel disappearing with nothing about it on screen. So the caller
+   *  collects them and says them together, here, rather than into a second
+   *  signal of its own: a refusal drawn in two places is one a reader learns
+   *  to skip in both. */
+  readonly refuse: (reasons: ReadonlyArray<string>) => void
+  /** What was typed, and the files already attached to it — by the paths
    *  {@link Chat.attach} answered with.
    *
    *  Answers whether the server TOOK it. A composer clears the box the moment
@@ -103,10 +138,15 @@ export interface Chat {
     text: string,
     attachments: ReadonlyArray<string>,
   ) => Promise<boolean>
-  /** Send a picture to the conversation's tmp directory, chunk by chunk, and
-   *  answer with where it landed — or `null` when it was refused, which the
-   *  panel is already showing through {@link Chat.refused}. */
-  readonly attach: (file: File) => Promise<Attached | null>
+  /** Send a file to the conversation's tmp directory, chunk by chunk, and
+   *  answer with what became of it.
+   *
+   *  It ANSWERS the refusal rather than drawing it, which is the difference
+   *  between one file and a gesture: several files dropped together are
+   *  several of these calls, and a verb that drew each answer as it came would
+   *  rub out the last one's. The caller collects them and says them once
+   *  ({@link Chat.refuse}). */
+  readonly attach: (file: File) => Promise<Uploaded>
   readonly cancel: () => void
   readonly newSession: () => void
   readonly loadSession: (id: string) => void
@@ -202,6 +242,12 @@ export const createChat = (): Chat => {
     rows,
     entry,
     refused,
+    refuse: (reasons) =>
+      setRefused(
+        reasons.length === 0
+          ? null
+          : new UsageFailure({ reason: reasons.join("\n") }),
+      ),
     send: (text, attachments) =>
       new Promise((resolve) => {
         setRefused(null)
@@ -218,30 +264,26 @@ export const createChat = (): Chat => {
     // verb of its own: what a caller waits for is the path, because it is what
     // the next `send` carries.
     attach: (file) =>
-      new Promise((resolve) => {
+      new Promise<Uploaded>((resolve) => {
         // WHICH conversation this is being attached to, read before the first
-        // chunk goes out. An upload takes as many round trips as the picture
+        // chunk goes out. An upload takes as many round trips as the file
         // has chunks, and leaving a conversation is allowed throughout — only
         // a running TURN blocks that. So the answer can arrive after the
         // server has thrown the directory it names away, and after the effect
-        // below has cleared what belonged to it. Answering `null` then is the
+        // below has cleared what belonged to it. Answering `gone` then is the
         // honest thing: the file is gone, and a chip for it would offer a send
         // the server would refuse.
         const asked = state().session?.id
-        setRefused(null)
         run(
           attaching(file, (chunk) => olai.procedures.chat.attach(chunk)),
-          (failure) => {
-            setRefused(failure)
-            resolve(null)
-          },
+          (failure) => resolve({ _tag: "refused", failure }),
           (stored) => {
-            if (state().session?.id !== asked) return resolve(null)
+            if (state().session?.id !== asked) return resolve({ _tag: "gone" })
             // The Blob is the one already in hand — this tab is the only
             // reader that will ever have it, and the name it is filed under is
             // the SERVER's, which is what the transcript row will carry.
             remember(stored.name, file)
-            resolve(stored)
+            resolve({ _tag: "stored", stored })
           },
         )
       }),

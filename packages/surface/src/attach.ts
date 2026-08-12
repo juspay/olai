@@ -1,8 +1,8 @@
 /**
- * Attaching a picture to a prompt — the numbers and the gate, declared once.
+ * Attaching a file to a prompt — the numbers and the gate, declared once.
  *
- * A pasted image is BYTES, and bytes are the one thing this app's wire was not
- * built to carry: every other member is a fact about a file on disk. So the
+ * An attached file is BYTES, and bytes are the one thing this app's wire was
+ * not built to carry: every other member is a fact about a file on disk. So the
  * transport is chunked over the `chat.attach` procedure — the file arrives as a
  * sequence of bounded calls rather than one frame that scales with it — and the
  * agent is then handed a PATH, as text. Claude Code reads the file itself,
@@ -64,7 +64,7 @@
  * moved the cap would otherwise rot a paragraph nobody re-reads.
  */
 
-import { isPicture, PICTURE_EXTENSIONS } from "@olai/format"
+import { PICTURE_EXTENSIONS } from "@olai/format"
 import { RPC_MAX_FRAME_BYTES } from "@kolu/surface/frame-limit"
 
 /**
@@ -136,18 +136,63 @@ export const base64DecodedLength = (data: string): number => {
 }
 
 /**
+ * What may be attached that is NOT a picture — the kinds an agent can read as
+ * itself rather than look at.
+ *
+ * A closed allowlist, and deliberately a SECOND list rather than a wider
+ * `isPicture`: what may be drawn out of the served directory by a relative
+ * `![](…)` is a question about what a BROWSER can paint, and it must not grow
+ * a `.pdf` because chat learned to carry one. The two lists meet here, in the
+ * one place that asks "may this be handed to the agent", and nowhere else.
+ *
+ * Every entry is something the agent on the other end can open from a path:
+ * a PDF (Claude Code reads those), and text a person is likely to be holding
+ * when they reach for a chat window — notes, a document, a table, a config.
+ * The list is closed for the reason `@olai/format`'s is: "not an outline" is
+ * not a policy, and a denylist is a promise to have thought of everything.
+ *
+ * `.svg` is absent from BOTH lists, and that is the one absence worth stating
+ * out loud: an SVG is a document that can script, so it is neither a picture
+ * this app will paint nor a text file it will pass on.
+ */
+export const DOCUMENT_EXTENSIONS: ReadonlyArray<string> = [
+  ".pdf",
+  ".txt",
+  ".md",
+  ".csv",
+  ".json",
+]
+
+/** Everything `chat.attach` takes: what can be looked at, and what can be
+ *  read. The picker's `accept` is spelled from this too — a gate that takes a
+ *  PDF the file picker will not offer is a gate that is half true. */
+export const ATTACHMENT_EXTENSIONS: ReadonlyArray<string> = [
+  ...PICTURE_EXTENSIONS,
+  ...DOCUMENT_EXTENSIONS,
+]
+
+/** Is this a file the agent gets handed as a path? The extension decides,
+ *  because the extension is the only thing every face of this — the drop, the
+ *  paste, the picker, the server — can agree on before a byte is read. */
+export const isAttachable = (name: string): boolean => {
+  const lower = name.toLowerCase()
+  return ATTACHMENT_EXTENSIONS.some((extension) => lower.endsWith(extension))
+}
+
+/**
  * Why an attachment is refused, in the words BOTH ends say — or `null` when it
  * passes.
  *
- * The picture allowlist is `@olai/format`'s own ({@link isPicture}), not a
- * second one: what may be drawn out of the served directory and what may be
- * handed to the agent are the same question about the same kinds of file, and
- * two lists that drifted would be two answers to it. `.svg` is absent from it
- * deliberately — an SVG is a document that can script.
+ * The sentence names the whole list rather than the kind that was expected,
+ * because the list is the answer to the question the refused person is
+ * actually asking. It said "is not a picture" while pictures were all this
+ * took, and that was a true sentence that became a wrong one the moment a PDF
+ * was allowed through: a refusal that names a narrower rule than the gate
+ * enforces teaches the wrong lesson to everybody who reads it.
  */
 export const attachmentRejection = (name: string, bytes: number): string | null => {
-  if (!isPicture(name)) {
-    return `"${name}" is not a picture — attachments are ${PICTURE_EXTENSIONS.join(", ")}`
+  if (!isAttachable(name)) {
+    return `"${name}" cannot be attached — attachments are ${ATTACHMENT_EXTENSIONS.join(", ")}`
   }
   if (bytes > MAX_ATTACHMENT_BYTES) {
     const mb = (n: number) => (n / (1024 * 1024)).toFixed(0)

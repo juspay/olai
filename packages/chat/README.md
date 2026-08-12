@@ -3,7 +3,7 @@
 Talking to a coding agent over ACP: starting the subprocess, holding the
 session, turning what it says into rows a panel can draw, answering the six
 verbs a person has (send, cancel, new conversation, load one, list them, attach
-a picture to what they are about to send) — and the two that answer a question
+a file to what they are about to send) — and the two that answer a question
 the agent asked back.
 
 It sits BESIDE `@olai/ops` rather than above or below it. A conversation and an
@@ -40,7 +40,7 @@ second copy of the transcript would be a second thing to be wrong.
 | `questions.ts` | the questions on the wire, and the one rule about them: each ends exactly once, however it ends |
 | `events.ts` | the closed vocabulary of what an agent tells us — a consumer that needs more needs a new member, not a look at the wire |
 | `transcript.ts` | the conversation as ROWS: chunks accumulate, tool calls update in place by id, a replay replaces rather than appends |
-| `attachments.ts` | the conversation's tmp directory: where a pasted picture lands, what a chunked upload may continue, and what the prompt says about it |
+| `attachments.ts` | the conversation's tmp directory: where an attached file lands, what a chunked upload may continue, and what the prompt says about it |
 | `chat.ts` | the join, and the only place that knows both halves |
 
 A tool call is not instantaneous, so a frame is not just a status that flips.
@@ -263,12 +263,14 @@ So the MCP layer tells us about every refusal and it lands in the transcript as
 DATA — which is what makes "a refused write shows its detail in chat" true
 regardless of how the agent phrases it.
 
-**A pasted picture is a PATH by the time the conversation sees it.** The bytes
+**An attached file is a PATH by the time the conversation sees it.** The bytes
 arrive over `chat.attach` as bounded chunks and are written straight into a tmp
 directory of this conversation's own — `attachments.ts`, and never under the
 served directory, where the store probes and a commit would sweep them up. What
 `send` then carries is where they landed, and what the prompt says is
-`Attached image: <path>`: Claude Code reads the file itself. So no base64 rides
+`Attached file: <path>`: Claude Code reads the file itself. The label says FILE
+because the line carries PDFs and text as well as pictures — the gate widened
+in `/surface` and this sentence widened with it. So no base64 rides
 the prompt into the session the agent persists, nothing here depends on the
 session's `promptCapabilities.image`, and the whole path from browser to agent
 stays a string. The directory goes when the conversation is left and when the

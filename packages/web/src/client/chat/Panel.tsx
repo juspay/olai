@@ -10,6 +10,11 @@
  * The header's agent toggle stays the permanent chrome control (#101). The
  * TRANSCRIPT is subscribed only while the panel is open; Minimized reads a
  * module-scoped snapshot updated from here (`last.ts`), never the collection.
+ *
+ * Both layouts render the same `Body`, which is the conversation, the box and
+ * the drop target around them: a file let go of anywhere on the conversation
+ * is attached to it, and the chips land in the composer inside. The body only
+ * — the header is session controls, and a file cannot go there.
  */
 
 import { createEffect, createSignal, Show } from "solid-js"
@@ -27,11 +32,13 @@ import {
 import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
 import { Composer } from "./Composer.tsx"
+import { DropTarget } from "./DropTarget.tsx"
 import { Header } from "./Header.tsx"
+import { createHolding } from "./holding.ts"
 import { sampleLastAgent } from "./last.ts"
 import { Minimized } from "./Minimized.tsx"
 import { NoAgent } from "./NoAgent.tsx"
-import { createChat, createChatState } from "./state.ts"
+import { type Chat, createChat, createChatState } from "./state.ts"
 import { Transcript } from "./Transcript.tsx"
 
 export function Panel() {
@@ -110,6 +117,25 @@ export function Toggle() {
   )
 }
 
+/**
+ * Everything under the header: the conversation, the box, and the drop target
+ * around both.
+ *
+ * One component because the two layouts differ in their chrome and their
+ * geometry and never in this — and because the drop target and the composer
+ * have to share one `holding`, which is a wiring nobody should have to keep
+ * identical in two places 100 lines apart.
+ */
+function Body(props: { readonly chat: Chat }) {
+  const holding = createHolding(props.chat)
+  return (
+    <DropTarget onFiles={(files) => void holding.take(files)}>
+      <Transcript chat={props.chat} />
+      <Composer chat={props.chat} holding={holding} />
+    </DropTarget>
+  )
+}
+
 function DesktopDock() {
   const chat = createChat()
   const off = () => chat.state().status === "off"
@@ -131,8 +157,7 @@ function DesktopDock() {
       </div>
       <Header chat={chat} />
       <Show when={!off()} fallback={<NoAgent />}>
-        <Transcript chat={chat} />
-        <Composer chat={chat} />
+        <Body chat={chat} />
       </Show>
     </aside>
   )
@@ -238,8 +263,7 @@ function MobileSheet() {
         </div>
         <Header chat={chat} />
         <Show when={!off()} fallback={<NoAgent />}>
-          <Transcript chat={chat} />
-          <Composer chat={chat} />
+          <Body chat={chat} />
         </Show>
       </aside>
     </div>

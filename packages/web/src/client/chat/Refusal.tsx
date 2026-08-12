@@ -20,11 +20,15 @@ import { TESTID } from "../testids.ts"
 export function Refusal(props: { readonly failure: OpFailure }) {
   return (
     <div
-      class="rounded border-l-[3px] border-alarm bg-alarm/5 py-1.5 pl-3 text-sm"
+      class="rounded border-l-[3px] border-alarm bg-alarm/5 px-3 py-1.5 text-sm"
       data-testid={TESTID.chatRefusal}
       data-kind={kindOf(props.failure)}
     >
-      <p class="m-0">{props.failure.reason}</p>
+      {/* Line breaks in the reason are KEPT: one refusal can be about several
+          things at once — a drop of five files where two are not pictures is
+          refused for both of them, by name — and run together into a
+          paragraph those two sentences are one nobody finishes reading. */}
+      <p class="m-0 whitespace-pre-line">{props.failure.reason}</p>
 
       <Show when={onlyValidation(props.failure)}>
         {(invalid) => (

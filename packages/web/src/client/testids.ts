@@ -351,6 +351,10 @@ export const TESTID = {
   chatSessionList: "chat-session-list",
   chatSession: "chat-session",
   chatTranscript: "chat-transcript",
+  /** The panel saying a dragged file would land HERE: drawn over the
+   *  transcript and the composer while a drag carrying files is over them,
+   *  and gone the moment it is not. */
+  chatDrop: "chat-drop",
   /** Drawn in the transcript's place when no ACP agent is configured. The
    *  panel is NOT hidden in that state — this is what it says instead. */
   chatNoAgent: "chat-no-agent",
@@ -408,6 +412,11 @@ export const TESTID = {
   /** Drawn only in the tab that sent the picture, out of the Blob it still
    *  has. Every other tab has the name and nothing to draw. */
   chatAttachmentPreview: "chat-attachment-preview",
+  /** How big a NON-picture attachment is, beside its name. A PDF has no
+   *  thumbnail worth drawing, and the size is what a name does not carry.
+   *  Drawn only by the tab that attached it, for the same reason the preview
+   *  is: it is the only one holding the bytes. */
+  chatAttachmentSize: "chat-attachment-size",
   chatAttachmentRemove: "chat-attachment-remove",
   /** The file picker beside the input — a phone has no Ctrl+V. */
   chatAttachButton: "chat-attach",

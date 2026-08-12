@@ -1,5 +1,5 @@
 /**
- * Where a pasted picture lands: one tmp directory per conversation.
+ * Where an attached file lands: one tmp directory per conversation.
  *
  * The agent is handed a PATH and reads the file itself, so the bytes have to
  * be somewhere on this disk — and the one place they must NOT be is under the
@@ -13,7 +13,7 @@
  * Its LIFETIME is the conversation's. {@link Attachments.discard} is called
  * when a session is left — a new conversation, or another one loaded — and
  * when the chat stops, which is a finalizer of the serve scope, so shutting
- * the server down takes the pictures with it. Nothing here persists across a
+ * the server down takes the files with it. Nothing here persists across a
  * restart, and nothing is meant to: the file exists so that one prompt can
  * name it.
  *
@@ -63,7 +63,7 @@ export interface Attachments {
 
 export const make = (): Attachments => {
   /** Made on first use rather than on boot: a conversation that never has a
-   *  picture pasted into it should leave nothing behind at all. */
+   *  file attached to it should leave nothing behind at all. */
   let dir: string | null = null
 
   /** `mkdtemp` mints it, which is also what makes it owner-only: POSIX says
@@ -150,7 +150,7 @@ export const make = (): Attachments => {
 const NOT_OURS = "that attachment is not part of this conversation"
 
 /**
- * What the agent is actually asked, once a message has pictures on it.
+ * What the agent is actually asked, once a message has files on it.
  *
  * The whole transport, in one line: the prompt NAMES the files and the agent
  * reads them itself. Claude Code does that with a path in the text, so nothing
@@ -159,14 +159,20 @@ const NOT_OURS = "that attachment is not part of this conversation"
  * content block later is a change to this function and to nothing else.
  *
  * One path per line, labelled, after a blank line — so a message that also has
- * words keeps them intact, and one that has none is just the pictures.
+ * words keeps them intact, and one that has none is just the files.
+ *
+ * The label says FILE rather than image, and that is not cosmetic: this line
+ * carries PDFs and text as well as pictures now, and an agent told a `.pdf`
+ * was an image has been told something wrong about a file it is about to
+ * open. The fake ACP agent reads this same label back (`packages/tests`), so
+ * the two spellings cannot drift.
  */
 export const promptWith = (
   said: string,
   paths: ReadonlyArray<string>,
 ): string => {
   if (paths.length === 0) return said
-  const attached = paths.map((path) => `Attached image: ${path}`).join("\n")
+  const attached = paths.map((path) => `Attached file: ${path}`).join("\n")
   return said === "" ? attached : `${said}\n\n${attached}`
 }
 
@@ -185,7 +191,7 @@ const named = (path: string): Attached => ({ path, name: nameOf(path) })
  *  Every write here is ASYNCHRONOUS, and the size is why: one chunk is three
  *  megabytes, and the loop this server runs is also the one serving every open
  *  websocket, the store's probe and the MCP route. A synchronous write would
- *  stop all of them, seventeen times, for one large picture. */
+ *  stop all of them, seventeen times, for one large file. */
 const create = async (dir: string, name: string, data: string): Promise<string> => {
   const path = await free(dir, name)
   // Owner-only, like the directory holding it: this is clipboard content, and
@@ -211,7 +217,7 @@ const append = async (path: string, data: string): Promise<string> => {
  * one file here: separators, control characters, and the shell metacharacters
  * that would bite whoever pastes the resulting path into a terminal. Never
  * empty, and the extension is preserved because the agent reading the file
- * takes the picture's kind from it.
+ * takes the file's kind from it.
  */
 export const safeName = (raw: string): string => {
   const trimmed = basename(raw)
@@ -229,13 +235,13 @@ const MAX_NAME_BYTES = 200
 /**
  * ... and short enough to be one.
  *
- * A three-hundred-character name is still a name — it passes the picture
+ * A three-hundred-character name is still a name — it passes the kind
  * allowlist, and the size gate has nothing to say about it — and then the
  * write fails with `ENAMETOOLONG`, which reaches a person as a transport
  * failure rather than as a sentence about their file. So the label is cut
  * rather than refused, which is what this whole function does to a name.
  *
- * The EXTENSION is what survives the cut: the agent reads the picture's kind
+ * The EXTENSION is what survives the cut: the agent reads the file's kind
  * from it, and a name truncated through it would be a different kind or none.
  * Cut by BYTES and never mid-character, because the limit is bytes and a
  * name may be entirely three-byte ones.
@@ -245,7 +251,7 @@ const shortened = (name: string): string => {
   const { name: stem, ext } = parse(name)
   const room = MAX_NAME_BYTES - weight(ext)
   // An extension that will not fit is not one — cut the whole thing, and let
-  // the gate say what it now is (a name with no picture extension left).
+  // the gate say what it now is (a name with no attachable extension left).
   return room <= 0 ? cut(name, MAX_NAME_BYTES) : `${cut(stem, room)}${ext}`
 }
 
@@ -259,7 +265,7 @@ const cut = (text: string, room: number): string => {
 }
 
 /** A path in `dir` that no file has yet, suffixing `-1`, `-2`, … before the
- *  extension. Two pictures pasted before the agent has read the first must
+ *  extension. Two files attached before the agent has read the first must
  *  not be one file. */
 const free = async (dir: string, name: string): Promise<string> => {
   const { name: stem, ext } = parse(name)

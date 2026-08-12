@@ -659,12 +659,16 @@ Three components earn their own file:
   person can want at the same moment. Disabling cost the caret as well as the
   thought: coming back to a re-enabled box meant reaching for the mouse.
 
-  It is also where a picture comes in, three ways for one reason: paste is the
+  It is also where a FILE comes in, three ways for one reason: paste is the
   desktop gesture, drop is the one for a file already on screen, and the picker
-  is the only one a phone has. All three end in the same call, and attaching
-  does not send — the picture waits in a strip above the box, where it can be
-  removed or typed at, because "what is wrong here" needs the picture and the
-  question together.
+  is the only one a phone has. All three end in the same call and take the same
+  kinds — the picker's `accept` is spelled from the gate's own list, because a
+  dialog that greys out a PDF the drop would have taken is the one half-truth a
+  person meets with no refusal to explain it. Attaching does not send: the file
+  waits in a strip above the box, where it can be removed or typed at, because
+  "what is wrong here" needs the file and the question together. Two of the three listen here; the drop is caught by the
+  panel around it (below), because a file dragged at a conversation is aimed at
+  the conversation and not at a two-line box at the bottom of it.
 
   The box empties the moment it sends and PUTS BACK what the server would not
   take. Emptying immediately is not optional — waiting for the round trip would
@@ -677,17 +681,43 @@ Three components earn their own file:
   SEQUENCE of bounded `chat.attach` calls, the first creating the file and each
   later one appending to the path it was answered with. Sequential by
   construction — the server appends to one growing file, so two chunks in
-  flight would interleave their bytes and corrupt the picture silently. The
+  flight would interleave their bytes and corrupt the file silently. The
   size and kind gate runs before a byte is encoded, and it is the same function
   the server refuses with (`@olai/surface`), so a 60 MB drop costs nothing and
   says exactly what the server would have said.
-- **`Attachments.tsx`** draws a picture on a message two ways, and the chip is
-  the base case. A row carries file NAMES; whether there is anything to look at
-  depends on which tab is looking, because the bytes are in a tmp directory no
-  browser can reach and `/media/*` is guarded to the served directory. The tab
-  that pasted it still has the Blob (`previews.ts`, a bounded per-tab cache) and
-  draws a thumbnail; every other tab, and this one after a reload, draws the
-  name.
+- **`DropTarget.tsx`** wraps the panel's body — transcript and composer — and
+  is the whole of the drop gesture: a target you can miss by two pixels is a
+  target that eats the file, because a drop that region does not take is one
+  the BROWSER takes by navigating away to it. So the region that lights up is
+  exactly the region that takes it, and it lights up while the drag is still in
+  the air — what it is CARRYING is read off `dataTransfer.types`, because the
+  drag data store stays protected until the drop and the files are unreadable
+  the whole way across. Enter and leave are counted rather than flagged: they
+  fire per element, and a boolean flickers the whole way across a transcript.
+  What the count must never do is outlive the drag, so every ending puts it
+  back — the drop, the leave (counted out without asking what it carried, since
+  a browser may hand an empty store to one), and `dragend`. An affordance left
+  lit with nothing over it is a panel that looks broken and cannot be talked
+  out of it.
+- **`holding.ts`** is what the composer is holding — the files uploaded and
+  waiting for a message — lifted above both because the gesture and the chips
+  are no longer in the same component. It also makes one gesture ONE ANSWER:
+  the drop is sorted by `@olai/surface`'s gate before any of it is sent (the
+  same function the chunk loop and the server refuse with, asked one step
+  earlier), the uploads answer rather than draw their own refusals, and
+  everything the gesture turned down is said together on the panel's one
+  refusal line. Said file by file instead, each reason is rubbed out by the
+  next upload — which is a file dropped into the panel disappearing with
+  nothing on screen about it.
+- **`Attachments.tsx`** draws an attachment three ways, and the NAME is the base
+  case. A row carries file names; what can be added to one depends on which tab
+  is looking, because the bytes are in a tmp directory no browser can reach and
+  `/media/*` is guarded to the served directory. The tab that attached it still
+  has the Blob (`previews.ts`, a bounded per-tab cache): a picture becomes a
+  thumbnail, and anything else becomes its SIZE — a PDF has no thumbnail worth
+  drawing here, and an `<img>` pointed at one is a broken-image icon standing
+  where a file that uploaded perfectly should be. Every other tab, and this one
+  after a reload, draws the name alone.
 - **`SlashMenu.tsx`** takes Enter in the CAPTURE phase and stops it
   propagating, because the input owns Enter for sending: without that, a
   completion accepted would be a message sent. It is opened by typing `/` and

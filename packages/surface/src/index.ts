@@ -493,8 +493,11 @@ export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
  *  module, for the same reason the media URL is one: two copies of a threshold
  *  are two thresholds. See {@link ./attach.ts}. */
 export {
+  ATTACHMENT_EXTENSIONS,
   attachmentRejection,
   base64DecodedLength,
   chunkBase64,
+  DOCUMENT_EXTENSIONS,
+  isAttachable,
   MAX_ATTACHMENT_BYTES,
 } from "./attach.ts"

@@ -35,7 +35,7 @@
  *   permit       ask permission for an ops tool, which needs no person
  *   nameless     ask permission for a tool nothing has named
  *   crash        exit mid-turn
- *   a prompt naming an attached image  read the file and say how big it is
+ *   a prompt naming an attached file   read the file and say how big it is
  *   anything     one chunk of prose and an `end_turn`
  *
  * The last three are REQUESTS to the client rather than notifications, which is
@@ -668,13 +668,17 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
-  // A picture reaches an agent as a PATH in the prompt, and the whole claim of
-  // that design is that the agent can then READ it. So this one does: it opens
-  // the file the prompt named and says how big it is, which is a fact it can
-  // only have got off the disk. A scripted agent cannot look at a picture, and
-  // it does not have to — what an e2e can prove is that the bytes the browser
-  // pasted are the bytes at the path the agent was given.
-  const attached = [...text.matchAll(/^Attached image: (.+)$/gm)].map((match) => match[1] ?? "")
+  // An attachment reaches an agent as a PATH in the prompt, and the whole
+  // claim of that design is that the agent can then READ it. So this one does:
+  // it opens the file the prompt named and says how big it is, which is a fact
+  // it can only have got off the disk. A scripted agent cannot look at a
+  // picture or parse a PDF, and it does not have to — what an e2e can prove is
+  // that the bytes the browser sent are the bytes at the path the agent was
+  // given, whatever kind of file they are.
+  //
+  // The label is `@olai/chat`'s (`promptWith`), and it says FILE because the
+  // line carries text and PDFs as well as pictures.
+  const attached = [...text.matchAll(/^Attached file: (.+)$/gm)].map((match) => match[1] ?? "")
   if (attached.length > 0) {
     for (const file of attached) {
       const bytes = existsSync(file) ? statSync(file).size : -1

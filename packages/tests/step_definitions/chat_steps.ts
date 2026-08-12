@@ -18,7 +18,7 @@ import * as path from "node:path";
 import { Given, Then, When } from "@cucumber/cucumber";
 import type { Locator } from "playwright";
 
-import { TESTID } from "@olai/web/src/client/testids.ts";
+import { selector, TESTID, type TestId } from "@olai/web/src/client/testids.ts";
 
 import {
   CHAT_ASK,
@@ -29,7 +29,10 @@ import {
   CHAT_ASK_TEXT,
   CHAT_ATTACHMENT,
   CHAT_ATTACHMENT_PREVIEW,
+  CHAT_ATTACH_BUTTON,
+  CHAT_ATTACHMENT_SIZE,
   CHAT_CANCEL,
+  CHAT_DROP,
   CHAT_ENTRY,
   CHAT_ENTRY_STREAMING,
   CHAT_INPUT,
@@ -908,38 +911,213 @@ const ONE_PIXEL_PNG =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
 /** ... and something the clipboard calls a picture that this app does not: an
- *  SVG is a document that can script. */
+ *  SVG is a document that can script, so it is in neither list the gate
+ *  keeps. */
 const TINY_SVG = "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=";
+
+/** A real PDF, 69 bytes — a catalog and a trailer, which is the smallest thing
+ *  that is honestly one. The scenario asserts that size, which is how it knows
+ *  the agent opened the file rather than read its name. */
+const TINY_PDF =
+  "JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZz4+ZW5kb2JqCnRyYWlsZXI8PC9Sb290IDEgMCBSPj4KJSVFT0YK";
+
+/** Five bytes of text: `notes`. */
+const TINY_TEXT = "bm90ZXM=";
+
+/** What a named file is made of. The extension decides, because the extension
+ *  is what the app's own gate judges — so a scenario names `shot.png` or
+ *  `Type 04-C.pdf` and gets a file the panel will treat exactly as it would
+ *  treat a real one. A `.zip` is here to be REFUSED: the gate takes pictures,
+ *  PDFs and text, and a suite that had nothing left to be turned away by it
+ *  would have stopped testing the gate at all. */
+const fileSpec = (name: string): { name: string; data: string; type: string } => {
+  if (name.endsWith(".svg")) return { name, data: TINY_SVG, type: "image/svg+xml" };
+  if (name.endsWith(".pdf")) return { name, data: TINY_PDF, type: "application/pdf" };
+  if (name.endsWith(".txt")) return { name, data: TINY_TEXT, type: "text/plain" };
+  if (name.endsWith(".zip")) return { name, data: TINY_TEXT, type: "application/zip" };
+  return { name, data: ONE_PIXEL_PNG, type: "image/png" };
+};
+
+/** "shot.png, notes.txt" — one drop carrying several files, written the way a
+ *  sentence would say it. */
+const named = (names: string): ReadonlyArray<string> =>
+  names.split(",").map((name) => name.trim()).filter((name) => name !== "");
+
+/**
+ * Put files into the page the way the browser would have, and let the panel
+ * take it from there.
+ *
+ * DISPATCHED rather than performed, and there is no way around it: Playwright
+ * cannot put an image on the system clipboard portably and cannot make the
+ * desktop drag a real file into a headless browser. So the step builds what
+ * the browser would have built — real `File`s in a real `DataTransfer`, on the
+ * real event — and everything after that line is the app: the target that
+ * catches it, the gate that sorts it, the chunk loop, the tmp directory, the
+ * prompt the agent is handed.
+ *
+ * One function for both gestures because the FILES are the same construction
+ * either way, and what differs is one constructor and where it is aimed. A
+ * drop is aimed at the transcript, which is the part of the panel furthest
+ * from the composer: a drop that only worked over the box would pass a test
+ * aimed at the box and fail the person aiming at the panel.
+ */
+const deliver = async (
+  world: OlaiWorld,
+  at: TestId,
+  files: ReadonlyArray<string>,
+  kinds: ReadonlyArray<string>,
+  as: "clipboard" | "drag" = "drag",
+): Promise<void> => {
+  await world.page
+    .locator(selector(at))
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await world.page.evaluate(
+    ({ specs, kinds, at, clipboard }) => {
+      const transfer = new DataTransfer();
+      for (const spec of specs) {
+        const bytes = Uint8Array.from(atob(spec.data), (char) => char.charCodeAt(0));
+        transfer.items.add(new File([bytes], spec.name, { type: spec.type }));
+      }
+      const target = document.querySelector(`[data-testid="${at}"]`);
+      for (const kind of kinds) {
+        target?.dispatchEvent(
+          clipboard
+            ? new ClipboardEvent(kind, {
+              clipboardData: transfer,
+              bubbles: true,
+              cancelable: true,
+            })
+            : new DragEvent(kind, {
+              dataTransfer: transfer,
+              bubbles: true,
+              cancelable: true,
+            }),
+        );
+      }
+    },
+    { specs: files.map(fileSpec), kinds, at, clipboard: as === "clipboard" },
+  );
+};
 
 When(
   "I paste a picture called {string} into the chat",
   async function (this: OlaiWorld, name: string) {
-    const input = this.page.locator(CHAT_INPUT);
-    await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await input.click();
-    await this.page.evaluate(
-      ({ name, data, type, id }) => {
-        const bytes = Uint8Array.from(atob(data), (char) => char.charCodeAt(0));
-        const transfer = new DataTransfer();
-        transfer.items.add(new File([bytes], name, { type }));
-        const box = document.querySelector(`[data-testid="${id}"]`);
-        box?.dispatchEvent(
-          new ClipboardEvent("paste", {
-            clipboardData: transfer,
-            bubbles: true,
-            cancelable: true,
-          }),
-        );
-      },
-      {
-        name,
-        data: name.endsWith(".svg") ? TINY_SVG : ONE_PIXEL_PNG,
-        type: name.endsWith(".svg") ? "image/svg+xml" : "image/png",
-        id: TESTID.chatInput,
-      },
-    );
+    await this.page.locator(CHAT_INPUT).click();
+    await deliver(this, TESTID.chatInput, [name], ["paste"], "clipboard");
   },
 );
+
+When(
+  "I drag {string} over the chat panel",
+  async function (this: OlaiWorld, names: string) {
+    await deliver(this, TESTID.chatTranscript, named(names), ["dragenter", "dragover"]);
+  },
+);
+
+When(
+  "I drop {string} on the chat panel",
+  async function (this: OlaiWorld, names: string) {
+    // The whole gesture, in the order a browser fires it — the drop only
+    // happens at all because `dragover` said it could.
+    await deliver(this, TESTID.chatTranscript, named(names), [
+      "dragenter",
+      "dragover",
+      "drop",
+    ]);
+  },
+);
+
+When("the drag moves onto the composer", async function (this: OlaiWorld) {
+  // What a browser fires when a drag crosses from one element of a target to
+  // another INSIDE it: the new element enters before the old one leaves. Fired
+  // with no files (the drag is already in flight) but the same `Files` kind,
+  // which is all a listener may read before the drop.
+  await deliver(this, TESTID.chatInput, ["shot.png"], ["dragenter"]);
+  await deliver(this, TESTID.chatTranscript, ["shot.png"], ["dragleave"]);
+});
+
+/** A drag event carrying NOTHING — no files, no kinds. Two of the three ways a
+ *  drag ends look like this from inside the page: a browser that hands an
+ *  empty store on `dragleave` (it is allowed to; the drag data is protected
+ *  until the drop), and a drag cancelled with Escape. Both must put the panel
+ *  back, because the alternative is "drop to attach" left lit over a
+ *  conversation with nothing over it. */
+const emptyDragAt = (world: OlaiWorld, at: TestId, kind: string): Promise<void> =>
+  world.page.evaluate(({ at, kind }) => {
+    const target = document.querySelector(`[data-testid="${at}"]`)
+    target?.dispatchEvent(
+      new DragEvent(kind, {
+        dataTransfer: new DataTransfer(),
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+  }, { at, kind });
+
+When(
+  "I pick {string} with the attach button",
+  async function (this: OlaiWorld, name: string) {
+    const spec = fileSpec(name);
+    // What a real file dialog FILTERS by, asserted before the file is handed
+    // over: `setFiles` ignores `accept`, so a picker that had gone on saying
+    // `image/*` would take this PDF here and grey it out for the person. The
+    // one half-truth met with no refusal to explain it.
+    const accept = await this.page
+      .locator(`${CHAT_PANEL} input[type=file]`)
+      .getAttribute("accept");
+    const extension = name.slice(name.lastIndexOf("."));
+    assert.ok(
+      accept !== null && accept.includes(extension),
+      `the picker offers "${accept}", which does not include "${extension}" — ` +
+        `so a file the gate would take cannot be chosen`,
+    );
+    const [chooser] = await Promise.all([
+      this.page.waitForEvent("filechooser"),
+      this.page.locator(CHAT_ATTACH_BUTTON).click(),
+    ]);
+    await chooser.setFiles({
+      name: spec.name,
+      mimeType: spec.type,
+      buffer: Buffer.from(spec.data, "base64"),
+    });
+  },
+);
+
+When("the drag leaves the panel without dropping", async function (this: OlaiWorld) {
+  await emptyDragAt(this, TESTID.chatTranscript, "dragleave");
+});
+
+When("the drag is cancelled", async function (this: OlaiWorld) {
+  // What a drag that STARTED in the page ends with when it is abandoned — one
+  // of the panel's own attachment thumbnails, dragged and let go of nowhere.
+  await emptyDragAt(this, TESTID.chatTranscript, "dragend");
+});
+
+When("I drag some selected text over the chat panel", async function (this: OlaiWorld) {
+  await this.page.evaluate(({ at }) => {
+    const transfer = new DataTransfer();
+    transfer.setData("text/plain", "a sentence being dragged");
+    const pane = document.querySelector(`[data-testid="${at}"]`);
+    for (const kind of ["dragenter", "dragover"]) {
+      pane?.dispatchEvent(
+        new DragEvent(kind, { dataTransfer: transfer, bubbles: true, cancelable: true }),
+      );
+    }
+  }, { at: TESTID.chatTranscript });
+});
+
+Then("the panel shows where the drop will land", async function (this: OlaiWorld) {
+  await this.page
+    .locator(CHAT_DROP)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+Then("the panel is not offering to take a drop", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_DROP).count()) === 0,
+    "the panel not to be offering to take a drop",
+  );
+});
 
 /** Waiting, not asserting: the chip appears when the upload has answered, and
  *  how many round trips that took is the chunker's business. */
@@ -949,6 +1127,75 @@ Then(
     await this.waitUntil(
       async () => (await this.page.locator(pictureChip(name)).count()) > 0,
       `the composer to hold "${name}"`,
+    );
+  },
+);
+
+Then(
+  "the composer is holding {string} in that order",
+  async function (this: OlaiWorld, names: string) {
+    const wanted = named(names);
+    await this.waitUntil(
+      async () => (await this.page.locator(CHAT_ATTACHMENT).count()) === wanted.length,
+      `the composer to hold ${wanted.length} pictures`,
+    );
+    // ORDER, and it is the claim the scenario is about: the chips are in the
+    // order the files were dropped, which is the order they will ride the next
+    // message in — and therefore the order the agent reads them in.
+    assert.deepStrictEqual(
+      await this.page.locator(CHAT_ATTACHMENT).evaluateAll((chips) =>
+        chips.map((chip) => chip.getAttribute("data-name"))
+      ),
+      [...wanted],
+      "one drop's pictures are attached in the order they were dropped",
+    );
+  },
+);
+
+Then(
+  "the agent read {string} in that order",
+  async function (this: OlaiWorld, names: string) {
+    const wanted = named(names).map((name) => `read 70 bytes from ${name}`);
+    await this.waitUntil(
+      async () => {
+        const said = await transcriptText(this);
+        return wanted.every((line) => said.includes(line));
+      },
+      `the agent to read ${wanted.length} pictures`,
+    );
+    // Where each one appears in the answer, in the order the agent was handed
+    // them: the prompt carries the paths, and the paths are the chips.
+    const said = await transcriptText(this);
+    const at = wanted.map((line) => said.indexOf(line));
+    assert.deepStrictEqual(
+      [...at].sort((a, b) => a - b),
+      at,
+      `the agent read the pictures in a different order than they were dropped: ${said}`,
+    );
+  },
+);
+
+Then(
+  "the composer is holding {string}, showing how big it is",
+  async function (this: OlaiWorld, name: string) {
+    await this.waitUntil(
+      async () => (await this.page.locator(pictureChip(name)).count()) > 0,
+      `the composer to hold "${name}"`,
+    );
+    const chip = this.page.locator(pictureChip(name));
+    // A PDF has no thumbnail worth drawing, and an <img> pointed at one is a
+    // broken-image icon — a component lying about a file that uploaded
+    // perfectly. What it says instead is the fact a name does not carry.
+    assert.strictEqual(
+      await chip.locator(CHAT_ATTACHMENT_PREVIEW).count(),
+      0,
+      `"${name}" is not a picture, so the chip for it must not be drawing one`,
+    );
+    const size = oneLine(await chip.locator(CHAT_ATTACHMENT_SIZE).innerText());
+    assert.match(
+      size,
+      /^\d+(\.\d)? (B|KB|MB|GB)$/,
+      `the chip for "${name}" says "${size}" where a size belongs`,
     );
   },
 );
