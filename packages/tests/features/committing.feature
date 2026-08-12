@@ -32,12 +32,20 @@ Feature: Committing on purpose
     And there should be no page errors
 
   Scenario: An edit waits, is shown as what it is, and is committed on purpose
+    # The whole corpus file, with ONE node changed: `mint` goes from under way
+    # to done. Written out in full because the count below is the point — a
+    # rewrite that dropped the nodes it was not about would report those as
+    # gone, which is true and not what this scenario is asking.
     When I rewrite "garden.jsonl" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
-      {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
+      {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door","doing":"2026-07-20"}
       {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20"}
       {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","done":"2026-08-10"}
+      {"id":"frames","parent":"garden","ord":"a1","title":"the cold frames"}
+      {"id":"glazing","parent":"frames","ord":"a0","title":"replace the cracked pane","done":"2026-07-15"}
+      {"id":"sowing","parent":"frames","ord":"a1","title":"sow the first trays","done":"2026-08-11"}
+      {"id":"slugs","parent":"frames","ord":"a2","title":"the slugs got the seedlings last year"}
       """
     Then the commit pill says "waiting"
     And the commit pill says 1 uncommitted
@@ -64,9 +72,13 @@ Feature: Committing on purpose
     And I rewrite "garden.jsonl" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
-      {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
+      {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door","doing":"2026-07-20"}
       {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20"}
       {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","doing":true,"desc":"the roots are matted"}
+      {"id":"frames","parent":"garden","ord":"a1","title":"the cold frames"}
+      {"id":"glazing","parent":"frames","ord":"a0","title":"replace the cracked pane","done":"2026-07-15"}
+      {"id":"sowing","parent":"frames","ord":"a1","title":"sow the first trays","done":"2026-08-11"}
+      {"id":"slugs","parent":"frames","ord":"a2","title":"the slugs got the seedlings last year"}
       """
     Then the commit pill says "blocked"
     And the commit pill says 1 uncommitted
