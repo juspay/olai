@@ -108,6 +108,32 @@ export const ID_SHAPE = /^[A-Za-z0-9_-]+$/
 export const EDGE_FIELDS = ["after", "blocks", "see"] as const
 export type EdgeField = (typeof EDGE_FIELDS)[number]
 
+/**
+ * Every id this record POINTS AT, and the field it pointed with — in
+ * declaration order, so two readings answer the same.
+ *
+ * One function, because two questions are the same question read from either
+ * end. The validator asks it forwards ("does everything this record names
+ * exist?"); the ops layer asks it backwards, over the set, before it takes a
+ * record away ("does anything still name this?"). A second list of field names
+ * in the second caller is the failure this format keeps warning about: the day
+ * a fourth relation is added, the rule that scans for it silently stops seeing
+ * one, and the write that should have been refused lands.
+ *
+ * A mirror points with `mirror` and nothing else — it has no edges of its own —
+ * which is the same reason it is a separate shape rather than an optional field.
+ * `parent` is deliberately not here: it is same-file placement rather than a
+ * bare reference, and it has its own rules and its own error codes.
+ */
+export const targetsOf = (
+  node: Node,
+): ReadonlyArray<readonly [field: string, id: string]> =>
+  isMirror(node)
+    ? [["mirror", node.mirror] as const]
+    : EDGE_FIELDS.flatMap((field) =>
+      (node[field] ?? []).map((id) => [field, id] as const)
+    )
+
 /** What a served file is, by its name. An outline is a `.jsonl`, a document is
  *  a `.md`, and anything else is not part of the set.
  *

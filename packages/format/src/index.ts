@@ -20,7 +20,11 @@
  *     `stampOf` — the canonical bytes, the sibling order and the one way an
  *     instant becomes a date value, held here for the same reason the rules
  *     are: a writer with its own copy of any of them is a second format;
- *   - what went wrong, `OutlineError` and the two things a view does with it;
+ *   - what went wrong, `OutlineError` and the two things a view does with it —
+ *     plus the two ways a message NAMES something, `didYouMean` for an id
+ *     nothing declares and `chainOf` for a loop, held here because the ops layer
+ *     refuses the same unknown target and the same cycle one moment earlier, at
+ *     the plan, and two spellings would let a write and a load disagree;
  *   - what a write says when it refuses, `OpFailure` and its four kinds;
  *   - what two readings of a set DIFFER by, `changesOf` and the vocabulary a
  *     pending commit is spoken in — pure, with no git in it, because it is a
@@ -39,7 +43,7 @@ export { validate } from "./validate.ts"
 export { assemble, BrokenFile, fileKind, OutlineSet } from "./set.ts"
 export type { DecodedFile, Outline } from "./set.ts"
 export { docOf, Document, isPicture, PICTURE_EXTENSIONS, pictureOf } from "./documents.ts"
-export { ARCHIVE, isArchived, isMirror, Located, MARKS } from "./node.ts"
+export { ARCHIVE, isArchived, isMirror, Located, MARKS, targetsOf } from "./node.ts"
 export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
 
 export {
@@ -47,6 +51,11 @@ export {
   byOrd,
   countedChildren,
   derive,
+  /** The containment graph: what drawing a record leads to drawing. Exported
+   *  because two rules read it — the validator's mirror-cycle check, and the
+   *  ops layer refusing the placement that would close one before it is
+   *  written. */
+  drawnFrom,
   follow,
   nodeNamed,
   progressOf,
@@ -92,6 +101,14 @@ export {
   Wrote,
 } from "./committing.ts"
 
+/** The typo rule AND the clause it produces, exported for one reason: the ops
+ *  layer refuses an unknown `mirror` / `after` / `see` target at the PLAN, and
+ *  the validator refuses the same id on load. One question at two moments — a
+ *  second copy of the budget, or of the sentence, would let the two disagree
+ *  about what a misspelling is. `nearestId` is the rule for a caller that wants
+ *  the candidate rather than the wording. */
+export { didYouMean, nearestId } from "./suggest.ts"
+
 export { ordBetween } from "./ord.ts"
 export { nodesOf, serializeOutline } from "./write.ts"
 
@@ -107,6 +124,9 @@ export {
 export type { FailureKind } from "./failure.ts"
 
 export {
+  /** How a loop is named — the validator's, and the ops layer's when it refuses
+   *  the write that would close one. */
+  chainOf,
   compareErrors,
   errorLine,
   isCrossFile,

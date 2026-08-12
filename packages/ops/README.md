@@ -2,7 +2,8 @@
 
 Semantic edits over a served directory: create an outline, add a node or a
 whole subtree, mark done, doing or todo, retitle, note, schedule, move,
-archive, set see references.
+archive, set see references, place and retire mirrors, wire the `after` edges a
+node waits on.
 Everything that changes an outline goes through here, and everything an agent
 may READ of one comes out of here too.
 
@@ -237,6 +238,9 @@ person already knows how to read is worth more than a better one they do not:
 | title | `rename: TITLE` |
 | desc | `note: TITLE` |
 | see | `see: TITLE` |
+| after | `after: TITLE` |
+| mirror | `mirror: TITLE` — the TARGET's title, not the placement's id |
+| unmirror | `unmirror: TITLE` |
 
 `create` is how a brand-new outline file is born: `add` only writes into a file
 the set already holds. The path is a relative `.jsonl` under the served
@@ -248,11 +252,86 @@ same `children`, the same depth — through the same `emit` `add` uses, so a new
 outline holding a dozen nodes is one call and a refused seed leaves no file. An
 empty one leaves a zero-byte outline for later `add_node`s.
 
-The last field edits (including `see`) are this format's own: the reference had
-no structural move, no separate note edit, and no agent-writable `see`. `date`
-is the one word that CHANGED — it printed as `move:` there, where a date was
-what `move` named, and beside this format's real reparenting op that read as a
-structural change that never happened.
+The last field edits (including `see`), the two mirror ops and `after` are this
+format's own: the reference had no structural move, no separate note edit, and
+no agent-writable `see`. `date` is the one word that CHANGED — it printed as
+`move:` there, where a date was what `move` named, and beside this format's real
+reparenting op that read as a structural change that never happened.
+
+## Placements, and the edges
+
+A mirror is the second half of the format the ops layer could not write, and the
+gap was not academic: the ledger this repository keeps its own roadmap in has a
+Now section made of mirror records, and every entry in it was a HAND EDIT of the
+file — the practice `docs/RCA/2026-08-11-roadmap-stamp-reverts.md` is about. So:
+
+- **`add_mirror` places one.** The record is `{id, parent?, ord, mirror}` and can
+  be nothing else, because it is built here from a request that has no field for
+  a title or a mark — "a mirror carries nothing but its four" is unrepresentable
+  rather than checked. It lands like an `add`: under a `parent`, or at the top
+  level of a `file`, with `before` / `after` among the siblings there and an
+  `ord` minted between them. Two refusals are its own — a target nothing
+  declares, and a placement INSIDE the subtree it shows, which is the one mirror
+  rule that cannot be checked one record at a time (expanding it would never
+  end). That walk is the validator's own graph (`@olai/format`'s `drawnFrom`),
+  downward: a node leads to its children, a mirror to its target, so a loop that
+  closes through another placement is found, and the refusal names it — with the
+  same arrow the validator writes a cycle with, because that is one function too
+  (`chainOf`). All three loop refusals this layer has — a move under its own
+  descendant, a placement inside what it shows, an `after` edge closing a cycle
+  — are one walk (`pathTo`) over three graphs, and each of them names the loop
+  rather than merely reporting one.
+- **`remove_mirror` retires one, and that is a PLACEMENT rather than a node.**
+  `id` is the mirror's own — the line goes, and the target keeps its title, its
+  mark, its children and every other placement of it. It is deliberately not
+  `archive_node` (which MOVES a subtree, ids and all, into `Archive.jsonl`) and
+  deliberately not a delete of content: no op in this layer destroys any, and
+  this one does not become the first by accident. So it refuses on the id of a
+  regular node, and says which op puts a node away — and it refuses while
+  anything still NAMES the placement (a mirror chained onto it, an edge written
+  at it), listing what to re-point and at which node. That last refusal was the
+  validator's until the 2026-08-11 review: safe, since nothing landed, but what
+  came back was a row about the file the write would have produced, saying an id
+  the caller had just asked to delete is unknown — occasionally with a
+  did-you-mean pointing at its NEIGHBOUR. A refusal that teaches the wrong
+  lesson is worse than one that teaches none. It is still not re-validation:
+  what a record points at is `@olai/format`'s `targetsOf`, the same function the
+  validator's unknown-target rule reads forwards, so a relation added to the
+  format later cannot slip past the scan.
+- **`set_after` is `set_see`'s shape over the other kind of edge** — one
+  function plans both — and the difference is the rule. `after` is the ORDERING
+  graph, so an add that closes a loop is refused with the loop named, read over
+  `derive`'s graph with `blocks` normalised in and both ends resolved to nodes:
+  the same graph the validator's acyclicity check walks, so a deadlock closing
+  through a mirror is one loop here and there rather than two answers. `blocks`
+  is not writable, for the reason it is sugar — `a blocks b` IS `b after a`, and
+  a writer that could spell both would put one relation on disk two ways.
+
+Both new fields are READ back too. A hit and a node's own read carry `after`
+beside `see`, because a target is removed BY ID and a caller that cannot see the
+list can only guess at it; and `read_node` answers a placement from **both
+ends**:
+
+- `mirrors` — every placement OF this node, chain followed. The discovery path
+  the surface would otherwise not have: mirrors are left out of search and out
+  of every child list on purpose (a mirror is a second location of a node, and a
+  search returning one would be the same node twice), so the only id
+  `remove_mirror` could ever be handed would be one the same session had just
+  minted. A mirror is not a node, so you ask the node where it is placed. This
+  is the retire path from the finished ITEM's side;
+- `placed` — the placements UNDER this node, in sibling order, each carrying the
+  node it shows. The list's side of the same fact, and the one the ledger is
+  actually read with: **"what is on Now?"** was a question this layer could not
+  answer at all (2026-08-11 review), so an orchestrator opening a fresh session
+  — having placed nothing yet, with no item to ask — was back to reading the
+  file by hand, which is the practice these ops exist to end. `children` is not
+  the place for it: that list is what HANGS OFF a node, and it is deliberately
+  free of mirrors, while this is what a node POINTS at. Two questions, two
+  answers.
+
+None of that is worth anything if nothing says so where an agent will read it,
+which is why the read tools' descriptions name these fields and
+`packages/server/src/mcp/tools.test.ts` fails if they stop.
 
 Git can never fail a write. The bytes are on disk and the browser has already
 seen them by the time git runs, so a refusal is a `Failed` carrying git's own
@@ -303,11 +382,22 @@ byte, only a node. Reads answer with `file:line`, the node's mark (absent when
 it carries none, because that is not a task), the ROLLUP of the tasks under it
 — which is not in the file and is an annotation, never a second answer to what
 the node is — its ancestor titles, which is what makes a bare title mean
-something, and its `see` targets (when it has any), so a free cross-reference
-is traversable without a second read. `set_see` is the write half: add and/or remove target ids on an
-existing node; an unknown add is refused with the ids the set does hold.
-`add_node`'s description teaches the one gesture the surface is shaped around:
-when you already know more than one node, they go in one call.
+something, its `see` and `after` targets (when it has any), so a
+cross-reference and a dependency are both traversable without a second read, and
+— on a node read — the placements at both ends of it, `mirrors` and `placed`.
+`set_see` and `set_after` are the write halves: add and/or remove target ids on
+an existing node, and an unknown add is refused with the closest id that does
+exist — the validator's own did-you-mean, one moment earlier, through the very
+same function (`@olai/format`'s `didYouMean`), so a write and a load cannot
+disagree about what a typo is or say so in two voices. That refusal used to list
+every id in the set, which is the right answer for the OUTLINES of a directory
+and the wrong one for the nodes in it: `search_nodes` is the tool for "I do not
+know what it is called". It is ONE refusal for an id nothing declares, whatever
+the id was doing — the node an op is about gets the same help as a target it was
+asked to point at. Tool descriptions teach the gestures the surface is shaped around —
+`add_node`'s, that nodes you already know go in ONE call; `add_mirror`'s, that a
+curated list is placements rather than copies; `set_after`'s, that a dependency
+is written from the node that waits.
 
 How those tools reach an agent is NOT this package's any more. `@olai/server`
 projects the table onto `@kolu/surface-mcp` bespoke tools, so the browser and

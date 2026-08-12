@@ -33,7 +33,7 @@ const Title = Schema.String.annotate({
  * wants. A struct rather than two loose fields so "both at once" is one check
  * in one place.
  */
-const Placement = {
+const Anchor = {
   before: Schema.optionalKey(
     Schema.String.annotate({
       description: "Place it immediately before this sibling id.",
@@ -191,27 +191,42 @@ const childAt = (below: number): Schema.Codec<Capture> =>
  */
 const ROOT = { ...CAPTURE, children: childrenOf(NESTING) } as const
 
-export const AddRequest = Schema.Struct({
-  op: Schema.Literal("add"),
+/**
+ * Where a record a call brings into being LANDS: under a node, or at the top
+ * level of an outline.
+ *
+ * One declaration for the two ops that create a record — `add_node` and
+ * `add_mirror` — because the planner answers it with one function
+ * ({@link ./plan.ts}'s `landsIn`) and two copies of the prose would be two
+ * agent-facing descriptions of one rule, free to drift. Neither field says
+ * "node" or "mirror": what lands is the caller's business, and where it lands
+ * is this.
+ */
+const LANDING = {
   /** The outline to write into. Required only when there is no `parent`: with
    *  one, the file is wherever the parent lives, and a second answer could
    *  disagree with it. */
   file: Schema.optionalKey(
     Schema.String.annotate({
       description:
-        "Outline to add to, relative to the served directory. Required when `parent` is absent; ignored when it is present (the node goes in its parent's file).",
+        "Outline to write into, relative to the served directory. Required when `parent` is absent; ignored when it is present (it goes in its parent's file).",
     }),
   ),
   parent: Schema.optionalKey(
     Schema.String.annotate({
-      description: "Id of the parent node. Absent puts the node at top level.",
+      description: "Id of the node it goes under. Absent puts it at top level.",
     }),
   ),
+} as const
+
+export const AddRequest = Schema.Struct({
+  op: Schema.Literal("add"),
+  ...LANDING,
   /** The node, and the subtree under it. One call, one plan, one validation,
    *  one write, one commit — which is what makes a half-captured outline
    *  impossible. */
   ...ROOT,
-  ...Placement,
+  ...Anchor,
 })
 
 /** The marks are one op: same resolver, same refusals, and the format's own
@@ -252,7 +267,7 @@ export const MoveRequest = Schema.Struct({
    *  which is how a pure reorder is spelled. `parent` is same-file by the
    *  format, so a move never crosses outlines — archiving is what does. */
   parent: Schema.optionalKey(Schema.NullOr(Schema.String)),
-  ...Placement,
+  ...Anchor,
 })
 
 export const ArchiveRequest = Schema.Struct({
@@ -307,13 +322,90 @@ export const SeeRequest = Schema.Struct({
   add: Schema.optionalKey(
     Schema.Array(Schema.String).annotate({
       description:
-        "Ids to add to this node's `see` list. Each must name a node in the loaded set; unknowns are refused with the ids that do exist.",
+        "Ids to add to this node's `see` list. Each must name a node in the loaded set; an unknown one is refused with the closest id that exists.",
     }),
   ),
   remove: Schema.optionalKey(
     Schema.Array(Schema.String).annotate({
       description:
         "Ids to drop from this node's `see` list. Naming one that is not there is a no-op for that id.",
+    }),
+  ),
+})
+
+/**
+ * A second PLACEMENT of a node that already exists.
+ *
+ * It takes what `add_node` takes minus everything that describes a node, and
+ * that subtraction is the format's own: a mirror is exactly
+ * `{id, parent?, ord, mirror}`, because any field describing the node itself has
+ * an authoritative copy at the target and a second one here could only disagree
+ * with it (docs/format.md's Two record shapes). So there is no `title` to give,
+ * no `mark`, no `desc` — the schema cannot spell them, which is one fewer thing
+ * the planner has to refuse.
+ *
+ * What is left is where the placement GOES, which is the same question
+ * `add_node` answers: under a `parent`, or at the top level of a `file`, placed
+ * among the siblings there by `before` / `after`.
+ */
+export const MirrorRequest = Schema.Struct({
+  op: Schema.Literal("mirror"),
+  target: Schema.String.annotate({
+    description:
+      "The `id` this mirror shows. Any node in the loaded set, in any outline — and it may itself be a mirror, in which case the chain is followed to the node at its end.",
+  }),
+  ...LANDING,
+  /** The placement's OWN id — not the target's. Absent mints one; supply one
+   *  when the placement itself needs a name a person will type, which is what
+   *  a ledger convention like `now-<item>` is. */
+  id: Schema.optionalKey(
+    Schema.String.annotate({
+      description:
+        "A chosen id for the PLACEMENT (`[A-Za-z0-9_-]+`), unique across the set — not the target's id. Absent mints one, and the answer's `id` names it either way.",
+    }),
+  ),
+  ...Anchor,
+})
+
+/**
+ * Retire one placement.
+ *
+ * `id` names the MIRROR record, never the node it shows: what goes is the line
+ * that placed it, and the target is not touched. That is why this is its own op
+ * rather than an arm of `archive` — see {@link ../../../packages/ops/README.md},
+ * and the planner's own refusal for the id of a regular node.
+ */
+export const UnmirrorRequest = Schema.Struct({
+  op: Schema.Literal("unmirror"),
+  id: Schema.String.annotate({
+    description:
+      "The `id` of the MIRROR record — the placement — not of the node it shows.",
+  }),
+})
+
+/**
+ * Add and/or remove `after` edges on a node — what it must come after.
+ *
+ * {@link SeeRequest}'s shape exactly, because it is the same gesture over the
+ * other kind of edge: incremental, so an agent that has just learned about one
+ * dependency does not re-state the others, and at least one target must be
+ * named. What differs is what the edges MEAN — `after` is the ordering graph, so
+ * an add that would close a loop is refused (docs/format.md's Status) where a
+ * `see` cycle is fine.
+ */
+export const AfterRequest = Schema.Struct({
+  op: Schema.Literal("after"),
+  id: Id,
+  add: Schema.optionalKey(
+    Schema.Array(Schema.String).annotate({
+      description:
+        "Ids this node must come AFTER. Each must name a node in the loaded set; unknowns are refused with the closest id that exists, and an add that would close a loop is refused naming the loop.",
+    }),
+  ),
+  remove: Schema.optionalKey(
+    Schema.Array(Schema.String).annotate({
+      description:
+        "Ids to drop from this node's `after` list. Naming one that is not there is a no-op for that id.",
     }),
   ),
 })
@@ -328,6 +420,9 @@ export const Request = Schema.Union([
   ArchiveRequest,
   CreateRequest,
   SeeRequest,
+  MirrorRequest,
+  UnmirrorRequest,
+  AfterRequest,
 ])
 export type Request = typeof Request.Type
 
@@ -359,8 +454,13 @@ export interface Applied {
   /** Every node this write brought into being, parent before child and siblings
    *  in the order they were given — id and title, so the caller can mark, note
    *  or capture UNDER one of them without a search for an id it never chose. A
-   *  plain capture is a list of one; absent only when the op created nothing,
-   *  which is how the format spells an empty list everywhere else. */
+   *  plain capture is a list of one; absent only when the op created no NODE,
+   *  which is how the format spells an empty list everywhere else.
+   *
+   *  A placed mirror is absent from it, and that is the same word read
+   *  strictly: `add_mirror` creates a placement of a node that already exists,
+   *  not a node, and it has no title to report. `id` above names the placement
+   *  it made, which is what `remove_mirror` takes. */
   readonly captured?: ReadonlyArray<Minted>
   /** The store revision this write produced. */
   readonly rev: number
