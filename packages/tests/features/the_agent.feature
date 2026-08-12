@@ -501,12 +501,26 @@ Feature: Talking to the agent
     # the disk — because that is what "through the existing pipeline" means.
     When I drag "shot.png" over the chat panel
     Then the panel shows where the drop will land
+    # Enter and leave fire per ELEMENT, not per target, so a drag crossing the
+    # panel leaves each thing it passes over the instant it enters the next.
+    # Counted, that is one drag; flagged, it is a panel that flickers the whole
+    # way across and goes dark under the cursor.
+    When the drag moves onto the composer
+    Then the panel shows where the drop will land
     When I drop "shot.png" on the chat panel
     Then the composer is holding the picture "shot.png"
-    And the panel is no longer offering to take a drop
+    And the panel is not offering to take a drop
     When I ask the agent "what is this"
     Then the agent's answer mentions "read 70 bytes from shot.png"
     And the conversation shows the picture "shot.png"
+
+  @scratch:chat
+  Scenario: A drag carrying no files is none of the panel's business
+    # Dragging a selection into the box is the browser's own gesture and it
+    # goes on working: the panel reads what the drag is CARRYING before it
+    # offers to take it, and takes nothing it was not offered.
+    When I drag some selected text over the chat panel
+    Then the panel is not offering to take a drop
 
   @scratch:chat
   Scenario: Several files in one drop attach in the order they were dropped

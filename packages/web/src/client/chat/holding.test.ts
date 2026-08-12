@@ -12,8 +12,7 @@ import { expect, test } from "bun:test"
 
 import { sorting } from "./holding.ts"
 
-const file = (name: string, type: string, bytes = 3) =>
-  new File([new Uint8Array(bytes)], name, { type })
+const file = (name: string, type: string) => new File([new Uint8Array(3)], name, { type })
 
 test("a drop of pictures is taken whole, in the order it arrived", () => {
   const dropped = [file("one.png", "image/png"), file("two.jpg", "image/jpeg")]
@@ -40,13 +39,15 @@ test("a mixed drop takes the pictures and owes a refusal for the rest", () => {
   expect(refusals[1]).toContain("plan.pdf")
 })
 
-test("an SVG is refused with everything else the gate refuses", () => {
+test("an SVG is refused, whatever the drag calls it", () => {
   // A picture as far as the drag is concerned; a document that can script as
-  // far as this app is. The list is `@olai/format`'s, not a second one here.
+  // far as this app is. WHY it is refused is `@olai/surface`'s to say and its
+  // own test's to pin — what this one claims is that the answer reaches the
+  // refused pile rather than the upload.
   const { taking, refusals } = sorting([file("logo.svg", "image/svg+xml")])
 
   expect(taking).toEqual([])
-  expect(refusals[0]).toContain("not a picture")
+  expect(refusals.length).toBe(1)
 })
 
 test("what is judged is the name that will be SENT, not the one dragged", () => {
@@ -57,15 +58,6 @@ test("what is judged is the name that will be SENT, not the one dragged", () => 
 
   expect(taking.length).toBe(1)
   expect(refusals).toEqual([])
-})
-
-test("a file over the cap is refused by size, with the numbers in it", () => {
-  const { taking, refusals } = sorting([
-    file("huge.png", "image/png", 51 * 1024 * 1024),
-  ])
-
-  expect(taking).toEqual([])
-  expect(refusals[0]).toContain("50 MB")
 })
 
 test("nothing dropped is nothing taken and nothing said", () => {

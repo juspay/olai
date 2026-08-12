@@ -64,7 +64,8 @@ export interface Holding {
   /** How many uploads are in flight, so the composer can say so. A count
    *  rather than a flag: three pictures in one drop are three uploads. */
   readonly sending: Accessor<number>
-  /** Attach every one of these, in order — whatever the gate takes of them. */
+  /** Attach every one of these, in order — whatever the gate takes of them,
+   *  and one answer on the panel's refusal line for everything it did not. */
   readonly take: (files: ReadonlyArray<File>) => Promise<void>
   /** Take one back off the strip before it is sent. */
   readonly remove: (name: string) => void
@@ -92,21 +93,27 @@ export const createHolding = (chat: Chat): Holding => {
     sending,
     take: async (files) => {
       const { taking, refusals } = sorting(files)
+      // One gesture, one answer: the last one's is cleared as this one starts,
+      // and everything this one has to say is said when it ends. Said file by
+      // file instead, each reason would be rubbed out by the next upload —
+      // which is the drop losing a file with nothing on screen about it.
+      const reasons = [...refusals]
+      chat.refuse([])
       setSending((count) => count + taking.length)
       // Sequential, and that is the promise: several pictures in one drop
       // attach in the order they were dropped, which is the order they will
       // ride the next message in.
       for (const file of taking) {
-        const attached = await chat.attach(file)
+        const answer = await chat.attach(file)
         setSending((count) => count - 1)
-        if (attached === null) continue
-        setPending((already) => [...already, attached])
+        if (answer._tag === "refused") reasons.push(answer.failure.reason)
+        // `gone` is not a refusal and says nothing: the conversation this was
+        // being attached to was left while it uploaded, so there is no chip to
+        // draw and nothing anybody needs telling.
+        if (answer._tag !== "stored") continue
+        setPending((already) => [...already, answer.stored])
       }
-      // Said AFTER the uploads, on the panel's one refusal line. Saying it
-      // first would be saying it to nobody: `attach` clears the last refusal
-      // as it starts, so it would flicker away on the first chunk of the
-      // first picture that WAS taken.
-      if (refusals.length > 0) chat.refuse(refusals.join("\n"))
+      chat.refuse(reasons)
     },
     remove: (name) =>
       setPending((already) => already.filter((attachment) => attachment.name !== name)),

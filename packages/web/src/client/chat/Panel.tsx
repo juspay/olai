@@ -11,10 +11,10 @@
  * TRANSCRIPT is subscribed only while the panel is open; Minimized reads a
  * module-scoped snapshot updated from here (`last.ts`), never the collection.
  *
- * Both layouts wrap their body in the same `DropTarget`, and both make the
- * same `holding` above it: a file dropped anywhere on the conversation is
- * attached to it, and the chips land in the composer inside. Only the body —
- * the header is session controls, and a file cannot go there.
+ * Both layouts render the same `Body`, which is the conversation, the box and
+ * the drop target around them: a file let go of anywhere on the conversation
+ * is attached to it, and the chips land in the composer inside. The body only
+ * — the header is session controls, and a file cannot go there.
  */
 
 import { createEffect, createSignal, Show } from "solid-js"
@@ -38,7 +38,7 @@ import { createHolding } from "./holding.ts"
 import { sampleLastAgent } from "./last.ts"
 import { Minimized } from "./Minimized.tsx"
 import { NoAgent } from "./NoAgent.tsx"
-import { createChat, createChatState } from "./state.ts"
+import { type Chat, createChat, createChatState } from "./state.ts"
 import { Transcript } from "./Transcript.tsx"
 
 export function Panel() {
@@ -117,9 +117,27 @@ export function Toggle() {
   )
 }
 
+/**
+ * Everything under the header: the conversation, the box, and the drop target
+ * around both.
+ *
+ * One component because the two layouts differ in their chrome and their
+ * geometry and never in this — and because the drop target and the composer
+ * have to share one `holding`, which is a wiring nobody should have to keep
+ * identical in two places 100 lines apart.
+ */
+function Body(props: { readonly chat: Chat }) {
+  const holding = createHolding(props.chat)
+  return (
+    <DropTarget onFiles={(files) => void holding.take(files)}>
+      <Transcript chat={props.chat} />
+      <Composer chat={props.chat} holding={holding} />
+    </DropTarget>
+  )
+}
+
 function DesktopDock() {
   const chat = createChat()
-  const holding = createHolding(chat)
   const off = () => chat.state().status === "off"
 
   // Snapshot the last agent row for the minimized face; dies with this owner.
@@ -139,10 +157,7 @@ function DesktopDock() {
       </div>
       <Header chat={chat} />
       <Show when={!off()} fallback={<NoAgent />}>
-        <DropTarget onFiles={(files) => void holding.take(files)}>
-          <Transcript chat={chat} />
-          <Composer chat={chat} holding={holding} />
-        </DropTarget>
+        <Body chat={chat} />
       </Show>
     </aside>
   )
@@ -155,7 +170,6 @@ function DesktopDock() {
  */
 function MobileSheet() {
   const chat = createChat()
-  const holding = createHolding(chat)
   const off = () => chat.state().status === "off"
   const [dragPct, setDragPct] = createSignal<number | null>(null)
   /** True when the last pointer gesture moved enough to count as a drag
@@ -249,10 +263,7 @@ function MobileSheet() {
         </div>
         <Header chat={chat} />
         <Show when={!off()} fallback={<NoAgent />}>
-          <DropTarget onFiles={(files) => void holding.take(files)}>
-            <Transcript chat={chat} />
-            <Composer chat={chat} holding={holding} />
-          </DropTarget>
+          <Body chat={chat} />
         </Show>
       </aside>
     </div>

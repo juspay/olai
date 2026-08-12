@@ -57,7 +57,7 @@ export const attaching = (
 ): Effect.Effect<Attached, OpFailure> =>
   Effect.gen(function*() {
     const name = nameOf(file)
-    const rejection = refusalFor(file)
+    const rejection = attachmentRejection(name, file.size)
     if (rejection !== null) {
       return yield* Effect.fail(new UsageFailure({ reason: rejection }))
     }

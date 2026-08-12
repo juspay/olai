@@ -3,9 +3,9 @@
  *
  * The target is the transcript AND the composer, not the two-line box alone: a
  * picture dragged at a conversation is aimed at the conversation, and a target
- * you can miss by two pixels is a target that eats the file — a drop the page
- * does not take is a drop the BROWSER takes, by navigating away to the file
- * and taking the open outline with it.
+ * you can miss by two pixels is a target that eats the file — a drop this
+ * region does not take is one the BROWSER takes, by navigating away to the
+ * file and taking the open page with it.
  *
  * So the region that lights up is exactly the region that takes it. The
  * affordance is the point of this component: a person must be able to see
@@ -17,51 +17,56 @@
  *   - **`dragover` must `preventDefault()`** or the browser refuses the drop
  *     and navigates to the file instead. That call IS the "yes, drop here";
  *     there is no other way to say it.
- *   - **enter and leave are COUNTED**, because they fire per ELEMENT, not per
- *     target: dragging across the transcript fires `dragleave` for every row
- *     the cursor crosses, each one immediately followed by a `dragenter` for
- *     the next. A boolean flickers the affordance off and on the whole way
- *     across; the depth is zero only when the drag has actually left.
+ *   - **the drag is COUNTED IN AND OUT**, because enter and leave fire per
+ *     ELEMENT, not per target: dragging across the transcript fires
+ *     `dragleave` for every row the cursor crosses, each one immediately
+ *     followed by a `dragenter` for the next. A boolean flickers the
+ *     affordance off and on the whole way across; a depth is zero only when
+ *     the drag has actually left. It is a signal rather than a flag beside
+ *     one, because "is a drag over this" is a fact the count already holds —
+ *     `<Show>` compares its condition by truthiness, so crossing rows moves
+ *     the number without touching the overlay.
  *   - **the overlay is `pointer-events-none`**, so drawing it under the cursor
  *     does not itself count as leaving the thing underneath — which would be
  *     the affordance putting itself out the moment it appeared.
  *
- * A drag carrying anything OTHER than files is left entirely alone (no lit
- * panel, no `preventDefault`), so dragging a selection into the box still
- * types it there.
+ * What a drag is CARRYING is read off `dataTransfer.types` and never off its
+ * files, because the spec keeps the drag data store in protected mode until
+ * the drop: the files are unreadable the whole way across, and a target that
+ * waited for them would never light up at all. `"Files"` is the spec's own
+ * name for the kind. A drag carrying anything else — a selection, a link — is
+ * left entirely alone (no lit panel, no `preventDefault`), so dragging text
+ * into the composer still types it there.
+ *
+ * Nothing here reaches past `DataTransfer`. A dropped DIRECTORY therefore
+ * arrives as one entry that is not a picture and is refused by name like
+ * anything else olai does not take, which is the honest answer for a gesture
+ * this app has no way to walk.
  */
 
 import { createSignal, type JSX, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
-import { carriesFiles, droppedFiles } from "./drop.ts"
 
 export function DropTarget(props: {
-  /** What was dropped, in order. Never called for a drag that carried no
-   *  files, because such a drag was never this component's to take. */
+  /** What was dropped, in the order it was dropped. Never called for a drag
+   *  that carried no files, because such a drag was never this component's to
+   *  take. */
   readonly onFiles: (files: ReadonlyArray<File>) => void
   readonly children: JSX.Element
 }) {
-  const [over, setOver] = createSignal(false)
-  /** How many nested elements the drag is currently inside. See the header:
+  /** How many nested elements the drag is currently inside — see the header:
    *  this is what makes crossing a transcript one drag rather than forty. */
-  let depth = 0
+  const [depth, setDepth] = createSignal(0)
 
   const carrying = (event: DragEvent): boolean =>
-    carriesFiles(event.dataTransfer?.types ?? [])
-
-  const done = () => {
-    depth = 0
-    setOver(false)
-  }
+    event.dataTransfer?.types.includes("Files") ?? false
 
   return (
     <div
       class="relative flex min-h-0 flex-1 flex-col"
       onDragEnter={(event) => {
-        if (!carrying(event)) return
-        depth += 1
-        setOver(true)
+        if (carrying(event)) setDepth((inside) => inside + 1)
       }}
       onDragOver={(event) => {
         if (!carrying(event)) return
@@ -71,20 +76,19 @@ export function DropTarget(props: {
         if (event.dataTransfer !== null) event.dataTransfer.dropEffect = "copy"
       }}
       onDragLeave={(event) => {
-        if (!carrying(event)) return
-        depth -= 1
-        if (depth <= 0) done()
+        if (carrying(event)) setDepth((inside) => Math.max(0, inside - 1))
       }}
       onDrop={(event) => {
-        if (!carrying(event)) return
+        const transfer = event.dataTransfer
+        if (transfer === null || !carrying(event)) return
         event.preventDefault()
-        done()
-        props.onFiles(droppedFiles(event.dataTransfer))
+        setDepth(0)
+        props.onFiles([...transfer.files])
       }}
     >
       {props.children}
 
-      <Show when={over()}>
+      <Show when={depth() > 0}>
         <div
           class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded border-2 border-dashed border-accent bg-paper/85"
           data-testid={TESTID.chatDrop}

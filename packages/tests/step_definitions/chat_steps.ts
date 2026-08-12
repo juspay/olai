@@ -18,7 +18,7 @@ import * as path from "node:path";
 import { Given, Then, When } from "@cucumber/cucumber";
 import type { Locator } from "playwright";
 
-import { TESTID } from "@olai/web/src/client/testids.ts";
+import { selector, TESTID, type TestId } from "@olai/web/src/client/testids.ts";
 
 import {
   CHAT_ASK,
@@ -931,72 +931,74 @@ const fileSpec = (name: string): { name: string; data: string; type: string } =>
 const named = (names: string): ReadonlyArray<string> =>
   names.split(",").map((name) => name.trim()).filter((name) => name !== "");
 
-When(
-  "I paste a picture called {string} into the chat",
-  async function (this: OlaiWorld, name: string) {
-    const input = this.page.locator(CHAT_INPUT);
-    await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await input.click();
-    await this.page.evaluate(
-      ({ spec, id }) => {
-        const bytes = Uint8Array.from(atob(spec.data), (char) => char.charCodeAt(0));
-        const transfer = new DataTransfer();
-        transfer.items.add(new File([bytes], spec.name, { type: spec.type }));
-        const box = document.querySelector(`[data-testid="${id}"]`);
-        box?.dispatchEvent(
-          new ClipboardEvent("paste", {
-            clipboardData: transfer,
-            bubbles: true,
-            cancelable: true,
-          }),
-        );
-      },
-      { spec: fileSpec(name), id: TESTID.chatInput },
-    );
-  },
-);
-
-// ── drags and drops ────────────────────────────────────────────────────
-//
-// Dispatched, for the same reason a paste is: there is no portable way to make
-// the operating system drag a real file into a headless browser, and what the
-// panel listens to is the drag events themselves. So the step builds what the
-// browser would have built — real `File`s in a real `DataTransfer` on a real
-// `DragEvent` — and aims it at the TRANSCRIPT, which is the part of the panel
-// furthest from the composer. Everything the drop reaches after that line is
-// the app: the target that catches it, the gate that sorts it, the chunk loop,
-// the tmp directory, the prompt the agent is handed.
-
-const drag = async (
+/**
+ * Put files into the page the way the browser would have, and let the panel
+ * take it from there.
+ *
+ * DISPATCHED rather than performed, and there is no way around it: Playwright
+ * cannot put an image on the system clipboard portably and cannot make the
+ * desktop drag a real file into a headless browser. So the step builds what
+ * the browser would have built — real `File`s in a real `DataTransfer`, on the
+ * real event — and everything after that line is the app: the target that
+ * catches it, the gate that sorts it, the chunk loop, the tmp directory, the
+ * prompt the agent is handed.
+ *
+ * One function for both gestures because the FILES are the same construction
+ * either way, and what differs is one constructor and where it is aimed. A
+ * drop is aimed at the transcript, which is the part of the panel furthest
+ * from the composer: a drop that only worked over the box would pass a test
+ * aimed at the box and fail the person aiming at the panel.
+ */
+const deliver = async (
   world: OlaiWorld,
-  names: string,
+  at: TestId,
+  files: ReadonlyArray<string>,
   kinds: ReadonlyArray<string>,
+  as: "clipboard" | "drag" = "drag",
 ): Promise<void> => {
   await world.page
-    .locator(CHAT_TRANSCRIPT)
+    .locator(selector(at))
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await world.page.evaluate(
-    ({ specs, kinds, id }) => {
+    ({ specs, kinds, at, clipboard }) => {
       const transfer = new DataTransfer();
       for (const spec of specs) {
         const bytes = Uint8Array.from(atob(spec.data), (char) => char.charCodeAt(0));
         transfer.items.add(new File([bytes], spec.name, { type: spec.type }));
       }
-      const pane = document.querySelector(`[data-testid="${id}"]`);
+      const target = document.querySelector(`[data-testid="${at}"]`);
       for (const kind of kinds) {
-        pane?.dispatchEvent(
-          new DragEvent(kind, { dataTransfer: transfer, bubbles: true, cancelable: true }),
+        target?.dispatchEvent(
+          clipboard
+            ? new ClipboardEvent(kind, {
+              clipboardData: transfer,
+              bubbles: true,
+              cancelable: true,
+            })
+            : new DragEvent(kind, {
+              dataTransfer: transfer,
+              bubbles: true,
+              cancelable: true,
+            }),
         );
       }
     },
-    { specs: named(names).map(fileSpec), kinds, id: TESTID.chatTranscript },
+    { specs: files.map(fileSpec), kinds, at, clipboard: as === "clipboard" },
   );
 };
 
 When(
+  "I paste a picture called {string} into the chat",
+  async function (this: OlaiWorld, name: string) {
+    await this.page.locator(CHAT_INPUT).click();
+    await deliver(this, TESTID.chatInput, [name], ["paste"], "clipboard");
+  },
+);
+
+When(
   "I drag {string} over the chat panel",
   async function (this: OlaiWorld, names: string) {
-    await drag(this, names, ["dragenter", "dragover"]);
+    await deliver(this, TESTID.chatTranscript, named(names), ["dragenter", "dragover"]);
   },
 );
 
@@ -1005,9 +1007,35 @@ When(
   async function (this: OlaiWorld, names: string) {
     // The whole gesture, in the order a browser fires it — the drop only
     // happens at all because `dragover` said it could.
-    await drag(this, names, ["dragenter", "dragover", "drop"]);
+    await deliver(this, TESTID.chatTranscript, named(names), [
+      "dragenter",
+      "dragover",
+      "drop",
+    ]);
   },
 );
+
+When("the drag moves onto the composer", async function (this: OlaiWorld) {
+  // What a browser fires when a drag crosses from one element of a target to
+  // another INSIDE it: the new element enters before the old one leaves. Fired
+  // with no files (the drag is already in flight) but the same `Files` kind,
+  // which is all a listener may read before the drop.
+  await deliver(this, TESTID.chatInput, ["shot.png"], ["dragenter"]);
+  await deliver(this, TESTID.chatTranscript, ["shot.png"], ["dragleave"]);
+});
+
+When("I drag some selected text over the chat panel", async function (this: OlaiWorld) {
+  await this.page.evaluate(({ at }) => {
+    const transfer = new DataTransfer();
+    transfer.setData("text/plain", "a sentence being dragged");
+    const pane = document.querySelector(`[data-testid="${at}"]`);
+    for (const kind of ["dragenter", "dragover"]) {
+      pane?.dispatchEvent(
+        new DragEvent(kind, { dataTransfer: transfer, bubbles: true, cancelable: true }),
+      );
+    }
+  }, { at: TESTID.chatTranscript });
+});
 
 Then("the panel shows where the drop will land", async function (this: OlaiWorld) {
   await this.page
@@ -1015,10 +1043,10 @@ Then("the panel shows where the drop will land", async function (this: OlaiWorld
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-Then("the panel is no longer offering to take a drop", async function (this: OlaiWorld) {
+Then("the panel is not offering to take a drop", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await this.page.locator(CHAT_DROP).count()) === 0,
-    "the drop affordance to go away once the file has landed",
+    "the panel not to be offering to take a drop",
   );
 });
 

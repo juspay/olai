@@ -685,21 +685,23 @@ Three components earn their own file:
   says exactly what the server would have said.
 - **`DropTarget.tsx`** wraps the panel's body — transcript and composer — and
   is the whole of the drop gesture: a target you can miss by two pixels is a
-  target that eats the file, because a drop the page does not take is one the
-  BROWSER takes by navigating away to it. So the region that lights up is
+  target that eats the file, because a drop that region does not take is one
+  the BROWSER takes by navigating away to it. So the region that lights up is
   exactly the region that takes it, and it lights up while the drag is still in
-  the air (`drop.ts`: the drag data store is protected until the drop, so only
-  the KINDS are readable on the way across, never the files). Enter and leave
-  are counted rather than flagged, because they fire per element and a boolean
-  flickers the whole way across a transcript.
+  the air — what it is CARRYING is read off `dataTransfer.types`, because the
+  drag data store stays protected until the drop and the files are unreadable
+  the whole way across. Enter and leave are counted rather than flagged: they
+  fire per element, and a boolean flickers the whole way across a transcript.
 - **`holding.ts`** is what the composer is holding — the pictures uploaded and
   waiting for a message — lifted above both because the gesture and the chips
-  are no longer in the same component. It also SORTS a drop before any of it is
-  sent, by `@olai/surface`'s gate (the same function the chunk loop and the
-  server refuse with, asked one step earlier): a mixed drop attaches its
-  pictures and refuses the rest by name, together. Judged file by file inside
-  the upload loop instead, each refusal is cleared by the next picture's first
-  chunk, and a file dropped into the panel disappears with nothing said.
+  are no longer in the same component. It also makes one gesture ONE ANSWER:
+  the drop is sorted by `@olai/surface`'s gate before any of it is sent (the
+  same function the chunk loop and the server refuse with, asked one step
+  earlier), the uploads answer rather than draw their own refusals, and
+  everything the gesture turned down is said together on the panel's one
+  refusal line. Said file by file instead, each reason is rubbed out by the
+  next upload — which is a file dropped into the panel disappearing with
+  nothing on screen about it.
 - **`Attachments.tsx`** draws a picture on a message two ways, and the chip is
   the base case. A row carries file NAMES; whether there is anything to look at
   depends on which tab is looking, because the bytes are in a tmp directory no
