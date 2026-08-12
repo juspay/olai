@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>olai — a git-native outliner: memory for the AI era</title>
+<meta name="description" content="Outlines as one .jsonl line per node, prose as Markdown documents attached to them. Git merges and reviews all of it, and an agent edits it through the same gate your keyboard does.">
+<link rel="canonical" href="https://olai.kolu.dev/">
+<style>
+  /* chalk — olai's own default palette, the one that promises AA contrast */
+  :root {
+    --paper:  #FAFAF6;
+    --ink:    #15180F;
+    --muted:  #555E4C;
+    --rule:   #C9CDBF;
+    --accent: #134F75;
+    --done:   #2A6626;
+    --doing:  #8F5200;
+    --alarm:  #8E3348;
+    --well:   #F1F2EA;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 17px; line-height: 1.6; }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  code, pre, kbd { font-family: var(--mono); }
+  code { font-size: 0.88em; background: var(--well); border: 1px solid var(--rule); border-radius: 4px; padding: 0.1em 0.35em; }
+  pre {
+    background: var(--well); border: 1px solid var(--rule); border-radius: 8px;
+    padding: 1rem 1.25rem; overflow-x: auto; font-size: 0.82rem; line-height: 1.6;
+  }
+  pre code { background: none; border: none; padding: 0; font-size: inherit; }
+
+  .wrap { max-width: 68rem; margin: 0 auto; padding: 0 1.25rem; }
+
+  /* ── header ─────────────────────────────────────────────── */
+  header.site {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--paper) 92%, transparent);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--rule);
+  }
+  header.site .wrap { display: flex; align-items: baseline; gap: 1.5rem; padding-top: 0.7rem; padding-bottom: 0.7rem; }
+  .wordmark { font-family: var(--mono); font-weight: 700; font-size: 1.05rem; color: var(--ink); text-decoration: none; }
+  header.site a.gh { margin-left: auto; font-size: 0.85rem; }
+
+  /* ── hero ───────────────────────────────────────────────── */
+  .hero { padding: 4rem 0 3rem; }
+  .hero .wrap { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: 3rem; align-items: center; }
+  @media (max-width: 56rem) { .hero .wrap { grid-template-columns: minmax(0, 1fr); } }
+  .hero h1 { font-family: var(--mono); font-size: 2.6rem; letter-spacing: -0.02em; }
+  .hero h1::after { content: ""; display: block; width: 3.2ch; border-bottom: 4px solid var(--accent); margin-top: 0.3rem; }
+  .hero p.tag { font-size: 1.45rem; line-height: 1.4; margin-top: 1.2rem; text-wrap: balance; }
+  .hero p.sub { color: var(--muted); margin-top: 0.7rem; }
+  .hero pre { margin-top: 1.5rem; }
+
+  /* ── cards (shared frame for every visual) ──────────────── */
+  .panel {
+    border: 1px solid var(--rule); border-radius: 10px; background: var(--paper);
+    box-shadow: 0 1px 2px rgba(21,24,15,0.05), 0 8px 24px rgba(21,24,15,0.06);
+    padding: 1rem 1.2rem 1.2rem; font-size: 0.92rem;
+  }
+  .panel .file { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); border-bottom: 1px solid var(--rule); padding-bottom: 0.6rem; margin-bottom: 0.6rem; }
+
+  .row { display: flex; align-items: baseline; gap: 0.55rem; padding: 0.18rem 0; }
+  .row .bullet { color: var(--muted); font-size: 0.7rem; position: relative; top: -0.1em; }
+  .d1 { padding-left: 1.4rem; }
+  .box { width: 0.85rem; height: 0.85rem; border-radius: 3px; flex: none; border: 1.5px solid var(--muted); position: relative; top: 0.13rem; }
+  .box.done { border-color: var(--done); background: var(--done); }
+  .box.done::after { content: "✓"; color: var(--paper); font-size: 0.65rem; line-height: 0.85rem; display: block; text-align: center; }
+  .box.doing { border-color: var(--doing); background: linear-gradient(to right, var(--doing) 50%, transparent 50%); }
+  .row .t { min-width: 0; }
+  .strike { text-decoration: line-through; text-decoration-color: var(--muted); color: var(--muted); }
+  .rollup { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+  .tagchip { color: var(--accent); }
+  .note { color: var(--muted); font-size: 0.85rem; padding-left: 2.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .docref { font-family: var(--mono); font-size: 0.75rem; color: var(--accent); padding-left: 2.8rem; margin-top: 0.1rem; }
+  .mdoc h3 { font-size: 1.05rem; margin-bottom: 0.3rem; }
+  .mdoc p { font-size: 0.88rem; margin-top: 0.4rem; }
+  .mdoc ul { margin: 0.5rem 0 0 1.3rem; font-size: 0.88rem; }
+  .mdoc code { font-size: 0.78rem; }
+  .marklbl { margin-left: auto; font-family: var(--mono); font-size: 0.72rem; color: var(--muted); padding-left: 1rem; flex: none; }
+
+  /* ── sections ───────────────────────────────────────────── */
+  section { padding: 2.8rem 0; border-top: 1px solid var(--rule); }
+  section h2 { font-size: 1.45rem; letter-spacing: -0.01em; text-wrap: balance; }
+  section .lead { color: var(--muted); margin-top: 0.4rem; max-width: 44rem; }
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; align-items: start; margin-top: 1.5rem; }
+  @media (max-width: 56rem) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+  .diff .add { color: var(--done); }
+  .diff .del { color: var(--alarm); }
+  .diff .ctx { color: var(--muted); }
+  .caption { font-size: 0.82rem; color: var(--muted); margin-top: 0.5rem; }
+
+  table.keys { border-collapse: collapse; width: 100%; }
+  table.keys td { border-top: 1px solid var(--rule); padding: 0.5rem 0.5rem 0.5rem 0; vertical-align: baseline; font-size: 0.92rem; }
+  table.keys tr:first-child td { border-top: none; }
+  table.keys td:first-child { white-space: nowrap; width: 1%; padding-right: 1.25rem; }
+  kbd { font-size: 0.78rem; background: var(--well); border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0.1em 0.45em; }
+
+  /* chat mock */
+  .chat .msg { max-width: 85%; border-radius: 10px; padding: 0.5rem 0.8rem; margin-top: 0.7rem; }
+  .chat .you { margin-left: auto; background: color-mix(in srgb, var(--accent) 10%, var(--paper)); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--rule)); }
+  .chat .op { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); margin-top: 0.7rem; }
+  .chat .op b { color: var(--done); font-weight: 600; }
+  .chat .agent { background: var(--well); border: 1px solid var(--rule); }
+
+  /* comparison table */
+  .tablewrap { overflow-x: auto; margin-top: 1.5rem; }
+  table.cmp { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+  table.cmp th, table.cmp td { border-top: 1px solid var(--rule); padding: 0.55rem 1rem 0.55rem 0; text-align: left; vertical-align: baseline; }
+  table.cmp thead th { border-top: none; font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+  table.cmp td:first-child { color: var(--muted); white-space: nowrap; padding-right: 1.5rem; }
+
+  footer { border-top: 1px solid var(--rule); padding: 2rem 0 3rem; color: var(--muted); font-size: 0.88rem; }
+  footer .wrap { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <a class="wordmark" href="#">olai</a>
+    <a class="gh" href="https://github.com/juspay/olai">GitHub</a>
+  </div>
+</header>
+
+<main>
+
+<div class="hero">
+  <div class="wrap">
+    <div>
+      <h1>olai</h1>
+      <p class="tag">A git-native outliner: memory for the AI era.</p>
+      <p class="sub">Outlines are <code>.jsonl</code> files, one line per node.
+      Longer content is Markdown files referenced from the outline. Everything
+      is tracked in git, and agents edit through the same operations layer as
+      the keyboard.</p>
+      <pre><code>nix run github:juspay/olai -- web path/to/outlines</code></pre>
+    </div>
+
+    <div class="panel" aria-label="An olai outline, as the browser draws it">
+      <div class="file">kitchen.jsonl</div>
+      <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
+      <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
+      <div class="row d1"><span class="box done"></span><span class="t strike">Pick the counter stone</span></div>
+      <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span></div>
+      <div class="note">Measure twice — the corner unit is the risky one.</div>
+      <div class="docref">▤ cabinets.md</div>
+      <div class="row d1"><span class="box"></span><span class="t">Book the plumber</span></div>
+      <div class="row d1"><span class="bullet">●</span><span class="t">Paint samples on the north wall</span></div>
+    </div>
+  </div>
+</div>
+
+<section id="format">
+  <div class="wrap">
+    <h2>The file format</h2>
+    <p class="lead">Each outline is a <code>.jsonl</code> file: one JSON object
+    per line, one node per line. Nodes have stable ids and parent pointers, so
+    line-based git merges are safe and moving a subtree changes one field.
+    See the <a href="https://github.com/juspay/olai/blob/master/docs/format.md">format spec</a>.</p>
+    <div class="cols">
+      <div>
+        <pre><code>{"id":"kitchen","ord":"a","title":"Kitchen renovation"}
+{"id":"demo","parent":"kitchen","ord":"a0",
+ "title":"Demolition","done":"2026-08-09T14:02:11-04:00"}
+{"id":"order","parent":"kitchen","ord":"a1",
+ "title":"Order the new cabinets #blocking",
+ "doing":true,"after":["demo"],"doc":"cabinets.md",
+ "desc":"Measure twice — the corner unit is the risky one."}</code></pre>
+        <p class="caption">The outline above, as stored on disk.</p>
+      </div>
+      <div>
+        <pre class="diff"><code><span class="ctx">$ git diff</span>
+<span class="del">-{"id":"order","parent":"kitchen","ord":"a1", … }</span>
+<span class="add">+{"id":"order","parent":"now","ord":"a1", … }</span></code></pre>
+        <p class="caption">Moving a subtree changes the <code>parent</code>
+        field. Children reference <code>order</code> by id and are
+        unaffected.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="compare">
+  <div class="wrap">
+    <h2>Compared to Workflowy and Dynalist</h2>
+    <p class="lead">olai keeps the outlining model those tools established —
+    indent, move, mirror, check off. The difference is where the data lives
+    and what can reach it.</p>
+    <div class="tablewrap">
+      <table class="cmp">
+        <thead>
+          <tr><th></th><th>Workflowy, Dynalist</th><th>olai</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Storage</td><td>A hosted database</td><td>Plain files in a directory you choose</td></tr>
+          <tr><td>Sync</td><td>Their cloud</td><td>git, or anything that moves files</td></tr>
+          <tr><td>History</td><td>In-app version history</td><td><code>git log</code>; every edit is a reviewable commit</td></tr>
+          <tr><td>Concurrent edits</td><td>Resolved by their server</td><td>Line-based git merges</td></tr>
+          <tr><td>Programmatic access</td><td>Vendor API, where one exists</td><td>Any agent over ACP or MCP; any text tool</td></tr>
+          <tr><td>Source</td><td>Proprietary</td><td><a href="https://github.com/juspay/olai">Open source</a> (AGPL-3.0)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="markdown">
+  <div class="wrap">
+    <h2>Markdown documents</h2>
+    <p class="lead">Notes are Markdown. Longer content goes in <code>.md</code>
+    files, referenced from the outline by the <code>doc</code> field. Each
+    document gets its own page and appears in the sidebar's file tree.</p>
+    <div class="cols">
+      <div>
+        <pre><code># Cabinet specs
+
+The corner unit is the **risky one** — see
+[the measurements](measurements.md).
+
+- 600&#8239;mm base × 4
+- corner carousel × 1</code></pre>
+        <p class="caption">cabinets.md — a plain Markdown file next to the
+        outline, editable with any editor.</p>
+      </div>
+      <div class="panel mdoc">
+        <div class="file">/doc/cabinets.md · attached to “Order the new cabinets”</div>
+        <h3>Cabinet specs</h3>
+        <p>The corner unit is the <strong>risky one</strong> — see
+        <a href="#markdown">the measurements</a>.</p>
+        <ul>
+          <li>600&#8239;mm base × 4</li>
+          <li>corner carousel × 1</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="marks">
+  <div class="wrap">
+    <h2>Task status</h2>
+    <p class="lead">A node can carry one of three marks: <code>done</code>,
+    <code>doing</code>, or <code>todo</code>. A node with no mark is not a task
+    and gets no checkbox.</p>
+    <div class="cols">
+      <div class="panel">
+        <div class="row"><span class="box done"></span><span class="t strike">completed task</span><span class="marklbl">done</span></div>
+        <div class="row"><span class="box doing"></span><span class="t">task in progress</span><span class="marklbl">doing</span></div>
+        <div class="row"><span class="box"></span><span class="t">task not started</span><span class="marklbl">todo</span></div>
+        <div class="row"><span class="bullet">●</span><span class="t">a note</span><span class="marklbl">no mark</span></div>
+      </div>
+      <div class="panel">
+        <div class="row"><span class="bullet">●</span><span class="t"><strong>read this book</strong> <span class="rollup">1/3</span></span></div>
+        <div class="row d1"><span class="box done"></span><span class="t strike">chapter one</span></div>
+        <div class="row d1"><span class="box"></span><span class="t">the streams chapter</span></div>
+        <div class="row d1"><span class="box"></span><span class="t">exercises</span></div>
+        <p class="caption"><code>1/3</code> is a display annotation. A parent's
+        status is never computed from its children.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="type">
+  <div class="wrap">
+    <h2>Keyboard editing</h2>
+    <p class="lead">Click a title to edit it in place. Each edit is one
+    operation through the same layer the agent uses, and each lands as a git
+    commit.</p>
+    <div class="cols">
+      <table class="keys">
+        <tr><td><kbd>Enter</kbd></td><td>commit, and open the next line</td></tr>
+        <tr><td><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></td><td>indent, or out again</td></tr>
+        <tr><td><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd></td><td>move a row among its siblings</td></tr>
+      </table>
+      <table class="keys">
+        <tr><td><kbd>⌘</kbd>+<kbd>Enter</kbd></td><td>tick it off, or take that back</td></tr>
+        <tr><td><kbd>Shift</kbd>+<kbd>Enter</kbd></td><td>write the note under it</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>drop what you were typing</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="agent">
+  <div class="wrap">
+    <h2>Agents, over ACP</h2>
+    <p class="lead">The chat panel connects to any agent that speaks
+    <a href="https://agentclientprotocol.com">ACP</a>. Claude Code is bundled as
+    the default; set <code>OLAI_ACP_AGENT</code> to use a different agent CLI.
+    Agents get a fixed set of node tools and no file access, so every write is
+    validated before it lands.</p>
+    <div class="cols">
+      <div class="panel chat">
+        <div class="file">chat · any ACP agent</div>
+        <div class="msg you">plumber's booked — tick it off</div>
+        <div class="op"><b>✓</b> set_done · book-plumber</div>
+        <div class="msg agent">Done. Marked “Book the plumber” as done.</div>
+      </div>
+      <div class="panel">
+        <div class="file">kitchen.jsonl · live</div>
+        <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">3/4</span></span></div>
+        <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span></div>
+        <div class="row d1"><span class="box done"></span><span class="t strike">Book the plumber</span></div>
+        <p class="caption">The open page updates because the file on disk
+        changed. The keyboard and the agent write through the same operations
+        layer.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="commit">
+  <div class="wrap">
+    <h2>Git integration</h2>
+    <p class="lead">Writes go to disk immediately and are committed when you
+    choose. Commit messages are prefixed with <code>olai:</code>, so
+    <code>git log --grep '^olai'</code> shows the audit trail.</p>
+    <div class="cols">
+      <div>
+        <pre><code>┌─ Changes ─────────────────────────────────┐
+│ olai: Outlines as a collection done       │
+│   · chat agent · 12m ago · 1a2b3c4        │
+│                                           │
+│ roadmap.jsonl                             │
+│   ✓  Outlines as a collection    done     │
+│   ✎  Notes: one state, same line  note    │
+│   +  Kolu integration: auto-…    created  │
+│                                           │
+│ chat agent 3 · you 1                      │
+│                      [ Commit 3 changes ] │
+└───────────────────────────────────────────┘</code></pre>
+      </div>
+      <div>
+        <pre><code>$ claude mcp add olai -- olai mcp ~/outlines</code></pre>
+        <p class="caption">The same tools are available over MCP for agents
+        running in a terminal. There is no write CLI.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>olai — <a href="https://github.com/juspay/olai">github.com/juspay/olai</a></span>
+    <span><a href="https://github.com/juspay/olai/blob/master/docs/format.md">format</a></span>
+    <span><a href="https://github.com/juspay/olai/blob/master/docs/architecture.md">architecture</a></span>
+    <span><a href="https://github.com/juspay/olai/blob/master/docs/roadmap.jsonl">roadmap — in the format itself</a></span>
+    <span><a href="https://kolu.dev">kolu.dev</a></span>
+  </div>
+</footer>
+
+</body>
+</html>
