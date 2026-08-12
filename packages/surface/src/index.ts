@@ -47,8 +47,9 @@
  * Three more are the chat, and they are declared next door in
  * {@link ./chat.ts} because they are a subject of their own: a `transcript`
  * COLLECTION (batched deltas, so a late-joining tab sees the conversation), a
- * `chat` CELL (session, model, commands, whether a turn is running) and the
- * `chat` PROCEDURES (send, cancel, new, load, list, attach). The agent's WRITES do not
+ * `chat` CELL (session, model, commands, whether a turn is running, whether it
+ * is blocked on a question) and the `chat` PROCEDURES (send, cancel, new, load,
+ * list, attach, and the two that answer a question). The agent's WRITES do not
  * appear here at all: they reach the ops layer through an internal MCP server
  * the session is handed, and what a reader sees of them is the outline stream
  * moving — server-authoritative, never an optimistic echo.
@@ -59,6 +60,7 @@ import { defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
 
 import {
+  AskAnswer,
   AttachChunk,
   Attached,
   CHAT_OFF,
@@ -341,11 +343,32 @@ export const surface = defineSurface({
         output: Schema.Array(SessionInfo),
         error: ChatFailure,
       },
+      /** Answer a question the agent asked — the `ask` entry named by `id`,
+       *  filled in. The turn is blocked until this or {@link decline} arrives,
+       *  which is why both are verbs rather than a write to the transcript. */
+      answer: {
+        input: Schema.Struct({
+          id: Schema.String,
+          answers: Schema.Array(AskAnswer),
+        }),
+        error: ChatFailure,
+      },
+      /** Dismiss one, honestly: the agent is told a person declined to answer,
+       *  and never handed an answer nobody gave. */
+      decline: {
+        input: Schema.Struct({ id: Schema.String }),
+        error: ChatFailure,
+      },
     },
   },
 })
 
 export {
+  Ask,
+  AskAnswer,
+  AskChoice,
+  AskField,
+  AskOutcome,
   Attached,
   AttachChunk,
   BusyFailure,
@@ -359,6 +382,7 @@ export {
   OpFailure,
   SessionInfo,
   UsageFailure,
+  YES_NO,
 } from "./chat.ts"
 
 /** The one HTTP address both ends spell — see {@link ./media.ts}. */

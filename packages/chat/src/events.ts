@@ -14,6 +14,8 @@
  * the caller that asked is the one waiting.
  */
 
+import type { AskField, AskOutcome } from "@olai/surface"
+
 /** A slash command the agent offers. */
 export interface Command {
   readonly name: string
@@ -58,6 +60,24 @@ export type AgentEvent =
     /** Where it is working: the follow-along file locations. */
     readonly locations: ReadonlyArray<string> | undefined
   }
+  /**
+   * The agent asked a person something, and the turn is stopped until it is
+   * answered.
+   *
+   * `id` is minted by {@link ./agent.ts} and is what an answer comes back
+   * naming — the protocol's own correlation is a JSON-RPC request id, which is
+   * a fact about the wire and not something a browser may hold.
+   */
+  | {
+    readonly _tag: "asked"
+    readonly id: string
+    /** What the agent said it needs. */
+    readonly message: string
+    readonly fields: ReadonlyArray<AskField>
+  }
+  /** ... and it stopped waiting: somebody answered it, somebody dismissed it,
+   *  or the agent took it back. */
+  | { readonly _tag: "askSettled"; readonly id: string; readonly outcome: AskOutcome }
   /** The whole slash-command list, replaced rather than merged. */
   | { readonly _tag: "commands"; readonly commands: ReadonlyArray<Command> }
   /** The model this session runs, labelled the way the agent labels its own. */

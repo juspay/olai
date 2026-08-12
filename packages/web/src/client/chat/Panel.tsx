@@ -52,6 +52,11 @@ export function Panel() {
 export function Toggle() {
   const state = createChatState()
   const working = () => state().status === "thinking"
+  /** A turn stopped on a question. Its own bit on the permanent chrome,
+   *  because this is the one state a shut panel must not swallow: an agent
+   *  thinking behind a closed drawer will finish by itself, and an agent
+   *  waiting on somebody who cannot see it never will. */
+  const asking = () => state().asking > 0
   const open = () => chatOpen()
 
   return (
@@ -66,9 +71,14 @@ export function Toggle() {
       }`}
       data-testid={TESTID.chatToggle}
       data-busy={working()}
+      data-asking={asking()}
       aria-pressed={open() ? "true" : "false"}
       title={
-        working()
+        asking()
+          ? open()
+            ? "the agent is waiting on your answer"
+            : "the agent is waiting on your answer — open the panel"
+          : working()
           ? open()
             ? "the agent is working — minimize the panel"
             : "the agent is working — open the panel"

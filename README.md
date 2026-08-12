@@ -208,6 +208,18 @@ format can be, and a malformed outline is not something it can produce. Whether
 that is a restriction or the point depends on how you feel about a coding agent
 with `sed` and your notes.
 
+It can ask you back. When the agent needs to know which of two things you meant,
+the question arrives as a form in the conversation — the options as buttons, a
+box to type something else, and a submit — and what you choose goes back to the
+work it was in the middle of. The turn is stopped while it waits, and every part
+of the panel that could tell you says so, because nothing times out: an agent
+waiting on an answer nobody has noticed waits forever. Dismissing one is an
+answer too, and an honest one: the agent is told you would not say, never handed
+a choice you did not make. The form stays where it was asked, so scrolling back
+shows what was asked and what you said. Leaving plan mode is the same thing in
+the same place — it used to be approved on your behalf, along with the
+permission mode it quietly switched on.
+
 When it asks for something the outline will not do, you get the reason rather
 than an apology: a refused write comes back with the validator's own rows,
 each pinned to the line it is about. And when a write lands but is worth a
