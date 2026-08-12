@@ -121,6 +121,59 @@ describe("tool calls", () => {
   })
 })
 
+describe("questions", () => {
+  const fields = [{
+    key: "question_0",
+    label: null,
+    hint: null,
+    kind: "choice" as const,
+    choices: [{ value: "yes", label: "yes", hint: null }],
+    required: false,
+    attachedTo: null,
+  }]
+
+  test("answering a question moves the row it was asked on", () => {
+    // The form and its answer are one thing that happened. A second row would
+    // leave an answer with nothing above it saying what was asked.
+    const transcript = new Transcript()
+    transcript.ask("ask:1", "Shall I?", fields)
+    const settled = transcript.settleAsk("ask:1", {
+      how: "answered",
+      answers: [{ key: "question_0", values: ["yes"] }],
+    })
+
+    expect(touched(settled)).toEqual(["ask:1"])
+    expect(rows(transcript)).toHaveLength(1)
+    expect(rows(transcript)[0]).toMatchObject({ kind: "ask", text: "Shall I?" })
+    expect(rows(transcript)[0]?.ask).toEqual({
+      fields,
+      outcome: { how: "answered", answers: [{ key: "question_0", values: ["yes"] }] },
+    })
+  })
+
+  test("a question closes the paragraph the agent was writing", () => {
+    const transcript = new Transcript()
+    transcript.say("I need to know something")
+    const change = transcript.ask("ask:1", "Shall I?", fields)
+
+    expect(touched(change)).toEqual(["agent:1", "ask:1"])
+    expect(rows(transcript)[0]?.streaming).toBeUndefined()
+  })
+
+  test("settling one that is no longer there says nothing", () => {
+    // A session replaced under a pending question empties the transcript before
+    // the withdrawal arrives; minting a row here would put a dead question at
+    // the top of a fresh conversation.
+    const transcript = new Transcript()
+    transcript.ask("ask:1", "Shall I?", fields)
+    transcript.clear()
+
+    expect(transcript.settleAsk("ask:1", { how: "withdrawn", answers: [] }))
+      .toEqual({ upserts: [], removes: [] })
+    expect(rows(transcript)).toEqual([])
+  })
+})
+
 describe("refusals and replacement", () => {
   test("a refusal carries the failure itself, not a sentence about it", () => {
     const transcript = new Transcript()

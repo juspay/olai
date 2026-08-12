@@ -52,7 +52,10 @@ export function Header(props: {
           </Show>
           {/* Always in the tree while a turn runs, whether or not a model is
               named — the two are independent, and a cue that only appears in
-              one of two otherwise identical states is a cue nobody learns. */}
+              one of two otherwise identical states is a cue nobody learns.
+              A turn stopped on a question is still a turn in flight, so this is
+              the same slot with the true word in it: "working…" while it is the
+              agent's move, "waiting on you" while it is yours. */}
           <Show when={state().status === "thinking"}>
             <span
               class="flex items-center gap-1 text-doing"
@@ -63,7 +66,7 @@ export function Header(props: {
                 class="inline-block size-1.5 animate-pulse rounded-full bg-doing"
                 aria-hidden="true"
               />
-              working…
+              {state().asking > 0 ? "waiting on you" : "working…"}
             </span>
           </Show>
         </div>

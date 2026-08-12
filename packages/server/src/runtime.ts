@@ -253,6 +253,8 @@ export const bind = (
           newSession: () => withChat((open) => open.newSession),
           loadSession: ({ input }) => withChat((open) => open.loadSession(input.id)),
           sessions: () => withChat((open) => open.sessions),
+          answer: ({ input }) => withChat((open) => open.answer(input.id, input.answers)),
+          decline: ({ input }) => withChat((open) => open.answer(input.id, null)),
         },
       },
     }
