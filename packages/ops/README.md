@@ -287,7 +287,17 @@ file — the practice `docs/RCA/2026-08-11-roadmap-stamp-reverts.md` is about. S
   `archive_node` (which MOVES a subtree, ids and all, into `Archive.jsonl`) and
   deliberately not a delete of content: no op in this layer destroys any, and
   this one does not become the first by accident. So it refuses on the id of a
-  regular node, and says which op puts a node away.
+  regular node, and says which op puts a node away — and it refuses while
+  anything still NAMES the placement (a mirror chained onto it, an edge written
+  at it), listing what to re-point and at which node. That last refusal was the
+  validator's until the 2026-08-11 review: safe, since nothing landed, but what
+  came back was a row about the file the write would have produced, saying an id
+  the caller had just asked to delete is unknown — occasionally with a
+  did-you-mean pointing at its NEIGHBOUR. A refusal that teaches the wrong
+  lesson is worse than one that teaches none. It is still not re-validation:
+  what a record points at is `@olai/format`'s `targetsOf`, the same function the
+  validator's unknown-target rule reads forwards, so a relation added to the
+  format later cannot slip past the scan.
 - **`set_after` is `set_see`'s shape over the other kind of edge** — one
   function plans both — and the difference is the rule. `after` is the ORDERING
   graph, so an add that closes a loop is refused with the loop named, read over
@@ -299,13 +309,29 @@ file — the practice `docs/RCA/2026-08-11-roadmap-stamp-reverts.md` is about. S
 
 Both new fields are READ back too. A hit and a node's own read carry `after`
 beside `see`, because a target is removed BY ID and a caller that cannot see the
-list can only guess at it; and `read_node` answers `mirrors` — every placement
-of that node, chain followed. That last one is the discovery path the surface
-would otherwise not have: mirrors are left out of search and out of every child
-list on purpose (a mirror is a second location of a node, and a search returning
-one would be the same node twice), so the only id `remove_mirror` could ever be
-handed would be one the same session had just minted. A mirror is not a node, so
-you ask the node where it is placed.
+list can only guess at it; and `read_node` answers a placement from **both
+ends**:
+
+- `mirrors` — every placement OF this node, chain followed. The discovery path
+  the surface would otherwise not have: mirrors are left out of search and out
+  of every child list on purpose (a mirror is a second location of a node, and a
+  search returning one would be the same node twice), so the only id
+  `remove_mirror` could ever be handed would be one the same session had just
+  minted. A mirror is not a node, so you ask the node where it is placed. This
+  is the retire path from the finished ITEM's side;
+- `placed` — the placements UNDER this node, in sibling order, each carrying the
+  node it shows. The list's side of the same fact, and the one the ledger is
+  actually read with: **"what is on Now?"** was a question this layer could not
+  answer at all (2026-08-11 review), so an orchestrator opening a fresh session
+  — having placed nothing yet, with no item to ask — was back to reading the
+  file by hand, which is the practice these ops exist to end. `children` is not
+  the place for it: that list is what HANGS OFF a node, and it is deliberately
+  free of mirrors, while this is what a node POINTS at. Two questions, two
+  answers.
+
+None of that is worth anything if nothing says so where an agent will read it,
+which is why the read tools' descriptions name these fields and
+`packages/server/src/mcp/tools.test.ts` fails if they stop.
 
 Git can never fail a write. The bytes are on disk and the browser has already
 seen them by the time git runs, so a refusal is a `Failed` carrying git's own
@@ -354,8 +380,9 @@ byte, only a node. Reads answer with `file:line`, the node's mark (absent when
 it carries none, because that is not a task), the ROLLUP of the tasks under it
 — which is not in the file and is an annotation, never a second answer to what
 the node is — its ancestor titles, which is what makes a bare title mean
-something, and its `see` and `after` targets (when it has any), so a
-cross-reference and a dependency are both traversable without a second read.
+something, its `see` and `after` targets (when it has any), so a
+cross-reference and a dependency are both traversable without a second read, and
+— on a node read — the placements at both ends of it, `mirrors` and `placed`.
 `set_see` and `set_after` are the write halves: add and/or remove target ids on
 an existing node, and an unknown add is refused with the closest id that does
 exist — the validator's own did-you-mean, one moment earlier, through the very

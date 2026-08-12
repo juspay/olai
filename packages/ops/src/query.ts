@@ -73,9 +73,9 @@ export interface Found {
  * Not a {@link Found} — a placement has no title, no mark and no ancestry of
  * its own; it draws the node's. What it does have is an id, and that id is the
  * only thing `remove_mirror` takes, which is why a node's own read is where the
- * placements of it are answered. Nothing else in this module returns a mirror:
- * a mirror is a second location of a node, and a search that returned one would
- * be the same node twice, once at a place no write lands.
+ * placements of it are answered. A search never returns one: a mirror is a
+ * second location of a node, and a hit for it would be the same node twice,
+ * once at a place no write lands.
  */
 export interface Placement {
   readonly id: string
@@ -83,6 +83,25 @@ export interface Placement {
   readonly line: number
   /** The node it is placed under. Absent at the top level of its file. */
   readonly parent?: string
+}
+
+/**
+ * A placement read from the OTHER end: one row of a curated list, and the node
+ * standing at it.
+ *
+ * {@link Placement} answers "where else is this node drawn"; this answers "what
+ * is on this list" — the two halves of the same fact, from whichever end the
+ * caller happens to be holding. A Now section is a node whose children are
+ * placements, so without this half an agent can retire an entry it already
+ * knows about and can never ask what is on the list at all.
+ *
+ * `shows` is the node itself, situated the way every other answer here situates
+ * one — id, title, mark, `file:line`, ancestry — because that is what the list
+ * is FOR: the reader wants the items, and the placement id is what lets it take
+ * one off.
+ */
+export interface Placed extends Placement {
+  readonly shows: Found
 }
 
 export interface Hit extends Found {
@@ -118,6 +137,16 @@ export interface Detail extends Found, Stamps {
    *  the same shape every refusal about mirrors takes — a mirror is not a node,
    *  so you ask the node where it is placed. */
   readonly mirrors?: ReadonlyArray<Placement>
+  /** The placements sitting UNDER this node, in sibling order, each with the
+   *  node it shows — what a curated list holds. Absent when none do.
+   *
+   *  `children` above is the node's own children and never a mirror, because
+   *  that list is about what hangs off it; this one is about what it POINTS at,
+   *  and the two are different questions with different answers. A Now section
+   *  is exactly a node of the second kind: without this, "what is on Now?" is a
+   *  question the ops layer could not answer at all, and the ledger it was built
+   *  for is read by hand again (the 2026-08-11 review). */
+  readonly placed?: ReadonlyArray<Placed>
 }
 
 /** The mark a node stores, with what it was stamped — `status` above says
@@ -324,6 +353,7 @@ export const detail = (derived: Derived, id: string): Detail | null => {
   const node = regular.node
   const progress = progressOf(derived, id)
   const placements = placementsOf(derived, id)
+  const placed = placedUnder(derived, id)
   return {
     ...foundOf(derived, regular),
     ...(node.date === undefined ? {} : { date: node.date }),
@@ -335,8 +365,35 @@ export const detail = (derived: Derived, id: string): Detail | null => {
     ...(progress === undefined ? {} : { progress }),
     children: countedChildren(derived, id).map((child) => foundOf(derived, child)),
     ...(placements.length === 0 ? {} : { mirrors: placements }),
+    ...(placed.length === 0 ? {} : { placed }),
   }
 }
+
+/**
+ * The placements UNDER a node, in sibling order — the list side of a mirror.
+ *
+ * Reads `derived.children`, which keeps every record in the row including the
+ * mirrors (`siblingsOf`'s own rule: a mirror occupies a place, it is just never
+ * a counted child), and resolves each one through `follow` — so an entry that
+ * chains through another placement still reports the node at the end of it, and
+ * one whose chain is broken is left out rather than reported as a row showing
+ * nothing. A set with a broken chain is one the validator has already condemned;
+ * a reader that invented an entry for it would be answering with a node that is
+ * not there.
+ */
+const placedUnder = (derived: Derived, id: string): ReadonlyArray<Placed> =>
+  (derived.children.get(id) ?? []).flatMap((child) => {
+    if (!isMirror(child.node)) return []
+    const found = follow(derived, child)
+    if (found.kind !== "found") return []
+    return [{
+      id: child.node.id,
+      file: child.file,
+      line: child.line,
+      ...(child.node.parent === undefined ? {} : { parent: child.node.parent }),
+      shows: foundOf(derived, found.shows),
+    }]
+  })
 
 /**
  * The mirrors that show this node, in file-then-line order.

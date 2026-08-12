@@ -227,6 +227,32 @@ test("each tool carries its title and its description", async () => {
 })
 
 /**
+ * A read that is not DESCRIBED is a read nothing will make.
+ *
+ * The 2026-08-11 review's must-fix, and it is a contract rather than a comment:
+ * placements are kept out of search and out of every child list on purpose, so
+ * `read_node` is the ONLY way to reach one — and an agent chooses a tool by its
+ * description, never by this repository's source. `mirrors` retires an entry
+ * from the finished item's side, `placed` reads the list from the list's side,
+ * and `after` is what a dependency is removed by. The data was already answered
+ * when this test was written; what was missing was anybody being told.
+ */
+test("the read tools teach the fields the mirror and edge ops depend on", async () => {
+  await withTools({ "house.jsonl": HOUSE }, async ({ client }) => {
+    const { tools } = await client.listTools()
+    const said = (name: string) =>
+      tools.find((tool) => tool.name === name)?.description ?? ""
+
+    for (const field of ["`mirrors`", "`placed`", "`after`", "`remove_mirror`"]) {
+      expect(said("read_node")).toContain(field)
+    }
+    expect(said("search_nodes")).toContain("`after`")
+    // …and the subtree read says where to go instead, since it walks none.
+    expect(said("read_subtree")).toContain("`placed`")
+  })
+})
+
+/**
  * BOTH hints, on both kinds — and `destructiveHint` is the one that matters
  * here, because it CHANGED.
  *
@@ -600,6 +626,56 @@ test("a mirror is placed, found from the node, and retired — the node untouche
       // Nothing shows it any more, and the field goes rather than emptying.
       expect((await call(client, "read_node", { id: "order" })).structured)
         .not.toHaveProperty("mirrors")
+    },
+  )
+})
+
+/**
+ * The list read from the LIST's side — "what is on Now?".
+ *
+ * The other half of the ledger gesture, and the one an orchestrator opening a
+ * fresh session starts from: it has not placed anything yet, so it cannot ask
+ * an item where it is placed. It asks the list what is on it, and each row
+ * carries both the id that retires the entry and the node it stands for.
+ */
+test("read_node answers what a curated list holds, with what each entry shows", async () => {
+  await withTools(
+    { "house.jsonl": HOUSE, "now.jsonl": LEDGER },
+    async ({ client }) => {
+      await call(client, "add_mirror", { target: "order", parent: "now", id: "now-order" })
+      await call(client, "add_mirror", { target: "install", parent: "now", id: "now-install" })
+
+      const now = (await call(client, "read_node", { id: "now" })).structured
+      expect(now["children"]).toEqual([])
+      expect(now["placed"]).toEqual([
+        {
+          id: "now-order",
+          file: "now.jsonl",
+          line: 2,
+          parent: "now",
+          shows: {
+            id: "order",
+            title: "order the cabinets",
+            file: "house.jsonl",
+            line: 3,
+            path: ["Kitchen remodel"],
+          },
+        },
+        {
+          id: "now-install",
+          file: "now.jsonl",
+          line: 3,
+          parent: "now",
+          shows: {
+            id: "install",
+            title: "install them",
+            file: "house.jsonl",
+            line: 4,
+            status: "doing",
+            path: ["Kitchen remodel"],
+          },
+        },
+      ])
     },
   )
 })

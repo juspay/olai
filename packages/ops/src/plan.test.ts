@@ -1453,6 +1453,49 @@ describe("unmirror", () => {
     expect(failure.message).toContain("is a node, not a mirror")
     expect(failure.message).toContain("archive_node")
   })
+
+  /**
+   * A placement something else NAMES.
+   *
+   * Retiring it would leave that pointing at nothing, and the write gate would
+   * refuse — but with a row about a record the caller never touched, saying an
+   * id it has just deleted is unknown, sometimes suggesting a neighbour of it.
+   * So the plan refuses first and says WHO still names it and what to do
+   * (2026-08-11 review). These two are the fence against a future "helpful"
+   * cascade landing quietly instead.
+   */
+  test("a placement another mirror chains onto is refused, naming it", () => {
+    const set = setOf({
+      "now.jsonl": [
+        `{"id":"x","ord":"a0","title":"x"}`,
+        `{"id":"one","ord":"a1","mirror":"x"}`,
+      ].join("\n"),
+      "focus.jsonl": `{"id":"two","ord":"a0","mirror":"one"}`,
+    })
+    const failure = refused(set, { op: "unmirror", id: "one" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("`two`")
+    expect(failure.message).toContain("`mirror`")
+    expect(failure.message).toContain("focus.jsonl:1")
+    // The node the placement shows is what a re-point should name.
+    expect(failure.message).toContain("`x`")
+  })
+
+  test("a placement an edge names is refused too, whichever edge it is", () => {
+    for (const edge of ["after", "blocks", "see"]) {
+      const set = setOf({
+        "now.jsonl": [
+          `{"id":"x","ord":"a0","title":"x"}`,
+          `{"id":"one","ord":"a1","mirror":"x"}`,
+          `{"id":"y","ord":"a2","title":"y","${edge}":["one"]}`,
+        ].join("\n"),
+      })
+      const failure = refused(set, { op: "unmirror", id: "one" })
+      expect(failure._tag).toBe("UsageFailure")
+      expect(failure.message).toContain("`y`")
+      expect(failure.message).toContain(`\`${edge}\``)
+    }
+  })
 })
 
 /**

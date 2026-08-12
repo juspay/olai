@@ -48,6 +48,7 @@ import {
   type OutlineSet,
   type RegularNode,
   storedMarker,
+  targetsOf,
   unfinishedUnder,
   UsageFailure,
   ValidationFailure,
@@ -1551,10 +1552,21 @@ const shownTitle = (scope: Scope, target: string): string =>
  * and answering it by archiving the node — the nearest thing that "removes" it
  * — would put a subtree away nobody asked to put away.
  *
- * What is NOT refused here is a placement something else points at: a chained
- * mirror, or an edge naming this id. That is the validator's to refuse, in its
- * own words with `file:line`, over the set the write would produce — this file
- * refuses only what it can refuse without re-validating.
+ * A placement something else still NAMES is refused here too, and that is a
+ * correction (2026-08-11 review): it was left to the validator, on the grounds
+ * that this file refuses only what it can refuse without re-validating. The
+ * refusal was safe — nothing landed — but it was not an answer anyone could
+ * act on. What came back was a row about the file the write would have
+ * produced, saying `mirror` names `now-install`, which no node declares, about
+ * a record the caller never touched — and, because an id that has just been
+ * deleted is by definition unknown, sometimes with a did-you-mean pointing at
+ * a NEIGHBOUR of the thing the caller asked to remove. A refusal that teaches
+ * the wrong lesson is worse than one that teaches none.
+ *
+ * It is still not re-validation: {@link dependents} is a lookup over the
+ * snapshot's own records, the same kind of thing the containment walk is, and
+ * it reads the format's `targetsOf` so a relation added later cannot slip past
+ * it. The validator remains the backstop for everything else.
  */
 const planUnmirror = (
   scope: Scope,
@@ -1579,6 +1591,19 @@ const planUnmirror = (
   const may = writable(scope, file)
   if (Result.isFailure(may)) return Result.fail(may.failure)
 
+  const held = dependents(scope, node.id)
+  if (held.length > 0) {
+    return Result.fail(
+      new UsageFailure({
+        reason:
+          `\`${node.id}\` is still named by ${held.join(", ")} — retiring it would ` +
+          `leave ${held.length === 1 ? "that" : "those"} pointing at nothing. Re-point ` +
+          `${held.length === 1 ? "it" : "them"} at \`${node.mirror}\` (the node this ` +
+          `placement shows), or retire ${held.length === 1 ? "it" : "them"} first.`,
+      }),
+    )
+  }
+
   const title = shownTitle(scope, node.mirror)
   return Result.succeed({
     files: [
@@ -1593,3 +1618,34 @@ const planUnmirror = (
     summary: `unmirror: ${title}`,
   })
 }
+
+/**
+ * What would be left pointing at nothing if this record went — each named with
+ * the field that names it and where that line is.
+ *
+ * A mirror is addressable like any other record, so anything may name one: a
+ * second placement chained onto it, or an `after` / `blocks` / `see` written at
+ * it. WHICH fields those are is the format's answer rather than a list kept
+ * here (`targetsOf`) — a list of edge fields in this file is one a fourth
+ * relation would silently fall out of, and the write it should have refused
+ * would land.
+ *
+ * `parent` is not among them because a mirror cannot be one: the validator
+ * refuses a record whose parent is a placement, so no set this planner is ever
+ * handed has a child hanging off one.
+ */
+const dependents = (scope: Scope, id: string): ReadonlyArray<string> =>
+  scope.derived.nodes.flatMap((located) => {
+    if (located.node.id === id) return []
+    const naming = [
+      ...new Set(
+        targetsOf(located.node)
+          .filter(([, target]) => target === id)
+          .map(([field]) => field),
+      ),
+    ]
+    return naming.length === 0 ? [] : [
+      `\`${located.node.id}\` (${naming.map((field) => `\`${field}\``).join(", ")}, ` +
+      `${located.file}:${located.line})`,
+    ]
+  })
