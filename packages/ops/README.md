@@ -215,8 +215,16 @@ is what decided manual over automatic.
 Messages are prefixed `olai`, so `git log --grep '^olai'` is the audit view and
 `--invert-grep` gives back a person's own history, and every commit carries an
 `X-Olai-Writer: chat-agent | mcp | web` trailer — git records only the
-repository's own user, which every commit in it already has. A composed message
-names the biggest change by a fixed order and lists the rest.
+repository's own user, which every commit in it already has. The trailer is also
+the ONLY thing that differs between the two faces' commits: the same pending set
+committed from the browser and from `olai mcp` produces the same tree and the
+same message, which `src/pending.test.ts` asserts rather than assumes.
+
+A composed message names the biggest change by a fixed order and lists the rest.
+It names that change by its TITLE — the design's example named the id, and read
+the same on a roadmap whose ids are slugs somebody chose, but `add_node` mints
+one when the caller does not supply it, so an agent's captures would put
+`1vax4izq created` in a log nobody can read and nobody can correct afterwards.
 
 The per-op summary — which is what `auto` commits with, and what a tool result
 reports — keeps the reference implementation's convention, because a log a
@@ -354,7 +362,14 @@ caller can render, and neither of them is a boolean:
   call. Under the DEFAULT mode that sentence says the write is *waiting*, which
   is the feature working and must not read as a fault — `manual` is not an error
   state, and a reader told otherwise would go looking for a broken repository
-  that is not broken.
+  that is not broken. **Unless the repository is BUSY**, and then it says that
+  instead: a write made mid-rebase, mid-merge, mid-cherry-pick or on a detached
+  HEAD is not waiting for somebody to ask, it is waiting for the repository, and
+  the tool it would otherwise be pointed at will refuse. Saying "waiting" there
+  is the same mistake `git-invisible` was filed for wearing manual mode's
+  clothes, so `manual` asks the repository its state — one `symbolic-ref` inside
+  the write gate per op, which is the price of a reply that is not confidently
+  wrong.
 - **`Ops.git`** — what git is doing for this directory: `off` (`--commit=off`),
   `repo`, `none`, or `error` with git's own words. A PROJECTION of the same
   survey `Ops.pending` runs (`gitOf`), never a probe of its own: two probes

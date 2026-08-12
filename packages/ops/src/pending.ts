@@ -40,7 +40,9 @@ import {
   NOTHING_PENDING,
   parseOutline,
   type Located,
+  type OutlineSet,
   type Pending,
+  type Reason,
   type RepoState,
   type Writer,
   type Wrote,
@@ -116,17 +118,28 @@ export const gitOf = (repo: RepoState): GitState => {
  * Why a write is not in the history, in one sentence — or `undefined` when it
  * is.
  *
- * FOUR different facts wear one `committed: false`, and telling them apart is
+ * FIVE different facts wear one `committed: false`, and telling them apart is
  * the whole of #108 plus the thing manual mode adds: `off` and `manual` are
  * SETTINGS working exactly as asked, `NoRepo` is a statement about the
  * directory, and `Unusable` / `Blocked` / a refusal are faults with git's own
  * words on them. A write waiting under the default mode must never read as an
  * error, because it is not one — it is the feature.
+ *
+ * `Blocked` is the arm that has to beat `manual` to the answer, and it does:
+ * a write on a mid-rebase repository is NOT waiting to be asked about, it is
+ * waiting for the rebase, and the tool it would be told to call will refuse.
+ * Saying "waiting" there is the #108 mistake wearing manual mode's clothes.
  */
 export const whyOf = (
   mode: CommitMode,
   repo: RepoState,
   refused: string | null,
+  /** Who the write was for, so the waiting sentence names the door THAT caller
+   *  actually has. An agent in a terminal told to press a Commit button is
+   *  being sent after a control it cannot reach. Required: the writer is in
+   *  scope at every call site, and an optional one would be a second code path
+   *  meaning "we do not know who asked", which is never true here. */
+  writer: Writer,
 ): string | undefined => {
   if (refused !== null) return `git refused the commit: ${refused}`
   switch (repo._tag) {
@@ -137,13 +150,54 @@ export const whyOf = (
     case "Unusable":
       return `git could not be asked about this directory: ${repo.said}`.trim()
     case "Blocked":
-      return `the repository is mid-${repo.reason}, so the write was not committed — ` +
-        `finish that first, then commit`
+      // Not "waiting", even under `manual`, and that is the point: this write
+      // is not waiting for somebody to ask — it is waiting for the repository,
+      // and asking will refuse until that is finished. Naming the state is
+      // what lets a reader (or an agent) do the one thing that helps.
+      return `${busy(repo.reason)}, so the write is on disk but cannot be ` +
+        `committed — finish that first, then commit`
     case "Ready":
       return mode === "manual"
         ? "waiting to be committed: writes accumulate under --commit=manual (the " +
-          "default) until the `commit` tool or the Commit button asks for one"
+          `default) until ${commitDoor(writer)} asks for one`
         : undefined
+  }
+}
+
+/** What a busy repository IS, in words that read. Three of the four reasons are
+ *  an operation in progress and take "mid-"; a detached HEAD is a place you are
+ *  standing, not something you are in the middle of, and "mid-detached" is not
+ *  English. */
+const busy = (reason: Reason): string =>
+  reason === "detached"
+    ? "the repository is on a detached HEAD"
+    : `the repository is mid-${reason}`
+
+/** The two ways a commit is ever asked for. Spelled once, because both the
+ *  sentence a write carries back and the help text a subcommand advertises are
+ *  built out of them — and renaming the button in one place and not the other
+ *  is the kind of thing nothing fails on and everybody trips over. */
+export const COMMIT_BUTTON = "the Commit button"
+export const COMMIT_TOOL = "the `commit` tool"
+
+/**
+ * What ONE WRITER presses or calls — the door that caller has, for the sentence
+ * its own write carries back ({@link whyOf}).
+ *
+ * Exhaustive over `Writer` with no `default`, deliberately: a fourth writer
+ * should be a compile error here rather than silently inheriting somebody
+ * else's door. The panel's agent has the tool AND a person with the button
+ * watching, so it is told both — that is a fact about that writer, not a
+ * fallback.
+ */
+export const commitDoor = (writer: Writer): string => {
+  switch (writer) {
+    case "web":
+      return COMMIT_BUTTON
+    case "mcp":
+      return COMMIT_TOOL
+    case "chat-agent":
+      return `${COMMIT_TOOL} or ${COMMIT_BUTTON}`
   }
 }
 
@@ -176,6 +230,9 @@ export interface Committing {
   /** What is waiting, right now. UNFAILING: every way this can go wrong — no
    *  repository, a busy one, a set that has never loaded — is a value a reader
    *  is entitled to see rather than an error that would blank the panel. */
+  /** Both chrome answers, from ONE survey — see {@link status}. */
+  readonly status: Effect.Effect<Status>
+  /** What is waiting, alone. */
   readonly pending: Effect.Effect<Pending>
   /** A commit somebody asked for: everything waiting, with a message. */
   readonly commit: (
@@ -213,6 +270,12 @@ export interface Committing {
 
 /** The one state git is never asked about, so it is spelled once. */
 const OFF: RepoState = { _tag: "Off" }
+
+/** What the two chrome controls draw, from one look at the repository. */
+export interface Status {
+  readonly pending: Pending
+  readonly git: GitState
+}
 
 /** What one write's own commit attempt came to — the two fields an op reports
  *  ({@link ../request.ts}'s `Applied`), so the reason never has to be inferred
@@ -339,15 +402,10 @@ export const make = (options: Options): Committing => {
       const snapshot = yield* SubscriptionRef.get(options.store.snapshot)
       const set = snapshot?.value ?? null
 
-      // ONE pass over the set for all of it. `nodesOf` filters and sorts the
-      // whole node list per call, and `files`/`broken` are scanned per file —
-      // which is the corpus walked once per dirty outline, on every revision
-      // and every sweep.
-      const served: ReadonlyMap<string, ReadonlyArray<Located>> = set === null
-        ? new Map()
-        : Map.groupBy(set.nodes, (located) => located.file)
-      const known = new Set(set?.files ?? [])
-      const broken = new Set((set?.broken ?? []).map((entry) => entry.file))
+      // ONE pass over the set for all of it, MEMOISED on the set — see
+      // {@link byFile}. Under `manual` something is nearly always dirty, so
+      // this no longer early-returns the way per-write `auto` did.
+      const { broken, known, served } = byFile(set)
 
       // A file that cannot be read on ONE side is dropped from BOTH, and that
       // is the whole reason `unreadable` exists rather than being a silent
@@ -394,17 +452,34 @@ export const make = (options: Options): Committing => {
       return { changes: changesOf(before, after), unreadable: [...unreadable] }
     })
 
-  const pending: Effect.Effect<Pending> = Effect.gen(function*() {
+  /**
+   * Both answers, from ONE survey.
+   *
+   * This is the coherence made structural rather than claimed. The two chrome
+   * controls draw two values, and asking for them separately meant two
+   * surveys — two `readdir` of the git directory and two `symbolic-ref` per
+   * republish, for one question — with a window in between where the
+   * repository could move and the two could disagree about the directory they
+   * are both describing. That window is the exact thing the arrangement exists
+   * to close, so the publisher takes them together.
+   */
+  const status: Effect.Effect<Status> = Effect.gen(function*() {
     const looked = yield* survey
-    if (looked.repo._tag === "Off") return NOTHING_PENDING
+    const git = refusal === null
+      ? gitOf(looked.repo)
+      : ({ status: "error", said: refusal } as const)
+    if (looked.repo._tag === "Off") return { pending: NOTHING_PENDING, git }
     const { changes, unreadable } = yield* detail(looked)
     return {
-      repo: looked.repo,
-      changes,
-      unreadable,
-      wrote: counted(),
-      message: composed(changes),
-      last: looked.last,
+      pending: {
+        repo: looked.repo,
+        changes,
+        unreadable,
+        wrote: counted(),
+        message: composed(changes),
+        last: looked.last,
+      },
+      git,
     }
   })
 
@@ -466,26 +541,45 @@ export const make = (options: Options): Committing => {
       if (paths.length === 0) return { committed: false }
       // `off` asks git nothing at all — that is what the opt-out is for.
       if (options.mode === "off") {
-        return { committed: false, ...said(whyOf("off", OFF, null)) }
+        return { committed: false, ...said(whyOf("off", OFF, null, writer)) }
       }
 
-      // One MEMOISED `rev-parse` for a directory that is a work tree, and this
-      // is as far as `manual` goes: whether the repository is mid-rebase does
-      // not change that the write is waiting, and asking would put a second
-      // subprocess inside the store's write gate on every single op.
+      // One MEMOISED `rev-parse` for a directory that is a work tree. A
+      // directory that is NOT one, or a git that cannot be asked, is the whole
+      // answer already.
       const opening = yield* repository
-      const placed: RepoState = opening._tag === "Opened"
-        ? { _tag: "Ready", branch: "" }
-        : opening
-      if (options.mode === "manual" || opening._tag !== "Opened") {
-        return { committed: false, ...said(whyOf(options.mode, placed, null)) }
+      if (opening._tag !== "Opened") {
+        return { committed: false, ...said(whyOf(options.mode, opening, null, writer)) }
+      }
+
+      /**
+       * Both remaining modes ask whether the repository can take a commit, and
+       * `manual` asking is a CORRECTION.
+       *
+       * It used to short-circuit here on the reasoning that a write is waiting
+       * either way, so whether the repository was mid-rebase changed nothing —
+       * and that was the #108 mistake in miniature. A write on a busy
+       * repository is not waiting for somebody to press a button; it is
+       * waiting for a rebase to finish, and nothing the agent can do will sweep
+       * it until that happens. Telling it "waiting… until the `commit` tool
+       * asks for one" sends it to call a tool that will refuse, and the person
+       * reading the transcript learns the real reason only from the refusal.
+       *
+       * The cost is one `symbolic-ref` inside the store's write gate per op,
+       * which is what the short-circuit was avoiding. It is worth paying: the
+       * write itself has just re-serialized and fsynced an outline, `auto`
+       * spawns two git processes on the same path without anybody minding, and
+       * the alternative is a reply that is confidently wrong.
+       */
+      const repo = yield* opening.repo.state
+      if (options.mode === "manual") {
+        return { committed: false, ...said(whyOf("manual", repo, null, writer)) }
       }
 
       // `auto` is the only mode that goes on, and the busy check is the part
       // that is NEW: an agent marking a node done in the middle of a rebase
       // could swallow the resolution, and a mode with nobody watching is
       // exactly where that would happen unseen.
-      const repo = yield* opening.repo.state
       if (repo._tag !== "Ready") {
         yield* Effect.annotateLogs(
           Effect.logWarning(
@@ -493,7 +587,7 @@ export const make = (options: Options): Committing => {
           ),
           { reason: repo._tag === "Blocked" ? repo.reason : repo._tag, summary },
         )
-        return { committed: false, ...said(whyOf("auto", repo, null)) }
+        return { committed: false, ...said(whyOf("auto", repo, null, writer)) }
       }
 
       const done = yield* opening.repo.commit({
@@ -510,7 +604,7 @@ export const make = (options: Options): Committing => {
         Effect.logWarning("olai git: the write was not committed"),
         { commitMessage: summary, said: done.said },
       )
-      return { committed: false, ...said(whyOf("auto", repo, done.said)) }
+      return { committed: false, ...said(whyOf("auto", repo, done.said, writer)) }
     })
 
   /** The repository's state on its own — what {@link Committing.git} wants,
@@ -524,18 +618,22 @@ export const make = (options: Options): Committing => {
   })
 
   return {
-    pending,
+    status,
+    pending: Effect.map(status, (both) => both.pending),
     commit,
     automatic,
     wrote,
     /**
-     * This value's answer: the directory's own state, unless a commit refused.
+     * This value's answer on its own, for a caller that wants only it: the
+     * directory's own state, unless a commit refused.
      *
-     * The override is #108's and it is kept deliberately. A repository whose
-     * identity nobody set answers `rev-parse` perfectly happily, so the probe
-     * alone reads healthy while every commit fails — which is the silence that
-     * bug was filed for. A refusal is the state of this directory until
-     * something works, and it clears itself the moment something does.
+     * The refusal override is #108's and is kept deliberately: a repository
+     * whose identity nobody set answers `rev-parse` perfectly happily, so the
+     * probe alone reads healthy while every commit fails — which is the silence
+     * that bug was filed for. It clears itself the moment something works.
+     *
+     * The PUBLISHER does not use this — it takes {@link status}, which answers
+     * both from one survey. This is the narrow question asked alone.
      */
     git: Effect.map(repoState, (repo) =>
       refusal === null ? gitOf(repo) : { status: "error", said: refusal }),
@@ -546,3 +644,65 @@ export const make = (options: Options): Committing => {
  *  that committed carries no `why` key at all. */
 const said = (why: string | undefined): { readonly why?: string } =>
   why === undefined ? {} : { why }
+
+/**
+ * What a SUBCOMMAND offers — which is not the same question {@link commitDoor}
+ * answers, and the difference is where the two came apart.
+ *
+ * `olai web` hands its own panel agent the same `commit` tool an outside agent
+ * gets (`bespokeFrom(TOOLS, ops, "chat-agent")`), so a web serve genuinely has
+ * BOTH doors and its `--help` should say so. `olai mcp` has no browser and no
+ * button, so it has one. Keying the help text on a WRITER instead read the
+ * narrower fact and quietly dropped the tool from `olai web --help`.
+ *
+ * So: one writer has one door, one face may offer two.
+ */
+export const commitDoors = (face: CommitFace): string => {
+  switch (face) {
+    case "web":
+      return `${COMMIT_BUTTON} or ${COMMIT_TOOL}`
+    case "mcp":
+      return COMMIT_TOOL
+  }
+}
+
+/** The subcommands. Derived from `Writer` rather than spelled again — one name
+ *  for who is asking — minus the one that is not a face a person can start:
+ *  `chat-agent` is a session `olai web` spawns, not something with a `--help`. */
+export type CommitFace = Exclude<Writer, "chat-agent">
+
+/** One revision of the set, cut the three ways {@link Committing.pending} needs
+ *  it: nodes by file, which files are known, which did not parse. */
+interface ByFile {
+  readonly served: ReadonlyMap<string, ReadonlyArray<Located>>
+  readonly known: ReadonlySet<string>
+  readonly broken: ReadonlySet<string>
+}
+
+/**
+ * Memoised on the SET'S OWN IDENTITY — the same key `query.ts`' `index` uses,
+ * and right for the same reason: the store replaces the whole `OutlineSet`
+ * object when a probe finds a change, so one object is one revision forever and
+ * there is nothing to invalidate.
+ *
+ * It earns the memo now in a way it did not before. Under per-write `auto` a
+ * clean tree made `detail` return early and this never ran; under `manual` —
+ * the default on both faces — something is nearly always waiting, so the walk
+ * ran on every write AND on every thirty-second sweep, over a corpus that had
+ * usually not moved at all. Weak, so a superseded revision is collectable the
+ * moment nothing holds it.
+ */
+const BY_FILE = new WeakMap<OutlineSet, ByFile>()
+
+const byFile = (set: OutlineSet | null): ByFile => {
+  if (set === null) return { served: new Map(), known: new Set(), broken: new Set() }
+  const known = BY_FILE.get(set)
+  if (known !== undefined) return known
+  const cut: ByFile = {
+    served: Map.groupBy(set.nodes, (located) => located.file),
+    known: new Set(set.files),
+    broken: new Set(set.broken.map((entry) => entry.file)),
+  }
+  BY_FILE.set(set, cut)
+  return cut
+}

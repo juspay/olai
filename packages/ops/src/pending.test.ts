@@ -27,6 +27,7 @@ import { Effect } from "effect"
 import { codec } from "./codec.ts"
 import { gitIn, repoAt } from "./fixtures.testlib.ts"
 import * as Ops from "./ops.ts"
+import { COMMIT_TOOL, whyOf } from "./pending.ts"
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
@@ -143,7 +144,7 @@ describe("manual is the default", () => {
         // Who asked is a decoration on that, and it is the one thing here that
         // is remembered rather than derived.
         expect(pending.wrote).toEqual([{ writer: "chat-agent", ops: 1 }])
-        expect(pending.message).toStartWith("olai: 1 edit to house — order done")
+        expect(pending.message).toStartWith("olai: 1 edit to house — order the cabinets done")
       })))
 
   test("committing records it, signs it, and empties what was waiting", () =>
@@ -375,3 +376,177 @@ describe("--commit=off", () => {
         expect((yield* fixture.ops.commit({}, "web"))._tag).toBe("Blocked")
       }), { commits: "off" }))
 })
+
+/**
+ * The two faces produce the SAME commit for the same pending set.
+ *
+ * HACKING.md's rule is that MCP and Web ops must be consistent and never
+ * deviate, and this is that rule made checkable at the one place it would be
+ * expensive to get wrong: what ends up permanently in somebody's history.
+ * `olai web`'s button and `olai mcp`'s tool are two callers of one `Ops.commit`
+ * — but "two callers of one function" is an implementation detail that a
+ * refactor can quietly end, and nothing else in the suite compares the two
+ * outputs.
+ *
+ * So: the same fixture, the same edits, committed once as each face.
+ *
+ * IDENTICAL: the tree (the bytes recorded), the subject, and the body — the
+ * per-node list, in order.
+ *
+ * DIFFERENT, and required to be: the `X-Olai-Writer` trailer. That is the whole
+ * point of the trailer. Git records the repository's own name and email
+ * whichever face asked, so without it an agent's commits are indistinguishable
+ * from a person's, and an audit trail of what the tool wrote stops being one.
+ * A test that asserted the two commits were byte-identical FULL STOP would be
+ * asserting that bug.
+ */
+test("both faces commit the same tree and the same message, differing only in the trailer", async () => {
+  /** One face's commit of one identical pending set. Two repositories rather
+   *  than two commits in one, because the second commit in a repository has a
+   *  different parent — and a tree comparison wants the two runs to differ in
+   *  nothing but the writer. */
+  const committedBy = (writer: "web" | "mcp") =>
+    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, writer))
+        yield* Effect.orDie(fixture.ops.run({ op: "doing", id: "install" }, writer))
+        yield* Effect.orDie(
+          fixture.ops.run({ op: "add", parent: "kitchen", title: "measure up" }, writer),
+        )
+        // A MIRROR too, since #117: a placement is a different record shape
+        // (`{id, parent, ord, mirror}`), and the comparison the composed
+        // message is built from derives its field list from BOTH schemas. A
+        // pending set holding only regular nodes would not exercise that.
+        yield* Effect.orDie(
+          fixture.ops.run(
+            { op: "mirror", target: "order", parent: "kitchen", id: "now-order" },
+            writer,
+          ),
+        )
+
+        const outcome = yield* fixture.ops.commit({}, writer)
+        expect(outcome._tag).toBe("Committed")
+
+        return {
+          tree: fixture.git("rev-parse", "HEAD^{tree}").trim(),
+          subject: fixture.git("log", "-1", "--format=%s").trim(),
+          body: fixture.git("log", "-1", "--format=%b"),
+          trailer: fixture
+            .git("log", "-1", "--format=%(trailers:key=X-Olai-Writer,valueonly)")
+            .trim(),
+        }
+      }))
+
+  const web = await committedBy("web")
+  const mcp = await committedBy("mcp")
+
+  // The bytes recorded are the same bytes. This is the strong half: it catches
+  // a face that staged a different set of files, or wrote them differently.
+  expect(mcp.tree).toBe(web.tree)
+
+  // And the message a person reads is the same message — composed from what
+  // changed, which is derived from git and therefore cannot depend on who
+  // asked.
+  expect(mcp.subject).toBe(web.subject)
+  expect(mcp.subject).toStartWith("olai: ")
+  expect(bodyWithoutTrailer(mcp.body)).toBe(bodyWithoutTrailer(web.body))
+  expect(bodyWithoutTrailer(web.body)).toContain("done: order the cabinets")
+
+  // The one difference, and it is required rather than tolerated.
+  expect(web.trailer).toBe("web")
+  expect(mcp.trailer).toBe("mcp")
+})
+
+/** A commit body with the writer trailer taken off — everything the two faces
+ *  must agree about, and nothing they must not. */
+const bodyWithoutTrailer = (body: string): string =>
+  body
+    .split("\n")
+    .filter((line) => !line.startsWith("X-Olai-Writer:"))
+    .join("\n")
+    .trim()
+
+/**
+ * The waiting sentence names the door the CALLER has.
+ *
+ * `Applied.why` rides the reply an agent reads, so telling an agent in a
+ * terminal to press a Commit button sends it after a control it cannot reach —
+ * the same mistake `olai mcp --help` would make if the two faces shared one
+ * sentence, and the same rule fixes both. The panel's agent keeps both doors
+ * named, because it has the tool and a person with the button is watching.
+ */
+test("what a waiting write says names the door that caller actually has", () => {
+  const ready = { _tag: "Ready", branch: "main" } as const
+
+  expect(whyOf("manual", ready, null, "mcp")).toContain("the `commit` tool")
+  expect(whyOf("manual", ready, null, "mcp")).not.toContain("Commit button")
+
+  expect(whyOf("manual", ready, null, "web")).toContain("the Commit button")
+  expect(whyOf("manual", ready, null, "web")).not.toContain("`commit` tool")
+
+  // The panel's agent has both, and is told so.
+  expect(whyOf("manual", ready, null, "chat-agent")).toContain("`commit` tool")
+  expect(whyOf("manual", ready, null, "chat-agent")).toContain("Commit button")
+
+  // Whichever door, it never reads as a fault: this is the feature working.
+  for (const writer of ["web", "mcp", "chat-agent"] as const) {
+    const said = whyOf("manual", ready, null, writer) ?? ""
+    expect(said).toStartWith("waiting to be committed")
+    expect(said).not.toContain("could not")
+    expect(said).not.toContain("refused")
+  }
+
+  // And a mode that commits has nothing to explain.
+  expect(whyOf("auto", ready, null, "mcp")).toBeUndefined()
+})
+
+/**
+ * A write on a BUSY repository says so — it does not say "waiting".
+ *
+ * The review's finding 5, and it is #108's lesson wearing manual mode's
+ * clothes. "Waiting to be committed until the `commit` tool asks for one" is
+ * true of an ordinary manual write and FALSE here: nothing the agent asks for
+ * will sweep this until the rebase is finished, so the reply would be sending
+ * it to call a tool that refuses, and the real reason would reach the person
+ * reading the transcript only from that refusal.
+ *
+ * The write itself still lands. That is not negotiable and is asserted here
+ * beside the sentence, because the whole point of the arrangement is that git
+ * never fails a write — the correction is to what the reply SAYS, not to what
+ * it does.
+ */
+test("a manual write on a busy repository says blocked with the reason, not waiting", () =>
+  withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    Effect.gen(function*() {
+      // Detached, the way an agent finds it when somebody is mid-bisect.
+      fixture.git("checkout", "--quiet", "--detach", "HEAD")
+
+      const applied = yield* Effect.orDie(
+        fixture.ops.run({ op: "done", id: "order" }, "mcp"),
+      )
+
+      // The write LANDED.
+      expect(applied.committed).toBe(false)
+      expect(fs.readFileSync(path.join(fixture.root, "house.jsonl"), "utf8"))
+        .toContain(`"done"`)
+
+      // And the reply names the state rather than promising a door that will
+      // refuse. `on a detached HEAD`, not `mid-detached`, which is not English.
+      expect(applied.why).toContain("detached HEAD")
+      expect(applied.why).toContain("finish that first")
+      expect(applied.why).not.toContain("waiting to be committed")
+      expect(applied.why).not.toContain(COMMIT_TOOL)
+    })))
+
+/** The other half of the same correction: on a HEALTHY repository the sentence
+ *  is still the ordinary waiting one, so this is a narrower answer rather than
+ *  a louder one. */
+test("a manual write on a healthy repository still just says it is waiting", () =>
+  withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    Effect.gen(function*() {
+      const applied = yield* Effect.orDie(
+        fixture.ops.run({ op: "done", id: "order" }, "mcp"),
+      )
+      expect(applied.why).toStartWith("waiting to be committed")
+      expect(applied.why).toContain(COMMIT_TOOL)
+    })))

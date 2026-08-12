@@ -311,7 +311,7 @@ say it rather than as a diff:
 
 ```
 ┌─ Changes ─────────────────────────────────┐
-│ olai: outlines-collection done            │
+│ olai: Outlines as a collection done       │
 │   · chat agent · 12m ago · 1a2b3c4        │
 │                                           │
 │ roadmap.jsonl                             │

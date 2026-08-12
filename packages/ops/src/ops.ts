@@ -36,7 +36,12 @@ import {
 import { Effect, Result, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
-import { type CommitMode, type GitState, make as makeCommits } from "./pending.ts"
+import {
+  type CommitMode,
+  type GitState,
+  make as makeCommits,
+  type Status,
+} from "./pending.ts"
 import { type Context, plan } from "./plan.ts"
 import { index } from "./query.ts"
 import type { Applied, Request } from "./request.ts"
@@ -93,9 +98,20 @@ export interface Ops {
     request: Request,
     writer: Writer,
   ) => Effect.Effect<Applied, OpFailure>
-  /** What is waiting to be committed. Derived from git every time it is asked
-   *  ({@link ./pending.ts}), so nothing above this layer holds a copy that
-   *  could be wrong. */
+  /**
+   * BOTH chrome answers, from one look at the repository.
+   *
+   * What a publisher takes. Asking `pending` and `git` separately meant two
+   * surveys — two reads of the git directory and two `symbolic-ref` spawns per
+   * republish, for one question — with a window between them where the two
+   * controls could disagree about the directory they are both describing. That
+   * window is what the arrangement exists to close, so it is closed by taking
+   * them together rather than by asking carefully.
+   */
+  readonly status: Effect.Effect<Status>
+  /** What is waiting, alone — {@link status}' first half, for a caller that
+   *  wants only it. Derived from git every time it is asked, so nothing above
+   *  this layer holds a copy that could be wrong. */
   readonly pending: Effect.Effect<Pending>
   /** Commit what is waiting. Both doors — the button's procedure and the MCP
    *  tool — are callers of this one thing. */
@@ -269,6 +285,7 @@ export const make = (options: Options): Ops => {
   return {
     run: reported,
     read,
+    status: commits.status,
     pending: commits.pending,
     commit: commits.commit,
     git: commits.git,

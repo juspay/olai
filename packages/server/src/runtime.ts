@@ -44,7 +44,7 @@
  */
 
 import { NOTHING_PENDING } from "@olai/format"
-import type { Applied, Ops } from "@olai/ops"
+import type { Applied, Ops, Status } from "@olai/ops"
 import type {
   CommitRequest,
   CommitResult,
@@ -143,8 +143,10 @@ export interface Wiring {
    * to maintain.
    */
   readonly git: {
-    readonly pending: Effect.Effect<Pending>
-    readonly state: Effect.Effect<GitState>
+    /** BOTH cells, from ONE survey — see `@olai/ops`' `Ops.status`. Taking them
+     *  separately meant two probes of the same repository per republish, and a
+     *  window between them in which the two controls could disagree. */
+    readonly status: Effect.Effect<Status>
     readonly commit: (request: CommitRequest) => Effect.Effect<CommitResult>
     /** Bumped by the ops layer whenever a commit lands, by whichever door. A
      *  commit changes what is waiting without changing a served file, so this
@@ -164,12 +166,11 @@ export interface Wiring {
  * so it is the only thing this takes.
  */
 export const gitWiring = (
-  ops: Pick<Ops, "pending" | "commit" | "git">,
+  ops: Pick<Ops, "status" | "commit">,
   writer: Writer,
   committed: SubscriptionRef.SubscriptionRef<number>,
 ): Wiring["git"] => ({
-  pending: ops.pending,
-  state: ops.git,
+  status: ops.status,
   commit: (request) => ops.commit(request, writer),
   committed,
 })
@@ -228,11 +229,11 @@ export const bind = (
      * independent asks of a layer that memoises the expensive half between them.
      */
     const republishGit = Effect.flatMap(
-      Effect.all([wiring.git.pending, wiring.git.state], { concurrency: 2 }),
-      ([pending, state]) =>
+      wiring.git.status,
+      ({ git, pending }) =>
         Effect.sync(() => {
           pendingCell?.set(pending)
-          gitCell?.set(state)
+          gitCell?.set(git)
         }),
     )
 

@@ -19,12 +19,12 @@
 
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
 import { toStdout } from "@olai/log"
-import { COMMIT_MODES, type CommitMode } from "@olai/ops"
 import { Effect, Layer } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
 
 import { allowedOrigins } from "./allowedOrigins.ts"
 import { clientDist } from "./clientDist.ts"
+import { commitFlags, commitMode } from "./commits.ts"
 import { serveTools } from "./mcp/serve.ts"
 import { serve } from "./serve.ts"
 
@@ -35,34 +35,11 @@ const directory = Argument.directory("directory", { mustExist: true }).pipe(
   Argument.withDescription("the directory of outlines, read recursively"),
 )
 
-/**
- * How writes reach git. Both subcommands write, so both take it.
- *
- * `manual` is the default and the point of the whole thing: a write lands on
- * disk and WAITS, and a commit is something somebody asks for — the button in
- * the browser, or the agent's `commit` tool, which knows where its work ends
- * and can say why. `auto` is the old behaviour, one commit per op, for a
- * headless server with no browser to press anything.
- *
- * `--no-commit` stays, and it means `--commit=off`: it is in scripts and in
- * this repo's own test harness, and a flag that quietly changed meaning would
- * be worse than one that is spelled twice. Given both, `--no-commit` wins,
- * because it is the one that turns something off.
- */
-const commits = Flag.choice("commit", COMMIT_MODES).pipe(
-  Flag.withDescription(
-    "when to git-commit writes: manual (a Commit button and a `commit` tool ask for one), auto (every write commits itself), off",
-  ),
-  Flag.withDefault("manual" as CommitMode),
-)
-
-const noCommit = Flag.boolean("no-commit").pipe(
-  Flag.withDescription("the same as --commit=off"),
-)
-
-/** The two flags above, as the one answer they are between them. */
-const commitMode = (chosen: CommitMode, off: boolean): CommitMode =>
-  off ? "off" : chosen
+/** The flag pair each subcommand takes — `./commits.ts`, which owns the mode
+ *  table, the default, why `--no-commit` wins, and why the sentence names a
+ *  different door on each face. */
+const webCommits = commitFlags("web")
+const mcpCommits = commitFlags("mcp")
 
 /** No registered port, and memorable: 7714 is "olai" on a phone keypad. */
 const DEFAULT_PORT = 7714
@@ -79,8 +56,7 @@ const web = Command.make("web", {
     ),
     Flag.withDefault("127.0.0.1"),
   ),
-  commits,
-  noCommit,
+  ...webCommits,
 }, ({ commits, directory, host, noCommit, port }) =>
   Effect.gen(function*() {
     const faulted = yield* serve({
@@ -115,16 +91,27 @@ const web = Command.make("web", {
  * `process.stdin`/`stdout` itself, and handing them in was only ever how the
  * hand-rolled pump was made testable. What replaced that seam is an injectable
  * TRANSPORT, which a test drives in memory.
+ *
+ * It takes `--commit` on exactly the terms `web` does, and that is the point
+ * rather than a convenience: an agent in a terminal accumulates ops the way a
+ * person does, so `manual` is its default too and the `commit` tool is what
+ * asks. Under the old per-write behaviour one orchestration beat put four
+ * commits into a human's log inside fifteen seconds, which is what a face
+ * without this flag costs.
  */
-const mcp = Command.make("mcp", { directory, commits, noCommit }, ({ commits, directory, noCommit }) =>
-  serveTools({
-    root: directory,
-    commits: commitMode(commits, noCommit),
-  })).pipe(
-    Command.withDescription(
-      "serve the outline tools over stdio, for a coding agent in a terminal",
-    ),
-  )
+const mcp = Command.make(
+  "mcp",
+  { directory, ...mcpCommits },
+  ({ commits, directory, noCommit }) =>
+    serveTools({
+      root: directory,
+      commits: commitMode(commits, noCommit),
+    }),
+).pipe(
+  Command.withDescription(
+    "serve the outline tools over stdio, for a coding agent in a terminal",
+  ),
+)
 
 const olai = Command.make("olai").pipe(
   Command.withDescription("olai — outlines in flat-record JSONL"),

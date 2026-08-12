@@ -68,7 +68,13 @@ export const gitIn = (root: string) =>
  */
 export const repoAt = (
   root: string,
-  options: { readonly identity?: boolean; readonly seed?: boolean } = {},
+  options: {
+    readonly identity?: boolean
+    readonly seed?: boolean
+    /** The seed commit's subject. Worth naming when a test READS the log back
+     *  and the fixture's own commit has to be tellable from olai's. */
+    readonly message?: string
+  } = {},
 ): void => {
   const git = (argv: ReadonlyArray<string>, env?: Record<string, string>) => {
     execFileSync("git", argv, {
@@ -83,10 +89,23 @@ export const repoAt = (
   git(["config", "user.name", nobody ? "" : "olai tests"])
   if (options.seed === false) return
   git(["add", "-A"])
-  git(["commit", "--quiet", "--no-verify", "-m", "fixtures"], {
+  git(["commit", "--quiet", "--no-verify", "-m", options.message ?? "fixtures"], {
     GIT_AUTHOR_NAME: "olai tests",
     GIT_AUTHOR_EMAIL: "test@olai.invalid",
     GIT_COMMITTER_NAME: "olai tests",
     GIT_COMMITTER_EMAIL: "test@olai.invalid",
   })
 }
+
+/** Every commit subject in a repository, newest first. Three test files had
+ *  grown their own spelling of this; one is enough, and it belongs beside the
+ *  builder that makes the repository they read. */
+export const subjectsIn = (root: string): ReadonlyArray<string> =>
+  gitIn(root)("log", "--format=%s").trim().split("\n")
+
+/** The `X-Olai-Writer` trailer on the newest commit, or `""` when it carries
+ *  none. The KEY is a contract between the commit path and every test that
+ *  reads it back, so it is spelled once: six literal copies meant a rename
+ *  would compile and fail in five places at the same time. */
+export const writerOf = (root: string): string =>
+  gitIn(root)("log", "-1", "--format=%(trailers:key=X-Olai-Writer,valueonly)").trim()

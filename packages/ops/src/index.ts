@@ -42,7 +42,17 @@ export { notFound } from "./plan.ts"
 /** When writes reach git, and what git is doing for the directory they reach.
  *  The mode is passed IN and the state comes back OUT; the subprocesses between
  *  them are this layer's business. */
-export { COMMIT_MODES, type CommitMode, type GitState } from "./pending.ts"
+export {
+  COMMIT_BUTTON,
+  COMMIT_TOOL,
+  COMMIT_MODES,
+  commitDoor,
+  commitDoors,
+  type CommitFace,
+  type CommitMode,
+  type GitState,
+  type Status,
+} from "./pending.ts"
 export { type Applied, Request } from "./request.ts"
 export { type Reading, type Tool, TOOLS, toolNamed } from "./tools.ts"
 
