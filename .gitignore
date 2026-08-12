@@ -16,3 +16,8 @@ node_modules
 # Review notes handed to the implementing agent — read, acted on, never
 # committed. The PR is the record; a stale critique in the tree is not.
 /PR-REVIEW.md
+
+# Debate working folders — turn files are working material, never committed.
+# A finished debate files its conclusion (the folder's README.md) under
+# docs/, per .apm/skills/lowy-electricity/SKILL.md.
+/debates
