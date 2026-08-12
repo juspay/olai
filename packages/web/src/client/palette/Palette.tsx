@@ -41,6 +41,12 @@ export function Palette(props: {
    * or the mobile drawer. Owned by App because the mobile state is ephemeral.
    */
   readonly toggleDirectory: () => void
+  /** ⌘Z / ⌘⇧Z. They belong to the page's undo stack, not to this component —
+   *  what this file owns is the ONE window listener the global layer has
+   *  (../keys.ts), and a second one for two more chords would be exactly the
+   *  disagreement that registry exists to make impossible. */
+  readonly undo: () => void
+  readonly redo: () => void
 }) {
   const [open, setOpen] = createSignal(false)
   const [keys, setKeys] = createSignal(false)
@@ -141,6 +147,11 @@ export function Palette(props: {
       }
       if (match.action === "sidebar") props.toggleDirectory()
       if (match.action === "chat") toggleChat()
+      // Reached only with the caret nowhere — both chords are
+      // `whileEditing: false`, so a draft keeps the platform's own undo and
+      // Escape keeps abandoning.
+      if (match.action === "undo") props.undo()
+      if (match.action === "redo") props.redo()
     }
     window.addEventListener("keydown", onKey)
     onCleanup(() => window.removeEventListener("keydown", onKey))

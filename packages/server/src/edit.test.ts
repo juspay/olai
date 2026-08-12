@@ -11,6 +11,11 @@
  * What an `add` or a `move` does to the records is `@olai/ops`' own suite,
  * already written and not worth a second opinion; what is this layer's is
  * which request the key names.
+ *
+ * The second half is the same shape read backwards: what would TAKE a write
+ * BACK, over the same fixture. An inverse is a value derived from a snapshot —
+ * where a row sat, which mark it carried — so the arithmetic an undo gets
+ * wrong is answerable here too, without a browser to press ⌘Z in.
  */
 
 import { derive, type OpFailure, type OutlineSet } from "@olai/format"
@@ -20,7 +25,7 @@ import type { Edit } from "@olai/surface"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { requestFor } from "./edit.ts"
+import { inverseOf, requestFor } from "./edit.ts"
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
@@ -207,4 +212,132 @@ test("a title and a note are what they say", () => {
     .toEqual({ op: "desc", id: "order", desc: "oak" })
   expect(asked({ verb: "desc", id: "order", desc: null }))
     .toEqual({ op: "desc", id: "order", desc: null })
+})
+
+// ── the three an undo speaks ───────────────────────────────────────────
+
+test("putting a row back names the parent it was given and the sibling above", () => {
+  expect(asked({ verb: "place", id: "handles", parent: "kitchen", after: "demo" }))
+    .toEqual({ op: "move", id: "handles", parent: "kitchen", after: "demo" })
+})
+
+test("back to the FRONT of a branch is `before` whatever is first NOW", () => {
+  // The one half of a placement that is resolved rather than recorded: "first
+  // among its siblings" is a fact about the row as it stands, so an undo means
+  // the front as it reads this instant — including whatever another writer put
+  // there in the meantime.
+  expect(asked({ verb: "place", id: "handles", parent: "kitchen", after: null }))
+    .toEqual({ op: "move", id: "handles", parent: "kitchen", before: "demo" })
+})
+
+test("back into a branch that now holds nothing else drops the anchor", () => {
+  expect(asked({ verb: "place", id: "handles", parent: "loose", after: null }))
+    .toEqual({ op: "move", id: "handles", parent: "loose" })
+})
+
+test("back to the top level is `parent: null`, like an outdent", () => {
+  expect(asked({ verb: "place", id: "handles", parent: null, after: "kitchen" }))
+    .toEqual({ op: "move", id: "handles", parent: null, after: "kitchen" })
+})
+
+test("putting back a row nothing declares is not found", () => {
+  expect(refused({ verb: "place", id: "ghost", parent: null, after: null })._tag)
+    .toBe("NotFoundFailure")
+})
+
+test("a mark put back is that mark's own op, and none is the stored one undone", () => {
+  expect(asked({ verb: "mark", id: "install", mark: "todo" }))
+    .toEqual({ op: "todo", id: "install" })
+  expect(asked({ verb: "mark", id: "demo", mark: null }))
+    .toEqual({ op: "done", id: "demo", undo: true })
+})
+
+test("taking a mark off a node that carries none says so", () => {
+  // Somebody else got there first — an undo that would write nothing at all,
+  // and a person is owed the sentence rather than a key that does nothing.
+  const failure = refused({ verb: "mark", id: "install", mark: null })
+  expect(failure._tag).toBe("UsageFailure")
+  expect(failure.message).toContain("carries no mark")
+})
+
+test("a row taken back is archived, which is the only removal the set has", () => {
+  expect(asked({ verb: "remove", id: "handles" }))
+    .toEqual({ op: "archive", id: "handles" })
+})
+
+test("a row somebody has put work under is not an undo's to take back", () => {
+  const failure = refused({ verb: "remove", id: "install" })
+  expect(failure._tag).toBe("UsageFailure")
+  expect(failure.message).toContain("under it now")
+})
+
+// ── what would take a write back ───────────────────────────────────────
+
+/** The inverse of an edit over the house, with the id an `add` would have
+ *  minted for the one case that needs one. */
+const inverse = (
+  edit: Edit,
+  applied = "minted",
+  at: Reading = reading(),
+): ReadonlyArray<Edit> => inverseOf(at, edit, applied)
+
+test("a move records where the row SAT — its parent, and the row above it", () => {
+  // `install` is third among the kitchen's children, so the place it leaves is
+  // "under kitchen, after order" whichever of the four moves took it away.
+  const back: ReadonlyArray<Edit> = [
+    { verb: "place", id: "install", parent: "kitchen", after: "order" },
+  ]
+  expect(inverse({ verb: "move", id: "install", how: "in" })).toEqual(back)
+  expect(inverse({ verb: "move", id: "install", how: "out" })).toEqual(back)
+  expect(inverse({ verb: "move", id: "install", how: "up" })).toEqual(back)
+})
+
+test("the FIRST of its siblings records `after: null` — a place with no neighbour", () => {
+  expect(inverse({ verb: "move", id: "demo", how: "down" }))
+    .toEqual([{ verb: "place", id: "demo", parent: "kitchen", after: null }])
+})
+
+test("a top-level row records `parent: null` and the row above it in the file", () => {
+  expect(inverse({ verb: "move", id: "loose", how: "in" }))
+    .toEqual([{ verb: "place", id: "loose", parent: null, after: "kitchen" }])
+})
+
+test("an undo is itself undoable: a place records the place it leaves", () => {
+  // What makes redo the same machinery as undo rather than a second stack with
+  // rules of its own — every replay answers with what would replay IT.
+  expect(inverse({ verb: "place", id: "handles", parent: "kitchen", after: null }))
+    .toEqual([{ verb: "place", id: "handles", parent: "install", after: null }])
+})
+
+test("a toggle records the mark it replaced, and `null` for none", () => {
+  expect(inverse({ verb: "toggle", id: "install", mark: "done" }))
+    .toEqual([{ verb: "mark", id: "install", mark: null }])
+  expect(inverse({ verb: "toggle", id: "demo", mark: "done" }))
+    .toEqual([{ verb: "mark", id: "demo", mark: "done" }])
+})
+
+test("putting a mark back over a `done` node is TWO ops, as it is for an agent", () => {
+  // `order` is `doing`, so ticking it off replaces that mark. The ops layer
+  // refuses any other mark over a node that is done ("undo that first"), so
+  // the way back is the way an agent would take it: take the done off, put the
+  // old mark on. One op here would be the web doing what MCP cannot.
+  expect(inverse({ verb: "toggle", id: "order", mark: "done" }))
+    .toEqual([
+      { verb: "mark", id: "order", mark: null },
+      { verb: "mark", id: "order", mark: "doing" },
+    ])
+})
+
+test("a new row is taken back by the id the write minted, not one read before it", () => {
+  expect(inverse({ verb: "add", at: { kind: "after", id: "order" }, title: "measure" }, "n7"))
+    .toEqual([{ verb: "remove", id: "n7" }])
+})
+
+test("what nothing would take back says so with an empty list", () => {
+  // The text edits, which the draft's own blur/Escape semantics already own —
+  // and an archived row, which no move brings back out (a parent is same-file
+  // by the format, and the archive is another file).
+  expect(inverse({ verb: "title", id: "order", title: "x" })).toEqual([])
+  expect(inverse({ verb: "desc", id: "order", desc: null })).toEqual([])
+  expect(inverse({ verb: "remove", id: "handles" })).toEqual([])
 })

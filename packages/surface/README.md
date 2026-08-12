@@ -183,19 +183,30 @@ tagged union, and the only place a browser may cause a write:
   and a name that differs from an op's is a name with arithmetic behind it.
   Ops itself learns none of it: an op does not know it is being called over a
   wire.
-- **a delete is deliberately absent.** It arrives with the undo item — until
-  an edit can be taken back inside the app, git is the whole of the recovery
-  net, and a key that removes a subtree is the one edit a person cannot
-  re-type from memory.
+- **three of the verbs are an UNDO's**, and they are the one place the list is
+  not shaped like a key: `place` says where a row SAT, `mark` which mark it
+  CARRIED, `remove` that a row this session created should go. They name
+  absolute things because "put it back" means one, and what keeps that honest
+  is who named the ids — the server derived every one of them from the
+  snapshot the original write was judged against, and rides them back on the
+  answer (`Applied.undo`) for the browser to replay. Nothing restores a
+  snapshot: an undo is one more op at the write gate, judged against the set as
+  it is now.
+- **the delete this list used to lack arrives as one of them.** `remove` is
+  bound to no key and nothing but an inverse produces one, so the only row it
+  can take back is a row that was just added — and what it resolves to is
+  `archive`, the only removal the set has.
 
 It declares `OpFailure` as its error channel, which is what the editor is built
 on: a refused write comes back as the validator's own rows, so the draft it
 came from is kept and the reason shown beside it. What it ANSWERS with is the
-node the write was about and the ops layer's own `nudge` — advice on a success
+node the write was about, the ops layer's own `nudge` — advice on a success
 (the last task under a parent going done), which an agent already receives in
-its tool result and the person who pressed the key is exactly who it is for.
-Nothing about the collections changed: they are still read-only on the wire,
-and an edit reaches a reader as the file it produced.
+its tool result and the person who pressed the key is exactly who it is for —
+and the inverse above, which is absent for the writes nothing would take back
+(the text edits, and a row that has gone to the archive). Nothing about the
+collections changed: they are still read-only on the wire, and an edit reaches
+a reader as the file it produced.
 
 Who is on the other end is deliberately NOT a member here. It is a real
 question — a page bound to a server that has been replaced must know, and both

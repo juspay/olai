@@ -75,6 +75,7 @@ import {
   typed,
 } from "./draft.ts"
 import { flatten, neighbour } from "./order.ts"
+import { useUndo } from "./undoing.tsx"
 
 export interface Editor {
   /** The draft, or `null` when nothing is being typed. It carries what the
@@ -169,6 +170,11 @@ export const createEditor = (
 ): Editor => {
   const [draft, setDraft] = createSignal<Draft | null>(null)
   const [caret, setCaret] = createSignal(0)
+  /** Where a write's inverse goes, when the page this editor is on has a
+   *  stack. Read once, here, rather than at every write: it is the app's, it
+   *  does not move, and a component reaching for a context inside a promise
+   *  would be reaching outside the tracking scope that owns it. */
+  const undo = useUndo()
 
   /**
    * Every write this editor makes, in the order the keys were pressed.
@@ -284,7 +290,15 @@ export const createEditor = (
     from: Slot,
   ): Promise<{ id: string; nudge?: string } | null> => {
     const outcome = await runAsync(olai.procedures.edit.apply(edit))
-    if (Result.isSuccess(outcome)) return outcome.success
+    if (Result.isSuccess(outcome)) {
+      // What would take this back, straight onto the stack ⌘Z spends — the
+      // server's own answer, derived from the snapshot this write was judged
+      // against ({@link ./undoing.tsx}). A text edit answers with nothing,
+      // which is what keeps drafts out of it: what a person typed is taken
+      // back by Escape and by the editor's own blur rule, not by an op.
+      undo?.record(outcome.success.undo ?? [])
+      return outcome.success
+    }
     setDraft((held) =>
       held !== null && sameSlot(slotOf(held), from) ? refused(held, outcome.failure) : held
     )

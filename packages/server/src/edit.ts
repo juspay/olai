@@ -36,6 +36,14 @@
  *     have named. "The row above" is such an id, and when that row is a mirror
  *     the node an agent would name as the new parent is the one it shows.
  *
+ * It answers a SECOND question about the same reading, and for the same
+ * reason: {@link inverseOf} says what would take a write back — where the row
+ * sits before it moves, which mark it carries before a toggle replaces it.
+ * Those are facts about the set, they stop being true the moment the write
+ * lands, and a browser noting them down for itself would be exactly the second
+ * reading the paragraph above rules out. What comes back on the answer is
+ * therefore a REQUEST an undo can replay, never a snapshot to restore.
+ *
  * The one thing it does NOT close over is the gap between reading and writing.
  * The snapshot can move between the read this resolves against and the commit
  * the ops layer makes, exactly as it can for an agent — and it ends the same
@@ -46,6 +54,8 @@
 
 import {
   type Derived,
+  isMirror,
+  type Located,
   nodeNamed,
   type OpFailure,
   siblingsOf,
@@ -81,6 +91,12 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       return Result.succeed({ op: "title", id: edit.id, title: edit.title })
     case "desc":
       return Result.succeed({ op: "desc", id: edit.id, desc: edit.desc })
+    case "place":
+      return placeRequest(at.derived, edit)
+    case "mark":
+      return markRequest(at.derived, edit)
+    case "remove":
+      return removeRequest(at.derived, edit)
   }
 }
 
@@ -212,6 +228,207 @@ const moveRequest = (
     }
   }
 }
+
+// ── the three an undo speaks ───────────────────────────────────────────
+
+/**
+ * A row, put back where it sat.
+ *
+ * The parent travels as it was recorded — an id the SERVER read off the
+ * snapshot the original move was judged against, so it is an id an agent would
+ * have named — and the neighbour is resolved HERE, against the set as it is
+ * now, for the same reason every other placement is: "first among its
+ * siblings" is a fact about the row as it stands this instant, and a browser
+ * answering it would be answering from a tree some frames old.
+ *
+ * `after: null` is that case, and it is `before` the row that is first NOW
+ * rather than an ord computed from the one that was first then: if another
+ * writer has put something at the front in the meantime, an undo that says
+ * "back to the top of this branch" means the top as it now reads. When there
+ * is nothing there at all the anchor is dropped and the ops layer's own
+ * default — last — is the only place it can go.
+ */
+const placeRequest = (
+  derived: Derived,
+  edit: Extract<Edit, { verb: "place" }>,
+): Resolved => {
+  const located = derived.byId.get(edit.id)
+  if (located === undefined) return Result.fail(notFound(derived, edit.id))
+  if (edit.after !== null) {
+    return Result.succeed({ op: "move", id: edit.id, parent: edit.parent, after: edit.after })
+  }
+  const row = siblingsOf(derived, located.file, edit.parent ?? undefined)
+    .filter((sibling) => sibling.node.id !== edit.id)
+  const first = row[0]
+  return Result.succeed({
+    op: "move",
+    id: edit.id,
+    parent: edit.parent,
+    ...(first === undefined ? {} : { before: first.node.id }),
+  })
+}
+
+/**
+ * A mark, put back.
+ *
+ * Which op that is depends on what is being restored rather than on what is
+ * there: putting one ON is that mark's own op, and putting NONE back is the
+ * stored mark's op with `undo` — the same two calls an agent makes, so the
+ * refusals are the ops layer's own (`already done`, `is not marked done`) and
+ * this file invents none of them.
+ *
+ * The one it does invent is for a node that carries nothing when an undo asks
+ * for nothing: there is no write in that, and the ops layer would have to be
+ * told which mark to take off a node that has none. It means somebody else got
+ * there first, which is a thing a person is owed a sentence about.
+ */
+const markRequest = (
+  derived: Derived,
+  edit: Extract<Edit, { verb: "mark" }>,
+): Resolved => {
+  const located = derived.byId.get(edit.id)
+  if (located === undefined) return Result.fail(notFound(derived, edit.id))
+  if (edit.mark !== null) {
+    return Result.succeed({ op: edit.mark, id: edit.id })
+  }
+  const stored = derived.status.get(edit.id)
+  if (stored === undefined) {
+    return Result.fail(
+      refusal(`\`${nameOf(located)}\` carries no mark, so there is none to take off`),
+    )
+  }
+  return Result.succeed({ op: stored, id: edit.id, undo: true })
+}
+
+/**
+ * A row, taken back.
+ *
+ * `archive` is the whole of it, because `archive` is the whole of what the set
+ * can do about a record it no longer wants: the node goes to `Archive.jsonl`
+ * keeping its id, so anything pointing at it goes on resolving. That is a
+ * trash rather than a shredder, and it is the same op `archive_node` runs.
+ *
+ * The guard is the one thing this adds, and it is about what an undo is
+ * ENTITLED to: the row it takes back is the row it added, never a branch. A
+ * node somebody has hung work under is no longer the empty line a key created,
+ * and taking it back would take theirs with it.
+ */
+const removeRequest = (
+  derived: Derived,
+  edit: Extract<Edit, { verb: "remove" }>,
+): Resolved => {
+  const located = derived.byId.get(edit.id)
+  if (located === undefined) return Result.fail(notFound(derived, edit.id))
+  const under = derived.children.get(edit.id) ?? []
+  if (under.length > 0) {
+    return Result.fail(
+      refusal(
+        `\`${nameOf(located)}\` has ${under.length} ${
+          under.length === 1 ? "row" : "rows"
+        } under it now — undo takes back the row it added, not what was put under it`,
+      ),
+    )
+  }
+  return Result.succeed({ op: "archive", id: edit.id })
+}
+
+// ── what would take a write back ───────────────────────────────────────
+
+/**
+ * The edits that would UNDO this one, read off the snapshot it is about to be
+ * judged against.
+ *
+ * It is here, beside the resolver, because it is the same subject read the
+ * other way: `requestFor` says what a key means over this reading, and this
+ * says what the reading is about to stop saying. Both are pure over a
+ * {@link Reading} and total over {@link Edit}, so a verb added to the surface
+ * is answered twice or it does not compile.
+ *
+ * WHY THE SERVER AND NOT THE TAB: the facts an op destroys — the parent a row
+ * had, the neighbour above it, the mark a toggle replaced — are facts about the
+ * set the write is judged against. A browser keeping its own note of them
+ * would be the second reading this whole seam exists to avoid, and the two
+ * would differ exactly when it matters: when somebody else was writing too.
+ *
+ * WHAT IT DOES NOT CLOSE OVER is the same gap `requestFor` does not close over.
+ * The store can move between this reading and the commit, and the ops layer
+ * re-plans against the newer snapshot; an inverse derived here describes the
+ * reading the request was resolved against. It is replayed through the write
+ * gate like anything else, so the worst case is a refusal naming what moved —
+ * never a silent write to the wrong place.
+ *
+ * An empty list means nothing here would take it back, and the three that
+ * answer that way each mean it differently: a `title` or a `desc` is the
+ * draft's own to abandon (Escape, blur — the editor owns text), and a `remove`
+ * has put a node in the archive, which no move brings out (a parent is
+ * same-file by the format).
+ */
+export const inverseOf = (
+  at: Reading,
+  edit: Edit,
+  /** The node the write turned out to be about — which for an `add` is the row
+   *  that did not exist when this reading was taken, and is the only thing here
+   *  that cannot be read off it. */
+  applied: string,
+): ReadonlyArray<Edit> => {
+  switch (edit.verb) {
+    case "add":
+      return [{ verb: "remove", id: applied }]
+    // Both are the same question — where does this row sit right now — asked
+    // before the write that moves it. A `place` being undone is a `place`
+    // back, which is what makes redo the same machinery as undo.
+    case "move":
+    case "place":
+      return placementOf(at.derived, edit.id)
+    case "toggle":
+    case "mark":
+      return markOf(at.derived, edit.id)
+    case "remove":
+    case "title":
+    case "desc":
+      return []
+  }
+}
+
+/** Where a row sits, as the one edit that would put it back there. */
+const placementOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
+  const located = derived.byId.get(id)
+  if (located === undefined) return []
+  const row = siblingsOf(derived, located.file, located.node.parent)
+  const at = row.findIndex((sibling) => sibling.node.id === id)
+  const above = at > 0 ? row[at - 1] : undefined
+  return [{
+    verb: "place",
+    id,
+    parent: located.node.parent ?? null,
+    after: above?.node.id ?? null,
+  }]
+}
+
+/**
+ * The mark a node carries, as the edits that would put it back.
+ *
+ * TWO of them whenever what is being restored is not `done`, and that is the
+ * ops layer's policy showing through rather than a shape chosen here: any mark
+ * other than `done` over a node that IS done is refused — "nothing should
+ * decide on your behalf that finished work is not finished" — and the node
+ * these are replayed against is one this write is about to tick off. So the
+ * `done` comes off first and the old mark goes back on, which is exactly the
+ * two calls an agent would make. Anything else would be the web doing in one
+ * op what MCP needs two for, which is the deviation HACKING.md forbids.
+ */
+const markOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
+  const stored = derived.status.get(id) ?? null
+  return stored === null || stored === "done"
+    ? [{ verb: "mark", id, mark: stored }]
+    : [{ verb: "mark", id, mark: null }, { verb: "mark", id, mark: stored }]
+}
+
+/** What to call a record in a sentence. A MIRROR has no title of its own — it
+ *  is a placement of a node that does — so it answers to the id it was named
+ *  by, which is the same choice `@olai/ops` makes in its own commit lines. */
+const nameOf = (located: Located): string =>
+  isMirror(located.node) ? located.node.id : located.node.title
 
 /** A refusal in this layer's own words: the four moves each say why they could
  *  not happen, and the sentence IS the message a reader gets. One spelling of

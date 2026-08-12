@@ -13,7 +13,7 @@
  */
 
 import { datedDays } from "@olai/format"
-import { createEffect, createMemo, createSignal, Match, Show, Switch } from "solid-js"
+import { createEffect, createMemo, createSignal, Match, on, Show, Switch } from "solid-js"
 
 import { AppHeader } from "./AppHeader.tsx"
 import { Calendar } from "./calendar/Calendar.tsx"
@@ -26,6 +26,8 @@ import { DayPage } from "./day/DayPage.tsx"
 import { DocumentPage } from "./document/DocumentPage.tsx"
 import { DerivedProvider } from "./derived.tsx"
 import { createDocuments, DocumentsProvider } from "./document/documents.tsx"
+import { createUndo, UndoProvider } from "./edit/undoing.tsx"
+import { UndoSaid } from "./edit/UndoSaid.tsx"
 import { Banner } from "./errors/Banner.tsx"
 import { Broken } from "./errors/Broken.tsx"
 import { Page as ErrorPage } from "./errors/Page.tsx"
@@ -95,8 +97,25 @@ export default function App() {
 
   const docked = () => outlines.manifest() !== null && page() !== undefined
 
+  // Undo is the OUTLINE's, and it is held here for the reason the route is:
+  // its entries name rows in one file, and the two keys that spend them are
+  // global chords the one window listener answers (./palette/Palette.tsx).
+  // Cleared when the reader opens another outline — a stack of ops on rows
+  // that are not on screen is a stack nobody could predict the effect of.
+  const undo = createUndo()
+  // A MEMO, and it is load-bearing: `page()` is minted afresh on every
+  // revision the store publishes, so an effect tracking it directly would
+  // clear the stack on every write — including, in the frame it arrives, the
+  // write that has just been recorded into it. What the stack cares about is
+  // the FILE, which a memo only reports when it actually changes.
+  const openFile = createMemo(() => {
+    const open = page()
+    return open === undefined ? undefined : fileOf(open)
+  })
+  createEffect(on(openFile, () => undo.clear(), { defer: true }))
+
   return (
-    <>
+    <UndoProvider undo={undo}>
       <Connection status={connectionStatus()} />
       <ChatPanel />
       <Palette
@@ -107,7 +126,10 @@ export default function App() {
           if (desktop()) toggleSidebar()
           else setMenuOpen(!menuOpen())
         }}
+        undo={undo.undo}
+        redo={undo.redo}
       />
+      <UndoSaid said={undo.said()} />
       <div class="flex min-h-dvh flex-col">
         <AppHeader
           docked={docked()}
@@ -219,6 +241,6 @@ export default function App() {
           </Switch>
         </div>
       </div>
-    </>
+    </UndoProvider>
   )
 }

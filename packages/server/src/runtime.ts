@@ -75,7 +75,7 @@ import {
 import { Duration, Effect, Result, Stream, SubscriptionRef } from "effect"
 
 import type { Change, Chat } from "@olai/chat"
-import { requestFor } from "./edit.ts"
+import { inverseOf, requestFor } from "./edit.ts"
 import {
   type Change as CollectionChange,
   type Published,
@@ -254,20 +254,34 @@ export const bind = (
 
     /**
      * One keystroke, all the way through: read the set, work out which op the
-     * intent names ({@link ./edit.ts}), run it.
+     * intent names ({@link ./edit.ts}), run it — and say what would take it
+     * back.
      *
      * The read is the ops layer's own — one answer to "there is nothing loaded
      * yet", shared with the tools — and the failure channel is the one every
      * writer already speaks, so a refusal reaches the browser as the
      * validator's rows rather than as a transport error the editor could only
      * shrug at.
+     *
+     * The inverse is derived from THAT read, which is the reading the request
+     * was resolved against, and it rides back on the success — so an undo
+     * stack is a list of things the server said, and never a browser's own
+     * account of a tree it drew some frames ago.
      */
-    const applyEdit = (edit: Edit): Effect.Effect<Applied, OpFailure> =>
+    const applyEdit = (
+      edit: Edit,
+    ): Effect.Effect<Applied & { undo: ReadonlyArray<Edit> }, OpFailure> =>
       Effect.flatMap(wiring.ops.read, (at) => {
         const request = requestFor(at, edit)
         return Result.isFailure(request)
           ? Effect.fail(request.failure)
-          : wiring.ops.run(request.success, wiring.writer)
+          : Effect.map(wiring.ops.run(request.success, wiring.writer), (done) => ({
+            ...done,
+            // AFTER the run, because an `add`'s inverse names the row the
+            // write brought into being — and from the reading BEFORE it,
+            // because everything else it needs the write is about to change.
+            undo: inverseOf(at, edit, done.id),
+          }))
       })
 
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {
@@ -426,6 +440,10 @@ export const bind = (
             Effect.map(applyEdit(input), (done) => ({
               id: done.id,
               ...(done.nudge === undefined ? {} : { nudge: done.nudge }),
+              // Absent rather than empty for a write nothing would take back:
+              // the field is what a stack is fed from, and an entry that
+              // undoes to nothing is an entry ⌘Z would spend on nothing.
+              ...(done.undo.length === 0 ? {} : { undo: done.undo }),
             })),
         },
         git: {

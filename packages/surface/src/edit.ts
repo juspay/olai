@@ -35,11 +35,25 @@
  *     itself learns none of this — an op does not know it is being called over
  *     a wire, which is what its own manifest says.
  *
- * What is deliberately ABSENT is a delete. It arrives with the undo item
- * (human, 2026-08-11): until an edit can be taken back inside the app, git is
- * the whole of the recovery net, and a key that removes a subtree is the one
- * edit a person cannot re-type from memory. Split/merge, multi-select and
- * drag-drop are their own items too, so none of them is expressible here.
+ * THREE OF THE VERBS ARE AN UNDO'S, and they are the one place this list is
+ * not shaped like a key. `place`, `mark` and `remove` say where a row SAT,
+ * which mark it CARRIED and that a row this session created should go — the
+ * facts a structural op destroyed, recorded at apply time
+ * ({@link Applied.undo}) and replayed through this same procedure when
+ * somebody presses ⌘Z. They name absolute things because that is what "put it
+ * back" means; what keeps that honest is WHO NAMED THE IDS — the server
+ * derived every one of them from the snapshot the original write was judged
+ * against, so they are ids an agent would have named, and the replay is judged
+ * against the snapshot as it is NOW. Nothing here restores a snapshot: an undo
+ * is one more op at the write gate, refused like any other when the set has
+ * moved somewhere the inverse cannot go.
+ *
+ * That is also how the delete this list used to lack arrives (human,
+ * 2026-08-11: "it arrives with undo"). `remove` is not bound to a key and
+ * nothing but an inverse produces one — the only row it can take back is a row
+ * that was just added — and what it resolves to is the ops layer's own
+ * `archive`, which is the only removal the set has. Split/merge, multi-select
+ * and drag-drop are their own items, so none of them is expressible here.
  */
 
 import { MARKS, OpFailure } from "@olai/format"
@@ -112,6 +126,53 @@ export const Edit = Schema.Union([
     /** `null` removes the note, which is what an emptied textarea means. */
     desc: Schema.NullOr(Schema.String),
   }),
+
+  // ── the three an undo speaks ─────────────────────────────────────────
+
+  /**
+   * Put a row back where it sat — the inverse of a `move`, and the only verb
+   * here that names a placement outright.
+   *
+   * `move` cannot express it: "out" means "after what used to be my parent",
+   * which is where an indent came from and nowhere else. A row that was
+   * dragged two levels and three siblings has a place, and a place is a parent
+   * and a neighbour.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("place"),
+    id: Id,
+    /** The parent it sat under — `null` for the top level of its file. */
+    parent: Schema.NullOr(Id),
+    /** The sibling it sat immediately AFTER — `null` when it was the first of
+     *  them, which is a place a neighbour cannot name. Recorded as a NODE
+     *  rather than as an index: ids survive what another writer does to the
+     *  rows around them, and an index does not. */
+    after: Schema.NullOr(Id),
+  }),
+  /**
+   * Put a mark back — the inverse of a `toggle`.
+   *
+   * `null` is "it carried none", which a toggle cannot say either: the format
+   * allows at most one mark, so ticking a `todo` node off does not add `done`
+   * beside it, it REPLACES it. What was there is therefore something only the
+   * write that displaced it knew.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("mark"),
+    id: Id,
+    mark: Schema.NullOr(Schema.Literals(MARKS)),
+  }),
+  /**
+   * Take back a row that was just created — the inverse of an `add`, and the
+   * only removal this surface has.
+   *
+   * It resolves to `archive`, because that is the only removal the SET has: a
+   * node goes to `Archive.jsonl` keeping its id, which is a trash rather than
+   * a shredder and is exactly what `archive_node` does for an agent. Refused
+   * for a row that has grown children since — an undo may take back what it
+   * made, never what somebody built on it.
+   */
+  Schema.Struct({ verb: Schema.Literal("remove"), id: Id }),
 ])
 export type Edit = typeof Edit.Type
 
@@ -130,6 +191,30 @@ export type Edit = typeof Edit.Type
 export const Applied = Schema.Struct({
   id: Id,
   nudge: Schema.optionalKey(Schema.String),
+  /**
+   * What would TAKE THIS WRITE BACK, derived from the snapshot it was judged
+   * against — the half of an undo stack a browser cannot compute for itself.
+   *
+   * It has to be recorded here because the facts an op destroys are gone the
+   * moment it lands: where a row sat before `Tab`, which mark a `Ctrl+Enter`
+   * replaced. A tab could keep its own note of them, and it would be a SECOND
+   * reading of the set — some frames old, free to disagree with the one the
+   * write was judged against, which is the reading whose neighbours are the
+   * ones being undone.
+   *
+   * A LIST, in the order it must be replayed, and it is one edit for
+   * everything but a mark that displaced another: putting `todo` back on a
+   * node that is currently `done` is two ops, because the ops layer refuses to
+   * walk finished work backwards in one (`plan.ts` — "undo that first"). Two
+   * calls is exactly what an agent would make, which is what keeps the faces
+   * consistent; a shortcut here would be the web doing something MCP cannot.
+   *
+   * ABSENT when nothing would take it back: the text edits, which the editor's
+   * own draft semantics already own, and an undo that cannot be redone (a row
+   * that went to the archive does not come out through `move`, which is
+   * same-file by the format).
+   */
+  undo: Schema.optionalKey(Schema.Array(Edit)),
 })
 export type Applied = typeof Applied.Type
 

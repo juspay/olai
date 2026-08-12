@@ -23,7 +23,7 @@
  * with no window: pass `platform` to pin Apple vs not.
  */
 
-export type KeyAction = "palette" | "sidebar" | "chat"
+export type KeyAction = "palette" | "sidebar" | "chat" | "undo" | "redo"
 
 export interface KeyMatch {
   readonly action: KeyAction
@@ -41,23 +41,39 @@ const wantsMeta = (): boolean => isApplePlatform()
 /**
  * The reserved chords, as a table.
  *
- *   ⌘K / Ctrl+K  — command palette
- *   ⌘\ / Ctrl+\  — toggle sidebar
- *   ⌘J / Ctrl+J  — toggle chat
+ *   ⌘K / Ctrl+K   — command palette
+ *   ⌘\ / Ctrl+\   — toggle sidebar
+ *   ⌘J / Ctrl+J   — toggle chat
+ *   ⌘Z / Ctrl+Z   — undo the last edit this tab made
+ *   ⌘⇧Z / Ctrl+⇧Z — redo it
  *
  * ⌘J / Ctrl+J and Ctrl+K shadow browser chrome defaults (downloads / search
  * bar) — deliberate, so keyboard editing could not claim those combos later,
  * and it has not.
  *
+ * ⌘Z is the one chord with a SHIFTED twin, which is why `shift` is a field
+ * rather than a blanket "no shift" test in the matcher: undo and redo are one
+ * key and a modifier everywhere a person has ever pressed them, and spelling
+ * redo as a different letter to keep the matcher simple would be this app
+ * inventing a keyboard. Both are `whileEditing: false` — a draft has the
+ * platform's own undo in it (an `<input>` brings its own, which is half the
+ * argument for the input in `edit/RowEditor.tsx`), and abandoning a draft is
+ * Escape's. So the row editor never sees these, and the stack never contains
+ * half a typed line.
+ *
  * A table rather than a chain of `if`s because the collision test below reads
  * it: the one invariant this file exists for is checked against THIS list, so
- * a fourth chord is covered by being added rather than by somebody remembering
+ * a fifth chord is covered by being added rather than by somebody remembering
  * to add it twice.
  */
-export const CHORDS: ReadonlyArray<KeyMatch & { readonly key: string }> = [
+export const CHORDS: ReadonlyArray<
+  KeyMatch & { readonly key: string; readonly shift?: boolean }
+> = [
   { key: "k", action: "palette", whileEditing: true },
   { key: "\\", action: "sidebar", whileEditing: false },
   { key: "j", action: "chat", whileEditing: false },
+  { key: "z", action: "undo", whileEditing: false },
+  { key: "z", action: "redo", whileEditing: false, shift: true },
 ]
 
 /**
@@ -66,6 +82,10 @@ export const CHORDS: ReadonlyArray<KeyMatch & { readonly key: string }> = [
  * Platform: Meta on Apple (where Ctrl+K is kill-to-end-of-line in text
  * fields), Control elsewhere. Accepting both on every platform was wrong for
  * the palette's whileEditing binding.
+ *
+ * Shift is matched EXACTLY — a chord that does not ask for it is dead with it
+ * held — so ⌘Z and ⌘⇧Z are two entries rather than one entry and a caller that
+ * reads the event again.
  */
 export const matchKey = (
   event: KeyboardEvent,
@@ -75,9 +95,11 @@ export const matchKey = (
   const mod = apple
     ? event.metaKey && !event.ctrlKey
     : event.ctrlKey && !event.metaKey
-  if (!mod || event.altKey || event.shiftKey) return null
+  if (!mod || event.altKey) return null
   const key = event.key.length === 1 ? event.key.toLowerCase() : event.key
-  return CHORDS.find((chord) => chord.key === key) ?? null
+  return CHORDS.find(
+    (chord) => chord.key === key && (chord.shift ?? false) === event.shiftKey,
+  ) ?? null
 }
 
 /** Is the event target (or its composed path) an editable field? */
@@ -198,6 +220,8 @@ export const SHORTCUTS: ReadonlyArray<{
       { keys: "⌘K / Ctrl+K", what: "the command palette" },
       { keys: "⌘\\ / Ctrl+\\", what: "show or hide the directory" },
       { keys: "⌘J / Ctrl+J", what: "show or hide the agent" },
+      { keys: "⌘Z / Ctrl+Z", what: "take back your last edit on this outline" },
+      { keys: "⌘⇧Z / Ctrl+⇧Z", what: "put it back" },
     ],
   },
   {

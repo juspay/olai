@@ -190,6 +190,8 @@ shortcuts** in the ⌘K palette:
 | **Shift+Enter** | write the note under it |
 | **↑** / **↓** | walk to the row above or below |
 | **Escape** | drop what you were typing |
+| **⌘Z** / **Ctrl+Z** | take back your last edit on this outline |
+| **⌘⇧Z** / **Ctrl+⇧Z** | put it back |
 
 Nothing has a mode: the title becomes an input in the same place, at the same
 size, and the row you are in is toned so you can see where the caret went. What
@@ -211,9 +213,19 @@ A new row is that same idea: **Enter** opens a line where the row will go, and
 the node is written the moment it has a title. So an outline never fills up
 with blank bullets, and a key pressed by accident writes nothing at all.
 
-There is no delete key, on purpose. It arrives with undo — until an edit can be
-taken back inside the app, git is the whole of the recovery net, and removing a
-subtree is the one edit nobody can re-type from memory.
+**⌘Z takes back the last edit you made here** — and it is not a restore. When a
+key moves a row or ticks something off, the server records what would reverse it
+(the parent and neighbour the row had, the mark it replaced) and ⌘Z sends THAT,
+through the same gate, judged against the outline as it is now. So an undo
+cannot quietly take back what the agent, another tab or a `git pull` did in the
+meantime, and one that no longer fits — the row moved, somebody filed work under
+it — says so instead of guessing. It is your own edits on the outline in front
+of you: a hundred of them, this session, this tab.
+
+There is still no delete key, and undo is why there does not need to be one: the
+only row it can take back is a row it just added, and what happens to it is what
+`archive` does to anything — it goes to `Archive.jsonl` keeping its id, which is
+a trash rather than a shredder. Git is still under all of it.
 
 ## Ask it to change something
 
