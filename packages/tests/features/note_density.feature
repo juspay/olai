@@ -26,7 +26,9 @@ Feature: Notes under the title
     And the description of "order" renders 2 list items
     And the description of "order" does not show its markdown source
     And the node "order" sees "herbs" as "the herb bed by the door"
-    When I click the note of "order"
+    # Clicking the note AGAIN is the caret's now (2026-08-11, human): folding
+    # is what clicking away does, which is the scenario below.
+    When I click away from the note of "order"
     Then the description of "order" is a preview of "Two ways to go:"
     And the description of "order" does not render as markdown blocks
 
@@ -45,11 +47,12 @@ Feature: Notes under the title
     And the node "order" shows the date "2026-08-10"
 
   @phone
-  Scenario: On a phone, tapping the note toggles the same expansion
+  Scenario: On a phone, tapping the note expands it, and again writes in it
     When I tap the note of "order"
     Then the description of "order" renders bold text "walnut"
     And the description of "order" renders 2 list items
     And the node "order" sees "herbs" as "the herb bed by the door"
+    # The same two gestures a pointer gets, and the second is what puts a
+    # phone's keyboard up.
     When I tap the note of "order"
-    Then the description of "order" is a preview of "Two ways to go:"
-    And the description of "order" does not render as markdown blocks
+    Then the note of "order" is being typed

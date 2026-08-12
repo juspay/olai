@@ -58,6 +58,8 @@ const withRoute = <A>(use: (served: Served) => Promise<A>): Promise<A> => {
     const wired = yield* bind({
       store,
       chat: null,
+      ops,
+      writer: "mcp",
       git: gitWiring(ops, "mcp", yield* SubscriptionRef.make(0)),
     })
     const runtime = yield* watchFault(wired.bound)

@@ -9,8 +9,8 @@ subtree move is a one-field write, so plain line-based git merges are safe and
 a diff shows what actually changed.
 
 Status: you can serve a directory, read your outlines, watch the page follow the
-files as you edit them or pull them, and ASK AN AGENT to change them — the chat
-panel writes through the same ops layer the keyboard editor will
+files as you edit them or pull them, TYPE into them, and ask an agent to change
+them — the keyboard and the chat panel write through the same ops layer
 ([roadmap](docs/roadmap.jsonl)).
 
 ## Run it
@@ -30,7 +30,8 @@ every `.jsonl` outline and every `.md` document, and serves them to a browser.
 It does not descend into dot-directories or `node_modules` — a directory of
 outlines is usually a git repository, and nothing anyone wrote is inside
 `.git`. It binds to loopback by default: the surface is unauthenticated, so
-anyone who can reach the port can read every outline under the directory. Put
+anyone who can reach the port can read every outline under the directory — and,
+since the keyboard editor arrived, change one. Put
 it behind a reverse proxy or `tailscale serve` and the browser's origin will
 not be the `Host` it forwards, so name the origins you are serving from in
 `OLAI_ALLOWED_ORIGINS` (comma-separated); the websocket refuses the rest.
@@ -172,6 +173,47 @@ error names `file:line`, and the ones implicating two files are kept apart,
 because "which file is broken" has no single answer for those. Error quality is
 the product here, not a consolation prize: the format exists so that a bad edit
 is a caught edit.
+
+## Type it yourself
+
+Click a title and the caret is in it. Click a note and it opens; click the open
+note and the caret is in that. From there it is the outliner's loop, on the keys
+you already know — and the whole list is in the app, under **Keyboard
+shortcuts** in the ⌘K palette:
+
+| | |
+|---|---|
+| **Enter** | commit, and open the next line |
+| **Tab** / **Shift+Tab** | indent under the row above, or out again |
+| **Alt+Shift+↑/↓** | move a row among its siblings |
+| **⌘Enter** / **Ctrl+Enter** | tick it off, or take that back |
+| **Shift+Enter** | write the note under it |
+| **↑** / **↓** | walk to the row above or below |
+| **Escape** | drop what you were typing |
+
+Nothing has a mode: the title becomes an input in the same place, at the same
+size, and the row you are in is toned so you can see where the caret went. What
+you type is the SOURCE — `**bold**` and `#tags` as they are written — and the
+rendering comes back the moment you leave. A note is the same trade one line
+down: the first click opens it — so a click still only READS — the next puts
+the caret in it, and it folds back to its one clamped line when you click away.
+
+What happens underneath is the thing worth knowing. A key is not a change to
+the page — every one of them is one op through the same gate the agent writes
+through, so a row moves when the file says it moved, each edit is a git commit
+you can read, and two tabs on the same outline cannot disagree. What you type
+buffers locally until you stop (blur, Enter, or a pause), so typing is never a
+round trip; that buffer is an editor and not a claim about the file, and if a
+write comes back refused — a title cannot be empty — the reason appears under
+the row and the text stays exactly where you left it.
+
+A new row is that same idea: **Enter** opens a line where the row will go, and
+the node is written the moment it has a title. So an outline never fills up
+with blank bullets, and a key pressed by accident writes nothing at all.
+
+There is no delete key, on purpose. It arrives with undo — until an edit can be
+taken back inside the app, git is the whole of the recovery net, and removing a
+subtree is the one edit nobody can re-type from memory.
 
 ## Ask it to change something
 
@@ -336,9 +378,10 @@ an agent working in your notes directory records what it did when it is done —
 and `--commit=off` turns that off for a directory whose history is somebody
 else's job.
 
-There is still no write CLI, and there never will be — nothing you can type
-adds a node or marks one. `olai web` and `olai mcp` are the two ways of putting
-a write surface in front of a directory: a page, or a pipe.
+There is still no write CLI, and there never will be — no shell command adds a
+node or marks one. `olai web` and `olai mcp` are the two ways of putting a write
+surface in front of a directory: a page, or a pipe. The page has two writers on
+it now, a keyboard and an agent, and they are the same ops layer seen twice.
 
 ## Develop
 

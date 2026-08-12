@@ -162,6 +162,41 @@ never sent. The agent's WRITES are not members at all: they reach the ops layer
 through the internal MCP server, and what a reader sees of them is the outline
 entries moving.
 
+The last member is the **keyboard's** (`src/edit.ts`) — one procedure over one
+tagged union, and the only place a browser may cause a write:
+
+- **the verbs are INTENTS.** `Tab` says "indent this", not "reparent it under
+  the node above and put it last"; `Ctrl+Enter` says "toggle done", not "set"
+  or "clear". What a row's neighbours are, and what mark it carries, are facts
+  about the SNAPSHOT — so they are read where the snapshot is, against the
+  revision the write is judged against, rather than computed from a tree a tab
+  drew some frames ago and posted back.
+- **one union, one procedure** — the shape `@olai/ops` already uses for the
+  same kind of thing (`Request` + `run`). The list of verbs is then spelled
+  once: adding one is an arm here and an arm in the resolver, and every other
+  site is a compile error rather than a silent hole. Five procedures was the
+  first shape, and it was five spellings of one list.
+- **it is not the ops request vocabulary re-spelled.** It is smaller (no
+  `create`, no `archive`, no `see`, no `date`, no chosen ids) and, where it
+  differs, it differs because something is resolved behind it — so the two
+  verbs that resolve nothing use the ops layer's own words (`title`, `desc`),
+  and a name that differs from an op's is a name with arithmetic behind it.
+  Ops itself learns none of it: an op does not know it is being called over a
+  wire.
+- **a delete is deliberately absent.** It arrives with the undo item — until
+  an edit can be taken back inside the app, git is the whole of the recovery
+  net, and a key that removes a subtree is the one edit a person cannot
+  re-type from memory.
+
+It declares `OpFailure` as its error channel, which is what the editor is built
+on: a refused write comes back as the validator's own rows, so the draft it
+came from is kept and the reason shown beside it. What it ANSWERS with is the
+node the write was about and the ops layer's own `nudge` — advice on a success
+(the last task under a parent going done), which an agent already receives in
+its tool result and the person who pressed the key is exactly who it is for.
+Nothing about the collections changed: they are still read-only on the wire,
+and an edit reaches a reader as the file it produced.
+
 Who is on the other end is deliberately NOT a member here. It is a real
 question — a page bound to a server that has been replaced must know, and both
 ends of the stale-tab handshake compare that id — but the framework reserves
@@ -185,8 +220,8 @@ loosely than the client writes is a file nobody meant to serve.
 ## Entry point
 
 `main`, `types` and `exports` all point at `src/index.ts`, which exports the
-`surface` definition, the `OutlineEntry` and `Manifest` schemas and the media
-URL above. That is the whole package — a declaration, with no implementation on
+`surface` definition, the `OutlineEntry` and `Manifest` schemas, the `Edit`
+vocabulary and the media URL above. That is the whole package — a declaration, with no implementation on
 either side of it.
 
 ## Layering

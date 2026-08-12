@@ -23,7 +23,7 @@ import {
 import { GIT_OFF, type GitState } from "@olai/surface"
 import { type Accessor, createSignal } from "solid-js"
 
-import { run } from "../chat/run.ts"
+import { run } from "../run.ts"
 import { olai } from "../wire.ts"
 
 /**

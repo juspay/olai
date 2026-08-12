@@ -180,7 +180,13 @@ export default function App() {
                           )}
                         </Match>
                         <Match when={only(open(), "outline")}>
-                          <OutlinePage rows={rows()} view={view} />
+                          {(outline) => (
+                            <OutlinePage
+                              file={outline().file}
+                              rows={rows()}
+                              view={view}
+                            />
+                          )}
                         </Match>
                         <Match when={only(open(), "document")}>
                           {(open) => <DocumentPage file={open().file} />}

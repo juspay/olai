@@ -31,7 +31,7 @@ import {
 } from "@olai/surface"
 import { Effect } from "effect"
 
-import { asFailure, type Call } from "./run.ts"
+import { asFailure, type Call } from "../run.ts"
 
 /** The one verb this needs, so a test can pass its own. */
 export type Attach = (chunk: AttachChunk) => Call<Attached>
