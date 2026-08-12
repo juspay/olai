@@ -5,8 +5,4 @@ browser and an agent rather than a text buffer.
 
 **[olai.kolu.dev](https://olai.kolu.dev)** — what it is, how to run it, and why.
 
-Docs: [docs/running.md](docs/running.md) ·
-[docs/format.md](docs/format.md) ·
-[docs/architecture.md](docs/architecture.md) ·
-[docs/roadmap.jsonl](docs/roadmap.jsonl) ·
-[HACKING.md](HACKING.md)
+Docs: [docs/index.md](docs/index.md) · Developing: [HACKING.md](HACKING.md)
