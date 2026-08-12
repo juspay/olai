@@ -40,9 +40,18 @@
 
 import { Order } from "effect"
 
-import { byOutline, type DayEntry, type DayGroup, dayOf, datedOn } from "./dates.ts"
-import { type Derived, situate, storedMarker } from "./derive.ts"
-import { isMirror, type LocatedRegular, type RegularNode } from "./node.ts"
+import {
+  byOutline,
+  type Dated,
+  datedByDay,
+  type DayEntry,
+  type DayGroup,
+  dayOf,
+  entryOf,
+  groupedOn,
+} from "./dates.ts"
+import { type Derived, storedMarker } from "./derive.ts"
+import type { RegularNode } from "./node.ts"
 
 /**
  * Should this have happened by now?
@@ -116,14 +125,17 @@ export const UPCOMING_DAYS = 7
  * `todo` and names a day still says both of those things wherever it was filed,
  * and the group heading says which file that was.
  */
-export const agendaOf = (derived: Derived, today: string): Agenda => ({
-  overdue: byOutline(overdueEntries(derived, today)),
-  today: unfinished(datedOn(derived, today)),
-  upcoming: aheadOf(derived, today).map((date) => ({
-    date,
-    groups: unfinished(datedOn(derived, date)),
-  })),
-})
+export const agendaOf = (derived: Derived, today: string): Agenda => {
+  // ONE walk over the set, for all three sections and every day in the third:
+  // each of them is a question about a day, and asking nine of them of nine
+  // walks is what a bucketed reading exists to stop (./dates.ts).
+  const days = datedByDay(derived)
+  return {
+    overdue: byOutline(overdueEntries(derived, days, today)),
+    today: owedOn(derived, days, today),
+    upcoming: aheadOf(derived, days, today),
+  }
+}
 
 /** Nothing to show, said once: an empty agenda is a page that says so and
  *  offers nothing to press, and "empty" is the conjunction of three sections
@@ -133,72 +145,82 @@ export const nothingDue = (agenda: Agenda): boolean =>
   agenda.today.length === 0 &&
   agenda.upcoming.length === 0
 
+/** Every day the set has anything on, and what it has on it. */
+type Days = ReadonlyMap<string, ReadonlyArray<Dated>>
+
 /**
  * Every overdue node, as the entries a section is grouped from.
  *
- * A MIRROR contributes none — it is a placement, and the format gives it no
- * field to carry a date or a mark — so a task that is late is late once,
- * however many places it is shown. The occasion is always `date`: `done` is the
- * only other field a day reads, and a `done` node is not overdue.
+ * A MIRROR contributes none, and that is the bucketed walk's rule rather than
+ * one restated here — a mirror is a placement, and the format gives it no field
+ * to carry a date or a mark, so a task that is late is late once however many
+ * places it is shown.
+ *
+ * ONE ENTRY PER NODE falls out rather than being deduplicated: a record's two
+ * dates are its `date` and a dated `done`, and a node whose mark is `done` is
+ * not overdue — so only the first of them can ever be here.
  */
 const overdueEntries = (
   derived: Derived,
+  days: Days,
   today: string,
 ): ReadonlyArray<DayEntry> => {
   const entries: Array<DayEntry> = []
-  for (const located of derived.nodes) {
-    const node = located.node
-    if (isMirror(node)) continue
-    // Read off the record rather than passed alongside it: the predicate has
-    // already decided there is one.
-    const date = node.date
-    if (date === undefined || !isOverdue(node, today)) continue
-    entries.push({
-      ...situate(derived, located as LocatedRegular),
-      occasion: "date",
-      date,
-    })
+  for (const dated of days.values()) {
+    for (const one of dated) {
+      if (isOverdue(one.at.node, today)) entries.push(entryOf(derived, one))
+    }
   }
   return entries
 }
 
 /**
- * The same groups with finished work left out, and the groups that were only
- * finished work gone with it.
+ * What is OWED on one day: everything the day page would show, minus what is
+ * finished.
  *
- * `done` never appears on this page at all — the agenda answers what is owed
- * and a day page answers what happened — so this is applied to every section
- * built out of a day's own answer. A node whose `done` is dated today is on
- * today's PAGE and not on today's agenda, which is the difference between the
- * two questions in one sentence.
+ * `done` never appears anywhere on this page — the agenda answers what is owed
+ * and a day page answers what happened — so the filter is applied to every
+ * section built out of a day's records. A node whose `done` is dated today is
+ * on today's PAGE and not on today's agenda, which is the difference between
+ * the two questions in one sentence.
+ *
+ * Filtered BEFORE the entries are situated, which is the cheap order: situating
+ * is an ancestry walk and a rollup per node, and a day whose work is finished
+ * would be paying both to have the answer thrown away.
  */
-const unfinished = (
-  groups: ReadonlyArray<DayGroup>,
+const owedOn = (
+  derived: Derived,
+  days: Days,
+  day: string,
 ): ReadonlyArray<DayGroup> =>
-  groups.flatMap((group) => {
-    const nodes = group.nodes.filter((entry) => entry.status !== "done")
-    return nodes.length === 0 ? [] : [{ file: group.file, nodes }]
-  })
+  groupedOn(derived, (days.get(day) ?? []).filter((one) => unfinished(one.at.node)))
+
+/** Anything that is not finished work — the one spelling of it in this module,
+ *  because "what is left" is the question the whole page asks and two ways of
+ *  answering it would be two chances to disagree. */
+const unfinished = (node: RegularNode): boolean => storedMarker(node) !== "done"
 
 /**
- * The days after `today` that have anything, ascending, bounded by {@link
- * UPCOMING_DAYS}.
+ * The days after `today` that have something owed on them, ascending, bounded
+ * by {@link UPCOMING_DAYS}.
  *
- * A day is nominated by a node that is SCHEDULED for it and not finished — the
- * only kind of record that can put anything on a future day's agenda, since the
- * other field a day reads is a dated `done` and finished work is not drawn
- * here. So every day this answers with is a day the section below it will have
- * something to show: "days with nothing do not appear" is a property of the
- * nomination rather than a filter run afterwards.
+ * "Days with nothing do not appear" is asked with the SAME filter that draws
+ * the day — a day is listed exactly when `owedOn` has something for it — rather
+ * than with a nomination rule that could quietly disagree with it and leave a
+ * heading over an empty section.
  */
-const aheadOf = (derived: Derived, today: string): ReadonlyArray<string> => {
-  const days = new Set<string>()
-  for (const located of derived.nodes) {
-    const node = located.node
-    if (isMirror(node) || node.date === undefined) continue
-    if (storedMarker(node) === "done") continue
-    const day = dayOf(node.date)
-    if (day > today) days.add(day)
+const aheadOf = (
+  derived: Derived,
+  days: Days,
+  today: string,
+): ReadonlyArray<AgendaDay> => {
+  const ahead: Array<AgendaDay> = []
+  for (
+    const date of [...days.keys()].filter((day) => day > today).sort(Order.String)
+  ) {
+    if (ahead.length === UPCOMING_DAYS) break
+    const groups = owedOn(derived, days, date)
+    if (groups.length > 0) ahead.push({ date, groups })
   }
-  return [...days].sort(Order.String).slice(0, UPCOMING_DAYS)
+  return ahead
 }

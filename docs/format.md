@@ -146,7 +146,7 @@ extinguishes by construction. A day passing is not a failure of a bullet, which
 is the crown rule of this format read once more, and a `due` field beside `date`
 would have been two dates answering one question. It is written down here
 because it is a claim about what these two fields MEAN together; the view that
-reads it, and the page that collects the answer, are
+reads it, and the page that collects the answer — the agenda — are
 [architecture.md](architecture.md)'s.
 
 ## Documents

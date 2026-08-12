@@ -22,7 +22,7 @@
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
-import { isoDayOf } from "@olai/web/src/client/clock.ts";
+import { isoDayOf, untilMidnight } from "@olai/web/src/client/clock.ts";
 
 import {
   AGENDA_DAY,
@@ -41,12 +41,14 @@ import {
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
-/** The day after today, in the reader's own zone. Built out of the calendar
- *  rather than out of milliseconds: a day is 23 hours twice a year, and +24h
- *  on one of those lands back on the day it started. */
+/** The day after today, in the reader's own zone — asked with the client's own
+ *  statement of where a local day ENDS (`clock.ts`'s `untilMidnight`) rather
+ *  than a second one written here, for the reason the day itself is asked with
+ *  the client's `isoDayOf`: a day is 23 hours twice a year, and a suite that
+ *  did its own arithmetic would disagree with the browser on exactly those two. */
 const tomorrow = (): string => {
   const now = new Date();
-  return isoDayOf(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+  return isoDayOf(new Date(now.getTime() + untilMidnight(now)));
 };
 
 /** One section of the page, by what it MEANS. */
@@ -56,10 +58,7 @@ const sectionSelector = (section: string): string =>
 // ── opening it ─────────────────────────────────────────────────────────
 
 When("I open the agenda", async function (this: OlaiWorld) {
-  await this.open("/agenda");
-  await this.page
-    .locator(AGENDA_PAGE)
-    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.openAgenda();
 });
 
 /** The way in from the directory column — one link, above the month, because
@@ -151,6 +150,11 @@ Then(
 Then(
   "the agenda does not list {string}",
   async function (this: OlaiWorld, id: string) {
+    // The PAGE first, then its rows: an absence read off a page that has not
+    // drawn its answer yet is an absence of everything.
+    await this.page
+      .locator(AGENDA_PAGE)
+      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await drawn(this.page.locator(`${AGENDA_PAGE} ${NODE}`));
     assert.strictEqual(
       await this.page.locator(`${AGENDA_PAGE} ${nodeSelector(id)}`).count(),

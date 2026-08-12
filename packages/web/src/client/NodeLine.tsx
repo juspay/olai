@@ -53,8 +53,9 @@ export function NodeLine(props: {
   readonly occasion?: Occasion
   /** Whether the node is late on that date (`@olai/format`'s `isOverdue`) —
    *  read at the row, where the node is, and drawn on the badge, which is the
-   *  part of the line that stopped being true. */
-  readonly overdue?: boolean
+   *  part of the line that stopped being true. Required for the reason the
+   *  badge's is: not saying is not the same answer as "no". */
+  readonly overdue: boolean
   /** Drawn inside the title and before it — the tree's mirror mark. */
   readonly children?: JSX.Element
   /** Clicking the title starts editing it. Absent wherever a node is drawn

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 
 import { agendaOf, isOverdue, nothingDue, UPCOMING_DAYS } from "./agenda.ts"
 import { derive, type Derived } from "./derive.ts"
-import { nodesOfFiles } from "./fixtures.testlib.ts"
+import { nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
 import { type Located, type RegularNode } from "./node.ts"
 
 /** The day every fixture below is read on. Fixed, because a derivation that
@@ -62,8 +62,9 @@ const listed = (
 ): ReadonlyArray<string> =>
   groups.flatMap((group) => group.nodes.map((entry) => entry.shows.node.id))
 
-const node = (source: string): RegularNode =>
-  nodesOfFiles({ "a.jsonl": source })[0]!.node as RegularNode
+/** One record, parsed the way every fixture in this package is — the predicate
+ *  takes a node rather than a set, so this is all it needs. */
+const node = (source: string): RegularNode => nodesOf(source)[0]!.node as RegularNode
 
 // ── the predicate ──────────────────────────────────────────────────────
 

@@ -657,6 +657,12 @@ export class OlaiWorld extends World {
     await this.open(`/d/${encodeURIComponent(date)}`);
   }
 
+  /** The agenda COLD — one address, spelling no day, which is what makes it a
+   *  bookmark rather than a page you can only click to. */
+  async openAgenda(): Promise<void> {
+    await this.open("/agenda");
+  }
+
   /** One document's own page COLD, the way a link someone sent would arrive. */
   async openDocument(file: string): Promise<void> {
     await this.open(`/doc/${file.split("/").map(encodeURIComponent).join("/")}`);

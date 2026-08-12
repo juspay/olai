@@ -31,7 +31,8 @@
  */
 
 import { type Agenda, nothingDue } from "@olai/format"
-import { For, type JSX, Show } from "solid-js"
+import { Key } from "@solid-primitives/keyed"
+import { type JSX, Show } from "solid-js"
 
 import { CRUMB } from "../Breadcrumbs.tsx"
 import { DayGroups } from "../day/DayGroups.tsx"
@@ -59,38 +60,40 @@ export function AgendaPage(props: {
         </p>
       </Show>
 
-      <Section name="overdue" title="Overdue" holds={props.agenda.overdue}>
+      <Section name="overdue" holds={props.agenda.overdue}>
         <DayGroups groups={props.agenda.overdue} heading="h3" />
       </Section>
 
-      <Section name="today" title="Today" holds={props.agenda.today}>
+      <Section name="today" holds={props.agenda.today}>
         <DayGroups groups={props.agenda.today} heading="h3" />
       </Section>
 
-      <Section name="upcoming" title="Upcoming" holds={props.agenda.upcoming}>
-        {/* `For` rather than `<Key>`: a day is named by its date, and the
-            entries under it are keyed by the record they draw (../day/
-            DayGroups.tsx) — so what is stable across frames is already held one
-            level down. */}
-        <For each={props.agenda.upcoming}>
+      <Section name="upcoming" holds={props.agenda.upcoming}>
+        {/* KEYED, and by the one thing about a day that does not move: every
+            revision the store publishes mints these afresh, and `For` compares
+            by reference — so each day would be torn down and rebuilt every
+            frame, taking the keyed groups inside it (and the note a reader had
+            expanded) with it. That is the failure ../Tree.tsx and
+            ../day/DayGroups.tsx are both written against. */}
+        <Key each={props.agenda.upcoming} by="date">
           {(day) => (
             <section
               class="mb-4"
               data-testid={TESTID.agendaDay}
-              data-date={day.date}
+              data-date={day().date}
             >
               {/* The heading is the way THROUGH: a day page is the fuller
                   answer — the note somebody wrote on it, and the work that is
                   already finished — and this page deliberately shows neither. */}
               <h3 class="m-0 mb-2 text-sm font-semibold tabular-nums">
-                <Link route={{ kind: "day", date: day.date }} class={CRUMB}>
-                  {day.date}
+                <Link route={{ kind: "day", date: day().date }} class={CRUMB}>
+                  {day().date}
                 </Link>
               </h3>
-              <DayGroups groups={day.groups} heading="h4" />
+              <DayGroups groups={day().groups} heading="h4" />
             </section>
           )}
-        </For>
+        </Key>
       </Section>
     </section>
   )
@@ -106,13 +109,14 @@ export function AgendaPage(props: {
  * rule is spelled here once instead of at each of the three — the sections hold
  * two different shapes (groups, days) and neither of them decides this.
  *
- * `data-section` names which of the three it is, so a scenario asks for a
- * section by what it MEANS rather than by the words it happens to be titled
- * with — the same promise every other `data-` fact on this page makes.
+ * Its name is BOTH what it is called and what it says: `data-section` is what a
+ * scenario asks for a section by, the heading is what a reader sees, and the
+ * two being one string is what stops them drifting apart — the heading is set
+ * in small caps anyway, so the capital letter a second prop would have carried
+ * never reaches the screen.
  */
 function Section(props: {
   readonly name: "overdue" | "today" | "upcoming"
-  readonly title: string
   readonly holds: ReadonlyArray<unknown>
   readonly children: JSX.Element
 }) {
@@ -124,7 +128,7 @@ function Section(props: {
         data-section={props.name}
       >
         <h2 class="m-0 mb-3 text-xs uppercase tracking-wide text-muted">
-          {props.title}
+          {props.name}
         </h2>
         {props.children}
       </section>

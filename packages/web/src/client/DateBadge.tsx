@@ -45,22 +45,23 @@ export function DateBadge(props: {
    *  is what a tree row draws and needs no saying. */
   readonly occasion?: Occasion
   /** Whether the node this date belongs to is overdue. Decided where the node
-   *  is — a badge is handed a string and could not ask the question itself. */
-  readonly overdue?: boolean
+   *  is — a badge is handed a string and could not ask the question itself —
+   *  and REQUIRED, so a new place that draws a pill has to answer rather than
+   *  inherit "not late" from having said nothing. */
+  readonly overdue: boolean
 }) {
   const occasion = (): Occasion => props.occasion ?? "date"
-  const late = (): boolean => props.overdue === true
 
   return (
     <span
       class="shrink-0 rounded-full border px-2 text-xs"
       classList={{
-        "border-alarm text-alarm": late(),
-        "border-rule text-muted": !late(),
+        "border-alarm text-alarm": props.overdue,
+        "border-rule text-muted": !props.overdue,
       }}
       data-testid={TESTID.date}
       data-occasion={occasion()}
-      data-overdue={String(late())}
+      data-overdue={String(props.overdue)}
     >
       <Show when={occasion() !== "date"}>
         <span class="mr-1 opacity-70">{occasion()}</span>
