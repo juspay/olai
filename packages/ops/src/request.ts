@@ -240,10 +240,36 @@ export const MarkRequest = Schema.Struct({
   undo: Schema.optionalKey(Schema.Boolean),
 })
 
+/**
+ * What a text field is expected to hold before this write replaces it — the
+ * one CONDITIONAL thing a request may say, and absent from every caller that
+ * is simply typing.
+ *
+ * It exists because "put back what I replaced" is a narrower claim than "set
+ * this": it is only entitled to overwrite the words it wrote. Absent, a write
+ * is last-one-wins, which is what `set_title` has always meant and what a
+ * person retyping a line means. Present, the planner refuses when the field
+ * says something else — and it refuses on EVERY attempt, which is the whole
+ * reason this lives here rather than in a caller: the write gate re-plans a
+ * request when the store moves under it, so a check made once before the loop
+ * is a check the retry does not make (found by review, 2026-08-12 — the retry
+ * path silently overwrote a concurrent retitle).
+ */
+const Was = (what: string) =>
+  `What this field is expected to hold right now. Absent overwrites whatever is ` +
+  `there, which is the ordinary case. Supply it to make the write CONDITIONAL — ` +
+  `${what} — and it is refused, naming what is there, if anything else has been ` +
+  `written since you read it.`
+
 export const TitleRequest = Schema.Struct({
   op: Schema.Literal("title"),
   id: Id,
   title: Title,
+  was: Schema.optionalKey(
+    Schema.String.annotate({
+      description: Was("putting back a title you read a moment ago"),
+    }),
+  ),
 })
 
 export const DescRequest = Schema.Struct({
@@ -251,6 +277,13 @@ export const DescRequest = Schema.Struct({
   id: Id,
   /** `null` removes the note. */
   desc: Schema.NullOr(Schema.String),
+  /** `null` is a real answer here — "expects no note at all" — which is why
+   *  the CHECK is on the field being present rather than on its content. */
+  was: Schema.optionalKey(
+    Schema.NullOr(Schema.String).annotate({
+      description: Was("putting back a note you read a moment ago; `null` expects none"),
+    }),
+  ),
 })
 
 export const DateRequest = Schema.Struct({

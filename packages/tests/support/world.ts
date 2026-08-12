@@ -193,6 +193,9 @@ export const NEW_ROW = selector(TESTID.newRow);
 export const EDIT_NUDGE = selector(TESTID.editNudge);
 /** What the last commit was refused with, under the row it was typed in. */
 export const EDIT_REFUSAL = selector(TESTID.editRefusal);
+/** What ⌘Z / ⌘⇧Z had to say — over the page rather than under a row, because
+ *  an undo is pressed with no draft open. `data-tone` is which mood it is. */
+export const UNDO_SAID = selector(TESTID.undoSaid);
 /** The way in on a page with no rows at all. */
 export const START_LINE = selector(TESTID.startLine);
 /** The heading of a zoomed page. Carries the CANONICAL node's id, which is
@@ -813,6 +816,19 @@ export class OlaiWorld extends World {
       .split("\n")
       .filter((line) => line.trim() !== "")
       .map((line) => JSON.parse(line) as Record<string, unknown>);
+  }
+
+  /** One more record at the end of a served outline, as another writer would
+   *  leave it — a `git pull`, the agent, a second tab.
+   *
+   *  APPENDED rather than written whole, which is the whole point of it having
+   *  its own method: `writeServed` replaces the file, so a scenario using it
+   *  mid-run would also undo whatever the keys under test have just done. What
+   *  these scenarios are about is a page meeting a set that moved UNDERNEATH
+   *  it. */
+  appendServed(file: string, record: Record<string, unknown>): void {
+    const lines = this.servedNodes(file).map((node) => JSON.stringify(node));
+    this.writeServed(file, [...lines, JSON.stringify(record)].join("\n"));
   }
 
   removeServed(file: string): void {

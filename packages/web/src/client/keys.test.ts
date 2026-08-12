@@ -41,6 +41,29 @@ test("shifted and bare keys are ignored", () => {
   expect(matchKey(key("k", { ctrl: true, shift: true }), "Linux x86_64")).toBeNull()
 })
 
+test("undo and redo are one key and a modifier, matched exactly", () => {
+  // The pair a person's hands already know. Shift tells them apart rather than
+  // a second letter, so the two are two rows of one table — and the unshifted
+  // chord must be dead with shift held, or ⌘⇧Z would undo twice.
+  expect(matchKey(key("z", { meta: true }), "MacIntel")?.action).toBe("undo")
+  expect(matchKey(key("z", { meta: true, shift: true }), "MacIntel")?.action).toBe("redo")
+  expect(matchKey(key("z", { ctrl: true }), "Linux x86_64")?.action).toBe("undo")
+  // Browsers deliver the shifted letter in upper case, which is what a person
+  // pressing ⌘⇧Z actually sends.
+  expect(matchKey(key("Z", { ctrl: true, shift: true }), "Linux x86_64")?.action)
+    .toBe("redo")
+})
+
+test("neither undo nor redo may fire with the caret in a field", () => {
+  // A draft has the platform's own undo in it, and Escape owns abandoning one
+  // — so the stack of structural ops is dead while somebody is typing.
+  for (const chord of CHORDS) {
+    if (chord.action === "undo" || chord.action === "redo") {
+      expect(chord.whileEditing).toBe(false)
+    }
+  }
+})
+
 test("isApplePlatform recognises Mac and iOS", () => {
   expect(isApplePlatform("MacIntel")).toBe(true)
   expect(isApplePlatform("iPhone")).toBe(true)
@@ -91,7 +114,7 @@ test("no editing key is one of the reserved chords", () => {
   for (const platform of ["MacIntel", "Linux x86_64"]) {
     for (const chord of CHORDS) {
       for (const mods of [{ meta: true }, { ctrl: true }]) {
-        const event = key(chord.key, mods)
+        const event = key(chord.key, { ...mods, shift: chord.shift === true })
         if (matchKey(event, platform) === null) continue
         expect(editKey(event, "line")).toBeNull()
         expect(editKey(event, "block")).toBeNull()
@@ -104,8 +127,10 @@ test("every chord in the table is reachable", () => {
   // The other half: a row in the table that `matchKey` cannot produce would
   // make the check above pass by never running.
   for (const chord of CHORDS) {
-    expect(matchKey(key(chord.key, { ctrl: true }), "Linux x86_64")?.action)
-      .toBe(chord.action)
+    expect(
+      matchKey(key(chord.key, { ctrl: true, shift: chord.shift === true }), "Linux x86_64")
+        ?.action,
+    ).toBe(chord.action)
   }
 })
 
