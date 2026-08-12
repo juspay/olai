@@ -527,6 +527,12 @@ test("what is waiting, and what was last recorded, are readable over the pipe", 
    * sends `notifications/resources/updated`); this test asks again instead,
    * which is the same wait without the subscription bookkeeping.
    *
+   * The FIRST read has the sharpest version of this: before the connector has
+   * published once, the cell still holds its seed — `NOTHING_PENDING`, whose
+   * `repo` is `Off`. So even "just read it" has to wait for a published value
+   * rather than accepting whatever is there; a CI runner slow enough to lose
+   * that race caught it, and a faster one had been hiding it.
+   *
    * It is a view, and nothing depends on it being instantaneous: `commit`
    * re-surveys git itself and never reads this cache, so a stale read can make
    * an agent look again — never make a commit wrong.
@@ -542,7 +548,7 @@ test("what is waiting, and what was last recorded, are readable over the pipe", 
 
   // Nothing written yet: a work tree, on a branch, with nothing waiting — and
   // `last` is null, which says olai has never recorded anything here.
-  const before = await read(() => true)
+  const before = await read((pending) => pending.repo._tag !== "Off")
   expect(before.repo).toEqual({ _tag: "Ready", branch: "main" })
   expect(before.changes).toEqual([])
   expect(before.last).toBeNull()
