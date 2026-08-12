@@ -208,7 +208,7 @@ markdown to interpret. The entry bundle went from 1 054 kB to 663 kB raw
   that asks is a memo that re-runs when the file lands, and a page that never
   asks never pays. Nothing is primed at boot.
 - **titles mostly do not ask at all** (`markdown/plain.ts`). A title with no
-  markdown in it — 85 of the 90 in this repository's own roadmap — is words
+  markdown in it — 88 of the 93 in this repository's own roadmap — is words
   and tags, and interpreting it and escaping it are the same operation. So
   those are written out immediately, with no parser and no flash. It is a
   REFUSAL rather than a second dialect: anything that could possibly be
