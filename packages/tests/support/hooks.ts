@@ -116,11 +116,11 @@ const NO_AGENT_TAG = "@no-agent";
  * `@git:<repo|none|broken>`: this scenario's server COMMITS, and its directory
  * is one of the three things git can make of it — a work tree, no work tree, or
  * a git that fails when it is asked. Everything else runs with `--no-commit`
- * (below), which is a fourth state and the one that draws nothing.
+ * (below), which is a fourth state and the one the header calls `commits off`.
  *
  * A tag rather than a step because it decides how the server is STARTED, and
- * the whole point of the git readout is that a page knows before anyone writes
- * anything.
+ * the whole point of the git indicator is that a page knows before anyone
+ * writes anything.
  */
 const GIT_TAG = /^@git:(repo|none|broken)$/;
 

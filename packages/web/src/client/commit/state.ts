@@ -20,6 +20,7 @@ import {
   type OpFailure,
   type Pending,
 } from "@olai/format"
+import { GIT_OFF, type GitState } from "@olai/surface"
 import { type Accessor, createSignal } from "solid-js"
 
 import { run } from "../chat/run.ts"
@@ -51,6 +52,19 @@ export interface Commit {
    * business making about a server it had not heard from.
    */
   readonly heard: Accessor<boolean>
+  /**
+   * What git is doing for this directory at all — the second half of the one
+   * indicator (`one-git-indicator`, folding #108's readout into this pill).
+   *
+   * Its own cell rather than something read off {@link Commit.pending}'s `repo`,
+   * and the difference is exactly one state: a commit that git REFUSED. A
+   * repository with no `user.email` answers every probe happily, so the survey
+   * reads `Ready` while nothing can be committed — the server remembers the
+   * refusal and publishes it here, and no reading of the directory can. Both
+   * are recomputed from ONE survey in one statement on the server, so this is a
+   * second READING and never a second probe.
+   */
+  readonly git: Accessor<GitState>
   /** How many node-level changes and unreadable files are waiting. Zero is a
    *  clean directory — and also every directory olai cannot commit in, because
    *  the server answers those with nothing rather than making the browser
@@ -66,6 +80,10 @@ export interface Commit {
 
 export const createCommit = (): Commit => {
   const cell = olai.cells.pending.use()
+  // The spec declares `off` as this cell's default and the framework seeds the
+  // subscription with it, so a page reads "say nothing" before the first frame
+  // rather than flashing a state it has not been told.
+  const git = olai.cells.git.use()
   const [working, setWorking] = createSignal(false)
   const [attempt, setAttempt] = createSignal<Attempt | null>(null)
 
@@ -74,6 +92,7 @@ export const createCommit = (): Commit => {
   return {
     pending,
     heard: () => cell.value() !== undefined,
+    git: () => git.value() ?? GIT_OFF,
     waiting: () => pending().changes.length + pending().unreadable.length,
     working,
     attempt,

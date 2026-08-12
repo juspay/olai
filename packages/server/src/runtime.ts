@@ -109,11 +109,13 @@ export interface Wiring {
    * file publishes what somebody else decided, and "what is waiting to be
    * committed" is the whole of what it needs to know about writing.
    *
-   * The two cells it feeds — the header's readout and the Commit pill — are
+   * The two cells it feeds — what git is doing, and what is waiting — are
    * recomputed TOGETHER, on the same clocks, from the same survey. That is the
    * consistency rule made structural: two probes would be two answers, and a
-   * page reading "Not a Git repo" beside a panel offering to commit four
-   * changes is precisely the incoherence this arrangement forecloses.
+   * page reading "no git here" beside a panel offering to commit four changes
+   * is precisely the incoherence this arrangement forecloses. The header reads
+   * both into ONE control (`one-git-indicator`), which is only safe because
+   * they are published together.
    *
    * `state` is typed as the surface's own shape, which `@olai/ops` declares
    * structurally: the two drifting is a type error here rather than a mapping
@@ -201,9 +203,9 @@ export const bind = (
      * Both git cells, from one round of questions.
      *
      * ONE statement, so they cannot be recomputed on different clocks or from
-     * different surveys — which is the whole of the coherence between the
-     * readout and the pill. `Effect.all` because they are independent asks of a
-     * layer that memoises the expensive half between them.
+     * different surveys — which is the whole of the coherence between the two
+     * halves of what the header says about git. `Effect.all` because they are
+     * independent asks of a layer that memoises the expensive half between them.
      */
     const republishGit = Effect.flatMap(
       wiring.git.status,
@@ -243,13 +245,16 @@ export const bind = (
           store: inMemoryStore<ChatState>(chat === null ? CHAT_OFF : chat.state()),
         },
         /**
-         * What git is doing for this directory at all — the header's readout.
+         * What git is doing for this directory at all — one half of what the
+         * header's git indicator says, and what an agent in a terminal reads as
+         * a resource.
          *
          * It has no `connect` of its own: it is republished by the PENDING
-         * cell's connector below, from the same survey, so the two chrome
-         * controls can never disagree about the directory they are both
-         * describing. The seed is `off`, which draws nothing, so a page cannot
-         * flash "Not a Git repo" at a repository on its way to the truth.
+         * cell's connector below, from the same survey, so the two values that
+         * indicator reads can never disagree about the directory they are both
+         * describing. The seed is `off`, which is the setting face rather than
+         * a fault, so a page cannot flash "git error" at a healthy repository
+         * on its way to the truth.
          */
         git: {
           store: inMemoryStore<GitState>(GIT_OFF),

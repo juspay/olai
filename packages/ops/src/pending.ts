@@ -69,8 +69,8 @@ export const COMMIT_MODES = ["off", "manual", "auto"] as const
 export type CommitMode = (typeof COMMIT_MODES)[number]
 
 /**
- * What git is doing for this directory, for the readout in the app header
- * (`git-invisible`, #108).
+ * What git is doing for this directory, for the git indicator in the app header
+ * (`git-invisible`, #108) and for the agent that reads the same cell over MCP.
  *
  * FLAT — a status and the words that go with it — because this value is
  * published: it is the surface's `git` cell, and the cell's schema declares this
@@ -79,10 +79,10 @@ export type CommitMode = (typeof COMMIT_MODES)[number]
  * that travels on one.
  *
  * It is DERIVED from {@link Pending}'s own `repo` ({@link gitOf}) and not asked
- * for separately. That is the whole of the coherence: the pill and the readout
- * sit in the same header, and two probes would be two answers to one question —
- * a page saying "Not a Git repo" beside a panel offering to commit four changes.
- * One survey, two renderings.
+ * for separately. That is the whole of the coherence: this and the pending value
+ * are read by ONE control in the header, and two probes would be two answers to
+ * one question — a page saying "no git here" beside a panel offering to commit
+ * four changes. One survey, two readings.
  */
 export interface GitState {
   readonly status: "off" | "repo" | "none" | "error"
@@ -92,13 +92,13 @@ export interface GitState {
 }
 
 /**
- * The readout's answer, from the repository's.
+ * This value's answer, from the repository's.
  *
  * `Blocked` reads as `repo`, deliberately: a mid-rebase repository is a
- * perfectly good one, and what cannot happen right now is a COMMIT — which is
- * the pill's subject and is drawn there, with the reason. The readout answers
- * the narrower question it has always answered, which is whether writes here
- * have a history to go into at all.
+ * perfectly good one, and what cannot happen right now is a COMMIT — which the
+ * pending value already says, with the reason, and which the indicator draws
+ * from there. This one answers the narrower question it has always answered,
+ * which is whether writes here have a history to go into at all.
  */
 export const gitOf = (repo: RepoState): GitState => {
   switch (repo._tag) {
@@ -239,9 +239,9 @@ export interface Committing {
     request: CommitRequest,
     writer: Writer,
   ) => Effect.Effect<CommitResult>
-  /** What git is doing for this directory, as the header readout wants it —
-   *  {@link gitOf} of the same survey {@link pending} runs, so the two controls
-   *  in that header cannot disagree. */
+  /** What git is doing for this directory, as the header's git indicator wants
+   *  it — {@link gitOf} of the same survey {@link pending} runs, so the two
+   *  values that one indicator reads cannot disagree. */
   readonly git: Effect.Effect<GitState>
   /**
    * A commit NOBODY asked for: exactly the files one write produced, with that
@@ -363,7 +363,7 @@ export const make = (options: Options): Committing => {
     if (opening._tag !== "Opened") {
       // Both non-repository answers reach a reader as themselves: `NoRepo` is a
       // statement about the directory, `Unusable` is git's own refusal with its
-      // own words. Telling them apart here is what keeps the readout honest.
+      // own words. Telling them apart here is what keeps the indicator honest.
       return { git: null, repo: opening, files: [], last: null } as const
     }
     const git = opening.repo
@@ -607,8 +607,9 @@ export const make = (options: Options): Committing => {
       return { committed: false, ...said(whyOf("auto", repo, done.said, writer)) }
     })
 
-  /** The repository's state on its own — what the readout wants, without the
-   *  status walk and the parsing {@link pending} does for the panel. */
+  /** The repository's state on its own — what {@link Committing.git} wants,
+   *  without the status walk and the parsing {@link pending} does for the
+   *  panel. */
   const repoState: Effect.Effect<RepoState> = Effect.gen(function*() {
     if (options.mode === "off") return OFF
     const opening = yield* repository
@@ -623,7 +624,8 @@ export const make = (options: Options): Committing => {
     automatic,
     wrote,
     /**
-     * The readout's answer on its own, for a caller that wants only it.
+     * This value's answer on its own, for a caller that wants only it: the
+     * directory's own state, unless a commit refused.
      *
      * The refusal override is #108's and is kept deliberately: a repository
      * whose identity nobody set answers `rev-parse` perfectly happily, so the

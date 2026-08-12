@@ -69,12 +69,22 @@ Feature: On a phone
     Given I open the outline "garden.jsonl"
     Then the connection is "live"
     And the app chrome is inside the header
+    # Six things do not fit at 390pt, so the bar gives way in a stated order
+    # (AppHeader.tsx) and this label is the end of it. `one-git-indicator` first
+    # shipped with the order wrong — `live` squeezed to `l…` beside a theme name
+    # drawn in full — and a screenshot is how that was found. This is the fence,
+    # and it is asserted in every state rather than only in the short one: the
+    # bar is not full at `live`, so `live` alone would pass with the rule
+    # removed. `reconnecting` and `server restarted` are what fill it.
+    And the connection's label is whole
     When the server stops
     Then the connection is "reconnecting"
     And the app chrome is inside the header
+    And the connection's label is whole
     When the server starts again on the same port
     Then the connection is "retired"
     And the app chrome is inside the header
+    And the connection's label is whole
 
   @corpus:good @phone
   Scenario: A tap on a bullet zooms into that node

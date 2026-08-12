@@ -1,8 +1,9 @@
 Feature: The header sticks
   The app header is CHROME, not part of the page. The wordmark, the connection
-  dot, the git readout, the commit pill, the agent toggle and the theme picker
-  are permanent answers about the APP — that is the whole argument for the bar
-  existing rather than for those pills living beside the things they are about.
+  dot, the commit pill (which is also the one thing that answers for git), the
+  agent toggle and the theme picker are permanent answers about the APP — that
+  is the whole argument for the bar existing rather than for those pills living
+  beside the things they are about.
 
   This app scrolls the DOCUMENT, so a bar in normal flow left the screen with
   the first flick of a wheel, and a permanent answer you have to scroll back up

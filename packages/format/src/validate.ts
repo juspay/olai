@@ -23,13 +23,18 @@
  *     then keeps its last good snapshot and the browser shows a banner.
  */
 
-import { distance } from "fastest-levenshtein"
 import { Result } from "effect"
 
-import { derive, type Derived } from "./derive.ts"
+import { derive, type Derived, drawnFrom } from "./derive.ts"
 import { type Document, resolveRelative } from "./documents.ts"
-import { compareErrors, isGuessWhileUnreadable, type OutlineError } from "./errors.ts"
-import { EDGE_FIELDS, isMirror, type Located } from "./node.ts"
+import {
+  chainOf,
+  compareErrors,
+  isGuessWhileUnreadable,
+  type OutlineError,
+} from "./errors.ts"
+import { isMirror, type Located, targetsOf } from "./node.ts"
+import { didYouMean } from "./suggest.ts"
 import type { OutlineSet } from "./set.ts"
 
 export const validate = (
@@ -146,7 +151,11 @@ const checkTargets = (
   errors: Array<OutlineError>,
 ): void => {
   for (const located of all) {
-    for (const [field, id] of targetsOf(located)) {
+    // `targetsOf` is the format's own ({@link ./node.ts}), because the ops
+    // layer asks the same question backwards before it retires a record —
+    // "does anything still name this?" — and a second list of edge fields is a
+    // relation one of them would stop seeing.
+    for (const [field, id] of targetsOf(located.node)) {
       if (derived.byId.has(id)) continue
       errors.push({
         code: "unknown-target",
@@ -155,17 +164,6 @@ const checkTargets = (
       })
     }
   }
-}
-
-/** Every id this record points at, and the field it pointed with — reported in
- *  declaration order so two loads read the same. */
-const targetsOf = (
-  { node }: Located,
-): ReadonlyArray<readonly [field: string, id: string]> => {
-  if (isMirror(node)) return [["mirror", node.mirror]]
-  return EDGE_FIELDS.flatMap((field) =>
-    (node[field] ?? []).map((id) => [field, id] as const)
-  )
 }
 
 /** The ordering graph is `derive`'s (`blocks` normalised into `after`, in the
@@ -197,21 +195,19 @@ const checkAfterAcyclic = (
  *  shows means expanding it never terminates, so the graph a renderer actually
  *  walks has to be acyclic.
  *
- *  That graph is "drawing X leads to drawing Y", and it runs DOWNWARD: a node
- *  leads to its children, a mirror leads to its target. Note this is the
+ *  That graph is {@link drawnFrom}, and it runs DOWNWARD. Note this is the
  *  opposite direction from the parent check above, which walks child-to-parent
  *  — either direction finds a pure parent loop, but only the downward one
  *  finds the mirror case, because a mirror's edge to its target is downward by
- *  nature. Mixing the two directions in one walk finds neither reliably. */
+ *  nature. Mixing the two directions in one walk finds neither reliably. The
+ *  ops layer walks the same graph to refuse the placement BEFORE the write,
+ *  which is why it is a derivation rather than a lambda here. */
 const checkMirrorContainment = (
   all: ReadonlyArray<Located>,
   derived: Derived,
   errors: Array<OutlineError>,
 ): void => {
-  const cycles = findCycles(all, derived, (node) => [
-    ...(derived.children.get(node.id) ?? []).map((child) => child.node.id),
-    ...(isMirror(node) ? [node.mirror] : []),
-  ])
+  const cycles = findCycles(all, derived, (node) => drawnFrom(derived, node))
 
   reportCycles(
     // A cycle with no mirror in it is a parent cycle, already reported by
@@ -301,7 +297,12 @@ const reportCycles = (
     errors.push({
       code,
       ...siteOf(anchor),
-      message: `${message}: ${ordered.map((step) => `\`${step.node.id}\``).join(" → ")} → \`${anchor.node.id}\``,
+      // Closed by repeating the anchor, which is what makes it read as a loop
+      // rather than as a list — the ops layer names one it is about to close
+      // the same way ({@link ./errors.ts}'s `chainOf`).
+      message: `${message}: ${
+        chainOf([...ordered.map((step) => step.node.id), anchor.node.id])
+      }`,
       related: rest.map((step) => ({ ...siteOf(step), note: "also in the loop" })),
     })
   }
@@ -328,19 +329,9 @@ const siteOf = ({ file, line }: Located): { file: string; line: number } => ({
   line,
 })
 
-/** "did you mean" — the closest declared id, when one is close enough to be a
- *  typo rather than a different word. An unknown reference is nearly always a
- *  misspelling, and naming the candidate turns a search into a keystroke. */
-const suggest = (id: string, derived: Derived): string => {
-  const budget = Math.max(2, Math.floor(id.length / 3))
-  let best: string | null = null
-  let bestDistance = budget + 1
-  for (const candidate of derived.byId.keys()) {
-    const gap = distance(id, candidate)
-    if (gap < bestDistance) {
-      best = candidate
-      bestDistance = gap
-    }
-  }
-  return best === null ? "" : ` — did you mean \`${best}\`?`
-}
+/** "did you mean", over the ids the set declares. The rule itself is
+ *  {@link ./suggest.ts}'s, because the ops layer refuses the same unknown
+ *  target one moment earlier — at the plan, before the write — and two copies
+ *  of the budget would be two answers to one question. */
+const suggest = (id: string, derived: Derived): string =>
+  didYouMean(id, derived.byId.keys())

@@ -413,6 +413,16 @@ test("both faces commit the same tree and the same message, differing only in th
         yield* Effect.orDie(
           fixture.ops.run({ op: "add", parent: "kitchen", title: "measure up" }, writer),
         )
+        // A MIRROR too, since #117: a placement is a different record shape
+        // (`{id, parent, ord, mirror}`), and the comparison the composed
+        // message is built from derives its field list from BOTH schemas. A
+        // pending set holding only regular nodes would not exercise that.
+        yield* Effect.orDie(
+          fixture.ops.run(
+            { op: "mirror", target: "order", parent: "kitchen", id: "now-order" },
+            writer,
+          ),
+        )
 
         const outcome = yield* fixture.ops.commit({}, writer)
         expect(outcome._tag).toBe("Committed")

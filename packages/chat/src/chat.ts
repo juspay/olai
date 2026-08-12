@@ -121,6 +121,21 @@ export interface Chat {
   readonly stop: Effect.Effect<void>
 }
 
+/**
+ * How long an agent may say NOTHING after a cancel before the panel says so.
+ *
+ * A window on silence rather than on the turn: an agent still streaming is
+ * still working towards the stop it was asked for however long that takes
+ * ({@link Chat.cancel} owns that argument), so this is only how long a
+ * genuinely quiet one gets before somebody is told. Short enough that a person
+ * who pressed a button is not left wondering, long enough that the gap between
+ * two chunks of ordinary streaming is never mistaken for it.
+ *
+ * It is a floor on being TOLD and never a deadline on the agent: nothing here
+ * kills anything or cancels anything twice.
+ */
+const CANCEL_GRACE = "5 seconds"
+
 export const make = (options: Options): Effect.Effect<Chat, never, never> =>
   Effect.gen(function*() {
     // A FACTORY over the handler, because the two are mutually referential:
@@ -152,6 +167,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     /** One session change at a time: a load and a new-session racing each other
      *  would leave the transcript holding half of each. */
     const switching = yield* Semaphore.make(1)
+    /** Everything the agent has said, counted. See {@link receive}. */
+    let heard = 0
 
     const publish = (change: Change) => {
       if (change.upserts.length === 0 && change.removes.length === 0) return
@@ -184,6 +201,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     /** The agent's events, as rows and as state. The one place the vocabulary
      *  of {@link ./events.ts} is consumed. */
     const receive = (event: AgentEvent): void => {
+      // How much this agent has said, ever. Read by {@link cancel} and by
+      // nothing else: what it needs is not a count but a CHANGE, and a
+      // monotonic counter answers "has anything arrived since I looked" with
+      // no clock to read and nothing to reset.
+      heard++
       switch (event._tag) {
         case "said":
           publish(transcript.say(event.text))
@@ -382,6 +404,64 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         turn = running
       })
 
+    /**
+     * Stop the turn — and say so when it DOES NOT STOP.
+     *
+     * The refusal channel is the easy half and it was missing: `agent.cancel`
+     * used to swallow the notification's own failure, so a cancel that could
+     * not be put on the wire typed as a success. That is fixed at the source
+     * ({@link ./agent.ts}) and mapped here like every other verb's refusal.
+     *
+     * It is not the half a person sees. A cancel is a NOTIFICATION: it is
+     * written and never answered, and under Bun a pipe reports nothing back to
+     * the writer even when the reader has gone (checked, both for a closed
+     * stdin and for a process that has exited). So the write succeeding is not
+     * evidence of anything, and every way this actually fails — an agent that
+     * stopped reading, one that read it and carried on, one whose adapter
+     * dropped it — looks identical from here: the button was pressed, and the
+     * turn goes on streaming.
+     *
+     * The only honest evidence is the TURN, and it is TWO facts rather than
+     * one. A turn that is still running after the grace is not by itself an
+     * agent ignoring anything: a cancel arrives between a turn's own steps, so
+     * an adapter in the middle of a long grep or a file write honours it when
+     * that step returns, and a clock alone would call every one of those dead.
+     * What separates them is whether the agent is still SAYING anything. One
+     * that is streaming tool progress is working and will stop when it can;
+     * one that has gone silent with a cancel outstanding is the case nobody
+     * could see before — and the two want opposite things said about them.
+     *
+     * So: the same turn, AND nothing heard since the cancel went out. A
+     * counter rather than a timestamp because what is being asked is "has
+     * anything arrived", which needs no clock. It lands on `trouble` rather
+     * than as a refusal because by then nobody is waiting on the click, and it
+     * is cleared by the turn ending (`begin`, and the settle in the turn's own
+     * fiber) — a state the panel can see it is not in is a state it must not
+     * report.
+     */
+    const cancel: Effect.Effect<void, OpFailure> = Effect.gen(function*() {
+      const asked = turn
+      yield* Effect.mapError(agent.cancel, asFailure)
+      if (asked === null) return
+      const quietSince = heard
+      yield* Effect.forkDetach(Effect.gen(function*() {
+        yield* Effect.sleep(CANCEL_GRACE)
+        // A DIFFERENT turn is a turn that ended and was replaced, which is the
+        // cancel having worked; `null` is the same. Comparing the fiber rather
+        // than the status is what makes the second press of the button about
+        // the turn it was pressed for.
+        if (turn !== asked) return
+        // ...and an agent that has said anything since is one still working
+        // towards the stop it was asked for, which is not a thing to accuse
+        // anybody of.
+        if (heard !== quietSince) return
+        move({
+          trouble:
+            "the agent was asked to stop and has said nothing since — the turn below is still running",
+        })
+      }))
+    })
+
     /** Forget what is waiting, and say so. Called wherever the thing they were
      *  queued behind has stopped meaning what it meant. */
     const dropQueue = (why: string): void => {
@@ -438,7 +518,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       // an upload. It also makes the collision suffix sound within a process:
       // two tabs pasting `shot.png` at the same moment cannot both pick it.
       attach: (chunk) => switching.withPermit(files.receive(chunk)),
-      cancel: agent.cancel,
+      // A cancel the agent never took is a refusal like any other, and the
+      // click that asked for it is what hears about it — the same treatment
+      // `sessions` gets, and for the same reason: a verb that could not be
+      // done says so where it was asked.
+      cancel,
       newSession: changeSession(agent.newSession),
       loadSession: (id: string) => changeSession(agent.loadSession(id)),
       sessions: Effect.catch(

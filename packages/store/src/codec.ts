@@ -18,9 +18,16 @@
  * a failure that holds the last good snapshot. A store that filtered the
  * failures out first would have made that decision for every codec, by
  * omission.
+ *
+ * `unreadable` is the third method and the newest, and it is here for the same
+ * reason the other two are: the store has a failure only IT can have — the
+ * directory would not be listed, a file would not be read — and only the codec
+ * knows how to say that in a vocabulary the caller's own surfaces render.
  */
 
 import type { Result } from "effect"
+
+import type { PlatformFailure } from "./errors.ts"
 
 export interface Codec<F, S, E> {
   /** Which files under the root belong to the set. Paths are relative to the
@@ -31,4 +38,23 @@ export interface Codec<F, S, E> {
   readonly validate: (
     files: ReadonlyMap<string, Result.Result<F, E>>,
   ) => Result.Result<S, E>
+  /**
+   * What "the directory itself could not be read" looks like in the caller's
+   * own error vocabulary.
+   *
+   * The store has TWO kinds of error and used to have one channel for them.
+   * A set the codec refuses is an `E` and travels — it is what a banner over
+   * the last-good tree is drawn from. A {@link PlatformFailure} — EACCES, a
+   * mount that vanished, ENOSPC — was neither: it was written to the log and
+   * dropped, so the outline froze at the last good revision and every reader
+   * went on seeing a page that had quietly stopped being true.
+   *
+   * The channel is still ONE channel, and it is still typed `E`, because the
+   * store cannot know how a caller says things. This is where a caller says
+   * this one: the store hands over the failure it has, the codec hands back
+   * something its own surfaces already render. It self-clears exactly like a
+   * validation failure does — the next probe that publishes clears the errors
+   * ref — so "the directory came back" needs nothing written for it here.
+   */
+  readonly unreadable: (failure: PlatformFailure) => E
 }

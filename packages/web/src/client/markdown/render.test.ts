@@ -9,11 +9,20 @@
  * Titles use the same pipeline forced to phrasing content only: those tests
  * live at the bottom, because "inline-only" is a discipline of its own and a
  * block that escaped into a title would break every row that drew it.
+ *
+ * The pipeline is a chunk the browser fetches (./chunk.ts), and there is no
+ * shell here to read its URL from — so this file imports the same module the
+ * browser ends up with and installs it, which is what keeps these tests tests
+ * of the thing that ships. What the page does BEFORE it arrives is a question
+ * about a page, and is answered in the browser suite
+ * (`packages/tests/features/markdown_arrives.feature`).
  */
 
 import { expect, test } from "bun:test"
 
 import { ANCHOR_CLASS } from "./anchors.ts"
+import { installPipeline } from "./chunk.ts"
+import * as pipeline from "./pipeline.ts"
 import {
   outlineOf,
   renderInlineMarkdown,
@@ -21,6 +30,9 @@ import {
   renderStreaming,
 } from "./render.ts"
 import { renderTitle } from "./title.ts"
+import { TESTID } from "../testids.ts"
+
+installPipeline(pipeline)
 
 const NOTE = "house.jsonl"
 
@@ -104,6 +116,40 @@ test("a picture this app will not fetch is not drawn", () => {
   }
   // Not a picture, so not an image either, whatever the route would say.
   expect(renderMarkdown("![a](notes.md)", NOTE)).not.toContain("<img")
+})
+
+// ...and it SAYS so where the picture would have been. Not drawing it is the
+// rule; deleting the element was the bug — a name this app will not resolve
+// came out as a page with a hole in it, which nothing and nobody can debug.
+// (A name that RESOLVES to a file that is not there is a different case and
+// not this module's: it points at `/media/…`, and the browser's own broken
+// image is what says so. What this module can see, it now says.)
+test("a picture that is not drawn says so, and names what it was", () => {
+  const html = renderMarkdown("![a](shot.pngg)", NOTE)
+  expect(html).toContain(`data-testid="${TESTID.undrawnPicture}"`)
+  expect(html).toContain("this picture could not be drawn: shot.pngg")
+})
+
+// The name is the one the MARKDOWN wrote, for every kind of refusal, because
+// that is the string a reader has to go and fix.
+test("every refused picture names the src that was written", () => {
+  for (const src of ["https://example.com/a.png", "/a.png", "logo.svg", "notes.md"]) {
+    expect(renderMarkdown(`![a](${src})`, NOTE))
+      .toContain(`this picture could not be drawn: ${src}`)
+  }
+})
+
+// ...except the one there is no longer a name for, and that is the ORDER
+// working rather than a hole in it: the sanitiser is the security boundary and
+// runs BEFORE this pass, so a `data:` src is gone by the time anything here
+// could have quoted it. Same for an `![]()` with nothing in it. Both still say
+// so — which is the whole point — in the one sentence that is true of both.
+test("a picture whose address never reached us still says so", () => {
+  for (const src of ["data:image/png;base64,AA", ""]) {
+    const html = renderMarkdown(`![a](${src})`, NOTE)
+    expect(html).toContain(`data-testid="${TESTID.undrawnPicture}"`)
+    expect(html).toContain("its address was empty, or not one this page may fetch")
+  }
 })
 
 // ── heading anchors, and the contents derived from them ──────────────────

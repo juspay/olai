@@ -46,14 +46,38 @@ export const readPreference = (key: string): string | null => {
   }
 }
 
-/** Remember it, or forget it with `null`. */
+/** Keys already complained about, so a picker somebody is playing with does
+ *  not fill the console with the same sentence forty times. Once per key is
+ *  enough to be findable and few enough to be read. */
+const complained = new Set<string>()
+
+/**
+ * Remember it, or forget it with `null`.
+ *
+ * A preference that cannot be remembered is STILL a preference for this tab —
+ * every caller has already applied it, and that contract stands. What was
+ * missing is that nothing said so at all, so a browser with storage disabled
+ * quietly forgot every theme pick between reloads and there was nowhere to
+ * find out why.
+ *
+ * The console, and deliberately not a surface in the app. There is no screen
+ * this belongs on: it is not about the outlines, it did not fail anything the
+ * reader asked for, and a banner over somebody's tree saying their theme will
+ * not persist is worse than the silence it replaced. This is the cheap half —
+ * the thing a person is told when they go looking for why, which is exactly
+ * when they open a console.
+ */
 export const writePreference = (key: string, value: string | null): void => {
   try {
     if (value === null) localStorage.removeItem(key)
     else localStorage.setItem(key, value)
-  } catch {
-    // A preference that cannot be remembered is still a preference for this
-    // tab: every caller has already applied it.
+  } catch (cause) {
+    if (complained.has(key)) return
+    complained.add(key)
+    console.warn(
+      `olai: this browser will not store "${key}", so the setting holds for this tab and is forgotten on reload`,
+      cause,
+    )
   }
 }
 

@@ -1,17 +1,23 @@
 /**
- * A chrome readout: a dot, two or three words, and a sentence behind them.
+ * A chrome readout: a mark, two or three words, and a sentence behind them.
  *
- * The header has two — the connection, and git — and they are the same OBJECT
- * even though they answer different questions: "is this page still reading?"
- * and "is what gets written to it being kept?". So the shape they are drawn in
- * lives here rather than twice, which is a correctness matter and not tidiness:
- * the bar is a fixed height, both labels truncate rather than wrap, and a wrap
- * inside it pushed the first row off the top of a 390pt phone. Two copies of
- * that geometry is one place for it to be fixed and another to stay broken.
+ * The header has two — the connection, and the Commit pill — and they are the
+ * same OBJECT even though they answer different questions: "is this page still
+ * reading?" and "is what gets written to it being kept?". So the shape they are
+ * drawn in lives here rather than twice, which is a correctness matter and not
+ * tidiness: the bar is a fixed height, both labels truncate rather than wrap,
+ * and a wrap inside it pushed the first row off the top of a 390pt phone. Two
+ * copies of that geometry is one place for it to be fixed and another to stay
+ * broken.
+ *
+ * There were THREE, and the third was git's own `● git` chip — retired by
+ * `one-git-indicator`, because it and the Commit pill answered one question
+ * side by side. Its states are the pill's faces now; this shape outlived it
+ * because the pill wears it too.
  *
  * What is NOT here is what either of them SAYS. The tables live beside the
- * thing they report on (`./connection/status.ts`, `./git/state.ts`), because a
- * state's appearance is an argument about that state — and neither of them
+ * thing they report on (`./connection/status.ts`, `./commit/said.ts`), because
+ * a state's appearance is an argument about that state — and neither of them
  * should have to be edited to add a third readout.
  */
 

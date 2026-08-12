@@ -12,39 +12,20 @@
  * — and a second pipeline for any of them would be a second dialect nobody
  * asked for.
  *
- * The stages, and why each is where it is:
- *
- *   1. **parse**, with GFM — which is what brings footnotes (and tables, task
- *      lists and strikethrough) into the same dialect an agent and a reader
- *      already write.
- *   2. **to HTML**, with footnote ids left bare (`clobberPrefix: ""`). They are
- *      re-minted in step 5 against this block, so a prefix here would only be a
- *      second one to strip.
- *   3. **anchor the headings** — an `id` per heading and a link beside it
- *      pointing at it, which is what makes a section a place a reader can jump
- *      to and hand to somebody else. Before the sanitiser, not after: the id is
- *      made out of a heading somebody WROTE, so what it produces is checked by
- *      the allowlist rather than trusted for having arrived late. ./anchors.ts
- *      is that decision.
- *   4. **sanitise**, which is what makes the result safe to hand to
- *      `innerHTML`: these files are written by people, by agents and by git
- *      merges, and a note is not a place a `<script>` may appear. The allowlist
- *      is ./sanitise.ts — the security boundary, in one file, with everything
- *      this app has ever added to it named there.
- *   5. **highlight**, and then **rewrite**. Highlighting runs AFTER the
- *      sanitiser deliberately: the `hljs-` spans are ours, produced from the
- *      code's own text, so they need no allowlist entry — while `language-…`
- *      on a `<code>`, which is the reader's, is on the sanitiser's default
- *      allowlist and survives to be read here. The highlighter is
- *      `rehype-highlight`, bundled with the client: it is in `bun.lock`, so
- *      `bun.nix` fetches it into the Nix build, and no page ever asks a CDN
- *      for the code that renders someone's private outline. Which grammars it
- *      knows is a decision, made below.
+ * That pipeline is ./pipeline.ts, and it is NOT in the bundle an outline's
+ * first paint waits for: this file holds the memo, the ids and the tree walks,
+ * ./chunk.ts fetches the machinery the first time something asks for it, and
+ * every entry point below is written for the moment before it has arrived.
+ * Which is why they are all guarded the same way — a caller reads ./chunk.ts's
+ * `markdownReady()` inside its memo, draws the source until it is true, and is
+ * re-run by that signal when it turns. Calling one of these without having
+ * asked is a throw (./chunk.ts says why), never a quiet empty string.
  *
  * `rewrite` (./rewrite.ts) is a walk over the finished tree rather than a
- * plugin, which is what lets the pipeline be built ONCE — `rehype-highlight`
- * registers three dozen languages when it is attached, and a pipeline rebuilt
- * per note would pay for that on every row of every frame.
+ * plugin, which is what lets the pipeline be built ONCE, when the chunk is
+ * evaluated — `rehype-highlight` registers three dozen languages when it is
+ * attached, and a pipeline rebuilt per note would pay for that on every row of
+ * every frame.
  *
  * A rendering is therefore two things, and both come out of one run: the HTML,
  * and the heading tree it turned out to have ({@link Rendered}). A table of
@@ -52,53 +33,18 @@
  *
  * Titles take one extra step after the pipeline has run: {@link toInline}
  * unwraps every block to phrasing content, so a heading or a fence that a
- * person put in a title cannot break the row's baseline layout.
+ * person put in a title cannot break the row's baseline layout. Most titles
+ * never get here at all — ./plain.ts answers the ones with no markdown in them
+ * without waiting for anything, which is what keeps a tree of rows off this
+ * path entirely.
  */
 
-import nix from "highlight.js/lib/languages/nix"
-import { common } from "lowlight"
-import rehypeAutolinkHeadings from "rehype-autolink-headings"
-import rehypeHighlight from "rehype-highlight"
-import rehypeSanitize from "rehype-sanitize"
-import rehypeSlug from "rehype-slug"
-import rehypeStringify from "rehype-stringify"
-import remarkGfm from "remark-gfm"
-import remarkParse from "remark-parse"
-import remarkRehype from "remark-rehype"
-import { unified } from "unified"
 import type { Root } from "hast"
 
-import { AUTOLINK } from "./anchors.ts"
+import { pipelineNow } from "./chunk.ts"
 import { toInline } from "./inline.ts"
 import type { Heading } from "./outline.ts"
 import { rewrite } from "./rewrite.ts"
-import { SANITISE } from "./sanitise.ts"
-
-/**
- * The grammars a fence may name: `lowlight`'s common set, plus Nix.
- *
- * Spelled out because the option REPLACES the default rather than adding to
- * it — `rehype-highlight` builds its lowlight from whatever `languages` says,
- * so `{ nix }` alone would be a client that had forgotten TypeScript.
- *
- * Nix is the one addition, and it is not a preference: this repository is
- * built and run through Nix, its own `docs/` are what `just serve` serves with
- * no arguments, and a ```nix fence there came out as grey text while the one
- * above it was coloured. An unregistered language is not an error — the block
- * is drawn as plain text, which is what ./render.test.ts pins — so this is the
- * difference between a fence that reads and one that merely survives.
- */
-const languages = { ...common, nix }
-
-const pipeline = unified()
-  .use(remarkParse)
-  .use(remarkGfm)
-  .use(remarkRehype, { clobberPrefix: "" })
-  .use(rehypeSlug)
-  .use(rehypeAutolinkHeadings, AUTOLINK)
-  .use(rehypeSanitize, SANITISE)
-  .use(rehypeHighlight, { detect: false, languages })
-  .use(rehypeStringify)
 
 /** What one run of it produces: the HTML, and the headings that are in it.
  *  Not exported — the two entry points below hand out one half each, so
@@ -207,14 +153,14 @@ export const renderToTree = (
   shape: "block" | "inline",
 ): Root => {
   const key = keyFor(shape, from, source)
-  const tree = pipeline.runSync(pipeline.parse(source)) as Root
+  const tree = pipelineNow().treeOf(source)
   if (shape === "inline") toInline(tree)
   rewrite(tree, { from, ids: idsFor(key) })
   return tree
 }
 
 /** Stringify a tree the pipeline already ran — titles finish their own walk. */
-export const hastToHtml = (tree: Root): string => pipeline.stringify(tree)
+export const hastToHtml = (tree: Root): string => pipelineNow().htmlOf(tree)
 
 const render = (
   source: string,
@@ -222,10 +168,11 @@ const render = (
   key: string,
   shape: "block" | "inline",
 ): Rendered => {
-  const tree = pipeline.runSync(pipeline.parse(source)) as Root
+  const pipeline = pipelineNow()
+  const tree = pipeline.treeOf(source)
   if (shape === "inline") toInline(tree)
   const headings = rewrite(tree, { from, ids: idsFor(key) })
-  return { html: pipeline.stringify(tree), headings }
+  return { html: pipeline.htmlOf(tree), headings }
 }
 
 /**

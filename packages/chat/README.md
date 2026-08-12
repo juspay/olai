@@ -162,8 +162,18 @@ started, handshaken with, and asked to read a resource only a live daemon can
 answer. One answer is evidence of both halves — this binary speaks the protocol,
 AND a padi is behind it — and the absolute path that answered is what the
 session is given, so the agent cannot resolve the bare word against a different
-PATH and spawn something else. Anything short of an answer is a `null`,
-silently: a host without kolu is the ordinary case, not a fault.
+PATH and spawn something else.
+
+Anything short of an answer is a NO, and the no says which of two it is
+(`Detected`). `none` is no `kolu` on PATH at all — the ordinary case, quiet,
+and not a fault. `silent` is a `kolu` that IS there and would not answer, and
+it carries `why`: it could not be started, it closed the pipe, it timed out, or
+it refused the daemon's own identity read — which is what a build running
+against no padi does (juspay/kolu#2146), and the one worth telling somebody
+about. Those four used to be one `false` with the reason destroyed inside a
+`catch` before anything could report it. The reason is a VALUE rather than a
+log line so that `mcp-fail-visible` has something to render; nothing draws it
+yet, and `agent.ts` takes only the server (`Kolu.serverOf`).
 
 The probe is a JSON-RPC conversation on a subprocess's pipes, which is what the
 ACP session is too — so the framing lives in `pipes.ts` and neither of them owns

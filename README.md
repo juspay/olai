@@ -194,7 +194,11 @@ saying why, where the agent and the panel both read it.
 The agent cannot free-write a file. It has no filesystem access at all: the
 only things it can name are NODES, through a closed list of tools — search,
 read a subtree, create an outline, add, mark, retitle, note, schedule, move,
-archive. Adding takes a whole subtree, nested, so capturing an outline is one
+archive, place a mirror, retire one, and wire what a node waits on. Every shape
+the format has, an op can write: a curated list — a Now section, a focus page —
+is mirrors of the items that are live, so the list and the work cannot drift
+apart the way a re-typed copy does, and retiring an entry from it takes the
+placement out and leaves the item alone. Adding takes a whole subtree, nested, so capturing an outline is one
 call rather than one per bullet — and one call is one validation and one
 commit, which is what makes a half-captured outline impossible rather than
 unlikely. A new outline is born the same way, holding whatever it was created

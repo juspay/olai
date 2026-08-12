@@ -34,7 +34,7 @@
 
 import { Effect, FileSystem, Option, Path, type PlatformError, Stream } from "effect"
 
-import { PlatformFailure } from "./errors.ts"
+import { PlatformFailure, ROOT_ITSELF } from "./errors.ts"
 
 /** What "this file did not change" is decided on: mtime and size, the two the
  *  kernel already knows. Coarse — a same-second rewrite of the same length
@@ -115,7 +115,7 @@ export const make = (
           : Effect.catchIf(read, vanished, () => Effect.succeed<Array<string>>([]))
       ).pipe(
         Effect.mapError((cause) =>
-          new PlatformFailure({ path: directory === "" ? root : directory, cause })
+          new PlatformFailure({ path: directory === "" ? ROOT_ITSELF : directory, cause })
         ),
       )
     }
@@ -179,7 +179,7 @@ export const make = (
 
     const watch = fs.watch(root, { recursive: true }).pipe(
       Stream.map(() => undefined),
-      Stream.mapError((cause) => new PlatformFailure({ path: root, cause })),
+      Stream.mapError((cause) => new PlatformFailure({ path: ROOT_ITSELF, cause })),
     )
 
     let staged = 0

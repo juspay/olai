@@ -65,8 +65,15 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="olai" />
-    <!-- Both hrefs below are placeholders the build rewrites to hashed
-         /assets/* URLs; they must match build.ts byte for byte. -->
+    <!-- Where the markdown pipeline is, for the page that turns out to need
+         one (src/client/markdown/chunk.ts reads this). A `<meta>` and not a
+         `<link rel=modulepreload>` on purpose: an outline of rows must not
+         fetch it at all, and a preload is a fetch. Rewritten to the hashed
+         /assets/* URL by src/markdown.ts, which explains the arrangement. -->
+    <meta name="olai-markdown" content="./markdown.js" />
+    <!-- That `content`, the `href` below and the `<script src>` in the body are
+         the three placeholders the build rewrites to hashed /assets/* URLs;
+         they must match build.ts (and src/markdown.ts) byte for byte. -->
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <!-- The page's own two utilities. Tailwind's preflight zeroes the body
