@@ -29,7 +29,7 @@ describe("a composed message", () => {
       change({ id: "kolu", title: "Kolu integration", sort: "created" }),
     ])
 
-    expect(message.split("\n")[0]).toBe("olai: 3 edits to roadmap — kolu created")
+    expect(message.split("\n")[0]).toBe("olai: 3 edits to roadmap — Kolu integration created")
     expect(message).toContain("capture: Kolu integration")
     expect(message).toContain("done: Outlines as a collection")
     expect(message).toContain("note: Notes: one state, same line")
@@ -37,11 +37,11 @@ describe("a composed message", () => {
 
   test("says which outline only when there is one of them", () => {
     expect(composed([change({ sort: "done" })]).split("\n")[0])
-      .toBe("olai: 1 edit to roadmap — x done")
+      .toBe("olai: 1 edit to roadmap — a node done")
     expect(
       composed([change({ sort: "done" }), change({ file: "other.jsonl", id: "y" })])
         .split("\n")[0],
-    ).toBe("olai: 2 edits — x done")
+    ).toBe("olai: 2 edits — a node done")
   })
 
   // The correction this feature carried: a date used to print as `move:`,
@@ -78,4 +78,25 @@ describe("a signed message", () => {
   test("an empty message is still a message", () => {
     expect(signed("   ", "mcp")).toStartWith("olai: commit\n")
   })
+})
+
+/**
+ * The subject names a node the way a person reads it, not the way the file
+ * stores it.
+ *
+ * The design's own example — `olai: 11 edits to roadmap — outlines-collection
+ * done` — named the ID, and read perfectly well, because every id in that
+ * roadmap is a slug somebody chose. `add_node` MINTS one when the caller does
+ * not supply it, which is the ordinary case for an agent capturing nodes, and
+ * the same subject then reads `olai: 2 edits to house — 1vax4izq created`. That
+ * is a line in a permanent log that nobody can read and nobody can correct
+ * afterwards, which is exactly what the `capture:`/`done:` convention is for.
+ */
+test("the subject names the node's title, so a minted id never reaches the log", () => {
+  const message = composed([
+    change({ id: "1vax4izq", title: "measure the alcove", sort: "created" }),
+  ])
+  const subject = message.split("\n")[0] ?? ""
+  expect(subject).toBe("olai: 1 edit to roadmap — measure the alcove created")
+  expect(subject).not.toContain("1vax4izq")
 })

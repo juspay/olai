@@ -127,6 +127,13 @@ export const whyOf = (
   mode: CommitMode,
   repo: RepoState,
   refused: string | null,
+  /** Who the write was for, so the waiting sentence names the door THAT caller
+   *  actually has. An agent in a terminal told to press a Commit button is
+   *  being sent after a control it cannot reach — the same mistake `--help`
+   *  would make if both faces shared one sentence. Absent names both, which is
+   *  right for the panel's agent: the tool is its own door and the person
+   *  reading over its shoulder has the other. */
+  writer?: Writer,
 ): string | undefined => {
   if (refused !== null) return `git refused the commit: ${refused}`
   switch (repo._tag) {
@@ -142,8 +149,21 @@ export const whyOf = (
     case "Ready":
       return mode === "manual"
         ? "waiting to be committed: writes accumulate under --commit=manual (the " +
-          "default) until the `commit` tool or the Commit button asks for one"
+          `default) until ${asks(writer)} asks for one`
         : undefined
+  }
+}
+
+/** The door a given writer has. `web` presses a button; `mcp` calls the tool;
+ *  the panel's agent has the tool with a person and a button beside it. */
+const asks = (writer?: Writer): string => {
+  switch (writer) {
+    case "web":
+      return "the Commit button"
+    case "mcp":
+      return "the `commit` tool"
+    default:
+      return "the `commit` tool or the Commit button"
   }
 }
 
@@ -478,7 +498,7 @@ export const make = (options: Options): Committing => {
         ? { _tag: "Ready", branch: "" }
         : opening
       if (options.mode === "manual" || opening._tag !== "Opened") {
-        return { committed: false, ...said(whyOf(options.mode, placed, null)) }
+        return { committed: false, ...said(whyOf(options.mode, placed, null, writer)) }
       }
 
       // `auto` is the only mode that goes on, and the busy check is the part

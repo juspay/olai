@@ -214,8 +214,16 @@ is what decided manual over automatic.
 Messages are prefixed `olai`, so `git log --grep '^olai'` is the audit view and
 `--invert-grep` gives back a person's own history, and every commit carries an
 `X-Olai-Writer: chat-agent | mcp | web` trailer — git records only the
-repository's own user, which every commit in it already has. A composed message
-names the biggest change by a fixed order and lists the rest.
+repository's own user, which every commit in it already has. The trailer is also
+the ONLY thing that differs between the two faces' commits: the same pending set
+committed from the browser and from `olai mcp` produces the same tree and the
+same message, which `src/pending.test.ts` asserts rather than assumes.
+
+A composed message names the biggest change by a fixed order and lists the rest.
+It names that change by its TITLE — the design's example named the id, and read
+the same on a roadmap whose ids are slugs somebody chose, but `add_node` mints
+one when the caller does not supply it, so an agent's captures would put
+`1vax4izq created` in a log nobody can read and nobody can correct afterwards.
 
 The per-op summary — which is what `auto` commits with, and what a tool result
 reports — keeps the reference implementation's convention, because a log a

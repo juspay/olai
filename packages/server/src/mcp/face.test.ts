@@ -142,12 +142,13 @@ const textOf = async (client: Client, uri: string): Promise<string> => {
 const readJson = async (client: Client, uri: string): Promise<unknown> =>
   JSON.parse(await textOf(client, uri))
 
-test("the served resources are exactly the four the allowlist names", async () => {
+test("the served resources are exactly the five the allowlist names", async () => {
   await withFace(async ({ client }) => {
     const listed = await client.listResources()
     expect(listed.resources.map((r) => r.uri).sort()).toEqual([
       "surface://cells/errors",
       "surface://cells/git",
+      "surface://cells/pending",
       "surface://collections/documents",
       "surface://collections/outlines",
     ])

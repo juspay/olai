@@ -68,8 +68,16 @@ export const composed = (changes: ReadonlyArray<NodeChange>): string => {
   const files = new Set(changes.map((change) => change.file))
   const count = `${changes.length} ${changes.length === 1 ? "edit" : "edits"}`
   const where = files.size === 1 ? ` to ${stemOf(biggest.file)}` : ""
+  // The TITLE, not the id. The design's example named an id and read well
+  // because the roadmap's ids are slugs somebody chose (`outlines-collection
+  // done`) — but `add_node` MINTS one when nobody supplies it, so the moment an
+  // agent captures a node the same subject reads `1vax4izq created`. A log line
+  // nobody can read is the failure this whole convention exists to avoid, and
+  // the title is the one field that is always meant for a person. (A mirror has
+  // no title of its own, and `NodeChange.title` already answers with its id
+  // there, which is the right fallback and the only one needed.)
   const subject =
-    `${MESSAGE_PREFIX}: ${count}${where} — ${biggest.id} ${biggest.sort}`
+    `${MESSAGE_PREFIX}: ${count}${where} — ${biggest.title} ${biggest.sort}`
 
   const lines = changes
     .slice(0, BODY_LINES)

@@ -8,12 +8,26 @@ the two entry points that start it: `olai web <dir> [--port] [--host]
 `--commit=off | manual | auto` says how writes reach git, `manual` by default:
 a write lands on disk and waits, and a Commit button or the agent's `commit`
 tool asks for one. `--no-commit` still means `off`, and wins when both are
-given. This package decides one thing about that and it is not the mode — it is
-WHO each transport is: the internal MCP route is handed to the session olai
-spawns, so it says `chat-agent`; `olai mcp` is somebody's own coding agent, so
-it says `mcp`; the surface procedure is `web`. That word is the commit's
+given. **Both subcommands take it on identical terms** — same modes, same
+default, same override — which is `src/commits.ts`, and it is one file rather
+than two flag declarations because that is exactly the divergence HACKING.md
+forbids: `olai mcp` once shipped without the flag at all, so an MCP-driven
+session could not batch and put four commits into a human's log in fifteen
+seconds. The one thing that differs between the faces is one clause of the help
+text, naming the door that face actually has (a button, or the tool) — telling a
+terminal about a button would send somebody looking for a control they have not
+got. `src/commits.test.ts` holds both halves: the truth table, and that nothing
+BUT that clause differs.
+
+This package decides one more thing about committing, and it is not the mode —
+it is WHO each transport is: the internal MCP route is handed to the session
+olai spawns, so it says `chat-agent`; `olai mcp` is somebody's own coding agent,
+so it says `mcp`; the surface procedure is `web`. That word is the commit's
 `X-Olai-Writer` trailer, and a transport that claimed it about itself would be
-a transport that could claim to be another.
+a transport that could claim to be another. Everything else about a commit is
+the same on both faces, down to the bytes: `@olai/ops`' `pending.test.ts`
+commits one identical pending set as each and asserts the trees and the messages
+match, with the trailer as the only difference.
 
 This is the only package allowed to know about all the others, which is what a
 composition root is for. The ORDER is the whole of what it decides: a store
@@ -46,7 +60,8 @@ register `stop` as a finalizer.
 | `mcp/tools.ts` | `@olai/ops`' table projected onto that face — the fixed field subtracted, a refusal carried as data |
 | `mcp/route.ts` | that face for the agent olai STARTED: mounted on this listener, behind a per-process bearer token, over a half-duplex transport of its own |
 | `mcp/serve.ts` | that face for an agent that started US: `olai mcp`'s own, much smaller, composition root, over stdio |
-| `runtime.ts` | the surface bindings: one owned fiber turns each store revision into the entries that moved and the manifest that names it, the errors cell is a second owned source, the transcript is server-authored, and the git cell is seeded from what the ops layer found and written by its observer (no stream behind it — a probe once per serve, and whatever a refused commit has to say) |
+| `commits.ts` | `--commit`, for whichever face is asking: one mode table, one default, one override — and one clause of the help text naming the door that face actually has |
+| `runtime.ts` | the surface bindings: one owned fiber turns each store revision into the entries that moved and the manifest that names it, the errors cell is a second owned source, the transcript is server-authored, and the two GIT cells — the header readout and what is waiting — are recomputed together by one connector on three clocks (every revision, every landed commit, a slow sweep, because nothing watches `.git`), so the two controls that draw them cannot disagree |
 | `outlines.ts` | the projection that fiber publishes: one published revision cut into per-file entries, and the store's own `changed`/`removed` mapped onto the collection's upserts and removes |
 | `listener.ts` | one `serveSurfaceApp` call, and the one decision it leaves that is a policy: whose port this is |
 | `report.ts` | the other one: what a listener event — a stale tab, a refused origin, a faulted connection — sounds like in olai's log |
@@ -156,6 +171,29 @@ argues each where it happens:
 - **No port, no host, no token.** There is nothing to authenticate: the client
   proved who it is by being the process that started this one. It stops when
   that client closes stdin.
+
+And it commits the way the browser does, because it is the same ops layer: ops
+accumulate, and the agent asks for one commit when a unit of work is finished.
+Two members of the surface are what make that usable from a terminal, and both
+are in the allowlist (`src/mcp/expose.ts`):
+
+- **the `commit` tool** — message required from the caller in practice (omit it
+  and one is composed from what changed, which can only describe the edits and
+  not why they were made). It answers with what was swept, or refuses with the
+  reason on a busy repository — mid-merge, mid-rebase, cherry-pick or a detached
+  HEAD — as structured data rather than prose to parse.
+- **`surface://cells/pending`** — what is waiting, per node, plus `last`: the
+  last commit olai made here, or `null` for a directory it has never committed
+  in. That `null` is the difference between "nothing waiting because I just
+  committed" and "nothing waiting because olai has never written here", which an
+  empty change list cannot express. Without this resource an agent under the
+  default mode would be writing into a state it cannot observe, and would have
+  to shell out to `git status` — the file access this surface exists not to
+  have.
+
+`src/mcp/serve.test.ts` drives that whole flow against a spawned binary and a
+real repository: four ops, no commits, one `commit`, and one `olai`-prefixed
+commit in the log carrying `X-Olai-Writer: mcp`.
 
 ## Starting up, and what you are told when it will not
 

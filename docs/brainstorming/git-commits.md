@@ -81,7 +81,7 @@ Opened:
 
 ```
 ┌─ Changes ─────────────────────────────────┐
-│ olai: outlines-collection done            │
+│ olai: Outlines as a collection done       │
 │   · chat agent · 12m ago · 1a2b3c4        │
 │                                           │
 │ roadmap.jsonl                             │
@@ -379,7 +379,7 @@ scheduled, noted, renamed, linked, edited), detail in the body, capped at twenty
 lines:
 
 ```
-olai: 11 edits to roadmap — outlines-collection done
+olai: 11 edits to roadmap — Outlines as a collection done
 
 done: Outlines as a collection
 date: Outlines as a collection -> 2026-08-10T18:07:08-04:00
@@ -390,6 +390,15 @@ note: WS frame cap undercuts the framework's
 `set_date` used to print as `move:`. Beside real reparenting ops that read as a
 structural change that never happened; it says `date:` now, in both the composed
 body and the per-op summary an `auto` commit uses.
+
+The subject names the node's TITLE, and this proposal's own example named its
+id. Both read the same on a roadmap, where every id is a slug somebody chose
+(`outlines-collection`) — but `add_node` MINTS an id when the caller does not
+supply one, which is the ordinary case for an agent capturing nodes, and the
+same subject then reads `olai: 2 edits to house — 1vax4izq created`. A
+permanent log line nobody can read is what this whole convention exists to
+prevent, so the title wins; a mirror, which has no title of its own, still
+answers with its id.
 
 ## The flag
 

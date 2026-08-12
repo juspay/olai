@@ -74,6 +74,32 @@ import type { ExposeMap } from "@kolu/surface-mcp"
  * `olai mcp` client watching this directory notice that commits have started
  * failing without making one.
  *
+ * `pending` is what is WAITING to be committed, and it is the other half of the
+ * `commit` tool: the tool is how an agent records its work, and this is how it
+ * knows there is work to record and what the record will say. Without it an
+ * agent under the default `--commit=manual` is writing into a state it cannot
+ * observe — it would have to commit blind, or shell out to `git status`, which
+ * is the file access this whole surface exists not to have. It also carries
+ * `last`, so an agent can tell "nothing is waiting because I just committed"
+ * from "nothing is waiting because olai has never recorded anything here" —
+ * two facts an empty change list cannot separate, which is the same `null` the
+ * pill is built around.
+ *
+ * **It satisfies the cost rule, but not trivially, so here is the bound.** A
+ * cell is read whole on every `resources/read`. `Pending` is O(what is DIRTY),
+ * not O(corpus): a clean directory is a handful of scalars, and the ordinary
+ * case under manual mode is the few nodes an agent has just touched. The worst
+ * case is real — a `git pull` that rewrites every outline makes every node in
+ * the set a change — and it is bounded by two things rather than hoped away.
+ * Committing empties it, which is the one action this resource exists to
+ * prompt; and the body list a message carries is capped (`BODY_LINES` in
+ * `@olai/ops`' `message.ts`) even when the change list is not. If that worst
+ * case ever stops being rare, the answer is the one `manifest` got: a
+ * collection keyed by file, read one at a time. It is NOT the answer today,
+ * because "what is waiting" is a question about the whole directory and a
+ * per-file projection of it would make an agent ask N times to learn whether to
+ * commit once.
+ *
  * Everything else is omitted, and two of them on purpose rather than by
  * oversight: `chat` and `transcript` are the human's session and the human's
  * conversation. An agent that is not ours has no business watching either, and
@@ -84,4 +110,5 @@ export const EXPOSE: ExposeMap<typeof surface.spec> = {
   documents: "resource",
   errors: "resource",
   git: "resource",
+  pending: "resource",
 }
