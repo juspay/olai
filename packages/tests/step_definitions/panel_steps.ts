@@ -27,6 +27,7 @@ import {
   SIDEBAR_RAIL,
   SIDEBAR_RESIZE,
   SIDEBAR_SCRIM,
+  SIDEBAR_TOGGLE,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -320,16 +321,9 @@ Then(
   async function (this: OlaiWorld) {
     // The burger must remain the topmost control at its own centre — not the
     // scrim. A stack that puts scrim first is finding 2.
-    const burger = this.page.locator(`[data-testid="sidebar-toggle"]`);
-    await burger.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    const box = await burger.boundingBox();
-    assert.ok(box !== null);
-    const top = await this.page.evaluate(
-      ({ x, y }) => {
-        const el = document.elementFromPoint(x, y);
-        return el?.closest("[data-testid]")?.getAttribute("data-testid") ?? el?.tagName;
-      },
-      { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+    const top = await this.topmostTestidOver(
+      this.page.locator(SIDEBAR_TOGGLE),
+      "the burger",
     );
     assert.strictEqual(
       top,

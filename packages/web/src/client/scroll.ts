@@ -43,15 +43,32 @@
  * loads, and at that moment this client has no rows to be scrolled through,
  * because the set arrives over a WebSocket a moment later.
  *
- * The one case this does NOT serve, said out loud rather than left to be
- * discovered: a restore lands the instant the new page is drawn, and a page
- * that has not finished LAYING OUT is shorter than it will be — a document with
- * `/media/*` pictures in it grows as they arrive. The browser clamps a restore
- * to the height it has, so that page comes back near its end rather than at the
- * line it was left on. Waiting for the height to settle is the transcript's
- * `ResizeObserver` (./chat/Transcript.tsx), and it is not obviously right here:
- * it would move the page under a reader who has already started scrolling the
- * one they came back to. Left as it is until somebody is actually bitten.
+ * A restore lands the instant the new page is drawn, and a page that has not
+ * finished LAYING OUT is shorter than it will be — a document with `/media/*`
+ * pictures in it grows as they arrive, and a row whose last pixel of height
+ * resolves a frame after the rest of it does the same thing in miniature. The
+ * browser CLAMPS a restore to the height it has at that instant, so the page
+ * comes back short of the line it was left on and stays there once it grows.
+ *
+ * So a restore that CAME UP SHORT keeps asking for the position back, frame by
+ * frame, and the rule for stopping is stated three ways: the page can hold the
+ * position, the READER has taken it over (a wheel, a touch, a key, a press), or
+ * a second has gone by. The first attempt is still synchronous, before the
+ * paint — deferring the whole thing would show a frame of the old position on
+ * every back — and nothing at all is scheduled unless that attempt was clamped,
+ * which is a page that is already somewhere nobody chose. It is not the
+ * transcript's `ResizeObserver` (./chat/Transcript.tsx): that follows a height
+ * for as long as it moves, and this stops the moment either the position or the
+ * reader says it is done.
+ *
+ * That fence was put up for this bug: with the directory column pinned
+ * (./Sidebar.tsx), the page is exactly as tall as the PAGE — the column used to
+ * be as tall as the document and quietly held the height up while the main pane
+ * was still arriving. It does not any more, so the clamp became reachable at
+ * the bottom of an ordinary outline: `zoom_and_navigate.feature`'s "the one you
+ * come back to does not" landed 1px short, because the last row of that fixture
+ * grows by 1.44px when the title of the document it references arrives on the
+ * wire. A document with `/media/*` pictures is the same failure, larger.
  *
  * The chat transcript's follow-discipline (./chat/Transcript.tsx) is the house
  * standard this is written to: scrolling somebody's page is done deliberately,
@@ -59,6 +76,16 @@
  */
 
 import { onCleanup } from "solid-js"
+
+/** How long a CLAMPED restore keeps asking for the position back while the page
+ *  is still arriving. Long enough for a value the store fetches per key to land
+ *  and be laid out (the wire round trip that grew the row this was written for),
+ *  short enough that it is over before a reader has read anything. */
+const SETTLE_MS = 1_000
+
+/** The gestures that end that: a reader who has taken the page over owns where
+ *  it is, and this stops asking mid-flight rather than fighting them for it. */
+const TAKEOVER = ["wheel", "touchstart", "keydown", "pointerdown"] as const
 
 /** The two things a navigation may do to the page, and between them they are
  *  every statement in this client that moves it. WHICH of them a navigation
@@ -97,11 +124,52 @@ export const createScrollMemory = (keyHere: () => string | undefined): ScrollMem
   addEventListener("scroll", record, { passive: true })
   onCleanup(() => removeEventListener("scroll", record))
 
+  /** The retry in flight, if a restore was clamped. One at a time: a second
+   *  navigation's restore is about a different page and this one is over. */
+  let giveUp: (() => void) | undefined
+  onCleanup(() => giveUp?.())
+
+  /** Ask for `top` until the page can hold it, the reader takes over, or the
+   *  deadline. Started ONLY from a clamped restore, so the normal path adds no
+   *  frame callback and no listener at all. */
+  const keepAsking = (top: number): void => {
+    giveUp?.()
+    const deadline = performance.now() + SETTLE_MS
+    let frame = 0
+    const stop = (): void => {
+      cancelAnimationFrame(frame)
+      for (const gesture of TAKEOVER) removeEventListener(gesture, stop)
+      giveUp = undefined
+    }
+    const again = (): void => {
+      scrollTo({ top, behavior: "instant" })
+      if (scrollY >= top || performance.now() >= deadline) return stop()
+      frame = requestAnimationFrame(again)
+    }
+    giveUp = stop
+    for (const gesture of TAKEOVER) {
+      addEventListener(gesture, stop, { passive: true })
+    }
+    frame = requestAnimationFrame(again)
+  }
+
   // `instant` in both, whatever the page's own scroll behaviour is: neither of
   // these is a gesture. One is a page starting where pages start; the other is
   // the page being where the reader already was.
   return {
-    toTop: () => scrollTo({ top: 0, behavior: "instant" }),
-    restore: (key) => scrollTo({ top: left.get(key) ?? 0, behavior: "instant" }),
+    toTop: () => {
+      giveUp?.()
+      scrollTo({ top: 0, behavior: "instant" })
+    },
+    restore: (key) => {
+      const top = left.get(key) ?? 0
+      giveUp?.()
+      scrollTo({ top, behavior: "instant" })
+      // Short of where the reader was means the document was still arriving
+      // under the restore and the browser clamped what it was asked for. The
+      // page is already in a place nobody chose, so asking again costs nothing
+      // and is the only way it ever gets back.
+      if (scrollY < top) keepAsking(top)
+    },
   }
 }
