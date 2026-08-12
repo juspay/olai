@@ -803,6 +803,41 @@ export class OlaiWorld extends World {
     );
   }
 
+  /**
+   * What a day cell in the month says about ITSELF.
+   *
+   * Four facts and one helper, because they are one widget: something is dated
+   * the day, a document is named for it, it is today, it is the day being read.
+   * Each is a `data-` attribute rather than the colour it is painted — the
+   * marks are a promise and the palette is a styling decision a refactor may
+   * change — and asking them through one method is what keeps a failure saying
+   * which day and which fact rather than which selector.
+   *
+   * Here beside {@link daySelector} and {@link calendarDay} rather than in a
+   * step file, because two features ask it now (the journal's three marks and
+   * the daily notes' fourth) and the union of facts is the contract: a copy per
+   * feature is a union widened twice every time the cell learns to say one more
+   * thing.
+   */
+  async expectDayMark(
+    date: string,
+    fact: "data-dated" | "data-noted" | "data-today" | "data-open",
+    expected: boolean,
+  ): Promise<void> {
+    await this.expectAttribute(
+      daySelector(date),
+      fact,
+      String(expected),
+      `the day ${date}`,
+    );
+  }
+
+  /** The link a day cell is when it has something to show — and the empty
+   *  locator it is when it has not, which is the assertion an inert day is. */
+  dayLink(date: string): Locator {
+    return this.calendarDay(date).locator("a");
+  }
+
   /** Read a `data-` attribute off a node, waiting for the node first so the
    *  failure says "no node `order`" rather than "expected 'done', got null". */
   async nodeAttribute(id: string, attribute: string): Promise<string | null> {

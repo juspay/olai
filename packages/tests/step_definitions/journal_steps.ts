@@ -2,9 +2,12 @@
  * The month in the sidebar, and one day as a page.
  *
  * Two things these steps are careful about. What a day cell IS — something on
- * it, today, the one being read — is read off `data-` attributes rather than
- * off the colour it is painted, because the marks are a promise and the
- * palette is a styling decision a refactor may change. And "today" is asked of
+ * it, a note of its own, today, the one being read — is read off `data-`
+ * attributes rather than off the colour it is painted, because the marks are a
+ * promise and the palette is a styling decision a refactor may change; the
+ * cell's four facts are asked through the world's own `expectDayMark`, which
+ * is what keeps this file and `daily_notes_steps.ts` asking one widget one
+ * way. And "today" is asked of
  * the clock with the same function the client uses (`client/clock.ts`),
  * imported rather than re-spelled: a suite that computed the day its own way
  * would disagree with the browser at exactly midnight, in one time zone, on
@@ -25,7 +28,6 @@ import {
   DAY_EMPTY,
   DAY_GROUP,
   DAY_PAGE,
-  daySelector,
   NODE,
   nodeSelector,
   oneLine,
@@ -165,29 +167,13 @@ Then("the month shown is this month", async function (this: OlaiWorld) {
   );
 });
 
-/** What a day cell says about itself. One helper for all three marks, so a
- *  failure names the day and the fact rather than a selector. */
-const expectDay = async (
-  world: OlaiWorld,
-  date: string,
-  fact: "data-dated" | "data-noted" | "data-today" | "data-open",
-  expected: boolean,
-): Promise<void> => {
-  await world.expectAttribute(
-    daySelector(date),
-    fact,
-    String(expected),
-    `the day ${date}`,
-  );
-};
-
 Then(
   "the day {string} has something on it",
   async function (this: OlaiWorld, date: string) {
-    await expectDay(this, date, "data-dated", true);
+    await this.expectDayMark(date, "data-dated", true);
     // A day with something on it is the only kind that goes anywhere.
     assert.strictEqual(
-      await this.calendarDay(date).locator("a").count(),
+      await this.dayLink(date).count(),
       1,
       `the day ${date} has something on it, so it must be a link to that day`,
     );
@@ -198,12 +184,12 @@ Then(
  *  nothing dated it either, and a step that only counted the nodes would call
  *  it inert while it sat there as a link (`features/daily_notes.feature`). */
 Then("the day {string} is inert", async function (this: OlaiWorld, date: string) {
-  await expectDay(this, date, "data-dated", false);
-  await expectDay(this, date, "data-noted", false);
+  await this.expectDayMark(date, "data-dated", false);
+  await this.expectDayMark(date, "data-noted", false);
   // Nothing to press: pressing it could only mean "write something here", and
   // this pane writes nothing.
   assert.strictEqual(
-    await this.calendarDay(date).locator("a").count(),
+    await this.dayLink(date).count(),
     0,
     `the day ${date} has nothing on it and no note, so it must not be a link`,
   );
@@ -212,20 +198,20 @@ Then("the day {string} is inert", async function (this: OlaiWorld, date: string)
 Then(
   "the day {string} is the one being read",
   async function (this: OlaiWorld, date: string) {
-    await expectDay(this, date, "data-open", true);
+    await this.expectDayMark(date, "data-open", true);
   },
 );
 
 Then(
   "the day {string} is not the one being read",
   async function (this: OlaiWorld, date: string) {
-    await expectDay(this, date, "data-open", false);
+    await this.expectDayMark(date, "data-open", false);
   },
 );
 
 Then("today wears the ring", async function (this: OlaiWorld) {
   const today = isoDayOf(new Date());
-  await expectDay(this, today, "data-today", true);
+  await this.expectDayMark(today, "data-today", true);
   // And nothing else does: a ring on two days is a calendar that has stopped
   // saying which day it is.
   const rung = await this.page
@@ -241,19 +227,19 @@ Then("today wears the ring", async function (this: OlaiWorld) {
  *  different failure. */
 Then("today is the one being read", async function (this: OlaiWorld) {
   const today = isoDayOf(new Date());
-  await expectDay(this, today, "data-today", true);
-  await expectDay(this, today, "data-open", true);
+  await this.expectDayMark(today, "data-today", true);
+  await this.expectDayMark(today, "data-open", true);
 });
 
 Then("today is not the one being read", async function (this: OlaiWorld) {
-  await expectDay(this, isoDayOf(new Date()), "data-open", false);
+  await this.expectDayMark(isoDayOf(new Date()), "data-open", false);
 });
 
 /** Today, with something on it — asked of the clock rather than written down,
  *  because the only way a fixture has something on TODAY is that a write put
  *  it there while the scenario was running. */
 Then("today has something on it", async function (this: OlaiWorld) {
-  await expectDay(this, isoDayOf(new Date()), "data-dated", true);
+  await this.expectDayMark(isoDayOf(new Date()), "data-dated", true);
 });
 
 When("I click the day {string}", async function (this: OlaiWorld, date: string) {

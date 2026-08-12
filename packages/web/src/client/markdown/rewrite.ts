@@ -160,15 +160,14 @@ const resolvePicture = (element: Element, from: string): void => {
 const resolveDocument = (element: Element, from: string): void => {
   const written = element.properties?.["href"]
   if (typeof written !== "string") return
-  const cut = written.indexOf("#")
-  const path = cut < 0 ? written : written.slice(0, cut)
-  const fragment = cut < 0 ? "" : written.slice(cut)
-
-  const document = documentOf(from, path)
+  // ONE index, so the two halves cannot be cut at two places: an href with no
+  // `#` ends at its own end, which makes the fragment the empty tail.
+  const cut = written.includes("#") ? written.indexOf("#") : written.length
+  const document = documentOf(from, written.slice(0, cut))
   if (document === null) return
   element.properties = {
     ...element.properties,
-    href: hrefOf({ kind: "document", file: document }) + fragment,
+    href: hrefOf({ kind: "document", file: document }) + written.slice(cut),
   }
 }
 

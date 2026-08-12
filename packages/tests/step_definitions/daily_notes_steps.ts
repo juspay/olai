@@ -6,8 +6,10 @@
  * Two things these steps are careful about. Which mark a day cell wears is read
  * off `data-noted` and `data-dated` separately, never off the colour or off one
  * combined fact — they are two different sentences about a day and a cell may
- * say both. And "today" is asked of the clock with the same function the client
- * uses (`client/clock.ts`), imported rather than re-spelled, for the reason
+ * say both — and through the same `expectDayMark` the journal's own steps use,
+ * because the cell is one widget however many features ask about it. And
+ * "today" is asked of the clock with the same function the client uses
+ * (`client/clock.ts`), imported rather than re-spelled, for the reason
  * `journal_steps.ts` gives: a suite that computed the day its own way would
  * disagree with the browser at exactly midnight in one time zone.
  */
@@ -22,7 +24,6 @@ import {
   DAY_GROUP,
   DAY_NOTE,
   DAY_NOTE_LINK,
-  daySelector,
   HYDRATION_TIMEOUT,
   POLL_TIMEOUT,
 } from "../support/world.ts";
@@ -58,28 +59,41 @@ Then("the day shows today's note", async function (this: OlaiWorld) {
   await expectNote(this, dailyNote(isoDayOf(new Date())));
 });
 
-Then("the day shows no note", async function (this: OlaiWorld) {
-  // The day page is on screen first, so an empty count is an answer rather
-  // than a page that has not been drawn yet.
-  await this.page
-    .locator(DAY_GROUP)
+/**
+ * One half of the day is absent, asked once the OTHER half is on screen.
+ *
+ * An empty count is a perfectly plausible wrong answer on a page that has not
+ * been drawn yet, and a day page has no single moment of being finished — so
+ * the wait is on the half that IS expected, which is the only thing on this
+ * page that says the frame has arrived.
+ */
+const expectAbsent = async (
+  world: OlaiWorld,
+  drawn: string,
+  absent: string,
+  complaint: string,
+): Promise<void> => {
+  await world.page
+    .locator(drawn)
     .first()
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  assert.strictEqual(
-    await this.page.locator(DAY_NOTE).count(),
-    0,
+  assert.strictEqual(await world.page.locator(absent).count(), 0, complaint);
+};
+
+Then("the day shows no note", async function (this: OlaiWorld) {
+  await expectAbsent(
+    this,
+    DAY_GROUP,
+    DAY_NOTE,
     "a day with no document named for it is drawing a note",
   );
 });
 
 Then("the day has no dated nodes", async function (this: OlaiWorld) {
-  await this.page
-    .locator(DAY_NOTE)
-    .first()
-    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  assert.strictEqual(
-    await this.page.locator(DAY_GROUP).count(),
-    0,
+  await expectAbsent(
+    this,
+    DAY_NOTE,
+    DAY_GROUP,
     "this day has nothing dated it, so it must draw no groups",
   );
 });
@@ -118,27 +132,18 @@ When(
 );
 
 // ── the mark in the month ──────────────────────────────────────────────
-
-const expectDay = async (
-  world: OlaiWorld,
-  date: string,
-  fact: "data-noted" | "data-dated",
-  expected: boolean,
-): Promise<void> => {
-  await world.expectAttribute(
-    daySelector(date),
-    fact,
-    String(expected),
-    `the day ${date}`,
-  );
-};
+//
+// Through the world's own `expectDayMark` (`support/world.ts`), which
+// `journal_steps.ts` asks the other three marks with: one widget, one way of
+// asking, and one union of facts to widen when the cell learns to say
+// something more.
 
 Then("the day {string} has a note", async function (this: OlaiWorld, date: string) {
-  await expectDay(this, date, "data-noted", true);
+  await this.expectDayMark(date, "data-noted", true);
 });
 
 Then("the day {string} has no note", async function (this: OlaiWorld, date: string) {
-  await expectDay(this, date, "data-noted", false);
+  await this.expectDayMark(date, "data-noted", false);
 });
 
 /** The other half of "has something on it", split out: a note-day has nothing
@@ -147,24 +152,24 @@ Then("the day {string} has no note", async function (this: OlaiWorld, date: stri
 Then(
   "the day {string} has nothing on it",
   async function (this: OlaiWorld, date: string) {
-    await expectDay(this, date, "data-dated", false);
+    await this.expectDayMark(date, "data-dated", false);
   },
 );
 
 /** Either mark makes the cell a link — the day has something to show, whether
  *  the reader wrote it or the set did. */
 Then("the day {string} is a link", async function (this: OlaiWorld, date: string) {
-  const link = this.calendarDay(date).locator("a");
+  const link = this.dayLink(date);
   await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.strictEqual(await link.count(), 1);
 });
 
 Then("today has a note", async function (this: OlaiWorld) {
-  await expectDay(this, isoDayOf(new Date()), "data-noted", true);
+  await this.expectDayMark(isoDayOf(new Date()), "data-noted", true);
 });
 
 Then("today has no note", async function (this: OlaiWorld) {
-  await expectDay(this, isoDayOf(new Date()), "data-noted", false);
+  await this.expectDayMark(isoDayOf(new Date()), "data-noted", false);
 });
 
 // ── a note written while the page is open ──────────────────────────────

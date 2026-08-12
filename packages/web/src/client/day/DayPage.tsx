@@ -69,23 +69,21 @@ export function DayPage(props: {
           frame the live store publishes. */}
       <For each={props.notes}>{(file) => <DayNote file={file} />}</For>
 
-      <Show
-        when={props.groups.length > 0}
-        fallback={
-          // Only when there is NOTHING here — a day whose note is on screen is
-          // not a day with nothing on it, and saying so under the words
-          // somebody wrote would be the page arguing with itself.
-          <Show when={props.notes.length === 0}>
-            <p class="text-muted" data-testid={TESTID.dayEmpty}>
-              {/* "On", not "dated": a day holds what was scheduled for it and
-                  what was marked on it, and only one of those is a `date`. */}
-              {props.date === props.today
-                ? "Nothing is on today."
-                : `Nothing is on ${props.date}.`}
-            </p>
-          </Show>
-        }
-      >
+      {/* NOTHING here at all — said once, as the one condition it is. A day
+          whose note is on screen is not a day with nothing on it, and saying so
+          under the words somebody wrote would be the page arguing with
+          itself. */}
+      <Show when={props.groups.length === 0 && props.notes.length === 0}>
+        <p class="text-muted" data-testid={TESTID.dayEmpty}>
+          {/* "On", not "dated": a day holds what was scheduled for it and what
+              was marked on it, and only one of those is a `date`. */}
+          {props.date === props.today
+            ? "Nothing is on today."
+            : `Nothing is on ${props.date}.`}
+        </p>
+      </Show>
+
+      <Show when={props.groups.length > 0}>
         {/* Keyed, like the tree is (../Tree.tsx): every frame the live store
             publishes mints these afresh, and a group or an entry that is the
             same one as last frame keeps its DOM — and its rendered note —

@@ -87,20 +87,37 @@ export const resolveRelative = (from: string, to: string): string => {
  * document itself, for a document. So a picture is resolved beside the text
  * that names it, exactly as `doc` is.
  *
- * Only a RELATIVE path to a picture survives. No scheme (so no `http:`, no
- * `data:`, no `javascript:`), no `//host`, no absolute path, and no extension
- * off the allowlist — a page that fetched a remote image would be a page that
- * told a third party what someone is reading, and everything else on that list
- * is a way of drawing something that is not a file in this directory. A `..`
- * is not refused but CLAMPED by {@link resolveRelative}: a shared picture
- * folder beside the documents is a real arrangement, and the result is under
- * the served root by construction.
+ * Only a RELATIVE path to a picture survives: the address rule is
+ * {@link relativeTo}'s, and the extension allowlist is this one's. A page that
+ * fetched a remote image would be a page that told a third party what someone
+ * is reading, and an address off the allowlist is a way of drawing something
+ * that is not a file in this directory.
  */
 export const pictureOf = (from: string, src: string): string | null => {
-  if (src === "" || src.startsWith("/") || src.startsWith("#")) return null
-  if (SCHEME.test(src)) return null
-  const resolved = resolveRelative(from, src)
-  return isPicture(resolved) ? resolved : null
+  const resolved = relativeTo(from, src)
+  return resolved !== null && isPicture(resolved) ? resolved : null
+}
+
+/**
+ * The file under the served directory a markdown address names, before anyone
+ * asks WHAT KIND of file it has to be — or `null` for an address this app does
+ * not resolve at all.
+ *
+ * The refusals live here, once, because there are two sinks and they are two
+ * different things: a picture becomes a `/media/…` URL the server answers, a
+ * link becomes a `/doc/…` route the client opens. A refusal added to one of
+ * them and not the other would be a widening nobody meant — and the two lists
+ * were character-for-character identical the moment there were two.
+ *
+ * No scheme (so no `http:`, no `data:`, no `javascript:`), no `//host`, no
+ * absolute path, no bare fragment: everything on that list is either somewhere
+ * else's business or a way of naming something that is not a file in this
+ * directory. A `..` is not refused but CLAMPED by {@link resolveRelative}.
+ */
+const relativeTo = (from: string, to: string): string | null => {
+  if (to === "" || to.startsWith("/") || to.startsWith("#")) return null
+  if (SCHEME.test(to)) return null
+  return resolveRelative(from, to)
 }
 
 /**
@@ -115,11 +132,10 @@ export const pictureOf = (from: string, src: string): string | null => {
  * here instead, beside the file the link was WRITTEN in, exactly as a `doc`
  * field and a relative picture already are.
  *
- * The same refusals as {@link pictureOf}, for the same reasons: no scheme, no
- * `//host`, no absolute path, no fragment — all of those are somewhere else's
- * business and are left exactly as written. What is different is the end of the
- * test: a document rather than a picture ({@link fileKind}), so `README` and
- * `art/handle.png` are not documents and a `.md` anywhere under the root is.
+ * The same address rule as {@link pictureOf} — one {@link relativeTo} between
+ * them — and a different question at the end of it: a document rather than a
+ * picture ({@link fileKind}), so `README` and `art/handle.png` are not
+ * documents and a `.md` anywhere under the root is.
  *
  * Whether the directory actually HOLDS the answer is not asked here, and that
  * is deliberate: this package knows the arithmetic, the page model knows what
@@ -127,10 +143,8 @@ export const pictureOf = (from: string, src: string): string | null => {
  * that says so rather than by a link that silently was not one.
  */
 export const documentOf = (from: string, href: string): string | null => {
-  if (href === "" || href.startsWith("/") || href.startsWith("#")) return null
-  if (SCHEME.test(href)) return null
-  const resolved = resolveRelative(from, href)
-  return fileKind(resolved) === "document" ? resolved : null
+  const resolved = relativeTo(from, href)
+  return resolved !== null && fileKind(resolved) === "document" ? resolved : null
 }
 
 /** A URL scheme, or the `//host` that borrows the page's own. Tested before
