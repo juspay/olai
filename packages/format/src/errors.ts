@@ -90,6 +90,24 @@ const CATALOGUE = {
   "mirror-cycle": "set",
   /** `doc` does not name an `.md` file under the served directory. */
   "missing-doc": "set",
+  /**
+   * The DIRECTORY could not be read — not a record in it. EACCES on a folder,
+   * a mount that went away, a disk with no room to answer a stat.
+   *
+   * The one code that is not about the format at all, and it is here because
+   * of where it has to arrive rather than where it comes from: a reader whose
+   * outline has quietly stopped tracking the disk needs to be told, and the
+   * banner over the last good snapshot is the surface that already says
+   * exactly that. It used to be a log line and nothing else — the page froze
+   * at the last good revision and went on looking live (`@olai/store`'s
+   * `PlatformFailure`, translated by the codec's `unreadable`).
+   *
+   * `set`, because it is a fact about the whole load and not about one line.
+   * The site names the path that could not be read, with a `line` of 0 — there
+   * is no record to point at, and a made-up 1 would point at somebody's first
+   * node.
+   */
+  "unreadable-directory": "set",
 } as const satisfies Record<string, Reach>
 
 export type ErrorCode = keyof typeof CATALOGUE

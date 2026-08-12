@@ -374,13 +374,31 @@ export const make = <F, S, E>(
         yield* dirty.await
         yield* Effect.sleep(options.settle ?? DEFAULT_SETTLE)
         yield* dirty.close
-        // A probe that failed keeps the last good snapshot and says so in the
-        // log. Killing this fiber would leave a page live and permanently
-        // stale, which is the one failure mode a live store must not have; the
-        // next trigger, or the backstop, tries again.
-        yield* Effect.catchCause(
-          refresh,
-          (cause) => Effect.logWarning("olai store: probe failed", cause),
+        // A probe that failed keeps the last good snapshot and PUBLISHES why.
+        //
+        // Both halves matter and only the first used to be here. Killing this
+        // fiber would leave a page live and permanently stale, which is the
+        // one failure mode a live store must not have — so the failure is
+        // still caught, and the next trigger or the backstop tries again. But
+        // catching it was the whole of it: the reason went to the log, the
+        // outline froze at the last good revision, and every reader went on
+        // looking at a page that had stopped being true under a pill still
+        // claiming to be live.
+        //
+        // So it goes on the errors ref, in the caller's own words
+        // ({@link Codec.unreadable}), where a validation failure already
+        // goes — one channel, two kinds — and clears itself the moment a
+        // probe publishes again.
+        //
+        // `tapError` and then `catchCause`, in that order and not one
+        // `catchCause`: what is publishable is the TYPED failure, and a defect
+        // is a bug in this package rather than something a reader can act on,
+        // so it is logged and not dressed up as news about their directory.
+        yield* refresh.pipe(
+          Effect.tapError((failure) =>
+            SubscriptionRef.set(errors, options.codec.unreadable(failure))
+          ),
+          Effect.catchCause((cause) => Effect.logWarning("olai store: probe failed", cause)),
         )
       }),
     ).pipe(Effect.forkScoped)

@@ -1,12 +1,18 @@
 /**
- * The one failure the store can have that the codec cannot describe.
+ * The one failure the store can have that the codec cannot DESCRIBE — though
+ * it is now one the codec is asked to TRANSLATE.
  *
  * Everything a codec rejects is a value it hands back — a `Result` failure the
  * store publishes. This is the other kind: the set was never seen at all,
  * because the directory could not be listed or a file could not be read. There
- * is no `file:line` to name and nothing to report but the reason, so it is not
- * an `E` and never reaches a browser. It is what the binary exits on at boot,
- * and what a later probe logs and retries past.
+ * is no `file:line` to name and nothing to report but the reason.
+ *
+ * It is what the binary exits on at boot. What it is NOT any more is invisible
+ * afterwards: a probe that fails mid-serve hands this to `Codec.unreadable`,
+ * which renders it into the caller's own error vocabulary, and it travels the
+ * same channel a validation failure does. Log-only was a page frozen at the
+ * last good revision with nothing on screen saying so — the exact failure mode
+ * a live store exists to prevent.
  */
 
 import { Data } from "effect"

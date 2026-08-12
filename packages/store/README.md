@@ -38,6 +38,16 @@ the **probe decides and nothing else does**.
    published beside it. A broken file must not blank a page that was reading
    fine a second ago.
 
+A probe that cannot read the tree AT ALL — EACCES on a folder, a mount that
+went away, ENOSPC — is the store's other kind of error, and it takes the same
+exit. It does not kill the sync fiber: that would leave every reader on a page
+that is live, permanently stale and saying neither. It is instead handed to
+`Codec.unreadable`, which renders it into the caller's own error vocabulary,
+and published on the errors channel a refused set uses. One channel, two kinds,
+and the same self-clearing rule: the next probe that publishes clears it.
+Log-only was what it used to be, and log-only is a page that quietly stops
+being true.
+
 A published snapshot also says **what moved** to make it — `changed` (the paths
 re-decoded) and `removed` (the paths the listing lost). That is the probe's own
 stamp diff kept rather than thrown away: a consumer that publishes PER FILE

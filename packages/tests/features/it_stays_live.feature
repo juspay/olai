@@ -95,6 +95,19 @@ Feature: It stays live
     And the page has not reloaded
     And there should be no page errors
 
+  Scenario: A directory that stops being readable says so, over the tree it left
+    # The store's OTHER kind of error, and the one that used to have nowhere to
+    # go. A file it cannot parse has always reached a reader; a TREE it cannot
+    # read at all — EACCES, a mount that vanished, no room to answer a stat —
+    # was written to the log and dropped, so the outline froze at the last good
+    # revision and every page went on looking live. Same channel now, same
+    # banner, over the same last-good tree.
+    When the served directory is taken away
+    Then the stale banner is shown
+    And the stale banner shows an error with code "unreadable-directory"
+    And the node "herbs" is shown
+    And the page has not reloaded
+
   # ── membership, not just text ────────────────────────────────────────
   #
   # Every scenario above rewrites a file with the SAME records in the SAME

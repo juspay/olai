@@ -44,4 +44,16 @@ export const codec: Codec<DecodedFile, OutlineSet, ReadonlyArray<OutlineError>> 
    *  question about the FORMAT, so `assemble` carries them in and `validate`
    *  answers it. */
   validate: (files) => validate(assemble(files)),
+
+  /** The store's own failure — the directory would not be listed, a file would
+   *  not be read — said in the format's vocabulary, so it travels the channel
+   *  a validation error travels and lands under the same banner. Its `line` is
+   *  0 because there is no record to point at: the site is the path itself. */
+  unreadable: (failure) => [{
+    file: failure.path,
+    line: 0,
+    code: "unreadable-directory",
+    message:
+      `${failure.message} — the outline below is the last one that loaded, and it will catch up on its own once the directory can be read again.`,
+  }],
 }
