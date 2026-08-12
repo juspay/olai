@@ -40,6 +40,24 @@ export const POLL_TIMEOUT = 15_000;
  *  for the slowest thing in it. */
 export const HYDRATION_TIMEOUT = 30_000;
 
+/**
+ * Per-step budget for a change only the store's BACKSTOP can deliver.
+ *
+ * A third axis, and it exists because of one asymmetry between platforms.
+ * Nearly every change to the served directory reaches a page promptly: the
+ * watcher sees it and opens the probe latch. A change to the WATCHED ROOT
+ * ITSELF — it was removed, it stopped being readable — is the one the watcher
+ * cannot report on Linux and macOS alike (macOS delivers nothing for it, so
+ * the first probe that notices is the unconditional sweep). The product is the
+ * same on both and the guarantee is "by the next probe"; only the wait differs.
+ *
+ * So this is `@olai/store`'s `DEFAULT_BACKSTOP` (60s) plus room for the probe,
+ * the publish and the frame. Kept apart from the other two rather than folded
+ * into them, because sharing a constant would make the whole suite wait on the
+ * slowest thing in it — which is exactly the argument above.
+ */
+export const BACKSTOP_TIMEOUT = 90_000;
+
 /** How long a freshly spawned server gets to print its listening line. Not a
  *  poll budget — it bounds a child process — but it is derived from the same
  *  scale so `hooks.ts` and this file cannot drift. */

@@ -24,6 +24,7 @@ import { Then, When } from "@cucumber/cucumber";
 
 import { expectCodeIn, expectSiteIn } from "../support/errors.ts";
 import {
+  BACKSTOP_TIMEOUT,
   NODE,
   OUTLINE_FAILURE,
   OUTLINE_LINK,
@@ -53,10 +54,9 @@ When("I delete {string}", function (this: OlaiWorld, file: string) {
  * happen on any machine: EACCES needs a non-root user and ENOSPC needs a full
  * disk, and all three arrive at the probe as the same `PlatformFailure`.
  *
- * It is the LAST thing a scenario can do to a scratch corpus, which is why
- * there is no step to put it back — the store's own recovery is unit-tested
- * (`@olai/store`'s "a directory that comes back clears what was said about
- * it"); what only an e2e can say is that the reason reaches a reader.
+ * Putting it BACK is `I rewrite`, which makes the directories it needs — so
+ * the recovery half is the same steps every other liveness scenario uses, and
+ * what only an e2e can say is that both halves reach a reader.
  */
 When("the served directory is taken away", function (this: OlaiWorld) {
   fs.rmSync(this.scratch(), { recursive: true, force: true });
@@ -191,6 +191,22 @@ Then("the stale banner is shown", async function (this: OlaiWorld) {
   await this.page
     .locator(STALE_BANNER)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+/**
+ * The same claim, on the budget a change to the ROOT ITSELF needs.
+ *
+ * Its own step rather than a longer default, so exactly one scenario pays: an
+ * edit INSIDE the directory is seen by the watcher and lands in milliseconds,
+ * and every scenario asserting one keeps the interaction budget. A directory
+ * that was removed is the case no watcher reports on both platforms, so the
+ * probe that notices is the unconditional sweep — prompt on Linux, a backstop
+ * away on macOS, and the same product on each.
+ */
+Then("the stale banner eventually appears", async function (this: OlaiWorld) {
+  await this.page
+    .locator(STALE_BANNER)
+    .waitFor({ state: "visible", timeout: BACKSTOP_TIMEOUT });
 });
 
 Then(
