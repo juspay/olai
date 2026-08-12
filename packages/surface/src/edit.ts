@@ -196,6 +196,12 @@ export const Edit = Schema.Union([
    * is a fact about the editor, and a fact about the editor is not a fence —
    * the fence is the refusal, and it is the ops layer's rule about what an
    * undo is entitled to: what it made, never what somebody built on it.
+   *
+   * IT DOES NOT COME BACK, and that is not this face's gap: there is no
+   * unarchive on ANY face (human, 2026-08-12 — an equal absence rather than a
+   * deviation, one op to build once in the ops layer and expose to both faces
+   * together). So the undo of this one says it cannot be redone, and the day
+   * that op exists it stops having to.
    */
   Schema.Struct({ verb: Schema.Literal("remove"), id: Id }),
 ])

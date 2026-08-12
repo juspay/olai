@@ -116,6 +116,16 @@ it are all consequences of one choice: an undo is a WRITE.
   it made, never what somebody built on it. The cost is that it does not come
   back out (a `move` is same-file by the format), so that one entry says it
   cannot be redone rather than leaving a ⌘⇧Z that does nothing.
+
+  What that cost IS has a name as of the inventory below (2026-08-12): there is
+  **no unarchive on any face**, which is an equal absence rather than a
+  deviation — one op to build once in the ops layer and expose to both faces
+  together. The day it exists, this entry stops being the one that cannot be
+  redone, and nothing else here changes. The other half of that ruling cuts the
+  other way and is worth stating against this PR: the web has no archive
+  affordance at all, so what an un-create reaches for is an op only the agent
+  can otherwise ask for. It is reached ONLY as the inverse of a row this
+  session created — not a general archive door, and not the delete key.
 - **A move whose recorded parent has been archived** surfaces as the ops
   layer's own cross-file refusal, verbatim, and the entry is dropped — the
   other judgment call the dispatch named. Nothing here invents a sentence for
