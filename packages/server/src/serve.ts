@@ -102,17 +102,18 @@ export const serve = (options: ServeOptions) =>
     // its refusals, because the chat is not what writes.
     let chat: Chat.Chat | null = null
 
-    // Bumped whenever a commit lands, by whichever door — the button, the
-    // agent's tool, or `--commit=auto`. A commit moves no served file, so
-    // nothing else in this process can say that what is waiting has changed.
-    const committed = yield* SubscriptionRef.make(0)
+    // Bumped whenever git recorded or shared something — a commit by whichever
+    // door (the button, the agent's tool, `--commit=auto`), or a push. Neither
+    // moves a served file, so nothing else in this process can say that what is
+    // waiting has changed.
+    const recorded = yield* SubscriptionRef.make(0)
 
     const ops = makeOps({
       store,
       root,
       commits: options.commits,
       onRecorded: () => {
-        Effect.runSync(SubscriptionRef.update(committed, (count) => count + 1))
+        Effect.runSync(SubscriptionRef.update(recorded, (count) => count + 1))
       },
       // A refusal reaches the agent as its tool result AND the panel as a row:
       // what the agent then says about it is prose, and the unfinished
@@ -154,7 +155,7 @@ export const serve = (options: ServeOptions) =>
       chat,
       ops,
       writer: "web",
-      git: gitWiring(ops, "web", committed),
+      git: gitWiring(ops, "web", recorded),
     })
     publish = wired.publish
 
