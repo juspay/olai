@@ -818,6 +818,19 @@ export class OlaiWorld extends World {
       .map((line) => JSON.parse(line) as Record<string, unknown>);
   }
 
+  /** One more record at the end of a served outline, as another writer would
+   *  leave it — a `git pull`, the agent, a second tab.
+   *
+   *  APPENDED rather than written whole, which is the whole point of it having
+   *  its own method: `writeServed` replaces the file, so a scenario using it
+   *  mid-run would also undo whatever the keys under test have just done. What
+   *  these scenarios are about is a page meeting a set that moved UNDERNEATH
+   *  it. */
+  appendServed(file: string, record: Record<string, unknown>): void {
+    const lines = this.servedNodes(file).map((node) => JSON.stringify(node));
+    this.writeServed(file, [...lines, JSON.stringify(record)].join("\n"));
+  }
+
   removeServed(file: string): void {
     fs.rmSync(path.join(this.scratch(), file));
   }

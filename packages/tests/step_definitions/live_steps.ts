@@ -48,6 +48,44 @@ When("I delete {string}", function (this: OlaiWorld, file: string) {
 });
 
 /**
+ * Somebody else, writing, mid-scenario.
+ *
+ * The same door as `I rewrite` — a file changing under a running server — but
+ * ADDING rather than replacing, which is what makes it usable in the middle of
+ * a scenario that is testing keys: a rewrite would also revert whatever they
+ * just did. The ids are fixed and named in the feature, so a scenario can
+ * point at the row afterwards and say it is still there. What it is FOR is the
+ * claim undo exists to make: an inverse is judged against the set as it is, so
+ * taking your own edit back leaves everybody else's alone.
+ */
+When(
+  "another writer adds {string} to {string}",
+  function (this: OlaiWorld, title: string, file: string) {
+    this.appendServed(file, { id: "outsider", ord: "z0", title });
+  },
+);
+
+When(
+  "another writer files a row under {string} in {string}",
+  function (this: OlaiWorld, under: string, file: string) {
+    // By TITLE, because the row it goes under is one the scenario has just
+    // typed and its id was minted by the write — which is the same id the undo
+    // of that write names, and the point of the scenario.
+    const parent = this.servedNodes(file).find((node) => node["title"] === under);
+    assert.ok(
+      parent !== undefined,
+      `${file} holds no node titled ${JSON.stringify(under)} to file anything under`,
+    );
+    this.appendServed(file, {
+      id: "interloper",
+      parent: parent["id"],
+      ord: "a0",
+      title: "and something filed under it",
+    });
+  },
+);
+
+/**
  * The served directory itself goes away under the running server.
  *
  * The store's OTHER failure — not a file it cannot parse, but a tree it cannot

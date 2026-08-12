@@ -27,6 +27,7 @@ import { IDLE_COMMIT } from "@olai/web/src/client/edit/draft.ts";
 
 import type { Locator } from "playwright";
 
+import { saysNothing, saysThat } from "../support/said.ts";
 import {
   DESC_EDITOR,
   EDIT_NUDGE,
@@ -215,36 +216,22 @@ Then(
   },
 );
 
-/** What the line under the editor says — a refusal and a nudge are the same
- *  assertion about two moods, so they are one function and two steps. */
-const saidUnderTheRow = async (
-  world: OlaiWorld,
-  locator: string,
-  said: string,
-  what: string,
-): Promise<void> => {
-  const line = world.page.locator(locator).first();
-  await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  const text = (await line.innerText()).trim();
-  assert.ok(
-    text.includes(said),
-    `the ${what} reads ${JSON.stringify(text)}, which does not mention ${JSON.stringify(said)}`,
-  );
-};
-
+/** What the line under the editor says. A refusal and a nudge are the same
+ *  assertion about two moods, and so is the line an undo draws over the page —
+ *  which is why the ritual itself lives in `support/said.ts` and this file
+ *  holds the two steps that name the two locators. */
 Then("the refusal says {string}", async function (this: OlaiWorld, said: string) {
-  await saidUnderTheRow(this, EDIT_REFUSAL, said, "refusal");
+  await saysThat(this, EDIT_REFUSAL, said, "refusal");
 });
 
 Then("the nudge says {string}", async function (this: OlaiWorld, said: string) {
-  await saidUnderTheRow(this, EDIT_NUDGE, said, "nudge");
+  await saysThat(this, EDIT_NUDGE, said, "nudge");
 });
 
 Then("nothing is being said about the row", async function (this: OlaiWorld) {
-  await this.waitUntil(
-    async () =>
-      (await this.page.locator(EDIT_NUDGE).count()) === 0 &&
-      (await this.page.locator(EDIT_REFUSAL).count()) === 0,
+  await saysNothing(
+    this,
+    [EDIT_NUDGE, EDIT_REFUSAL],
     "the row to have nothing said about it",
   );
 });

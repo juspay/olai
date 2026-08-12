@@ -38,6 +38,7 @@ import { Result } from "effect"
 
 import { runAsync } from "../run.ts"
 import { olai } from "../wire.ts"
+import { serial } from "./queue.ts"
 import { EMPTY, kept, recorded, type Side, type Stack, type Step, taken } from "./undo.ts"
 
 /** What the last ⌘Z / ⌘⇧Z had to say, in the two moods a write already has:
@@ -50,9 +51,10 @@ export interface Said {
 
 export interface Undo {
   /** A write this tab just made, as what would take it back — the server's
-   *  answer, verbatim. Called by the row editor for every write that has one;
-   *  a text edit has none, which is what keeps drafts out of the stack. */
-  readonly record: (step: Step) => void
+   *  answer, verbatim, `undefined` and all: a text edit answers with nothing,
+   *  which is what keeps drafts out of the stack, and the one place that is
+   *  decided is here rather than at every call site. */
+  readonly record: (step: Step | undefined) => void
   readonly undo: () => void
   readonly redo: () => void
   /** Another outline is open: the entries name rows in the one that is not. */
@@ -73,11 +75,15 @@ export function UndoProvider(props: {
   )
 }
 
-/** The stack this page's editor records into. `null` outside a provider rather
- *  than a throw: a row can be drawn on a page that has no undo (the app's
- *  shell draws one before a route resolves), and "there is nowhere to record
- *  this" is a state, where "there is no editor" is a bug. */
-export const useUndo = (): Undo | undefined => useContext(UndoContext)
+/** The stack the page's editor records into and the keyboard spends. A throw
+ *  outside the provider, for the reason `useEditor` throws: the provider wraps
+ *  the whole app, so a consumer without one is a bug in this app rather than a
+ *  state a reader can reach. */
+export const useUndo = (): Undo => {
+  const undo = useContext(UndoContext)
+  if (undo === undefined) throw new Error("an undo consumer outside <UndoProvider>")
+  return undo
+}
 
 export const createUndo = (): Undo => {
   const [stack, setStack] = createSignal<Stack>(EMPTY)
@@ -91,17 +97,18 @@ export const createUndo = (): Undo => {
    * judged against the same snapshot — both refused, or both applied to a row
    * that has since moved.
    *
-   * The editor has a queue of its own and these two are deliberately not one.
-   * The editor's exists because its writes are derived FROM EACH OTHER over a
-   * draft (`./editing.tsx` says so): the id an `add` answers with, the place a
-   * move produced. Nothing here is derived from a draft — an inverse is judged
-   * at the gate against the set as it is — so the two never have to be ordered
-   * against each other. Where they can genuinely meet is a title commit still
-   * in flight when the caret leaves and ⌘Z takes back the row it was on, and
-   * that meeting ends the way every other collision at this gate does: the
-   * loser is refused, and the reason is shown.
+   * The editor has a queue of its own and these two are deliberately not one,
+   * which is why they are two calls to {@link serial} rather than one shared
+   * instance. The editor's exists because its writes are derived FROM EACH
+   * OTHER over a draft (`./editing.tsx` says so): the id an `add` answers with,
+   * the place a move produced. Nothing here is derived from a draft — an
+   * inverse is judged at the gate against the set as it is — so the two never
+   * have to be ordered against each other. Where they can genuinely meet is a
+   * title commit still in flight when the caret leaves and ⌘Z takes back the
+   * row it was on, and that meeting ends the way every other collision at this
+   * gate does: the loser is refused, and the reason is shown.
    */
-  let gate: Promise<unknown> = Promise.resolve()
+  const enqueue = serial()
 
   /**
    * Replay one entry's edits, in order, stopping at the first refusal.
@@ -155,22 +162,24 @@ export const createUndo = (): Undo => {
     setSaid(null)
 
     const { back, said } = await sent(held.step, side)
-    if (back.length > 0) setStack((current) => kept(current, side, back))
-    // Nothing to file and nothing refused: it landed, and no edit would replay
-    // it — the only write that answers that way is a row taken back into the
-    // archive, which no move brings out (a parent is same-file by the format).
-    // Said rather than left as a ⌘⇧Z that does nothing.
-    setSaid(said ?? (back.length === 0 ? { tone: "aside", text: GONE } : null))
+    if (back.length === 0) {
+      // Nothing would replay it. Either it was refused (and `said` is the
+      // reason) or it landed and no edit brings it back — the only write that
+      // answers that way is a row taken back into the archive, which no move
+      // brings out (a parent is same-file by the format). Said rather than
+      // left as a ⌘⇧Z that does nothing.
+      setSaid(said ?? { tone: "aside", text: GONE })
+      return
+    }
+    setStack((current) => kept(current, side, back))
+    if (said !== null) setSaid(said)
   }
 
-  const press = (side: Side) => () => {
-    const again = () => replay(side)
-    gate = gate.then(again, again)
-  }
+  const press = (side: Side) => () => enqueue(() => replay(side))
 
   return {
     record: (step) => {
-      if (step.length === 0) return
+      if (step === undefined || step.length === 0) return
       setStack((current) => recorded(current, step))
     },
     undo: press("done"),

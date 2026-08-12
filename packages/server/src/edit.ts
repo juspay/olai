@@ -152,9 +152,7 @@ const moveRequest = (
   // a reader can reorder — so this is the row's own record rather than what it
   // shows. That is the opposite of a text edit, which the ops layer refuses on
   // a mirror because a mirror has no title of its own.
-  const { file, node } = located
-  const row = siblingsOf(derived, file, node.parent)
-  const at = row.findIndex((sibling) => sibling.node.id === edit.id)
+  const { row, at } = among(derived, located)
 
   switch (edit.how) {
     case "up": {
@@ -209,7 +207,7 @@ const moveRequest = (
       return Result.succeed({ op: "move", id: edit.id, parent: parent.node.id })
     }
     case "out": {
-      const parent = node.parent
+      const parent = located.node.parent
       if (parent === undefined) {
         return Result.fail(
           refusal("this row is already at the top level, so there is nothing to outdent out of"),
@@ -257,9 +255,11 @@ const placeRequest = (
   if (edit.after !== null) {
     return Result.succeed({ op: "move", id: edit.id, parent: edit.parent, after: edit.after })
   }
-  const row = siblingsOf(derived, located.file, edit.parent ?? undefined)
-    .filter((sibling) => sibling.node.id !== edit.id)
-  const first = row[0]
+  // The first row that is not this one — `find` rather than a filtered copy,
+  // because the answer is one sibling and the list it is drawn from is every
+  // top-level record in the set when the parent is `null`.
+  const first = siblingsOf(derived, located.file, edit.parent ?? undefined)
+    .find((sibling) => sibling.node.id !== edit.id)
   return Result.succeed({
     op: "move",
     id: edit.id,
@@ -362,6 +362,16 @@ const removeRequest = (
  * draft's own to abandon (Escape, blur — the editor owns text), and a `remove`
  * has put a node in the archive, which no move brings out (a parent is
  * same-file by the format).
+ *
+ * WHERE IT WOULD GO IF THE AGENT EVER WANTED ONE: down, into `@olai/ops`'
+ * planner, beside the op whose effect it reverses — that is the layer that
+ * already knows what each op destroys, and it would answer for every request
+ * rather than for the six a keyboard can send. It is here because undo is the
+ * BROWSER's (the roadmap scopes it to "ops THIS client performed"), and
+ * because six arms beside the resolver they mirror is a smaller thing than an
+ * inverse for `create`, `mirror`, `see`, `after` and `archive` that nothing
+ * would call. Recorded rather than done: the second consumer is the moment to
+ * move it.
  */
 export const inverseOf = (
   at: Reading,
@@ -396,9 +406,8 @@ export const inverseOf = (
 const placementOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
   const located = derived.byId.get(id)
   if (located === undefined) return []
-  const row = siblingsOf(derived, located.file, located.node.parent)
-  const at = row.findIndex((sibling) => sibling.node.id === id)
-  const above = at > 0 ? row[at - 1] : undefined
+  const { row, at } = among(derived, located)
+  const above = row[at - 1]
   return [{
     verb: "place",
     id,
@@ -424,6 +433,23 @@ const markOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
   return stored === null || stored === "done"
     ? [{ verb: "mark", id, mark: stored }]
     : [{ verb: "mark", id, mark: null }, { verb: "mark", id, mark: stored }]
+}
+
+/**
+ * The row a record sits in, and where in it.
+ *
+ * One spelling, because the two questions asked of it have to agree exactly:
+ * `Alt+Shift+↑` moves a row past the sibling above it, and the inverse of a
+ * move records the sibling above it. Two scans, however alike they looked,
+ * would be two chances for an undo to land one row off — which nothing but a
+ * browser test would ever notice.
+ */
+const among = (
+  derived: Derived,
+  located: Located,
+): { readonly row: ReadonlyArray<Located>; readonly at: number } => {
+  const row = siblingsOf(derived, located.file, located.node.parent)
+  return { row, at: row.findIndex((sibling) => sibling.node.id === located.node.id) }
 }
 
 /** What to call a record in a sentence. A MIRROR has no title of its own — it

@@ -49,11 +49,12 @@
  * moved somewhere the inverse cannot go.
  *
  * That is also how the delete this list used to lack arrives (human,
- * 2026-08-11: "it arrives with undo"). `remove` is not bound to a key and
- * nothing but an inverse produces one — the only row it can take back is a row
- * that was just added — and what it resolves to is the ops layer's own
- * `archive`, which is the only removal the set has. Split/merge, multi-select
- * and drag-drop are their own items, so none of them is expressible here.
+ * 2026-08-11: "it arrives with undo"). `remove` is bound to no key, and what
+ * it resolves to is the ops layer's own `archive` — the only removal the set
+ * has — narrowed to a node with nothing under it, which is the rule about what
+ * an undo is entitled to rather than a delete policy this surface invented.
+ * Split/merge, multi-select and drag-drop are their own items, so none of them
+ * is expressible here.
  */
 
 import { MARKS, OpFailure } from "@olai/format"
@@ -134,9 +135,18 @@ export const Edit = Schema.Union([
    * here that names a placement outright.
    *
    * `move` cannot express it: "out" means "after what used to be my parent",
-   * which is where an indent came from and nowhere else. A row that was
-   * dragged two levels and three siblings has a place, and a place is a parent
-   * and a neighbour.
+   * which is where an indent came from and nowhere else — and it is not where
+   * a row that was indented and then reordered came from. What a row leaves
+   * behind is a PLACE, and a place is a parent and a neighbour.
+   *
+   * Nor can {@link Anchor}, which is the shape three lines of this file's own
+   * argument would send a reader to: its arms are where a NEW ROW goes, and
+   * both of the ones that name a container mean LAST among what is there
+   * ("under" a node, "first" in an empty file). A row that was first among its
+   * siblings has to come back to the front, so reusing those arms would need
+   * two more with the opposite meaning inside a union about creation. It is
+   * also total where an ops `move` is not: both fields are required, and
+   * `null` is an answer rather than an absence.
    */
   Schema.Struct({
     verb: Schema.Literal("place"),
@@ -146,7 +156,14 @@ export const Edit = Schema.Union([
     /** The sibling it sat immediately AFTER — `null` when it was the first of
      *  them, which is a place a neighbour cannot name. Recorded as a NODE
      *  rather than as an index: ids survive what another writer does to the
-     *  rows around them, and an index does not. */
+     *  rows around them, and an index does not.
+     *
+     *  BOTH fields, and the second is not redundant with the first even though
+     *  a sibling implies a parent: the pair is CHECKED. If that neighbour has
+     *  itself moved somewhere else since, "after it" and "under that parent"
+     *  stop agreeing, and the ops layer refuses the placement instead of
+     *  quietly following the neighbour into a branch this row was never in.
+     *  That refusal is the feature. */
     after: Schema.NullOr(Id),
   }),
   /**
@@ -168,9 +185,14 @@ export const Edit = Schema.Union([
    *
    * It resolves to `archive`, because that is the only removal the SET has: a
    * node goes to `Archive.jsonl` keeping its id, which is a trash rather than
-   * a shredder and is exactly what `archive_node` does for an agent. Refused
-   * for a row that has grown children since — an undo may take back what it
-   * made, never what somebody built on it.
+   * a shredder and is exactly what `archive_node` does for an agent.
+   *
+   * What the WIRE guarantees is the narrowing, and it is worth saying in those
+   * terms rather than in the client's: this is `archive_node` minus every node
+   * that has anything under it. That nothing but an inverse produces one today
+   * is a fact about the editor, and a fact about the editor is not a fence —
+   * the fence is the refusal, and it is the ops layer's rule about what an
+   * undo is entitled to: what it made, never what somebody built on it.
    */
   Schema.Struct({ verb: Schema.Literal("remove"), id: Id }),
 ])

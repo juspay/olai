@@ -75,6 +75,7 @@ import {
   typed,
 } from "./draft.ts"
 import { flatten, neighbour } from "./order.ts"
+import { serial } from "./queue.ts"
 import { useUndo } from "./undoing.tsx"
 
 export interface Editor {
@@ -170,10 +171,9 @@ export const createEditor = (
 ): Editor => {
   const [draft, setDraft] = createSignal<Draft | null>(null)
   const [caret, setCaret] = createSignal(0)
-  /** Where a write's inverse goes, when the page this editor is on has a
-   *  stack. Read once, here, rather than at every write: it is the app's, it
-   *  does not move, and a component reaching for a context inside a promise
-   *  would be reaching outside the tracking scope that owns it. */
+  /** Where a write's inverse goes. Read once, here, rather than at every
+   *  write: it is the app's, it does not move, and a context read inside a
+   *  promise would be reaching outside the scope that owns it. */
   const undo = useUndo()
 
   /**
@@ -188,18 +188,15 @@ export const createEditor = (
    * invisible in a way this whole design is written against: nobody would see
    * the second one land against the row the first one moved.
    *
-   * So it is a queue of one. Each step waits for the last to settle —
-   * `then(step, step)`, so a step that throws does not wedge every later key —
-   * and the sequencing the header promises is this line rather than a habit of
+   * So it is a queue of one ({@link ./queue.ts}, which is where the reason a
+   * step that THROWS must not wedge the ones after it lives) — and the
+   * sequencing the header promises is this line rather than a habit of
    * awaiting in the right places.
    *
    * What is NOT queued is what a person must never wait for: typing
    * ({@link Editor.type} is a signal write) and `Escape`, which abandons.
    */
-  let gate: Promise<unknown> = Promise.resolve()
-  const enqueue = (step: () => Promise<unknown>): void => {
-    gate = gate.then(step, step)
-  }
+  const enqueue = serial()
 
   /** The caret's own three facts, memoised so typing does not move them. */
   const where = createMemo<Caret>(() => {
@@ -296,7 +293,7 @@ export const createEditor = (
       // against ({@link ./undoing.tsx}). A text edit answers with nothing,
       // which is what keeps drafts out of it: what a person typed is taken
       // back by Escape and by the editor's own blur rule, not by an op.
-      undo?.record(outcome.success.undo ?? [])
+      undo.record(outcome.success.undo)
       return outcome.success
     }
     setDraft((held) =>

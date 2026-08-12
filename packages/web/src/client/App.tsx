@@ -97,17 +97,25 @@ export default function App() {
 
   const docked = () => outlines.manifest() !== null && page() !== undefined
 
-  // Undo is the OUTLINE's, and it is held here for the reason the route is:
-  // its entries name rows in one file, and the two keys that spend them are
-  // global chords the one window listener answers (./palette/Palette.tsx).
-  // Cleared when the reader opens another outline — a stack of ops on rows
-  // that are not on screen is a stack nobody could predict the effect of.
+  // Undo is the OUTLINE's, and it is held HERE rather than beside the editor
+  // (`edit/Editable.tsx`, where a draft lives for the reason its own header
+  // gives) because its two keys are global chords, and the one window listener
+  // that answers those is a sibling of the page rather than inside it — a
+  // context cannot reach sideways, so a page-scoped stack would be a stack
+  // ⌘Z could not spend. What the page owns instead is when it ENDS: cleared
+  // when the reader opens another outline, because a stack of ops on rows that
+  // are not on screen is a stack nobody could predict the effect of.
   const undo = createUndo()
   // A MEMO, and it is load-bearing: `page()` is minted afresh on every
   // revision the store publishes, so an effect tracking it directly would
   // clear the stack on every write — including, in the frame it arrives, the
   // write that has just been recorded into it. What the stack cares about is
   // the FILE, which a memo only reports when it actually changes.
+  //
+  // `undefined` for the pages that are not one outline (a day, a document that
+  // is not an outline, nothing found) is the right answer rather than a hole:
+  // arriving at one clears the stack, and no page but an outline's can put
+  // anything back into it — there is no editor to record from.
   const openFile = createMemo(() => {
     const open = page()
     return open === undefined ? undefined : fileOf(open)
@@ -126,8 +134,6 @@ export default function App() {
           if (desktop()) toggleSidebar()
           else setMenuOpen(!menuOpen())
         }}
-        undo={undo.undo}
-        redo={undo.redo}
       />
       <UndoSaid said={undo.said()} />
       <div class="flex min-h-dvh flex-col">
