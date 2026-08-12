@@ -96,3 +96,4 @@
 {"id":"now-mcp-mirror-op","parent":"now","ord":"aE","mirror":"mcp-mirror-op"}
 {"id":"now-one-git-indicator","parent":"now","ord":"aF","mirror":"one-git-indicator"}
 {"id":"now-load-perf-p1","parent":"now","ord":"aG","mirror":"load-perf-p1"}
+{"id":"sidebar-sticky","parent":"bugs","ord":"aD","title":"Desktop sidebar scrolls away with the page — should it pin like the header?","todo":true,"desc":"Filed 2026-08-11 by the orchestrator from the sticky-header author's deliberate out-of-scope flag (visible in .worktrees/sticky-header-refs/out/desktop-scrolled.png as an empty directory column on a scrolled page): with the header now pinned (#115), the desktop sidebar column still scrolls with the page as it always has. Whether it should pin (calendar + file tree always visible, its own scroll) is a UX decision the fix deliberately did not take. AWAITING THE HUMAN'S RATIFICATION: pin it, or let it lie. Not dispatched."}
