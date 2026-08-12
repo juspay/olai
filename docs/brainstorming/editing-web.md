@@ -142,7 +142,7 @@ Status keys: **shipped** (item, PR) · **filed** (roadmap id) · **MISSING**
 |---|---|---|
 | Mirror creation | `((` search, `Alt/⌘+Shift+M`, menu | filed `input-widgets` |
 | **Mirror detach (back to copy) / remove placement** | menu | **MISSING** on the web face (MCP has `remove_mirror` since #117) |
-| **Copy link to node** (internal link others can paste) | `Alt/⌘+Shift+L`, menu | **MISSING** — `/n/<id>` routes exist; no affordance mints one, nothing autocompletes an internal link in a title |
+| **Copy link to node** (internal link others can paste) | `Alt/⌘+Shift+L`, menu | partial — the `•••` menu HAS "Copy link to node" (corrected 2026-08-12; the first pass of this table missed it); no keybinding, and nothing autocompletes an internal link in a title |
 | Tag autocomplete | `#` / `@` | filed `input-widgets` |
 | Date insert | `!` natural-language picker | filed `input-widgets`; **editing/clearing a stored date** must be named in that item's scope |
 
