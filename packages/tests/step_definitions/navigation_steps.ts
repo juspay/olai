@@ -305,10 +305,14 @@ Then("the tip is inside the window", async function (this: OlaiWorld) {
 // changed.
 
 Given("the window is shorter than the page", async function (this: OlaiWorld) {
-  // The laptop this suite reads on, made short: only the HEIGHT is this step's
-  // decision, and the width stays the one every other scenario is laid out at
+  // The window this suite reads in, made short: only the HEIGHT is this step's
+  // decision, and the width stays the one the scenario was laid out at
   // (`support/hooks.ts`) so the two-column breakpoint is not re-decided here.
-  await this.page.setViewportSize({ ...DESKTOP.viewport, height: 400 });
+  // Read back rather than spelled, because a `@phone` scenario says this too
+  // (`the_header_sticks.feature`) and pinning the laptop's width would have
+  // turned its handset into a 1440px one mid-scenario.
+  const size = this.page.viewportSize() ?? DESKTOP.viewport;
+  await this.page.setViewportSize({ width: size.width, height: 400 });
 });
 
 const scrollTop = (world: OlaiWorld): Promise<number> =>
