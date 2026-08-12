@@ -48,4 +48,5 @@ comes back saying why, where the agent and the panel both read it.
 Every commit message starts with `olai`, so `git log --grep '^olai'` is the
 audit view and `--invert-grep` gives you back your own history. Each commit
 carries an `X-Olai-Writer` trailer saying which of you — the chat agent, an
-MCP client, or the keyboard — wrote it.
+MCP client, or the browser (`web`: the keyboard editor and the row's `•••`
+menu, which write through the same door) — wrote it.

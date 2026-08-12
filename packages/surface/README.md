@@ -162,8 +162,9 @@ never sent. The agent's WRITES are not members at all: they reach the ops layer
 through the internal MCP server, and what a reader sees of them is the outline
 entries moving.
 
-The last member is the **keyboard's** (`src/edit.ts`) — one procedure over one
-tagged union, and the only place a browser may cause a write:
+The last member is the **keyboard's and the row menu's** (`src/edit.ts`) — one
+procedure over one tagged union, and the only place a browser may cause a
+write:
 
 - **the verbs are INTENTS.** `Tab` says "indent this", not "reparent it under
   the node above and put it last"; `Ctrl+Enter` says "toggle done", not "set"
@@ -177,16 +178,25 @@ tagged union, and the only place a browser may cause a write:
   site is a compile error rather than a silent hole. Five procedures was the
   first shape, and it was five spellings of one list.
 - **it is not the ops request vocabulary re-spelled.** It is smaller (no
-  `create`, no `archive`, no `see`, no `date`, no chosen ids) and, where it
-  differs, it differs because something is resolved behind it — so the two
-  verbs that resolve nothing use the ops layer's own words (`title`, `desc`),
-  and a name that differs from an op's is a name with arithmetic behind it.
-  Ops itself learns none of it: an op does not know it is being called over a
-  wire.
-- **a delete is deliberately absent.** It arrives with the undo item — until
-  an edit can be taken back inside the app, git is the whole of the recovery
-  net, and a key that removes a subtree is the one edit a person cannot
-  re-type from memory.
+  `create`, no `see`, no `after`, no `mirror`, no chosen ids) and, where it
+  differs, it differs because something is resolved behind it — so the verbs
+  that resolve nothing use the ops layer's own words (`title`, `desc`, `date`,
+  `unmirror`, `archive`), and a name that differs from an op's is a name with
+  arithmetic behind it. Ops itself learns none of it: an op does not know it is
+  being called over a wire.
+- **four of the verbs are the `•••` menu's**, and they are here to close a
+  DEVIATION rather than to grow the editor: an agent could put any of the three
+  marks on a node, clear a date, retire a placement and archive a subtree, and
+  a person could do none of them (HACKING.md — "MCP and Web ops must be
+  consistent; never deviate"). `mark`, `date`, `unmirror` and `archive` each
+  resolve to the request the equivalent tool sends. A fence the UI wants stays
+  in the UI: `archive` takes a subtree because `archive_node` does, and the
+  confirm naming how many rows go is the menu's own second step — put here, it
+  would be a rule the agent's op does not have.
+- **a delete is still deliberately absent.** `archive` is not one: it is the
+  ops layer's put-away, ids kept, so mirrors and `after` edges that name the
+  subtree go on resolving. A key that ERASES one is the one edit a person
+  cannot re-type from memory, and nothing on any face does it.
 
 It declares `OpFailure` as its error channel, which is what the editor is built
 on: a refused write comes back as the validator's own rows, so the draft it

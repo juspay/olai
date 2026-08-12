@@ -66,7 +66,8 @@ import { foldableKeys } from "./fold.ts"
 import { createNoteExpand } from "./note/expand.ts"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
-import { nodeMenuActions, NodeMenu } from "./NodeMenu.tsx"
+import { nodeMenuActions } from "./menu/actions.ts"
+import { NodeMenu } from "./menu/NodeMenu.tsx"
 import { useRouter } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import {
@@ -184,11 +185,15 @@ function Branch(props: {
         {/* Hover strip: triangle always (phone) / hover-reveal (pointer);
             ••• menu only on pointer devices (hidden below md). */}
         <div class={HOVER_GUTTER}>
+          {/* The catalog is built where it is READ, which is inside the open
+              panel: Solid compiles a dynamic component prop to a getter, so
+              this call does not run for the rows nobody has opened a menu on.
+              That is load-bearing rather than incidental — one of the verbs
+              counts the rows under this one (`menu/subtree.ts`), and a walk
+              per row per frame would be the tree squared. */}
           <NodeMenu
             actions={nodeMenuActions({
-              id: props.row.at.node.id,
-              placeKey: props.row.key,
-              hasChildren: hasChildren(),
+              row: props.row,
               collapsed: collapsed(),
               foldable: foldable(),
               view: props.view,

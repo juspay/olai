@@ -918,9 +918,9 @@ loop a person is in, and nothing about outlines:
   screen, folds and all.
 
 There is deliberately no delete, no split/merge, no multi-select and no
-drag-drop: each is its own roadmap item, and a delete arrives with undo,
-because until an edit can be taken back inside the app, git is the whole of the
-recovery net.
+drag-drop: each is its own roadmap item. Putting a node AWAY is not among them
+— that is `Archive` in the `•••` menu below, which is the ops layer's own
+put-away rather than an erase.
 
 Two more shapes this leaves, named because a reader will look for them:
 
@@ -929,10 +929,63 @@ Two more shapes this leaves, named because a reader will look for them:
   it, drawn by `NodePage` outside the tree the editor's places are keyed by.
   Editing it wants the caret model to mean something on a page with one
   heading and N rows, which is a decision rather than a line of code.
-- **the mark is keyboard-only.** `Ctrl+Enter` in a row's editor ticks a node
-  off; the checkbox stays display-only (`Checkbox.tsx` says why), so a phone
-  can open a title by tapping it and cannot tick it. Desktop-first for this
-  item; a touch affordance belongs with the widgets that follow it.
+- **the checkbox is display-only.** `Ctrl+Enter` in a row's editor ticks a node
+  off and the `•••` menu writes any of the three marks; the box itself stays a
+  reading (`Checkbox.tsx` says why). The menu is a pointer-device affordance
+  (hidden below `md`), so a phone can open a title by tapping it and still
+  cannot tick it — desktop-first for this item, and a touch affordance belongs
+  with the widgets that follow it.
+
+## The ••• menu
+
+`src/client/menu/` is the row's own menu, and it grew from five ways of LOOKING
+at an outline into the place a mouse changes one. That is a consistency fix
+rather than editor growth: an agent at the same directory could mark a node
+todo, clear a date, retire a placement and archive a subtree, and a person
+could do none of them (HACKING.md — "MCP and Web ops must be consistent; never
+deviate"). Every verb below rides the same intent seam the keys ride, so what
+lands is the request `set_todo` / `set_date` / `remove_mirror` / `archive_node`
+would have sent, judged by the same planner and refused in the same words.
+
+| file | what it owns |
+|---|---|
+| `verbs.ts` | which writes a row offers, and the exact `Edit` each sends. Pure over a `Row`, so the contextual rules are a unit test |
+| `subtree.ts` | what hangs under a row: the count a confirm names, and the text a copy produces. Pure |
+| `writes.ts` | the write gate, and turning both answers into one sentence |
+| `actions.ts` | the catalog: the view verbs, the writes, the clipboard |
+| `NodeMenu.tsx` | the panel, its confirm step, and the line beside the `•••` |
+
+- **The reads are still first, and a rule separates them.** Above it, verbs
+  that change what this tab is looking at (zoom, the four folds, copy link);
+  below it, verbs that change the directory. Reaching for `Collapse all` and
+  hitting `Archive` is a mistake the ORDER can prevent.
+- **Every entry is a verb that would do something.** The mark a node already
+  carries is not offered back to it, `Clear mark` appears only on a marked row,
+  `Clear date` only on a dated one, `Remove this placement` only on a mirror
+  (including one whose target has gone — the row nothing else in this app could
+  do anything about), and `Archive` only on a node's own row, because on a
+  placement the verb IS retiring the placement.
+- **What ops refuses is quoted, not summarised.** A `done` node still offers
+  `Mark todo`, and choosing it answers with the ops layer's own sentence —
+  *nothing should decide on your behalf that finished work is not finished* —
+  because the two calls that walk it back are the two an agent makes, and the
+  second click is the person's. A nudge from a write that LANDED arrives on the
+  same line in the other mood (`data-tone`: `alarm` / `aside`).
+- **Archive asks first, and says how much goes.** The human's ruling: a subtree
+  may be archived WITH a confirm naming the blast radius — *"Archive “install
+  the cabinets” and the 3 rows under it?"* — and the confirm is this panel's own
+  second step rather than a `window.confirm()`, which is browser chrome olai
+  does not own and cannot say a sentence in. It is a trash and not a shredder
+  (the ids come along, so mirrors and `after` edges go on resolving), and it
+  says so honestly: there is no unarchive on ANY face yet, so bringing
+  something back means editing `Archive.jsonl`.
+- **Copy as text** is the one pure read among them: the subtree as tab-indented
+  plain text, titles verbatim, notes one level under their node, nothing
+  encoding a mark or a date. A mirror copies what it draws.
+
+Not here: `see` / `after` edge editing and mirror creation (they want a node
+search — `parity-see`, `parity-after`, `input-widgets`), setting a date (the
+`!` picker), move-to, duplicate, and unarchive, which no face has yet.
 
 
 ## What belongs to a reading, not to the file

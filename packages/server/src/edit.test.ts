@@ -208,3 +208,76 @@ test("a title and a note are what they say", () => {
   expect(asked({ verb: "desc", id: "order", desc: null }))
     .toEqual({ op: "desc", id: "order", desc: null })
 })
+
+// ── the four the ••• menu speaks ───────────────────────────────────────
+
+test("a mark named outright is that mark's own op", () => {
+  // The menu's half of the mark: it was chosen from a list drawn beside what
+  // the node carries, so it says what it wants rather than asking to toggle.
+  expect(asked({ verb: "mark", id: "install", mark: "todo" }))
+    .toEqual({ op: "todo", id: "install" })
+  expect(asked({ verb: "mark", id: "demo", mark: "doing" }))
+    .toEqual({ op: "doing", id: "demo" })
+})
+
+test("clearing a mark is the STORED one's op, undone", () => {
+  // Which mark to take off is a fact about the set, so it is read here rather
+  // than sent: `Clear mark` is one entry whatever the row carries.
+  expect(asked({ verb: "mark", id: "demo", mark: null }))
+    .toEqual({ op: "done", id: "demo", undo: true })
+  expect(asked({ verb: "mark", id: "order", mark: null }))
+    .toEqual({ op: "doing", id: "order", undo: true })
+})
+
+test("clearing a mark from a node that carries none says so", () => {
+  // `Clear mark` is drawn only on a marked row, so reaching this means the
+  // mark went while the panel was open — somebody else got there first, and
+  // that is a sentence rather than a silence.
+  const failure = refused({ verb: "mark", id: "install", mark: null })
+  expect(failure._tag).toBe("UsageFailure")
+  expect(failure.message).toContain("carries no mark")
+})
+
+test("a mark on a mirror travels as the caller named it", () => {
+  // The consistency rule again, from the menu's side: the client sends the id
+  // of the node a row SHOWS, and an id that arrives here is not second-guessed
+  // — `set_doing` on a placement is refused by the ops layer in its own words,
+  // so this must be too.
+  expect(asked({ verb: "mark", id: "echo", mark: "doing" }))
+    .toEqual({ op: "doing", id: "echo" })
+})
+
+test("a mark on a node nothing declares is not found", () => {
+  expect(refused({ verb: "mark", id: "ghost", mark: null })._tag).toBe("NotFoundFailure")
+})
+
+test("a date is the op's own field, clear and set alike", () => {
+  // The menu sends only the first of these today — setting one is the `!`
+  // picker's — and the verb spells both because the op does.
+  expect(asked({ verb: "date", id: "order", date: null }))
+    .toEqual({ op: "date", id: "order", date: null })
+  expect(asked({ verb: "date", id: "order", date: "2026-09-01" }))
+    .toEqual({ op: "date", id: "order", date: "2026-09-01" })
+})
+
+test("retiring a placement names the row's own record", () => {
+  expect(asked({ verb: "unmirror", id: "echo" }))
+    .toEqual({ op: "unmirror", id: "echo" })
+})
+
+test("retiring something that is not a placement is the OPS layer's to refuse", () => {
+  // Not caught here, deliberately: `remove_mirror` on a node answers with a
+  // paragraph explaining what a placement is and which op puts a node away,
+  // and a shorter refusal invented here would be a worse answer to the same
+  // mistake — told to a person and not to an agent.
+  expect(asked({ verb: "unmirror", id: "kitchen" }))
+    .toEqual({ op: "unmirror", id: "kitchen" })
+})
+
+test("archive is the op, subtree and all — the fence is the menu's question", () => {
+  // `kitchen` has three children and a placement under it. Nothing here counts
+  // them: the reader was asked, in the panel, before this was ever sent, and a
+  // fence in this layer would be a rule `archive_node` does not have.
+  expect(asked({ verb: "archive", id: "kitchen" }))
+    .toEqual({ op: "archive", id: "kitchen" })
+})

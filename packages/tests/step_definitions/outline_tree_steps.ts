@@ -1,6 +1,10 @@
 /**
  * The tree: what one outline looks like once everything derived has been
  * derived.
+ *
+ * The gutter is here too — hover-reveal, the halo, whether a phone lays a
+ * `•••` out at all — because those are facts about a ROW. What the menu that
+ * hangs off it offers, asks and says is `./menu_steps.ts`.
  */
 
 import * as assert from "node:assert";
@@ -14,10 +18,6 @@ import {
   NODE,
   NODE_GUTTER,
   NODE_MENU,
-  NODE_MENU_ITEM,
-  NODE_MENU_PANEL,
-  NODE_MENU_SAID,
-  oneLine,
   nodeSelector,
   PROGRESS,
   readable,
@@ -695,7 +695,10 @@ Then(
  *  depend on a real pointer hover (opacity-0 until group-hover on desktop).
  *  Hovers the LINE, not the whole <li>: the group/row lives on the gutter,
  *  and an expanded parent li's centre is over nested children. */
-const revealGutter = async (world: OlaiWorld, id: string): Promise<void> => {
+export const revealGutter = async (
+  world: OlaiWorld,
+  id: string,
+): Promise<void> => {
   const line = world.within(id, NODE_GUTTER);
   await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await line.hover();
@@ -820,94 +823,6 @@ When(
     const toggle = this.within(id, TOGGLE);
     await toggle.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
     await toggle.evaluate((el) => (el as HTMLElement).focus());
-    await this.waitForFrame();
-  },
-);
-
-When(
-  "I open the node menu of {string}",
-  async function (this: OlaiWorld, id: string) {
-    await revealGutter(this, id);
-    const menu = this.within(id, NODE_MENU);
-    await menu.click({ force: true });
-    await this.page
-      .locator(NODE_MENU_PANEL)
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  },
-);
-
-Then(
-  "the node menu offers {string}",
-  async function (this: OlaiWorld, label: string) {
-    const panel = this.page.locator(NODE_MENU_PANEL);
-    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const items = panel.locator(NODE_MENU_ITEM);
-    const labels = (await items.allInnerTexts()).map((t) => t.trim());
-    assert.ok(
-      labels.includes(label),
-      `node menu offers ${JSON.stringify(labels)}, expected ${JSON.stringify(label)}`,
-    );
-  },
-);
-
-Then(
-  "the node menu offers exactly:",
-  async function (this: OlaiWorld, table: { rawTable: string[][] }) {
-    const expected = table.rawTable.map((row) => row[0]!.trim());
-    const panel = this.page.locator(NODE_MENU_PANEL);
-    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const labels = (await panel.locator(NODE_MENU_ITEM).allInnerTexts()).map((t) =>
-      t.trim(),
-    );
-    assert.deepStrictEqual(
-      labels,
-      expected,
-      `node menu offers ${JSON.stringify(labels)}, expected exactly ${JSON.stringify(expected)}`,
-    );
-  },
-);
-
-/**
- * A browser whose clipboard says no.
- *
- * Which is the ORDINARY browser for most olai readers: `navigator.clipboard`
- * is gated on a secure context, and a server on the LAN read over plain http
- * is not one. The e2e suite is served from `localhost`, which IS a secure
- * context, so the refusal has to be put back — and put back as the same shape
- * a real one has, a rejected promise from `writeText`.
- */
-Given("this browser's clipboard refuses", async function (this: OlaiWorld) {
-  // `evaluate` on the page that is already open, rather than `addInitScript`:
-  // the feature's Background has navigated before this step runs, and an init
-  // script only reaches the NEXT navigation. Nothing here reloads — the app is
-  // a single page — so patching the live window is what a scenario sees.
-  await this.page.evaluate(() => {
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: {
-        writeText: () =>
-          Promise.reject(new Error("olai e2e: the clipboard is not available")),
-      },
-    });
-  });
-});
-
-Then(
-  "the node menu of {string} says {string}",
-  async function (this: OlaiWorld, id: string, text: string) {
-    const said = this.within(id, NODE_MENU_SAID);
-    await said.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.strictEqual(oneLine(await said.innerText()), text);
-  },
-);
-
-When(
-  "I choose {string} from the node menu",
-  async function (this: OlaiWorld, label: string) {
-    const panel = this.page.locator(NODE_MENU_PANEL);
-    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const item = panel.locator(NODE_MENU_ITEM).filter({ hasText: label }).first();
-    await item.click();
     await this.waitForFrame();
   },
 );

@@ -169,6 +169,11 @@ export const TOGGLE = selector(TESTID.toggle);
 export const NODE_MENU = selector(TESTID.nodeMenu);
 export const NODE_MENU_PANEL = selector(TESTID.nodeMenuPanel);
 export const NODE_MENU_ITEM = selector(TESTID.nodeMenuItem);
+/** The question that panel asks before the one verb that takes a branch away.
+ *  Present only while it is asking. */
+export const NODE_MENU_CONFIRM = selector(TESTID.nodeMenuConfirm);
+/** What the last verb had to say, beside the `•••`. `data-tone` is which of
+ *  the two moods it is in — `alarm` for a refusal, `aside` for a nudge. */
 export const NODE_MENU_SAID = selector(TESTID.nodeMenuSaid);
 /** A row's own line — its gutter controls and title, and nothing from the
  *  rows nested under it. What makes "this node has no checkbox" askable

@@ -1,12 +1,12 @@
 /**
- * What a keyboard MEANT, in terms of ops.
+ * What a keyboard — or a menu entry — MEANT, in terms of ops.
  *
  * The browser sends intents — "indent this", "toggle done", "a new sibling
- * after that" ({@link ../../surface/src/edit.ts}) — and every one of them
- * becomes exactly ONE {@link Request} for the ops layer to plan. This file is
- * that mapping and nothing else: it reads the snapshot, works out the
- * placement the intent implies, and hands back a request. It writes nothing,
- * touches no disk, and knows about no socket.
+ * after that", "this node is doing now" ({@link ../../surface/src/edit.ts}) —
+ * and every one of them becomes exactly ONE {@link Request} for the ops layer
+ * to plan. This file is that mapping and nothing else: it reads the snapshot,
+ * works out the placement the intent implies, and hands back a request. It
+ * writes nothing, touches no disk, and knows about no socket.
  *
  * WHY THE PLACEMENT IS DECIDED HERE and not in the tab that pressed the key:
  * "the node above this one" is a fact about the SET, and the set the write is
@@ -46,6 +46,8 @@
 
 import {
   type Derived,
+  isMirror,
+  type Located,
   nodeNamed,
   type OpFailure,
   siblingsOf,
@@ -75,13 +77,61 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       const undo = at.derived.status.get(edit.id) === edit.mark
       return Result.succeed({ op: edit.mark, id: edit.id, ...(undo ? { undo } : {}) })
     }
-    // The two that resolve nothing, and are spelled like the ops they are —
-    // which is what makes the three above legible as the ones that do.
+    case "mark":
+      return markRequest(at.derived, edit)
+    // The four that resolve nothing, and are spelled like the ops they are —
+    // which is what makes the three above legible as the ones that do. Three
+    // of them are the menu's: a date is a date, a placement is named by the
+    // row it is, and a subtree is what `archive` has always taken.
     case "title":
       return Result.succeed({ op: "title", id: edit.id, title: edit.title })
     case "desc":
       return Result.succeed({ op: "desc", id: edit.id, desc: edit.desc })
+    case "date":
+      return Result.succeed({ op: "date", id: edit.id, date: edit.date })
+    case "unmirror":
+      return Result.succeed({ op: "unmirror", id: edit.id })
+    case "archive":
+      return Result.succeed({ op: "archive", id: edit.id })
   }
+}
+
+// ── the mark a menu names ──────────────────────────────────────────────
+
+/**
+ * A mark, put ON or taken OFF — the one menu verb with a question in it.
+ *
+ * Which op it becomes depends on what is being ASKED FOR rather than on what
+ * is there: a mark named outright is that mark's own op, and "none" is the
+ * stored mark's op with `undo`, because that is the only way the ops layer
+ * spells taking one off. Those are the same two calls an agent makes, so every
+ * refusal a person meets here is the ops layer's own — `already doing`, and
+ * the one that matters most, `done. Undo that first — nothing should decide on
+ * your behalf that finished work is not finished`. A menu that quietly sent
+ * two ops to walk `done` back to `todo` would be the web doing in one gesture
+ * what MCP needs two for, which is the deviation HACKING.md forbids: the
+ * second click is the person's.
+ *
+ * The one refusal this file invents is for a node that carries nothing when a
+ * menu asks for nothing. `Clear mark` is drawn only on a marked row, so
+ * reaching it means the mark went while the panel was open — somebody else got
+ * there first, which is a thing a person is owed a sentence about rather than
+ * a silence.
+ */
+const markRequest = (
+  derived: Derived,
+  edit: Extract<Edit, { verb: "mark" }>,
+): Resolved => {
+  const located = derived.byId.get(edit.id)
+  if (located === undefined) return Result.fail(notFound(derived, edit.id))
+  if (edit.mark !== null) return Result.succeed({ op: edit.mark, id: edit.id })
+  const stored = derived.status.get(edit.id)
+  if (stored === undefined) {
+    return Result.fail(
+      refusal(`\`${nameOf(located)}\` carries no mark, so there is none to take off`),
+    )
+  }
+  return Result.succeed({ op: stored, id: edit.id, undo: true })
 }
 
 // ── a new row ──────────────────────────────────────────────────────────
@@ -212,6 +262,12 @@ const moveRequest = (
     }
   }
 }
+
+/** What to call a record in a sentence. A MIRROR has no title of its own — it
+ *  is a placement of a node that does — so it answers to the id it was named
+ *  by, which is the same choice `@olai/ops` makes in its own commit lines. */
+const nameOf = (located: Located): string =>
+  isMirror(located.node) ? located.node.id : located.node.title
 
 /** A refusal in this layer's own words: the four moves each say why they could
  *  not happen, and the sentence IS the message a reader gets. One spelling of
