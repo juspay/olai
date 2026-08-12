@@ -418,7 +418,7 @@ because it is a question about filenames.
 
 `src/client/agenda/` is `/agenda`: what is OWED. It is a query like a day and
 not a place, its answer is `@olai/format`'s (`agendaOf`, at whatever day it is),
-and what it draws is the day page's own row — `day/DayGroup.tsx` and
+and what it draws is the day page's own row — `day/DayGroups.tsx` and
 `day/DayNode.tsx`, one component each, because a node the set has dated is the
 same row whichever question collected it. Three sections, and a section with
 nothing in it is not drawn at all: **Overdue** (the one answer no day page can

@@ -29,17 +29,16 @@
  * wrote on it.
  */
 
-import type { DayGroup as Group } from "@olai/format"
-import { Key } from "@solid-primitives/keyed"
+import type { DayGroup } from "@olai/format"
 import { For, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
-import { DayGroup } from "./DayGroup.tsx"
+import { DayGroups } from "./DayGroups.tsx"
 import { DayNote } from "./DayNote.tsx"
 
 export function DayPage(props: {
   readonly date: string
-  readonly groups: ReadonlyArray<Group>
+  readonly groups: ReadonlyArray<DayGroup>
   /** The documents named for this date, in path order — none, one, or the two
    *  a vault mid-migration has. */
   readonly notes: ReadonlyArray<string>
@@ -80,15 +79,9 @@ export function DayPage(props: {
         </p>
       </Show>
 
-      <Show when={props.groups.length > 0}>
-        {/* Keyed, like the tree is (../Tree.tsx): every frame the live store
-            publishes mints these afresh, and a group that is the same one as
-            last frame keeps its DOM — and its rendered notes — rather than
-            being rebuilt. A group IS its outline, so that is its key. */}
-        <Key each={props.groups} by="file">
-          {(group) => <DayGroup group={group()} heading="h2" />}
-        </Key>
-      </Show>
+      {/* The day's own answer: every node the set has on it, under the outline
+          each lives in — the same list the agenda draws (./DayGroups.tsx). */}
+      <DayGroups groups={props.groups} heading="h2" />
     </section>
   )
 }

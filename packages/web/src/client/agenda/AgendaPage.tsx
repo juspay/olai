@@ -31,11 +31,10 @@
  */
 
 import { type Agenda, nothingDue } from "@olai/format"
-import { Key } from "@solid-primitives/keyed"
 import { For, type JSX, Show } from "solid-js"
 
 import { CRUMB } from "../Breadcrumbs.tsx"
-import { DayGroup } from "../day/DayGroup.tsx"
+import { DayGroups } from "../day/DayGroups.tsx"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 
@@ -60,26 +59,18 @@ export function AgendaPage(props: {
         </p>
       </Show>
 
-      <Section name="overdue" title="Overdue" when={props.agenda.overdue.length > 0}>
-        <Key each={props.agenda.overdue} by="file">
-          {(group) => <DayGroup group={group()} heading="h3" />}
-        </Key>
+      <Section name="overdue" title="Overdue" holds={props.agenda.overdue}>
+        <DayGroups groups={props.agenda.overdue} heading="h3" />
       </Section>
 
-      <Section name="today" title="Today" when={props.agenda.today.length > 0}>
-        <Key each={props.agenda.today} by="file">
-          {(group) => <DayGroup group={group()} heading="h3" />}
-        </Key>
+      <Section name="today" title="Today" holds={props.agenda.today}>
+        <DayGroups groups={props.agenda.today} heading="h3" />
       </Section>
 
-      <Section
-        name="upcoming"
-        title="Upcoming"
-        when={props.agenda.upcoming.length > 0}
-      >
+      <Section name="upcoming" title="Upcoming" holds={props.agenda.upcoming}>
         {/* `For` rather than `<Key>`: a day is named by its date, and the
             entries under it are keyed by the record they draw (../day/
-            DayGroup.tsx) — so what is stable across frames is already held one
+            DayGroups.tsx) — so what is stable across frames is already held one
             level down. */}
         <For each={props.agenda.upcoming}>
           {(day) => (
@@ -96,9 +87,7 @@ export function AgendaPage(props: {
                   {day.date}
                 </Link>
               </h3>
-              <Key each={day.groups} by="file">
-                {(group) => <DayGroup group={group()} heading="h4" />}
-              </Key>
+              <DayGroups groups={day.groups} heading="h4" />
             </section>
           )}
         </For>
@@ -113,7 +102,9 @@ export function AgendaPage(props: {
  * An empty section is not drawn at all rather than drawn saying it is empty:
  * three headings with nothing under two of them is a page a reader has to
  * decode, and the one thing worth saying about an agenda with nothing on it is
- * said once, above.
+ * said once, above. It takes WHAT IT HOLDS rather than whether to draw, so that
+ * rule is spelled here once instead of at each of the three — the sections hold
+ * two different shapes (groups, days) and neither of them decides this.
  *
  * `data-section` names which of the three it is, so a scenario asks for a
  * section by what it MEANS rather than by the words it happens to be titled
@@ -122,11 +113,11 @@ export function AgendaPage(props: {
 function Section(props: {
   readonly name: "overdue" | "today" | "upcoming"
   readonly title: string
-  readonly when: boolean
+  readonly holds: ReadonlyArray<unknown>
   readonly children: JSX.Element
 }) {
   return (
-    <Show when={props.when}>
+    <Show when={props.holds.length > 0}>
       <section
         class="mb-8"
         data-testid={TESTID.agendaSection}
