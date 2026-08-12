@@ -97,7 +97,7 @@ const addRequest = (
     return Result.succeed({ op: "add", file: anchor.file, title: edit.title })
   }
   const target = at.derived.byId.get(anchor.id)
-  if (target === undefined) return Result.fail(notFound(anchor.id))
+  if (target === undefined) return Result.fail(notFound(at.derived, anchor.id))
   // Under a node: last among its children, which is where the first child of
   // an empty branch goes and where every later one would go anyway. A MIRROR
   // has no children of its own — what hangs under it belongs to the node it
@@ -131,7 +131,7 @@ const moveRequest = (
   edit: Extract<Edit, { verb: "move" }>,
 ): Resolved => {
   const located = derived.byId.get(edit.id)
-  if (located === undefined) return Result.fail(notFound(edit.id))
+  if (located === undefined) return Result.fail(notFound(derived, edit.id))
   // A MIRROR is moved as itself — it is a placement, and a placement is a row
   // a reader can reorder — so this is the row's own record rather than what it
   // shows. That is the opposite of a text edit, which the ops layer refuses on

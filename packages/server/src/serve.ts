@@ -71,6 +71,33 @@ export const serve = (options: ServeOptions) =>
     // the chat. One mutable slot resolves that, and it is safe because nothing
     // publishes before `bind` returns: the agent is started at the very end.
     let publish: Publishers | null = null
+
+    /**
+     * The publishers, ONCE THEY EXIST — and a loud stop if they do not.
+     *
+     * The reads used to be `publish?.state(…)`, which is the invariant above
+     * spelled as a shrug: if it ever stopped holding, the optional chain threw
+     * the event away and said nothing, and what a person would see is a
+     * transcript missing a row or a header stuck on the state before last,
+     * forever, with a green pill over it.
+     *
+     * A throw rather than a buffer, because there is nothing here to buffer
+     * FOR: the order in this file is fixed and deliberate (the chat is built,
+     * the surface is bound, and only then is the agent started), so an event
+     * arriving early is a mistake in that order and not a race to smooth over.
+     * A buffered slot would make the mistake survivable and therefore
+     * permanent. This one fails at boot, on a developer's machine, naming
+     * itself.
+     */
+    const publishing = (): Publishers => {
+      if (publish === null) {
+        throw new Error(
+          "olai serve: something published before the surface was bound — the " +
+            "order in serve.ts is chat, then bind, then start the agent",
+        )
+      }
+      return publish
+    }
     // Likewise the refusal observer: ops is built before the chat that draws
     // its refusals, because the chat is not what writes.
     let chat: Chat.Chat | null = null
@@ -109,8 +136,8 @@ export const serve = (options: ServeOptions) =>
       adapter,
       cwd: root,
       tools: () => tools,
-      onState: (state) => publish?.state(state),
-      onTranscript: (change) => publish?.transcript(change),
+      onState: (state) => publishing().state(state),
+      onTranscript: (change) => publishing().transcript(change),
     })
 
     // The surface is bound to everything it reports on or writes through: the

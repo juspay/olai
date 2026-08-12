@@ -1,6 +1,7 @@
 # @olai/web — the SolidJS client, and the build that produces it
 
-An app header (wordmark, connection, git, agent toggle, theme), a directory panel
+An app header (wordmark, connection, the one git pill, agent toggle, theme), a
+directory panel
 (month + file tree of every outline and document under the folders they live
 in — full column or a ~3rem icon rail on desktop; slide-over drawer with scrim
 on a phone), a resizable agent dock (or bottom sheet on a phone; minimized to a
@@ -158,12 +159,14 @@ sanitise, highlight, rewrite, stringify:
 - **highlighting runs after the sanitiser**, deliberately. The `hljs-` spans
   are ours, produced from the code's own text, so they need no allowlist entry
   — while the `language-…` class that produced them is the reader's, and is on
-  the sanitiser's default allowlist. `rehype-highlight` is bundled with the
-  client (about 180 kB of it): it is in `bun.lock`, so the Nix build fetches it
-  like everything else, and no page asks a CDN for the code that renders
-  someone's private outline. The colours are this theme's tokens, so a fence
-  follows the light/dark palette the rest of the page does. Which grammars it
-  knows is spelled out (`render.ts`), because the option REPLACES the default
+  the sanitiser's default allowlist. `rehype-highlight` is shipped by this
+  server: it is in `bun.lock`, so the Nix build fetches it like everything
+  else, and no page asks a CDN for the code that renders someone's private
+  outline. (It travels in the markdown chunk below rather than in the entry
+  bundle — same origin, same immutable pin, same bytes CI built.) The colours
+  are this theme's tokens, so a fence follows the light/dark palette the rest
+  of the page does. Which grammars it
+  knows is spelled out (`pipeline.ts`), because the option REPLACES the default
   set rather than adding to it: lowlight's common set, plus Nix — this
   repository is built with it and `just serve` with no arguments serves its own
   `docs/`, where a ```nix fence would otherwise be grey text. A language nobody
@@ -183,13 +186,52 @@ sanitise, highlight, rewrite, stringify:
 - **titles are inline-only** (`renderTitle` → `renderToTree` + `inline.ts`).
   Same pipeline, then every block is unwrapped to phrasing, then `#tags` are
   styled by walking text nodes (skipping `code` and `a` so constructs stay
-  whole; the alphabet is `titleTagRe` from `@olai/format`), then stringify.
+  whole; the alphabet is `titleTagRe` from `@olai/format` — `tags.ts`), then
+  stringify.
   When the pipeline loses text the source still accounts for — empty, or
   shorter than the source with markdown marks removed — fall back to the
   escaped source. Breadcrumbs and see-refs pass `links: false` so a markdown
   link in a title cannot nest `<a>` inside the surrounding `Link`. Titles keep
   their own cache; they are short and numerous, and would thrash the
   note/document map if they shared it.
+
+### It arrives when it is needed
+
+All of that is ~390 kB raw (~96 kB brotli) of `unified`, remark, rehype and
+`highlight.js` grammars, and the first thing this app draws — a tree of rows —
+uses none of it. So the pipeline is bundled ON ITS OWN
+(`markdown/pipeline.ts` → `/assets/markdown-<hash>.js`, built by
+`src/markdown.ts`) and fetched the first time something on the page has
+markdown to interpret. The entry bundle went from 1 054 kB to 663 kB raw
+(274 kB → 180 kB brotli) when it moved out.
+
+- **the page finds it through the shell**, not through a compiled-in constant:
+  a `<meta name="olai-markdown">` in the `no-store` `index.html`, rewritten to
+  the hashed URL at build time, exactly as the entry and the stylesheet are.
+  `markdown/chunk.ts` reads it and `import()`s it — a variable specifier, which
+  is what keeps the graph out of `main-*.js` rather than merely unreached
+  inside it. (`buildSurfaceClient` sets `splitting: false` and takes no option
+  to change it, so the chunk is a second `Bun.build` this package owns — the
+  same shape `precompress.ts` already is, and the same thing to flag upstream.)
+- **asking is what fetches it.** `markdownReady()` is a signal read: a memo
+  that asks is a memo that re-runs when the file lands, and a page that never
+  asks never pays. Nothing is primed at boot.
+- **titles mostly do not ask at all** (`markdown/plain.ts`). A title with no
+  markdown in it — 88 of the 93 in this repository's own roadmap — is words
+  and tags, and interpreting it and escaping it are the same operation. So
+  those are written out immediately, with no parser and no flash. It is a
+  REFUSAL rather than a second dialect: anything that could possibly be
+  markdown is handed to the real pipeline, and `plain.test.ts` sweeps a
+  generated corpus to prove that everything it does accept renders byte for
+  byte the way the pipeline would.
+- **what is on the page in the meantime is the file's own text** — the source,
+  escaped, `pre-wrap` for a document or a note, the raw title for a title.
+  Marks visible for a moment is a thing a reader can read; a blank space is
+  not. If the fetch FAILS, `Markdown.tsx` says so above that text and the
+  console gets the error: the page stays readable and does not pretend.
+  `features/markdown_arrives.feature` holds all of it — including that an
+  outline of plain titles never asks at all — by holding the chunk up in the
+  network layer.
 
 A document is surveyed and jumped around through those anchors:
 `document/Toc.tsx` draws a collapsible contents above the body, derived from
@@ -384,12 +426,25 @@ component draws would be rejecting it over a page that does not exist.
 
 `src/client/AppHeader.tsx` is a slim bar above every column: the `olai`
 wordmark on the left, and on the right the pills that are about the APP
-rather than about the page — the connection indicator, the git readout (absent
-entirely on a `--no-commit` serve), the agent toggle (always on screen; pressed
+rather than about the page — the connection indicator, the Commit pill (the ONE
+git indicator, drawn in every state including `commits off`), the agent toggle
+(always on screen; pressed
 while the agent panel is open; busy pulse in either state while a turn runs),
 and the theme picker as a compact popover (a pill names the theme in force;
 chips open under it). On a phone the directory burger joins the left edge next
 to the wordmark.
+
+**Six things do not fit in a 390pt bar, so the ORDER they give way in is a
+decision** rather than whatever the flexbox happens to squeeze — that is written
+out in the component's own header and implemented across four files. The last
+commit's age goes first (`· 3m ago`, `sm` and up), then the agent's word (kept
+`sr-only`, so the button's accessible name never shrinks), then the Commit
+pill's label truncates — its `✓` / `⚠` is most of what it says — and the
+connection's label is last and in practice never, because it has a floor. The
+wordmark and the theme name never give way at all. `features/on_a_phone.feature`
+holds the end of that order shut in every connection state (`the connection's
+label is whole`), which is the fence for the version of this bar that shipped
+`live` squeezed to `l…`.
 
 Principle: the header carries what is about the app; the sidebar
 (`Sidebar.tsx` / `layout/Rail.tsx`) carries what is about the DIRECTORY —
@@ -399,6 +454,23 @@ so there is one home for chrome and no corner-pills special case those screens
 used to need. The sole exception is the fault card: `main.tsx`'s
 `<ErrorBoundary>` sits above `App`, so a thrown render never reaches the header
 (a broken client has no chrome to trust).
+
+The bar **sticks** (`sticky top-0`, layer `z-[45]`): this app scrolls the
+document, so a bar in normal flow took the connection dot, the commit pill and
+the agent toggle off the screen the moment anyone read past the fold — and
+those are permanent answers about the app, which is the argument for the bar
+existing at all. It is also what keeps the seam below it true: the mobile
+drawer, its scrim and both faces of the chat panel are `fixed` at
+`top: var(--height-header)`, a viewport coordinate that only means "under the
+header" while the header is at the top of the viewport. The layer sits above
+the panels (30–40) so a page scrolling under the bar cannot paint over it, and
+below the full-screen modals (50) — the command palette, the restarted card —
+which must cover it. `sticky` and not `fixed`, so the bar keeps its own 3rem in
+flow and nothing below has to pad for it; no ancestor may take an `overflow`
+other than `visible` or it silently stops sticking. Because the top
+`--height-header` of the viewport is no longer free space, `styles.css` gives
+the document `scroll-padding-top: var(--height-header)`, which is where a
+`#heading` jump (a document's contents, a pasted anchor) now stops.
 
 The chat dock sits **under** the header, not over it (`chat/Panel.tsx`
 subtracts `--height-header`): the bar stays reachable while the agent is open.
@@ -427,6 +499,31 @@ like. That is where the mistake this folder exists to prevent would be made — 
 state that quietly reads as healthy, or a terminal one drawn like a transient
 one — so it is unit-tested directly, with no socket and no browser.
 
+There is a FIFTH state, and it is not the wire's: `degraded`, drawn as `partly
+live`. Green is a claim about what REACHES the page rather than about a socket,
+so it is the conjunction of the transport status and the framework's
+`client.health()` — which knows the thing the transport cannot, that a socket
+can be open and answering while a subscription over it is dead. Nothing in olai
+read that fact until this was written, and what it cost is a `documents.keys`
+stream that died rendering as a directory with no documents in it under a green
+light. Its detail NAMES the streams that stopped, which is why it is a function
+rather than a row of the table, and `lookOf` is the one door to all five so a
+caller never asks which shape a state is in.
+
+Two decisions inside it. ERRORS degrade the pill and PENDING does not: a first
+frame that has not arrived is what every page load looks like, and a pill that
+is amber most of the time is a pill nobody reads (the framework's own
+`gateStatus` is deliberately policy for a GATE — whether to draw the body at
+all — which is a different question). And it is folded into the pill rather
+than drawn beside it, for the reason the git readout is quiet when it is happy:
+one green claim per page, or neither is scanned.
+
+The degraded half is unit-tested only, and that gap is honest rather than
+missed: killing one subscription while leaving its socket up is not something a
+browser can be asked to do from a scenario. What the e2e asserts is the healthy
+half — `live`, with `data-stopped` absent — which is what would go red if the
+fold started reading amber over a page that is fine.
+
 `retired` is the one that takes the screen (`Restarted.tsx`). It means the
 server this page came from has been replaced: the tab presented its process id
 on the reconnect, the new server did not recognise it and closed the socket at
@@ -438,25 +535,29 @@ asking is not a recovery. Both the dot and the screen read the SAME
 happened; the seam's required `retired` handler records the moment rather than
 driving a second path to the same fact.
 
-## Git, said out loud too
+## Git, said out loud too — and in ONE place
 
-`src/client/git/` is the same argument as the folder above, about the other half
-of the page's promise: not "is this still reading" but "is what gets written to
-it being kept". Both are facts a page can only get wrong SILENTLY, and this one
-did — a write came back `committed: false` on a directory its owner knew was a
-repository, and the reason lived in the server's log. So the readout sits beside
-the connection pill, reading the surface's `git` cell.
+Git is the same argument as the folder above, about the other half of the page's
+promise: not "is this still reading" but "is what gets written to it being
+kept". Both are facts a page can only get wrong SILENTLY, and this one did — a
+write came back `committed: false` on a directory its owner knew was a
+repository, and the reason lived in the server's log.
 
-`state.ts` is the whole policy and it is pure, for the same reason `status.ts`
-is: a table over the four states the server publishes, unit-tested with no
-socket and no browser. Three of them draw something and one deliberately draws
-NOTHING — `off`, the `--no-commit` serve, because that is a setting somebody
-chose rather than a condition, and chrome that reports settings is chrome a
-reader stops scanning. `repo` is quiet (three letters, a dim dot, and
-deliberately not the connection's green — one green claim per page). `none` says
-"Not a Git repo" calmly. `error` says "Git error" and carries git's own words,
-on the tip AND on the `aria-label`, so the reason is never hover-only; the
-readout takes focus so a keyboard can reach it at all.
+There is no `src/client/git/` any more, and its absence is the point.
+`git-invisible` put a `● git` readout in the header; `#83`/`#114` put the Commit
+pill beside it; and the human's screenshot of `● git` next to `✓ committed · 3m
+ago` said what two chips answering one question look like
+(`one-git-indicator`). The readout retired INTO the pill — see [the Commit
+button](#the-commit-button) — so the states it drew are faces rather than a
+second control, and the `git` cell it read is now read there.
+
+Nothing that readout won was given back. A git that FAILED still reads
+differently from a directory that is no work tree (`git error` vs `no git
+here`), git's own words are still on the tip AND on the `aria-label` so the
+reason is never hover-only, the pill is focusable in every face — the inert ones
+are `aria-disabled` rather than `disabled`, because a disabled button takes no
+focus and a reason a keyboard cannot reach is a reason half the readers do not
+get — and none of it blocks a write.
 
 ## The agent panel
 
@@ -567,14 +668,34 @@ this app rather than about chat — the Commit button is its second caller.
 
 ## The Commit button
 
-`src/client/commit/` is the third pill of the chrome, and like the connection
-dot it is NEVER ABSENT. Every state is drawn: a clean tree that has committed
-(`✓ committed · 12m ago`), one olai has never committed in (`no commits yet`),
-edits waiting (`4 uncommitted`), a busy repository (`⚠` and the reason), a
-directory that is not a work tree, and a server with commits off. The rule
-comes straight from what the feature is FOR: if the job is an audit trail, then
-"there is no audit trail here" is the most important thing the pill can say, and
-a control that disappeared is exactly how a person would never find that out.
+`src/client/commit/` is the second pill of the chrome and the header's ONE
+answer about git, and like the connection dot it is NEVER ABSENT. Every state is
+drawn: a clean tree that has committed (`✓ committed · 12m ago`), one olai has
+never committed in (`no commits yet`), edits waiting (`4 uncommitted`), a busy
+repository (`⚠` and the reason), a git that failed (`⚠ git error`, with git's
+own words), a directory that is not a work tree, and a server with commits off.
+The rule comes straight from what the feature is FOR: if the job is an audit
+trail, then "there is no audit trail here" is the most important thing the pill
+can say, and a control that disappeared is exactly how a person would never find
+that out.
+
+The fault face is the one that came from somewhere else. It is the `● git`
+readout of `git-invisible`, which used to be a second chip beside this one
+answering the same question — the redundancy `one-git-indicator` closed. So the
+pill reads two cells rather than one: `pending` for what is waiting, and `git`
+for whether git is in any state to take it. Two READINGS, never two probes — the
+server derives both from a single survey in a single statement — and the second
+is not optional, because exactly one thing lives in it that no reading of the
+directory can produce: a commit git REFUSED. A repository with no `user.email`
+answers every probe happily and fails every commit, which is the silence
+`git-invisible` was filed for.
+
+The sentence for whichever face is worn rides this app's own tip rather than a
+`title` (git's words are a paragraph, and the platform's tooltip ran one off the
+right edge of the window) and is the `aria-label` too, so nothing is hover-only.
+Healthy stays QUIET: the tick is not green, because the connection dot beside it
+is the page's one green claim and a second one lit permanently in the ordinary
+case is how a reader learns to stop scanning the place the news appears.
 
 One more face is about THIS PAGE rather than the directory: until the server has
 said anything, the pill says so. It used to draw the default value's `commits
@@ -594,10 +715,14 @@ browser. It re-measures on resize and on scroll (capture phase — the sidebar
 scrolls, and `scroll` does not bubble), because a popover that goes stale where
 it was is worse than one that never moved.
 
-The last two are SETTINGS rather than faults — dim, inert, no warning colour.
-`⚠` is reserved for the busy repository, which is the only one anybody can act
-on. `faceOf` in `said.ts` is the whole of that decision, as a pure function of
-the pending value, and `data-state` on the pill is what a scenario asserts on.
+Commits-off and no-work-tree are SETTINGS rather than faults — dim, inert, no
+warning colour. `⚠` is for the two anybody can act on, in the two tones that
+tell them apart: amber for a busy repository, which will take a commit once the
+rebase is finished, and alarm for a git that failed, which will not. `faceOf`
+and `MARK` in `said.ts` are the whole of that decision — a pure function of the
+two published values, and a table over the faces, so both are unit-tested with
+no socket and no browser — and `data-state` on the pill is what a scenario
+asserts on.
 
 It exists because every write olai makes is a write nobody typed: the agent
 auto-approves its ops, so git is how you see what the tool did to your files.

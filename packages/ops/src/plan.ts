@@ -27,13 +27,18 @@
 import {
   ancestorsOf,
   ARCHIVE,
+  chainOf,
   derive,
   type Derived,
+  didYouMean,
+  drawnFrom,
   isMirror,
   type Located,
   type LocatedRegular,
   MARKS,
+  type MirrorNode,
   type Node,
+  nodeNamed,
   type Status,
   NotFoundFailure,
   nodesOf,
@@ -43,6 +48,7 @@ import {
   type OutlineSet,
   type RegularNode,
   storedMarker,
+  targetsOf,
   unfinishedUnder,
   UsageFailure,
   ValidationFailure,
@@ -69,7 +75,9 @@ export interface Plan {
   readonly captured?: ReadonlyArray<Minted>
   /** The git commit subject, in the convention `olai` has always used:
    *  `capture:` / `done:` / `doing:` / `todo:` / `move:` / `archive:` / `create:` /
-   *  `see:` and a title (or a path, when an outline is born empty). */
+   *  `see:` / `after:` / `mirror:` / `unmirror:` and a title (or a path, when an
+   *  outline is born empty). A placement's subject names what it SHOWS — the
+   *  target's title — since a mirror has none of its own. */
   readonly summary: string
   /** What the rollup would like the writer to notice, on a write that HAPPENED
    *  ({@link nudged}). Absent unless there is something to say. */
@@ -148,6 +156,12 @@ export const plan = (
       return planCreate(scope, request)
     case "see":
       return planSee(scope, request)
+    case "mirror":
+      return planMirror(scope, request)
+    case "unmirror":
+      return planUnmirror(scope, request)
+    case "after":
+      return planAfter(scope, request)
   }
 }
 
@@ -189,23 +203,91 @@ const editable = (
   return Result.isFailure(may) ? Result.fail(may.failure) : target
 }
 
-/** The refusal for an id nothing in the set declares. Exported because it is
- *  not only the planner's: `@olai/server` resolves a keystroke into a request
- *  and meets the same miss on the way, and one sentence for one condition is
- *  what keeps a person from being told two different things depending on
- *  which writer they used. */
-export const notFound = (id: string): OpFailure =>
-  new NotFoundFailure({
-    reason: `no node in the loaded set has the id \`${id}\``,
+/**
+ * An id nothing in the set declares — ONE refusal, whatever the id was doing.
+ *
+ * The node an op is about and a target it was asked to point at fail the same
+ * way and want the same help, so they are one function rather than two
+ * sentences: an agent that mistyped `instal` is in the same position whether it
+ * was marking that node or hanging a mirror off it.
+ *
+ * It teaches the way the VALIDATOR does, with the validator's own rule
+ * (`@olai/format`'s `nearestId`): an unknown reference is nearly always a
+ * misspelling, so the closest id within a typo's distance is offered and
+ * anything further away is not, because a guess that is merely nearest teaches
+ * a reader to distrust the offer. Where there is nothing close, the answer names
+ * the tool that finds a node without knowing its id.
+ *
+ * `see` used to LIST every id in the set here. That is the right answer for the
+ * OUTLINES of a directory — there are five of them — and the wrong one for the
+ * nodes in it: a vault of a few thousand put its whole id space in one refusal,
+ * with the one id worth reading somewhere in the middle of it.
+ *
+ * Exported over the DERIVATIONS rather than over a planning scope because the
+ * miss is not only the planner's: `@olai/server` resolves a keystroke into a
+ * request and meets the same missing id on the way there, and a person told
+ * one sentence by the agent and another by the keyboard would be reading two
+ * products.
+ */
+export const notFound = (derived: Derived, id: string): OpFailure => {
+  // The CLAUSE is the format's too, not just the budget behind it: a refusal
+  // and a load error say "did you mean" in one voice or in two.
+  const near = didYouMean(id, derived.byId.keys())
+  return new NotFoundFailure({
+    reason: near === ""
+      ? `\`${id}\` is not a node in the loaded set, and nothing in it is spelled ` +
+        `close enough to be a typo of it — \`search_nodes\` finds a node by title, ` +
+        `id or \`#tag\``
+      : `\`${id}\` is not a node in the loaded set${near}`,
     named: id,
   })
+}
+
+/** The same refusal, from inside the planner, where the derivations are one
+ *  field of the scope every plan already carries. */
+const unknownId = (scope: Scope, id: string): OpFailure => notFound(scope.derived, id)
+
+/**
+ * The first path from `from` to `to` through `edges`, `from` and `to` included
+ * — or `null` when there is none. Cycle-safe, and `from === to` is a path of
+ * one, which is what makes a self-edge a loop like any other.
+ *
+ * THREE ops need a loop named rather than merely detected, over three different
+ * graphs: what contains what (a move under its own descendant), what drawing a
+ * node leads to drawing (a mirror inside what it shows), and what has to happen
+ * before what (an `after` edge closing a cycle). The graphs are the callers';
+ * the walk is one.
+ */
+const pathTo = (
+  from: string,
+  to: string,
+  edges: (id: string) => Iterable<string>,
+): ReadonlyArray<string> | null => {
+  const seen = new Set<string>()
+  // The trail is extended only for a node this walk is actually descending
+  // into: a revisit answers `null` without copying anything, which matters
+  // because the common answer is `null` and a node reached through three
+  // mirrors is reached three times.
+  const walk = (at: string, trail: ReadonlyArray<string>): ReadonlyArray<string> | null => {
+    if (at === to) return [...trail, at]
+    if (seen.has(at)) return null
+    seen.add(at)
+    const path = [...trail, at]
+    for (const next of edges(at)) {
+      const found = walk(next, path)
+      if (found !== null) return found
+    }
+    return null
+  }
+  return walk(from, [])
+}
 
 /** The record with this id, or the refusal that says so. A MIRROR is not an
  *  answer: it is a second placement of a node that lives elsewhere, and every
  *  op edits the node. */
 const regularAt = (scope: Scope, id: string): Result.Result<LocatedRegular, OpFailure> => {
   const located = scope.derived.byId.get(id)
-  if (located === undefined) return Result.fail(notFound(id))
+  if (located === undefined) return Result.fail(unknownId(scope, id))
   if (isMirror(located.node)) {
     return Result.fail(
       new UsageFailure({
@@ -241,6 +323,57 @@ const writable = (scope: Scope, file: string): Result.Result<void, OpFailure> =>
   return Result.succeed(undefined)
 }
 
+/** Where a new record lands: the outline it is written into, and the node it
+ *  hangs off — absent at top level. */
+interface Landing {
+  readonly file: string
+  readonly parent?: string | undefined
+}
+
+/**
+ * Where a record a call BRINGS INTO BEING goes, and whether that file may be
+ * written — the prologue `add` and `add_mirror` share.
+ *
+ * The two answers are one question asked twice over, and both ops have to get
+ * the same one: with a `parent`, the file is the parent's, always, because
+ * `parent` is same-file by the format and a `file` that disagreed would be a set
+ * the validator rejects; without one, the caller names an outline the set
+ * already holds, since `create_outline` is the only op that mints a file.
+ */
+const landsIn = (
+  scope: Scope,
+  request: { readonly file?: string | undefined; readonly parent?: string | undefined },
+): Result.Result<Landing, OpFailure> => {
+  if (request.parent !== undefined) {
+    const parent = regularAt(scope, request.parent)
+    if (Result.isFailure(parent)) return Result.fail(parent.failure)
+    const may = writable(scope, parent.success.file)
+    if (Result.isFailure(may)) return Result.fail(may.failure)
+    return Result.succeed({ file: parent.success.file, parent: request.parent })
+  }
+
+  const file = request.file
+  if (file === undefined) {
+    return Result.fail(
+      new UsageFailure({
+        reason: "give `parent` (it goes under that node) or `file` (it goes at top level)",
+      }),
+    )
+  }
+  if (!scope.set.files.includes(file)) {
+    return Result.fail(
+      new NotFoundFailure({
+        reason: `\`${file}\` is not one of the outlines under the served directory: ` +
+          `${scope.set.files.join(", ") || "there are none"}`,
+        named: file,
+      }),
+    )
+  }
+  const may = writable(scope, file)
+  if (Result.isFailure(may)) return Result.fail(may.failure)
+  return Result.succeed({ file })
+}
+
 /** An id nothing in the set claims. `mint` may repeat itself; this is what
  *  makes that harmless. */
 const freshId = (scope: Scope, taken: ReadonlySet<string>): string => {
@@ -267,7 +400,7 @@ const replacing = (
 
 // ── siblings and where a node lands among them ─────────────────────────
 
-interface Placement {
+interface Anchor {
   readonly before?: string | undefined
   readonly after?: string | undefined
 }
@@ -299,7 +432,7 @@ const nextOrd = (previous: string | null): string => {
 const placed = (
   siblings: ReadonlyArray<Located>,
   moving: string,
-  placement: Placement,
+  placement: Anchor,
 ): Result.Result<ReadonlyArray<{ id: string; ord: string }>, OpFailure> => {
   if (placement.before !== undefined && placement.after !== undefined) {
     return Result.fail(
@@ -343,6 +476,19 @@ const placed = (
   return Result.succeed(renumbered)
 }
 
+/** The key {@link placed} gave the record being placed. It is always in there —
+ *  placing something is what that function was asked to do — so a miss is a
+ *  defect in this file rather than anything a caller can act on, and it is one
+ *  sentence for the two ops that bring a record into being. */
+const ordFor = (
+  ords: ReadonlyArray<{ id: string; ord: string }>,
+  id: string,
+): string => {
+  const ord = ords.find((entry) => entry.id === id)?.ord
+  if (ord === undefined) throw new Error("the placement did not include the new record")
+  return ord
+}
+
 /** Apply what {@link placed} decided to a file's records. The moving node is
  *  handed in separately because on an `add` it is not in the file yet. */
 const withOrds = (
@@ -381,51 +527,21 @@ const planAdd = (
   scope: Scope,
   request: Extract<Request, { op: "add" }>,
 ): Planned => {
-  let file: string
-  let parent: string | undefined
-  if (request.parent !== undefined) {
-    const target = regularAt(scope, request.parent)
-    if (Result.isFailure(target)) return Result.fail(target.failure)
-    // The file is the PARENT's, always: `parent` is same-file by the format,
-    // so a `file` that disagreed would be a set the validator rejects.
-    file = target.success.file
-    parent = request.parent
-  } else {
-    if (request.file === undefined) {
-      return Result.fail(
-        new UsageFailure({
-          reason: "give `parent` (the node goes under it) or `file` (it goes at top level)",
-        }),
-      )
-    }
-    file = request.file
-    if (!scope.set.files.includes(file)) {
-      return Result.fail(
-        new NotFoundFailure({
-          reason:
-            `\`${file}\` is not one of the outlines under the served directory: ` +
-            `${scope.set.files.join(", ") || "there are none"}`,
-          named: file,
-        }),
-      )
-    }
-  }
-
-  const may = writable(scope, file)
-  if (Result.isFailure(may)) return Result.fail(may.failure)
+  const landing = landsIn(scope, request)
+  if (Result.isFailure(landing)) return Result.fail(landing.failure)
+  const { file, parent } = landing.success
 
   // Every id in the tree is decided before any record is built, and the set of
   // ids this call has claimed is what makes the second collision — one child
   // against another — a refusal rather than a duplicate the validator finds.
   const taken = new Set<string>()
-  const root = idFor(scope, taken, request)
+  const root = idFor(scope, taken, request.id)
   if (Result.isFailure(root)) return Result.fail(root.failure)
   const id = root.success
 
   const ords = placed(siblingsOf(scope.derived, file, parent), id, request)
   if (Result.isFailure(ords)) return Result.fail(ords.failure)
-  const ord = ords.success.find((entry) => entry.id === id)?.ord
-  if (ord === undefined) throw new Error("the placement did not include the new node")
+  const ord = ordFor(ords.success, id)
 
   const minted: Array<RegularNode> = []
   const refused = emit(scope, taken, minted, request, {
@@ -459,20 +575,22 @@ const mintedOf = (records: ReadonlyArray<RegularNode>): ReadonlyArray<Minted> =>
   records.map((record) => ({ id: record.id, title: record.title }))
 
 /**
- * The id one captured node will carry: the one it chose, or a minted one.
+ * The id one new record will carry: the one it chose, or a minted one.
  *
  * "Free" has two halves and both refuse: an id the SET already holds, and one
  * another node in this same call has claimed. The second only exists because a
  * capture mints many ids at once — and it is also what a cycle attempt looks
  * like from here, since a child naming its own ancestor's chosen id is naming
  * an id that is already spoken for.
+ *
+ * Takes the CHOSEN id rather than the capture it came off, because a placement
+ * chooses one too: a mirror is not a capture, and it needs exactly this answer.
  */
 const idFor = (
   scope: Scope,
   taken: Set<string>,
-  capture: Capture,
+  chosen: string | undefined,
 ): Result.Result<string, OpFailure> => {
-  const chosen = capture.id
   if (chosen === undefined) {
     const fresh = freshId(scope, taken)
     taken.add(fresh)
@@ -578,7 +696,7 @@ const emit = (
   let previous: string | null = null
   for (const child of children) {
     const ord = nextOrd(previous)
-    const id = idFor(scope, taken, child)
+    const id = idFor(scope, taken, child.id)
     if (Result.isFailure(id)) return id.failure
     const refused = emit(scope, taken, records, child, {
       id: id.success,
@@ -788,7 +906,7 @@ const planMove = (
   request: Extract<Request, { op: "move" }>,
 ): Planned => {
   const located = scope.derived.byId.get(request.id)
-  if (located === undefined) return Result.fail(notFound(request.id))
+  if (located === undefined) return Result.fail(unknownId(scope, request.id))
   const { file, node } = located
 
   const may = writable(scope, file)
@@ -813,10 +931,12 @@ const planMove = (
         }),
       )
     }
-    if (wouldContainItself(scope, request.id, parent)) {
+    const inside = containing(scope, request.id, parent)
+    if (inside !== null) {
       return Result.fail(
         new UsageFailure({
-          reason: `\`${parent}\` is inside \`${request.id}\`, so the move would make a loop`,
+          reason: `\`${parent}\` is inside \`${request.id}\` — ${inside} — so the move ` +
+            `would make a loop`,
         }),
       )
     }
@@ -850,17 +970,26 @@ const withParent = <N extends Node>(node: N, parent: string | undefined): N => {
   return next
 }
 
-/** Is `parent` inside the subtree rooted at `id`? The validator would catch the
- *  cycle, but its message is about a set on disk; this one is about the move. */
-const wouldContainItself = (scope: Scope, id: string, parent: string): boolean => {
-  const seen = new Set<string>()
-  let at: string | undefined = parent
-  while (at !== undefined && !seen.has(at)) {
-    if (at === id) return true
-    seen.add(at)
-    at = scope.derived.byId.get(at)?.node.parent
-  }
-  return false
+/**
+ * The chain by which `parent` sits inside the subtree rooted at `id` — or
+ * `null` when it does not.
+ *
+ * The validator would catch the cycle this move would make, but its message is
+ * about a set on disk; this one is about the move, and it NAMES the chain for
+ * the same reason the other two loop refusals do — an agent told which
+ * ancestry it just tried to fold into itself can fix the call.
+ *
+ * Upward through `parent`, which is the containment graph read the direction a
+ * reparenting asks about: is the new parent one of my own descendants? {@link
+ * showsInto} asks the same question of a placement and walks DOWNWARD, because
+ * only that direction follows a mirror to what it shows.
+ */
+const containing = (scope: Scope, id: string, parent: string): string | null => {
+  const path = pathTo(parent, id, (at) => {
+    const up = scope.derived.byId.get(at)?.node.parent
+    return up === undefined ? [] : [up]
+  })
+  return path === null ? null : chainOf(path)
 }
 
 // ── create ─────────────────────────────────────────────────────────────
@@ -924,7 +1053,7 @@ const planCreate = (
   // than an empty outline nobody asked for.
   const seed = request.seed
   const taken = new Set<string>()
-  const chosen = idFor(scope, taken, seed)
+  const chosen = idFor(scope, taken, seed.id)
   if (Result.isFailure(chosen)) return Result.fail(chosen.failure)
   const id = chosen.success
 
@@ -1134,21 +1263,105 @@ const appendedOrd = (
   return nextOrd(last)
 }
 
-// ── see ────────────────────────────────────────────────────────────────
+// ── the edges: see, after ──────────────────────────────────────────────
 
 /**
- * Add and/or remove free cross-references on a node.
+ * The one thing an `after` edge may not do: close a loop.
  *
- * `see` is the format's open-ended pointer — no ordering, no blocking, cycles
- * fine — and the only work here that is not already the validator's is the
- * TEACHING refusal for a target that does not exist. The validator would catch
- * that too, with `file:line`; this one names the ids the set DOES hold, the
- * same way an unknown outline file lists the ones under the served directory,
- * so an agent can correct without a second round-trip to `search_nodes`.
+ * Read over `derive`'s ordering graph — `blocks` normalised in, both ends
+ * resolved to NODES — which is the same graph the validator's acyclicity rule
+ * walks, so this refusal and that error cannot disagree about whether two
+ * records mean one edge. In particular a deadlock closing through a MIRROR is
+ * one loop rather than two dead ends: naming a placement in `after` names the
+ * node standing at it.
+ *
+ * The write would be refused either way — the gate re-validates the whole set
+ * — but the validator's report is about a file that does not exist yet, and an
+ * agent that is told which loop it would close can fix the call instead of the
+ * file. So the message NAMES it, with the validator's own arrow.
  */
-const planSee = (
+const cycling = (scope: Scope, node: RegularNode, target: string): OpFailure | null => {
+  const named = nodeNamed(scope.derived, target)?.node.id ?? target
+  const back = pathTo(named, node.id, (id) => scope.derived.after.get(id) ?? [])
+  if (back === null) return null
+  // `back` already ends where it started from, so the node's own id in front of
+  // it IS the closed loop: `a → b → a`, and `a → a` for an edge onto itself.
+  return new UsageFailure({
+    reason: `\`${node.id}\` after \`${target}\` closes a loop — ${
+      chainOf([node.id, ...back])
+    } — and \`after\` (counting \`blocks\`) must stay acyclic, so nothing in it ` +
+      `could ever start first`,
+  })
+}
+
+/**
+ * The edge fields an op may WRITE, and everything that differs between them:
+ * the words a refusal about one uses, and the rule an add has to survive.
+ *
+ * One descriptor per field rather than a table of words beside a rule passed in
+ * at the call site — the two are the same decision, and split apart a third
+ * field would be two edits in two shapes with nothing to say they belong
+ * together.
+ *
+ * `blocks` is not among them, and that is the format's own sugar rule read as a
+ * writing rule: `a blocks b` IS `b after a`, so a writer that could spell both
+ * would put one relation on disk two ways and leave every reader normalising.
+ * Nothing stops a person writing `blocks` by hand — the format takes it and
+ * `derive` folds it in — but an op writes the arrow one way. That is why this
+ * list is narrower than the format's own edge fields rather than a copy of it.
+ */
+const EDGE = {
+  see: {
+    /** How the refusal for a node that carries none reads. */
+    none: "has no `see` targets",
+    /** …and for one that already says exactly what was asked for. */
+    exact: "already sees exactly",
+    /** Nothing: a `see` is a link and no more, so a loop of them is two notes
+     *  pointing at each other, which is a thing people write on purpose. */
+    forbid: (): null => null,
+  },
+  after: {
+    none: "has no `after` edges",
+    exact: "already comes after exactly",
+    forbid: cycling,
+  },
+} as const satisfies Record<string, {
+  readonly none: string
+  readonly exact: string
+  readonly forbid: (scope: Scope, node: RegularNode, target: string) => OpFailure | null
+}>
+
+/** The fields above — deliberately NOT the format's `after | blocks | see`,
+ *  which is what a record may CARRY. */
+type WritableEdge = keyof typeof EDGE
+
+/**
+ * Add and/or remove edge targets on a node — the whole of `set_see` and
+ * `set_after`, which are one gesture over two fields.
+ *
+ * INCREMENTAL rather than a whole-array replace: an agent that has just
+ * discovered one reference should not have to re-state every other one it
+ * already set, and a call that says nothing is refused rather than writing the
+ * array back unchanged.
+ *
+ * The refusal for a target that does not exist is {@link unknownId}, which
+ * is the validator's own did-you-mean one moment earlier — the validator would
+ * catch it too, with `file:line`, and an agent that can correct before the write
+ * costs nobody a round trip.
+ *
+ * What differs between the two fields is what the edges MEAN, and that is
+ * {@link EDGE}'s to say: `see` is free (no ordering, no blocking, cycles fine),
+ * while `after` is the ordering graph and an add that closes a loop is refused
+ * ({@link cycling}).
+ */
+const planEdges = (
   scope: Scope,
-  request: Extract<Request, { op: "see" }>,
+  field: WritableEdge,
+  request: {
+    readonly id: string
+    readonly add?: ReadonlyArray<string> | undefined
+    readonly remove?: ReadonlyArray<string> | undefined
+  },
 ): Planned => {
   const target = editable(scope, request.id)
   if (Result.isFailure(target)) return Result.fail(target.failure)
@@ -1160,24 +1373,16 @@ const planSee = (
     return Result.fail(
       new UsageFailure({
         reason:
-          "give `add` and/or `remove` — at least one target to change on this node's `see`",
+          `give \`add\` and/or \`remove\` — at least one target to change on this ` +
+          `node's \`${field}\``,
       }),
     )
   }
 
-  // Refuse the first unknown add, with the set's ids so the next call can
-  // name one that exists. Same shape as an unknown `file` on `add`.
   for (const id of add) {
-    if (!scope.derived.byId.has(id)) {
-      const known = [...scope.derived.byId.keys()].sort().join(", ") ||
-        "there are none"
-      return Result.fail(
-        new NotFoundFailure({
-          reason: `\`${id}\` is not a node in the loaded set: ${known}`,
-          named: id,
-        }),
-      )
-    }
+    if (!scope.derived.byId.has(id)) return Result.fail(unknownId(scope, id))
+    const refused = EDGE[field].forbid(scope, node, id)
+    if (refused !== null) return Result.fail(refused)
   }
 
   // Existing order preserved; removes drop out; adds that are new append.
@@ -1186,14 +1391,14 @@ const planSee = (
   // that would write nothing.
   const drop = new Set(remove)
   const next: Array<string> = []
-  for (const id of node.see ?? []) {
+  for (const id of node[field] ?? []) {
     if (!drop.has(id)) next.push(id)
   }
   for (const id of add) {
     if (!next.includes(id)) next.push(id)
   }
 
-  const previous = node.see ?? []
+  const previous = node[field] ?? []
   if (
     previous.length === next.length &&
     previous.every((id, index) => id === next[index])
@@ -1201,8 +1406,8 @@ const planSee = (
     return Result.fail(
       new UsageFailure({
         reason: previous.length === 0
-          ? `\`${node.title}\` has no see targets, and nothing to add was named`
-          : `\`${node.title}\` already sees exactly ${
+          ? `\`${node.title}\` ${EDGE[field].none}, and nothing to add was named`
+          : `\`${node.title}\` ${EDGE[field].exact} ${
             previous.map((id) => `\`${id}\``).join(", ")
           } — nothing would change`,
       }),
@@ -1210,14 +1415,253 @@ const planSee = (
   }
 
   const draft: Draft<RegularNode> = { ...node }
-  if (next.length === 0) delete draft.see
-  else draft.see = next
+  if (next.length === 0) delete draft[field]
+  else draft[field] = next
 
   return Result.succeed({
     files: [{ file, nodes: replacing(recordsOf(scope, file), node.id, draft) }],
     id: node.id,
     title: node.title,
     file,
-    summary: `see: ${node.title}`,
+    summary: `${field}: ${node.title}`,
   })
 }
+
+const planSee = (
+  scope: Scope,
+  request: Extract<Request, { op: "see" }>,
+): Planned => planEdges(scope, "see", request)
+
+const planAfter = (
+  scope: Scope,
+  request: Extract<Request, { op: "after" }>,
+): Planned => planEdges(scope, "after", request)
+
+// ── mirrors ────────────────────────────────────────────────────────────
+
+/**
+ * A second PLACEMENT of a node that already exists.
+ *
+ * The record is `{id, parent?, ord, mirror}` and cannot be anything else: it is
+ * built here, from a request that has no field for a title or a mark, so "a
+ * mirror carries nothing but its four" is unrepresentable rather than checked
+ * (docs/format.md's Two record shapes). What the op decides is only where the
+ * placement goes — the same landing and the same `before`/`after` an `add` gets
+ * — and what it may show.
+ *
+ * TWO refusals are its own, and both are about the target:
+ *
+ *   - an id nothing declares, refused with the closest one that is
+ *     ({@link unknownId}). The validator would say so too; saying it here
+ *     costs the agent nothing and the write never happens;
+ *   - a CONTAINMENT cycle: a mirror placed inside the subtree it shows expands
+ *     forever, so the walk that would draw it is the walk that has to refuse it
+ *     ({@link showsInto}).
+ *
+ * A chain — a mirror of a mirror — is allowed, because the format allows it and
+ * `follow` resolves it: what a second pointer to a pointer shows is the node at
+ * the end of it. It is the one case where the target a record names and the node
+ * a reader sees are different records, and every answer here uses the node.
+ */
+const planMirror = (
+  scope: Scope,
+  request: Extract<Request, { op: "mirror" }>,
+): Planned => {
+  const landing = landsIn(scope, request)
+  if (Result.isFailure(landing)) return Result.fail(landing.failure)
+  const { file, parent } = landing.success
+
+  if (!scope.derived.byId.has(request.target)) {
+    return Result.fail(unknownId(scope, request.target))
+  }
+
+  if (parent !== undefined) {
+    const loop = showsInto(scope, request.target, parent)
+    if (loop !== null) {
+      return Result.fail(
+        new UsageFailure({
+          reason:
+            `\`${parent}\` is inside what \`${request.target}\` shows — ${loop} — so a ` +
+            `mirror of it there would expand forever. A mirror may not be placed ` +
+            `inside the subtree it shows.`,
+        }),
+      )
+    }
+  }
+
+  const chosen = idFor(scope, new Set<string>(), request.id)
+  if (Result.isFailure(chosen)) return Result.fail(chosen.failure)
+  const id = chosen.success
+
+  const ords = placed(siblingsOf(scope.derived, file, parent), id, request)
+  if (Result.isFailure(ords)) return Result.fail(ords.failure)
+  const ord = ordFor(ords.success, id)
+
+  const record: MirrorNode = {
+    id,
+    ...(parent === undefined ? {} : { parent }),
+    ord,
+    mirror: request.target,
+  }
+
+  const title = shownTitle(scope, request.target)
+  return Result.succeed({
+    files: [
+      { file, nodes: withOrds([...recordsOf(scope, file), record], ords.success) },
+    ],
+    // The PLACEMENT's id — it is what `remove_mirror` takes, and nobody may
+    // have chosen it — under the TARGET's title, which is what a person reading
+    // the log recognises.
+    id,
+    title,
+    file,
+    summary: `mirror: ${title}`,
+  })
+}
+
+/**
+ * The loop a mirror of `target` under `parent` would close, or `null`.
+ *
+ * The graph is `@olai/format`'s `drawnFrom` — what drawing a record leads to
+ * drawing — which is the same derivation the validator's containment rule
+ * walks. That sharing is the point rather than a convenience: a second copy
+ * here would be a placement this op allowed and the write gate then refused,
+ * which is a refusal the tool that planned it did not know it was heading for.
+ *
+ * The new placement has exactly one way IN — it is a child of `parent` — so the
+ * question is whether drawing what the target shows ever reaches `parent`, and
+ * a top-level placement (no parent) has no way in at all.
+ */
+const showsInto = (
+  scope: Scope,
+  target: string,
+  parent: string,
+): string | null => {
+  const path = pathTo(target, parent, (id) => {
+    const at = scope.derived.byId.get(id)
+    return at === undefined ? [] : drawnFrom(scope.derived, at.node)
+  })
+  return path === null ? null : chainOf(path)
+}
+
+/** What to call a placement in a summary and a reply: the TITLE of the node it
+ *  shows, chain followed, because that is the thing a person reading a commit
+ *  log recognises. The id it was named by is the fallback, for the one case
+ *  where the chain does not end at a node — a set the validator has condemned,
+ *  which a plan can still be asked about. */
+const shownTitle = (scope: Scope, target: string): string =>
+  nodeNamed(scope.derived, target)?.node.title ?? target
+
+/**
+ * Retire a placement.
+ *
+ * Removing a mirror deletes a LINE, not a node: the target keeps its title, its
+ * mark, its children and its own place in whatever outline defines it, and
+ * every other placement of it stays exactly where it was. That is the whole
+ * semantic, and it is why this is not `archive_node` (which MOVES a node and its
+ * subtree into `Archive.jsonl`, ids and all) and not a delete of anything —
+ * there is no op in this layer that destroys content, and this one does not
+ * become the first by accident.
+ *
+ * So the refusal for a regular node is not a technicality. `remove_mirror` on
+ * the id of a node would be a caller asking to unsay something it never said,
+ * and answering it by archiving the node — the nearest thing that "removes" it
+ * — would put a subtree away nobody asked to put away.
+ *
+ * A placement something else still NAMES is refused here too, and that is a
+ * correction (2026-08-11 review): it was left to the validator, on the grounds
+ * that this file refuses only what it can refuse without re-validating. The
+ * refusal was safe — nothing landed — but it was not an answer anyone could
+ * act on. What came back was a row about the file the write would have
+ * produced, saying `mirror` names `now-install`, which no node declares, about
+ * a record the caller never touched — and, because an id that has just been
+ * deleted is by definition unknown, sometimes with a did-you-mean pointing at
+ * a NEIGHBOUR of the thing the caller asked to remove. A refusal that teaches
+ * the wrong lesson is worse than one that teaches none.
+ *
+ * It is still not re-validation: {@link dependents} is a lookup over the
+ * snapshot's own records, the same kind of thing the containment walk is, and
+ * it reads the format's `targetsOf` so a relation added later cannot slip past
+ * it. The validator remains the backstop for everything else.
+ */
+const planUnmirror = (
+  scope: Scope,
+  request: Extract<Request, { op: "unmirror" }>,
+): Planned => {
+  const located = scope.derived.byId.get(request.id)
+  if (located === undefined) return Result.fail(unknownId(scope, request.id))
+  const { file, node } = located
+
+  if (!isMirror(node)) {
+    return Result.fail(
+      new UsageFailure({
+        reason:
+          `\`${request.id}\` is a node, not a mirror. \`remove_mirror\` retires a ` +
+          `PLACEMENT — one line showing a node in a second location — and never ` +
+          `touches the node itself; \`archive_node\` is what puts a node and its ` +
+          `subtree away.`,
+      }),
+    )
+  }
+
+  const may = writable(scope, file)
+  if (Result.isFailure(may)) return Result.fail(may.failure)
+
+  const held = dependents(scope, node.id)
+  if (held.length > 0) {
+    return Result.fail(
+      new UsageFailure({
+        reason:
+          `\`${node.id}\` is still named by ${held.join(", ")} — retiring it would ` +
+          `leave ${held.length === 1 ? "that" : "those"} pointing at nothing. Re-point ` +
+          `${held.length === 1 ? "it" : "them"} at \`${node.mirror}\` (the node this ` +
+          `placement shows), or retire ${held.length === 1 ? "it" : "them"} first.`,
+      }),
+    )
+  }
+
+  const title = shownTitle(scope, node.mirror)
+  return Result.succeed({
+    files: [
+      {
+        file,
+        nodes: recordsOf(scope, file).filter((record) => record.id !== node.id),
+      },
+    ],
+    id: node.id,
+    title,
+    file,
+    summary: `unmirror: ${title}`,
+  })
+}
+
+/**
+ * What would be left pointing at nothing if this record went — each named with
+ * the field that names it and where that line is.
+ *
+ * A mirror is addressable like any other record, so anything may name one: a
+ * second placement chained onto it, or an `after` / `blocks` / `see` written at
+ * it. WHICH fields those are is the format's answer rather than a list kept
+ * here (`targetsOf`) — a list of edge fields in this file is one a fourth
+ * relation would silently fall out of, and the write it should have refused
+ * would land.
+ *
+ * `parent` is not among them because a mirror cannot be one: the validator
+ * refuses a record whose parent is a placement, so no set this planner is ever
+ * handed has a child hanging off one.
+ */
+const dependents = (scope: Scope, id: string): ReadonlyArray<string> =>
+  scope.derived.nodes.flatMap((located) => {
+    if (located.node.id === id) return []
+    const naming = [
+      ...new Set(
+        targetsOf(located.node)
+          .filter(([, target]) => target === id)
+          .map(([field]) => field),
+      ),
+    ]
+    return naming.length === 0 ? [] : [
+      `\`${located.node.id}\` (${naming.map((field) => `\`${field}\``).join(", ")}, ` +
+      `${located.file}:${located.line})`,
+    ]
+  })

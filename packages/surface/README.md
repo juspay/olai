@@ -50,8 +50,13 @@ Which kind each member is was a decision. Three are the outline:
   never sees it. Whether this directory is a work tree, and whether the last
   commit worked, is one value the server owns about the DIRECTORY rather than
   about any file in it — four states (`off` under `--no-commit`, `repo`, `none`,
-  `error` with git's own words), which the app header draws as three: a quiet
-  one, a calm "Not a Git repo", and a "Git error" carrying what git said. It
+  `error` with git's own words). The app header draws them on the ONE control it
+  has for git, the Commit pill, which reads this cell beside `pending`: a quiet
+  `✓ committed`, a dim `commits off` and `no git here`, and a `⚠ git error`
+  carrying what git said. It is read on the MCP face too, as a resource, and
+  that is not a duplicate of the browser's reading — an agent in a terminal asks
+  the same question and gets the same answer, which is HACKING.md's consistency
+  rule rather than a convenience. It
   moves at most twice in an ordinary serve — the probe, and a commit that
   refuses — so nothing about it is a stream. Its shape is deliberately the same
   as `@olai/ops`' own `GitState`: the server hands one straight to the other,

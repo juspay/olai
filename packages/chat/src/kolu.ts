@@ -28,8 +28,10 @@
  *     started, handshaken with, and asked to read a resource that only the
  *     daemon can answer. An answer is the evidence, and it is evidence of both
  *     halves at once — this binary speaks the protocol, AND a padi is behind
- *     it. Anything else is a `null`, silently, because a host without kolu is
- *     the ordinary case rather than a fault.
+ *     it. Anything else is a no — because a host without kolu is the ordinary
+ *     case rather than a fault — but a no that SAYS WHY ({@link Detected}). It
+ *     used to be one silent `false` for all four ways of failing, with the
+ *     reason destroyed by a `catch` before anything could report it.
  *   - **The path we probe is the path we hand over.** `kolu` is resolved on
  *     PATH here, once, and the session is given that absolute path — which is
  *     also what ACP's stdio shape asks for. Handing the bare word would leave
@@ -40,6 +42,7 @@
 import { type ChildProcess, spawn } from "node:child_process"
 
 import type { AnyMessage } from "@agentclientprotocol/sdk"
+import { reasonOf } from "@olai/log"
 import { Effect } from "effect"
 
 import { streamOver } from "./pipes.ts"
@@ -76,16 +79,42 @@ export interface Server {
 }
 
 /**
- * Kolu's MCP server if this host is running kolu, `null` if it is not.
+ * What the probe found — and, when it found nothing, WHY.
+ *
+ * Three arms rather than a `Server | null`, because "no kolu here" and "a kolu
+ * here that would not answer" are different facts about a host and only the
+ * second is worth telling anybody about. They used to be the same `null`, with
+ * the reason destroyed by a `catch` before anything could have reported it:
+ * a spawn that failed, a build that lost the verb, a wedged daemon and a padi
+ * that is genuinely not running all arrived as one silent no.
+ *
+ * The reason is a VALUE and not a log line, which is the whole of what this
+ * change is for. Rendering it is `mcp-fail-visible`'s job; having something to
+ * render is this one's.
+ */
+export type Detected =
+  /** Kolu is here, and it answered. */
+  | { readonly _tag: "kolu"; readonly server: Server }
+  /** No `kolu` on PATH at all — the ordinary case, and not a fault. */
+  | { readonly _tag: "none" }
+  /** A `kolu` on PATH that did not answer, and what happened. */
+  | { readonly _tag: "silent"; readonly kolu: string; readonly why: string }
+
+/** The server to hand a session, out of whatever the probe found. */
+export const serverOf = (found: Detected): Server | null =>
+  found._tag === "kolu" ? found.server : null
+
+/**
+ * Kolu's MCP server if this host is running kolu, and why not if it is not.
  *
  * Asked once per conversation rather than once at boot ({@link ./agent.ts}), so
  * a padi started after olai is picked up by the next session instead of at the
  * next restart. It costs one process start and one round trip, on a path that
  * already spawns a subprocess and handshakes with it.
  */
-export const detect: Effect.Effect<Server | null> = Effect.gen(function*() {
+export const detect: Effect.Effect<Detected> = Effect.gen(function*() {
   const command = onPath(COMMAND)
-  if (command === null) return null
+  if (command === null) return { _tag: "none" }
 
   // Forwarded rather than merely inherited, because the ACP agent is what
   // spawns this and its environment is its own business — the variable travels
@@ -98,17 +127,20 @@ export const detect: Effect.Effect<Server | null> = Effect.gen(function*() {
     ? {}
     : { [SOCKET]: socket }
 
-  const answered = yield* Effect.promise(() => answers(command, env))
-  if (!answered) {
-    yield* Effect.logDebug("kolu is on PATH but no padi answered it").pipe(
-      Effect.annotateLogs({ kolu: command }),
+  const why = yield* Effect.promise(() => whyNotAnswered(command, env))
+  if (why !== null) {
+    // The reason is on the line now as well as on the value. It used to say
+    // only that "no padi answered", which is the one thing every way of
+    // failing had in common and the one thing that never helped.
+    yield* Effect.logDebug("kolu is on PATH but did not answer").pipe(
+      Effect.annotateLogs({ kolu: command, why }),
     )
-    return null
+    return { _tag: "silent", kolu: command, why }
   }
   yield* Effect.logInfo("kolu's terminals are on this session").pipe(
     Effect.annotateLogs({ kolu: command }),
   )
-  return { name: COMMAND, command, args: ARGS, env }
+  return { _tag: "kolu", server: { name: COMMAND, command, args: ARGS, env } }
 })
 
 /** The executable by that name on PATH, or `null`. The PATH is passed rather
@@ -146,26 +178,35 @@ const CONVERSATION: ReadonlyArray<AnyMessage> = [
  * kill it either way. This process is a PROBE and never a client: the session
  * gets its own, spawned by the agent.
  *
- * Every way of failing arrives as the same `false`, and they arrive by one
- * door: the pipes closing ends the read below, and the deadline is a KILL
- * rather than a race, so a binary that is not kolu, a build that lost the verb,
- * a daemon that is not there and a wedge are one path with one answer.
+ * Every way of failing still arrives by ONE door — the pipes closing ends the
+ * read below, and the deadline is a KILL rather than a race — but they no
+ * longer arrive as one indistinguishable `false`. `null` means it answered;
+ * anything else is the sentence saying which of the four happened, which is
+ * the difference between "kolu is not running here" (fine, and common) and
+ * "the kolu on your PATH is a build that cannot do this" (worth knowing, and
+ * previously invisible).
  */
-const answers = async (
+const whyNotAnswered = async (
   command: string,
   env: Readonly<Record<string, string>>,
-): Promise<boolean> => {
+): Promise<string | null> => {
   let child: ChildProcess
   try {
     child = spawn(command, [...ARGS], {
       stdio: ["pipe", "pipe", "ignore"],
       env: { ...process.env, ...env },
     })
-  } catch {
-    return false
+  } catch (cause) {
+    return `it could not be started: ${reasonOf(cause)}`
   }
 
-  const deadline = setTimeout(() => child.kill("SIGKILL"), PROBE_MS)
+  /** Whether the deadline is what ended this, so the closed pipe below is read
+   *  as the timeout it is rather than as an agent that hung up. */
+  let expired = false
+  const deadline = setTimeout(() => {
+    expired = true
+    child.kill("SIGKILL")
+  }, PROBE_MS)
   try {
     const stream = streamOver(child)
     const writer = stream.writable.getWriter()
@@ -176,23 +217,41 @@ const answers = async (
     const reader = stream.readable.getReader()
     while (true) {
       const next = await reader.read()
-      if (next.done) return false
-      const verdict = verdictOf(next.value)
-      if (verdict !== null) return verdict
+      if (next.done) {
+        return expired
+          ? `it did not answer within ${PROBE_MS / 1000}s`
+          : "it closed the connection without answering"
+      }
+      if (!answersTheProbe(next.value)) continue
+      return refusalIn(next.value)
     }
-  } catch {
-    return false
+  } catch (cause) {
+    return `talking to it failed: ${reasonOf(cause)}`
   } finally {
     clearTimeout(deadline)
     child.kill("SIGKILL")
   }
 }
 
-/** What one message says about the read: `true` it answered, `false` it
- *  refused, `null` it was about something else. A refusal is what a kolu that
- *  reached no daemon sends, so it is a verdict rather than noise. */
-const verdictOf = (message: AnyMessage): boolean | null => {
-  const shape = message as { readonly id?: unknown; readonly result?: unknown }
-  if (shape.id !== PROBE_ID) return null
-  return shape.result !== undefined && shape.result !== null
+/** Two questions, and they were one three-valued answer: this one is "is this
+ *  message ours at all", which is about the ENVELOPE and true of a refusal
+ *  exactly as much as of a success. */
+const answersTheProbe = (message: AnyMessage): boolean =>
+  (message as { readonly id?: unknown }).id === PROBE_ID
+
+/** ... and this one is what our answer SAYS: `null` it answered, a sentence it
+ *  refused. A refusal is what a kolu that reached no daemon sends, so it is a
+ *  verdict rather than noise — and it is the one whose reason a reader most
+ *  wants, since a kolu answering this way is installed, running, and running
+ *  against nothing. */
+const refusalIn = (message: AnyMessage): string | null => {
+  const shape = message as {
+    readonly result?: unknown
+    readonly error?: { readonly message?: unknown }
+  }
+  if (shape.result !== undefined && shape.result !== null) return null
+  const said = shape.error?.message
+  return typeof said === "string" && said !== ""
+    ? `it refused to read the daemon's identity: ${said}`
+    : "it refused to read the daemon's identity, so no padi is behind it"
 }

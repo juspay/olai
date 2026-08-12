@@ -13,6 +13,12 @@ export const TESTID = {
    *  chrome about the APP, and every shape of the app (including the error
    *  report) gets it. */
   appHeader: "app-header",
+  /** The row of pills inside it that are about the APP — the connection, the
+   *  Commit pill, the agent toggle, the theme picker. Its own name because the
+   *  CONTENTS of that row are a claim: `one-git-indicator` was two chips
+   *  answering one question, and the only way to hold that shut is to count
+   *  what is in the row rather than to look for the chip that was removed. */
+  appChrome: "app-chrome",
   /** The sidebar itself. Always drawn when the set loaded — which is what
    *  makes it, rather than anything inside it, the sign that the app has
    *  committed to a shape. On a phone the BODY starts collapsed behind the
@@ -63,6 +69,11 @@ export const TESTID = {
   nodeMenuPanel: "node-menu-panel",
   /** One item inside that panel. `data-action` names the verb. */
   nodeMenuItem: "node-menu-item",
+  /** What the last-chosen action could NOT do, beside the `•••` for a few
+   *  seconds. It exists for the clipboard: a write is refused whenever the
+   *  page is not a secure context, which is every LAN reader on plain http,
+   *  and a copy that never happened used to look exactly like one that did. */
+  nodeMenuSaid: "node-menu-said",
   /** One folder in the sidebar's file tree. `data-path` is the root-relative
    *  path, `data-collapsed` says whether its children are hidden. */
   fileDir: "file-dir",
@@ -109,6 +120,13 @@ export const TESTID = {
    *  and ABSENT on a document with fewer than two headings, which is what makes
    *  "a note never gets one" assertable. */
   toc: "toc",
+  /** A `![](…)` this app will not draw — a remote host, a `data:`, an `.svg`,
+   *  or the ordinary case, a filename with a typo in it. Drawn WHERE THE
+   *  PICTURE WOULD HAVE BEEN and naming the `src` that was written, because
+   *  the alternative (which this replaced) is a page with a hole in it that
+   *  neither the person who wrote the typo nor the agent asked about it can
+   *  see. The written `src` also rides `data-src`. */
+  undrawnPicture: "undrawn-picture",
   /** One line of it: a link to a heading in the same page. Its `href` is the
    *  fragment, which is the whole claim — the id it names is the one the
    *  rendered heading carries. */
@@ -206,11 +224,6 @@ export const TESTID = {
    *  carries the state itself — `live`, `lost`, `restarted`, `connecting` — so a
    *  scenario asserts on the state and never on the colour it is painted. */
   connection: "connection",
-  /** The git readout, beside the connection. `data-git` carries the state —
-   *  `repo`, `none`, `error` — and the element is ABSENT under `--no-commit`,
-   *  which is the fourth state (`off`) and the one with nothing to say. What
-   *  git actually said rides the tip and the `aria-label`, never a colour. */
-  git: "git",
   /** Over everything: the server that served this page has been replaced. */
   restarted: "restarted",
   /** The button in that surface — the whole of the recovery. Shared with the
@@ -229,13 +242,16 @@ export const TESTID = {
   faultHome: "fault-home",
 
   // ── the Commit button ────────────────────────────────────────────────
-  /** The pill in the chrome. ALWAYS drawn — the feature is an audit trail, so
-   *  "there is no audit trail here" is the most important thing it can say, and
-   *  a control that disappeared is how nobody would ever find that out.
-   *  `data-state` carries which face this is — `off`, `no-repo`, `never`,
-   *  `committed`, `waiting`, `blocked`, and `unknown` for a page that has not
-   *  heard from the server yet — `data-uncommitted` the count, and `data-repo`
-   *  the repository's own state. */
+  /** The pill in the chrome, and the header's ONE answer to "what is git doing
+   *  here" (`one-git-indicator` retired the `● git` readout that used to sit
+   *  beside it). ALWAYS drawn — the feature is an audit trail, so "there is no
+   *  audit trail here" is the most important thing it can say, and a control
+   *  that disappeared is how nobody would ever find that out.
+   *  `data-state` carries which face this is — `off`, `no-repo`, `error`,
+   *  `never`, `committed`, `waiting`, `blocked`, and `unknown` for a page that
+   *  has not heard from the server yet — `data-uncommitted` the count, and
+   *  `data-repo` the repository's own state. What git SAID rides the tip and
+   *  the `aria-label`, never a colour. */
   commitPill: "commit-pill",
   /** The panel it opens. One row per node, never a text diff. */
   commitPanel: "commit-panel",
@@ -338,6 +354,11 @@ export const TESTID = {
   chatRefusal: "chat-refusal",
   /** What the last VERB refused — an empty send, a turn already running. */
   chatRefused: "chat-refused",
+  /** Why the picker has no conversations to offer. Its OWN answer rather than
+   *  the panel's `chatRefused`, because the click that asked was here — and
+   *  because a refusal that resolved to an empty list used to be drawn as "no
+   *  stored conversations", which is a claim about the agent's disk. */
+  chatSessionsRefused: "chat-sessions-refused",
   /** What went wrong where nobody was waiting: a boot, a dead agent. */
   chatTrouble: "chat-trouble",
   chatInput: "chat-input",

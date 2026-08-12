@@ -82,10 +82,13 @@ Then("the terminal agent is offered no file tools", function (this: OlaiWorld) {
 
 // ── what it does ───────────────────────────────────────────────────────
 
+/** One step for the three marks rather than three copies of it: which marks
+ *  there are is the format's list, and the tool that writes one is named after
+ *  it (`set_done` / `set_doing` / `set_todo`). */
 When(
-  "the terminal agent marks {string} done",
-  async function (this: OlaiWorld, id: string) {
-    this.toolAnswer = await callTool(agentOf(this), "set_done", { id });
+  "the terminal agent marks {string} {word}",
+  async function (this: OlaiWorld, id: string, mark: string) {
+    this.toolAnswer = await callTool(agentOf(this), `set_${mark}`, { id });
   },
 );
 
@@ -191,6 +194,43 @@ When(
           children: [{ id: "tins", title: "the old paint tins" }],
         }],
       },
+    });
+  },
+);
+
+/**
+ * The ledger ops, as a terminal agent calls them.
+ *
+ * The mirror's own id is CHOSEN here so the assertions can name the row it
+ * draws — a real agent would let one be minted and read it back off the
+ * answer's `id`, which is the same field `remove_mirror` then takes.
+ */
+When(
+  "the terminal agent mirrors {string} at the top of {string} as {string}",
+  async function (this: OlaiWorld, target: string, file: string, id: string) {
+    this.toolAnswer = await callTool(agentOf(this), "add_mirror", {
+      target,
+      file,
+      id,
+    });
+  },
+);
+
+When(
+  "the terminal agent retires the mirror {string}",
+  async function (this: OlaiWorld, id: string) {
+    this.toolAnswer = await callTool(agentOf(this), "remove_mirror", { id });
+  },
+);
+
+/** The arrow is written from the node that WAITS — `a blocks b` is spelled as
+ *  `b after a`, and the ops layer writes it one way. */
+When(
+  "the terminal agent makes {string} wait on {string}",
+  async function (this: OlaiWorld, id: string, blocker: string) {
+    this.toolAnswer = await callTool(agentOf(this), "set_after", {
+      id,
+      add: [blocker],
     });
   },
 );

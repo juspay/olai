@@ -25,6 +25,15 @@ Feature: The connection is visible, and a replaced server is recoverable
 
   Scenario: A page that is talking to its server says so
     Then the connection is "live"
+    # And green is a claim about what REACHES the page, not about a socket: the
+    # pill folds the framework's subscription-health fact in, so a live wire
+    # under a dead stream reads "partly live" rather than green. This asserts
+    # the healthy half of that — every subscription this page opened is
+    # delivering, and the fold has not gone amber over a page that is fine.
+    # The mapping itself is unit-tested (`connection/status.test.ts`): killing
+    # ONE subscription while leaving its socket up is not something a browser
+    # can be asked to do from out here.
+    And no subscription has stopped
 
   Scenario: A server that goes away is reported, not hidden
     Given the connection is "live"

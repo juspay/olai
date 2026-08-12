@@ -49,6 +49,16 @@ Feature: Workflowy gutter
       | Collapse all       |
       | Copy link to node  |
 
+  Scenario: A copy the browser refused says so, instead of nothing
+    # The clipboard is gated on a secure context, so a page served over plain
+    # http to another machine on the LAN — how olai is normally read — refuses
+    # every write. That refusal was caught and dropped, which made a copy that
+    # never happened identical to one that worked.
+    Given this browser's clipboard refuses
+    When I open the node menu of "kitchen"
+    And I choose "Copy link to node" from the node menu
+    Then the node menu of "kitchen" says "couldn't copy link to node"
+
   Scenario: Zoom in from the menu stays in the same document
     Given I mark the page
     When I open the node menu of "kitchen"

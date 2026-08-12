@@ -743,8 +743,11 @@ describe("move", () => {
   })
 
   test("moving a node under its own descendant is refused before the validator sees it", () => {
-    expect(refused(house(), { op: "move", id: "kitchen", parent: "order" }).message)
-      .toContain("loop")
+    const failure = refused(house(), { op: "move", id: "kitchen", parent: "order" })
+    expect(failure.message).toContain("loop")
+    // …and it NAMES the ancestry, the way the other two loop refusals do: the
+    // chain by which the proposed parent already sits inside the node.
+    expect(failure.message).toContain("`order` → `kitchen`")
   })
 
   test("both `before` and `after` is a usage refusal", () => {
@@ -1061,23 +1064,34 @@ describe("see", () => {
   })
 
   /**
-   * The refusal that teaches: an unknown target is refused with the ids the
-   * set DOES hold, the same way an unknown outline file lists the ones under
-   * the served directory. An agent that mistyped can correct without a second
-   * round-trip.
+   * The refusal that teaches, and it teaches the way the VALIDATOR does: the
+   * closest id that exists, over the same typo budget, so an agent that
+   * mistyped corrects without a round-trip to `search_nodes`.
+   *
+   * It used to list every id in the set — the right answer for the OUTLINES of
+   * a directory, where there are five, and the wrong one for the nodes in it: a
+   * vault of a few thousand put its whole id space in one refusal with the one
+   * id worth reading somewhere in the middle.
    */
-  test("an unknown add is not-found and lists the ids that exist", () => {
+  test("an unknown add is not-found, with the id it was probably meant to be", () => {
     const failure = refused(house(), {
       op: "see",
       id: "order",
-      add: ["nope"],
+      add: ["instal"],
     })
     expect(failure._tag).toBe("NotFoundFailure")
     if (failure._tag !== "NotFoundFailure") return
-    expect(failure.named).toBe("nope")
-    expect(failure.message).toContain("kitchen")
-    expect(failure.message).toContain("order")
-    expect(failure.message).toContain("nope")
+    expect(failure.named).toBe("instal")
+    expect(failure.message).toContain("did you mean `install`")
+  })
+
+  test("an unknown add nothing is close to names the tool that finds one", () => {
+    const failure = refused(house(), { op: "see", id: "order", add: ["nope"] })
+    expect(failure._tag).toBe("NotFoundFailure")
+    expect(failure.message).toContain("`nope`")
+    expect(failure.message).toContain("search_nodes")
+    // The whole id space is exactly what a refusal must not become.
+    expect(failure.message).not.toContain("kitchen")
   })
 
   test("neither add nor remove is a usage refusal", () => {
@@ -1114,6 +1128,426 @@ describe("see", () => {
   })
 })
 
+// ── after ──────────────────────────────────────────────────────────────
+
+/**
+ * The other edge, and it is `see`'s shape over a graph with a rule: what a node
+ * must come after. What is only about the SHAPE — an unknown target, a mirror
+ * addressed as a node — is `see`'s above and is not repeated, because ONE
+ * function plans both and a copy here would assert nothing new. What is here is
+ * what `after` MEANS: acyclicity, counted the way the format counts it, and the
+ * two refusals whose wording is this field's own.
+ */
+describe("after", () => {
+  const CHAIN = (): OutlineSet =>
+    setOf({
+      "house.jsonl": [
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+        `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition"}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","after":["demo"]}`,
+        `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
+      ].join("\n"),
+    })
+
+  test("adds an edge, keeping the ones already written", () => {
+    const result = planned(CHAIN(), { op: "after", id: "order", add: ["kitchen"] })
+    expect(record(fileOf(result, "house.jsonl"), "order").after).toEqual([
+      "demo",
+      "kitchen",
+    ])
+    expect(result.summary).toBe("after: order the cabinets")
+  })
+
+  test("removes an edge, and clears the field when none remain", () => {
+    const nodes = fileOf(
+      planned(CHAIN(), { op: "after", id: "order", remove: ["demo"] }),
+      "house.jsonl",
+    )
+    expect("after" in record(nodes, "order")).toBe(false)
+  })
+
+  /** The whole rule, and the message is the point of refusing it here rather
+   *  than letting the validator refuse the write: it names the loop, so the
+   *  agent fixes the CALL instead of reading a report about a file that was
+   *  never written. */
+  test("an add that closes a loop is refused, naming the loop", () => {
+    const failure = refused(CHAIN(), { op: "after", id: "demo", add: ["order"] })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("`demo` → `order` → `demo`")
+    expect(failure.message).toContain("acyclic")
+  })
+
+  test("a node after itself is a loop of one", () => {
+    expect(refused(CHAIN(), { op: "after", id: "demo", add: ["demo"] }).message)
+      .toContain("`demo` → `demo`")
+  })
+
+  /** `blocks` is sugar — `a blocks b` means `b after a` — and the acyclicity
+   *  rule reads ONE graph with it normalised in. An op that checked only the
+   *  `after` fields would let a loop through that the validator then refuses,
+   *  which is two answers to one question. */
+  test("a loop that closes through `blocks` is refused too", () => {
+    const set = setOf({
+      "a.jsonl": [
+        `{"id":"a","ord":"a0","title":"a"}`,
+        `{"id":"b","ord":"a1","title":"b","blocks":["a"]}`,
+      ].join("\n"),
+    })
+    // `b blocks a` IS `a after b`, so `b after a` closes it.
+    expect(refused(set, { op: "after", id: "b", add: ["a"] }).message)
+      .toContain("`b` → `a` → `b`")
+  })
+
+  /** An edge naming a MIRROR is an edge to the node standing there — the
+   *  format's own resolution — so a deadlock that closes through a placement is
+   *  one loop rather than two dead ends. */
+  test("a loop that closes through a mirror is one loop", () => {
+    const set = setOf({
+      "a.jsonl": [
+        `{"id":"a","ord":"a0","title":"a"}`,
+        `{"id":"b","ord":"a1","title":"b","after":["mirror-of-a"]}`,
+      ].join("\n"),
+      "b.jsonl": `{"id":"mirror-of-a","ord":"a0","mirror":"a"}`,
+    })
+    const failure = refused(set, { op: "after", id: "a", add: ["b"] })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("`a` → `b` → `a`")
+  })
+
+  /** …including when the ADD is the one addressing the placement. */
+  test("adding an edge to a mirror is adding it to the node it shows", () => {
+    const set = setOf({
+      "a.jsonl": [
+        `{"id":"a","ord":"a0","title":"a"}`,
+        `{"id":"b","ord":"a1","title":"b","after":["a"]}`,
+      ].join("\n"),
+      "b.jsonl": `{"id":"mirror-of-b","ord":"a0","mirror":"b"}`,
+    })
+    expect(refused(set, { op: "after", id: "a", add: ["mirror-of-b"] }).message)
+      .toContain("`a` → `b` → `a`")
+  })
+
+  test("neither add nor remove is a usage refusal naming the field", () => {
+    const failure = refused(CHAIN(), { op: "after", id: "order" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("`after`")
+  })
+
+  test("a no-op is refused rather than rewritten", () => {
+    const failure = refused(CHAIN(), { op: "after", id: "order", add: ["demo"] })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("already comes after")
+  })
+
+})
+
+// ── mirrors ────────────────────────────────────────────────────────────
+
+/**
+ * A second PLACEMENT of a node that already exists — the op the ledger's Now
+ * list was being hand-edited for.
+ *
+ * The fixture is two files, because that is the case a mirror exists for: a
+ * `parent` cannot cross outlines, so a node appearing in another file at all is
+ * a mirror.
+ */
+describe("mirror", () => {
+  const TWO = (): OutlineSet =>
+    setOf({
+      "house.jsonl": [
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+        `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition"}`,
+        `{"id":"install","parent":"kitchen","ord":"a1","title":"install them"}`,
+        `{"id":"handles","parent":"install","ord":"a0","title":"choose the handles"}`,
+      ].join("\n"),
+      "now.jsonl": [
+        `{"id":"now","ord":"a0","title":"Now"}`,
+        `{"id":"now-demo","parent":"now","ord":"a0","mirror":"demo"}`,
+      ].join("\n"),
+    })
+
+  test("places a mirror under a parent, last among its siblings", () => {
+    const result = planned(TWO(), { op: "mirror", target: "install", parent: "now" })
+    const nodes = fileOf(result, "now.jsonl")
+    expect(childOrder(nodes, "now")).toEqual(["now-demo", "n1"])
+    expect(result.id).toBe("n1")
+    // The whole record: four fields, and there is no way to ask for a fifth.
+    expect(nodes.find((node) => node.id === "n1")).toEqual({
+      id: "n1",
+      parent: "now",
+      ord: expect.any(String),
+      mirror: "install",
+    })
+    // What a person reads in the log is the node it shows, not the id of a
+    // placement nobody chose.
+    expect(result.summary).toBe("mirror: install them")
+    expect(result.title).toBe("install them")
+  })
+
+  test("`before` and `after` place it among the siblings there", () => {
+    const nodes = fileOf(
+      planned(TWO(), {
+        op: "mirror",
+        target: "install",
+        parent: "now",
+        before: "now-demo",
+      }),
+      "now.jsonl",
+    )
+    expect(childOrder(nodes, "now")).toEqual(["n1", "now-demo"])
+  })
+
+  test("`file` puts it at the top level of an outline", () => {
+    const nodes = fileOf(
+      planned(TWO(), { op: "mirror", target: "install", file: "now.jsonl" }),
+      "now.jsonl",
+    )
+    expect(nodes.find((node) => node.id === "n1")).toMatchObject({ mirror: "install" })
+    expect("parent" in (nodes.find((node) => node.id === "n1") as Node)).toBe(false)
+  })
+
+  /** The placement's own id, which is what retires it — so a convention like
+   *  `now-<item>` is writable rather than something only a hand edit can keep. */
+  test("a chosen id names the PLACEMENT, and a taken one refuses", () => {
+    const nodes = fileOf(
+      planned(TWO(), {
+        op: "mirror",
+        target: "install",
+        parent: "now",
+        id: "now-install",
+      }),
+      "now.jsonl",
+    )
+    expect(nodes.find((node) => node.id === "now-install")).toMatchObject({
+      mirror: "install",
+    })
+
+    const failure = refused(TWO(), {
+      op: "mirror",
+      target: "install",
+      parent: "now",
+      id: "now-demo",
+    })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("already the id")
+  })
+
+  /** A mirror of a mirror is legal — the format says the chain is followed to
+   *  the node at its end — and every answer here is about that node. */
+  test("a chain is allowed, and the reply names what it shows", () => {
+    const result = planned(TWO(), {
+      op: "mirror",
+      target: "now-demo",
+      file: "house.jsonl",
+    })
+    expect(fileOf(result, "house.jsonl").find((node) => node.id === "n1"))
+      .toMatchObject({ mirror: "now-demo" })
+    expect(result.summary).toBe("mirror: demolition")
+  })
+
+  /**
+   * The containment rule, which is the one thing about a mirror that cannot be
+   * checked one record at a time: a placement inside the subtree it shows is a
+   * drawing that never ends.
+   */
+  test("a mirror inside the subtree it shows is refused, naming the loop", () => {
+    const failure = refused(TWO(), {
+      op: "mirror",
+      target: "kitchen",
+      parent: "handles",
+    })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("`kitchen` → `install` → `handles`")
+    expect(failure.message).toContain("expand forever")
+  })
+
+  test("a mirror of a node under that same node is refused", () => {
+    expect(
+      refused(TWO(), { op: "mirror", target: "kitchen", parent: "kitchen" })._tag,
+    ).toBe("UsageFailure")
+  })
+
+  /** …and the loop can close through another PLACEMENT. Drawing `now` draws
+   *  `now-demo`, which draws `demo` — so a mirror of `now` placed under `demo`
+   *  is inside what it shows, by a route no `parent` chain would find. */
+  test("a loop that closes through an existing mirror is refused", () => {
+    const failure = refused(TWO(), {
+      op: "mirror",
+      target: "now",
+      parent: "demo",
+    })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("`now` → `now-demo` → `demo`")
+    expect(failure.message).toContain("expand forever")
+  })
+
+  /** Containment is about what is drawn UNDER what, not about which file
+   *  anything is in: a mirror beside its target is a second row, not a loop. */
+  test("a mirror at the top of its target's own file is fine", () => {
+    const nodes = fileOf(
+      planned(TWO(), { op: "mirror", target: "demo", file: "house.jsonl" }),
+      "house.jsonl",
+    )
+    expect(nodes.find((node) => node.id === "n1")).toMatchObject({ mirror: "demo" })
+  })
+
+  test("neither parent nor file is a usage refusal", () => {
+    expect(refused(TWO(), { op: "mirror", target: "install" })._tag).toBe("UsageFailure")
+  })
+
+  test("a parent in an outline whose lines do not parse is refused", () => {
+    const set = setOf(
+      { "good.jsonl": `{"id":"x","ord":"a0","title":"x"}` },
+      [],
+      { "bad.jsonl": `{"id":"y","ord":"a0"` },
+    )
+    expect(refused(set, { op: "mirror", target: "x", file: "bad.jsonl" })._tag)
+      .toBe("ValidationFailure")
+  })
+})
+
+describe("unmirror", () => {
+  const PLACED = (): OutlineSet =>
+    setOf({
+      "house.jsonl": [
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+        `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":"2026-08-01"}`,
+      ].join("\n"),
+      "now.jsonl": [
+        `{"id":"now","ord":"a0","title":"Now"}`,
+        `{"id":"now-demo","parent":"now","ord":"a0","mirror":"demo"}`,
+        `{"id":"now-kitchen","parent":"now","ord":"a1","mirror":"kitchen"}`,
+      ].join("\n"),
+    })
+
+  /** The whole semantic: a placement goes, the node does not. */
+  test("takes the placement out and leaves the node alone", () => {
+    const result = planned(PLACED(), { op: "unmirror", id: "now-demo" })
+    expect(result.files.map((file) => file.file)).toEqual(["now.jsonl"])
+    const nodes = fileOf(result, "now.jsonl")
+    expect(nodes.map((node) => node.id)).toEqual(["now", "now-kitchen"])
+    // The target's own record is in another file the plan does not even write.
+    expect(result.summary).toBe("unmirror: demolition")
+    expect(result.title).toBe("demolition")
+    expect(result.id).toBe("now-demo")
+  })
+
+  /** Removing one placement is not a claim about any other. */
+  test("every other placement of the same node stays", () => {
+    const set = setOf({
+      "now.jsonl": [
+        `{"id":"x","ord":"a0","title":"x"}`,
+        `{"id":"one","ord":"a1","mirror":"x"}`,
+        `{"id":"two","ord":"a2","mirror":"x"}`,
+      ].join("\n"),
+    })
+    expect(
+      fileOf(planned(set, { op: "unmirror", id: "one" }), "now.jsonl")
+        .map((node) => node.id),
+    ).toEqual(["x", "two"])
+  })
+
+  test("refuses on a regular node, and says what does put a node away", () => {
+    const failure = refused(PLACED(), { op: "unmirror", id: "demo" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("is a node, not a mirror")
+    expect(failure.message).toContain("archive_node")
+  })
+
+  /**
+   * A placement something else NAMES.
+   *
+   * Retiring it would leave that pointing at nothing, and the write gate would
+   * refuse — but with a row about a record the caller never touched, saying an
+   * id it has just deleted is unknown, sometimes suggesting a neighbour of it.
+   * So the plan refuses first and says WHO still names it and what to do
+   * (2026-08-11 review). These two are the fence against a future "helpful"
+   * cascade landing quietly instead.
+   */
+  test("a placement another mirror chains onto is refused, naming it", () => {
+    const set = setOf({
+      "now.jsonl": [
+        `{"id":"x","ord":"a0","title":"x"}`,
+        `{"id":"one","ord":"a1","mirror":"x"}`,
+      ].join("\n"),
+      "focus.jsonl": `{"id":"two","ord":"a0","mirror":"one"}`,
+    })
+    const failure = refused(set, { op: "unmirror", id: "one" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("`two`")
+    expect(failure.message).toContain("`mirror`")
+    expect(failure.message).toContain("focus.jsonl:1")
+    // The node the placement shows is what a re-point should name.
+    expect(failure.message).toContain("`x`")
+  })
+
+  test("a placement an edge names is refused too, whichever edge it is", () => {
+    for (const edge of ["after", "blocks", "see"]) {
+      const set = setOf({
+        "now.jsonl": [
+          `{"id":"x","ord":"a0","title":"x"}`,
+          `{"id":"one","ord":"a1","mirror":"x"}`,
+          `{"id":"y","ord":"a2","title":"y","${edge}":["one"]}`,
+        ].join("\n"),
+      })
+      const failure = refused(set, { op: "unmirror", id: "one" })
+      expect(failure._tag).toBe("UsageFailure")
+      expect(failure.message).toContain("`y`")
+      expect(failure.message).toContain(`\`${edge}\``)
+    }
+  })
+})
+
+/**
+ * The neighbours of an edited line come back BYTE-IDENTICAL.
+ *
+ * Every op re-emits the whole file from its records, so "did anything else
+ * move" is a real question and this is the answer: one line differs, and it is
+ * the line the op was about. That is what keeps a line-based git merge worth
+ * having — a mirror placed in one branch and a mark set in another are two
+ * one-line diffs that merge, and an op that quietly renumbered a row or
+ * re-spelled a date would be a conflict about nothing.
+ */
+describe("round trip", () => {
+  const LEDGER = [
+    `{"id":"now","ord":"a0","title":"Now"}`,
+    `{"id":"now-demo","parent":"now","ord":"a0","mirror":"demo"}`,
+    `{"id":"kitchen","ord":"a1","title":"Kitchen remodel"}`,
+    `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":true,"after":["survey"]}`,
+    `{"id":"survey","parent":"kitchen","ord":"a1","title":"survey the room","todo":"2026-08-01"}`,
+    `{"id":"paint","parent":"kitchen","ord":"a2","title":"paint the walls"}`,
+  ]
+
+  const lines = (request: Request): ReadonlyArray<string> =>
+    serializeOutline(
+      fileOf(planned(setOf({ "ledger.jsonl": LEDGER.join("\n") }), request), "ledger.jsonl"),
+    ).trimEnd().split("\n")
+
+  test("placing a mirror adds one line and touches none", () => {
+    const after = lines({ op: "mirror", target: "survey", parent: "now" })
+    expect(after).toHaveLength(LEDGER.length + 1)
+    expect(after.filter((line) => LEDGER.includes(line))).toEqual(LEDGER)
+  })
+
+  test("retiring a mirror removes one line and touches none", () => {
+    expect(lines({ op: "unmirror", id: "now-demo" })).toEqual(
+      LEDGER.filter((line) => !line.includes(`"id":"now-demo"`)),
+    )
+  })
+
+  test("an after edge rewrites one line and touches none", () => {
+    const after = lines({ op: "after", id: "paint", add: ["survey"] })
+    expect(after).toHaveLength(LEDGER.length)
+    const differing = after.filter((line, at) => line !== LEDGER[at])
+    expect(differing).toHaveLength(1)
+    expect(differing[0]).toContain(`"after":["survey"]`)
+    // Its neighbours keep the spellings they were read with — a `true` marker
+    // and a day-only `todo` come back exactly as they were written.
+    expect(after).toContain(LEDGER[3] as string)
+    expect(after).toContain(LEDGER[4] as string)
+  })
+})
+
 // ── what no op may do ──────────────────────────────────────────────────
 
 test("a file whose lines do not parse is never rewritten from a set that lost them", () => {
@@ -1134,6 +1568,27 @@ test("an id nothing declares is not-found and names what was asked for", () => {
   expect(failure._tag).toBe("NotFoundFailure")
   if (failure._tag !== "NotFoundFailure") return
   expect(failure.named).toBe("nope")
+})
+
+/** ONE refusal for an id nothing declares, whatever the id was doing: the node
+ *  an op is ABOUT gets the same did-you-mean as a target it was asked to point
+ *  at, because an agent that mistyped is in the same position either way. */
+test("a mistyped id is offered the one it was probably meant to be, on any op", () => {
+  for (const request of [
+    { op: "done", id: "instal" },
+    { op: "move", id: "instal", parent: "kitchen" },
+    { op: "unmirror", id: "instal" },
+    { op: "after", id: "order", add: ["instal"] },
+    { op: "mirror", target: "instal", file: "house.jsonl" },
+  ] as ReadonlyArray<Request>) {
+    const failure = refused(house(), request)
+    expect(failure._tag).toBe("NotFoundFailure")
+    if (failure._tag !== "NotFoundFailure") return
+    // The id that was not found travels as DATA beside the sentence, whichever
+    // field of whichever op named it.
+    expect(failure.named).toBe("instal")
+    expect(failure.message).toContain("did you mean `install`")
+  }
 })
 
 /**
