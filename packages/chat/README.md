@@ -33,7 +33,7 @@ second copy of the transcript would be a second thing to be wrong.
 |---|---|
 | `adapter.ts` | which executable speaks ACP: the pinned adapter by default, `OLAI_ACP_AGENT` to override, empty to turn chat off |
 | `agent.ts` | the ACP client: one subprocess, one protocol. Nothing else in olai spells `session/prompt` |
-| `interpret.ts` | what the CLAUDE CODE adapter means by what it sends: which permission requests are answered without asking, `_meta.claudeCode.toolName`, the CLI `init` message it forwards. Pure, so pointing olai at another agent is one file to read |
+| `interpret.ts` | what the CLAUDE CODE adapter means by what it sends: which permission requests are answered without asking, `_meta.claudeCode.toolName`, the CLI `init` message it forwards, which config option is the model. Pure, so the adapter-specific VALUES are one file to read when olai is pointed at another agent |
 | `kolu.ts` | whether this host is running kolu, and the stdio server to hand a session if it is |
 | `pipes.ts` | a subprocess's pipes as a stream of JSON-RPC messages — the one thing the two subprocesses above have in common |
 | `asks.ts` | the two payloads that ask a PERSON something, projected into one form — and the answer projected back |
@@ -131,18 +131,12 @@ comes from the `tool_call` the adapter always emits before it asks (the
 permission request itself carries a display title, not a name), which is the one
 agent-specific `_meta` this package reads and the reason it is read.
 
-The rule itself is a PURE FUNCTION — `interpret.ts`, `allowedWithoutAsking(tool,
-given, options)` — for the reason `asks.ts` is one: what stops this panel
-approving its own permissions should be a unit test on a payload rather than a
-branch you can only reach by starting a subprocess and talking it into asking.
-The e2e suite drives both requests through a real agent and stays the net for
-the wiring; the near misses (an MCP server nobody handed us, a name one
-character off the prefix, a `_meta` from some other agent) are cheap only as
-values. The same file owns everything else this package knows about that one
-adapter in particular — `_meta.claudeCode.toolName`, the `_claude/sdkMessage`
-the CLI's `init` arrives on and the `session/new` `_meta` that asks for it — so
-`OLAI_ACP_AGENT` pointed at something else is one file to read rather than a
-search through the session lifecycle for the assumptions.
+The rule itself is a PURE FUNCTION — `interpret.ts`,
+`allowedWithoutAsking(tool, given, options)` — for the reason `asks.ts` is one:
+what stops this panel approving its own permissions should be a unit test on a
+payload rather than a branch you can only reach by starting a subprocess and
+talking it into asking. The e2e suite drives both requests through a real agent
+and stays the net for the wiring.
 
 ## Kolu's terminals, when the host has them
 

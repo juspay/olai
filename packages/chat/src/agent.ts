@@ -31,12 +31,12 @@
  *     that the two paths exist and which one a request took; the rule that
  *     tells them apart is {@link ./interpret.ts}, where it is a pure function
  *     with unit tests rather than a branch inside a subprocess's callback.
- *   - **reading the payloads**: which update kind this is, which `configOptions`
- *     entry is the model, how a session list sorts. An event carries what was
- *     READ, never the raw protocol value. What any of it means to the CLAUDE
- *     CODE adapter in particular — its `_meta`, its tool naming, the CLI
- *     message it forwards — is {@link ./interpret.ts}, so an agent that is not
- *     that adapter is one file to read rather than a search.
+ *   - **reading the payloads**: which update kind this is, what a content block
+ *     says, how a session list sorts. An event carries what was READ, never the
+ *     raw protocol value. What any of it means to the CLAUDE CODE adapter in
+ *     particular — its `_meta`, its tool naming, the message it forwards, which
+ *     config option its picker is — is {@link ./interpret.ts}; what is still
+ *     here is what those readings are REMEMBERED as, which is a session's job.
  *
  * The MCP servers a session is given are olai's own internal one — the standard
  * ACP shape, and the only channel the agent has to the ops layer — plus, when
@@ -84,8 +84,9 @@ import { type Form, formOf, PERMISSION_FIELD, permissionFormOf } from "./asks.ts
 import type { AgentEvent, Command, Stored } from "./events.ts"
 import {
   allowedWithoutAsking,
-  labelsOf,
+  BYPASS_MODE,
   liveModelIn,
+  modelPickerIn,
   NEW_SESSION_META,
   SDK_MESSAGE,
   toolNameIn,
@@ -190,10 +191,6 @@ const PROTOCOL = 1
  *  reports through. Two literals that have to match for the panel to read
  *  consistently is one literal. */
 const notCancelled = (why: string): string => `the turn could not be cancelled: ${why}`
-
-/** Permissions are a session MODE, asked for once. A refusal is not fatal:
- *  `session/request_permission` is answered anyway. */
-const BYPASS = "bypassPermissions"
 
 /** Boot is a few small round trips against a process that just started. Only it
  *  gets a deadline — a turn is a person waiting on a language model. */
@@ -465,10 +462,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     const readModel = (
       configOptions: ReadonlyArray<SessionConfigOption> | null | undefined,
     ): void => {
-      const entry = (configOptions ?? []).find((option) => option.id === "model")
-      if (entry === undefined || entry.type !== "select") return
-      labels = labelsOf(entry)
-      const current = entry.currentValue ?? null
+      const picker = modelPickerIn(configOptions)
+      if (picker === null) return
+      labels = picker.labels
+      const current = picker.picked
       if (current === pickedModel) return
       pickedModel = current
       emit({ _tag: "model", name: current === null ? null : labels.get(current) ?? current })
@@ -706,7 +703,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       Effect.ignore(
         ask(at.connection, methods.agent.session.setMode, {
           sessionId: id,
-          modeId: BYPASS,
+          modeId: BYPASS_MODE,
         }),
       )
 

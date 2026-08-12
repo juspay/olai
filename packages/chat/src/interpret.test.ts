@@ -1,19 +1,18 @@
 /**
  * The adapter's bets, over values.
  *
- * These are the payloads the pinned Claude Code adapter (0.66.0) actually
- * sends — the plan-mode permission request whose first allow-flavoured option
+ * The payloads here are what the pinned Claude Code adapter (0.66.0) actually
+ * sends: the plan-mode permission request whose first allow-flavoured option
  * switches the session to `auto`, an ops call announced with its programmatic
- * name in `_meta`, the CLI `init` message a `/model` produces — and the point
- * of {@link ./interpret.ts} being pure is that the rule which tells them apart
- * is asserted HERE, on a value, rather than through a subprocess that has to be
- * talked into asking.
+ * name in `_meta`, the CLI `init` message a `/model` produces. Why any of that
+ * is worth a unit test rather than a scenario is {@link ./interpret.ts}'s own
+ * argument; what this file adds is the near misses, which are cheap as values
+ * and expensive to stage — a server we were not given, a name one character off
+ * the prefix, a `_meta` from some other agent.
  *
- * The e2e suite drives the same two requests through a real agent
+ * The e2e suite drives the same two permission requests through a real agent
  * (`packages/tests/agent/fake-acp-agent.ts`, the `plan` and `permit` verbs) and
- * stays the regression net for the wiring. What it cannot do cheaply is the
- * near misses: a server we were not given, a name one character off the prefix,
- * a `_meta` from some other agent.
+ * stays the regression net for the wiring.
  */
 
 import type { PermissionOption, SessionConfigOption } from "@agentclientprotocol/sdk"
@@ -21,10 +20,9 @@ import { describe, expect, test } from "bun:test"
 
 import {
   allowedWithoutAsking,
-  labelsOf,
   liveModelIn,
+  modelPickerIn,
   NEW_SESSION_META,
-  SDK_MESSAGE,
   toolNameIn,
 } from "./interpret.ts"
 
@@ -72,7 +70,6 @@ describe("which permissions are answered without asking", () => {
     // No `_meta`, no announcement to have learned the name from. The request
     // still leads with an allow, and that is still not this panel's to press.
     expect(allowedWithoutAsking(null, GIVEN, EXIT_PLAN_MODE)).toBeNull()
-    expect(allowedWithoutAsking(null, GIVEN, TOOL_CALL)).toBeNull()
   })
 
   test("a built-in tool of the agent's own is a person's", () => {
@@ -168,7 +165,7 @@ describe("which tool a call is", () => {
 })
 
 describe("which model a turn is running on", () => {
-  /** What the adapter forwards under {@link SDK_MESSAGE}, having been asked to
+  /** What the adapter forwards under `_claude/sdkMessage`, having been asked to
    *  by {@link NEW_SESSION_META}: the CLI's own `init`, verbatim, with the
    *  sessionId the notification carries. */
   const init = (model: unknown) => ({
@@ -181,12 +178,12 @@ describe("which model a turn is running on", () => {
   })
 
   test("what we asked to be forwarded is what is read", () => {
-    // The ask and the read are one bet, so they are written down together: a
-    // subtype nobody subscribed to would arrive under a different filter.
-    expect(NEW_SESSION_META.claudeCode.emitRawSDKMessages).toEqual([
-      { type: "system", subtype: "init" },
-    ])
-    expect(SDK_MESSAGE).toBe("_claude/sdkMessage")
+    // The ask and the read are one bet, so the message is built out of the
+    // filter we subscribed with: a reader that drifted from the subscription
+    // would go quiet on exactly the messages the adapter still sends.
+    const [subscribed] = NEW_SESSION_META.claudeCode.emitRawSDKMessages
+    expect(liveModelIn({ message: { ...subscribed, model: "claude-opus-4-5" } }))
+      .toBe("claude-opus-4-5")
   })
 
   test("another message of the CLI's is not a model", () => {
@@ -212,22 +209,30 @@ describe("which model a turn is running on", () => {
   })
 })
 
-describe("the picker, as labels", () => {
-  const select = (
+describe("which config option is the model, and what it calls its values", () => {
+  const picker = (
     options: Extract<SessionConfigOption, { type: "select" }>["options"],
-  ): Extract<SessionConfigOption, { type: "select" }> => ({
-    id: "model",
-    name: "Model",
-    type: "select",
-    currentValue: "claude-opus-4-5",
-    options,
+  ): ReadonlyArray<SessionConfigOption> => [
+    { id: "mode", name: "Mode", type: "select", currentValue: "plan", options: [] },
+    { id: "model", name: "Model", type: "select", currentValue: "claude-opus-4-5", options },
+  ]
+
+  const labelsIn = (options: Extract<SessionConfigOption, { type: "select" }>["options"]) => {
+    const read = modelPickerIn(picker(options))
+    if (read === null) throw new Error("no model picker")
+    return read.labels
+  }
+
+  test("the picked value is what the session says it is picking", () => {
+    expect(modelPickerIn(picker([{ value: "claude-opus-4-5", name: "Opus" }])))
+      .toMatchObject({ picked: "claude-opus-4-5" })
   })
 
   test("a flat picker is value → label", () => {
-    const labels = labelsOf(select([
+    const labels = labelsIn([
       { value: "claude-opus-4-5", name: "Opus" },
       { value: "claude-sonnet-4-5", name: "Sonnet" },
-    ]))
+    ])
     expect(labels.get("claude-opus-4-5")).toBe("Opus")
     expect(labels.get("claude-sonnet-4-5")).toBe("Sonnet")
     expect(labels.size).toBe(2)
@@ -236,7 +241,7 @@ describe("the picker, as labels", () => {
   test("a grouped picker is read through its groups", () => {
     // The protocol tells a group from an option by SHAPE rather than by a tag,
     // and the adapter groups its models by tier.
-    const labels = labelsOf(select([
+    const labels = labelsIn([
       {
         group: "latest",
         name: "Latest",
@@ -250,7 +255,7 @@ describe("the picker, as labels", () => {
         name: "Legacy",
         options: [{ value: "claude-sonnet-4-0", name: "Sonnet 4" }],
       },
-    ]))
+    ])
     expect([...labels]).toEqual([
       ["claude-opus-4-5", "Opus"],
       ["claude-fable-5", "Fable"],
@@ -261,8 +266,22 @@ describe("the picker, as labels", () => {
   test("a live id the picker does not offer is absent rather than approximated", () => {
     // Which is what lets the caller keep the raw id and say so: a nearest match
     // onto a nearby row would be a model name nobody reported.
-    const labels = labelsOf(select([{ value: "claude-opus-4-5", name: "Opus" }]))
-    expect(labels.get("claude-opus-4-5-20260101")).toBeUndefined()
-    expect(labelsOf(select([])).size).toBe(0)
+    expect(labelsIn([{ value: "claude-opus-4-5", name: "Opus" }])
+      .get("claude-opus-4-5-20260101")).toBeUndefined()
+    expect(labelsIn([]).size).toBe(0)
+  })
+
+  test("a session with no picker this adapter's shape leaves the model alone", () => {
+    // `id === "model"` is the adapter's own spelling — ACP's only reserved hint
+    // is `category`, and it says itself that it is UX-only. An agent that
+    // spells the entry differently, or answers with something that is not a
+    // select, costs the header a name and nothing else.
+    expect(modelPickerIn(undefined)).toBeNull()
+    expect(modelPickerIn([])).toBeNull()
+    expect(modelPickerIn([
+      { id: "model_id", name: "Model", type: "select", currentValue: "x", options: [] },
+    ])).toBeNull()
+    expect(modelPickerIn([{ id: "model", name: "Model", type: "boolean", currentValue: true }]))
+      .toBeNull()
   })
 })

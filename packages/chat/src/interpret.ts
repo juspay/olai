@@ -5,9 +5,9 @@
  * part of {@link ./agent.ts} that would be wrong if somebody used it: a `_meta`
  * extension one adapter writes, a tool-naming convention one CLI uses, a
  * message one wrapper forwards because we asked it to. The protocol proper is
- * read where it is spoken; the bets on WHICH agent is speaking it are read
- * here, so pointing olai at another agent is one file to open rather than a
- * search for the assumptions.
+ * read where it is spoken; the VALUES that are only true of one agent are read
+ * here, so pointing olai at another one starts with a file rather than a search
+ * for the assumptions.
  *
  * Every bet is safe to lose in one direction only, and that is the direction it
  * loses in: an agent that says none of this matches nothing here, and what
@@ -23,16 +23,24 @@
  * person something, from any agent; this is the file that is wrong about a
  * different one.
  *
- * {@link labelsOf} is the exception that says the rule: it reads a
- * `configOptions` entry every ACP agent may send. It is here because a live
- * model id is only ever labelled with the labels the picker gave, and the pair
- * of sources — picked and running — exists at all because of what THIS adapter
- * does with `/model`. Reading them a file apart would be splitting one bet.
+ * What is NOT here, and cannot be: the things `agent.ts` assumes this adapter
+ * DOES rather than says — that a `tool_call` is announced before the permission
+ * request that references it, and that `session/list` answers by cwd prefix
+ * rather than exactly. Those are shapes of the conversation rather than values
+ * in a payload, and they are named where they are relied on.
  */
 
 import type { PermissionOption, SessionConfigOption } from "@agentclientprotocol/sdk"
 
 // ── which permissions are answered without asking ──────────────────────
+
+/** The permission mode a session is asked for, in the adapter's own
+ *  vocabulary: ACP leaves mode ids to the agent, and this is what the Claude
+ *  Code adapter calls the one that stops it asking about tools it has been told
+ *  are allowed. An agent with no such mode refuses the request, which costs a
+ *  round trip per tool call and nothing else — {@link allowedWithoutAsking} is
+ *  the backstop either way, and is why a refusal is not a boot failure. */
+export const BYPASS_MODE = "bypassPermissions"
 
 /**
  * The option a permission request is answered with WITHOUT asking a person, or
@@ -144,13 +152,40 @@ export const liveModelIn = (params: unknown): string | null => {
   return typeof shape.model === "string" && shape.model !== "" ? shape.model : null
 }
 
+/** The model picker, as read: what is PICKED in it, and what the agent calls
+ *  each of the values it offers. */
+export interface Picker {
+  readonly picked: string | null
+  readonly labels: ReadonlyMap<string, string>
+}
+
+/**
+ * The model picker out of a session's `configOptions`, or `null` when there is
+ * none to read.
+ *
+ * WHICH ENTRY is the model is the adapter's own answer and not the protocol's:
+ * ACP's `SessionConfigId` is a free-form string, and its one reserved hint —
+ * `category: "model"` — is documented as UX-only, optional, and never required
+ * for correctness. So `id === "model"` is a bet of exactly the kind everything
+ * else here is, and it belongs beside them rather than inside the session that
+ * uses it: an agent that spells its picker differently loses the model name in
+ * the header and nothing else.
+ */
+export const modelPickerIn = (
+  configOptions: ReadonlyArray<SessionConfigOption> | null | undefined,
+): Picker | null => {
+  const entry = (configOptions ?? []).find((option) => option.id === "model")
+  if (entry === undefined || entry.type !== "select") return null
+  return { picked: entry.currentValue ?? null, labels: labelsOf(entry) }
+}
+
 /** The picker as value → label ("claude-fable" → "Fable"), which is what the
  *  agent calls its own models. A value it does not offer is absent here, and
  *  the caller keeps the raw id: truthful, where a nearest match is invented.
  *
  *  The picker is a flat list of options or a list of GROUPS of them, and the
  *  protocol tells the two apart by shape rather than by a tag. */
-export const labelsOf = (
+const labelsOf = (
   entry: Extract<SessionConfigOption, { type: "select" }>,
 ): ReadonlyMap<string, string> => {
   const labels = new Map<string, string>()
