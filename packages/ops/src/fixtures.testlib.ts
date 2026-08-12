@@ -37,19 +37,34 @@ export const steady = (): Context => {
 }
 
 /**
- * A real git repository around a directory, in the two states the auto-commit
- * has to tell apart.
+ * Git, in a directory of this package's tests.
+ *
+ * One spelling of it, because the identity is the load-bearing part: a CI
+ * runner has no `~/.gitconfig`, so a copy that forgot `user.email` would pass
+ * on every laptop and fail only there. Three test files had grown one each, and
+ * they had already drifted over the branch name.
+ */
+export const gitIn = (root: string) =>
+(...argv: ReadonlyArray<string>): string =>
+  execFileSync("git", argv, { cwd: root, encoding: "utf8" })
+
+/**
+ * A real git repository around a directory, in the states the commit paths have
+ * to tell apart.
  *
  * Real git rather than a fake, because what these tests are about is what git
  * DOES — a fake would only reproduce what we already believe. The identity is
- * repository-local, so a run depends on nothing in the developer's global
- * config and touches none of it.
+ * repository-local, so a run depends on nothing in the developer's global config
+ * and touches none of it, and the branch is named explicitly so a machine whose
+ * `init.defaultBranch` differs reads the same as every other.
  *
- * `identity: false` leaves that identity EMPTY, which is git's own "Author
- * identity unknown": the commit failure people actually hit, on a fresh machine
- * or under a service account, reproduced without needing one. A seed commit is
- * still made (with an author supplied for that one call), because what is being
- * set up is a repository whose NEXT commit cannot be made.
+ * The default is a repository whose fixtures are already its first commit, so
+ * what a test does afterwards is the whole of what git has to say about it.
+ * `identity: false` leaves the identity EMPTY, which is git's own "Author
+ * identity unknown" — the commit failure people actually hit, on a fresh machine
+ * or under a service account. The seed commit is still made in that case (with
+ * an author supplied for that one call), because what is being set up is a
+ * repository whose NEXT commit cannot be made.
  */
 export const repoAt = (
   root: string,
@@ -63,7 +78,7 @@ export const repoAt = (
     })
   }
   const nobody = options.identity === false
-  git(["init", "--quiet"])
+  git(["init", "--quiet", "--initial-branch", "main"])
   git(["config", "user.email", nobody ? "" : "test@olai.invalid"])
   git(["config", "user.name", nobody ? "" : "olai tests"])
   if (options.seed === false) return

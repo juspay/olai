@@ -1,9 +1,11 @@
 # Committing changes
 
-Status: PROPOSAL, 2026-08-10.
+Status: SHIPPED, 2026-08-10 (proposed and built the same day).
 
-Today every op commits itself (`packages/ops/src/git.ts`). This replaces that
-with a commit someone asks for — a button in the UI, or a tool the agent calls.
+Every op used to commit itself (`packages/ops/src/git.ts`), so one train of
+thought became a dozen commits — a roadmap gardening session produced eleven,
+each with a full node title as its subject line. That is now a commit somebody
+asks for: a button in the UI, or a tool the agent calls.
 
 ## Why olai touches git at all
 
@@ -35,8 +37,39 @@ commit has been pushed.
 
 ## The button
 
-Lives in the bottom-right chrome strip that `panels` is building, beside the
-connection dot and the agent pill. Nothing pending, nothing shown.
+It lives beside the connection dot and the agent pill — the sidebar's footer on
+every page that draws a sidebar, a corner of the viewport on the ones that do
+not. That is the pair the bottom-right chrome strip `panels` is building will be
+made of; the strip itself does not exist yet, and this did not wait for it.
+
+**It is always there, and every state has a face.** (Corrected 2026-08-10,
+human: the proposal said "nothing pending, nothing shown", and that was wrong.)
+The reasoning is the whole reason this feature exists: if the job is an audit
+trail of what the tool wrote, then *there is no audit trail here* is the single
+most important thing the pill can say, and hiding it is exactly how a person
+would never find that out. Same argument as the connection dot, which stays
+green while it is healthy rather than disappearing — an indicator that is only
+present when something is wrong cannot be trusted when it is absent.
+
+| state | face |
+|---|---|
+| work tree, clean, has committed before | `✓ committed · 12m ago` |
+| work tree, clean, never committed | `no commits yet` |
+| work tree, N pending | `4 uncommitted` |
+| mid-rebase / merge / cherry-pick / detached | `⚠ 4 uncommitted` + the reason |
+| not a work tree | `no git here` — dim, inert |
+| `--commit=off` | `commits off` — dim, inert |
+| the page has not heard from the server yet | `…` — dim, inert |
+
+The two settings are **settings, not faults**: dim, inert when pressed, and no
+warning colour. `⚠` is reserved for the busy-repo case, because that is the only
+one a person can act on.
+
+The last row is not a state of the DIRECTORY at all — it is this page before its
+first frame. It is drawn separately because the value a page holds before it has
+heard anything reads as `commits off`, which is a setting somebody could go and
+change: claiming that about a server nobody has heard from is the same kind of
+lie as `✓ committed` in a directory olai has never written to.
 
 ```
                                     ┌──────────────────────────┐
@@ -48,13 +81,16 @@ Opened:
 
 ```
 ┌─ Changes ─────────────────────────────────┐
+│ olai: outlines-collection done            │
+│   · chat agent · 12m ago · 1a2b3c4        │
+│                                           │
 │ roadmap.jsonl                             │
 │   ✓  Outlines as a collection    done     │
 │   ✎  Notes: one state, same line  note    │
 │   +  Kolu integration: auto-…    created  │
 │   ⌦  Outlines as a collection    archived │
 │                                           │
-│ chat-agent 3 · you 1                      │
+│ chat agent 3 · you 1                      │
 │                                           │
 │ ┌───────────────────────────────────────┐ │
 │ │ olai: reconcile roadmap with the      │ │
@@ -64,21 +100,35 @@ Opened:
 └───────────────────────────────────────────┘
 ```
 
-When the repository is mid-rebase, mid-merge, or on a detached HEAD, the button
-says so instead of quietly doing nothing:
+The LAST COMMIT is at the top, above everything waiting, because the two are one
+question asked twice: what is waiting says nothing about whether anything was
+ever recorded, and a directory olai has never committed in has exactly the same
+empty pending list as one it committed a minute ago.
+
+When the repository is mid-rebase, mid-merge, mid-cherry-pick or on a detached
+HEAD, the button says so instead of quietly doing nothing:
 
 ```
-│  ⚠ rebase in progress — finish it first   │
-│                      [ Commit 4 changes ] │   ← disabled
+│  ⚠ a rebase is in progress — finish it first │
+│                         [ Commit 4 changes ] │   ← disabled
 ```
 
-Not a work tree: no indicator, no panel.
+Not a work tree, or `--commit=off`: the pill still says so, and pressing it does
+nothing — there is no panel behind it, because there is nothing to put in one.
 
 ## The data model
 
 **One rule: derive it from git, store nothing.** Same discipline as node status
 and blockedness. Anything we cached would be a second answer to a question git
 already answers, and it would be wrong the moment you edit a file in vim.
+
+The vocabulary lives in `@olai/format` — `changes.ts` for the comparison,
+`committing.ts` for the values it travels in. Not because either is about the
+outline FORMAT, but because that package is the floor both `@olai/ops` (which
+produces these) and `@olai/surface` (which carries them) stand on, exactly as
+`OpFailure` already does. Ops may not depend on the surface — an op does not know
+it is being called over a wire — and the surface may not depend on ops, because
+the browser imports the surface and `git.ts` shells out to a subprocess.
 
 ### What changed, in olai's words
 
@@ -87,25 +137,52 @@ everything on it changing at once. The unit is a node:
 
 ```ts
 type NodeChange = {
-  readonly file: string      // root-relative
+  readonly file: string      // root-relative; where it IS, or where it was
   readonly id: string
   readonly title: string     // as it reads now; as it read at HEAD when removed
-  readonly kind: "added" | "removed" | "changed"
-  readonly fields: ReadonlyArray<Field>   // empty unless kind is "changed"
+  readonly fields: ReadonlyArray<Field>   // empty for one that arrived or left
+  readonly sort: Sort
 }
 
-type Field = "title" | "desc" | "done" | "doing" | "date"
-           | "see" | "after" | "parent" | "ord"
+// The record's own field names, derived from the schemas rather than listed
+// again: parent, ord, title, done, doing, date, desc, doc, after, blocks,
+// see, mirror — plus `file`, the one difference that is not a field at all.
+type Field = string
 ```
 
-The wording is a render-time function of `fields`, so the model stays small:
-`["done"]` reads as *marked done*, `["parent", "ord"]` as *moved*, `["desc"]` as
-*note rewritten*.
+There is no added/removed/changed tag beside `sort`, and the proposal's one was
+dropped rather than shipped: it is a function of `sort` (`created` is an
+arrival, `gone` is a departure, everything else is neither) said in a second
+vocabulary, and every consumer switches on `sort`. `fields` is empty for the two
+arms where the answer would be "all of them" and mean nothing.
+
+`Field` is not a literal union either. The members are the record schemas' own
+field names, taken from them rather than written out again — a hand-kept copy is
+the one mistake this comparison cannot survive, because the next field the format
+grew would simply never be compared, and a node whose only change was that field
+would report as unchanged. A silent hole in the audit trail, with no test to
+fail.
+
+`sort` is the one thing the change is mostly ABOUT — `created`, `archived`,
+`done`, `undone`, `moved`, `noted`, `renamed` — and it is on the change rather
+than derived at render time, which is the one deliberate departure from the
+proposal. Two of the arms cannot be told apart by a field name: a `done` that
+appeared and a `done` that was taken off are the same field and opposite events.
+Classifying once, on the server, where both sides of the comparison are in hand,
+is what lets every consumer keep a flat table — the panel says *marked done*,
+the commit body says `done:` — and it is what fixes the priority order in one
+place (`Sort`'s own declaration is the order).
+
+The comparison is by ID ACROSS FILES rather than within one, so archiving reads
+as one change to one node — it left `roadmap.jsonl` and is in `Archive.jsonl` —
+rather than as a removal and an unrelated arrival. That is what `Field`'s `file`
+is for, and archiving is the only op that produces it.
 
 ### Is the repository free?
 
 ```ts
 type RepoState =
+  | { readonly _tag: "Off" }
   | { readonly _tag: "NoRepo" }
   | { readonly _tag: "Ready";   readonly branch: string }
   | { readonly _tag: "Blocked"; readonly reason: Reason; readonly said: string }
@@ -113,8 +190,17 @@ type RepoState =
 type Reason = "merge" | "rebase" | "cherry-pick" | "detached"
 ```
 
+`Off` is the fourth arm the proposal did not have: `--commit=off` has to be
+visible somewhere, and a mode is exactly a thing the repository can be in as far
+as everything above is concerned. It draws like `NoRepo` — dim and inert, and
+saying which of the two it is.
+
 This is what drives the disabled button and its explanation. It is also the check
-`git.ts` is missing today — it asks only whether the directory is a work tree.
+`git.ts` was missing — it asked only whether the directory is a work tree. The
+in-progress states are read off the git directory (`MERGE_HEAD`, `rebase-merge`,
+`rebase-apply`, `CHERRY_PICK_HEAD`) BEFORE the branch is asked for, because a
+rebase also leaves a detached HEAD and "detached" is the less useful half of that
+truth.
 
 ### What is pending
 
@@ -125,32 +211,59 @@ type Pending = {
   readonly unreadable: ReadonlyArray<string>   // dirty files we cannot parse
   readonly wrote: ReadonlyArray<{ readonly writer: Writer; readonly ops: number }>
   readonly message: string                     // composed suggestion
+  readonly last: LastCommit | null             // what olai last recorded here
+}
+
+type LastCommit = {
+  readonly sha: string
+  readonly message: string
+  readonly writer: Writer | null    // from the trailer
+  readonly at: string               // ISO 8601; the phrase is the reader's clock
 }
 
 type Writer = "chat-agent" | "mcp" | "web"
 ```
 
-`changes` comes from git: ask `git status --porcelain` which served files are
-dirty, read each one's committed version with `git show HEAD:<file>`, parse both
-sides with the codec we already have, compare. A file that no longer parses is
-listed in `unreadable` rather than dropped.
+`last` is `git log -1` through the same filter the audit view uses — the `olai`
+message prefix, restricted to the served directory — so it is the last commit
+OLAI made, never the repository's HEAD: a person's own commits are not what this
+feature reports on. The trailer is what says who; a commit carrying the prefix
+without one (typed by hand, or stripped by a rebase) reports `writer: null`
+rather than a guess.
 
-Cost is bounded by what is dirty. A clean directory is one `git status` and no
-parsing at all.
+**The `null` is load-bearing.** It means olai has never committed in this
+directory, which is a different fact from "nothing is waiting" and cannot be
+derived from it — and telling a directory olai has never touched that it is
+`✓ committed` would be a lie. Same reasoning as the manifest cell's `null`:
+"never" is a state an empty value cannot express.
+
+`changes` comes from git: ask `git status --porcelain -z -uall` which served
+files are dirty, read each one's committed version with `git show HEAD:<file>`,
+parse that with the codec we already have, and compare it against the store's own
+last-good parse of the working copy — which is the same bytes the probe published
+to the page, so the panel and the outline can never disagree about what a file
+says.
+
+A file that will not parse on either side is listed in `unreadable` and dropped
+from BOTH sides of the comparison. Keeping the half that parsed would report every
+node in it as created, or every node in it as gone: a screen of alarming changes
+with one real cause.
+
+Cost is bounded by what is dirty. A clean directory is one `rev-parse`, one
+`git status` and no parsing at all.
+
+**Only `.jsonl` outlines.** They are the only files olai writes — there is no op
+that writes a document — so a served `.md` somebody edited, a source file, and a
+half-staged patch in the same working tree are all somebody else's work and are
+never named on `add` or `commit`.
 
 ### Who wrote it — intent, not truth
 
-`wrote` cannot come from git; git only knows the bytes moved. It comes from a
-small in-memory list the ops layer appends to and clears on a successful commit:
-
-```ts
-type Written = {
-  readonly writer: Writer
-  readonly summary: string          // the per-op line ops already builds
-  readonly ids: ReadonlyArray<string>
-  readonly at: string
-}
-```
+`wrote` cannot come from git; git only knows the bytes moved. It is a per-writer
+COUNTER the ops layer bumps on every write that lands and clears on a successful
+commit. The proposal drew a richer record (each op's summary, its ids, its
+timestamp); nothing reads any of that — the panel says "chat agent 3 · you 1" —
+so it is not kept.
 
 This is a **decoration on the git-derived truth, never a replacement**. It is
 empty after a restart, and it knows nothing about edits made outside olai. Both
@@ -165,6 +278,9 @@ X-Olai-Writer: chat-agent
 
 Commits otherwise take the repository's own name and email, so without this an
 agent's edits are indistinguishable from yours — which would defeat the point.
+The trailer is written into the message rather than passed as `--trailer`: it is
+the same bytes, readable by `git log --format=%(trailers:key=X-Olai-Writer)`,
+with one less thing to depend on a git version for.
 
 ### Asking for a commit
 
@@ -182,22 +298,47 @@ Both doors — the button's procedure and the MCP tool — call the same thing, 
 beside `run` and `read` on `Ops`:
 
 ```ts
-readonly pending: Effect.Effect<Pending, OpFailure>
-readonly commit: (request: CommitRequest) => Effect.Effect<CommitResult, OpFailure>
+readonly pending: Effect.Effect<Pending>
+readonly commit: (
+  request: CommitRequest,
+  writer: Writer,
+) => Effect.Effect<CommitResult>
 ```
 
-Only the files olai wrote are staged, named explicitly on both `add` and
-`commit`, exactly as today — a served directory is a working tree with other work
-in it.
+Neither has an error channel, which the proposal gave them. Every way they can go
+wrong is a value a reader is entitled to see — no repository, a busy one, a set
+that never loaded — and an error would blank the panel instead of explaining it.
+
+`writer` is a required argument rather than something a transport can claim about
+itself: `serve.ts` passes `chat-agent` to the internal MCP route, `mcp/serve.ts`
+passes `mcp` to the stdio one, and the surface procedure is `web`.
+
+Only the dirty served outlines are staged, named explicitly on both `add` and
+`commit`, exactly as before — a served directory is a working tree with other
+work in it.
 
 ### Where it is computed
 
-`pending` is a surface cell, recomputed on the probe tick the store already runs,
-and again right after a commit. The repository's state is re-read at the same
-time, since nothing watches `.git`.
+`pending` is a surface cell on two clocks: every published revision, and a slow
+sweep of its own. The revision is the one that matters — a write olai made and a
+file you saved in vim both arrive as one. The sweep is there because **nothing
+watches `.git`**: committing in a terminal changes what is pending without
+changing one served byte, and the panel would otherwise go on offering to commit
+what is already committed. The cell carries an `equals`, so a sweep that finds
+nothing new sends nothing.
 
-The git plumbing (`status`, `show`, `state`) belongs in `ops/git.ts`. Comparing
-two parsed sets is pure and belongs beside the format, with no git in it.
+A commit is the third trigger and is explicit: the procedure republishes the cell
+the moment it is done, for the same reason.
+
+The git plumbing is in `ops/git.ts` and decides nothing. Its socket is
+`open(root)`, answering with a `Repo` handle — `state`, `dirty`, `show`,
+`commit` — or `null` for a directory that is not a work tree. WHERE the served
+directory sits in the repository (the git directory, and what the root is called
+from the repository root) is asked once when the handle is opened and belongs to
+the handle: git speaks repo-relative paths, everything above speaks
+served-root-relative ones, and a consumer that had to carry that around would be
+a consumer the volatility had leaked into. Comparing two parsed sets is pure and
+lives beside the format, with no git in it.
 
 ### The same function serves history
 
@@ -215,12 +356,16 @@ type Change = {
 }
 ```
 
-That gives a **Changes view** — olai's own commits, newest first, filtered by the
-`olai` prefix and the trailer so your own commits stay out of it.
+That would give a **Changes view** — olai's own commits, newest first, filtered by
+the `olai` prefix and the trailer so your own commits stay out of it — and
+**per-node history** on a node's zoomed page, needing no extra bookkeeping: the id
+is a string in the file, so `git log -S'"id":"<id>"' -- <file>` finds every commit
+that touched it.
 
-And **per-node history** on a node's zoomed page, needing no extra bookkeeping:
-the id is a string in the file, so `git log -S'"id":"<id>"' -- <file>` finds every
-commit that touched it.
+**Neither shipped.** `changesOf` takes two readings and knows nothing about where
+they came from, which is the whole of what those two views need from this work;
+what is left is a `git log` reader, a route, a page and a sidebar decision, and
+none of that is the button. See the open questions.
 
 ## Messages
 
@@ -228,32 +373,53 @@ Prefixed with `olai`, always. In a project repository that prefix is what
 separates tool writes from yours: `git log --grep '^olai'` is the audit view,
 `--invert-grep` gives back your real history.
 
-Composed, when nobody supplies one — subject names the biggest change by a fixed
-order (created, archived, done/doing, moved, note, title), detail in the body:
+Composed, when nobody supplies one — subject names the biggest change by the
+fixed order `Sort` declares (created, archived, gone, done/undone, doing, moved,
+scheduled, noted, renamed, linked, edited), detail in the body, capped at twenty
+lines:
 
 ```
 olai: 11 edits to roadmap — outlines-collection done
 
 done: Outlines as a collection
-move: Outlines as a collection -> 2026-08-10T18:07:08-04:00
+date: Outlines as a collection -> 2026-08-10T18:07:08-04:00
 note: WS frame cap undercuts the framework's
 …
 ```
 
-`set_date` currently prints as `move:`. Beside real reparenting ops that reads as
-a structural change that never happened; it should say what it is.
+`set_date` used to print as `move:`. Beside real reparenting ops that read as a
+structural change that never happened; it says `date:` now, in both the composed
+body and the per-op summary an `auto` commit uses.
 
 ## The flag
 
 `--commit=off | manual | auto`, default `manual`. `--no-commit` keeps meaning
-`off`.
+`off`, and wins when both are given.
+
+`auto` is the old behaviour — one commit per op, the same per-op summary, now
+prefixed and signed — plus the one thing it was missing: it checks the repository
+state first and declines, out loud, into a merge or a rebase.
+
+The mode is one module's business. `pending.ts` owns all three arms — `off` has
+nothing to say, `manual` answers only when asked, `auto` also takes a per-write
+door — so the write loop calls the same verb whichever mode it is in, and a
+change to how olai commits cannot ripple into two places.
 
 ## Open questions
 
 1. Nothing stops pending changes piling up over days, mixing several sessions of
    agent edits into one commit. The count in the chrome is a nag, not a plan.
+   **Still open**: nothing shipped addresses it, and nothing shipped forecloses
+   anything — a nudge, an age in the panel, or a session boundary are all still
+   available.
 2. Should the agent's `commit` tool be able to commit your pending edits along
-   with its own? Only-its-own is cleaner but means tracking the batch per writer,
-   and `Written` is explicitly allowed to be incomplete.
+   with its own? **Decided: yes, all of them.** Only-its-own would have to stage
+   by writer, and the writer record is explicitly allowed to be empty — so after
+   a restart that commit would silently commit nothing, which is the worst
+   failure available to an audit trail. The scope is narrowed by FILE KIND
+   instead, which is derivable and cannot go stale: outlines only, never the
+   documents or the other work in the tree.
 3. Does the Changes view belong in the sidebar beside outlines, calendar and
-   docs, or is it only ever reached from the chrome pill?
+   docs, or is it only ever reached from the chrome pill? **Still open, and now
+   unblocking rather than blocking**: the view is not built, and the derivation
+   it needs is in hand and takes its two sides from anywhere.

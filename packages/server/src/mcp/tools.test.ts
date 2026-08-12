@@ -27,7 +27,6 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { type OutlineError, type OutlineSet } from "@olai/format"
 import { codec, make as makeOps, TOOLS } from "@olai/ops"
-import { GIT_OFF } from "@olai/surface"
 import { STAMP, steady } from "@olai/ops/testlib"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
@@ -38,7 +37,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { watchFault } from "../fault.ts"
-import { bind } from "../runtime.ts"
+import { bind, gitWiring } from "../runtime.ts"
 import { serveFace } from "./face.ts"
 import { bespokeFrom } from "./tools.ts"
 
@@ -83,7 +82,7 @@ const withTools = <A>(
     const ops = makeOps({
       store,
       root,
-      commit: false,
+      commits: "off",
       // The ops layer's own fixture context — deterministic ids and one fixed
       // instant — rather than a second spelling of it up here, which is a
       // fixture free to drift from the assertions that package is written
@@ -95,14 +94,18 @@ const withTools = <A>(
         }),
     })
 
-    const wired = yield* bind({ store, chat: null, git: GIT_OFF })
+    const wired = yield* bind({
+      store,
+      chat: null,
+      git: gitWiring(ops, "mcp", yield* SubscriptionRef.make(0)),
+    })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
     yield* serveFace({
       bound: wired.bound,
-      tools: bespokeFrom(TOOLS, ops),
+      tools: bespokeFrom(TOOLS, ops, "mcp"),
       transport: serverSide,
     })
 
@@ -171,6 +174,7 @@ test("the tool list is reads and writes, and no file access at all", async () =>
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       "add_node",
       "archive_node",
+      "commit",
       "create_outline",
       "list_outlines",
       "move_node",

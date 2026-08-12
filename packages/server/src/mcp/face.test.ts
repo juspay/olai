@@ -26,19 +26,19 @@
  * subscription test is a sequence and not a race.
  */
 
-import { GIT_OFF } from "@olai/surface"
+import { make as makeOps } from "@olai/ops"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { ResourceUpdatedNotificationSchema } from "@modelcontextprotocol/sdk/types.js"
 import { expect, test } from "bun:test"
-import { Effect } from "effect"
+import { Effect, SubscriptionRef } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
 import { openDirectory } from "../directory.ts"
 import { watchFault } from "../fault.ts"
-import { bind } from "../runtime.ts"
+import { bind, gitWiring } from "../runtime.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { serveFace } from "./face.ts"
 
@@ -84,7 +84,14 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
   Effect.gen(function*() {
     const root = served()
     const { store } = yield* openDirectory(root)
-    const wired = yield* bind({ store, chat: null, git: GIT_OFF })
+    // A real ops layer with commits OFF: this face is about READING, and `off`
+    // is the one mode that asks git nothing at all.
+    const ops = makeOps({ store, root, commits: "off" })
+    const wired = yield* bind({
+      store,
+      chat: null,
+      git: gitWiring(ops, "mcp", yield* SubscriptionRef.make(0)),
+    })
     // Not optional, and not ceremony copied from `serve.ts`: the runtime's
     // `done` REJECTS when it is closed, so something has to be holding the
     // catch or every teardown here is an unhandled rejection the test runner

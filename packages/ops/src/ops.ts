@@ -23,16 +23,20 @@
 
 import {
   BusyFailure,
+  type CommitRequest,
+  type CommitResult,
   type OpFailure,
   type OutlineSet,
+  type Pending,
   serializeOutline,
   stampOf,
   ValidationFailure,
+  type Writer,
 } from "@olai/format"
 import { Effect, Result, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
-import * as Git from "./git.ts"
+import { type CommitMode, type GitState, make as makeCommits } from "./pending.ts"
 import { type Context, plan } from "./plan.ts"
 import { index } from "./query.ts"
 import type { Applied, Request } from "./request.ts"
@@ -40,13 +44,20 @@ import type { Reading } from "./tools.ts"
 
 export interface Options {
   readonly store: Store
-  /** Absolute path of the served directory — where the git hook runs. */
+  /** Absolute path of the served directory — where git runs. */
   readonly root: string
-  /** Commit each write to git when the directory is a work tree. On by
-   *  default; `olai web --no-commit` is the opt-out, for a directory whose
-   *  history is somebody else's job (a sync folder that happens to be a
-   *  checkout). */
-  readonly commit?: boolean
+  /**
+   * How writes reach git. `manual` is the point of the whole thing: a write
+   * lands on disk and WAITS, and something asks for a commit — the button, or
+   * the agent's `commit` tool. `auto` is for a headless server with no browser
+   * to press anything, and commits each write on its own the way olai used to.
+   * `off` is `--no-commit`, for a directory whose history is somebody else's
+   * job (a sync folder that happens to be a checkout).
+   *
+   * Required, with no default here: `main.ts` already carries one for the flag,
+   * and a second would be a second answer to what happens when nobody says.
+   */
+  readonly commits: CommitMode
   /** Overridable so tests are deterministic: the id a new node gets and the
    *  instant a mark is stamped with are the only two things about an op that
    *  are not a function of the snapshot. */
@@ -62,28 +73,36 @@ export interface Options {
    * front of the person watching.
    */
   readonly onRefusal?: (request: Request, failure: OpFailure) => Effect.Effect<void>
-  /**
-   * Told when what GIT is doing for this directory changes.
-   *
-   * Same argument as the observer above, one subject over: whether the
-   * directory is a repository, and whether the last commit worked, is a fact
-   * about this layer's writes rather than about whoever asked for one — so it
-   * is reported from here, once, and a transport publishes it. The server puts
-   * it in the app header; a terminal agent reads it as a resource of the same
-   * surface.
-   *
-   * Called only on a CHANGE, and never for the first reading: the first is
-   * whatever `git` below answers, which is what a caller seeds its cell from.
-   */
-  readonly onGit?: (state: Git.GitState) => void
+  /** Told whenever a commit lands, by whichever door — see
+   *  {@link ./pending.ts}'s `Options`. */
+  readonly onCommitted?: () => void
 }
 
 export interface Ops {
   /** Perform one op. Fails only with an {@link OpFailure} — every internal
    *  failure mode (a stale base, a file system error) is either retried or
    *  translated, because a caller of this interface is a tool call or a
-   *  procedure and both need an answer they can render. */
-  readonly run: (request: Request) => Effect.Effect<Applied, OpFailure>
+   *  procedure and both need an answer they can render.
+   *
+   *  `writer` is INTENT, not identity: git records the repository's own name
+   *  and email whoever asked, so this is the only thing that can tell an
+   *  agent's edits from a person's. It is required rather than defaulted —
+   *  a transport that forgot to say would be a transport whose writes are
+   *  attributed to somebody else. */
+  readonly run: (
+    request: Request,
+    writer: Writer,
+  ) => Effect.Effect<Applied, OpFailure>
+  /** What is waiting to be committed. Derived from git every time it is asked
+   *  ({@link ./pending.ts}), so nothing above this layer holds a copy that
+   *  could be wrong. */
+  readonly pending: Effect.Effect<Pending>
+  /** Commit what is waiting. Both doors — the button's procedure and the MCP
+   *  tool — are callers of this one thing. */
+  readonly commit: (
+    request: CommitRequest,
+    writer: Writer,
+  ) => Effect.Effect<CommitResult>
   /**
    * The set as a reader sees it, or the one refusal for a directory that has
    * never loaded.
@@ -95,15 +114,16 @@ export interface Ops {
    */
   readonly read: Effect.Effect<Reading, OpFailure>
   /**
-   * What git is doing for this directory, as of now.
+   * What git is doing for this directory, as of now — the app header's readout
+   * (`git-invisible`, #108).
    *
-   * Probes the directory the FIRST time it is asked and keeps the answer, so a
-   * caller that wants to say something about git before any write has happened
-   * — a server seeding the cell its header draws — asks for it, and the answer
-   * costs one `rev-parse` per serve rather than one per op. Every later change
-   * arrives on {@link Options.onGit}.
+   * A PROJECTION of the same survey {@link pending} runs rather than a probe of
+   * its own ({@link ./pending.ts}'s `gitOf`), because the readout and the Commit
+   * pill sit side by side in one header and two probes would be two answers: a
+   * page reading "Not a Git repo" beside a panel offering to commit four
+   * changes. HACKING.md's consistency rule, one control over.
    */
-  readonly git: Effect.Effect<Git.GitState>
+  readonly git: Effect.Effect<GitState>
 }
 
 /** How many times a write may be re-derived before it gives up. Each round is
@@ -121,60 +141,12 @@ export const make = (options: Options): Ops => {
     now: () => stampOf(new Date()),
   }
 
-  /**
-   * TWO facts about git, and keeping them apart is the difference between a
-   * state that recovers and one that gets stuck.
-   *
-   * What git makes of the DIRECTORY — a work tree, not one, or a git that could
-   * not be run — is a property of the root, so it is probed once and kept:
-   * asking per write meant a third subprocess inside the store's write gate
-   * every time. A repository created after the server started is not noticed
-   * until it restarts, which is the trade. `--no-commit` seeds it, so the
-   * opt-out never spawns git at all — which is what keeps olai out of the
-   * history of a directory whose history is somebody else's job.
-   *
-   * What the last COMMIT did is the other, and it is the one that moves. It is
-   * kept as the refusal itself rather than as a second state, so what a reader
-   * is told can be DERIVED from the two ({@link reading}) instead of written a
-   * third time: the directory's own answer, unless a commit refused. That is
-   * also what keeps a refusal from wedging the writes — the probe's answer is
-   * still what decides whether a commit is attempted, so a directory that IS a
-   * repository keeps being written to a repository however loudly the last
-   * commit failed.
-   */
-  let probed: Git.GitState | null = options.commit === false ? Git.OFF : null
-  let refused: string | null = null
-
-  const asked: Effect.Effect<Git.GitState> = Effect.gen(function*() {
-    probed ??= yield* Git.probe(options.root)
-    return probed
+  const commits = makeCommits({
+    store: options.store,
+    root: options.root,
+    mode: options.commits,
+    ...(options.onCommitted === undefined ? {} : { onCommitted: options.onCommitted }),
   })
-
-  const reading = (directory: Git.GitState): Git.GitState =>
-    refused === null ? directory : Git.errorState(refused)
-
-  /**
-   * Tell the transport, and never let it fail the write.
-   *
-   * This runs inside the store's `afterPublish`, which is inside the write
-   * gate and AFTER the bytes are on disk — so a publisher that threw would
-   * come back to the caller as a failed op about a write that had already
-   * happened, which is the exact lie this whole change exists to stop. The
-   * observer is a plain callback rather than an Effect (a transport setting a
-   * cell has nothing to fail with), so the guard belongs here rather than in
-   * every caller's handler. A publisher that does throw is not swallowed: it
-   * is the one thing left that a log is the right place for, because there is
-   * no longer any surface to say it on.
-   */
-  const published = (next: Git.GitState): Effect.Effect<void> =>
-    Effect.catch(
-      Effect.try(() => options.onGit?.(next)),
-      (thrown) =>
-        Effect.annotateLogs(
-          Effect.logWarning("olai git: the git state could not be published"),
-          { said: String(thrown), status: next.status },
-        ),
-    )
 
   const read: Effect.Effect<Reading, OpFailure> = Effect.gen(function*() {
     const snapshot = yield* SubscriptionRef.get(options.store.snapshot)
@@ -189,7 +161,10 @@ export const make = (options: Options): Ops => {
     return { set, derived: index(set) }
   })
 
-  const run = (request: Request): Effect.Effect<Applied, OpFailure> =>
+  const run = (
+    request: Request,
+    writer: Writer,
+  ): Effect.Effect<Applied, OpFailure> =>
     Effect.gen(function*() {
       for (let round = 0; round < ROUNDS; round++) {
         const snapshot = yield* SubscriptionRef.get(options.store.snapshot)
@@ -212,42 +187,29 @@ export const make = (options: Options): Ops => {
         }))
         const paths = changes.map((change) => options.store.resolve(change.path))
 
+        // The post-publish hook, which is the whole of what `--commit=auto`
+        // still does inside the write gate: the bytes are on disk and the
+        // browser has seen them, and this cannot fail the write. In every
+        // other mode it answers `false` without spawning anything, so what
+        // decides is one module and not two.
         let committed = false
         /** Why not, when not — the sentence that used to go only to the log.
-         *  It rides the reply, so a `committed: false` says what happened
-         *  where the person who asked for the write is looking. */
+         *  It rides the reply, so a `committed: false` says what happened where
+         *  the person who asked for the write is looking. Under the default
+         *  mode that sentence is "waiting", which is the feature working and
+         *  must never render as the git-error state. */
         let why: string | undefined
         const outcome = yield* Effect.result(
           options.store.commit({
             baseRev: snapshot.rev,
             changes,
-            afterPublish: Effect.gen(function*() {
-              // Every state but `repo` is a reason, and each of them is a
-              // different one — the opt-out, a directory that is not a work
-              // tree, a git that cannot be run. None of them attempts a commit,
-              // and all of them say so.
-              const directory = yield* asked
-              if (directory.status !== "repo") {
-                why = Git.why(directory)
-                return
-              }
-              const commitment = yield* Git.commit({
-                root: options.root,
-                paths,
-                message: about.summary,
-              })
-              committed = commitment.kind === "committed"
-              why = Git.why(commitment)
-              // A refusal is the state of this directory until something
-              // works: the header should say so while it is true, and stop
-              // saying so when the next write lands. Published only when it
-              // MOVED — a write landing in a healthy repository is the
-              // ordinary case, and republishing it would wake every open tab
-              // on every op.
-              const before = refused
-              refused = commitment.kind === "refused" ? commitment.said : null
-              if (refused !== before) yield* published(reading(directory))
-            }),
+            afterPublish: Effect.map(
+              commits.automatic(paths, about.summary, writer),
+              (came) => {
+                committed = came.committed
+                why = came.why
+              },
+            ),
           }),
         )
 
@@ -271,6 +233,12 @@ export const make = (options: Options): Ops => {
           })
         }
 
+        // Recorded AFTER the write landed, and only when it is actually
+        // WAITING. The counter answers "how many ops have not been committed
+        // yet": a refused write is not waiting, and neither is one that
+        // `--commit=auto` has already committed — counting that one left a
+        // clean tree reporting `chat agent 3` for work that is in the log.
+        if (!committed) commits.wrote(writer)
         return {
           ...about,
           rev: written.success,
@@ -286,10 +254,22 @@ export const make = (options: Options): Ops => {
       })
     })
 
-  const reported = (request: Request): Effect.Effect<Applied, OpFailure> =>
+  const reported = (
+    request: Request,
+    writer: Writer,
+  ): Effect.Effect<Applied, OpFailure> =>
     options.onRefusal === undefined
-      ? run(request)
-      : Effect.tapError(run(request), (failure) => options.onRefusal!(request, failure))
+      ? run(request, writer)
+      : Effect.tapError(
+        run(request, writer),
+        (failure) => options.onRefusal!(request, failure),
+      )
 
-  return { run: reported, read, git: Effect.map(asked, reading) }
+  return {
+    run: reported,
+    read,
+    pending: commits.pending,
+    commit: commits.commit,
+    git: commits.git,
+  }
 }

@@ -44,6 +44,13 @@
  * surface, process id included, so an app that declares its own is declaring a
  * second answer to a question already answered (juspay/kolu#2133).
  *
+ * One more is GIT, and it is a pair rather than a member: a `pending` cell —
+ * what is waiting to be committed, derived from git on the server and never
+ * stored — and a `git.commit` procedure, which is the Commit button's half of
+ * the same action the agent reaches through an MCP tool. It is a procedure
+ * rather than a write verb on the cell because committing is an act with four
+ * answers, three of which are refusals a reader has to be shown.
+ *
  * Three more are the chat, and they are declared next door in
  * {@link ./chat.ts} because they are a subject of their own: a `transcript`
  * COLLECTION (batched deltas, so a late-joining tab sees the conversation), a
@@ -54,7 +61,16 @@
  * moving — server-authoritative, never an optimistic echo.
  */
 
-import { BrokenFile, Located, OutlineError } from "@olai/format"
+import {
+  BrokenFile,
+  CommitRequest,
+  CommitResult,
+  Located,
+  NOTHING_PENDING,
+  OutlineError,
+  Pending,
+  samePending,
+} from "@olai/format"
 import { defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
 
@@ -65,6 +81,7 @@ import {
   ChatEntry,
   ChatFailure,
   ChatState,
+  OpFailure,
   SessionInfo,
 } from "./chat.ts"
 
@@ -223,11 +240,37 @@ export const surface = defineSurface({
     },
     /** What git is doing for this directory — see {@link GitState}. Wire-read-only:
      *  it is the server's reading of somebody's working tree, and nothing a
-     *  browser could set. */
+     *  browser could set. Derived from the same survey {@link pending} is, so
+     *  the readout and the pill cannot contradict each other. */
     git: {
       schema: GitState,
       default: GIT_OFF,
       verbs: ["get"],
+    },
+    /**
+     * What is waiting to be committed — the count in the chrome, and every row
+     * the Commit panel draws.
+     *
+     * A CELL because it is one value about the whole served directory, and
+     * wire-read-only because it is DERIVED: the server recomputes it from git
+     * on every published revision and on a slow sweep of its own (nothing
+     * watches `.git`), and a browser that could write it would be a browser
+     * holding a second answer to a question git already answers.
+     *
+     * Its default is the empty one rather than `null`, and there is no third
+     * state to tell apart: a page that has not heard yet, a directory that is
+     * not a repository and a server with `--commit=off` all draw the same
+     * thing, which is nothing at all.
+     */
+    pending: {
+      schema: Pending,
+      default: NOTHING_PENDING,
+      verbs: ["get"],
+      /** The server recomputes this on a timer as well as on every revision,
+       *  and a derivation is a fresh object every time — so without an
+       *  `equals` every open tab would get a frame every thirty seconds
+       *  saying exactly what it already knew. */
+      equals: samePending,
     },
   },
   collections: {
@@ -340,6 +383,21 @@ export const surface = defineSurface({
       sessions: {
         output: Schema.Array(SessionInfo),
         error: ChatFailure,
+      },
+    },
+    /**
+     * The other door to the same action the agent's `commit` tool opens.
+     *
+     * A PROCEDURE rather than a write verb on the cell above: committing is
+     * not "set pending to something", it is an act with four possible answers,
+     * and three of them are refusals a reader has to be shown. What it changes
+     * is `pending`, which the server republishes the moment it is done.
+     */
+    git: {
+      commit: {
+        input: CommitRequest,
+        output: CommitResult,
+        error: OpFailure,
       },
     },
   },

@@ -24,8 +24,8 @@
  */
 
 import { adapterFrom, AGENT_ENV, whyNoAgent } from "@olai/chat"
-import { make as makeOps, TOOLS } from "@olai/ops"
-import { Effect } from "effect"
+import { type CommitMode, make as makeOps, TOOLS } from "@olai/ops"
+import { Effect, SubscriptionRef } from "effect"
 import { randomBytes } from "node:crypto"
 
 import * as Chat from "@olai/chat"
@@ -35,7 +35,7 @@ import { listen } from "./listener.ts"
 import { serveFace } from "./mcp/face.ts"
 import { MCP_PATH, mcpTransport } from "./mcp/route.ts"
 import { bespokeFrom } from "./mcp/tools.ts"
-import { bind, type Publishers } from "./runtime.ts"
+import { bind, gitWiring, type Publishers } from "./runtime.ts"
 
 export interface ServeOptions {
   /** The directory to serve, recursively. */
@@ -47,9 +47,9 @@ export interface ServeOptions {
   readonly clientDist: string
   /** Browser origins allowed to open the websocket, beyond same-origin. */
   readonly allowedOrigins: ReadonlyArray<string>
-  /** Commit every write to git when the served directory is a work tree.
-   *  `olai web --no-commit` is the opt-out. */
-  readonly commit: boolean
+  /** How writes reach git — `--commit=off | manual | auto`, `manual` by
+   *  default. See `@olai/ops`'s `Options`. */
+  readonly commits: CommitMode
 }
 
 /**
@@ -75,27 +75,25 @@ export const serve = (options: ServeOptions) =>
     // its refusals, because the chat is not what writes.
     let chat: Chat.Chat | null = null
 
+    // Bumped whenever a commit lands, by whichever door — the button, the
+    // agent's tool, or `--commit=auto`. A commit moves no served file, so
+    // nothing else in this process can say that what is waiting has changed.
+    const committed = yield* SubscriptionRef.make(0)
+
     const ops = makeOps({
       store,
       root,
-      commit: options.commit,
+      commits: options.commits,
+      onCommitted: () => {
+        Effect.runSync(SubscriptionRef.update(committed, (count) => count + 1))
+      },
       // A refusal reaches the agent as its tool result AND the panel as a row:
       // what the agent then says about it is prose, and the unfinished
       // children are data. On OPS rather than on the MCP server, because it is
       // writes this is a property of — a second writer would report nothing.
       onRefusal: (request, failure) =>
         chat === null ? Effect.void : chat.recordRefusal(request.op, failure),
-      // The other thing about a write a reader is owed: whether it reached a
-      // history. Published rather than logged, because the person this
-      // concerns is reading a browser (HACKING.md).
-      onGit: (state) => publish?.git(state),
     })
-
-    // Asked BEFORE the surface is bound, because it is what the git cell opens
-    // on: a page that has not provoked a write yet still has to know whether
-    // the directory it is reading is a repository. One `rev-parse` per serve —
-    // the ops layer keeps the answer — and none at all under `--no-commit`.
-    const git = yield* ops.git
 
     const adapter = adapterFrom(process.env[AGENT_ENV])
     if (adapter === null) yield* Effect.logInfo(whyNoAgent(process.env[AGENT_ENV]))
@@ -115,7 +113,10 @@ export const serve = (options: ServeOptions) =>
       onTranscript: (change) => publish?.transcript(change),
     })
 
-    const wired = yield* bind({ store, chat, git })
+    // `web` is the writer for the button's door; the panel's agent reaches the
+    // tools as `chat-agent` below. Which face a caller is, is decided HERE and
+    // never claimed by a transport about itself.
+    const wired = yield* bind({ store, chat, git: gitWiring(ops, "web", committed) })
     publish = wired.publish
 
     // A faulted runtime is unrecoverable structural damage, and telling that
@@ -138,7 +139,7 @@ export const serve = (options: ServeOptions) =>
     const transport = mcpTransport()
     yield* serveFace({
       bound: wired.bound,
-      tools: bespokeFrom(TOOLS, ops),
+      tools: bespokeFrom(TOOLS, ops, "chat-agent"),
       transport,
     })
 

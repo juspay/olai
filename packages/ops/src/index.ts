@@ -13,10 +13,12 @@
  *   - `codec` — the joint between the format and the store. It is here because
  *     this is the layer that holds both, and because the write gate validates
  *     through it on every commit;
- *   - `make` — the ops service: one `run` that plans, commits and retries, and
- *     one `git` saying what git is doing for the directory it writes to. The
- *     planner and the commit hook behind them are deliberately NOT exported:
- *     they are the inside of this one, and their own tests reach them directly;
+ *   - `make` — the ops service: one `run` that plans, writes and retries, plus
+ *     `pending` and `commit`, which are what a write WAITS for now that a commit
+ *     is something somebody asks for, and one `git` saying what git is doing for
+ *     the directory at all. The planner behind `run`, and the git plumbing
+ *     behind the other three, are deliberately NOT exported: they are the inside
+ *     of this one, and their own tests reach them directly;
  *   - `Query` — how a reader that is not a browser sees the set, over parsed
  *     nodes and never over bytes;
  *   - `TOOLS` — the closed list of what an agent may do, each entry carrying
@@ -32,11 +34,11 @@
 
 export { codec } from "./codec.ts"
 export type { Store } from "./deps.ts"
-/** What git is doing for a served directory. A TYPE rather than the module
- *  behind it: a consumer publishes this value, and the two subprocesses that
- *  produce it are this layer's business. */
-export type { GitState } from "./git.ts"
 export { make, type Ops, type Options } from "./ops.ts"
+/** When writes reach git, and what git is doing for the directory they reach.
+ *  The mode is passed IN and the state comes back OUT; the subprocesses between
+ *  them are this layer's business. */
+export { COMMIT_MODES, type CommitMode, type GitState } from "./pending.ts"
 export { type Applied, Request } from "./request.ts"
 export { type Reading, type Tool, TOOLS, toolNamed } from "./tools.ts"
 
