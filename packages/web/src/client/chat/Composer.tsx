@@ -17,19 +17,23 @@
  *     sight looks exactly like an agent that is thinking — and this row is
  *     where a person's attention already is, because it is where they were
  *     about to type.
- *   - **a picture can be pasted, dropped, or picked.** Three events, one
- *     path: `attach` sends the bytes to the conversation's tmp directory and
- *     answers with a path, which rides the next `send`. All three ship
- *     together because they are the same function behind different listeners —
- *     paste is the desktop gesture, drop is the one for a file already on
- *     screen, and the picker is the only one a phone has, since a phone has no
- *     Ctrl+V. Attaching does NOT send: the picture sits in a strip above the
- *     box, where it can be removed or typed at, because "what is wrong here"
- *     needs the picture and the question together. Two of those three listen
- *     HERE; the drop is caught by the panel around this row
- *     ({@link ./DropTarget.tsx}), because a picture dragged at a conversation
- *     is aimed at the conversation. What all three land in is one owner above
- *     both ({@link ./holding.ts}).
+ *   - **a file can be pasted, dropped, or picked.** Three events, one path:
+ *     `attach` sends the bytes to the conversation's tmp directory and answers
+ *     with a path, which rides the next `send`. All three ship together
+ *     because they are the same function behind different listeners — paste is
+ *     the desktop gesture, drop is the one for a file already on screen, and
+ *     the picker is the only one a phone has, since a phone has no Ctrl+V.
+ *     Attaching does NOT send: the file sits in a strip above the box, where
+ *     it can be removed or typed at, because "what is wrong here" needs the
+ *     file and the question together. Two of those three listen HERE; the drop
+ *     is caught by the panel around this row ({@link ./DropTarget.tsx}),
+ *     because a file dragged at a conversation is aimed at the conversation.
+ *     What all three land in is one owner above both ({@link ./holding.ts}).
+ *
+ *     All three take the same kinds, and the picker's `accept` is spelled from
+ *     the gate's own list to keep that true: a dialog that greys out a PDF the
+ *     drop would have taken is the one half-truth a person meets without any
+ *     refusal to explain it.
  *   - **`/` opens the agent's own commands**, and so does the button beside
  *     the input, which shows the WHOLE list. Typing filters; the button is for
  *     when you do not know what to type, which is most of the time you want a
@@ -44,6 +48,7 @@
  * fight over one box.
  */
 
+import { ATTACHMENT_EXTENSIONS } from "@olai/surface"
 import { createEffect, createSignal, on, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
@@ -60,7 +65,7 @@ const CONTROL =
 
 export function Composer(props: {
   readonly chat: Chat
-  /** The pictures attached and not yet sent. Made by the panel, because the
+  /** The files attached and not yet sent. Made by the panel, because the
    *  panel is where a drop is caught and this row is where the chips go. */
   readonly holding: Holding
 }) {
@@ -99,9 +104,9 @@ export function Composer(props: {
 
   const open = () => showing() && matches().length > 0
 
-  // A picture landed, wherever it was let go of — so the caret comes here,
-  // because the next thing to do with a picture is ask about it. Watching the
-  // strip rather than doing it inside the attach loop is what lets a drop
+  // A file landed, wherever it was let go of — so the caret comes here,
+  // because the next thing to do with an attachment is ask about it. Watching
+  // the strip rather than doing it inside the attach loop is what lets a drop
   // anywhere on the PANEL end with the box ready to type in: this row never
   // hears about that gesture, only about what it left behind.
   createEffect(
@@ -119,7 +124,7 @@ export function Composer(props: {
    * The box is cleared immediately, because it has to be: a send that waited
    * for a round trip before emptying the box would send twice for two quick
    * presses of Enter. But the clear was also the end of the story, and a
-   * refusal — a picture whose conversation was left while it uploaded, most of
+   * refusal — a file whose conversation was left while it uploaded, most of
    * all — left the message and the chips gone and only a red line to say why.
    * Chips are worse than words that way: they stand for round trips somebody
    * already waited through.
@@ -238,11 +243,17 @@ export function Composer(props: {
         {/* The only way in on a phone, which has no Ctrl+V and nothing to drag
             from. `capture` is deliberately absent: a picture is usually one
             already in the roll, and naming a camera would make that the
-            second-class case. */}
+            second-class case.
+
+            `accept` is SPELLED FROM THE GATE rather than said again as
+            `image/*`: a picker that will not offer a PDF the gate would take
+            is a gate that is half true, and the half a person meets first —
+            they never see the refusal, they see a file greyed out in a dialog
+            with no explanation anywhere. */}
         <input
           ref={picker}
           type="file"
-          accept="image/*"
+          accept={ATTACHMENT_EXTENSIONS.join(",")}
           multiple
           class="hidden"
           onChange={(event) => {
@@ -255,7 +266,7 @@ export function Composer(props: {
           type="button"
           class={`${CONTROL} w-8 border-rule text-muted hover:text-ink`}
           data-testid={TESTID.chatAttachButton}
-          aria-label="attach a picture"
+          aria-label="attach a file"
           onClick={() => picker?.click()}
         >
           +

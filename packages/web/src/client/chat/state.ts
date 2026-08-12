@@ -88,7 +88,7 @@ export type Sessions =
  * What became of one upload — THREE arms, because there are three answers and
  * two of them used to be `null`.
  *
- * `gone` is not a refusal: the conversation this picture was being attached to
+ * `gone` is not a refusal: the conversation this file was being attached to
  * was left while it uploaded, and the server has already thrown the directory
  * it landed in away. Nothing was refused and nobody needs telling; there is
  * simply no chip to draw. A refusal, on the other hand, is something a person
@@ -127,7 +127,7 @@ export interface Chat {
    *  signal of its own: a refusal drawn in two places is one a reader learns
    *  to skip in both. */
   readonly refuse: (reasons: ReadonlyArray<string>) => void
-  /** What was typed, and the pictures already attached to it — by the paths
+  /** What was typed, and the files already attached to it — by the paths
    *  {@link Chat.attach} answered with.
    *
    *  Answers whether the server TOOK it. A composer clears the box the moment
@@ -138,11 +138,11 @@ export interface Chat {
     text: string,
     attachments: ReadonlyArray<string>,
   ) => Promise<boolean>
-  /** Send a picture to the conversation's tmp directory, chunk by chunk, and
+  /** Send a file to the conversation's tmp directory, chunk by chunk, and
    *  answer with what became of it.
    *
    *  It ANSWERS the refusal rather than drawing it, which is the difference
-   *  between one file and a gesture: several pictures dropped together are
+   *  between one file and a gesture: several files dropped together are
    *  several of these calls, and a verb that drew each answer as it came would
    *  rub out the last one's. The caller collects them and says them once
    *  ({@link Chat.refuse}). */
@@ -266,7 +266,7 @@ export const createChat = (): Chat => {
     attach: (file) =>
       new Promise<Uploaded>((resolve) => {
         // WHICH conversation this is being attached to, read before the first
-        // chunk goes out. An upload takes as many round trips as the picture
+        // chunk goes out. An upload takes as many round trips as the file
         // has chunks, and leaving a conversation is allowed throughout — only
         // a running TURN blocks that. So the answer can arrive after the
         // server has thrown the directory it names away, and after the effect

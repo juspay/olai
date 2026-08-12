@@ -412,6 +412,11 @@ export const TESTID = {
   /** Drawn only in the tab that sent the picture, out of the Blob it still
    *  has. Every other tab has the name and nothing to draw. */
   chatAttachmentPreview: "chat-attachment-preview",
+  /** How big a NON-picture attachment is, beside its name. A PDF has no
+   *  thumbnail worth drawing, and the size is what a name does not carry.
+   *  Drawn only by the tab that attached it, for the same reason the preview
+   *  is: it is the only one holding the bytes. */
+  chatAttachmentSize: "chat-attachment-size",
   chatAttachmentRemove: "chat-attachment-remove",
   /** The file picker beside the input — a phone has no Ctrl+V. */
   chatAttachButton: "chat-attach",

@@ -2,7 +2,7 @@
  * The panel's body, as somewhere to drop a file.
  *
  * The target is the transcript AND the composer, not the two-line box alone: a
- * picture dragged at a conversation is aimed at the conversation, and a target
+ * file dragged at a conversation is aimed at the conversation, and a target
  * you can miss by two pixels is a target that eats the file — a drop this
  * region does not take is one the BROWSER takes, by navigating away to the
  * file and taking the open page with it.
@@ -43,7 +43,7 @@
  * into the composer still types it there.
  *
  * Nothing here reaches past `DataTransfer`. A dropped DIRECTORY therefore
- * arrives as one entry that is not a picture and is refused by name like
+ * arrives as one entry the gate does not take, and is refused by name like
  * anything else olai does not take, which is the honest answer for a gesture
  * this app has no way to walk.
  */

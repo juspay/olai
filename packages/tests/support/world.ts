@@ -367,6 +367,11 @@ export const CHAT_SLASH_COMMAND = selector(TESTID.chatSlashCommand);
  *  agrees on; the preview is drawn ONLY by the tab that has the Blob. */
 export const CHAT_ATTACHMENT = selector(TESTID.chatAttachment);
 export const CHAT_ATTACHMENT_PREVIEW = selector(TESTID.chatAttachmentPreview);
+/** How big a NON-picture attachment is, beside its name — what a document
+ *  chip says where a picture shows itself. */
+export const CHAT_ATTACHMENT_SIZE = selector(TESTID.chatAttachmentSize);
+/** The `+` beside the box: the file picker, and the only way in on a phone. */
+export const CHAT_ATTACH_BUTTON = selector(TESTID.chatAttachButton);
 /** The panel saying a dragged file would land HERE. Present only while a drag
  *  carrying files is over the panel's body. */
 export const CHAT_DROP = selector(TESTID.chatDrop);

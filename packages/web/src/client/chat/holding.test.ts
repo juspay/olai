@@ -28,21 +28,22 @@ test("a drop of pictures is taken whole, in the order it arrived", () => {
   expect(refusals).toEqual([])
 })
 
-test("a mixed drop takes the pictures and owes a refusal for the rest", () => {
+test("a mixed drop takes what it can and owes a refusal for the rest", () => {
   const { taking, refusals } = sorting([
     file("shot.png", "image/png"),
     file("notes.txt", "text/plain"),
-    file("plan.pdf", "application/pdf"),
+    file("archive.zip", "application/zip"),
+    file("logo.svg", "image/svg+xml"),
   ])
 
-  // The pictures are not held hostage by the file beside them, and their order
-  // is unchanged by the removal.
-  expect(taking.map((each) => each.name)).toEqual(["shot.png"])
+  // The pictures and the DOCUMENTS are not held hostage by the files beside
+  // them, and their order is unchanged by the removal.
+  expect(taking.map((each) => each.name)).toEqual(["shot.png", "notes.txt"])
   // BOTH of them are named — this is the whole point. One refusal per file,
   // said together, so a drop cannot lose a file quietly.
   expect(refusals.length).toBe(2)
-  expect(refusals[0]).toContain("notes.txt")
-  expect(refusals[1]).toContain("plan.pdf")
+  expect(refusals[0]).toContain("archive.zip")
+  expect(refusals[1]).toContain("logo.svg")
 })
 
 test("an SVG is refused, whatever the drag calls it", () => {
@@ -155,7 +156,7 @@ test("two files refused for two different reasons are both named, in one answer"
   })
 
   await holding.take([
-    file("notes.txt", "text/plain"),
+    file("archive.zip", "application/zip"),
     oversized("huge.png"),
     file("shot.png", "image/png"),
   ])
@@ -164,7 +165,7 @@ test("two files refused for two different reasons are both named, in one answer"
   expect(holding.pending().map((attachment) => attachment.name)).toEqual(["shot.png"])
   const answer = said.at(-1) ?? []
   expect(answer.length).toBe(2)
-  expect(answer[0]).toContain("notes.txt")
+  expect(answer[0]).toContain("archive.zip")
   expect(answer[1]).toContain("huge.png")
   // Two reasons, not one repeated: the second is about SIZE and the first is
   // not, which is the difference a single joined sentence would hide.

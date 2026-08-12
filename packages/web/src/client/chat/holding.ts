@@ -1,9 +1,9 @@
 /**
- * What the composer is HOLDING: pictures uploaded and waiting for a message to
+ * What the composer is HOLDING: files uploaded and waiting for a message to
  * go with them.
  *
  * It lives here rather than inside {@link ./Composer.tsx} because the gesture
- * and the strip are no longer in the same component. A picture dragged at this
+ * and the strip are no longer in the same component. A file dragged at this
  * panel is aimed at the CONVERSATION, so the drop target is the panel's whole
  * body ({@link ./DropTarget.tsx}) — and the chips it lands in are a two-line
  * strip at the bottom of it. One owner above both: `Panel.tsx` makes this and
@@ -34,13 +34,13 @@ export interface Sorted {
 }
 
 /**
- * Sort what was just dropped — or pasted, or picked — into the pictures this
- * app takes and the refusals it owes for the rest.
+ * Sort what was just dropped — or pasted, or picked — into what this app takes
+ * and the refusals it owes for the rest.
  *
  * The gate is {@link refusalFor}: the chunk loop's own, which is
  * `@olai/surface`'s, which is the server's — and it is asked about the name
  * the upload would SEND, because it is the upload that answers. This is not a
- * second opinion about what a picture is. It is the one opinion, asked one
+ * second opinion about what may be attached. It is the one opinion, asked one
  * step earlier, and asking it earlier is what makes a MIXED drop honest: offer
  * five files one at a time and each upload clears the last one's refusal off
  * the screen, so a drop of four screenshots and a PDF ends with the PDF gone
@@ -59,10 +59,10 @@ export const sorting = (files: ReadonlyArray<File>): Sorted => {
 }
 
 export interface Holding {
-  /** The pictures already on the server, in the order they were attached. */
+  /** The files already on the server, in the order they were attached. */
   readonly pending: Accessor<ReadonlyArray<Attached>>
   /** How many uploads are in flight, so the composer can say so. A count
-   *  rather than a flag: three pictures in one drop are three uploads. */
+   *  rather than a flag: three files in one drop are three uploads. */
   readonly sending: Accessor<number>
   /** Attach every one of these, in order — whatever the gate takes of them,
    *  and one answer on the panel's refusal line for everything it did not. */
@@ -83,7 +83,7 @@ export const createHolding = (chat: Chat): Holding => {
 
   // The conversation these belong to is over and the server has already
   // deleted the files: keeping the chips would offer a send it would refuse,
-  // naming pictures that are gone.
+  // naming files that are gone.
   createEffect(
     on(() => chat.state().session?.id, () => setPending([]), { defer: true }),
   )
@@ -100,7 +100,7 @@ export const createHolding = (chat: Chat): Holding => {
       const reasons = [...refusals]
       chat.refuse([])
       setSending((count) => count + taking.length)
-      // Sequential, and that is the promise: several pictures in one drop
+      // Sequential, and that is the promise: several files in one drop
       // attach in the order they were dropped, which is the order they will
       // ride the next message in.
       for (const file of taking) {

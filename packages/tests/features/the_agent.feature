@@ -478,13 +478,15 @@ Feature: Talking to the agent
     And the conversation shows the picture "shot.png"
 
   @scratch:chat
-  Scenario: A picture olai does not take is refused before it is uploaded
+  Scenario: A kind olai does not take is refused before it is uploaded
     # An SVG is a picture as far as the clipboard is concerned and a document
-    # that can script as far as this app is concerned. The gate is one module
-    # both ends read, so the browser refuses exactly what the server would
-    # have — before spending an upload finding out.
+    # that can script as far as this app is concerned — so it is in neither of
+    # the two lists the gate keeps, while a PDF and a text file are in one of
+    # them. The gate is one module both ends read, so the browser refuses
+    # exactly what the server would have — before spending an upload finding
+    # out.
     When I paste a picture called "logo.svg" into the chat
-    Then the chat eventually shows "not a picture"
+    Then the chat eventually shows "cannot be attached"
     And the composer is holding nothing
 
   @scratch:chat
@@ -551,13 +553,52 @@ Feature: Talking to the agent
     Then the agent read "one.png, two.png, three.png" in that order
 
   @scratch:chat
+  Scenario: A dropped PDF and a dropped text file reach the agent as files it reads
+    # The human's ruling, end to end: what a person drags at a conversation is
+    # not always a picture, and "not a picture" was a refusal for the commonest
+    # thing there is to drag at an agent. The gate takes documents now — the
+    # SAME gate, widened in the one module both ends read — and nothing under
+    # the gesture changed: same chunk loop, same tmp directory, same path in
+    # the prompt.
+    #
+    # What is asserted is the agent READING each one — a size it can only have
+    # got off the disk, and two different sizes so neither can be the other's
+    # answer. The chips are asserted for what a document chip must NOT do:
+    # draw an <img> at a PDF, which is a broken-image icon standing where a
+    # perfectly uploaded file should be. It says how big it is instead.
+    #
+    # The dropped name has a SPACE in it, which is the name the human's own
+    # file had. What comes back is `Type_04-C.pdf`: the server sanitises a name
+    # into one safe basename before it writes it, and the chip carries the
+    # server's answer rather than what this tab sent — so this scenario walks
+    # that rename end to end as well.
+    When I drop "Type 04-C.pdf, notes.txt" on the chat panel
+    Then the composer is holding "Type_04-C.pdf, notes.txt" in that order
+    And the composer is holding "Type_04-C.pdf", showing how big it is
+    And the composer is holding "notes.txt", showing how big it is
+    When I ask the agent "what are these"
+    Then the agent's answer mentions "read 69 bytes from Type_04-C.pdf"
+    And the agent's answer mentions "read 5 bytes from notes.txt"
+
+  @scratch:chat
+  Scenario: A picked file goes in the same way a dropped one does
+    # The third gesture, and the one a phone has instead of the other two. It
+    # is here because the picker has an `accept` of its own: a dialog that will
+    # not OFFER a PDF the gate would take is the one half-truth a person meets
+    # without any refusal to explain it — the file is simply greyed out.
+    When I pick "Type 04-C.pdf" with the attach button
+    Then the composer is holding "Type_04-C.pdf", showing how big it is
+    When I ask the agent "what is this"
+    Then the agent's answer mentions "read 69 bytes from Type_04-C.pdf"
+
+  @scratch:chat
   Scenario: A dropped file olai cannot take says so, by name
     # HACKING's rule, at the gesture where it is easiest to break: a file that
     # is dragged somewhere and then disappears has been swallowed, and the
     # person who dropped it has no way to tell that from a slow upload.
-    When I drop "notes.txt" on the chat panel
-    Then the chat eventually shows "not a picture"
-    And the chat eventually shows "notes.txt"
+    When I drop "archive.zip" on the chat panel
+    Then the chat eventually shows "cannot be attached"
+    And the chat eventually shows "archive.zip"
     And the composer is holding nothing
 
   @scratch:chat
@@ -567,8 +608,8 @@ Feature: Talking to the agent
     # refused BY NAME — and the refusal has to survive the uploads that follow
     # it, which is why the drop is sorted before any of it is sent rather than
     # judged file by file on the way out.
-    When I drop "shot.png, notes.txt" on the chat panel
+    When I drop "shot.png, archive.zip" on the chat panel
     Then the composer is holding the picture "shot.png"
-    And the chat eventually shows "notes.txt"
+    And the chat eventually shows "archive.zip"
     When I ask the agent "what is this"
     Then the agent's answer mentions "read 70 bytes from shot.png"

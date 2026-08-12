@@ -119,14 +119,34 @@ test("`appendTo` is a continuation token, not a capability", async () => {
   rmSync(dirname(outside), { recursive: true, force: true })
 })
 
-test("a file that is not a picture is refused, whatever it is called", async () => {
+test("a kind the gate does not take is refused, whatever it is called", async () => {
   const files = make()
-  // The name is sanitized BEFORE it is judged, so a name that would have been
-  // a path cannot smuggle a picture extension past the gate either.
-  for (const name of ["notes.txt", "shot.png/../notes.txt", "logo.svg"]) {
+  // `.svg` is the one that surprises: a picture to a clipboard, a document
+  // that can script to this app. The middle name is the reason this test
+  // exists at all — the name is sanitized BEFORE it is judged, so a name that
+  // would have been a path cannot smuggle an allowed extension past the gate.
+  for (const name of ["archive.zip", "shot.png/../archive.zip", "logo.svg"]) {
     expect(Result.isFailure(await receive(files, { name, data: "AAAA" }))).toBe(true)
   }
   // Nothing was created, so there is nothing to clean up.
+  await Effect.runPromise(files.discard)
+})
+
+test("a document is taken and lands whole, exactly as a picture does", async () => {
+  const files = make()
+  // The widening, at the end of the wire it is enforced on: the server's gate
+  // is the same function the browser's is, so a PDF that passed up there
+  // reaches disk down here.
+  const stored = await receive(files, {
+    name: "Type 04-C.pdf",
+    data: bytes(64).toString("base64"),
+  })
+  expect(Result.isSuccess(stored)).toBe(true)
+  if (!Result.isSuccess(stored)) return
+  // Sanitized into one safe basename — the space goes, the extension stays,
+  // because the extension is what the agent reads the kind from.
+  expect(stored.success.name).toBe("Type_04-C.pdf")
+  expect(readFileSync(stored.success.path).length).toBe(64)
   await Effect.runPromise(files.discard)
 })
 
@@ -231,10 +251,16 @@ test("a name too long for a filesystem is cut, not carried to the write", async 
 test("what the agent is asked is the path, as text", async () => {
   expect(promptWith("what is this", [])).toBe("what is this")
   expect(promptWith("what is this", ["/tmp/olai-chat-x/shot.png"])).toBe(
-    "what is this\n\nAttached image: /tmp/olai-chat-x/shot.png",
+    "what is this\n\nAttached file: /tmp/olai-chat-x/shot.png",
   )
-  // A picture on its own is a message: no leading blank line, nothing else.
+  // A file on its own is a message: no leading blank line, nothing else.
   expect(promptWith("", ["/tmp/olai-chat-x/shot.png"])).toBe(
-    "Attached image: /tmp/olai-chat-x/shot.png",
+    "Attached file: /tmp/olai-chat-x/shot.png",
+  )
+  // FILE, not image, and this is the assertion that says so: the line carries
+  // PDFs and text too, and an agent told a `.pdf` is an image has been told
+  // something wrong about a file it is about to open.
+  expect(promptWith("what is this", ["/tmp/olai-chat-x/Type 04-C.pdf"])).toBe(
+    "what is this\n\nAttached file: /tmp/olai-chat-x/Type 04-C.pdf",
   )
 })

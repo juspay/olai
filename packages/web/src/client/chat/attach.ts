@@ -1,15 +1,15 @@
 /**
- * A picture, from a Blob in this tab to a path on the server's disk.
+ * A file, from a Blob in this tab to a path on the server's disk.
  *
  * Three ways in — paste, drop, and the file picker a phone needs because it
  * has no Ctrl+V — and one way through: read the bytes, base64 them once, and
  * send them as a SEQUENCE of bounded `chat.attach` calls. The first creates
  * the file; each later one hands back the path it was given and appends. No
- * single frame scales with the picture, which is the whole reason the calls
+ * single frame scales with the file, which is the whole reason the calls
  * are chunked at all (`@olai/surface`'s `attach.ts` owns that derivation).
  *
  * The chunks are SEQUENTIAL, not concurrent: the server appends to one growing
- * file, so two in flight would interleave their bytes and corrupt the picture
+ * file, so two in flight would interleave their bytes and corrupt the file
  * silently. An Effect generator does that by construction — each `yield*`
  * waits for the previous chunk's answer.
  *
@@ -101,7 +101,7 @@ export const refusalFor = (file: File): string | null =>
  * A pasted screenshot usually arrives as a `File` with a name of its own
  * (`image.png`), and sometimes as one with nothing useful at all — so the type
  * is the fallback, because the EXTENSION is what the gate judges and what the
- * agent reads the picture's kind from.
+ * agent reads the file's kind from.
  */
 const nameOf = (file: File): string => {
   if (file.name !== "" && file.name.includes(".")) return file.name

@@ -142,9 +142,18 @@ purpose), and it lives here for the same reason the media URL does: the browser
 gates on it before encoding and the server gates on it before writing, and two
 copies of a threshold are two thresholds.
 
+The same module holds WHAT may be attached, and it is two lists that meet in
+one place: `/format`'s pictures (what a browser can paint, which is also
+what a relative `![](…)` may point at) plus `DOCUMENT_EXTENSIONS` — `.pdf`,
+`.txt`, `.md`, `.csv`, `.json`, the kinds an agent opens from a path rather than
+looks at. `isPicture` deliberately did NOT grow a `.pdf`: what chat may carry
+and what a note may draw are different questions, and answering them with one
+list would put PDFs behind `/media`. `.svg` is in neither — a document that can
+script is not a picture this app paints nor text it passes on.
+
 It is a SIBLING of `send` rather than a widening of it: the two answer different
 questions — `attach` says where the bytes landed, `send` says a turn was
-accepted — and one picture is N calls to one send. What `send` grew is a list of
+accepted — and one file is N calls to one send. What `send` grew is a list of
 PATHS, which are what `attach` answered with; the bytes are already on disk by
 then, and the agent is handed the path and reads the file itself.
 

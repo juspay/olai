@@ -314,13 +314,14 @@ The corner unit is the **risky one** — see
     the default; set <code>OLAI_ACP_AGENT</code> to use a different agent CLI.
     Agents get a fixed set of node tools and no file access, so every write is
     validated before it lands.</p>
-    <p>Pictures go in by paste or by drag: drag a screenshot onto the
-    conversation — several at once if you like — and the panel lights up the
-    area that will take it while you are still holding it. The agent is handed
-    the path to read, not the bytes. They live in a temporary directory of that
-    conversation's own, never under the directory being served, and go away
-    with it. Anything olai will not take is refused where you dropped it, by
-    name.</p>
+    <p>Files go in by paste, by drag, or by the picker: drag a screenshot, a
+    PDF or a text file onto the conversation — several at once if you like —
+    and the panel lights up the area that will take it while you are still
+    holding it. The agent is handed the path to read, not the bytes. They live
+    in a temporary directory of that conversation's own, never under the
+    directory being served, and go away with it. A picture shows itself; a
+    document shows its name and size. Anything olai will not take is refused
+    where you dropped it, by name.</p>
     <div class="cols">
       <div class="panel chat">
         <div class="file">chat · any ACP agent</div>

@@ -378,8 +378,9 @@ non-deterministic about. Behaviour is keyed on the prompt text (`done <id>`,
 asks for what it needs.
 
 One behaviour is keyed on the prompt's SHAPE rather than its first word: a
-prompt naming an attached image opens that file and says how many bytes it
-found. A scripted agent cannot look at a picture and does not have to — what an
+prompt naming an attached FILE opens it and says how many bytes it
+found. A scripted agent cannot look at a picture or parse a PDF and does not
+have to — what an
 e2e can prove is that the bytes the browser pasted are the bytes at the path the
 agent was handed, and a size read off the disk is the only way to say so. The
 paste itself is DISPATCHED rather than performed (`chat_steps.ts`): Playwright

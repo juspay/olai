@@ -68,13 +68,28 @@ test("a picture arrives whole, one chunk at a time", async () => {
 test("what the server will not take is refused before a byte is encoded", async () => {
   const server = spy()
   const outcome = await Effect.runPromise(
-    Effect.result(attaching(picture("notes.txt", body, "text/plain"), server.attach, 8)),
+    Effect.result(attaching(picture("logo.svg", body, "image/svg+xml"), server.attach, 8)),
   )
 
   expect(Result.isFailure(outcome)).toBe(true)
   // Nothing was sent: the pre-flight gate is the same function the server
   // refuses with, so there is no reason to spend the upload finding out.
   expect(server.calls).toEqual([])
+})
+
+test("a document goes up the same way a picture does", async () => {
+  const server = spy()
+  const outcome = await Effect.runPromise(
+    Effect.result(attaching(picture("notes.txt", body, "text/plain"), server.attach, 8)),
+  )
+
+  // The chunk loop has never cared what kind of file it is carrying, and this
+  // is the test that says so out loud now that it carries more than pictures:
+  // same sequence, same continuation, same bytes at the end of it.
+  expect(Result.isSuccess(outcome)).toBe(true)
+  if (!Result.isSuccess(outcome)) return
+  expect(server.calls.length).toBeGreaterThan(1)
+  expect(server.files.get(outcome.success.path)?.equals(Buffer.from(body))).toBe(true)
 })
 
 test("a picture the clipboard did not name is named after its type", async () => {

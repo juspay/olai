@@ -29,6 +29,8 @@ import {
   CHAT_ASK_TEXT,
   CHAT_ATTACHMENT,
   CHAT_ATTACHMENT_PREVIEW,
+  CHAT_ATTACH_BUTTON,
+  CHAT_ATTACHMENT_SIZE,
   CHAT_CANCEL,
   CHAT_DROP,
   CHAT_ENTRY,
@@ -909,20 +911,30 @@ const ONE_PIXEL_PNG =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
 /** ... and something the clipboard calls a picture that this app does not: an
- *  SVG is a document that can script. */
+ *  SVG is a document that can script, so it is in neither list the gate
+ *  keeps. */
 const TINY_SVG = "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=";
 
-/** ... and something nothing calls a picture, for the drops that are refused
- *  for the plainest reason there is. */
+/** A real PDF, 69 bytes — a catalog and a trailer, which is the smallest thing
+ *  that is honestly one. The scenario asserts that size, which is how it knows
+ *  the agent opened the file rather than read its name. */
+const TINY_PDF =
+  "JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZz4+ZW5kb2JqCnRyYWlsZXI8PC9Sb290IDEgMCBSPj4KJSVFT0YK";
+
+/** Five bytes of text: `notes`. */
 const TINY_TEXT = "bm90ZXM=";
 
 /** What a named file is made of. The extension decides, because the extension
  *  is what the app's own gate judges — so a scenario names `shot.png` or
- *  `notes.txt` and gets a file the panel will treat exactly as it would treat
- *  a real one. */
+ *  `Type 04-C.pdf` and gets a file the panel will treat exactly as it would
+ *  treat a real one. A `.zip` is here to be REFUSED: the gate takes pictures,
+ *  PDFs and text, and a suite that had nothing left to be turned away by it
+ *  would have stopped testing the gate at all. */
 const fileSpec = (name: string): { name: string; data: string; type: string } => {
   if (name.endsWith(".svg")) return { name, data: TINY_SVG, type: "image/svg+xml" };
+  if (name.endsWith(".pdf")) return { name, data: TINY_PDF, type: "application/pdf" };
   if (name.endsWith(".txt")) return { name, data: TINY_TEXT, type: "text/plain" };
+  if (name.endsWith(".zip")) return { name, data: TINY_TEXT, type: "application/zip" };
   return { name, data: ONE_PIXEL_PNG, type: "image/png" };
 };
 
@@ -1042,6 +1054,35 @@ const emptyDragAt = (world: OlaiWorld, at: TestId, kind: string): Promise<void> 
     )
   }, { at, kind });
 
+When(
+  "I pick {string} with the attach button",
+  async function (this: OlaiWorld, name: string) {
+    const spec = fileSpec(name);
+    // What a real file dialog FILTERS by, asserted before the file is handed
+    // over: `setFiles` ignores `accept`, so a picker that had gone on saying
+    // `image/*` would take this PDF here and grey it out for the person. The
+    // one half-truth met with no refusal to explain it.
+    const accept = await this.page
+      .locator(`${CHAT_PANEL} input[type=file]`)
+      .getAttribute("accept");
+    const extension = name.slice(name.lastIndexOf("."));
+    assert.ok(
+      accept !== null && accept.includes(extension),
+      `the picker offers "${accept}", which does not include "${extension}" — ` +
+        `so a file the gate would take cannot be chosen`,
+    );
+    const [chooser] = await Promise.all([
+      this.page.waitForEvent("filechooser"),
+      this.page.locator(CHAT_ATTACH_BUTTON).click(),
+    ]);
+    await chooser.setFiles({
+      name: spec.name,
+      mimeType: spec.type,
+      buffer: Buffer.from(spec.data, "base64"),
+    });
+  },
+);
+
 When("the drag leaves the panel without dropping", async function (this: OlaiWorld) {
   await emptyDragAt(this, TESTID.chatTranscript, "dragleave");
 });
@@ -1130,6 +1171,31 @@ Then(
       [...at].sort((a, b) => a - b),
       at,
       `the agent read the pictures in a different order than they were dropped: ${said}`,
+    );
+  },
+);
+
+Then(
+  "the composer is holding {string}, showing how big it is",
+  async function (this: OlaiWorld, name: string) {
+    await this.waitUntil(
+      async () => (await this.page.locator(pictureChip(name)).count()) > 0,
+      `the composer to hold "${name}"`,
+    );
+    const chip = this.page.locator(pictureChip(name));
+    // A PDF has no thumbnail worth drawing, and an <img> pointed at one is a
+    // broken-image icon — a component lying about a file that uploaded
+    // perfectly. What it says instead is the fact a name does not carry.
+    assert.strictEqual(
+      await chip.locator(CHAT_ATTACHMENT_PREVIEW).count(),
+      0,
+      `"${name}" is not a picture, so the chip for it must not be drawing one`,
+    );
+    const size = oneLine(await chip.locator(CHAT_ATTACHMENT_SIZE).innerText());
+    assert.match(
+      size,
+      /^\d+(\.\d)? (B|KB|MB|GB)$/,
+      `the chip for "${name}" says "${size}" where a size belongs`,
     );
   },
 );
