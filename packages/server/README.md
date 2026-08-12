@@ -14,17 +14,19 @@ than two flag declarations because that is exactly the divergence HACKING.md
 forbids: `olai mcp` once shipped without the flag at all, so an MCP-driven
 session could not batch and put four commits into a human's log in fifteen
 seconds. The one thing that differs between the faces is one clause of the help
-text, naming the door that face actually has (a button, or the tool) — telling a
-terminal about a button would send somebody looking for a control they have not
-got. `src/commits.test.ts` holds both halves: the truth table, and that nothing
-BUT that clause differs.
+text: which doors that face actually offers. `src/commits.test.ts` holds both
+halves — the truth table, and that nothing BUT that clause differs.
 
-That clause is not spelled here, though. `@olai/ops`' `commitDoor` is the one
-table of it, because the same sentence is owed in a second place — the reason a
-waiting write carries back on its reply — and a face's help text and its writes
-must not name different doors. The face is spelled as a `Writer`, the vocabulary
-the commit trailer already uses, rather than a `"web" | "mcp"` of this package's
-own: one name for who is asking, not two to keep in step.
+That clause is not spelled here, though. `@olai/ops` owns both halves of it:
+`commitDoors(face)` is what a SUBCOMMAND offers, and `commitDoor(writer)` is what
+ONE WRITER has, for the sentence its own write carries back. They are different
+questions and `olai web` is where they come apart — a web serve hands its own
+panel agent the same `commit` tool, so it genuinely offers both doors, while one
+writer has one. Keying the help on a writer quietly dropped the tool from
+`olai web --help`; `commits.test.ts` now asserts each face names its exact SET,
+which is what catches a face under-describing itself as well as over-describing.
+The face is a `CommitFace` — `Writer` minus the writer that is not a subcommand —
+so there is still one name for who is asking, not two to keep in step.
 
 This package decides one more thing about committing, and it is not the mode —
 it is WHO each transport is: the internal MCP route is handed to the session
@@ -67,7 +69,7 @@ register `stop` as a finalizer.
 | `mcp/tools.ts` | `@olai/ops`' table projected onto that face — the fixed field subtracted, a refusal carried as data |
 | `mcp/route.ts` | that face for the agent olai STARTED: mounted on this listener, behind a per-process bearer token, over a half-duplex transport of its own |
 | `mcp/serve.ts` | that face for an agent that started US: `olai mcp`'s own, much smaller, composition root, over stdio |
-| `commits.ts` | `--commit`, for whichever face is asking: one mode table, one default, one override, and the flag PAIR as one thing — the per-face clause it interpolates is `@olai/ops`' `commitDoor`, shared with the sentence a waiting write carries back |
+| `commits.ts` | `--commit`, for whichever face is asking: one mode table, one default, one override, and the flag PAIR as one thing — the per-face clause it interpolates is `@olai/ops`' `commitDoors`, sibling to the `commitDoor` the sentence a waiting write carries back is built from |
 | `runtime.ts` | the surface bindings: one owned fiber turns each store revision into the entries that moved and the manifest that names it, the errors cell is a second owned source, the transcript is server-authored, and the two GIT cells — the header readout and what is waiting — are recomputed together by one connector on three clocks (every revision, every landed commit, a slow sweep, because nothing watches `.git`), so the two controls that draw them cannot disagree |
 | `outlines.ts` | the projection that fiber publishes: one published revision cut into per-file entries, and the store's own `changed`/`removed` mapped onto the collection's upserts and removes |
 | `listener.ts` | one `serveSurfaceApp` call, and the one decision it leaves that is a policy: whose port this is |

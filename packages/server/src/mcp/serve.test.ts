@@ -31,12 +31,13 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { expect, test } from "bun:test"
-import { execFileSync, spawn } from "node:child_process"
+import { spawn } from "node:child_process"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
 import type { Pending } from "@olai/format"
+import { gitIn, repoAt, subjectsIn, writerOf } from "@olai/ops/testlib"
 
 import { stoppedWithin } from "../child.testlib.ts"
 
@@ -62,29 +63,20 @@ const served = (): string => {
 
 /** The same directory, as somebody's notes actually are: a work tree with an
  *  identity and the outlines already committed, so what the log says afterwards
- *  is exactly what this conversation did. Real git, because what is being
- *  asserted is what git ends up holding. */
+ *  is exactly what this conversation did. `repoAt` is `@olai/ops`' own builder —
+ *  the one that exists because three test files had each grown a copy and they
+ *  had drifted over the branch name. The seed's subject is named so a test
+ *  reading the log back can tell the fixture's commit from olai's. */
 const servedRepo = (): string => {
   const root = fs.realpathSync(served())
-  const git = (...argv: ReadonlyArray<string>) =>
-    execFileSync("git", argv, { cwd: root, stdio: "ignore" })
-  git("init", "--quiet", "--initial-branch", "main")
-  git("config", "user.email", "test@olai.invalid")
-  git("config", "user.name", "olai tests")
-  git("add", "-A")
-  git("commit", "--quiet", "--no-verify", "-m", "the outlines, as somebody's notes")
+  repoAt(root, { message: FIXTURE_COMMIT })
   return root
 }
 
-/** The body of the newest commit — everything past the subject line. */
-const bodyOf = (root: string): string =>
-  execFileSync("git", ["log", "-1", "--format=%b"], { cwd: root, encoding: "utf8" })
+const FIXTURE_COMMIT = "the outlines, as somebody's notes"
 
-/** Every commit subject in the served repository, newest first. */
-const subjects = (root: string): ReadonlyArray<string> =>
-  execFileSync("git", ["log", "--format=%s"], { cwd: root, encoding: "utf8" })
-    .trim()
-    .split("\n")
+/** The body of the newest commit — everything past the subject line. */
+const bodyOf = (root: string): string => gitIn(root)("log", "-1", "--format=%b")
 
 interface Frame {
   readonly id?: number
@@ -177,13 +169,13 @@ const converse = async (
  * gets rather than a hand-rolled approximation of it — and the framing, the id
  * correlation and the timeouts are the SDK's problem rather than ours.
  */
-const launched = async (
+const withServer = async <A>(
   root: string,
-  argv: ReadonlyArray<string> = [],
-): Promise<{ readonly client: Client; readonly close: () => Promise<void> }> => {
+  use: (client: Client) => Promise<A>,
+): Promise<A> => {
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [MAIN, "mcp", root, ...argv],
+    args: [MAIN, "mcp", root],
     // The server's own stderr, inherited, so a failure to start is visible in
     // the test's output rather than swallowed by the transport.
     stderr: "inherit",
@@ -191,7 +183,15 @@ const launched = async (
   })
   const client = new Client({ name: "somebody's agent", version: "0" })
   await client.connect(transport)
-  return { client, close: () => client.close() }
+  // `finally`, not a closing line in each test: an assertion that throws would
+  // otherwise skip the close and leave a server holding a watcher over a temp
+  // directory for the rest of the run. The same reason `withFace` next door
+  // takes a callback.
+  try {
+    return await use(client)
+  } finally {
+    await client.close()
+  }
 }
 
 /** One tool call, answered — with the refusal raised here rather than three
@@ -366,8 +366,7 @@ test("ops accumulate and one commit records them, with the agent's message and t
   const root = servedRepo()
   // No `--commit` flag at all: `manual` is the DEFAULT on this face, and a test
   // that passed the flag would not be asserting that.
-  const { client, close } = await launched(root)
-
+  await withServer(root, async (client) => {
   await called(client, "set_done", { id: "order" })
   await called(client, "set_doing", { id: "install" })
   await called(client, "add_node", { parent: "kitchen", title: "measure the alcove" })
@@ -375,7 +374,7 @@ test("ops accumulate and one commit records them, with the agent's message and t
 
   // Four ops in, and the log has not moved. Under the old behaviour it had
   // grown four commits by this line.
-  expect(subjects(root)).toEqual(["the outlines, as somebody's notes"])
+  expect(subjectsIn(root)).toEqual([FIXTURE_COMMIT])
 
   const answer = await called(client, "commit", { message: "plan the cabinet fitting" })
   expect(answer["isError"]).toBeUndefined()
@@ -386,10 +385,9 @@ test("ops accumulate and one commit records them, with the agent's message and t
   // count of ops would be a tally of our own beside a truth git already holds.
   expect(answer["structuredContent"]).toMatchObject({ _tag: "Committed", changes: 3 })
 
-  await close()
 
   // ONE commit for the four ops, on top of the one the fixture made.
-  const log = subjects(root)
+  const log = subjectsIn(root)
   expect(log).toHaveLength(2)
   // The agent's own sentence, prefixed — `git log --grep '^olai'` is the audit
   // view, and `--invert-grep` gives a person back their real history.
@@ -400,12 +398,7 @@ test("ops accumulate and one commit records them, with the agent's message and t
   // human typed — which would defeat the point of an audit trail of what the
   // TOOL wrote. `mcp`, not `chat-agent`: this client is somebody's own agent in
   // a terminal, and that difference is recorded nowhere else.
-  expect(
-    execFileSync("git", ["log", "-1", "--format=%(trailers:key=X-Olai-Writer,valueonly)"], {
-      cwd: root,
-      encoding: "utf8",
-    }).trim(),
-  ).toBe("mcp")
+  expect(writerOf(root)).toBe("mcp")
 
   // A message the agent SUPPLIED is used verbatim: the trailer is added and
   // nothing else. What the agent said is why the work was done, which is the
@@ -415,9 +408,8 @@ test("ops accumulate and one commit records them, with the agent's message and t
 
   // And the tree is clean: everything waiting went in, so the next thing this
   // agent does starts from nothing pending.
-  expect(
-    execFileSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).trim(),
-  ).toBe("")
+  expect(gitIn(root)("status", "--porcelain").trim()).toBe("")
+  })
 }, BOUND_MS * 3)
 
 /**
@@ -431,17 +423,15 @@ test("ops accumulate and one commit records them, with the agent's message and t
  */
 test("a commit with no message composes one from what changed, per node", async () => {
   const root = servedRepo()
-  const { client, close } = await launched(root)
-
+  await withServer(root, async (client) => {
   await called(client, "set_done", { id: "order" })
   await called(client, "add_node", { parent: "kitchen", title: "measure the alcove" })
   const answer = await called(client, "commit")
   expect(answer["structuredContent"]).toMatchObject({ _tag: "Committed" })
-  await close()
 
   // Prefixed and composed: `created` outranks `done` in the fixed order, so the
   // subject names the capture and the body carries both.
-  const subject = subjects(root)[0] ?? ""
+  const subject = subjectsIn(root)[0] ?? ""
   expect(subject).toStartWith("olai: ")
   expect(subject).toContain("measure the alcove")
 
@@ -451,6 +441,7 @@ test("a commit with no message composes one from what changed, per node", async 
   expect(body).toContain("done: order the cabinets")
   expect(body).toContain("capture: measure the alcove")
   expect(body).toContain("X-Olai-Writer: mcp")
+  })
 }, BOUND_MS * 3)
 
 /**
@@ -467,12 +458,11 @@ test("a commit with no message composes one from what changed, per node", async 
 test("a busy repository refuses the commit and says which state it is in", async () => {
   const root = servedRepo()
   // Detached, the way an agent finds it when somebody is mid-bisect.
-  execFileSync("git", ["checkout", "--quiet", "--detach", "HEAD"], { cwd: root })
+  gitIn(root)("checkout", "--quiet", "--detach", "HEAD")
 
-  const { client, close } = await launched(root)
+  await withServer(root, async (client) => {
   const wrote = await called(client, "set_done", { id: "order" })
   const refused = await called(client, "commit", { message: "will not land" })
-  await close()
 
   // The WRITE happened. That is the guarantee, and it is not negotiable: git
   // never fails a write.
@@ -487,7 +477,8 @@ test("a busy repository refuses the commit and says which state it is in", async
   })
 
   // Nothing was recorded: still the fixture's own commit and no other.
-  expect(subjects(root)).toEqual(["the outlines, as somebody's notes"])
+  expect(subjectsIn(root)).toEqual([FIXTURE_COMMIT])
+  })
 }, BOUND_MS * 3)
 
 /**
@@ -507,8 +498,7 @@ test("a busy repository refuses the commit and says which state it is in", async
  */
 test("what is waiting, and what was last recorded, are readable over the pipe", async () => {
   const root = servedRepo()
-  const { client, close } = await launched(root)
-
+  await withServer(root, async (client) => {
   const readOnce = async (): Promise<Pending> => {
     const answer = await client.readResource({ uri: "surface://cells/pending" })
     const contents = answer.contents as ReadonlyArray<{ text: string }>
@@ -576,5 +566,5 @@ test("what is waiting, and what was last recorded, are readable over the pipe", 
   })
   expect(after.last?.sha).toMatch(/^[0-9a-f]{40}$/)
 
-  await close()
+  })
 }, BOUND_MS * 3)

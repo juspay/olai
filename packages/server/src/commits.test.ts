@@ -20,7 +20,7 @@
 
 import { expect, test } from "bun:test"
 
-import { COMMIT_MODES, commitDoor } from "@olai/ops"
+import { COMMIT_BUTTON, COMMIT_MODES, commitDoors, COMMIT_TOOL } from "@olai/ops"
 import { commitMode, commitsSaid } from "./commits.ts"
 
 // ── what the two flags come to between them ────────────────────────────
@@ -65,29 +65,36 @@ test("both faces advertise every mode, so neither can quietly grow or lose one",
 })
 
 /**
- * The one clause that is allowed to differ, and the proof that it is the only
- * one.
+ * Each face names every door it actually has — no more, and NO FEWER.
  *
- * Naming the browser's button in `olai mcp --help` would send a person looking
- * for a control their face has not got; naming the tool in `olai web --help`
- * would be the same mistake pointed the other way. Everything else about that
- * sentence is one rule described once, and the substitution below is what makes
- * "only that differs" a fact rather than a hope — a second divergence sneaking
- * into the wording fails right here.
+ * The "no fewer" half is the one that was got wrong. `olai web` hands its own
+ * panel agent the same `commit` tool an outside agent gets, so a web serve
+ * really does have both doors, and a help text naming only the button leaves out
+ * something true. `olai mcp` has no browser, so naming the button there sends a
+ * person after a control they have not got. Both are the same mistake pointed
+ * two ways, and only asserting the exact SET catches both — an earlier version
+ * of this test compared the two sentences modulo one substitution, which could
+ * never have noticed web under-describing itself.
+ *
+ * The phrases come from the one table rather than being spelled again here: a
+ * test carrying its own copy of the thing under test is the drift it exists to
+ * catch, one layer up.
  */
-test("each face names the door it actually has, and only that differs", () => {
-  const web = commitsSaid("web")
-  const mcp = commitsSaid("mcp")
+test("each face names every door it has, and no door it has not", () => {
+  const named = (said: string) =>
+    [COMMIT_BUTTON, COMMIT_TOOL].filter((door) => said.includes(door)).sort()
 
-  expect(web).toContain("Commit button")
-  expect(web).not.toContain("`commit` tool")
-  expect(mcp).toContain("`commit` tool")
-  expect(mcp).not.toContain("Commit button")
+  // The browser: a button, and the tool its own panel agent is handed.
+  expect(named(commitsSaid("web"))).toEqual([COMMIT_BUTTON, COMMIT_TOOL].sort())
+  // A terminal: the tool, and nothing to press.
+  expect(named(commitsSaid("mcp"))).toEqual([COMMIT_TOOL])
+})
 
-  // The phrases come from the one table rather than being spelled a third time
-  // here — a test carrying its own copy of the thing under test is the same
-  // drift it exists to catch, one layer up.
-  const withoutDoor = (said: string, face: "web" | "mcp") =>
-    said.replace(commitDoor(face), "…")
-  expect(withoutDoor(web, "web")).toBe(withoutDoor(mcp, "mcp"))
+/** And the rest of the sentence is one rule described once — everything either
+ *  face says apart from its doors is the same words, so a second divergence
+ *  sneaking into the wording fails here. */
+test("apart from the doors, both faces say the same thing", () => {
+  const withoutDoors = (face: "web" | "mcp") =>
+    commitsSaid(face).replace(commitDoors(face), "…")
+  expect(withoutDoors("web")).toBe(withoutDoors("mcp"))
 })
