@@ -151,7 +151,11 @@ export function AppHeader(props: {
           Every state that readout drew is a face of this pill now — including
           the fault, with git's own words on its tip. */}
       <div
-        class="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1.5 sm:gap-2"
+        // `gap-1` below 40rem rather than `gap-1.5`: six pills at 390pt spend
+        // three gaps between them, and 6px of white space is a word on the
+        // label that gives way first. The bar's own spacing is the last thing
+        // to spend before the order below starts costing a reader words.
+        class="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1 sm:gap-2"
         data-testid={TESTID.appChrome}
       >
         <Indicator status={connectionStatus()} />
