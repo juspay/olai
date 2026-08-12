@@ -78,12 +78,26 @@ Feature: Talking to the agent
     # even when the reader has gone, so the write succeeding was evidence of
     # nothing and every way of failing looked like success. The only honest
     # evidence is the turn itself. `deaf` is an agent that has stopped reading
-    # and goes on streaming, which is that shape of failure on purpose.
+    # and gone quiet with its turn still open, which is that shape of failure
+    # on purpose.
     When I ask the agent "deaf"
     Then the agent is working
     When I cancel the turn
-    Then the chat eventually shows "the agent was asked to stop and has not"
+    Then the chat eventually shows "the agent was asked to stop and has said nothing since"
     And the agent is working
+
+  @scratch:chat
+  Scenario: An agent still working towards the stop is not accused of ignoring it
+    # The other half, and the reason the panel watches SILENCE rather than a
+    # clock: a cancel lands between a turn's own steps, so an adapter in the
+    # middle of a long tool call honours it when that step returns. A window on
+    # the turn alone would call every one of those dead. `talkative` ignores
+    # the cancel and keeps streaming, which is what that looks like from here.
+    When I ask the agent "talkative"
+    Then the agent is working
+    When I cancel the turn
+    Then the agent's answer mentions "still working 7"
+    And the chat says nothing went wrong
 
   @scratch:chat
   Scenario: An answer this panel cannot draw leaves a mark, not a blank

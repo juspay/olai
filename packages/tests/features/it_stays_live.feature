@@ -111,6 +111,16 @@ Feature: It stays live
     # is a lie of exactly the kind this whole item is about.
     And the stale banner says "The served directory cannot be read right now"
     And the node "herbs" is shown
+    # ...and it catches up on its own, which is the promise the banner makes.
+    # Writing a file remakes the directory under the running server, exactly as
+    # a remounted disk or a restored backup would.
+    When I rewrite "garden.jsonl" as:
+      """
+      {"id":"garden","ord":"a0","title":"garden #outdoors"}
+      {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed is back"}
+      """
+    Then the stale banner is gone
+    And the node "herbs" has the title "the herb bed is back"
     And the page has not reloaded
 
   # ── membership, not just text ────────────────────────────────────────

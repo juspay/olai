@@ -111,8 +111,14 @@ const resolvePicture = (element: Element, from: string): void => {
   }
   element.children = [{
     type: "text",
+    // No `src` at all is TWO things and this pass cannot tell them apart: an
+    // `![]()` with nothing in it, and an address the SANITISER already took
+    // away before this walk ran (a `data:` URI is the one that reaches here
+    // that way — the allowlist is the security boundary and runs first, which
+    // is the right order and not something to work around). So the sentence
+    // covers both rather than guessing at one.
     value: src === ""
-      ? "this picture names no file"
+      ? "this picture could not be drawn: its address was empty, or not one this page may fetch"
       : `this picture could not be drawn: ${src}`,
   }]
 }

@@ -61,9 +61,14 @@ re-decoded are still what changed when a later probe finally validates — so
 they accumulate until a revision carries them out. The first revision names
 every file, because everything is new to a consumer holding nothing.
 
-Failures during a probe are logged and dropped rather than fatal: the next
-trigger tries again, and a live page that is permanently stale is the one
-failure mode a live store must not have.
+Failures during a probe are not fatal: the next trigger tries again, and a live
+page that is permanently stale is the one failure mode a live store must not
+have. They are not DROPPED either, which they used to be — a `PlatformFailure`
+goes through `Codec.unreadable` onto the errors channel (above), so a directory
+that stopped being readable says so instead of freezing the page and saying
+nothing. What stays log-only is a DEFECT: a bug in this package is not news
+about somebody's directory, so the sync loop's `catchCause` writes it to the
+log and nowhere else.
 
 ## The codec is the whole of the coupling
 

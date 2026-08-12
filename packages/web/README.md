@@ -419,6 +419,31 @@ like. That is where the mistake this folder exists to prevent would be made — 
 state that quietly reads as healthy, or a terminal one drawn like a transient
 one — so it is unit-tested directly, with no socket and no browser.
 
+There is a FIFTH state, and it is not the wire's: `degraded`, drawn as `partly
+live`. Green is a claim about what REACHES the page rather than about a socket,
+so it is the conjunction of the transport status and the framework's
+`client.health()` — which knows the thing the transport cannot, that a socket
+can be open and answering while a subscription over it is dead. Nothing in olai
+read that fact until this was written, and what it cost is a `documents.keys`
+stream that died rendering as a directory with no documents in it under a green
+light. Its detail NAMES the streams that stopped, which is why it is a function
+rather than a row of the table, and `lookOf` is the one door to all five so a
+caller never asks which shape a state is in.
+
+Two decisions inside it. ERRORS degrade the pill and PENDING does not: a first
+frame that has not arrived is what every page load looks like, and a pill that
+is amber most of the time is a pill nobody reads (the framework's own
+`gateStatus` is deliberately policy for a GATE — whether to draw the body at
+all — which is a different question). And it is folded into the pill rather
+than drawn beside it, for the reason the git readout is quiet when it is happy:
+one green claim per page, or neither is scanned.
+
+The degraded half is unit-tested only, and that gap is honest rather than
+missed: killing one subscription while leaving its socket up is not something a
+browser can be asked to do from a scenario. What the e2e asserts is the healthy
+half — `live`, with `data-stopped` absent — which is what would go red if the
+fold started reading amber over a page that is fine.
+
 `retired` is the one that takes the screen (`Restarted.tsx`). It means the
 server this page came from has been replaced: the tab presented its process id
 on the reconnect, the new server did not recognise it and closed the socket at

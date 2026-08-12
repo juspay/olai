@@ -650,6 +650,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  is picked up by the next conversation instead of the next restart. */
     const servers = Effect.map(
       Kolu.detect,
+      // `serverOf` takes the half a session needs and drops the reason a
+      // refusal carries. That is deliberate for now — nothing draws it, and
+      // `mcp-fail-visible` is the item that will. When it does, this is the
+      // line that keeps the whole `Detected` rather than re-running the probe
+      // to ask again.
       (found) => {
         const handing = mcpServersOf(options.tools(), Kolu.serverOf(found))
         // Remembered as they are handed over, because "the tools we gave this

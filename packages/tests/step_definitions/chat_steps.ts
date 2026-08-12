@@ -51,6 +51,7 @@ import {
   CHAT_TOOL_LOCATIONS,
   CHAT_TOOL_PROGRESS,
   CHAT_TRANSCRIPT,
+  CHAT_TROUBLE,
   CHAT_WAITING,
   CHAT_WORKING,
   HYDRATION_TIMEOUT,
@@ -768,6 +769,14 @@ Then("the chat is empty", async function (this: OlaiWorld) {
 
 When("I open the session picker", async function (this: OlaiWorld) {
   await this.page.locator(CHAT_SESSIONS).click();
+});
+
+/** No `trouble` on screen — what went wrong where nobody was waiting, and the
+ *  claim that nothing did. No wait of its own: the step before it has already
+ *  waited for something the panel could only have drawn after the moment this
+ *  is about, so a `trouble` that was coming would be here. */
+Then("the chat says nothing went wrong", async function (this: OlaiWorld) {
+  assert.strictEqual(await this.page.locator(CHAT_TROUBLE).count(), 0);
 });
 
 Then(

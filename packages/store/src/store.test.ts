@@ -478,6 +478,33 @@ test("a directory that stops being readable says so, over the last good tree", (
     { backstop: "20 millis" },
   ))
 
+// ...and it says it ONCE. Every write to this ref is a frame the server sends
+// to every open browser, so a directory that stays unreadable — a mount that
+// is not coming back before somebody notices — would otherwise re-broadcast a
+// byte-identical error on every backstop tick and every write gate's probe,
+// forever.
+//
+// Asserted on IDENTITY, which is what makes it a fence rather than a
+// restatement: `codec.unreadable` allocates a fresh value per call, so a
+// dedupe that stopped deduping cannot leave the same object on the ref.
+test("a directory that stays unreadable is said once, not on every probe", () =>
+  withStore(
+    { "a.txt": "alpha" },
+    ({ root, store }) =>
+      Effect.gen(function*() {
+        fs.rmSync(root, { recursive: true, force: true })
+        const first = yield* settledErrors(store)
+
+        // Ten more looks at the same missing directory — the backstop's, and
+        // the ones a caller asks for.
+        for (let probe = 0; probe < 5; probe++) yield* Effect.ignore(store.refresh)
+        yield* Effect.sleep("120 millis")
+
+        expect(yield* errorsOf(store)).toBe(first)
+      }),
+    { backstop: "20 millis" },
+  ))
+
 // ...and it clears itself when the directory comes back, exactly as a
 // validation failure does. Nothing is written for that: publishing a revision
 // clears the errors ref, which is what makes ONE channel the right shape for

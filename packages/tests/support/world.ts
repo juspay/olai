@@ -230,6 +230,7 @@ export const CHAT_TOOL_DETAIL = selector(TESTID.chatToolDetail);
 export const CHAT_TOOL_PROGRESS = selector(TESTID.chatToolProgress);
 export const CHAT_TOOL_LOCATIONS = selector(TESTID.chatToolLocations);
 export const CHAT_REFUSAL = selector(TESTID.chatRefusal);
+export const CHAT_TROUBLE = selector(TESTID.chatTrouble);
 export const CHAT_ASK = selector(TESTID.chatAsk);
 export const CHAT_ASK_CHOICE = selector(TESTID.chatAskChoice);
 export const CHAT_ASK_TEXT = selector(TESTID.chatAskText);

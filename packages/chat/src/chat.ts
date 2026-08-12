@@ -122,14 +122,17 @@ export interface Chat {
 }
 
 /**
- * How long the agent gets to act on a cancel before the panel says it has not.
+ * How long an agent may say NOTHING after a cancel before the panel says so.
  *
- * Long enough that an agent finishing a tool call and stopping cleanly is not
- * accused of ignoring the request — a cancel arrives between two of a turn's
- * own steps, not inside one — and short enough that somebody who pressed a
- * button is not left wondering for the length of a turn, which is the whole
- * complaint. It is a floor on being TOLD, never a deadline on the agent: this
- * kills nothing and cancels nothing a second time.
+ * A window on silence rather than on the turn: an agent still streaming is
+ * still working towards the stop it was asked for however long that takes
+ * ({@link Chat.cancel} owns that argument), so this is only how long a
+ * genuinely quiet one gets before somebody is told. Short enough that a person
+ * who pressed a button is not left wondering, long enough that the gap between
+ * two chunks of ordinary streaming is never mistaken for it.
+ *
+ * It is a floor on being TOLD and never a deadline on the agent: nothing here
+ * kills anything or cancels anything twice.
  */
 const CANCEL_GRACE = "5 seconds"
 
@@ -164,6 +167,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     /** One session change at a time: a load and a new-session racing each other
      *  would leave the transcript holding half of each. */
     const switching = yield* Semaphore.make(1)
+    /** Everything the agent has said, counted. See {@link receive}. */
+    let heard = 0
 
     const publish = (change: Change) => {
       if (change.upserts.length === 0 && change.removes.length === 0) return
@@ -196,6 +201,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     /** The agent's events, as rows and as state. The one place the vocabulary
      *  of {@link ./events.ts} is consumed. */
     const receive = (event: AgentEvent): void => {
+      // How much this agent has said, ever. Read by {@link cancel} and by
+      // nothing else: what it needs is not a count but a CHANGE, and a
+      // monotonic counter answers "has anything arrived since I looked" with
+      // no clock to read and nothing to reset.
+      heard++
       switch (event._tag) {
         case "said":
           publish(transcript.say(event.text))
@@ -411,18 +421,29 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * dropped it — looks identical from here: the button was pressed, and the
      * turn goes on streaming.
      *
-     * The only honest evidence is the TURN. So the cancel is followed, on its
-     * own fiber, by a look at whether the thing it aimed at is still running,
-     * and a turn that outlived its own cancel says so where the panel already
-     * says what went wrong with no caller waiting. It is a `trouble` rather
-     * than a refusal because by then nobody is waiting on the click, and
-     * `begin` clears it on the next turn — a state the panel can see it is not
-     * in is a state it must not report.
+     * The only honest evidence is the TURN, and it is TWO facts rather than
+     * one. A turn that is still running after the grace is not by itself an
+     * agent ignoring anything: a cancel arrives between a turn's own steps, so
+     * an adapter in the middle of a long grep or a file write honours it when
+     * that step returns, and a clock alone would call every one of those dead.
+     * What separates them is whether the agent is still SAYING anything. One
+     * that is streaming tool progress is working and will stop when it can;
+     * one that has gone silent with a cancel outstanding is the case nobody
+     * could see before — and the two want opposite things said about them.
+     *
+     * So: the same turn, AND nothing heard since the cancel went out. A
+     * counter rather than a timestamp because what is being asked is "has
+     * anything arrived", which needs no clock. It lands on `trouble` rather
+     * than as a refusal because by then nobody is waiting on the click, and it
+     * is cleared by the turn ending (`begin`, and the settle in the turn's own
+     * fiber) — a state the panel can see it is not in is a state it must not
+     * report.
      */
     const cancel: Effect.Effect<void, OpFailure> = Effect.gen(function*() {
       const asked = turn
       yield* Effect.mapError(agent.cancel, asFailure)
       if (asked === null) return
+      const quietSince = heard
       yield* Effect.forkDetach(Effect.gen(function*() {
         yield* Effect.sleep(CANCEL_GRACE)
         // A DIFFERENT turn is a turn that ended and was replaced, which is the
@@ -430,9 +451,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         // than the status is what makes the second press of the button about
         // the turn it was pressed for.
         if (turn !== asked) return
+        // ...and an agent that has said anything since is one still working
+        // towards the stop it was asked for, which is not a thing to accuse
+        // anybody of.
+        if (heard !== quietSince) return
         move({
           trouble:
-            "the agent was asked to stop and has not — the turn below is still running",
+            "the agent was asked to stop and has said nothing since — the turn below is still running",
         })
       }))
     })

@@ -128,6 +128,19 @@ test("every refused picture names the src that was written", () => {
   }
 })
 
+// ...except the one there is no longer a name for, and that is the ORDER
+// working rather than a hole in it: the sanitiser is the security boundary and
+// runs BEFORE this pass, so a `data:` src is gone by the time anything here
+// could have quoted it. Same for an `![]()` with nothing in it. Both still say
+// so — which is the whole point — in the one sentence that is true of both.
+test("a picture whose address never reached us still says so", () => {
+  for (const src of ["data:image/png;base64,AA", ""]) {
+    const html = renderMarkdown(`![a](${src})`, NOTE)
+    expect(html).toContain(`data-testid="${TESTID.undrawnPicture}"`)
+    expect(html).toContain("its address was empty, or not one this page may fetch")
+  }
+})
+
 // ── heading anchors, and the contents derived from them ──────────────────
 //
 // The anchor is minted INSIDE the boundary (./anchors.ts), so what is pinned

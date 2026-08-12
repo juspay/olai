@@ -22,7 +22,8 @@
  *   add <title>  call `add_node` under the first outline's first root
  *   servers      name the MCP servers this session was handed
  *   slow         dawdle, long enough to cancel
- *   deaf         dawdle, with our stdin closed, so nothing said back arrives
+ *   deaf         go quiet with our stdin closed, so nothing said back arrives
+ *   talkative    keep streaming through a cancel, the way a slow one does
  *   picture      answer with an `image` block, which the panel cannot draw
  *   lose         refuse every `session/list` from here on
  *   flood        say more than fits, so scrolling is a thing that can be tested
@@ -383,6 +384,19 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     // side, which is exactly why the panel has to watch the TURN rather than
     // the write.
     await sleep(30_000)
+    return
+  }
+
+  // An agent that will not stop yet and SAYS SO — the honest slow case. It
+  // ignores the cancel (a real one is inside a tool call it cannot abandon
+  // mid-way) and keeps streaming, which is precisely what must NOT be reported
+  // as an agent that has stopped listening.
+  if (verb === "talkative") {
+    for (let said = 1; said <= 12; said++) {
+      say(`still working ${said}\n`)
+      await sleep(700)
+    }
+    respond(id, { stopReason: cancelled ? "cancelled" : "end_turn" })
     return
   }
 
