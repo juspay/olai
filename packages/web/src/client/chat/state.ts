@@ -46,6 +46,7 @@ import {
   type ChatState,
   type OpFailure,
   type SessionInfo,
+  UsageFailure,
 } from "@olai/surface"
 import { type Accessor, createEffect, createMemo, createSignal, on } from "solid-js"
 
@@ -92,6 +93,15 @@ export interface Chat {
    *  Separate from `state().trouble`, which is what went wrong where nobody was
    *  waiting: this one belongs to the click that caused it. */
   readonly refused: Accessor<OpFailure | null>
+  /** Say a refusal this panel worked out for itself, on the same line every
+   *  other refusal is said on.
+   *
+   *  For the one refusal that has no round trip behind it: a dropped file the
+   *  SHARED gate turns down before there is a call to refuse it ({@link
+   *  ./holding.ts}). It goes here rather than into a second signal beside the
+   *  composer because a refusal drawn in two places is one a reader learns to
+   *  skip in both. */
+  readonly refuse: (reason: string) => void
   /** What was typed, and the pictures already attached to it — by the paths
    *  {@link Chat.attach} answered with.
    *
@@ -202,6 +212,7 @@ export const createChat = (): Chat => {
     rows,
     entry,
     refused,
+    refuse: (reason) => setRefused(new UsageFailure({ reason })),
     send: (text, attachments) =>
       new Promise((resolve) => {
         setRefused(null)

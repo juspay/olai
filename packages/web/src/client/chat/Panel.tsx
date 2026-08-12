@@ -10,6 +10,11 @@
  * The header's agent toggle stays the permanent chrome control (#101). The
  * TRANSCRIPT is subscribed only while the panel is open; Minimized reads a
  * module-scoped snapshot updated from here (`last.ts`), never the collection.
+ *
+ * Both layouts wrap their body in the same `DropTarget`, and both make the
+ * same `holding` above it: a file dropped anywhere on the conversation is
+ * attached to it, and the chips land in the composer inside. Only the body —
+ * the header is session controls, and a file cannot go there.
  */
 
 import { createEffect, createSignal, Show } from "solid-js"
@@ -27,7 +32,9 @@ import {
 import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
 import { Composer } from "./Composer.tsx"
+import { DropTarget } from "./DropTarget.tsx"
 import { Header } from "./Header.tsx"
+import { createHolding } from "./holding.ts"
 import { sampleLastAgent } from "./last.ts"
 import { Minimized } from "./Minimized.tsx"
 import { NoAgent } from "./NoAgent.tsx"
@@ -112,6 +119,7 @@ export function Toggle() {
 
 function DesktopDock() {
   const chat = createChat()
+  const holding = createHolding(chat)
   const off = () => chat.state().status === "off"
 
   // Snapshot the last agent row for the minimized face; dies with this owner.
@@ -131,8 +139,10 @@ function DesktopDock() {
       </div>
       <Header chat={chat} />
       <Show when={!off()} fallback={<NoAgent />}>
-        <Transcript chat={chat} />
-        <Composer chat={chat} />
+        <DropTarget onFiles={(files) => void holding.take(files)}>
+          <Transcript chat={chat} />
+          <Composer chat={chat} holding={holding} />
+        </DropTarget>
       </Show>
     </aside>
   )
@@ -145,6 +155,7 @@ function DesktopDock() {
  */
 function MobileSheet() {
   const chat = createChat()
+  const holding = createHolding(chat)
   const off = () => chat.state().status === "off"
   const [dragPct, setDragPct] = createSignal<number | null>(null)
   /** True when the last pointer gesture moved enough to count as a drag
@@ -238,8 +249,10 @@ function MobileSheet() {
         </div>
         <Header chat={chat} />
         <Show when={!off()} fallback={<NoAgent />}>
-          <Transcript chat={chat} />
-          <Composer chat={chat} />
+          <DropTarget onFiles={(files) => void holding.take(files)}>
+            <Transcript chat={chat} />
+            <Composer chat={chat} holding={holding} />
+          </DropTarget>
         </Show>
       </aside>
     </div>

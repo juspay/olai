@@ -387,6 +387,13 @@ cannot put an image on the system clipboard portably, so the step builds the
 `ClipboardEvent` the browser would have built, with a real `File` in a real
 `DataTransfer`, and everything after that line is the app.
 
+A DROP is dispatched for the same reason — no portable way to make the desktop
+drag a file into a headless browser — and the events are aimed at the
+TRANSCRIPT, the part of the panel furthest from the composer: a drop that only
+worked over the box would pass a test aimed at the box and fail the person
+aiming at the panel. The `dragenter`/`dragover` pair with no drop after it is
+what the drop-state affordance is asserted on.
+
 `hold` is the one worth knowing about: it starts a tool call, streams a chunk,
 and goes on streaming until the scenario touches `.agent-release` in the served
 directory. A turn that finishes in a millisecond can only be asserted about

@@ -88,8 +88,14 @@ export const attaching = (
  * (`image.png`), and sometimes as one with nothing useful at all — so the type
  * is the fallback, because the EXTENSION is what the gate judges and what the
  * agent reads the picture's kind from.
+ *
+ * Exported because the gate is asked one step earlier too ({@link
+ * ./holding.ts}, sorting a whole drop before any of it is uploaded), and it
+ * has to be asked about the name this module would SEND. A caller that judged
+ * `file.name` would refuse the unnamed clipboard picture this function exists
+ * to name.
  */
-const nameOf = (file: File): string => {
+export const nameOf = (file: File): string => {
   if (file.name !== "" && file.name.includes(".")) return file.name
   const kind = file.type.startsWith("image/") ? file.type.slice("image/".length) : ""
   return `pasted.${kind === "" ? "png" : kind.replace(/[^a-z0-9]/gi, "")}`

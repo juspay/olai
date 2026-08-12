@@ -486,3 +486,57 @@ Feature: Talking to the agent
     When I paste a picture called "logo.svg" into the chat
     Then the chat eventually shows "not a picture"
     And the composer is holding nothing
+
+  @scratch:chat
+  Scenario: A picture dropped on the panel reaches the agent the same way
+    # Drop is the gesture for a file that is already on screen, and what it is
+    # aimed at is the CONVERSATION — so the target is the panel's whole body
+    # and not the two-line box at the bottom of it. The drag is dispatched at
+    # the transcript, which is the part furthest from the composer: a drop that
+    # only worked over the box would pass a test aimed at the box and fail the
+    # person aiming at the panel.
+    #
+    # Nothing below the gesture is new. The assertion is the same one the paste
+    # scenario makes — the agent READ the file, a size it can only have got off
+    # the disk — because that is what "through the existing pipeline" means.
+    When I drag "shot.png" over the chat panel
+    Then the panel shows where the drop will land
+    When I drop "shot.png" on the chat panel
+    Then the composer is holding the picture "shot.png"
+    And the panel is no longer offering to take a drop
+    When I ask the agent "what is this"
+    Then the agent's answer mentions "read 70 bytes from shot.png"
+    And the conversation shows the picture "shot.png"
+
+  @scratch:chat
+  Scenario: Several files in one drop attach in the order they were dropped
+    # A drop is one gesture over several files, so the order is the person's:
+    # they selected them in that order and let go of them together. The chips
+    # keep it, the prompt keeps it, and the agent reads them in it.
+    When I drop "one.png, two.png, three.png" on the chat panel
+    Then the composer is holding "one.png, two.png, three.png" in that order
+    When I ask the agent "what are these"
+    Then the agent read "one.png, two.png, three.png" in that order
+
+  @scratch:chat
+  Scenario: A dropped file olai cannot take says so, by name
+    # HACKING's rule, at the gesture where it is easiest to break: a file that
+    # is dragged somewhere and then disappears has been swallowed, and the
+    # person who dropped it has no way to tell that from a slow upload.
+    When I drop "notes.txt" on the chat panel
+    Then the chat eventually shows "not a picture"
+    And the chat eventually shows "notes.txt"
+    And the composer is holding nothing
+
+  @scratch:chat
+  Scenario: A drop that is half pictures takes them and names what it would not
+    # The mixed drop, which is the one a person actually makes: a folder's
+    # worth of files selected together. The pictures attach and the rest is
+    # refused BY NAME — and the refusal has to survive the uploads that follow
+    # it, which is why the drop is sorted before any of it is sent rather than
+    # judged file by file on the way out.
+    When I drop "shot.png, notes.txt" on the chat panel
+    Then the composer is holding the picture "shot.png"
+    And the chat eventually shows "notes.txt"
+    When I ask the agent "what is this"
+    Then the agent's answer mentions "read 70 bytes from shot.png"

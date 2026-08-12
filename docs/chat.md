@@ -42,12 +42,21 @@ handed a choice you did not make.
 ## Pictures
 
 You can paste a picture into the box — a screenshot, a photo of a whiteboard —
-and ask about it. The bytes go into a temporary directory belonging to that
+or drag one onto the panel, or pick one with the **+** button, which is the way
+in on a phone. The bytes go into a temporary directory belonging to that
 conversation, never under the directory being served, and the agent is handed
 the PATH: it reads the file itself, so no image rides the prompt into the
 stored session, and nothing pasted here can end up committed with your
 outlines. The pictures go away when you start a new conversation or stop the
 server.
+
+Dropping is aimed at the whole panel rather than at the box: while you are
+dragging over it the panel says so, and what lights up is what will take the
+file. Several files in one drop attach in the order you dropped them, and they
+reach the agent in that order. Anything olai will not take is named where it
+was dropped — a PDF, an SVG (a document that can script, whatever the drag
+calls it), a file over the 50 MB cap — so a drop never disappears quietly, and
+the pictures beside it in the same drop still attach.
 
 ## kolu
 

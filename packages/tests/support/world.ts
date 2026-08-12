@@ -367,6 +367,9 @@ export const CHAT_SLASH_COMMAND = selector(TESTID.chatSlashCommand);
  *  agrees on; the preview is drawn ONLY by the tab that has the Blob. */
 export const CHAT_ATTACHMENT = selector(TESTID.chatAttachment);
 export const CHAT_ATTACHMENT_PREVIEW = selector(TESTID.chatAttachmentPreview);
+/** The panel saying a dragged file would land HERE. Present only while a drag
+ *  carrying files is over the panel's body. */
+export const CHAT_DROP = selector(TESTID.chatDrop);
 
 /** The app has finished its first render when it has committed to one of its
  *  three shapes: a docked header (the set loaded and the directory column is

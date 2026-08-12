@@ -25,7 +25,11 @@
  *     screen, and the picker is the only one a phone has, since a phone has no
  *     Ctrl+V. Attaching does NOT send: the picture sits in a strip above the
  *     box, where it can be removed or typed at, because "what is wrong here"
- *     needs the picture and the question together.
+ *     needs the picture and the question together. Two of those three listen
+ *     HERE; the drop is caught by the panel around this row
+ *     ({@link ./DropTarget.tsx}), because a picture dragged at a conversation
+ *     is aimed at the conversation. What all three land in is one owner above
+ *     both ({@link ./holding.ts}).
  *   - **`/` opens the agent's own commands**, and so does the button beside
  *     the input, which shows the WHOLE list. Typing filters; the button is for
  *     when you do not know what to type, which is most of the time you want a
@@ -40,11 +44,11 @@
  * fight over one box.
  */
 
-import type { Attached } from "@olai/surface"
 import { createEffect, createSignal, on, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { Attachments } from "./Attachments.tsx"
+import type { Holding } from "./holding.ts"
 import { SlashMenu } from "./SlashMenu.tsx"
 import type { Chat } from "./state.ts"
 
@@ -54,24 +58,17 @@ import type { Chat } from "./state.ts"
 const CONTROL =
   "flex h-8 shrink-0 items-center justify-center rounded border text-xs"
 
-export function Composer(props: { readonly chat: Chat }) {
+export function Composer(props: {
+  readonly chat: Chat
+  /** The pictures attached and not yet sent. Made by the panel, because the
+   *  panel is where a drop is caught and this row is where the chips go. */
+  readonly holding: Holding
+}) {
   const [draft, setDraft] = createSignal("")
   const [showing, setShowing] = createSignal(false)
   /** Opened by the BUTTON rather than by typing a slash — the difference is
    *  only which prefix the list is filtered by. */
   const [asked, setAsked] = createSignal(false)
-  /** Pictures already on the server and waiting for a message to go with.
-   *  Local to this tab, exactly like the draft: an attachment nobody has sent
-   *  is part of what is being typed.
-   *
-   *  Unlike the draft, it refers to something the SERVER owns — files in the
-   *  conversation's tmp directory — so it is dropped when the conversation is,
-   *  below. A chip left over from the last one is a send the server would
-   *  refuse, pointing at a file it has already deleted. */
-  const [pending, setPending] = createSignal<ReadonlyArray<Attached>>([])
-  /** How many are in flight, so the box can say so. A count rather than a
-   *  flag: two pictures dropped at once are two uploads. */
-  const [sending, setSending] = createSignal(0)
   let input: HTMLTextAreaElement | undefined
   let picker: HTMLInputElement | undefined
 
@@ -102,32 +99,18 @@ export function Composer(props: { readonly chat: Chat }) {
 
   const open = () => showing() && matches().length > 0
 
-  /** Attach whatever was just pasted, dropped or picked.
-   *
-   *  Every file, not the first one: a drop of three screenshots is three
-   *  attachments, and taking one of them silently would be the panel deciding
-   *  which. And every file is OFFERED, rather than filtered here by what this
-   *  component thinks a picture is: whether olai takes it is one rule in one
-   *  place (`@olai/surface`'s gate, which `attach` runs before it encodes
-   *  anything), and a second rule up here would be a dropped PDF vanishing
-   *  with nothing said about it. */
-  const take = async (files: ReadonlyArray<File>) => {
-    if (files.length === 0) return
-    setSending((count) => count + files.length)
-    for (const file of files) {
-      const attached = await props.chat.attach(file)
-      setSending((count) => count - 1)
-      if (attached === null) continue
-      setPending((already) => [...already, attached])
-    }
-    input?.focus()
-  }
-
-  // The conversation these belong to is over, and the server has already
-  // deleted the files: keeping the chips would offer a send it would refuse,
-  // naming pictures that are gone.
+  // A picture landed, wherever it was let go of — so the caret comes here,
+  // because the next thing to do with a picture is ask about it. Watching the
+  // strip rather than doing it inside the attach loop is what lets a drop
+  // anywhere on the PANEL end with the box ready to type in: this row never
+  // hears about that gesture, only about what it left behind.
   createEffect(
-    on(() => props.chat.state().session?.id, () => setPending([]), { defer: true }),
+    on(
+      () => props.holding.pending().length,
+      (now, before) => {
+        if (before !== undefined && now > before) input?.focus()
+      },
+    ),
   )
 
   /**
@@ -146,10 +129,9 @@ export function Composer(props: { readonly chat: Chat }) {
    */
   const send = async () => {
     const text = draft()
-    const attachments = pending()
-    if (text.trim() === "" && attachments.length === 0) return
+    if (text.trim() === "" && props.holding.pending().length === 0) return
+    const attachments = props.holding.release()
     setDraft("")
-    setPending([])
     dismiss()
     // Where the caret already is, unless something took it — a person sending
     // two messages in a row should not have to aim at the box for the second.
@@ -161,7 +143,7 @@ export function Composer(props: { readonly chat: Chat }) {
     )
     if (taken) return
     setDraft((typing) => (typing === "" ? text : typing))
-    setPending((now) => (now.length === 0 ? attachments : now))
+    props.holding.restore(attachments)
   }
 
   const accept = (name: string) => {
@@ -202,19 +184,7 @@ export function Composer(props: { readonly chat: Chat }) {
   }
 
   return (
-    <div
-      class="relative shrink-0 border-t border-rule p-2"
-      // The whole composer is the drop target, not just the box: a picture
-      // dragged at a panel is aimed at the conversation, and a target you can
-      // miss by two pixels is a target that eats the file. `dragover` must
-      // preventDefault or the browser navigates to the dropped file instead.
-      onDragOver={(event) => event.preventDefault()}
-      onDrop={(event) => {
-        if (event.dataTransfer === null) return
-        event.preventDefault()
-        void take([...event.dataTransfer.files])
-      }}
-    >
+    <div class="relative shrink-0 border-t border-rule p-2">
       <Show when={open()}>
         <SlashMenu commands={matches()} onAccept={accept} onDismiss={dismiss} />
       </Show>
@@ -222,11 +192,8 @@ export function Composer(props: { readonly chat: Chat }) {
       {/* Above the box, where what is being typed is: an attachment is part of
           the message until it is sent. */}
       <Attachments
-        names={pending().map((attachment) => attachment.name)}
-        onRemove={(name) =>
-          setPending((already) =>
-            already.filter((attachment) => attachment.name !== name)
-          )}
+        names={props.holding.pending().map((attachment) => attachment.name)}
+        onRemove={props.holding.remove}
       />
 
       {/* The box takes the whole width and the controls sit UNDER it, rather
@@ -263,7 +230,7 @@ export function Composer(props: { readonly chat: Chat }) {
           const files = [...(event.clipboardData?.files ?? [])]
           if (files.length === 0) return
           event.preventDefault()
-          void take(files)
+          void props.holding.take(files)
         }}
       />
 
@@ -279,7 +246,7 @@ export function Composer(props: { readonly chat: Chat }) {
           multiple
           class="hidden"
           onChange={(event) => {
-            void take([...(event.currentTarget.files ?? [])])
+            void props.holding.take([...(event.currentTarget.files ?? [])])
             // Cleared so picking the SAME file twice fires `change` twice.
             event.currentTarget.value = ""
           }}
@@ -295,9 +262,9 @@ export function Composer(props: { readonly chat: Chat }) {
         </button>
         {/* What is in flight. A picture big enough to notice is a picture
             whose upload is worth saying is happening. */}
-        <Show when={sending() > 0}>
+        <Show when={props.holding.sending() > 0}>
           <span class="font-mono text-[0.6875rem] text-muted">
-            attaching{sending() > 1 ? ` ${sending()}` : ""}…
+            attaching{props.holding.sending() > 1 ? ` ${props.holding.sending()}` : ""}…
           </span>
         </Show>
         {/* The turn is stopped on a PERSON, and this is where they find out.

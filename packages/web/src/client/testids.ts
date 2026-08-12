@@ -408,6 +408,10 @@ export const TESTID = {
   /** Drawn only in the tab that sent the picture, out of the Blob it still
    *  has. Every other tab has the name and nothing to draw. */
   chatAttachmentPreview: "chat-attachment-preview",
+  /** The panel saying a dropped file would land HERE: drawn over the
+   *  transcript and composer while a drag carrying files is over them, and
+   *  gone the moment it is not. */
+  chatDrop: "chat-drop",
   chatAttachmentRemove: "chat-attachment-remove",
   /** The file picker beside the input — a phone has no Ctrl+V. */
   chatAttachButton: "chat-attach",
