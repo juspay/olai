@@ -70,6 +70,51 @@ list are untouched.
 - **Still no write CLI.** `web` and `mcp` are two transports in front of one ops
   layer, and neither adds a node from the command line.
 
+## Resolved 2026-08-11 — the agent asks back (roadmap `form-elicitation`)
+
+The permission punt above came due, and from the direction nobody was watching.
+"Auto-approve" was implemented as *answer every `session/request_permission`
+with the first allow-flavoured option*, which is fine for the tools it was
+written for and wrong for the one request that is not a tool at all: the Claude
+Code adapter maps plan mode's "Ready to code?" onto a permission request whose
+first allow-flavoured option switches the session's permission mode to `auto`.
+So the panel was taking that decision on the human's behalf, silently, every
+time — a decision nobody had been asked about, made by a line whose comment said
+it was about not wedging the wire.
+
+- **`elicitation.form` is advertised**, and it is the enabling half rather than
+  the polish: the adapter gates `AskUserQuestion` on it and puts the tool in
+  `disallowedTools` otherwise, so until now olai's agent could not ask a
+  structured question at all. It had to guess, or write the question into prose
+  and hope the next message answered it.
+- **A question is a ROW, not a modal.** It stays in the transcript after it is
+  answered, disabled, with what was chosen on it — because "what did I tell it?"
+  is a question about the conversation, and a dialog that vanishes takes the
+  answer with it. It also means the panel needs no new surface member shape: the
+  transcript is a keyed collection, and a question is one more kind of entry
+  that is written twice.
+- **One form for two payloads.** `elicitation/create` (form mode) and
+  `session/request_permission` are different methods asking a person the same
+  kind of thing, so they are projected into one shape and drawn by one
+  component. Nothing about the second is special-cased in the browser.
+- **A dismissal is a decline on the wire.** The agent is told the human would
+  not answer; it is never handed an answer nobody gave. Same rule as the
+  refusals: the honest thing is the thing that renders.
+- **Auto-approval is now POSITIVE recognition** — a permission request for one
+  of the MCP servers this session was handed, and nothing else. Bypass mode is
+  still the design for those (they are mediated and validated); a tool the
+  client cannot name is one a person is asked about. The name comes from the
+  `tool_call` the adapter emits before it asks, because the permission request
+  carries a display title and not a name.
+- **No timeout.** A pending question holds the ACP request open, which IS the
+  blocked turn; what is owed in return is that the block is impossible to
+  miss — the composer, the header and the app's permanent agent toggle all say
+  it — and that a question is withdrawn when its conversation ends, so a live
+  form is never a control that does nothing.
+- **Out of scope, deliberately**: `elicitation.url` (it sends a person out of
+  the panel to a page olai knows nothing about — a different bargain, and its
+  own decision), and a general permission-modes settings UI.
+
 ## Open
 
 Nothing. Dispatch-ready.

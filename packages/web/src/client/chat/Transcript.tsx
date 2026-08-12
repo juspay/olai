@@ -81,7 +81,11 @@ export function Transcript(props: { readonly chat: Chat }) {
         <For each={props.chat.rows()}>
           {(key) => {
             const entry = props.chat.entry(key)
-            return <Show when={entry()}>{(row) => <Entry entry={row()} />}</Show>
+            return (
+              <Show when={entry()}>
+                {(row) => <Entry entry={row()} chat={props.chat} />}
+              </Show>
+            )
           }}
         </For>
 
