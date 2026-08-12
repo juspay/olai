@@ -200,9 +200,26 @@ are in the allowlist (`src/mcp/expose.ts`):
   to shell out to `git status` — the file access this surface exists not to
   have.
 
-`src/mcp/serve.test.ts` drives that whole flow against a spawned binary and a
-real repository: four ops, no commits, one `commit`, and one `olai`-prefixed
-commit in the log carrying `X-Olai-Writer: mcp`.
+An agent does not have to READ that resource to learn a repository is busy,
+either: a write's own reply says so. Under `manual` a write mid-rebase or on a
+detached HEAD comes back naming that state rather than saying it is waiting to
+be asked about, because "waiting" would point the agent at a tool that is going
+to refuse.
+
+`src/mcp/serve.test.ts` drives all of it against a spawned binary and a real
+repository: four ops with the log untouched, one `commit` producing a single
+`olai`-prefixed commit carrying `X-Olai-Writer: mcp`, a second `commit`
+answering `NothingToCommit`, a detached HEAD refusing with the reason on both
+the write and the commit, and `--commit=auto` / `--commit=auto --no-commit`
+through argv — because "the flag reaches the behaviour" is a claim about a
+composition root and is only true end to end.
+
+**One shape worth knowing when writing an agent against this:** `pending` is a
+PUSHED cell, so a read issued in the same breath as a write's reply can still
+hold the previous revision. Nothing depends on that for correctness — `commit`
+re-surveys git itself and never reads the cell — but an agent that wants a
+precise view should subscribe (`notifications/resources/updated`) or read until
+the shape it expects appears, which is what the suite models.
 
 ## Starting up, and what you are told when it will not
 

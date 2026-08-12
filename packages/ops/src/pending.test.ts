@@ -27,7 +27,7 @@ import { Effect } from "effect"
 import { codec } from "./codec.ts"
 import { gitIn, repoAt } from "./fixtures.testlib.ts"
 import * as Ops from "./ops.ts"
-import { whyOf } from "./pending.ts"
+import { COMMIT_TOOL, whyOf } from "./pending.ts"
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
@@ -489,3 +489,54 @@ test("what a waiting write says names the door that caller actually has", () => 
   // And a mode that commits has nothing to explain.
   expect(whyOf("auto", ready, null, "mcp")).toBeUndefined()
 })
+
+/**
+ * A write on a BUSY repository says so — it does not say "waiting".
+ *
+ * The review's finding 5, and it is #108's lesson wearing manual mode's
+ * clothes. "Waiting to be committed until the `commit` tool asks for one" is
+ * true of an ordinary manual write and FALSE here: nothing the agent asks for
+ * will sweep this until the rebase is finished, so the reply would be sending
+ * it to call a tool that refuses, and the real reason would reach the person
+ * reading the transcript only from that refusal.
+ *
+ * The write itself still lands. That is not negotiable and is asserted here
+ * beside the sentence, because the whole point of the arrangement is that git
+ * never fails a write — the correction is to what the reply SAYS, not to what
+ * it does.
+ */
+test("a manual write on a busy repository says blocked with the reason, not waiting", () =>
+  withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    Effect.gen(function*() {
+      // Detached, the way an agent finds it when somebody is mid-bisect.
+      fixture.git("checkout", "--quiet", "--detach", "HEAD")
+
+      const applied = yield* Effect.orDie(
+        fixture.ops.run({ op: "done", id: "order" }, "mcp"),
+      )
+
+      // The write LANDED.
+      expect(applied.committed).toBe(false)
+      expect(fs.readFileSync(path.join(fixture.root, "house.jsonl"), "utf8"))
+        .toContain(`"done"`)
+
+      // And the reply names the state rather than promising a door that will
+      // refuse. `on a detached HEAD`, not `mid-detached`, which is not English.
+      expect(applied.why).toContain("detached HEAD")
+      expect(applied.why).toContain("finish that first")
+      expect(applied.why).not.toContain("waiting to be committed")
+      expect(applied.why).not.toContain(COMMIT_TOOL)
+    })))
+
+/** The other half of the same correction: on a HEALTHY repository the sentence
+ *  is still the ordinary waiting one, so this is a narrower answer rather than
+ *  a louder one. */
+test("a manual write on a healthy repository still just says it is waiting", () =>
+  withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    Effect.gen(function*() {
+      const applied = yield* Effect.orDie(
+        fixture.ops.run({ op: "done", id: "order" }, "mcp"),
+      )
+      expect(applied.why).toStartWith("waiting to be committed")
+      expect(applied.why).toContain(COMMIT_TOOL)
+    })))

@@ -283,7 +283,14 @@ caller can render, and neither of them is a boolean:
   call. Under the DEFAULT mode that sentence says the write is *waiting*, which
   is the feature working and must not read as a fault — `manual` is not an error
   state, and a reader told otherwise would go looking for a broken repository
-  that is not broken.
+  that is not broken. **Unless the repository is BUSY**, and then it says that
+  instead: a write made mid-rebase, mid-merge, mid-cherry-pick or on a detached
+  HEAD is not waiting for somebody to ask, it is waiting for the repository, and
+  the tool it would otherwise be pointed at will refuse. Saying "waiting" there
+  is the same mistake `git-invisible` was filed for wearing manual mode's
+  clothes, so `manual` asks the repository its state — one `symbolic-ref` inside
+  the write gate per op, which is the price of a reply that is not confidently
+  wrong.
 - **`Ops.git`** — what git is doing for this directory: `off` (`--commit=off`),
   `repo`, `none`, or `error` with git's own words. A PROJECTION of the same
   survey `Ops.pending` runs (`gitOf`), never a probe of its own: the readout and

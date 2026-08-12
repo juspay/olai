@@ -172,10 +172,14 @@ const converse = async (
 const withServer = async <A>(
   root: string,
   use: (client: Client) => Promise<A>,
+  /** How the serve was started, past the directory. Empty is the DEFAULT, which
+   *  is what most of these assert; the flag tests below are the reason it is a
+   *  parameter rather than a constant. */
+  argv: ReadonlyArray<string> = [],
 ): Promise<A> => {
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [MAIN, "mcp", root],
+    args: [MAIN, "mcp", root, ...argv],
     // The server's own stderr, inherited, so a failure to start is visible in
     // the test's output rather than swallowed by the transport.
     stderr: "inherit",
@@ -469,6 +473,14 @@ test("a busy repository refuses the commit and says which state it is in", async
   expect(wrote["isError"]).toBeUndefined()
   expect(fs.readFileSync(path.join(root, "house.jsonl"), "utf8")).toContain(`"done":`)
 
+  // And the write's OWN reply already said the repository is the problem —
+  // before the agent called `commit` and got refused. Telling it "waiting…
+  // until the `commit` tool asks for one" would have sent it to a tool that
+  // cannot help, which is #108's lesson in manual mode's clothes.
+  const wroteDetail = wrote["structuredContent"] as { why?: string }
+  expect(wroteDetail.why).toContain("detached HEAD")
+  expect(wroteDetail.why).not.toContain("waiting to be committed")
+
   // The COMMIT did not, and the answer says so as DATA rather than as prose the
   // agent would have to parse — including which state, by name.
   expect(refused["structuredContent"]).toMatchObject({
@@ -567,4 +579,82 @@ test("what is waiting, and what was last recorded, are readable over the pipe", 
   expect(after.last?.sha).toMatch(/^[0-9a-f]{40}$/)
 
   })
+}, BOUND_MS * 3)
+
+/**
+ * Committing twice: the second one has nothing to do, and says so.
+ *
+ * The other half of the pair the brief asks for over stdio — the busy-repo
+ * refusal is above, and this is the ordinary "there was nothing waiting". It
+ * matters because an agent that commits on a timer, or that finishes two units
+ * of work with no writes between them, hits it constantly: it is not a fault
+ * and must not arrive looking like one, so it is its OWN arm rather than a
+ * `Failed` carrying "nothing to commit" out of git.
+ */
+test("a second commit with nothing waiting answers NothingToCommit, not a failure", async () => {
+  const root = servedRepo()
+  await withServer(root, async (client) => {
+    await called(client, "set_done", { id: "order" })
+    expect(await called(client, "commit", { message: "the cabinets are ordered" }))
+      .toMatchObject({ structuredContent: { _tag: "Committed" } })
+
+    const again = await called(client, "commit", { message: "nothing changed since" })
+    expect(again["isError"]).toBeUndefined()
+    expect(again["structuredContent"]).toMatchObject({ _tag: "NothingToCommit" })
+  })
+
+  // And the second call left no empty commit behind, which is the thing the
+  // arm exists to prevent.
+  expect(subjectsIn(root)).toEqual(["olai: the cabinets are ordered", FIXTURE_COMMIT])
+}, BOUND_MS * 3)
+
+/**
+ * The tri-state, through the SPAWNED binary rather than through the parser.
+ *
+ * `commits.test.ts` holds the truth table as values, which is the right level
+ * for what the flags MEAN. What it cannot hold is that the flag a subcommand
+ * declares is actually wired to the mode the ops layer runs in — that is argv,
+ * a `Command.make` spread and a composition root, and it is only true end to
+ * end. `olai mcp` shipped once with no flag at all, so "the flag reaches the
+ * behaviour" is exactly the claim worth spending two spawns on.
+ */
+test("--commit=auto commits every write on its own, through the real binary", async () => {
+  const root = servedRepo()
+  await withServer(root, async (client) => {
+    await called(client, "set_done", { id: "order" })
+    await called(client, "set_doing", { id: "install" })
+  }, ["--commit=auto"])
+
+  // One commit per op, which is what `auto` IS — and what `manual` above
+  // replaced. The subjects are the per-op summaries rather than a composed one.
+  expect(subjectsIn(root)).toEqual([
+    "olai: doing: install them",
+    "olai: done: order the cabinets",
+    FIXTURE_COMMIT,
+  ])
+}, BOUND_MS * 3)
+
+/**
+ * Both flags at once, through the same path: `--no-commit` wins.
+ *
+ * The one case in the truth table with a decision in it, and the one a person
+ * can actually type by accident — a script with `--no-commit` baked in, plus a
+ * `--commit=auto` somebody added later. Honouring the opt-out is the reading
+ * that cannot surprise them by writing to a history they asked olai to stay out
+ * of, and that has to hold through argv rather than only through the function.
+ */
+test("--commit=auto --no-commit is off, through the real binary", async () => {
+  const root = servedRepo()
+  await withServer(root, async (client) => {
+    const applied = await called(client, "set_done", { id: "order" })
+    // The write landed, and the reply says the OPT-OUT is why it is not in the
+    // history — not that it is waiting for anybody.
+    const detail = applied["structuredContent"] as { committed?: boolean; why?: string }
+    expect(detail.committed).toBe(false)
+    expect(detail.why).toContain("--commit=off")
+  }, ["--commit=auto", "--no-commit"])
+
+  // Nothing recorded, and the write is on disk.
+  expect(subjectsIn(root)).toEqual([FIXTURE_COMMIT])
+  expect(gitIn(root)("status", "--porcelain")).toContain("house.jsonl")
 }, BOUND_MS * 3)

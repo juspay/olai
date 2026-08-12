@@ -42,6 +42,7 @@ import {
   type Located,
   type OutlineSet,
   type Pending,
+  type Reason,
   type RepoState,
   type Writer,
   type Wrote,
@@ -117,12 +118,17 @@ export const gitOf = (repo: RepoState): GitState => {
  * Why a write is not in the history, in one sentence — or `undefined` when it
  * is.
  *
- * FOUR different facts wear one `committed: false`, and telling them apart is
+ * FIVE different facts wear one `committed: false`, and telling them apart is
  * the whole of #108 plus the thing manual mode adds: `off` and `manual` are
  * SETTINGS working exactly as asked, `NoRepo` is a statement about the
  * directory, and `Unusable` / `Blocked` / a refusal are faults with git's own
  * words on them. A write waiting under the default mode must never read as an
  * error, because it is not one — it is the feature.
+ *
+ * `Blocked` is the arm that has to beat `manual` to the answer, and it does:
+ * a write on a mid-rebase repository is NOT waiting to be asked about, it is
+ * waiting for the rebase, and the tool it would be told to call will refuse.
+ * Saying "waiting" there is the #108 mistake wearing manual mode's clothes.
  */
 export const whyOf = (
   mode: CommitMode,
@@ -144,8 +150,12 @@ export const whyOf = (
     case "Unusable":
       return `git could not be asked about this directory: ${repo.said}`.trim()
     case "Blocked":
-      return `the repository is mid-${repo.reason}, so the write was not committed — ` +
-        `finish that first, then commit`
+      // Not "waiting", even under `manual`, and that is the point: this write
+      // is not waiting for somebody to ask — it is waiting for the repository,
+      // and asking will refuse until that is finished. Naming the state is
+      // what lets a reader (or an agent) do the one thing that helps.
+      return `${busy(repo.reason)}, so the write is on disk but cannot be ` +
+        `committed — finish that first, then commit`
     case "Ready":
       return mode === "manual"
         ? "waiting to be committed: writes accumulate under --commit=manual (the " +
@@ -153,6 +163,15 @@ export const whyOf = (
         : undefined
   }
 }
+
+/** What a busy repository IS, in words that read. Three of the four reasons are
+ *  an operation in progress and take "mid-"; a detached HEAD is a place you are
+ *  standing, not something you are in the middle of, and "mid-detached" is not
+ *  English. */
+const busy = (reason: Reason): string =>
+  reason === "detached"
+    ? "the repository is on a detached HEAD"
+    : `the repository is mid-${reason}`
 
 /** The two ways a commit is ever asked for. Spelled once, because both the
  *  sentence a write carries back and the help text a subcommand advertises are
@@ -525,23 +544,42 @@ export const make = (options: Options): Committing => {
         return { committed: false, ...said(whyOf("off", OFF, null, writer)) }
       }
 
-      // One MEMOISED `rev-parse` for a directory that is a work tree, and this
-      // is as far as `manual` goes: whether the repository is mid-rebase does
-      // not change that the write is waiting, and asking would put a second
-      // subprocess inside the store's write gate on every single op.
+      // One MEMOISED `rev-parse` for a directory that is a work tree. A
+      // directory that is NOT one, or a git that cannot be asked, is the whole
+      // answer already.
       const opening = yield* repository
-      const placed: RepoState = opening._tag === "Opened"
-        ? { _tag: "Ready", branch: "" }
-        : opening
-      if (options.mode === "manual" || opening._tag !== "Opened") {
-        return { committed: false, ...said(whyOf(options.mode, placed, null, writer)) }
+      if (opening._tag !== "Opened") {
+        return { committed: false, ...said(whyOf(options.mode, opening, null, writer)) }
+      }
+
+      /**
+       * Both remaining modes ask whether the repository can take a commit, and
+       * `manual` asking is a CORRECTION.
+       *
+       * It used to short-circuit here on the reasoning that a write is waiting
+       * either way, so whether the repository was mid-rebase changed nothing —
+       * and that was the #108 mistake in miniature. A write on a busy
+       * repository is not waiting for somebody to press a button; it is
+       * waiting for a rebase to finish, and nothing the agent can do will sweep
+       * it until that happens. Telling it "waiting… until the `commit` tool
+       * asks for one" sends it to call a tool that will refuse, and the person
+       * reading the transcript learns the real reason only from the refusal.
+       *
+       * The cost is one `symbolic-ref` inside the store's write gate per op,
+       * which is what the short-circuit was avoiding. It is worth paying: the
+       * write itself has just re-serialized and fsynced an outline, `auto`
+       * spawns two git processes on the same path without anybody minding, and
+       * the alternative is a reply that is confidently wrong.
+       */
+      const repo = yield* opening.repo.state
+      if (options.mode === "manual") {
+        return { committed: false, ...said(whyOf("manual", repo, null, writer)) }
       }
 
       // `auto` is the only mode that goes on, and the busy check is the part
       // that is NEW: an agent marking a node done in the middle of a rebase
       // could swallow the resolution, and a mode with nobody watching is
       // exactly where that would happen unseen.
-      const repo = yield* opening.repo.state
       if (repo._tag !== "Ready") {
         yield* Effect.annotateLogs(
           Effect.logWarning(
