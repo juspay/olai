@@ -93,11 +93,13 @@ export const nodeMenuActions = (args: {
     },
   })
 
-  const writes: MenuAction[] = writeVerbs(args.row).map((verb) => ({
-    id: verb.id,
-    label: verb.label,
-    ...(verb.confirm === undefined ? {} : { confirm: verb.confirm }),
-    run: () => applying(verb.edit),
+  // The verb, with the one field that is not a menu's business — the edit —
+  // turned into the running of it. Spread rather than copied field by field:
+  // a hand-written list of names here is the list that goes stale the day a
+  // verb grows a field, silently, because both shapes still compile.
+  const writes: MenuAction[] = writeVerbs(args.row).map(({ edit, ...verb }) => ({
+    ...verb,
+    run: () => applying(edit),
   }))
   // A pure READ, and the only reason it sits among the writes is that it is
   // about the subtree rather than about this tab: it is the one clipboard verb
