@@ -85,12 +85,19 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       const undo = at.derived.status.get(edit.id) === edit.mark
       return Result.succeed({ op: edit.mark, id: edit.id, ...(undo ? { undo } : {}) })
     }
-    // The two that resolve nothing, and are spelled like the ops they are —
-    // which is what makes the three above legible as the ones that do.
-    case "title":
-      return Result.succeed({ op: "title", id: edit.id, title: edit.title })
-    case "desc":
-      return Result.succeed({ op: "desc", id: edit.id, desc: edit.desc })
+    // The two that resolve nothing about PLACEMENT, and are spelled like the
+    // ops they are — which is what makes the three above legible as the ones
+    // that do. What they can resolve is whether to write at all: `was` is the
+    // text the caller expects to find, and an undo is the only caller that
+    // sends one.
+    case "title": {
+      const stale = changedSince(at.derived, edit.id, "title", edit.was)
+      return stale ?? Result.succeed({ op: "title", id: edit.id, title: edit.title })
+    }
+    case "desc": {
+      const stale = changedSince(at.derived, edit.id, "desc", edit.was)
+      return stale ?? Result.succeed({ op: "desc", id: edit.id, desc: edit.desc })
+    }
     case "place":
       return placeRequest(at.derived, edit)
     case "mark":
@@ -332,6 +339,47 @@ const removeRequest = (
   return Result.succeed({ op: "archive", id: edit.id })
 }
 
+/**
+ * Whether the text somebody is putting back is still theirs to put back.
+ *
+ * `was` is what the caller expects to find, and only an undo sends one: a
+ * person typing overwrites whatever is there, exactly as `set_title` does for
+ * an agent. An undo is a narrower claim — "put back what I replaced" — and it
+ * is only entitled to overwrite what IT wrote. So when the row says something
+ * else, this refuses instead of landing on top of it, and the sentence names
+ * what is there now, because the reader's next question is what they lost.
+ *
+ * A refusal from HERE rather than from the ops layer, for the reason the four
+ * moves refuse here: it is a fact about what this caller asked for, not about
+ * what the set will allow. An agent doing the same thing would read, compare,
+ * and decide the same way.
+ *
+ * `null` (no note) is a value it can be asked to check for, so the check is on
+ * PRESENCE of the field rather than on its content.
+ */
+const changedSince = (
+  derived: Derived,
+  id: string,
+  field: "title" | "desc",
+  was: string | null | undefined,
+): Resolved | null => {
+  if (was === undefined) return null
+  const located = derived.byId.get(id)
+  if (located === undefined) return Result.fail(notFound(derived, id))
+  // A MIRROR has no text of its own; the ops layer refuses it in its own
+  // words, and there is nothing here to compare.
+  if (isMirror(located.node)) return null
+  const now = field === "title" ? located.node.title : located.node.desc ?? null
+  if (now === was) return null
+  return Result.fail(
+    refusal(
+      field === "title"
+        ? `\`${nameOf(located)}\` has been retitled since — it says \`${now}\` now, so taking that edit back would write over it`
+        : `the note on \`${nameOf(located)}\` has changed since, so taking that edit back would write over it`,
+    ),
+  )
+}
+
 // ── what would take a write back ───────────────────────────────────────
 
 /**
@@ -357,11 +405,13 @@ const removeRequest = (
  * gate like anything else, so the worst case is a refusal naming what moved —
  * never a silent write to the wrong place.
  *
- * An empty list means nothing here would take it back, and the three that
- * answer that way each mean it differently: a `title` or a `desc` is the
- * draft's own to abandon (Escape, blur — the editor owns text), and a `remove`
- * has put a node in the archive, which no move brings out (a parent is
- * same-file by the format).
+ * An empty list means nothing here would take it back, and after the human
+ * drove this (2026-08-12) there is exactly ONE write that answers that way: a
+ * `remove`, which has put a node in the archive, and no move brings it out (a
+ * parent is same-file by the format). A text edit used to answer that way too,
+ * on the reading that the editor owns text — which is true of a DRAFT, where
+ * Escape and blur are the semantics, and false of the op a committed draft
+ * produced. A committed title has a perfect inverse: the title it replaced.
  *
  * WHERE IT WOULD GO IF THE AGENT EVER WANTED ONE: down, into `@olai/ops`'
  * planner, beside the op whose effect it reverses — that is the layer that
@@ -393,9 +443,14 @@ export const inverseOf = (
     case "toggle":
     case "mark":
       return markOf(at.derived, edit.id)
-    case "remove":
+    // The text this write is about to replace, and the text it is replacing it
+    // WITH — the second half being the guard, so the undo may only overwrite
+    // what this write wrote. Symmetric, so replaying it answers with the pair
+    // the other way round and ⌘⇧Z is the same machinery again.
     case "title":
     case "desc":
+      return textOf(at.derived, edit)
+    case "remove":
       return []
   }
 }
@@ -414,6 +469,26 @@ const placementOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
     parent: located.node.parent ?? null,
     after: above?.node.id ?? null,
   }]
+}
+
+/**
+ * The text a node holds, as the edit that would put it back.
+ *
+ * It is the SAME verb read backwards — the inverse of setting a title is
+ * setting the title it replaced — with `was` carrying what this write is about
+ * to make true, so the undo is refused if anybody else has typed there since
+ * ({@link changedSince}). A mirror has no text of its own and the ops layer
+ * refuses the write, so there is nothing to take back.
+ */
+const textOf = (
+  derived: Derived,
+  edit: Extract<Edit, { verb: "title" | "desc" }>,
+): ReadonlyArray<Edit> => {
+  const located = derived.byId.get(edit.id)
+  if (located === undefined || isMirror(located.node)) return []
+  return edit.verb === "title"
+    ? [{ verb: "title", id: edit.id, title: located.node.title, was: edit.title }]
+    : [{ verb: "desc", id: edit.id, desc: located.node.desc ?? null, was: edit.desc }]
 }
 
 /**

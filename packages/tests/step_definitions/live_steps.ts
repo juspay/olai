@@ -65,6 +65,23 @@ When(
   },
 );
 
+/** A row RETITLED under everybody's feet. What it is for is the one thing a
+ *  text undo must never do: put back what this tab replaced, on top of words
+ *  somebody else has since written. */
+When(
+  "another writer retitles {string} to {string} in {string}",
+  function (this: OlaiWorld, id: string, title: string, file: string) {
+    const records = this.servedNodes(file).map((node) =>
+      node["id"] === id ? { ...node, title } : node
+    );
+    assert.ok(
+      records.some((node) => node["id"] === id),
+      `${file} holds no node \`${id}\` to retitle`,
+    );
+    this.writeServed(file, records.map((node) => JSON.stringify(node)).join("\n"));
+  },
+);
+
 /** A row REPARENTED under everybody's feet — the anchor an undo recorded,
  *  moved somewhere that anchor no longer means. Lifting it to the top level is
  *  the smallest edit that does it and leaves a valid set behind (a parent is

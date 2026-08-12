@@ -70,7 +70,7 @@ export const EMPTY: Stack = { done: [], undone: [] }
  * How many edits back ⌘Z reaches.
  *
  * A hundred, which is a number rather than a discovery: the stack is one
- * session's structural edits on one outline, an entry is a couple of small
+ * session's edits on one outline, an entry is a couple of small
  * records, and the honest reason for a cap at all is that an unbounded list
  * fed by a keyboard is unbounded. Deep enough that nobody who is undoing
  * because they made a mistake will reach the end of it.

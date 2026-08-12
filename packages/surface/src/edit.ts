@@ -48,6 +48,14 @@
  * is one more op at the write gate, refused like any other when the set has
  * moved somewhere the inverse cannot go.
  *
+ * THE TWO TEXT VERBS NEED NO UNDO TWIN, and that is the difference worth
+ * seeing: the inverse of setting a title is setting the title it replaced, so
+ * an undo sends `title` — the same verb, the same op, the other text. What it
+ * adds is {@link Was}: the text it expects to find. A person typing overwrites
+ * whatever is there (which is what `set_title` does for an agent); an undo may
+ * only overwrite what IT wrote, so somebody else's words are refused rather
+ * than replaced.
+ *
  * `remove` IS THE UN-CREATE, and it is worth being exact about what it is not:
  * it is the inverse of an `add`, bound to no key, and this list still has no
  * delete — the deferral #109 recorded (human, 2026-08-11) is still the human's
@@ -78,6 +86,30 @@ const Id = Schema.String
  * nullable fields and neither means anything, and the server would have to
  * refuse them at runtime instead of the wire refusing them at decode.
  */
+/**
+ * What a text edit expects to find before it writes — ABSENT when it is not
+ * checking, which is what a person typing means.
+ *
+ * The two text verbs are the only ones a person sends BOTH ways: typing a
+ * title is a `title`, and taking that back is a `title` too, because the
+ * inverse of setting text is setting the text it replaced. What tells the two
+ * apart is this field, and it is the same guard `place` gets from carrying a
+ * parent AND a neighbour: an undo is only entitled to overwrite what IT wrote.
+ * If somebody else has retitled the row since, the two disagree and the write
+ * is refused rather than landing on top of their words.
+ *
+ * Absent rather than optional-null, because `null` is a real answer for a note
+ * ("there was none"). Three states, and the wire spells all three: not
+ * checking, checking for nothing, checking for this text.
+ */
+const Was = <A extends Schema.Top>(text: A) =>
+  Schema.optionalKey(
+    text.annotate({
+      description:
+        "What this field is expected to hold right now. Omit to overwrite whatever is there (typing); supply it to make the write conditional (undo).",
+    }),
+  )
+
 export const Anchor = Schema.Union([
   /** Immediately after this node, among its siblings — a new sibling. */
   Schema.Struct({ kind: Schema.Literal("after"), id: Id }),
@@ -122,12 +154,21 @@ export const Edit = Schema.Union([
    *  is the format's own and a fourth mark should not arrive writable
    *  everywhere except here. */
   Schema.Struct({ verb: Schema.Literal("toggle"), id: Id, mark: Schema.Literals(MARKS) }),
-  Schema.Struct({ verb: Schema.Literal("title"), id: Id, title: Schema.String }),
+  Schema.Struct({
+    verb: Schema.Literal("title"),
+    id: Id,
+    title: Schema.String,
+    /** What the title is EXPECTED to say right now, when the caller is putting
+     *  something back rather than typing something new — see {@link Was}. */
+    was: Was(Schema.String),
+  }),
   Schema.Struct({
     verb: Schema.Literal("desc"),
     id: Id,
     /** `null` removes the note, which is what an emptied textarea means. */
     desc: Schema.NullOr(Schema.String),
+    /** The note this expects to find, `null` for "expects none". */
+    was: Was(Schema.NullOr(Schema.String)),
   }),
 
   // ── the three an undo speaks ─────────────────────────────────────────
@@ -240,10 +281,15 @@ export const Applied = Schema.Struct({
    * calls is exactly what an agent would make, which is what keeps the faces
    * consistent; a shortcut here would be the web doing something MCP cannot.
    *
-   * ABSENT when nothing would take it back: the text edits, which the editor's
-   * own draft semantics already own, and an undo that cannot be redone (a row
-   * that went to the archive does not come out through `move`, which is
-   * same-file by the format).
+   * ABSENT when nothing would take it back, which is now only the write that
+   * has already gone somewhere no op reaches: a row taken into the archive
+   * (`move` is same-file by the format). A TEXT edit answers with one like
+   * everything else — the human drove this and found the hole (2026-08-12):
+   * a title committed and then ⌘Z'd said "nothing to undo", which is an undo
+   * that does not undo. What made the hole was reading "drafts are excluded"
+   * as "text is excluded"; the ruling is about the chord being dead while an
+   * editor is OPEN — that undo is the input's own — and says nothing about the
+   * op a committed draft produced. A committed title has a perfect inverse.
    */
   undo: Schema.optionalKey(Schema.Array(Edit)),
 })

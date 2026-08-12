@@ -949,10 +949,14 @@ The rest follows from that:
   the one that will not go. What it says is drawn over the page rather than
   under a row (`UndoSaid.tsx`), because an undo is pressed with no draft open
   and the row it is about may be somewhere else, or gone.
-- **drafts are not in it.** A text edit answers with no inverse at all — what
-  you typed is taken back by Escape and by the editor's own blur rule — and
-  both chords are dead while a draft is open, where an `<input>` has the
-  platform's own undo.
+- **the DRAFT is not in it; the op it commits is.** Both chords are dead while
+  an editor is open — an `<input>` has the platform's own undo, and abandoning
+  what you are typing is Escape's — but a committed title or note is an op like
+  any other, and the text it replaced is a perfect inverse. Reading those two
+  as one thing is what shipped a ⌘Z that answered "nothing to undo" to somebody
+  who had just retyped a title (human, driving it, 2026-08-12). A text inverse
+  carries `was` — the text it expects to find — so it may only overwrite what
+  this tab wrote, and somebody else's words are refused rather than replaced.
 - **it is one page's and one session's**, cleared when another outline opens
   (its entries name rows in that one), bounded at a hundred, and holding only
   what THIS tab wrote.

@@ -214,13 +214,18 @@ the node is written the moment it has a title. So an outline never fills up
 with blank bullets, and a key pressed by accident writes nothing at all.
 
 **⌘Z takes back the last edit you made here** — and it is not a restore. When a
-key moves a row or ticks something off, the server records what would reverse it
-(the parent and neighbour the row had, the mark it replaced) and ⌘Z sends THAT,
-through the same gate, judged against the outline as it is now. So an undo
-cannot quietly take back what the agent, another tab or a `git pull` did in the
-meantime, and one that no longer fits — the row moved, somebody filed work under
-it — says so instead of guessing. It is your own edits on the outline in front
+key moves a row, ticks something off, or commits what you retyped, the server
+records what would reverse it (the parent and neighbour the row had, the mark it
+replaced, the words it replaced) and ⌘Z sends THAT, through the same gate,
+judged against the outline as it is now. So an undo cannot quietly take back
+what the agent, another tab or a `git pull` did in the meantime, and one that no
+longer fits — the row moved, somebody filed work under it, somebody retyped the
+line — says so instead of guessing. It is your own edits on the outline in front
 of you: a hundred of them, this session, this tab.
+
+While you are still typing, ⌘Z is the text box's own, exactly as it is anywhere
+else — the outline's undo starts once the line is committed, which is the moment
+it became something anybody else can see.
 
 **There is still no delete key.** What ⌘Z can take back is a row you have just
 made — the un-create, which is the inverse of the `Enter` that made it, and the

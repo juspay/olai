@@ -27,6 +27,55 @@ Feature: Undo
     Then the node "knobs" is a child of "hinges"
     And the page has not reloaded
 
+  Scenario: Retyping a title is taken back like anything else
+    # The hole the human found by driving it (2026-08-12): a title committed
+    # and then ⌘Z'd used to answer "nothing to undo". A DRAFT is the editor's —
+    # Escape and blur own it, and the chord is dead while one is open — but the
+    # op a committed draft produced is an op like any other, and the title it
+    # replaced is a perfect inverse.
+    When I click the title of "knobs"
+    And I select all and type "pick the little brass knobs"
+    # Enter commits it and opens the next line; Escape drops that one, which is
+    # what takes the caret out of a row.
+    And I press "Enter"
+    And I press "Escape"
+    Then the node "knobs" has the title "pick the little brass knobs"
+    When I press "ControlOrMeta+z"
+    Then the node "knobs" has the title "pick the knobs"
+    And "house.jsonl" holds a node titled "pick the knobs"
+    When I press "ControlOrMeta+Shift+z"
+    Then the node "knobs" has the title "pick the little brass knobs"
+    And the page has not reloaded
+
+  Scenario: And so is a note
+    When I click the note of "order"
+    And I click the note of "order"
+    Then the note of "order" is being typed
+    When I type " — measured twice"
+    And I click away from the editor
+    Then "house.jsonl" holds a node whose note ends "— measured twice"
+    When I press "ControlOrMeta+z"
+    Then "house.jsonl" holds a node whose note ends "before ordering."
+    When I press "ControlOrMeta+Shift+z"
+    Then "house.jsonl" holds a node whose note ends "— measured twice"
+
+  Scenario: An undo never writes over words somebody else typed
+    # A text undo puts back what THIS tab replaced, so it is only entitled to
+    # overwrite what this tab wrote. When the row says something else, it is
+    # refused in the ops layer's shape — never silently, and never on top of
+    # them.
+    When I click the title of "knobs"
+    And I select all and type "pick the little brass knobs"
+    And I press "Enter"
+    And I press "Escape"
+    Then the node "knobs" has the title "pick the little brass knobs"
+    When another writer retitles "knobs" to "pick the chrome knobs" in "house.jsonl"
+    Then the node "knobs" has the title "pick the chrome knobs"
+    When I press "ControlOrMeta+z"
+    Then the undo refusal says "has been retitled since"
+    And the node "knobs" has the title "pick the chrome knobs"
+    And "house.jsonl" holds a node titled "pick the chrome knobs"
+
   Scenario: Shift+Tab goes out, and ⌘Z puts it back in
     # The other direction, and not the same arithmetic: an outdent lands a row
     # after what used to be its parent, so the place it left is a parent AND a

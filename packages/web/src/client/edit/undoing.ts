@@ -45,9 +45,9 @@ export interface Said {
 
 export interface Undo {
   /** A write this tab just made, as what would take it back — the server's
-   *  answer, verbatim, `undefined` and all: a text edit answers with nothing,
-   *  which is what keeps drafts out of the stack, and the one place that is
-   *  decided is here rather than at every call site. */
+   *  answer, verbatim, `undefined` and all — which write has an inverse is the
+   *  server's to say, and the one place that is decided is here rather than at
+   *  every call site. */
   readonly record: (step: Step | undefined) => void
   readonly undo: () => void
   readonly redo: () => void

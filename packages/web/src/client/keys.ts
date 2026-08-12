@@ -61,6 +61,12 @@ const wantsMeta = (): boolean => isApplePlatform()
  * Escape's. So the row editor never sees these, and the stack never contains
  * half a typed line.
  *
+ * That is a rule about the CARET, and not about text: once a draft has
+ * committed, what it produced is an op like any other and ⌘Z takes it back
+ * with the row's own text. Reading these two as one thing is what shipped an
+ * undo that answered "nothing to undo" to somebody who had just retyped a
+ * title (human, 2026-08-12).
+ *
  * A table rather than a chain of `if`s because the collision test below reads
  * it: the one invariant this file exists for is checked against THIS list, so
  * a fifth chord is covered by being added rather than by somebody remembering

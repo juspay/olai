@@ -290,9 +290,11 @@ export const createEditor = (
     if (Result.isSuccess(outcome)) {
       // What would take this back, straight onto the stack ⌘Z spends — the
       // server's own answer, derived from the snapshot this write was judged
-      // against ({@link ./undoing.ts}). A text edit answers with nothing,
-      // which is what keeps drafts out of it: what a person typed is taken
-      // back by Escape and by the editor's own blur rule, not by an op.
+      // against ({@link ./undoing.ts}). EVERY write that has an inverse, the
+      // text ones included: a draft that has committed is an op like any
+      // other, and the DRAFT is what Escape and blur own. The two were
+      // conflated once, and what it cost was ⌘Z answering "nothing to undo" to
+      // somebody who had just retyped a title.
       undo.record(outcome.success.undo)
       return outcome.success
     }

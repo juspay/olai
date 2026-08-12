@@ -30,7 +30,7 @@ import { inverseOf, requestFor } from "./edit.ts"
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
   `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":"2026-08-01"}`,
-  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true}`,
+  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"desc":"oak, or birch"}`,
   `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
   `{"id":"handles","parent":"install","ord":"a0","title":"pick the handles"}`,
   `{"id":"loose","ord":"a1","title":"a node with no children"}`,
@@ -214,6 +214,45 @@ test("a title and a note are what they say", () => {
     .toEqual({ op: "desc", id: "order", desc: null })
 })
 
+// ── the text a caller expects to find ──────────────────────────────────
+
+test("a text edit that names what it expects writes when it still says that", () => {
+  expect(
+    asked({ verb: "title", id: "order", title: "order the cabinets", was: "order the cabinets" }),
+  ).toEqual({ op: "title", id: "order", title: "order the cabinets" })
+})
+
+test("and is refused when somebody else has typed there since", () => {
+  // The guard an undo needs and a person typing does not: putting back what I
+  // replaced may only overwrite what I wrote. The sentence names what the row
+  // says NOW, because that is the reader's next question.
+  const failure = refused({
+    verb: "title",
+    id: "order",
+    title: "order the cabinets",
+    was: "something I typed",
+  })
+  expect(failure._tag).toBe("UsageFailure")
+  expect(failure.message).toContain("has been retitled since")
+  expect(failure.message).toContain("order the cabinets")
+})
+
+test("a note that is expected to be absent is checked as absent", () => {
+  // `null` is a real answer for a note, so the check is on the FIELD being
+  // there rather than on what is in it. `install` carries no note.
+  expect(asked({ verb: "desc", id: "install", desc: "measure first", was: null }))
+    .toEqual({ op: "desc", id: "install", desc: "measure first" })
+  expect(refused({ verb: "desc", id: "order", desc: "oak", was: null }).message)
+    .toContain("has changed since")
+})
+
+test("expecting nothing at all is what a person typing sends", () => {
+  // No `was`: overwrite whatever is there, which is exactly what `set_title`
+  // does for an agent. The draft's commit path sends this and nothing else.
+  expect(asked({ verb: "title", id: "order", title: "anything" }))
+    .toEqual({ op: "title", id: "order", title: "anything" })
+})
+
 // ── the three an undo speaks ───────────────────────────────────────────
 
 test("putting a row back names the parent it was given and the sibling above", () => {
@@ -333,11 +372,61 @@ test("a new row is taken back by the id the write minted, not one read before it
     .toEqual([{ verb: "remove", id: "n7" }])
 })
 
+test("a title records the title it replaced, and what it is replacing it with", () => {
+  // The human drove this and found it missing (2026-08-12): a committed title
+  // is an op like any other and has a perfect inverse. `was` is the second
+  // half — the undo may only overwrite what this write wrote.
+  expect(inverse({ verb: "title", id: "order", title: "order the walnut ones" }))
+    .toEqual([{
+      verb: "title",
+      id: "order",
+      title: "order the cabinets",
+      was: "order the walnut ones",
+    }])
+})
+
+test("a note records the note it replaced, and `null` for a row that had none", () => {
+  expect(inverse({ verb: "desc", id: "install", desc: "measure first" }))
+    .toEqual([{ verb: "desc", id: "install", desc: null, was: "measure first" }])
+  // And emptying one records putting it back.
+  expect(inverse({ verb: "desc", id: "order", desc: null }))
+    .toEqual([{ verb: "desc", id: "order", desc: "oak, or birch", was: null }])
+})
+
+test("undoing a text edit is undoable in its turn — the pair, the other way round", () => {
+  // What makes ⌘⇧Z the same machinery for text as for everything else. The
+  // undo's own inverse is derived where every inverse is: from the reading its
+  // write is judged against, which by then says what the first write wrote.
+  const landed = reading(
+    setOf({
+      "house.jsonl": HOUSE.replace(
+        `"title":"order the cabinets"`,
+        `"title":"order the walnut ones"`,
+      ),
+    }),
+  )
+  const undoing: Edit = {
+    verb: "title",
+    id: "order",
+    title: "order the cabinets",
+    was: "order the walnut ones",
+  }
+  expect(inverse(undoing, "minted", landed)).toEqual([{
+    verb: "title",
+    id: "order",
+    title: "order the walnut ones",
+    was: "order the cabinets",
+  }])
+})
+
+test("a MIRROR has no text of its own, so there is nothing to take back", () => {
+  // The ops layer refuses the write in its own words; this just has nothing to
+  // record about it.
+  expect(inverse({ verb: "title", id: "echo", title: "x" })).toEqual([])
+})
+
 test("what nothing would take back says so with an empty list", () => {
-  // The text edits, which the draft's own blur/Escape semantics already own —
-  // and an archived row, which no move brings back out (a parent is same-file
-  // by the format, and the archive is another file).
-  expect(inverse({ verb: "title", id: "order", title: "x" })).toEqual([])
-  expect(inverse({ verb: "desc", id: "order", desc: null })).toEqual([])
+  // One write answers that way now: an archived row, which no move brings back
+  // out (a parent is same-file by the format, and the archive is another file).
   expect(inverse({ verb: "remove", id: "handles" })).toEqual([])
 })

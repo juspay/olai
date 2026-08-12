@@ -88,9 +88,22 @@ useful part.
 The stack holds INVERSES, and the four things that were decided while building
 it are all consequences of one choice: an undo is a WRITE.
 
+- **WHAT IS ON THE STACK: every op this tab made, text included.** The dispatch
+  said "drafts excluded — the undo stack holds structural ops only", and the
+  build read that as "text is not undoable", which the human found by driving
+  it (2026-08-12): retype a title, let it commit, press ⌘Z, and the answer was
+  "nothing to undo" — an undo that does not undo. The ruling is about the
+  CARET, not about text. While an editor is open the chord is the input's own
+  (and Escape abandons the draft); the moment a draft COMMITS it has produced
+  an op like any other, and the text it replaced is a perfect inverse. The one
+  thing text needs that structure does not is a guard: the inverse carries
+  `was`, the text it expects to find, so putting back what this tab replaced
+  can only overwrite what this tab wrote — somebody else's words are refused,
+  in the same shape as every other refusal here.
 - **Where the inverse is derived: the server, at apply time.** The facts an op
   destroys — the parent a row had, the sibling above it, the mark a toggle
-  replaced — are facts about the set the write was judged against. A tab
+  replaced, the words it overwrote — are facts about the set the write was
+  judged against. A tab
   keeping its own note of them would be the second reading this whole seam is
   written against ("the wire verbs are INTENTS", above), and the two would
   differ exactly when it matters: when somebody else is writing too. So

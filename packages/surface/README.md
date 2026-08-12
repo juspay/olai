@@ -192,6 +192,12 @@ tagged union, and the only place a browser may cause a write:
   answer (`Applied.undo`) for the browser to replay. Nothing restores a
   snapshot: an undo is one more op at the write gate, judged against the set as
   it is now.
+- **the two TEXT verbs need no undo twin.** The inverse of setting a title is
+  setting the title it replaced, so an undo sends `title` — same verb, same op,
+  the other text. What it adds is `was`: the text it expects to find. A person
+  typing overwrites whatever is there (which is what `set_title` does for an
+  agent); an undo may only overwrite what IT wrote, so a row somebody else has
+  retyped is refused rather than written over.
 - **the UN-CREATE is one of them, and it is not a delete.** `remove` is the
   inverse of an `add`: no key sends it, the only row it can take back is a row
   that was just made, and what it resolves to is `archive` — the only removal
