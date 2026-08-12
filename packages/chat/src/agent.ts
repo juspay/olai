@@ -254,6 +254,16 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         default:
           // Thoughts, plans, usage. Real parts of the protocol that this panel
           // does not draw; ignored quietly rather than half-rendered.
+          //
+          // Quietly is right HERE and not two cases up, and the difference is
+          // worth naming since both look like "we dropped something". These
+          // are whole update KINDS this panel has no view for — a feature it
+          // does not have, the same way it has no view for a terminal — and a
+          // marker for each would be a transcript of apologies. An
+          // `agent_message_chunk` whose content this panel cannot draw is the
+          // other thing entirely: the agent ANSWERED, in a row that is on
+          // screen, and dropping it left that row blank. That one is marked
+          // (`textOf`).
           return
       }
     }
@@ -499,9 +509,17 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         yield* askForBypass(at, id)
       })
 
-    /** Ask for the permission mode that makes the backstop above unnecessary.
-     *  A refusal is normal (running as root, an agent that has no such mode)
-     *  and is not a boot failure. */
+    /**
+     * Ask for the permission mode that makes the backstop above unnecessary.
+     *
+     * A refusal is normal — running as root, an agent that has no such mode —
+     * and is not a boot failure. Ignored rather than reported, and that is a
+     * trade with its own reason rather than a swallow: NOTHING IS LOST when
+     * this is refused. The backstop it was trying to make unnecessary is still
+     * there and still answers every permission request, so what a refusal
+     * costs is one round trip per tool call, which is not a fact about a
+     * person's outlines and has no honest place on their screen.
+     */
     const askForBypass = (at: Live, id: string): Effect.Effect<void> =>
       Effect.ignore(
         ask(at.connection, methods.agent.session.setMode, {

@@ -354,8 +354,14 @@ export const make = <F, S, E>(
     const dirty = yield* Latch.make(false)
 
     if (options.watch !== false) {
-      // Retried rather than fatal: losing the watcher costs latency, and the
-      // backstop is what keeps that from costing correctness.
+      // Retried rather than fatal, and retried QUIETLY — which is a trade and
+      // not an oversight. Losing the watcher costs latency and nothing else:
+      // the backstop probes unconditionally, so the set on screen still
+      // converges on the disk, just at sixty seconds instead of at seventy-five
+      // milliseconds. Nothing a reader could do about it either, since the
+      // recovery is already running. What a FAILED PROBE costs is different in
+      // kind — the set stops converging at all — and that one is published
+      // (below).
       yield* Stream.runForEach(disk.watch, () => dirty.open).pipe(
         Effect.retry(Schedule.spaced(WATCH_RETRY)),
         Effect.forkScoped({ startImmediately: true }),
