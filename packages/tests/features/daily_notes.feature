@@ -103,6 +103,31 @@ Feature: Daily notes
     # And a document that merely NAMES a date leaves its day inert too.
     And the day "2019-11-09" is inert
 
+  # The mid-migration vault, which is the one case the design named for listing
+  # both: a folder convention changed and the older note stayed where it was.
+  # There is no conflict rule to invent over two files a person wrote, so BOTH
+  # are drawn and path order is the whole of the answer. Asked in the browser
+  # as well as in the unit test, because the page is where the second one would
+  # be dropped — a banner, a pick-one, an empty day — while a derivation that
+  # still returns two stays green.
+  @corpus:journal
+  Scenario: Two documents claiming one date are both the day's, in path order
+    When I open the day "2019-11-12"
+    Then the day shows the notes "Daily/2019/11/2019-11-12.md, notes/2019-11-12.md"
+    And the day does not say it is empty
+    And the day "2019-11-12" has a note
+    And there should be no page errors
+
+  # The two marks are a shape in a place, and a pseudo-element has no text — so
+  # the facts are SAID as well as drawn, or a calendar announces every live day
+  # identically to a reader using a screen reader.
+  @corpus:journal
+  Scenario: A day cell says which marks it is wearing
+    When I open the day "2019-11-05"
+    Then the day "2019-11-05" is announced as "2019-11-05, has a note and dated nodes"
+    And the day "2019-11-06" is announced as "2019-11-06, has dated nodes"
+    And the day "2019-11-08" is announced as "2019-11-08, has a note"
+
   @corpus:journal
   Scenario: Clicking a note-day opens that day
     Given I open the day "2019-11-05"

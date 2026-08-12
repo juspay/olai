@@ -24,6 +24,8 @@ import {
   DAY_GROUP,
   DAY_NOTE,
   DAY_NOTE_LINK,
+  daySelector,
+  expectDrawn,
   HYDRATION_TIMEOUT,
   POLL_TIMEOUT,
 } from "../support/world.ts";
@@ -58,6 +60,18 @@ Then(
 Then("the day shows today's note", async function (this: OlaiWorld) {
   await expectNote(this, dailyNote(isoDayOf(new Date())));
 });
+
+/** EVERY note on the day, in the order they are drawn — which is the whole of
+ *  the two-claimants promise. Asked as an ordered list rather than as "the
+ *  first one is X", because the bug this holds shut is a second file being
+ *  dropped, and a page showing one of two passes every assertion about that
+ *  one. */
+Then(
+  "the day shows the notes {string}",
+  async function (this: OlaiWorld, expected: string) {
+    await expectDrawn(this.page.locator(DAY_NOTE), "data-file", expected);
+  },
+);
 
 /**
  * One half of the day is absent, asked once the OTHER half is on screen.
@@ -163,6 +177,28 @@ Then("the day {string} is a link", async function (this: OlaiWorld, date: string
   await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.strictEqual(await link.count(), 1);
 });
+
+/**
+ * What the cell says OUT LOUD, which is the only form the two marks reach a
+ * reader who cannot see them in.
+ *
+ * The `aria-label` and not the shape: a corner fold and a dot are pseudo-
+ * elements with no text, so a suite that only asserted `data-noted` would stay
+ * green on a calendar that announced every live day identically. Read off the
+ * LINK, because the label is the link's — an inert day is a `<span>` with
+ * nothing to announce but the number it already is.
+ */
+Then(
+  "the day {string} is announced as {string}",
+  async function (this: OlaiWorld, date: string, said: string) {
+    await this.expectAttribute(
+      `${daySelector(date)} a`,
+      "aria-label",
+      said,
+      `the day ${date}`,
+    );
+  },
+);
 
 Then("today has a note", async function (this: OlaiWorld) {
   await this.expectDayMark(isoDayOf(new Date()), "data-noted", true);

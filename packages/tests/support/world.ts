@@ -14,6 +14,7 @@
  * rename is a type error before the browser ever starts.
  */
 
+import * as assert from "node:assert";
 import { execFileSync, type ChildProcess } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -420,6 +421,44 @@ export const nodeSelector = (id: string): string =>
 /** One day of the month, by the date it stands for. Same reason as above. */
 export const daySelector = (date: string): string =>
   `${CALENDAR_DAY}[data-date="${date}"]`;
+
+/** Wait for a list to be drawn before reading it. Reading a locator's elements
+ *  the instant a page renders races the frame that adds the second one, and an
+ *  empty list compares as a perfectly plausible wrong answer. */
+export const drawn = async (found: Locator): Promise<Locator> => {
+  await found
+    .first()
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+    .catch(() => undefined);
+  return found;
+};
+
+/**
+ * One `data-` fact off every element of a drawn list, in DOM order, against a
+ * comma-separated expectation.
+ *
+ * The WHOLE list, not "contains X": the order and the membership are both the
+ * promise — a group that should not be there, a node above the one it is dated
+ * after, or a second document claiming a date silently dropped, is exactly the
+ * bug.
+ *
+ * Here rather than in whichever step file first wanted it, because "assert an
+ * ordered list of `data-` facts" is what every list on a day page is asked
+ * with, and two features ask it now.
+ */
+export const expectDrawn = async (
+  found: Locator,
+  attribute: string,
+  expected: string,
+): Promise<void> => {
+  assert.deepStrictEqual(
+    await (await drawn(found)).evaluateAll(
+      (all, name) => all.map((element) => element.getAttribute(name)),
+      attribute,
+    ),
+    expected.split(",").map((one) => one.trim()),
+  );
+};
 /** One line, with the `#` that marks a tag dropped.
  *
  *  The `#` is dropped on BOTH sides of every title comparison because the

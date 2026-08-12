@@ -394,7 +394,10 @@ is filled. A day with neither of the first two is inert — pressing it could
 only mean "write something here", and this pane writes nothing. Every one of
 them is a `data-` fact on the cell (`data-dated`, `data-noted`, `data-today`,
 `data-open`) rather than a colour, so the browser tests assert on the mark and
-never on the palette.
+never on the palette. The first two are also SAID, in the cell's `aria-label`
+(`2026-08-12, has a note and dated nodes`): the dot and the fold are pseudo-
+elements with no text, so a distinction carried only by shape is silence to a
+screen reader.
 
 The fold is the second half of DAILY NOTES: a document whose basename is exactly
 an ISO date is that day's note (`@olai/format`'s `noteDateOf` — one derivation,

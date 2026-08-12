@@ -326,6 +326,11 @@ test("a document merely NAMING a date is not that day's note", () => {
       "recap-2026-08-10.md",
       "2026-08.md",
       "2026-08-1.md",
+      // The two the design spelled out beside `-recap`: an ISO date is
+      // zero-padded and hyphenated, so neither a date a person typed short nor
+      // one with the hyphens taken out is the name this convention reads.
+      "2026-8-12.md",
+      "20260812.md",
       "2026-08-10.txt",
       "2026-08-10.jsonl",
       // The date is the FOLDER here; the file is `notes.md`.

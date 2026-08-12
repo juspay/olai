@@ -125,12 +125,18 @@ tree of documents, laid out the way the human's own vault is, for
 | a relative `.md` → `.md` link, climbing three directories | that same note → `../../../notes/ferry.md`, whose target is `notes/ferry.md` |
 | a daily note on a day with NO dated nodes | `Daily/2019/11/2019-11-08.md` — a note-day is a link, and does not claim to be empty |
 | a document that merely NAMES a date | `Daily/2019/11/2019-11-09-recap.md` — so the 9th stays inert |
+| TWO documents claiming one date | `Daily/2019/11/2019-11-12.md` and `notes/2019-11-12.md` — a vault mid-migration, both listed in path order |
 | a day with neither | the 7th — still inert, which is the no-write-affordance stance surviving |
 
 The link is written with `..` on purpose. The note is drawn on `/d/2019-11-05`,
 which is not a file at all, so a link left relative would be resolved by the
 browser against the ROUTE; the base is the note's own directory, and the only
 way to say so is a path that climbs out of it.
+
+The two claimants sit in *different* folders on purpose too — the old note where
+the vault used to keep them, the new one under `Daily/` — because that is the
+directory the design named, and because path order has to be a real order
+between them rather than two names in one folder.
 
 | what | where |
 |---|---|

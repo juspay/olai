@@ -12,7 +12,10 @@
  *                   date is that day's note. A different SHAPE in a different
  *                   PLACE, because the two say different things and a day can
  *                   wear both: a dot that changed size or shade would be a mark
- *                   nobody could read without the other one beside it;
+ *                   nobody could read without the other one beside it. Both are
+ *                   also SAID, in the cell's own label ({@link Day}'s `said`) —
+ *                   a pseudo-element has no text, so a shape distinction is
+ *                   silence to a screen reader;
  *   today           a ring, wherever it falls and whatever else it is;
  *   you are here    FILLED — ink ground, paper number. The day you are reading
  *                   is not a shade of a day, it is the day. It outranks its own
@@ -93,6 +96,27 @@ export function Day(props: {
    *  reader is being told. */
   const live = (): boolean => props.dated || props.noted
 
+  /**
+   * What the cell says OUT LOUD — the date, and which of the two marks it is
+   * wearing.
+   *
+   * The marks are a different shape in a different place, which is the whole of
+   * how a sighted reader tells a note-day from a node-day. A screen reader gets
+   * none of that: a `::before` and an `::after` have no text, so a note-only
+   * cell and a nodes-only cell used to be announced identically, as the date
+   * and nothing else. The two facts are already on the element for the browser
+   * tests; this is the same two facts for the reader who cannot see them.
+   *
+   * Only a LIVE cell says it. An inert day has no mark to name and is not a
+   * link — there is nothing to announce but the number it already is.
+   */
+  const said = (): string =>
+    `${props.date}, ${
+      props.dated
+        ? props.noted ? "has a note and dated nodes" : "has dated nodes"
+        : "has a note"
+    }`
+
   // One decision per CSS property, so the marks stack the way the reference
   // does rather than the way the stylesheet happened to be sorted. Today and
   // open together is the ring around the fill: the ring says which day it is,
@@ -139,7 +163,7 @@ export function Day(props: {
           route={{ kind: "day", date: props.date }}
           class={look()}
           title={props.date}
-          label={props.date}
+          label={said()}
           current={props.open}
         >
           {dayNumber(props.date)}

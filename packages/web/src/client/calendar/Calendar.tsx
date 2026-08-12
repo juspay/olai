@@ -3,9 +3,13 @@
  *
  * There is no journal FILE. A day is a question asked of every dated node in
  * every outline (`@olai/format`'s date derivations), so this aggregates the
- * whole set and no filename is special about anything. It is pure view over
- * the snapshot: nothing is stored, nothing is written, and a directory whose
- * outlines carry no `date` sees a month of inert numbers.
+ * whole set and no OUTLINE's name is special about anything. The one filename
+ * that is special is a document's: a `.md` named for the date is that day's
+ * note, and this is the other reader of that fact — which is why the grid asks
+ * two questions per month and draws two marks (./Day.tsx). It is pure view over
+ * the snapshot either way: nothing is stored, nothing is written, and a
+ * directory with no dated node and no date-named document sees a month of inert
+ * numbers.
  *
  * Which month is on screen is a reading, not an address — the same standing as
  * what is folded — so it is held by the same `createStamped` (../stamped.ts)

@@ -28,6 +28,8 @@ import {
   DAY_EMPTY,
   DAY_GROUP,
   DAY_PAGE,
+  drawn,
+  expectDrawn,
   NODE,
   nodeSelector,
   oneLine,
@@ -35,7 +37,6 @@ import {
   readable,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
-import type { Locator } from "playwright";
 
 // ── opening a day ──────────────────────────────────────────────────────
 
@@ -61,37 +62,6 @@ Then("the day is empty", async function (this: OlaiWorld) {
 });
 
 // ── what a day holds ───────────────────────────────────────────────────
-
-/** Wait for a list to be drawn before reading it. Reading a locator's elements
- *  the instant a page renders races the frame that adds the second one, and an
- *  empty list compares as a perfectly plausible wrong answer. */
-const drawn = async (found: Locator): Promise<Locator> => {
-  await found
-    .first()
-    .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
-    .catch(() => undefined);
-  return found;
-};
-
-/** One `data-` fact off every element of a drawn list, in DOM order, against a
- *  comma-separated expectation.
- *
- *  The WHOLE list, not "contains X": the order and the membership are both the
- *  promise — a group that should not be there, or a node above the one it is
- *  dated after, is exactly the bug. */
-const expectDrawn = async (
-  found: Locator,
-  attribute: string,
-  expected: string,
-): Promise<void> => {
-  assert.deepStrictEqual(
-    await (await drawn(found)).evaluateAll(
-      (all, name) => all.map((element) => element.getAttribute(name)),
-      attribute,
-    ),
-    expected.split(",").map((one) => one.trim()),
-  );
-};
 
 /** The outlines that had something on this day, in the order they are drawn. */
 Then(
