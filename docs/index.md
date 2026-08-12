@@ -1,8 +1,11 @@
 # olai docs
 
 - [running.md](running.md) — how to serve a directory: `olai web` and its
-  flags, the home-manager module, commit modes, the chat agent and
-  `OLAI_ACP_AGENT`, `olai mcp`, and the browser behaviors.
+  flags, the home-manager module, and `olai mcp`.
+- [git.md](git.md) — the git integration: commit modes, the pill, and the
+  audit view.
+- [chat.md](chat.md) — the chat agent: ACP and `OLAI_ACP_AGENT`, the node
+  tools, pictures, and kolu.
 - [format.md](format.md) — the file format and its rules: the record shapes,
   the fields, status, days, and merge safety.
 - [architecture.md](architecture.md) — how the packages fit, and the reasoning
