@@ -1,6 +1,6 @@
 # Human editing in the web UI
 
-Status: SHIPPED as `self-edit` (keyboard editing) — what is below is the research and the decisions it was built from, kept because the editor-growth items are built from the same page. Reference model researched 2026-08-09: Workflowy, from its official help/blog docs (a few details are community-sourced; flagged).
+Status: SHIPPED as `self-edit` (keyboard editing) — what is below is the research and the decisions it was built from, kept because the editor-growth items are built from the same page. Reference model researched 2026-08-09: Workflowy, from its official help/blog docs (a few details are community-sourced; flagged). A second, exhaustive pass over Workflowy's modification inventory — hotkeys, slash commands, bullet types, and the bullet/context menu — was made 2026-08-12 and lives in its own section at the end; it is the checklist the editor-growth items are measured against.
 
 ## What shipped, and the three things the build decided
 
@@ -89,3 +89,93 @@ useful part.
 - ~~**Delete without undo**~~ **Closed 2026-08-11 (human): deferred entirely.** No delete key and no delete affordance until the undo item lands; git is the recovery net until then.
 - ~~**A write's `nudge` has nowhere to go on the keyboard path.**~~ **Closed in this item**: it is a dim line under the row, dismissed by the next keystroke. See above.
 - **Keeping a caret across a server-authoritative redraw is a primitive nobody owns.** The editor holds a focused element through a frame it did not cause — the write answers on one channel and the file arrives on another, in either order, and the redraw either moves the element or replaces the branch that drew it. That is not an outline problem; it is what any editor over this kind of live store has to solve, and olai has graduated this shape before (`listener.ts`'s sequence became `@kolu/surface-app`'s `serveSurfaceApp`, kolu#2137). One consumer today, so it stays where it is used (`web/src/client/edit/editing.tsx`) — recorded here so the second consumer is the moment somebody remembers, rather than the moment somebody re-derives it.
+
+## The full Workflowy modification inventory — researched 2026-08-12
+
+Every way a Workflowy user changes their outline, from the official hotkey
+table, the bullet-types page, the bullets/menu page and the export article,
+mapped to where olai stands. This is the completeness check the Editor
+subtree is measured against; the first research pass (above) took the
+keyboard loop and missed several whole categories. Sources:
+workflowy.com/help/hotkeys, /help/bullet-types, /help/bullets.md,
+zendesk 205757575 (export formats).
+
+Status keys: **shipped** (item, PR) · **filed** (roadmap id) · **MISSING**
+(no roadmap item as of 2026-08-12).
+
+### Structure
+
+| Op | Workflowy trigger | olai |
+|---|---|---|
+| New sibling | `Enter` | shipped (`self-edit` #109) |
+| Indent / outdent | `Tab` / `Shift+Tab` (also `Alt+Shift+→/←`) | shipped (#109) |
+| Move among siblings | `Alt/Ctrl+Shift+↑↓` | shipped (#109) |
+| Split at caret / merge into previous | `Enter` mid-text / `Backspace` at line start | filed `split-merge` |
+| Drag-drop subtree | drag the bullet | filed `dragdrop-multiselect` |
+| Multi-select + bulk complete/move/indent/delete | five gestures | filed `dragdrop-multiselect` |
+| **Duplicate** (subtree; result auto-tagged `#copy`; also `Alt+Drag` clone) | `Alt/⌘+Shift+D`, menu | **MISSING** |
+| **Move to** (search dialog; moves subtree anywhere, across lists) | slash command, menu | **MISSING** — olai's version is the harder cross-OUTLINE move: `parent` is same-file by the format, so this is an op design (move vs re-create vs mirror), not just a dialog |
+| **Delete** (recoverable from Trash) + **Trash restore** | `Ctrl/⌘+Shift+Backspace`, menu | ruled 2026-08-11: no delete affordance. olai's trash is `Archive.jsonl` — but there is **no archive affordance in the web UI at all** (MCP-only `archive_node`), and **no unarchive/restore op on ANY face** (MISSING twice over) |
+| **Expand / collapse, persisted** (double-click triangle = all; `Ctrl+Space`, `Ctrl+↓/↑` variants) | per-node, saved | olai collapse is session view-state; whether stored collapse is a modification olai wants is **undecided** (it is a WRITE in Workflowy) |
+
+### Marks
+
+| Op | Workflowy trigger | olai |
+|---|---|---|
+| Complete | `Ctrl/⌘+Enter`, menu | shipped (#109) |
+| Convert to/from to-do | `/to-do`, menu; a new sibling under a to-do inherits to-do-ness | **MISSING** — olai's `todo`/`doing` marks have NO web affordance (MCP-only `set_doing`/`set_todo`); inheritance nuance undecided |
+| Show/hide completed | `Ctrl+O` | shipped (`hide-done-scope`) |
+
+### Text and formatting
+
+| Op | Workflowy trigger | olai |
+|---|---|---|
+| Title / note editing | inline, `Shift+Enter` | shipped (#109, revised in place) |
+| **Inline formatting: bold / italic / underline, inline code, strikethrough via toolbar** | `Ctrl/⌘+B/I/U`, floating toolbar on selection | **MISSING** — titles RENDER inline markdown (#84/#113) but no key writes it; formatting keys should emit the markdown, not HTML |
+| **Text color / highlight** | toolbar | **MISSING** — needs a markdown-honest answer (or a decision to skip) |
+| **Bullet-type conversions: H1/H2/H3, paragraph, code block, quote block, numbered list** | slash commands (`/h1`, `/quote`…), context menu | **MISSING** entirely — olai nodes have no "kind"; decide which types olai wants and their format story before any UI |
+| Live markdown recognition while typing | automatic | partial — olai renders md on commit; type-time recognition undecided |
+
+### References, links, dates
+
+| Op | Workflowy trigger | olai |
+|---|---|---|
+| Mirror creation | `((` search, `Alt/⌘+Shift+M`, menu | filed `input-widgets` |
+| **Mirror detach (back to copy) / remove placement** | menu | **MISSING** on the web face (MCP has `remove_mirror` since #117) |
+| **Copy link to node** (internal link others can paste) | `Alt/⌘+Shift+L`, menu | **MISSING** — `/n/<id>` routes exist; no affordance mints one, nothing autocompletes an internal link in a title |
+| Tag autocomplete | `#` / `@` | filed `input-widgets` |
+| Date insert | `!` natural-language picker | filed `input-widgets`; **editing/clearing a stored date** must be named in that item's scope |
+
+### Clipboard and interchange
+
+| Op | Workflowy trigger | olai |
+|---|---|---|
+| **Paste nested text as a subtree** | paste multi-level bullets | **MISSING** — the capture path Workflowy is loved for; nothing filed |
+| **Copy/export subtree** (Plain text, Formatted, OPML, JSON) | menu → Export | **MISSING** |
+| **Import** (paste is the main door; files export/import for whole accounts) | paste / settings | **MISSING** (whole-account import is likely out of scope — olai's corpus IS files — but paste-in and copy-out are not) |
+
+### The bullet/context menu itself
+
+Workflowy's per-node menu carries: Complete · Add note · Duplicate · Mirror ·
+Copy link · Move to · Format conversions · Export · Share · Expand all /
+Collapse all · Delete. olai's `•••` menu exists (#102 styling) but carries
+almost none of these; as verbs land from the tables above, the menu is where
+the mouse finds them — worth keeping as the checklist for menu growth.
+
+### Deliberately out of olai's scope (decided by inspection, revisit on demand)
+
+Share/collaboration (olai is a served directory, not a multi-tenant account),
+boards/kanban bullet type, file/image upload into nodes (adjacent to
+`md-editing` and `/media`; revisit there), templates, star/favorites
+(navigation state, not a modification), print.
+
+### The consistency-rule reading (the sharpest framing)
+
+HACKING.md: "MCP and Web ops must be consistent; never deviate." Today the
+web editor can express `add / move / toggle / title / desc` (+ `remove` as
+undo's inverse) while MCP can also express `archive`, `set_date`,
+`set_doing`/`set_todo`, `set_see`, `set_after`, `add_mirror`/`remove_mirror`,
+`create_outline` — and NEITHER face can unarchive. Closing that asymmetry is
+one "editor op parity" item (archive + marks + date + edges + mirror-remove);
+duplicate, move-to, paste/export, formatting and bullet types are genuinely
+new design work, each its own item.
