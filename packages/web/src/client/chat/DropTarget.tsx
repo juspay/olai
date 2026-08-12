@@ -25,7 +25,11 @@
  *     the drag has actually left. It is a signal rather than a flag beside
  *     one, because "is a drag over this" is a fact the count already holds —
  *     `<Show>` compares its condition by truthiness, so crossing rows moves
- *     the number without touching the overlay.
+ *     the number without touching the overlay. What a count must never do is
+ *     outlive the drag: an affordance left lit over a conversation nothing is
+ *     being dragged across is a panel that looks broken and cannot be talked
+ *     out of it, so every way a drag can END puts it back — the drop, the
+ *     leave, and `dragend`.
  *   - **the overlay is `pointer-events-none`**, so drawing it under the cursor
  *     does not itself count as leaving the thing underneath — which would be
  *     the affordance putting itself out the moment it appeared.
@@ -75,9 +79,20 @@ export function DropTarget(props: {
         // wherever it was dragged from, and olai takes a copy of the bytes.
         if (event.dataTransfer !== null) event.dataTransfer.dropEffect = "copy"
       }}
-      onDragLeave={(event) => {
-        if (carrying(event)) setDepth((inside) => Math.max(0, inside - 1))
-      }}
+      // Counted out WITHOUT asking what it was carrying, unlike every other
+      // handler here. A leave is the end of something that already entered, and
+      // the drag data store is protected until a drop — so a browser is within
+      // its rights to hand this one an empty store, and a leave that asked
+      // first would skip the decrement and leave the panel lit over a
+      // conversation nothing is being dragged across. A drag that never
+      // incremented (a selection, a link) cannot take the count below zero.
+      onDragLeave={() => setDepth((inside) => Math.max(0, inside - 1))}
+      // The other way a drag ends with no drop: abandoned, or taken back with
+      // Escape. It reaches this listener when the drag STARTED in the page —
+      // one of the composer's own thumbnails, say — and not when it started in
+      // the desktop, where there is no source node here to fire it. So it is a
+      // second net under the count rather than a replacement for it.
+      onDragEnd={() => setDepth(0)}
       onDrop={(event) => {
         const transfer = event.dataTransfer
         if (transfer === null || !carrying(event)) return

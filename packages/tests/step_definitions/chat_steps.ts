@@ -1024,6 +1024,34 @@ When("the drag moves onto the composer", async function (this: OlaiWorld) {
   await deliver(this, TESTID.chatTranscript, ["shot.png"], ["dragleave"]);
 });
 
+/** A drag event carrying NOTHING — no files, no kinds. Two of the three ways a
+ *  drag ends look like this from inside the page: a browser that hands an
+ *  empty store on `dragleave` (it is allowed to; the drag data is protected
+ *  until the drop), and a drag cancelled with Escape. Both must put the panel
+ *  back, because the alternative is "drop to attach" left lit over a
+ *  conversation with nothing over it. */
+const emptyDragAt = (world: OlaiWorld, at: TestId, kind: string): Promise<void> =>
+  world.page.evaluate(({ at, kind }) => {
+    const target = document.querySelector(`[data-testid="${at}"]`)
+    target?.dispatchEvent(
+      new DragEvent(kind, {
+        dataTransfer: new DataTransfer(),
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+  }, { at, kind });
+
+When("the drag leaves the panel without dropping", async function (this: OlaiWorld) {
+  await emptyDragAt(this, TESTID.chatTranscript, "dragleave");
+});
+
+When("the drag is cancelled", async function (this: OlaiWorld) {
+  // What a drag that STARTED in the page ends with when it is abandoned — one
+  // of the panel's own attachment thumbnails, dragged and let go of nowhere.
+  await emptyDragAt(this, TESTID.chatTranscript, "dragend");
+});
+
 When("I drag some selected text over the chat panel", async function (this: OlaiWorld) {
   await this.page.evaluate(({ at }) => {
     const transfer = new DataTransfer();

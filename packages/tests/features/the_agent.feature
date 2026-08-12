@@ -515,6 +515,24 @@ Feature: Talking to the agent
     And the conversation shows the picture "shot.png"
 
   @scratch:chat
+  Scenario: A drag that ends without a drop takes the affordance with it
+    # The panel counts the drag in and out, and the counting is what survives a
+    # transcript's worth of rows. What it must not do is keep count of a drag
+    # that has gone: "drop to attach" left lit over a conversation, with
+    # nothing over it and nothing to release, is a panel that looks broken and
+    # cannot be talked out of it. Both endings arrive carrying nothing — the
+    # drag data is protected until a drop that never happened — so neither can
+    # be recognised by what it holds, only by the fact that it ended.
+    When I drag "shot.png" over the chat panel
+    Then the panel shows where the drop will land
+    When the drag leaves the panel without dropping
+    Then the panel is not offering to take a drop
+    When I drag "shot.png" over the chat panel
+    Then the panel shows where the drop will land
+    When the drag is cancelled
+    Then the panel is not offering to take a drop
+
+  @scratch:chat
   Scenario: A drag carrying no files is none of the panel's business
     # Dragging a selection into the box is the browser's own gesture and it
     # goes on working: the panel reads what the drag is CARRYING before it

@@ -692,6 +692,11 @@ Three components earn their own file:
   drag data store stays protected until the drop and the files are unreadable
   the whole way across. Enter and leave are counted rather than flagged: they
   fire per element, and a boolean flickers the whole way across a transcript.
+  What the count must never do is outlive the drag, so every ending puts it
+  back — the drop, the leave (counted out without asking what it carried, since
+  a browser may hand an empty store to one), and `dragend`. An affordance left
+  lit with nothing over it is a panel that looks broken and cannot be talked
+  out of it.
 - **`holding.ts`** is what the composer is holding — the pictures uploaded and
   waiting for a message — lifted above both because the gesture and the chips
   are no longer in the same component. It also makes one gesture ONE ANSWER:
