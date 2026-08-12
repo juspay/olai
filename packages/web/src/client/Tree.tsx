@@ -59,6 +59,7 @@ import { createMemo, Match, Show, Switch } from "solid-js"
 import { blockedIds, WAITING_DIM } from "./blocked.ts"
 import { Bullet } from "./Bullet.tsx"
 import { Checkbox } from "./Checkbox.tsx"
+import { useDerived } from "./derived.tsx"
 import { useEditor } from "./edit/editing.tsx"
 import { NewRow } from "./edit/NewRow.tsx"
 import { DescEditor, keyHandler, Said, TitleEditor } from "./edit/RowEditor.tsx"
@@ -122,6 +123,11 @@ function Branch(props: {
   // SPA navigate for the menu's "Zoom in" — same path as the bullet, never
   // location.assign (which reloads the document and kills the reading).
   const router = useRouter()
+  // The SET's own indexes, for the one menu verb whose question the rows
+  // cannot answer: how much an archive takes with it. These rows are a
+  // reading — done-hidden has already dropped branches from them — and the
+  // confirm has to name what the write moves (./menu/subtree.ts).
+  const derived = useDerived()
 
   // Click/tap expand — local to this place, not a reading cell. No hover.
   const note = createNoteExpand()
@@ -194,6 +200,7 @@ function Branch(props: {
           <NodeMenu
             actions={nodeMenuActions({
               row: props.row,
+              derived: derived(),
               collapsed: collapsed(),
               foldable: foldable(),
               view: props.view,

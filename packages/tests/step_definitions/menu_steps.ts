@@ -41,13 +41,24 @@ When(
   },
 );
 
+/** The open panel, waited for. Every step below starts here — the panel is the
+ *  subject of all of them, and one spelling of "wait for it" is what keeps the
+ *  four from waiting on it four slightly different ways. */
+const panelOf = async (world: OlaiWorld) => {
+  const panel = world.page.locator(NODE_MENU_PANEL);
+  await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  return panel;
+};
+
+/** What it is offering, in order. Through `oneLine` like every other text this
+ *  suite reads out of the DOM, so a label that wraps is still one label. */
+const menuLabels = async (world: OlaiWorld): Promise<ReadonlyArray<string>> =>
+  (await (await panelOf(world)).locator(NODE_MENU_ITEM).allInnerTexts()).map(oneLine);
+
 Then(
   "the node menu offers {string}",
   async function (this: OlaiWorld, label: string) {
-    const panel = this.page.locator(NODE_MENU_PANEL);
-    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const items = panel.locator(NODE_MENU_ITEM);
-    const labels = (await items.allInnerTexts()).map((t) => t.trim());
+    const labels = await menuLabels(this);
     assert.ok(
       labels.includes(label),
       `node menu offers ${JSON.stringify(labels)}, expected ${JSON.stringify(label)}`,
@@ -58,11 +69,7 @@ Then(
 Then(
   "the node menu does not offer {string}",
   async function (this: OlaiWorld, label: string) {
-    const panel = this.page.locator(NODE_MENU_PANEL);
-    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const labels = (await panel.locator(NODE_MENU_ITEM).allInnerTexts()).map((t) =>
-      t.trim(),
-    );
+    const labels = await menuLabels(this);
     assert.ok(
       !labels.includes(label),
       `node menu offers ${JSON.stringify(labels)}, and this step says ${
@@ -76,11 +83,7 @@ Then(
   "the node menu offers exactly:",
   async function (this: OlaiWorld, table: { rawTable: string[][] }) {
     const expected = table.rawTable.map((row) => row[0]!.trim());
-    const panel = this.page.locator(NODE_MENU_PANEL);
-    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const labels = (await panel.locator(NODE_MENU_ITEM).allInnerTexts()).map((t) =>
-      t.trim(),
-    );
+    const labels = await menuLabels(this);
     assert.deepStrictEqual(
       labels,
       expected,
@@ -92,10 +95,8 @@ Then(
 When(
   "I choose {string} from the node menu",
   async function (this: OlaiWorld, label: string) {
-    const panel = this.page.locator(NODE_MENU_PANEL);
-    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const item = panel.locator(NODE_MENU_ITEM).filter({ hasText: label }).first();
-    await item.click();
+    const panel = await panelOf(this);
+    await panel.locator(NODE_MENU_ITEM).filter({ hasText: label }).first().click();
     await this.waitForFrame();
   },
 );
@@ -120,24 +121,31 @@ Then("the node menu is not asking anything", async function (this: OlaiWorld) {
   );
 });
 
-/**
- * What a verb SAID, in the mood it said it.
- *
- * Verbatim and in the alarm tone: a refusal is the ops layer's own sentence,
- * and quoting it in a feature file is how "surfaced verbatim" is a test rather
- * than a claim. The tone is a `data-` fact rather than a colour, which is the
- * same contract the row editor's line keeps.
- */
+/** What the line beside the `•••` reads, and which MOOD it is in. Both at
+ *  once, because the two steps below differ in nothing else — and the tone is
+ *  a `data-` fact rather than a colour, the same contract the row editor's
+ *  line keeps. */
+const said = async (
+  world: OlaiWorld,
+  id: string,
+): Promise<{ readonly text: string; readonly tone: string | null }> => {
+  const line = world.within(id, NODE_MENU_SAID);
+  await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  return { text: oneLine(await line.innerText()), tone: await line.getAttribute("data-tone") };
+};
+
+/** A REFUSAL: verbatim, and in the alarm tone. Quoting the ops layer's own
+ *  sentence in a feature file is how "surfaced verbatim" is a test rather than
+ *  a claim. */
 Then(
   "the node menu of {string} says {string}",
   async function (this: OlaiWorld, id: string, text: string) {
-    const said = this.within(id, NODE_MENU_SAID);
-    await said.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.strictEqual(oneLine(await said.innerText()), text);
+    const line = await said(this, id);
+    assert.strictEqual(line.text, text);
     assert.strictEqual(
-      await said.getAttribute("data-tone"),
+      line.tone,
       "alarm",
-      `"${id}" said ${JSON.stringify(text)} in the wrong tone — a refusal is an alarm`,
+      `"${id}" said ${JSON.stringify(line.text)} in the wrong tone — a refusal is an alarm`,
     );
   },
 );
@@ -148,29 +156,20 @@ Then(
 Then(
   "the node menu of {string} remarks {string}",
   async function (this: OlaiWorld, id: string, text: string) {
-    const said = this.within(id, NODE_MENU_SAID);
-    await said.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const remark = oneLine(await said.innerText());
+    const line = await said(this, id);
     assert.ok(
-      remark.includes(text),
-      `"${id}" remarked ${JSON.stringify(remark)}, which does not mention ${
+      line.text.includes(text),
+      `"${id}" remarked ${JSON.stringify(line.text)}, which does not mention ${
         JSON.stringify(text)
       }`,
     );
     assert.strictEqual(
-      await said.getAttribute("data-tone"),
+      line.tone,
       "aside",
-      `"${id}" remarked ${JSON.stringify(remark)} in the wrong tone — a nudge is not an alarm`,
+      `"${id}" remarked ${JSON.stringify(line.text)} in the wrong tone — a nudge is not an alarm`,
     );
   },
 );
-
-Then("the node menu of {string} says nothing", async function (this: OlaiWorld, id: string) {
-  await this.waitUntil(
-    async () => (await this.within(id, NODE_MENU_SAID).count()) === 0,
-    `"${id}" to have nothing said beside it`,
-  );
-});
 
 // ── the clipboard ──────────────────────────────────────────────────────
 
@@ -227,22 +226,24 @@ Given(
   },
 );
 
+/** What is on the recording clipboard right now, or `""` before anything has
+ *  been copied. One spelling, so the poll below and the assertion after it
+ *  cannot read it two different ways — and cannot disagree about which write
+ *  they are talking about. */
+const copied = (world: OlaiWorld): Promise<string> =>
+  world.page.evaluate(
+    () =>
+      (globalThis as unknown as { __olaiClipboard?: { text: string } }).__olaiClipboard
+        ?.text ?? "",
+  );
+
 /** What landed on it, to the tab. A doc string rather than a table: the shape
  *  IS the assertion — one line per node, one tab per level, the note beneath
  *  its own node — and a table would hide exactly the whitespace under test. */
 Then("the clipboard holds:", async function (this: OlaiWorld, expected: string) {
   await this.waitUntil(
-    async () =>
-      (await this.page.evaluate(
-        () => (globalThis as unknown as { __olaiClipboard?: { text: string } })
-          .__olaiClipboard?.text ?? "",
-      )) !== "",
+    async () => (await copied(this)) !== "",
     "something to reach the clipboard",
   );
-  const copied = await this.page.evaluate(
-    () =>
-      (globalThis as unknown as { __olaiClipboard?: { text: string } }).__olaiClipboard
-        ?.text ?? "",
-  );
-  assert.strictEqual(copied, expected);
+  assert.strictEqual(await copied(this), expected);
 });

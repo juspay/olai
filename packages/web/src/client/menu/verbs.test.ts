@@ -12,6 +12,7 @@ import { derive, rowsOf, type Row } from "@olai/format"
 import { setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
+import { flatten } from "../edit/order.ts"
 import { writeVerbs } from "./verbs.ts"
 
 const HOUSE = [
@@ -27,25 +28,22 @@ const GARDEN = [
   `{"id":"herbs","ord":"a0","title":"the herb bed","todo":true}`,
 ].join("\n")
 
-const rows = rowsOf(
-  derive(setOf({ "house.jsonl": HOUSE, "garden.jsonl": GARDEN }).nodes),
-  "house.jsonl",
-)
+const derived = derive(setOf({ "house.jsonl": HOUSE, "garden.jsonl": GARDEN }).nodes)
+const rows = rowsOf(derived, "house.jsonl")
 
-const all = (of: ReadonlyArray<Row>): ReadonlyArray<Row> =>
-  of.flatMap((one) => [one, ...all(one.children)])
-
+/** One row of the fixture, by id — through the client's own walk
+ *  (`edit/order.ts`) with nothing folded, rather than a second one here. */
 const row = (id: string): Row => {
-  const found = all(rows).find((one) => one.at.node.id === id)
+  const found = flatten(rows, new Set()).find((one) => one.at.node.id === id)
   if (found === undefined) throw new Error(`no row for \`${id}\` in the fixture`)
   return found
 }
 
 const labels = (id: string): ReadonlyArray<string> =>
-  writeVerbs(row(id)).map((verb) => verb.label)
+  writeVerbs(row(id), derived).map((verb) => verb.label)
 
 const edit = (id: string, label: string) => {
-  const verb = writeVerbs(row(id)).find((one) => one.label === label)
+  const verb = writeVerbs(row(id), derived).find((one) => one.label === label)
   if (verb === undefined) {
     throw new Error(`\`${id}\` offers no ${JSON.stringify(label)}: ${labels(id).join(", ")}`)
   }
@@ -161,8 +159,15 @@ test("a childless row is asked about on its own", () => {
 
 test("nothing but the archive asks a question first", () => {
   expect(
-    writeVerbs(row("kitchen")).filter((verb) => verb.confirm !== undefined).map((verb) =>
-      verb.label
-    ),
+    writeVerbs(row("kitchen"), derived).filter((verb) => verb.confirm !== undefined)
+      .map((verb) => verb.label),
   ).toEqual(["Archive"])
+})
+
+test("with no indexes yet there is no archive, rather than one nobody counted", () => {
+  // A moment no row is drawn in — the first frame has not arrived — but the
+  // one verb whose question is about the SET may not be offered with a number
+  // read off something else.
+  expect(writeVerbs(row("kitchen"), undefined).map((verb) => verb.label))
+    .toEqual(["Mark todo", "Complete", "Clear mark"])
 })

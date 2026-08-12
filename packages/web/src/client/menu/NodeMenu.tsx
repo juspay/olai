@@ -199,10 +199,12 @@ function MenuPanel(props: {
     })
   })
 
-  /** Choosing an entry: the question first, for the verb that has one, and the
-   *  verb itself once it has been asked. */
+  /** Choosing an entry from the LIST: the question first, for the verb that
+   *  has one. What answering it does is the confirm's own button, which calls
+   *  `onPick` directly — so "ask, then do" is two call sites rather than one
+   *  function telling them apart by object identity. */
   const chose = (action: MenuAction): void => {
-    if (action.confirm !== undefined && asking() !== action) {
+    if (action.confirm !== undefined) {
       setAsking(action)
       return
     }
@@ -253,7 +255,9 @@ function MenuPanel(props: {
           </ul>
         }
       >
-        {(action) => <Confirm action={action()} onGo={chose} onCancel={cancel} />}
+        {(action) => (
+          <Confirm action={action()} onGo={props.onPick} onCancel={cancel} />
+        )}
       </Show>
     </div>
   )
@@ -270,7 +274,7 @@ function MenuPanel(props: {
  */
 function Confirm(props: {
   readonly action: MenuAction
-  readonly onGo: (action: MenuAction) => void
+  readonly onGo: (action: MenuAction) => void | Promise<void>
   readonly onCancel: (action: MenuAction) => void
 }) {
   let go: HTMLButtonElement | undefined
@@ -290,7 +294,7 @@ function Confirm(props: {
           class="cursor-pointer rounded border border-alarm bg-transparent px-2 py-1 text-xs text-alarm hover:bg-alarm/10"
           data-testid={TESTID.nodeMenuItem}
           data-action={props.action.id}
-          onClick={() => props.onGo(props.action)}
+          onClick={() => void props.onGo(props.action)}
         >
           {props.action.label}
         </button>

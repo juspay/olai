@@ -23,7 +23,7 @@
  * that greyed that entry out would be teaching a rule this app does not have.
  */
 
-import { isMirror, MARKS, type Row, type Status } from "@olai/format"
+import { ARCHIVE, type Derived, isMirror, MARKS, type Row, type Status } from "@olai/format"
 import type { Edit } from "@olai/surface"
 
 import { under } from "./subtree.ts"
@@ -53,7 +53,15 @@ const MARK_LABEL: ReadonlyArray<readonly [Status, string]> = [
   ["done", "Complete"],
 ]
 
-export const writeVerbs = (row: Row): ReadonlyArray<Verb> => {
+export const writeVerbs = (
+  row: Row,
+  /** The set's own indexes, for the one question a ROW cannot answer: how much
+   *  an archive would move. `undefined` only while the first frame is still
+   *  arriving, which is a moment no row is drawn in — and the one verb that
+   *  asks is then not offered rather than offered with a number nobody
+   *  checked. */
+  derived: Derived | undefined,
+): ReadonlyArray<Verb> => {
   const verbs: Array<Verb> = []
   // A row drawing a node: the mark it carries, the date it has. A placement
   // that shows nothing (a chain that died, one that closed a loop) has neither
@@ -105,7 +113,7 @@ export const writeVerbs = (row: Row): ReadonlyArray<Verb> => {
       label: "Remove this placement",
       edit: { verb: "unmirror", id: row.at.node.id },
     })
-  } else if (shown !== undefined) {
+  } else if (shown !== undefined && derived !== undefined) {
     // ARCHIVE is drawn on a node's own row and not on a mirror of it, which is
     // the same split as the verb above rather than a missing case: the reader
     // is looking at a placement, and the verb for a placement is retiring it.
@@ -115,7 +123,9 @@ export const writeVerbs = (row: Row): ReadonlyArray<Verb> => {
       id: "archive",
       label: "Archive",
       edit: { verb: "archive", id: shown.node.id },
-      confirm: archiveQuestion(shown.node.title, under(row)),
+      // Counted over the SET rather than over this row's children: what the
+      // write moves is not what the page happens to be drawing (`./subtree.ts`).
+      confirm: archiveQuestion(shown.node.title, under(derived, shown.node.id)),
     })
   }
 
@@ -136,8 +146,8 @@ export const writeVerbs = (row: Row): ReadonlyArray<Verb> => {
  */
 const archiveQuestion = (title: string, rows: number): string =>
   rows === 0
-    ? `Archive “${title}”? It goes to Archive.jsonl with its id kept — ` +
+    ? `Archive “${title}”? It goes to ${ARCHIVE} with its id kept — ` +
       `there is no unarchive yet, so bringing it back means editing that file.`
     : `Archive “${title}” and the ${rows === 1 ? "row" : `${rows} rows`} under it? ` +
-      `They go to Archive.jsonl with their ids kept — there is no unarchive yet, ` +
+      `They go to ${ARCHIVE} with their ids kept — there is no unarchive yet, ` +
       `so bringing them back means editing that file.`

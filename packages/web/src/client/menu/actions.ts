@@ -24,7 +24,7 @@
  * crossed off might be one the write was refused for.
  */
 
-import type { Row } from "@olai/format"
+import type { Derived, Row } from "@olai/format"
 
 import { hrefOf, type Route } from "../routes.ts"
 import type { View } from "../view.ts"
@@ -45,6 +45,10 @@ import { applying } from "./writes.ts"
  */
 export const nodeMenuActions = (args: {
   readonly row: Row
+  /** The set's indexes, which one verb needs and the ROWS cannot answer: how
+   *  much an archive moves is a fact about the records, not about the tree
+   *  this reading happens to be drawing (`./subtree.ts`). */
+  readonly derived: Derived | undefined
   readonly collapsed: boolean
   readonly foldable: ReadonlyArray<string>
   readonly view: View
@@ -97,10 +101,9 @@ export const nodeMenuActions = (args: {
   // turned into the running of it. Spread rather than copied field by field:
   // a hand-written list of names here is the list that goes stale the day a
   // verb grows a field, silently, because both shapes still compile.
-  const writes: MenuAction[] = writeVerbs(args.row).map(({ edit, ...verb }) => ({
-    ...verb,
-    run: () => applying(edit),
-  }))
+  const writes: MenuAction[] = writeVerbs(args.row, args.derived).map(
+    ({ edit, ...verb }) => ({ ...verb, run: () => applying(edit) }),
+  )
   // A pure READ, and the only reason it sits among the writes is that it is
   // about the subtree rather than about this tab: it is the one clipboard verb
   // that answers "what does all of this SAY". Built here rather than in the
@@ -120,6 +123,7 @@ export const nodeMenuActions = (args: {
     })
   }
 
-  const [first, ...rest] = writes
-  return first === undefined ? items : [...items, { ...first, divider: true }, ...rest]
+  // The rule goes above the first of them, wherever the two halves meet.
+  items.push(...writes.map((verb, at) => (at === 0 ? { ...verb, divider: true } : verb)))
+  return items
 }

@@ -7,10 +7,11 @@
  * row would be this file's opinion of that rather than the format's.
  */
 
-import { derive, rowsOf, type Row } from "@olai/format"
+import { derive, rowsOf, type Row, withoutDone } from "@olai/format"
 import { setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
+import { flatten } from "../edit/order.ts"
 import { asText, under } from "./subtree.ts"
 
 const HOUSE = [
@@ -28,39 +29,40 @@ const GARDEN = [
   `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil"}`,
 ].join("\n")
 
-const rows = rowsOf(
-  derive(setOf({ "house.jsonl": HOUSE, "garden.jsonl": GARDEN }).nodes),
-  "house.jsonl",
-)
+const derived = derive(setOf({ "house.jsonl": HOUSE, "garden.jsonl": GARDEN }).nodes)
+const rows = rowsOf(derived, "house.jsonl")
 
-const all = (of: ReadonlyArray<Row>): ReadonlyArray<Row> =>
-  of.flatMap((one) => [one, ...all(one.children)])
-
-const row = (id: string): Row => {
-  const found = all(rows).find((one) => one.at.node.id === id)
+/** One row of the fixture, by id. `flatten` with nothing folded is "every row
+ *  there is" — the client's own walk (`edit/order.ts`), rather than a second
+ *  one written here to disagree with it about what pre-order means. */
+const row = (id: string, of: ReadonlyArray<Row> = rows): Row => {
+  const found = flatten(of, new Set()).find((one) => one.at.node.id === id)
   if (found === undefined) throw new Error(`no row for \`${id}\` in the fixture`)
   return found
 }
 
 // ── how much goes with it ──────────────────────────────────────────────
 
-test("the count is the records the archive would move, not the rows on screen", () => {
+test("the count is the records the archive would move", () => {
   // demo, order, install, handles, and the PLACEMENT of the herb bed — five.
-  // The herb bed's own child is drawn under that placement and is not among
-  // them: it lives in another file, and `archive` moves what a `parent` chain
-  // reaches.
-  expect(under(row("kitchen"))).toBe(5)
+  // The herb bed's own child hangs under that placement on screen and is not
+  // among them: it lives in another file, and `archive` moves what a `parent`
+  // chain reaches.
+  expect(under(derived, "kitchen")).toBe(5)
 })
 
 test("a leaf takes nothing with it", () => {
-  expect(under(row("handles"))).toBe(0)
+  expect(under(derived, "handles")).toBe(0)
 })
 
-test("a mirror row counts what the node it shows has drawn under it", () => {
-  // The verb offered on a placement is retiring it, not archiving — but the
-  // walk is the same one, and stopping at the placement above must not mean
-  // being blind below it.
-  expect(under(row("kitchen-herbs"))).toBe(1)
+test("hiding what is done does not shrink what an archive would take", () => {
+  // The reason the count is asked of the SET and not of the rows. With done
+  // hidden, `withoutDone` has already dropped `demo` and everything under it
+  // from the tree — so a count taken from the drawn children would have
+  // promised four and moved five.
+  const showing = withoutDone(rows)
+  expect(flatten(showing, new Set()).some((one) => one.at.node.id === "demo")).toBe(false)
+  expect(under(derived, "kitchen")).toBe(5)
 })
 
 // ── what it reads as ───────────────────────────────────────────────────
