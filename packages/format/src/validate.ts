@@ -25,7 +25,7 @@
 
 import { Result } from "effect"
 
-import { derive, type Derived } from "./derive.ts"
+import { derive, type Derived, drawnFrom } from "./derive.ts"
 import { type Document, resolveRelative } from "./documents.ts"
 import { compareErrors, isGuessWhileUnreadable, type OutlineError } from "./errors.ts"
 import { EDGE_FIELDS, isMirror, type Located } from "./node.ts"
@@ -197,21 +197,19 @@ const checkAfterAcyclic = (
  *  shows means expanding it never terminates, so the graph a renderer actually
  *  walks has to be acyclic.
  *
- *  That graph is "drawing X leads to drawing Y", and it runs DOWNWARD: a node
- *  leads to its children, a mirror leads to its target. Note this is the
+ *  That graph is {@link drawnFrom}, and it runs DOWNWARD. Note this is the
  *  opposite direction from the parent check above, which walks child-to-parent
  *  — either direction finds a pure parent loop, but only the downward one
  *  finds the mirror case, because a mirror's edge to its target is downward by
- *  nature. Mixing the two directions in one walk finds neither reliably. */
+ *  nature. Mixing the two directions in one walk finds neither reliably. The
+ *  ops layer walks the same graph to refuse the placement BEFORE the write,
+ *  which is why it is a derivation rather than a lambda here. */
 const checkMirrorContainment = (
   all: ReadonlyArray<Located>,
   derived: Derived,
   errors: Array<OutlineError>,
 ): void => {
-  const cycles = findCycles(all, derived, (node) => [
-    ...(derived.children.get(node.id) ?? []).map((child) => child.node.id),
-    ...(isMirror(node) ? [node.mirror] : []),
-  ])
+  const cycles = findCycles(all, derived, (node) => drawnFrom(derived, node))
 
   reportCycles(
     // A cycle with no mirror in it is a parent cycle, already reported by

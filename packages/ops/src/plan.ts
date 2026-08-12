@@ -28,6 +28,7 @@ import {
   ancestorsOf,
   ARCHIVE,
   derive,
+  drawnFrom,
   type Derived,
   isMirror,
   type Located,
@@ -71,7 +72,9 @@ export interface Plan {
   readonly captured?: ReadonlyArray<Minted>
   /** The git commit subject, in the convention `olai` has always used:
    *  `capture:` / `done:` / `doing:` / `todo:` / `move:` / `archive:` / `create:` /
-   *  `see:` and a title (or a path, when an outline is born empty). */
+   *  `see:` / `after:` / `mirror:` / `unmirror:` and a title (or a path, when an
+   *  outline is born empty). A placement's subject names what it SHOWS — the
+   *  target's title — since a mirror has none of its own. */
   readonly summary: string
   /** What the rollup would like the writer to notice, on a write that HAPPENED
    *  ({@link nudged}). Absent unless there is something to say. */
@@ -192,29 +195,27 @@ const editable = (
   return Result.isFailure(may) ? Result.fail(may.failure) : target
 }
 
-const notFound = (id: string): OpFailure =>
-  new NotFoundFailure({
-    reason: `no node in the loaded set has the id \`${id}\``,
-    named: id,
-  })
-
 /**
- * An id an op was asked to POINT AT, and nothing declares — the one refusal
- * `mirror`, `after` and `see` share.
+ * An id nothing in the set declares — ONE refusal, whatever the id was doing.
  *
- * It teaches the same way the validator does, with the validator's own rule
+ * The node an op is about and a target it was asked to point at fail the same
+ * way and want the same help, so they are one function rather than two
+ * sentences: an agent that mistyped `instal` is in the same position whether it
+ * was marking that node or hanging a mirror off it.
+ *
+ * It teaches the way the VALIDATOR does, with the validator's own rule
  * (`@olai/format`'s `nearestId`): an unknown reference is nearly always a
  * misspelling, so the closest id within a typo's distance is offered and
  * anything further away is not, because a guess that is merely nearest teaches
- * a reader to distrust the offer.
+ * a reader to distrust the offer. Where there is nothing close, the answer names
+ * the tool that finds a node without knowing its id.
  *
- * It used to LIST every id in the set instead, on `see`. That answer is right
- * for the outlines of a directory — there are five of them — and wrong for the
- * ids in it: a vault of a few thousand nodes put its whole id space in one
- * refusal, and the one id worth reading was somewhere in the middle of it.
- * `search_nodes` is the tool for "I do not know what it is called".
+ * `see` used to LIST every id in the set here. That is the right answer for the
+ * OUTLINES of a directory — there are five of them — and the wrong one for the
+ * nodes in it: a vault of a few thousand put its whole id space in one refusal,
+ * with the one id worth reading somewhere in the middle of it.
  */
-const unknownTarget = (scope: Scope, id: string): OpFailure => {
+const unknownId = (scope: Scope, id: string): OpFailure => {
   const near = nearestId(id, scope.derived.byId.keys())
   return new NotFoundFailure({
     reason: near === null
@@ -267,7 +268,7 @@ const chainOf = (path: ReadonlyArray<string>): string =>
  *  op edits the node. */
 const regularAt = (scope: Scope, id: string): Result.Result<LocatedRegular, OpFailure> => {
   const located = scope.derived.byId.get(id)
-  if (located === undefined) return Result.fail(notFound(id))
+  if (located === undefined) return Result.fail(unknownId(scope, id))
   if (isMirror(located.node)) {
     return Result.fail(
       new UsageFailure({
@@ -874,7 +875,7 @@ const planMove = (
   request: Extract<Request, { op: "move" }>,
 ): Planned => {
   const located = scope.derived.byId.get(request.id)
-  if (located === undefined) return Result.fail(notFound(request.id))
+  if (located === undefined) return Result.fail(unknownId(scope, request.id))
   const { file, node } = located
 
   const may = writable(scope, file)
@@ -1253,7 +1254,7 @@ type EdgeField = keyof typeof EDGE
  * already set, and a call that says nothing is refused rather than writing the
  * array back unchanged.
  *
- * The refusal for a target that does not exist is {@link unknownTarget}, which
+ * The refusal for a target that does not exist is {@link unknownId}, which
  * is the validator's own did-you-mean one moment earlier — the validator would
  * catch it too, with `file:line`, and an agent that can correct before the write
  * costs nobody a round trip.
@@ -1290,7 +1291,7 @@ const planEdges = (
   }
 
   for (const id of add) {
-    if (!scope.derived.byId.has(id)) return Result.fail(unknownTarget(scope, id))
+    if (!scope.derived.byId.has(id)) return Result.fail(unknownId(scope, id))
     const refused = forbid(scope, node, id)
     if (refused !== null) return Result.fail(refused)
   }
@@ -1395,7 +1396,7 @@ const planAfter = (
  * TWO refusals are its own, and both are about the target:
  *
  *   - an id nothing declares, refused with the closest one that is
- *     ({@link unknownTarget}). The validator would say so too; saying it here
+ *     ({@link unknownId}). The validator would say so too; saying it here
  *     costs the agent nothing and the write never happens;
  *   - a CONTAINMENT cycle: a mirror placed inside the subtree it shows expands
  *     forever, so the walk that would draw it is the walk that has to refuse it
@@ -1415,7 +1416,7 @@ const planMirror = (
   const { file, parent } = landing.success
 
   if (!scope.derived.byId.has(request.target)) {
-    return Result.fail(unknownTarget(scope, request.target))
+    return Result.fail(unknownId(scope, request.target))
   }
 
   if (parent !== undefined) {
@@ -1448,25 +1449,33 @@ const planMirror = (
     mirror: request.target,
   }
 
+  const title = shownTitle(scope, request.target)
   return Result.succeed({
     files: [
       { file, nodes: withOrds([...recordsOf(scope, file), record], ords.success) },
     ],
+    // The PLACEMENT's id — it is what `remove_mirror` takes, and nobody may
+    // have chosen it — under the TARGET's title, which is what a person reading
+    // the log recognises.
     id,
-    title: shownTitle(scope, request.target),
+    title,
     file,
-    summary: `mirror: ${shownTitle(scope, request.target)}`,
+    summary: `mirror: ${title}`,
   })
 }
 
 /**
  * The loop a mirror of `target` under `parent` would close, or `null`.
  *
- * The graph is "drawing X leads to drawing Y", the validator's own
- * (`checkMirrorContainment`): a node leads to its children, a mirror leads to
- * its target. The new placement has exactly one way IN — it is a child of
- * `parent` — so the question is whether drawing what the target shows ever
- * reaches `parent`, and a top-level placement (no parent) has no way in at all.
+ * The graph is `@olai/format`'s `drawnFrom` — what drawing a record leads to
+ * drawing — which is the same derivation the validator's containment rule
+ * walks. That sharing is the point rather than a convenience: a second copy
+ * here would be a placement this op allowed and the write gate then refused,
+ * which is a refusal the tool that planned it did not know it was heading for.
+ *
+ * The new placement has exactly one way IN — it is a child of `parent` — so the
+ * question is whether drawing what the target shows ever reaches `parent`, and
+ * a top-level placement (no parent) has no way in at all.
  */
 const showsInto = (
   scope: Scope,
@@ -1475,9 +1484,7 @@ const showsInto = (
 ): string | null => {
   const path = pathTo(target, parent, (id) => {
     const at = scope.derived.byId.get(id)
-    if (at === undefined) return []
-    const children = (scope.derived.children.get(id) ?? []).map((child) => child.node.id)
-    return isMirror(at.node) ? [at.node.mirror, ...children] : children
+    return at === undefined ? [] : drawnFrom(scope.derived, at.node)
   })
   return path === null ? null : chainOf(path)
 }
@@ -1516,7 +1523,7 @@ const planUnmirror = (
   request: Extract<Request, { op: "unmirror" }>,
 ): Planned => {
   const located = scope.derived.byId.get(request.id)
-  if (located === undefined) return Result.fail(notFound(request.id))
+  if (located === undefined) return Result.fail(unknownId(scope, request.id))
   const { file, node } = located
 
   if (!isMirror(node)) {

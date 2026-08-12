@@ -1553,6 +1553,23 @@ test("an id nothing declares is not-found and names what was asked for", () => {
   expect(failure.named).toBe("nope")
 })
 
+/** ONE refusal for an id nothing declares, whatever the id was doing: the node
+ *  an op is ABOUT gets the same did-you-mean as a target it was asked to point
+ *  at, because an agent that mistyped is in the same position either way. */
+test("a mistyped id is offered the one it was probably meant to be, on any op", () => {
+  for (const request of [
+    { op: "done", id: "instal" },
+    { op: "move", id: "instal", parent: "kitchen" },
+    { op: "unmirror", id: "instal" },
+    { op: "after", id: "order", add: ["instal"] },
+    { op: "mirror", target: "instal", file: "house.jsonl" },
+  ] as ReadonlyArray<Request>) {
+    const failure = refused(house(), request)
+    expect(failure._tag).toBe("NotFoundFailure")
+    expect(failure.message).toContain("did you mean `install`")
+  }
+})
+
 /**
  * The planner produces RECORDS and the format produces BYTES, and this is the
  * seam where that pays: whatever an op decides, what reaches the disk is one

@@ -47,6 +47,11 @@ export {
   byOrd,
   countedChildren,
   derive,
+  /** The containment graph: what drawing a record leads to drawing. Exported
+   *  because two rules read it — the validator's mirror-cycle check, and the
+   *  ops layer refusing the placement that would close one before it is
+   *  written. */
+  drawnFrom,
   follow,
   nodeNamed,
   progressOf,
