@@ -399,6 +399,30 @@ When(
   },
 );
 
+When(
+  "I type {string} into the question's {string} box",
+  async function (this: OlaiWorld, text: string, field: string) {
+    await question(this)
+      .locator(`${CHAT_ASK_TEXT}[data-field="${field}"]`)
+      .fill(text);
+  },
+);
+
+Then(
+  "the question's {string} box still reads {string}",
+  async function (this: OlaiWorld, field: string, text: string) {
+    const box = question(this).locator(`${CHAT_ASK_TEXT}[data-field="${field}"]`);
+    assert.strictEqual(
+      await box.inputValue(),
+      text,
+      "the panel threw away what was typed on a submit the server refused. The " +
+        "refusal deliberately leaves the question waiting so nothing is " +
+        "recorded that the agent was never sent — a blank form under it makes " +
+        "typing the whole answer again the only way to act on it.",
+    );
+  },
+);
+
 When("I answer the question", async function (this: OlaiWorld) {
   await question(this).locator(CHAT_ASK_SUBMIT).click();
 });
@@ -428,6 +452,21 @@ Then("the question says I dismissed it", async function (this: OlaiWorld) {
       "back cannot tell a dismissal from an answer nobody remembers giving",
   );
 });
+
+Then(
+  "the question shows {string} as what I chose",
+  async function (this: OlaiWorld, value: string) {
+    // Off the ROW rather than off this tab's memory of the click: a reloaded
+    // page has no memory of the click, which is the point of asking.
+    await this.expectAttribute(
+      `${CHAT_ASK} ${CHAT_ASK_CHOICE}[data-value="${value}"]`,
+      "aria-pressed",
+      "true",
+      `the chosen option "${value}"`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
 
 Then(
   "the question can no longer be answered",

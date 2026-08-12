@@ -26,8 +26,10 @@
  *   hold         start a tool call and STOP there, until released
  *   model <id>   switch the model the way the wrapped CLI does
  *   ask          ask a structured question and report the answer
+ *   askstrict    ask one with a REQUIRED, typed field, the way an MCP server does
  *   plan         ask to leave plan mode, the way the adapter does
  *   permit       ask permission for an ops tool, which needs no person
+ *   nameless     ask permission for a tool nothing has named
  *   crash        exit mid-turn
  *   anything     one chunk of prose and an `end_turn`
  *
@@ -440,6 +442,56 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
+  if (verb === "askstrict") {
+    // The shape an MCP server asks in, rather than the one the CLI's own
+    // AskUserQuestion produces: a REQUIRED field, and a typed one. Claude's
+    // questions are all optional chips, so this is the only way to reach the
+    // path where the panel's answer can be refused by the schema it was for.
+    if (!canElicit()) {
+      say("the client cannot draw a form, so there is nothing to ask")
+      respond(id, { stopReason: "end_turn" })
+      return
+    }
+    const answer = await request("elicitation/create", {
+      mode: "form",
+      sessionId,
+      message: "How many cabinets?",
+      requestedSchema: {
+        type: "object",
+        required: ["howMany"],
+        properties: {
+          howMany: { type: "integer", title: "How many" },
+          note: { type: "string", title: "Note" },
+        },
+      },
+    })
+    if (endedCancelled(id)) return
+    say(`you answered: ${JSON.stringify(answer)}`)
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  if (verb === "nameless") {
+    // A permission request for a tool nothing has named: no `_meta`, no
+    // announcement to have learned the name from, and a title that is not an
+    // MCP tool id. The client cannot tell what this is, and the whole point of
+    // recognising OURS positively is that this asks rather than approves.
+    const answer = await request("session/request_permission", {
+      sessionId,
+      toolCall: { toolCallId: `call-${++nextMcpId}`, title: "do something unnamed" },
+      options: [
+        { kind: "allow_once", name: "Allow Once", optionId: "allow" },
+        { kind: "reject_once", name: "Deny", optionId: "reject" },
+      ],
+    })
+    if (endedCancelled(id)) return
+    const outcome = (answer as { outcome?: { outcome?: string; optionId?: string } })
+      ?.outcome
+    say(`permission: ${outcome?.optionId ?? outcome?.outcome ?? "nothing"}`)
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
   if (verb === "plan" || verb === "permit") {
     // The two permission requests that matter, told apart ONLY by the tool
     // name the announcement carries: a plan exit is a person's to answer, and
@@ -463,10 +515,14 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       sessionId,
       toolCall: { toolCallId, title: plan ? "Ready to code?" : toolName },
       options: plan
-        // `auto` FIRST and allow-flavoured: this is the option a client that
-        // answered by machine used to pick, silently.
+        // The adapter's own list for a plan exit, with `auto` FIRST and
+        // allow-flavoured: that is the option a client answering by machine
+        // used to pick, silently. (The real one is filtered against the
+        // session's available modes and can lead with `bypassPermissions`;
+        // what matters here is that the first entry is an allow.)
         ? [
           { kind: "allow_always", name: 'Yes, and use "auto" mode', optionId: "auto" },
+          { kind: "allow_always", name: "Yes, and auto-accept edits", optionId: "acceptEdits" },
           { kind: "allow_once", name: "Yes, and manually approve edits", optionId: "default" },
           { kind: "reject_once", name: "No, keep planning", optionId: "plan" },
         ]

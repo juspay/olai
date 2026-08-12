@@ -339,6 +339,62 @@ Feature: Talking to the agent
     Then the agent's answer mentions "permission: plan"
 
   @scratch:chat
+  Scenario: An answer the question refuses keeps what I typed
+    # The server refuses an answer that does not fit the schema that asked for
+    # it and DELIBERATELY leaves the question waiting, so nothing is recorded
+    # that the agent was never sent. The panel used to throw the draft away on
+    # the click regardless — so the refusal arrived under a form that had gone
+    # blank, and the only way to act on it was to type the whole thing again.
+    # `howMany` is required and left empty, which is the refusal a person can
+    # actually reach: a number box will not take letters in the first place, so
+    # the browser is the earlier gate and the server is this one.
+    When I ask the agent "askstrict"
+    Then the chat shows a question
+    When I type "the oak ones" into the question's "note" box
+    And I answer the question
+    Then the chat shows a refusal
+    And the chat shows a question
+    And the question's "note" box still reads "the oak ones"
+    # ... and it is still answerable, which is what "still waiting" has to mean
+    # for the person looking at it.
+    When I type "40" into the question's "howMany" box
+    And I answer the question
+    Then the question has been answered
+    And the agent's answer mentions "\"howMany\":40"
+    And the agent's answer mentions "the oak ones"
+
+  @scratch:chat
+  Scenario: A tool nothing has named is asked about, not approved
+    # The other half of recognising our own tools POSITIVELY. Nothing announced
+    # this call and its title is not an MCP tool id, so the panel cannot tell
+    # what it is — and the rule is that what it cannot name, a person answers.
+    # Approving by failing to recognise something is the failure this direction
+    # of the rule exists to make impossible.
+    When I ask the agent "nameless"
+    Then the chat shows a question
+    And the question offers "reject"
+    When I choose "Deny"
+    And I answer the question
+    Then the agent's answer mentions "permission: reject"
+
+  @scratch:chat
+  Scenario: An answered question is still there after a reload
+    # The form is a ROW, and a row is transcript — so it comes back the way
+    # every other row does, on the first frame of a fresh subscription, with no
+    # replay protocol. That is the whole reason a question is an entry rather
+    # than a modal: what you were asked and what you said is a thing about the
+    # conversation, not about the tab that happened to be open.
+    When I ask the agent "ask"
+    Then the chat shows a question
+    When I choose "birch"
+    And I answer the question
+    Then the question has been answered
+    When I reload the page
+    And the agent panel is open
+    Then the question has been answered
+    And the question shows "birch" as what I chose
+
+  @scratch:chat
   Scenario: Permission for an ops tool needs nobody
     # Bypass mode is the design and these are the tools it is for: mediated,
     # validated, and olai's own. A form here would be a click on every write.

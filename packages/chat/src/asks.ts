@@ -285,11 +285,15 @@ const valueOf = (
 ): string | number | boolean | Array<string> | undefined | UsageFailure => {
   if (field.kind === "choices") {
     const picked = values.filter((value) => value !== "")
+    const stranger = picked.find((value) => !offers(field, value))
+    if (stranger !== undefined) return notAnOption(field, stranger)
     return picked.length === 0 ? undefined : [...picked]
   }
   const only = (values[0] ?? "").trim()
   if (only === "") return undefined
   switch (field.kind) {
+    case "choice":
+      return offers(field, only) ? only : notAnOption(field, only)
     case "boolean":
       return only === YES_NO.yes
     case "number":
@@ -308,6 +312,26 @@ const valueOf = (
       return only
   }
 }
+
+/**
+ * Whether a field actually offered that value.
+ *
+ * A chip is the only way to answer a choice from the panel, so this can only
+ * fire for something that did not come from the panel — the procedure is on the
+ * surface and anything that can reach the socket can call it. It is checked
+ * anyway, and the reason is what the whole answer path is built on: an enum's
+ * `const` is what the agent will read back as the ANSWER, so a value it never
+ * offered is a sentence it never wrote being attributed to the person who was
+ * asked. The schema said what the legal answers were; this is where that is
+ * enforced rather than assumed.
+ */
+const offers = (field: AskField, value: string): boolean =>
+  field.choices.some((choice) => choice.value === value)
+
+const notAnOption = (field: AskField, value: string): UsageFailure =>
+  new UsageFailure({
+    reason: `\`${value}\` is not one of the options ${field.label ?? field.key} offered`,
+  })
 
 /** A string that is actually there, or the fallback. The protocol spells
  *  "absent" three ways — missing, `null`, `""` — and a label made of one of

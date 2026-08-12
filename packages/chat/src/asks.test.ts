@@ -193,8 +193,17 @@ describe("a question, as a form", () => {
 })
 
 describe("a permission request, as the same form", () => {
-  /** The adapter's plan-mode exit, verbatim in shape: `auto` FIRST and
-   *  allow-flavoured, which is what a client answering by machine picked. */
+  /**
+   * The adapter's plan-mode exit, as 0.66.0 builds it: four options, `auto`
+   * FIRST and allow-flavoured — which is exactly the one a client answering by
+   * machine picked, and the reason this whole path exists.
+   *
+   * The real list is filtered against the session's available modes, and gains
+   * a leading `bypassPermissions` where the adapter allows it, so a session can
+   * see fewer of these or one more. None of that changes what is being asserted:
+   * whatever survives the filter, the first entry is allow-flavoured and is not
+   * this panel's to choose.
+   */
   const exitPlanMode: RequestPermissionRequest = {
     sessionId: "s1",
     toolCall: {
@@ -204,6 +213,7 @@ describe("a permission request, as the same form", () => {
     },
     options: [
       { kind: "allow_always", name: 'Yes, and use "auto" mode', optionId: "auto" },
+      { kind: "allow_always", name: "Yes, and auto-accept edits", optionId: "acceptEdits" },
       { kind: "allow_once", name: "Yes, and manually approve edits", optionId: "default" },
       { kind: "reject_once", name: "No, keep planning", optionId: "plan" },
     ],
@@ -217,6 +227,7 @@ describe("a permission request, as the same form", () => {
     expect(form.fields[0]).toMatchObject({ key: PERMISSION_FIELD, kind: "choice" })
     expect(form.fields[0]?.choices).toEqual([
       { value: "auto", label: 'Yes, and use "auto" mode', hint: null },
+      { value: "acceptEdits", label: "Yes, and auto-accept edits", hint: null },
       { value: "default", label: "Yes, and manually approve edits", hint: null },
       { value: "plan", label: "No, keep planning", hint: null },
     ])
@@ -228,6 +239,7 @@ describe("a permission request, as the same form", () => {
     const form = permissionFormOf(exitPlanMode)
     expect(form.fields[0]?.choices.map((choice) => choice.value)).toEqual([
       "auto",
+      "acceptEdits",
       "default",
       "plan",
     ])
@@ -255,11 +267,31 @@ describe("the answers, going back", () => {
       label: null,
       hint: null,
       kind: "choices",
-      choices: [],
+      choices: [
+        { value: "a", label: "a", hint: null },
+        { value: "b", label: "b", hint: null },
+      ],
       required: false,
       attachedTo: null,
     }]
-    expect(contentOf(many, [{ key: "question_0", values: ["a", "b"] }])).toEqual({ question_0: ["a", "b"] })
+    expect(contentOf(many, [{ key: "question_0", values: ["a", "b"] }]))
+      .toEqual({ question_0: ["a", "b"] })
+  })
+
+  test("a value the question never offered is refused, not passed on", () => {
+    // The only way to answer a choice from the panel is to press a chip, so
+    // this is about what else can reach the procedure. It matters because an
+    // enum's `const` is what the agent reads back AS the answer: a value it
+    // never offered is a sentence it never wrote, attributed to the person who
+    // was asked.
+    const refused = contentOf(fields, [{ key: "question_0", values: ["mahogany"] }])
+    expect(refused).toBeInstanceOf(UsageFailure)
+    expect((refused as UsageFailure).reason).toContain("mahogany")
+
+    // ... and the free-text box beside it still takes anything, which is what
+    // it is for.
+    expect(contentOf(fields, [{ key: "question_0_custom", values: ["mahogany"] }]))
+      .toEqual({ question_0_custom: "mahogany" })
   })
 
   test("a number is a number and a boolean is a boolean", () => {

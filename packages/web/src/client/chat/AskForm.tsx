@@ -26,7 +26,7 @@
  */
 
 import type { AskField, ChatEntry } from "@olai/surface"
-import { createMemo, For, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { AskControl } from "./AskControl.tsx"
@@ -74,16 +74,44 @@ export function AskForm(props: {
     return outcome.answers.find((answer) => answer.key === key)?.values ?? []
   }
 
+  /** A verb is on its way. Two presses of `answer` would send two answers, and
+   *  the second one arrives after the first has settled the question — so it
+   *  comes back as "that is not waiting any more", which is a refusal about
+   *  somebody's double click rather than about anything they did wrong. */
+  const [sending, setSending] = createSignal(false)
+
+  const settled = () => setSending(false)
+
   const submit = () => {
+    if (sending()) return
+    setSending(true)
     const keys = (ask()?.fields ?? []).map((field) => field.key)
-    props.chat.answer(props.entry.id, draftAnswers(props.entry.id, keys))
-    forgetDraft(props.entry.id)
+    props.chat.answer(props.entry.id, draftAnswers(props.entry.id, keys), settled)
   }
 
   const dismiss = () => {
-    props.chat.decline(props.entry.id)
-    forgetDraft(props.entry.id)
+    if (sending()) return
+    setSending(true)
+    props.chat.decline(props.entry.id, settled)
   }
+
+  /**
+   * The draft is let go when the ROW says the question is over — never when the
+   * button was pressed.
+   *
+   * The server refuses an answer that does not fit the question it was for (a
+   * number field given a word, a required field left empty) and DELIBERATELY
+   * leaves the question waiting, so that nothing is recorded that the agent was
+   * never sent. Forgetting the draft on the click undid exactly that: the
+   * refusal appeared at the foot of the transcript and the form it was about
+   * went blank, so the only way to act on it was to type the whole thing again.
+   *
+   * Reading the row rather than the reply also covers the endings that are
+   * nobody's click — the agent withdrawing it, another tab answering it.
+   */
+  createEffect(() => {
+    if (ask()?.outcome != null) forgetDraft(props.entry.id)
+  })
 
   return (
     <Show when={ask()}>
@@ -123,7 +151,7 @@ export function AskForm(props: {
                     <AskControl
                       field={field}
                       values={values(field.key)}
-                      disabled={!waiting()}
+                      disabled={!waiting() || sending()}
                       onChange={(next) => setDraft(props.entry.id, field.key, next)}
                     />
                   </div>
@@ -138,7 +166,7 @@ export function AskForm(props: {
                         <AskControl
                           field={other()}
                           values={values(other().key)}
-                          disabled={!waiting()}
+                          disabled={!waiting() || sending()}
                           onChange={(next) => setDraft(props.entry.id, other().key, next)}
                         />
                       </div>
@@ -163,16 +191,18 @@ export function AskForm(props: {
             <div class="mt-2 flex items-center gap-2">
               <button
                 type="button"
-                class="flex h-8 items-center rounded border border-accent px-3 text-xs text-accent"
+                class="flex h-8 items-center rounded border border-accent px-3 text-xs text-accent disabled:opacity-60"
                 data-testid={TESTID.chatAskSubmit}
+                disabled={sending()}
                 onClick={submit}
               >
                 answer
               </button>
               <button
                 type="button"
-                class="flex h-8 items-center rounded border border-rule px-3 text-xs text-muted hover:text-ink"
+                class="flex h-8 items-center rounded border border-rule px-3 text-xs text-muted hover:text-ink disabled:opacity-60"
                 data-testid={TESTID.chatAskDismiss}
+                disabled={sending()}
                 onClick={dismiss}
               >
                 dismiss
