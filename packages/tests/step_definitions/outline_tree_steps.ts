@@ -81,6 +81,26 @@ Then(
   },
 );
 
+/** The negative of the pair above, and it is a different question rather than
+ *  a negated one: a row that is not drawn AT ALL is also not a child of
+ *  anything, so this waits for the parent to be on screen first and asks about
+ *  what is inside it. Without that, a scenario asserting "it went somewhere
+ *  else" would pass over a tree that had lost the row entirely. */
+Then(
+  "the node {string} is not a child of {string}",
+  async function (this: OlaiWorld, child: string, parent: string) {
+    await this.node(parent)
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () =>
+        (await this.node(child).count()) > 0 &&
+        (await this.node(parent).locator(nodeSelector(child)).count()) === 0,
+      `"${child}" to be drawn somewhere other than inside "${parent}"`,
+    );
+  },
+);
+
 Then(
   "the node {string} has the title {string}",
   async function (this: OlaiWorld, id: string, expected: string) {

@@ -10,7 +10,7 @@ The resolved plan below landed as written — same ops layer, no optimistic UI, 
 - **The wire verbs are INTENTS, not ops requests.** `Tab` sends "indent this", not "reparent under the node above, placed last": the neighbours a placement is computed from are facts about the snapshot, so they are read on the server, against the revision the write is judged against, rather than computed in a tab from a tree some frames old. Same for `Ctrl+Enter`, which sends "toggle" and lets the server read the stored mark. That also keeps the browser's closed list narrower than the agent's (no `create`, `archive`, `see`, `date`, no chosen ids).
 - **No optimistic UI costs the CARET, and that is the real work.** A row that indents is redrawn at a new place by a new branch, and a row that reorders has its element moved — both take focus off the input in a browser. So a draft is about a ROW — the record occupying a line, a mirror's own id and not its target's — and it follows that row across the frame, with the editor asking for the caret back once the frame that redrew it has been rendered. What a draft COMMITS is the other id: the node the row SHOWS, so typing in a mirror edits what it stands for while moving one moves the placement. The alternative — echoing the move locally so the row never appears to leave — is exactly the optimistic UI this design is written against.
 
-An `<input>` rather than `contenteditable` for the title (a title is one verbatim line with no markup, so the trade is `#tags` reading unstyled while the caret is in the row) and a textarea for the note, per the plan. Delete stayed out entirely, per the human's 2026-08-11 decision: it arrives with undo.
+An `<input>` rather than `contenteditable` for the title (a title is one verbatim line with no markup, so the trade is `#tags` reading unstyled while the caret is in the row) and a textarea for the note, per the plan. Delete stayed out entirely, per the human's 2026-08-11 decision, and it is still out: what `undo` shipped is the un-create — the inverse of an `add` — and a delete key remains that item's to rule on. What `undo` settled is a section of its own below.
 
 Two more things the build settled, both of which started as the obvious shape and were wrong:
 
@@ -38,7 +38,7 @@ Two more things the build settled, both of which started as the obvious shape an
 
 - **Latency model**: structural actions (Enter, Tab, move, done, delete) are immediate ops; *text* edits buffer in a client-local draft cell, committed as one op on blur/Enter/idle. Typing stays local without violating the no-optimistic-UI rule — the draft is presented as an editor, not as committed state. (Per-keystroke ops and optimistic echo were considered and rejected.)
 - **Split/merge deferred** to its own editor-growth item: in the first PR, Enter always adds a sibling and Backspace only edits text.
-- **Undo deferred** out of the first PR — git is the recovery net until it lands. When it comes, client-side op inverses ("undo *my* last op", concurrent-editor-safe) is the leading candidate.
+- ~~**Undo deferred** out of the first PR~~ **SHIPPED as `undo`**, and the leading candidate is what it turned out to be: client-side op inverses, "undo *my* last op", concurrent-editor-safe. See below.
 - **Desc editing**: `Shift+Enter` opens a plain textarea under the node; rendered markdown returns on blur. Desc is one verbatim string — a textarea is honest, and the draft-cell model applies unchanged.
 - **First-PR keybinding set**: Enter (add sibling), Tab/Shift+Tab (indent/outdent), Alt+Shift+↑↓ (move), Ctrl+Enter (toggle done), Shift+Enter (desc), delete. Multi-select, drag-drop, `((` mirror creation, `!` date picker, `#` autocomplete: editor growth.
 
@@ -83,10 +83,75 @@ useful part.
   the client now (`keys.ts`), drawn by a panel the ⌘K palette opens, mirrored
   in the top-level README, and held to covering every action by a unit test.
 
+## Undo, as it shipped (2026-08-12)
+
+The stack holds INVERSES, and the four things that were decided while building
+it are all consequences of one choice: an undo is a WRITE.
+
+- **WHAT IS ON THE STACK: every op this tab made, text included.** The dispatch
+  said "drafts excluded — the undo stack holds structural ops only", and the
+  build read that as "text is not undoable", which the human found by driving
+  it (2026-08-12): retype a title, let it commit, press ⌘Z, and the answer was
+  "nothing to undo" — an undo that does not undo. The ruling is about the
+  CARET, not about text. While an editor is open the chord is the input's own
+  (and Escape abandons the draft); the moment a draft COMMITS it has produced
+  an op like any other, and the text it replaced is a perfect inverse. The one
+  thing text needs that structure does not is a guard: the inverse carries
+  `was`, the text it expects to find, so putting back what this tab replaced
+  can only overwrite what this tab wrote — somebody else's words are refused,
+  in the same shape as every other refusal here.
+- **Where the inverse is derived: the server, at apply time.** The facts an op
+  destroys — the parent a row had, the sibling above it, the mark a toggle
+  replaced, the words it overwrote — are facts about the set the write was
+  judged against. A tab
+  keeping its own note of them would be the second reading this whole seam is
+  written against ("the wire verbs are INTENTS", above), and the two would
+  differ exactly when it matters: when somebody else is writing too. So
+  `edit.apply` answers with what would take the write back, and the browser's
+  stack is a list of things the server said.
+- **What a stack entry is: a LIST of edits, usually one.** Two only where the
+  ops layer needs two: putting `todo` back on a node that is now `done` is
+  refused in one call ("nothing should decide on your behalf that finished work
+  is not finished"), and doing it in one HERE would be the web doing something
+  MCP cannot, which HACKING forbids. So it is the two calls an agent would
+  make.
+- **Undo restores the prior MARK, not the prior mark's stored VALUE.** The
+  judgment call the dispatch named, and it goes to consistency: `done` is
+  re-stamped with the instant the undo was made, and `todo`/`doing` go back as
+  `true`, because that is what `set_done` / `set_todo` write and there is no op
+  — for an agent or for a keyboard — that writes a mark value of its caller's
+  choosing. What an undo restores is the fact, and the clock says when the
+  person decided it.
+- **Un-creating a row archives it — and that is not the delete key.** `archive` is the only removal the set has,
+  and it is a trash rather than a shredder — the node keeps its id in
+  `Archive.jsonl`, so everything pointing at it goes on resolving. It is
+  refused for a row that has grown children since: an undo may take back what
+  it made, never what somebody built on it. The cost is that it does not come
+  back out (a `move` is same-file by the format), so that one entry says it
+  cannot be redone rather than leaving a ⌘⇧Z that does nothing.
+
+  What that cost IS has a name as of the inventory below (2026-08-12): there is
+  **no unarchive on any face**, which is an equal absence rather than a
+  deviation — one op to build once in the ops layer and expose to both faces
+  together. The day it exists, this entry stops being the one that cannot be
+  redone, and nothing else here changes. The other half of that ruling cuts the
+  other way and is worth stating against this PR: the web has no archive
+  affordance at all, so what an un-create reaches for is an op only the agent
+  can otherwise ask for. It is reached ONLY as the inverse of a row this
+  session created — not a general archive door, and not the delete key.
+- **A move whose recorded parent has been archived** surfaces as the ops
+  layer's own cross-file refusal, verbatim, and the entry is dropped — the
+  other judgment call the dispatch named. Nothing here invents a sentence for
+  it: the parent is in `Archive.jsonl` and the row is not, a parent is
+  same-file by the format, and `planMove` already says exactly that.
+
+What it is NOT: a snapshot restore, persisted, cross-tab, or aware of the
+agent's writes. ⌘Z takes back what THIS tab did, on THIS outline, this session.
+
 ## Open
 
 - ~~**Derived status in the edit UI**: unlike Workflowy, completing a parent isn't just unpropagated — it's *refused* (derived state).~~ **Closed 2026-08-11** (`hide-done-scope`): status derivation is gone, so olai IS the Workflowy model here — `Ctrl+Enter` on a parent stores a mark like it would on a leaf. The rollup badge is drawn beside an editable row like any other, since the editor replaces only the title span.
-- ~~**Delete without undo**~~ **Closed 2026-08-11 (human): deferred entirely.** No delete key and no delete affordance until the undo item lands; git is the recovery net until then.
+- **Delete without undo — deferred entirely, 2026-08-11 (human), and STILL OPEN.** `undo` did not close it. What that item shipped is the UN-CREATE — the inverse of an `add`, sent by no key, over a row that was just made and has nothing under it, resolving to `archive` — which is the "arrives with undo" half read strictly. A delete KEY (which rows? a subtree? a confirmation?) is untouched and is the human's to rule on.
 - ~~**A write's `nudge` has nowhere to go on the keyboard path.**~~ **Closed in this item**: it is a dim line under the row, dismissed by the next keystroke. See above.
 - **Keeping a caret across a server-authoritative redraw is a primitive nobody owns.** The editor holds a focused element through a frame it did not cause — the write answers on one channel and the file arrives on another, in either order, and the redraw either moves the element or replaces the branch that drew it. That is not an outline problem; it is what any editor over this kind of live store has to solve, and olai has graduated this shape before (`listener.ts`'s sequence became `@kolu/surface-app`'s `serveSurfaceApp`, kolu#2137). One consumer today, so it stays where it is used (`web/src/client/edit/editing.tsx`) — recorded here so the second consumer is the moment somebody remembers, rather than the moment somebody re-derives it.
 

@@ -48,6 +48,124 @@ When("I delete {string}", function (this: OlaiWorld, file: string) {
 });
 
 /**
+ * Somebody else, writing, mid-scenario.
+ *
+ * The same door as `I rewrite` — a file changing under a running server — but
+ * ADDING rather than replacing, which is what makes it usable in the middle of
+ * a scenario that is testing keys: a rewrite would also revert whatever they
+ * just did. The ids are fixed and named in the feature, so a scenario can
+ * point at the row afterwards and say it is still there. What it is FOR is the
+ * claim undo exists to make: an inverse is judged against the set as it is, so
+ * taking your own edit back leaves everybody else's alone.
+ */
+When(
+  "another writer adds {string} to {string}",
+  function (this: OlaiWorld, title: string, file: string) {
+    this.appendServed(file, { id: "outsider", ord: "z0", title });
+  },
+);
+
+/** A row RETITLED under everybody's feet. What it is for is the one thing a
+ *  text undo must never do: put back what this tab replaced, on top of words
+ *  somebody else has since written. */
+When(
+  "another writer retitles {string} to {string} in {string}",
+  function (this: OlaiWorld, id: string, title: string, file: string) {
+    const records = this.servedNodes(file).map((node) =>
+      node["id"] === id ? { ...node, title } : node
+    );
+    assert.ok(
+      records.some((node) => node["id"] === id),
+      `${file} holds no node \`${id}\` to retitle`,
+    );
+    this.writeServed(file, records.map((node) => JSON.stringify(node)).join("\n"));
+  },
+);
+
+/** A row REPARENTED under everybody's feet — the anchor an undo recorded,
+ *  moved somewhere that anchor no longer means. Lifting it to the top level is
+ *  the smallest edit that does it and leaves a valid set behind (a parent is
+ *  same-file by the format, and this drops the field rather than pointing it
+ *  anywhere new). */
+When(
+  "another writer lifts {string} to the top level of {string}",
+  function (this: OlaiWorld, id: string, file: string) {
+    const records = this.servedNodes(file).map((node) =>
+      node["id"] === id ? { ...node, parent: undefined } : node
+    );
+    assert.ok(
+      records.some((node) => node["id"] === id),
+      `${file} holds no node \`${id}\` to lift`,
+    );
+    // `undefined` is what JSON drops, which is how the field GOES rather than
+    // arriving as a null the format would refuse.
+    this.writeServed(file, records.map((node) => JSON.stringify(node)).join("\n"));
+  },
+);
+
+/** A subtree ARCHIVED under everybody's feet: the records leave this outline
+ *  for `Archive.jsonl` beside it, keeping their ids, which is exactly what the
+ *  ops layer's `archive` does. Everything under the named node goes with it —
+ *  a child left behind pointing at a parent in another file is a set that does
+ *  not validate, which would be a scenario about the wrong thing. */
+When(
+  "another writer archives {string} out of {string}",
+  function (this: OlaiWorld, id: string, file: string) {
+    const records = this.servedNodes(file);
+    const moving = new Set<string>([id]);
+    // Repeat until it stops growing: the file is in no particular order, so a
+    // single pass can meet a child before its parent.
+    for (let pass = 0; pass < records.length; pass++) {
+      for (const node of records) {
+        const parent = node["parent"];
+        if (typeof parent === "string" && moving.has(parent)) {
+          moving.add(String(node["id"]));
+        }
+      }
+    }
+    assert.ok(records.some((node) => node["id"] === id), `${file} holds no \`${id}\``);
+    this.writeServed(
+      file,
+      records
+        .filter((node) => !moving.has(String(node["id"])))
+        .map((node) => JSON.stringify(node))
+        .join("\n"),
+    );
+    this.writeServed(
+      "Archive.jsonl",
+      records
+        .filter((node) => moving.has(String(node["id"])))
+        // The root of what moved keeps no parent — whatever it hung under is
+        // still in the outline it left.
+        .map((node) =>
+          JSON.stringify(node["id"] === id ? { ...node, parent: undefined } : node)
+        )
+        .join("\n"),
+    );
+  },
+);
+
+When(
+  "another writer files a row under {string} in {string}",
+  function (this: OlaiWorld, under: string, file: string) {
+    // By TITLE, because the row it goes under is one the scenario has just
+    // typed and its id was minted by the write — which is the same id the undo
+    // of that write names, and the point of the scenario.
+    const parent = this.servedNodes(file).find((node) => node["title"] === under);
+    assert.ok(
+      parent !== undefined,
+      `${file} holds no node titled ${JSON.stringify(under)} to file anything under`,
+    );
+    this.appendServed(file, {
+      id: "interloper",
+      parent: parent["id"],
+      ord: "a0",
+      title: "and something filed under it",
+    });
+  },
+);
+
+/**
  * The served directory itself goes away under the running server.
  *
  * The store's OTHER failure — not a file it cannot parse, but a tree it cannot

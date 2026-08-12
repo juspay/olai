@@ -61,6 +61,7 @@ import { Bullet } from "./Bullet.tsx"
 import { Checkbox } from "./Checkbox.tsx"
 import { useDerived } from "./derived.tsx"
 import { useEditor } from "./edit/editing.tsx"
+import { useUndo } from "./edit/undoing.ts"
 import { NewRow } from "./edit/NewRow.tsx"
 import { DescEditor, keyHandler, Said, TitleEditor } from "./edit/RowEditor.tsx"
 import { foldableKeys } from "./fold.ts"
@@ -128,6 +129,9 @@ function Branch(props: {
   // reading — done-hidden has already dropped branches from them — and the
   // confirm has to name what the write moves (./menu/subtree.ts).
   const derived = useDerived()
+  // ⌘Z is one stack for this page, whichever hand wrote: a menu verb files
+  // what would take it back exactly as a keystroke does (./menu/writes.ts).
+  const undo = useUndo()
 
   // Click/tap expand — local to this place, not a reading cell. No hover.
   const note = createNoteExpand()
@@ -205,6 +209,7 @@ function Branch(props: {
               foldable: foldable(),
               view: props.view,
               go: router.go,
+              record: undo.record,
             })}
           />
           <Show

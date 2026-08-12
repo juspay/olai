@@ -26,6 +26,7 @@
 
 import type { Derived, Row } from "@olai/format"
 
+import type { Undo } from "../edit/undoing.ts"
 import { hrefOf, type Route } from "../routes.ts"
 import type { View } from "../view.ts"
 import { asText } from "./subtree.ts"
@@ -54,6 +55,10 @@ export const nodeMenuActions = (args: {
   readonly view: View
   /** Same-document navigation — the bullet's verb, not a full reload. */
   readonly go: (route: Route) => void
+  /** The undo stack's recorder. A menu write files what would take it back on
+   *  the same stack a keystroke does, so ⌘Z does not have two meanings
+   *  depending on which hand made the edit. */
+  readonly record: Undo["record"]
 }): ReadonlyArray<MenuAction> => {
   const id = args.row.at.node.id
   const items: MenuAction[] = [
@@ -102,7 +107,7 @@ export const nodeMenuActions = (args: {
   // a hand-written list of names here is the list that goes stale the day a
   // verb grows a field, silently, because both shapes still compile.
   const writes: MenuAction[] = writeVerbs(args.row, args.derived).map(
-    ({ edit, ...verb }) => ({ ...verb, run: () => applying(edit) }),
+    ({ edit, ...verb }) => ({ ...verb, run: () => applying(edit, args.record) }),
   )
   // A pure READ, and the only reason it sits among the writes is that it is
   // about the subtree rather than about this tab: it is the one clipboard verb

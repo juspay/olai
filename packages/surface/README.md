@@ -184,28 +184,51 @@ write:
   `unmirror`, `archive`), and a name that differs from an op's is a name with
   arithmetic behind it. Ops itself learns none of it: an op does not know it is
   being called over a wire.
-- **four of the verbs are the `•••` menu's**, and they are here to close a
-  DEVIATION rather than to grow the editor: an agent could put any of the three
-  marks on a node, clear a date, retire a placement and archive a subtree, and
-  a person could do none of them (HACKING.md — "MCP and Web ops must be
-  consistent; never deviate"). `mark`, `date`, `unmirror` and `archive` each
-  resolve to the request the equivalent tool sends. A fence the UI wants stays
-  in the UI: `archive` takes a subtree because `archive_node` does, and the
-  confirm naming how many rows go is the menu's own second step — put here, it
-  would be a rule the agent's op does not have.
-- **a delete is still deliberately absent.** `archive` is not one: it is the
-  ops layer's put-away, ids kept, so mirrors and `after` edges that name the
-  subtree go on resolving. A key that ERASES one is the one edit a person
-  cannot re-type from memory, and nothing on any face does it.
+- **three of the verbs are the `•••` menu's**, and they are here to close a
+  DEVIATION rather than to grow the editor: an agent could clear a date, retire
+  a placement and archive a subtree, and a person could do none of them
+  (HACKING.md — "MCP and Web ops must be consistent; never deviate"). `date`,
+  `unmirror` and `archive` each resolve to the request the equivalent tool
+  sends. A fence the UI wants stays in the UI: `archive` takes a subtree because
+  `archive_node` does, and the confirm naming how many rows go is the menu's own
+  second step — put here, it would be a rule the agent's op does not have.
+- **two of the verbs are an UNDO's**, and they are the one place the list is
+  not shaped like a key: `place` says where a row SAT, `remove` that a row this
+  session created should go. They name absolute things because "put it back"
+  means one, and what keeps that honest is who named the ids — the server
+  derived every one of them from the snapshot the original write was judged
+  against, and rides them back on the answer (`Applied.undo`) for the browser to
+  replay. Nothing restores a snapshot: an undo is one more op at the write gate,
+  judged against the set as it is now.
+- **and one verb is BOTH theirs.** `mark` names the mark a node should carry —
+  what a menu entry means ("this is doing now") and what an undo means ("it
+  carried `todo` before I ticked it off"). Two callers, one arm; a second would
+  have been the same request under two names, free to drift.
+- **the two TEXT verbs need no undo twin.** The inverse of setting a title is
+  setting the title it replaced, so an undo sends `title` — same verb, same op,
+  the other text. What it adds is `was`: the text it expects to find. A person
+  typing overwrites whatever is there (which is what `set_title` does for an
+  agent); an undo may only overwrite what IT wrote, so a row somebody else has
+  retyped is refused rather than written over.
+- **neither removal here is a delete.** `remove` is the inverse of an `add`: no
+  key sends it, the only row it can take back is a row that was just made, and
+  what it resolves to is `archive` — narrowed to a node with nothing under it.
+  `archive` is that same op unnarrowed, the human's subtree ruling with a
+  confirm in front of it; the ids come along, so mirrors and `after` edges that
+  name the subtree go on resolving. A key that ERASES one is the one edit a
+  person cannot re-type from memory, nothing on any face does it, and whether
+  this face ever gets a delete KEY is still the deferral #109 recorded.
 
 It declares `OpFailure` as its error channel, which is what the editor is built
 on: a refused write comes back as the validator's own rows, so the draft it
 came from is kept and the reason shown beside it. What it ANSWERS with is the
-node the write was about and the ops layer's own `nudge` — advice on a success
+node the write was about, the ops layer's own `nudge` — advice on a success
 (the last task under a parent going done), which an agent already receives in
-its tool result and the person who pressed the key is exactly who it is for.
-Nothing about the collections changed: they are still read-only on the wire,
-and an edit reaches a reader as the file it produced.
+its tool result and the person who pressed the key is exactly who it is for —
+and the inverse above, which is absent for the writes nothing would take back
+(the text edits, and a row that has gone to the archive). Nothing about the
+collections changed: they are still read-only on the wire, and an edit reaches
+a reader as the file it produced.
 
 Who is on the other end is deliberately NOT a member here. It is a real
 question — a page bound to a server that has been replaced must know, and both

@@ -413,6 +413,46 @@ test("an edit that arrives mid-write is absorbed, not lost", () =>
       expect(applied.committed).toBe(false)
     })))
 
+/**
+ * The other half of that retry, and the half a condition exists for.
+ *
+ * "Mark `order` done" means the same thing against the newer set, so the retry
+ * absorbs it. "Set this title back to what it said, ASSUMING it still says
+ * what I read" does not: if the thing it assumed stopped being true while the
+ * write was in flight, re-planning it would write over somebody's words.
+ *
+ * The interleaving is the same one the test above sets up — the file changes
+ * before the gate's own probe — so the request is planned once against a
+ * snapshot where the condition holds and again against one where it does not.
+ * Either attempt may be the one that sees the new title, and BOTH must refuse:
+ * that is what makes this a fence rather than a race.
+ */
+test("a conditional write refuses when the field moves under the retry", () =>
+  withOps({ "house.jsonl": HOUSE }, (fixture) =>
+    Effect.gen(function*() {
+      fixture.write(
+        "house.jsonl",
+        HOUSE.replace(`"title":"order the cabinets"`, `"title":"order the chrome ones"`),
+      )
+
+      const outcome = yield* Effect.result(
+        fixture.ops.run(
+          {
+            op: "title",
+            id: "order",
+            title: "put back what I replaced",
+            was: "order the cabinets",
+          },
+          "web",
+        ),
+      )
+
+      expect(Result.isFailure(outcome)).toBe(true)
+      // And the other writer's words are still on disk, which is the claim.
+      expect(fixture.read("house.jsonl")).toContain("order the chrome ones")
+      expect(fixture.read("house.jsonl")).not.toContain("put back what I replaced")
+    })))
+
 test("concurrent ops all land, each re-derived from the set the last one left", () =>
   withOps({ "house.jsonl": HOUSE }, (fixture) =>
     Effect.gen(function*() {

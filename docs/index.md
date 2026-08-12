@@ -2,6 +2,8 @@
 
 - [running.md](running.md) — how to serve a directory: `olai web` and its
   flags, the home-manager module, and `olai mcp`.
+- [editing.md](editing.md) — typing into an outline: the keys, what a draft
+  is, and how ⌘Z takes an edit back.
 - [git.md](git.md) — the git integration: commit modes, the pill, and the
   audit view.
 - [chat.md](chat.md) — the chat agent: ACP and `OLAI_ACP_AGENT`, the node

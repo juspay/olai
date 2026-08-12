@@ -28,23 +28,41 @@ import { Result } from "effect"
 
 import { runAsync } from "../run.ts"
 import { olai } from "../wire.ts"
+import type { Undo } from "../edit/undoing.ts"
 
 /** What a verb has to say afterwards, in the two moods a write has: `alarm`
  *  for a refusal, which is why nothing happened, and `aside` for a remark
- *  about something that did. */
-export interface Said {
-  readonly tone: "alarm" | "aside"
-  readonly text: string
-}
+ *  about something that did.
+ *
+ *  ONE declaration, and it is the undo line's ({@link ../edit/undoing.ts}):
+ *  three surfaces in this client say a thing about a write in these two moods,
+ *  and a second spelling of the same pair would be a second answer to which
+ *  moods there are. Re-exported so the panel reads it from the module it is
+ *  answered by. */
+export type { Said } from "../edit/undoing.ts"
+import type { Said } from "../edit/undoing.ts"
 
-/** Send it, and answer with whatever there is to say — `undefined` when a
- *  write landed with nothing to add, which is the ordinary case and the one a
- *  quiet gutter is right for. */
-export const applying = async (edit: Edit): Promise<Said | undefined> => {
+/**
+ * Send it, and answer with whatever there is to say — `undefined` when a write
+ * landed with nothing to add, which is the ordinary case and the one a quiet
+ * gutter is right for.
+ *
+ * `record` is the undo stack's, and a menu write files onto it exactly as a
+ * keystroke does ({@link ../edit/editing.tsx}): the server says what would take
+ * a write back, `undefined` and all, and which of these verbs HAS an inverse is
+ * its answer rather than this file's opinion. So ⌘Z takes back a mark chosen
+ * from the menu and a date cleared from it, and says "nothing to undo" after an
+ * archive — because there is no unarchive on any face to say it with.
+ */
+export const applying = async (
+  edit: Edit,
+  record: Undo["record"],
+): Promise<Said | undefined> => {
   const outcome = await runAsync(olai.procedures.edit.apply(edit))
   if (Result.isFailure(outcome)) {
     return { tone: "alarm", text: outcome.failure.message }
   }
+  record(outcome.success.undo)
   const nudge = outcome.success.nudge
   return nudge === undefined ? undefined : { tone: "aside", text: nudge }
 }
