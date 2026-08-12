@@ -17,7 +17,17 @@
  * Everything is a PURE function over a payload — the {@link ./asks.ts} pattern,
  * for the reason that pattern exists: the rule that stops this panel approving
  * its own permissions is a function with unit tests rather than a branch
- * reachable only by starting a subprocess and talking it into asking.
+ * reachable only by starting a subprocess and talking it into asking. Which of
+ * the two files a new reader belongs in is not which payload it reads but WHO
+ * has to have sent it: `asks.ts` draws the protocol's own two ways of asking a
+ * person something, from any agent; this is the file that is wrong about a
+ * different one.
+ *
+ * {@link labelsOf} is the exception that says the rule: it reads a
+ * `configOptions` entry every ACP agent may send. It is here because a live
+ * model id is only ever labelled with the labels the picker gave, and the pair
+ * of sources — picked and running — exists at all because of what THIS adapter
+ * does with `/model`. Reading them a file apart would be splitting one bet.
  */
 
 import type { PermissionOption, SessionConfigOption } from "@agentclientprotocol/sdk"
