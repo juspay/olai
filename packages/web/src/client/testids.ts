@@ -56,6 +56,11 @@ export const TESTID = {
   node: "node",
   nodeTitle: "node-title",
   tag: "tag",
+  /** The date pill on a row, wherever one is drawn. `data-occasion` says which
+   *  of the node's dates it is; `data-overdue` says whether the node is late on
+   *  it — a `data-` fact in both directions, never the tone it is painted,
+   *  because an OCCURRENCE never turning amber is as much of the promise as an
+   *  overdue task doing so. */
   date: "date",
   /** The rollup badge — `3/5` of the tasks under a node. An annotation beside
    *  the title, never the node's own mark, which is the checkbox. */
@@ -217,7 +222,9 @@ export const TESTID = {
   /** One day, as a page. `data-date` is the day it turned out to be, which
    *  `/today` does not spell. */
   dayPage: "day-page",
-  /** The nodes of one outline dated that day; `data-file` is which. */
+  /** The nodes of one outline dated that day; `data-file` is which. The same
+   *  name on the agenda, which draws the same group under the same heading
+   *  rule — one widget, so a scenario asks for it one way. */
   dayGroup: "day-group",
   /** THE day's note, drawn above those groups: a document named for the date
    *  itself. `data-file` is its path; its body carries `documentBody`, being
@@ -229,6 +236,24 @@ export const TESTID = {
   dayNoteLink: "day-note-link",
   /** Said in place of the list when nothing is dated that day. */
   dayEmpty: "day-empty",
+  /** The agenda, as a page: the same dates read forward. `data-date` is the
+   *  day it was answered for, which `/agenda` does not spell. */
+  agendaPage: "agenda-page",
+  /** One of its three sections. `data-section` is WHICH — `overdue`, `today`,
+   *  `upcoming` — never the words it is titled with, and a section with
+   *  nothing in it is not drawn at all rather than drawn empty. */
+  agendaSection: "agenda-section",
+  /** One day inside the Upcoming section; `data-date` is which. Its heading is
+   *  the link to that day's own page, where the note and the finished work the
+   *  agenda leaves out are read. */
+  agendaDay: "agenda-day",
+  /** Said in place of all three when nothing is late, on today, or coming. */
+  agendaEmpty: "agenda-empty",
+  /** The way to the agenda from the directory column, above the month — the
+   *  journal's two questions, side by side. */
+  agendaLink: "agenda-link",
+  /** Rail icon: the same way in when the column is collapsed. */
+  railAgenda: "rail-agenda",
   doneToggle: "done-toggle",
   notFound: "not-found",
   errorView: "error-view",

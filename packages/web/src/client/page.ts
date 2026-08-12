@@ -18,8 +18,8 @@
  * a file's tree is and what is dated a given day; this picks the arm.
  */
 
-import type { BrokenFile, DayGroup, Derived, Row, Zoomed } from "@olai/format"
-import { dailyNotesOn, datedOn, rowsOf, rowsUnder, zoom } from "@olai/format"
+import type { Agenda, BrokenFile, DayGroup, Derived, Row, Zoomed } from "@olai/format"
+import { agendaOf, dailyNotesOn, datedOn, rowsOf, rowsUnder, zoom } from "@olai/format"
 
 import type { Route } from "./routes.ts"
 
@@ -48,6 +48,11 @@ export type Page =
      *  the reader wrote on it. */
     readonly notes: ReadonlyArray<string>
   }
+  /** What is owed: the same dates read forward, in three sections. It carries
+   *  the DAY it was answered for as well as the answer, because `/agenda`
+   *  spells no date and a page that says what is overdue owes the reader the
+   *  day it is overdue as of. */
+  | { readonly kind: "agenda"; readonly date: string; readonly agenda: Agenda }
   /** An outline whose file did not parse: it has no tree to draw, so its own
    *  pane carries its errors instead. Every other outline is unaffected. */
   | { readonly kind: "broken"; readonly file: BrokenFile }
@@ -89,6 +94,10 @@ export const pageOf = (
     return found.documents.includes(route.file)
       ? { kind: "document", file: route.file }
       : { kind: "nothing", sought: "document", requested: route.file }
+  }
+
+  if (route.kind === "agenda") {
+    return { kind: "agenda", date: today, agenda: agendaOf(derived, today) }
   }
 
   if (route.kind === "day" || route.kind === "today") {

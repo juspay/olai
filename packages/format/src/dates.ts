@@ -31,6 +31,10 @@
  *
  * They are one module because they are one reading of the set, and a calendar
  * whose dots disagreed with the day you opened would be worse than no calendar.
+ * The FORWARD reading — what is owed rather than what is on — is ./agenda.ts,
+ * which is built out of these: its Today section IS {@link datedOn}'s answer,
+ * and every section of it is grouped by {@link byOutline}, so an agenda cannot
+ * disagree with the day page a reader clicks through to.
  *
  * A THIRD reading joined them, and it is the one exception to the sentence
  * above about filenames: a document whose basename is exactly an ISO date IS
@@ -234,7 +238,7 @@ export interface DayGroup {
  * says so, not a page that is missing.
  */
 export const datedOn = (derived: Derived, day: string): ReadonlyArray<DayGroup> => {
-  const byFile = new Map<string, Array<Dated>>()
+  const entries: Array<DayEntry> = []
   // Keyed by the RECORD, not by its id. Both dates of a node come off one
   // `located`, so this says "one row per record" without borrowing the
   // validator's uniqueness rule — and these walks deliberately run over sets it
@@ -244,31 +248,54 @@ export const datedOn = (derived: Derived, day: string): ReadonlyArray<DayGroup> 
   for (const dated of datedNodes(derived)) {
     if (dayOf(dated.date) !== day || placed.has(dated.at)) continue
     placed.add(dated.at)
-    const group = byFile.get(dated.at.file)
-    if (group === undefined) byFile.set(dated.at.file, [dated])
-    else group.push(dated)
+    // The node, situated, wearing the date that put it here.
+    entries.push({
+      ...situate(derived, dated.at),
+      occasion: dated.occasion,
+      date: dated.date,
+    })
+  }
+  return byOutline(entries)
+}
+
+/**
+ * Dated nodes, grouped by the outline they live in: groups in path order, each
+ * group's nodes in time order.
+ *
+ * The grouping RULE, in one place, because two readings of the set draw the
+ * same list — a day ({@link datedOn}) and the agenda's three sections
+ * (./agenda.ts). The file is the only heading that is true for either of them,
+ * for the same reason: a `parent` never crosses one, so two nodes in two
+ * outlines have no common ancestry to draw them under. Two copies of it would
+ * be two chances for one page to sort its outlines differently from the other.
+ *
+ * Not exported past this package: what a consumer gets is the two questions,
+ * already answered.
+ */
+export const byOutline = (
+  entries: ReadonlyArray<DayEntry>,
+): ReadonlyArray<DayGroup> => {
+  const byFile = new Map<string, Array<DayEntry>>()
+  for (const entry of entries) {
+    const group = byFile.get(entry.shows.file)
+    if (group === undefined) byFile.set(entry.shows.file, [entry])
+    else group.push(entry)
   }
 
   return [...byFile.entries()]
     .sort(([left], [right]) => Order.String(left, right))
-    .map(([file, nodes]) => ({
-      file,
-      // The node, situated, wearing the date that put it here.
-      nodes: nodes.sort(byTime).map(({ at, occasion, date }) => ({
-        ...situate(derived, at),
-        occasion,
-        date,
-      })),
-    }))
+    .map(([file, nodes]) => ({ file, nodes: nodes.sort(byTime) }))
 }
 
 /** Code-point order on the stored text, ties on the line — the same rule the
  *  error report sorts by (./errors.ts), and effect's own comparator rather
  *  than a hand-rolled one: `localeCompare` would put the same day in two
- *  orders on two machines. */
-const byTime = (left: Dated, right: Dated): number =>
+ *  orders on two machines. A bare date sorts before any datetime on the same
+ *  day, which is what makes "the day itself" the earliest thing in it; oldest
+ *  first is the same comparator read over more than one day (./agenda.ts). */
+const byTime = (left: DayEntry, right: DayEntry): number =>
   left.date === right.date
-    ? left.at.line - right.at.line
+    ? left.shows.line - right.shows.line
     : Order.String(left.date, right.date)
 
 // ── the day's own note ─────────────────────────────────────────────────

@@ -135,6 +135,20 @@ day-only values elsewhere keep the spelling they were read with — and every
 view and every derivation goes on accepting all three shapes, whoever wrote
 them.
 
+**Due dates are the same two fields read together, and there is no third one.**
+A `date` says WHEN; the mark says whether it is work — so a node carrying a
+`date` and no mark is an OCCURRENCE (a birthday, a delivery, a note pinned to a
+day) and a node carrying a `date` with `todo` or `doing` is DUE WORK. Only the
+second can be late: `overdue(n) ⇔ n carries todo or doing ∧ day(n.date) <
+today`, derived at view time and stored nowhere, the way [blocked](#status) is
+— a second fact about a node, never a replacement for its mark, and one `done`
+extinguishes by construction. A day passing is not a failure of a bullet, which
+is the crown rule of this format read once more, and a `due` field beside `date`
+would have been two dates answering one question. It is written down here
+because it is a claim about what these two fields MEAN together; the view that
+reads it, and the page that collects the answer, are
+[architecture.md](architecture.md)'s.
+
 ## Documents
 
 A `.md` file under the served directory is a **document**, and documents are part of the loaded set — path and text — for the same reason the nodes are: `doc` points into them, so a reference the validator cannot see is one it cannot check, and a document read out of band would be a second read of the disk, at a different moment from the outline that named it.

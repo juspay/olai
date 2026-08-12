@@ -1,8 +1,8 @@
 /**
  * The minimized desktop sidebar: a ~3rem icon rail.
  *
- * App chrome never disappears — expand, calendar, outlines, docs stay as
- * affordances even when the full directory column is put away. The connection
+ * App chrome never disappears — expand, calendar, agenda, outlines, docs stay
+ * as affordances even when the full directory column is put away. The connection
  * dot and the agent toggle stay in the HEADER (reconciled with #101); this
  * rail is only the directory's collapsed face.
  *
@@ -51,6 +51,19 @@ export function Rail(props: {
       >
         <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
           <path d="M3.5 2A1.5 1.5 0 0 0 2 3.5v9A1.5 1.5 0 0 0 3.5 14h9a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 12.5 2h-1V1a.75.75 0 0 0-1.5 0v1h-4V1A.75.75 0 0 0 4.5 1v1h-1zM3.5 6h9v6.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5V6z" />
+        </svg>
+      </RailButton>
+
+      <RailButton
+        testid={TESTID.railAgenda}
+        label="open the agenda"
+        title="agenda"
+        onClick={() => props.go({ kind: "agenda" })}
+      >
+        {/* A checklist: two ticked lines, which is what is owed rather than
+            what day it is — the calendar above answers that. */}
+        <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
+          <path d="M6.25 3.5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75zm0 5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75zm0 5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75zM4.78 2.22a.75.75 0 0 1 0 1.06l-1.5 1.5a.75.75 0 0 1-1.06 0l-.75-.75a.75.75 0 0 1 1.06-1.06l.22.22 .97-.97a.75.75 0 0 1 1.06 0zm0 5a.75.75 0 0 1 0 1.06l-1.5 1.5a.75.75 0 0 1-1.06 0l-.75-.75a.75.75 0 1 1 1.06-1.06l.22.22.97-.97a.75.75 0 0 1 1.06 0z" />
         </svg>
       </RailButton>
 

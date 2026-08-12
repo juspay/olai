@@ -1,5 +1,7 @@
 /**
- * One dated node, on a day's page.
+ * One dated node, on a day's page — and on the agenda, which asks the same
+ * question forward (../agenda/AgendaPage.tsx). One component, because they are
+ * one row: a node the set has dated, listed away from the outline it lives in.
  *
  * A day collects nodes from all over the set, so a title on its own would say
  * nothing: `order the new cabinets` is a different task under `kitchen
@@ -19,9 +21,13 @@
  * arrives already knowing which (`@olai/format`'s `Occasion`), so the badge
  * says it in a word. Nothing else changes: it is the same row, and the answer
  * rides the date that was going to be drawn anyway.
+ *
+ * WHETHER IT IS LATE rides the same badge, and is asked of the node rather than
+ * of the date drawn: a row that is here because it was finished today is
+ * wearing its `done` instant, and finished work is late at nothing.
  */
 
-import type { DayEntry } from "@olai/format"
+import { type DayEntry, isOverdue } from "@olai/format"
 import { Show } from "solid-js"
 
 import { blockedIds, WAITING_DIM } from "../blocked.ts"
@@ -32,6 +38,7 @@ import { createNoteExpand } from "../note/expand.ts"
 import { NodeBody } from "../NodeBody.tsx"
 import { NodeLine } from "../NodeLine.tsx"
 import { TESTID } from "../testids.ts"
+import { useToday } from "../today.tsx"
 import { GUTTER_GAP, PAST_BULLET } from "../touch.ts"
 
 export function DayNode(props: {
@@ -39,6 +46,7 @@ export function DayNode(props: {
 }) {
   const node = () => props.dated.shows.node
   const note = createNoteExpand()
+  const today = useToday()
 
   return (
     <li
@@ -75,6 +83,7 @@ export function DayNode(props: {
           progress={props.dated.progress}
           date={props.dated.date}
           occasion={props.dated.occasion}
+          overdue={isOverdue(node(), today())}
         />
       </div>
 

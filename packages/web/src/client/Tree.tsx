@@ -52,7 +52,7 @@
  * done-visibility — notes are not a switch.
  */
 
-import { type Row } from "@olai/format"
+import { isOverdue, type Row } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, Match, Show, Switch } from "solid-js"
 
@@ -72,6 +72,7 @@ import { nodeMenuActions } from "./menu/actions.ts"
 import { NodeMenu } from "./menu/NodeMenu.tsx"
 import { useRouter } from "./router.tsx"
 import { TESTID } from "./testids.ts"
+import { useToday } from "./today.tsx"
 import {
   CHILD_INDENT,
   GUTTER_GAP,
@@ -132,6 +133,10 @@ function Branch(props: {
   // ⌘Z is one stack for this page, whichever hand wrote: a menu verb files
   // what would take it back exactly as a keystroke does (./menu/writes.ts).
   const undo = useUndo()
+  // Whether this row's date has gone by on work nobody has finished. Asked of
+  // the node the row SHOWS — a mirror carries neither a date nor a mark — and
+  // of the one clock this app reads (./today.tsx).
+  const today = useToday()
 
   // Click/tap expand — local to this place, not a reading cell. No hover.
   const note = createNoteExpand()
@@ -277,6 +282,7 @@ function Branch(props: {
                 status={props.row.status}
                 progress={props.row.progress}
                 date={shows().node.date}
+                overdue={isOverdue(shows().node, today())}
                 onEdit={() => editor.open(props.row, "title")}
               >
                 <Show when={props.row.kind !== "node"}>

@@ -221,6 +221,19 @@ export const CALENDAR_NEXT = selector(TESTID.calendarNext);
 export const DAY_PAGE = selector(TESTID.dayPage);
 export const DAY_GROUP = selector(TESTID.dayGroup);
 export const DAY_EMPTY = selector(TESTID.dayEmpty);
+/** The agenda: the same dates read forward. `data-date` is the day it was
+ *  answered for, which `/agenda` does not spell. */
+export const AGENDA_PAGE = selector(TESTID.agendaPage);
+/** One of its three sections; `data-section` is which of them, and a section
+ *  with nothing in it is not drawn at all. */
+export const AGENDA_SECTION = selector(TESTID.agendaSection);
+/** One day inside Upcoming; `data-date` is which, and its heading is the link
+ *  to that day's own page. */
+export const AGENDA_DAY = selector(TESTID.agendaDay);
+/** Said in place of all three when nothing is due. */
+export const AGENDA_EMPTY = selector(TESTID.agendaEmpty);
+/** The way to it from the directory column, above the month. */
+export const AGENDA_LINK = selector(TESTID.agendaLink);
 /** THE day's note, above those groups: a document named for the date itself.
  *  `data-file` is which. */
 export const DAY_NOTE = selector(TESTID.dayNote);

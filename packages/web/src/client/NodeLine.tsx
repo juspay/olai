@@ -51,6 +51,10 @@ export function NodeLine(props: {
    *  collects more than one of them — a day page. Absent everywhere else,
    *  where the date drawn is the `date` field and says so by being there. */
   readonly occasion?: Occasion
+  /** Whether the node is late on that date (`@olai/format`'s `isOverdue`) —
+   *  read at the row, where the node is, and drawn on the badge, which is the
+   *  part of the line that stopped being true. */
+  readonly overdue?: boolean
   /** Drawn inside the title and before it — the tree's mirror mark. */
   readonly children?: JSX.Element
   /** Clicking the title starts editing it. Absent wherever a node is drawn
@@ -74,7 +78,13 @@ export function NodeLine(props: {
         {(progress) => <ProgressBadge progress={progress()} />}
       </Show>
       <Show when={props.date}>
-        {(date) => <DateBadge date={date()} occasion={props.occasion} />}
+        {(date) => (
+          <DateBadge
+            date={date()}
+            occasion={props.occasion}
+            overdue={props.overdue}
+          />
+        )}
       </Show>
     </>
   )

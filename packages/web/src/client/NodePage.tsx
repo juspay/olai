@@ -17,7 +17,7 @@
  * heading that already has one, meaning something else.
  */
 
-import type { Row, Zoomed } from "@olai/format"
+import { isOverdue, type Row, type Zoomed } from "@olai/format"
 import { Show } from "solid-js"
 
 import { blockedIds } from "./blocked.ts"
@@ -33,6 +33,7 @@ import { NodeTitle } from "./NodeTitle.tsx"
 import { NotFound } from "./NotFound.tsx"
 import { ProgressBadge } from "./ProgressBadge.tsx"
 import { TESTID } from "./testids.ts"
+import { useToday } from "./today.tsx"
 import { toneOf } from "./tone.ts"
 import { Tree } from "./Tree.tsx"
 import type { View } from "./view.ts"
@@ -59,6 +60,8 @@ function Zoom(props: {
   readonly rows: ReadonlyArray<Row>
   readonly view: View
 }) {
+  const today = useToday()
+
   return (
     <Editable rows={() => props.rows} view={props.view}>
       <header class="mb-4">
@@ -98,7 +101,12 @@ function Zoom(props: {
               {(progress) => <ProgressBadge progress={progress()} />}
             </Show>
             <Show when={props.zoomed.shows.node.date}>
-              {(date) => <DateBadge date={date()} />}
+              {(date) => (
+                <DateBadge
+                  date={date()}
+                  overdue={isOverdue(props.zoomed.shows.node, today())}
+                />
+              )}
             </Show>
           </div>
 

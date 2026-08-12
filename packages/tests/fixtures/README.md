@@ -159,6 +159,34 @@ will ever run. The one scenario that needs a note on TODAY writes one, under
 and writing it is also the honest test of a `.md` dropped into the directory
 while a page is open.
 
+## `agenda/` — a set with something owed in it
+
+Two outlines whose dates are all in the past, for `features/agenda.feature`.
+The agenda reads `date` and the mark TOGETHER, so this corpus is one of each
+pair they can make:
+
+| what | where |
+|---|---|
+| a `todo` whose day has gone | `posts` — `2019-11-05`: overdue |
+| a `doing` whose day has gone | `permit` — `2019-10-30`: overdue too, and the older of the two, though written after it |
+| a dated bullet | `delivery` — `2019-11-02` with no mark: an OCCURRENCE, and never late |
+| finished work with a date on both fields | `survey` — on the 1st and the 4th's day pages, and on no agenda |
+| work with no `date` at all | `paint` — a `todo` nobody scheduled, so there is no *when* to be late against |
+| a date on the MARK and nowhere else | `latch` — `todo: 2019-11-21`, which no view reads as a day |
+| overdue AND blocked | `visas` (life.jsonl) — after `photos`, which is under way, so the row says both |
+| the blocker itself | `photos` — `doing` and undated, so it holds `visas` up without being on the agenda |
+
+**The dates are in 2019 for the reason the journal corpus's are** — everything
+here is overdue on every day this suite will ever run, and today and the days
+ahead are empty until a scenario writes into them, which the `@scratch:agenda`
+scenarios do.
+
+Two outlines, again for one reason: the agenda groups by outline within each of
+its sections, and one file cannot show a grouping. `visas` (life.jsonl) is
+dated between `permit` and `posts` (work.jsonl), so the two orders — path order
+across the groups, oldest first inside one — cannot both be satisfied by
+accident.
+
 ## `broken/` — a set that does not parse
 
 - `pantry.jsonl:3` — an unquoted key, so the line is not JSON (`not-json`).
