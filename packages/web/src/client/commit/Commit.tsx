@@ -156,9 +156,17 @@ export function Commit() {
           }}
           // The header's own pill (`../readout.ts`), the same one the connection
           // wears and the same one the retired git readout wore: the bar is a
-          // fixed height, so a long label truncates rather than wrapping the
-          // first row off the top of a 390pt phone.
-          class={`${PILL} max-w-[9rem] sm:max-w-none ${
+          // fixed height, so a long label truncates rather than wrapping. It
+          // did wrap, and on a 390pt phone `✓ committed · 3m ago` took a second
+          // row inside a bar that has no second row — pushing the wordmark
+          // under the pills beside it.
+          //
+          // `shrink-[3]` is which of the two gives way when the bar is full.
+          // The connection's label is four letters in the state it is in almost
+          // always, and it is the claim a reader scans hardest; this one is the
+          // longest label in the bar and the one whose first glyph (`✓`, `⚠`)
+          // carries most of its meaning. So this one truncates first.
+          class={`${PILL} max-w-[9rem] shrink-[3] sm:max-w-none ${
             inert() ? "opacity-60" : "hover:text-ink"
           }`}
           data-testid={TESTID.commitPill}
@@ -189,9 +197,12 @@ export function Commit() {
           </Show>
           <span class="min-w-0 truncate">{says()}</span>
           {/* Which way the panel opens, and it opens DOWNWARD from the header
-              — `./anchor.ts` picks the side with the room. */}
+              — `./anchor.ts` picks the side with the room. Not below 40rem:
+              the bar holds six things at 390pt, and a caret is the cheapest of
+              them to give up — what it says is "there is more", which the words
+              beside it would rather spend the pixels saying. */}
           <Show when={!inert()}>
-            <span class="shrink-0" aria-hidden="true">
+            <span class="hidden shrink-0 sm:inline" aria-hidden="true">
               {panel.expanded() ? "▴" : "▾"}
             </span>
           </Show>
