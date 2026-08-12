@@ -20,6 +20,15 @@
  * `server restarted` / `reconnecting` / `connecting` are wider than the room
  * left beside the wordmark, and a wrap inside a fixed-height bar clipped the
  * first row off the top of the viewport. The full sentence still rides `title`.
+ *
+ * It truncates against its OWN cap and never against the bar, which is the
+ * difference `shrink-0` makes and the reason it is there. The header's rule is
+ * that this label is the LAST thing in it to give way (`../AppHeader.tsx`):
+ * `live` is four letters, it is the claim a reader scans hardest, and a bar
+ * that squeezed it to `l…` while a theme name beside it stayed whole is a bar
+ * that spent its pixels in the wrong order. Anything longer than the cap is
+ * still this pill's own problem — a state at `9.5rem` is a state that has
+ * already told the reader what it is.
  */
 
 import { LOOK, type SurfaceConnectionStatus } from "./status.ts"
@@ -45,7 +54,7 @@ export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
       // the Commit pill beside it: `min-w-0` + truncate is what lets the header
       // keep a single row when a label is long, and one copy of that geometry
       // is one place for it to be got right.
-      class={`${PILL} max-w-[9.5rem] sm:max-w-none`}
+      class={`${PILL} max-w-[9.5rem] shrink-0 sm:max-w-none`}
       data-testid={TESTID.connection}
       // The state as an attribute, so a test asserts on the STATE rather than
       // on a colour: which utility paints "live" is a styling decision and this

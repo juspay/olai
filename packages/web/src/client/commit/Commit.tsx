@@ -115,10 +115,24 @@ export function Commit() {
     })
   })
 
+  /**
+   * How long ago the last commit was, for the one face that has one — and `""`
+   * everywhere else.
+   *
+   * Beside {@link says} rather than inside it, because it is the half the bar
+   * gives up first: at 390pt the header has six things in it, and `· 3m ago` is
+   * the only piece of any label that a reader can lose and still be told what
+   * they came to find out. It is drawn from `sm` up; the exact instant, with
+   * the message and the writer, is a tap away in the panel at every width.
+   */
+  const ago = () => {
+    const last = commit.pending().last
+    return face() === "committed" && last !== null ? agoOf(last.at, now()) : ""
+  }
+
   /** What the pill says. One line per state, and the reason each is worth its
    *  own words rather than a count is in the header above. */
   const says = () => {
-    const pending = commit.pending()
     switch (face()) {
       // Not a claim about the directory — a claim about this page, which has
       // not been told anything yet.
@@ -135,11 +149,8 @@ export function Commit() {
         return "git error"
       case "never":
         return "no commits yet"
-      case "committed": {
-        const last = pending.last
-        const ago = last === null ? "" : agoOf(last.at, now())
-        return ago === "" ? "committed" : `committed · ${ago}`
-      }
+      case "committed":
+        return "committed"
       default:
         return `${commit.waiting()} uncommitted`
     }
@@ -161,12 +172,13 @@ export function Commit() {
           // row inside a bar that has no second row — pushing the wordmark
           // under the pills beside it.
           //
-          // `shrink-[3]` is which of the two gives way when the bar is full.
-          // The connection's label is four letters in the state it is in almost
-          // always, and it is the claim a reader scans hardest; this one is the
-          // longest label in the bar and the one whose first glyph (`✓`, `⚠`)
-          // carries most of its meaning. So this one truncates first.
-          class={`${PILL} max-w-[9rem] shrink-[3] sm:max-w-none ${
+          // This is the ONLY thing in the bar that still shrinks, which is the
+          // header's stated order (`../AppHeader.tsx`) and not an accident: the
+          // connection has a floor, the agent's word is already gone at this
+          // width, and what is left is this label — the longest in the bar, and
+          // the one whose first glyph (`✓`, `⚠`) carries most of its meaning
+          // when the rest of it goes.
+          class={`${PILL} max-w-[9rem] sm:max-w-none ${
             inert() ? "opacity-60" : "hover:text-ink"
           }`}
           data-testid={TESTID.commitPill}
@@ -196,6 +208,10 @@ export function Commit() {
             )}
           </Show>
           <span class="min-w-0 truncate">{says()}</span>
+          {/* The first thing the bar gives up — see {@link ago}. */}
+          <Show when={ago() !== ""}>
+            <span class="hidden shrink-0 sm:block">· {ago()}</span>
+          </Show>
           {/* Which way the panel opens, and it opens DOWNWARD from the header
               — `./anchor.ts` picks the side with the room. Not below 40rem:
               the bar holds six things at 390pt, and a caret is the cheapest of

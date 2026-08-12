@@ -13,6 +13,12 @@ export const TESTID = {
    *  chrome about the APP, and every shape of the app (including the error
    *  report) gets it. */
   appHeader: "app-header",
+  /** The row of pills inside it that are about the APP — the connection, the
+   *  Commit pill, the agent toggle, the theme picker. Its own name because the
+   *  CONTENTS of that row are a claim: `one-git-indicator` was two chips
+   *  answering one question, and the only way to hold that shut is to count
+   *  what is in the row rather than to look for the chip that was removed. */
+  appChrome: "app-chrome",
   /** The sidebar itself. Always drawn when the set loaded — which is what
    *  makes it, rather than anything inside it, the sign that the app has
    *  committed to a shape. On a phone the BODY starts collapsed behind the

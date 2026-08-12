@@ -23,6 +23,8 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import {
+  APP_CHROME,
+  APP_CHROME_CONTROLS,
   APP_HEADER,
   COMMIT_BLOCKED,
   COMMIT_CHANGE,
@@ -118,6 +120,19 @@ Then("the commit pill is not alarming", async function (this: OlaiWorld) {
   );
 });
 
+/** And the other direction, which is the half that matters on a fault: the
+ *  mark is what a reader SCANS for, and a face that lost its glyph would still
+ *  pass every attribute and word assertion beside this one. */
+Then("the commit pill is alarming", async function (this: OlaiWorld) {
+  const pill = this.page.locator(COMMIT_PILL);
+  await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const shown = oneLine(await pill.innerText());
+  assert.ok(
+    shown.includes("⚠"),
+    `the commit pill says "${shown}", with no warning mark on a state that is one`,
+  );
+});
+
 /** Open the tip, and leave the assertion to the step that already owns tips
  *  (`navigation_steps.ts`'s `a tip says …`, which also holds the rule this app
  *  learnt the hard way: exactly one tip on screen, ever). */
@@ -134,25 +149,39 @@ When("I hover the commit pill", async function (this: OlaiWorld) {
 /**
  * The human's bug, as an assertion: ONE control in the header answers for git.
  *
- * There were two — this pill and the `● git` readout beside it — and the second
- * is gone rather than hidden, so the claim is a count. Settle first: an absent
- * element and a frame that has not arrived look identical, and only one of them
- * is the claim.
+ * There were two — this pill and the `● git` readout beside it — and the claim
+ * is about the ROW rather than about the chip that went. "The old one is
+ * absent" would pass for a twin under a new name, so the row's whole inventory
+ * is named (`support/world.ts`'s `APP_CHROME_CONTROLS`) and anything else in it
+ * fails here. The attribute the readout carried is checked too, which is the
+ * case the inventory cannot see: a chip that arrives with no test id.
+ *
+ * Settle first: an absent element and a frame that has not arrived look
+ * identical, and only one of them is the claim.
  */
 Then("the header shows one git indicator", async function (this: OlaiWorld) {
   await this.waitForFrame();
   const header = this.page.locator(APP_HEADER);
-  assert.equal(
-    await header.locator(COMMIT_PILL).count(),
-    1,
-    "the header has no commit pill — it is the one thing that answers for git, " +
-      "and a control that is absent when healthy cannot be trusted when it is not",
+  const chrome = header.locator(APP_CHROME);
+  await chrome.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+
+  const inside = await chrome.evaluate((row) =>
+    [...row.querySelectorAll("[data-testid]")].map((el) =>
+      el.getAttribute("data-testid") ?? ""
+    )
+  );
+  assert.deepEqual(
+    inside,
+    [...APP_CHROME_CONTROLS],
+    `the app's chrome row holds ${JSON.stringify(inside)}, and it is supposed to ` +
+      `hold ${JSON.stringify(APP_CHROME_CONTROLS)} — one of those answers for git ` +
+      "(the Commit pill) and a second one is the redundancy `one-git-indicator` closed",
   );
   assert.equal(
     await header.locator(RETIRED_GIT_READOUT).count(),
     0,
-    "a second chip in the header is reporting a git state of its own, which is " +
-      "the redundancy `one-git-indicator` closed",
+    "something in the header is reporting a git state of its own, beside the pill " +
+      "that already does",
   );
 });
 

@@ -84,6 +84,9 @@ Feature: What git is doing is on screen, in ONE indicator
     Then the header shows one git indicator
     And the commit pill says "error"
     And the commit pill reads "git error"
+    # The mark, positively. It is what a reader SCANS for, and a face that lost
+    # its glyph would pass every other assertion on this scenario.
+    And the commit pill is alarming
     And the commit pill explains "dubious ownership"
     When I hover the commit pill
     Then a tip says "git failed here, so writes are landing on disk but are not being committed — fatal: detected dubious ownership in repository"

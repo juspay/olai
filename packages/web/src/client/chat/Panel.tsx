@@ -48,6 +48,14 @@ export function Panel() {
 
 /**
  * The agent control in the app header: always on screen, toggles open/minimized.
+ *
+ * Below 40rem it is its MARK alone. The bar holds six things at 390pt and it
+ * cannot hold six labels, so the header spends its pixels in a stated order
+ * (`../AppHeader.tsx`) — and `>_` is the one label in it that is already an
+ * icon, recognisable without the word beside it. The word is `sr-only` rather
+ * than gone: it is what names this button to a screen reader, and a control
+ * whose accessible name shrank with the viewport would be a control that is
+ * harder to reach on exactly the device that needs it most.
  */
 export function Toggle() {
   const state = createChatState()
@@ -88,7 +96,7 @@ export function Toggle() {
       }
       onClick={() => setChatOpen(!open())}
     >
-      &gt;_ agent
+      &gt;_<span class="sr-only sm:not-sr-only"> agent</span>
     </button>
   )
 }

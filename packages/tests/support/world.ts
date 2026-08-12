@@ -68,6 +68,11 @@ export const ROOT = "#root";
 export type GitMode = "repo" | "none" | "broken";
 /** The app header: wordmark + connection + agent + theme. Always on screen. */
 export const APP_HEADER = selector(TESTID.appHeader);
+/** The `olai` wordmark in that bar. A TAG rather than a test id: it is the
+ *  app's name and the bar's one heading, and markup that exists only to be read
+ *  back by a test is markup every reader ships. What it is here FOR is the
+ *  geometry — a row of pills too wide for the bar lands on top of it. */
+export const WORDMARK = `${APP_HEADER} h1`;
 /** The sidebar: the month and the file tree (directory chrome only). */
 export const SIDEBAR = selector(TESTID.sidebar);
 export const SIDEBAR_TOGGLE = selector(TESTID.sidebarToggle);
@@ -174,16 +179,35 @@ export const OUTLINE_FAILURE = selector(TESTID.outlineFailure);
  *  reporting is its `data-connection`, never its colour. */
 export const CONNECTION = selector(TESTID.connection);
 /**
- * The attribute the retired `● git` readout carried, and a TOMBSTONE.
+ * The row of pills in the header that are about the APP, and the two halves of
+ * the tombstone over the retired `● git` readout.
  *
- * There is no `git` test id any more: the readout was a second chip in the
- * header answering the question the Commit pill already answers, which is the
- * bug `one-git-indicator` closed. This selector exists so a scenario can say
- * that nothing in the header has grown back — it names an attribute rather than
- * a test id precisely because the id is gone, and a second git chip of any
- * spelling would have to carry a state attribute of some kind to be assertable
- * at all.
+ * There is no `git` test id any more: the readout was a second chip answering
+ * the question the Commit pill already answers, which is the bug
+ * `one-git-indicator` closed. Holding that shut takes a claim about the ROW
+ * rather than about the chip that went — a twin under a different name would
+ * pass any assertion phrased as "the old one is absent". So the scenario counts
+ * what is IN the row ({@link APP_CHROME_CONTROLS}), and the attribute the
+ * readout carried is checked as well, for a chip that arrives carrying no test
+ * id at all.
  */
+export const APP_CHROME = selector(TESTID.appChrome);
+
+/** Everything that belongs in that row, and nothing else may be. In order, and
+ *  including the trigger inside the theme picker — a list a person has to come
+ *  and edit is exactly the point: adding chrome to the header is a decision,
+ *  and a second control reporting on git is the decision this fence is here to
+ *  make somebody look at. */
+export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
+  TESTID.connection,
+  TESTID.commitPill,
+  TESTID.chatToggle,
+  TESTID.themePicker,
+  TESTID.themeTrigger,
+];
+
+/** The attribute that readout carried. Kept as a selector so the fence catches
+ *  a second git chip that carries no test id of its own. */
 export const RETIRED_GIT_READOUT = "[data-git]";
 /** Over everything: the server that served this page has been replaced. */
 export const RESTARTED = selector(TESTID.restarted);

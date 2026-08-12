@@ -18,9 +18,29 @@
  *
  * The bar is a fixed `h-12` and the right-hand group is `flex-nowrap`: wrapping
  * inside a fixed height centred the second row off the top of the viewport on a
- * 390pt phone in every connection state longer than `live`. The connection and
- * commit labels truncate instead; the agent and theme pills keep their
- * intrinsic size.
+ * 390pt phone in every connection state longer than `live`.
+ *
+ * SIX things do not fit at 390pt, and this is the order they give way in. It is
+ * stated here because it is one decision about the bar, made in four files, and
+ * a bar that squeezes whatever happens to be squeezable is a bar that ends up
+ * spending its last pixels on a theme name while `live` dies at `l…` — which is
+ * what it did:
+ *
+ *   1. The last commit's AGE goes first (`commit/Commit.tsx`'s `· 3m ago`,
+ *      `sm` and up only). It is the only piece of any label a reader can lose
+ *      and still be told what they came for, and the panel has the exact
+ *      instant a tap away.
+ *   2. The agent's WORD goes next — `>_` is already an icon, and the word stays
+ *      in the accessible name (`sr-only`), so nothing is lost but pixels.
+ *   3. Then the Commit pill's label truncates. It is the longest in the bar,
+ *      and its first glyph (`✓`, `⚠`) is most of what it says.
+ *   4. The connection's label is LAST and in practice never: it has a floor
+ *      (`shrink-0`), so `live` stays `live`. Its own `max-w` still caps the
+ *      long states, which is that pill's own business.
+ *
+ * The wordmark, the burger and the theme name never give way at all: the first
+ * two are the app's identity and the way back to the directory, and the theme
+ * pill has a promise of its own to keep (it NAMES the theme in force).
  *
  * The one screen without this bar is the fault card: `main.tsx`'s
  * `<ErrorBoundary>` sits above `App`, so a thrown render never reaches here.
@@ -126,7 +146,10 @@ export function AppHeader(props: {
           second time, and two chips for one subject is what the human filed.
           Every state that readout drew is a face of this pill now — including
           the fault, with git's own words on its tip. */}
-      <div class="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1.5 sm:gap-2">
+      <div
+        class="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1.5 sm:gap-2"
+        data-testid={TESTID.appChrome}
+      >
         <Indicator status={connectionStatus()} />
         <Commit />
         <ChatToggle />
