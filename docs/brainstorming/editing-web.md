@@ -115,7 +115,7 @@ Status keys: **shipped** (item, PR) · **filed** (roadmap id) · **MISSING**
 | Multi-select + bulk complete/move/indent/delete | five gestures | filed `dragdrop-multiselect` |
 | **Duplicate** (subtree; result auto-tagged `#copy`; also `Alt+Drag` clone) | `Alt/⌘+Shift+D`, menu | **MISSING** |
 | **Move to** (search dialog; moves subtree anywhere, across lists) | slash command, menu | **MISSING** — olai's version is the harder cross-OUTLINE move: `parent` is same-file by the format, so this is an op design (move vs re-create vs mirror), not just a dialog |
-| **Delete** (recoverable from Trash) + **Trash restore** | `Ctrl/⌘+Shift+Backspace`, menu | ruled 2026-08-11: no delete affordance. olai's trash is `Archive.jsonl` — but there is **no archive affordance in the web UI at all** (MCP-only `archive_node`), and **no unarchive/restore op on ANY face** (MISSING twice over) |
+| **Delete** (recoverable from Trash) + **Trash restore** | `Ctrl/⌘+Shift+Backspace`, menu | ruled 2026-08-11: no delete affordance. olai's trash is `Archive.jsonl` — but there is **no archive affordance in the web UI at all** (MCP-only `archive_node` — a standing HACKING.md consistency violation, not a growth item), and **no unarchive/restore op on ANY face** (equal absence, so not a deviation — a missing op to build once in the ops layer and expose on both faces together) |
 | **Expand / collapse, persisted** (double-click triangle = all; `Ctrl+Space`, `Ctrl+↓/↑` variants) | per-node, saved | olai collapse is session view-state; whether stored collapse is a modification olai wants is **undecided** (it is a WRITE in Workflowy) |
 
 ### Marks
