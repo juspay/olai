@@ -136,9 +136,15 @@ export interface Agent {
    *  …) — the turn's END is a return value rather than an event, because the
    *  caller that asked is the one waiting. */
   readonly prompt: (text: string) => Effect.Effect<string, AgentGone>
-  /** Stop the turn in flight. A notification, so there is nothing to wait for
-   *  and nothing that can fail. */
-  readonly cancel: Effect.Effect<void>
+  /** Stop the turn in flight.
+   *
+   *  A notification, so there is nothing to WAIT for — but there is very much
+   *  something that can fail: the pipe to a dead agent takes no notification
+   *  either. That failure used to be swallowed, and what a person saw was the
+   *  cancel button doing nothing while the turn went on streaming. It is on the
+   *  channel now, so a cancel that could not be delivered refuses like every
+   *  other verb. */
+  readonly cancel: Effect.Effect<void, AgentGone>
   readonly newSession: Effect.Effect<void, AgentGone>
   readonly loadSession: (id: string) => Effect.Effect<void, AgentGone>
   /** The stored conversations for this directory, newest first. */
@@ -168,6 +174,12 @@ export interface Agent {
 
 /** The ACP major version this client speaks. */
 const PROTOCOL = 1
+
+/** A cancel that could not be delivered, said the same way on both of its
+ *  paths — the refusal a caller gets, and the `trouble` the deferred one
+ *  reports through. Two literals that have to match for the panel to read
+ *  consistently is one literal. */
+const notCancelled = (why: string): string => `the turn could not be cancelled: ${why}`
 
 /** What `session/new` asks the Claude Code adapter to forward, and why: the
  *  adapter handles a `/model` slash command inside the wrapped CLI, so it never
@@ -421,6 +433,16 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         default:
           // Thoughts, plans, usage. Real parts of the protocol that this panel
           // does not draw; ignored quietly rather than half-rendered.
+          //
+          // Quietly is right HERE and not two cases up, and the difference is
+          // worth naming since both look like "we dropped something". These
+          // are whole update KINDS this panel has no view for — a feature it
+          // does not have, the same way it has no view for a terminal — and a
+          // marker for each would be a transcript of apologies. An
+          // `agent_message_chunk` whose content this panel cannot draw is the
+          // other thing entirely: the agent ANSWERED, in a row that is on
+          // screen, and dropping it left that row blank. That one is marked
+          // (`textOf`).
           return
       }
     }
@@ -628,8 +650,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  is picked up by the next conversation instead of the next restart. */
     const servers = Effect.map(
       Kolu.detect,
-      (kolu) => {
-        const handing = mcpServersOf(options.tools(), kolu)
+      // `serverOf` takes the half a session needs and drops the reason a
+      // refusal carries. That is deliberate for now — nothing draws it, and
+      // `mcp-fail-visible` is the item that will. When it does, this is the
+      // line that keeps the whole `Detected` rather than re-running the probe
+      // to ask again.
+      (found) => {
+        const handing = mcpServersOf(options.tools(), Kolu.serverOf(found))
         // Remembered as they are handed over, because "the tools we gave this
         // conversation" is exactly the set the permission handler allows
         // without asking — and it is decided per conversation.
@@ -682,9 +709,17 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         yield* askForBypass(at, id)
       })
 
-    /** Ask for the permission mode that makes the backstop above unnecessary.
-     *  A refusal is normal (running as root, an agent that has no such mode)
-     *  and is not a boot failure. */
+    /**
+     * Ask for the permission mode that makes the backstop above unnecessary.
+     *
+     * A refusal is normal — running as root, an agent that has no such mode —
+     * and is not a boot failure. Ignored rather than reported, and that is a
+     * trade with its own reason rather than a swallow: NOTHING IS LOST when
+     * this is refused. The backstop it was trying to make unnecessary is still
+     * there and still answers every permission request, so what a refusal
+     * costs is one round trip per tool call, which is not a fact about a
+     * person's outlines and has no honest place on their screen.
+     */
     const askForBypass = (at: Live, id: string): Effect.Effect<void> =>
       Effect.ignore(
         ask(at.connection, methods.agent.session.setMode, {
@@ -736,12 +771,24 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         Effect.gen(function*() {
           // A cancel that arrived during the handshake is sent the moment the
           // prompt is on the wire, so every cancelled turn ends the same way.
+          //
+          // FORKED because it has to outlive this line and cannot be waited on
+          // — the prompt below is what holds the turn open — but a forked
+          // failure is one nobody is watching, and this one used to go
+          // nowhere at all: the deferred cancel never landed, the turn ran to
+          // the end, and the panel said nothing about either. `trouble` is
+          // where a failure with no caller belongs (the boot path uses it for
+          // the same reason), so it reaches the transcript rather than the
+          // fiber's dump.
           if (cancelPending) {
             cancelPending = false
             yield* Effect.forkDetach(
-              Effect.andThen(
-                Effect.sleep("10 millis"),
-                notify(at, methods.agent.session.cancel, { sessionId: id }),
+              Effect.onError(
+                Effect.andThen(
+                  Effect.sleep("10 millis"),
+                  notify(at, methods.agent.session.cancel, { sessionId: id }),
+                ),
+                (cause) => Effect.sync(() => trouble(notCancelled(reasonOf(cause)))),
               ),
             )
           }
@@ -765,7 +812,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         cancelPending = true
         return Effect.void
       }
-      return Effect.ignore(notify(at, methods.agent.session.cancel, { sessionId: id }))
+      // Said in the words of the thing that was asked for, not of the method
+      // that carries it: what reaches a person is a refusal under the button
+      // they pressed, and "`session/cancel` failed" names our transport where
+      // their sentence is "the turn is still running".
+      return Effect.mapError(
+        notify(at, methods.agent.session.cancel, { sessionId: id }),
+        (gone) => new AgentGone({ why: notCancelled(gone.why) }),
+      )
     })
 
     const stop = Effect.sync(() => {
@@ -877,8 +931,41 @@ const notify = (
 
 // ── reading the payloads ───────────────────────────────────────────────
 
-const textOf = (content: ContentBlock): string =>
-  content.type === "text" ? content.text : ""
+/**
+ * What a content block says — and, when it is not prose, THAT IT WAS THERE.
+ *
+ * The panel draws text and nothing else, which is a fair thing for it to do and
+ * was never a fair thing for it to do silently: a block this returned `""` for
+ * was dropped by every caller, so an agent that answered with a picture, a
+ * sound or an attached resource left a blank in the conversation where its
+ * answer had been. A reader cannot tell that from an agent that said nothing,
+ * and the two need entirely different things done about them.
+ *
+ * So a marker, in the shape the transcript already uses for its own asides
+ * (`[image]`), naming what arrived and — where the protocol gives one — what it
+ * was called. Rendering the picture itself is a bigger question that belongs
+ * with the attachments the composer already sends; what is owed here is the
+ * difference between "nothing" and "something this panel cannot draw".
+ *
+ * The `default` arm is not dead code: `ContentBlock` is somebody else's union
+ * and it gains variants, so an unknown block is a marker rather than a hole.
+ */
+const textOf = (content: ContentBlock): string => {
+  switch (content.type) {
+    case "text":
+      return content.text
+    case "image":
+      return "[image]"
+    case "audio":
+      return "[audio]"
+    case "resource_link":
+      return `[resource: ${content.name}]`
+    case "resource":
+      return `[resource: ${content.resource.uri}]`
+    default:
+      return "[unsupported content]"
+  }
+}
 
 /**
  * What a running call has to say for itself, out of the protocol's content

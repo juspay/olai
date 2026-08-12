@@ -1,24 +1,39 @@
 /**
- * The one failure the store can have that the codec cannot describe.
+ * The one failure the store can have that the codec cannot DESCRIBE — though
+ * it is now one the codec is asked to TRANSLATE.
  *
  * Everything a codec rejects is a value it hands back — a `Result` failure the
  * store publishes. This is the other kind: the set was never seen at all,
  * because the directory could not be listed or a file could not be read. There
- * is no `file:line` to name and nothing to report but the reason, so it is not
- * an `E` and never reaches a browser. It is what the binary exits on at boot,
- * and what a later probe logs and retries past.
+ * is no `file:line` to name and nothing to report but the reason.
+ *
+ * It is what the binary exits on at boot. What it is NOT any more is invisible
+ * afterwards: a probe that fails mid-serve hands this to `Codec.unreadable`,
+ * which renders it into the caller's own error vocabulary, and it travels the
+ * same channel a validation failure does. Log-only was a page frozen at the
+ * last good revision with nothing on screen saying so — the exact failure mode
+ * a live store exists to prevent.
  */
 
 import { Data } from "effect"
 
+/** The served directory itself, in the same root-relative spelling every other
+ *  path in this package uses. A failure about the ROOT used to carry the
+ *  absolute path instead, which was two vocabularies on one field — and, once
+ *  this became something a browser renders, the server's filesystem layout on
+ *  somebody's screen. */
+export const ROOT_ITSELF = "."
+
 export class PlatformFailure extends Data.TaggedError("PlatformFailure")<{
+  /** Root-relative and `/`-spelled, like every path this package publishes —
+   *  {@link ROOT_ITSELF} when it is the directory itself. */
   readonly path: string
   readonly cause: unknown
 }> {
   override get message(): string {
-    return `cannot read ${this.path}: ${
-      this.cause instanceof Error ? this.cause.message : String(this.cause)
-    }`
+    return `cannot read ${
+      this.path === ROOT_ITSELF ? "the served directory" : this.path
+    }: ${this.cause instanceof Error ? this.cause.message : String(this.cause)}`
   }
 }
 

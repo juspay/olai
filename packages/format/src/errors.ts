@@ -90,6 +90,24 @@ const CATALOGUE = {
   "mirror-cycle": "set",
   /** `doc` does not name an `.md` file under the served directory. */
   "missing-doc": "set",
+  /**
+   * The DIRECTORY could not be read — not a record in it. EACCES on a folder,
+   * a mount that went away, a disk with no room to answer a stat.
+   *
+   * The one code that is not about the format at all, and it is here because
+   * of where it has to arrive rather than where it comes from: a reader whose
+   * outline has quietly stopped tracking the disk needs to be told, and the
+   * banner over the last good snapshot is the surface that already says
+   * exactly that. It used to be a log line and nothing else — the page froze
+   * at the last good revision and went on looking live (`@olai/store`'s
+   * `PlatformFailure`, translated by the codec's `unreadable`).
+   *
+   * `set`, because it is a fact about the whole load and not about one line.
+   * The site names the path that could not be read, with a `line` of 0 — there
+   * is no record to point at, and a made-up 1 would point at somebody's first
+   * node.
+   */
+  "unreadable-directory": "set",
 } as const satisfies Record<string, Reach>
 
 export type ErrorCode = keyof typeof CATALOGUE
@@ -154,6 +172,14 @@ export type OutlineError = typeof OutlineError.Type
 export const isCrossFile = (error: OutlineError): boolean =>
   (error.related ?? []).some((related) => related.file !== error.file)
 
+/** A `line` of 0 means there is no record to point at — the site is the path
+ *  itself. One code has that (`unreadable-directory`, which is about a
+ *  DIRECTORY), and the rule lives here rather than in whichever renderer
+ *  noticed first, which is the same argument {@link errorLine} makes: the
+ *  browser's rows and an agent's one-liner must not disagree about whether
+ *  `plan.jsonl:0` is a line number somebody could go and look for. */
+export const hasLine = (error: Pick<OutlineError, "line">): boolean => error.line > 0
+
 /** One error as one line of plain text.
  *
  *  "Every validation error names `file:line`" is a statement about the format,
@@ -162,7 +188,7 @@ export const isCrossFile = (error: OutlineError): boolean =>
  *  invents the same spelling, and they drift. The browser has its own, richer
  *  answer; this is for everything that has to fit on a line. */
 export const errorLine = (error: OutlineError): string =>
-  `${error.file}:${error.line} ${error.message}`
+  `${error.file}${hasLine(error) ? `:${error.line}` : ""} ${error.message}`
 
 /** A path of ids as a message names it — `` `a` → `b` → `a` `` — and a LOOP is
  *  the same thing whose ends are the same id, which is what makes `` `a` → `a` ``

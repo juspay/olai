@@ -147,6 +147,11 @@ test("the line/set split is exactly the two halves of the codec", () => {
     "after-cycle",
     "mirror-cycle",
     "missing-doc",
+    // Not about the format at all — the DIRECTORY could not be read — and
+    // `set` for the reason the split exists: it is a fact about the whole
+    // load rather than about one record, and nothing about it is waiting on a
+    // file that has yet to parse.
+    "unreadable-directory",
   ])
   // Together, the whole catalogue: no code is in neither half, and none is in
   // both.

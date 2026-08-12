@@ -42,6 +42,7 @@ import {
   CHAT_SEND,
   CHAT_SESSION,
   CHAT_SESSIONS,
+  CHAT_SESSIONS_REFUSED,
   CHAT_SLASH_COMMAND,
   CHAT_TITLE,
   CHAT_TOGGLE,
@@ -50,6 +51,7 @@ import {
   CHAT_TOOL_LOCATIONS,
   CHAT_TOOL_PROGRESS,
   CHAT_TRANSCRIPT,
+  CHAT_TROUBLE,
   CHAT_WAITING,
   CHAT_WORKING,
   HYDRATION_TIMEOUT,
@@ -767,6 +769,32 @@ Then("the chat is empty", async function (this: OlaiWorld) {
 
 When("I open the session picker", async function (this: OlaiWorld) {
   await this.page.locator(CHAT_SESSIONS).click();
+});
+
+/** No `trouble` on screen — what went wrong where nobody was waiting, and the
+ *  claim that nothing did. No wait of its own: the step before it has already
+ *  waited for something the panel could only have drawn after the moment this
+ *  is about, so a `trouble` that was coming would be here. */
+Then("the chat says nothing went wrong", async function (this: OlaiWorld) {
+  assert.strictEqual(await this.page.locator(CHAT_TROUBLE).count(), 0);
+});
+
+Then(
+  "the picker refuses, saying {string}",
+  async function (this: OlaiWorld, reason: string) {
+    const refused = this.page.locator(CHAT_SESSIONS_REFUSED);
+    await refused.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.ok(
+      oneLine(await refused.innerText()).includes(reason),
+      `the picker to give the reason "${reason}"`,
+    );
+  },
+);
+
+/** The other half of the claim: a refusal draws no rows, so the two answers
+ *  cannot be confused by a reader who sees an empty list under an error. */
+Then("the picker lists nothing", async function (this: OlaiWorld) {
+  assert.strictEqual(await this.page.locator(CHAT_SESSION).count(), 0);
 });
 
 Then("the picker lists {string}", async function (this: OlaiWorld, title: string) {

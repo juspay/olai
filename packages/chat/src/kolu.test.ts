@@ -20,7 +20,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 
 import { mcpServersOf } from "./agent.ts"
-import { detect, PROBE_ID, type Server } from "./kolu.ts"
+import { detect, type Detected, PROBE_ID, type Server, serverOf } from "./kolu.ts"
 
 /** Everything this test made, undone after each case: the directories it put
  *  on PATH, and PATH itself. */
@@ -105,14 +105,18 @@ process.stdin.on("data", (chunk) => {
 })
 `
 
-const detected = (): Promise<Server | null> => Effect.runPromise(detect)
+const detected = (): Promise<Detected> => Effect.runPromise(detect)
+
+/** The server a session would be handed, which is what every case here used to
+ *  assert on directly — the probe now answers with the REASON beside it. */
+const server = async (): Promise<Server | null> => serverOf(await detected())
 
 describe("detecting kolu", () => {
   test("a kolu whose padi answers is the session's server", async () => {
     const bin = koluOnPath(script(true))
     process.env["PADI_SOCKET"] = "/run/user/1000/padi-abc/padi.sock"
 
-    expect(await detected()).toEqual({
+    expect(await server()).toEqual({
       name: "kolu",
       // The path that ANSWERED, absolute — not the word we looked up.
       command: bin,
@@ -121,16 +125,26 @@ describe("detecting kolu", () => {
     })
   })
 
-  test("a kolu that reached no padi is not one", async () => {
-    koluOnPath(script(false))
+  // The three ways of being no are three DIFFERENT answers now. They were one
+  // silent `false` with the reason thrown away by a `catch`, which is what
+  // left "kolu is not installed here" and "the kolu on your PATH is a build
+  // that cannot do this" indistinguishable — the second being the one worth
+  // saying out loud (juspay/kolu#2146).
+  test("a kolu that reached no padi says which refusal that was", async () => {
+    const bin = koluOnPath(script(false))
 
-    expect(await detected()).toBeNull()
+    const found = await detected()
+    expect(found).toMatchObject({ _tag: "silent", kolu: bin })
+    expect(found._tag === "silent" && found.why).toContain("padi transport down")
+    expect(serverOf(found)).toBeNull()
   })
 
-  test("a binary that is not kolu at all is not one", async () => {
+  test("a binary that is not kolu at all says it never answered", async () => {
     koluOnPath(`process.stdout.write("hello from something else\\n")\n`)
 
-    expect(await detected()).toBeNull()
+    const found = await detected()
+    expect(found).toMatchObject({ _tag: "silent" })
+    expect(serverOf(found)).toBeNull()
   })
 
   // The lock the fixtures above carry, stated where a reader will look for it:
@@ -146,19 +160,22 @@ describe("detecting kolu", () => {
   // and says nothing is the wedge, and what happens then is the same `null`
   // every other refusal produces.
 
+  // ...and this one is the arm that is NOT a reason: nothing went wrong on a
+  // host that simply is not running kolu, so there is nothing to report about
+  // it, which is exactly the distinction the single `null` could not make.
   test("no kolu on PATH is the ordinary case, not a failure", async () => {
     const dir = mkdtempSync(join(tmpdir(), "olai-kolu-"))
     made.push(dir)
     process.env["PATH"] = dir
 
-    expect(await detected()).toBeNull()
+    expect(await detected()).toEqual({ _tag: "none" })
   })
 
   test("no PADI_SOCKET forwards nothing, and kolu resolves its own", async () => {
     koluOnPath(script(true))
     delete process.env["PADI_SOCKET"]
 
-    expect(await detected()).toMatchObject({ env: {} })
+    expect(await server()).toMatchObject({ env: {} })
   })
 })
 
