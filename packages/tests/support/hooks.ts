@@ -323,6 +323,12 @@ interface Spawn {
   readonly stored?: boolean;
   /** `false` starts the server with no agent at all. */
   readonly agent?: boolean;
+  /** `true` makes the scratch copy a repository — see {@link GIT_TAG}. */
+  readonly repo?: boolean;
+  /** How the server is told to commit. Two facts rather than one: a directory
+   *  that is not a repository with commits ON is a state of its own, and the
+   *  pill has a face for it. */
+  readonly commits?: "off" | "manual";
   /** `true` puts a kolu on PATH that a padi answers, which is the whole of
    *  "this host is running kolu". Otherwise the one on PATH reaches no daemon,
    *  which detection must refuse. */

@@ -14,11 +14,10 @@
  */
 
 import { codec, make as makeOps, TOOLS } from "@olai/ops"
-import { GIT_OFF } from "@olai/surface"
 import { type OutlineError, type OutlineSet } from "@olai/format"
 import * as Store from "@olai/store"
 import { expect, test } from "bun:test"
-import { Effect } from "effect"
+import { Effect, SubscriptionRef } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -26,7 +25,7 @@ import * as path from "node:path"
 import { watchFault } from "../fault.ts"
 import { listen } from "../listener.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
-import { bind } from "../runtime.ts"
+import { bind, gitWiring } from "../runtime.ts"
 import { serveFace } from "./face.ts"
 import { MCP_PATH, mcpTransport } from "./route.ts"
 import { bespokeFrom } from "./tools.ts"
@@ -55,15 +54,19 @@ const withRoute = <A>(use: (served: Served) => Promise<A>): Promise<A> => {
       watch: false,
       settle: "10 millis",
     })
-    const ops = makeOps({ store, root, commit: false })
-    const wired = yield* bind({ store, chat: null, git: GIT_OFF })
+    const ops = makeOps({ store, root, commits: "off" })
+    const wired = yield* bind({
+      store,
+      chat: null,
+      git: gitWiring(ops, "mcp", yield* SubscriptionRef.make(0)),
+    })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
     const transport = mcpTransport()
     yield* serveFace({
       bound: wired.bound,
-      tools: bespokeFrom(TOOLS, ops),
+      tools: bespokeFrom(TOOLS, ops, "mcp"),
       transport,
     })
     yield* Effect.addFinalizer(() => runtime.stopped)

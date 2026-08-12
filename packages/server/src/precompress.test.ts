@@ -58,7 +58,7 @@ const withServer = (
       host: "127.0.0.1",
       clientDist: dist,
       allowedOrigins: [],
-      commit: false,
+      commits: "off",
     })
     const url = findSaid(said, "serving")?.annotations.url
     expect(typeof url).toBe("string")

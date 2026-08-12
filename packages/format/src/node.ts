@@ -122,16 +122,19 @@ export const fileKind = (path: string): FileKind | null =>
   path.endsWith(".jsonl") ? "outline" : path.endsWith(".md") ? "document" : null
 
 /** Where work that is over is put away: one `Archive.jsonl` per directory,
- *  beside the outline it left.
+ *  beside the outline it left. The same rule as the racket reference, so a
+ *  directory that has been archived from before goes on reading the way it did.
  *
  *  Being archived is a fact about the FILE a node is written in — there is no
  *  field for it, and there is not going to be one, for the reason no derived
  *  state is stored. It lives here beside {@link fileKind} because it is the
- *  same kind of statement (what a served file IS, by its name) and because two
- *  rules in two packages read it: the op that moves a subtree there, and
+ *  same kind of statement (what a served file IS, by its name) and because
+ *  three rules in three packages read it: the op that moves a subtree there;
  *  blockedness, which exempts what has been put away at both ends of an arrow
- *  (./derive.ts). Two spellings of the name would be two answers about the
- *  same file. */
+ *  (./derive.ts); and ./changes.ts, which is what tells a cross-file move that
+ *  landed here (*archived*) from one that did not (*moved*). Two spellings
+ *  would be two answers about the same file — and the third reader makes that
+ *  permanent, since a commit message cannot be corrected after the fact. */
 export const ARCHIVE = "Archive.jsonl"
 
 export const isArchived = (file: string): boolean =>

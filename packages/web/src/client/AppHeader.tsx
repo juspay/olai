@@ -29,11 +29,45 @@
  * Height is `h-12` (3rem) and the static `--height-header` token in
  * `styles.css` — the chat drawer subtracts the same token so it sits under
  * this bar, not over it.
+ *
+ * ## It STICKS, and that is what makes the rest of the chrome true
+ *
+ * The page scrolls the DOCUMENT (`./scroll.ts` remembers `scrollY` per history
+ * entry), so a bar in normal flow leaves the screen the moment anybody reads
+ * past the fold — taking the connection dot, the commit pill and the agent
+ * toggle with it. Every one of those is a permanent answer about the app rather
+ * than about the page, which is the argument for the bar existing at all; a
+ * permanent answer you have to scroll back up for is not one.
+ *
+ * It is also what keeps the SEAM honest. The mobile drawer, its scrim and both
+ * faces of the chat panel are `fixed` and start at `top: var(--height-header)`
+ * — a viewport coordinate. That is only the bottom edge of this bar while this
+ * bar is AT the top of the viewport; scrolled away, those panels were hanging
+ * 3rem below nothing, showing a strip of the page above them. Sticky is what
+ * makes the one token mean the same thing to the header and to everything
+ * measured from it.
+ *
+ * `sticky` rather than `fixed`: sticky stays in flow, so it still occupies its
+ * own 3rem and the column below it needs no compensating pad — and the
+ * `min-h-[calc(100dvh-var(--height-header))]` the page reserves goes on meaning
+ * what it says. No ancestor may take an `overflow` other than `visible` or this
+ * silently stops sticking; the shell above it (`./App.tsx`) is two plain flex
+ * boxes for that reason.
+ *
+ * THE LAYER is `z-[45]`, and the number is the whole point: above the panels
+ * (the chat dock, the drawer, its scrim, the minimized pill — 30 and 40), which
+ * is what stops a page scrolling UNDER the bar from painting over it, and below
+ * the modals (the command palette and the restarted card, 50), which cover the
+ * whole viewport and must cover this too. A positioned bar with a z-index is a
+ * stacking context, so the one popover drawn INSIDE it — the theme picker's —
+ * rides at 45 as well; the two overlays that must escape (the commit panel, a
+ * tip) already portal to the body and are unaffected.
  */
 
 import { Show } from "solid-js"
 
 import { Toggle as ChatToggle } from "./chat/Panel.tsx"
+import { Commit } from "./commit/Commit.tsx"
 import { Indicator } from "./connection/Indicator.tsx"
 import { GitIndicator } from "./git/Indicator.tsx"
 import { connectionStatus } from "./wire.ts"
@@ -55,7 +89,7 @@ export function AppHeader(props: {
 }) {
   return (
     <header
-      class="flex h-12 shrink-0 items-center gap-2 border-b border-rule bg-paper px-3 font-mono md:px-4"
+      class="sticky top-0 z-[45] flex h-12 shrink-0 items-center gap-2 border-b border-rule bg-paper px-3 font-mono md:px-4"
       data-testid={TESTID.appHeader}
       data-layout={props.docked ? "docked" : "chrome-only"}
     >
@@ -86,10 +120,18 @@ export function AppHeader(props: {
           Git sits BESIDE the connection because they are the same kind of
           promise about two halves of the same page: that it is still reading,
           and that what is written to it is being kept. It draws nothing at all
-          on a `--no-commit` serve. */}
+          on a `--no-commit` serve.
+
+          And the Commit pill sits beside GIT, because the two split one subject
+          cleanly: the readout says whether writes here have a history to go
+          into at all, the pill says what is WAITING to go into it and is the
+          door to putting it there. They are two renderings of one survey (the
+          server recomputes both together), never two probes — so they cannot
+          contradict each other, which is what a reader would notice first. */}
       <div class="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1.5 sm:gap-2">
         <Indicator status={connectionStatus()} />
         <GitIndicator />
+        <Commit />
         <ChatToggle />
         <ThemePicker />
       </div>
