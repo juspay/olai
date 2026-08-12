@@ -31,7 +31,9 @@
  *      and still be told what they came for, and the panel has the exact
  *      instant a tap away.
  *   2. The agent's WORD goes next — `>_` is already an icon, and the word stays
- *      in the accessible name (`sr-only`), so nothing is lost but pixels.
+ *      in the accessible name (`sr-only`), so nothing is lost but pixels. Its
+ *      BOX does not go with it: the button keeps `touch.ts`'s 44px minimum, so
+ *      what a thumb aims at is the same size it always was.
  *   3. Then the Commit pill's label truncates. It is the longest in the bar,
  *      and its first glyph (`✓`, `⚠`) is most of what it says.
  *   4. The connection's label is LAST and in practice never: it has a floor
