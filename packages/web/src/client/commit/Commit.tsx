@@ -130,6 +130,23 @@ export function Commit() {
     return face() === "committed" && last !== null ? agoOf(last.at, now()) : ""
   }
 
+  /**
+   * How many commits are recorded here and nowhere else.
+   *
+   * The human's ruling at dispatch: the unpushed count belongs in the HEADER as
+   * part of this one pill, not only inside the panel. The argument is the one
+   * this pill is built on — an audit trail that exists on one machine is one
+   * disk failure from not existing, and "there are eleven commits nobody else
+   * has" is exactly the kind of thing a person only finds out by going looking.
+   * So it rides here, beside the count of what is not committed at all, and the
+   * two are different facts about the same work: not recorded, and not shared.
+   *
+   * Zero draws nothing, and so does a branch with no upstream — there is
+   * nothing to act on, and chrome that speaks in the ordinary case is chrome
+   * nobody reads in the rare one.
+   */
+  const unpushed = () => commit.pending().unpushed?.commits ?? 0
+
   /** What the pill says. One line per state, and the reason each is worth its
    *  own words rather than a count is in the header above. */
   const says = () => {
@@ -186,6 +203,7 @@ export function Commit() {
           // is rather than on the sentence it is rendered into.
           data-state={face()}
           data-uncommitted={commit.waiting()}
+          data-unpushed={unpushed()}
           data-repo={commit.pending().repo._tag}
           // Absent rather than `false` on the faces with no panel behind them:
           // a control that says it can expand and never does is a promise the
@@ -211,6 +229,12 @@ export function Commit() {
           {/* The first thing the bar gives up — see {@link ago}. */}
           <Show when={ago() !== ""}>
             <span class="hidden shrink-0 sm:block">· {ago()}</span>
+          </Show>
+          {/* What is recorded and not shared — see {@link unpushed}. It stays at
+              every width, unlike the recency beside it: "3 unpushed" is news,
+              and the panel behind this pill is where the Push button lives. */}
+          <Show when={unpushed() > 0}>
+            <span class="shrink-0">· {unpushed()} unpushed</span>
           </Show>
           {/* Which way the panel opens, and it opens DOWNWARD from the header
               — `./anchor.ts` picks the side with the room. Not below 40rem:
