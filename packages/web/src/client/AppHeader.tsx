@@ -32,8 +32,10 @@
  *      instant a tap away.
  *   2. The agent's WORD goes next — `>_` is already an icon, and the word stays
  *      in the accessible name (`sr-only`), so nothing is lost but pixels. Its
- *      BOX does not go with it: the button keeps `touch.ts`'s 44px minimum, so
- *      what a thumb aims at is the same size it always was.
+ *      BOX does not go with it: the button takes `touch.ts`'s 44px minimum,
+ *      which the burger and the theme trigger have had since #104 and this one
+ *      never did (it measured 76×27 — wide, and never tall enough). What a
+ *      thumb aims at came out of this bigger than it went in.
  *   3. Then the Commit pill's label truncates. It is the longest in the bar,
  *      and its first glyph (`✓`, `⚠`) is most of what it says.
  *   4. The connection's label is LAST and in practice never: it has a floor

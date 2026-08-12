@@ -71,11 +71,14 @@ export function Toggle() {
   return (
     <button
       type="button"
-      // `TARGET_BOX` for the same reason the theme trigger carries it, and it
-      // is what keeps the line below from being a bad trade: dropping the word
-      // to its mark takes this button's WIDTH with it, and a primary control a
-      // thumb has to aim at is not somewhere to save 12px. Released on a
-      // pointer (`md:`), exactly as the picker releases it.
+      // `TARGET_BOX` for the same reason the theme trigger and the burger carry
+      // it, and it is what keeps the line below from being a bad trade:
+      // dropping the word to its mark takes this button's WIDTH with it, and a
+      // primary control a thumb has to aim at is not somewhere to save 12px.
+      // This bar's other two tap targets have measured 44×44 since #104 and
+      // this one was 76×27 — wide, and never tall enough — so it gains the
+      // minimum here rather than keeping it. Released on a pointer (`md:`),
+      // exactly as the picker releases it.
       class={`inline-flex shrink-0 items-center justify-center rounded-full border bg-paper px-2 py-1.5 font-mono text-xs hover:text-ink sm:px-3 ${TARGET_BOX} md:min-h-0 md:min-w-0 ${
         working()
           ? "animate-pulse border-doing text-doing"
