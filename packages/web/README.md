@@ -894,7 +894,10 @@ in a browser, while somebody is typing. Two layers, and they never overlap:
 
 - **global chords**, with a modifier, listened for on the window (one
   listener, in `palette/Palette.tsx`): **⌘K** palette, **⌘\\** sidebar, **⌘J**
-  chat. Each says whether it may fire while focus is in a text field.
+  chat, **⌘Z** / **⌘⇧Z** undo and redo. Each says whether it may fire while
+  focus is in a text field, and ⌘Z is the one chord with a shifted twin — so
+  the table carries `shift` and the matcher reads it exactly, rather than
+  spelling redo as a different letter this app would have invented.
 - **the row editor's keys**, which are bare (`Enter`, `Tab`, the arrows) and
   are matched on the editor's own element and nowhere else. A window listener
   claiming those would eat every keystroke in the chat composer and in the
@@ -954,10 +957,60 @@ loop a person is in, and nothing about outlines:
 - **`order.ts`** flattens the drawn tree so `↑`/`↓` step through what is on
   screen, folds and all.
 
-There is deliberately no delete, no split/merge, no multi-select and no
-drag-drop: each is its own roadmap item, and a delete arrives with undo,
-because until an edit can be taken back inside the app, git is the whole of the
-recovery net.
+There is deliberately no split/merge, no multi-select and no drag-drop: each is
+its own roadmap item.
+
+## Undo, which is a write
+
+`undo.ts` is the stack, `undoing.tsx` holds it, `UndoSaid.tsx` is what it has
+to say — the same split as `draft.ts` / `editing.tsx` / `RowEditor.tsx`, and
+for the same reason: the rules are a value and four functions over it, so they
+are answerable without a browser.
+
+**⌘Z sends the inverse; it does not restore anything.** Every structural write
+answers with the edits that would reverse it, derived on the server from the
+snapshot that write was judged against (`server/src/edit.ts`'s `inverseOf`) —
+where the row sat, which mark it replaced, the id an `add` minted. ⌘Z replays
+that through the same `edit.apply` gate, against the set AS IT IS NOW. That is
+the whole feature: a restore would take back what the agent, another tab or a
+`git pull` did since, and there is no way to spell that as something a person
+meant. A replayed inverse either fits or is refused naming what moved.
+
+The rest follows from that:
+
+- **an undo is undoable.** Replaying an inverse answers with ITS inverse, so
+  redo is the same machinery rather than a second stack with rules of its own.
+  A new op clears the redo side, the standard way.
+- **a refused entry is dropped, and the reason is on screen.** It is off the
+  stack before the write is sent, so pressing ⌘Z again reaches the edit BEFORE
+  the one that will not go. What it says is drawn over the page rather than
+  under a row (`UndoSaid.tsx`), because an undo is pressed with no draft open
+  and the row it is about may be somewhere else, or gone.
+- **the DRAFT is not in it; the op it commits is.** Both chords are dead while
+  an editor is open — an `<input>` has the platform's own undo, and abandoning
+  what you are typing is Escape's — but a committed title or note is an op like
+  any other, and the text it replaced is a perfect inverse. Reading those two
+  as one thing is what shipped a ⌘Z that answered "nothing to undo" to somebody
+  who had just retyped a title (human, driving it, 2026-08-12). A text inverse
+  carries `was` — the text it expects to find — so it may only overwrite what
+  this tab wrote, and somebody else's words are refused rather than replaced.
+- **it is one page's and one session's**, cleared when another outline opens
+  (its entries name rows in that one), bounded at a hundred, and holding only
+  what THIS tab wrote.
+
+Two things it does not do, and both are the ops layer showing through rather
+than a choice made here. Putting a mark back over a node that is now `done`
+takes TWO ops — the layer refuses to walk finished work backwards in one — so
+an entry is a LIST of edits, replayed in order, which is exactly the two calls
+an agent would make. And undoing a row's creation ARCHIVES it (the only removal
+the set has), which no `move` brings back out, so that one entry says it cannot
+be redone rather than leaving a ⌘⇧Z that does nothing.
+
+That un-create is the ONLY way anything is removed from this face, and it is
+not the delete key #109 deferred: no key sends it, it can only take back a row
+that was just made, and it refuses once anything has been filed under that row.
+Whether a delete key ever arrives — over which rows, with what confirmation —
+is still that item's question.
 
 Two more shapes this leaves, named because a reader will look for them:
 

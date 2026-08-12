@@ -691,6 +691,82 @@ describe("title, note and date", () => {
     expect("desc" in record(fileOf(cleared, "a.jsonl"), "x")).toBe(false)
   })
 
+  // ── the condition a text write may carry ─────────────────────────────
+  //
+  // `was` is what the caller expects to find, and it is checked HERE rather
+  // than by whoever built the request — which is the whole point of it being a
+  // field. The write gate re-plans this same request whenever the store moves
+  // under it, so a condition checked before that loop is a condition the retry
+  // does not check; that is how an undo of a title came to overwrite a
+  // concurrent retitle (review, 2026-08-12). Every attempt plans, so every
+  // attempt tests.
+
+  test("a conditional retitle writes while the title still says what it expected", () => {
+    const result = planned(house(), {
+      op: "title",
+      id: "order",
+      title: "order cabinets",
+      was: "order the cabinets",
+    })
+    expect(record(fileOf(result, "house.jsonl"), "order").title).toBe("order cabinets")
+  })
+
+  test("and is refused, naming what is there, when somebody else wrote first", () => {
+    // This IS the retry, in the shape the planner sees it: the same request,
+    // planned a second time against a set where the title has moved on.
+    const moved = setOf({
+      "house.jsonl": KITCHEN.replace(
+        `"title":"order the cabinets"`,
+        `"title":"order the walnut ones"`,
+      ),
+    })
+    const failure = refused(moved, {
+      op: "title",
+      id: "order",
+      title: "order cabinets",
+      was: "order the cabinets",
+    })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("order the walnut ones")
+    expect(failure.message).toContain("has been retitled since")
+  })
+
+  test("a note's condition can be `null`, which is a note that is not there", () => {
+    // The reason the check is on the FIELD being given rather than on its
+    // content: "expects no note" is a real expectation, and it is not "not
+    // checking".
+    expect(
+      record(
+        fileOf(
+          planned(house(), { op: "desc", id: "order", desc: "measure first", was: null }),
+          "house.jsonl",
+        ),
+        "order",
+      ).desc,
+    ).toBe("measure first")
+
+    const noted = setOf({ "a.jsonl": `{"id":"x","ord":"a0","title":"x","desc":"theirs"}` })
+    expect(refused(noted, { op: "desc", id: "x", desc: "mine", was: null }).message)
+      .toContain("has changed since")
+  })
+
+  test("no condition at all is last-one-wins, which is what typing means", () => {
+    // What `set_title` has always meant, unchanged: a request with no `was`
+    // overwrites whatever is there.
+    const moved = setOf({
+      "house.jsonl": KITCHEN.replace(
+        `"title":"order the cabinets"`,
+        `"title":"order the walnut ones"`,
+      ),
+    })
+    expect(
+      record(
+        fileOf(planned(moved, { op: "title", id: "order", title: "mine" }), "house.jsonl"),
+        "order",
+      ).title,
+    ).toBe("mine")
+  })
+
   // `date:`, not the reference implementation's `move:`. Beside this format's
   // real reparenting op, `move:` read as a structural change that never
   // happened — which is exactly how it looked in a log of eleven auto-commits.

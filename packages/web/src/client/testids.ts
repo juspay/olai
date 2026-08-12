@@ -178,6 +178,11 @@ export const TESTID = {
    *  ticked over unfinished ones. Advice, never a reason anything failed, and
    *  the next keystroke takes it away. */
   editNudge: "edit-nudge",
+  /** What ⌘Z / ⌘⇧Z had to say — pinned under the header rather than under a
+   *  row, because an undo is pressed with no draft open and the row it was
+   *  about may be gone. `data-tone` is which mood: `alarm` for a refusal (the
+   *  reason the key did nothing), `aside` for a remark about one that landed. */
+  undoSaid: "undo-said",
   /** The way in on a page with no rows: an outline that holds nothing, a
    *  zoomed node with nothing under it. */
   startLine: "start-line",

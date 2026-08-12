@@ -35,11 +35,36 @@
  *     itself learns none of this — an op does not know it is being called over
  *     a wire, which is what its own manifest says.
  *
- * What is deliberately ABSENT is a delete. It arrives with the undo item
- * (human, 2026-08-11): until an edit can be taken back inside the app, git is
- * the whole of the recovery net, and a key that removes a subtree is the one
- * edit a person cannot re-type from memory. Split/merge, multi-select and
- * drag-drop are their own items too, so none of them is expressible here.
+ * THREE OF THE VERBS ARE AN UNDO'S, and they are the one place this list is
+ * not shaped like a key. `place`, `mark` and `remove` say where a row SAT,
+ * which mark it CARRIED and that a row this session created should go — the
+ * facts a structural op destroyed, recorded at apply time
+ * ({@link Applied.undo}) and replayed through this same procedure when
+ * somebody presses ⌘Z. They name absolute things because that is what "put it
+ * back" means; what keeps that honest is WHO NAMED THE IDS — the server
+ * derived every one of them from the snapshot the original write was judged
+ * against, so they are ids an agent would have named, and the replay is judged
+ * against the snapshot as it is NOW. Nothing here restores a snapshot: an undo
+ * is one more op at the write gate, refused like any other when the set has
+ * moved somewhere the inverse cannot go.
+ *
+ * THE TWO TEXT VERBS NEED NO UNDO TWIN, and that is the difference worth
+ * seeing: the inverse of setting a title is setting the title it replaced, so
+ * an undo sends `title` — the same verb, the same op, the other text. What it
+ * adds is {@link Was}: the text it expects to find. A person typing overwrites
+ * whatever is there (which is what `set_title` does for an agent); an undo may
+ * only overwrite what IT wrote, so somebody else's words are refused rather
+ * than replaced.
+ *
+ * `remove` IS THE UN-CREATE, and it is worth being exact about what it is not:
+ * it is the inverse of an `add`, bound to no key, and this list still has no
+ * delete — the deferral #109 recorded (human, 2026-08-11) is still the human's
+ * to close, and a delete key would be its own item with its own policy
+ * (subtree? confirm?). What this verb resolves to is the ops layer's own
+ * `archive` — the only removal the set has — narrowed to a node with nothing
+ * under it, which is a rule about what an UNDO is entitled to rather than a
+ * delete policy this surface invented. Split/merge, multi-select and drag-drop
+ * are their own items, so none of them is expressible here.
  */
 
 import { MARKS, OpFailure } from "@olai/format"
@@ -61,6 +86,30 @@ const Id = Schema.String
  * nullable fields and neither means anything, and the server would have to
  * refuse them at runtime instead of the wire refusing them at decode.
  */
+/**
+ * What a text edit expects to find before it writes — ABSENT when it is not
+ * checking, which is what a person typing means.
+ *
+ * The two text verbs are the only ones a person sends BOTH ways: typing a
+ * title is a `title`, and taking that back is a `title` too, because the
+ * inverse of setting text is setting the text it replaced. What tells the two
+ * apart is this field, and it is the same guard `place` gets from carrying a
+ * parent AND a neighbour: an undo is only entitled to overwrite what IT wrote.
+ * If somebody else has retitled the row since, the two disagree and the write
+ * is refused rather than landing on top of their words.
+ *
+ * Absent rather than optional-null, because `null` is a real answer for a note
+ * ("there was none"). Three states, and the wire spells all three: not
+ * checking, checking for nothing, checking for this text.
+ */
+const Was = <A extends Schema.Top>(text: A) =>
+  Schema.optionalKey(
+    text.annotate({
+      description:
+        "What this field is expected to hold right now. Omit to overwrite whatever is there (typing); supply it to make the write conditional (undo).",
+    }),
+  )
+
 export const Anchor = Schema.Union([
   /** Immediately after this node, among its siblings — a new sibling. */
   Schema.Struct({ kind: Schema.Literal("after"), id: Id }),
@@ -105,13 +154,97 @@ export const Edit = Schema.Union([
    *  is the format's own and a fourth mark should not arrive writable
    *  everywhere except here. */
   Schema.Struct({ verb: Schema.Literal("toggle"), id: Id, mark: Schema.Literals(MARKS) }),
-  Schema.Struct({ verb: Schema.Literal("title"), id: Id, title: Schema.String }),
+  Schema.Struct({
+    verb: Schema.Literal("title"),
+    id: Id,
+    title: Schema.String,
+    /** What the title is EXPECTED to say right now, when the caller is putting
+     *  something back rather than typing something new — see {@link Was}. */
+    was: Was(Schema.String),
+  }),
   Schema.Struct({
     verb: Schema.Literal("desc"),
     id: Id,
     /** `null` removes the note, which is what an emptied textarea means. */
     desc: Schema.NullOr(Schema.String),
+    /** The note this expects to find, `null` for "expects none". */
+    was: Was(Schema.NullOr(Schema.String)),
   }),
+
+  // ── the three an undo speaks ─────────────────────────────────────────
+
+  /**
+   * Put a row back where it sat — the inverse of a `move`, and the only verb
+   * here that names a placement outright.
+   *
+   * `move` cannot express it: "out" means "after what used to be my parent",
+   * which is where an indent came from and nowhere else — and it is not where
+   * a row that was indented and then reordered came from. What a row leaves
+   * behind is a PLACE, and a place is a parent and a neighbour.
+   *
+   * Nor can {@link Anchor}, which is the shape three lines of this file's own
+   * argument would send a reader to: its arms are where a NEW ROW goes, and
+   * both of the ones that name a container mean LAST among what is there
+   * ("under" a node, "first" in an empty file). A row that was first among its
+   * siblings has to come back to the front, so reusing those arms would need
+   * two more with the opposite meaning inside a union about creation. It is
+   * also total where an ops `move` is not: both fields are required, and
+   * `null` is an answer rather than an absence.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("place"),
+    id: Id,
+    /** The parent it sat under — `null` for the top level of its file. */
+    parent: Schema.NullOr(Id),
+    /** The sibling it sat immediately AFTER — `null` when it was the first of
+     *  them, which is a place a neighbour cannot name. Recorded as a NODE
+     *  rather than as an index: ids survive what another writer does to the
+     *  rows around them, and an index does not.
+     *
+     *  BOTH fields, and the second is not redundant with the first even though
+     *  a sibling implies a parent: the pair is CHECKED. If that neighbour has
+     *  itself moved somewhere else since, "after it" and "under that parent"
+     *  stop agreeing, and the ops layer refuses the placement instead of
+     *  quietly following the neighbour into a branch this row was never in.
+     *  That refusal is the feature. */
+    after: Schema.NullOr(Id),
+  }),
+  /**
+   * Put a mark back — the inverse of a `toggle`.
+   *
+   * `null` is "it carried none", which a toggle cannot say either: the format
+   * allows at most one mark, so ticking a `todo` node off does not add `done`
+   * beside it, it REPLACES it. What was there is therefore something only the
+   * write that displaced it knew.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("mark"),
+    id: Id,
+    mark: Schema.NullOr(Schema.Literals(MARKS)),
+  }),
+  /**
+   * The UN-CREATE: take back a row that was just made, which is the inverse of
+   * an `add` and the only removal this surface has. Not a delete — no key
+   * sends it, and the deferral #109 recorded is not this PR's to close.
+   *
+   * It resolves to `archive`, because that is the only removal the SET has: a
+   * node goes to `Archive.jsonl` keeping its id, which is a trash rather than
+   * a shredder and is exactly what `archive_node` does for an agent.
+   *
+   * What the WIRE guarantees is the narrowing, and it is worth saying in those
+   * terms rather than in the client's: this is `archive_node` minus every node
+   * that has anything under it. That nothing but an inverse produces one today
+   * is a fact about the editor, and a fact about the editor is not a fence —
+   * the fence is the refusal, and it is the ops layer's rule about what an
+   * undo is entitled to: what it made, never what somebody built on it.
+   *
+   * IT DOES NOT COME BACK, and that is not this face's gap: there is no
+   * unarchive on ANY face (human, 2026-08-12 — an equal absence rather than a
+   * deviation, one op to build once in the ops layer and expose to both faces
+   * together). So the undo of this one says it cannot be redone, and the day
+   * that op exists it stops having to.
+   */
+  Schema.Struct({ verb: Schema.Literal("remove"), id: Id }),
 ])
 export type Edit = typeof Edit.Type
 
@@ -130,6 +263,35 @@ export type Edit = typeof Edit.Type
 export const Applied = Schema.Struct({
   id: Id,
   nudge: Schema.optionalKey(Schema.String),
+  /**
+   * What would TAKE THIS WRITE BACK, derived from the snapshot it was judged
+   * against — the half of an undo stack a browser cannot compute for itself.
+   *
+   * It has to be recorded here because the facts an op destroys are gone the
+   * moment it lands: where a row sat before `Tab`, which mark a `Ctrl+Enter`
+   * replaced. A tab could keep its own note of them, and it would be a SECOND
+   * reading of the set — some frames old, free to disagree with the one the
+   * write was judged against, which is the reading whose neighbours are the
+   * ones being undone.
+   *
+   * A LIST, in the order it must be replayed, and it is one edit for
+   * everything but a mark that displaced another: putting `todo` back on a
+   * node that is currently `done` is two ops, because the ops layer refuses to
+   * walk finished work backwards in one (`plan.ts` — "undo that first"). Two
+   * calls is exactly what an agent would make, which is what keeps the faces
+   * consistent; a shortcut here would be the web doing something MCP cannot.
+   *
+   * ABSENT when nothing would take it back, which is now only the write that
+   * has already gone somewhere no op reaches: a row taken into the archive
+   * (`move` is same-file by the format). A TEXT edit answers with one like
+   * everything else — the human drove this and found the hole (2026-08-12):
+   * a title committed and then ⌘Z'd said "nothing to undo", which is an undo
+   * that does not undo. What made the hole was reading "drafts are excluded"
+   * as "text is excluded"; the ruling is about the chord being dead while an
+   * editor is OPEN — that undo is the input's own — and says nothing about the
+   * op a committed draft produced. A committed title has a perfect inverse.
+   */
+  undo: Schema.optionalKey(Schema.Array(Edit)),
 })
 export type Applied = typeof Applied.Type
 

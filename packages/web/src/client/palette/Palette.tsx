@@ -31,6 +31,7 @@ import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
 import { run } from "../run.ts"
 import { askQuery, filterItems, type PaletteItem } from "./items.ts"
+import { useUndo } from "../edit/undoing.ts"
 import { isEditingTarget, matchKey } from "../keys.ts"
 import { Shortcuts } from "./Shortcuts.tsx"
 
@@ -42,6 +43,12 @@ export function Palette(props: {
    */
   readonly toggleDirectory: () => void
 }) {
+  // ⌘Z / ⌘⇧Z belong to the outline's undo stack; what this file owns is the
+  // ONE window listener the global layer has (../keys.ts), and a second one
+  // for two more chords would be exactly the disagreement that registry exists
+  // to make impossible. Reached the way the row editor reaches it rather than
+  // handed down as two props — same object, one access path.
+  const undo = useUndo()
   const [open, setOpen] = createSignal(false)
   const [keys, setKeys] = createSignal(false)
   const [query, setQuery] = createSignal("")
@@ -141,6 +148,11 @@ export function Palette(props: {
       }
       if (match.action === "sidebar") props.toggleDirectory()
       if (match.action === "chat") toggleChat()
+      // Reached only with the caret nowhere — both chords are
+      // `whileEditing: false`, so a draft keeps the platform's own undo and
+      // Escape keeps abandoning.
+      if (match.action === "undo") undo.undo()
+      if (match.action === "redo") undo.redo()
     }
     window.addEventListener("keydown", onKey)
     onCleanup(() => window.removeEventListener("keydown", onKey))

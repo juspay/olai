@@ -75,6 +75,8 @@ import {
   typed,
 } from "./draft.ts"
 import { flatten, neighbour } from "./order.ts"
+import { serial } from "./queue.ts"
+import { useUndo } from "./undoing.ts"
 
 export interface Editor {
   /** The draft, or `null` when nothing is being typed. It carries what the
@@ -169,6 +171,10 @@ export const createEditor = (
 ): Editor => {
   const [draft, setDraft] = createSignal<Draft | null>(null)
   const [caret, setCaret] = createSignal(0)
+  /** Where a write's inverse goes. Read once, here, rather than at every
+   *  write: it is the app's, it does not move, and a context read inside a
+   *  promise would be reaching outside the scope that owns it. */
+  const undo = useUndo()
 
   /**
    * Every write this editor makes, in the order the keys were pressed.
@@ -182,18 +188,15 @@ export const createEditor = (
    * invisible in a way this whole design is written against: nobody would see
    * the second one land against the row the first one moved.
    *
-   * So it is a queue of one. Each step waits for the last to settle —
-   * `then(step, step)`, so a step that throws does not wedge every later key —
-   * and the sequencing the header promises is this line rather than a habit of
+   * So it is a queue of one ({@link ./queue.ts}, which is where the reason a
+   * step that THROWS must not wedge the ones after it lives) — and the
+   * sequencing the header promises is this line rather than a habit of
    * awaiting in the right places.
    *
    * What is NOT queued is what a person must never wait for: typing
    * ({@link Editor.type} is a signal write) and `Escape`, which abandons.
    */
-  let gate: Promise<unknown> = Promise.resolve()
-  const enqueue = (step: () => Promise<unknown>): void => {
-    gate = gate.then(step, step)
-  }
+  const enqueue = serial()
 
   /** The caret's own three facts, memoised so typing does not move them. */
   const where = createMemo<Caret>(() => {
@@ -284,7 +287,17 @@ export const createEditor = (
     from: Slot,
   ): Promise<{ id: string; nudge?: string } | null> => {
     const outcome = await runAsync(olai.procedures.edit.apply(edit))
-    if (Result.isSuccess(outcome)) return outcome.success
+    if (Result.isSuccess(outcome)) {
+      // What would take this back, straight onto the stack ⌘Z spends — the
+      // server's own answer, derived from the snapshot this write was judged
+      // against ({@link ./undoing.ts}). EVERY write that has an inverse, the
+      // text ones included: a draft that has committed is an op like any
+      // other, and the DRAFT is what Escape and blur own. The two were
+      // conflated once, and what it cost was ⌘Z answering "nothing to undo" to
+      // somebody who had just retyped a title.
+      undo.record(outcome.success.undo)
+      return outcome.success
+    }
     setDraft((held) =>
       held !== null && sameSlot(slotOf(held), from) ? refused(held, outcome.failure) : held
     )
