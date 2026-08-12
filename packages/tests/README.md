@@ -302,7 +302,9 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="file-dir-toggle"]` | the fold control on that folder |
 | `[data-testid="document-link"][data-file]` | one document entry in the file tree |
 | `[data-testid="document-page"][data-file]` | one document, as a page |
-| `[data-testid="document-body"]` | a document's rendered markdown, on its page or inline under a node |
+| `[data-testid="document-body"]` | a document's rendered markdown, on its page, inline under a node, or as a day's note |
+| `[data-testid="day-note"][data-file]` | THE day's note on a day page: the document named for that date, drawn above the dated nodes |
+| `[data-testid="day-note-link"]` | its heading — the way from the day to that document's own page |
 | `[data-testid="toc"]` | a document's table of contents, above its body — a `<details>`, so whether it is open is the element's own state; ABSENT on anything that is not a document's own page, and on a document with fewer than two headings |
 | `[data-testid="toc-link"]` | one line of it: a link to a heading in the same page, its `href` naming the id that heading carries |
 | `[data-testid="doc-ref"][data-doc]` | a node's `doc`, at its RESOLVED path; `data-inline` when the document is drawn whole |

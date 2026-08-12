@@ -69,6 +69,27 @@ export const fileNamed = (route: Route): string | undefined =>
     ? route.file ?? undefined
     : undefined
 
+/**
+ * The route a link on the page names, or `null` for an address this app should
+ * let the browser have.
+ *
+ * STRICTER than {@link routeOf} on purpose, and the difference is who is
+ * asking. `routeOf` reads the address bar, where an unrecognised path is a
+ * reader who typed something and the kindest answer is the app's front page.
+ * This reads an `href` inside RENDERED MARKDOWN — a link somebody wrote in a
+ * file — and there the same fallback would mean every link this app has no
+ * page for silently opening the default outline instead of going where it says.
+ *
+ * So exactly one shape is claimed: a document's own page, which is the one this
+ * app mints into rendered markdown (`markdown/rewrite.ts`). A FRAGMENT is not
+ * claimed either — `/doc/x.md#beds` is left to the browser, because what a
+ * fragment names on a rendered page is an id this app mints per block, and
+ * pretending to answer an anchor it will not land on is worse than a plain
+ * navigation that visibly does not.
+ */
+export const routeIn = (href: string): Route | null =>
+  href.startsWith(DOCUMENT_PREFIX) && !href.includes("#") ? routeOf(href) : null
+
 /** Anything this does not recognise is the default outline: an unknown path is
  *  a reader who typed something, and the app they wanted is the one at `/`. */
 export const routeOf = (pathname: string): Route =>

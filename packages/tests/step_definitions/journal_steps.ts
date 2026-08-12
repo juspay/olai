@@ -170,7 +170,7 @@ Then("the month shown is this month", async function (this: OlaiWorld) {
 const expectDay = async (
   world: OlaiWorld,
   date: string,
-  fact: "data-dated" | "data-today" | "data-open",
+  fact: "data-dated" | "data-noted" | "data-today" | "data-open",
   expected: boolean,
 ): Promise<void> => {
   await world.expectAttribute(
@@ -194,14 +194,18 @@ Then(
   },
 );
 
+/** Inert is NEITHER mark, and both halves are asked: a day bearing a note has
+ *  nothing dated it either, and a step that only counted the nodes would call
+ *  it inert while it sat there as a link (`features/daily_notes.feature`). */
 Then("the day {string} is inert", async function (this: OlaiWorld, date: string) {
   await expectDay(this, date, "data-dated", false);
+  await expectDay(this, date, "data-noted", false);
   // Nothing to press: pressing it could only mean "write something here", and
   // this pane writes nothing.
   assert.strictEqual(
     await this.calendarDay(date).locator("a").count(),
     0,
-    `the day ${date} has nothing on it, so it must not be a link`,
+    `the day ${date} has nothing on it and no note, so it must not be a link`,
   );
 });
 

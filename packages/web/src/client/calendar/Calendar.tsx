@@ -23,6 +23,13 @@
  * memo is what makes a dated node saved on disk light its day without a
  * reload: the query reads the live derivation, so the frame that changes it
  * re-runs this.
+ *
+ * TWO of those questions now, and they stay two. A day may carry a node of the
+ * set, a note somebody wrote for it, or both, and the cell draws a different
+ * mark for each (./Day.tsx) — so a union computed here would be a fact the
+ * cell could not take apart again. Both are asked the same way and for the
+ * same reason: a `.md` dropped into the directory lights its day on the frame
+ * it arrives.
  */
 
 import { createMemo, createSelector, For, Show } from "solid-js"
@@ -40,6 +47,9 @@ export function Calendar(props: {
   readonly open: string | undefined
   /** Which days of a month have at least one node dated them. */
   readonly days: (month: string) => ReadonlySet<string>
+  /** Which days of a month a document is named for — the days that have a note
+   *  of their own. */
+  readonly noted: (month: string) => ReadonlySet<string>
 }) {
   /** The month the calendar belongs to when nobody has paged it: the day being
    *  read, or today. A `/d/<anything>` address is a day nothing can be dated
@@ -58,6 +68,7 @@ export function Calendar(props: {
   }
 
   const dated = createMemo(() => props.days(month()))
+  const noted = createMemo(() => props.noted(month()))
 
   // Which cell is FILLED, as a selector rather than `day() === props.open` in
   // each of them: that form subscribes all thirty-odd days to the open one, so
@@ -100,6 +111,7 @@ export function Calendar(props: {
                 <Day
                   date={day()}
                   dated={dated().has(day())}
+                  noted={noted().has(day())}
                   today={day() === props.today}
                   open={isOpen(day())}
                 />

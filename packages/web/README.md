@@ -174,14 +174,28 @@ sanitise, highlight, rewrite, stringify:
 - **`rewrite.ts`** is a walk over the finished tree rather than a plugin, which
   is what lets the pipeline be built once — the highlighter registers three
   dozen languages when it is attached, and a pipeline rebuilt per note would
-  pay for that on every row of every frame. It answers the two questions only
+  pay for that on every row of every frame. It answers the three questions only
   this app can: a relative picture becomes a `/media/…` URL and anything else
-  is not drawn at all, and every id (and every link into the same block) is
+  is not drawn at all, a relative link to another `.md` becomes that document's
+  `/doc/<path>` — resolved beside the file it was WRITTEN in (`@olai/format`'s
+  `documentOf`), which is what makes a link in a note drawn on `/d/<date>` land
+  where the writer meant instead of wherever the browser would resolve it, with
+  any fragment carried through untouched and every other link left exactly as
+  written — and every id (and every link into the same block) is
   re-minted under a prefix derived from the block itself, so the first footnote
   of one note cannot answer for the first footnote of the next — and, now, so
   that two notes both opening `## Shape` cannot answer for each other either.
   On its way through it REPORTS the heading tree (`outline.ts`), because the
   ids a contents has to name do not exist until this pass has run.
+- **`follow.ts`** is the other end of that link. Rendered markdown reaches the
+  page as HTML through `innerHTML`, so its anchors belong to no component and
+  cannot be the app's own `<Link>` — without this, moving between two files of
+  one directory would be a full document load. One delegated listener on the
+  main pane rather than one per rendered block, and it is on the pane rather
+  than inside `<Markdown>` because the chat panel draws the same markdown
+  outside the router. It declines a modified click (that is a reader asking for
+  the browser's behaviour), a click a `<Link>` deeper in the tree has already
+  answered, and every address that is not a document's own page.
 
 - **titles are inline-only** (`renderTitle` → `renderToTree` + `inline.ts`).
   Same pipeline, then every block is unwrapped to phrasing, then `#tags` are
@@ -371,13 +385,26 @@ neither is about the format:
   moment — a tab left open overnight on `/today` would otherwise be the one
   stale thing on a page whose whole promise is that it is not.
 
-Three marks, and they are three because a reader has to tell them apart at a
-glance in a 16rem column: a day with something on it is a link with a dot,
-today wears a ring, and the day being read is filled. An empty day is inert —
-pressing it could only mean "write something here", and this pane writes
-nothing. Every one of them is a `data-` fact on the cell (`data-dated`,
-`data-today`, `data-open`) rather than a colour, so the browser tests assert on
-the mark and never on the palette.
+Four marks, and they are four because a reader has to tell them apart at a
+glance in a 16rem column: a day with something on it is a link with a dot, a
+day with a NOTE wears a corner fold, today wears a ring, and the day being read
+is filled. A day with neither of the first two is inert — pressing it could
+only mean "write something here", and this pane writes nothing. Every one of
+them is a `data-` fact on the cell (`data-dated`, `data-noted`, `data-today`,
+`data-open`) rather than a colour, so the browser tests assert on the mark and
+never on the palette.
+
+The fold is the second half of DAILY NOTES: a document whose basename is exactly
+an ISO date is that day's note (`@olai/format`'s `noteDateOf` — one derivation,
+beside the other two, so the mark and the page cannot disagree), and `day/
+DayNote.tsx` draws it above the dated nodes on `/d/<date>` and `/today`. A
+different SHAPE in a different PLACE from the dot, because a day may carry both
+and a dot that changed size or shade would be unreadable without the other one
+beside it. The note joins the day rather than replacing it: the groups below are
+what they always were, a day whose note is on screen does not claim to be empty,
+and nothing here writes — creating a note is `md-editing`, later. Which days
+those are is asked of the DOCUMENTS' key set rather than of the derivation,
+because it is a question about filenames.
 
 ## Fifteen palettes, and the one you picked
 

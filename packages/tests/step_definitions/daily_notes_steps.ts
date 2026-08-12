@@ -1,0 +1,184 @@
+/**
+ * The day's own note: the second mark in the month, the rendering above the
+ * day's nodes, and the relative link that has to know which FILE it was written
+ * in rather than which page it is drawn on.
+ *
+ * Two things these steps are careful about. Which mark a day cell wears is read
+ * off `data-noted` and `data-dated` separately, never off the colour or off one
+ * combined fact — they are two different sentences about a day and a cell may
+ * say both. And "today" is asked of the clock with the same function the client
+ * uses (`client/clock.ts`), imported rather than re-spelled, for the reason
+ * `journal_steps.ts` gives: a suite that computed the day its own way would
+ * disagree with the browser at exactly midnight in one time zone.
+ */
+
+import * as assert from "node:assert";
+import { Given, Then, When } from "@cucumber/cucumber";
+
+import { isoDayOf } from "@olai/web/src/client/clock.ts";
+
+import {
+  DAY_EMPTY,
+  DAY_GROUP,
+  DAY_NOTE,
+  DAY_NOTE_LINK,
+  daySelector,
+  HYDRATION_TIMEOUT,
+  POLL_TIMEOUT,
+} from "../support/world.ts";
+import type { OlaiWorld } from "../support/world.ts";
+
+/** Where a scenario's own note goes: the layout the human's vault keeps, so
+ *  the path this writes is the shape the detection is claimed to match. */
+const dailyNote = (date: string): string => `Daily/${date}.md`;
+
+// ── the note on the page ───────────────────────────────────────────────
+
+/** The note as a `data-` fact rather than as text: WHICH document turned out
+ *  to be the day's is the promise, and what is inside it is the markdown
+ *  pipeline's, asserted by the document steps this feature reuses. */
+const expectNote = async (world: OlaiWorld, file: string): Promise<void> => {
+  await world.expectAttribute(
+    DAY_NOTE,
+    "data-file",
+    file,
+    "the day's note",
+    HYDRATION_TIMEOUT,
+  );
+};
+
+Then(
+  "the day shows the note {string}",
+  async function (this: OlaiWorld, file: string) {
+    await expectNote(this, file);
+  },
+);
+
+Then("the day shows today's note", async function (this: OlaiWorld) {
+  await expectNote(this, dailyNote(isoDayOf(new Date())));
+});
+
+Then("the day shows no note", async function (this: OlaiWorld) {
+  // The day page is on screen first, so an empty count is an answer rather
+  // than a page that has not been drawn yet.
+  await this.page
+    .locator(DAY_GROUP)
+    .first()
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.strictEqual(
+    await this.page.locator(DAY_NOTE).count(),
+    0,
+    "a day with no document named for it is drawing a note",
+  );
+});
+
+Then("the day has no dated nodes", async function (this: OlaiWorld) {
+  await this.page
+    .locator(DAY_NOTE)
+    .first()
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.strictEqual(
+    await this.page.locator(DAY_GROUP).count(),
+    0,
+    "this day has nothing dated it, so it must draw no groups",
+  );
+});
+
+/** The line a day says when it holds NOTHING — and a day holding a note does
+ *  not hold nothing. Asserted as an absence, which is a real answer here: the
+ *  note above it is already on screen by the time this is asked. */
+Then("the day does not say it is empty", async function (this: OlaiWorld) {
+  assert.strictEqual(
+    await this.page.locator(DAY_EMPTY).count(),
+    0,
+    "a day whose note is on screen is telling the reader it is empty",
+  );
+});
+
+When("I follow the note's heading", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(DAY_NOTE_LINK).first());
+});
+
+/**
+ * Follow a link inside RENDERED MARKDOWN, by the words it is set in.
+ *
+ * By text, because that is the only handle it has: rendered markdown carries no
+ * testids — its tags come out of a file on disk — and the whole question here is
+ * where an ordinary `[…](…)` somebody wrote goes. The rendering it is in is not
+ * named either, deliberately: this is asked of a note on a day page and of the
+ * same file on its own page, and the step says the same thing both times.
+ */
+When(
+  "I follow the link {string} in the rendered markdown",
+  async function (this: OlaiWorld, text: string) {
+    const link = this.page.locator(`main a`, { hasText: text }).first();
+    await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await this.press(link);
+  },
+);
+
+// ── the mark in the month ──────────────────────────────────────────────
+
+const expectDay = async (
+  world: OlaiWorld,
+  date: string,
+  fact: "data-noted" | "data-dated",
+  expected: boolean,
+): Promise<void> => {
+  await world.expectAttribute(
+    daySelector(date),
+    fact,
+    String(expected),
+    `the day ${date}`,
+  );
+};
+
+Then("the day {string} has a note", async function (this: OlaiWorld, date: string) {
+  await expectDay(this, date, "data-noted", true);
+});
+
+Then("the day {string} has no note", async function (this: OlaiWorld, date: string) {
+  await expectDay(this, date, "data-noted", false);
+});
+
+/** The other half of "has something on it", split out: a note-day has nothing
+ *  DATED it and is still a day that goes somewhere, so the two facts cannot be
+ *  asked by one step any more. */
+Then(
+  "the day {string} has nothing on it",
+  async function (this: OlaiWorld, date: string) {
+    await expectDay(this, date, "data-dated", false);
+  },
+);
+
+/** Either mark makes the cell a link — the day has something to show, whether
+ *  the reader wrote it or the set did. */
+Then("the day {string} is a link", async function (this: OlaiWorld, date: string) {
+  const link = this.calendarDay(date).locator("a");
+  await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.strictEqual(await link.count(), 1);
+});
+
+Then("today has a note", async function (this: OlaiWorld) {
+  await expectDay(this, isoDayOf(new Date()), "data-noted", true);
+});
+
+Then("today has no note", async function (this: OlaiWorld) {
+  await expectDay(this, isoDayOf(new Date()), "data-noted", false);
+});
+
+// ── a note written while the page is open ──────────────────────────────
+
+/** Drop today's note into the served directory, as a person with an editor
+ *  would. Nothing here tells the store to look — the watcher does. */
+Given("I write today's note", function (this: OlaiWorld) {
+  this.writeServed(
+    dailyNote(isoDayOf(new Date())),
+    [
+      "# Today",
+      "",
+      "Written into the directory while the page was **open**, which is the only",
+      "way a fixture can have a note on a day nobody knew in advance.",
+    ].join("\n"),
+  );
+});

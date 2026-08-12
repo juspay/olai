@@ -23,11 +23,14 @@
  *     a URL, and the route that answers that URL), they are in packages that
  *     cannot import each other, and two allowlists that drifted apart would
  *     mean either a broken image or a served file nobody meant to serve.
+ *   - {@link documentOf} — where a relative `[…](…)` lands. The same arithmetic
+ *     as a `doc` and as a picture, asked about the third thing markdown can
+ *     point at: another document of this directory.
  */
 
 import { Schema } from "effect"
 
-import { isMirror, type Located } from "./node.ts"
+import { fileKind, isMirror, type Located } from "./node.ts"
 
 /**
  * One `.md` of the set: its path, and its text.
@@ -98,6 +101,36 @@ export const pictureOf = (from: string, src: string): string | null => {
   if (SCHEME.test(src)) return null
   const resolved = resolveRelative(from, src)
   return isPicture(resolved) ? resolved : null
+}
+
+/**
+ * The document a markdown `[…](…)` names, as a path relative to the served
+ * directory — or `null` for a link that is not one.
+ *
+ * The vault case, and the reason it exists: a directory of `.md` files links
+ * between them with plain relative paths (`../projects/deck.md`), and a
+ * renderer that left those alone would hand the browser an address relative to
+ * whatever ROUTE the page happens to be at — which is the document's own
+ * directory on `/doc/…` by luck, and the wrong place everywhere else. Resolved
+ * here instead, beside the file the link was WRITTEN in, exactly as a `doc`
+ * field and a relative picture already are.
+ *
+ * The same refusals as {@link pictureOf}, for the same reasons: no scheme, no
+ * `//host`, no absolute path, no fragment — all of those are somewhere else's
+ * business and are left exactly as written. What is different is the end of the
+ * test: a document rather than a picture ({@link fileKind}), so `README` and
+ * `art/handle.png` are not documents and a `.md` anywhere under the root is.
+ *
+ * Whether the directory actually HOLDS the answer is not asked here, and that
+ * is deliberate: this package knows the arithmetic, the page model knows what
+ * was found, and a link to a `.md` that is not there is answered by the screen
+ * that says so rather than by a link that silently was not one.
+ */
+export const documentOf = (from: string, href: string): string | null => {
+  if (href === "" || href.startsWith("/") || href.startsWith("#")) return null
+  if (SCHEME.test(href)) return null
+  const resolved = resolveRelative(from, href)
+  return fileKind(resolved) === "document" ? resolved : null
 }
 
 /** A URL scheme, or the `//host` that borrows the page's own. Tested before

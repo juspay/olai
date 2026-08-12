@@ -1,6 +1,12 @@
 import { expect, test } from "bun:test"
 
-import { docOf, isPicture, pictureOf, resolveRelative } from "./documents.ts"
+import {
+  docOf,
+  documentOf,
+  isPicture,
+  pictureOf,
+  resolveRelative,
+} from "./documents.ts"
 import { nodesOf } from "./fixtures.testlib.ts"
 
 /** The one node of a one-line fixture, located in `file`. */
@@ -69,6 +75,39 @@ test("only a relative picture is drawn at all", () => {
     "logo.svg",
   ]) {
     expect(pictureOf("docs/notes.md", src)).toBeNull()
+  }
+})
+
+// A link between two `.md` files is the way a vault of Markdown points at
+// itself, and it lands beside the file that WROTE it — the same arithmetic a
+// `doc` and a picture already use, which is why they are one resolver.
+test("a relative link to a document resolves beside the file that names it", () => {
+  expect(documentOf("Daily/2026/08/2026-08-12.md", "../../../projects/deck.md"))
+    .toBe("projects/deck.md")
+  expect(documentOf("notes/palette.md", "finishes.md")).toBe("notes/finishes.md")
+  expect(documentOf("notes/palette.md", "./finishes.md")).toBe("notes/finishes.md")
+  // A note is written in an OUTLINE, and a link in one resolves the same way.
+  expect(documentOf("house.jsonl", "finishes.md")).toBe("finishes.md")
+})
+
+// Everything this must not reinterpret. A link with a scheme goes where it
+// says, an absolute path is not this app's to resolve, a fragment is the
+// platform's, and a relative path to something that is not a document is
+// somebody pointing at something else.
+test("only a relative link to a document is a document link", () => {
+  for (const href of [
+    "https://example.com/a.md",
+    "//example.com/a.md",
+    "mailto:someone@example.com",
+    "javascript:alert(1)",
+    "/finishes.md",
+    "#beds",
+    "",
+    "art/handle.png",
+    "garden.jsonl",
+    "README",
+  ]) {
+    expect(documentOf("notes/palette.md", href)).toBeNull()
   }
 })
 

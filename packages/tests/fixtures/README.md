@@ -109,11 +109,28 @@ whole of what the nudge names.
 Every chat scenario is `@scratch:chat`, because the agent WRITES: it is served a
 private temp copy with a server of its own, and both go away with the scenario.
 
-## `journal/` — a set with dates in it
+## `journal/` — a set with dates in it, and a vault of daily notes
 
 Two outlines whose nodes carry `date`, for the month in the sidebar and the day
-view. Neither file is a journal and neither is named like one: that is the
+view. Neither OUTLINE is a journal and neither is named like one: that is the
 point, since a day is a query over the whole set.
+
+Beside them is the one filename that does mean something — a `Daily/YYYY/MM/`
+tree of documents, laid out the way the human's own vault is, for
+`features/daily_notes.feature`:
+
+| what | where |
+|---|---|
+| a daily note on a day that also has nodes | `Daily/2019/11/2019-11-05.md` — the composition: the note first, `ferry`/`posts`/`rails` below |
+| a relative `.md` → `.md` link, climbing three directories | that same note → `../../../notes/ferry.md`, whose target is `notes/ferry.md` |
+| a daily note on a day with NO dated nodes | `Daily/2019/11/2019-11-08.md` — a note-day is a link, and does not claim to be empty |
+| a document that merely NAMES a date | `Daily/2019/11/2019-11-09-recap.md` — so the 9th stays inert |
+| a day with neither | the 7th — still inert, which is the no-write-affordance stance surviving |
+
+The link is written with `..` on purpose. The note is drawn on `/d/2019-11-05`,
+which is not a file at all, so a link left relative would be resolved by the
+browser against the ROUTE; the base is the note's own directory, and the only
+way to say so is a path that climbs out of it.
 
 | what | where |
 |---|---|
@@ -131,7 +148,10 @@ point, since a day is a query over the whole set.
 behaviour depends on what day it *is*, and `features/journal_and_calendar.feature`
 has a scenario that asserts `/today` is empty. Dating the fixtures to a year
 that has already happened is what keeps that scenario honest on every day it
-will ever run.
+will ever run. The one scenario that needs a note on TODAY writes one, under
+`@scratch:journal` — a day nobody knows in advance cannot be a tracked file,
+and writing it is also the honest test of a `.md` dropped into the directory
+while a page is open.
 
 ## `broken/` — a set that does not parse
 

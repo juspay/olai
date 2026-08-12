@@ -12,7 +12,7 @@
  * rows that page draws.
  */
 
-import { datedDays } from "@olai/format"
+import { dailyNoteDays, datedDays } from "@olai/format"
 import { createEffect, createMemo, createSignal, Match, on, Show, Switch } from "solid-js"
 
 import { AppHeader } from "./AppHeader.tsx"
@@ -32,6 +32,7 @@ import { Banner } from "./errors/Banner.tsx"
 import { Broken } from "./errors/Broken.tsx"
 import { Page as ErrorPage } from "./errors/Page.tsx"
 import { publishLayoutCss } from "./layout/css.ts"
+import { followed } from "./markdown/follow.ts"
 import { desktop } from "./layout/media.ts"
 import { chatOpen, sidebarOpen, toggleSidebar } from "./layout/prefs.ts"
 import { Rail } from "./layout/Rail.tsx"
@@ -89,6 +90,12 @@ export default function App() {
     const indexes = outlines.derived()
     return indexes === undefined ? new Set() : datedDays(indexes, month)
   }
+
+  // The calendar's second mark, off the documents' key set rather than off the
+  // derivation: which days have a note is a question about FILENAMES, and the
+  // paths are what every tab holds (`document/documents.tsx`).
+  const noted = (month: string): ReadonlySet<string> =>
+    dailyNoteDays(documents.paths(), month)
 
   const rows = createMemo(() => {
     const indexes = outlines.derived()
@@ -193,6 +200,7 @@ export default function App() {
                           today={today()}
                           open={only(open(), "day")?.date}
                           days={dated}
+                          noted={noted}
                         />
                       </Sidebar>
                     </Show>
@@ -202,6 +210,19 @@ export default function App() {
                       class={`overflow-x-auto px-4 pt-4 ${CLEARANCE} md:px-12 md:py-8 lg:pl-16 lg:pr-12 ${
                         !desktop() && !chatOpen() ? "pb-16" : ""
                       }`}
+                      // A link in RENDERED MARKDOWN is an anchor no component
+                      // owns — it arrives through `innerHTML` — so the one
+                      // that names a document of this directory is answered
+                      // here, in place, rather than by throwing the document
+                      // away (`markdown/follow.ts`). One listener for the pane
+                      // rather than one per rendered block, and everything it
+                      // does not claim behaves exactly as the browser's.
+                      onClick={(event) => {
+                        const route = followed(event)
+                        if (route === null) return
+                        event.preventDefault()
+                        router.go(route)
+                      }}
                     >
                       <Show when={problems().length > 0}>
                         <Banner errors={problems()} />
@@ -232,6 +253,7 @@ export default function App() {
                             <DayPage
                               date={open().date}
                               groups={open().groups}
+                              notes={open().notes}
                               today={today()}
                             />
                           )}

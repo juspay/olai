@@ -220,6 +220,11 @@ export const CALENDAR_NEXT = selector(TESTID.calendarNext);
 export const DAY_PAGE = selector(TESTID.dayPage);
 export const DAY_GROUP = selector(TESTID.dayGroup);
 export const DAY_EMPTY = selector(TESTID.dayEmpty);
+/** THE day's note, above those groups: a document named for the date itself.
+ *  `data-file` is which. */
+export const DAY_NOTE = selector(TESTID.dayNote);
+/** Its heading — the way from the day to the document's own page. */
+export const DAY_NOTE_LINK = selector(TESTID.dayNoteLink);
 /** The per-view Visible/Hidden switch for nodes that are done. */
 export const DONE_TOGGLE = selector(TESTID.doneToggle);
 /** Shown in the main pane when `/n/<id>` names no node. The sidebar stays. */

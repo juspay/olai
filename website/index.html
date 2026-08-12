@@ -244,6 +244,37 @@ The corner unit is the **risky one** — see
   </div>
 </section>
 
+<section id="daily">
+  <div class="wrap">
+    <h2>Daily notes</h2>
+    <p class="lead">A Markdown file named for a date — <code>2026-08-12.md</code>,
+    anywhere in the directory — is that day’s note. No setting says so, and it
+    can live wherever your vault already puts it. Open the day and the note is
+    on top, with everything dated that day underneath it. Relative links
+    between your Markdown files keep working from there.</p>
+    <div class="cols">
+      <div>
+        <pre><code>Daily/
+  2026/
+    08/
+      2026-08-12.md   ← the 12th
+      2026-08-10-recap.md  ← not a daily note</code></pre>
+        <p class="caption">Convention, not configuration: the basename has to
+        be the date and nothing else.</p>
+      </div>
+      <div class="panel mdoc">
+        <div class="file">/d/2026-08-12</div>
+        <h3>2026-08-12</h3>
+        <p>Fog on the water. Only the ferry has a deadline, so it went
+        first.</p>
+        <div class="file" style="margin-top:1rem">kitchen.jsonl</div>
+        <div class="row"><span class="box doing"></span><span class="t">Order the new cabinets</span></div>
+        <div class="row"><span class="box done"></span><span class="t strike">Pick the counter stone</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="marks">
   <div class="wrap">
     <h2>Task status</h2>
