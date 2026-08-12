@@ -11,7 +11,11 @@
  *     takes it away;
  *   - that a busy repository refuses instead of committing into a conflict,
  *     which is the hole this feature was built to close;
- *   - that only the served outlines are ever staged.
+ *   - that the WHOLE REPOSITORY is what is waiting — a `.md` edited by hand
+ *     included, which is the bug `commit-whole-repo` was filed for — while a
+ *     commit still names exactly the paths it was asked for and never touches
+ *     git's index;
+ *   - that push says what git said, whichever way it went.
  */
 
 import * as fs from "node:fs"
@@ -38,18 +42,32 @@ const HOUSE = [
 
 interface Fixture {
   readonly ops: Ops.Ops
+  /** The REPOSITORY root. Every path a test writes and every `git` it runs is
+   *  relative to this, which is what lets a served-subdirectory scenario write
+   *  a file above the served root. */
   readonly root: string
   readonly git: (...argv: ReadonlyArray<string>) => string
   readonly write: (file: string, contents: string) => void
   /** Re-read the directory, so a change made behind olai's back is part of the
    *  revision the next question is answered against. */
   readonly refresh: Effect.Effect<void>
+  /** Give the repository a bare clone as `origin`, with the branch tracking it,
+   *  and answer with where that bare repository is. What a push scenario needs
+   *  and nothing else does. */
+  readonly remote: () => string
 }
 
 const withRepo = <A>(
   files: Readonly<Record<string, string>>,
   use: (fixture: Fixture) => Effect.Effect<A, never>,
-  options: { readonly commits?: "off" | "manual" | "auto" } = {},
+  options: {
+    readonly commits?: "off" | "manual" | "auto"
+    /** Which directory olai SERVES, relative to the repository root. Absent is
+     *  the root itself, which is the ordinary case; `"docs"` is how olai serves
+     *  this project's own plan, and the case where every path has two
+     *  spellings. */
+    readonly serve?: string
+  } = {},
 ): Promise<A> => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-pending-")))
   const write = (file: string, contents: string) => {
@@ -59,22 +77,39 @@ const withRepo = <A>(
   for (const [file, contents] of Object.entries(files)) write(file, contents)
 
   const git = gitIn(root)
+  const served = options.serve === undefined ? root : path.join(root, options.serve)
+  fs.mkdirSync(served, { recursive: true })
   repoAt(root)
+
+  const remote = (): string => {
+    const bare = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-remote-")))
+    gitIn(bare)("init", "--quiet", "--bare", "--initial-branch", "main")
+    git("remote", "add", "origin", bare)
+    git("push", "--quiet", "--set-upstream", "origin", "main")
+    return bare
+  }
 
   return Effect.gen(function*() {
     const store: Store.Store<OutlineSet, ReadonlyArray<OutlineError>> = yield* Store.make({
-      root,
+      root: served,
       codec,
       watch: false,
       settle: "10 millis",
     })
     const ops = Ops.make({
       store,
-      root,
+      root: served,
       commits: options.commits ?? "manual",
       context: { mint: () => "minted", now: () => "2026-08-10T09:00:00-04:00" },
     })
-    return yield* use({ ops, root, git, write, refresh: Effect.orDie(store.refresh) })
+    return yield* use({
+      ops,
+      root,
+      git,
+      write,
+      remote,
+      refresh: Effect.orDie(store.refresh),
+    })
   }).pipe(
     Effect.scoped,
     Effect.provide(NodeServices.layer),
@@ -248,7 +283,17 @@ describe("manual is the default", () => {
 })
 
 describe("what is committed, and what is not", () => {
-  test("only the served outlines — never the other work in the tree", () =>
+  /**
+   * The bug this item was filed for, in one test: a `.md` edited by hand is
+   * WAITING, and a commit records it.
+   *
+   * It used to be dropped one line after `git status` had already surveyed it,
+   * because olai only listed the files it writes — so the panel said nothing was
+   * pending while the working tree said otherwise. The rows are path-level and
+   * that is the whole design: a text diff of a document is not something this
+   * feature shows.
+   */
+  test("every other dirty file in the repository waits too, and is swept up", () =>
     withRepo({ "house.jsonl": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         fixture.write("notes.md", "a document, which olai never writes\n")
@@ -256,10 +301,85 @@ describe("what is committed, and what is not", () => {
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
         yield* fixture.refresh
 
-        expect((yield* fixture.ops.commit({}, "web"))._tag).toBe("Committed")
-        // Both untouched files are still untracked, and the outline is in.
+        const pending = yield* fixture.ops.pending
+        // The outline still has its node-level detail...
+        expect(pending.changes).toHaveLength(1)
+        expect(pending.outlines).toEqual([
+          { file: "house.jsonl", path: "house.jsonl", how: "modified" },
+        ])
+        // ... and the other two are rows, with what happened to each.
+        expect([...pending.others].sort((a, b) => a.file.localeCompare(b.file)))
+          .toEqual([
+            { file: "notes.md", how: "untracked" },
+            { file: "script.sh", how: "untracked" },
+          ])
+        // Which the composed message names, so the log says what the commit did.
+        expect(pending.message).toContain("· 2 other files")
+        expect(pending.message).toContain("untracked: notes.md")
+
+        const done = yield* fixture.ops.commit({}, "web")
+        expect(done._tag).toBe("Committed")
+        // BOTH counts, because a commit can be all of one kind or all of the
+        // other and "0 changes" would read as nothing having happened.
+        expect(done._tag === "Committed" ? done.changes : -1).toBe(1)
+        expect(done._tag === "Committed" ? done.others : -1).toBe(2)
+        expect(fixture.git("status", "--porcelain").trim()).toBe("")
+      })))
+
+  /**
+   * PIECEMEAL: exactly the paths that were picked, and the rest stays waiting
+   * for a commit and a message of its own.
+   *
+   * And the property that makes it safe to offer at all: olai never touches
+   * git's index, so a file somebody had staged by hand is still staged
+   * afterwards, exactly as they left it.
+   */
+  test("a commit takes exactly the paths it was given, and leaves the index alone", () =>
+    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        fixture.write("notes.md", "the one to commit\n")
+        fixture.write("later.md", "not this time\n")
+        fixture.write("mine.md", "half-finished, staged by hand\n")
+        fixture.git("add", "mine.md")
+        yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
+        yield* fixture.refresh
+
+        const done = yield* fixture.ops.commit(
+          { paths: ["house.jsonl", "notes.md"] },
+          "web",
+        )
+        expect(done._tag).toBe("Committed")
+        expect(done._tag === "Committed" ? done.others : -1).toBe(1)
+
+        // The commit named those two files and no others.
+        expect(fixture.git("show", "--name-only", "--format=", "HEAD").trim().split("\n").sort())
+          .toEqual(["house.jsonl", "notes.md"])
+        // What was not picked is still waiting — and the hand-staged file is
+        // still STAGED, which is the whole reason a selection is not an index.
         expect(fixture.git("status", "--porcelain").trim().split("\n").sort())
-          .toEqual(["?? notes.md", "?? script.sh"])
+          .toEqual(["?? later.md", "A  mine.md"])
+
+        const after = yield* fixture.ops.pending
+        expect(after.changes).toEqual([])
+        expect([...after.others].map((one) => one.file).sort())
+          .toEqual(["later.md", "mine.md"])
+      })))
+
+  /** A path nobody is waiting on is a mistake, not a smaller commit. Committing
+   *  "the rest of it" under a request that named something else is exactly the
+   *  silent half-success this codebase refuses to ship. */
+  test("a path that is not waiting refuses, and commits nothing", () =>
+    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
+
+        const done = yield* fixture.ops.commit(
+          { paths: ["house.jsonl", "typo.md"] },
+          "web",
+        )
+        expect(done._tag).toBe("Failed")
+        expect(done._tag === "Failed" ? done.said : "").toContain("typo.md")
+        expect(subjects(fixture)).toEqual(["fixtures"])
       })))
 
   test("an unreadable outline is listed rather than dropped", () =>
@@ -274,6 +394,147 @@ describe("what is committed, and what is not", () => {
         // be reporting every node in it as gone.
         expect(pending.changes).toEqual([])
       })))
+})
+
+/**
+ * Serving a SUBDIRECTORY of a repository, which is how olai serves this
+ * project's own `docs/`.
+ *
+ * The human's bug, exactly: a dirty `README.md` at the repository root is
+ * waiting, and it says so — where it used to be outside the survey's pathspec
+ * and therefore invisible. An outline outside the served root is another file
+ * too: olai does not serve it, so there is no working-side parse to compare
+ * against, and a path-level row is the honest thing to show.
+ */
+describe("a served subdirectory reports on the whole repository", () => {
+  test("root-level dirt is waiting, and says which part olai serves", () =>
+    withRepo(
+      { "docs/house.jsonl": HOUSE },
+      (fixture) =>
+        Effect.gen(function*() {
+          fixture.write("README.md", "edited by hand, one level up\n")
+          fixture.write("elsewhere.jsonl", `{"id":"e","ord":"a0","title":"e"}\n`)
+          yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
+          yield* fixture.refresh
+
+          const pending = yield* fixture.ops.pending
+          expect(pending.served).toBe("docs/")
+          // The served outline, in BOTH spellings: the store's key and the
+          // repository's own name for it.
+          expect(pending.outlines).toEqual([
+            { file: "house.jsonl", path: "docs/house.jsonl", how: "modified" },
+          ])
+          expect([...pending.others].map((one) => one.file).sort())
+            .toEqual(["README.md", "elsewhere.jsonl"])
+
+          expect((yield* fixture.ops.commit({}, "web"))._tag).toBe("Committed")
+          expect(fixture.git("status", "--porcelain").trim()).toBe("")
+          // And the commit olai just made is what it reports as last, even
+          // though half of it lives outside the served directory.
+          expect((yield* fixture.ops.pending).last).not.toBe(null)
+        }),
+      { serve: "docs" },
+    ))
+
+  /** The two namespaces cannot collide, which is why an outline carries its
+   *  repository path at all: `docs/house.jsonl` and a root-level `house.jsonl`
+   *  are two files, and a tick names exactly one of them. */
+  test("a served outline and a root file of the same name are two ticks", () =>
+    withRepo(
+      { "docs/house.jsonl": HOUSE },
+      (fixture) =>
+        Effect.gen(function*() {
+          fixture.write("house.jsonl", `{"id":"other","ord":"a0","title":"not served"}\n`)
+          yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
+          yield* fixture.refresh
+
+          const done = yield* fixture.ops.commit({ paths: ["house.jsonl"] }, "web")
+          expect(done._tag).toBe("Committed")
+          expect(fixture.git("show", "--name-only", "--format=", "HEAD").trim())
+            .toBe("house.jsonl")
+          // The served one is untouched and still waiting.
+          expect((yield* fixture.ops.pending).outlines)
+            .toEqual([{ file: "house.jsonl", path: "docs/house.jsonl", how: "modified" }])
+        }),
+      { serve: "docs" },
+    ))
+})
+
+/**
+ * Push — the one verb this program has for sharing what it recorded, and the
+ * human's own reason for it: "push is the only thing that makes me use CLI
+ * outside of olai".
+ */
+describe("push", () => {
+  test("what is unpushed is surveyed, and pushing sends it", () =>
+    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        const bare = fixture.remote()
+        // In sync: an upstream that has everything, which is a different fact
+        // from having no upstream at all.
+        expect((yield* fixture.ops.pending).unpushed)
+          .toEqual({ upstream: "origin/main", commits: 0 })
+        expect((yield* fixture.ops.push)._tag).toBe("NothingToPush")
+
+        yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
+        yield* fixture.ops.commit({ message: "the cabinets are ordered" }, "web")
+        expect((yield* fixture.ops.pending).unpushed)
+          .toEqual({ upstream: "origin/main", commits: 1 })
+
+        const sent = yield* fixture.ops.push
+        expect(sent).toEqual({ _tag: "Pushed", upstream: "origin/main", commits: 1 })
+        expect(gitIn(bare)("log", "--format=%s", "-1", "main").trim())
+          .toBe("olai: the cabinets are ordered")
+        // ... and the panel stops offering to send it.
+        expect((yield* fixture.ops.pending).unpushed)
+          .toEqual({ upstream: "origin/main", commits: 0 })
+      })))
+
+  /** A branch with no upstream has nowhere to go, and that `null` is what keeps
+   *  the panel from offering to guess a remote. */
+  test("no upstream is not the same as nothing to push", () =>
+    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        expect((yield* fixture.ops.pending).unpushed).toBe(null)
+      })))
+
+  /**
+   * A refusal comes back with git's own words, exactly as a refused commit
+   * does — never silently, and never as a failed effect. This is the one thing
+   * about pushing that a person cannot find out any other way from inside the
+   * app.
+   */
+  test("a refusal surfaces verbatim", () =>
+    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        const bare = fixture.remote()
+        // The remote moves on without us, so the push is a non-fast-forward —
+        // the refusal a person actually meets.
+        const elsewhere = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-clone-")))
+        gitIn(elsewhere)("clone", "--quiet", bare, ".")
+        gitIn(elsewhere)("config", "user.email", "test@olai.invalid")
+        gitIn(elsewhere)("config", "user.name", "olai tests")
+        fs.writeFileSync(path.join(elsewhere, "theirs.md"), "from another clone\n")
+        gitIn(elsewhere)("add", "-A")
+        gitIn(elsewhere)("commit", "--quiet", "-m", "theirs")
+        gitIn(elsewhere)("push", "--quiet", "origin", "main")
+
+        yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
+        yield* fixture.ops.commit({ message: "mine" }, "web")
+
+        const sent = yield* fixture.ops.push
+        expect(sent._tag).toBe("Failed")
+        // Git's own account, whole. What to do about it stays a conversation in
+        // a terminal, and these are the words that start it.
+        expect(sent._tag === "Failed" ? sent.said : "").toContain("rejected")
+      })))
+
+  test("commits off has nothing to push either", () =>
+    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        const sent = yield* fixture.ops.push
+        expect(sent).toEqual({ _tag: "Blocked", repo: { _tag: "Off" } })
+      }), { commits: "off" }))
 })
 
 describe("a repository that cannot take a commit", () => {
@@ -405,9 +666,14 @@ test("both faces commit the same tree and the same message, differing only in th
    *  than two commits in one, because the second commit in a repository has a
    *  different parent — and a tree comparison wants the two runs to differ in
    *  nothing but the writer. */
-  const committedBy = (writer: "web" | "mcp") =>
+  const committedBy = (writer: "web" | "mcp", paths?: ReadonlyArray<string>) =>
     withRepo({ "house.jsonl": HOUSE }, (fixture) =>
       Effect.gen(function*() {
+        // A document nobody's op wrote, so the pending set has BOTH kinds of
+        // row in it: the two faces have to agree about the other files too, and
+        // about which of them a selection names.
+        fixture.write("notes.md", "edited by hand\n")
+        fixture.write("later.md", "and this one stays waiting\n")
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, writer))
         yield* Effect.orDie(fixture.ops.run({ op: "doing", id: "install" }, writer))
         yield* Effect.orDie(
@@ -424,7 +690,11 @@ test("both faces commit the same tree and the same message, differing only in th
           ),
         )
 
-        const outcome = yield* fixture.ops.commit({}, writer)
+        yield* fixture.refresh
+        const outcome = yield* fixture.ops.commit(
+          paths === undefined ? {} : { paths },
+          writer,
+        )
         expect(outcome._tag).toBe("Committed")
 
         return {
@@ -434,6 +704,7 @@ test("both faces commit the same tree and the same message, differing only in th
           trailer: fixture
             .git("log", "-1", "--format=%(trailers:key=X-Olai-Writer,valueonly)")
             .trim(),
+          waiting: fixture.git("status", "--porcelain").trim(),
         }
       }))
 
@@ -451,10 +722,36 @@ test("both faces commit the same tree and the same message, differing only in th
   expect(mcp.subject).toStartWith("olai: ")
   expect(bodyWithoutTrailer(mcp.body)).toBe(bodyWithoutTrailer(web.body))
   expect(bodyWithoutTrailer(web.body)).toContain("done: order the cabinets")
+  // The other files are in it too, named the same way by both.
+  expect(web.subject).toContain("other files")
+  expect(bodyWithoutTrailer(web.body)).toContain("untracked: notes.md")
 
   // The one difference, and it is required rather than tolerated.
   expect(web.trailer).toBe("web")
   expect(mcp.trailer).toBe("mcp")
+
+  /**
+   * And the SELECTION is the same selection, which is the half `commit-whole-repo`
+   * adds to this rule.
+   *
+   * The MCP tool grew a `paths` argument for exactly the reason the button has
+   * checkboxes — HACKING.md's "MCP and Web ops must be consistent; never
+   * deviate" — so the two faces committing the same three of five files have to
+   * produce the same tree, the same message and the same leftovers. A face that
+   * resolved a path differently would put a different file in somebody's history
+   * permanently.
+   */
+  const picked = ["house.jsonl", "notes.md"] as const
+  const webSome = await committedBy("web", picked)
+  const mcpSome = await committedBy("mcp", picked)
+
+  expect(mcpSome.tree).toBe(webSome.tree)
+  expect(mcpSome.subject).toBe(webSome.subject)
+  expect(bodyWithoutTrailer(mcpSome.body)).toBe(bodyWithoutTrailer(webSome.body))
+  expect(webSome.subject).toContain("· 1 other file")
+  // What was left out is still waiting, identically on both.
+  expect(mcpSome.waiting).toBe(webSome.waiting)
+  expect(webSome.waiting).toBe("?? later.md")
 })
 
 /** A commit body with the writer trailer taken off — everything the two faces

@@ -111,7 +111,7 @@ export const serve = (options: ServeOptions) =>
       store,
       root,
       commits: options.commits,
-      onCommitted: () => {
+      onRecorded: () => {
         Effect.runSync(SubscriptionRef.update(committed, (count) => count + 1))
       },
       // A refusal reaches the agent as its tool result AND the panel as a row:

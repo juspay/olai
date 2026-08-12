@@ -92,16 +92,85 @@ test("a git that cannot answer is Unusable carrying its words, not NoRepo", asyn
   expect(opening.said).not.toBe("")
 })
 
-test("a served subdirectory answers in ITS own path spelling", async () => {
+/**
+ * The three spellings, from a served SUBDIRECTORY — where they are three
+ * different strings and the difference matters.
+ *
+ * git prints `notes/b.jsonl`, because git speaks repo-relative paths. What
+ * comes back also says what the SERVED root calls it, and where it is on disk,
+ * which is the whole reason the placement belongs to the handle rather than to
+ * a caller.
+ */
+test("a dirty file answers in all three spellings, from a served subdirectory", async () => {
   const { root } = repo()
   fs.mkdirSync(path.join(root, "notes"))
   fs.writeFileSync(path.join(root, "notes", "b.jsonl"), `{"id":"b","ord":"a0","title":"b"}\n`)
 
-  // git prints `notes/b.jsonl`, because git speaks repo-relative paths. What
-  // comes back is what the SERVED root calls it — which is the whole reason
-  // the placement belongs to the handle rather than to a caller.
-  expect(await asked(path.join(root, "notes"), (git) => git.dirty))
-    .toEqual(["b.jsonl"])
+  const served = path.join(root, "notes")
+  expect((await asked(served, (git) => git.dirty)).files).toEqual([
+    {
+      path: "notes/b.jsonl",
+      served: "b.jsonl",
+      at: path.join(served, "b.jsonl"),
+      how: "untracked",
+    },
+  ])
+  expect(await asked(served, (git) => Effect.succeed(git.served))).toBe("notes/")
+})
+
+/**
+ * The bug this whole item was filed for: serving `docs/` and editing a
+ * `README.md` one level up said nothing was waiting.
+ *
+ * A file OUTSIDE the served directory comes back with `served: null`, which is
+ * exactly the news a caller needs — it is dirty, and olai does not serve it, so
+ * nothing above can have anything to say about what is in it.
+ */
+test("a served subdirectory still sees the dirt above it, marked as outside", async () => {
+  const { root } = repo()
+  fs.mkdirSync(path.join(root, "notes"))
+  fs.writeFileSync(path.join(root, "notes", "b.jsonl"), `{"id":"b","ord":"a0","title":"b"}\n`)
+  fs.writeFileSync(path.join(root, "README.md"), "edited by hand\n")
+
+  const found = (await asked(path.join(root, "notes"), (git) => git.dirty)).files
+  expect(found.map((one) => [one.path, one.served]).sort()).toEqual([
+    ["README.md", null],
+    ["notes/b.jsonl", "b.jsonl"],
+  ])
+})
+
+/** The porcelain XY letters, which were surveyed and thrown away one line
+ *  later. Every arm, in one repository, because the collapse of X and Y is a
+ *  decision rather than an accident. */
+test("dirty keeps how each file moved", async () => {
+  const { root, file } = repo()
+  const run = git(root)
+  fs.writeFileSync(path.join(root, "gone.jsonl"), `{"id":"g","ord":"a0","title":"g"}\n`)
+  fs.writeFileSync(path.join(root, "moved.md"), "to be renamed\n")
+  run("add", "-A")
+  run("commit", "--quiet", "-m", "more fixtures")
+
+  fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
+  fs.rmSync(path.join(root, "gone.jsonl"))
+  fs.renameSync(path.join(root, "moved.md"), path.join(root, "landed.md"))
+  fs.writeFileSync(path.join(root, "fresh.md"), "brand new\n")
+  fs.writeFileSync(path.join(root, "staged.md"), "added to the index by hand\n")
+  run("add", "staged.md")
+  // A rename git only sees once both halves are staged.
+  run("add", "-A", "moved.md", "landed.md")
+
+  const how = new Map(
+    (await asked(root, (git) => git.dirty)).files.map((one) => [one.path, one.how]),
+  )
+  expect(how.get("a.jsonl")).toBe("modified")
+  expect(how.get("gone.jsonl")).toBe("deleted")
+  expect(how.get("fresh.md")).toBe("untracked")
+  expect(how.get("staged.md")).toBe("added")
+  // A rename names both sides, and both are kept: the new one as what it is,
+  // the old one as a file that has left — a commit of this rename has to carry
+  // both halves or it lands as an unrelated add.
+  expect(how.get("landed.md")).toBe("renamed")
+  expect(how.get("moved.md")).toBe("deleted")
 })
 
 test("a clean repository on a branch is ready", async () => {
@@ -189,14 +258,71 @@ test("a repository mid-cherry-pick says so", async () => {
   expect(repoState._tag === "Blocked" ? repoState.reason : null).toBe("cherry-pick")
 })
 
-test("dirty names every served file that moved, tracked or not", async () => {
+test("dirty names every file that moved, tracked or not", async () => {
   const { root, file } = repo()
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
   fs.writeFileSync(path.join(root, "new.jsonl"), `{"id":"n","ord":"a0","title":"n"}\n`)
   fs.writeFileSync(path.join(root, "notes.md"), "not an outline\n")
 
   const found = await asked(root, (git) => git.dirty)
-  expect([...found].sort()).toEqual(["a.jsonl", "new.jsonl", "notes.md"])
+  expect(found.files.map((one) => one.path).sort())
+    .toEqual(["a.jsonl", "new.jsonl", "notes.md"])
+  // Nothing to push to, which is not the same as nothing to push — a
+  // repository nobody has given a remote has nowhere for a branch to go.
+  expect(found.upstream).toBe(null)
+})
+
+/**
+ * How far ahead of its upstream the branch is, off the header line the status
+ * call is already printing — one subprocess for both halves of "what is not
+ * recorded, and what is not shared".
+ */
+test("dirty says where the branch stands against its upstream", async () => {
+  const { root, file } = repo()
+  const bare = fs.mkdtempSync(path.join(os.tmpdir(), "olai-git-remote-"))
+  git(bare)("init", "--quiet", "--bare")
+  const run = git(root)
+  run("remote", "add", "origin", bare)
+  run("push", "--quiet", "--set-upstream", "origin", "main")
+
+  const level = await asked(root, (git) => git.dirty)
+  expect(level.upstream).toEqual({ name: "origin/main", ahead: 0 })
+
+  fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
+  run("commit", "--quiet", "-am", "one of mine")
+  expect((await asked(root, (git) => git.dirty)).upstream)
+    .toEqual({ name: "origin/main", ahead: 1 })
+
+  // And pushing it is one verb with nothing to decide: the current branch, to
+  // the upstream it already has.
+  const sent = await asked(root, (git) => git.push)
+  expect(sent._tag).toBe("Pushed")
+  expect((await asked(root, (git) => git.dirty)).upstream)
+    .toEqual({ name: "origin/main", ahead: 0 })
+  expect(git(bare)("log", "--format=%s", "-1", "main").trim()).toBe("one of mine")
+})
+
+/**
+ * A push that git refuses comes back with git's own words, exactly as a refused
+ * commit does. Never a failed effect, and never a silent nothing — this is the
+ * one thing about pushing a person cannot find out any other way from inside
+ * the app.
+ */
+test("a push git refuses is an answer carrying its words", async () => {
+  const { root } = repo()
+  const { layer, said } = collector()
+
+  const sent = await Effect.runPromise(
+    asEffect(root, (git) => git.push).pipe(Effect.provide(layer)),
+  )
+  expect(sent._tag).toBe("Refused")
+  // A branch with no upstream and no remote: git says so, at length, and what
+  // it says is what a reader is shown.
+  expect(sent.said).not.toBe("")
+
+  const warned = findSaid(said, "the branch was not pushed")
+  expect(warned?.level).toBe("Warn")
+  expect(String(warned?.annotations.said)).not.toBe("")
 })
 
 test("the last commit is olai's own, never the repository's HEAD", async () => {

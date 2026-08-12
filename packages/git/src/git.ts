@@ -3,11 +3,21 @@
  *
  * {@link open} is the socket: it answers with an {@link Opening} — a
  * {@link Repo}, a directory that is not a work tree, or a git that could not be
- * asked — and everything else is a method on the handle. Three questions and one
- * verb, each a subprocess and each total: whether the repository can take a
- * commit right now, which of the served files are dirty, what HEAD had in one of
- * them, and commit exactly these paths with exactly this message. What those
- * answers MEAN is `@olai/ops`' `pending.ts`'s.
+ * asked — and everything else is a method on the handle. Four questions and two
+ * verbs, each a subprocess and each total: whether the repository can take a
+ * commit right now, what has moved in it and how far ahead of its upstream it
+ * is, what HEAD had in one of the served files, what was last recorded under a
+ * caller's own audit filter — then commit exactly these paths with exactly this
+ * message, and push the current branch. What those answers MEAN is
+ * `@olai/ops`' `pending.ts`'s.
+ *
+ * The WHOLE REPOSITORY is what those questions are about, and that is
+ * `commit-whole-repo`'s correction: the survey used to be pathspec'd to the
+ * served directory, so a person who edited a `README.md` one level up was told
+ * nothing was waiting. Every path comes back in three spellings ({@link Dirty})
+ * so no caller has to know where the served directory sits — which is the same
+ * property this file always had, now that there is something outside it to
+ * report.
  *
  * The THIRD arm is what `git-invisible` (#108) bought and what this file must
  * not give back. "Your notes are not a repository" and "this service has no git
@@ -49,8 +59,9 @@
 import { Effect } from "effect"
 import { execFile } from "node:child_process"
 import * as fs from "node:fs"
+import { join, resolve } from "node:path"
 
-import type { Reason, RepoState } from "./state.ts"
+import type { How, Reason, RepoState } from "./state.ts"
 
 /** How long git gets. A commit in a notes directory is milliseconds; the
  *  budget is here so a wedged hook or a lock held by another process cannot
@@ -99,7 +110,7 @@ const git = (root: string, argv: ReadonlyArray<string>): Effect.Effect<Said> =>
 /**
  * Where the served directory sits in a repository — two answers out of one
  * subprocess, because both are wanted together and each would otherwise be a
- * spawn of its own.
+ * spawn of its own, plus a third climbed from them ({@link topOf}).
  */
 interface Placement {
   readonly gitDir: string
@@ -107,6 +118,10 @@ interface Placement {
    *  is a directory inside one. Git's own `--show-prefix` spelling: always
    *  `/`-separated, always with a trailing slash when it is not empty. */
   readonly prefix: string
+  /** The repository root, absolute. What turns a path git printed into a path
+   *  a caller can hand back to {@link commit} — which is the whole reason the
+   *  arithmetic lives on this side of the socket. */
+  readonly top: string
 }
 
 /** git's own answer for "there is no repository here", pinned to English by the
@@ -148,12 +163,33 @@ const place = (root: string): Effect.Effect<Placing> =>
       if (lines[0]?.trim() !== "true") return NO_REPO
       const gitDir = lines[1]?.trim()
       if (gitDir === undefined || gitDir === "") return NO_REPO
+      const prefix = lines[2]?.trim() ?? ""
       return {
         _tag: "Placed",
-        placement: { gitDir, prefix: lines[2]?.trim() ?? "" },
+        placement: { gitDir, prefix, top: topOf(root, prefix) },
       } as const
     },
   )
+
+/**
+ * The repository root, from the served root and how far down it sits.
+ *
+ * Climbed rather than asked for, and both halves of that are deliberate. Git
+ * would answer it (`--show-toplevel`), but a BARE repository makes that whole
+ * `rev-parse` fail — "this operation must be run in a work tree" — and a failed
+ * call is read as `Unusable`, which would report somebody's bare clone as a
+ * broken git rather than as the "nowhere for the files to be" it is.
+ *
+ * Climbing is also the more useful answer: it is built out of the caller's own
+ * root, so an absolute path this file hands back and one the caller resolves
+ * for itself are the same string, symlinks and all. Asking git would have
+ * produced its realpath, and two spellings of one file is exactly the kind of
+ * thing that fails only on somebody's machine.
+ */
+const topOf = (root: string, prefix: string): string =>
+  prefix === ""
+    ? root
+    : resolve(root, prefix.split("/").filter((step) => step !== "").map(() => "..").join("/"))
 
 /** The files git writes while an operation is half-finished, and what each of
  *  them means. A rebase leaves a detached HEAD behind, so this list is checked
@@ -174,12 +210,19 @@ const IN_PROGRESS: ReadonlyArray<readonly [string, Reason]> = [
  * it either.
  */
 export interface Repo {
+  /** Where the served directory sits from the repository root: `""` when it IS
+   *  the root, `"docs/"` when it is a directory inside one. A PROPERTY rather
+   *  than a verb — it was asked once, when the handle opened, and a caller that
+   *  reports on the whole repository has to be able to say which part of it
+   *  olai is actually serving. */
+  readonly served: string
   /** Whether it can take a commit right now, and why not when it cannot. */
   readonly state: Effect.Effect<RepoState>
-  /** Every served file git thinks has moved, root-relative and in git's own
-   *  order. Every one of them: WHICH of those matter is a statement about the
-   *  format, and this file has none of that in it. */
-  readonly dirty: Effect.Effect<ReadonlyArray<string>>
+  /** Every file in the REPOSITORY git thinks has moved, in git's own order,
+   *  and how far ahead of its upstream the branch is. Every one of them: WHICH
+   *  of those matter is a statement about the format, and this file has none of
+   *  that in it. */
+  readonly dirty: Effect.Effect<Dirt>
   /** One served file as HEAD has it, or `null` when HEAD does not. */
   readonly show: (file: string) => Effect.Effect<string | null>
   /** The last commit the caller's own audit filter claims, or `null` for a
@@ -187,6 +230,8 @@ export interface Repo {
   readonly last: (audit: Audit) => Effect.Effect<Recorded | null>
   /** Commit exactly these ABSOLUTE paths with exactly this message. */
   readonly commit: (what: CommitInput) => Effect.Effect<Done>
+  /** Send the current branch to its upstream, and say what git said. */
+  readonly push: Effect.Effect<Sent>
 }
 
 /**
@@ -208,11 +253,13 @@ export const open = (root: string): Effect.Effect<Opening> =>
     placing._tag !== "Placed" ? placing : {
       _tag: "Opened",
       repo: {
+        served: placing.placement.prefix,
         state: state(root, placing.placement),
         dirty: dirty(root, placing.placement),
         show: (file) => show(root, placing.placement, file),
-        last: (audit) => last(root, placing.placement, audit),
+        last: (audit) => last(root, audit),
         commit: (what) => commit(root, what),
+        push: push(root),
       },
     })
 
@@ -247,49 +294,165 @@ const state = (
   })
 
 /**
+ * One file that has moved, in the three spellings its three readers need.
+ *
+ * Three, deliberately, and it is the same argument the placement itself makes:
+ * git speaks repo-relative paths, a served set is keyed by served-relative
+ * ones, and a commit takes absolute ones — so a consumer holding any one of
+ * them would be a consumer doing this arithmetic, with the prefix carried
+ * around to do it with. It is done once, here, where the placement lives.
+ */
+export interface Dirty {
+  /** Repo-root-relative, which is what git printed: what a reader is SHOWN,
+   *  and the one unambiguous name for a file across a whole repository. */
+  readonly path: string
+  /** Served-root-relative, or `null` for a file OUTSIDE the served directory.
+   *  The `null` is the whole of what "whole repository" costs a caller: it
+   *  says this file is dirty and olai does not serve it, so nothing above can
+   *  have anything to say about its contents. */
+  readonly served: string | null
+  /** Absolute — what {@link commit} takes. */
+  readonly at: string
+  readonly how: How
+}
+
+/** Where the branch stands against the branch it tracks. `null` when there is
+ *  no upstream at all, which is a different fact from "nothing to push" and is
+ *  kept apart from it: a branch nobody has ever pushed has nowhere to go, and
+ *  offering to push it would be offering to guess a remote. */
+export interface Upstream {
+  /** Git's own name for it — `origin/master`. */
+  readonly name: string
+  /** Commits on this branch that the upstream does not have. */
+  readonly ahead: number
+}
+
+/**
+ * What one look at the working tree found — two answers out of one subprocess,
+ * exactly as {@link place} takes three, and for the same reason: both are
+ * wanted together by the one caller that asks, and asking separately would be a
+ * second spawn per sweep for a question `--branch` answers on the line it is
+ * already printing.
+ */
+export interface Dirt {
+  readonly files: ReadonlyArray<Dirty>
+  readonly upstream: Upstream | null
+}
+
+const NOTHING: Dirt = { files: [], upstream: null }
+
+/**
  * `--porcelain -z` because the plain form quotes anything unusual and `-z` does
  * not; `-uall` because a brand-new outline is untracked and is exactly what a
- * first commit is for; `-- .` because the served directory may be one directory
- * of a large repository and nothing outside it is olai's to report.
+ * first commit is for; `--branch` for the header line that says where the
+ * branch stands against its upstream.
  *
- * A rename arrives as one entry naming both sides, and both are kept: the ids
- * on the old side are what say what left.
+ * NO PATHSPEC, which is the change `commit-whole-repo` is: it used to ask about
+ * `.` — the served directory — and a person who edited a `README.md` one level
+ * up was told nothing was waiting. Olai reports on the repository it is in, and
+ * says which part of it it serves ({@link Repo.served}).
+ *
+ * `status.relativePaths=false` is pinned rather than assumed: the parsing below
+ * strips the served prefix off what git printed, which is only right while git
+ * prints repo-relative paths. It is the porcelain default, and a reader's
+ * config is not something to be at the mercy of.
+ *
+ * A rename arrives as one entry naming both sides, and both are kept — the ids
+ * on the old side are what say what left, and both have to be named on the
+ * commit for the rename to land as one.
  */
 const dirty = (
   root: string,
   placed: Placement,
-): Effect.Effect<ReadonlyArray<string>> =>
+): Effect.Effect<Dirt> =>
   Effect.gen(function*() {
-    const status = yield* git(root, ["status", "--porcelain", "-z", "-uall", "--", "."])
-    if (!status.ok) return []
+    const status = yield* git(root, [
+      "-c",
+      "status.relativePaths=false",
+      "status",
+      "--porcelain",
+      "-z",
+      "-uall",
+      "--branch",
+    ])
+    if (!status.ok) return NOTHING
 
-    const found: Array<string> = []
+    const files: Array<Dirty> = []
     const seen = new Set<string>()
-    const take = (repoPath: string): void => {
-      if (!repoPath.startsWith(placed.prefix)) return
-      const file = repoPath.slice(placed.prefix.length)
-      if (file === "" || seen.has(file)) return
-      seen.add(file)
-      found.push(file)
+    const take = (path: string, how: How): void => {
+      if (path === "" || seen.has(path)) return
+      seen.add(path)
+      files.push({
+        path,
+        served: path.startsWith(placed.prefix)
+          ? path.slice(placed.prefix.length)
+          : null,
+        at: join(placed.top, path),
+        how,
+      })
     }
 
     // `XY <path>\0`, with a second `<path>\0` after a rename or a copy naming
-    // where it came from. Read as a stream of NUL-terminated tokens rather
-    // than split into lines: a path may contain a newline, which is the whole
-    // reason `-z` is asked for.
+    // where it came from, and `## …\0` first because `--branch` was asked for.
+    // Read as a stream of NUL-terminated tokens rather than split into lines: a
+    // path may contain a newline, which is the whole reason `-z` is asked for.
+    let upstream: Upstream | null = null
     const tokens = status.out.split("\0")
     for (let at = 0; at < tokens.length; at++) {
       const entry = tokens[at]
-      if (entry === undefined || entry.length < 4) continue
-      take(entry.slice(3))
+      if (entry === undefined) continue
+      if (entry.startsWith("## ")) {
+        upstream = tracking(entry.slice(3))
+        continue
+      }
+      if (entry.length < 4) continue
+      const how = howOf(entry[0] ?? " ", entry[1] ?? " ")
+      take(entry.slice(3), how)
       if (entry[0] === "R" || entry[0] === "C") {
         at += 1
+        // The side it came FROM, which for a rename is a file that has left.
+        // Named so a commit of this rename carries both halves.
         const from = tokens[at]
-        if (from !== undefined && from !== "") take(from)
+        if (from !== undefined) take(from, entry[0] === "R" ? "deleted" : "modified")
       }
     }
-    return found
+    return { files, upstream }
   })
+
+/**
+ * The porcelain letters, read.
+ *
+ * X is the index and Y is the work tree, and this collapses them ON PURPOSE:
+ * olai never touches the index, so "added in the index, modified since" is one
+ * file that is new as far as anything here is concerned. The order is what a
+ * reader is best served by — a new file is NEW even after it was edited again,
+ * and a file that has left says so ahead of whatever it was doing before.
+ */
+const howOf = (x: string, y: string): How => {
+  if (x === "?") return "untracked"
+  if (x === "R" || y === "R") return "renamed"
+  if (x === "A" || y === "A" || x === "C" || y === "C") return "added"
+  if (x === "D" || y === "D") return "deleted"
+  return "modified"
+}
+
+/**
+ * The `--branch` header, read: `main...origin/main [ahead 2, behind 1]`.
+ *
+ * `null` for every shape that has no upstream in it — a branch nobody has
+ * pushed (`## main`), a detached HEAD (`## HEAD (no branch)`), a repository
+ * with no commits yet. BEHIND is deliberately not reported: what to do about a
+ * divergence is a conversation with a person in a terminal, and this program
+ * has one verb.
+ */
+const tracking = (header: string): Upstream | null => {
+  const [, tracked] = header.split("...")
+  if (tracked === undefined) return null
+  const name = tracked.split(" [")[0]?.trim() ?? ""
+  if (name === "") return null
+  const ahead = /\bahead (\d+)/.exec(tracked)
+  return { name, ahead: ahead === null ? 0 : Number(ahead[1]) }
+}
 
 /** HEAD's copy covers every file of a repository with no commits yet, and every
  *  file that is new, with the same `null`. */
@@ -346,10 +509,16 @@ export interface Recorded {
  *
  * The prefix is the caller's, not this file's: what olai's commits look like is
  * a statement about how olai writes them, and it lives beside the composer.
+ *
+ * WHOLE REPOSITORY, and it used to be `-- .`. The old restriction said an olai
+ * serving `docs/` should not report a commit made elsewhere in the same
+ * repository — and that reasoning INVERTED the moment a commit could sweep the
+ * whole tree: a commit that recorded a dirty root `README.md` and nothing under
+ * `docs/` is olai's own work, and hiding it would leave the panel saying
+ * nothing was ever recorded here a second after it recorded something.
  */
 const last = (
   root: string,
-  placed: Placement,
   audit: Audit,
 ): Effect.Effect<Recorded | null> =>
   Effect.map(
@@ -358,11 +527,6 @@ const last = (
       "-1",
       `--grep=^${audit.prefix}`,
       `--format=%H%x00%s%x00%aI%x00%(trailers:key=${audit.trailer},valueonly)`,
-      // Only commits that touched the served directory: one olai serving
-      // `docs/` should not report a commit another made elsewhere in the same
-      // repository.
-      "--",
-      ".",
     ]),
     ({ ok, out }) => {
       if (!ok) return null
@@ -438,4 +602,41 @@ const commit = (root: string, what: CommitInput): Effect.Effect<Done> =>
 
     const head = yield* git(root, ["rev-parse", "HEAD"])
     return { _tag: "Committed", sha: head.ok ? head.said : "" } as const
+  })
+
+/** What pushing did. `said` on BOTH arms, because git talks on both: what it
+ *  wrote to a remote is worth showing once, and why it would not is worth
+ *  showing verbatim. */
+export type Sent =
+  | { readonly _tag: "Pushed"; readonly said: string }
+  | { readonly _tag: "Refused"; readonly said: string }
+
+/**
+ * Push the current branch, and say what git said.
+ *
+ * ONE VERB and no arguments, which is the whole of the decision: `git push`
+ * with nothing after it sends the current branch to the upstream it is
+ * configured for, and every other spelling is a choice somebody has to make.
+ * No remote to pick, no refspec, never `--force`, and no `-u` inventing an
+ * upstream for a branch that has none — a branch nobody has ever pushed is a
+ * conversation with a person, and git's own refusal is how it starts.
+ *
+ * A REFUSAL IS AN ANSWER, exactly as a refused commit is: authentication that
+ * failed, a remote that has moved on, a hook that said no. The words are git's
+ * and they are kept whole, because "could not push" without them is the shape
+ * of silence this program keeps being filed for. `GIT_TERMINAL_PROMPT=0` (the
+ * runner sets it) is what makes a credential that would have prompted come back
+ * as a sentence instead of hanging until the budget runs out.
+ */
+const push = (root: string): Effect.Effect<Sent> =>
+  Effect.gen(function*() {
+    const sent = yield* git(root, ["push"])
+    if (!sent.ok) {
+      yield* Effect.annotateLogs(
+        Effect.logWarning("olai git: the branch was not pushed"),
+        { said: sent.said },
+      )
+      return { _tag: "Refused", said: sent.said } as const
+    }
+    return { _tag: "Pushed", said: sent.said } as const
   })

@@ -165,7 +165,7 @@ export const serveTools = (options: McpServeOptions) =>
       store,
       root,
       commits: options.commits,
-      onCommitted: () => {
+      onRecorded: () => {
         Effect.runSync(SubscriptionRef.update(committed, (count) => count + 1))
       },
     })

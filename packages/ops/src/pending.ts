@@ -1,13 +1,15 @@
 /**
- * What is waiting to be committed, and the one verb that commits it.
+ * What is waiting to be committed, the verb that commits it, and the one that
+ * shares it.
  *
  * **Derived from git, stored nowhere.** Same discipline as node status and
  * blockedness: anything cached here would be a second answer to a question git
  * already answers, and it would be wrong the moment somebody edits a file in
- * vim. So every reading is a fresh one — `git status --porcelain` names the
- * dirty outlines, `git show HEAD:<file>` is the committed side, the working
- * side is the store's own last-good parse, and the comparison is
- * `@olai/format`'s (`changesOf`), which has no git in it at all.
+ * vim. So every reading is a fresh one — `git status --porcelain` names every
+ * dirty file in the repository, `git show HEAD:<file>` is the committed side of
+ * each served outline, the working side is the store's own last-good parse, and
+ * the comparison is `@olai/format`'s (`changesOf`), which has no git in it at
+ * all.
  *
  * Cost is bounded by what is dirty. A clean directory is one `rev-parse`, one
  * `status`, and no parsing whatsoever.
@@ -19,16 +21,28 @@
  * outside olai, and the panel then draws the changes with no writer beside
  * them. Nothing downstream may assume it is complete.
  *
- * Two decisions this file makes, both of which the design left open:
+ * Three decisions this file makes:
  *
- *   - **only outlines.** `.jsonl` files are the only files olai writes; a
- *     document, a source file or a half-staged patch in the same working tree
- *     is somebody else's work and is never staged here.
- *   - **every dirty outline, whoever wrote it.** A commit asked for by the
- *     agent sweeps up the outline edits a person made in vim, because the
- *     alternative is to stage by writer — and the writer record is explicitly
- *     allowed to be empty, so a commit built on it would silently commit
- *     nothing after a restart.
+ *   - **the WHOLE REPOSITORY, in two kinds of row.** `commit-whole-repo`'s
+ *     correction, and the human's own words: "the git commit thing should work
+ *     across whole repo, not just .jsonl files edited through MCP". A dirty
+ *     outline olai serves gets node-level changes, because both sides parse
+ *     into records. Every other dirty file — a document, a source file, an
+ *     outline outside the served root — gets a path and a status letter,
+ *     because the only other thing available is a text diff and this feature
+ *     has never shown one. It used to drop those files one line after `git
+ *     status` had already surveyed them, so a person who edited a `.md` by hand
+ *     was told nothing was waiting.
+ *   - **a SELECTION, never git's index.** A commit names exactly the paths it
+ *     was asked for and nothing else, on both `add` and `commit`, so a
+ *     half-finished edit somebody staged by hand is left exactly as they left
+ *     it. What is not named stays pending, for its own commit and its own
+ *     message.
+ *   - **every dirty file, whoever wrote it.** A commit asked for by the agent
+ *     sweeps up the edits a person made in vim, because the alternative is to
+ *     stage by writer — and the writer record is explicitly allowed to be
+ *     empty, so a commit built on it would silently commit nothing after a
+ *     restart.
  */
 
 import {
@@ -36,15 +50,19 @@ import {
   type CommitResult,
   changesOf,
   fileKind,
+  type How,
   type LastCommit,
   type Node,
   NOTHING_PENDING,
   parseOutline,
   type Located,
+  type Other,
   type OutlineSet,
   type Pending,
+  type PushResult,
   type Reason,
   type RepoState,
+  type Unpushed,
   type Writer,
   type Wrote,
 } from "@olai/format"
@@ -216,8 +234,12 @@ export interface Options {
    * caller that had to remember to republish is a caller that can forget.
    * The button did remember; the agent's `commit` tool and `--commit=auto`
    * did not, and every open tab sat on a stale count until the next sweep.
+   *
+   * A PUSH fires it too, and that is why it is not called `onCommitted` any
+   * more: pushing moves no file either, and it changes the unpushed count both
+   * the panel and the header draw.
    */
-  readonly onCommitted?: () => void
+  readonly onRecorded?: () => void
 }
 
 /**
@@ -235,11 +257,16 @@ export interface Committing {
   readonly status: Effect.Effect<Status>
   /** What is waiting, alone. */
   readonly pending: Effect.Effect<Pending>
-  /** A commit somebody asked for: everything waiting, with a message. */
+  /** A commit somebody asked for: everything waiting — or exactly the paths
+   *  they picked — with a message. */
   readonly commit: (
     request: CommitRequest,
     writer: Writer,
   ) => Effect.Effect<CommitResult>
+  /** Send the current branch to its upstream. One verb, no arguments: the
+   *  audit trail this program keeps is worth nothing on one machine, and
+   *  everything else about a remote is a conversation in a terminal. */
+  readonly push: Effect.Effect<PushResult>
   /** What git is doing for this directory, as the header's git indicator wants
    *  it — {@link gitOf} of the same survey {@link pending} runs, so the two
    *  values that one indicator reads cannot disagree. */
@@ -286,16 +313,56 @@ export interface Outcome {
   readonly why?: string
 }
 
+/**
+ * One dirty outline olai serves, in the spellings the three readers of it need:
+ * the store's key, the repository's own name for it, and where it is on disk.
+ *
+ * The arithmetic between them belongs to `@olai/git`'s handle, which is where
+ * the placement lives — this is that answer, narrowed to the files this layer
+ * has something to say about.
+ */
+interface Served {
+  /** Served-root-relative: what `changes` and the store are keyed by. */
+  readonly file: string
+  /** Repo-root-relative: what a commit request names it. */
+  readonly path: string
+  /** Absolute: what `git.commit` takes. */
+  readonly at: string
+  readonly how: How
+}
+
 /** Everything one round of questions asked of git. */
 interface Survey {
   /** The repository, when there is one to ask anything else of. */
   readonly git: Git.Repo | null
   readonly repo: RepoState
-  /** The dirty outlines, root-relative. Empty whenever `git` is `null`. */
-  readonly files: ReadonlyArray<string>
+  /** Where the served directory sits from the repository root — `""` when it IS
+   *  the root. What the panel's scope line says, and what makes a repo-relative
+   *  path out of a served one. */
+  readonly served: string
+  /** The dirty outlines olai serves. Empty whenever `git` is `null`. */
+  readonly outlines: ReadonlyArray<Served>
+  /** Every OTHER dirty file in the repository, repo-relative. */
+  readonly others: ReadonlyArray<Git.Dirty>
+  /** What is committed here and nowhere else, or `null` for a branch with no
+   *  upstream at all. */
+  readonly unpushed: Unpushed | null
   /** The last commit olai made here, or `null` for one it never has. */
   readonly last: Pending["last"]
 }
+
+/** The survey for a directory nothing was asked about — `--commit=off`, a
+ *  directory that is not a work tree, a git that could not be asked. Spelled
+ *  once, because three arms answer with it and a fourth field added to the
+ *  survey must not be able to appear in two of them and not the third. */
+const NOTHING_ASKED = {
+  git: null,
+  served: "",
+  outlines: [],
+  others: [],
+  unpushed: null,
+  last: null,
+} as const
 
 /** The node-level answer for one survey: what changed, and what could not be
  *  read well enough to say. */
@@ -358,28 +425,52 @@ export const make = (options: Options): Committing => {
    *  directory is not a repository. */
   const survey: Effect.Effect<Survey> = Effect.gen(function*() {
     if (options.mode === "off") {
-      return { git: null, repo: OFF, files: [], last: null } as const
+      return { ...NOTHING_ASKED, repo: OFF } as const
     }
     const opening = yield* repository
     if (opening._tag !== "Opened") {
       // Both non-repository answers reach a reader as themselves: `NoRepo` is a
       // statement about the directory, `Unusable` is git's own refusal with its
       // own words. Telling them apart here is what keeps the indicator honest.
-      return { git: null, repo: opening, files: [], last: null } as const
+      return { ...NOTHING_ASKED, repo: opening } as const
     }
     const git = opening.repo
     // Independent questions, asked together: what state the repository is in,
-    // what has moved in it, and what olai last recorded there.
-    const [repo, dirty, last] = yield* Effect.all(
+    // what has moved in it (and how far ahead of its upstream it is, off the
+    // same subprocess), and what olai last recorded there.
+    const [repo, dirt, last] = yield* Effect.all(
       [git.state, git.dirty, git.last(AUDIT)],
       { concurrency: 3 },
     )
+
+    // WHICH dirty files are which is a statement about the format, so it is
+    // made here rather than handed to the plumbing as a callback. An outline
+    // olai SERVES has a working-side parse to compare against; an outline
+    // outside the served root does not, so it is another file like any other.
+    const outlines: Array<Served> = []
+    const others: Array<Git.Dirty> = []
+    for (const entry of dirt.files) {
+      if (entry.served !== null && fileKind(entry.served) === "outline") {
+        outlines.push({
+          file: entry.served,
+          path: entry.path,
+          at: entry.at,
+          how: entry.how,
+        })
+      } else {
+        others.push(entry)
+      }
+    }
+
     return {
       git,
       repo,
-      // WHICH dirty files matter is a statement about the format, so it is made
-      // here rather than handed to the plumbing as a callback.
-      files: dirty.filter((file) => fileKind(file) === "outline"),
+      served: git.served,
+      outlines,
+      others,
+      unpushed: dirt.upstream === null
+        ? null
+        : { upstream: dirt.upstream.name, commits: dirt.upstream.ahead },
       last: last === null ? null : recorded(last),
     }
   })
@@ -396,7 +487,7 @@ export const make = (options: Options): Committing => {
   const detail = (survey: Survey): Effect.Effect<Detail> =>
     Effect.gen(function*() {
       const git = survey.git
-      if (git === null || survey.files.length === 0) {
+      if (git === null || survey.outlines.length === 0) {
         return { changes: [], unreadable: [] }
       }
 
@@ -414,7 +505,7 @@ export const make = (options: Options): Committing => {
       // as created, or every node in it as gone — a screen of alarming changes
       // with one real cause, which is that somebody's file does not parse.
       const unreadable = new Set<string>()
-      const readable = survey.files.filter((file) => {
+      const readable = survey.outlines.map((one) => one.file).filter((file) => {
         if (set === null || broken.has(file)) {
           unreadable.add(file)
           return false
@@ -471,13 +562,21 @@ export const make = (options: Options): Committing => {
       : ({ status: "error", said: refusal } as const)
     if (looked.repo._tag === "Off") return { pending: NOTHING_PENDING, git }
     const { changes, unreadable } = yield* detail(looked)
+    const others = looked.others.map(otherOf)
     return {
       pending: {
         repo: looked.repo,
         changes,
+        outlines: looked.outlines.map(({ file, path, how }) => ({ file, path, how })),
+        others,
         unreadable,
+        served: looked.served,
+        unpushed: looked.unpushed,
         wrote: counted(),
-        message: composed(changes),
+        // The suggestion for EVERYTHING waiting, which is what the panel opens
+        // with and what an agent that supplies no message gets. Unticking a row
+        // recomposes it in the browser, from this same function.
+        message: composed(changes, others),
         last: looked.last,
       },
       git,
@@ -493,14 +592,40 @@ export const make = (options: Options): Committing => {
       if (looked.repo._tag !== "Ready" || looked.git === null) {
         return { _tag: "Blocked", repo: looked.repo } as const
       }
-      if (looked.files.length === 0) return { _tag: "NothingToCommit" } as const
 
-      const { changes } = yield* detail(looked)
+      const picked = pick(looked, request.paths)
+      // A path nobody is waiting on is a MISTAKE somebody made — an agent that
+      // guessed a filename, a panel holding a selection the sweep has moved
+      // past — and it comes back as git's kind of refusal rather than being
+      // quietly dropped. Committing "the rest of it" under a request that named
+      // something else is the silent half-success this codebase keeps refusing
+      // to ship.
+      if (picked.missing.length > 0) {
+        return {
+          _tag: "Failed",
+          said: `nothing is waiting on ${picked.missing.join(", ")}, so nothing was ` +
+            `committed — ask again with what \`pending\` lists`,
+        } as const
+      }
+      if (picked.outlines.length + picked.others.length === 0) {
+        return { _tag: "NothingToCommit" } as const
+      }
+
+      // The node-level detail for the outlines actually going in, so both the
+      // composed message and the count report on the commit that was made
+      // rather than on everything that happened to be dirty.
+      const { changes } = yield* detail({ ...looked, outlines: picked.outlines })
+      const others = picked.others.map(otherOf)
       const done = yield* looked.git.commit({
-        // Named explicitly, exactly as the per-write commit always did: a
-        // served directory is a working tree with other work in it.
-        paths: looked.files.map((file) => options.store.resolve(file)),
-        message: signed(request.message ?? composed(changes), writer),
+        // Named explicitly, exactly as the per-write commit always did, and now
+        // for a second reason: these are the files somebody TICKED. A served
+        // directory is a working tree with other work in it, olai never stages,
+        // and what is left out stays waiting.
+        paths: [
+          ...picked.outlines.map((one) => one.at),
+          ...picked.others.map((one) => one.at),
+        ],
+        message: signed(request.message ?? composed(changes, others), writer),
       })
       if (done._tag === "Failed") {
         settled(done.said)
@@ -508,12 +633,65 @@ export const make = (options: Options): Committing => {
       }
       settled(null)
 
-      // The counters are what "since the last commit" means, so this is where
-      // they stop meaning anything.
-      counts.clear()
-      options.onCommitted?.()
-      return { _tag: "Committed", sha: done.sha, changes: changes.length } as const
+      // The counters are what "since the last commit" means, so a commit that
+      // swept EVERYTHING is where they stop meaning anything. A piecemeal one
+      // leaves them alone: an op cannot be attributed to a file from a
+      // per-writer tally, so clearing on a partial commit would under-report
+      // work that is still waiting — and this value is explicitly allowed to be
+      // wrong in the other direction.
+      if (request.paths === undefined) counts.clear()
+      options.onRecorded?.()
+      return {
+        _tag: "Committed",
+        sha: done.sha,
+        changes: changes.length,
+        others: others.length,
+      } as const
     })
+
+  /**
+   * Push, which is the one verb this program has for sharing what it recorded.
+   *
+   * "I think 'push' is the only thing that makes me use CLI outside of olai" —
+   * the human, and this is the whole of the answer. The current branch to the
+   * upstream it already has, and nothing else: no remote to pick, no refspec,
+   * no `--force`, and no branch or pull or fetch UI. Resolving a divergence
+   * stays a conversation in a terminal.
+   *
+   * `NothingToPush` is asked BEFORE pushing rather than read out of git's own
+   * "Everything up-to-date", because the count is what the panel is offering to
+   * send and a person pressing the button is entitled to be told it was already
+   * there. A branch with no upstream falls through to git, whose refusal names
+   * the thing to do about it better than this file could.
+   */
+  const push: Effect.Effect<PushResult> = Effect.gen(function*() {
+    if (options.mode === "off") return { _tag: "Blocked", repo: OFF } as const
+    const opening = yield* repository
+    if (opening._tag !== "Opened") {
+      return { _tag: "Blocked", repo: opening } as const
+    }
+    const { upstream } = yield* opening.repo.dirty
+    if (upstream !== null && upstream.ahead === 0) {
+      return { _tag: "NothingToPush" } as const
+    }
+
+    const sent = yield* opening.repo.push
+    if (sent._tag === "Refused") {
+      // VERBATIM, exactly as a refused commit is: authentication, a
+      // non-fast-forward, a branch with no upstream. What git said is the only
+      // thing that says what to do next, and this is the one failure a person
+      // cannot see any other way from inside the app.
+      return { _tag: "Failed", said: sent.said } as const
+    }
+    // What is waiting has changed without a served byte moving — the same
+    // reason a commit republishes.
+    options.onRecorded?.()
+    return {
+      _tag: "Pushed",
+      upstream: upstream?.name ?? "",
+      commits: upstream?.ahead ?? 0,
+    } as const
+  })
 
   /**
    * The per-write commit, which is the whole of `--commit=auto`.
@@ -597,7 +775,7 @@ export const make = (options: Options): Committing => {
       })
       if (done._tag === "Committed") {
         settled(null)
-        options.onCommitted?.()
+        options.onRecorded?.()
         return { committed: true }
       }
       settled(done.said)
@@ -622,6 +800,7 @@ export const make = (options: Options): Committing => {
     status,
     pending: Effect.map(status, (both) => both.pending),
     commit,
+    push,
     automatic,
     wrote,
     /**
@@ -639,6 +818,49 @@ export const make = (options: Options): Committing => {
     git: Effect.map(repoState, (repo) =>
       refusal === null ? gitOf(repo) : { status: "error", said: refusal }),
   }
+}
+
+/** One dirty file that is not a served outline, as the wire carries it. The
+ *  REPO-relative path is its name, because that is the one name it has that
+ *  cannot collide with a served one. */
+const otherOf = (entry: Git.Dirty): Other => ({ file: entry.path, how: entry.how })
+
+/** What a commit is going to name, out of what is waiting. */
+interface Picked {
+  readonly outlines: ReadonlyArray<Served>
+  readonly others: ReadonlyArray<Git.Dirty>
+  /** Paths that were asked for and are not waiting on anything. Never dropped
+   *  quietly — see the refusal in {@link Committing.commit}. */
+  readonly missing: ReadonlyArray<string>
+}
+
+/**
+ * The selection, matched against what is actually waiting.
+ *
+ * ONE NAMESPACE, repo-root-relative, for both kinds of row — which is why an
+ * outline carries its repository path at all. Keyed by the served spelling, an
+ * outline `roadmap.jsonl` under `docs/` and a dirty `roadmap.jsonl` at the
+ * repository root would be the same tick, and the commit would name the wrong
+ * file. Rare, and permanent once it is in somebody's history.
+ *
+ * An omitted selection is EVERYTHING, which is what it has always been and what
+ * the button sends when nothing is unticked.
+ */
+const pick = (
+  looked: Survey,
+  paths: ReadonlyArray<string> | undefined,
+): Picked => {
+  if (paths === undefined) {
+    return { outlines: looked.outlines, others: looked.others, missing: [] }
+  }
+  const wanted = new Set(paths)
+  const outlines = looked.outlines.filter((one) => wanted.has(one.path))
+  const others = looked.others.filter((one) => wanted.has(one.path))
+  const found = new Set([
+    ...outlines.map((one) => one.path),
+    ...others.map((one) => one.path),
+  ])
+  return { outlines, others, missing: paths.filter((path) => !found.has(path)) }
 }
 
 /**

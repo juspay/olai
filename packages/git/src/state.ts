@@ -16,6 +16,27 @@
 
 import { Schema } from "effect"
 
+/**
+ * What happened to a file that moved, out of the porcelain XY letters.
+ *
+ * Five words rather than the letter pair, because what a reader wants is the
+ * word — and because the pair says index-and-work-tree, a distinction olai
+ * deliberately has no opinion about: it never touches the index.
+ *
+ * Here rather than beside the parser that produces it, for the same reason
+ * {@link RepoState} is: it travels. A dirty file's status is drawn as a chip in
+ * the commit panel, so the value crosses the wire, and one declaration is what
+ * keeps the letters, the schema and the chip from being kept in step by hand.
+ */
+export const How = Schema.Literals([
+  "modified",
+  "added",
+  "deleted",
+  "renamed",
+  "untracked",
+])
+export type How = typeof How.Type
+
 /** Why the repository cannot take a commit right now. Nothing used to check
  *  for any of them, which is how an agent marking a node done mid-conflict
  *  could swallow a resolution — the hole that decided manual over automatic,

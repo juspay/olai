@@ -23,10 +23,14 @@
 export {
   type Audit,
   type CommitInput,
+  type Dirt,
+  type Dirty,
   type Done,
   open,
   type Opening,
   type Recorded,
   type Repo,
+  type Sent,
+  type Upstream,
 } from "./git.ts"
-export { Reason, RepoState } from "./state.ts"
+export { How, Reason, RepoState } from "./state.ts"
