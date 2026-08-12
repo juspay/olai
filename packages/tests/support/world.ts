@@ -851,6 +851,39 @@ export class OlaiWorld extends World {
     return box;
   }
 
+  /** What the browser says is AT a point, named the way the page names it: the
+   *  nearest enclosing `data-testid`, the tag when nothing on that branch has
+   *  one, or `"nothing"`.
+   *
+   *  The other half of {@link box}, and it exists because a bounding box cannot
+   *  answer the question the sticky chrome is about. A bar or a column that
+   *  something else paints over is still laid out exactly where it should be,
+   *  still `visible` to Playwright, and still not what a pointer would reach —
+   *  so a z-layer defect passes every geometric assertion there is. Three
+   *  features ask this (the header's layer, the drawer's over the burger, the
+   *  pinned rail's), which is why it lives here rather than a third time in a
+   *  step file. */
+  async topmostTestidAt(x: number, y: number): Promise<string> {
+    return await this.page.evaluate(
+      ({ x, y }) => {
+        const element = document.elementFromPoint(x, y);
+        return (
+          element?.closest("[data-testid]")?.getAttribute("data-testid") ??
+          element?.tagName ??
+          "nothing"
+        );
+      },
+      { x, y },
+    );
+  }
+
+  /** The same question asked of the MIDDLE of something, which is what every
+   *  caller wants: the point a reader would aim at. */
+  async topmostTestidOver(locator: Locator, what: string): Promise<string> {
+    const box = await this.box(locator, what);
+    return await this.topmostTestidAt(box.x + box.width / 2, box.y + box.height / 2);
+  }
+
   /** Every match, measured — in ONE round trip.
    *
    *  A step that asks "is every one of these big enough" asks about ten or
