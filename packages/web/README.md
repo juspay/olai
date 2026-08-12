@@ -767,11 +767,47 @@ Writes land on disk and WAIT; this is what asks for the commit, and the agent's
 `commit` tool is the same action through the other door.
 
 The panel never shows a text diff — a `.jsonl` diff is one enormous line per
-node — so every row is a NODE and what changed about it. The classification is
-the server's (one `Sort` per change, from `@olai/format`), and `said.ts` is
-this client's own table of words for it: the log says `done:`, the panel says
-"marked done". `data-sort` is what a test asserts on, never the phrase, which
-the view is entitled to reword.
+node — so every outline row is a NODE and what changed about it
+(`Outlines.tsx`). The classification is the server's (one `Sort` per change,
+from `@olai/format`), and `said.ts` is this client's own table of words for it:
+the log says `done:`, the panel says "marked done". `data-sort` is what a test
+asserts on, never the phrase, which the view is entitled to reword.
+
+**It reports on the WHOLE REPOSITORY**, which is `commit-whole-repo` and the
+human's own bug: edit a `.md` by hand and the git part of the UI showed nothing
+pending. So there is a second kind of row (`Others.tsx`) — one path and one
+status chip, for every dirty file that is not an outline olai serves. Path-level
+and deliberately nothing more: the only richer thing available for a document is
+the text diff this feature has never shown. A scope line under the two lists
+says what they are a list of (`whole repository · olai serves docs/`), because
+"why is my README in here" is a question the rows cannot answer.
+
+The chips are **git's** words rather than the person's, and one of them reads
+oddly on purpose: an unstaged `mv a.md b.md` is `deleted` on one row and
+`untracked` on another, because that is what `git status` sees until both halves
+are staged — `renamed` appears once they are. Saying "renamed" over git's own
+two rows would be the panel guessing at an intention, and what a person is about
+to commit is what git thinks is there.
+
+Every row carries a TICK (`Tick.tsx`, `selection.ts`) and all of them start
+ticked, so the ordinary sweep is one click. What is stored is the EXCEPTION —
+the paths somebody unticked — so a file that arrives while the panel is open
+(the server sweeps on a timer of its own) arrives ticked rather than being
+quietly left out of a commit the button says is sweeping everything. Unticking
+dims the row and recomposes the message and the button label live, through
+`@olai/format`'s own `composed`: the same function the server would have used,
+so the two faces cannot word one commit differently. The unit is a FILE — an
+outline's node changes travel together, because a partial `.jsonl` write is not
+a thing that exists — and the key is the repository-relative path, which is the
+one name that cannot collide with a served outline's.
+
+The unpushed line (`Unpushed.tsx`) is the other half: `2 commits not on
+origin/master`, and one Push button. One verb, no arguments, and a refusal —
+authentication, a non-fast-forward — kept verbatim, because resolving it is a
+conversation in a terminal and git's words are how it starts. The same count
+rides the pill in the header, which is the human's ruling at dispatch: one
+indicator, and "recorded here and nowhere else" is a different fact from "not
+recorded" rather than a second control.
 
 Nothing here is state this browser keeps. What is waiting arrives on the
 `pending` cell, derived from git on the server, so a tab open all day is
@@ -781,10 +817,11 @@ The panel carries the LAST COMMIT above it, because "what is waiting" and "was
 anything ever recorded" are two questions and only the second one distinguishes
 a directory olai has never touched. The one clock is `ago.ts`: the phrase moves
 on its own, since the value it is drawn beside can sit unchanged all afternoon.
-The one thing that IS local is the draft message: it is seeded from the composed
-suggestion when the panel opens and never overwritten under the person typing
-it, because a box that re-synced would rewrite what they were writing every time
-the server swept.
+The two things that ARE local are the selection and the draft message. The draft
+follows the composed suggestion until somebody types and is theirs from then on
+— `null` is "nobody has typed" — which is the promise the seed-once box made
+with no way to keep it: it could not follow a selection, because it had no way
+to tell a stale seed from an edit.
 
 ## On a phone, and on a home screen
 

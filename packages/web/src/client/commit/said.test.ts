@@ -19,7 +19,21 @@ import { NOTHING_PENDING, type Pending, type RepoState } from "@olai/format"
 import { GIT_OFF, type GitState } from "@olai/surface"
 import { expect, test } from "bun:test"
 
-import { because, DETAIL, explain, faceOf, isInert, MARK, verbatim } from "./said.ts"
+import {
+  because,
+  DETAIL,
+  explain,
+  faceOf,
+  HOW,
+  HOW_TONE,
+  isInert,
+  MARK,
+  pushTrouble,
+  scopeOf,
+  unpushedOf,
+  verbatim,
+  waitingIn,
+} from "./said.ts"
 
 /** A survey of a directory in one repository state, with nothing waiting unless
  *  a test says otherwise. */
@@ -172,4 +186,128 @@ test("the panel's line about a broken git is not the line about an absent one", 
   expect(because({ _tag: "Unusable", said })).toContain("could not be asked")
   expect(verbatim({ _tag: "Unusable", said })).toBe(said)
   expect(because({ _tag: "NoRepo" })).toBe("there is nowhere to commit to")
+})
+
+// ── the whole repository, and what is not shared ───────────────────────
+
+/**
+ * The SCOPE the panel reports on, which is new because the scope is new: a
+ * `README.md` two directories above the outlines is a row in this list, and a
+ * reader who is not told that has to work out why it is there.
+ */
+test("the scope line says which part of the repository olai serves", () => {
+  expect(scopeOf("docs/")).toBe("whole repository · olai serves docs/")
+  // Served AT the root, where the two are the same directory and "serves " with
+  // nothing after it would read as a rendering fault.
+  expect(scopeOf("")).toContain("whole repository")
+  expect(scopeOf("")).not.toEndWith("serves ")
+})
+
+/**
+ * What is committed here and nowhere else.
+ *
+ * `null` is drawn as nothing at all, and it covers the two cases that are not
+ * the same fact: a branch already in sync, and a branch with no upstream — the
+ * second is not something to fix by guessing a remote, and a Push button on
+ * either would be one people learn to ignore.
+ */
+test("the unpushed line counts commits, and is absent when there is nothing to send", () => {
+  const behind = (commits: number): Pending => ({
+    ...NOTHING_PENDING,
+    unpushed: { upstream: "origin/master", commits },
+  })
+  expect(unpushedOf(behind(2))).toBe("2 commits not on origin/master")
+  expect(unpushedOf(behind(1))).toBe("1 commit not on origin/master")
+  expect(unpushedOf(behind(0))).toBe(null)
+  expect(unpushedOf(NOTHING_PENDING)).toBe(null)
+})
+
+/**
+ * ... and it rides EVERY face's sentence, because it is a different question
+ * from the one the face answers.
+ *
+ * A clean tree with three unpushed commits wears `committed`, which is true and
+ * is the complacent half of the truth — and the sentence is what a reader with
+ * no pointer gets, so leaving it on the pill's own text would be leaving it out
+ * for half of them.
+ */
+test("the sentence says what is unpushed, whichever face is worn", () => {
+  const shared: Pending = {
+    ...NOTHING_PENDING,
+    repo: READY,
+    unpushed: { upstream: "origin/master", commits: 3 },
+  }
+  expect(explain("committed", shared, GIT_OFF)).toContain("3 commits not on origin/master")
+  expect(explain("waiting", shared, GIT_OFF)).toContain("3 commits not on origin/master")
+  // And nothing at all when there is nothing to say.
+  expect(explain("committed", surveyed(READY), GIT_OFF)).toBe(DETAIL.committed)
+})
+
+/** A push that git refused is git's own words, verbatim — the one thing about
+ *  pushing a person cannot find out any other way from inside the app. And a
+ *  push that worked leaves nothing on screen, because what is waiting is
+ *  republished under it. */
+test("a refused push says what git said, and a successful one says nothing", () => {
+  const said = "! [rejected] master -> master (non-fast-forward)"
+  expect(pushTrouble({ _tag: "Failed", said })).toBe(said)
+  expect(pushTrouble({ _tag: "Pushed", upstream: "origin/master", commits: 2 })).toBe(null)
+  expect(pushTrouble(null)).toBe(null)
+  expect(pushTrouble({ _tag: "NothingToPush" })).toContain("already pushed")
+  expect(pushTrouble({ _tag: "Blocked", repo: { _tag: "NoRepo" } }))
+    .toContain("nowhere to commit to")
+})
+
+/** Every status a dirty file can have wears a word and a tone. A table, so a
+ *  sixth one the format grew would be a compile error here rather than a blank
+ *  chip beside somebody's file. */
+test("every status a file can be in has a word and a tone", () => {
+  for (const how of ["modified", "added", "deleted", "renamed", "untracked"] as const) {
+    expect(HOW[how]).not.toBe("")
+    expect(HOW_TONE[how]).toStartWith("text-")
+  }
+  // A file that has LEFT is the one worth a second look, and it is the only one
+  // that wears the alarm tone.
+  expect(HOW_TONE.deleted).toBe("text-alarm")
+  expect(HOW_TONE.modified).not.toBe(HOW_TONE.deleted)
+})
+
+/**
+ * A dirty outline whose bytes moved with NO node moving still counts.
+ *
+ * The reviewer's reproduction: add a blank line to a `.jsonl` and the file is
+ * dirty, listed, and committable, while `changes` is empty — so a tally of node
+ * changes read zero and the pill said `committed` over a panel offering to
+ * commit it. `outlines` exists precisely so that reformat is not invisible, and
+ * the count has to agree with the list it is a count of.
+ */
+test("an outline that changed no node is still something waiting", () => {
+  const reformatted: Pending = {
+    ...NOTHING_PENDING,
+    repo: READY,
+    outlines: [{ file: "garden.jsonl", path: "garden.jsonl", how: "modified" }],
+    last: { sha: "abc", message: "olai: earlier", writer: "web", at: "" },
+  }
+  expect(waitingIn(reformatted)).toBe(1)
+  expect(faceOf(reformatted, true, GIT_OFF)).toBe("waiting")
+
+  // ... and it is counted ONCE when its nodes did move, rather than twice.
+  const changed: Pending = {
+    ...reformatted,
+    changes: [{
+      file: "garden.jsonl",
+      id: "mint",
+      title: "split the mint",
+      fields: ["done"],
+      sort: "done",
+    }],
+  }
+  expect(waitingIn(changed)).toBe(1)
+
+  // An outline that does not parse is its own row and is not double-counted
+  // with the file it names either.
+  const broken: Pending = { ...reformatted, unreadable: ["garden.jsonl"] }
+  expect(waitingIn(broken)).toBe(1)
+
+  // A clean tree is still clean, which is the other half of the fence.
+  expect(waitingIn(NOTHING_PENDING)).toBe(0)
 })

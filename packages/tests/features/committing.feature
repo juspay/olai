@@ -65,6 +65,68 @@ Feature: Committing on purpose
     And the panel says the last commit was "you"
     And there should be no page errors
 
+  Scenario: A document edited by hand is waiting too, and can be committed on its own
+    # The bug this whole item was filed for, in the human's words: "the git
+    # commit thing should work across whole repo, not just .jsonl files edited
+    # through MCP". `git status` had always surveyed these files; the panel
+    # dropped them one line later, because olai only lists the files it writes.
+    #
+    # Two of them, so the PIECEMEAL half is real: one goes in, one stays
+    # waiting for a commit and a message of its own.
+    When I rewrite "notes.md" as:
+      """
+      the herb bed needs splitting again
+      """
+    And I rewrite "later.md" as:
+      """
+      not this time
+      """
+    Then the commit pill says "waiting"
+    And the commit pill says 2 uncommitted
+    When I open the commit panel
+    # A path and a status, and deliberately nothing more: the only richer thing
+    # available for a document is a text diff, which this feature has never
+    # shown.
+    Then the panel lists "notes.md" as "untracked"
+    And the panel lists "later.md" as "untracked"
+    And the panel says it covers the whole repository
+    When I untick "later.md"
+    # The offer follows the ticks, or the selection is a lie about what pressing
+    # the button will record.
+    Then the commit button offers "Commit 1 file"
+    When I commit with the message "the herb bed needs splitting"
+    # The one that was left out is still counted, which is both the assertion
+    # and the wait: the pill polls, so what follows reads a log the server has
+    # already written.
+    Then the commit pill says 1 uncommitted
+    And the last commit is "olai: the herb bed needs splitting" by "web"
+    And the last commit touched exactly "notes.md"
+    And "later.md" is still waiting in the repository
+    And there should be no page errors
+
+  Scenario: What is recorded and not shared says so, in the header and in the panel
+    # "I think 'push' is the only thing that makes me use CLI outside of olai" —
+    # the human. An audit trail that lives on one machine is one disk failure
+    # from not existing, so the count rides the header pill as well as the
+    # panel, and one button sends it.
+    Given the served repository has a remote
+    When I rewrite "notes.md" as:
+      """
+      the herb bed needs splitting again
+      """
+    And I open the commit panel
+    And I commit with the message "the herb bed needs splitting"
+    Then the commit pill says 1 unpushed
+    When I open the commit panel
+    Then the panel offers to push 1 commits
+    When I push
+    # The pill first, because it is the thing that POLLS: it goes quiet when the
+    # server has answered and republished, which is what says the push is
+    # finished rather than in flight.
+    Then the commit pill says 0 unpushed
+    And the remote has "olai: the herb bed needs splitting"
+    And there should be no page errors
+
   Scenario: A repository that cannot take a commit says so instead of doing nothing
     # The hole this whole feature closed: nothing used to check, so an agent
     # marking a node done mid-rebase could swallow a resolution.

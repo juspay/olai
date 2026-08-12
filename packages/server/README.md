@@ -193,17 +193,34 @@ are in the allowlist (`src/mcp/expose.ts`):
 
 - **the `commit` tool** — message required from the caller in practice (omit it
   and one is composed from what changed, which can only describe the edits and
-  not why they were made). It answers with what was swept, or refuses with the
-  reason on a busy repository — mid-merge, mid-rebase, cherry-pick or a detached
-  HEAD — as structured data rather than prose to parse.
-- **`surface://cells/pending`** — what is waiting, per node, plus `last`: the
-  last commit olai made here, or `null` for a directory it has never committed
-  in. That `null` is the difference between "nothing waiting because I just
-  committed" and "nothing waiting because olai has never written here", which an
-  empty change list cannot express. Without this resource an agent under the
-  default mode would be writing into a state it cannot observe, and would have
-  to shell out to `git status` — the file access this surface exists not to
-  have.
+  not why they were made). It sweeps the WHOLE REPOSITORY, not only the
+  outlines: a `.md` or a source file somebody edited by hand is waiting too, and
+  untracked files `.gitignore` does not cover are included. `paths` (optional,
+  repository-root-relative, exactly as `pending` lists them) commits only some
+  of it and leaves the rest waiting; a path nothing is waiting on is refused by
+  name rather than quietly skipped. It answers with what was swept — both
+  counts, node changes and other files — or refuses with the reason on a busy
+  repository — mid-merge, mid-rebase, cherry-pick or a detached HEAD — as
+  structured data rather than prose to parse. It never touches git's index, so
+  anything staged by hand is left exactly as it was.
+- **the `push` tool** — the current branch to the upstream it already tracks,
+  and no arguments at all: no remote to pick, no refspec, never a force, and
+  nothing that resolves a divergence. It retires one of the two raw-git verbs an
+  orchestrating agent still needed a shell for. A refusal comes back with git's
+  own words — authentication, a non-fast-forward, a branch with no upstream —
+  because those are a terminal's business to resolve and the words are how that
+  starts.
+- **`surface://cells/pending`** — what is waiting, and it is the map the two
+  verbs are read against: `outlines` with their node-level `changes`, `others`
+  as one path and a status each, `served` saying which part of the repository
+  olai serves, `unpushed` saying how far ahead of its upstream the branch is,
+  and `last` — the last commit olai made here, or `null` for a directory it has
+  never committed in. That `null` is the difference between "nothing waiting
+  because I just committed" and "nothing waiting because olai has never written
+  here", which an empty change list cannot express. Without this resource an
+  agent under the default mode would be writing into a state it cannot observe,
+  and would have to shell out to `git status` — the file access this surface
+  exists not to have.
 
 An agent does not have to READ that resource to learn a repository is busy,
 either: a write's own reply says so. Under `manual` a write mid-rebase or on a

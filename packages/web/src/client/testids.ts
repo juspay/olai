@@ -270,8 +270,29 @@ export const TESTID = {
    *  Says so in words when there is nothing: "never committed here" is a fact a
    *  count of what is pending cannot express. */
   commitLast: "commit-last",
-  /** One outline's worth of those rows; `data-file` is which. */
+  /** One outline's worth of those rows; `data-file` is what the store calls it
+   *  and `data-path` what the repository does — the second is what a tick
+   *  names, because the two namespaces can collide. */
   commitGroup: "commit-group",
+  /** One dirty file that is NOT a served outline: a document, a source file, an
+   *  outline outside the served root. `data-path` is its repo-root-relative
+   *  name and `data-how` what happened to it — `modified`, `untracked`,
+   *  `deleted` — never the word it is rendered as. A path-level row and
+   *  deliberately nothing more: there is no text diff here. */
+  commitOther: "commit-other",
+  /** The box that says whether a file is going into this commit. `data-path`
+   *  is which file; ALL of them are ticked until somebody says otherwise. */
+  commitTick: "commit-tick",
+  /** What the list is a list OF — the whole repository, and which part of it
+   *  olai serves. */
+  commitScope: "commit-scope",
+  /** What is committed here and nowhere else. `data-commits` is how many, and
+   *  the line is absent when there is nothing to send or nowhere to send it. */
+  commitUnpushed: "commit-unpushed",
+  /** The Push button. One verb, current branch, no arguments. */
+  commitPush: "commit-push",
+  /** What a refused push said, in git's own words. */
+  commitPushRefused: "commit-push-refused",
   /** One node that changed. `data-node-id` is which, and `data-sort` is what
    *  changed about it — `done`, `noted`, `archived` — never the word it is
    *  rendered as, which is the view's to reword. */

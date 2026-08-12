@@ -1,15 +1,29 @@
 /**
- * What is waiting, in olai's words — and the button that records it.
+ * What is waiting, in olai's words — and the two verbs that deal with it.
  *
- * Every row here is a NODE and what changed about it: "marked done", "note
- * rewritten", "archived". There is no text diff and there will not be one — a
- * `.jsonl` diff is one enormous line per node with everything on it changing at
- * once, which is exactly the shape this format bought line-based merges with
- * and exactly the shape nobody can read.
+ * The panel reports on the WHOLE REPOSITORY, in two kinds of row, and the
+ * difference between them is what olai can honestly say about a file rather
+ * than what it is allowed to commit:
  *
- * Grouped by file because that is the unit git will commit and the unit the
- * sidebar already lists. Ordered as the server derived them, which is the
- * outline's own order.
+ *   - an OUTLINE it serves gets node-level rows — "marked done", "note
+ *     rewritten", "archived" — because both sides parse into records and the
+ *     comparison is in hand. Never a text diff: a `.jsonl` diff is one enormous
+ *     line per node with everything on it changing at once;
+ *   - EVERY OTHER dirty file gets a path and a status chip. A document, a source
+ *     file, an outline outside the served root. The only richer thing available
+ *     would be a text diff, and this is an audit-trail recorder rather than a
+ *     git client.
+ *
+ * The SCOPE line says so out loud, and it is new because the scope is new: a
+ * `README.md` two directories above the outlines is a row in this list, and a
+ * reader who is not told that has to work out why.
+ *
+ * Every row is TICKED by default, so the ordinary sweep stays one click, and
+ * unticking one dims it and recomposes both the message and the button live —
+ * through the same `composed` the server would have used, so the two faces
+ * cannot word one commit differently. What is left out stays waiting, for its
+ * own commit and its own message; olai never touches git's index, so work
+ * somebody staged by hand is untouched either way.
  *
  * The LAST COMMIT is at the top, above everything waiting, because the two are
  * one question asked twice: what is waiting does not say whether anything was
@@ -17,23 +31,25 @@
  * like one it committed a minute ago if you only count what is pending.
  *
  * The MESSAGE is a suggestion and not a decision: it arrives composed from what
- * changed, and the moment somebody types in the box it is theirs. A composed
- * message can only ever describe the edits; a person — or an agent, through its
- * own tool — can say why they were made.
+ * is ticked, and the moment somebody types in the box it is theirs.
  *
  * Every word on screen comes from `./said.ts`. Nothing here decides what a
  * change is called, which is what keeps the panel's vocabulary and the commit
  * log's from being kept in step by hand.
  */
 
-import { isReady, type NodeChange } from "@olai/format"
-import { createSignal, For, Show } from "solid-js"
+import { isReady } from "@olai/format"
+import { createSignal, Show } from "solid-js"
 
 import { agoOf } from "./ago.ts"
 import type { Anchor } from "./anchor.ts"
-import { because, GLYPH, SAID, trouble, verbatim, WHO } from "./said.ts"
+import { because, scopeOf, trouble, verbatim, waitingIn, WHO } from "./said.ts"
+import { Others } from "./Others.tsx"
+import { Outlines } from "./Outlines.tsx"
+import { createSelection } from "./selection.ts"
 import type { Commit } from "./state.ts"
 import { TESTID } from "../testids.ts"
+import { Unpushed } from "./Unpushed.tsx"
 
 export function Panel(props: {
   readonly commit: Commit
@@ -47,19 +63,39 @@ export function Panel(props: {
 }) {
   const pending = () => props.commit.pending()
   const ready = () => isReady(pending().repo)
+  const selection = createSelection(pending)
 
-  /** The draft, seeded from the composed suggestion and then left alone.
+  /**
+   * The draft: the composed suggestion until somebody types, and theirs
+   * afterwards.
    *
-   *  Once, at creation, and this component is created when the panel opens —
-   *  so re-opening it picks up a newer suggestion and typing in it is never
-   *  overwritten. A box that re-synced would rewrite what somebody was writing
-   *  every time the server recomputed what is waiting, which it does on a
-   *  timer of its own. */
-  const [draft, setDraft] = createSignal(pending().message)
+   * `null` is "nobody has typed", which is what lets the box follow the
+   * selection — untick a file and the message stops naming it — while never
+   * overwriting a sentence a person is in the middle of writing. It used to be
+   * seeded once at open, which was the same promise made with less: the box
+   * could not recompose, because it had no way to tell a stale seed from an
+   * edit.
+   */
+  const [typed, setTyped] = createSignal<string | null>(null)
+  const draft = () => typed() ?? selection.message()
 
-  /** The changes, in file order, as one group per file. */
-  const groups = (): ReadonlyArray<readonly [string, ReadonlyArray<NodeChange>]> =>
-    [...Map.groupBy(pending().changes, (change) => change.file)]
+  /**
+   * Whether there is anything at all to record.
+   *
+   * The pill's own count, read as a fence (`waitingIn`, in `./said.ts`), rather
+   * than a second sum of its own. They were two sums for a while and they
+   * disagreed: a served outline whose bytes moved with no NODE moving was drawn
+   * here and counted nowhere, so the pill said `committed` over a panel offering
+   * to commit it. `waitingIn` counts the rows this panel draws, so its
+   * positivity is this question.
+   */
+  const anything = () => waitingIn(pending()) > 0
+
+  /** Nothing ticked is a button with nothing to do, and it says so by being
+   *  disabled rather than by refusing afterwards: the server would answer
+   *  `NothingToCommit`, which is a correct answer to a question nobody meant to
+   *  ask. */
+  const nothingTicked = () => selection.paths()?.length === 0
 
   return (
     <section
@@ -104,37 +140,19 @@ export function Panel(props: {
         </Show>
       </p>
 
-      <For each={groups()}>
-        {([file, changes]) => (
-          <div data-testid={TESTID.commitGroup} data-file={file}>
-            <p class="font-mono text-xs text-muted">{file}</p>
-            <ul>
-              <For each={changes}>
-                {(change) => (
-                  <li
-                    class="flex items-baseline gap-2 py-0.5"
-                    data-testid={TESTID.commitChange}
-                    data-node-id={change.id}
-                    data-sort={change.sort}
-                    // The fields behind the word: "moved" is `parent, ord`,
-                    // and a row that changed three things says which three
-                    // without spending a line on it.
-                    title={change.fields.join(", ")}
-                  >
-                    <span class="w-3 shrink-0 text-muted" aria-hidden="true">
-                      {GLYPH[change.sort]}
-                    </span>
-                    <span class="min-w-0 truncate">{change.title}</span>
-                    <span class="ml-auto shrink-0 text-xs text-muted">
-                      {SAID[change.sort]}
-                    </span>
-                  </li>
-                )}
-              </For>
-            </ul>
-          </div>
-        )}
-      </For>
+      <Show when={pending().outlines.length > 0}>
+        <Rule>outlines</Rule>
+        <Outlines
+          outlines={pending().outlines}
+          changes={pending().changes}
+          selection={selection}
+        />
+      </Show>
+
+      <Show when={pending().others.length > 0}>
+        <Rule>other files</Rule>
+        <Others others={pending().others} selection={selection} />
+      </Show>
 
       {/* A dirty outline nobody can parse is still going to be committed — the
           bytes are the bytes — but nothing can be said about what changed in
@@ -146,19 +164,23 @@ export function Panel(props: {
         </p>
       </Show>
 
+      {/* What all of that is a list OF. It is drawn whenever there is a list,
+          because "why is my README in here" is a question the rows themselves
+          cannot answer. */}
+      <Show when={anything()}>
+        <p class="text-xs text-muted" data-testid={TESTID.commitScope}>
+          {scopeOf(pending().served)}
+        </p>
+      </Show>
+
       {/* Intent, never truth: this is a count the server keeps in memory and
           clears on a commit, so it is empty after a restart and knows nothing
           about an edit made in vim. Absent is a perfectly good answer. */}
       <Show when={pending().wrote.length > 0}>
         <p class="text-xs text-muted" data-testid={TESTID.commitWriters}>
-          <For each={pending().wrote}>
-            {(wrote, at) => (
-              <>
-                {at() > 0 ? " · " : ""}
-                {WHO[wrote.writer] ?? wrote.writer} {wrote.ops}
-              </>
-            )}
-          </For>
+          {pending().wrote.map((wrote, at) =>
+            `${at > 0 ? " · " : ""}${WHO[wrote.writer] ?? wrote.writer} ${wrote.ops}`
+          ).join("")}
         </p>
       </Show>
 
@@ -183,7 +205,7 @@ export function Panel(props: {
         </p>
       </Show>
 
-      <Show when={pending().changes.length + pending().unreadable.length > 0}>
+      <Show when={anything()}>
         <textarea
           // Tall enough for a composed message, which is a subject, a blank
           // line and its first detail line: the shorter box cut the detail in
@@ -192,7 +214,7 @@ export function Panel(props: {
           data-testid={TESTID.commitMessage}
           aria-label="commit message"
           value={draft()}
-          onInput={(event) => setDraft(event.currentTarget.value)}
+          onInput={(event) => setTyped(event.currentTarget.value)}
         />
       </Show>
 
@@ -204,24 +226,55 @@ export function Panel(props: {
         )}
       </Show>
 
-      <Show when={pending().changes.length + pending().unreadable.length > 0}>
+      {/* What is recorded and not shared. Below the message because it is about
+          commits that already happened, and drawn whether or not anything is
+          waiting — a clean tree with three unpushed commits is exactly when a
+          person goes looking for this. */}
+      <Unpushed commit={props.commit} />
+
+      <Show when={anything()}>
         <button
           type="button"
           class="self-end rounded border border-rule px-3 py-1.5 text-xs hover:text-ink disabled:opacity-50"
           data-testid={TESTID.commitNow}
-          disabled={!ready() || props.commit.working()}
-          onClick={() => props.commit.commit(draft())}
+          disabled={!ready() || props.commit.working() || nothingTicked()}
+          onClick={() => props.commit.commit(draft(), selection.paths())}
         >
-          {props.commit.working() ? "Committing…" : label(pending().changes.length)}
+          {props.commit.working()
+            ? "Committing…"
+            : label(selection.changes().length, selection.others().length)}
         </button>
       </Show>
     </section>
   )
 }
 
-/** The button says how much it is about to record. Bare "Commit" when the only
- *  thing waiting is a file nothing could be counted in. */
-const label = (changes: number): string =>
-  changes === 0
-    ? "Commit"
-    : `Commit ${changes} ${changes === 1 ? "change" : "changes"}`
+/** A section heading, drawn as a rule with a word on it: the two kinds of row
+ *  are two different claims about a file, and a reader scanning the list should
+ *  not have to infer where one stops. */
+function Rule(props: { readonly children: string }) {
+  return (
+    <p class="flex items-center gap-2 text-[0.65rem] uppercase tracking-wide text-muted">
+      <span class="shrink-0">{props.children}</span>
+      <span class="h-px grow bg-rule" aria-hidden="true" />
+    </p>
+  )
+}
+
+/**
+ * The button says how much it is about to record, in the two counts a commit
+ * now has.
+ *
+ * Both halves, because a commit can be entirely one or entirely the other: a
+ * person who edited two documents by hand and nothing else would otherwise be
+ * offered a bare "Commit" for work the panel had just listed. Bare "Commit" is
+ * kept for the one case where neither can be counted — a dirty outline nothing
+ * could be parsed in.
+ */
+const label = (changes: number, others: number): string => {
+  const parts = [
+    ...(changes === 0 ? [] : [`${changes} ${changes === 1 ? "change" : "changes"}`]),
+    ...(others === 0 ? [] : [`${others} ${others === 1 ? "file" : "files"}`]),
+  ]
+  return parts.length === 0 ? "Commit" : `Commit ${parts.join(" · ")}`
+}

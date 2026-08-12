@@ -13,8 +13,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//dependencies": "The bottom of the layering (docs/architecture.md): nothing here can reach a disk, a server or a browser. A workspace sibling appearing here would be a layering violation, and `bun install` is what would report it. fastest-levenshtein is the did-you-mean distance — a focused, dependency-free library rather than eighteen lines of textbook matrix arithmetic we would then own.",
+  "//dependencies": "The bottom of the layering (docs/architecture.md): nothing here can reach a disk, a server or a browser. @olai/git is the one workspace sibling, and it is not a layer violation but the other half of this floor — a LEAF beside this package, on `effect` alone, whose `./state` subpath is pure data (RepoState, Reason) that this package re-exports because it travels the wire. Only that subpath is imported: the main entry shells out to git, and this module is bundled into a browser. fastest-levenshtein is the did-you-mean distance — a focused, dependency-free library rather than eighteen lines of textbook matrix arithmetic we would then own.",
   "dependencies": {
+    "@olai/git": "workspace:*",
     "effect": "4.0.0-beta.106",
     "fastest-levenshtein": "^1.0.16"
   }

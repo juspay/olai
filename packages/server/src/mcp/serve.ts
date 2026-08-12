@@ -158,15 +158,15 @@ export const serveTools = (options: McpServeOptions) =>
     const { root, store } = yield* openDirectory(options.root)
 
     // The same slot `../serve.ts` keeps, for the same reason and with the same
-    // meaning: a commit lands without moving a served file, so nothing else in
-    // this process can say that what is waiting has changed.
-    const committed = yield* SubscriptionRef.make(0)
+    // meaning: a commit or a push happens without moving a served file, so
+    // nothing else in this process can say that what is waiting has changed.
+    const recorded = yield* SubscriptionRef.make(0)
     const ops = makeOps({
       store,
       root,
       commits: options.commits,
-      onCommitted: () => {
-        Effect.runSync(SubscriptionRef.update(committed, (count) => count + 1))
+      onRecorded: () => {
+        Effect.runSync(SubscriptionRef.update(recorded, (count) => count + 1))
       },
     })
 
@@ -188,7 +188,7 @@ export const serveTools = (options: McpServeOptions) =>
       chat: null,
       ops,
       writer: "mcp",
-      git: gitWiring(ops, "mcp", committed),
+      git: gitWiring(ops, "mcp", recorded),
     })
     // The runtime's `done` rejects when it is closed, so something must hold
     // that catch or a clean shutdown surfaces as an unhandled rejection. Same

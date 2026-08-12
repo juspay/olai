@@ -20,7 +20,7 @@
  */
 
 import * as assert from "node:assert";
-import { Then, When } from "@cucumber/cucumber";
+import { Given, Then, When } from "@cucumber/cucumber";
 
 import {
   APP_CHROME,
@@ -31,8 +31,13 @@ import {
   COMMIT_LAST,
   COMMIT_MESSAGE,
   COMMIT_NOW,
+  COMMIT_OTHER,
   COMMIT_PANEL,
   COMMIT_PILL,
+  COMMIT_PUSH,
+  COMMIT_SCOPE,
+  COMMIT_TICK,
+  COMMIT_UNPUSHED,
   HYDRATION_TIMEOUT,
   oneLine,
   POLL_TIMEOUT,
@@ -284,3 +289,154 @@ Then("the repository is clean", function (this: OlaiWorld) {
 When("HEAD is detached in the served repository", function (this: OlaiWorld) {
   this.git("checkout", "--quiet", "--detach", "HEAD");
 });
+
+// ── the whole repository ───────────────────────────────────────────────
+
+/**
+ * A file that is NOT an outline, waiting in the panel — the bug this feature
+ * was filed for, as an assertion.
+ *
+ * `data-how` rather than the chip's words: which phrase stands for a file git
+ * has never seen is the view's to reword, and the status is the contract.
+ */
+Then(
+  "the panel lists {string} as {string}",
+  async function (this: OlaiWorld, file: string, how: string) {
+    await this.expectAttribute(
+      `${COMMIT_OTHER}[data-path="${file}"]`,
+      "data-how",
+      how,
+      `the pending file "${file}"`,
+    );
+  },
+);
+
+Then(
+  "the panel does not list {string}",
+  async function (this: OlaiWorld, file: string) {
+    await this.page
+      .locator(`${COMMIT_OTHER}[data-path="${file}"]`)
+      .waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+  },
+);
+
+/** The scope the panel reports on. New because the scope is new: a `README.md`
+ *  above the outlines is a row in that list, and a reader who is not told that
+ *  has to work out why. */
+Then(
+  "the panel says it covers the whole repository",
+  async function (this: OlaiWorld) {
+    const said = await this.page
+      .locator(COMMIT_SCOPE)
+      .textContent({ timeout: POLL_TIMEOUT });
+    assert.ok(
+      (said ?? "").includes("whole repository"),
+      `expected the scope line to say what it covers, but it says "${said}"`,
+    );
+  },
+);
+
+/** Leave one file OUT of this commit. What is unticked stays waiting, for its
+ *  own commit and its own message. */
+When(
+  "I untick {string}",
+  async function (this: OlaiWorld, file: string) {
+    await this.page
+      .locator(`${COMMIT_TICK}[data-path="${file}"]`)
+      .uncheck({ timeout: POLL_TIMEOUT });
+  },
+);
+
+/** What the button is offering to do, which follows the ticks: unticking a
+ *  file has to change the offer, or the piecemeal selection is a lie about what
+ *  pressing it will record. */
+Then(
+  "the commit button offers {string}",
+  async function (this: OlaiWorld, words: string) {
+    const button = this.page.locator(COMMIT_NOW);
+    await button.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.page.waitForFunction(
+      ([selector, expected]) =>
+        (document.querySelector(selector!)?.textContent ?? "").includes(expected!),
+      [COMMIT_NOW, words] as const,
+      { timeout: POLL_TIMEOUT },
+    );
+  },
+);
+
+/** Exactly which files the commit named — the whole point of a piecemeal
+ *  commit, and the one thing about it that is permanent. */
+Then(
+  "the last commit touched exactly {string}",
+  function (this: OlaiWorld, files: string) {
+    const wanted = files.split(",").map((file) => file.trim()).sort();
+    const touched = this.git("show", "--name-only", "--format=", "HEAD")
+      .trim()
+      .split("\n")
+      .filter((line) => line !== "")
+      .sort();
+    assert.deepEqual(touched, wanted);
+  },
+);
+
+Then(
+  "{string} is still waiting in the repository",
+  function (this: OlaiWorld, file: string) {
+    const waiting = this.git("status", "--porcelain", "--", file).trim();
+    assert.ok(
+      waiting !== "",
+      `expected "${file}" to be left uncommitted, but git says the tree is clean for it`,
+    );
+  },
+);
+
+// ── pushing ────────────────────────────────────────────────────────────
+
+/** Somewhere to push to: a bare repository on disk, wired up as `origin` with
+ *  the branch tracking it. Real git, no network. */
+Given("the served repository has a remote", function (this: OlaiWorld) {
+  this.giveRemote();
+});
+
+/** The header's own count of what is recorded here and nowhere else — the
+ *  human's ruling at dispatch: one indicator, and the unpushed count is on it
+ *  rather than only inside the panel. */
+Then(
+  "the commit pill says {int} unpushed",
+  async function (this: OlaiWorld, count: number) {
+    await this.expectAttribute(
+      COMMIT_PILL,
+      "data-unpushed",
+      String(count),
+      "the commit pill",
+    );
+  },
+);
+
+Then(
+  "the panel offers to push {int} commits",
+  async function (this: OlaiWorld, count: number) {
+    await this.expectAttribute(
+      COMMIT_UNPUSHED,
+      "data-commits",
+      String(count),
+      "the unpushed line",
+    );
+  },
+);
+
+When("I push", async function (this: OlaiWorld) {
+  await this.page.locator(COMMIT_PUSH).click({ timeout: POLL_TIMEOUT });
+});
+
+/** What actually arrived at the other end. The whole reason the button exists
+ *  is that a person should not have to check this by hand — so the test does. */
+Then(
+  "the remote has {string}",
+  function (this: OlaiWorld, subject: string) {
+    assert.strictEqual(
+      this.remoteGit("log", "--format=%s", "-1", "main").trim(),
+      subject,
+    );
+  },
+);

@@ -1,6 +1,8 @@
 # Committing changes
 
-Status: SHIPPED, 2026-08-10 (proposed and built the same day).
+Status: SHIPPED, 2026-08-10 (proposed and built the same day). AMENDED by
+`commit-whole-repo` (2026-08-12), which is marked inline below: the scope became
+the whole repository, a commit became a selection, and push arrived.
 
 Every op used to commit itself (`packages/ops/src/git.ts`), so one train of
 thought became a dozen commits — a roadmap gardening session produced eleven,
@@ -17,8 +19,11 @@ So every write olai makes is a write you did not type, and chat auto-approves it
 ops. Git is how you see what the tool did to your files. That is the one job:
 **an audit trail of what olai wrote.**
 
-It is not for history (the descs carry their own dates), not for sync (olai never
-pushes), and not for undo (the `undo` item plans real op inverses).
+It is not for history (the descs carry their own dates), not for undo (the `undo`
+item plans real op inverses), and not for sync — though `commit-whole-repo` did
+give it a PUSH, because an audit trail on one machine is one disk failure from
+not existing. Sharing what was recorded is not merging it: there is no pull, no
+fetch and no branch UI.
 
 ## How it works
 
@@ -84,19 +89,27 @@ Opened:
 │ olai: Outlines as a collection done       │
 │   · chat agent · 12m ago · 1a2b3c4        │
 │                                           │
-│ roadmap.jsonl                             │
+│ OUTLINES ─────────────────────────────    │
+│ ☑ roadmap.jsonl                           │
 │   ✓  Outlines as a collection    done     │
 │   ✎  Notes: one state, same line  note    │
 │   +  Kolu integration: auto-…    created  │
 │   ⌦  Outlines as a collection    archived │
 │                                           │
+│ OTHER FILES ──────────────────────────    │
+│ ☑ README.md                    modified   │
+│ ☐ notes/scratch.md            untracked   │
+│                                           │
+│ whole repository · olai serves docs/      │
 │ chat agent 3 · you 1                      │
 │                                           │
 │ ┌───────────────────────────────────────┐ │
 │ │ olai: reconcile roadmap with the      │ │
 │ │ #70–#81 merges                        │ │
 │ └───────────────────────────────────────┘ │
-│                      [ Commit 4 changes ] │
+│                                           │
+│ 2 commits not on origin/master   [ Push ] │
+│         [ Commit 4 changes · 1 file ]     │
 └───────────────────────────────────────────┘
 ```
 
@@ -212,8 +225,30 @@ type Pending = {
   readonly wrote: ReadonlyArray<{ readonly writer: Writer; readonly ops: number }>
   readonly message: string                     // composed suggestion
   readonly last: LastCommit | null             // what olai last recorded here
+
+  // commit-whole-repo:
+  readonly outlines: ReadonlyArray<DirtyOutline> // {file, path, how} — the groups
+  readonly others: ReadonlyArray<Other>          // {path, how} — every other dirty file
+  readonly served: string                        // '' at the root, 'docs/' inside one
+  readonly unpushed: Unpushed | null             // {upstream, commits}; null = no upstream
 }
 
+type How = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked'
+```
+
+`How` is GIT's word, not the person's: an unstaged `mv a b` is a `deleted` and
+an `untracked`, because that is what `git status` reports until both halves are
+staged. `renamed` shows up once they are.
+
+**The wire GREW required fields** with `commit-whole-repo` — `Pending` gained
+`outlines`, `others`, `served` and `unpushed`, `CommitResult.Committed` gained
+`others`, and `PushResult` is new — and none of it is optional. That is allowed
+here and would not be elsewhere: olai ships as ONE binary, so the client and the
+server that answers it are the same build. An old page against a new server is
+not a supported pair, and the framework's own handshake is what a mismatched tab
+meets first.
+
+```ts
 type LastCommit = {
   readonly sha: string
   readonly message: string
@@ -225,9 +260,12 @@ type Writer = "chat-agent" | "mcp" | "web"
 ```
 
 `last` is `git log -1` through the same filter the audit view uses — the `olai`
-message prefix, restricted to the served directory — so it is the last commit
-OLAI made, never the repository's HEAD: a person's own commits are not what this
-feature reports on. The trailer is what says who; a commit carrying the prefix
+message prefix — so it is the last commit OLAI made, never the repository's
+HEAD: a person's own commits are not what this feature reports on. It was also
+restricted to the served directory, and `commit-whole-repo` lifted that with the
+survey: a commit that recorded a dirty root `README.md` and nothing under
+`docs/` is olai's own work, and hiding it would leave the panel saying nothing
+was ever recorded here a second after it recorded something. The trailer is what says who; a commit carrying the prefix
 without one (typed by hand, or stripped by a rebase) reports `writer: null`
 rather than a guess.
 
@@ -257,6 +295,19 @@ that writes a document — so a served `.md` somebody edited, a source file, and
 half-staged patch in the same working tree are all somebody else's work and are
 never named on `add` or `commit`.
 
+> **Amended by `commit-whole-repo`.** That rule was filed as a bug the moment
+> somebody edited a `.md` by hand: `git status` had already surveyed the file,
+> and the panel dropped it one line later, so the UI said nothing was pending
+> while the working tree said otherwise. The scope is now the WHOLE REPOSITORY,
+> in two kinds of row — served outlines keep their node-level changes, and every
+> other dirty file (documents, source files, an outline outside the served root,
+> untracked files `.gitignore` does not cover) is a path and a status letter,
+> because the only richer thing available is the text diff this feature has
+> never shown. What replaces "only outlines" as the safety property is that a
+> commit names a SELECTION and never touches git's index: exactly the paths
+> asked for, so the half-staged patch above is still exactly as its author left
+> it, and anything left out stays waiting.
+
 ### Who wrote it — intent, not truth
 
 `wrote` cannot come from git; git only knows the bytes moved. It is a per-writer
@@ -285,13 +336,24 @@ with one less thing to depend on a git version for.
 ### Asking for a commit
 
 ```ts
-type CommitRequest = { readonly message?: string }   // omitted → composed
+type CommitRequest = {
+  readonly message?: string                    // omitted → composed
+  readonly paths?: ReadonlyArray<string>       // omitted → everything (commit-whole-repo)
+}
 
 type CommitResult =
-  | { readonly _tag: "Committed"; readonly sha: string; readonly changes: number }
+  | { readonly _tag: "Committed"; readonly sha: string
+      readonly changes: number; readonly others: number }
   | { readonly _tag: "NothingToCommit" }
   | { readonly _tag: "Blocked";   readonly repo: RepoState }
   | { readonly _tag: "Failed";    readonly said: string }
+
+// commit-whole-repo. Same four shapes, because it is the same kind of act.
+type PushResult =
+  | { readonly _tag: "Pushed"; readonly upstream: string; readonly commits: number }
+  | { readonly _tag: "NothingToPush" }
+  | { readonly _tag: "Blocked"; readonly repo: RepoState }
+  | { readonly _tag: "Failed";  readonly said: string }
 ```
 
 Both doors — the button's procedure and the MCP tool — call the same thing, added
@@ -317,6 +379,12 @@ Only the dirty served outlines are staged, named explicitly on both `add` and
 `commit`, exactly as before — a served directory is a working tree with other
 work in it.
 
+> **Amended by `commit-whole-repo`.** The naming survives and the narrowing does
+> not: a commit names exactly the paths it was asked for — the panel's ticks, or
+> the tool's `paths` — out of everything dirty in the repository, and a path
+> nothing is waiting on is refused by name rather than quietly dropped. olai
+> still never touches the index.
+
 ### Where it is computed
 
 `pending` is a surface cell on two clocks: every published revision, and a slow
@@ -330,9 +398,13 @@ nothing new sends nothing.
 A commit is the third trigger and is explicit: the procedure republishes the cell
 the moment it is done, for the same reason.
 
-The git plumbing is in `ops/git.ts` and decides nothing. Its socket is
-`open(root)`, answering with a `Repo` handle — `state`, `dirty`, `show`,
-`commit` — or `null` for a directory that is not a work tree. WHERE the served
+The git plumbing is [`/git`](../../packages/git/README.md) and decides
+nothing. (It was `ops/git.ts`; `commit-whole-repo` moved it out into a leaf
+package on `effect` alone, which is also the answer to "should olai take a git
+library" — see that README.) Its socket is `open(root)`, answering with a `Repo`
+handle — `state`, `dirty`, `show`, `last`, `commit`, `push` — or with `NoRepo`
+for a directory that is not a work tree, or `Unusable` for a git that ran and
+could not answer. WHERE the served
 directory sits in the repository (the git directory, and what the root is called
 from the repository root) is asked once when the handle is opened and belongs to
 the handle: git speaks repo-relative paths, everything above speaks
@@ -425,9 +497,13 @@ change to how olai commits cannot ripple into two places.
    with its own? **Decided: yes, all of them.** Only-its-own would have to stage
    by writer, and the writer record is explicitly allowed to be empty — so after
    a restart that commit would silently commit nothing, which is the worst
-   failure available to an audit trail. The scope is narrowed by FILE KIND
-   instead, which is derivable and cannot go stale: outlines only, never the
-   documents or the other work in the tree.
+   failure available to an audit trail. The scope was narrowed by FILE KIND
+   instead — outlines only, never the documents or the other work in the tree.
+   **`commit-whole-repo` removed that narrowing** and replaced it with a
+   selection: everything dirty is offered, everything is ticked by default, and
+   what a commit names is what somebody left ticked. The property the narrowing
+   was protecting — a half-finished edit staged by hand is never swept up —
+   holds because olai names its paths and never touches the index.
 3. Does the Changes view belong in the sidebar beside outlines, calendar and
    docs, or is it only ever reached from the chrome pill? **Still open, and now
    unblocking rather than blocking**: the view is not built, and the derivation
