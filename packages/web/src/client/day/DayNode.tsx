@@ -70,6 +70,7 @@ export function DayNode(props: {
             either another day's business or not written at all. */}
         <NodeLine
           title={node().title}
+          from={props.dated.shows.file}
           status={props.dated.status}
           progress={props.dated.progress}
           date={props.dated.date}

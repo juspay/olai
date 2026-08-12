@@ -41,7 +41,15 @@ export function SeeRefs(props: {
     if (see === undefined || see.length === 0) return []
     const indexes = derived()
     if (indexes === undefined) return []
-    return see.map((id) => ({ id, title: nodeNamed(indexes, id)?.node.title ?? id }))
+    return see.map((id) => {
+      const named = nodeNamed(indexes, id)
+      return {
+        id,
+        title: named?.node.title ?? id,
+        // from "" when dangling: the title is the id, not outline prose.
+        from: named?.file ?? "",
+      }
+    })
   })
 
   return <NodeRefs label="see" refs={refs()} testid={TESTID.seeRefs} />
