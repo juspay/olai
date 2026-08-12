@@ -74,7 +74,8 @@ see `touch.ts`) left of a filled-circle bullet (`Bullet.tsx`, with a gray halo
 when children are hidden), then the MARK COLUMN (`Checkbox.tsx`: CSS squares —
 checked for done, half-filled for doing, EMPTY for todo, and no box at all on a
 node carrying none of them, because a bullet is not a task; read-only until
-keyboard-editing). Tags in a title are subtle pills (`NodeTitle.tsx`). A node's
+keyboard-editing). Titles render inline-only markdown and `#tags` as subtle
+pills (`NodeTitle.tsx` / `markdown/title.ts`). A node's
 free cross-references (`SeeRefs.tsx`) each link to `/n/<id>` with the target's
 title, resolved at view time through the same indexes.
 
