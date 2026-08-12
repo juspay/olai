@@ -57,7 +57,7 @@ export const attaching = (
 ): Effect.Effect<Attached, OpFailure> =>
   Effect.gen(function*() {
     const name = nameOf(file)
-    const rejection = attachmentRejection(name, file.size)
+    const rejection = refusalFor(file)
     if (rejection !== null) {
       return yield* Effect.fail(new UsageFailure({ reason: rejection }))
     }
@@ -82,20 +82,28 @@ export const attaching = (
   })
 
 /**
+ * Why this file would be refused, or `null` — the gate, asked about the name
+ * this module would SEND rather than the one the file arrived with.
+ *
+ * Exported because the gate is also asked one step EARLIER ({@link
+ * ./holding.ts} sorts a whole drop before any of it is uploaded), and the two
+ * askings have to agree about what the file is called: judging `file.name`
+ * would refuse exactly the unnamed clipboard picture {@link nameOf} exists to
+ * name. Handing out the answer rather than the name is what makes that
+ * mechanical instead of a rule the other module has to remember.
+ */
+export const refusalFor = (file: File): string | null =>
+  attachmentRejection(nameOf(file), file.size)
+
+/**
  * What to call the file.
  *
  * A pasted screenshot usually arrives as a `File` with a name of its own
  * (`image.png`), and sometimes as one with nothing useful at all — so the type
  * is the fallback, because the EXTENSION is what the gate judges and what the
  * agent reads the picture's kind from.
- *
- * Exported because the gate is asked one step earlier too ({@link
- * ./holding.ts}, sorting a whole drop before any of it is uploaded), and it
- * has to be asked about the name this module would SEND. A caller that judged
- * `file.name` would refuse the unnamed clipboard picture this function exists
- * to name.
  */
-export const nameOf = (file: File): string => {
+const nameOf = (file: File): string => {
   if (file.name !== "" && file.name.includes(".")) return file.name
   const kind = file.type.startsWith("image/") ? file.type.slice("image/".length) : ""
   return `pasted.${kind === "" ? "png" : kind.replace(/[^a-z0-9]/gi, "")}`

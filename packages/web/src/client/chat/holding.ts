@@ -20,10 +20,10 @@
  * has already deleted.
  */
 
-import { type Attached, attachmentRejection } from "@olai/surface"
+import type { Attached } from "@olai/surface"
 import { type Accessor, createEffect, createSignal, on } from "solid-js"
 
-import { nameOf } from "./attach.ts"
+import { refusalFor } from "./attach.ts"
 import type { Chat } from "./state.ts"
 
 /** A drop, split by the one gate: what will be offered, and what was turned
@@ -37,24 +37,21 @@ export interface Sorted {
  * Sort what was just dropped — or pasted, or picked — into the pictures this
  * app takes and the refusals it owes for the rest.
  *
- * The gate is `@olai/surface`'s {@link attachmentRejection}: the SAME function
- * the chunk loop runs before it encodes a byte, and the same one the server
- * refuses with. This is not a second opinion about what a picture is. It is
- * the one opinion, asked one step earlier, and asking it earlier is what makes
- * a MIXED drop honest: offer five files one at a time and each upload clears
- * the last one's refusal off the screen, so a drop of four screenshots and a
- * PDF ends with the PDF gone and nothing said about it. Sorted up front, the
- * refusals survive the uploads and are said together.
- *
- * The name it judges is the name {@link nameOf} would SEND, not `file.name` —
- * a clipboard picture often arrives with no usable name at all, and judging
- * the raw one would refuse exactly the file the paste path goes on to accept.
+ * The gate is {@link refusalFor}: the chunk loop's own, which is
+ * `@olai/surface`'s, which is the server's — and it is asked about the name
+ * the upload would SEND, because it is the upload that answers. This is not a
+ * second opinion about what a picture is. It is the one opinion, asked one
+ * step earlier, and asking it earlier is what makes a MIXED drop honest: offer
+ * five files one at a time and each upload clears the last one's refusal off
+ * the screen, so a drop of four screenshots and a PDF ends with the PDF gone
+ * and nothing said about it. Sorted up front, the refusals survive the uploads
+ * and are said together.
  */
 export const sorting = (files: ReadonlyArray<File>): Sorted => {
   const taking: Array<File> = []
   const refusals: Array<string> = []
   for (const file of files) {
-    const rejection = attachmentRejection(nameOf(file), file.size)
+    const rejection = refusalFor(file)
     if (rejection === null) taking.push(file)
     else refusals.push(rejection)
   }
