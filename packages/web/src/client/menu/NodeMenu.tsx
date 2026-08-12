@@ -87,7 +87,7 @@ export function NodeMenu(props: {
     setSaid(null)
     try {
       const answer = await action.run()
-      if (answer !== undefined && answer !== null) say(answer)
+      if (answer !== undefined) say(answer)
     } catch (cause) {
       // The verb's own words, lower-cased into a sentence — so a further
       // action needs no entry here, and none of them can be forgotten.
@@ -209,6 +209,21 @@ function MenuPanel(props: {
     void props.onPick(action)
   }
 
+  /** Backing out of the question, with the caret put back where it was asked
+   *  from. The confirm takes the focus when it opens (a panel that swapped its
+   *  content under an unmoved focus would leave the keyboard on an element that
+   *  is gone), so cancelling has to hand it back — otherwise a person who
+   *  opened this menu with the keyboard is returned to the top of the document
+   *  and has to walk down the whole page again. After the frame that redraws
+   *  the list, because the button being aimed at does not exist until then. */
+  let list: HTMLUListElement | undefined
+  const cancel = (action: MenuAction): void => {
+    setAsking(null)
+    queueMicrotask(() =>
+      list?.querySelector<HTMLElement>(`[data-action="${action.id}"]`)?.focus()
+    )
+  }
+
   return (
     <div
       data-testid={TESTID.nodeMenuPanel}
@@ -219,7 +234,7 @@ function MenuPanel(props: {
         fallback={
           // Plain list, not role=menu: we do not implement roving focus /
           // arrow keys. A labelled group of buttons matches what is here.
-          <ul aria-label="node actions" class="m-0 list-none p-0">
+          <ul ref={list} aria-label="node actions" class="m-0 list-none p-0">
             <For each={props.actions}>
               {(action) => (
                 <li classList={{ "mt-1 border-t border-rule pt-1": action.divider }}>
@@ -238,7 +253,7 @@ function MenuPanel(props: {
           </ul>
         }
       >
-        {(action) => <Confirm action={action()} onGo={chose} onCancel={() => setAsking(null)} />}
+        {(action) => <Confirm action={action()} onGo={chose} onCancel={cancel} />}
       </Show>
     </div>
   )
@@ -256,7 +271,7 @@ function MenuPanel(props: {
 function Confirm(props: {
   readonly action: MenuAction
   readonly onGo: (action: MenuAction) => void
-  readonly onCancel: () => void
+  readonly onCancel: (action: MenuAction) => void
 }) {
   let go: HTMLButtonElement | undefined
   onMount(() => go?.focus())
@@ -284,7 +299,7 @@ function Confirm(props: {
           class="cursor-pointer rounded border border-rule bg-transparent px-2 py-1 text-xs text-muted hover:text-ink"
           data-testid={TESTID.nodeMenuItem}
           data-action="cancel"
-          onClick={() => props.onCancel()}
+          onClick={() => props.onCancel(props.action)}
         >
           Cancel
         </button>
