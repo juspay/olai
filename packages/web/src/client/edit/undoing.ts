@@ -26,14 +26,8 @@
  * believing their outline had gone back and reading one that had not.
  */
 
-import type { Edit } from "@olai/surface"
-import {
-  type Accessor,
-  createContext,
-  createSignal,
-  type JSX,
-  useContext,
-} from "solid-js"
+import type { Applied, Edit, OpFailure } from "@olai/surface"
+import { type Accessor, createContext, createSignal, useContext } from "solid-js"
 import { Result } from "effect"
 
 import { runAsync } from "../run.ts"
@@ -62,18 +56,18 @@ export interface Undo {
   readonly said: Accessor<Said | null>
 }
 
-const UndoContext = createContext<Undo>()
-
-export function UndoProvider(props: {
-  readonly undo: Undo
-  readonly children: JSX.Element
-}) {
-  return (
-    <UndoContext.Provider value={props.undo}>
-      {props.children}
-    </UndoContext.Provider>
-  )
-}
+/**
+ * The context itself, published rather than wrapped in a provider component of
+ * its own — which is the one place this module differs from its neighbours
+ * (`./editing.tsx`'s `EditorProvider`, `../derived.tsx`), and it differs for a
+ * reason worth the inconsistency: a file with JSX in it cannot be imported by
+ * a unit test in this repo (no transform in `bun test`), and the rules this
+ * module holds — what a new op does to the redo side while a replay is still
+ * in flight — are exactly the ones that must not be checkable only by pressing
+ * a key in a browser. `<UndoContext.Provider>` is Solid's own spelling and
+ * costs the one caller nothing.
+ */
+export const UndoContext = createContext<Undo>()
 
 /** The stack the page's editor records into and the keyboard spends. A throw
  *  outside the provider, for the reason `useEditor` throws: the provider wraps
@@ -85,28 +79,44 @@ export const useUndo = (): Undo => {
   return undo
 }
 
-export const createUndo = (): Undo => {
+/** How an edit reaches the write gate. The one impure thing this module does,
+ *  and it is an ARGUMENT for the reason `@olai/ops`' planner takes its clock
+ *  and its id minter as arguments: everything else here is a value, and a
+ *  stack rule that can only be checked by pressing a key in a browser is a
+ *  rule nothing checks. */
+export type Apply = (edit: Edit) => Promise<Result.Result<Applied, OpFailure>>
+
+const overTheWire: Apply = (edit) => runAsync(olai.procedures.edit.apply(edit))
+
+export const createUndo = (apply: Apply = overTheWire): Undo => {
   const [stack, setStack] = createSignal<Stack>(EMPTY)
   const [said, setSaid] = createSignal<Said | null>(null)
 
   /**
-   * One replay at a time, in the order the keys were pressed.
+   * EVERYTHING THAT TOUCHES THE STACK, one at a time, in the order it
+   * happened — the replays, the writes being recorded, and the clearing.
    *
-   * A person leaning on ⌘Z is what it is for: each entry's inverse is judged
-   * against what the one before it did, and run concurrently they would be
-   * judged against the same snapshot — both refused, or both applied to a row
-   * that has since moved.
+   * The replays need it for the obvious reason: a person leaning on ⌘Z would
+   * otherwise have two inverses judged against the same snapshot, both refused
+   * or both applied to a row that has since moved.
    *
-   * The editor has a queue of its own and these two are deliberately not one,
-   * which is why they are two calls to {@link serial} rather than one shared
-   * instance. The editor's exists because its writes are derived FROM EACH
-   * OTHER over a draft (`./editing.tsx` says so): the id an `add` answers with,
-   * the place a move produced. Nothing here is derived from a draft — an
-   * inverse is judged at the gate against the set as it is — so the two never
-   * have to be ordered against each other. Where they can genuinely meet is a
-   * title commit still in flight when the caret leaves and ⌘Z takes back the
-   * row it was on, and that meeting ends the way every other collision at this
-   * gate does: the loser is refused, and the reason is shown.
+   * The other two are the subtle half, and they are here because a replay has
+   * an AWAIT in the middle of it. It takes an entry off one side, waits for
+   * the write, and files what came back on the other — and a `record` landing
+   * in that gap is a new op that has already cleared the redo side, only for
+   * the replay to finish and put an entry back on it. The reader then presses
+   * ⌘⇧Z and re-applies an edit the outline has branched away from, which is
+   * the one rule the stack exists to enforce. Ordering them all through one
+   * queue is what makes that unrepresentable rather than a thing to remember:
+   * the new op waits, and then clears a redo side that has already been
+   * written to.
+   *
+   * The EDITOR's queue is still a different queue, and deliberately so — its
+   * writes are derived from each other over a draft, and none of these are.
+   * Where the two genuinely meet is a title commit still in flight when the
+   * caret leaves and ⌘Z takes back the row it was on, and that meeting ends
+   * the way every collision at this gate ends: the loser is refused, and the
+   * reason is shown.
    */
   const enqueue = serial()
 
@@ -127,7 +137,7 @@ export const createUndo = (): Undo => {
     const back: Array<Edit> = []
     let note: string | undefined
     for (const edit of step) {
-      const outcome = await runAsync(olai.procedures.edit.apply(edit))
+      const outcome = await apply(edit)
       if (Result.isFailure(outcome)) {
         // The entry is already off the stack. What is on screen is what the
         // set says, and the sentence is the ops layer's own — the row moved,
@@ -180,13 +190,22 @@ export const createUndo = (): Undo => {
   return {
     record: (step) => {
       if (step === undefined || step.length === 0) return
-      setStack((current) => recorded(current, step))
+      enqueue(() => {
+        setStack((current) => recorded(current, step))
+        // And whatever the last ⌘Z had to say goes with it. The sentence was
+        // about an edit that is now two edits ago, and a refusal left standing
+        // over a page somebody has carried on working in is an alarm about
+        // nothing.
+        setSaid(null)
+      })
     },
     undo: press("done"),
     redo: press("undone"),
     clear: () => {
-      setStack(EMPTY)
-      setSaid(null)
+      enqueue(() => {
+        setStack(EMPTY)
+        setSaid(null)
+      })
     },
     said,
   }

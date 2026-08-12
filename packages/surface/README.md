@@ -192,10 +192,12 @@ tagged union, and the only place a browser may cause a write:
   answer (`Applied.undo`) for the browser to replay. Nothing restores a
   snapshot: an undo is one more op at the write gate, judged against the set as
   it is now.
-- **the delete this list used to lack arrives as one of them.** `remove` is
-  bound to no key and nothing but an inverse produces one, so the only row it
-  can take back is a row that was just added — and what it resolves to is
-  `archive`, the only removal the set has.
+- **the UN-CREATE is one of them, and it is not a delete.** `remove` is the
+  inverse of an `add`: no key sends it, the only row it can take back is a row
+  that was just made, and what it resolves to is `archive` — the only removal
+  the set has, narrowed to a node with nothing under it. Whether this face ever
+  gets a delete KEY is still the deferral #109 recorded, and still the human's
+  to close.
 
 It declares `OpFailure` as its error channel, which is what the editor is built
 on: a refused write comes back as the validator's own rows, so the draft it

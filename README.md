@@ -222,10 +222,12 @@ meantime, and one that no longer fits — the row moved, somebody filed work und
 it — says so instead of guessing. It is your own edits on the outline in front
 of you: a hundred of them, this session, this tab.
 
-There is still no delete key, and undo is why there does not need to be one: the
-only row it can take back is a row it just added, and what happens to it is what
-`archive` does to anything — it goes to `Archive.jsonl` keeping its id, which is
-a trash rather than a shredder. Git is still under all of it.
+**There is still no delete key.** What ⌘Z can take back is a row you have just
+made — the un-create, which is the inverse of the `Enter` that made it, and the
+only shape of "this row goes" this editor has. Where it goes is `Archive.jsonl`,
+keeping its id, which is what `archive` does to anything: a trash rather than a
+shredder, and refused outright once anything has been filed under it. Git is
+still under all of it.
 
 ## Ask it to change something
 

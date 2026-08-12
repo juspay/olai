@@ -65,6 +65,69 @@ When(
   },
 );
 
+/** A row REPARENTED under everybody's feet — the anchor an undo recorded,
+ *  moved somewhere that anchor no longer means. Lifting it to the top level is
+ *  the smallest edit that does it and leaves a valid set behind (a parent is
+ *  same-file by the format, and this drops the field rather than pointing it
+ *  anywhere new). */
+When(
+  "another writer lifts {string} to the top level of {string}",
+  function (this: OlaiWorld, id: string, file: string) {
+    const records = this.servedNodes(file).map((node) =>
+      node["id"] === id ? { ...node, parent: undefined } : node
+    );
+    assert.ok(
+      records.some((node) => node["id"] === id),
+      `${file} holds no node \`${id}\` to lift`,
+    );
+    // `undefined` is what JSON drops, which is how the field GOES rather than
+    // arriving as a null the format would refuse.
+    this.writeServed(file, records.map((node) => JSON.stringify(node)).join("\n"));
+  },
+);
+
+/** A subtree ARCHIVED under everybody's feet: the records leave this outline
+ *  for `Archive.jsonl` beside it, keeping their ids, which is exactly what the
+ *  ops layer's `archive` does. Everything under the named node goes with it —
+ *  a child left behind pointing at a parent in another file is a set that does
+ *  not validate, which would be a scenario about the wrong thing. */
+When(
+  "another writer archives {string} out of {string}",
+  function (this: OlaiWorld, id: string, file: string) {
+    const records = this.servedNodes(file);
+    const moving = new Set<string>([id]);
+    // Repeat until it stops growing: the file is in no particular order, so a
+    // single pass can meet a child before its parent.
+    for (let pass = 0; pass < records.length; pass++) {
+      for (const node of records) {
+        const parent = node["parent"];
+        if (typeof parent === "string" && moving.has(parent)) {
+          moving.add(String(node["id"]));
+        }
+      }
+    }
+    assert.ok(records.some((node) => node["id"] === id), `${file} holds no \`${id}\``);
+    this.writeServed(
+      file,
+      records
+        .filter((node) => !moving.has(String(node["id"])))
+        .map((node) => JSON.stringify(node))
+        .join("\n"),
+    );
+    this.writeServed(
+      "Archive.jsonl",
+      records
+        .filter((node) => moving.has(String(node["id"])))
+        // The root of what moved keeps no parent — whatever it hung under is
+        // still in the outline it left.
+        .map((node) =>
+          JSON.stringify(node["id"] === id ? { ...node, parent: undefined } : node)
+        )
+        .join("\n"),
+    );
+  },
+);
+
 When(
   "another writer files a row under {string} in {string}",
   function (this: OlaiWorld, under: string, file: string) {

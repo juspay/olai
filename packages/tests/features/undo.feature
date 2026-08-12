@@ -27,6 +27,20 @@ Feature: Undo
     Then the node "knobs" is a child of "hinges"
     And the page has not reloaded
 
+  Scenario: Shift+Tab goes out, and ⌘Z puts it back in
+    # The other direction, and not the same arithmetic: an outdent lands a row
+    # after what used to be its parent, so the place it left is a parent AND a
+    # neighbour rather than "one level in".
+    When I click the title of "knobs"
+    And I press "Shift+Tab"
+    Then the node "knobs" is a child of "kitchen"
+    When I click away from the editor
+    And I press "ControlOrMeta+z"
+    Then the node "knobs" is a child of "install"
+    And the node "hinges" comes before "knobs"
+    When I press "ControlOrMeta+Shift+z"
+    Then the node "knobs" is a child of "kitchen"
+
   Scenario: A reorder goes back the way it came
     When I click the title of "knobs"
     And I press "Alt+Shift+ArrowUp"
@@ -34,6 +48,16 @@ Feature: Undo
     When I click away from the editor
     And I press "ControlOrMeta+z"
     Then the node "hinges" comes before "knobs"
+
+  Scenario: And so does one in the other direction
+    When I click the title of "hinges"
+    And I press "Alt+Shift+ArrowDown"
+    Then the node "knobs" comes before "hinges"
+    When I click away from the editor
+    And I press "ControlOrMeta+z"
+    Then the node "hinges" comes before "knobs"
+    When I press "ControlOrMeta+Shift+z"
+    Then the node "knobs" comes before "hinges"
 
   Scenario: Ticking a task off puts back the mark it replaced
     # `hinges` is `todo`, and the format allows at most one mark — so ticking it
@@ -79,11 +103,46 @@ Feature: Undo
     And the node "outsider" is shown
     And "house.jsonl" holds a node titled "a row from somewhere else"
 
+  Scenario: An undo of a move somebody else has moved away from
+    # The other half of the same claim. The inverse names a parent AND the
+    # sibling the row sat after, and the pair is CHECKED: when that sibling has
+    # itself gone somewhere else, "after it" and "under that parent" stop
+    # agreeing, and the ops layer refuses rather than following the neighbour
+    # into a branch this row was never in.
+    When I click the title of "knobs"
+    And I press "Tab"
+    Then the node "knobs" is a child of "hinges"
+    When I click away from the editor
+    And another writer lifts "hinges" to the top level of "house.jsonl"
+    Then the node "hinges" is not a child of "install"
+    When I press "ControlOrMeta+z"
+    Then the undo refusal says "siblings"
+    And the node "knobs" is a child of "hinges"
+
+  Scenario: An undo whose old parent has been archived says where it went
+    # The judgment call, in the browser: nothing here invents a sentence for it.
+    # A parent is same-file by the format, so the ops layer's own words about
+    # the archive are exactly the right ones — and the entry is dropped.
+    When I click the title of "knobs"
+    And I press "Shift+Tab"
+    Then the node "knobs" is a child of "kitchen"
+    When I click away from the editor
+    And another writer archives "install" out of "house.jsonl"
+    Then the node "install" is not shown
+    When I press "ControlOrMeta+z"
+    Then the undo refusal says "Archive.jsonl"
+    And the node "knobs" is a child of "kitchen"
+
   Scenario: An undo that no longer fits says why, and does not try again
     # The refusal a person is owed. A row somebody has filed work under is not
     # an undo's to take back — so the entry is dropped, the reason is on screen,
-    # and pressing ⌘Z again reaches the edit BEFORE it rather than this one.
-    When I click the title of "handles"
+    # and pressing ⌘Z again reaches the edit BEFORE it: the indent, which is
+    # still on the stack under the entry that would not go.
+    When I click the title of "knobs"
+    And I press "Tab"
+    Then the node "knobs" is a child of "hinges"
+    When I click away from the editor
+    And I click the title of "handles"
     And I press "Enter"
     And I type "a line somebody built on"
     And I press "Enter"
@@ -93,11 +152,55 @@ Feature: Undo
     When I press "ControlOrMeta+z"
     Then the undo refusal says "under it now"
     And "house.jsonl" holds a node titled "a line somebody built on"
-    # Dropped, not retried: the next ⌘Z is about the edit before it — the title
-    # of `handles`, which is a text edit and not on the stack at all, so what is
-    # left is nothing.
+    # Dropped, not retried — and what was under it is still there.
     When I press "ControlOrMeta+z"
+    Then the node "knobs" is a child of "install"
+
+  Scenario: A new op while an undo is still in flight wins the branch
+    # The stack's rule under concurrency: a new op clears what redo would have
+    # put back, and an undo finishing afterwards must not resurrect it. Both
+    # keys are pressed WITHOUT WAITING, and the undo here is the longest one
+    # this editor can make — `hinges` is `todo`, so taking the tick back is two
+    # ops — which is the widest window the next key can land in.
+    #
+    # It is the RULE this scenario holds, end to end, rather than the race:
+    # ⌘Z needs the caret out of a row and `Tab` needs it in one, so the click
+    # between them is time enough for a local write to finish, and a browser
+    # cannot promise the two overlap. What the interleaving itself is held by
+    # is `web/src/client/edit/undoing.test.ts`, which hands the stack a write
+    # it can hold open and records a new op in the middle of it — red before
+    # every stack mutation went through one queue, green after.
+    When I click the title of "hinges"
+    And I press "Control+Enter"
+    Then the node "hinges" has status "done"
+    When I click away from the editor
+    And I press "ControlOrMeta+z" without waiting
+    And I click the title of "knobs"
+    And I press "Tab" without waiting
+    Then the node "knobs" is a child of "hinges"
+    And the node "hinges" has status "todo"
+    When I click away from the editor
+    And I press "ControlOrMeta+Shift+z"
+    # Redo is dead: the indent branched away from it. If the replay had filed
+    # its entry after the indent cleared the side, this would tick `hinges`
+    # back to done.
+    Then the undo says "nothing to redo"
+    And the node "hinges" has status "todo"
+    And the node "knobs" is a child of "hinges"
+
+  Scenario: A new op takes away what the last undo said
+    When I click the title of "knobs"
+    And I press "Tab"
+    And I click away from the editor
+    And I press "ControlOrMeta+z"
+    And I press "ControlOrMeta+z"
     Then the undo says "nothing to undo"
+    # The sentence was about an undo that is now two edits ago; a person who
+    # has carried on working is not still being told about it.
+    When I click the title of "knobs"
+    And I press "Tab"
+    Then the node "knobs" is a child of "hinges"
+    And nothing is said about the undo
 
   Scenario: ⌘Z is dead while a draft is open
     When I click the title of "knobs"
@@ -112,6 +215,19 @@ Feature: Undo
     When I click away from the editor
     And I press "ControlOrMeta+z"
     Then the node "knobs" is a child of "install"
+
+  Scenario: The chords are dead while the palette has the caret
+    # The other half of "dead in a form": the palette's own input is a text
+    # field like any other, so the chord that opens it is the only one it
+    # answers. Same rule that keeps the chat composer's typing its own.
+    When I click the title of "knobs"
+    And I press "Tab"
+    And I click away from the editor
+    And I press the palette shortcut
+    Then the command palette is open
+    When I press "ControlOrMeta+z"
+    Then the node "knobs" is a child of "hinges"
+    And nothing is said about the undo
 
   Scenario: The stack belongs to the outline it was typed on
     # Its entries name rows in one file, so opening another is where it ends.

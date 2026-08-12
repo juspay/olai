@@ -26,7 +26,7 @@ import { DayPage } from "./day/DayPage.tsx"
 import { DocumentPage } from "./document/DocumentPage.tsx"
 import { DerivedProvider } from "./derived.tsx"
 import { createDocuments, DocumentsProvider } from "./document/documents.tsx"
-import { createUndo, UndoProvider } from "./edit/undoing.tsx"
+import { createUndo, UndoContext } from "./edit/undoing.ts"
 import { UndoSaid } from "./edit/UndoSaid.tsx"
 import { Banner } from "./errors/Banner.tsx"
 import { Broken } from "./errors/Broken.tsx"
@@ -123,7 +123,7 @@ export default function App() {
   createEffect(on(openFile, () => undo.clear(), { defer: true }))
 
   return (
-    <UndoProvider undo={undo}>
+    <UndoContext.Provider value={undo}>
       <Connection status={connectionStatus()} />
       <ChatPanel />
       <Palette
@@ -247,6 +247,6 @@ export default function App() {
           </Switch>
         </div>
       </div>
-    </UndoProvider>
+    </UndoContext.Provider>
   )
 }

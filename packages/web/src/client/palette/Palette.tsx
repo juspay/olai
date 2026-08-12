@@ -31,7 +31,7 @@ import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
 import { run } from "../run.ts"
 import { askQuery, filterItems, type PaletteItem } from "./items.ts"
-import { useUndo } from "../edit/undoing.tsx"
+import { useUndo } from "../edit/undoing.ts"
 import { isEditingTarget, matchKey } from "../keys.ts"
 import { Shortcuts } from "./Shortcuts.tsx"
 

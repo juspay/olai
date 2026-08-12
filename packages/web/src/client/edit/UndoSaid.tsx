@@ -19,7 +19,7 @@
 import { Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
-import type { Said } from "./undoing.tsx"
+import type { Said } from "./undoing.ts"
 
 export function UndoSaid(props: { readonly said: Said | null }) {
   return (

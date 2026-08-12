@@ -76,7 +76,7 @@ import {
 } from "./draft.ts"
 import { flatten, neighbour } from "./order.ts"
 import { serial } from "./queue.ts"
-import { useUndo } from "./undoing.tsx"
+import { useUndo } from "./undoing.ts"
 
 export interface Editor {
   /** The draft, or `null` when nothing is being typed. It carries what the
@@ -290,7 +290,7 @@ export const createEditor = (
     if (Result.isSuccess(outcome)) {
       // What would take this back, straight onto the stack ⌘Z spends — the
       // server's own answer, derived from the snapshot this write was judged
-      // against ({@link ./undoing.tsx}). A text edit answers with nothing,
+      // against ({@link ./undoing.ts}). A text edit answers with nothing,
       // which is what keeps drafts out of it: what a person typed is taken
       // back by Escape and by the editor's own blur rule, not by an op.
       undo.record(outcome.success.undo)

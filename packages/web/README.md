@@ -928,6 +928,12 @@ an agent would make. And undoing a row's creation ARCHIVES it (the only removal
 the set has), which no `move` brings back out, so that one entry says it cannot
 be redone rather than leaving a ⌘⇧Z that does nothing.
 
+That un-create is the ONLY way anything is removed from this face, and it is
+not the delete key #109 deferred: no key sends it, it can only take back a row
+that was just made, and it refuses once anything has been filed under that row.
+Whether a delete key ever arrives — over which rows, with what confirmation —
+is still that item's question.
+
 Two more shapes this leaves, named because a reader will look for them:
 
 - **a zoomed page's heading is not editable.** A row's title is, and the

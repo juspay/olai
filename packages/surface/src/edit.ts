@@ -48,13 +48,15 @@
  * is one more op at the write gate, refused like any other when the set has
  * moved somewhere the inverse cannot go.
  *
- * That is also how the delete this list used to lack arrives (human,
- * 2026-08-11: "it arrives with undo"). `remove` is bound to no key, and what
- * it resolves to is the ops layer's own `archive` — the only removal the set
- * has — narrowed to a node with nothing under it, which is the rule about what
- * an undo is entitled to rather than a delete policy this surface invented.
- * Split/merge, multi-select and drag-drop are their own items, so none of them
- * is expressible here.
+ * `remove` IS THE UN-CREATE, and it is worth being exact about what it is not:
+ * it is the inverse of an `add`, bound to no key, and this list still has no
+ * delete — the deferral #109 recorded (human, 2026-08-11) is still the human's
+ * to close, and a delete key would be its own item with its own policy
+ * (subtree? confirm?). What this verb resolves to is the ops layer's own
+ * `archive` — the only removal the set has — narrowed to a node with nothing
+ * under it, which is a rule about what an UNDO is entitled to rather than a
+ * delete policy this surface invented. Split/merge, multi-select and drag-drop
+ * are their own items, so none of them is expressible here.
  */
 
 import { MARKS, OpFailure } from "@olai/format"
@@ -180,8 +182,9 @@ export const Edit = Schema.Union([
     mark: Schema.NullOr(Schema.Literals(MARKS)),
   }),
   /**
-   * Take back a row that was just created — the inverse of an `add`, and the
-   * only removal this surface has.
+   * The UN-CREATE: take back a row that was just made, which is the inverse of
+   * an `add` and the only removal this surface has. Not a delete — no key
+   * sends it, and the deferral #109 recorded is not this PR's to close.
    *
    * It resolves to `archive`, because that is the only removal the SET has: a
    * node goes to `Archive.jsonl` keeping its id, which is a trash rather than
