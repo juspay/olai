@@ -176,9 +176,10 @@ is a caught edit.
 
 ## Type it yourself
 
-Click a title and the caret is in it. Click a note and the caret is in that.
-From there it is the outliner's loop, on the keys you already know — and the
-whole list is in the app, under **Keyboard shortcuts** in the ⌘K palette:
+Click a title and the caret is in it. Click a note and it opens; click the open
+note and the caret is in that. From there it is the outliner's loop, on the keys
+you already know — and the whole list is in the app, under **Keyboard
+shortcuts** in the ⌘K palette:
 
 | | |
 |---|---|
@@ -194,8 +195,8 @@ Nothing has a mode: the title becomes an input in the same place, at the same
 size, and the row you are in is toned so you can see where the caret went. What
 you type is the SOURCE — `**bold**` and `#tags` as they are written — and the
 rendering comes back the moment you leave. A note is the same trade one line
-down: click it and it opens as the markdown it is, and folds back to its one
-clamped line when you click away.
+down: the first click opens it — so a click still only READS — the next puts
+the caret in it, and it folds back to its one clamped line when you click away.
 
 What happens underneath is the thing worth knowing. A key is not a change to
 the page — every one of them is one op through the same gate the agent writes
