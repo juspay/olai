@@ -5,6 +5,14 @@
  * affordances even when the full directory column is put away. The connection
  * dot and the agent toggle stay in the HEADER (reconciled with #101); this
  * rail is only the directory's collapsed face.
+ *
+ * Which is why it is PINNED on the same terms the open column is
+ * (`../Sidebar.tsx`): `sticky` under the header, as tall as what is left of the
+ * viewport. "Never disappears" is a claim about the screen, not about the
+ * document — four icons at the top of a page-tall column are gone as soon as
+ * anybody reads past the fold, and the first of them is the way to get the
+ * directory back. It scrolls within itself in a window too short for four
+ * buttons rather than clipping the last of them.
  */
 
 import type { Route } from "../routes.ts"
@@ -19,7 +27,7 @@ export function Rail(props: {
 }) {
   return (
     <div
-      class="hidden h-full w-[var(--width-rail,3rem)] shrink-0 flex-col items-center gap-1 border-r border-rule bg-paper py-2 md:flex"
+      class="sticky top-[var(--height-header,3rem)] hidden h-[calc(100dvh-var(--height-header,3rem))] w-[var(--width-rail,3rem)] shrink-0 flex-col items-center gap-1 overflow-y-auto border-r border-rule bg-paper py-2 md:flex"
       data-testid={TESTID.sidebarRail}
       aria-label="directory rail"
     >

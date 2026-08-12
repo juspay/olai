@@ -31,22 +31,6 @@ import type { OlaiWorld } from "../support/world.ts";
  *  is a bar that leaves. */
 const EDGE = 1;
 
-/** What `document.elementFromPoint` found, named the way the page names it:
- *  the nearest enclosing `data-testid`, or the tag when nothing on that branch
- *  has one. */
-const testidAt = (world: OlaiWorld, x: number, y: number): Promise<string> =>
-  world.page.evaluate(
-    ({ x, y }) => {
-      const element = document.elementFromPoint(x, y);
-      return (
-        element?.closest("[data-testid]")?.getAttribute("data-testid") ??
-        element?.tagName ??
-        "nothing"
-      );
-    },
-    { x, y },
-  );
-
 Then("the app header is at the top of the viewport", async function (this: OlaiWorld) {
   const header = await this.box(this.page.locator(APP_HEADER), "the app header");
   assert.ok(
@@ -77,12 +61,7 @@ Then(
       [CHAT_TOGGLE, "chat-toggle"],
       [THEME_TRIGGER, "theme-trigger"],
     ] as const) {
-      const box = await this.box(this.page.locator(selector), name);
-      const found = await testidAt(
-        this,
-        box.x + box.width / 2,
-        box.y + box.height / 2,
-      );
+      const found = await this.topmostTestidOver(this.page.locator(selector), name);
       assert.strictEqual(
         found,
         name,
