@@ -4,7 +4,9 @@ name: pages
 
 on:
   push:
-    branches: [master]
+    # `website` is here so the PR branch deploys for preview before merge;
+    # harmless to keep, since the branch is deleted on merge.
+    branches: [master, website]
     paths: ["website/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
