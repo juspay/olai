@@ -173,10 +173,18 @@ export const OUTLINE_FAILURE = selector(TESTID.outlineFailure);
 /** The connection dot, on screen in every shape of the app. The state it is
  *  reporting is its `data-connection`, never its colour. */
 export const CONNECTION = selector(TESTID.connection);
-/** The git readout beside it: `data-git` is the state, its `aria-label` is the
- *  sentence (git's own words included), and it is ABSENT on a `--no-commit`
- *  serve — which is a claim a scenario makes rather than an accident. */
-export const GIT = selector(TESTID.git);
+/**
+ * The attribute the retired `● git` readout carried, and a TOMBSTONE.
+ *
+ * There is no `git` test id any more: the readout was a second chip in the
+ * header answering the question the Commit pill already answers, which is the
+ * bug `one-git-indicator` closed. This selector exists so a scenario can say
+ * that nothing in the header has grown back — it names an attribute rather than
+ * a test id precisely because the id is gone, and a second git chip of any
+ * spelling would have to carry a state attribute of some kind to be assertable
+ * at all.
+ */
+export const RETIRED_GIT_READOUT = "[data-git]";
 /** Over everything: the server that served this page has been replaced. */
 export const RESTARTED = selector(TESTID.restarted);
 /** The button in that surface, and in the fault card — one control, one name. */
@@ -199,8 +207,10 @@ export const THEME_TRIGGER = selector(TESTID.themeTrigger);
 export const THEME_CHIP = selector(TESTID.themeChip);
 
 /** The Commit pill in the chrome, and the panel it opens. The pill is ALWAYS
- *  drawn — `data-state` is which of its six faces it is wearing, and that is
- *  what a scenario asserts on. */
+ *  drawn, and it is the header's ONE answer about git — `data-state` is which
+ *  of its eight faces it is wearing (the fault among them, since the readout
+ *  retired into it), and that is what a scenario asserts on. What git SAID is
+ *  its `aria-label` and its tip, never a colour. */
 export const COMMIT_PILL = selector(TESTID.commitPill);
 export const COMMIT_PANEL = selector(TESTID.commitPanel);
 /** What olai last recorded here, in the panel — or the words that say it never

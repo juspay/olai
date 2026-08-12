@@ -42,7 +42,7 @@ export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
       // No position of its own: it is a READOUT and not a control — nothing
       // here is tappable — so all it needs is to be legible wherever the layout
       // decides to put it. The pill itself is `../readout.ts`'s, shared with
-      // the git readout beside it: `min-w-0` + truncate is what lets the header
+      // the Commit pill beside it: `min-w-0` + truncate is what lets the header
       // keep a single row when a label is long, and one copy of that geometry
       // is one place for it to be got right.
       class={`${PILL} max-w-[9.5rem] sm:max-w-none`}

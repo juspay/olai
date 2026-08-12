@@ -175,11 +175,6 @@ export const TESTID = {
    *  carries the state itself — `live`, `lost`, `restarted`, `connecting` — so a
    *  scenario asserts on the state and never on the colour it is painted. */
   connection: "connection",
-  /** The git readout, beside the connection. `data-git` carries the state —
-   *  `repo`, `none`, `error` — and the element is ABSENT under `--no-commit`,
-   *  which is the fourth state (`off`) and the one with nothing to say. What
-   *  git actually said rides the tip and the `aria-label`, never a colour. */
-  git: "git",
   /** Over everything: the server that served this page has been replaced. */
   restarted: "restarted",
   /** The button in that surface — the whole of the recovery. Shared with the
@@ -198,13 +193,16 @@ export const TESTID = {
   faultHome: "fault-home",
 
   // ── the Commit button ────────────────────────────────────────────────
-  /** The pill in the chrome. ALWAYS drawn — the feature is an audit trail, so
-   *  "there is no audit trail here" is the most important thing it can say, and
-   *  a control that disappeared is how nobody would ever find that out.
-   *  `data-state` carries which face this is — `off`, `no-repo`, `never`,
-   *  `committed`, `waiting`, `blocked`, and `unknown` for a page that has not
-   *  heard from the server yet — `data-uncommitted` the count, and `data-repo`
-   *  the repository's own state. */
+  /** The pill in the chrome, and the header's ONE answer to "what is git doing
+   *  here" (`one-git-indicator` retired the `● git` readout that used to sit
+   *  beside it). ALWAYS drawn — the feature is an audit trail, so "there is no
+   *  audit trail here" is the most important thing it can say, and a control
+   *  that disappeared is how nobody would ever find that out.
+   *  `data-state` carries which face this is — `off`, `no-repo`, `error`,
+   *  `never`, `committed`, `waiting`, `blocked`, and `unknown` for a page that
+   *  has not heard from the server yet — `data-uncommitted` the count, and
+   *  `data-repo` the repository's own state. What git SAID rides the tip and
+   *  the `aria-label`, never a colour. */
   commitPill: "commit-pill",
   /** The panel it opens. One row per node, never a text diff. */
   commitPanel: "commit-panel",

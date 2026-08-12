@@ -278,10 +278,12 @@ caller can render, and neither of them is a boolean:
   that is not broken.
 - **`Ops.git`** — what git is doing for this directory: `off` (`--commit=off`),
   `repo`, `none`, or `error` with git's own words. A PROJECTION of the same
-  survey `Ops.pending` runs (`gitOf`), never a probe of its own: the readout and
-  the Commit pill share a header, and two probes would be two answers to one
-  question. The server recomputes both together and publishes them onto the
-  `git` and `pending` cells.
+  survey `Ops.pending` runs (`gitOf`), never a probe of its own: two probes
+  would be two answers to one question. The server recomputes both together and
+  publishes them onto the `git` and `pending` cells, where the browser reads
+  them into a SINGLE control (`one-git-indicator` retired the second chip that
+  used to draw this one on its own) and an agent in a terminal reads the same
+  cell as a resource.
 
 Two classifications make that honest, and both are git's own answers rather than
 guesses. A directory git will not answer about is `Unusable` — and so `error` —
