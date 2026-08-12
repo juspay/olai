@@ -54,6 +54,30 @@ import { attaching } from "./attach.ts"
 import { forget, remember } from "./previews.ts"
 import { type Call, run } from "./run.ts"
 
+/**
+ * What asking for the stored conversations answered.
+ *
+ * TWO ARMS, because there are two answers and they were one: a refused list —
+ * an agent that is not running, one that keeps no conversations, a verb that
+ * never reached it — resolved to `[]`, which the picker drew as "no stored
+ * conversations". That is a sentence about the agent's disk, and it was being
+ * used to report that we never got to look at it.
+ *
+ * The reason travels WITH the refusal rather than being left on the panel's
+ * `refused` signal: the click that asked was on the picker, so the picker is
+ * where the answer belongs, and one refusal drawn in two places is one a
+ * reader learns to skip in both.
+ */
+export type Sessions =
+  | {
+    readonly _tag: "listed"
+    readonly sessions: ReadonlyArray<SessionInfo>
+  }
+  | {
+    readonly _tag: "refused"
+    readonly failure: OpFailure
+  }
+
 export interface Chat {
   /** Where the conversation stands: session, model, commands, whether a turn
    *  is running. */
@@ -87,8 +111,10 @@ export interface Chat {
   readonly newSession: () => void
   readonly loadSession: (id: string) => void
   /** Asked of the server every time the picker opens: the agent's list is the
-   *  only one that is right. */
-  readonly sessions: () => Promise<ReadonlyArray<SessionInfo>>
+   *  only one that is right. Answers {@link Sessions} — the list, or WHY there
+   *  is none — because the two are different answers and used to be the same
+   *  one. */
+  readonly sessions: () => Promise<Sessions>
   /**
    * Answer a question the agent asked — `id` is the ask row's own id.
    *
@@ -229,11 +255,8 @@ export const createChat = (): Chat => {
       new Promise((resolve) => {
         run(
           olai.procedures.chat.sessions(),
-          (failure) => {
-            setRefused(failure)
-            resolve([])
-          },
-          resolve,
+          (failure) => resolve({ _tag: "refused", failure }),
+          (sessions) => resolve({ _tag: "listed", sessions }),
         )
       }),
   }

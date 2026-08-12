@@ -129,6 +129,7 @@ export {
   chainOf,
   compareErrors,
   errorLine,
+  hasLine,
   isCrossFile,
   OutlineError,
   reportStage,

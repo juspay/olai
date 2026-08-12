@@ -95,6 +95,36 @@ Feature: It stays live
     And the page has not reloaded
     And there should be no page errors
 
+  Scenario: A directory that stops being readable says so, over the tree it left
+    # The store's OTHER kind of error, and the one that used to have nowhere to
+    # go. A file it cannot parse has always reached a reader; a TREE it cannot
+    # read at all — EACCES, a mount that vanished, no room to answer a stat —
+    # was written to the log and dropped, so the outline froze at the last good
+    # revision and every page went on looking live. Same channel now, same
+    # banner, over the same last-good tree.
+    When the served directory is taken away
+    # `eventually`, on the backstop's budget rather than the interaction one.
+    # An edit INSIDE the directory is seen by the watcher and lands in
+    # milliseconds; the root going away is the one change no watcher reports on
+    # both platforms — macOS delivers nothing for it — so what notices is the
+    # unconditional sweep. Same product on each, and only this scenario waits.
+    Then the stale banner eventually appears
+    And the stale banner shows an error with code "unreadable-directory"
+    # ...and it says the RIGHT thing. The banner's lede was written when the
+    # only way to be stale was a set that would not validate, so it told
+    # everybody to go and fix their files — which for a mount that went away
+    # is a lie of exactly the kind this whole item is about.
+    And the stale banner says "The served directory cannot be read right now"
+    And the node "herbs" is shown
+    And the page has not reloaded
+    # The RECOVERY half is deliberately not here, and it is a cost decision
+    # rather than an oversight. A directory that comes back cannot be seen by
+    # the watcher either — the old watch is on an inode that is gone — so it
+    # too waits for a sweep, and asserting it here would spend a second
+    # backstop of wall clock on every CI run of both platforms. It is unit
+    # tested where it is free and exact: `@olai/store`'s "a directory that
+    # comes back clears what was said about it".
+
   # ── membership, not just text ────────────────────────────────────────
   #
   # Every scenario above rewrites a file with the SAME records in the SAME

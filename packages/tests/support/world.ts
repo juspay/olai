@@ -40,6 +40,24 @@ export const POLL_TIMEOUT = 15_000;
  *  for the slowest thing in it. */
 export const HYDRATION_TIMEOUT = 30_000;
 
+/**
+ * Per-step budget for a change only the store's BACKSTOP can deliver.
+ *
+ * A third axis, and it exists because of one asymmetry between platforms.
+ * Nearly every change to the served directory reaches a page promptly: the
+ * watcher sees it and opens the probe latch. A change to the WATCHED ROOT
+ * ITSELF — it was removed, it stopped being readable — is the one the watcher
+ * cannot report on Linux and macOS alike (macOS delivers nothing for it, so
+ * the first probe that notices is the unconditional sweep). The product is the
+ * same on both and the guarantee is "by the next probe"; only the wait differs.
+ *
+ * So this is `@olai/store`'s `DEFAULT_BACKSTOP` (60s) plus room for the probe,
+ * the publish and the frame. Kept apart from the other two rather than folded
+ * into them, because sharing a constant would make the whole suite wait on the
+ * slowest thing in it — which is exactly the argument above.
+ */
+export const BACKSTOP_TIMEOUT = 90_000;
+
 /** How long a freshly spawned server gets to print its listening line. Not a
  *  poll budget — it bounds a child process — but it is derived from the same
  *  scale so `hooks.ts` and this file cannot drift. */
@@ -51,6 +69,20 @@ export const SERVER_START_TIMEOUT = HYDRATION_TIMEOUT;
  *  let the inner timeout report its own, far more specific, error. */
 const STEP_GUARD = 10_000;
 setDefaultTimeout(Math.max(POLL_TIMEOUT, HYDRATION_TIMEOUT) + STEP_GUARD);
+
+/**
+ * The same envelope for the one step that waits on {@link BACKSTOP_TIMEOUT},
+ * passed to that step's own definition rather than raised globally.
+ *
+ * The rule above is why this exists in this shape. A `setDefaultTimeout` wide
+ * enough for a backstop would give EVERY step a kill budget of a minute and a
+ * half, so a step that genuinely hung would take that long to say so instead
+ * of failing on its own far more specific timeout. And the outer envelope has
+ * to be the wider of the two: raising the inner one without this is a step
+ * whose own budget can never be reached, which is exactly how CI found it —
+ * a 90s wait killed at 40s by an envelope nobody had told.
+ */
+export const BACKSTOP_STEP_TIMEOUT = BACKSTOP_TIMEOUT + STEP_GUARD;
 
 /** The `Before` hook may have to boot a server before it can open a page. */
 export const SCENARIO_SETUP_TIMEOUT = SERVER_START_TIMEOUT + STEP_GUARD;
@@ -137,6 +169,7 @@ export const TOGGLE = selector(TESTID.toggle);
 export const NODE_MENU = selector(TESTID.nodeMenu);
 export const NODE_MENU_PANEL = selector(TESTID.nodeMenuPanel);
 export const NODE_MENU_ITEM = selector(TESTID.nodeMenuItem);
+export const NODE_MENU_SAID = selector(TESTID.nodeMenuSaid);
 /** A row's own line — its gutter controls and title, and nothing from the
  *  rows nested under it. What makes "this node has no checkbox" askable
  *  without reaching into markup shape. */
@@ -265,6 +298,7 @@ export const CHAT_TITLE = selector(TESTID.chatTitle);
 export const CHAT_WORKING = selector(TESTID.chatWorking);
 export const CHAT_MODEL = selector(TESTID.chatModel);
 export const CHAT_SESSIONS = selector(TESTID.chatSessions);
+export const CHAT_SESSIONS_REFUSED = selector(TESTID.chatSessionsRefused);
 export const CHAT_SESSION = selector(TESTID.chatSession);
 export const CHAT_TRANSCRIPT = selector(TESTID.chatTranscript);
 export const CHAT_NO_AGENT = selector(TESTID.chatNoAgent);
@@ -277,6 +311,7 @@ export const CHAT_TOOL_DETAIL = selector(TESTID.chatToolDetail);
 export const CHAT_TOOL_PROGRESS = selector(TESTID.chatToolProgress);
 export const CHAT_TOOL_LOCATIONS = selector(TESTID.chatToolLocations);
 export const CHAT_REFUSAL = selector(TESTID.chatRefusal);
+export const CHAT_TROUBLE = selector(TESTID.chatTrouble);
 export const CHAT_ASK = selector(TESTID.chatAsk);
 export const CHAT_ASK_CHOICE = selector(TESTID.chatAskChoice);
 export const CHAT_ASK_TEXT = selector(TESTID.chatAskText);

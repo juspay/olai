@@ -71,6 +71,45 @@ Feature: Talking to the agent
     And the chat says the turn was cancelled
 
   @scratch:chat
+  Scenario: A cancel that did not stop the turn says so
+    # The regression this exists for: the button was pressed, the turn went on
+    # streaming, and nothing on screen said so. A cancel is a NOTIFICATION —
+    # written, never answered — and a pipe reports nothing back to the writer
+    # even when the reader has gone, so the write succeeding was evidence of
+    # nothing and every way of failing looked like success. The only honest
+    # evidence is the turn itself. `deaf` is an agent that has stopped reading
+    # and gone quiet with its turn still open, which is that shape of failure
+    # on purpose.
+    When I ask the agent "deaf"
+    Then the agent is working
+    When I cancel the turn
+    Then the chat eventually shows "the agent was asked to stop and has said nothing since"
+    And the agent is working
+
+  @scratch:chat
+  Scenario: An agent still working towards the stop is not accused of ignoring it
+    # The other half, and the reason the panel watches SILENCE rather than a
+    # clock: a cancel lands between a turn's own steps, so an adapter in the
+    # middle of a long tool call honours it when that step returns. A window on
+    # the turn alone would call every one of those dead. `talkative` ignores
+    # the cancel and keeps streaming, which is what that looks like from here.
+    When I ask the agent "talkative"
+    Then the agent is working
+    When I cancel the turn
+    Then the agent's answer mentions "still working 7"
+    And the chat says nothing went wrong
+
+  @scratch:chat
+  Scenario: An answer this panel cannot draw leaves a mark, not a blank
+    # The panel renders text and nothing else, which is fair — doing it
+    # SILENTLY was not. An agent answering with a picture, a sound or an
+    # attached resource used to leave a gap in the transcript that reads
+    # exactly like an agent that said nothing at all.
+    When I ask the agent "picture"
+    Then the agent's answer mentions "here it is:"
+    And the agent's answer mentions "[image]"
+
+  @scratch:chat
   Scenario: The input completes the agent's own slash commands
     # The list is the AGENT'S — olai keeps none of its own — so what is offered
     # is whatever that agent reported over the session.
@@ -111,6 +150,16 @@ Feature: Talking to the agent
     # And the outlines are unaffected: serving a directory never depended on
     # an agent being installed, and that is what "off" costs.
     And the outline list is shown
+
+  @agent-stored @scratch:chat
+  Scenario: A picker that could not ask says so, not "no conversations"
+    # "There are none" and "we could not find out" are different answers, and
+    # a refusal used to arrive as an empty list and be drawn as the first —
+    # a claim about the agent's disk standing in for never having read it.
+    When I ask the agent "lose"
+    And I open the session picker
+    Then the picker refuses, saying "the conversation store is unreadable"
+    And the picker lists nothing
 
   @agent-stored @scratch:chat
   Scenario: The picker switches conversations

@@ -38,6 +38,16 @@ the **probe decides and nothing else does**.
    published beside it. A broken file must not blank a page that was reading
    fine a second ago.
 
+A probe that cannot read the tree AT ALL — EACCES on a folder, a mount that
+went away, ENOSPC — is the store's other kind of error, and it takes the same
+exit. It does not kill the sync fiber: that would leave every reader on a page
+that is live, permanently stale and saying neither. It is instead handed to
+`Codec.unreadable`, which renders it into the caller's own error vocabulary,
+and published on the errors channel a refused set uses. One channel, two kinds,
+and the same self-clearing rule: the next probe that publishes clears it.
+Log-only was what it used to be, and log-only is a page that quietly stops
+being true.
+
 A published snapshot also says **what moved** to make it — `changed` (the paths
 re-decoded) and `removed` (the paths the listing lost). That is the probe's own
 stamp diff kept rather than thrown away: a consumer that publishes PER FILE
@@ -51,9 +61,14 @@ re-decoded are still what changed when a later probe finally validates — so
 they accumulate until a revision carries them out. The first revision names
 every file, because everything is new to a consumer holding nothing.
 
-Failures during a probe are logged and dropped rather than fatal: the next
-trigger tries again, and a live page that is permanently stale is the one
-failure mode a live store must not have.
+Failures during a probe are not fatal: the next trigger tries again, and a live
+page that is permanently stale is the one failure mode a live store must not
+have. They are not DROPPED either, which they used to be — a `PlatformFailure`
+goes through `Codec.unreadable` onto the errors channel (above), so a directory
+that stopped being readable says so instead of freezing the page and saying
+nothing. What stays log-only is a DEFECT: a bug in this package is not news
+about somebody's directory, so the sync loop's `catchCause` writes it to the
+log and nowhere else.
 
 ## The codec is the whole of the coupling
 

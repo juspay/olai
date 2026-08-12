@@ -200,6 +200,30 @@ test("the errors cell reads as a live value", async () => {
   })
 })
 
+// A directory that cannot be READ, over the agent's face — the same rows the
+// browser draws its banner from, off the same cell, because there is one cell.
+//
+// This is the MCP half of "MCP and Web ops must be consistent" (HACKING.md),
+// and it is asserted rather than argued: the failure used to be a log line, so
+// an agent reading a served directory that had gone away was handed the last
+// good tree with nothing to say it was stale — the same lie the browser told,
+// by the same omission. Putting it on the errors cell fixes both faces at once
+// BY CONSTRUCTION, and this is what holds that construction in place.
+test("a directory that cannot be read reaches the agent, not just the browser", async () => {
+  await withFace(async ({ client, refresh, root }) => {
+    fs.rmSync(root, { recursive: true, force: true })
+    await refresh().catch(() => {})
+
+    const errors = await readJson(client, "surface://cells/errors")
+    // `.` and not the absolute root: every site in this vocabulary is
+    // root-relative, and the server's filesystem layout is not something a
+    // reader of an outline is owed.
+    expect(errors).toEqual([
+      expect.objectContaining({ code: "unreadable-directory", file: ".", line: 0 }),
+    ])
+  })
+})
+
 test("an edited outline notifies its subscribers", async () => {
   await withFace(async ({ client, refresh, root }) => {
     const uri = "surface://collections/outlines/house.jsonl"
