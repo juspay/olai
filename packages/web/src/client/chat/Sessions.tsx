@@ -11,7 +11,7 @@
  * with the same one.
  */
 
-import { createSignal, For, Show } from "solid-js"
+import { createSignal, For, Match, Show, Switch } from "solid-js"
 
 import { Refusal } from "./Refusal.tsx"
 import { TESTID } from "../testids.ts"
@@ -69,61 +69,64 @@ export function Sessions(props: { readonly chat: Chat }) {
           class="absolute right-0 top-full z-50 mt-1 max-h-80 w-80 list-none overflow-y-auto rounded border border-rule bg-paper p-1 shadow-lg"
           data-testid={TESTID.chatSessionList}
         >
-          <Show when={refusedIn(picker())}>
-            {(failure) => (
-              <li class="px-2 py-1" data-testid={TESTID.chatSessionsRefused}>
-                <Refusal failure={failure()} />
-              </li>
-            )}
-          </Show>
-
-          <Show
-            when={listedIn(picker())}
-            fallback={
-              <Show when={picker()._tag === "asking"}>
-                <li class="px-2 py-1 text-xs text-muted">asking the agent…</li>
-              </Show>
-            }
-          >
-            {(sessions) => (
-              <Show
-                when={sessions().length > 0}
-                fallback={
-                  <li class="px-2 py-1 text-xs text-muted">no stored conversations</li>
-                }
-              >
-                <For each={sessions()}>
-                  {(session) => (
-                    <li>
-                      <button
-                        type="button"
-                        class="block w-full truncate rounded px-2 py-1 text-left text-xs hover:bg-rule"
-                        data-testid={TESTID.chatSession}
-                        data-session-id={session.id}
-                        data-current={session.id === current()}
-                        disabled={session.id === current()}
-                        onClick={() => {
-                          setPicker({ _tag: "shut" })
-                          props.chat.loadSession(session.id)
-                        }}
-                      >
-                        <span class={session.id === current() ? "text-accent" : ""}>
-                          {session.title ?? session.id}
-                        </span>
-                        <Show when={session.updatedAt}>
-                          {(at) => (
-                            <span class="ml-2 font-mono text-[0.625rem] text-muted">
-                              {at().slice(0, 10)}
-                            </span>
-                          )}
-                        </Show>
-                      </button>
-                    </li>
-                  )}
-                </For>
-              </Show>
-            )}
-          </Show>
+          {/* A `<Switch>` over the one signal, because the picker IS one: the
+              three things it can be showing are the three arms of the union
+              above, and drawing them as siblings that each test the tag would
+              be the exclusivity spelled again in a second place. "Refused" was
+              the arm that did not exist, and an empty list was standing in for
+              it. */}
+          <Switch>
+            <Match when={refusedIn(picker())}>
+              {(failure) => (
+                <li class="px-2 py-1" data-testid={TESTID.chatSessionsRefused}>
+                  <Refusal failure={failure()} />
+                </li>
+              )}
+            </Match>
+            <Match when={listedIn(picker())}>
+              {(sessions) => (
+                <Show
+                  when={sessions().length > 0}
+                  fallback={
+                    <li class="px-2 py-1 text-xs text-muted">no stored conversations</li>
+                  }
+                >
+                  <For each={sessions()}>
+                    {(session) => (
+                      <li>
+                        <button
+                          type="button"
+                          class="block w-full truncate rounded px-2 py-1 text-left text-xs hover:bg-rule"
+                          data-testid={TESTID.chatSession}
+                          data-session-id={session.id}
+                          data-current={session.id === current()}
+                          disabled={session.id === current()}
+                          onClick={() => {
+                            setPicker({ _tag: "shut" })
+                            props.chat.loadSession(session.id)
+                          }}
+                        >
+                          <span class={session.id === current() ? "text-accent" : ""}>
+                            {session.title ?? session.id}
+                          </span>
+                          <Show when={session.updatedAt}>
+                            {(at) => (
+                              <span class="ml-2 font-mono text-[0.625rem] text-muted">
+                                {at().slice(0, 10)}
+                              </span>
+                            )}
+                          </Show>
+                        </button>
+                      </li>
+                    )}
+                  </For>
+                </Show>
+              )}
+            </Match>
+            <Match when={picker()._tag === "asking"}>
+              <li class="px-2 py-1 text-xs text-muted">asking the agent…</li>
+            </Match>
+          </Switch>
         </ul>
       </Show>
     </div>
