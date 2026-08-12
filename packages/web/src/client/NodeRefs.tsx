@@ -11,9 +11,10 @@
  *
  * The LABEL and the container's testid are the caller's, because which relation
  * this is is exactly what differs; everything else — a link per target, the
- * target's title as its text, `data-ref` carrying the id it opens — is the
- * same claim whichever edge produced it. Titles change under a live page and
- * ids do not, so `data-ref` is what a scenario picks a link by.
+ * target's title as its text (via {@link NodeTitle}, so markdown and tags
+ * match a tree row), `data-ref` carrying the id it opens — is the same claim
+ * whichever edge produced it. Titles change under a live page and ids do not,
+ * so `data-ref` is what a scenario picks a link by.
  *
  * A row with nothing in it draws NOTHING, and that is decided here rather than
  * by each caller: an empty labelled row is not a thing any relation wants, and
@@ -21,8 +22,9 @@
  */
 
 import { Key } from "@solid-primitives/keyed"
-import { Show } from "solid-js"
+import { type JSX, Show } from "solid-js"
 
+import { NodeTitle } from "./NodeTitle.tsx"
 import { Link } from "./router.tsx"
 import { type TestId, TESTID } from "./testids.ts"
 import { TARGET } from "./touch.ts"
@@ -33,6 +35,9 @@ import { TARGET } from "./touch.ts"
 export interface NodeRef {
   readonly id: string
   readonly title: string
+  /** Outline the title is written in — handed to {@link NodeTitle} for the
+   *  markdown pipeline. Empty when the title is a fallback id with no prose. */
+  readonly from: string
 }
 
 export function NodeRefs(props: {
@@ -57,7 +62,13 @@ export function NodeRefs(props: {
         <Key each={props.refs} by="id">
           {(ref) => (
             <NodeRefLink to={ref()} class={REF} testid={TESTID.nodeRef}>
-              {ref().title}
+              {/* links=false: already inside Link — a markdown [a](url) in the
+                  title must not nest a second <a>. */}
+              <NodeTitle
+                title={ref().title}
+                from={ref().from}
+                links={false}
+              />
             </NodeRefLink>
           )}
         </Key>
@@ -91,7 +102,7 @@ export function NodeRefLink(props: {
   readonly title?: string
   /** What the link SAYS, which is the target's title in a row and the name of
    *  the relation on a pill. */
-  readonly children: string
+  readonly children: JSX.Element
 }) {
   return (
     <Link
