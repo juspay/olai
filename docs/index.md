@@ -1,0 +1,21 @@
+# olai docs
+
+- [running.md](running.md) — how to serve a directory: `olai web` and its
+  flags, the home-manager module, and `olai mcp`.
+- [editing.md](editing.md) — typing into an outline: the keys, what a draft
+  is, and how ⌘Z takes an edit back.
+- [git.md](git.md) — the git integration: commit modes, the pill, and the
+  audit view.
+- [chat.md](chat.md) — the chat agent: ACP and `OLAI_ACP_AGENT`, the node
+  tools, pictures, and kolu.
+- [format.md](format.md) — the file format and its rules: the record shapes,
+  the fields, status, days, and merge safety.
+- [architecture.md](architecture.md) — how the packages fit, and the reasoning
+  behind the layering.
+- [roadmap.jsonl](roadmap.jsonl) — the plan, in the format itself.
+- [brainstorming/](brainstorming) — the decisions, and why the alternatives
+  lost.
+- [RCA/](RCA) — root-cause analyses of things that went wrong.
+
+Developing is [../HACKING.md](../HACKING.md), and the website is
+[olai.kolu.dev](https://olai.kolu.dev).
