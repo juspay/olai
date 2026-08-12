@@ -35,6 +35,7 @@ import type { BunPlugin } from "bun"
 
 import { scaleCss } from "./client/markdown/scale.ts"
 import { paletteCss } from "./client/theme/css.ts"
+import { buildMarkdownChunk } from "./markdown.ts"
 import { precompressAssets } from "./precompress.ts"
 
 const CLIENT = resolve(dirname(fileURLToPath(import.meta.url)), "client")
@@ -211,6 +212,10 @@ const buildClient = async (distDir: string): Promise<void> => {
     publicDir: resolve(CLIENT, "public"),
     plugins: [solidJsx],
   })
+  // The markdown pipeline as a bundle of its own, named on the shell the call
+  // above just wrote — see ./markdown.ts for why it is not a flag on it.
+  const markdown = await buildMarkdownChunk(CLIENT, distDir, [solidJsx])
+  console.log(`markdown chunk: ${markdown.href} ${markdown.bytes}B`)
   // Fonts after the surface client so a wipe of dist does not strand them,
   // and so /fonts/* is a sibling of the icons at the dist root.
   await installFonts(distDir)

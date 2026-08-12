@@ -151,12 +151,14 @@ sanitise, highlight, rewrite, stringify:
 - **highlighting runs after the sanitiser**, deliberately. The `hljs-` spans
   are ours, produced from the code's own text, so they need no allowlist entry
   — while the `language-…` class that produced them is the reader's, and is on
-  the sanitiser's default allowlist. `rehype-highlight` is bundled with the
-  client (about 180 kB of it): it is in `bun.lock`, so the Nix build fetches it
-  like everything else, and no page asks a CDN for the code that renders
-  someone's private outline. The colours are this theme's tokens, so a fence
-  follows the light/dark palette the rest of the page does. Which grammars it
-  knows is spelled out (`render.ts`), because the option REPLACES the default
+  the sanitiser's default allowlist. `rehype-highlight` is shipped by this
+  server: it is in `bun.lock`, so the Nix build fetches it like everything
+  else, and no page asks a CDN for the code that renders someone's private
+  outline. (It travels in the markdown chunk below rather than in the entry
+  bundle — same origin, same immutable pin, same bytes CI built.) The colours
+  are this theme's tokens, so a fence follows the light/dark palette the rest
+  of the page does. Which grammars it
+  knows is spelled out (`pipeline.ts`), because the option REPLACES the default
   set rather than adding to it: lowlight's common set, plus Nix — this
   repository is built with it and `just serve` with no arguments serves its own
   `docs/`, where a ```nix fence would otherwise be grey text. A language nobody
@@ -176,13 +178,52 @@ sanitise, highlight, rewrite, stringify:
 - **titles are inline-only** (`renderTitle` → `renderToTree` + `inline.ts`).
   Same pipeline, then every block is unwrapped to phrasing, then `#tags` are
   styled by walking text nodes (skipping `code` and `a` so constructs stay
-  whole; the alphabet is `titleTagRe` from `@olai/format`), then stringify.
+  whole; the alphabet is `titleTagRe` from `@olai/format` — `tags.ts`), then
+  stringify.
   When the pipeline loses text the source still accounts for — empty, or
   shorter than the source with markdown marks removed — fall back to the
   escaped source. Breadcrumbs and see-refs pass `links: false` so a markdown
   link in a title cannot nest `<a>` inside the surrounding `Link`. Titles keep
   their own cache; they are short and numerous, and would thrash the
   note/document map if they shared it.
+
+### It arrives when it is needed
+
+All of that is ~390 kB raw (~96 kB brotli) of `unified`, remark, rehype and
+`highlight.js` grammars, and the first thing this app draws — a tree of rows —
+uses none of it. So the pipeline is bundled ON ITS OWN
+(`markdown/pipeline.ts` → `/assets/markdown-<hash>.js`, built by
+`src/markdown.ts`) and fetched the first time something on the page has
+markdown to interpret. The entry bundle went from 1 054 kB to 663 kB raw
+(274 kB → 180 kB brotli) when it moved out.
+
+- **the page finds it through the shell**, not through a compiled-in constant:
+  a `<meta name="olai-markdown">` in the `no-store` `index.html`, rewritten to
+  the hashed URL at build time, exactly as the entry and the stylesheet are.
+  `markdown/chunk.ts` reads it and `import()`s it — a variable specifier, which
+  is what keeps the graph out of `main-*.js` rather than merely unreached
+  inside it. (`buildSurfaceClient` sets `splitting: false` and takes no option
+  to change it, so the chunk is a second `Bun.build` this package owns — the
+  same shape `precompress.ts` already is, and the same thing to flag upstream.)
+- **asking is what fetches it.** `markdownReady()` is a signal read: a memo
+  that asks is a memo that re-runs when the file lands, and a page that never
+  asks never pays. Nothing is primed at boot.
+- **titles mostly do not ask at all** (`markdown/plain.ts`). A title with no
+  markdown in it — 88 of the 93 in this repository's own roadmap — is words
+  and tags, and interpreting it and escaping it are the same operation. So
+  those are written out immediately, with no parser and no flash. It is a
+  REFUSAL rather than a second dialect: anything that could possibly be
+  markdown is handed to the real pipeline, and `plain.test.ts` sweeps a
+  generated corpus to prove that everything it does accept renders byte for
+  byte the way the pipeline would.
+- **what is on the page in the meantime is the file's own text** — the source,
+  escaped, `pre-wrap` for a document or a note, the raw title for a title.
+  Marks visible for a moment is a thing a reader can read; a blank space is
+  not. If the fetch FAILS, `Markdown.tsx` says so above that text and the
+  console gets the error: the page stays readable and does not pretend.
+  `features/markdown_arrives.feature` holds all of it — including that an
+  outline of plain titles never asks at all — by holding the chunk up in the
+  network layer.
 
 A document is surveyed and jumped around through those anchors:
 `document/Toc.tsx` draws a collapsible contents above the body, derived from

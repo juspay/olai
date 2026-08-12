@@ -18,11 +18,26 @@
  * string, which resolves against the served directory itself — the agent was
  * started there, so that is what a relative path in what it says is relative
  * to, and there is no file to name because it did not write one.
+ *
+ * ## Before the pipeline arrives, and if it never does
+ *
+ * Mounting this is what ASKS for the markdown machinery (./chunk.ts): an
+ * outline of rows never draws a block of prose, so it never fetches one. Until
+ * it lands, what is on the page is the file's own text, set `pre-wrap` so its
+ * lines are its lines — the marks are visible for a moment, which is a thing
+ * a reader can read, where a blank space or a spinner is not.
+ *
+ * A fetch that fails says so, above that same text. It is the one place in the
+ * app that can say it: a title's fallback is a title either way, but a
+ * document whose renderer never came would otherwise be a page of source with
+ * no explanation.
  */
 
-import { createMemo } from "solid-js"
+import { createMemo, Show } from "solid-js"
 
+import { markdownFailure, markdownReady } from "./chunk.ts"
 import { renderMarkdown, renderStreaming } from "./render.ts"
+import { escapeHtml } from "./tags.ts"
 
 export function Markdown(props: {
   readonly source: string
@@ -34,17 +49,46 @@ export function Markdown(props: {
    *  again. See ./render.ts. */
   readonly live?: boolean
 }) {
+  // `markdownReady()` both answers and asks — reading it here is what starts
+  // the fetch, and what re-runs this memo when the file lands.
   const html = createMemo(() =>
-    props.live === true
-      ? renderStreaming(props.source, props.from)
-      : renderMarkdown(props.source, props.from)
+    markdownReady()
+      ? props.live === true
+        ? renderStreaming(props.source, props.from)
+        : renderMarkdown(props.source, props.from)
+      : undefined
   )
+  const waiting = (): boolean => html() === undefined
+  const classes = (): string => `olai-md ${props.class ?? ""}`
+
   return (
-    <div
-      class={`olai-md ${props.class ?? ""}`}
-      data-testid={props.testid}
-      // Safe because the pipeline sanitises: see ./render.ts.
-      innerHTML={html()}
-    />
+    <Show
+      when={markdownFailure()}
+      fallback={
+        <div
+          class={classes()}
+          // The SAME element either way, dressed differently — nothing
+          // remounts when the rendering replaces the source, so nothing on the
+          // page moves but the words themselves.
+          classList={{ "whitespace-pre-wrap": waiting() }}
+          data-testid={props.testid}
+          data-markdown={waiting() ? "waiting" : undefined}
+          // Safe because the pipeline sanitises (see ./render.ts), and because
+          // the text of the file it came from is escaped when there is no
+          // pipeline yet.
+          innerHTML={html() ?? escapeHtml(props.source)}
+        />
+      }
+    >
+      {(failed) => (
+        <div class={classes()} data-testid={props.testid} data-markdown="failed">
+          <p class="text-alarm">
+            {failed().message} — this is the file's own text, unrendered.
+            Reloading is the way to try again.
+          </p>
+          <div class="whitespace-pre-wrap">{props.source}</div>
+        </div>
+      )}
+    </Show>
   )
 }

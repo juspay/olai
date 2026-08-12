@@ -27,6 +27,7 @@
 
 import { createMemo, Show } from "solid-js"
 
+import { markdownReady } from "../markdown/chunk.ts"
 import { Markdown } from "../markdown/Markdown.tsx"
 import { outlineOf } from "../markdown/render.ts"
 import { TESTID } from "../testids.ts"
@@ -48,7 +49,14 @@ export function DocumentPage(props: { readonly file: string }) {
           screen (../page.ts). */}
       <Show when={document()}>
         {(served) => {
-          const headings = createMemo(() => outlineOf(served().text, props.file))
+          // Empty until the markdown chunk lands, for the same reason the body
+          // below is the file's own text until then: there is nothing to make
+          // a contents out of until something has read the headings. The
+          // `<Markdown>` under it is what asks for the chunk; this memo re-runs
+          // when it arrives (../markdown/chunk.ts).
+          const headings = createMemo(() =>
+            markdownReady() ? outlineOf(served().text, props.file) : [],
+          )
           return (
             <>
               <Toc file={props.file} headings={headings()} />
