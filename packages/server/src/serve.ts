@@ -140,10 +140,22 @@ export const serve = (options: ServeOptions) =>
       onTranscript: (change) => publishing().transcript(change),
     })
 
+    // The surface is bound to everything it reports on or writes through: the
+    // store it reads, the chat it draws, what git is doing for the directory,
+    // and the ops layer its edit procedures write through — the same one the
+    // MCP face below hands the agent, because there is one writer.
+    //
     // `web` is the writer for the button's door; the panel's agent reaches the
     // tools as `chat-agent` below. Which face a caller is, is decided HERE and
-    // never claimed by a transport about itself.
-    const wired = yield* bind({ store, chat, git: gitWiring(ops, "web", committed) })
+    // never claimed by a transport about itself. A keystroke is the same web
+    // writer: it goes through the ops layer this line hands over.
+    const wired = yield* bind({
+      store,
+      chat,
+      ops,
+      writer: "web",
+      git: gitWiring(ops, "web", committed),
+    })
     publish = wired.publish
 
     // A faulted runtime is unrecoverable structural damage, and telling that
@@ -183,7 +195,7 @@ export const serve = (options: ServeOptions) =>
     if (!LOOPBACK.has(options.host)) {
       yield* Effect.annotateLogs(
         Effect.logWarning(
-          "bound off loopback — the surface is unauthenticated, so anyone who can reach this port can read every outline here",
+          "bound off loopback — the surface is unauthenticated, so anyone who can reach this port can read every outline here, and edit them",
         ),
         { host: options.host },
       )

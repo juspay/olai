@@ -13,6 +13,11 @@
  * succeeding `StaleWrite` retry is invisible; every genuine failure renders).
  * A DEFECT is different and is deliberately not caught: it is a bug, and it
  * belongs in the console loudly.
+ *
+ * It lived in `chat/` while the conversation was the only thing with verbs.
+ * The palette's `>` ask was the second caller and the row editor is the third,
+ * so it sits at the client's root now — one edge, named once, wherever a
+ * procedure is called from.
  */
 
 import { BusyFailure, isOpFailure, type OpFailure } from "@olai/surface"
@@ -28,14 +33,31 @@ export const run = <A>(
   onFailure: (failure: OpFailure) => void,
   onSuccess?: (value: A) => void,
 ): void => {
-  void Effect.runPromise(Effect.result(effect)).then((outcome) => {
-    if (Result.isSuccess(outcome)) {
-      onSuccess?.(outcome.success)
-      return
-    }
-    onFailure(asFailure(outcome.failure))
+  void runAsync(effect).then((outcome) => {
+    if (Result.isSuccess(outcome)) onSuccess?.(outcome.success)
+    else onFailure(outcome.failure)
   })
 }
+
+/**
+ * The edge itself, awaited — and what {@link run} is written in terms of, so
+ * `Effect.runPromise` appears once in this client rather than twice in the
+ * file that claims to be the only place it appears at all.
+ *
+ * It exists for a caller that has to SEQUENCE calls rather than react to one.
+ * The row editor is that caller: `Tab` commits the title and then moves the
+ * row, in that order, because the second would otherwise be judged against a
+ * record whose text is still the old one. It needs something to wait on, and
+ * the answer it waits for is either outcome — so this hands back a `Result`
+ * rather than rejecting, which is the same promise `run` makes about declared
+ * failures being data.
+ */
+export const runAsync = <A>(effect: Call<A>): Promise<Result.Result<A, OpFailure>> =>
+  Effect.runPromise(Effect.result(effect)).then((outcome) =>
+    Result.isSuccess(outcome)
+      ? Result.succeed(outcome.success)
+      : Result.fail(asFailure(outcome.failure))
+  )
 
 /** A failure the panel can draw. The declared ones already are one — recognised
  *  against the format's own closed table, not by the shape of a tag — and a

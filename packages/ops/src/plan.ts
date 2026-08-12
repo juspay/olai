@@ -55,6 +55,7 @@ import {
 } from "@olai/format"
 import { Result } from "effect"
 
+import { index } from "./query.ts"
 import { type Capture, type Minted, NESTING, type Request } from "./request.ts"
 
 /** One outline, as the records it will hold after the write. */
@@ -107,7 +108,12 @@ export const plan = (
   context: Context,
   request: Request,
 ): Planned => {
-  const derived = derive(set.nodes)
+  // `index`, not a fresh `derive`: the derivation is memoised per SET
+  // (`./query.ts`), and every caller of this has already read that set — a
+  // tool call to answer the request, the editor to resolve a keystroke. A
+  // second derivation per write is the whole corpus walked again for an answer
+  // already in hand, and the editor made that a per-keystroke cost.
+  const derived = index(set)
   const scope = { set, derived, context }
 
   switch (request.op) {
@@ -216,11 +222,17 @@ const editable = (
  * OUTLINES of a directory — there are five of them — and the wrong one for the
  * nodes in it: a vault of a few thousand put its whole id space in one refusal,
  * with the one id worth reading somewhere in the middle of it.
+ *
+ * Exported over the DERIVATIONS rather than over a planning scope because the
+ * miss is not only the planner's: `@olai/server` resolves a keystroke into a
+ * request and meets the same missing id on the way there, and a person told
+ * one sentence by the agent and another by the keyboard would be reading two
+ * products.
  */
-const unknownId = (scope: Scope, id: string): OpFailure => {
+export const notFound = (derived: Derived, id: string): OpFailure => {
   // The CLAUSE is the format's too, not just the budget behind it: a refusal
   // and a load error say "did you mean" in one voice or in two.
-  const near = didYouMean(id, scope.derived.byId.keys())
+  const near = didYouMean(id, derived.byId.keys())
   return new NotFoundFailure({
     reason: near === ""
       ? `\`${id}\` is not a node in the loaded set, and nothing in it is spelled ` +
@@ -230,6 +242,10 @@ const unknownId = (scope: Scope, id: string): OpFailure => {
     named: id,
   })
 }
+
+/** The same refusal, from inside the planner, where the derivations are one
+ *  field of the scope every plan already carries. */
+const unknownId = (scope: Scope, id: string): OpFailure => notFound(scope.derived, id)
 
 /**
  * The first path from `from` to `to` through `edges`, `from` and `to` included

@@ -1,9 +1,13 @@
 # @olai/server — the composition root, and the binary
 
-One directory, read and served — and, since the agent arrived, written. Plus
-the two entry points that start it: `olai web <dir> [--port] [--host]
-[--commit]`, which puts a browser in front of the ops layer, and `olai mcp
-<dir> [--commit]`, which puts an agent's pipes in front of the same one.
+One directory, read and served — and written, by an agent and now by a person
+at a keyboard. Both go through the ops layer and neither has a path to a file
+of its own: the browser's edits are surface procedures resolved into ops
+requests here (`edit.ts`), and the agent's are the ops table projected onto
+MCP (`mcp/tools.ts`). Plus the two entry points that start it: `olai web <dir>
+[--port] [--host] [--commit]`, which puts a browser in front of the ops layer,
+and `olai mcp <dir> [--commit]`, which puts an agent's pipes in front of the
+same one.
 
 `--commit=off | manual | auto` says how writes reach git, `manual` by default:
 a write lands on disk and waits, and a Commit button or the agent's `commit`
@@ -70,7 +74,8 @@ register `stop` as a finalizer.
 | `mcp/route.ts` | that face for the agent olai STARTED: mounted on this listener, behind a per-process bearer token, over a half-duplex transport of its own |
 | `mcp/serve.ts` | that face for an agent that started US: `olai mcp`'s own, much smaller, composition root, over stdio |
 | `commits.ts` | `--commit`, for whichever face is asking: one mode table, one default, one override, and the flag PAIR as one thing — the per-face clause it interpolates is `@olai/ops`' `commitDoors`, sibling to the `commitDoor` the sentence a waiting write carries back is built from |
-| `runtime.ts` | the surface bindings: one owned fiber turns each store revision into the entries that moved and the manifest that names it, the errors cell is a second owned source, the transcript is server-authored, and the two GIT cells — the header readout and what is waiting — are recomputed together by one connector on three clocks (every revision, every landed commit, a slow sweep, because nothing watches `.git`), so the two controls that draw them cannot disagree |
+| `runtime.ts` | the surface bindings: one owned fiber turns each store revision into the entries that moved and the manifest that names it, the errors cell is a second owned source, the transcript is server-authored, the edit procedures are the browser's door to the ops layer, and the two GIT cells — the header readout and what is waiting — are recomputed together by one connector on three clocks (every revision, every landed commit, a slow sweep, because nothing watches `.git`), so the two controls that draw them cannot disagree |
+| `edit.ts` | what a KEYSTROKE meant, in terms of ops: the browser sends an intent (`indent`, `toggle`, `a new sibling after this`) and this resolves the placement against the snapshot and hands back one request. Pure over a reading, like the planner it feeds |
 | `outlines.ts` | the projection that fiber publishes: one published revision cut into per-file entries, and the store's own `changed`/`removed` mapped onto the collection's upserts and removes |
 | `listener.ts` | one `serveSurfaceApp` call, and the one decision it leaves that is a policy: whose port this is |
 | `report.ts` | the other one: what a listener event — a stale tab, a refused origin, a faulted connection — sounds like in olai's log |

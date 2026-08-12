@@ -14,6 +14,23 @@
  * a click (or tap) expands it in place to the full multi-line desc plus see
  * links; click again or click away collapses.
  *
+ * CLICKING IT PUTS THE CARET IN IT (human, 2026-08-11 — Workflowy-style,
+ * superseding the textarea the 2026-08-09 plan resolved on), and WHICH click
+ * is the reconciliation this needed. In Workflowy a note is always shown in
+ * full and is always one click from the caret; there is no clamped state to
+ * reconcile, because the clamp is olai's own compression of it. So the
+ * faithful mapping is onto the EXPANDED note: the clamped line expands, as it
+ * has since notes-single, and a click in the note you are now reading puts the
+ * caret in it — one click from what Workflowy would have been showing you all
+ * along.
+ *
+ * The alternative — one click doing both — was tried and is worse, for a
+ * reason the tests found rather than an argument: the expanded note is the
+ * only place a row draws its `see` links and its rendered markdown, so a click
+ * that went straight to source deleted a reading surface to save a click.
+ * Clicking away still collapses, exactly as before; `Shift+Enter` is still one
+ * key from the title for a keyboard.
+ *
  * A FRAGMENT, not a box. Where the body sits relative to the bullet is the
  * caller's layout — a tree row indents past its toggle, a day entry past its
  * own — so this contributes its children to a container it does not own.
@@ -27,6 +44,7 @@ import { plainLine } from "./note/preview.ts"
 import { Note } from "./Note.tsx"
 import { SeeRefs } from "./SeeRefs.tsx"
 import { TESTID } from "./testids.ts"
+import { ROW_NOTE } from "./touch.ts"
 
 export function NodeBody(props: {
   /** The record being shown — for a mirror, the node it stands for, which is
@@ -39,6 +57,10 @@ export function NodeBody(props: {
   readonly expanded?: boolean
   /** Click/tap the note to toggle open/closed. */
   readonly onToggle?: () => void
+  /** Click/tap the note to put the CARET in it — the same gesture, one level
+   *  further: absent wherever a node is drawn read-only (a day page), which is
+   *  the same rule `NodeLine.onEdit` follows for the title. */
+  readonly onEdit?: () => void
 }) {
   const zoomed = () => props.zoomed === true
   const open = () => props.expanded === true
@@ -57,13 +79,15 @@ export function NodeBody(props: {
             {(line) => (
               <button
                 type="button"
-                class="mt-0.5 mb-1 block w-full max-w-full cursor-pointer truncate border-0 bg-transparent p-0 text-left text-[0.875rem] leading-snug text-muted"
+                class={`mt-0.5 mb-1 block w-full max-w-full cursor-text truncate border-0 bg-transparent p-0 text-left ${ROW_NOTE}`}
                 data-testid={TESTID.desc}
                 data-preview="true"
                 data-open="false"
                 title="show the full note"
                 onClick={(event) => {
                   event.stopPropagation()
+                  // Expand. A clamped line is not something anybody can type
+                  // into, so the caret belongs to the click after this one.
                   props.onToggle?.()
                 }}
               >
@@ -78,18 +102,21 @@ export function NodeBody(props: {
               <Show when={props.shows.node.desc}>
                 {(desc) => (
                   <div
-                    class="mt-0.5 mb-1 cursor-pointer text-[0.875rem] text-muted"
+                    class={`mt-0.5 mb-1 cursor-text ${ROW_NOTE}`}
                     role="button"
                     tabindex={0}
-                    title="fold the note back"
+                    title="write in this note"
                     onClick={(event) => {
                       event.stopPropagation()
-                      props.onToggle?.()
+                      // Already open: the click is the caret's. Folding back is
+                      // what clicking AWAY does (./note/expand.ts), which is
+                      // also what commits.
+                      props.onEdit?.()
                     }}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault()
-                        props.onToggle?.()
+                        props.onEdit?.()
                       }
                     }}
                   >

@@ -25,6 +25,8 @@ import { Blocked } from "./Blocked.tsx"
 import { Breadcrumbs } from "./Breadcrumbs.tsx"
 import { DateBadge } from "./DateBadge.tsx"
 import { DoneToggle } from "./DoneToggle.tsx"
+import { Editable } from "./edit/Editable.tsx"
+import { StartLine } from "./edit/StartLine.tsx"
 import { only } from "./narrow.ts"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
@@ -58,7 +60,7 @@ function Zoom(props: {
   readonly view: View
 }) {
   return (
-    <>
+    <Editable rows={() => props.rows} view={props.view}>
       <header class="mb-4">
         <div class="flex items-baseline justify-between gap-4">
           <Breadcrumbs file={props.zoomed.shows.file} trail={props.zoomed.trail} />
@@ -114,11 +116,24 @@ function Zoom(props: {
 
       <Show
         when={props.rows.length > 0}
-        fallback={<p class="text-muted">{nothingUnder(props.zoomed, props.view)}</p>}
+        fallback={
+          <Show
+            when={props.zoomed.children.length === 0}
+            fallback={<p class="text-muted">{nothingUnder(props.zoomed, props.view)}</p>}
+          >
+            {/* Nothing under it, and nothing hidden either — so the honest
+                thing to offer is the first child, which a page with no rows
+                has nowhere else to put. */}
+            <StartLine
+              at={{ kind: "under", id: props.zoomed.shows.node.id }}
+              label="Nothing under this node — write the first line under it."
+            />
+          </Show>
+        }
       >
         <Tree rows={props.rows} view={props.view} />
       </Show>
-    </>
+    </Editable>
   )
 }
 

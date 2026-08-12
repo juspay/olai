@@ -12,6 +12,11 @@
  * column (./Checkbox.tsx), because it is the same kind of fact as whether the
  * work has begun and a reader sorting rows is already looking there.
  *
+ * A title is EDITABLE where a caller says so (`onEdit`), and the line itself is
+ * what a click lands on: in a tree the title is replaced by an input in place
+ * (./edit/RowEditor.tsx), so this component draws the read face of the same
+ * spot rather than knowing anything about the editor.
+ *
  * The note itself is NOT on this line. It hangs under the title as its own
  * clamped one-line gray row (./NodeBody.tsx), Workflowy-style.
  *
@@ -29,6 +34,7 @@ import { NodeTitle } from "./NodeTitle.tsx"
 import { ProgressBadge } from "./ProgressBadge.tsx"
 import { TESTID } from "./testids.ts"
 import { toneOf } from "./tone.ts"
+import { ROW_TITLE } from "./touch.ts"
 
 export function NodeLine(props: {
   readonly title: string
@@ -47,12 +53,19 @@ export function NodeLine(props: {
   readonly occasion?: Occasion
   /** Drawn inside the title and before it — the tree's mirror mark. */
   readonly children?: JSX.Element
+  /** Clicking the title starts editing it. Absent wherever a node is drawn
+   *  READ-ONLY — a day page lists nodes from all over the set, and a keyboard
+   *  loop that started in one of them would be typing into a page whose rows
+   *  are a query rather than a tree. */
+  readonly onEdit?: () => void
 }) {
   return (
     <>
       <span
-        class={`flex-1 text-[0.9375rem] leading-snug ${toneOf(props.status)}`}
+        class={`flex-1 ${ROW_TITLE} ${toneOf(props.status)}`}
+        classList={{ "cursor-text": props.onEdit !== undefined }}
         data-testid={TESTID.nodeTitle}
+        onClick={() => props.onEdit?.()}
       >
         {props.children}
         <NodeTitle title={props.title} from={props.from} />

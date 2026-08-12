@@ -35,6 +35,10 @@
 export { codec } from "./codec.ts"
 export type { Store } from "./deps.ts"
 export { make, type Ops, type Options } from "./ops.ts"
+/** The one refusal a caller ABOVE this layer meets too: an id the set does not
+ *  declare. Exported so the keystroke resolver in `@olai/server` says what a
+ *  tool call says. */
+export { notFound } from "./plan.ts"
 /** When writes reach git, and what git is doing for the directory they reach.
  *  The mode is passed IN and the state comes back OUT; the subprocesses between
  *  them are this layer's business. */

@@ -10,6 +10,7 @@ import type { Route } from "../routes.ts"
 
 export type PaletteAction =
   | { readonly kind: "route"; readonly route: Route }
+  | { readonly kind: "shortcuts" }
   | { readonly kind: "toggle-sidebar" }
   | { readonly kind: "toggle-chat" }
   | { readonly kind: "reset-widths" }
@@ -52,6 +53,13 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     hint: "⌘J",
     action: { kind: "toggle-chat" },
     search: "toggle agent panel chat",
+  },
+  {
+    id: "shortcuts",
+    label: "Keyboard shortcuts",
+    hint: "every key",
+    action: { kind: "shortcuts" },
+    search: "keyboard shortcuts keys help reference bindings",
   },
   {
     id: "reset-widths",

@@ -85,11 +85,15 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
     const root = served()
     const { store } = yield* openDirectory(root)
     // A real ops layer with commits OFF: this face is about READING, and `off`
-    // is the one mode that asks git nothing at all.
+    // is the one mode that asks git nothing at all. The edit procedures are
+    // bound to it too and this face exposes none of them, so what they cost
+    // here is a binding nobody can reach.
     const ops = makeOps({ store, root, commits: "off" })
     const wired = yield* bind({
       store,
       chat: null,
+      ops,
+      writer: "mcp",
       git: gitWiring(ops, "mcp", yield* SubscriptionRef.make(0)),
     })
     // Not optional, and not ceremony copied from `serve.ts`: the runtime's

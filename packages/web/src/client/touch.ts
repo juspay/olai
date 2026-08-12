@@ -112,5 +112,23 @@ export const PAST_BULLET = "ml-16 md:ml-10"
  *  puts its note, and its one aside about a mirror it would not expand. */
 export const PAST_CONTROLS = "ml-24 md:ml-20"
 
+/**
+ * A row's TITLE, as type: the size and leading a line of the outline is set
+ * in. Here because the input that replaces a title while it is being typed
+ * must be the same box (`../client/edit/RowEditor.tsx`) — a row that shifted
+ * by a pixel when the caret arrived would be this file's kind of bug, and
+ * three literals were three chances for one of them to miss a change.
+ */
+export const ROW_TITLE = "text-[0.9375rem] leading-snug"
+
+/**
+ * A row's NOTE, as type: what the clamped line, the rendered note and the
+ * editor that replaces them all have to agree about, for the same reason the
+ * title's scale is here — the note edits in place, and a note that changed
+ * size or colour when the caret arrived would be a different thing appearing
+ * rather than the same thing becoming editable.
+ */
+export const ROW_NOTE = "text-[0.875rem] leading-snug text-muted"
+
 /** How far a child list indents from its parent, and the vertical guide. */
 export const CHILD_INDENT = "ml-3 list-none border-l border-rule pl-3 md:ml-4 md:pl-4"

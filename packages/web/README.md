@@ -47,6 +47,12 @@ coexist: only the files that moved are upserted, so an unchanged neighbour keeps
 an older `rev`. Nothing here reads `rev` to decide anything, which is what makes
 that safe — every view is derived from what the entries currently say.
 
+**The write side is not a second model of any of that.** The keyboard's edits
+are surface PROCEDURES (`edit/`), the collections stay read-only on the wire,
+and what a reader sees of an edit is the file arriving on the same
+subscription every other change does. So there is nothing to reconcile, no
+optimistic row, and two tabs cannot disagree about what landed.
+
 ## Three ways to say what is wrong about the FILES, because there are three situations
 
 They live in `src/client/errors/`, and which one a reader gets is decided by
@@ -74,9 +80,11 @@ strip (`NodeMenu.tsx` `•••` + the collapse triangle, always visible on a p
 see `touch.ts`) left of a filled-circle bullet (`Bullet.tsx`, with a gray halo
 when children are hidden), then the MARK COLUMN (`Checkbox.tsx`: CSS squares —
 checked for done, half-filled for doing, EMPTY for todo, and no box at all on a
-node carrying none of them, because a bullet is not a task; read-only until
-keyboard-editing). Titles render inline-only markdown and `#tags` as subtle
-pills (`NodeTitle.tsx` / `markdown/title.ts`). A node's
+node carrying none of them, because a bullet is not a task; display-only —
+the mark is toggled from the row's editor). Titles render inline-only markdown
+and `#tags` as subtle pills (`NodeTitle.tsx` / `markdown/title.ts`), and the
+editor shows that markdown as the SOURCE it is while a row is being typed.
+A node's
 free cross-references (`SeeRefs.tsx`) each link to `/n/<id>` with the target's
 title, resolved at view time through the same indexes.
 
@@ -99,8 +107,8 @@ glyph, so nothing is hover-only; a tip this app places itself (`Tip.tsx` +
 `tip.ts`, which is the clamp, unit-tested, because the platform's own tooltip
 ran a long one off the right edge of the window); and the full list on the
 node's own page (`Blocked.tsx` through the shared `NodeRefs.tsx`), which is
-where the glyph's click goes — the box promises no toggle yet, so the click was
-free to mean the obvious thing.
+where the glyph's click goes — the box is display-only wherever it is drawn, so
+the click was free to mean the obvious thing.
 The view and the validator agree about what a file means because they run the
 same code, not because two implementations were written to the same paragraph.
 The one thing this package does interpret is MARKDOWN, rendered and sanitised at
@@ -802,9 +810,92 @@ clears the home-bar inset (`CLEARANCE`).
 
 `src/client/palette/` is the ⌘K shell: navigation (home, today), panel toggles,
 and a `>` prefix that sends the rest to the agent. Jump-to-node type-ahead and
-op actions belong to the separate `palette` roadmap item. Keyboard map reserved
-so keyboard-editing cannot collide later: **⌘K** palette, **⌘\\** sidebar,
-**⌘J** chat (`palette/keys.ts`).
+op actions belong to the separate `palette` roadmap item.
+
+## The keyboard, in one file
+
+`src/client/keys.ts` is every key this app answers, and it is one file because
+a chord and an editing key that both claim one combination disagree silently,
+in a browser, while somebody is typing. Two layers, and they never overlap:
+
+- **global chords**, with a modifier, listened for on the window (one
+  listener, in `palette/Palette.tsx`): **⌘K** palette, **⌘\\** sidebar, **⌘J**
+  chat. Each says whether it may fire while focus is in a text field.
+- **the row editor's keys**, which are bare (`Enter`, `Tab`, the arrows) and
+  are matched on the editor's own element and nowhere else. A window listener
+  claiming those would eat every keystroke in the chat composer and in the
+  palette's own input.
+
+A unit test holds the two apart: every chord the global layer claims must be
+dead to the row layer, on both platforms.
+
+## Editing a row
+
+`src/client/edit/` is the Workflowy loop, and every write it makes is a surface
+procedure — one op, at the same write gate the agent's tools go through
+(`packages/server/src/edit.ts` turns the key into the op). What is here is the
+loop a person is in, and nothing about outlines:
+
+- **`draft.ts` — the draft cell.** The one piece of state in this client that
+  is not the server's, and it is allowed because a draft is not a claim about
+  the outlines: it is the text in an editor, like the chat composer's. It is
+  committed on **blur**, on **Enter** and on going **idle**; a commit that
+  would change nothing sends nothing (so sitting in a row is not a git commit);
+  and a commit that is REFUSED keeps the draft, with the reason beside it.
+  A NEW row is a draft too — `Enter` opens an editor where the row will go and
+  the `add` lands when it has a title, so a blank record is never written and
+  a key pressed by accident writes nothing.
+- **`editing.tsx` — the caret.** One draft at a time, because there is one
+  caret. Structural keys commit the text first and then ask, in that order.
+  Which id an edit names is a rule, and the draft carries both halves of it:
+  what a node SAYS (title, note, mark) names the node the row SHOWS, so typing
+  in a mirror edits what it stands for; where a row SITS names the row's own
+  record, so moving a mirror moves the placement and `Enter` on one makes a
+  sibling of the mirror. And because nothing is optimistic, a row is redrawn
+  somewhere else when the file says so — so the draft names a ROW and where it
+  is drawn is looked up rather than remembered. Keeping the reader's place
+  across that frame is the module's real work.
+- **`RowEditor.tsx` — an `<input>`, not a `contenteditable`.** A title is one
+  verbatim line of text; what the page DRAWS is a rendering of it (inline
+  markdown and `#tags`), which is the argument for an input rather than against
+  it — a contenteditable would be that rendered HTML made editable, with every
+  keystroke turned back into the one string the record holds. The trade is
+  deliberate and visible: while you type, a title reads as its source, and the
+  rendering comes back when you leave. The NOTE takes the same trade in the
+  same shape: it edits IN PLACE, styled as the note rather than as a control
+  (`ROW_NOTE` in `touch.ts` is the one spelling of what a note looks like, so
+  the clamped line, the rendered note and the editor cannot disagree about size
+  or tone), and clicking one puts the caret in it — expanding and editing are
+  one gesture, because a clamped line is not something anybody can type into.
+  Click away and it folds back, exactly as it did before; the full RENDERED
+  note is the node's own page, where a note has always been the body.
+- **Where the caret is, said twice.** The row holding it is toned and its
+  bullet takes the accent (`data-editing` on the row is what a scenario asks).
+  A blinking cursor at the end of a title is the whole affordance a walk with
+  `↑`/`↓` had, and in a tree of a hundred rows that is a pixel nobody finds.
+- **The keys are written down for a person** (`SHORTCUTS` in `keys.ts`, drawn
+  by `palette/Shortcuts.tsx`, opened from ⌘K). Beside the matchers rather than
+  in a document, so what a key does and what it is said to do are one fact; a
+  unit test holds the list to covering every editing action.
+- **`order.ts`** flattens the drawn tree so `↑`/`↓` step through what is on
+  screen, folds and all.
+
+There is deliberately no delete, no split/merge, no multi-select and no
+drag-drop: each is its own roadmap item, and a delete arrives with undo,
+because until an edit can be taken back inside the app, git is the whole of the
+recovery net.
+
+Two more shapes this leaves, named because a reader will look for them:
+
+- **a zoomed page's heading is not editable.** A row's title is, and the
+  heading is the same node — but it is the page's SUBJECT rather than a row of
+  it, drawn by `NodePage` outside the tree the editor's places are keyed by.
+  Editing it wants the caret model to mean something on a page with one
+  heading and N rows, which is a decision rather than a line of code.
+- **the mark is keyboard-only.** `Ctrl+Enter` in a row's editor ticks a node
+  off; the checkbox stays display-only (`Checkbox.tsx` says why), so a phone
+  can open a title by tapping it and cannot tick it. Desktop-first for this
+  item; a touch affordance belongs with the widgets that follow it.
 
 
 ## What belongs to a reading, not to the file

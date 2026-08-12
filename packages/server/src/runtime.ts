@@ -21,6 +21,12 @@
  *     server-authored — `readAll` is the transcript itself and the writes come
  *     from `ctx`, never from the wire — because a transcript is something that
  *     HAPPENED and the only way to add to it is to prompt.
+ *   - the KEYBOARD is the ops layer's: one procedure, no member of its own,
+ *     and nothing published from here when one lands. That absence IS the
+ *     design — an edit changes a FILE, and a file reaches every open tab
+ *     through the store binding above, the same way a `git pull` does. A
+ *     procedure that also echoed its result would be a second answer to what
+ *     the directory says, arriving first and occasionally disagreeing.
  *
  * And two facts belong to neither: what GIT is doing for the directory, and
  * what is WAITING to be committed to it. Both are the ops layer's — the only
@@ -31,11 +37,14 @@
  * readings of one question (HACKING.md: MCP and Web ops must be consistent).
  *
  * Nothing here interprets an outline or an agent. It moves what the store and
- * the chat decided onto the wire, and that is all.
+ * the chat decided onto the wire, and that is all — with one exception, and it
+ * is one indirection deep: an edit's INTENT is resolved into an op by
+ * `./edit.ts`, because that is a question about the snapshot rather than about
+ * the wire.
  */
 
 import { NOTHING_PENDING } from "@olai/format"
-import type { Ops, Status } from "@olai/ops"
+import type { Applied, Ops, Status } from "@olai/ops"
 import type {
   CommitRequest,
   CommitResult,
@@ -48,6 +57,7 @@ import type { Store } from "@olai/store"
 import {
   CHAT_OFF,
   type ChatState,
+  type Edit,
   GIT_OFF,
   type GitState,
   LOADED,
@@ -62,9 +72,10 @@ import {
   inMemoryStore,
   type SurfaceRuntime,
 } from "@kolu/surface/server"
-import { Duration, Effect, Stream, SubscriptionRef } from "effect"
+import { Duration, Effect, Result, Stream, SubscriptionRef } from "effect"
 
 import type { Change, Chat } from "@olai/chat"
+import { requestFor } from "./edit.ts"
 import {
   type Change as CollectionChange,
   type Published,
@@ -104,6 +115,16 @@ export interface Wiring {
    *  procedures answer that they are. A directory is readable whether or not
    *  an agent is installed. */
   readonly chat: Chat | null
+  /** The one writer. The edit procedures are the browser's door to it, and
+   *  they hold nothing of their own: what a keystroke MEANT is resolved
+   *  against this layer's own reading (`./edit.ts`) and run as one op. */
+  readonly ops: Ops
+  /** WHO a keystroke is, for the commit trailer — decided by whoever composed
+   *  this, exactly as the git half's writer is, and for the same reason: a
+   *  transport that named itself could name another. `web` on the browser's
+   *  face; on `olai mcp` these procedures are unexposed, so it is the one
+   *  nobody can reach. */
+  readonly writer: Writer
   /**
    * The git half, taken from the ops layer rather than the layer itself: this
    * file publishes what somebody else decided, and "what is waiting to be
@@ -230,6 +251,24 @@ export const bind = (
           }),
         )
         : use(chat)
+
+    /**
+     * One keystroke, all the way through: read the set, work out which op the
+     * intent names ({@link ./edit.ts}), run it.
+     *
+     * The read is the ops layer's own — one answer to "there is nothing loaded
+     * yet", shared with the tools — and the failure channel is the one every
+     * writer already speaks, so a refusal reaches the browser as the
+     * validator's rows rather than as a transport error the editor could only
+     * shrug at.
+     */
+    const applyEdit = (edit: Edit): Effect.Effect<Applied, OpFailure> =>
+      Effect.flatMap(wiring.ops.read, (at) => {
+        const request = requestFor(at, edit)
+        return Result.isFailure(request)
+          ? Effect.fail(request.failure)
+          : wiring.ops.run(request.success, wiring.writer)
+      })
 
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {
       cells: {
@@ -376,6 +415,18 @@ export const bind = (
           sessions: () => withChat((open) => open.sessions),
           answer: ({ input }) => withChat((open) => open.answer(input.id, input.answers)),
           decline: ({ input }) => withChat((open) => open.answer(input.id, null)),
+        },
+        // One verb, over the union the wire declares — so a verb added there
+        // is answered by `requestFor` or it does not compile, and there is no
+        // binding here to forget. What it answers with is the ops layer's own
+        // `Applied`, narrowed to what a browser can use: the node the write
+        // was about, and the nudge if the rollup had something to say.
+        edit: {
+          apply: ({ input }) =>
+            Effect.map(applyEdit(input), (done) => ({
+              id: done.id,
+              ...(done.nudge === undefined ? {} : { nudge: done.nudge }),
+            })),
         },
         git: {
           // The button's door. `writer: "web"` is decided in `serve.ts`, where

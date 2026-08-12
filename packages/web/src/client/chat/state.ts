@@ -50,9 +50,9 @@ import {
 import { type Accessor, createEffect, createMemo, createSignal, on } from "solid-js"
 
 import { olai } from "../wire.ts"
+import { type Call, run } from "../run.ts"
 import { attaching } from "./attach.ts"
 import { forget, remember } from "./previews.ts"
-import { type Call, run } from "./run.ts"
 
 /**
  * What asking for the stored conversations answered.

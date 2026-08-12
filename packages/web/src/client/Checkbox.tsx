@@ -26,13 +26,16 @@
  * waiting on nothing and an unmarked one is not work, so the face composes
  * with exactly the marks that can be blocked.
  *
- * The box is display-only — toggling is keyboard-editing's job, and a click
- * handler here would invent a second write path beside the ops layer that is
- * not ready. That is why the blocked face may be a LINK without promising
- * anything false: the click is spent on going to the node's own page, which is
- * where its blockers are named in full (`./Blocked.tsx`). What it is waiting on
- * rides in the `aria-label`, so the answer is not hover-only, and the tip
- * (`./Tip.tsx`) is the same sentence for a pointer.
+ * The box is display-only, and stays so now that a mark CAN be changed: what
+ * ticks one is `Ctrl+Enter` in the row's own editor (`./edit/editing.tsx`),
+ * which is where every other edit is made and where the keys that make them
+ * are declared. A click handler here would be a second way to spell the one
+ * write, reachable from a row nobody is editing — and the click is already
+ * spent, which is why the blocked face may be a LINK without promising
+ * anything false: it goes to the node's own page, where its blockers are named
+ * in full (`./Blocked.tsx`). What it is waiting on rides in the `aria-label`,
+ * so the answer is not hover-only, and the tip (`./Tip.tsx`) is the same
+ * sentence for a pointer.
  *
  * `data-face` is the contract the browser tests assert on — not the pixels of
  * a glyph, which a restyle is entitled to change. The three status faces and

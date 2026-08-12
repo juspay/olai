@@ -179,7 +179,17 @@ export const serveTools = (options: McpServeOptions) =>
     // what git is doing from the same place a browser does. `mcp` is the writer
     // for the procedure's door, because here there is no button and no panel:
     // the only caller is the agent this process was launched by.
-    const wired = yield* bind({ store, chat: null, git: gitWiring(ops, "mcp", committed) })
+    //
+    // The ops layer is the same one the tools get: the edit procedures it backs
+    // are unexposed on this face (`./expose.ts` is default-deny, and an agent
+    // has the tools), so what they cost here is a binding nobody can reach.
+    const wired = yield* bind({
+      store,
+      chat: null,
+      ops,
+      writer: "mcp",
+      git: gitWiring(ops, "mcp", committed),
+    })
     // The runtime's `done` rejects when it is closed, so something must hold
     // that catch or a clean shutdown surfaces as an unhandled rejection. Same
     // reason as `../serve.ts`, and registered in the same order: `stopped`

@@ -415,9 +415,18 @@ curated list is placements rather than copies; `set_after`'s, that a dependency
 is written from the node that waits.
 
 How those tools reach an agent is NOT this package's any more. `@olai/server`
-projects the table onto `@kolu/surface-mcp` bespoke tools, so the browser and
-an agent read one surface rather than two projections of the same ops layer.
-What stayed here is what an op MEANS, which is the half that was always ours.
+projects the table onto `@kolu/surface-mcp` bespoke tools, so an agent reads
+the same surface a browser does rather than a second declaration of it. What
+stayed here is what an op MEANS, which is the half that was always ours.
+
+**There are two writers now, and they are one layer.** The keyboard editor
+reaches these same procedures by another projection: a browser sends an INTENT
+over the surface (`indent this`, `toggle done`, `a new sibling after this`) and
+`packages/server/src/edit.ts` resolves it — against the same snapshot the write
+will be judged against — into exactly one `Request` for `run`. Nothing about
+that is visible from here, which is the property worth keeping: an op does not
+know whether a person or an agent asked for it, and neither of them can name a
+byte.
 
 A refused write still comes back as an `isError` result carrying its structured
 detail — a protocol error is for a call the server could not process, and a
@@ -428,7 +437,10 @@ that package's `ToolFailure`.
 ## Layering
 
 Depends on `@olai/format` and `@olai/store`. `@olai/surface` is deliberately
-absent: an op does not know it is being called over a wire.
+absent, and it stayed absent when the browser became a writer: the keystroke →
+op resolution lives one layer up (`@olai/server`), because putting it here
+would mean this package importing the wire's vocabulary — and `@olai/web`
+inheriting `@olai/store` through it.
 [docs/architecture.md](../../docs/architecture.md) has the reasoning.
 
 ## Running
