@@ -127,7 +127,7 @@ export const detect: Effect.Effect<Detected> = Effect.gen(function*() {
     ? {}
     : { [SOCKET]: socket }
 
-  const why = yield* Effect.promise(() => answers(command, env))
+  const why = yield* Effect.promise(() => whyNotAnswered(command, env))
   if (why !== null) {
     // The reason is on the line now as well as on the value. It used to say
     // only that "no padi answered", which is the one thing every way of
@@ -186,7 +186,7 @@ const CONVERSATION: ReadonlyArray<AnyMessage> = [
  * "the kolu on your PATH is a build that cannot do this" (worth knowing, and
  * previously invisible).
  */
-const answers = async (
+const whyNotAnswered = async (
   command: string,
   env: Readonly<Record<string, string>>,
 ): Promise<string | null> => {
@@ -222,8 +222,8 @@ const answers = async (
           ? `it did not answer within ${PROBE_MS / 1000}s`
           : "it closed the connection without answering"
       }
-      const verdict = verdictOf(next.value)
-      if (verdict !== undefined) return verdict
+      if (!answersTheProbe(next.value)) continue
+      return refusalIn(next.value)
     }
   } catch (cause) {
     return `talking to it failed: ${reasonOf(cause)}`
@@ -233,18 +233,22 @@ const answers = async (
   }
 }
 
-/** What one message says about the read: `null` it answered, a sentence it
- *  refused, `undefined` it was about something else. A refusal is what a kolu
- *  that reached no daemon sends, so it is a verdict rather than noise — and it
- *  is the one whose reason a reader most wants, since a kolu answering this way
- *  is a kolu that is installed and running against nothing. */
-const verdictOf = (message: AnyMessage): string | null | undefined => {
+/** Two questions, and they were one three-valued answer: this one is "is this
+ *  message ours at all", which is about the ENVELOPE and true of a refusal
+ *  exactly as much as of a success. */
+const answersTheProbe = (message: AnyMessage): boolean =>
+  (message as { readonly id?: unknown }).id === PROBE_ID
+
+/** ... and this one is what our answer SAYS: `null` it answered, a sentence it
+ *  refused. A refusal is what a kolu that reached no daemon sends, so it is a
+ *  verdict rather than noise — and it is the one whose reason a reader most
+ *  wants, since a kolu answering this way is installed, running, and running
+ *  against nothing. */
+const refusalIn = (message: AnyMessage): string | null => {
   const shape = message as {
-    readonly id?: unknown
     readonly result?: unknown
     readonly error?: { readonly message?: unknown }
   }
-  if (shape.id !== PROBE_ID) return undefined
   if (shape.result !== undefined && shape.result !== null) return null
   const said = shape.error?.message
   return typeof said === "string" && said !== ""

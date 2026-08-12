@@ -107,12 +107,23 @@ export const readoutOf = (
   stopped: ReadonlyArray<string>,
 ): Readout => (status === "live" && stopped.length > 0 ? "degraded" : status)
 
-/** How the fifth state looks. Not in {@link LOOK}, because its detail NAMES
- *  what stopped — a reader who is told "something is not arriving" has been
- *  told the least useful true thing available. */
-export const degradedLook = (stopped: ReadonlyArray<string>): Look => ({
-  dot: "bg-doing",
-  label: "partly live",
-  detail:
-    `connected, but nothing is arriving on ${stopped.join(", ")} — what is on screen is missing whatever those carry, and may be missing it silently`,
-})
+/**
+ * How the readout looks — ALL five states, through one door.
+ *
+ * `LOOK` stays a `Record` because a missing transport state must be a type
+ * error, and the fifth cannot join it: its detail NAMES what stopped, and a
+ * reader told only that "something is not arriving" has been told the least
+ * useful true thing available. So the table answers four and this answers
+ * five, and what a caller asks is "how does this look" rather than "which of
+ * the two shapes is this one in".
+ */
+export const lookOf = (
+  readout: Readout,
+  stopped: ReadonlyArray<string>,
+): Look =>
+  readout !== "degraded" ? LOOK[readout] : {
+    dot: "bg-doing",
+    label: "partly live",
+    detail:
+      `connected, but nothing is arriving on ${stopped.join(", ")} — what is on screen is missing whatever those carry, and may be missing it silently`,
+  }

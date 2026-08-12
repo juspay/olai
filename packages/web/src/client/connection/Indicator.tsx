@@ -33,13 +33,7 @@
  * scanned.
  */
 
-import {
-  degradedLook,
-  LOOK,
-  readoutOf,
-  type SurfaceConnectionStatus,
-  unhealthy,
-} from "./status.ts"
+import { lookOf, readoutOf, type SurfaceConnectionStatus, unhealthy } from "./status.ts"
 import { DOT, PILL } from "../readout.ts"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
@@ -59,7 +53,7 @@ export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
    *  scope that draws from it — the framework's own rule for reading the fact. */
   const stopped = () => unhealthy(olai.health())
   const readout = () => readoutOf(props.status, stopped())
-  const look = () => readout() === "degraded" ? degradedLook(stopped()) : LOOK[props.status]
+  const look = () => lookOf(readout(), stopped())
   return (
     <div
       // No position of its own: it is a READOUT and not a control — nothing

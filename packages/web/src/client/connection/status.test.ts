@@ -9,7 +9,7 @@ import type { SurfaceHealth } from "@kolu/surface/solid"
 import { expect, test } from "bun:test"
 
 import {
-  degradedLook,
+  lookOf,
   LOOK,
   needsReload,
   readoutOf,
@@ -78,14 +78,14 @@ test("a live wire under a dead subscription is not drawn as live", () => {
   const stopped = unhealthy(fact([sub("outlines"), sub("documents.keys", "gone")]))
   expect(stopped).toEqual(["documents.keys"])
   expect(readoutOf("live", stopped)).toBe("degraded")
-  expect(degradedLook(stopped).dot).not.toBe(LOOK.live.dot)
-  expect(degradedLook(stopped).label).not.toBe(LOOK.live.label)
+  expect(lookOf("degraded", stopped).dot).not.toBe(LOOK.live.dot)
+  expect(lookOf("degraded", stopped).label).not.toBe(LOOK.live.label)
 })
 
 // What stopped is NAMED. "Something is not arriving" is the least useful true
 // thing available, and a reader cannot act on it.
 test("the degraded detail names what stopped", () => {
-  expect(degradedLook(["documents.keys", "transcript"]).detail)
+  expect(lookOf("degraded", ["documents.keys", "transcript"]).detail)
     .toContain("documents.keys, transcript")
 })
 
@@ -104,4 +104,11 @@ test("only a live wire degrades; the other states speak for themselves", () => {
   for (const state of STATES.filter((s) => s !== "live")) {
     expect(readoutOf(state, ["documents.keys"])).toBe(state)
   }
+})
+
+// One door for all five. The table answers four and cannot answer the fifth —
+// its detail names what stopped — so a caller that had to know which shape a
+// state was in would be the split this collapses.
+test("every state is drawn through one function", () => {
+  for (const state of STATES) expect(lookOf(state, [])).toBe(LOOK[state])
 })

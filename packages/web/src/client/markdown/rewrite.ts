@@ -61,7 +61,7 @@ export const rewrite = (tree: Root, options: Rewrite): readonly Heading[] => {
 const walk = (parent: Root | Element, options: Rewrite, headings: Heading[]): void => {
   for (const child of parent.children) {
     if (child.type !== "element") continue
-    if (child.tagName === "img") point(child, options.from)
+    if (child.tagName === "img") resolvePicture(child, options.from)
     mint(child, options.ids)
     walk(child, options, headings)
     // AFTER the subtree, so what a heading reads as is what is left of it.
@@ -91,7 +91,7 @@ const walk = (parent: Root | Element, options: Rewrite, headings: Heading[]): vo
  * The element is REWRITTEN rather than replaced so the walk above stays one
  * pass over one array: an `<img>` is void, so there is no subtree to carry.
  */
-const point = (element: Element, from: string): void => {
+const resolvePicture = (element: Element, from: string): void => {
   const src = element.properties?.["src"]
   const picture = typeof src === "string" ? pictureOf(from, src) : null
   if (picture !== null && element.properties !== undefined) {
