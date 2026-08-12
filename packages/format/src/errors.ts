@@ -190,6 +190,18 @@ export const hasLine = (error: Pick<OutlineError, "line">): boolean => error.lin
 export const errorLine = (error: OutlineError): string =>
   `${error.file}${hasLine(error) ? `:${error.line}` : ""} ${error.message}`
 
+/** A path of ids as a message names it — `` `a` → `b` → `a` `` — and a LOOP is
+ *  the same thing whose ends are the same id, which is what makes `` `a` → `a` ``
+ *  the honest rendering of an edge onto itself.
+ *
+ *  Here for the reason {@link errorLine} is: the validator names a cycle it
+ *  found on load, and the ops layer names the one a write is about to close,
+ *  before it happens. One sentence about the same shape, and two spellings of
+ *  the arrow would be two — read by a person moving between a refusal in a tool
+ *  result and an error on a page. */
+export const chainOf = (path: ReadonlyArray<string>): string =>
+  path.map((id) => `\`${id}\``).join(" → ")
+
 /** Stable presentation order: by file, then by line, then by code.
  *
  *  Code point order, not `localeCompare` — a locale-sensitive sort would make
