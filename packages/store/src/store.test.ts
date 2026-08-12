@@ -69,12 +69,21 @@ const codec: Codec<string, Loaded, ReadonlyArray<string>> = {
       ? Result.fail(dangling)
       : Result.succeed({ text, broken })
   },
+
+  /** The store's own failure, in this fixture's vocabulary. One string, so a
+   *  test can assert it arrived on the SAME channel a dangling reference does
+   *  — which is the whole of the widening. */
+  unreadable: (failure) => [`the directory could not be read: ${failure.message}`],
 }
 
 // ── the harness ────────────────────────────────────────────────────────
 
 interface Fixture {
   readonly store: Store.Store<Loaded, ReadonlyArray<string>>
+  /** The served directory itself, absolute. Only the test about a directory
+   *  that stops being readable needs it — every other one talks in the
+   *  root-relative paths the store publishes. */
+  readonly root: string
   readonly write: (file: string, contents: string) => void
   readonly remove: (file: string) => void
   /** What is on disk right now, or `null` for a file that is not there. The
@@ -121,6 +130,7 @@ const withStore = <A>(
     })
     return yield* use({
       store,
+      root,
       write,
       remove: (file) => fs.rmSync(path.join(root, file)),
       read: (file) => {
@@ -136,18 +146,7 @@ const withStore = <A>(
               .join("/")
           )
           .sort(),
-      settled: (holds) =>
-        Effect.gen(function*() {
-          for (let attempt = 0; attempt < 200; attempt++) {
-            const snapshot = yield* SubscriptionRef.get(store.snapshot)
-            if (holds(snapshot)) return snapshot
-            yield* Effect.sleep("25 millis")
-          }
-          const stuck = yield* SubscriptionRef.get(store.snapshot)
-          return yield* Effect.die(
-            new Error(`the snapshot never settled; it is ${JSON.stringify(stuck)}`),
-          )
-        }),
+      settled: (holds) => until(store.snapshot, holds, "the snapshot never settled"),
     })
   }).pipe(
     Effect.scoped,
@@ -158,11 +157,40 @@ const withStore = <A>(
   })
 }
 
+/**
+ * Poll one ref until it says what a test is waiting for, or die saying what it
+ * said instead.
+ *
+ * ONE poller for both channels. Nothing in here waits on a duration: a test
+ * that sleeps for as long as it guesses an update takes is flaky on a loaded
+ * runner and slow everywhere else — and a second copy of that budget is one
+ * place to tune it and another to leave stale.
+ */
+const until = <A>(
+  ref: SubscriptionRef.SubscriptionRef<A>,
+  holds: (value: A) => boolean,
+  never: string,
+): Effect.Effect<A> =>
+  Effect.gen(function*() {
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const value = yield* SubscriptionRef.get(ref)
+      if (holds(value)) return value
+      yield* Effect.sleep("25 millis")
+    }
+    const stuck = yield* SubscriptionRef.get(ref)
+    return yield* Effect.die(new Error(`${never}; it is ${JSON.stringify(stuck)}`))
+  })
+
 const snapshotOf = (store: Store.Store<Loaded, ReadonlyArray<string>>) =>
   SubscriptionRef.get(store.snapshot)
 
 const errorsOf = (store: Store.Store<Loaded, ReadonlyArray<string>>) =>
   SubscriptionRef.get(store.errors)
+
+/** Poll until something is on the errors channel — for the failures nobody
+ *  asked for, which arrive on the backstop's own fiber. */
+const settledErrors = (store: Store.Store<Loaded, ReadonlyArray<string>>) =>
+  until(store.errors, (errors) => errors !== null, "nothing reached the errors channel")
 
 // ── boot ───────────────────────────────────────────────────────────────
 
@@ -420,6 +448,83 @@ test("fixing what was refused publishes again and clears the errors", () =>
       expect(snapshot?.value.text).toEqual({ "a.txt": "alpha again" })
       expect(yield* errorsOf(store)).toBeNull()
     })))
+
+// The store's OTHER kind of error, on the same channel as the one above.
+//
+// A probe that cannot read the directory at all — EACCES, a mount that went
+// away, ENOSPC — used to be caught, logged and dropped. Catching it is right:
+// killing this fiber leaves a page live and permanently stale, which is the
+// one failure mode a live store must not have. Dropping it was the bug — the
+// snapshot froze at the last good revision and nothing anywhere said so. So
+// both halves are asserted here: the tree stays, AND the reason is published.
+test("a directory that stops being readable says so, over the last good tree", () =>
+  withStore(
+    { "a.txt": "alpha" },
+    ({ root, store }) =>
+      Effect.gen(function*() {
+        expect((yield* snapshotOf(store))?.rev).toBe(1)
+
+        fs.rmSync(root, { recursive: true, force: true })
+
+        // The backstop's own probe is what finds it — nobody asked, which is
+        // the case that used to go unreported.
+        const errors = yield* settledErrors(store)
+        expect(errors?.[0]).toContain("the directory could not be read")
+
+        const snapshot = yield* snapshotOf(store)
+        expect(snapshot?.rev).toBe(1)
+        expect(snapshot?.value.text).toEqual({ "a.txt": "alpha" })
+      }),
+    { backstop: "20 millis" },
+  ))
+
+// ...and it says it ONCE. Every write to this ref is a frame the server sends
+// to every open browser, so a directory that stays unreadable — a mount that
+// is not coming back before somebody notices — would otherwise re-broadcast a
+// byte-identical error on every backstop tick and every write gate's probe,
+// forever.
+//
+// Asserted on IDENTITY, which is what makes it a fence rather than a
+// restatement: `codec.unreadable` allocates a fresh value per call, so a
+// dedupe that stopped deduping cannot leave the same object on the ref.
+test("a directory that stays unreadable is said once, not on every probe", () =>
+  withStore(
+    { "a.txt": "alpha" },
+    ({ root, store }) =>
+      Effect.gen(function*() {
+        fs.rmSync(root, { recursive: true, force: true })
+        const first = yield* settledErrors(store)
+
+        // Ten more looks at the same missing directory — the backstop's, and
+        // the ones a caller asks for.
+        for (let probe = 0; probe < 5; probe++) yield* Effect.ignore(store.refresh)
+        yield* Effect.sleep("120 millis")
+
+        expect(yield* errorsOf(store)).toBe(first)
+      }),
+    { backstop: "20 millis" },
+  ))
+
+// ...and it clears itself when the directory comes back, exactly as a
+// validation failure does. Nothing is written for that: publishing a revision
+// clears the errors ref, which is what makes ONE channel the right shape for
+// two kinds of error rather than a convenience.
+test("a directory that comes back clears what was said about it", () =>
+  withStore(
+    { "a.txt": "alpha" },
+    ({ root, store, write }) =>
+      Effect.gen(function*() {
+        fs.rmSync(root, { recursive: true, force: true })
+        expect(yield* settledErrors(store)).not.toBeNull()
+
+        write("a.txt", "alpha again")
+        yield* store.refresh
+
+        expect(yield* errorsOf(store)).toBeNull()
+        expect((yield* snapshotOf(store))?.value.text).toEqual({ "a.txt": "alpha again" })
+      }),
+    { backstop: "20 millis" },
+  ))
 
 // ── the watcher ────────────────────────────────────────────────────────
 

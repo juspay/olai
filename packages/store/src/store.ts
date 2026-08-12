@@ -59,7 +59,7 @@ import type { FileSystem, Path, Scope } from "effect"
 
 import type { Codec } from "./codec.ts"
 import * as Disk from "./disk.ts"
-import { type PlatformFailure, StaleWrite } from "./errors.ts"
+import { PlatformFailure, StaleWrite } from "./errors.ts"
 import * as Probe from "./probe.ts"
 
 /** Monotonic per store. A snapshot's revision is what a later write will name
@@ -230,13 +230,41 @@ export const make = <F, S, E>(
     const snapshot = yield* SubscriptionRef.make<Snapshot<S> | null>(null)
     const errors = yield* SubscriptionRef.make<E | null>(null)
 
-    // A `SubscriptionRef` emits on every write, equal or not — and every
-    // emission here is a frame the server sends to every open browser. A valid
-    // probe clearing errors that were already clear is the common case, so it
-    // is the one that must not broadcast.
-    const clearErrors = Effect.flatMap(
-      SubscriptionRef.get(errors),
-      (current) => current === null ? Effect.void : SubscriptionRef.set(errors, null),
+    /**
+     * WHAT IS ON THE ERRORS REF, when what is on it is an unreadable
+     * directory — the failure's own words, or `null` for anything else.
+     *
+     * A `SubscriptionRef` emits on every write, equal or not, and every
+     * emission here is a frame the server sends to every open browser. So both
+     * writers below owe the same thing: say it when it changes, and say
+     * nothing when it has not. A directory that stays unreadable is re-probed
+     * by the backstop every sixty seconds and by every `commit` on its way in,
+     * and without this each one would push a byte-identical frame to every
+     * open tab, forever.
+     *
+     * Keyed on the failure's words rather than on `E`, which the store cannot
+     * compare — it never looks inside one.
+     */
+    const said = yield* Ref.make<string | null>(null)
+
+    const sayUnreadable = (failure: PlatformFailure) =>
+      Effect.flatMap(Ref.get(said), (before) =>
+        before === failure.message ? Effect.void : Effect.andThen(
+          Ref.set(said, failure.message),
+          SubscriptionRef.set(errors, options.codec.unreadable(failure)),
+        ))
+
+    // A valid probe clearing errors that were already clear is the common
+    // case, so it is the one that must not broadcast. It forgets `said` either
+    // way: that ref is about what is PUBLISHED, and a directory that broke,
+    // came back and broke again the same way would otherwise be reported once
+    // in its life.
+    const clearErrors = Effect.andThen(
+      Ref.set(said, null),
+      Effect.flatMap(
+        SubscriptionRef.get(errors),
+        (current) => current === null ? Effect.void : SubscriptionRef.set(errors, null),
+      ),
     )
 
     // What has moved since the last PUBLISHED revision. It is a ref rather than
@@ -257,6 +285,9 @@ export const make = <F, S, E>(
         if (Result.isFailure(outcome)) {
           // The snapshot stays where it is, so what moved is still owed to
           // whoever reads the next one: `since` is kept rather than cleared.
+          // What IS cleared is `said` — this write replaces whatever the
+          // unreadable path last published, so it must not go on claiming to.
+          yield* Ref.set(said, null)
           yield* SubscriptionRef.set(errors, outcome.failure)
           return Result.fail(outcome.failure)
         }
@@ -280,9 +311,22 @@ export const make = <F, S, E>(
     const gate = yield* Semaphore.make(1)
     /** One probe-and-publish cycle, with no permit of its own — every caller
      *  below already holds it. */
-    const cycle = Effect.flatMap(
-      probe.run,
-      (found) => found === null ? Effect.void : Effect.asVoid(publish(found)),
+    const cycle = Effect.tapError(
+      Effect.flatMap(
+        probe.run,
+        (found) => found === null ? Effect.void : Effect.asVoid(publish(found)),
+      ),
+      // The store's OTHER kind of error, published on the channel the codec's
+      // own refusals travel — one channel, two kinds ({@link Codec.unreadable},
+      // which owns the argument). HERE rather than in the sync loop below,
+      // because it is a fact about a PROBE and not about who asked for one: a
+      // directory that cannot be read is the same news whether the backstop
+      // found it, a caller's `refresh` did, or the write gate did on its way in.
+      //
+      // It still FAILS afterwards. Publishing is telling everybody; the typed
+      // failure is answering the caller, and a `commit` that could not probe
+      // must not go on to judge a write against a tree it never saw.
+      sayUnreadable,
     )
     const refresh = gate.withPermit(cycle)
 
@@ -354,8 +398,14 @@ export const make = <F, S, E>(
     const dirty = yield* Latch.make(false)
 
     if (options.watch !== false) {
-      // Retried rather than fatal: losing the watcher costs latency, and the
-      // backstop is what keeps that from costing correctness.
+      // Retried rather than fatal, and retried QUIETLY — which is a trade and
+      // not an oversight. Losing the watcher costs latency and nothing else:
+      // the backstop probes unconditionally, so the set on screen still
+      // converges on the disk, just at sixty seconds instead of at seventy-five
+      // milliseconds. Nothing a reader could do about it either, since the
+      // recovery is already running. What a FAILED PROBE costs is different in
+      // kind — the set stops converging at all — and that one is published
+      // (below).
       yield* Stream.runForEach(disk.watch, () => dirty.open).pipe(
         Effect.retry(Schedule.spaced(WATCH_RETRY)),
         Effect.forkScoped({ startImmediately: true }),
@@ -374,10 +424,21 @@ export const make = <F, S, E>(
         yield* dirty.await
         yield* Effect.sleep(options.settle ?? DEFAULT_SETTLE)
         yield* dirty.close
-        // A probe that failed keeps the last good snapshot and says so in the
-        // log. Killing this fiber would leave a page live and permanently
-        // stale, which is the one failure mode a live store must not have; the
-        // next trigger, or the backstop, tries again.
+        // A probe that failed keeps the last good snapshot, and this fiber
+        // goes on: killing it would leave every reader on a page that is live,
+        // permanently stale and saying neither, which is the one failure mode
+        // a live store must not have. The next trigger, or the backstop, tries
+        // again.
+        //
+        // Catching it used to be the WHOLE of it, and that was the bug — the
+        // reason went to the log, the outline froze at the last good revision,
+        // and nothing on screen said so. It is published now, by `cycle`
+        // itself: this catch is what keeps the loop alive, not what decides
+        // whether anybody is told.
+        //
+        // `catchCause` rather than `catch`, because a defect here is a bug in
+        // this package rather than news about somebody's directory: it belongs
+        // in the log and nowhere else.
         yield* Effect.catchCause(
           refresh,
           (cause) => Effect.logWarning("olai store: probe failed", cause),

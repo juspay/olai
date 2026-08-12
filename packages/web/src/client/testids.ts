@@ -63,6 +63,11 @@ export const TESTID = {
   nodeMenuPanel: "node-menu-panel",
   /** One item inside that panel. `data-action` names the verb. */
   nodeMenuItem: "node-menu-item",
+  /** What the last-chosen action could NOT do, beside the `•••` for a few
+   *  seconds. It exists for the clipboard: a write is refused whenever the
+   *  page is not a secure context, which is every LAN reader on plain http,
+   *  and a copy that never happened used to look exactly like one that did. */
+  nodeMenuSaid: "node-menu-said",
   /** One folder in the sidebar's file tree. `data-path` is the root-relative
    *  path, `data-collapsed` says whether its children are hidden. */
   fileDir: "file-dir",
@@ -109,6 +114,13 @@ export const TESTID = {
    *  and ABSENT on a document with fewer than two headings, which is what makes
    *  "a note never gets one" assertable. */
   toc: "toc",
+  /** A `![](…)` this app will not draw — a remote host, a `data:`, an `.svg`,
+   *  or the ordinary case, a filename with a typo in it. Drawn WHERE THE
+   *  PICTURE WOULD HAVE BEEN and naming the `src` that was written, because
+   *  the alternative (which this replaced) is a page with a hole in it that
+   *  neither the person who wrote the typo nor the agent asked about it can
+   *  see. The written `src` also rides `data-src`. */
+  undrawnPicture: "undrawn-picture",
   /** One line of it: a link to a heading in the same page. Its `href` is the
    *  fragment, which is the whole claim — the id it names is the one the
    *  rendered heading carries. */
@@ -307,6 +319,11 @@ export const TESTID = {
   chatRefusal: "chat-refusal",
   /** What the last VERB refused — an empty send, a turn already running. */
   chatRefused: "chat-refused",
+  /** Why the picker has no conversations to offer. Its OWN answer rather than
+   *  the panel's `chatRefused`, because the click that asked was here — and
+   *  because a refusal that resolved to an empty list used to be drawn as "no
+   *  stored conversations", which is a claim about the agent's disk. */
+  chatSessionsRefused: "chat-sessions-refused",
   /** What went wrong where nobody was waiting: a boot, a dead agent. */
   chatTrouble: "chat-trouble",
   chatInput: "chat-input",

@@ -22,6 +22,10 @@
  *   add <title>  call `add_node` under the first outline's first root
  *   servers      name the MCP servers this session was handed
  *   slow         dawdle, long enough to cancel
+ *   deaf         go quiet with our stdin closed, so nothing said back arrives
+ *   talkative    keep streaming through a cancel, the way a slow one does
+ *   picture      answer with an `image` block, which the panel cannot draw
+ *   lose         refuse every `session/list` from here on
  *   flood        say more than fits, so scrolling is a thing that can be tested
  *   hold         start a tool call and STOP there, until released
  *   model <id>   switch the model the way the wrapped CLI does
@@ -77,6 +81,13 @@ const emit = (message: unknown): void => {
 
 const respond = (id: unknown, result: unknown): void => {
   emit({ jsonrpc: "2.0", id, result })
+}
+
+/** The other half of {@link respond}: a request we will not answer. Named for
+ *  the same reason its sibling is — the envelope is the protocol's, not this
+ *  file's, and two hand-built copies is how one of them drifts. */
+const refuse = (id: unknown, code: number, message: string): void => {
+  emit({ jsonrpc: "2.0", id, error: { code, message } })
 }
 
 const notify = (method: string, params: unknown): void => {
@@ -136,6 +147,14 @@ let mcp: { url: string; headers: Record<string, string> } | null = null
 let servers: ReadonlyArray<string> = []
 /** Set by a `session/cancel` notification, cleared when a prompt is accepted. */
 let cancelled = false
+/** Whether we shut our own stdin (`deaf`). Read where the end of that pipe
+ *  would otherwise mean the client had gone. */
+let deaf = false
+/** Whether `session/list` refuses from here on (`lose the conversations`). A
+ *  prompt rather than an environment variable, because boot ASKS — a server
+ *  that refused from the start would fail its own boot instead of reaching the
+ *  picker, which is the thing under test. */
+let listRefused = false
 /** What the client said it can do, out of `initialize`. Read for one thing: a
  *  client that did not advertise `elicitation.form` is one a real adapter would
  *  never ask a structured question of, and this one does not either. */
@@ -251,6 +270,25 @@ const say = (text: string): void => {
   })
 }
 
+/** An answer that is NOT prose — the protocol's `image` content block, which
+ *  the panel cannot draw. One pixel of base64, because what is under test is
+ *  that a block of this kind leaves a mark rather than a blank, and the bytes
+ *  are the one part of it nothing reads. */
+const showPicture = (): void => {
+  notify("session/update", {
+    sessionId,
+    update: {
+      sessionUpdate: "agent_message_chunk",
+      content: {
+        type: "image",
+        mimeType: "image/png",
+        data:
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      },
+    },
+  })
+}
+
 const sleep = (millis: number) => new Promise<void>((done) => setTimeout(done, millis))
 
 /** The file a scenario touches to let a held turn go on. */
@@ -323,6 +361,62 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     say("thinking")
     for (let tick = 0; tick < 200 && !cancelled; tick++) await sleep(50)
     respond(id, { stopReason: cancelled ? "cancelled" : "end_turn" })
+    return
+  }
+
+  // A turn nothing can be said INTO. The read end of our stdin is closed while
+  // the process goes on streaming, so every later frame the client writes gets
+  // EPIPE — which is exactly what a cancel aimed at an agent whose pipe has
+  // died looks like, and the one shape of failure that used to be swallowed
+  // whole (`Effect.ignore` on the notify): the button was pressed, nothing
+  // happened, and the turn went on. Alive and deaf rather than dead, because a
+  // process that EXITS is noticed by the exit handler and reported on its own.
+  if (verb === "deaf") {
+    say("thinking, and no longer listening")
+    deaf = true
+    process.stdin.destroy()
+    // ...and NEVER ANSWERS. The turn stays open for the length of the
+    // scenario, which is the whole of what is being reproduced: a cancel is
+    // written into a pipe nobody is reading, the write reports nothing back
+    // (under Bun a pipe never tells its writer the reader has gone — checked,
+    // both for a closed stdin and for a process that has exited), and the turn
+    // goes on. Everything about that used to look like success from olai's
+    // side, which is exactly why the panel has to watch the TURN rather than
+    // the write.
+    await sleep(30_000)
+    return
+  }
+
+  // An agent that will not stop yet and SAYS SO — the honest slow case. It
+  // ignores the cancel (a real one is inside a tool call it cannot abandon
+  // mid-way) and keeps streaming, which is precisely what must NOT be reported
+  // as an agent that has stopped listening.
+  if (verb === "talkative") {
+    for (let said = 1; said <= 12; said++) {
+      say(`still working ${said}\n`)
+      await sleep(700)
+    }
+    respond(id, { stopReason: cancelled ? "cancelled" : "end_turn" })
+    return
+  }
+
+  // An answer with something in it this panel cannot draw. It used to be
+  // dropped on the floor — the row was there and it was EMPTY — so the whole
+  // claim is that the transcript says a picture arrived.
+  if (verb === "picture") {
+    say("here it is:")
+    showPicture()
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  // From now on we cannot say what conversations we have. Not the same as
+  // having none — and until the picker grew a refused arm, both arrived there
+  // as an empty list and were drawn as "no stored conversations".
+  if (verb === "lose") {
+    listRefused = true
+    say("the conversation store is unreadable")
+    respond(id, { stopReason: "end_turn" })
     return
   }
 
@@ -654,6 +748,14 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
 
     case "session/list":
       if (typeof params["cwd"] === "string") cwd = params["cwd"].replace(/\/+$/, "")
+      // An agent that CANNOT say what it has stored — asked, and refusing.
+      // Distinct from an agent with nothing stored, which answers an empty
+      // list, and the whole point of the scenario that arms it: the two used
+      // to reach the picker as the same thing.
+      if (listRefused) {
+        refuse(id, -32000, "the conversation store is unreadable")
+        return
+      }
       respond(id, { sessions: stored() ? storedSessions() : [] })
       return
 
@@ -710,11 +812,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
 
     default:
       if (id !== undefined && id !== null) {
-        emit({
-          jsonrpc: "2.0",
-          id,
-          error: { code: -32601, message: `no such method: ${String(method)}` },
-        })
+        refuse(id, -32601, `no such method: ${String(method)}`)
       }
   }
 }
@@ -754,4 +852,9 @@ readMessages(
   (line) => noise(`fake agent: not JSON: ${line}`),
 )
 
-process.stdin.on("end", () => process.exit(0))
+// Our client hung up, so there is nobody left to answer — except when WE shut
+// the pipe deliberately (`deaf`), where staying alive and streaming is the
+// whole point of the scenario.
+process.stdin.on("end", () => {
+  if (!deaf) process.exit(0)
+})

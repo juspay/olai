@@ -15,7 +15,11 @@
  *     `.use({ keys })`, which is exactly what happens below — and `rawStream`
  *     rather than a bare `unenrolledStreamCall` so the stream is still in
  *     `client.health()`: a key stream that died would otherwise read as a
- *     directory with no documents in it.
+ *     directory with no documents in it. Being in the fact is half of it and
+ *     was for a while the whole of it — nothing in the client READ the fact,
+ *     so the enrolment bought a dead stream that was findable and still not
+ *     reported. The connection pill reads it now (`../connection/status.ts`),
+ *     which is what turns this line into the guarantee it always claimed.
  *   - {@link Documents.read} is the BODY of one document, from a narrowed
  *     subscription whose keys are the documents somebody is showing. A body
  *     reaches this tab when a component asks for it and stops arriving when
