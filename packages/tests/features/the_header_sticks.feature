@@ -62,6 +62,23 @@ Feature: The header sticks
     Then the app header is at the top of the viewport
     And the heading "Lists" is clear of the header
 
+  # A palette is a redefinition of eight custom properties and the bar's
+  # geometry knows nothing about it — but the CHIPS do hang off the header, and
+  # a positioned bar with a z-index is a stacking context they are now inside
+  # of. So the pick is made from the BOTTOM of a scrolled page: the popover has
+  # to open over the page rather than under it for the chip to take the click at
+  # all (Playwright refuses to click what something else would receive), and the
+  # bar has to be in the same place afterwards as before.
+  @corpus:good
+  Scenario: The bar sticks in a dark palette, picked from a scrolled page
+    Given the window is shorter than the page
+    And I open the outline "house.jsonl"
+    When I scroll to the bottom of the page
+    And I pick the theme "dark"
+    Then the page is in the theme "dark"
+    And the app header is at the top of the viewport
+    And the header chrome takes the pointer where the page runs under it
+
   @corpus:good
   Scenario: The agent dock still meets the bar after the page has scrolled
     Given the window is shorter than the page
