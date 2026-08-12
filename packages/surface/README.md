@@ -44,6 +44,18 @@ Which kind each member is was a decision. Three are the outline:
   entries, and that independence is load-bearing: a set that stops validating
   leaves the last good tree on screen underneath a banner, which is only
   expressible if the two arrive separately.
+- **`git` is a cell**, read-only on the wire, and it is here because of a bug:
+  writes came back `committed: false` on a directory its owner knew was a
+  repository, and the reason went to the server's log where a browser reader
+  never sees it. Whether this directory is a work tree, and whether the last
+  commit worked, is one value the server owns about the DIRECTORY rather than
+  about any file in it — four states (`off` under `--no-commit`, `repo`, `none`,
+  `error` with git's own words), which the app header draws as three: a quiet
+  one, a calm "Not a Git repo", and a "Git error" carrying what git said. It
+  moves at most twice in an ordinary serve — the probe, and a commit that
+  refuses — so nothing about it is a stream. Its shape is deliberately the same
+  as `@olai/ops`' own `GitState`: the server hands one straight to the other,
+  and the two drifting is a type error at that seam.
 
 `OutlineEntry` carries a file's nodes, its `rev`, and its `broken` — and the
 last of those is the per-entity error scope as DATA: a file that stopped
@@ -88,10 +100,36 @@ subject of their own:
 - **`chat` is a cell**: which session this is, what it is called, which model is
   running, what slash commands the agent offers, whether a turn is in flight.
   One value the server owns, read-only on the wire.
-- **the procedures are the verbs**: send, cancel, new, load, and the list the
-  picker draws. Each declares its failure channel, so "a turn is already
-  running" arrives as a `busy` a caller can branch on rather than as an opaque
-  transport error.
+- **the procedures are the verbs**: send, cancel, new, load, the list the
+  picker draws, and `attach`. Each declares its failure channel, so "a turn is
+  already running" arrives as a `busy` a caller can branch on rather than as an
+  opaque transport error.
+
+`attach` is the one that carries BYTES, and both halves of that are decisions.
+It is a PROCEDURE rather than an upload route, because a procedure inherits the
+origin gate and the session the listener already enforces for the websocket,
+where a second HTTP route would need its own copy of both. And it is CHUNKED,
+because a frame that scaled with the file would eventually be an oversized one,
+and the wire answers that by closing the socket rather than failing the call —
+taking every other subscription on that tab down with it. `src/attach.ts` holds
+the numbers and the derivation behind them (3 MiB per chunk, a multiple of 3 so
+base64's grouping divides it exactly; 50 MB per file, a separate number on
+purpose), and it lives here for the same reason the media URL does: the browser
+gates on it before encoding and the server gates on it before writing, and two
+copies of a threshold are two thresholds.
+
+It is a SIBLING of `send` rather than a widening of it: the two answer different
+questions — `attach` says where the bytes landed, `send` says a turn was
+accepted — and one picture is N calls to one send. What `send` grew is a list of
+PATHS, which are what `attach` answered with; the bytes are already on disk by
+then, and the agent is handed the path and reads the file itself.
+
+`attach` answers with the file's NAME as well as its path, and that is not a
+convenience. The name a caller SENT is a request: the server sanitizes it and
+suffixes a collision, so `shot.png` pasted twice is `shot.png` and `shot-1.png`,
+and it is the answer that the transcript row carries. A client keeping the name
+it sent would be keeping a second answer to "what is this called" — one paste
+away from drawing one picture on another message's row.
 
 Nothing in the transcript is an optimistic echo — what a person typed appears
 because the server put it there, exactly like everything else, so two tabs

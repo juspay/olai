@@ -13,9 +13,10 @@
  *   - `codec` — the joint between the format and the store. It is here because
  *     this is the layer that holds both, and because the write gate validates
  *     through it on every commit;
- *   - `make` — the ops service: one `run` that plans, commits and retries. The
- *     planner behind it is deliberately NOT exported: it is the inside of this
- *     one, and its own tests reach it directly;
+ *   - `make` — the ops service: one `run` that plans, commits and retries, and
+ *     one `git` saying what git is doing for the directory it writes to. The
+ *     planner and the commit hook behind them are deliberately NOT exported:
+ *     they are the inside of this one, and their own tests reach them directly;
  *   - `Query` — how a reader that is not a browser sees the set, over parsed
  *     nodes and never over bytes;
  *   - `TOOLS` — the closed list of what an agent may do, each entry carrying
@@ -31,6 +32,10 @@
 
 export { codec } from "./codec.ts"
 export type { Store } from "./deps.ts"
+/** What git is doing for a served directory. A TYPE rather than the module
+ *  behind it: a consumer publishes this value, and the two subprocesses that
+ *  produce it are this layer's business. */
+export type { GitState } from "./git.ts"
 export { make, type Ops, type Options } from "./ops.ts"
 export { type Applied, Request } from "./request.ts"
 export { type Reading, type Tool, TOOLS, toolNamed } from "./tools.ts"

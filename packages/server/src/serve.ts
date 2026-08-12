@@ -85,7 +85,17 @@ export const serve = (options: ServeOptions) =>
       // writes this is a property of — a second writer would report nothing.
       onRefusal: (request, failure) =>
         chat === null ? Effect.void : chat.recordRefusal(request.op, failure),
+      // The other thing about a write a reader is owed: whether it reached a
+      // history. Published rather than logged, because the person this
+      // concerns is reading a browser (HACKING.md).
+      onGit: (state) => publish?.git(state),
     })
+
+    // Asked BEFORE the surface is bound, because it is what the git cell opens
+    // on: a page that has not provoked a write yet still has to know whether
+    // the directory it is reading is a repository. One `rev-parse` per serve —
+    // the ops layer keeps the answer — and none at all under `--no-commit`.
+    const git = yield* ops.git
 
     const adapter = adapterFrom(process.env[AGENT_ENV])
     if (adapter === null) yield* Effect.logInfo(whyNoAgent(process.env[AGENT_ENV]))
@@ -105,7 +115,7 @@ export const serve = (options: ServeOptions) =>
       onTranscript: (change) => publish?.transcript(change),
     })
 
-    const wired = yield* bind({ store, chat })
+    const wired = yield* bind({ store, chat, git })
     publish = wired.publish
 
     // A faulted runtime is unrecoverable structural damage, and telling that

@@ -413,3 +413,27 @@ Feature: Talking to the agent
     Then the agent's answer mentions "you said: hello"
     When I start a new conversation
     Then the chat is empty
+
+  @scratch:chat
+  Scenario: A pasted picture reaches the agent as a file it can read
+    # The whole claim of the design, end to end: the bytes go from a Blob in
+    # this tab into a tmp directory of the conversation's own, and what the
+    # agent is handed is the PATH. So what is asserted is that the agent READ
+    # the file — a size it can only have got off the disk — and not that a chip
+    # appeared. The chip is asserted too, because the transcript is where a
+    # reader learns which picture went with which message.
+    When I paste a picture called "shot.png" into the chat
+    Then the composer is holding the picture "shot.png"
+    When I ask the agent "what is this"
+    Then the agent's answer mentions "read 70 bytes from shot.png"
+    And the conversation shows the picture "shot.png"
+
+  @scratch:chat
+  Scenario: A picture olai does not take is refused before it is uploaded
+    # An SVG is a picture as far as the clipboard is concerned and a document
+    # that can script as far as this app is concerned. The gate is one module
+    # both ends read, so the browser refuses exactly what the server would
+    # have — before spending an upload finding out.
+    When I paste a picture called "logo.svg" into the chat
+    Then the chat eventually shows "not a picture"
+    And the composer is holding nothing

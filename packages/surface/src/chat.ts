@@ -28,9 +28,12 @@
  *     the panel header is a view of it.
  *
  *   - **the procedures are the verbs**: send, cancel, new, load, the list the
- *     picker draws, and the two that answer a question the agent asked. Each
- *     declares its failure channel, so "a turn is already running" arrives as a
- *     `busy` a caller can branch on rather than as an opaque transport error.
+ *     picker draws, the two that answer a question the agent asked, and
+ *     `attach` — the one that carries BYTES, in bounded chunks, because a
+ *     pasted picture is the one thing about a conversation that is not already
+ *     a string. Each declares its failure channel, so "a turn is already
+ *     running" arrives as a `busy` a caller can branch on rather than as an
+ *     opaque transport error.
  *
  * Nothing in the transcript is an optimistic echo. What a person typed appears
  * because the server put it there, exactly like everything else — so two tabs
@@ -38,7 +41,7 @@
  * was never sent.
  */
 
-import { BusyFailure, isOpFailure, kindOf, OpFailure } from "@olai/format"
+import { BusyFailure, isOpFailure, kindOf, OpFailure, UsageFailure } from "@olai/format"
 import { Schema } from "effect"
 
 /**
@@ -147,7 +150,8 @@ export type Ask = typeof Ask.Type
  * A union of six kinds rather than a struct with everything optional, because
  * they are drawn differently and a reader has to switch on something:
  *
- *   - `user` — what was typed. Never markdown: it is quoted, not rendered.
+ *   - `user` — what was typed, and the names of any pictures sent with it.
+ *     Never markdown: it is quoted, not rendered.
  *   - `agent` — the agent's prose, accumulated as it streams. Rendered as
  *     markdown once the turn is done, which is a view-time decision.
  *   - `tool` — a tool call, foldable, updated in place by its own id.
@@ -203,8 +207,63 @@ export const ChatEntry = Schema.Struct({
   /** True while the agent is still adding to this entry. The panel shows a
    *  cursor; nothing else depends on it. */
   streaming: Schema.optionalKey(Schema.Boolean),
+  /** `user` only: the pictures sent with the message, by FILE NAME.
+   *
+   *  Names and not paths, and not bytes. The agent was handed the tmp path in
+   *  its prompt — that is the whole transport — and what a reader needs from
+   *  the row is which picture went with which message. The tab that pasted it
+   *  still has the Blob and draws a thumbnail from it; every other tab, and
+   *  this one after a reload, draws the name as a chip. `/media/*` cannot help
+   *  either of them: it is guarded to the served directory and these bytes are
+   *  deliberately in tmp. */
+  attachments: Schema.optionalKey(Schema.Array(Schema.String)),
 })
 export type ChatEntry = typeof ChatEntry.Type
+
+/**
+ * One piece of a picture on its way to the conversation's tmp directory.
+ *
+ * A CHUNK, not a file: the bytes arrive as a sequence of these, because a
+ * frame that scaled with the file would eventually be an oversized frame, and
+ * the wire answers one of those by closing the socket rather than failing the
+ * call — see {@link ./attach.ts}, which owns the numbers.
+ */
+export const AttachChunk = Schema.Struct({
+  /** The file name as the browser had it. Sanitized to a safe basename on the
+   *  way to disk — a name is a label here, never a path. */
+  name: Schema.String,
+  /** ONE chunk of the base64-encoded bytes, cut on a 4-character boundary so
+   *  it decodes independently of its neighbours. */
+  data: Schema.String,
+  /** Absent on the FIRST chunk: create the file. Present on every later one:
+   *  the path the previous call answered with, appended to.
+   *
+   *  It carries no authority. The server re-derives the conversation's own tmp
+   *  directory and refuses any path outside it, so this is a continuation
+   *  token that happens to be readable. */
+  appendTo: Schema.optionalKey(Schema.String),
+})
+export type AttachChunk = typeof AttachChunk.Type
+
+/**
+ * Where the bytes landed, and what they are called there.
+ *
+ * `path` is the same string for every chunk of one file, which is what makes
+ * it usable as the next chunk's `appendTo` — and it is what the prompt names,
+ * because the agent reads the file itself.
+ *
+ * `name` is here because the SENT name is a request and this is the answer:
+ * the server sanitizes it and suffixes a collision (`shot.png` pasted twice is
+ * `shot.png` and `shot-1.png`), and it is this name the transcript row carries.
+ * A caller that kept the name it sent would be keeping a second answer to
+ * "what is this file called" — which is one paste away from being wrong, and
+ * the thing that goes wrong is a thumbnail drawn against the wrong row.
+ */
+export const Attached = Schema.Struct({
+  path: Schema.String,
+  name: Schema.String,
+})
+export type Attached = typeof Attached.Type
 
 /** One of the agent's stored conversations, as the picker lists them. */
 export const SessionInfo = Schema.Struct({
@@ -300,4 +359,4 @@ export const ChatFailure = OpFailure
  *  KIND it is and draw its detail without also depending on the format
  *  package: the browser subscribes to this spec, not to the format, and a
  *  second answer to "which kind is this" is exactly what it must not have. */
-export { BusyFailure, isOpFailure, kindOf, OpFailure }
+export { BusyFailure, isOpFailure, kindOf, OpFailure, UsageFailure }

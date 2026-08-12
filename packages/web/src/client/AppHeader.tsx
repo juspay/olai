@@ -2,8 +2,9 @@
  * The app's own chrome: a slim bar above every column.
  *
  * Principle (settled with the layout rethink): the header carries what is about
- * the APP — the wordmark, the connection, the agent toggle, the theme — and the
- * sidebar carries what is about the DIRECTORY — the calendar and the file tree.
+ * the APP — the wordmark, the connection, git, the agent toggle, the theme —
+ * and the sidebar carries what is about the DIRECTORY — the calendar and the
+ * file tree.
  * One home for chrome means one place to look, including on the error report and
  * the waiting page; the corner-pills special case those screens used to need is
  * gone because the header is always there.
@@ -34,6 +35,7 @@ import { Show } from "solid-js"
 
 import { Toggle as ChatToggle } from "./chat/Panel.tsx"
 import { Indicator } from "./connection/Indicator.tsx"
+import { GitIndicator } from "./git/Indicator.tsx"
 import { connectionStatus } from "./wire.ts"
 import { TESTID } from "./testids.ts"
 import { ThemePicker } from "./theme/Picker.tsx"
@@ -76,12 +78,18 @@ export function AppHeader(props: {
         <h1 class="m-0 text-base uppercase tracking-widest text-muted">olai</h1>
       </div>
 
-      {/* The three pills that are about the app rather than about the page.
-          Always here, so a reader of the error report still has the connection
+      {/* The pills that are about the app rather than about the page. Always
+          here, so a reader of the error report still has the connection
           answer — which is the one they want most of all. Nowrap + truncate on
-          the connection label keeps them inside the bar at 390pt. */}
+          the connection and git labels keeps them inside the bar at 390pt.
+
+          Git sits BESIDE the connection because they are the same kind of
+          promise about two halves of the same page: that it is still reading,
+          and that what is written to it is being kept. It draws nothing at all
+          on a `--no-commit` serve. */}
       <div class="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1.5 sm:gap-2">
         <Indicator status={connectionStatus()} />
+        <GitIndicator />
         <ChatToggle />
         <ThemePicker />
       </div>

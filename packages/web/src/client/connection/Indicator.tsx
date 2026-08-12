@@ -23,6 +23,7 @@
  */
 
 import { LOOK, type SurfaceConnectionStatus } from "./status.ts"
+import { DOT, PILL } from "../readout.ts"
 import { TESTID } from "../testids.ts"
 
 /** The room a page keeps at the bottom of its reading column: the phone's home
@@ -40,9 +41,11 @@ export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
     <div
       // No position of its own: it is a READOUT and not a control — nothing
       // here is tappable — so all it needs is to be legible wherever the layout
-      // decides to put it. `min-w-0` + truncate is what lets the header keep a
-      // single row when the label is long.
-      class="flex min-w-0 max-w-[9.5rem] items-center gap-1.5 truncate rounded-full border border-rule bg-paper px-2 py-1.5 text-xs text-muted sm:max-w-none sm:gap-2 sm:px-3"
+      // decides to put it. The pill itself is `../readout.ts`'s, shared with
+      // the git readout beside it: `min-w-0` + truncate is what lets the header
+      // keep a single row when a label is long, and one copy of that geometry
+      // is one place for it to be got right.
+      class={`${PILL} max-w-[9.5rem] sm:max-w-none`}
       data-testid={TESTID.connection}
       // The state as an attribute, so a test asserts on the STATE rather than
       // on a colour: which utility paints "live" is a styling decision and this
@@ -53,7 +56,7 @@ export function Indicator(props: { readonly status: SurfaceConnectionStatus }) {
       // hear "disconnected" without losing its place in the outline.
       aria-live="polite"
     >
-      <span class={`inline-block size-2 shrink-0 rounded-full ${look().dot}`} aria-hidden="true" />
+      <span class={`${DOT} ${look().dot}`} aria-hidden="true" />
       <span class="min-w-0 truncate">{look().label}</span>
     </div>
   )

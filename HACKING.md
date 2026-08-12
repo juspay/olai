@@ -10,6 +10,8 @@
 - Web
   - UI components are encapsulated & isolated
   - Prefer multiple files & folder hierarchy for ease of navigation, over monolithic modules.
+- MCP
+  - MCP and Web ops must be consistent; never deviate.
 - SolidJS
   - Make full use of the ecosystem of libraries in SolidJS instead of hard-rolling.
 - Error handling

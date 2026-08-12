@@ -26,6 +26,7 @@
  * subscription test is a sequence and not a race.
  */
 
+import { GIT_OFF } from "@olai/surface"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { ResourceUpdatedNotificationSchema } from "@modelcontextprotocol/sdk/types.js"
@@ -83,7 +84,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
   Effect.gen(function*() {
     const root = served()
     const { store } = yield* openDirectory(root)
-    const wired = yield* bind({ store, chat: null })
+    const wired = yield* bind({ store, chat: null, git: GIT_OFF })
     // Not optional, and not ceremony copied from `serve.ts`: the runtime's
     // `done` REJECTS when it is closed, so something has to be holding the
     // catch or every teardown here is an unhandled rejection the test runner
@@ -134,11 +135,12 @@ const textOf = async (client: Client, uri: string): Promise<string> => {
 const readJson = async (client: Client, uri: string): Promise<unknown> =>
   JSON.parse(await textOf(client, uri))
 
-test("the served resources are exactly the three the allowlist names", async () => {
+test("the served resources are exactly the four the allowlist names", async () => {
   await withFace(async ({ client }) => {
     const listed = await client.listResources()
     expect(listed.resources.map((r) => r.uri).sort()).toEqual([
       "surface://cells/errors",
+      "surface://cells/git",
       "surface://collections/documents",
       "surface://collections/outlines",
     ])
