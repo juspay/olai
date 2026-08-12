@@ -19,6 +19,7 @@
 import type { LocatedRegular } from "@olai/format"
 import { For, Show } from "solid-js"
 
+import { NodeTitle } from "./NodeTitle.tsx"
 import { Link } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import { TARGET } from "./touch.ts"
@@ -70,7 +71,9 @@ export function Breadcrumbs(props: {
               class={CRUMB}
               testid={TESTID.crumb}
             >
-              {crumb.node.title}
+              {/* links=false: already inside Link — a markdown [a](url) in the
+                  title must not nest a second <a>. */}
+              <NodeTitle title={crumb.node.title} from={crumb.file} links={false} />
             </Link>
           </>
         )}

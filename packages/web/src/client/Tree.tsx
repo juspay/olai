@@ -247,6 +247,7 @@ function Branch(props: {
             {(shows) => (
               <NodeLine
                 title={shows().node.title}
+                from={shows().file}
                 status={props.row.status}
                 progress={props.row.progress}
                 date={shows().node.date}

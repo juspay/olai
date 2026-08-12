@@ -5,10 +5,12 @@
  * so this is a pure function from a string in a file to HTML — no caching
  * layer on disk, no pre-rendered field in a record, nothing that could go
  * stale. One pipeline serves every piece of markdown this app draws: a node's
- * note, a whole `.md` document, and what the agent says in the chat panel. They
- * are the same language — an agent writing a fenced diff into the panel and a
- * person writing one into a note are doing the same thing — and a second
- * pipeline for any of them would be a second dialect nobody asked for.
+ * note, a whole `.md` document, what the agent says in the chat panel, and a
+ * node's title (inline only — see {@link renderToTree} and
+ * `./title.ts`). They are the same language — an agent writing a fenced diff
+ * into the panel and a person writing one into a note are doing the same thing
+ * — and a second pipeline for any of them would be a second dialect nobody
+ * asked for.
  *
  * The stages, and why each is where it is:
  *
@@ -47,6 +49,10 @@
  * A rendering is therefore two things, and both come out of one run: the HTML,
  * and the heading tree it turned out to have ({@link Rendered}). A table of
  * contents is derived from the second at view time and stored nowhere.
+ *
+ * Titles take one extra step after the pipeline has run: {@link toInline}
+ * unwraps every block to phrasing content, so a heading or a fence that a
+ * person put in a title cannot break the row's baseline layout.
  */
 
 import nix from "highlight.js/lib/languages/nix"
@@ -63,6 +69,7 @@ import { unified } from "unified"
 import type { Root } from "hast"
 
 import { AUTOLINK } from "./anchors.ts"
+import { toInline } from "./inline.ts"
 import type { Heading } from "./outline.ts"
 import { rewrite } from "./rewrite.ts"
 import { SANITISE } from "./sanitise.ts"
@@ -103,9 +110,9 @@ interface Rendered {
 }
 
 /**
- * Keyed by the text AND the file it is in, because both are the input: the
- * file decides where a relative picture points, so the same paragraph in two
- * outlines is two renderings.
+ * Keyed by shape, the text, AND the file it is in: the file decides where a
+ * relative picture points, and shape rides the key so a title that cached a
+ * full document would not poison every later note of that text.
  *
  * It earns its place at the two moments a row is rebuilt from scratch —
  * folding an ancestor and expanding it again, and every frame the live store
@@ -120,19 +127,41 @@ interface Rendered {
 const rendered = new Map<string, Rendered>()
 const CACHE_LIMIT = 512
 
-const renderingOf = (source: string, from: string): Rendered => {
-  const key = `${from}\n${source}`
+const keyFor = (
+  shape: "block" | "inline",
+  from: string,
+  source: string,
+): string => `${shape}\n${from}\n${source}`
+
+const renderingOf = (
+  source: string,
+  from: string,
+  shape: "block" | "inline",
+): Rendered => {
+  const key = keyFor(shape, from, source)
   const hit = rendered.get(key)
   if (hit !== undefined) return hit
 
-  const result = render(source, from, key)
+  const result = render(source, from, key, shape)
   if (rendered.size >= CACHE_LIMIT) rendered.clear()
   rendered.set(key, result)
   return result
 }
 
 export const renderMarkdown = (source: string, from: string): string =>
-  renderingOf(source, from).html
+  renderingOf(source, from, "block").html
+
+/**
+ * The same pipeline as {@link renderMarkdown}, forced down to phrasing content.
+ *
+ * A title is one line of a tree row (or a page heading): bold, links and code
+ * are welcome; a heading, a list or a fence must not introduce a block that
+ * would break that layout. The words of a block stay — a fence becomes its
+ * inline `<code>`, a heading becomes its text — the boxes do not. See
+ * ./inline.ts.
+ */
+export const renderInlineMarkdown = (source: string, from: string): string =>
+  renderingOf(source, from, "inline").html
 
 /**
  * The heading tree of the same rendering — what a table of contents is made of
@@ -144,7 +173,7 @@ export const renderMarkdown = (source: string, from: string): string =>
  * run between them: both go through the memo above, on the same key.
  */
 export const outlineOf = (source: string, from: string): readonly Heading[] =>
-  renderingOf(source, from).headings
+  renderingOf(source, from, "block").headings
 
 /**
  * The same rendering, for text that is still arriving — and deliberately not
@@ -160,10 +189,41 @@ export const outlineOf = (source: string, from: string): readonly Heading[] =>
  * about the panel rather than about markdown.
  */
 export const renderStreaming = (source: string, from: string): string =>
-  render(source, from, `${from}\n${source}`).html
+  // Same key shape as {@link renderingOf} for "block": footnote ids are minted
+  // from the key, so a streamed answer and its final render must agree or
+  // every `href="#md-…-fn-1"` breaks the instant streaming ends.
+  render(source, from, keyFor("block", from, source), "block").html
 
-const render = (source: string, from: string, key: string): Rendered => {
+/**
+ * The sanitised HAST for a source, before stringify.
+ *
+ * Titles need a further walk (style `#tags`, optionally unwrap anchors) that
+ * cannot run on the finished string, so they build the tree once and finish
+ * it themselves. Notes and documents stay on {@link renderMarkdown}.
+ */
+export const renderToTree = (
+  source: string,
+  from: string,
+  shape: "block" | "inline",
+): Root => {
+  const key = keyFor(shape, from, source)
   const tree = pipeline.runSync(pipeline.parse(source)) as Root
+  if (shape === "inline") toInline(tree)
+  rewrite(tree, { from, ids: idsFor(key) })
+  return tree
+}
+
+/** Stringify a tree the pipeline already ran — titles finish their own walk. */
+export const hastToHtml = (tree: Root): string => pipeline.stringify(tree)
+
+const render = (
+  source: string,
+  from: string,
+  key: string,
+  shape: "block" | "inline",
+): Rendered => {
+  const tree = pipeline.runSync(pipeline.parse(source)) as Root
+  if (shape === "inline") toInline(tree)
   const headings = rewrite(tree, { from, ids: idsFor(key) })
   return { html: pipeline.stringify(tree), headings }
 }

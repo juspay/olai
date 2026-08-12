@@ -421,6 +421,21 @@
   opacity: 1;
 }
 
+/* A title is phrasing on a row's baseline. The pipeline already flattens
+ * blocks to phrasing (markdown/inline.ts); these rules are the belt that keeps
+ * a future miss from growing a tree row into a multi-line layout. */
+.olai-md-inline {
+  display: inline;
+}
+
+.olai-md-inline > * {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: none;
+  white-space: normal;
+}
+
 /* A picture is a file in the served directory, whatever size somebody saved
  * it at. It stays inside the column it was written into. */
 .olai-md img {

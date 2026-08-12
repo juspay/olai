@@ -4,20 +4,22 @@
  *
  * **An `<input>`, not a `contenteditable`** — the one design choice in this
  * file, and it follows from what a title IS. A title is one verbatim line of
- * text in a JSON record; it has no markup, no spans and no structure. A
- * `contenteditable` is an HTML document you keep in sync with a string, and it
- * would buy exactly one thing here: `#tags` staying painted while the caret is
- * inside them. What it would cost is the rest of the file — an innerHTML this
- * app writes rather than sanitises, a caret that jumps when a live frame
+ * text in a JSON record. What the page DRAWS is a rendering of it — inline
+ * markdown and `#tags`, sanitised at view time (`../markdown/title.ts`) — and
+ * that is the argument for an input rather than against it: a
+ * `contenteditable` would be that rendered HTML, made editable, and every
+ * keystroke would have to be turned back into the one string the record
+ * actually holds. What it would cost is the rest of the file — an innerHTML
+ * this app writes rather than sanitises, a caret that jumps when a live frame
  * re-renders the row underneath it, and paste arriving as somebody else's
  * markup. An input is one string in and one string out, and it gives us the
  * platform's own caret, selection, undo, IME and autofill for nothing.
  *
- * The trade is visible and deliberate: WHILE YOU TYPE, a title reads as the
- * text on disk, tags and all, and the styled tags come back the moment you
- * leave. That is honest — what is on screen is what the file will say — and it
- * is the same trade the note takes, where a textarea shows markdown and the
- * rendering returns on blur.
+ * The trade is visible and deliberate: WHILE YOU TYPE, a title reads as its
+ * SOURCE — `**bold**` and `#tags` as they are written — and the rendering
+ * comes back the moment you leave. That is honest, it is what the file will
+ * say, and it is exactly the trade the note takes one level down, where a
+ * textarea shows markdown until it closes.
  *
  * Styled to be invisible: the same font, size, weight and colour as the title
  * it replaces, no border, no background, no ring. A row must not jump when it

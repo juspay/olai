@@ -29,7 +29,7 @@
  * be wrong.
  */
 
-import type { ChatEntry, OpFailure } from "@olai/surface"
+import type { AskField, AskOutcome, ChatEntry, OpFailure } from "@olai/surface"
 
 export interface Change {
   readonly upserts: ReadonlyArray<readonly [string, ChatEntry]>
@@ -135,6 +135,49 @@ export class Transcript {
         ...(locations === undefined ? {} : { locations }),
       }),
     )
+  }
+
+  /**
+   * A question the agent asked, as a row that can be answered.
+   *
+   * Keyed by the ask's own id for the same reason a tool call is keyed by its
+   * call id: the row is written twice — once pending, once with what was
+   * chosen — and the second write must be the same row moving rather than a
+   * second one appearing underneath the first.
+   *
+   * The id IS the key, rather than a key derived from it, and that is the one
+   * place a row's key is load-bearing outside this file. A question is the only
+   * entry a browser talks BACK about: it draws the row, somebody fills it in,
+   * and the answer names it. Two spellings — a key on screen and an id on the
+   * wire — would be a mapping to keep in step for nothing, so {@link
+   * ./agent.ts} mints ids in this collection's own key shape (`ask:1`) and the
+   * row is stored under exactly what it was given.
+   *
+   * It closes the open prose entry too. The agent said something and then
+   * stopped to ask, so whatever it says next is a new paragraph.
+   */
+  ask(id: string, message: string, fields: ReadonlyArray<AskField>): Change {
+    return both(
+      this.#close(),
+      this.#put(id, { kind: "ask", text: message, ask: { fields, outcome: null } }),
+    )
+  }
+
+  /** ... and it stopped waiting. The row stays where it is, with what happened
+   *  written into it: a question and its answer are one thing that happened,
+   *  and a transcript that dropped the form would leave an answer with nothing
+   *  above it saying what was asked. */
+  settleAsk(id: string, outcome: AskOutcome): Change {
+    const current = this.#entries.get(id)
+    // A session replaced under a pending question empties the transcript before
+    // the withdrawal reaches us; there is nothing left to settle, and minting a
+    // row here would put a dead question into a fresh conversation.
+    if (current?.ask === undefined) return EMPTY
+    return this.#put(id, {
+      kind: "ask",
+      text: current.text,
+      ask: { fields: current.ask.fields, outcome },
+    })
   }
 
   /** A write the ops layer refused. Its own kind, because the panel draws the

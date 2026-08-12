@@ -270,8 +270,23 @@ export const TESTID = {
   /** The agent's finished prose, rendered as markdown. Its own name rather
    *  than a node note's: they are two different things on the page. */
   chatSaid: "chat-said",
-  /** One row. `data-kind` is which of the five it is. */
+  /** One row. `data-kind` is which of the six it is. */
   chatEntry: "chat-entry",
+  /** A question the agent asked, as a form. `data-asking` is whether it is
+   *  still waiting, `data-how` how it ended once it is not. */
+  chatAsk: "chat-ask",
+  /** One field of that form; `data-field` is the schema property it answers. */
+  chatAskField: "chat-ask-field",
+  /** One tappable option; `data-value` is what travels back, `aria-pressed`
+   *  whether it is picked. */
+  chatAskChoice: "chat-ask-choice",
+  /** A box to type in: a `text`/`number` field, or the "other" companion of a
+   *  question that offers one. */
+  chatAskText: "chat-ask-text",
+  chatAskSubmit: "chat-ask-submit",
+  chatAskDismiss: "chat-ask-dismiss",
+  /** What became of a question, once it stopped waiting. */
+  chatAskOutcome: "chat-ask-outcome",
   /** A tool call's row; `data-tool-status` is the agent's own status. */
   chatTool: "chat-tool",
   chatToolDetail: "chat-tool-detail",
@@ -289,6 +304,9 @@ export const TESTID = {
   chatInput: "chat-input",
   /** How many messages are typed and waiting for the turn in flight. */
   chatQueued: "chat-queued",
+  /** The composer saying the turn is stopped on YOU: the agent asked something
+   *  and is waiting for the form above to be answered. */
+  chatWaiting: "chat-waiting",
   chatSend: "chat-send",
   chatCancel: "chat-cancel",
   /** The pictures on a message — pending in the composer, or sent, on the row.

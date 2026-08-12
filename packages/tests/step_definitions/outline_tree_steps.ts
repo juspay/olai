@@ -449,6 +449,66 @@ Then(
   },
 );
 
+/** Inline markdown in a title — the same promise a note's open body makes,
+ *  scoped to the title span so a bold word in the note cannot answer for it. */
+Then(
+  "the title of {string} renders bold text {string}",
+  async function (this: OlaiWorld, id: string, text: string) {
+    const title = this.nodeTitle(id);
+    await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () =>
+        (await title.locator("strong, b").allInnerTexts()).some(
+          (value) => value.trim() === text,
+        ),
+      `the title of "${id}" to render ${JSON.stringify(text)} in bold`,
+    );
+  },
+);
+
+Then(
+  "the title of {string} renders code {string}",
+  async function (this: OlaiWorld, id: string, text: string) {
+    const title = this.nodeTitle(id);
+    await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () =>
+        (await title.locator("code").allInnerTexts()).some(
+          (value) => value.trim() === text,
+        ),
+      `the title of "${id}" to render ${JSON.stringify(text)} as code`,
+    );
+  },
+);
+
+Then(
+  "the title of {string} does not show its markdown source",
+  async function (this: OlaiWorld, id: string) {
+    const title = this.nodeTitle(id);
+    await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const text = await title.innerText();
+    assert.ok(
+      !text.includes("**") && !text.includes("`"),
+      `the title of "${id}" still contains markdown source: ${JSON.stringify(text)}`,
+    );
+  },
+);
+
+/** No block elements in a title — the inline-only discipline. A heading, a
+ *  list or a fence that leaked through would break the row's baseline layout. */
+Then(
+  "the title of {string} does not render as markdown blocks",
+  async function (this: OlaiWorld, id: string) {
+    const title = this.nodeTitle(id);
+    await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(
+      await title.locator("h1, h2, h3, h4, h5, h6, ul, ol, li, pre, p, blockquote, table").count(),
+      0,
+      `the title of "${id}" still draws markdown blocks`,
+    );
+  },
+);
+
 // ── collapse and expand ────────────────────────────────────────────────
 
 const clickToggle = (world: OlaiWorld, id: string): Promise<void> =>

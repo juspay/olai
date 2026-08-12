@@ -12,6 +12,11 @@
  *     message queues, sending and stopping are two things a person can
  *     genuinely want at the same moment, and hiding the send button would
  *     leave the queue reachable only from the keyboard.
+ *   - **a question the agent asked is said HERE too**, not only where the form
+ *     is. Nothing times out a blocked turn, so a form that has scrolled out of
+ *     sight looks exactly like an agent that is thinking — and this row is
+ *     where a person's attention already is, because it is where they were
+ *     about to type.
  *   - **a picture can be pasted, dropped, or picked.** Three events, one
  *     path: `attach` sends the bytes to the conversation's tmp directory and
  *     answers with a path, which rides the next `send`. All three ship
@@ -293,6 +298,22 @@ export function Composer(props: { readonly chat: Chat }) {
         <Show when={sending() > 0}>
           <span class="font-mono text-[0.6875rem] text-muted">
             attaching{sending() > 1 ? ` ${sending()}` : ""}…
+          </span>
+        </Show>
+        {/* The turn is stopped on a PERSON, and this is where they find out.
+            A blocked question has no clock behind it: nothing times out, the
+            agent will wait as long as it takes, and a form scrolled off the top
+            of a long transcript is otherwise indistinguishable from an agent
+            that is thinking. So the composer — which is where somebody's
+            attention is, because it is where they were about to type — says
+            it, in the row that already carries "queued". */}
+        <Show when={props.chat.state().asking > 0}>
+          <span
+            class="font-mono text-[0.6875rem] text-doing"
+            data-testid={TESTID.chatWaiting}
+            aria-live="polite"
+          >
+            waiting on your answer
           </span>
         </Show>
         {/* Sent, and waiting for the turn in flight. The rows are already in
