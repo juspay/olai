@@ -44,6 +44,15 @@ Within a phase, every rule runs and every error is collected. Stopping at the
 first would turn "fix this file" into a loop of load-fix-load, which is the
 workflow the format exists to remove.
 
+An unknown reference is nearly always a misspelling, so an error about one ends
+with the closest declared id — within a typo's distance (`src/suggest.ts`: a
+third of the id's length, never less than two), and nothing further away, since
+a guess that is merely NEAREST teaches a reader to distrust the offer. That rule
+is exported (`nearestId`, `didYouMean`) for one reason: the ops layer refuses
+the same unknown `mirror` / `after` / `see` target one moment EARLIER, at the
+plan, and a second copy of the budget would let the write and the load disagree
+about what a typo is.
+
 ## Entry point
 
 `main`, `types` and `exports` all point at `src/index.ts`, and its header

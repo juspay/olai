@@ -92,6 +92,12 @@ export {
   Wrote,
 } from "./committing.ts"
 
+/** The typo rule, exported for one reason: the ops layer refuses an unknown
+ *  `mirror` / `after` / `see` target at the PLAN, and the validator refuses the
+ *  same id on load. One question at two moments — a second copy of the budget
+ *  would let the two disagree about what a misspelling is. */
+export { didYouMean, nearestId } from "./suggest.ts"
+
 export { ordBetween } from "./ord.ts"
 export { nodesOf, serializeOutline } from "./write.ts"
 

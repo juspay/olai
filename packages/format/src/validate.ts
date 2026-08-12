@@ -23,13 +23,13 @@
  *     then keeps its last good snapshot and the browser shows a banner.
  */
 
-import { distance } from "fastest-levenshtein"
 import { Result } from "effect"
 
 import { derive, type Derived } from "./derive.ts"
 import { type Document, resolveRelative } from "./documents.ts"
 import { compareErrors, isGuessWhileUnreadable, type OutlineError } from "./errors.ts"
 import { EDGE_FIELDS, isMirror, type Located } from "./node.ts"
+import { didYouMean } from "./suggest.ts"
 import type { OutlineSet } from "./set.ts"
 
 export const validate = (
@@ -328,19 +328,9 @@ const siteOf = ({ file, line }: Located): { file: string; line: number } => ({
   line,
 })
 
-/** "did you mean" — the closest declared id, when one is close enough to be a
- *  typo rather than a different word. An unknown reference is nearly always a
- *  misspelling, and naming the candidate turns a search into a keystroke. */
-const suggest = (id: string, derived: Derived): string => {
-  const budget = Math.max(2, Math.floor(id.length / 3))
-  let best: string | null = null
-  let bestDistance = budget + 1
-  for (const candidate of derived.byId.keys()) {
-    const gap = distance(id, candidate)
-    if (gap < bestDistance) {
-      best = candidate
-      bestDistance = gap
-    }
-  }
-  return best === null ? "" : ` — did you mean \`${best}\`?`
-}
+/** "did you mean", over the ids the set declares. The rule itself is
+ *  {@link ./suggest.ts}'s, because the ops layer refuses the same unknown
+ *  target one moment earlier — at the plan, before the write — and two copies
+ *  of the budget would be two answers to one question. */
+const suggest = (id: string, derived: Derived): string =>
+  didYouMean(id, derived.byId.keys())

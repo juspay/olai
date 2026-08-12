@@ -41,14 +41,17 @@ import type { Effect } from "effect"
 import * as Query from "./query.ts"
 import {
   AddRequest,
+  AfterRequest,
   ArchiveRequest,
   CreateRequest,
   DateRequest,
   DescRequest,
   MarkRequest,
+  MirrorRequest,
   MoveRequest,
   SeeRequest,
   TitleRequest,
+  UnmirrorRequest,
 } from "./request.ts"
 
 /** The set as a reader sees it: the files that were found, and the derivations
@@ -304,9 +307,30 @@ export const TOOLS: ReadonlyArray<Tool> = [
   write(
     "set_see",
     "Set see references",
-    "Add and/or remove free cross-references (`see`) on an existing node. `see` is a link and nothing more — no ordering, no blocking, cycles fine. Give `add` and/or `remove` (ids of targets in the loaded set); an unknown add is refused with the ids that do exist, so the next call can name one. Search and subtree reads carry a node's `see` so you can traverse what is already there.",
+    "Add and/or remove free cross-references (`see`) on an existing node. `see` is a link and nothing more — no ordering, no blocking, cycles fine. Give `add` and/or `remove` (ids of targets in the loaded set); an unknown add is refused with the closest id that does exist. Search and node reads carry a node's `see` so you can traverse what is already there. For \"this cannot start until that is done\", use `set_after` instead — that one is the ordering graph.",
     SeeRequest,
     { op: "see" },
+  ),
+  write(
+    "set_after",
+    "Set what a node waits on",
+    "Add and/or remove `after` edges on an existing node: the ids it must come AFTER. This is how a DEPENDENCY is written — `set_after(id: \"install\", add: [\"order\"])` says installing waits on ordering, and olai then draws `install` as blocked while `order` is an unfinished task. Say it from the waiting node: `a blocks b` is spelled as `b after a`, and the ops layer writes the arrow one way. A target with no mark blocks nothing (a bullet is not work — mark the node, or its branch, with `set_todo`/`set_doing`). Unknown adds are refused with the closest id that exists, and an add that would close a loop is refused NAMING the loop, because nothing in a cycle could ever start first. Node reads carry a node's `after` so you can see what is already there before changing it.",
+    AfterRequest,
+    { op: "after" },
+  ),
+  write(
+    "add_mirror",
+    "Place a mirror",
+    "Show a node that already exists in a SECOND place, without moving or copying it. The record written is a placement — `{id, parent, ord, mirror}` and nothing else — so the mirror has no title, no mark and no note of its own: it draws its target's, wherever the target lives, and edits go on landing at the target. It may cross outlines (a `parent` is same-file, a mirror is how a node appears in another file at all), and its target may itself be a mirror.\n\nTHIS IS HOW A CURATED LIST IS BUILT — a Now/Focus section is mirrors of the items that are live, so the entry and the item can never drift apart the way a re-typed copy does. Place it with `parent` (under a node) or `file` (top level of an outline), `before`/`after` among the siblings there; give `id` to keep a naming convention (`now-<item>`), or let it be minted — the answer's `id` names the placement either way, and that is what retires it. Refused if the placement would sit inside the subtree it shows, which would expand forever.",
+    MirrorRequest,
+    { op: "mirror" },
+  ),
+  write(
+    "remove_mirror",
+    "Retire a mirror",
+    "Take one placement out. `id` is the MIRROR's own id — the placement — never the id of the node it shows: what goes is that one line, and the node keeps its title, its mark, its children, its own place in the outline that defines it, and every other placement of it. So this is what retires a finished item from a Now list without touching the work: nothing is archived, nothing is deleted, nothing is unsaid. Refused on the id of a regular node — `archive_node` is what puts a node and its subtree away.",
+    UnmirrorRequest,
+    { op: "unmirror" },
   ),
 
   act(

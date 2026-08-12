@@ -26,6 +26,7 @@ import {
   derive,
   type Derived,
   errorLine,
+  follow,
   isMirror,
   type LocatedRegular,
   MARKS,
@@ -54,6 +55,34 @@ export interface Found {
    *  node has none — so an agent can traverse without a second read, and a
    *  node that does not point anywhere does not pretend to. */
   readonly see?: ReadonlyArray<string>
+  /** What this node must come AFTER, as target ids — the edges it carries
+   *  itself, exactly as they are written.
+   *
+   *  Here for the same reason `see` is, and now for a second one: `set_after`
+   *  removes a target BY ID, so a reader that could not see the list could only
+   *  change it by guessing. Not the derived blockedness — what is standing in
+   *  the way right now is a question about marks, and this is what the record
+   *  says. */
+  readonly after?: ReadonlyArray<string>
+}
+
+/**
+ * One PLACEMENT of a node: a mirror record that shows it, and where that line
+ * sits.
+ *
+ * Not a {@link Found} — a placement has no title, no mark and no ancestry of
+ * its own; it draws the node's. What it does have is an id, and that id is the
+ * only thing `remove_mirror` takes, which is why a node's own read is where the
+ * placements of it are answered. Nothing else in this module returns a mirror:
+ * a mirror is a second location of a node, and a search that returned one would
+ * be the same node twice, once at a place no write lands.
+ */
+export interface Placement {
+  readonly id: string
+  readonly file: string
+  readonly line: number
+  /** The node it is placed under. Absent at the top level of its file. */
+  readonly parent?: string
 }
 
 export interface Hit extends Found {
@@ -79,6 +108,16 @@ export interface Detail extends Found, Stamps {
    *  is `status` above whatever this says. */
   readonly progress?: Progress
   readonly children: ReadonlyArray<Found>
+  /** Everywhere else this node is drawn — the mirrors that show it, chains
+   *  included. Absent when nothing does, which is nearly every node.
+   *
+   *  It is here because a placement is otherwise UNFINDABLE: mirrors are left
+   *  out of search and out of every child list on purpose, so without this the
+   *  only id `remove_mirror` could ever be given is one the same session had
+   *  just created. Asked of the node rather than answered as a node, which is
+   *  the same shape every refusal about mirrors takes — a mirror is not a node,
+   *  so you ask the node where it is placed. */
+  readonly mirrors?: ReadonlyArray<Placement>
 }
 
 /** The mark a node stores, with what it was stamped — `status` above says
@@ -154,11 +193,20 @@ const foundOf = (derived: Derived, located: LocatedRegular): Found => {
     // should not have to filter a status out of every answer.
     ...(status === undefined ? {} : { status }),
     path: ancestorsOf(derived, located.node.id).map((crumb) => crumb.node.title),
-    ...(located.node.see === undefined || located.node.see.length === 0
-      ? {}
-      : { see: located.node.see }),
+    ...edgesOf(located.node),
   }
 }
+
+/** The edge fields a node carries, omitted when empty — the format's own rule
+ *  for absence, applied to an answer rather than to a record. One helper
+ *  because the two fields differ only in name here; what they MEAN differs
+ *  everywhere else. */
+const edgesOf = (
+  node: LocatedRegular["node"],
+): { see?: ReadonlyArray<string>; after?: ReadonlyArray<string> } => ({
+  ...(node.see === undefined || node.see.length === 0 ? {} : { see: node.see }),
+  ...(node.after === undefined || node.after.length === 0 ? {} : { after: node.after }),
+})
 
 /** Every regular node of the set, in file-then-line order. Mirrors are left
  *  out of every answer here: a mirror is a second PLACEMENT of a node, and
@@ -275,6 +323,7 @@ export const detail = (derived: Derived, id: string): Detail | null => {
   const regular = located as LocatedRegular
   const node = regular.node
   const progress = progressOf(derived, id)
+  const placements = placementsOf(derived, id)
   return {
     ...foundOf(derived, regular),
     ...(node.date === undefined ? {} : { date: node.date }),
@@ -285,8 +334,35 @@ export const detail = (derived: Derived, id: string): Detail | null => {
     ),
     ...(progress === undefined ? {} : { progress }),
     children: countedChildren(derived, id).map((child) => foundOf(derived, child)),
+    ...(placements.length === 0 ? {} : { mirrors: placements }),
   }
 }
+
+/**
+ * The mirrors that show this node, in file-then-line order.
+ *
+ * By what each one SHOWS rather than by what it names, so a chain counts: a
+ * mirror of a mirror of `order` is a place `order` is drawn, and an agent
+ * retiring the Now entry for it should find it whether the ledger pointed
+ * straight at the node or at another placement of it. `follow` is the format's
+ * own resolution of that chain, cycle-safe, so this cannot be a second answer to
+ * what a mirror shows.
+ */
+const placementsOf = (
+  derived: Derived,
+  id: string,
+): ReadonlyArray<Placement> =>
+  derived.nodes.flatMap((located) => {
+    if (!isMirror(located.node)) return []
+    const found = follow(derived, located)
+    if (found.kind !== "found" || found.shows.node.id !== id) return []
+    return [{
+      id: located.node.id,
+      file: located.file,
+      line: located.line,
+      ...(located.node.parent === undefined ? {} : { parent: located.node.parent }),
+    }]
+  })
 
 export const subtree = (
   derived: Derived,

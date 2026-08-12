@@ -172,6 +172,7 @@ test("the tool list is reads and writes, and no file access at all", async () =>
     // The whole surface, spelled out — because what is NOT here is the design:
     // no file read, no file write, no shell, no grep.
     expect(tools.map((tool) => tool.name).sort()).toEqual([
+      "add_mirror",
       "add_node",
       "archive_node",
       "commit",
@@ -180,7 +181,9 @@ test("the tool list is reads and writes, and no file access at all", async () =>
       "move_node",
       "read_node",
       "read_subtree",
+      "remove_mirror",
       "search_nodes",
+      "set_after",
       "set_date",
       "set_desc",
       "set_doing",
@@ -531,5 +534,103 @@ test("list_outlines then add_node — the capture sequence an agent actually run
     })
     expect(added.isError).toBe(false)
     expect(read("house.jsonl")).toContain("water the plants")
+  })
+})
+
+// ── mirrors and edges, through the wire ────────────────────────────────
+
+/** Two files, because that is what a mirror is for: `parent` cannot cross an
+ *  outline, so a node appearing in a second file at all is a placement. */
+const LEDGER = [
+  `{"id":"now","ord":"a0","title":"Now"}`,
+  "",
+].join("\n")
+
+/**
+ * The whole ledger gesture, end to end and in one test, because it is one
+ * gesture: an item becomes live, so it is PLACED on the Now list; it finishes,
+ * so the placement is RETIRED. Neither step touches the item.
+ *
+ * This is the loop the roadmap item was filed for — `add_node` mints only
+ * regular nodes, so keeping Now up to date meant hand-editing the file, which is
+ * exactly the practice the 2026-08-11 RCA condemns.
+ */
+test("a mirror is placed, found from the node, and retired — the node untouched", async () => {
+  await withTools(
+    { "house.jsonl": HOUSE, "now.jsonl": LEDGER },
+    async ({ client, read }) => {
+      const placed = await call(client, "add_mirror", {
+        target: "order",
+        parent: "now",
+        id: "now-order",
+      })
+      expect(placed.isError).toBe(false)
+      expect(placed.structured).toMatchObject({
+        did: "add_mirror",
+        // The placement's id is what the answer names — it is what retires it —
+        // and the title is the node's, which is what a person reads.
+        id: "now-order",
+        title: "order the cabinets",
+        file: "now.jsonl",
+        summary: "mirror: order the cabinets",
+      })
+      // Four fields, and no title, mark or note anywhere on the line.
+      expect(read("now.jsonl")).toContain(
+        `{"id":"now-order","parent":"now","ord":"a0","mirror":"order"}`,
+      )
+      // The node it shows is not rewritten at all.
+      expect(read("house.jsonl")).toBe(HOUSE)
+
+      // …and it is FINDABLE, which is what makes retiring it possible in a
+      // session that did not place it: mirrors are left out of search and out of
+      // every child list, so the node is where you ask.
+      const node = (await call(client, "read_node", { id: "order" })).structured
+      expect(node["mirrors"]).toEqual([
+        { id: "now-order", file: "now.jsonl", line: 2, parent: "now" },
+      ])
+
+      const retired = await call(client, "remove_mirror", { id: "now-order" })
+      expect(retired.isError).toBe(false)
+      expect(retired.structured).toMatchObject({
+        did: "remove_mirror",
+        summary: "unmirror: order the cabinets",
+      })
+      expect(read("now.jsonl")).toBe(LEDGER)
+      expect(read("house.jsonl")).toBe(HOUSE)
+      // Nothing shows it any more, and the field goes rather than emptying.
+      expect((await call(client, "read_node", { id: "order" })).structured)
+        .not.toHaveProperty("mirrors")
+    },
+  )
+})
+
+test("remove_mirror on a node refuses, and says what does put a node away", async () => {
+  await withTools({ "house.jsonl": HOUSE }, async ({ client, read, refusals }) => {
+    const answer = await call(client, "remove_mirror", { id: "order" })
+    expect(answer.isError).toBe(true)
+    expect(answer.structured["kind"]).toBe("usage")
+    expect(String(answer.structured["reason"])).toContain("archive_node")
+    expect(refusals).toEqual(["unmirror: UsageFailure"])
+    expect(read("house.jsonl")).toBe(HOUSE)
+  })
+})
+
+/** The other half of ledger-complete: a dependency, written from the node that
+ *  waits, read back off the node, and refused when it would close a loop. */
+test("set_after writes a dependency, and a loop is refused naming it", async () => {
+  await withTools({ "house.jsonl": HOUSE }, async ({ client, read }) => {
+    const wired = await call(client, "set_after", { id: "install", add: ["order"] })
+    expect(wired.isError).toBe(false)
+    expect(wired.structured).toMatchObject({ summary: "after: install them" })
+    expect(read("house.jsonl")).toContain(`"after":["order"]`)
+
+    // Read back off the node, so the next call can remove one by id.
+    expect((await call(client, "read_node", { id: "install" })).structured)
+      .toMatchObject({ after: ["order"] })
+
+    const loop = await call(client, "set_after", { id: "order", add: ["install"] })
+    expect(loop.isError).toBe(true)
+    expect(loop.structured["kind"]).toBe("usage")
+    expect(String(loop.structured["reason"])).toContain("`order` → `install` → `order`")
   })
 })
