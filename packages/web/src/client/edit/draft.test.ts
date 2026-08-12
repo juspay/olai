@@ -10,6 +10,7 @@ import {
   landed,
   type Pending,
   refused,
+  sameAnchor,
   sameSlot,
   slotOf,
   typed,
@@ -135,10 +136,23 @@ test("a slot names the box rather than the text in it", () => {
   expect(sameSlot(slotOf(before), slotOf(pending() as Draft))).toBe(false)
 })
 
-test("a new row's slot is the row it is drawn after, and a page has one", () => {
+test("a new row is drawn after the row it follows, or on a page's start line", () => {
+  // `after` is the only anchor a ROW draws — the other two are what a page
+  // with no rows offers, and it draws them itself. So they have no row to be
+  // drawn after, and saying so is what keeps one editor from appearing twice.
+  expect(anchorRow({ kind: "after", id: "order" })).toBe("order")
+  expect(anchorRow({ kind: "under", id: "order" })).toBeNull()
+  expect(anchorRow({ kind: "first", file: "a.jsonl" })).toBeNull()
   expect(slotOf(pending())).toEqual({ row: "order", field: "new" })
   expect(slotOf(pending({ at: { kind: "first", file: "a.jsonl" } })))
     .toEqual({ row: null, field: "new" })
-  expect(anchorRow({ kind: "under", id: "order" })).toBe("order")
-  expect(anchorRow({ kind: "first", file: "a.jsonl" })).toBeNull()
+})
+
+test("two anchors are the same place only when they name the same one", () => {
+  expect(sameAnchor({ kind: "under", id: "order" }, { kind: "under", id: "order" }))
+    .toBe(true)
+  expect(sameAnchor({ kind: "under", id: "order" }, { kind: "after", id: "order" }))
+    .toBe(false)
+  expect(sameAnchor({ kind: "first", file: "a.jsonl" }, { kind: "first", file: "b.jsonl" }))
+    .toBe(false)
 })

@@ -80,10 +80,13 @@ test("the first row of an empty outline is the one place a file is named", () =>
     .toEqual({ op: "add", file: "new.jsonl", title: "one" })
 })
 
-test("a new row after a mirror is refused, naming what the mirror stands for", () => {
-  const failure = refused({ verb: "add", at: { kind: "after", id: "echo" }, title: "x" })
-  expect(failure._tag).toBe("UsageFailure")
-  expect(failure.message).toContain("`order`")
+test("a new row after a MIRROR is a sibling of the mirror", () => {
+  // Where the reader is looking, rather than beside the node the placement
+  // stands for — which is somewhere else, in another parent, possibly in
+  // another file. A mirror carries a parent and an `ord` like any record, so
+  // there is nothing to resolve through.
+  expect(asked({ verb: "add", at: { kind: "after", id: "echo" }, title: "x" }))
+    .toEqual({ op: "add", file: "house.jsonl", after: "echo", title: "x" })
 })
 
 test("a new row after a node nothing declares is not found", () => {

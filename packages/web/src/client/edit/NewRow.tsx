@@ -24,10 +24,9 @@ import { Said, TitleEditor } from "./RowEditor.tsx"
 
 export function NewRow(props: {
   readonly draft: Draft
-  readonly caret: number
   readonly onInput: (text: string) => void
   readonly onKey: (event: KeyboardEvent) => void
-  readonly onBlur: () => void
+  readonly onBlur: (left: boolean) => void
 }) {
   return (
     <div>
@@ -41,7 +40,6 @@ export function NewRow(props: {
         <span class={CONTROL_SPACER} aria-hidden="true" />
         <TitleEditor
           text={props.draft.text}
-          caret={props.caret}
           onInput={props.onInput}
           onKey={props.onKey}
           onBlur={props.onBlur}

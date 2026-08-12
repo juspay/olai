@@ -40,8 +40,40 @@
 
 import type { Anchor, Edit, OpFailure } from "@olai/surface"
 
+/**
+ * How long a person stops typing before what they typed is written — the third
+ * of the three commit moments, and the only one that is a duration.
+ *
+ * Long enough that a pause mid-sentence is not a git commit, short enough that
+ * walking away from the keyboard cannot lose the line. It is here rather than
+ * beside the timer it drives because it is part of the RULE this file states,
+ * and because a browser test asserting that a draft is NOT a write has to
+ * outlast it: a negative read the instant typing stops would pass against a
+ * client that wrote a moment later, which is the one thing that scenario is
+ * about.
+ */
+export const IDLE_COMMIT = 1200
+
+/**
+ * What the last write said about this draft, whichever kind it is — a refusal
+ * (which is why the text is still here) or a nudge (which is the opposite: it
+ * landed, and the rollup noticed something). Shared by both arms so the two
+ * readers — the commit rule and the line under the editor — need no narrowing
+ * to ask a question that is about neither kind in particular.
+ */
+export interface Said {
+  /** What the last commit was refused with. It rides ON the draft rather than
+   *  beside it, so replacing the draft cannot leave a stale reason on screen
+   *  and nothing has to remember to clear it. */
+  readonly refused?: OpFailure
+  /** What the last write that LANDED had to say — the ops layer's nudge. Same
+   *  ride, opposite mood: advice on a success, never a reason a write did not
+   *  happen. */
+  readonly nudge?: string
+}
+
 /** The row a draft is editing, and which of its two texts. */
-export interface Editing {
+export interface Editing extends Said {
   readonly kind: "row"
   /** The record occupying the row — `Row.at.node.id`. What the caret follows
    *  when the tree moves under it, and what a new sibling is anchored on. */
@@ -62,18 +94,10 @@ export interface Editing {
    *  landed. The comparison that keeps an idle timer from writing a file that
    *  already says this. */
   readonly saved: string
-  /** What the last commit was refused with. It rides ON the draft rather than
-   *  beside it, so replacing the draft cannot leave a stale reason on screen
-   *  and nothing has to remember to clear it. */
-  readonly refused?: OpFailure
-  /** What the last write that LANDED had to say — the ops layer's nudge. Same
-   *  ride, opposite mood: advice on a success, never a reason a write did not
-   *  happen. */
-  readonly nudge?: string
 }
 
 /** A row that does not exist yet: an editor standing where it will go. */
-export interface Pending {
+export interface Pending extends Said {
   readonly kind: "new"
   /** Where the row goes, in the surface's own terms — and, for `after` and
    *  `under`, what it is DRAWN after: the anchor names a row, and that row is
@@ -82,7 +106,6 @@ export interface Pending {
    *  two different rows under a mirror). */
   readonly at: Anchor
   readonly text: string
-  readonly refused?: OpFailure
 }
 
 export type Draft = Editing | Pending
@@ -115,7 +138,7 @@ export const typed = (draft: Draft, text: string): Draft => ({
   ...draft,
   text,
   refused: undefined,
-  ...(draft.kind === "row" ? { nudge: undefined } : {}),
+  nudge: undefined,
 })
 
 /** The draft as it reads after a commit that LANDED: the text becomes what is
@@ -123,16 +146,19 @@ export const typed = (draft: Draft, text: string): Draft => ({
  *  row it just created — `id` is the one the set gave it, and it is its own
  *  placement, a brand-new node being nobody's mirror — with no place yet,
  *  because the row it names is a frame away from being drawn. */
-export const landed = (draft: Draft, id: string, nudge?: string): Editing => ({
-  kind: "row",
-  row: draft.kind === "new" ? id : draft.row,
-  id: draft.kind === "new" ? id : draft.id,
-  place: draft.kind === "new" ? null : draft.place,
-  field: draft.kind === "new" ? "title" : draft.field,
-  text: draft.text,
-  saved: draft.text,
-  ...(nudge === undefined ? {} : { nudge }),
-})
+export const landed = (draft: Draft, id: string, nudge?: string): Editing =>
+  draft.kind === "new"
+    ? {
+      kind: "row",
+      row: id,
+      id,
+      place: null,
+      field: "title",
+      text: draft.text,
+      saved: draft.text,
+      nudge,
+    }
+    : { ...draft, saved: draft.text, refused: undefined, nudge }
 
 /** The same draft, holding what the write refused with. */
 export const refused = (draft: Draft, failure: OpFailure): Draft => ({
@@ -175,4 +201,13 @@ export const sameSlot = (a: Slot, b: Slot): boolean =>
 /** The row a pending draft is drawn after, and `null` for the one that is
  *  drawn on a page's own start line — an outline with no rows to follow. */
 export const anchorRow = (at: Anchor): string | null =>
-  at.kind === "first" ? null : at.id
+  at.kind === "after" ? at.id : null
+
+/** Whether two anchors name the same place. What a start line asks to know
+ *  whether the open pending draft is the one IT offered. */
+export const sameAnchor = (a: Anchor, b: Anchor): boolean =>
+  a.kind !== b.kind
+    ? false
+    : a.kind === "first"
+    ? a.file === (b as typeof a).file
+    : a.id === (b as typeof a).id

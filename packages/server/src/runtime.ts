@@ -21,7 +21,7 @@
  *     server-authored — `readAll` is the transcript itself and the writes come
  *     from `ctx`, never from the wire — because a transcript is something that
  *     HAPPENED and the only way to add to it is to prompt.
- *   - the KEYBOARD is the ops layer's: five procedures, no member of its own,
+ *   - the KEYBOARD is the ops layer's: one procedure, no member of its own,
  *     and nothing published from here when one lands. That absence IS the
  *     design — an edit changes a FILE, and a file reaches every open tab
  *     through the store binding above, the same way a `git pull` does. A

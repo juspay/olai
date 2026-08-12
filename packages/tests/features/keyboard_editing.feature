@@ -22,13 +22,22 @@ Feature: Keyboard editing
     And the page has not reloaded
     And there should be no page errors
 
-  Scenario: A draft is an editor, not a write
+  Scenario: A draft is an editor until something commits it
     # The no-optimistic-UI rule from the other side: what is typed is nowhere
-    # near the disk until something commits it.
+    # near the disk until one of the three moments — and then it is. Both
+    # halves, because either one alone is half the promise: a client that never
+    # wrote would pass the first, and one that wrote per keystroke the second.
     When I click the title of "knobs"
     And I select all and type "pick the little brass knobs"
     Then "house.jsonl" holds no node titled "pick the little brass knobs"
     And "house.jsonl" holds a node titled "pick the knobs"
+    # Idle is the third moment (blur and Enter are the other two, and have
+    # scenarios of their own): stop typing, and it goes. The editor stays open
+    # — a commit is not a reason to take the caret away — so the row is asked
+    # of the page only after the caret leaves it.
+    Then "house.jsonl" holds a node titled "pick the little brass knobs"
+    When I press "Escape"
+    Then the node "knobs" has the title "pick the little brass knobs"
 
   Scenario: Escape abandons what was typed
     When I click the title of "knobs"

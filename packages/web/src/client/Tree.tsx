@@ -76,6 +76,7 @@ import {
   HOVER_GUTTER,
   HOVER_REVEAL,
   PAST_CONTROLS,
+  ROW_TITLE,
 } from "./touch.ts"
 import type { View } from "./view.ts"
 
@@ -125,30 +126,26 @@ function Branch(props: {
   const note = createNoteExpand()
 
   // The editor is one draft for the whole page, and this is the one question a
-  // row asks of it: is the caret HERE? A memo, because the answer is `undefined`
-  // for every row but one and a memo that answers the same `undefined` again
-  // propagates nothing — so a keystroke re-renders the row being typed in
-  // rather than the tree around it.
+  // row asks of it: is the caret HERE? Asked of WHERE the caret is rather than
+  // of the draft — three primitives that do not move while a person types — so
+  // one character typed re-runs nothing in the rows around it. The row that
+  // matches then reads the draft for its text, which is the one place that
+  // value is wanted.
   //
   // A row being typed is matched by `Row.key`, its PLACE: the same node reached
   // through two mirrors is two rows, and only the one that was clicked has the
   // caret. A row being ADDED is matched by the anchor it named, which is a row
   // on screen — the new line is drawn after the line it will follow.
   const editor = useEditor()
-  const here = createMemo(() => {
-    const draft = editor.draft()
-    if (draft === null) return undefined
-    if (draft.kind === "row") return draft.place === props.row.key ? draft : undefined
-    return draft.at.kind === "after" && draft.at.id === props.row.at.node.id
-      ? draft
-      : undefined
-  })
   const typing = (field: "title" | "desc") => {
-    const draft = here()
-    return draft?.kind === "row" && draft.field === field ? draft : undefined
+    const at = editor.where()
+    if (at.place !== props.row.key || at.field !== field) return undefined
+    const draft = editor.draft()
+    return draft?.kind === "row" ? draft : undefined
   }
   const pending = () => {
-    const draft = here()
+    if (editor.where().after !== props.row.at.node.id) return undefined
+    const draft = editor.draft()
     return draft?.kind === "new" ? draft : undefined
   }
 
@@ -227,7 +224,7 @@ function Branch(props: {
         <Switch>
           <Match when={props.row.kind === "dangling" ? props.row : undefined}>
             {(row) => (
-              <span class="flex-1 text-[0.9375rem] leading-snug text-alarm" data-testid={TESTID.nodeTitle}>
+              <span class={`flex-1 ${ROW_TITLE} text-alarm`} data-testid={TESTID.nodeTitle}>
                 a mirror of `{row().missing}`, which no node declares
               </span>
             )}
@@ -240,10 +237,9 @@ function Branch(props: {
             {(draft) => (
               <TitleEditor
                 text={draft().text}
-                caret={editor.caret()}
                 onInput={editor.type}
                 onKey={keyHandler("line", editor.press)}
-                onBlur={() => editor.blur({ row: props.row.at.node.id, field: "title" })}
+                onBlur={(left) => editor.blur({ row: props.row.at.node.id, field: "title" }, left)}
               />
             )}
           </Match>
@@ -304,10 +300,9 @@ function Branch(props: {
               {(draft) => (
                 <DescEditor
                   text={draft().text}
-                  caret={editor.caret()}
                   onInput={editor.type}
                   onKey={keyHandler("block", editor.press)}
-                  onBlur={() => editor.blur({ row: props.row.at.node.id, field: "desc" })}
+                  onBlur={(left) => editor.blur({ row: props.row.at.node.id, field: "desc" }, left)}
                 />
               )}
             </Show>
@@ -341,10 +336,9 @@ function Branch(props: {
         {(draft) => (
           <NewRow
             draft={draft()}
-            caret={editor.caret()}
             onInput={editor.type}
             onKey={keyHandler("line", editor.press)}
-            onBlur={() => editor.blur({ row: props.row.at.node.id, field: "new" })}
+            onBlur={(left) => editor.blur({ row: props.row.at.node.id, field: "new" }, left)}
           />
         )}
       </Show>

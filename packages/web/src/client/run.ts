@@ -33,29 +33,24 @@ export const run = <A>(
   onFailure: (failure: OpFailure) => void,
   onSuccess?: (value: A) => void,
 ): void => {
-  void Effect.runPromise(Effect.result(effect)).then((outcome) => {
-    if (Result.isSuccess(outcome)) {
-      onSuccess?.(outcome.success)
-      return
-    }
-    onFailure(asFailure(outcome.failure))
+  void runAsync(effect).then((outcome) => {
+    if (Result.isSuccess(outcome)) onSuccess?.(outcome.success)
+    else onFailure(outcome.failure)
   })
 }
 
 /**
- * The same edge, awaited — for a caller that has to SEQUENCE calls rather than
- * react to one.
+ * The edge itself, awaited — and what {@link run} is written in terms of, so
+ * `Effect.runPromise` appears once in this client rather than twice in the
+ * file that claims to be the only place it appears at all.
  *
+ * It exists for a caller that has to SEQUENCE calls rather than react to one.
  * The row editor is that caller: `Tab` commits the title and then moves the
  * row, in that order, because the second would otherwise be judged against a
  * record whose text is still the old one. It needs something to wait on, and
  * the answer it waits for is either outcome — so this hands back a `Result`
- * rather than rejecting, which is the same promise {@link run} makes about
- * declared failures being data.
- *
- * Here rather than at the caller because this file is the one edge, and a
- * hand-rolled `new Promise` wrapping the callback above would be a second one
- * that happens to live somewhere else.
+ * rather than rejecting, which is the same promise `run` makes about declared
+ * failures being data.
  */
 export const runAsync = <A>(effect: Call<A>): Promise<Result.Result<A, OpFailure>> =>
   Effect.runPromise(Effect.result(effect)).then((outcome) =>

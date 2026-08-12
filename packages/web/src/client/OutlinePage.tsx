@@ -10,6 +10,7 @@ import type { Row } from "@olai/format"
 import { Show } from "solid-js"
 
 import { DoneToggle } from "./DoneToggle.tsx"
+import { Editable } from "./edit/Editable.tsx"
 import { StartLine } from "./edit/StartLine.tsx"
 import { Tree } from "./Tree.tsx"
 import type { View } from "./view.ts"
@@ -23,7 +24,7 @@ export function OutlinePage(props: {
   readonly view: View
 }) {
   return (
-    <>
+    <Editable rows={() => props.rows} view={props.view}>
       <header class="mb-4 flex items-baseline justify-end gap-2">
         <DoneToggle hidden={props.view.doneHidden()} onToggle={props.view.toggleDone} />
       </header>
@@ -39,6 +40,6 @@ export function OutlinePage(props: {
           label="This outline is empty — write its first line."
         />
       </Show>
-    </>
+    </Editable>
   )
 }

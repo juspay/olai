@@ -34,36 +34,30 @@
 import { createEffect, on, Show } from "solid-js"
 
 import type { Draft } from "./draft.ts"
+import { useEditor } from "./editing.tsx"
 import { type EditAction, type EditField, editKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
-
-/** What the title span and the input that replaces it must agree about, so a
- *  row does not shift by a pixel when the caret arrives (../NodeLine.tsx uses
- *  the same two utilities). */
-const AS_TITLE = "text-[0.9375rem] leading-snug"
+import { ROW_TITLE } from "../touch.ts"
 
 export function TitleEditor(props: {
   readonly text: string
-  /** Bumped whenever the caret has to be put back — see {@link takeCaret}. */
-  readonly caret: number
   readonly onInput: (text: string) => void
   readonly onKey: (event: KeyboardEvent) => void
-  readonly onBlur: () => void
+  /** `left` is whether the caret went somewhere else, rather than the element
+   *  being taken out of the document by a re-render — see `Editor.blur`. */
+  readonly onBlur: (left: boolean) => void
   /** A new row that does not exist yet: it says so, so an empty line in the
    *  middle of a tree is not a mystery. */
   readonly placeholder?: string
 }) {
   let element!: HTMLInputElement
-  takeCaret(() => props.caret, () => {
-    element.focus()
-    element.setSelectionRange(element.value.length, element.value.length)
-  })
+  takeCaret(() => element)
 
   return (
     <input
       ref={element}
       type="text"
-      class={`w-full flex-1 border-0 bg-transparent p-0 text-ink outline-none ${AS_TITLE}`}
+      class={`w-full flex-1 border-0 bg-transparent p-0 text-ink outline-none ${ROW_TITLE}`}
       data-testid={TESTID.titleEditor}
       value={props.text}
       placeholder={props.placeholder}
@@ -71,7 +65,7 @@ export function TitleEditor(props: {
       spellcheck={false}
       onInput={(event) => props.onInput(event.currentTarget.value)}
       onKeyDown={(event) => props.onKey(event)}
-      onBlur={() => props.onBlur()}
+      onBlur={() => props.onBlur(element.isConnected)}
     />
   )
 }
@@ -86,17 +80,12 @@ export function TitleEditor(props: {
  */
 export function DescEditor(props: {
   readonly text: string
-  readonly caret: number
   readonly onInput: (text: string) => void
   readonly onKey: (event: KeyboardEvent) => void
-  readonly onBlur: () => void
+  readonly onBlur: (left: boolean) => void
 }) {
   let element!: HTMLTextAreaElement
-  takeCaret(() => props.caret, () => {
-    element.focus()
-    element.setSelectionRange(element.value.length, element.value.length)
-    grow(element)
-  })
+  takeCaret(() => element, () => grow(element))
 
   return (
     <textarea
@@ -110,7 +99,7 @@ export function DescEditor(props: {
         props.onInput(event.currentTarget.value)
       }}
       onKeyDown={(event) => props.onKey(event)}
-      onBlur={() => props.onBlur()}
+      onBlur={() => props.onBlur(element.isConnected)}
     />
   )
 }
@@ -145,7 +134,7 @@ export function Said(props: { readonly draft: Draft }) {
           </p>
         )}
       </Show>
-      <Show when={props.draft.kind === "row" ? props.draft.nudge : undefined}>
+      <Show when={props.draft.nudge}>
         {(nudge) => (
           <p
             class="mt-0.5 mb-1 text-[0.8125rem] leading-snug text-muted"
@@ -190,13 +179,41 @@ export const keyHandler = (
  * bumps a counter after every op that can do that (`Editor.caret`), and this
  * is what listens: one number, one effect, and no polling of
  * `document.activeElement`.
+ *
+ * The counter is read from the EDITOR rather than passed in: every one of
+ * these is drawn inside the provider by construction, and a magic number
+ * threaded through three components is a prop the next editor site forgets.
+ *
+ * WHERE the caret lands differs between the two halves, and that is what
+ * `opening` is for: a fresh editor puts it at the end of the text, which is
+ * where a person who just clicked a title wants it; a caret being taken BACK
+ * goes where it already was, so `Tab` in the middle of a word does not throw
+ * the reader to the end of the line.
  */
-const takeCaret = (caret: () => number, take: () => void): void => {
-  createEffect(on(caret, take))
+const takeCaret = (
+  element: () => HTMLInputElement | HTMLTextAreaElement,
+  also?: () => void,
+): void => {
+  const editor = useEditor()
+  let opening = true
+  createEffect(on(editor.caret, () => {
+    const field = element()
+    const at = opening ? field.value.length : field.selectionStart ?? field.value.length
+    opening = false
+    field.focus()
+    field.setSelectionRange(at, at)
+    also?.()
+  }))
 }
 
-/** A textarea that is as tall as what is in it. */
+/** A textarea that is as tall as what is in it.
+ *
+ *  The write is skipped when the height has not changed, which is nearly every
+ *  keystroke: setting `height` invalidates layout for the WHOLE document and
+ *  reading `scrollHeight` back forces it to be recomputed, so a tree of a
+ *  thousand rows is laid out again per character typed into a note. */
 const grow = (element: HTMLTextAreaElement): void => {
   element.style.height = "auto"
-  element.style.height = `${element.scrollHeight}px`
+  const height = `${element.scrollHeight}px`
+  if (element.style.height !== height) element.style.height = height
 }

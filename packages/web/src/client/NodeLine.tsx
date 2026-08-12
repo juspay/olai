@@ -34,6 +34,7 @@ import { NodeTitle } from "./NodeTitle.tsx"
 import { ProgressBadge } from "./ProgressBadge.tsx"
 import { TESTID } from "./testids.ts"
 import { toneOf } from "./tone.ts"
+import { ROW_TITLE } from "./touch.ts"
 
 export function NodeLine(props: {
   readonly title: string
@@ -58,7 +59,7 @@ export function NodeLine(props: {
   return (
     <>
       <span
-        class={`flex-1 text-[0.9375rem] leading-snug ${toneOf(props.status)}`}
+        class={`flex-1 ${ROW_TITLE} ${toneOf(props.status)}`}
         classList={{ "cursor-text": props.onEdit !== undefined }}
         data-testid={TESTID.nodeTitle}
         onClick={() => props.onEdit?.()}

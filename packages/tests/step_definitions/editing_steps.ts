@@ -7,16 +7,23 @@
  * file" is the claim these scenarios exist to make, and a page that agreed
  * with itself would prove nothing about it.
  *
+ * WHICH of the two a scenario uses is not arbitrary, and the structural keys
+ * are asked of the DOM on purpose: nothing is echoed, so a row that has moved
+ * on screen has moved on disk — the page cannot say it until the file said it
+ * first. The disk assertions are for the claims the page cannot make, and one
+ * of them is a NEGATIVE ("nothing was written"), which has to outlast the
+ * commit window rather than be read the instant typing stops.
+ *
  * Keys are pressed by NAME (`"Alt+Shift+ArrowUp"`), which is Playwright's own
  * spelling and the same one the client's keyboard map is written against — so
  * a scenario says the chord a person presses rather than a synthetic event.
  */
 
 import * as assert from "node:assert";
-import * as fs from "node:fs";
-import * as path from "node:path";
 
 import { Then, When } from "@cucumber/cucumber";
+
+import { IDLE_COMMIT } from "@olai/web/src/client/edit/draft.ts";
 
 import {
   DESC_EDITOR,
@@ -127,9 +134,7 @@ Then("a new row is being typed", async function (this: OlaiWorld) {
 Then(
   "the note of {string} is being typed",
   async function (this: OlaiWorld, id: string) {
-    await this.page
-      .locator(`${nodeSelector(id)} ${DESC_EDITOR}`)
-      .first()
+    await this.within(id, DESC_EDITOR)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
@@ -138,31 +143,35 @@ Then(
   "the note of {string} is no longer being typed",
   async function (this: OlaiWorld, id: string) {
     await this.waitUntil(
-      async () =>
-        (await this.page.locator(`${nodeSelector(id)} ${DESC_EDITOR}`).count()) === 0,
+      async () => (await this.node(id).locator(DESC_EDITOR).count()) === 0,
       `the note editor on "${id}" to close`,
     );
   },
 );
 
-Then("the refusal says {string}", async function (this: OlaiWorld, said: string) {
-  const refusal = this.page.locator(EDIT_REFUSAL).first();
-  await refusal.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  const text = (await refusal.innerText()).trim();
+/** What the line under the editor says — a refusal and a nudge are the same
+ *  assertion about two moods, so they are one function and two steps. */
+const saidUnderTheRow = async (
+  world: OlaiWorld,
+  locator: string,
+  said: string,
+  what: string,
+): Promise<void> => {
+  const line = world.page.locator(locator).first();
+  await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const text = (await line.innerText()).trim();
   assert.ok(
     text.includes(said),
-    `the refusal reads ${JSON.stringify(text)}, which does not mention ${JSON.stringify(said)}`,
+    `the ${what} reads ${JSON.stringify(text)}, which does not mention ${JSON.stringify(said)}`,
   );
+};
+
+Then("the refusal says {string}", async function (this: OlaiWorld, said: string) {
+  await saidUnderTheRow(this, EDIT_REFUSAL, said, "refusal");
 });
 
 Then("the nudge says {string}", async function (this: OlaiWorld, said: string) {
-  const nudge = this.page.locator(EDIT_NUDGE).first();
-  await nudge.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  const text = (await nudge.innerText()).trim();
-  assert.ok(
-    text.includes(said),
-    `the nudge reads ${JSON.stringify(text)}, which does not mention ${JSON.stringify(said)}`,
-  );
+  await saidUnderTheRow(this, EDIT_NUDGE, said, "nudge");
 });
 
 Then("nothing is being said about the row", async function (this: OlaiWorld) {
@@ -193,15 +202,11 @@ Then(
 
 // ── what the directory says ────────────────────────────────────────────
 
-/** Every title the file holds, read off the disk this scenario is writing to.
+/** Every title the file holds, off the disk this scenario is writing to.
  *  Deliberately the RECORDS rather than the page: what these scenarios claim
  *  is that a keystroke reached a file through the ops layer. */
 const titlesIn = (world: OlaiWorld, file: string): ReadonlyArray<string> =>
-  fs
-    .readFileSync(path.join(world.scratch(), file), "utf8")
-    .split("\n")
-    .filter((line) => line.trim() !== "")
-    .map((line) => (JSON.parse(line) as { title?: string }).title ?? "");
+  world.servedNodes(file).map((node) => String(node["title"] ?? ""));
 
 Then(
   "{string} holds a node titled {string}",
@@ -213,13 +218,23 @@ Then(
   },
 );
 
+/** Nothing was written, and it STAYS unwritten for a while — read once, this
+ *  would pass against a client that wrote a moment later, which is exactly the
+ *  thing "a draft is not a write" claims did not happen. The window is a
+ *  fraction of the idle commit's, because idling is one of the three moments
+ *  that DOES write (see the step below it). */
+const HELD = Math.floor(IDLE_COMMIT / 3);
+
 Then(
   "{string} holds no node titled {string}",
-  function (this: OlaiWorld, file: string, title: string) {
-    const titles = titlesIn(this, file);
-    assert.ok(
-      !titles.includes(title),
-      `${file} holds a node titled ${JSON.stringify(title)}, and this step says nothing should have been written`,
-    );
+  async function (this: OlaiWorld, file: string, title: string) {
+    const deadline = Date.now() + HELD;
+    do {
+      assert.ok(
+        !titlesIn(this, file).includes(title),
+        `${file} holds a node titled ${JSON.stringify(title)}, and this step says nothing should have been written`,
+      );
+      await this.page.waitForTimeout(50);
+    } while (Date.now() < deadline);
   },
 );

@@ -49,6 +49,7 @@ import {
 } from "@olai/format"
 import { Result } from "effect"
 
+import { index } from "./query.ts"
 import type { Request } from "./request.ts"
 
 /** One outline, as the records it will hold after the write. */
@@ -96,7 +97,12 @@ export const plan = (
   context: Context,
   request: Request,
 ): Planned => {
-  const derived = derive(set.nodes)
+  // `index`, not a fresh `derive`: the derivation is memoised per SET
+  // (`./query.ts`), and every caller of this has already read that set — a
+  // tool call to answer the request, the editor to resolve a keystroke. A
+  // second derivation per write is the whole corpus walked again for an answer
+  // already in hand, and the editor made that a per-keystroke cost.
+  const derived = index(set)
   const scope = { set, derived, context }
 
   switch (request.op) {
@@ -178,7 +184,12 @@ const editable = (
   return Result.isFailure(may) ? Result.fail(may.failure) : target
 }
 
-const notFound = (id: string): OpFailure =>
+/** The refusal for an id nothing in the set declares. Exported because it is
+ *  not only the planner's: `@olai/server` resolves a keystroke into a request
+ *  and meets the same miss on the way, and one sentence for one condition is
+ *  what keeps a person from being told two different things depending on
+ *  which writer they used. */
+export const notFound = (id: string): OpFailure =>
   new NotFoundFailure({
     reason: `no node in the loaded set has the id \`${id}\``,
     named: id,

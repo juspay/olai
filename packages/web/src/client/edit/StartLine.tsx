@@ -16,7 +16,7 @@ import type { Anchor } from "@olai/surface"
 import { Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
-import { anchorRow } from "./draft.ts"
+import { anchorRow, sameAnchor } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
 import { NewRow } from "./NewRow.tsx"
 import { keyHandler } from "./RowEditor.tsx"
@@ -28,13 +28,13 @@ export function StartLine(props: {
   readonly label: string
 }) {
   const editor = useEditor()
-  /** The pending draft, when it is THIS one. A draft anchored `after` a row is
-   *  drawn by that row (`../Tree.tsx`); the two anchors a page with no rows can
-   *  offer are drawn here, which is what makes every anchor's editor appear
-   *  exactly once. */
+  /** The pending draft, when it is the one this line offered. Compared against
+   *  the anchor rather than its KIND: a draft anchored `after` a row is drawn
+   *  by that row (`../Tree.tsx`), and saying which anchor is ours states the
+   *  half of that rule this component owns instead of implying it. */
   const pending = () => {
     const draft = editor.draft()
-    return draft !== null && draft.kind === "new" && draft.at.kind !== "after"
+    return draft !== null && draft.kind === "new" && sameAnchor(draft.at, props.at)
       ? draft
       : undefined
   }
@@ -56,10 +56,9 @@ export function StartLine(props: {
       {(draft) => (
         <NewRow
           draft={draft()}
-          caret={editor.caret()}
           onInput={editor.type}
           onKey={keyHandler("line", editor.press)}
-          onBlur={() => editor.blur({ row: anchorRow(props.at), field: "new" })}
+          onBlur={(left) => editor.blur({ row: anchorRow(props.at), field: "new" }, left)}
         />
       )}
     </Show>

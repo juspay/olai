@@ -30,14 +30,11 @@
 
 import {
   type Derived,
-  isMirror,
-  type LocatedRegular,
-  NotFoundFailure,
   type OpFailure,
   siblingsOf,
   UsageFailure,
 } from "@olai/format"
-import type { Reading, Request } from "@olai/ops"
+import { notFound, type Reading, type Request } from "@olai/ops"
 import type { Edit } from "@olai/surface"
 import { Result } from "effect"
 
@@ -82,20 +79,29 @@ const addRequest = (
   if (anchor.kind === "first") {
     return Result.succeed({ op: "add", file: anchor.file, title: edit.title })
   }
-  const target = regularAt(at.derived, anchor.id)
-  if (Result.isFailure(target)) return Result.fail(target.failure)
+  const target = at.derived.byId.get(anchor.id)
+  if (target === undefined) return Result.fail(notFound(anchor.id))
   // Under a node: last among its children, which is where the first child of
-  // an empty branch goes and where every later one would go anyway.
+  // an empty branch goes and where every later one would go anyway. A MIRROR
+  // has no children of its own — what hangs under it belongs to the node it
+  // shows — so this one is the ops layer's to refuse, in its own words.
   if (anchor.kind === "under") {
     return Result.succeed({ op: "add", parent: anchor.id, title: edit.title })
   }
   // After a row: the same parent as the row it follows, placed immediately
   // after it. A row at top level has no parent, and then the FILE is what says
   // where it goes — the pair `add` takes.
-  const parent = target.success.node.parent
+  //
+  // The anchor may be a MIRROR, and that is the point rather than an oversight:
+  // a placement occupies a line among siblings, so `Enter` on one makes a
+  // sibling OF THE MIRROR — the new row appears where the reader is looking,
+  // rather than beside the node it stands for, somewhere else entirely.
+  // Everything this needs (a parent, a file, an `ord` to sort among) a mirror
+  // record carries like any other.
+  const parent = target.node.parent
   return Result.succeed({
     op: "add",
-    ...(parent === undefined ? { file: target.success.file } : { parent }),
+    ...(parent === undefined ? { file: target.file } : { parent }),
     after: anchor.id,
     title: edit.title,
   })
@@ -108,7 +114,7 @@ const moveRequest = (
   edit: Extract<Edit, { verb: "move" }>,
 ): Resolved => {
   const located = derived.byId.get(edit.id)
-  if (located === undefined) return Result.fail(missing(edit.id))
+  if (located === undefined) return Result.fail(notFound(edit.id))
   // A MIRROR is moved as itself — it is a placement, and a placement is a row
   // a reader can reorder — so this is the row's own record rather than what it
   // shows. That is the opposite of a text edit, which the ops layer refuses on
@@ -120,16 +126,18 @@ const moveRequest = (
   switch (edit.how) {
     case "up": {
       const above = row[at - 1]
-      if (above === undefined) return Result.fail(nothingAbove(edit.how))
+      if (above === undefined) {
+        return Result.fail(
+          refusal("this is the first of its siblings, so there is nothing above it to move past"),
+        )
+      }
       return Result.succeed({ op: "move", id: edit.id, before: above.node.id })
     }
     case "down": {
       const below = row[at + 1]
       if (below === undefined) {
         return Result.fail(
-          new UsageFailure({
-            reason: "this is the last of its siblings, so there is nothing below it to move past",
-          }),
+          refusal("this is the last of its siblings, so there is nothing below it to move past"),
         )
       }
       return Result.succeed({ op: "move", id: edit.id, after: below.node.id })
@@ -139,7 +147,11 @@ const moveRequest = (
       // impossible for the first row of a level: there is nothing above it at
       // the same depth to go under.
       const above = row[at - 1]
-      if (above === undefined) return Result.fail(nothingAbove(edit.how))
+      if (above === undefined) {
+        return Result.fail(
+          refusal("this is the first of its siblings, so there is no row above it to go under"),
+        )
+      }
       // Last among its new siblings — no `before`/`after` — which is where an
       // indent visually lands: directly under the row it just went beneath.
       return Result.succeed({ op: "move", id: edit.id, parent: above.node.id })
@@ -148,9 +160,7 @@ const moveRequest = (
       const parent = node.parent
       if (parent === undefined) {
         return Result.fail(
-          new UsageFailure({
-            reason: "this row is already at the top level, so there is nothing to outdent out of",
-          }),
+          refusal("this row is already at the top level, so there is nothing to outdent out of"),
         )
       }
       const above = derived.byId.get(parent)
@@ -167,36 +177,10 @@ const moveRequest = (
   }
 }
 
-const nothingAbove = (how: "up" | "in"): OpFailure =>
-  new UsageFailure({
-    reason: how === "in"
-      ? "this is the first of its siblings, so there is no row above it to go under"
-      : "this is the first of its siblings, so there is nothing above it to move past",
-  })
-
-const missing = (id: string): OpFailure =>
-  new NotFoundFailure({
-    reason: `no node in the loaded set has the id \`${id}\``,
-    named: id,
-  })
-
-/** The record an anchor names. A mirror is refused with the message the ops
- *  layer would give: a new row goes among the siblings of a NODE, and a
- *  placement's siblings are somewhere else entirely. */
-const regularAt = (
-  derived: Derived,
-  id: string,
-): Result.Result<LocatedRegular, OpFailure> => {
-  const located = derived.byId.get(id)
-  if (located === undefined) return Result.fail(missing(id))
-  if (isMirror(located.node)) {
-    return Result.fail(
-      new UsageFailure({
-        reason:
-          `\`${id}\` is a mirror — a second placement of \`${located.node.mirror}\`, ` +
-          `not a node of its own`,
-      }),
-    )
-  }
-  return Result.succeed(located as LocatedRegular)
-}
+/** A refusal in this layer's own words: the four moves each say why they could
+ *  not happen, and the sentence IS the message a reader gets. One spelling of
+ *  the constructor so the four read as four sentences rather than four
+ *  structs. What an id nothing declares refuses with is not here at all —
+ *  `@olai/ops` owns that one (`notFound`), and a second copy of it here was
+ *  the same refusal in two places. */
+const refusal = (reason: string): OpFailure => new UsageFailure({ reason })

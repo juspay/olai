@@ -32,6 +32,10 @@
 export { codec } from "./codec.ts"
 export type { Store } from "./deps.ts"
 export { make, type Ops, type Options } from "./ops.ts"
+/** The one refusal a caller ABOVE this layer meets too: an id the set does not
+ *  declare. Exported so the keystroke resolver in `@olai/server` says what a
+ *  tool call says. */
+export { notFound } from "./plan.ts"
 export { type Applied, Request } from "./request.ts"
 export { type Reading, type Tool, TOOLS, toolNamed } from "./tools.ts"
 

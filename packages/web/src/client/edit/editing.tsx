@@ -34,21 +34,23 @@
  * it, the row being typed in is still where it was, and then it is somewhere
  * else, drawn by a branch that did not exist before. Keeping a person's place
  * across that is this file's real work, and it is one rule: a draft is about a
- * ROW, and where that row is drawn is looked up rather than remembered
- * (`follow`). The alternative — echoing the move locally so the row never
+ * ROW, and where that row is drawn is RE-FOUND when the key it was drawn at
+ * stops being drawn (`follow`, below). The alternative — echoing the move locally so the row never
  * appears to leave — is the optimistic UI this whole design is written
  * against.
  */
 
 import type { Row } from "@olai/format"
-import type { Anchor, Edit, OpFailure } from "@olai/surface"
+import type { Anchor, Edit } from "@olai/surface"
 import { debounce } from "@solid-primitives/scheduled"
 import {
   type Accessor,
   createContext,
   createEffect,
+  createMemo,
   createSignal,
   type JSX,
+  untrack,
   useContext,
 } from "solid-js"
 import { Result } from "effect"
@@ -58,7 +60,9 @@ import { runAsync } from "../run.ts"
 import { olai } from "../wire.ts"
 import {
   after,
+  anchorRow,
   commitOf,
+  IDLE_COMMIT,
   type Draft,
   type Editing as RowDraft,
   landed,
@@ -70,16 +74,21 @@ import {
 } from "./draft.ts"
 import { flatten, neighbour } from "./order.ts"
 
-/** How long a person stops typing before what they typed is written. Long
- *  enough that a pause mid-sentence is not a git commit, short enough that
- *  walking away from the keyboard cannot lose the line. */
-const IDLE = 1200
-
 export interface Editor {
   /** The draft, or `null` when nothing is being typed. It carries what the
    *  last write said, refused or not — one value, so replacing it cannot leave
-   *  a stale reason on screen. */
+   *  a stale reason on screen.
+   *
+   *  Read it INSIDE a row that {@link where} has already matched. Every row of
+   *  the tree asks whether the caret is in it, and this value changes on every
+   *  keystroke — so a tree that matched on this would re-run its whole depth
+   *  per character typed. */
   readonly draft: Accessor<Draft | null>
+  /** WHERE the caret is, and nothing about what is being typed there: the
+   *  `Row.key` of the row being edited, the id of the row a new line is being
+   *  drawn after, and which field. Three primitives, so they answer the same
+   *  value while a person types and a row's match stops propagating. */
+  readonly where: Accessor<Caret>
   /** A counter the open editor watches: every bump means "take the caret
    *  back". It is bumped after the ops that redraw the row the key was pressed
    *  in, because moving an element in the document is what takes focus off it
@@ -91,8 +100,10 @@ export interface Editor {
   readonly type: (text: string) => void
   /** The editor at this slot lost focus: commit, and close if it landed. It
    *  says which slot because a blur arrives after the draft may already have
-   *  moved on — see {@link ./draft.ts}'s `Slot`. */
-  readonly blur: (from: Slot) => void
+   *  moved on — see {@link ./draft.ts}'s `Slot` — and whether the element is
+   *  still IN the document, because an editor removed by a re-render did not
+   *  lose focus to a person. */
+  readonly blur: (from: Slot, left: boolean) => void
   /** One of the editing keys. Which row it was pressed in is the draft's to
    *  say — there is one caret, and it knows where it is. */
   readonly press: (action: EditAction) => void
@@ -100,6 +111,29 @@ export interface Editor {
    *  of an empty outline, the first child of an empty branch. */
   readonly start: (at: Anchor) => void
 }
+
+/**
+ * Where the caret is — the part of a draft a ROW has to know, split out from
+ * the part it must not read.
+ *
+ * A tree asks "is the caret in me?" once per row, and the answer changes when
+ * the caret MOVES rather than when a character is typed. Three primitives
+ * compare equal across a keystroke, so the memo each row holds answers the same
+ * thing and propagates nothing; the one row that matched then reads the draft
+ * for its text. Before this, one character typed re-ran a memo in every row of
+ * the tree.
+ */
+export interface Caret {
+  /** The `Row.key` being edited, or `null` — no row draft, or one whose row
+   *  is not drawn yet. */
+  readonly place: string | null
+  /** The id of the row a NEW line is being drawn after, or `null` when there
+   *  is no pending draft or it belongs to a page's start line. */
+  readonly after: string | null
+  readonly field: "title" | "desc" | null
+}
+
+const NOWHERE: Caret = { place: null, after: null, field: null }
 
 const EditorContext = createContext<Editor>()
 
@@ -134,6 +168,16 @@ export const createEditor = (
   const [draft, setDraft] = createSignal<Draft | null>(null)
   const [caret, setCaret] = createSignal(0)
 
+  /** The caret's own three facts, memoised so typing does not move them. */
+  const where = createMemo<Caret>(() => {
+    const held = draft()
+    if (held === null) return NOWHERE
+    if (held.kind === "new") {
+      return { place: null, after: anchorRow(held.at), field: null }
+    }
+    return { place: held.place, after: null, field: held.field }
+  }, NOWHERE, { equals: (a, b) => a.place === b.place && a.after === b.after && a.field === b.field })
+
   /**
    * Whether a REDRAW of the row the caret is in is still expected.
    *
@@ -159,14 +203,15 @@ export const createEditor = (
    *  the redraw may come before the procedure resolves or after it; taking the
    *  caret once on each is what covers both, and the second focus of an
    *  already-focused input costs nothing. */
-  createEffect(() => {
+  const settle = () => {
     // Tracked, and read first: the frame that redrew the row is what this is
     // waiting for, and an effect runs after that row has been moved.
     page.rows()
     if (!settling) return
     settling = false
     setCaret((n) => n + 1)
-  })
+  }
+  createEffect(settle)
 
   /**
    * The row a draft is drawn at, found again when it has moved.
@@ -183,14 +228,18 @@ export const createEditor = (
    * drawn at more than one place, and the caret belongs to the placement the
    * reader was typing in.
    */
-  createEffect(() => {
-    const held = draft()
+  const follow = () => {
+    // The PRIMITIVES, so typing does not run this: what it needs is where the
+    // caret is and which record it is about, and neither moves per keystroke.
+    const at = where().place
+    const held = untrack(draft)
     if (held === null || held.kind !== "row") return
     const drawn = flatten(page.rows(), page.collapsed())
-    if (held.place !== null && drawn.some((row) => row.key === held.place)) return
+    if (at !== null && drawn.some((row) => row.key === at)) return
     const moved = drawn.find((row) => row.at.node.id === held.row)
     if (moved !== undefined) setDraft({ ...held, place: moved.key })
-  })
+  }
+  createEffect(follow)
 
   /** The write. Answers what the edit turned out to be about — the node, and
    *  whatever the rollup had to say about it — or `null` when it was refused,
@@ -228,7 +277,7 @@ export const createEditor = (
   /** The idle commit. Scheduled by every keystroke and cancelled by every
    *  commit, so a person who keeps typing causes one write rather than one per
    *  pause. */
-  const idle = debounce(() => void commit(), IDLE)
+  const idle = debounce(() => void commit(), IDLE_COMMIT)
 
   /** The row the caret is in, as the page is drawing it now. */
   const row = (): Row | undefined => {
@@ -241,9 +290,10 @@ export const createEditor = (
    *  first. A refusal stops it: the row that would not save is the row to
    *  stay in. */
   const move = async (to: Row | undefined) => {
-    if (to === undefined || (to.kind !== "node" && to.kind !== "mirror")) return
+    const next = to === undefined ? null : opened(to, "title")
+    if (next === null) return
     if (!(await commit())) return
-    setDraft(opened(to, "title"))
+    setDraft(next)
   }
 
   /** A structural op for the row the caret is in: commit the text, then ask.
@@ -303,8 +353,8 @@ export const createEditor = (
   }
 
   /** A row, as the draft that edits it. One place mints these, so the two ids
-   *  and the place are read off the row together rather than assembled at four
-   *  call sites. */
+   *  and the place are read off the row together rather than assembled at
+   *  every call site. */
   const opened = (at: Row, field: "title" | "desc"): Draft | null => {
     if (at.kind !== "node" && at.kind !== "mirror") return null
     const text = (field === "title" ? at.shows.node.title : at.shows.node.desc) ?? ""
@@ -354,6 +404,7 @@ export const createEditor = (
 
   return {
     draft,
+    where,
     caret,
     open: (at, field) => {
       const next = opened(at, field)
@@ -371,9 +422,19 @@ export const createEditor = (
       setDraft((held) => (held === null ? held : typed(held, text)))
       idle()
     },
-    blur: (from) => {
+    blur: (from, left) => {
       // A blur we caused ourselves — see `settling`.
       if (settling) return
+      // A blur nobody caused on purpose: the editor's element is not in the
+      // document any more, so it was REMOVED by a re-render rather than left
+      // by a person. The commit below is still right (what was typed should be
+      // written); closing the draft is not, because the reader has not gone
+      // anywhere — the row they are in is being redrawn around them, by an
+      // agent's write or another tab's, at a moment nothing here chose.
+      if (!left) {
+        void commit()
+        return
+      }
       const before = draft()
       // The editor this blur came from is not the one that is open any more —
       // `Enter` moved on, and the row it opened is not this one's to close.

@@ -685,6 +685,18 @@ export class OlaiWorld extends World {
     fs.writeFileSync(target, contents.endsWith("\n") ? contents : `${contents}\n`);
   }
 
+  /** What one served outline HOLDS, as the records on disk — the read half of
+   *  `writeServed`, and here for the same reason: everything that touches the
+   *  served directory goes through `scratch()`, so a scenario reading (or
+   *  writing) the tracked fixtures is not a thing that can happen quietly. */
+  servedNodes(file: string): ReadonlyArray<Record<string, unknown>> {
+    return fs
+      .readFileSync(path.join(this.scratch(), file), "utf8")
+      .split("\n")
+      .filter((line) => line.trim() !== "")
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+  }
+
   removeServed(file: string): void {
     fs.rmSync(path.join(this.scratch(), file));
   }

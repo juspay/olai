@@ -25,6 +25,7 @@ import { Blocked } from "./Blocked.tsx"
 import { Breadcrumbs } from "./Breadcrumbs.tsx"
 import { DateBadge } from "./DateBadge.tsx"
 import { DoneToggle } from "./DoneToggle.tsx"
+import { Editable } from "./edit/Editable.tsx"
 import { StartLine } from "./edit/StartLine.tsx"
 import { only } from "./narrow.ts"
 import { NodeBody } from "./NodeBody.tsx"
@@ -59,7 +60,7 @@ function Zoom(props: {
   readonly view: View
 }) {
   return (
-    <>
+    <Editable rows={() => props.rows} view={props.view}>
       <header class="mb-4">
         <div class="flex items-baseline justify-between gap-4">
           <Breadcrumbs file={props.zoomed.shows.file} trail={props.zoomed.trail} />
@@ -129,7 +130,7 @@ function Zoom(props: {
       >
         <Tree rows={props.rows} view={props.view} />
       </Show>
-    </>
+    </Editable>
   )
 }
 
