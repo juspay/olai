@@ -743,8 +743,11 @@ describe("move", () => {
   })
 
   test("moving a node under its own descendant is refused before the validator sees it", () => {
-    expect(refused(house(), { op: "move", id: "kitchen", parent: "order" }).message)
-      .toContain("loop")
+    const failure = refused(house(), { op: "move", id: "kitchen", parent: "order" })
+    expect(failure.message).toContain("loop")
+    // …and it NAMES the ancestry, the way the other two loop refusals do: the
+    // chain by which the proposed parent already sits inside the node.
+    expect(failure.message).toContain("`order` → `kitchen`")
   })
 
   test("both `before` and `after` is a usage refusal", () => {
@@ -1129,10 +1132,11 @@ describe("see", () => {
 
 /**
  * The other edge, and it is `see`'s shape over a graph with a rule: what a node
- * must come after. The tests that are only about the SHAPE (incremental adds,
- * order preserved, the no-op refusal, an unknown target) are `see`'s above and
- * are not repeated — one function plans both, which is the point. What is here
- * is what `after` MEANS: acyclicity, counted the way the format counts it.
+ * must come after. What is only about the SHAPE — an unknown target, a mirror
+ * addressed as a node — is `see`'s above and is not repeated, because ONE
+ * function plans both and a copy here would assert nothing new. What is here is
+ * what `after` MEANS: acyclicity, counted the way the format counts it, and the
+ * two refusals whose wording is this field's own.
  */
 describe("after", () => {
   const CHAIN = (): OutlineSet =>
@@ -1223,12 +1227,6 @@ describe("after", () => {
       .toContain("`a` → `b` → `a`")
   })
 
-  test("an unknown add is not-found, with the closest id", () => {
-    const failure = refused(CHAIN(), { op: "after", id: "order", add: ["instal"] })
-    expect(failure._tag).toBe("NotFoundFailure")
-    expect(failure.message).toContain("did you mean `install`")
-  })
-
   test("neither add nor remove is a usage refusal naming the field", () => {
     const failure = refused(CHAIN(), { op: "after", id: "order" })
     expect(failure._tag).toBe("UsageFailure")
@@ -1241,15 +1239,6 @@ describe("after", () => {
     expect(failure.message).toContain("already comes after")
   })
 
-  /** A mirror carries no edges of its own — it is four fields — so the refusal
-   *  points at the node that can carry one. */
-  test("a mirror is not a node to hang an edge on", () => {
-    const set = setOf({
-      "a.jsonl": `{"id":"x","ord":"a0","title":"x"}`,
-      "b.jsonl": `{"id":"m","ord":"a0","mirror":"x"}`,
-    })
-    expect(refused(set, { op: "after", id: "m", add: ["x"] }).message).toContain("`x`")
-  })
 })
 
 // ── mirrors ────────────────────────────────────────────────────────────
@@ -1354,14 +1343,6 @@ describe("mirror", () => {
     expect(fileOf(result, "house.jsonl").find((node) => node.id === "n1"))
       .toMatchObject({ mirror: "now-demo" })
     expect(result.summary).toBe("mirror: demolition")
-  })
-
-  test("an unknown target is not-found, with the closest id", () => {
-    const failure = refused(TWO(), { op: "mirror", target: "instal", parent: "now" })
-    expect(failure._tag).toBe("NotFoundFailure")
-    if (failure._tag !== "NotFoundFailure") return
-    expect(failure.named).toBe("instal")
-    expect(failure.message).toContain("did you mean `install`")
   })
 
   /**
@@ -1472,13 +1453,6 @@ describe("unmirror", () => {
     expect(failure.message).toContain("is a node, not a mirror")
     expect(failure.message).toContain("archive_node")
   })
-
-  test("an id nothing declares is not-found", () => {
-    const failure = refused(PLACED(), { op: "unmirror", id: "nope" })
-    expect(failure._tag).toBe("NotFoundFailure")
-    if (failure._tag !== "NotFoundFailure") return
-    expect(failure.named).toBe("nope")
-  })
 })
 
 /**
@@ -1566,6 +1540,10 @@ test("a mistyped id is offered the one it was probably meant to be, on any op", 
   ] as ReadonlyArray<Request>) {
     const failure = refused(house(), request)
     expect(failure._tag).toBe("NotFoundFailure")
+    if (failure._tag !== "NotFoundFailure") return
+    // The id that was not found travels as DATA beside the sentence, whichever
+    // field of whichever op named it.
+    expect(failure.named).toBe("instal")
     expect(failure.message).toContain("did you mean `install`")
   }
 })

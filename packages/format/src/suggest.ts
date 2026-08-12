@@ -29,6 +29,12 @@ export const nearestId = (
   let best: string | null = null
   let bestDistance = budget + 1
   for (const candidate of candidates) {
+    // A length difference is a LOWER BOUND on the edit distance, so a candidate
+    // further away than the budget in length alone cannot win — skipping it is
+    // exact rather than approximate, and it is what keeps this affordable on a
+    // set of a few thousand ids, where the alternative is a full matrix per
+    // candidate for every unresolved reference in a broken file.
+    if (Math.abs(candidate.length - id.length) >= bestDistance) continue
     const gap = distance(id, candidate)
     if (gap < bestDistance) {
       best = candidate

@@ -33,7 +33,7 @@ const Title = Schema.String.annotate({
  * wants. A struct rather than two loose fields so "both at once" is one check
  * in one place.
  */
-const Placement = {
+const Anchor = {
   before: Schema.optionalKey(
     Schema.String.annotate({
       description: "Place it immediately before this sibling id.",
@@ -191,27 +191,42 @@ const childAt = (below: number): Schema.Codec<Capture> =>
  */
 const ROOT = { ...CAPTURE, children: childrenOf(NESTING) } as const
 
-export const AddRequest = Schema.Struct({
-  op: Schema.Literal("add"),
+/**
+ * Where a record a call brings into being LANDS: under a node, or at the top
+ * level of an outline.
+ *
+ * One declaration for the two ops that create a record — `add_node` and
+ * `add_mirror` — because the planner answers it with one function
+ * ({@link ./plan.ts}'s `landsIn`) and two copies of the prose would be two
+ * agent-facing descriptions of one rule, free to drift. Neither field says
+ * "node" or "mirror": what lands is the caller's business, and where it lands
+ * is this.
+ */
+const LANDING = {
   /** The outline to write into. Required only when there is no `parent`: with
    *  one, the file is wherever the parent lives, and a second answer could
    *  disagree with it. */
   file: Schema.optionalKey(
     Schema.String.annotate({
       description:
-        "Outline to add to, relative to the served directory. Required when `parent` is absent; ignored when it is present (the node goes in its parent's file).",
+        "Outline to write into, relative to the served directory. Required when `parent` is absent; ignored when it is present (it goes in its parent's file).",
     }),
   ),
   parent: Schema.optionalKey(
     Schema.String.annotate({
-      description: "Id of the parent node. Absent puts the node at top level.",
+      description: "Id of the node it goes under. Absent puts it at top level.",
     }),
   ),
+} as const
+
+export const AddRequest = Schema.Struct({
+  op: Schema.Literal("add"),
+  ...LANDING,
   /** The node, and the subtree under it. One call, one plan, one validation,
    *  one write, one commit — which is what makes a half-captured outline
    *  impossible. */
   ...ROOT,
-  ...Placement,
+  ...Anchor,
 })
 
 /** The marks are one op: same resolver, same refusals, and the format's own
@@ -252,7 +267,7 @@ export const MoveRequest = Schema.Struct({
    *  which is how a pure reorder is spelled. `parent` is same-file by the
    *  format, so a move never crosses outlines — archiving is what does. */
   parent: Schema.optionalKey(Schema.NullOr(Schema.String)),
-  ...Placement,
+  ...Anchor,
 })
 
 export const ArchiveRequest = Schema.Struct({
@@ -307,7 +322,7 @@ export const SeeRequest = Schema.Struct({
   add: Schema.optionalKey(
     Schema.Array(Schema.String).annotate({
       description:
-        "Ids to add to this node's `see` list. Each must name a node in the loaded set; unknowns are refused with the ids that do exist.",
+        "Ids to add to this node's `see` list. Each must name a node in the loaded set; an unknown one is refused with the closest id that exists.",
     }),
   ),
   remove: Schema.optionalKey(
@@ -339,17 +354,7 @@ export const MirrorRequest = Schema.Struct({
     description:
       "The `id` this mirror shows. Any node in the loaded set, in any outline — and it may itself be a mirror, in which case the chain is followed to the node at its end.",
   }),
-  file: Schema.optionalKey(
-    Schema.String.annotate({
-      description:
-        "Outline to place the mirror in, relative to the served directory. Required when `parent` is absent; ignored when it is present (the mirror goes in its parent's file).",
-    }),
-  ),
-  parent: Schema.optionalKey(
-    Schema.String.annotate({
-      description: "Id of the node to place the mirror under. Absent puts it at top level.",
-    }),
-  ),
+  ...LANDING,
   /** The placement's OWN id — not the target's. Absent mints one; supply one
    *  when the placement itself needs a name a person will type, which is what
    *  a ledger convention like `now-<item>` is. */
@@ -359,7 +364,7 @@ export const MirrorRequest = Schema.Struct({
         "A chosen id for the PLACEMENT (`[A-Za-z0-9_-]+`), unique across the set — not the target's id. Absent mints one, and the answer's `id` names it either way.",
     }),
   ),
-  ...Placement,
+  ...Anchor,
 })
 
 /**

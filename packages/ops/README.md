@@ -273,9 +273,14 @@ file — the practice `docs/RCA/2026-08-11-roadmap-stamp-reverts.md` is about. S
   `ord` minted between them. Two refusals are its own — a target nothing
   declares, and a placement INSIDE the subtree it shows, which is the one mirror
   rule that cannot be checked one record at a time (expanding it would never
-  end). That walk is the validator's own graph, downward: a node leads to its
-  children, a mirror to its target, so a loop that closes through another
-  placement is found, and the refusal names it.
+  end). That walk is the validator's own graph (`@olai/format`'s `drawnFrom`),
+  downward: a node leads to its children, a mirror to its target, so a loop that
+  closes through another placement is found, and the refusal names it — with the
+  same arrow the validator writes a cycle with, because that is one function too
+  (`chainOf`). All three loop refusals this layer has — a move under its own
+  descendant, a placement inside what it shows, an `after` edge closing a cycle
+  — are one walk (`pathTo`) over three graphs, and each of them names the loop
+  rather than merely reporting one.
 - **`remove_mirror` retires one, and that is a PLACEMENT rather than a node.**
   `id` is the mirror's own — the line goes, and the target keeps its title, its
   mark, its children and every other placement of it. It is deliberately not
@@ -353,11 +358,14 @@ something, and its `see` and `after` targets (when it has any), so a
 cross-reference and a dependency are both traversable without a second read.
 `set_see` and `set_after` are the write halves: add and/or remove target ids on
 an existing node, and an unknown add is refused with the closest id that does
-exist — the validator's own did-you-mean, one moment earlier, over one shared
-rule (`@olai/format`'s `nearestId`). That refusal used to list every id in the
-set, which is the right answer for the OUTLINES of a directory and the wrong
-one for the nodes in it: `search_nodes` is the tool for "I do not know what it
-is called". Tool descriptions teach the gestures the surface is shaped around —
+exist — the validator's own did-you-mean, one moment earlier, through the very
+same function (`@olai/format`'s `didYouMean`), so a write and a load cannot
+disagree about what a typo is or say so in two voices. That refusal used to list
+every id in the set, which is the right answer for the OUTLINES of a directory
+and the wrong one for the nodes in it: `search_nodes` is the tool for "I do not
+know what it is called". It is ONE refusal for an id nothing declares, whatever
+the id was doing — the node an op is about gets the same help as a target it was
+asked to point at. Tool descriptions teach the gestures the surface is shaped around —
 `add_node`'s, that nodes you already know go in ONE call; `add_mirror`'s, that a
 curated list is placements rather than copies; `set_after`'s, that a dependency
 is written from the node that waits.

@@ -48,10 +48,13 @@ An unknown reference is nearly always a misspelling, so an error about one ends
 with the closest declared id — within a typo's distance (`src/suggest.ts`: a
 third of the id's length, never less than two), and nothing further away, since
 a guess that is merely NEAREST teaches a reader to distrust the offer. That rule
-is exported (`nearestId`, `didYouMean`) for one reason: the ops layer refuses
-the same unknown `mirror` / `after` / `see` target one moment EARLIER, at the
-plan, and a second copy of the budget would let the write and the load disagree
-about what a typo is.
+is exported (`didYouMean`, and `nearestId` for a caller that wants the candidate
+rather than the wording) for one reason: the ops layer refuses the same unknown
+`mirror` / `after` / `see` target one moment EARLIER, at the plan, and a second
+copy of the budget — or of the sentence — would let the write and the load
+disagree about what a typo is. `chainOf` (`src/errors.ts`) is the same argument
+about a LOOP: the validator names one it found on load, the ops layer names the
+one a write is about to close, and the arrow between the ids is written once.
 
 ## Entry point
 

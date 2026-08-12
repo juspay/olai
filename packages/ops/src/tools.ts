@@ -307,7 +307,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
   write(
     "set_see",
     "Set see references",
-    "Add and/or remove free cross-references (`see`) on an existing node. `see` is a link and nothing more — no ordering, no blocking, cycles fine. Give `add` and/or `remove` (ids of targets in the loaded set); an unknown add is refused with the closest id that does exist. Search and node reads carry a node's `see` so you can traverse what is already there. For \"this cannot start until that is done\", use `set_after` instead — that one is the ordering graph.",
+    "Add and/or remove free cross-references (`see`) on an existing node. `see` is a link and nothing more — no ordering, no blocking, cycles fine. Give `add` and/or `remove` (ids of targets in the loaded set); an unknown add is refused with the closest id that exists. Search and node reads carry a node's `see` so you can traverse what is already there. For \"this cannot start until that is done\", use `set_after` instead — that one is the ordering graph.",
     SeeRequest,
     { op: "see" },
   ),

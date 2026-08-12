@@ -27,7 +27,12 @@ import { Result } from "effect"
 
 import { derive, type Derived, drawnFrom } from "./derive.ts"
 import { type Document, resolveRelative } from "./documents.ts"
-import { compareErrors, isGuessWhileUnreadable, type OutlineError } from "./errors.ts"
+import {
+  chainOf,
+  compareErrors,
+  isGuessWhileUnreadable,
+  type OutlineError,
+} from "./errors.ts"
 import { EDGE_FIELDS, isMirror, type Located } from "./node.ts"
 import { didYouMean } from "./suggest.ts"
 import type { OutlineSet } from "./set.ts"
@@ -299,7 +304,12 @@ const reportCycles = (
     errors.push({
       code,
       ...siteOf(anchor),
-      message: `${message}: ${ordered.map((step) => `\`${step.node.id}\``).join(" → ")} → \`${anchor.node.id}\``,
+      // Closed by repeating the anchor, which is what makes it read as a loop
+      // rather than as a list — the ops layer names one it is about to close
+      // the same way ({@link ./errors.ts}'s `chainOf`).
+      message: `${message}: ${
+        chainOf([...ordered.map((step) => step.node.id), anchor.node.id])
+      }`,
       related: rest.map((step) => ({ ...siteOf(step), note: "also in the loop" })),
     })
   }

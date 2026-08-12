@@ -27,15 +27,16 @@
 import {
   ancestorsOf,
   ARCHIVE,
+  chainOf,
   derive,
-  drawnFrom,
   type Derived,
+  didYouMean,
+  drawnFrom,
   isMirror,
   type Located,
   type LocatedRegular,
   MARKS,
   type MirrorNode,
-  nearestId,
   type Node,
   nodeNamed,
   type Status,
@@ -216,13 +217,15 @@ const editable = (
  * with the one id worth reading somewhere in the middle of it.
  */
 const unknownId = (scope: Scope, id: string): OpFailure => {
-  const near = nearestId(id, scope.derived.byId.keys())
+  // The CLAUSE is the format's too, not just the budget behind it: a refusal
+  // and a load error say "did you mean" in one voice or in two.
+  const near = didYouMean(id, scope.derived.byId.keys())
   return new NotFoundFailure({
-    reason: near === null
+    reason: near === ""
       ? `\`${id}\` is not a node in the loaded set, and nothing in it is spelled ` +
         `close enough to be a typo of it — \`search_nodes\` finds a node by title, ` +
         `id or \`#tag\``
-      : `\`${id}\` is not a node in the loaded set — did you mean \`${near}\`?`,
+      : `\`${id}\` is not a node in the loaded set${near}`,
     named: id,
   })
 }
@@ -232,10 +235,11 @@ const unknownId = (scope: Scope, id: string): OpFailure => {
  * — or `null` when there is none. Cycle-safe, and `from === to` is a path of
  * one, which is what makes a self-edge a loop like any other.
  *
- * Two ops need a loop NAMED rather than merely detected, over two different
- * graphs: what drawing a node leads to drawing (a mirror inside what it shows)
- * and what has to happen before what (an `after` edge closing a cycle). The
- * graphs are the callers'; the walk is one.
+ * THREE ops need a loop named rather than merely detected, over three different
+ * graphs: what contains what (a move under its own descendant), what drawing a
+ * node leads to drawing (a mirror inside what it shows), and what has to happen
+ * before what (an `after` edge closing a cycle). The graphs are the callers';
+ * the walk is one.
  */
 const pathTo = (
   from: string,
@@ -243,11 +247,15 @@ const pathTo = (
   edges: (id: string) => Iterable<string>,
 ): ReadonlyArray<string> | null => {
   const seen = new Set<string>()
+  // The trail is extended only for a node this walk is actually descending
+  // into: a revisit answers `null` without copying anything, which matters
+  // because the common answer is `null` and a node reached through three
+  // mirrors is reached three times.
   const walk = (at: string, trail: ReadonlyArray<string>): ReadonlyArray<string> | null => {
-    const path = [...trail, at]
-    if (at === to) return path
+    if (at === to) return [...trail, at]
     if (seen.has(at)) return null
     seen.add(at)
+    const path = [...trail, at]
     for (const next of edges(at)) {
       const found = walk(next, path)
       if (found !== null) return found
@@ -256,12 +264,6 @@ const pathTo = (
   }
   return walk(from, [])
 }
-
-/** A path as a refusal says it, with the arrow the validator's own cycle errors
- *  are written with. A loop is the same thing whose ends are the same id, which
- *  is what makes `a → a` the honest rendering of an edge onto itself. */
-const chainOf = (path: ReadonlyArray<string>): string =>
-  path.map((id) => `\`${id}\``).join(" → ")
 
 /** The record with this id, or the refusal that says so. A MIRROR is not an
  *  answer: it is a second placement of a node that lives elsewhere, and every
@@ -381,7 +383,7 @@ const replacing = (
 
 // ── siblings and where a node lands among them ─────────────────────────
 
-interface Placement {
+interface Anchor {
   readonly before?: string | undefined
   readonly after?: string | undefined
 }
@@ -413,7 +415,7 @@ const nextOrd = (previous: string | null): string => {
 const placed = (
   siblings: ReadonlyArray<Located>,
   moving: string,
-  placement: Placement,
+  placement: Anchor,
 ): Result.Result<ReadonlyArray<{ id: string; ord: string }>, OpFailure> => {
   if (placement.before !== undefined && placement.after !== undefined) {
     return Result.fail(
@@ -455,6 +457,19 @@ const placed = (
     previous = next
   }
   return Result.succeed(renumbered)
+}
+
+/** The key {@link placed} gave the record being placed. It is always in there —
+ *  placing something is what that function was asked to do — so a miss is a
+ *  defect in this file rather than anything a caller can act on, and it is one
+ *  sentence for the two ops that bring a record into being. */
+const ordFor = (
+  ords: ReadonlyArray<{ id: string; ord: string }>,
+  id: string,
+): string => {
+  const ord = ords.find((entry) => entry.id === id)?.ord
+  if (ord === undefined) throw new Error("the placement did not include the new record")
+  return ord
 }
 
 /** Apply what {@link placed} decided to a file's records. The moving node is
@@ -509,8 +524,7 @@ const planAdd = (
 
   const ords = placed(siblingsOf(scope.derived, file, parent), id, request)
   if (Result.isFailure(ords)) return Result.fail(ords.failure)
-  const ord = ords.success.find((entry) => entry.id === id)?.ord
-  if (ord === undefined) throw new Error("the placement did not include the new node")
+  const ord = ordFor(ords.success, id)
 
   const minted: Array<RegularNode> = []
   const refused = emit(scope, taken, minted, request, {
@@ -900,10 +914,12 @@ const planMove = (
         }),
       )
     }
-    if (wouldContainItself(scope, request.id, parent)) {
+    const inside = containing(scope, request.id, parent)
+    if (inside !== null) {
       return Result.fail(
         new UsageFailure({
-          reason: `\`${parent}\` is inside \`${request.id}\`, so the move would make a loop`,
+          reason: `\`${parent}\` is inside \`${request.id}\` — ${inside} — so the move ` +
+            `would make a loop`,
         }),
       )
     }
@@ -937,17 +953,26 @@ const withParent = <N extends Node>(node: N, parent: string | undefined): N => {
   return next
 }
 
-/** Is `parent` inside the subtree rooted at `id`? The validator would catch the
- *  cycle, but its message is about a set on disk; this one is about the move. */
-const wouldContainItself = (scope: Scope, id: string, parent: string): boolean => {
-  const seen = new Set<string>()
-  let at: string | undefined = parent
-  while (at !== undefined && !seen.has(at)) {
-    if (at === id) return true
-    seen.add(at)
-    at = scope.derived.byId.get(at)?.node.parent
-  }
-  return false
+/**
+ * The chain by which `parent` sits inside the subtree rooted at `id` — or
+ * `null` when it does not.
+ *
+ * The validator would catch the cycle this move would make, but its message is
+ * about a set on disk; this one is about the move, and it NAMES the chain for
+ * the same reason the other two loop refusals do — an agent told which
+ * ancestry it just tried to fold into itself can fix the call.
+ *
+ * Upward through `parent`, which is the containment graph read the direction a
+ * reparenting asks about: is the new parent one of my own descendants? {@link
+ * showsInto} asks the same question of a placement and walks DOWNWARD, because
+ * only that direction follows a mirror to what it shows.
+ */
+const containing = (scope: Scope, id: string, parent: string): string | null => {
+  const path = pathTo(parent, id, (at) => {
+    const up = scope.derived.byId.get(at)?.node.parent
+    return up === undefined ? [] : [up]
+  })
+  return path === null ? null : chainOf(path)
 }
 
 // ── create ─────────────────────────────────────────────────────────────
@@ -1223,27 +1248,75 @@ const appendedOrd = (
 
 // ── the edges: see, after ──────────────────────────────────────────────
 
-/** The edge fields an op may write, and the words a refusal about one uses.
+/**
+ * The one thing an `after` edge may not do: close a loop.
  *
- *  `blocks` is not among them, and that is the format's own sugar rule read as
- *  a writing rule: `a blocks b` IS `b after a`, so a writer that could spell
- *  both would put one relation on disk two ways and leave every reader
- *  normalising. Nothing stops a person writing `blocks` by hand — the format
- *  takes it and `derive` folds it in — but an op writes the arrow one way. */
+ * Read over `derive`'s ordering graph — `blocks` normalised in, both ends
+ * resolved to NODES — which is the same graph the validator's acyclicity rule
+ * walks, so this refusal and that error cannot disagree about whether two
+ * records mean one edge. In particular a deadlock closing through a MIRROR is
+ * one loop rather than two dead ends: naming a placement in `after` names the
+ * node standing at it.
+ *
+ * The write would be refused either way — the gate re-validates the whole set
+ * — but the validator's report is about a file that does not exist yet, and an
+ * agent that is told which loop it would close can fix the call instead of the
+ * file. So the message NAMES it, with the validator's own arrow.
+ */
+const cycling = (scope: Scope, node: RegularNode, target: string): OpFailure | null => {
+  const named = nodeNamed(scope.derived, target)?.node.id ?? target
+  const back = pathTo(named, node.id, (id) => scope.derived.after.get(id) ?? [])
+  if (back === null) return null
+  // `back` already ends where it started from, so the node's own id in front of
+  // it IS the closed loop: `a → b → a`, and `a → a` for an edge onto itself.
+  return new UsageFailure({
+    reason: `\`${node.id}\` after \`${target}\` closes a loop — ${
+      chainOf([node.id, ...back])
+    } — and \`after\` (counting \`blocks\`) must stay acyclic, so nothing in it ` +
+      `could ever start first`,
+  })
+}
+
+/**
+ * The edge fields an op may WRITE, and everything that differs between them:
+ * the words a refusal about one uses, and the rule an add has to survive.
+ *
+ * One descriptor per field rather than a table of words beside a rule passed in
+ * at the call site — the two are the same decision, and split apart a third
+ * field would be two edits in two shapes with nothing to say they belong
+ * together.
+ *
+ * `blocks` is not among them, and that is the format's own sugar rule read as a
+ * writing rule: `a blocks b` IS `b after a`, so a writer that could spell both
+ * would put one relation on disk two ways and leave every reader normalising.
+ * Nothing stops a person writing `blocks` by hand — the format takes it and
+ * `derive` folds it in — but an op writes the arrow one way. That is why this
+ * list is narrower than the format's own edge fields rather than a copy of it.
+ */
 const EDGE = {
   see: {
     /** How the refusal for a node that carries none reads. */
     none: "has no `see` targets",
     /** …and for one that already says exactly what was asked for. */
     exact: "already sees exactly",
+    /** Nothing: a `see` is a link and no more, so a loop of them is two notes
+     *  pointing at each other, which is a thing people write on purpose. */
+    forbid: (): null => null,
   },
   after: {
     none: "has no `after` edges",
     exact: "already comes after exactly",
+    forbid: cycling,
   },
-} as const satisfies Record<string, { readonly none: string; readonly exact: string }>
+} as const satisfies Record<string, {
+  readonly none: string
+  readonly exact: string
+  readonly forbid: (scope: Scope, node: RegularNode, target: string) => OpFailure | null
+}>
 
-type EdgeField = keyof typeof EDGE
+/** The fields above — deliberately NOT the format's `after | blocks | see`,
+ *  which is what a record may CARRY. */
+type WritableEdge = keyof typeof EDGE
 
 /**
  * Add and/or remove edge targets on a node — the whole of `set_see` and
@@ -1259,20 +1332,19 @@ type EdgeField = keyof typeof EDGE
  * catch it too, with `file:line`, and an agent that can correct before the write
  * costs nobody a round trip.
  *
- * What differs between the two fields is what the edges MEAN, and that arrives
- * as `forbid`: `see` is free (no ordering, no blocking, cycles fine), while
- * `after` is the ordering graph and an add that closes a loop is refused
+ * What differs between the two fields is what the edges MEAN, and that is
+ * {@link EDGE}'s to say: `see` is free (no ordering, no blocking, cycles fine),
+ * while `after` is the ordering graph and an add that closes a loop is refused
  * ({@link cycling}).
  */
 const planEdges = (
   scope: Scope,
-  field: EdgeField,
+  field: WritableEdge,
   request: {
     readonly id: string
     readonly add?: ReadonlyArray<string> | undefined
     readonly remove?: ReadonlyArray<string> | undefined
   },
-  forbid: (scope: Scope, node: RegularNode, target: string) => OpFailure | null,
 ): Planned => {
   const target = editable(scope, request.id)
   if (Result.isFailure(target)) return Result.fail(target.failure)
@@ -1292,7 +1364,7 @@ const planEdges = (
 
   for (const id of add) {
     if (!scope.derived.byId.has(id)) return Result.fail(unknownId(scope, id))
-    const refused = forbid(scope, node, id)
+    const refused = EDGE[field].forbid(scope, node, id)
     if (refused !== null) return Result.fail(refused)
   }
 
@@ -1338,48 +1410,15 @@ const planEdges = (
   })
 }
 
-/** Nothing to forbid: a `see` is a link and no more, so a loop of them is two
- *  notes pointing at each other, which is a thing people write on purpose. */
-const anything = (): null => null
-
-/**
- * The one thing an `after` edge may not do: close a loop.
- *
- * Read over `derive`'s ordering graph — `blocks` normalised in, both ends
- * resolved to NODES — which is the same graph the validator's acyclicity rule
- * walks, so this refusal and that error cannot disagree about whether two
- * records mean one edge. In particular a deadlock closing through a MIRROR is
- * one loop rather than two dead ends: naming a placement in `after` names the
- * node standing at it.
- *
- * The write would be refused either way — the gate re-validates the whole set
- * — but the validator's report is about a file that does not exist yet, and an
- * agent that is told which loop it would close can fix the call instead of the
- * file. So the message NAMES it, with the validator's own arrow.
- */
-const cycling = (scope: Scope, node: RegularNode, target: string): OpFailure | null => {
-  const named = nodeNamed(scope.derived, target)?.node.id ?? target
-  const back = pathTo(named, node.id, (id) => scope.derived.after.get(id) ?? [])
-  if (back === null) return null
-  // `back` already ends where it started from, so the node's own id in front of
-  // it IS the closed loop: `a → b → a`, and `a → a` for an edge onto itself.
-  return new UsageFailure({
-    reason: `\`${node.id}\` after \`${target}\` closes a loop — ${
-      chainOf([node.id, ...back])
-    } — and \`after\` (counting \`blocks\`) must stay acyclic, so nothing in it ` +
-      `could ever start first`,
-  })
-}
-
 const planSee = (
   scope: Scope,
   request: Extract<Request, { op: "see" }>,
-): Planned => planEdges(scope, "see", request, anything)
+): Planned => planEdges(scope, "see", request)
 
 const planAfter = (
   scope: Scope,
   request: Extract<Request, { op: "after" }>,
-): Planned => planEdges(scope, "after", request, cycling)
+): Planned => planEdges(scope, "after", request)
 
 // ── mirrors ────────────────────────────────────────────────────────────
 
@@ -1439,8 +1478,7 @@ const planMirror = (
 
   const ords = placed(siblingsOf(scope.derived, file, parent), id, request)
   if (Result.isFailure(ords)) return Result.fail(ords.failure)
-  const ord = ords.success.find((entry) => entry.id === id)?.ord
-  if (ord === undefined) throw new Error("the placement did not include the new mirror")
+  const ord = ordFor(ords.success, id)
 
   const record: MirrorNode = {
     id,
