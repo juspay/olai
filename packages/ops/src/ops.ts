@@ -28,6 +28,7 @@ import {
   type OpFailure,
   type OutlineSet,
   type Pending,
+  type PushResult,
   serializeOutline,
   stampOf,
   ValidationFailure,
@@ -78,9 +79,9 @@ export interface Options {
    * front of the person watching.
    */
   readonly onRefusal?: (request: Request, failure: OpFailure) => Effect.Effect<void>
-  /** Told whenever a commit lands, by whichever door — see
-   *  {@link ./pending.ts}'s `Options`. */
-  readonly onCommitted?: () => void
+  /** Told whenever git recorded or shared something — a commit by whichever
+   *  door, or a push — see {@link ./pending.ts}'s `Options`. */
+  readonly onRecorded?: () => void
 }
 
 export interface Ops {
@@ -113,12 +114,23 @@ export interface Ops {
    *  wants only it. Derived from git every time it is asked, so nothing above
    *  this layer holds a copy that could be wrong. */
   readonly pending: Effect.Effect<Pending>
-  /** Commit what is waiting. Both doors — the button's procedure and the MCP
-   *  tool — are callers of this one thing. */
+  /** Commit what is waiting — everything, or exactly the paths that were
+   *  picked. Both doors — the button's procedure and the MCP tool — are callers
+   *  of this one thing. */
   readonly commit: (
     request: CommitRequest,
     writer: Writer,
   ) => Effect.Effect<CommitResult>
+  /**
+   * Send the current branch to its upstream.
+   *
+   * One verb and no arguments, which is the whole of the decision: an audit
+   * trail that lives on one machine is worth very little, and everything else
+   * about a remote — which one, which refspec, what to do about a divergence —
+   * is a conversation in a terminal. Both doors again, and a refusal comes back
+   * as a value with git's own words on it, exactly as a refused commit does.
+   */
+  readonly push: Effect.Effect<PushResult>
   /**
    * The set as a reader sees it, or the one refusal for a directory that has
    * never loaded.
@@ -162,7 +174,7 @@ export const make = (options: Options): Ops => {
     store: options.store,
     root: options.root,
     mode: options.commits,
-    ...(options.onCommitted === undefined ? {} : { onCommitted: options.onCommitted }),
+    ...(options.onRecorded === undefined ? {} : { onRecorded: options.onRecorded }),
   })
 
   const read: Effect.Effect<Reading, OpFailure> = Effect.gen(function*() {
@@ -288,6 +300,7 @@ export const make = (options: Options): Ops => {
     status: commits.status,
     pending: commits.pending,
     commit: commits.commit,
+    push: commits.push,
     git: commits.git,
   }
 }

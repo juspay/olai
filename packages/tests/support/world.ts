@@ -17,6 +17,7 @@
 import { execFileSync, type ChildProcess } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as os from "node:os";
 
 import { selector, TESTID } from "@olai/web/src/client/testids.ts";
 import {
@@ -298,6 +299,19 @@ export const COMMIT_CHANGE = selector(TESTID.commitChange);
 export const COMMIT_MESSAGE = selector(TESTID.commitMessage);
 export const COMMIT_NOW = selector(TESTID.commitNow);
 export const COMMIT_BLOCKED = selector(TESTID.commitBlocked);
+/** One dirty file that is NOT a served outline — a document a person edited, a
+ *  source file, an outline outside the served root. `data-path` is which and
+ *  `data-how` what happened to it, never the chip's own words. */
+export const COMMIT_OTHER = selector(TESTID.commitOther);
+/** The box that says whether a file is going into this commit; `data-path` is
+ *  which file. Everything is ticked until somebody says otherwise. */
+export const COMMIT_TICK = selector(TESTID.commitTick);
+/** What the panel is a list OF — the whole repository, and the part of it olai
+ *  serves. */
+export const COMMIT_SCOPE = selector(TESTID.commitScope);
+/** What is committed here and nowhere else; `data-commits` is how many. */
+export const COMMIT_UNPUSHED = selector(TESTID.commitUnpushed);
+export const COMMIT_PUSH = selector(TESTID.commitPush);
 
 /** The agent panel. Absent entirely when no ACP agent is configured, which is
  *  a state the suite never runs in: every server it spawns is pointed at the
@@ -480,6 +494,10 @@ export class OlaiWorld extends World {
    *  watches it. Undefined for the shared corpora, which are the tracked
    *  fixtures and must not be written to. */
   served?: string;
+  /** Where this scenario PUSHES to, once it has asked for one: a bare
+   *  repository in a temp directory, wired up as `origin`. Undefined for every
+   *  scenario that is not about pushing, which is all but one of them. */
+  remote?: string;
   /** The server process a `@scratch:` scenario owns, killed in `After`. */
   ownServer?: ChildProcess;
   /** A coding agent in a terminal, for the scenarios about the tool surface
@@ -843,6 +861,37 @@ export class OlaiWorld extends World {
       cwd: this.scratch(),
       encoding: "utf8",
     });
+  }
+
+  /**
+   * Somewhere for this scenario's repository to PUSH to — a bare repository in
+   * a temp directory, wired up as `origin` with the branch tracking it.
+   *
+   * A real remote rather than a stub, for the reason the served directory is a
+   * real repository: what is under test is what git does, and the whole point
+   * of the push button is that a person never has to check by hand whether it
+   * worked. A local bare clone is the smallest thing that can be checked
+   * afterwards, and it needs no network.
+   */
+  giveRemote(): string {
+    const bare = fs.mkdtempSync(path.join(os.tmpdir(), "olai-e2e-remote-"));
+    execFileSync("git", ["init", "--quiet", "--bare", "--initial-branch", "main"], {
+      cwd: bare,
+      stdio: "ignore",
+    });
+    this.git("branch", "--move", "main");
+    this.git("remote", "add", "origin", bare);
+    this.git("push", "--quiet", "--set-upstream", "origin", "main");
+    this.remote = bare;
+    return bare;
+  }
+
+  /** What the bare remote holds, once this scenario has given itself one. */
+  remoteGit(...argv: ReadonlyArray<string>): string {
+    if (this.remote === undefined) {
+      throw new Error("this scenario has no remote — give it one first");
+    }
+    return execFileSync("git", [...argv], { cwd: this.remote, encoding: "utf8" });
   }
 
   /** Plant the no-reload sentinel. */

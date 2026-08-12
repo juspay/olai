@@ -15,6 +15,7 @@
  */
 
 import {
+  type How,
   type Pending,
   type Reason,
   type RepoState,
@@ -23,7 +24,7 @@ import {
 } from "@olai/format"
 import type { GitState } from "@olai/surface"
 
-import type { Attempt } from "./state.ts"
+import type { Attempt, PushAttempt } from "./state.ts"
 
 /**
  * Which of the eight things the pill is saying right now.
@@ -70,6 +71,30 @@ export type Face =
   | "never"
 
 /**
+ * How much is waiting, in one place — and the fence every reader uses.
+ *
+ * It counts what the panel would DRAW: one per node-level change, one per other
+ * dirty file, one per outline nothing could be read in, and one per outline
+ * whose bytes moved with no node moving — a reformat, a reordered line. That
+ * last term is why this is not simply `changes + others + unreadable`: such an
+ * outline is dirty, committable and listed, and left out of the tally the pill
+ * read `committed` while the panel underneath offered to commit it.
+ *
+ * Because it counts rows, `waitingIn(p) > 0` is exactly "the panel has
+ * something in it" — so the count and the fence cannot disagree, which is the
+ * shape the split into two numbers was reaching for and did not have.
+ */
+export const waitingIn = (pending: Pending): number => {
+  const changed = new Set(pending.changes.map((change) => change.file))
+  const unreadable = new Set(pending.unreadable)
+  const silent = pending.outlines.filter((outline) =>
+    !changed.has(outline.file) && !unreadable.has(outline.file)
+  )
+  return pending.changes.length + pending.others.length + pending.unreadable.length +
+    silent.length
+}
+
+/**
  * The one face, from the two readings the server publishes together.
  *
  * `git` is the second argument rather than something derived from `pending`
@@ -95,7 +120,7 @@ export const faceOf = (pending: Pending, heard: boolean, git: GitState): Face =>
   // memory, which no probe can see).
   if (git.status === "error" || pending.repo._tag === "Unusable") return "error"
   if (pending.repo._tag === "NoRepo") return "no-repo"
-  const waiting = pending.changes.length + pending.unreadable.length
+  const waiting = waitingIn(pending)
   // A busy repository with nothing waiting is not a problem anybody has: there
   // is nothing the block is stopping.
   if (waiting > 0) return pending.repo._tag === "Blocked" ? "blocked" : "waiting"
@@ -185,7 +210,10 @@ export const DETAIL: Readonly<Record<Face, string>> = {
  * git's own words, and the two that are waiting carry how much. Everything else
  * reads as its own sentence.
  */
-export const explain = (face: Face, pending: Pending, git: GitState): string => {
+export const explain = (face: Face, pending: Pending, git: GitState): string =>
+  alsoUnpushed(sentence(face, pending, git), pending)
+
+const sentence = (face: Face, pending: Pending, git: GitState): string => {
   switch (face) {
     case "error": {
       // The cell's words first — they are the remembered refusal, which is the
@@ -204,10 +232,29 @@ export const explain = (face: Face, pending: Pending, git: GitState): string => 
   }
 }
 
+/**
+ * ... and how much is recorded here and nowhere else, on whichever face is
+ * being worn.
+ *
+ * It rides EVERY face rather than being one of them, because it is a different
+ * question: what is not committed, and what is not shared. A clean tree with
+ * eleven unpushed commits is the case that matters most and is the one no face
+ * would have covered — `✓ committed` is true of it, and on its own it is the
+ * complacent half of the truth.
+ *
+ * On the sentence as well as on the pill, because the sentence is what a reader
+ * with no pointer gets: the pill's own `· 3 unpushed` is hover-free but silent
+ * to a screen reader that only takes the label.
+ */
+const alsoUnpushed = (said: string, pending: Pending): string => {
+  const unpushed = unpushedOf(pending)
+  return unpushed === null ? said : `${said} · ${unpushed}, and the panel can push them`
+}
+
 /** How much is waiting, in words — the same tally the pill draws as a number,
  *  so the sentence and the label cannot disagree. */
 const counted = (pending: Pending): string => {
-  const waiting = pending.changes.length + pending.unreadable.length
+  const waiting = waitingIn(pending)
   return `${waiting} ${waiting === 1 ? "change is" : "changes are"}`
 }
 
@@ -253,6 +300,95 @@ export const GLYPH: Readonly<Record<Sort, string>> = {
   renamed: "✎",
   linked: "→",
   edited: "✎",
+}
+
+/**
+ * What happened to a file that is not an outline — the chip beside its path.
+ *
+ * Git's own word for each, because these rows are the one place the panel
+ * reports on a file rather than on a node, and a person who is going to reach
+ * for a terminal about one of them should read the same word `git status` uses.
+ */
+export const HOW: Readonly<Record<How, string>> = {
+  modified: "modified",
+  added: "added",
+  deleted: "deleted",
+  renamed: "renamed",
+  untracked: "untracked",
+}
+
+/**
+ * The tone each chip wears, out of the palette the marks already use.
+ *
+ * Three tones for five words, and the grouping is what a reader is being told:
+ * a file that has LEFT is the one worth a second look (`alarm`), a file that is
+ * NEW to the repository is a claim about the tree rather than an edit to it
+ * (`done` — the same green a finished node wears, because arriving is the
+ * ordinary good case), and everything else is an edit (`doing`'s amber, the tone
+ * of work in progress). Nothing here is red-for-danger: every one of these is a
+ * file somebody is about to record on purpose.
+ */
+export const HOW_TONE: Readonly<Record<How, string>> = {
+  modified: "text-doing",
+  added: "text-done",
+  untracked: "text-done",
+  renamed: "text-doing",
+  deleted: "text-alarm",
+}
+
+/**
+ * What the panel is reporting ON — the scope line, which is new because the
+ * scope changed.
+ *
+ * It used to be unsayable and unnecessary: what was waiting was the served
+ * outlines, and the panel hung off a page already showing them. Now it is every
+ * dirty file in the repository, so a `README.md` two directories above the
+ * outlines is a row in this list — and a reader who is not told that has to
+ * work out why.
+ */
+export const scopeOf = (served: string): string =>
+  served === ""
+    ? "whole repository · olai serves it from the root"
+    : `whole repository · olai serves ${served}`
+
+/**
+ * What is committed here and nowhere else, in the sentence the panel puts beside
+ * the Push button — and the header puts in its own words.
+ *
+ * `null` for a branch with no upstream and for one already in sync: there is
+ * nothing to offer, and a button that pushed nothing would be a button that
+ * teaches a person to ignore it.
+ */
+export const unpushedOf = (pending: Pending): string | null => {
+  const unpushed = pending.unpushed
+  if (unpushed === null || unpushed.commits === 0) return null
+  const commits = `${unpushed.commits} ${unpushed.commits === 1 ? "commit" : "commits"}`
+  return `${commits} not on ${unpushed.upstream}`
+}
+
+/**
+ * What a push attempt leaves on screen, or `null` for one that leaves nothing.
+ *
+ * A push that WORKED is the `null`, for the reason a commit that worked is: what
+ * is waiting is republished and the line it would have been read on is gone. The
+ * refusals are the point — authentication, a non-fast-forward, a branch with no
+ * upstream — and they are git's own words, whole, because they are what a person
+ * is about to paste into a terminal.
+ */
+export const pushTrouble = (attempt: PushAttempt | null): string | null => {
+  if (attempt === null) return null
+  switch (attempt._tag) {
+    case "Pushed":
+      return null
+    case "NothingToPush":
+      return "everything was already pushed"
+    case "Blocked":
+      return `${because(attempt.repo)} — nothing was pushed`
+    case "Failed":
+      return attempt.said
+    case "Refused":
+      return attempt.failure.message
+  }
 }
 
 /** Who a writer is, to a reader. `web` is the only one that gets a different

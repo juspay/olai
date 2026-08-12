@@ -1,0 +1,26 @@
+{
+  "name": "@olai/git",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "//exports": "Three entries, and only the first is the package. `./state` is the vocabulary WITHOUT the plumbing — RepoState and Reason travel the wire, so @olai/format re-exports them for its pending schema and the browser ends up importing them; the main entry reaches node:child_process, which a browser bundle must never do, so the wire half is reachable on its own. `./testlib` is not product either: a real repository in the states a commit path has to tell apart, published so the packages ABOVE build their fixtures the same way rather than each growing its own `git init` that forgets `user.email` on a CI runner. The same carve-out @olai/format and @olai/log make, for the same reason.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./state": "./src/state.ts",
+    "./testlib": "./src/fixtures.testlib.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//dependencies": "`effect` and nothing else, deliberately: this is a LEAF beside `format` and `log` (docs/architecture.md), and it is the whole point of the extraction — a package that shells out to git and knows nothing about outlines, writers or a wire. A workspace sibling appearing here would be that knowledge coming back.",
+  "dependencies": {
+    "effect": "4.0.0-beta.106"
+  },
+  "//devDependencies": "@types/node is for `node:child_process` and `node:fs`, which this package IS. @olai/log is here for its `./testlib` collector ONLY — a refusal is reported as a log line, so a test of what it reports has to hear one, and hearing one has exactly one spelling in this tree. Deliberately not a runtime dependency: the levels and the verbs are Effect's, so nothing in src/ imports it.",
+  "devDependencies": {
+    "@olai/log": "workspace:*",
+    "@types/node": "^22.0.0"
+  }
+}

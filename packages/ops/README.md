@@ -10,7 +10,9 @@ may READ of one comes out of here too.
 It sits between `@olai/format` (what a record is, and what is legal) and
 `@olai/store` (how bytes become durable). Neither of those knows what an EDIT
 is; this package is where "mark `order` done" lives, and it is what the web UI's
-procedures and the agent's MCP tools both call.
+procedures and the agent's MCP tools both call. [`@olai/git`](../git/README.md)
+is the third thing under it — the subprocesses a commit is made of, which decide
+nothing; the deciding is here.
 
 ## Why the edits are semantic
 
@@ -46,8 +48,7 @@ in the system had to arrange:
 | `plan.ts` | the whole decision, PURE: a snapshot and a request into the files that write would produce |
 | `ops.ts` | the loop — read, plan, commit, re-plan on a stale base — and nothing else |
 | `pending.ts` | what is waiting to be committed, derived from git, the one verb that commits it, and what git is doing for the directory at all — one survey, both answers |
-| `message.ts` | what a commit nobody wrote a message for says |
-| `git.ts` | the plumbing, behind one socket: `open(root)` answers with a repository — its state, what is dirty, what HEAD had, what olai last committed, and `commit` — or with `NoRepo` for a directory that is not a work tree, or `Unusable` for a git that could not be asked |
+| `message.ts` | what a commit nobody wrote a message for says, and how olai recognises its own commits — the `olai` prefix and the `X-Olai-Writer` trailer, handed down to the plumbing rather than known by it |
 | `query.ts` | reading the set as NODES: search, one node, a subtree, the outlines |
 | `tools.ts` | the closed list of what an agent may do, and what it may not |
 | `codec.ts` | the seam where the generic store meets the outline format |
@@ -83,10 +84,11 @@ the format.
 
 **The package exports four things, and the rest of that table is inside.**
 `codec`, `make`, `Query`, `TOOLS` — one socket per concept, not the wires behind
-it. The planner and the git hook are what those are made of; a consumer wants
+it. The planner and the commit hook are what those are made of; a consumer wants
 the writer, not the plan, and its own tests reach it directly. The one type that
-travels with them is `GitState`, because a consumer PUBLISHES that value; the
-two subprocesses that produce it stay in here.
+travels with them is `GitState`, because a consumer PUBLISHES that value; what
+produces it — this layer's survey, over `@olai/git`'s subprocesses — stays in
+here.
 
 The TABLE is exported and used to be private, and the reason it changed is that
 this package used to own an MCP server too. What a consumer wanted then was the
@@ -191,10 +193,32 @@ when it knows its work is finished, and both are callers of one `Ops.commit`.
 server with no browser to press anything, and `--commit=off` (`--no-commit`) is
 for a directory whose history is somebody else's job.
 
-What is waiting is DERIVED (`pending.ts`): `git status --porcelain` names the
-dirty outlines, `git show HEAD:<file>` is the committed side, the store's own
-last-good parse is the working side, and `@olai/format`'s `changesOf` compares
-them into node-level changes. Beside it rides the LAST COMMIT olai made —
+What is waiting is DERIVED (`pending.ts`), and it is the WHOLE REPOSITORY in two
+kinds of row. `git status --porcelain` names every dirty file in it — the survey
+used to be pathspec'd to the served directory, so a person who edited a
+`README.md` one level up was told nothing was waiting, which is the bug
+`commit-whole-repo` was filed for. For an outline olai serves, `git show
+HEAD:<file>` is the committed side, the store's own last-good parse is the
+working side, and `@olai/format`'s `changesOf` compares them into node-level
+changes. For everything else — a document, a source file, an outline outside the
+served root — the row is a path and the porcelain's own status letter, because
+the only richer thing available is a text diff and this is an audit-trail
+recorder rather than a git client.
+
+A commit names exactly the paths it was asked for (`CommitRequest.paths`,
+repository-root-relative; omitted is everything) and nothing else, on both `add`
+and `commit`. It is a SELECTION and never git's index, so work somebody staged
+by hand is undisturbed and what is left out stays waiting for its own commit and
+its own message. A path nothing is waiting on is refused by name rather than
+quietly dropped.
+
+`Ops.push` is the verb beside it: the current branch to the upstream it already
+tracks, no arguments, and a refusal carrying git's own words. What is ahead of
+that upstream comes off the `--branch` header the status call is already
+printing, so "what is not recorded" and "what is not shared" cost one
+subprocess between them.
+
+Beside all of it rides the LAST COMMIT olai made —
 `git log -1` through the audit filter, so a person's own commits are not
 reported — because what is waiting says nothing about whether anything was ever
 recorded, and `null` there means "never" rather than "nothing right now".
@@ -203,9 +227,7 @@ A clean directory costs one `rev-parse` and three concurrent asks (state, what
 is dirty, what was last recorded), with no parsing at all. The repository handle
 is kept once it is one — a directory does not stop being a work tree — while a
 negative answer is re-asked, so a `git init` under a running server is picked up
-on the next sweep. Only `.jsonl` outlines are ever named on
-`add` or `commit`: they are the only files this package writes, and a served
-directory is a working tree with other work in it.
+on the next sweep.
 
 Committing checks that the repository is FREE first — no merge, rebase or
 cherry-pick in flight, and not a detached HEAD. Nothing used to, which is how an
@@ -345,10 +367,11 @@ Git can never fail a write. The bytes are on disk and the browser has already
 seen them by the time git runs, so a refusal is a `Failed` carrying git's own
 words and a warning in the log — with those words as a FIELD (`said=…`) rather
 than inside the sentence, so the message stays greppable and the reason stays
-readable. Only the files this layer wrote are ever named, on both `add` and
-`commit`: a served directory is a working tree with other work in it.
-`src/git.test.ts` holds that shape, along with the repository states that are
-only testable by putting a repository in them.
+readable. Only the files this layer names are ever staged, on both `add` and
+`commit`: a served directory is a working tree with other work in it. The
+subprocesses themselves are [`@olai/git`](../git/README.md), which decides
+nothing and holds that shape in its own tests, along with the repository states
+that are only testable by putting a repository in them.
 
 **And it says WHY, because `committed: false` on its own is four different
 pieces of news.** That was `git-invisible`: a person writing to a directory they

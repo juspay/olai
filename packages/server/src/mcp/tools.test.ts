@@ -181,6 +181,7 @@ test("the tool list is reads and writes, and no file access at all", async () =>
       "create_outline",
       "list_outlines",
       "move_node",
+      "push",
       "read_node",
       "read_subtree",
       "remove_mirror",
@@ -212,6 +213,43 @@ test("the tool list is reads and writes, and no file access at all", async () =>
     const list = tools.find((tool) => tool.name === "list_outlines")
     expect(list?.inputSchema).toMatchObject({ type: "object", properties: {} })
     expect(JSON.stringify(list?.inputSchema)).not.toContain(`"value"`)
+  })
+})
+
+/**
+ * The two git verbs, as an agent is offered them — HACKING.md's consistency
+ * rule at the seam where it is easiest to break: the panel grew checkboxes, so
+ * the tool grew `paths`, and a face that had one without the other would be two
+ * different products.
+ */
+test("the git verbs offer an agent what the panel offers a person", async () => {
+  await withTools({ "house.jsonl": HOUSE }, async ({ client }) => {
+    const { tools } = await client.listTools()
+
+    const commit = tools.find((tool) => tool.name === "commit")
+    expect(Object.keys(commit?.inputSchema.properties ?? {}).sort())
+      .toEqual(["message", "paths"])
+    // Both halves of the selection story reach the model, because a tool it has
+    // to guess at is a tool it uses wrongly: the paths are the ones `pending`
+    // publishes, and it sweeps everything when they are omitted.
+    expect(commit?.description).toContain("pending")
+    expect(commit?.description).toContain("index")
+
+    // Push takes NOTHING, and that is the design rather than an omission.
+    const push = tools.find((tool) => tool.name === "push")
+    expect(push?.inputSchema).toMatchObject({ type: "object", properties: {} })
+    expect(push?.description).toContain("upstream")
+  })
+})
+
+/** And it is reachable: under `--commit=off` the answer is `Blocked`, which is
+ *  an ANSWER — `isError` is for a refused write, and every way pushing can go
+ *  wrong is something a caller is entitled to read. */
+test("push answers rather than failing when there is nothing to push to", async () => {
+  await withTools({ "house.jsonl": HOUSE }, async ({ client }) => {
+    const answered = await call(client, "push", {})
+    expect(answered.isError).toBe(false)
+    expect(answered.structured).toMatchObject({ _tag: "Blocked", did: "push" })
   })
 })
 

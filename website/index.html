@@ -328,21 +328,28 @@ The corner unit is the **risky one** — see
   <div class="wrap">
     <h2>Git integration</h2>
     <p class="lead">Writes go to disk immediately and are committed when you
-    choose. Commit messages are prefixed with <code>olai:</code>, so
-    <code>git log --grep '^olai'</code> shows the audit trail.</p>
+    choose — everything the repository has waiting, outlines and the files
+    beside them, ticked one by one if you want a smaller commit, and pushed
+    from the same panel. Commit messages are prefixed with <code>olai:</code>,
+    so <code>git log --grep '^olai'</code> shows the audit trail.</p>
     <div class="cols">
       <div>
         <pre><code>┌─ Changes ─────────────────────────────────┐
 │ olai: Outlines as a collection done       │
 │   · chat agent · 12m ago · 1a2b3c4        │
 │                                           │
-│ roadmap.jsonl                             │
+│ OUTLINES ─────────────────────────────    │
+│ ☑ roadmap.jsonl                           │
 │   ✓  Outlines as a collection    done     │
 │   ✎  Notes: one state, same line  note    │
 │   +  Kolu integration: auto-…    created  │
 │                                           │
-│ chat agent 3 · you 1                      │
-│                      [ Commit 3 changes ] │
+│ OTHER FILES ──────────────────────────    │
+│ ☑ README.md                    modified   │
+│ ☐ notes/scratch.md            untracked   │
+│                                           │
+│ 2 commits not on origin/master   [ Push ] │
+│         [ Commit 3 changes · 1 file ]     │
 └───────────────────────────────────────────┘</code></pre>
       </div>
       <div>

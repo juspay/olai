@@ -51,6 +51,7 @@ import type {
   OutlineError,
   OutlineSet,
   Pending,
+  PushResult,
   Writer,
 } from "@olai/format"
 import type { Store } from "@olai/store"
@@ -149,10 +150,13 @@ export interface Wiring {
      *  window between them in which the two controls could disagree. */
     readonly status: Effect.Effect<Status>
     readonly commit: (request: CommitRequest) => Effect.Effect<CommitResult>
-    /** Bumped by the ops layer whenever a commit lands, by whichever door. A
-     *  commit changes what is waiting without changing a served file, so this
-     *  is the only thing that can say so. */
-    readonly committed: SubscriptionRef.SubscriptionRef<number>
+    /** The other verb, and it takes nothing: the current branch to the upstream
+     *  it already has. What it changes is the unpushed count on `pending`. */
+    readonly push: Effect.Effect<PushResult>
+    /** Bumped by the ops layer whenever git RECORDED or SHARED something — a
+     *  commit by whichever door, or a push. Neither moves a served file, so
+     *  this is the only thing that can say what is waiting has changed. */
+    readonly recorded: SubscriptionRef.SubscriptionRef<number>
   }
 }
 
@@ -167,13 +171,14 @@ export interface Wiring {
  * so it is the only thing this takes.
  */
 export const gitWiring = (
-  ops: Pick<Ops, "status" | "commit">,
+  ops: Pick<Ops, "status" | "commit" | "push">,
   writer: Writer,
-  committed: SubscriptionRef.SubscriptionRef<number>,
+  recorded: SubscriptionRef.SubscriptionRef<number>,
 ): Wiring["git"] => ({
   status: ops.status,
   commit: (request) => ops.commit(request, writer),
-  committed,
+  push: ops.push,
+  recorded,
 })
 
 /** The chat, plus the two publishers the surface hands back once it exists.
@@ -347,7 +352,7 @@ export const bind = (
                   () => republishGit,
                 ),
                 Stream.runForEach(
-                  SubscriptionRef.changes(wiring.git.committed),
+                  SubscriptionRef.changes(wiring.git.recorded),
                   () => republishGit,
                 ),
                 Effect.forever(Effect.andThen(Effect.sleep(SWEEP), republishGit)),
@@ -450,9 +455,14 @@ export const bind = (
           // the ops layer is built — a procedure is a transport, and which
           // transport this one is is not a thing it should be able to claim
           // about itself. What republishes afterwards is NOT here: it is the
-          // `committed` subscription above, so the agent's tool and
+          // `recorded` subscription above, so the agent's tool and
           // `--commit=auto` get it too.
           commit: ({ input }) => wiring.git.commit(input),
+          // The Push button's door, and it takes no input at all — one verb,
+          // the current branch, the upstream it already has. It republishes
+          // through the same subscription for the same reason: pushing moves no
+          // served file and changes what `pending` says.
+          push: () => wiring.git.push,
         },
       },
     }

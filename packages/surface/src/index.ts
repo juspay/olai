@@ -44,12 +44,13 @@
  * surface, process id included, so an app that declares its own is declaring a
  * second answer to a question already answered (juspay/kolu#2133).
  *
- * One more is GIT, and it is a pair rather than a member: a `pending` cell —
- * what is waiting to be committed, derived from git on the server and never
- * stored — and a `git.commit` procedure, which is the Commit button's half of
- * the same action the agent reaches through an MCP tool. It is a procedure
- * rather than a write verb on the cell because committing is an act with four
- * answers, three of which are refusals a reader has to be shown.
+ * One more is GIT, and it is a cell with two verbs beside it rather than a
+ * member: a `pending` cell — what is waiting to be committed, and what is
+ * committed and not pushed, derived from git on the server and never stored —
+ * plus `git.commit` and `git.push`, which are the Commit and Push buttons' half
+ * of the same two actions the agent reaches through MCP tools. They are
+ * PROCEDURES rather than write verbs on the cell because each is an act with
+ * four answers, three of which are refusals a reader has to be shown.
  *
  * Three more are the chat, and they are declared next door in
  * {@link ./chat.ts} because they are a subject of their own: a `transcript`
@@ -77,6 +78,7 @@ import {
   NOTHING_PENDING,
   OutlineError,
   Pending,
+  PushResult,
   samePending,
 } from "@olai/format"
 import { defineSurface } from "@kolu/surface/define"
@@ -435,6 +437,21 @@ export const surface = defineSurface({
       commit: {
         input: CommitRequest,
         output: CommitResult,
+        error: OpFailure,
+      },
+      /**
+       * The other verb, and the one the human said was the last reason to leave
+       * olai for a terminal.
+       *
+       * No input at all, which is the design rather than an omission: the
+       * current branch to the upstream it already has, and nothing to choose.
+       * What it changes is `pending` — the unpushed count both the panel and the
+       * header draw — which the server republishes the moment it is done, for
+       * the same reason a commit does.
+       */
+      push: {
+        input: Schema.Struct({}),
+        output: PushResult,
         error: OpFailure,
       },
     },

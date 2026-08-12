@@ -89,17 +89,27 @@ export type { Records } from "./changes.ts"
 export {
   CommitRequest,
   CommitResult,
+  How,
   isPossible,
   isReady,
   LastCommit,
   NOTHING_PENDING,
+  DirtyOutline,
+  Other,
   Pending,
+  PushResult,
   Reason,
   RepoState,
   samePending,
+  Unpushed,
   Writer,
   Wrote,
 } from "./committing.ts"
+
+/** The words a commit gets when nobody wrote any. Here rather than in the ops
+ *  layer because the message is now a function of a SELECTION, and the
+ *  selection is made in a browser — see `./message.ts`. */
+export { composed, MESSAGE_PREFIX } from "./message.ts"
 
 /** The typo rule AND the clause it produces, exported for one reason: the ops
  *  layer refuses an unknown `mirror` / `after` / `see` target at the PLAN, and
